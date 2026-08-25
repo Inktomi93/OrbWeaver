@@ -144,8 +144,9 @@ test("RED-FIRST (#102): home's grid FILLS the pane it is given — no centred ca
   // The pane is the DOCUMENT's own width, never `closest("[data-surface-tier]")`: <Surface> is
   // `display: contents`, so it generates no box and `getBoundingClientRect()` reports 0×0 — a ratio
   // against it divides by zero and passes whatever it is handed (measured on this very assertion).
-  const ratio = await home.locator("[data-home-grid]").evaluate((el) => el.getBoundingClientRect().width / el.ownerDocument.documentElement.clientWidth);
-  expect(ratio).toBeGreaterThan(0.9);
+  await expect
+    .poll(async () => await home.locator("[data-home-grid]").evaluate((el) => el.getBoundingClientRect().width / el.ownerDocument.documentElement.clientWidth))
+    .toBeGreaterThan(0.9);
 });
 
 test("#102 CHROME DIET: a tile frame is a KICKER BAND, not a card — no border, no radius, no fill", async ({ mount }) => {
@@ -371,8 +372,7 @@ test("the grid aligns tiles to START — a short tile never stretches to its row
 
   // `items-start` resolves to the computed `flex-start` (its grid-axis synonym) — the point is that it is
   // NOT `normal`/`stretch`, which is what grew the short tile.
-  const align = await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).alignItems);
-  expect(align).toBe("flex-start");
+  await expect.poll(async () => await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).alignItems)).toBe("flex-start");
 });
 
 // ── THE SHIPPED FIRST BOOT (#129 residual 1) ─────────────────────────────────────────────────────────
@@ -763,10 +763,11 @@ test("#455 opening the fold restores the block WHOLE — #457's h3 titles and ra
   // still on the `prose` length modifier (the ramp stop above bare micro), which is what P3-6 ruled.
   // (Automation's doorway retired with B3, so buddy is the one remaining h3 title.)
   await expect(page.getByRole("heading", { level: 3 })).toHaveText(["Buddy"]);
-  const teaserSize = await home.getByText(TEASER_RE).evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize));
   const triggerSize = await page.getByRole("button", { name: GROUP_LABEL }).evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize));
   // P3-6's actual defect: the explanatory paragraph rendered at the SAME step as the label above it.
-  expect(teaserSize).toBeGreaterThanOrEqual(triggerSize);
+  await expect
+    .poll(async () => await home.getByText(TEASER_RE).evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize)))
+    .toBeGreaterThanOrEqual(triggerSize);
 });
 
 test("#455 the fold's trigger is a CONTROL, not a kicker — it clears the 24×24 target floor", async ({ mount, page }) => {

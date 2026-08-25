@@ -121,8 +121,8 @@ async function resetMotion(page: Page): Promise<void> {
 }
 
 async function hitPoint(locator: Locator): Promise<{ x: number; y: number }> {
+  await expect.poll(async () => await locator.boundingBox()).not.toBeNull();
   const box = await locator.boundingBox();
-  expect(box).not.toBeNull();
   if (box === null) {
     throw new Error("visible CT control has no bounding box");
   }

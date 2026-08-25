@@ -193,8 +193,11 @@ test("#102-F2 an EMPTY bank keeps the RAIL register: flush-left, no centred isla
   const tile = home.locator(TILE);
 
   // Nothing inside the block centres itself — the mock's `.bank` is a left-aligned column.
-  const centred = await tile.evaluate((root) => [...root.querySelectorAll("*")].filter((el) => globalThis.getComputedStyle(el).textAlign === "center").length);
-  expect(centred).toBe(0);
+  await expect
+    .poll(
+      async () => await tile.evaluate((root) => [...root.querySelectorAll("*")].filter((el) => globalThis.getComputedStyle(el).textAlign === "center").length),
+    )
+    .toBe(0);
 
   // The label line shares its left edge with the block's own kicker heading (a centred island did not).
   const label = await tile.getByText("No documents yet").boundingBox();
@@ -240,11 +243,10 @@ test("at the narrowest real host a crowded health line WRAPS — every chip stay
   await expect(tile.getByText("46 documents · 286 of 507 passages indexed")).toBeVisible();
   const chips = tile.locator('[data-slot="badge"]');
   await expect(chips.first()).toHaveText("12 stalled");
-
+  await expect.poll(async () => await tile.boundingBox()).not.toBeNull();
   const card = await tile.boundingBox();
-  expect(card).not.toBeNull();
+  await expect.poll(async () => await chips.count()).toBeGreaterThan(0);
   const count = await chips.count();
-  expect(count).toBeGreaterThan(0);
   const boxes = await Promise.all(Array.from({ length: count }, async (_, i) => await chips.nth(i).boundingBox()));
   for (const chip of boxes) {
     expect(chip).not.toBeNull();

@@ -111,10 +111,9 @@ test("a large leaderboard renders only a windowed slice of rows (virtualized)", 
 
   await expect(component.getByText("Char 0")).toBeVisible();
   const listitems = component.getByRole("listitem");
-  const rendered = await listitems.count();
-  expect(rendered).toBeGreaterThan(0);
+  await expect.poll(async () => await listitems.count()).toBeGreaterThan(0);
   // The whole page is 60 rows; the DOM holds only the window (plus overscan) — never all 60.
-  expect(rendered).toBeLessThan(30);
+  await expect.poll(async () => await listitems.count()).toBeLessThan(30);
 });
 
 // P2g: 50 rows at tabIndex=0 was 50 consecutive tab stops. Roving makes exactly ONE row body tabbable and

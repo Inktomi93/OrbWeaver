@@ -63,8 +63,7 @@ test("an unsent draft survives a full page RELOAD (the owner's 2026-08-09 pick)"
 
   // The write must have LANDED in storage before the reload — asserting it here is what separates "the
   // store persisted" from "the reload happened to be a no-op".
-  const stored = await page.evaluate((key) => globalThis.localStorage.getItem(key), STORAGE_KEY);
-  expect(stored).toContain("typed but not sent");
+  await expect.poll(async () => await page.evaluate((key) => globalThis.localStorage.getItem(key), STORAGE_KEY)).toContain("typed but not sent");
 
   await page.reload();
 

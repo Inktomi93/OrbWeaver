@@ -123,8 +123,9 @@ test("with rows the header owns the create action, and the empty state is gone",
   await expect(section.getByText("No schedules yet", { exact: false })).toHaveCount(0);
   // CD3 — the pane's one accent at rest belongs to Jobs' "Run a job…", so this button is SECONDARY.
   // Asserted on the COMPUTED fill (an intent prop is not a pixel): secondary is `bg-transparent`.
-  const fill = await section.getByTestId("schedule-create-button").evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(fill).toBe("rgba(0, 0, 0, 0)");
+  await expect
+    .poll(async () => await section.getByTestId("schedule-create-button").evaluate((el) => getComputedStyle(el).backgroundColor))
+    .toBe("rgba(0, 0, 0, 0)");
 });
 
 test("the create dialog wires a singular createSchedule (kind + cadence + params)", async ({ mount, page }) => {

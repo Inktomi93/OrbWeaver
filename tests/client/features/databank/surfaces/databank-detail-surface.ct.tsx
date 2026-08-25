@@ -202,7 +202,21 @@ test("the detail keeps a MEASURE at a desktop-wide pane — it does not spread w
   const wide = await mount(<DatabankDetailWideStory />);
   await wide.getByRole("button", { name: CRIMSON_ROW }).first().click();
   await expect(wide.getByText("application/pdf")).toBeVisible();
-
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const label = [...document.querySelectorAll("p,span")].find((el) => el.textContent?.trim() === "Origin" && el.children.length === 0);
+          const pane = document.querySelector('[data-slot="databank-content"]');
+          if (label === undefined || pane === null) {
+            return null;
+          }
+          // The readout ROW is the label's parent — its width is what the whole finding is about.
+          const row = label.parentElement;
+          return { row: row === null ? 0 : row.getBoundingClientRect().width, pane: pane.getBoundingClientRect().width };
+        }),
+    )
+    .not.toBeNull();
   const measured = await page.evaluate(() => {
     const label = [...document.querySelectorAll("p,span")].find((el) => el.textContent?.trim() === "Origin" && el.children.length === 0);
     const pane = document.querySelector('[data-slot="databank-content"]');
@@ -213,8 +227,6 @@ test("the detail keeps a MEASURE at a desktop-wide pane — it does not spread w
     const row = label.parentElement;
     return { row: row === null ? 0 : row.getBoundingClientRect().width, pane: pane.getBoundingClientRect().width };
   });
-
-  expect(measured).not.toBeNull();
   // The pane really is the wide one…
   expect(measured?.pane ?? 0).toBeGreaterThan(1200);
   // …and the readout is not. `max-w-prose` is the measure both sibling member editors (tag, regex) keep;
@@ -292,27 +304,29 @@ test("the CONTENT groups are CD1 kickers, hairline and all (P2)", async ({ mount
   const workspace = await mount(<DatabankWorkspaceStory />);
   await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
   await expect(workspace.getByRole("heading", { name: "Details" })).toBeVisible();
-
-  const measured = await page.evaluate(() =>
-    ["Details", "Maintenance", "Source text"].map((name) => {
-      const heading = [...document.querySelectorAll("h3")].find((el) => el.textContent?.trim() === name);
-      if (heading === undefined) {
-        return { name, transform: "MISSING", separators: -1 };
-      }
-      const row = heading.parentElement;
-      return {
-        name,
-        transform: getComputedStyle(heading).textTransform,
-        separators: row === null ? -1 : row.querySelectorAll('[data-slot="separator"]').length,
-      };
-    }),
-  );
-
-  expect(measured).toEqual([
-    { name: "Details", transform: "uppercase", separators: 1 },
-    { name: "Maintenance", transform: "uppercase", separators: 1 },
-    { name: "Source text", transform: "uppercase", separators: 1 },
-  ]);
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() =>
+          ["Details", "Maintenance", "Source text"].map((name) => {
+            const heading = [...document.querySelectorAll("h3")].find((el) => el.textContent?.trim() === name);
+            if (heading === undefined) {
+              return { name, transform: "MISSING", separators: -1 };
+            }
+            const row = heading.parentElement;
+            return {
+              name,
+              transform: getComputedStyle(heading).textTransform,
+              separators: row === null ? -1 : row.querySelectorAll('[data-slot="separator"]').length,
+            };
+          }),
+        ),
+    )
+    .toEqual([
+      { name: "Details", transform: "uppercase", separators: 1 },
+      { name: "Maintenance", transform: "uppercase", separators: 1 },
+      { name: "Source text", transform: "uppercase", separators: 1 },
+    ]);
 });
 
 test("source text is a read-only REGION, fetched only on reveal — not a Textarea, not part of the open read", async ({ mount, page }) => {

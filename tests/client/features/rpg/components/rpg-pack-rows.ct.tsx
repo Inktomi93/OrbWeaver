@@ -28,9 +28,8 @@ test.describe("coarse touch floor", () => {
     await component.getByRole("button", { name: "Iron Sword icon" }).click();
     const choices = page.getByRole("button", { name: ICON_CHOICE });
     await expect(choices.first()).toBeVisible();
-
+    await expect.poll(async () => await choices.count()).toBeGreaterThan(4);
     const count = await choices.count();
-    expect(count).toBeGreaterThan(4);
 
     // THE PITCH IS THE EXACT CLAIM, and a hit sweep alone cannot state it: this is a TILED run, so at a 44px
     // pitch the abutting 44px targets share their boundary sample and the sweep reports 43 for BOTH — one px

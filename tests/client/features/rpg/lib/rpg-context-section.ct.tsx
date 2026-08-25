@@ -25,6 +25,8 @@ const PERSONA_ID = "persona_ct_keystone";
 /** "a `title` with any content at all" — hoisted (a regex literal in a test body is a per-call recompile,
  *  `useTopLevelRegex`) and used with `not.toHaveAttribute`, which also passes when the attribute is absent. */
 const ANY_TITLE = /./;
+const SAFE_SANDBOX = /^(?!.*allow-scripts)(?!.*allow-same-origin).*$/u;
+const NONEMPTY_ID = /.+/u;
 
 /** The Vitality meter's two editable cells — the reading and this carrier's ceiling. `subject`-qualified
  *  names are the `MeterRow` rule (two cast cards must not both offer a button called "Vitality value"), so
@@ -1085,10 +1087,7 @@ test("RV-2: the Scene CARD ARCHIVE lists the transcript's cards and opens one in
   await expect(dialog).toBeVisible();
   const frame = dialog.locator('iframe[data-slot="sandbox-frame"]');
   await expect(frame).toHaveCount(1);
-  const sandbox = await frame.getAttribute("sandbox");
-  expect(sandbox).not.toBeNull();
-  expect(sandbox).not.toContain("allow-scripts");
-  expect(sandbox).not.toContain("allow-same-origin");
+  await expect(frame).toHaveAttribute("sandbox", SAFE_SANDBOX);
   await expect(page.locator("div", { hasText: "secret page" })).toHaveCount(0);
 });
 
@@ -2189,10 +2188,10 @@ test("HUD-1 §3.6 fence 6: the ACTIVE region is NAMED by its cell — two rails 
   await expect(scene).toHaveAttribute("aria-current", "true");
 
   const panel = component.locator('[data-slot="tabs-panel"]:visible');
-  const labelledBy = await panel.getAttribute("aria-labelledby");
+  await expect(scene).toHaveAttribute("id", NONEMPTY_ID);
   const cellId = await scene.getAttribute("id");
-  expect(labelledBy).not.toBeNull();
-  expect(labelledBy).toBe(cellId);
+  await expect(panel).toHaveAttribute("aria-labelledby", cellId ?? "missing-cell-id");
+  const labelledBy = await panel.getAttribute("aria-labelledby");
   // …and the id actually resolves to the cell, so the name is a real one, not a dangling reference.
   // (#112: the cell is a BUTTON now, not a tab — the rails announce as toolbars, see the HUD's ARIA note.)
   await expect(component.locator(`[id="${labelledBy ?? ""}"]`)).toHaveAttribute("data-slot", "tabs-tab");
@@ -3024,8 +3023,7 @@ test("side-eye 08-01: an UNSET pool reads as an em dash, never a synthesized 0/m
   await expect(row).toContainText("—/30");
   await expect(component.getByText("0/30")).toHaveCount(0);
   // …and the decoration agrees with the text: an EMPTY rail, not a bar computed off the invented zero.
-  const fillWidth = await row.locator('[data-slot="track-bar-fill"]').evaluate((el) => el.getBoundingClientRect().width);
-  expect(fillWidth).toBe(0);
+  await expect.poll(async () => await row.locator('[data-slot="track-bar-fill"]').evaluate((el) => el.getBoundingClientRect().width)).toBe(0);
 });
 
 test("side-eye 08-01: the pack grid ends on the LAST ITEM — no empty ghost socket", async ({ mount, page }) => {
@@ -3346,15 +3344,19 @@ test.describe("coarse HUD budget", () => {
       // (Six is the declared game rail: Status · Inventory · Scene · Quests · Journal · Map.)
       const cells = component.locator('[data-slot="rpg-hud-rail"]').first().getByRole("button");
       await expect(cells).toHaveCount(6);
-      const clipped = await component
-        .locator('[data-slot="rpg-hud-rail"]')
-        .first()
-        .evaluate((el: HTMLElement) =>
-          Array.from(el.querySelectorAll<HTMLElement>('[data-slot="rpg-hud-cell-caption"]'))
-            .filter((node) => node.scrollWidth - node.clientWidth > 1)
-            .map((node) => node.textContent ?? ""),
-        );
-      expect(clipped).toEqual([]);
+      await expect
+        .poll(
+          async () =>
+            await component
+              .locator('[data-slot="rpg-hud-rail"]')
+              .first()
+              .evaluate((el: HTMLElement) =>
+                Array.from(el.querySelectorAll<HTMLElement>('[data-slot="rpg-hud-cell-caption"]'))
+                  .filter((node) => node.scrollWidth - node.clientWidth > 1)
+                  .map((node) => node.textContent ?? ""),
+              ),
+        )
+        .toEqual([]);
     });
 
     test(`@${pane.width}: the rail keeps its NAME at coarse and drops only the SELECTION half`, async ({ mount, page }) => {
@@ -3402,10 +3404,17 @@ test.describe("coarse game rail cells", () => {
       const rail = component.locator('[data-slot="rpg-hud-rail"]').first();
       await expect(rail.getByRole("button")).toHaveCount(6);
       // BOXES, because `TabsTab` has no overflowing hit pseudo — here the box IS the target.
+      await expect
+        .poll(
+          async () =>
+            await rail.evaluate((el: HTMLElement) =>
+              Array.from(el.querySelectorAll<HTMLElement>('[data-slot="tabs-tab"]')).map((node) => node.getBoundingClientRect().width),
+            ),
+        )
+        .toHaveLength(6);
       const widths = await rail.evaluate((el: HTMLElement) =>
         Array.from(el.querySelectorAll<HTMLElement>('[data-slot="tabs-tab"]')).map((node) => node.getBoundingClientRect().width),
       );
-      expect(widths).toHaveLength(6);
       expect(widths.filter((w) => w < 44)).toEqual([]);
     });
 
@@ -3418,14 +3427,18 @@ test.describe("coarse game rail cells", () => {
       await expect(rail.getByRole("button")).toHaveCount(6);
       // The tail gap is measured against the LIST's own box, so the assertion survives a retune of the rail's
       // inline padding. MEASURED before: 127px of 429 at 430.
-      const tail = await rail.evaluate((el: HTMLElement) => {
-        const list = el.querySelector('[role="toolbar"]') as HTMLElement;
-        const cells = Array.from(list.querySelectorAll<HTMLElement>('[data-slot="tabs-tab"]'));
-        const last = cells.at(-1) as HTMLElement;
-        return list.getBoundingClientRect().right - last.getBoundingClientRect().right;
-      });
       // One inter-cell gap of slack: an equal-column rail lands the last cell on the list's own right edge.
-      expect(tail).toBeLessThan(12);
+      await expect
+        .poll(
+          async () =>
+            await rail.evaluate((el: HTMLElement) => {
+              const list = el.querySelector('[role="toolbar"]') as HTMLElement;
+              const cells = Array.from(list.querySelectorAll<HTMLElement>('[data-slot="tabs-tab"]'));
+              const last = cells.at(-1) as HTMLElement;
+              return list.getBoundingClientRect().right - last.getBoundingClientRect().right;
+            }),
+        )
+        .toBeLessThan(12);
     });
   }
 });
@@ -3701,8 +3714,7 @@ test.describe("coarse touch floor — the meter row's value and its ceiling", ()
     await expect(component.locator('[data-slot="meter-row"] [data-slot="track-bar"]').first()).toBeVisible();
 
     const values = component.getByRole("button", { name: VITALITY_CELLS });
-    const count = await values.count();
-    expect(count).toBeGreaterThan(0);
+    await expect.poll(async () => await values.count()).toBeGreaterThan(0);
 
     const floor = await touchFloorPx(page);
     const stolen = await values.evaluateAll(
@@ -3773,14 +3785,19 @@ test("side-eye 2026-08-16: the PHASE-lock glyph keeps a gutter off the pane's ow
   const component = await mount(<RpgTakeoverDockedStory />);
   const mapTab = component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Map" });
   await expect(mapTab).toBeVisible();
-
-  const gutter = await mapTab.evaluate((tab: HTMLElement): number => {
-    const glyph = tab.querySelector("svg:last-of-type");
-    if (glyph === null) {
-      return Number.NaN;
-    }
-    return Math.round(tab.getBoundingClientRect().right - glyph.getBoundingClientRect().right);
-  });
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const probe = document.createElement("div");
+          probe.style.width = "var(--spacing-field)";
+          document.body.append(probe);
+          const px = probe.getBoundingClientRect().width;
+          probe.remove();
+          return px;
+        }),
+    )
+    .toBeGreaterThan(0);
   const field = await page.evaluate(() => {
     const probe = document.createElement("div");
     probe.style.width = "var(--spacing-field)";
@@ -3789,8 +3806,18 @@ test("side-eye 2026-08-16: the PHASE-lock glyph keeps a gutter off the pane's ow
     probe.remove();
     return px;
   });
-  expect(field).toBeGreaterThan(0);
-  expect(gutter).toBeGreaterThanOrEqual(Math.round(field) - 1);
+  await expect
+    .poll(
+      async () =>
+        await mapTab.evaluate((tab: HTMLElement): number => {
+          const glyph = tab.querySelector("svg:last-of-type");
+          if (glyph === null) {
+            return Number.NaN;
+          }
+          return Math.round(tab.getBoundingClientRect().right - glyph.getBoundingClientRect().right);
+        }),
+    )
+    .toBeGreaterThanOrEqual(Math.round(field) - 1);
 });
 
 // ── #149: THE HUD BAND RESERVES ITS BOX WHILE THE TRACKER READ IS IN FLIGHT ──────────────────────────
@@ -3831,6 +3858,5 @@ test("#149 the band holds its box open while `getTrackerView` is in flight, and 
   // SETTLED: the reservation is gone (the real band replaced it), and the band did not grow into the rail
   // below it. Pre-fix the pending band was chrome-only and this delta was the whole ~120-192px jump.
   await expect(reservation).toHaveCount(0);
-  const settled = await band.evaluate((el) => el.getBoundingClientRect().height);
-  expect(settled).toBeLessThanOrEqual(pending);
+  await expect.poll(async () => await band.evaluate((el) => el.getBoundingClientRect().height)).toBeLessThanOrEqual(pending);
 });

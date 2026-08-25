@@ -133,11 +133,15 @@ test("#537 a hit's relevance is INSIDE the row's own button, on its accessible d
   // The percent is a descendant of the row's BODY (the button itself), not of a sibling cluster.
   await expect(row.getByText("88%")).toBeVisible();
   // …and it is wired: the body's aria-describedby resolves to text containing the number.
-  const described = await row.evaluate((el: HTMLElement) => {
-    const ids = (el.getAttribute("aria-describedby") ?? "").split(" ").filter((id) => id !== "");
-    return ids.map((id) => el.ownerDocument.getElementById(id)?.textContent ?? "").join(" ");
-  });
-  expect(described).toContain("88%");
+  await expect
+    .poll(
+      async () =>
+        await row.evaluate((el: HTMLElement) => {
+          const ids = (el.getAttribute("aria-describedby") ?? "").split(" ").filter((id) => id !== "");
+          return ids.map((id) => el.ownerDocument.getElementById(id)?.textContent ?? "").join(" ");
+        }),
+    )
+    .toContain("88%");
 });
 
 test("a memory hit is a door: clicking it opens its chat", async ({ mount, page }) => {
@@ -377,8 +381,8 @@ test("a memory row's accessible name is its ROOM, short and readable — not the
 
   await searchMemories(component);
   const row = component.getByRole("button", { name: NAMED_ROOM });
-  const accName = await row.evaluate((node) => node.getAttribute("aria-label") ?? "");
-  expect(accName).toBe(NAMED_ROOM);
+  await expect(row).toHaveAttribute("aria-label", NAMED_ROOM);
+  const accName = (await row.getAttribute("aria-label")) ?? "";
   expect(accName.length, "an accessible name a person can hear").toBeLessThan(120);
   // LABEL-IN-NAME: the name is exactly the text rendered as the row's title.
   await expect(row.locator('[data-slot="list-row-title"]')).toHaveText(accName);

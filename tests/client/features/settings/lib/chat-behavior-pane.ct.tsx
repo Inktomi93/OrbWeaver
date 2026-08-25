@@ -63,9 +63,9 @@ test("the skimmer renders all seven contributed sections, in the door's declared
   await stub(page);
   await mount(<ChatBehaviorPaneStory />);
   await page.getByRole("heading", { name: "Chat & message handling" }).waitFor();
-
-  const anchorIds = await page.evaluate(() => [...document.querySelectorAll('[id^="settings-anchor-chat-behavior-"]')].map((el) => el.id));
-  expect(anchorIds).toStrictEqual(ANCHOR_ORDER);
+  await expect
+    .poll(async () => await page.evaluate(() => [...document.querySelectorAll('[id^="settings-anchor-chat-behavior-"]')].map((el) => el.id)))
+    .toStrictEqual(ANCHOR_ORDER);
 });
 
 // Single-column-of-SECTIONS (owner ruling — Discord grammar): every subcategory SECTION shares the same left

@@ -211,9 +211,8 @@ test("F-21 — the provenance gloss BELONGS to its row: both modalities point ar
   // name THIS row's line, and the id resolves to that exact text.
   const slider = deck.getByRole("slider", { name: "Top-P", exact: true });
   const twin = deck.getByRole("textbox", { name: "Top-P value", exact: true });
-
+  await expect(slider).toHaveAttribute("aria-describedby", ANY);
   const glossId = await slider.getAttribute("aria-describedby");
-  expect(glossId).not.toBeNull();
   await expect(deck.locator(`#${glossId ?? ""}`)).toHaveText("model default");
   // The TWIN composes it with its own bounds description — the same row, both controls.
   expect((await twin.getAttribute("aria-describedby")) ?? "").toContain(glossId ?? "");

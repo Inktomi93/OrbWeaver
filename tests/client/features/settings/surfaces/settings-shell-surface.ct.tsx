@@ -335,8 +335,8 @@ test("switching to Automation shows ITS distinct content — the owner-global ru
   // the copy as a one-word ribbon while the content assertions stayed GREEN. Prose in a pane must be a
   // paragraph, not a column.
   const gloss = component.getByText(AUTOMATION_GLOSS);
+  await expect.poll(async () => await gloss.boundingBox()).not.toBeNull();
   const box = await gloss.boundingBox();
-  expect(box).not.toBeNull();
   expect(box?.width ?? 0).toBeGreaterThan(200);
 });
 
@@ -706,12 +706,19 @@ test("a positioned scrolling host around the shell gains NO phantom scroll (the 
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellInScrollingHostStory />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
-
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const el = document.querySelector<HTMLElement>('[data-testid="scrolling-host"]');
+          return el === null ? null : { clientHeight: el.clientHeight, scrollHeight: el.scrollHeight };
+        }),
+    )
+    .not.toBeNull();
   const host = await page.evaluate(() => {
     const el = document.querySelector<HTMLElement>('[data-testid="scrolling-host"]');
     return el === null ? null : { clientHeight: el.clientHeight, scrollHeight: el.scrollHeight };
   });
-  expect(host).not.toBeNull();
   // The pane owns its scroll axis; the host around it must have nothing to scroll. Pre-fix this measured
   // scrollHeight ≫ clientHeight with no content down there — the blank card the owner scrolled into.
   expect((host?.scrollHeight ?? 0) - (host?.clientHeight ?? 0)).toBeLessThanOrEqual(1);
@@ -796,10 +803,9 @@ test("a distant subcategory click lands on the target, never an intermediate (sp
   });
 
   // FABRICATION-OK: in-page globalThis scaffolding (see the MutationObserver instrumentation above).
-  const seen = await page.evaluate(() => (globalThis as unknown as { __seen: string[] }).__seen);
   // The only row that ever held aria-current during the jump is the target subcategory — no INTERMEDIATE
   // section flickered through, and no parent category shared the marker.
-  expect(seen).toEqual(["Effects"]);
+  await expect.poll(async () => await page.evaluate(() => (globalThis as unknown as { __seen: string[] }).__seen)).toEqual(["Effects"]);
 });
 
 // Flash geometry (owner P3): after a jump the flashed SECTION carries the inset-ring highlight, its box
@@ -818,7 +824,27 @@ test("the jump flash hugs the section box and stays within the scroll container"
     const section = document.querySelector('[id$="-avatars"]');
     return section !== null && getComputedStyle(section).boxShadow.includes("inset");
   });
-
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const section = document.querySelector('[id$="-avatars"]') as HTMLElement | null;
+          const region = document.querySelector('[role="region"]') as HTMLElement | null;
+          if (section === null || region === null) {
+            return null;
+          }
+          const sb = section.getBoundingClientRect();
+          const rb = region.getBoundingClientRect();
+          return {
+            hasInsetRing: getComputedStyle(section).boxShadow.includes("inset"),
+            sectionHeight: Math.round(sb.height),
+            scrollHeight: section.scrollHeight,
+            withinLeft: sb.left >= rb.left - 1,
+            withinRight: sb.right <= rb.left + region.clientWidth + 1,
+          };
+        }),
+    )
+    .not.toBeNull();
   const geo = await page.evaluate(() => {
     const section = document.querySelector('[id$="-avatars"]') as HTMLElement | null;
     const region = document.querySelector('[role="region"]') as HTMLElement | null;
@@ -835,8 +861,6 @@ test("the jump flash hugs the section box and stays within the scroll container"
       withinRight: sb.right <= rb.left + region.clientWidth + 1,
     };
   });
-
-  expect(geo).not.toBeNull();
   // The flash is an INSET ring on the section (never an outset outline clipped at the scroll edge).
   expect(geo?.hasInsetRing).toBe(true);
   // The box hugs content — its rendered height is its own content height (no grid-stretch dead space).
@@ -852,7 +876,29 @@ test("the modal header divider spans the full content width and the columns shar
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   await mount(<SettingsModalStory />);
   await page.getByRole("heading", { name: "Message style" }).waitFor();
-
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const popup = document.querySelector('[data-slot="dialog-popup"]') as HTMLElement | null;
+          const header = document.querySelector(".shell-modal-header") as HTMLElement | null;
+          const firstSection = document.querySelector('[id^="settings-anchor-appearance-"]') as HTMLElement | null;
+          const userLabel = [...document.querySelectorAll("*")].find((n) => n.textContent === "User");
+          if (popup === null || header === null || firstSection === null || userLabel === undefined) {
+            return null;
+          }
+          const popupCS = getComputedStyle(popup);
+          const contentWidth = popup.clientWidth - Number.parseFloat(popupCS.paddingLeft) - Number.parseFloat(popupCS.paddingRight);
+          return {
+            headerWidth: Math.round(header.getBoundingClientRect().width),
+            contentWidth: Math.round(contentWidth),
+            hasBorder: getComputedStyle(header).borderBottomWidth !== "0px",
+            userTop: Math.round(userLabel.getBoundingClientRect().top),
+            sectionTop: Math.round(firstSection.getBoundingClientRect().top),
+          };
+        }),
+    )
+    .not.toBeNull();
   const geo = await page.evaluate(() => {
     const popup = document.querySelector('[data-slot="dialog-popup"]') as HTMLElement | null;
     const header = document.querySelector(".shell-modal-header") as HTMLElement | null;
@@ -871,8 +917,6 @@ test("the modal header divider spans the full content width and the columns shar
       sectionTop: Math.round(firstSection.getBoundingClientRect().top),
     };
   });
-
-  expect(geo).not.toBeNull();
   // The divider (header border) spans the full modal content box, not the nav column.
   expect(geo?.hasBorder).toBe(true);
   expect(Math.abs((geo?.headerWidth ?? 0) - (geo?.contentWidth ?? -1))).toBeLessThanOrEqual(2);
@@ -889,11 +933,15 @@ test("a pane that fits (no scroll) resolves the FIRST section, never the last", 
   await component.getByRole("heading", { name: "Message style" }).waitFor();
 
   // The premise: the pane region genuinely does not scroll in this box.
-  const overflow = await page.evaluate(() => {
-    const region = document.querySelector('[role="region"]') as HTMLElement | null;
-    return region === null ? -1 : region.scrollHeight - region.clientHeight;
-  });
-  expect(overflow).toBeLessThanOrEqual(2);
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const region = document.querySelector('[role="region"]') as HTMLElement | null;
+          return region === null ? -1 : region.scrollHeight - region.clientHeight;
+        }),
+    )
+    .toBeLessThanOrEqual(2);
 
   await expect(component.getByRole("button", { name: "Message style" })).toHaveAttribute("aria-current", "true");
   await expect(component.getByRole("button", { name: "Effects" })).not.toHaveAttribute("aria-current", "true");
@@ -967,7 +1015,7 @@ test("no nav row clips at the 220px column, in ANY category", async ({ mount, pa
     clipped.push(...(await readClippedNavLabels(page)));
   }
   // biome-ignore-end lint/performance/noAwaitInLoops: end of the sequential sweep.
-  expect(total).toBeGreaterThan(5);
+  expect(total).toBeGreaterThan(5); // ONESHOT-OK: the category count was consumed by the completed sequential sweep above
   expect([...new Set(clipped)]).toEqual([]);
 });
 
@@ -1012,8 +1060,8 @@ test.describe("narrow (430×740)", () => {
     const region = component.getByRole("region", { name: "Appearance settings" });
     const firstControl = region.locator("button, input, select, textarea").first();
     await expect(firstControl).toBeInViewport();
+    await expect.poll(async () => await firstControl.boundingBox()).not.toBeNull();
     const box = await firstControl.boundingBox();
-    expect(box).not.toBeNull();
     expect(box?.y ?? Number.POSITIVE_INFINITY).toBeLessThan(740);
   });
 

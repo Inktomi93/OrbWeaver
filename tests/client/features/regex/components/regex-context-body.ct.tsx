@@ -131,9 +131,8 @@ test("rooms that share a derived title are told apart by their recency stamp", a
   });
   await mount(<RegexContextStory />);
   await expect(page.getByRole("heading", { name: "Attached by rooms · 3" })).toBeVisible();
-
+  await expect.poll(async () => await page.locator('[data-slot="regex-usage-rooms"] [data-voice="datum"]').allTextContents()).toHaveLength(3);
   const stamps = await page.locator('[data-slot="regex-usage-rooms"] [data-voice="datum"]').allTextContents();
-  expect(stamps).toHaveLength(3);
   // Three rows, three DISTINCT qualifiers — which is the whole reason the stamp is on the row.
   expect(new Set(stamps).size).toBe(3);
 });
@@ -152,6 +151,20 @@ test("an UNBREAKABLE room title clips, and its stamp survives at the 320px conte
 
   // RENDERED, at the NARROWEST real host: the TITLE takes the squeeze and the stamp is never pushed out of
   // the pane — a `shrink-0` trailing datum sized in a wide context is this repo's commonest rendered defect.
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const paneBox = document.querySelector('[data-slot="regex-context-body"]');
+          const stamp = document.querySelector('[data-slot="regex-usage-rooms"] [data-voice="datum"]');
+          if (paneBox === null || stamp === null) {
+            return null;
+          }
+          const stampBox = stamp.getBoundingClientRect();
+          return { paneRight: paneBox.getBoundingClientRect().right, stampRight: stampBox.right, stampWidth: stampBox.width };
+        }),
+    )
+    .not.toBeNull();
   const fit = await page.evaluate(() => {
     const paneBox = document.querySelector('[data-slot="regex-context-body"]');
     const stamp = document.querySelector('[data-slot="regex-usage-rooms"] [data-voice="datum"]');
@@ -161,7 +174,6 @@ test("an UNBREAKABLE room title clips, and its stamp survives at the 320px conte
     const stampBox = stamp.getBoundingClientRect();
     return { paneRight: paneBox.getBoundingClientRect().right, stampRight: stampBox.right, stampWidth: stampBox.width };
   });
-  expect(fit).not.toBeNull();
   expect(fit?.stampRight).toBeLessThanOrEqual(fit?.paneRight ?? 0);
   expect(fit?.stampWidth ?? 0).toBeGreaterThan(0); // not crushed to zero by the long title beside it
 });
@@ -184,6 +196,21 @@ test("a long carrier name clips inside the 320px context column instead of widen
   // element the 320px parent constrains — its right edge cannot move no matter how far its content spills,
   // so the assertion was structurally incapable of failing. Planting the defect (deleting the row's
   // `truncate`) confirmed it: green with the bug in place. The overflowing thing is the TEXT.
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const pane = document.querySelector('[data-slot="regex-context-body"]');
+          // Addressed by its `title` tooltip (the row's own affordance for a clipped name), never by the
+          // `truncate` class — a selector naming the fix would make the pin pass by not finding anything.
+          const name = document.querySelector('[data-slot="regex-usage-presets"] [title]');
+          if (pane === null || name === null) {
+            return null;
+          }
+          return { paneRight: pane.getBoundingClientRect().right, nameRight: name.getBoundingClientRect().right };
+        }),
+    )
+    .not.toBeNull();
   const fit = await page.evaluate(() => {
     const pane = document.querySelector('[data-slot="regex-context-body"]');
     // Addressed by its `title` tooltip (the row's own affordance for a clipped name), never by the
@@ -194,6 +221,5 @@ test("a long carrier name clips inside the 320px context column instead of widen
     }
     return { paneRight: pane.getBoundingClientRect().right, nameRight: name.getBoundingClientRect().right };
   });
-  expect(fit).not.toBeNull();
   expect(fit?.nameRight).toBeLessThanOrEqual(fit?.paneRight ?? 0);
 });

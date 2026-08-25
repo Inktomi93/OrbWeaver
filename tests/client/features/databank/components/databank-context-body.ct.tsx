@@ -75,15 +75,17 @@ test("the empty tri-pane does not print one hero glyph three times (N-4)", async
   await expect(workspace.getByText("Your databank")).toBeVisible();
   await workspace.getByRole("button", { name: "put the list back" }).click();
   await expect(workspace.getByText("Your databank")).toHaveCount(0);
-
-  const heads = await page.locator('[data-slot="empty-state-icon"]').count();
-  expect(heads).toBeLessThan(3);
+  await expect.poll(async () => await page.locator('[data-slot="empty-state-icon"]').count()).toBeLessThan(3);
   // …and it is the CONTEXT arm that gave one up — the other two keep theirs.
-  const contextHead = await page.evaluate(() => {
-    const title = [...document.querySelectorAll('[data-slot="empty-state-title"]')].find((el) => el.textContent?.trim() === "Where a document fires");
-    return title?.parentElement?.querySelectorAll('[data-slot="empty-state-icon"]').length ?? -1;
-  });
-  expect(contextHead).toBe(0);
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const title = [...document.querySelectorAll('[data-slot="empty-state-title"]')].find((el) => el.textContent?.trim() === "Where a document fires");
+          return title?.parentElement?.querySelectorAll('[data-slot="empty-state-icon"]').length ?? -1;
+        }),
+    )
+    .toBe(0);
 });
 
 test("the activation body owns the Everywhere write and states where the document is active", async ({ mount, page }) => {
@@ -172,25 +174,27 @@ test("the CONTEXT groups are CD1 kickers, hairline and all (P2)", async ({ mount
   const workspace = await mount(<DatabankWorkspaceStory />);
   await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
   await expect(workspace.getByRole("heading", { name: "Everywhere" })).toBeVisible();
-
-  const measured = await page.evaluate(() =>
-    ["Everywhere", "Active in", "Retrieval"].map((name) => {
-      const heading = [...document.querySelectorAll("h3")].find((el) => el.textContent?.trim() === name);
-      if (heading === undefined) {
-        return { name, transform: "MISSING", separators: -1 };
-      }
-      const row = heading.parentElement;
-      return {
-        name,
-        transform: getComputedStyle(heading).textTransform,
-        separators: row === null ? -1 : row.querySelectorAll('[data-slot="separator"]').length,
-      };
-    }),
-  );
-
-  expect(measured).toEqual([
-    { name: "Everywhere", transform: "uppercase", separators: 1 },
-    { name: "Active in", transform: "uppercase", separators: 1 },
-    { name: "Retrieval", transform: "uppercase", separators: 1 },
-  ]);
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() =>
+          ["Everywhere", "Active in", "Retrieval"].map((name) => {
+            const heading = [...document.querySelectorAll("h3")].find((el) => el.textContent?.trim() === name);
+            if (heading === undefined) {
+              return { name, transform: "MISSING", separators: -1 };
+            }
+            const row = heading.parentElement;
+            return {
+              name,
+              transform: getComputedStyle(heading).textTransform,
+              separators: row === null ? -1 : row.querySelectorAll('[data-slot="separator"]').length,
+            };
+          }),
+        ),
+    )
+    .toEqual([
+      { name: "Everywhere", transform: "uppercase", separators: 1 },
+      { name: "Active in", transform: "uppercase", separators: 1 },
+      { name: "Retrieval", transform: "uppercase", separators: 1 },
+    ]);
 });

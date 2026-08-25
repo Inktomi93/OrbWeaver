@@ -266,14 +266,18 @@ test("the theme band is a WRAPPING row — the resolved property the 320px clip 
   await expect(component.getByRole("button", { name: "Reset to Hearth" })).toBeVisible();
 
   // The band = the nearest ancestor of the primary that also carries the "Themes" label.
-  const wrap = await primary.evaluate((el: HTMLElement): string => {
-    let band: HTMLElement | null = el.parentElement;
-    while (band !== null && band.textContent?.includes("Themes") !== true) {
-      band = band.parentElement;
-    }
-    return band === null ? "no-band" : getComputedStyle(band).flexWrap;
-  });
-  expect(wrap).toBe("wrap");
+  await expect
+    .poll(
+      async () =>
+        await primary.evaluate((el: HTMLElement): string => {
+          let band: HTMLElement | null = el.parentElement;
+          while (band !== null && band.textContent?.includes("Themes") !== true) {
+            band = band.parentElement;
+          }
+          return band === null ? "no-band" : getComputedStyle(band).flexWrap;
+        }),
+    )
+    .toBe("wrap");
 });
 
 // ── The other half of the same clip (side-eye 2026-08-06 P1) ───────────────────────────────────────
@@ -293,8 +297,8 @@ test("at the 206px dialog body both band buttons stay inside it — the inner ro
   // Page-scoped: the fixed-width box IS the mount root, and `component.getByTestId` searches DESCENDANTS.
   const body = page.getByTestId("theme-dialog-body");
   await expect(body).toBeVisible();
+  await expect.poll(async () => await body.boundingBox()).not.toBeNull();
   const bodyBox = await body.boundingBox();
-  expect(bodyBox).not.toBeNull();
 
   const reset = component.getByRole("button", { name: "Reset to Hearth" });
   const primary = component.getByRole("button", { name: "New theme" });

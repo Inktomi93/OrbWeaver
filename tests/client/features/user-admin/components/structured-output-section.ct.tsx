@@ -44,11 +44,19 @@ test("mounts on the resolved shape, names the deployment default, stamps its anc
   // RENDERED, not just present: the `Select` trigger is a fixed 200px, and the first draft of these labels
   // ("As projected — optional fields stay optional") ellipsed inside it — the selected value, the one thing
   // the control must show, was unreadable. Assert the value fits instead of trusting the string.
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const el = document.querySelector('[data-slot="select-value"]');
+          return el === null ? null : { scrollW: el.scrollWidth, clientW: el.clientWidth };
+        }),
+    )
+    .not.toBeNull();
   const fit = await page.evaluate(() => {
     const el = document.querySelector('[data-slot="select-value"]');
     return el === null ? null : { scrollW: el.scrollWidth, clientW: el.clientWidth };
   });
-  expect(fit).not.toBeNull();
   expect(fit?.scrollW).toBeLessThanOrEqual(fit?.clientW ?? 0);
 });
 

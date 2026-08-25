@@ -45,9 +45,9 @@ function alphaOf(computed: string): number {
 test("the macro chip's fill RECEDES to a tint — the solid info pill is gone", async ({ mount }) => {
   const run = await mount(<MacroText tokens={RUN} />);
   const chip = run.getByText(CHIP_TEXT);
-  const background = await chip.evaluate((el) => getComputedStyle(el).backgroundColor);
   // The shape of the defect, stated as the thing that must NOT be true: an opaque paint of the info token.
-  expect(background).not.toBe(resolvedTokenColor("color.info"));
+  await expect.poll(async () => await chip.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(resolvedTokenColor("color.info"));
+  const background = await chip.evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(alphaOf(background)).toBeLessThan(0.5);
   // …and it is a real tint, not a silent drop to transparent — the chip must still read as a chip.
   expect(alphaOf(background)).toBeGreaterThan(0);
@@ -79,17 +79,33 @@ test("the quieted chip still draws NO border box (the F-6 in-flow invariant)", a
 // cannot have. Asserted through the SELECTION the user would actually make, not through a class name.
 test("selecting the run copies the BRACED macro with it — the preview is quotable", async ({ mount, page }) => {
   const run = await mount(<MacroText tokens={RUN} />);
-  const selected = await run.evaluate((el) => {
-    const selection = globalThis.getSelection();
-    selection?.removeAllRanges();
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    selection?.addRange(range);
-    return selection?.toString() ?? "";
-  });
-  expect(selected).toContain(CHIP_TEXT);
+  await expect
+    .poll(
+      async () =>
+        await run.evaluate((el) => {
+          const selection = globalThis.getSelection();
+          selection?.removeAllRanges();
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          selection?.addRange(range);
+          return selection?.toString() ?? "";
+        }),
+    )
+    .toContain(CHIP_TEXT);
   // The prose either side survives too — the fix must not turn the run into a chips-only selection.
-  expect(selected).toContain("You are ");
+  await expect
+    .poll(
+      async () =>
+        await run.evaluate((el) => {
+          const selection = globalThis.getSelection();
+          selection?.removeAllRanges();
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          selection?.addRange(range);
+          return selection?.toString() ?? "";
+        }),
+    )
+    .toContain("You are ");
   // And the computed property is the mechanism, stated once so a re-inherited `select-none` reds here too.
   await expect(run.getByText(CHIP_TEXT)).toHaveCSS("user-select", "text");
   await page.evaluate(() => globalThis.getSelection()?.removeAllRanges());

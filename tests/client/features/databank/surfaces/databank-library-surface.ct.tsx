@@ -59,13 +59,26 @@ test("a wedged row says STALLED on the LIST, not Queued — and carries its reme
 
   // The remedy rides the SUBTITLE — which is what `aria-describedby` points at — and the scent it must not
   // eat is still first and still whole.
-  const described = await page.evaluate(() => {
-    const body = [...document.querySelectorAll("button")].find((el) => el.textContent?.includes("Treaty of Ashfen"));
-    const ids = body?.getAttribute("aria-describedby")?.split(" ") ?? [];
-    return ids.map((id) => document.getElementById(id)?.textContent?.trim() ?? "").join(" ");
-  });
-  expect(described).toContain("Text · 8 KB · 0 passages");
-  expect(described).toContain("Still queued — Reindex can restart a stuck job.");
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const body = [...document.querySelectorAll("button")].find((el) => el.textContent?.includes("Treaty of Ashfen"));
+          const ids = body?.getAttribute("aria-describedby")?.split(" ") ?? [];
+          return ids.map((id) => document.getElementById(id)?.textContent?.trim() ?? "").join(" ");
+        }),
+    )
+    .toContain("Text · 8 KB · 0 passages");
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const body = [...document.querySelectorAll("button")].find((el) => el.textContent?.includes("Treaty of Ashfen"));
+          const ids = body?.getAttribute("aria-describedby")?.split(" ") ?? [];
+          return ids.map((id) => document.getElementById(id)?.textContent?.trim() ?? "").join(" ");
+        }),
+    )
+    .toContain("Still queued — Reindex can restart a stuck job.");
   // …and the repair it names is one click away on this row's own kebab.
   await row.hover();
   await list.getByRole("button", { name: "Actions for Treaty of Ashfen", exact: true }).click();
@@ -110,7 +123,34 @@ test("the act-now chip's mark rides its own line box — it does not split the r
   await stubDatabank(page);
   const list = await mount(<DatabankLibraryStory />);
   await expect(list.getByText("Empty", { exact: true })).toBeVisible();
-
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const chipOf = (text: string): Element | undefined =>
+            [...document.querySelectorAll('[data-slot="badge"]')].find((el) => el.textContent?.trim() === text);
+          const marked = chipOf("Empty");
+          const plain = chipOf("Queued") ?? chipOf("Indexing");
+          if (marked === undefined || plain === undefined) {
+            return null;
+          }
+          const svg = marked.querySelector("svg")?.getBoundingClientRect();
+          const labelNode = [...marked.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
+          const range = document.createRange();
+          if (svg === undefined || labelNode === undefined) {
+            return null;
+          }
+          range.selectNodeContents(labelNode);
+          const label = range.getBoundingClientRect();
+          return {
+            markedHeight: marked.getBoundingClientRect().height,
+            plainHeight: plain.getBoundingClientRect().height,
+            svgCentre: svg.top + svg.height / 2,
+            labelCentre: label.top + label.height / 2,
+          };
+        }),
+    )
+    .not.toBeNull();
   const measured = await page.evaluate(() => {
     const chipOf = (text: string): Element | undefined => [...document.querySelectorAll('[data-slot="badge"]')].find((el) => el.textContent?.trim() === text);
     const marked = chipOf("Empty");
@@ -133,8 +173,6 @@ test("the act-now chip's mark rides its own line box — it does not split the r
       labelCentre: label.top + label.height / 2,
     };
   });
-
-  expect(measured).not.toBeNull();
   // The chip that carries a mark is the same line box as the chip that carries none.
   expect(measured?.markedHeight ?? 0).toBeCloseTo(measured?.plainHeight ?? -1, 1);
   // …and the mark sits beside the word, not above it.
@@ -150,17 +188,38 @@ test("the EMPTY row carries its own remedy in the row's description — and it i
   await stubDatabank(page);
   const list = await mount(<DatabankLibraryStory />);
   await expect(list.getByText("Empty", { exact: true })).toBeVisible();
-
-  const described = await page.evaluate(() => {
-    const body = [...document.querySelectorAll("button")].find((el) => el.textContent?.includes("Heraldry plates"));
-    const ids = body?.getAttribute("aria-describedby")?.split(" ") ?? [];
-    return ids.map((id) => document.getElementById(id)?.textContent?.trim() ?? "").join(" ");
-  });
   // The scent is still first and still whole — §6.1's ruling that the remedy must not eat it.
-  expect(described).toContain("Upload · 11.8 MB · 0 passages");
-  expect(described).toContain("No text could be extracted — re-upload a text PDF, or paste the text.");
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const body = [...document.querySelectorAll("button")].find((el) => el.textContent?.includes("Heraldry plates"));
+          const ids = body?.getAttribute("aria-describedby")?.split(" ") ?? [];
+          return ids.map((id) => document.getElementById(id)?.textContent?.trim() ?? "").join(" ");
+        }),
+    )
+    .toContain("Upload · 11.8 MB · 0 passages");
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const body = [...document.querySelectorAll("button")].find((el) => el.textContent?.includes("Heraldry plates"));
+          const ids = body?.getAttribute("aria-describedby")?.split(" ") ?? [];
+          return ids.map((id) => document.getElementById(id)?.textContent?.trim() ?? "").join(" ");
+        }),
+    )
+    .toContain("No text could be extracted — re-upload a text PDF, or paste the text.");
   // The wrong repair is not offered: re-running extraction over the same image-only bytes returns nothing.
-  expect(described).not.toContain("Reindex can restart");
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const body = [...document.querySelectorAll("button")].find((el) => el.textContent?.includes("Heraldry plates"));
+          const ids = body?.getAttribute("aria-describedby")?.split(" ") ?? [];
+          return ids.map((id) => document.getElementById(id)?.textContent?.trim() ?? "").join(" ");
+        }),
+    )
+    .not.toContain("Reindex can restart");
 });
 
 test("a FRESH in-flight row still reads Queued — the stall verdict is a frozen clock, not a zero count", async ({ mount, page }) => {

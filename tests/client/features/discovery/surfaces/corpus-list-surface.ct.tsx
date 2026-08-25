@@ -135,8 +135,7 @@ test("the pane offers exactly ONE free-text search — the omnibox; the browse v
   // Counted by the thing a person recognises as "a place to type": an input carrying a PLACEHOLDER. The
   // facet Selects each render their own native input for form participation, so a bare `input` count reads
   // 6 and proves nothing.
-  const typeable = await component.locator("input[placeholder]:not([placeholder=''])").count();
-  expect(typeable).toBe(1);
+  await expect(component.locator("input[placeholder]:not([placeholder=''])")).toHaveCount(1);
 });
 
 test("the Text target runs the lexical fields search and names the hits from the card list", async ({ mount, page }) => {
@@ -530,13 +529,17 @@ test("#537 the pane's skip link is first in DOM order and lands on the first res
   // FIRST among the pane's focusables, in DOM order — the whole contract: a skip control that is not the
   // first focusable is a second tab stop, not a skip.
   const skip = component.getByRole("button", { name: "Skip to results" });
-  const firstInPane = await skip.evaluate((el: HTMLElement) => {
-    const pane = el.closest<HTMLElement>('[data-testid="corpus-list-surface"]');
-    const focusables = [...(pane?.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])') ?? [])];
-    const first = focusables[0];
-    return { isSkip: first === el, name: first?.textContent ?? first?.getAttribute("aria-label") ?? "(none)" };
-  });
-  expect(firstInPane).toEqual({ isSkip: true, name: "Skip to results" });
+  await expect
+    .poll(
+      async () =>
+        await skip.evaluate((el: HTMLElement) => {
+          const pane = el.closest<HTMLElement>('[data-testid="corpus-list-surface"]');
+          const focusables = [...(pane?.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])') ?? [])];
+          const first = focusables[0];
+          return { isSkip: first === el, name: first?.textContent ?? first?.getAttribute("aria-label") ?? "(none)" };
+        }),
+    )
+    .toEqual({ isSkip: true, name: "Skip to results" });
 
   await skip.focus();
   await page.keyboard.press("Enter");

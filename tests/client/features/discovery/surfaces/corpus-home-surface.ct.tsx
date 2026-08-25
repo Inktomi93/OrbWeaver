@@ -206,8 +206,8 @@ test("#537 the readiness rail is a LIST of stages, not one flat run of text", as
   await expect(rail).toBeVisible();
   // One item per stage — the count is the thing a reader gets for free from the structure.
   const stages = component.locator('[data-slot="readiness-stage"]');
+  await expect.poll(async () => await stages.count()).toBeGreaterThan(1);
   const stageCount = await stages.count();
-  expect(stageCount).toBeGreaterThan(1);
   await expect(rail.getByRole("listitem")).toHaveCount(stageCount);
 });
 

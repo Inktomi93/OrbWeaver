@@ -43,12 +43,16 @@ test("the dense row renders the persona's whole name and subtitle — neither is
   // `truncate` clips by overflow, so the tell is scrollWidth > clientWidth on the elements that carry the
   // text — not the string, which is present in the DOM either way (which is exactly why a text assertion
   // would have passed against the defect).
-  const clipped = await name.evaluate((el: HTMLElement): readonly string[] =>
-    Array.from(el.querySelectorAll<HTMLElement>(".truncate"))
-      .filter((node) => node.scrollWidth - node.clientWidth > 1)
-      .map((node) => node.textContent ?? ""),
-  );
-  expect(clipped).toEqual([]);
+  await expect
+    .poll(
+      async () =>
+        await name.evaluate((el: HTMLElement): readonly string[] =>
+          Array.from(el.querySelectorAll<HTMLElement>(".truncate"))
+            .filter((node) => node.scrollWidth - node.clientWidth > 1)
+            .map((node) => node.textContent ?? ""),
+        ),
+    )
+    .toEqual([]);
 });
 
 test("both trailing clusters occupy the same cell — the strip is as wide as the WIDER one, not their sum", async ({ mount }) => {
@@ -57,17 +61,21 @@ test("both trailing clusters occupy the same cell — the strip is as wide as th
   await expect(name).toBeVisible();
   // The two cluster Rows are the Layer's children; a shared cell means identical left edges (they are
   // placed into ONE grid area). Side-by-side siblings — the defect — cannot produce that.
-  const overlaid = await name.evaluate((el: HTMLElement): boolean => {
-    const layer: HTMLElement | undefined = Array.from((el.parentElement as HTMLElement).children).find(
-      (child): boolean => getComputedStyle(child as HTMLElement).display === "grid",
-    ) as HTMLElement | undefined;
-    if (layer === undefined || layer.children.length !== 2) {
-      return false;
-    }
-    const [markers, actions] = Array.from(layer.children).map((child) => child.getBoundingClientRect());
-    return markers !== undefined && actions !== undefined && Math.abs(markers.left - actions.left) < 1 && Math.abs(markers.right - actions.right) < 1;
-  });
-  expect(overlaid).toBe(true);
+  await expect
+    .poll(
+      async () =>
+        await name.evaluate((el: HTMLElement): boolean => {
+          const layer: HTMLElement | undefined = Array.from((el.parentElement as HTMLElement).children).find(
+            (child): boolean => getComputedStyle(child as HTMLElement).display === "grid",
+          ) as HTMLElement | undefined;
+          if (layer === undefined || layer.children.length !== 2) {
+            return false;
+          }
+          const [markers, actions] = Array.from(layer.children).map((child) => child.getBoundingClientRect());
+          return markers !== undefined && actions !== undefined && Math.abs(markers.left - actions.left) < 1 && Math.abs(markers.right - actions.right) < 1;
+        }),
+    )
+    .toBe(true);
 });
 
 // The a11y half of the same finding: at rest the row announced "Favorited" (the marker) AND "Unfavorite"
@@ -178,11 +186,10 @@ test("at the 320px You-sheet width the name lane and the marker cluster never ov
   const markers = component.locator('[data-slot="persona-row-markers"]');
   await expect(name).toBeVisible();
   await expect(markers).toBeVisible();
-
+  await expect.poll(async () => await name.boundingBox()).not.toBeNull();
   const nameBox = await name.boundingBox();
+  await expect.poll(async () => await markers.boundingBox()).not.toBeNull();
   const markerBox = await markers.boundingBox();
-  expect(nameBox).not.toBeNull();
-  expect(markerBox).not.toBeNull();
   // The measured defect: markers box at 38px wide with its contents rendering at x=152, i.e. 58px of the
   // name lane painted through. Boxes, not classes.
   expect(nameBox?.x ?? 0).toBeLessThan(markerBox?.x ?? 0);
@@ -201,11 +208,15 @@ test("the 'Playing as' kicker renders on ONE line at 320px — the header's trun
   const component = await mount(<PersonaPanelRowDenseStory width={320} />);
   const kicker = component.getByText("Playing as", { exact: true });
   await expect(kicker).toBeVisible();
-  const lines = await kicker.evaluate((el: HTMLElement) => {
-    const lineHeight = Number.parseFloat(getComputedStyle(el).lineHeight);
-    return el.getBoundingClientRect().height / (Number.isNaN(lineHeight) ? el.getBoundingClientRect().height : lineHeight);
-  });
-  expect(lines).toBeLessThan(1.5);
+  await expect
+    .poll(
+      async () =>
+        await kicker.evaluate((el: HTMLElement) => {
+          const lineHeight = Number.parseFloat(getComputedStyle(el).lineHeight);
+          return el.getBoundingClientRect().height / (Number.isNaN(lineHeight) ? el.getBoundingClientRect().height : lineHeight);
+        }),
+    )
+    .toBeLessThan(1.5);
 });
 
 test("at 320px the persona's whole name still renders — no ellipsis on a 8-char name", async ({ mount }) => {
@@ -214,8 +225,7 @@ test("at 320px the persona's whole name still renders — no ellipsis on a 8-cha
   await expect(nameText).toBeVisible();
   // TRUNCATION IS A GEOMETRY FACT, not a text fact — `truncate` keeps the full string in the DOM and clips
   // it, so the assertion is scrollWidth vs clientWidth on the element that carries the ellipsis.
-  const clipped = await nameText.evaluate((el: HTMLElement) => el.scrollWidth > el.clientWidth + 1);
-  expect(clipped).toBe(false);
+  await expect.poll(async () => await nameText.evaluate((el: HTMLElement) => el.scrollWidth > el.clientWidth + 1)).toBe(false);
 });
 
 // ── THE COARSE COLLAPSE (side-eye 2026-08-07 finding 3 — the founding instance) ──────────────────────

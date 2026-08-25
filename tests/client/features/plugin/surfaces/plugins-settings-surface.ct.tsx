@@ -51,6 +51,7 @@ const BARE_HOST_RE = /(?<![.\w])host\./u;
 /** The top-level-`await` tell the old starter shipped (#683) — `evalCode` runs script mode, not module mode,
  *  so this shape is a QuickJS PARSE ERROR, not merely bad style. */
 const TOP_LEVEL_AWAIT_RE = /^\s*(?:const|let|var)\s+\w+\s*=\s*await\s/mu;
+const ORB_HOST_CALL_RE = /orb\.host\(1\)/u;
 
 interface ManifestFixture {
   readonly id: string;
@@ -502,11 +503,11 @@ test("a fresh console's shipped starter is code that can actually run — no top
     "plugin.runSnippet": () => ({ logLines: ["5 messages"] }),
   });
   await mount(<SnippetConsoleStory chatId={CHAT} />);
-
-  const starter = await page.getByLabel("Snippet code").inputValue();
-  expect(starter).toContain("orb.host(1)");
-  expect(starter).not.toMatch(BARE_HOST_RE);
-  expect(starter).not.toMatch(TOP_LEVEL_AWAIT_RE);
+  const snippet = page.getByLabel("Snippet code");
+  await expect(snippet).toHaveValue(ORB_HOST_CALL_RE);
+  await expect(snippet).not.toHaveValue(BARE_HOST_RE);
+  await expect(snippet).not.toHaveValue(TOP_LEVEL_AWAIT_RE);
+  const starter = await snippet.inputValue();
 
   await page.getByRole("button", { name: "Run" }).click();
 

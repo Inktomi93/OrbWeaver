@@ -314,8 +314,8 @@ test("a blocked animation frame is flagged without a document-wide animation-tre
   });
   const component = await mount(<MotionFlaggersDropStory />);
   const trigger = component.getByRole("button", { name: "start blocked animation" });
+  await expect.poll(async () => await trigger.boundingBox()).not.toBeNull();
   const box = await trigger.boundingBox();
-  expect(box).not.toBeNull();
   if (box === null) {
     return;
   }
