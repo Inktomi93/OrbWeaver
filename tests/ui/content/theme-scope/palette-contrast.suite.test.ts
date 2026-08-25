@@ -9,7 +9,8 @@
 // (the same reason snap.ts's --contrast grew compositeOver). The static values are read from the
 // generated TOKENS map and the derivation constants from clamp.ts, so both are drift-free single sources.
 import { BACKGROUND_DIM_MIN } from "@orb/contracts/settings/appearance";
-import { READING_BAND_ALPHA, readingBandSurface, readingPlateAlpha, shadowIngredients } from "@orb/kit/theme-derivation";
+import type { RampDeltas } from "@orb/kit/theme-derivation";
+import { READING_BAND_ALPHA, rampDeltas, readingBandSurface, readingPlateAlpha, shadowIngredients } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/_shared/wcag";
 import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "@orb/tooling/_shared/wcag";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
@@ -129,6 +130,11 @@ const rampSurface = (base: Oklch, deltaL: number): Oklch => ({
   ...base,
   l: clamp01(base.l + deltaL),
 });
+/** The ramp deltas for a base — CALLED, not mirrored (#682), for the same reason `readingPlateAlpha` and
+ *  `shadowIngredients` are: the arm is a polarity SELECTION off `fgPivotL`, not a formula, and a second
+ *  copy of the two blocks here would be the impl pasted rather than an independent cross-check. What the
+ *  mirrors above test is the L math this then feeds. */
+const rampOf = (base: Oklch): RampDeltas => rampDeltas(base);
 /** The contrast foreground for `surface` (chroma 0, base hue). */
 const foregroundRgb = (surface: Oklch): Rgb => oklchToRgb({ l: contrastToneL(surface.l), c: 0, h: surface.h });
 
@@ -212,13 +218,14 @@ test("clamp DERIVED neutral chrome clears AA on every realistic light + dark bas
     // Every neutral ramp surface whose text is the plain derived foreground: card/popover/sidebar/
     // secondary (secondary-foreground = foreground) + sidebar-accent (its text is sidebar-foreground =
     // foreground; the rail-hover pairing, owner defect #2). All must clear AA on any realistic base.
+    const ramp = rampOf(base);
     const surfaces = {
       background: base,
-      card: rampSurface(base, D.ramp.card),
-      popover: rampSurface(base, D.ramp.popover),
-      sidebar: rampSurface(base, D.ramp.sidebar),
-      secondary: rampSurface(base, D.ramp.secondary),
-      "sidebar-accent": rampSurface(base, D.ramp.sidebarAccent),
+      card: rampSurface(base, ramp.card),
+      popover: rampSurface(base, ramp.popover),
+      sidebar: rampSurface(base, ramp.sidebar),
+      secondary: rampSurface(base, ramp.secondary),
+      "sidebar-accent": rampSurface(base, ramp.sidebarAccent),
     };
     for (const [name, surface] of Object.entries(surfaces)) {
       const ratio = contrastRatio(fg, oklchToRgb(surface));
@@ -236,7 +243,7 @@ test("clamp DERIVED neutral chrome clears AA on every realistic light + dark bas
       const ratio = contrastRatio(muted, compositeOver(inputFill, oklchToRgb(surface)));
       expect(ratio, `derived muted-foreground on input over ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
-    const mutedSurface = rampSurface(base, D.ramp.muted);
+    const mutedSurface = rampSurface(base, ramp.muted);
     expect(contrastRatio(muted, oklchToRgb(mutedSurface)), `derived muted-foreground on muted @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     // …and on the CARD ramp surface, which the seed table already floors (`bodyPairs`) but the derived
     // sweep did not: #674 gave the S1 control band the composer's opaque `bg-card`, and the ink an
@@ -253,8 +260,9 @@ test("clamp DERIVED accent (hover/selected) surface + its foreground clear AA on
   // the static dark tone under a light base.
   for (const baseStr of REALISTIC_BASES) {
     const base = parseOklch(baseStr);
-    const accent = rampSurface(base, D.ramp.accent);
-    const accentFg = oklchToRgb({ l: contrastToneL(base.l + D.ramp.accent), c: 0, h: base.h });
+    const accentDl = rampOf(base).accent;
+    const accent = rampSurface(base, accentDl);
+    const accentFg = oklchToRgb({ l: contrastToneL(base.l + accentDl), c: 0, h: base.h });
     const ratio = contrastRatio(accentFg, oklchToRgb(accent));
     expect(ratio, `derived accent-foreground on accent @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
@@ -549,6 +557,75 @@ test("#243 the derived ingredients BEAT the inherited dark recipe on the two pro
     expect(contrastRatio(derivedDrop, baseRgb), `ambient weight @ ${baseStr}`).toBeLessThan(contrastRatio(inheritedDrop, baseRgb));
     // …and the drop is still a DROP: an ambient layer darkens its surroundings on either polarity.
     expect(derivedDrop.r, `the ambient drop darkens @ ${baseStr}`).toBeLessThan(baseRgb.r);
+  }
+});
+
+// ── #682: THE DERIVED SURFACE FAMILY — a light base derives DOWN instead of clamping at white ────────
+// The ramp shipped as ONE additive block (`calc(l + delta)`, every member but `sidebar` positive). On a
+// near-white base every positive member saturates at L = 1.0 and the family collapses into ONE colour:
+// measured on HEAD at base oklch(0.98 0.004 75), card = muted = surface-raised = popover = secondary =
+// accent = sidebar-accent = L 1.000, i.e. muted-on-card rendered at 1.0000:1 — the meter arc's track
+// (`text-muted` over `bg-card`), a card skeleton, a track bar: invisible, not subtle.
+//
+// The pins are stated on the EMITTED custom properties (what `ThemeScope` actually puts in the DOM),
+// resolved to L the way the browser resolves `oklch(from <base> calc(l + d) c h)`, so they measure the
+// derivation through its product surface rather than through the arm-selection function.
+//
+// THE FLOOR IS MEASURED, NOT DECLARED, and it is NOT 3:1. Two NEIGHBOURING neutral ramp surfaces cannot
+// reach the WCAG 1.4.11 non-text ratio on either polarity — the shipped Hearth pair (card 0.205 / muted
+// 0.255) measures 1.1356:1 and the shipped Light seed pair (0.995 / 0.95) 1.1412:1. So the family floor
+// asserted here is the DARK arm's own separation at the shipped dark base: the light arm must be at
+// least as legible as the polarity that was never broken. (A track that needs more than a neighbouring
+// ramp step is a METER-side question — which token the track picks — not a derivation one.)
+const RAMP_EMIT_RE = /^oklch\(from .+? calc\(l \+ (-?[\d.]+)\) c h\)$/u;
+/** The L the browser resolves an emitted ramp var to for `base` — the delta read back off the CSS. */
+function emittedRampL(vars: Readonly<Record<string, string>>, cssVar: string, base: Oklch): number {
+  const emitted = vars[cssVar];
+  const m = RAMP_EMIT_RE.exec(emitted ?? "");
+  if (m === null) {
+    throw new Error(`not an emitted ramp surface: ${cssVar} = ${String(emitted)}`);
+  }
+  return clamp01(base.l + Number(m[1]));
+}
+/** The five ramp members whose L must stay pairwise distinct — the LOW-emphasis family a graphic paints
+ *  on a card. `popover` is excluded on purpose: it is the same tone as `card` on the shipped Light seed
+ *  (both 0.995), a deliberate tie, not a collapse. */
+const RAMP_FAMILY_VARS = ["--color-card", "--color-muted", "--color-secondary", "--color-accent", "--color-sidebar-accent"] as const;
+const NEAR_WHITE_BASES = [...LIGHT_BASES, "oklch(1 0 0)"];
+
+test("#682 the derived surface family stays PAIRWISE DISTINCT on every near-white base (no clamp collapse)", () => {
+  for (const baseStr of NEAR_WHITE_BASES) {
+    const base = parseOklch(baseStr);
+    const { vars } = clampThemeTokens({ background: baseStr });
+    const levels = RAMP_FAMILY_VARS.map((cssVar) => emittedRampL(vars, cssVar, base));
+    expect(new Set(levels).size, `distinct ramp tones @ ${baseStr} (got ${levels.join(", ")})`).toBe(RAMP_FAMILY_VARS.length);
+  }
+});
+
+/** The card|muted separation this derivation produces for `baseStr` — the pair the meter arc's track,
+ *  a card skeleton and a track bar are made of. */
+function derivedCardMutedRatio(baseStr: string): number {
+  const base = parseOklch(baseStr);
+  const { vars } = clampThemeTokens({ background: baseStr });
+  return contrastRatio(
+    oklchToRgb({ ...base, l: emittedRampL(vars, "--color-card", base) }),
+    oklchToRgb({ ...base, l: emittedRampL(vars, "--color-muted", base) }),
+  );
+}
+
+test("#682 muted-on-card is never less legible on a light base than on the palettes orb SHIPS", () => {
+  // The floor is RECOMPUTED, never declared: the separation this same derivation produces at the shipped
+  // Light seed's base. A user's own near-white palette must be at least as legible as the light palette
+  // we ship. NON-VACUITY, both directions: the reference is a real step (>1.1) and it agrees with the
+  // DARK arm's own separation to within 2% (dark 1.1356 at Hearth vs light 1.1327 at the Light seed base,
+  // measured with uniform chroma) — so neither polarity is the weak one and the reference cannot rot to
+  // nothing without reddening here first.
+  const lightSeedFloor = derivedCardMutedRatio("oklch(0.98 0.004 75)");
+  const darkSeedRatio = derivedCardMutedRatio("oklch(0.158 0.006 60)");
+  expect(lightSeedFloor, "the light reference is a real step, not a rounding artefact").toBeGreaterThan(1.1);
+  expect(Math.abs(lightSeedFloor - darkSeedRatio) / darkSeedRatio, "the two arms separate the pair by the same order").toBeLessThan(0.02);
+  for (const baseStr of LIGHT_BASES) {
+    expect(derivedCardMutedRatio(baseStr), `muted on card @ ${baseStr}`).toBeGreaterThanOrEqual(lightSeedFloor);
   }
 });
 

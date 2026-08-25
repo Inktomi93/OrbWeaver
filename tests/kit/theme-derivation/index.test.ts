@@ -17,6 +17,7 @@ import {
   oklchToSrgb,
   proseInkLightness,
   READING_BAND_ALPHA,
+  rampDeltas,
   rampSurface,
   readingBandSurface,
   readingPlateAlpha,
@@ -92,6 +93,58 @@ describe("shadowIngredients (#243 — the polarity-derived elevation recipe)", (
   });
 });
 
+describe("rampDeltas (#682 — the polarity-derived neutral surface ramp)", () => {
+  const darkBase = { l: 0.158, c: 0.006, h: 60 };
+  const lightBase = { l: 0.98, c: 0.004, h: 75 };
+  const roles = ["sidebar", "surfaceRaised", "card", "popover", "accent", "sidebarAccent", "secondary", "muted"] as const;
+
+  test("the DARK arm is the pre-#682 additive block, digit for digit (the dark rooms cannot move)", () => {
+    expect(rampDeltas(darkBase)).toEqual({
+      sidebar: -0.026,
+      surfaceRaised: 0.027,
+      card: 0.047,
+      popover: 0.087,
+      accent: 0.127,
+      sidebarAccent: 0.077,
+      secondary: 0.097,
+      muted: 0.097,
+    });
+  });
+
+  test("the LIGHT arm IS the shipped Light seed's own block, promoted (nothing invented)", () => {
+    // theme.css `[data-theme="light"]`, base oklch(0.98 0.004 75): sidebar 0.955 · surface-raised 0.965 ·
+    // card/popover 0.995 · accent 0.93 · sidebar-accent 0.90 · secondary 0.94 · muted 0.95. The arm is
+    // that hand-authored value-set expressed as deltas, so a CUSTOM near-white theme derives the chrome
+    // the seed always had instead of one saturated white.
+    const seedL = { sidebar: 0.955, surfaceRaised: 0.965, card: 0.995, popover: 0.995, accent: 0.93, sidebarAccent: 0.9, secondary: 0.94, muted: 0.95 };
+    const light = rampDeltas(lightBase);
+    for (const role of roles) {
+      expect(lightBase.l + light[role], `${role} off the Light seed base`).toBeCloseTo(seedL[role], 4);
+    }
+  });
+
+  test("the light arm RECEDES where the dark arm rises — the clamp collapse cannot recur", () => {
+    const dark = rampDeltas(darkBase);
+    const light = rampDeltas(lightBase);
+    // Every member the dark arm lifts by more than a hair is a member with no headroom on a near-white
+    // base; the light arm's answer is at most a sixth of the rise, and for the low-emphasis family it is
+    // negative outright.
+    for (const role of ["accent", "sidebarAccent", "secondary", "muted", "surfaceRaised"] as const) {
+      expect(dark[role], `${role} rises on a dark base`).toBeGreaterThan(0);
+      expect(light[role], `${role} recedes on a light base`).toBeLessThan(0);
+    }
+    // The defect, stated as the property: the tones a graphic is painted FROM and painted ON stay apart.
+    expect(lightBase.l + light.card).toBeLessThanOrEqual(1);
+    expect(light.card).not.toBe(light.muted);
+  });
+
+  test("the polarity flip rides fgPivotL — the SAME threshold as the foreground, color-scheme and elevation", () => {
+    const { fgPivotL } = THEME_DERIVATION;
+    expect(rampDeltas({ l: fgPivotL, c: 0.01, h: 60 })).toBe(THEME_DERIVATION.ramp.dark);
+    expect(rampDeltas({ l: fgPivotL + 0.01, c: 0.01, h: 60 })).toBe(THEME_DERIVATION.ramp.light);
+  });
+});
+
 describe("derivedForegroundLightness", () => {
   test("flips light↔dark around the pivot, clamped to the readable band", () => {
     const { fgPivotL, fgLMin, fgLMax } = THEME_DERIVATION;
@@ -139,24 +192,31 @@ describe("isDerivableBaseSurface", () => {
     // be a fence nobody has ever seen bite. A mid-grey page surface is inherently low-contrast for any
     // sub-maximal derived tone; the SillyTavern importer refuses such a theme rather than importing it.
     // The band is MEASURED (see the boundary test below), not assumed from the prose approximation.
-    for (const l of [0.45, 0.5, 0.55, 0.6, 0.62, 0.63]) {
+    for (const l of [0.45, 0.5, 0.55, 0.6, 0.62, 0.63, 0.65, 0.68]) {
       expect(isDerivableBaseSurface({ l, c: 0.01, h: 250 }), `mid-band base L=${l}`).toBe(false);
     }
   });
 
-  test("the refused band's EDGES are where the measurement puts them (0.45 … 0.63)", () => {
+  test("the refused band's EDGES are where the measurement puts them (0.443 … 0.686)", () => {
     // NEGATIVE CONTROLS either side. This is the number the ST importer's refusal reason describes, and it
     // is narrower than `palette-contrast.suite.test.ts`'s prose approximation ("~0.28–0.62") — that comment
     // is a rough exclusion range for a sweep, not a measured boundary, so it is not the authority here.
+    //
+    // THE UPPER EDGE MOVED 0.63 → 0.686 WITH #682, and that is the two-arm ramp being honest rather than a
+    // regression. Above the pivot the chrome now RECEDES from the base instead of saturating at white, so a
+    // base sitting just over the pivot derives a sidebar-accent at L−0.08 that its near-black text reads at
+    // 3.56:1 — sub-AA. The old arm hid that by clamping every surface toward white; the palettes in the
+    // widened slice were never legible, they were unmeasured. The lower edge is untouched: the dark arm did
+    // not move a digit.
     expect(isDerivableBaseSurface({ l: 0.44, c: 0.01, h: 250 }), "just below the band").toBe(true);
-    expect(isDerivableBaseSurface({ l: 0.64, c: 0.01, h: 250 }), "just above the band").toBe(true);
+    expect(isDerivableBaseSurface({ l: 0.69, c: 0.01, h: 250 }), "just above the band").toBe(true);
   });
 
   test("its verdict AGREES with a direct contrast measurement of the worst ramp pairing", () => {
     // Not a tautology: it re-derives the same judgement from the primitive parts, so a bug in the surface
     // LIST inside the predicate (a missing ramp member) would show up as a disagreement here.
     const base = { l: 0.5, c: 0.01, h: 250 };
-    const worst = rampSurface(base, THEME_DERIVATION.ramp.popover);
+    const worst = rampSurface(base, rampDeltas(base).popover);
     const ratio = wcagContrastRatio(oklchToSrgb(derivedForeground(base)), oklchToSrgb(worst));
     expect(ratio).toBeLessThan(AA_NORMAL_RATIO);
     expect(isDerivableBaseSurface(base)).toBe(false);
@@ -320,11 +380,12 @@ describe("readingPlateAlpha (#217 — the polarity-aware plate alpha)", () => {
       for (const art of [Black, White]) {
         expect(compositeSrgb(oklchToSrgb(band), READING_BAND_ALPHA, art)).toEqual(oklchToSrgb(band));
       }
-      // Non-vacuity for "no step": the ramp surface the band USED to take (card, +0.047) is a different
-      // colour by a visible margin — this is the ΔL the ruling deletes. It is 0.085 on a dark base and
-      // 0.058 on the light seed (whose card L CLAMPS at 1.0) — the owner's filed "ΔL ≈ 0.06" is that
-      // light-arm number, so the floor asserted here is the smaller, clamped one.
-      expect(Math.abs(rampSurface(base, THEME_DERIVATION.ramp.card).l - band.l)).toBeGreaterThan(0.05);
+      // Non-vacuity for "no step": the ramp surface the band USED to take (card) is a different colour by
+      // a visible margin — this is the ΔL the ruling deletes. It is 0.085 on a dark base (card +0.047)
+      // and 0.053 on the light seed since #682 (card +0.015, no longer CLAMPED at 1.0 — pre-#682 the
+      // clamp made this read 0.058). The owner's filed "ΔL ≈ 0.06" is that light-arm number, so the floor
+      // asserted here is the smaller one either way.
+      expect(Math.abs(rampSurface(base, rampDeltas(base).card).l - band.l)).toBeGreaterThan(0.05);
     }
   });
 });
