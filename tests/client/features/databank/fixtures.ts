@@ -17,6 +17,7 @@
 // so the surface's own 4s ingest poll and playwright's auto-waiting still run for real.
 
 import { DATABANK_LIST_DEFAULT_LIMIT, STALE_INGEST_MS } from "@orb/contracts/databank";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Page } from "@playwright/test";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import type { TrpcRecorder, TrpcRoutes } from "../../../support/ct/route-trpc.ts";
@@ -171,6 +172,11 @@ export async function stubDatabank(page: Page, over: TrpcRoutes = {}, bank: read
   // the rows below are dated against, on every run and every machine.
   await page.clock.setFixedTime(NOW);
   return routeTrpc(page, {
+    // The viewer's settings row (#649). Not any databank test's subject — but unfed it resolved `routeTrpc`'s
+    // null, so every appearance/tier reader in these mounts fell to its default branch and the settings-driven
+    // presentation path never ran in ANY of the three files this helper routes. Production defaults, so no
+    // existing assertion moves; a test that needs a different config passes it through `over`.
+    "settings.getUserSettings": { userId: "user_ct_databank", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: NOW },
     "databank.list": pagedBank(bank),
     "databank.bankHealth": bankCensus(bank),
     "databank.listGlobal": () => [READY_DOC.id],

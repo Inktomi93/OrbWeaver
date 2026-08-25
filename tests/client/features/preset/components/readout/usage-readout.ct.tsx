@@ -46,6 +46,18 @@ const PRESET_DETAIL = {
 
 const SETTINGS_VIEW = { userId: "user_ct_readout", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 
+/** The OPEN room the readout binds to — the `ChatDetail` fields `use-readout-binding` and its title chain
+ *  reach for, at the same shape the sibling readout suites feed (`actions-readout.ct.tsx`'s CHAT_DETAIL). */
+const BOUND_CHAT_DETAIL = {
+  id: "chat_ct_readoutbound",
+  title: "Azarael & the Court",
+  starred: false,
+  archived: false,
+  temporary: false,
+  parentChatId: null,
+  participants: [],
+};
+
 /** The usage wire as the verb shapes it: the active-pick FLAG (a setting, not a room list) + the rooms whose
  *  rpg GM voice redirects here, already filtered to what this caller may open. */
 function usageRoutes(usage: unknown): Record<string, unknown> {
@@ -56,6 +68,11 @@ function usageRoutes(usage: unknown): Record<string, unknown> {
     "connection.resolveChatCapability": () => trpcError({ message: "no chat connection configured" }),
     "preset.resolveEffective": () => ({ presetId: PRESET, model: "qwen3-32b", knobs: {}, stale: [], qualityMapping: null }),
     "preset.listUsage": () => usage,
+    // #649 — the readout's chat BINDING read. `use-readout-binding.ts:51` only fires it when there IS an
+    // active chat, and this story has one, so it was a real request riding `routeTrpc`'s null: the binding's
+    // whole title-chain + dismiss path ran INERT here. A real (empty-cast, untitled) ChatDetail, so the
+    // chain executes; the bindings block under test is a property of the PRESET and does not read it.
+    "chat.getChat": () => BOUND_CHAT_DETAIL,
   };
 }
 

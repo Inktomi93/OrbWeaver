@@ -17,6 +17,7 @@
 // the verb is still stubbed with real clusters in that arm on purpose — the gate has to hold against DATA
 // BEING THERE, or it is only testing an empty response.
 
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
@@ -77,6 +78,10 @@ async function stub(page: Page): Promise<void> {
   // The art-clustering half stays EMPTY so every face on the surface belongs to the writing cluster and the
   // counts below are exact. A distilled catalog opens the gate — this arm is about the clusters, not it.
   await routeTrpc(page, {
+    // #649 — the viewer's settings row. Not this tab's subject, but unfed it resolved `routeTrpc`'s null and
+    // every appearance/tier reader in this mount fell to its default branch, so the settings-driven
+    // presentation path never ran here. Production defaults: no assertion below moves.
+    "settings.getUserSettings": { userId: "user_ct_archetypes", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
     "discovery.archetypes": ARCHETYPES,
     "discovery.catalog": catalog(2),
     "discovery.visualArchetypes": [],
@@ -126,6 +131,10 @@ test("a cluster member carrying a hash draws its blob; a null one draws hue-seed
 test("with the understanding pass un-run the tab shows the invitation and ZERO cluster data", async ({ mount, page }) => {
   await routeTrpc(page, {
     // Real clusters on the wire — the gate must hold against data being there, not against an empty verb.
+    // #649 — the viewer's settings row. Not this tab's subject, but unfed it resolved `routeTrpc`'s null and
+    // every appearance/tier reader in this mount fell to its default branch, so the settings-driven
+    // presentation path never ran here. Production defaults: no assertion below moves.
+    "settings.getUserSettings": { userId: "user_ct_archetypes", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
     "discovery.archetypes": ARCHETYPES,
     "discovery.catalog": catalog(0),
     "discovery.visualArchetypes": [],

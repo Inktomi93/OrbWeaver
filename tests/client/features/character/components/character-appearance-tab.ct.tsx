@@ -20,11 +20,28 @@ function lastThemeOverride(trpc: TrpcRecorder): unknown {
   return input?.input?.themeOverride;
 }
 
+/** The theme picker's catalog read. Hoisted above `route()` (#649) because EVERY mount of this tab renders
+ *  the "Start from a theme…" door, so every routeTrpc site owes it: `listThemes` is "the caller's own themes
+ *  PLUS every seed palette" (domain/settings/verbs/list-themes.ts:1), so an empty array is a shape the server
+ *  cannot mint and `routeTrpc`'s unfed null is not a view at all — the picker's resolve path never ran. */
+const THEME_LIST = [
+  {
+    id: "theme_00000000000000000000000002",
+    name: "Mocha",
+    override: { background: "oklch(0.15 0.015 250)", accent: "oklch(0.7 0.14 250)", density: "compact" },
+    css: null,
+    isSeed: true,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+];
+
 function route(page: Page, themeOverride: Record<string, unknown> | null): Promise<TrpcRecorder> {
   const card = makeCharacterDetail({ themeOverride });
   return routeTrpc(page, {
     "character.get": () => card,
     "character.update": () => card,
+    "settings.listThemes": () => THEME_LIST,
   });
 }
 
@@ -91,18 +108,6 @@ test("the card cannot force viewer ergonomics — no Message style / Density con
 });
 
 // ── The two theme DOORS (TD §2) — promote the card's look into the picker, and seed it from a theme ───
-
-const THEME_LIST = [
-  {
-    id: "theme_00000000000000000000000002",
-    name: "Mocha",
-    override: { background: "oklch(0.15 0.015 250)", accent: "oklch(0.7 0.14 250)", density: "compact" },
-    css: null,
-    isSeed: true,
-    createdAt: 0,
-    updatedAt: 0,
-  },
-];
 
 test("Save as theme… promotes the LIVE override, defaulted to the character's name", async ({ mount, page }) => {
   const card = makeCharacterDetail({ themeOverride: { accent: "#00ff00" } });
@@ -257,7 +262,7 @@ test("the lower rungs write the pair too — Render HTML is trusted-but-static, 
 test("Inherit clears BOTH columns — a cleared render step must not leave an interactive opt-in behind", async ({ mount, page }) => {
   await stubExternalMediaBlocked(page, false);
   const card = makeCharacterDetail({ trustHtml: true, interactiveHtml: true });
-  const trpc = await routeTrpc(page, { "character.get": () => card, "character.update": () => card });
+  const trpc = await routeTrpc(page, { "character.get": () => card, "character.update": () => card, "settings.listThemes": () => THEME_LIST });
   await mount(<CharacterAppearanceTabStory />);
 
   // It reads back at the top rung first — the stored value is shown, never invented.

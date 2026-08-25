@@ -184,6 +184,33 @@ const EFFECTIVE_FLOOR = {
   stale: [],
 };
 
+/**
+ * THE EDITOR'S AMBIENT READS (#649) — spread FIRST into every `routeTrpc` call in this file.
+ *
+ * Every mount of the preset editor brings up the capability half (which model role this preset will run
+ * against), the funnel's own projection of the knobs, the display-script attachment cluster, and the
+ * active-pick write. None of them is any ONE test's subject — but `routeTrpc` answers an unlisted procedure
+ * `null`, which is not a view, so five pipelines ran INERT across thirty-two mounts here.
+ *
+ * DEFAULTS, NOT A CEILING. The capability-freshness / hold / fault tests list `connection.resolveChatCapability`
+ * (or intercept it by URL) AFTER the spread and still win, which is why the SUCCESS descriptor is safe as the
+ * default: it is the arm every non-capability test in this file already assumed.
+ */
+const PRESET_EDITOR_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+  // A settled, REQUIRED capability descriptor — the connected-model arm.
+  "connection.resolveChatCapability": CAPABILITY,
+  // The funnel's projection for this preset (§4.3) — the ghost values the knob rows read.
+  "preset.resolveEffective": EFFECTIVE_FLOOR,
+  // The display-script cluster: the viewer's whole script library and the ones attached to THIS preset.
+  // Empty ARRAYS are honest for a fresh viewer AND are real shapes, so the attachment resolve path runs.
+  "regex.listScripts": [],
+  "regex.listForPreset": [],
+  // The active-pick WRITE (`useSetDefaultPreset` — a `seeds` patch). It is `busDriven` and its output is
+  // typed `unknown` and never read (use-preset-mutations.ts:67), so `{}` moves nothing observable; it only
+  // stops a real mutation riding the lenient null fulfil.
+  "settings.updateUserSettingsSection": {},
+};
+
 test("capability freshness — a settingsChanged tick swaps the failed-capability note for the live Output knobs", async ({ mount, page }) => {
   // Fail-then-succeed script (the routeTrpc header's own counter idiom): resolve #1 rejects — the routing
   // fault the owner's receipt named — and every later resolve returns the capability, i.e. the user fixed the
@@ -191,6 +218,7 @@ test("capability freshness — a settingsChanged tick swaps the failed-capabilit
   // only decides what that refetch gets back.
   let resolves = 0;
   const trpc = await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -254,6 +282,7 @@ async function holdCapability(page: Page): Promise<void> {
 
 test("PENDING — a user WITH a chat model never sees a connect-a-model note; the gate holds a skeleton until the read lands", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -281,6 +310,7 @@ test("PENDING — a user WITH a chat model never sees a connect-a-model note; th
 
 test("PENDING — a FAILED read says nothing until it settles, then states the routing fault verbatim", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -315,6 +345,7 @@ test("PENDING — a FAILED read says nothing until it settles, then states the r
 // listbox's mutations would land in the transcript while the status still legitimately read "Saved".
 test("#81 P0 — the header reads Saving… the instant a knob is edited, never 'Saved' over the pending write", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -343,6 +374,7 @@ test("#81 P0 — the header reads Saving… the instant a knob is edited, never 
 
 test("SWITCH pin — A(dirty)→B shows B's real config and never persists A's values into B", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": (input: unknown) => ((input as { id?: string }).id === PRESET_B ? PRESET_B_DETAIL : PRESET_A_DETAIL),
     "preset.list": () => [PRESET_A_DETAIL, PRESET_B_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -377,6 +409,7 @@ test("SWITCH pin — A(dirty)→B shows B's real config and never persists A's v
 function routeReset(page: Page): Promise<TrpcRecorder> {
   let didReset = false;
   return routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     // Before reset → A ("fast"); after `preset.resetToDefault` fires → the starter (unset quality).
     "preset.get": () => (didReset ? STARTER_DETAIL : PRESET_A_DETAIL),
     "preset.list": () => [PRESET_A_DETAIL],
@@ -452,6 +485,7 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
   // pin about the fork-ONCE mechanism. The minted fork joins the list, exactly as the real invalidation does.
   let minted = false;
   const trpc = await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": (input: unknown) => ((input as { id?: string }).id === BUILT_IN ? BUILT_IN_DETAIL : forkDetail()),
     "preset.list": () => (minted ? [BUILT_IN_DETAIL, { ...forkDetail(), forkedFrom: BUILT_IN }] : [BUILT_IN_DETAIL]),
     "settings.getUserSettings": () => ({
@@ -546,6 +580,7 @@ function routeForkChoice(page: Page): Promise<TrpcRecorder> {
     return next;
   };
   return routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": (input: unknown) => rows.find((row) => row.id === (input as { id?: string }).id) ?? BUILT_IN_DETAIL,
     "preset.list": () => rows,
     "settings.getUserSettings": () => ({
@@ -664,6 +699,7 @@ test("FORK-CHOICE new fork — the suggested name is pre-filled, the mint carrie
 // hand-rolled one. That gate is import-keyed and blind to this data flow; the helper is its belt.
 test("FIVE VIEWS — one flat strip (Params default), and the re-homed nudge editor round-trips a raw {{token}}", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -742,6 +778,7 @@ async function openContinuationCue(component: Locator): Promise<Locator> {
 
 test("PROSE CAP — the counter is quiet until 80% of the cap, then typing HARD-STOPS at it", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -780,6 +817,7 @@ test("PROSE CAP — an ALREADY-over-cap stored override shows its real text and 
   // preset, a direct API write, a blob predating the cap. Truncating it would be the same data loss the
   // schema's self-heal already commits, just with a friendlier name, so the editor refuses instead.
   const trpc = await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => presetWithProse(OVERLONG),
     "preset.list": () => [presetWithProse(OVERLONG)],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -829,6 +867,7 @@ test("PROSE CAP — an ALREADY-over-cap stored override shows its real text and 
 // line whose whole job is to say whether this preset is saved said the opposite of the truth.
 test("PROSE GEOMETRY — the box scrolls at its cap, the refusal stays on screen, and the header stops saying Saved", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => presetWithProse(OVERLONG),
     "preset.list": () => [presetWithProse(OVERLONG)],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -891,6 +930,7 @@ function presetWithNoteFrame(text: string): PresetDetailFixture {
 
 test("NOTE CARRIER — dropping {{note}} holds the save, says why in the field, and the header stops saying Saved", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => presetWithNoteFrame(NOTE_FRAME_LEGAL),
     "preset.list": () => [presetWithNoteFrame(NOTE_FRAME_LEGAL)],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -929,6 +969,7 @@ const FORMAT_COUNTER_FROM = MAX_INJECTION_TEMPLATE_LENGTH * 0.8;
 
 test("FORMAT-STRING CAP — the nudge field wears the schema's cap and counts toward it", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -967,6 +1008,7 @@ const IMPERSONATE_ROW = "Edit Impersonate";
 
 test("GUIDED-PROMPT CAP — the steer field wears the shared injection-template cap and counts toward it", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -1020,6 +1062,7 @@ interface SeedsPatchCall {
 
 test("G7 a NOT-active preset's header offers Activate — the same setDefault seeds patch the LIST row fires", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => settingsWithActive(null),
@@ -1047,6 +1090,7 @@ test("P2 TRANSFORMS speaks ONE field layout — DELIVERY docks its controls like
   // on `data-orientation`, which is the Field primitive's own rendered statement of which arm it took, and
   // COMPARATIVELY: the claim is that the view speaks one grammar, so the neighbour is the oracle.
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -1072,6 +1116,7 @@ test("P1-2 the Activate command's ACCESSIBLE NAME contains its visible label (WC
   //
   // Asserted as the LAW, not as the new string: whatever the button says, its name must contain it.
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => settingsWithActive(null),
@@ -1093,6 +1138,7 @@ test("P1-1 the VIEW STRIP degrades to a scroller — every view reachable in a 3
   // is already written (shell.css: "degrade to a SCROLL, never into an ellipsis"); this makes the preset
   // editor's strip obey it.
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -1138,6 +1184,7 @@ test("P1-1 the header band shares the BODY's content column — capped and cente
   // the preset's name and its own Activate/Reset cluster stood a hand-span outside the thing they belong to.
   // Asserted structure-agnostically: the band is INSET from both pane edges, and by the SAME amount.
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => settingsWithActive(null),
@@ -1166,6 +1213,7 @@ test("P1-1 the header band shares the BODY's content column — capped and cente
 // is to make the pair fail loudly if one side ever gains a breakpoint arm the other does not.
 test("P2-1 FENCE — the header column and the view's content column are the SAME column above the wide breakpoint", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => settingsWithActive(null),
@@ -1198,6 +1246,7 @@ test("P2-1 FENCE — the header column and the view's content column are the SAM
 // and `snap --map` resolved it by DOM path. Pinned by NAME, which is exactly the affordance that was missing.
 test("P3-4: the view strip has an accessible name of its own, not one computed from its tabs", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => settingsWithActive(null),
@@ -1209,6 +1258,7 @@ test("P3-4: the view strip has an accessible name of its own, not one computed f
 
 test("G7 the ACTIVE preset's header wears the chip and offers NO Activate", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => settingsWithActive(PRESET_A),
@@ -1228,6 +1278,7 @@ test("P1-3 the header spends its width on the NAME — the model chip is gone, r
   // readout; the header states the one fact that is only legible here (Active).
   await page.setViewportSize({ width: 568, height: 900 });
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => settingsWithActive(PRESET_A),
@@ -1252,6 +1303,7 @@ test("P1-3 the header spends its width on the NAME — the model chip is gone, r
 
 test("O-13 — the Delivers-via chip OPENS the Guided instruction row in the Prompt view", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -1277,6 +1329,7 @@ test("O-13 — the Delivers-via chip OPENS the Guided instruction row in the Pro
 
 test("the Delivers-via chip lands on the RACK even when a DIFFERENT section is already drilled", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -1301,6 +1354,7 @@ test("the Delivers-via chip lands on the RACK even when a DIFFERENT section is a
 
 test("leaving the Prompt view while drilled and returning lands on the RACK, not back inside the editor", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -1325,6 +1379,7 @@ test("a drill in preset A does not leak into preset B — the section ids are th
   // byte-identical "main". An unscoped drill therefore RESOLVED in B and opened B directly inside its own
   // "Main" editor — a preset the user had just opened for the first time, already drilled.
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": (input: unknown) => ((input as { id?: string }).id === PRESET_B ? PRESET_B_DETAIL : PRESET_A_DETAIL),
     "preset.list": () => [PRESET_A_DETAIL, PRESET_B_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -1350,6 +1405,7 @@ test("a drill in preset A does not leak into preset B — the section ids are th
 
 test("O-16 + F-18 — the header offers Reset as its OWN named door; Export is not a second home, and there is no ⋯", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -1375,6 +1431,7 @@ test("O-16 + F-18 — the header offers Reset as its OWN named door; Export is n
 
 test("O-17 — Delivery + Collapsing render under Transforms and are gone from Prompt", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -1405,6 +1462,7 @@ test("O-17 — Delivery + Collapsing render under Transforms and are gone from P
 // emit put every form-bearing scroller in the class. `relative` is the one-class fix.
 test("no absolutely-positioned box escapes the preset editor's scroller (the containing-block pin)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -1440,6 +1498,7 @@ const RENAME_DOOR = "Rename preset";
 
 test("#483 the editor header renames the open preset — one name-only update against its own id", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,

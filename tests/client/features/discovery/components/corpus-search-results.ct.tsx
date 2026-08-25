@@ -34,6 +34,36 @@ import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { CorpusListSurfaceNavStory, CorpusSearchToDossierStory } from "../_ct-stories.tsx";
 
+/**
+ * THE CORPUS SECTION'S AMBIENT READS (#649) — spread FIRST into every `routeTrpc` call in this file.
+ *
+ * `CorpusListSurfaceNavStory` mounts the section the way the shell does: the omnibox's typeahead, the
+ * facet/catalog lenses the LIST pane resolves its chips from, and the CONTENT pane's home dossier beside
+ * it. None of that is any ONE test's subject here (the subject is what a search RESULT ROW says), but
+ * `routeTrpc` answers an unlisted procedure `null`, which is not a view — so six pipelines ran INERT
+ * across all fifteen mounts.
+ *
+ * Every value is the honest UN-DISTILLED default the corpus-list/-home CTs already use for the same reads:
+ * an empty catalog, no facets, no families, no gems, a zero-coverage home. A test that needs one of them
+ * populated lists the key AFTER the spread and wins (the suggestion test's `search.suggest` does).
+ */
+const CORPUS_AMBIENT_ROUTES: TrpcRoutes = {
+  // The omnibox typeahead. `[]` is a real (empty) list, where null skipped the suggestion resolve entirely.
+  "search.suggest": [],
+  // The LIST pane's lens vocabularies, at the pre-distill floor.
+  "discovery.characterFacets": { genres: [], tones: [] },
+  "discovery.catalog": { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 0 },
+  // The CONTENT pane's dossier reads — the shape `corpus-list-surface.ct.tsx`'s EMPTY_CORPUS_CONTENT uses.
+  "discovery.home": {
+    coverage: { characters: 0, digests: 0, segments: 0 },
+    sceneThemes: [],
+    arcThemes: [],
+    duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
+  },
+  "discovery.visualArchetypes": [],
+  "discovery.forgottenGems": [],
+};
+
 /** The line the row used to carry for its room: the literal word "Chat" plus a 6-character id slice. */
 const RAW_CHAT_REF = /^Chat \w{6}$/;
 const NAMED_CHAT = "chat_amethyst";
@@ -79,7 +109,7 @@ async function searchMemories(component: ReturnType<Page["locator"]>): Promise<v
 }
 
 test("a closer memory reads a HIGHER relevance than a further one", async ({ mount, page }) => {
-  await routeTrpc(page, MEMORY_HITS);
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...MEMORY_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
@@ -95,7 +125,7 @@ test("a closer memory reads a HIGHER relevance than a further one", async ({ mou
 // stranded in the `actions` sibling") — rendered inside the row's accessible content and carried on the
 // body's `aria-describedby`, so the row is announced as "<room>, <memory> 88%".
 test("#537 a hit's relevance is INSIDE the row's own button, on its accessible description", async ({ mount, page }) => {
-  await routeTrpc(page, MEMORY_HITS);
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...MEMORY_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
@@ -111,7 +141,7 @@ test("#537 a hit's relevance is INSIDE the row's own button, on its accessible d
 });
 
 test("a memory hit is a door: clicking it opens its chat", async ({ mount, page }) => {
-  await routeTrpc(page, MEMORY_HITS);
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...MEMORY_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
@@ -138,7 +168,7 @@ const SUGGESTIONS = [
 ];
 
 test("an open typeahead never covers a result: row 1 is clickable with the suggestions showing", async ({ mount, page }) => {
-  await routeTrpc(page, { ...MEMORY_HITS, "search.suggest": SUGGESTIONS });
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...MEMORY_HITS, "search.suggest": SUGGESTIONS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
@@ -193,7 +223,7 @@ const NEAREST_ONLY = /Nothing matched strongly/;
 const NEAREST_ONLY_SPOKEN = /nothing matched strongly/;
 
 test("a nonsense query is LABELLED, not presented as an answer — and keeps its rows (P2-B)", async ({ mount, page }) => {
-  await routeTrpc(page, NOISE_HITS);
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...NOISE_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
@@ -209,7 +239,7 @@ test("a nonsense query is LABELLED, not presented as an answer — and keeps its
 });
 
 test("a real answer carries NO caveat — the banner is a state, not a disclaimer (P2-B)", async ({ mount, page }) => {
-  await routeTrpc(page, MEMORY_HITS);
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...MEMORY_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
@@ -277,7 +307,7 @@ const ARIA_DOSSIER = {
  *  unstubbed 404 makes a correctly-wired thumbnail indistinguishable from the glyph-only row that shipped. */
 async function searchImages(component: ReturnType<Page["locator"]>, page: Page, extra: TrpcRoutes = {}): Promise<void> {
   await page.route("**/api/blob/*", async (route) => route.fulfill({ body: PIXEL, contentType: "image/png", status: 200 }));
-  await routeTrpc(page, { ...IMAGE_HITS, ...extra });
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...IMAGE_HITS, ...extra });
   await component.getByRole("button", { name: "Search Images" }).click();
   await component.getByRole("combobox", { name: "Search your corpus" }).fill("knight in the rain");
   await expect(component.getByText(WORN_CAPTION)).toBeVisible();
@@ -321,7 +351,7 @@ test("an image NO CARD wears is visibly NOT a door — and says why", async ({ m
 });
 
 test("a memory hit names its room, never a raw chat id", async ({ mount, page }) => {
-  await routeTrpc(page, MEMORY_HITS);
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...MEMORY_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
@@ -342,7 +372,7 @@ test("a memory hit names its room, never a raw chat id", async ({ mount, page })
 // its contract header says why (`chats.updatedAt` is when the ROOM was touched, which would read as a lie).
 // Whatever date a room's title holds is the room's authored name and arrives here for free.
 test("a memory row's accessible name is its ROOM, short and readable — not the whole digest", async ({ mount, page }) => {
-  await routeTrpc(page, MEMORY_HITS);
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...MEMORY_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
@@ -432,7 +462,7 @@ async function searchScenes(component: ReturnType<Page["locator"]>): Promise<voi
 }
 
 test("SCENES: one passage renders ONCE, with a door into every room it was found in (P1-1)", async ({ mount, page }) => {
-  await routeTrpc(page, SCENE_HITS);
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...SCENE_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchScenes(component);
@@ -447,7 +477,7 @@ test("SCENES: one passage renders ONCE, with a door into every room it was found
 });
 
 test("SCENES: a room is a door that LANDS, and it looks like one — left-aligned, muted, arrowed (P2-2)", async ({ mount, page }) => {
-  await routeTrpc(page, SCENE_HITS);
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...SCENE_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchScenes(component);
@@ -469,7 +499,7 @@ test("SCENES: a room is a door that LANDS, and it looks like one — left-aligne
 });
 
 test("SCENES: the honesty line is readable, not clipped to '…— showin' (P2-3)", async ({ mount, page }) => {
-  await routeTrpc(page, SCENE_HITS);
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...SCENE_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchScenes(component);
@@ -509,7 +539,7 @@ const ONE_ROOM_HITS: TrpcRoutes = {
 };
 
 test("SCENES: two passages from ONE room render that room's door once (P3-D)", async ({ mount, page }) => {
-  await routeTrpc(page, ONE_ROOM_HITS);
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...ONE_ROOM_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchScenes(component);
@@ -520,7 +550,7 @@ test("SCENES: two passages from ONE room render that room's door once (P3-D)", a
 });
 
 test("SCENES: a numbered room title explains its own number (P3-6)", async ({ mount, page }) => {
-  await routeTrpc(page, SCENE_HITS);
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...SCENE_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchScenes(component);
@@ -531,7 +561,7 @@ test("SCENES: a numbered room title explains its own number (P3-6)", async ({ mo
 });
 
 test("a memory body reads as prose — flattened markdown, no raw syntax — and identical evidence renders ONCE", async ({ mount, page }) => {
-  await routeTrpc(page, DUPLICATE_HITS);
+  await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...DUPLICATE_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await component.getByRole("button", { name: "Search Memories" }).click();

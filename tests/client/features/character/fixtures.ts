@@ -1,6 +1,7 @@
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
+import { VIEWER_AMBIENT_ROUTES } from "../fixtures.ts";
 
 // Character CT fixtures — plain client read-model literals matching `CharacterSummary`'s wire shape
 // (packages/server/src/domain/character/contract/views.ts). Kept as plain literals with STRING ids (not
@@ -9,6 +10,31 @@ import { slugifyHandle } from "@orb/kit/slug";
 // support/factories DB-row builders" precedent `features/chat/fixtures.ts` documents.
 
 const FROZEN_AT = 1_750_000_000_000;
+
+/**
+ * THE AMBIENT READS OF A MOUNTED CHARACTER-EDITOR TREE (#649) — spread into every `routeTrpc` call in this
+ * feature so the pipelines behind them actually RUN.
+ *
+ * Neither is anybody's subject: a facet-row CT is about the row's a11y contract, not about the character's
+ * attached display scripts or its staged tag suggestions. But `routeTrpc` answers an unlisted procedure
+ * `null` by design and `null` is not a view — both readers fell to their no-data arm, so the attachment
+ * resolve path and the suggestion-tier path ran INERT in every editor-driven file. Empty ARRAYS are the
+ * honest default for a fresh card (no attachments, nothing staged) AND they are real shapes, so the readers
+ * execute their select/dedup work where `null` skipped it.
+ *
+ * Composes {@link VIEWER_AMBIENT_ROUTES} — the editor tree also reads the viewer's settings row. DEFAULTS,
+ * NOT A CEILING: a file whose subject IS one of these lists the same key AFTER the spread and wins
+ * (character-editor-surface.ct.tsx's `suggestionFixtures()` is exactly that).
+ */
+export const CHARACTER_EDITOR_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+  ...VIEWER_AMBIENT_ROUTES,
+  // `RegexScriptRow[]` — the scripts attached to this character, in execution order
+  // (domain/regex/verbs/attachments/list-for-character.ts).
+  "regex.listForCharacter": [],
+  // `TagSuggestionView[]` — the owner-scoped read of STAGED (`status:'pending'`) tag suggestions
+  // (domain/tag/verbs/list-pending-suggestions.ts).
+  "tag.listPendingSuggestions": [],
+};
 
 export interface CharacterSummaryFixtureTag {
   readonly id: string;

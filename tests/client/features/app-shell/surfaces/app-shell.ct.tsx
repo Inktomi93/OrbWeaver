@@ -33,6 +33,42 @@ import {
   ModalScrollStory,
 } from "../_ct-stories.tsx";
 
+/**
+ * THE SHELL'S OWN AMBIENT READS (#649) — spread FIRST into every `routeTrpc` call in this file.
+ *
+ * The shell IS the composition root: every mount here brings up the You sheet's persona roster, the settings
+ * pane's viewer identity, the home databank tile's rows + census, and the refinery door's session roster —
+ * none of which is any ONE test's subject. Unfed, all six resolved `routeTrpc`'s null (which is not a view),
+ * so six pipelines ran INERT across twenty-three mounts and a regression in any of them was invisible here.
+ *
+ * DEFAULTS, NOT A CEILING — a test whose subject IS one of these lists the same key AFTER the spread and
+ * wins (the You-sheet tests' `persona.list`, the appearance-primacy tests' `settings.getUserSettings`, and
+ * the boot-veil tests' `trpcHold()` on it all still do exactly that).
+ */
+const EMPTY_BANK_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, total: 0 };
+const SHELL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+  // `ViewerView` — a projection of the request Principal (transport/trpc/routers/sessions.ts:25).
+  "sessions.me": { userId: "user_ct_shell", handle: "ct_shell", globalRole: "user" },
+  // The viewer's settings row at the production defaults — the appearance/tier readers the shell root
+  // resolves `data-theme`, `--font-scale` and `data-reduced-motion` from.
+  "settings.getUserSettings": { userId: "user_ct_shell", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
+  // `PersonaDetail[]` — the You sheet's roster lens. Empty is the honest default for a fresh viewer.
+  "persona.list": [],
+  // Home's databank tile: the paged rows and the bank CENSUS beside them. BOTH or neither — an unstubbed
+  // suspending read blanks the tile into its QueryBoundary (the app-root.ct.tsx precedent).
+  "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+  "databank.bankHealth": EMPTY_BANK_HEALTH,
+  // `RefinerySessionSummary[]` — the refinery door's roster read off the You sheet.
+  "refinery.listSessions": [],
+  // The home temp-chat tile's fire-and-forget janitor mutation. A CASCADE row: it is not in the #649 ledger
+  // for this file because the tile could not mount while `databank.list`/`bankHealth` answered null — the
+  // ratchet named it on the very next run once they were fed. Its `onSuccess` reads `data.reaped`
+  // (home-temp-chat-tile-body.tsx), so an unfed `null` THROWS reading `.reaped` — a real defect this feed
+  // retires rather than papers over, and the same one `tests/client/routes/app-root.ct.tsx` already fixed.
+  // `{reaped: 0}` is the honest "nothing expired" default.
+  "chat.reapTemporaryChats": { reaped: 0 },
+};
+
 /** The thumb-reach budget (L6/J12): rendered mobile-bar buttons (`mobile: "tab"` sections + "You") must
  *  never exceed this — a def flipping to `mobile: "tab"` must not silently balloon the bar. */
 const MAX_MOBILE_TAB_BUTTONS = 4;
@@ -355,7 +391,7 @@ test("closing a modal returns focus to the control that opened it (finalFocus)",
 });
 
 test("positive control: the desktop Jump click opens the command palette and Escape returns to its durable trigger", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.listChats": chatListResponder([]) });
   const shell = await mount(<AppShellStory />);
   const trigger = shell.getByRole("button", { name: JUMP_COMMAND_MENU_RE });
 
@@ -372,7 +408,7 @@ for (const { chord, title } of [
   { chord: "Control+KeyK", title: "Control+K" },
 ] as const) {
   test(`${title} opens the click-owned command palette and Escape returns to the Jump trigger`, async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+    await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.listChats": chatListResponder([]) });
     const shell = await mount(<AppShellStory />);
     const trigger = shell.getByRole("button", { name: JUMP_COMMAND_MENU_RE });
     await expect(trigger).toBeVisible();
@@ -428,7 +464,7 @@ test("the command shortcut ignores text-entry targets without preventing their b
 });
 
 test("default is prevented only for an exact, non-repeating command shortcut", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.listChats": chatListResponder([]) });
   await mount(<AppShellStory />);
 
   const ignored = [
@@ -575,7 +611,7 @@ test("MOBILE: an ordinary You-sheet close still returns focus to its durable tri
 });
 
 test("MOBILE: You-sheet Jump handoff keeps Search focused through Drawer cleanup and accepts immediate typing", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.listChats": chatListResponder([]) });
   await page.setViewportSize(MOBILE);
   const shell = await mount(<AppShellStory />);
   const you = shell.getByRole("button", { name: "You" });
@@ -596,7 +632,7 @@ test("MOBILE: You-sheet Jump handoff keeps Search focused through Drawer cleanup
 });
 
 test("filtering the command palette keeps the dialog and search geometry stable", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.listChats": chatListResponder([]) });
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: JUMP_COMMAND_MENU_RE }).click();
   const dialog = page.getByRole("dialog", { name: "Jump to…" });
@@ -623,7 +659,7 @@ test("filtering the command palette keeps the dialog and search geometry stable"
 });
 
 test("the real command palette keeps roving selection exposed from its focused combobox", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.listChats": chatListResponder([]) });
   await page.setViewportSize(MOBILE);
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "You" }).click();
@@ -642,7 +678,7 @@ test("the real command palette keeps roving selection exposed from its focused c
 });
 
 test("the command palette reserves a compact, stable result viewport while filtering", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.listChats": chatListResponder([]) });
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: JUMP_COMMAND_MENU_RE }).click();
   const dialog = page.getByRole("dialog", { name: "Jump to…" });
@@ -1078,6 +1114,7 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
   // roster no longer says it. An empty roster therefore renders the "No personas yet" empty state and the
   // words never appear, which is what an unswept `persona.list: []` stub was asserting against.
   await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
     "persona.list": () => [SHEET_PERSONA],
     "settings.getUserSettings": () => ({
       userId: "user_ct_you",
@@ -1117,6 +1154,7 @@ test("mobile: the You sheet hands off to Settings in the shared modal slot (sing
   await page.setViewportSize(MOBILE);
   // Stub the persona identity widget's sheet-lens reads so the projected sheet renders cleanly (§E-5).
   await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
     "persona.list": () => [],
     "settings.getUserSettings": () => ({ userId: "user_ct_you_handoff", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
   });
@@ -1157,6 +1195,7 @@ test.describe("the Refinery's phone door (coarse pointer)", () => {
     // The sheet projects the persona identity widget's `body("sheet")` lens; stub its two reads so the
     // sheet renders its real composition around the row under test.
     await routeTrpc(page, {
+      ...SHELL_AMBIENT_ROUTES,
       "persona.list": () => [],
       "settings.getUserSettings": () => ({ userId: "user_ct_refinery_door", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
     });
@@ -1430,6 +1469,7 @@ async function renderedPrimacyCrossover(page: Page): Promise<{ constrained: numb
 
 test("#375 Reading derives the context crossover from the resolved pane geometry", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
     "settings.getUserSettings": () => ({
       userId: "user_ct_shell_reading_primacy",
       schemaVersion: 1,
@@ -1538,6 +1578,7 @@ for (const profileName of APPEARANCE_PROFILE_NAMES) {
   test(`#375 ${profileName}: both sides of the rendered crossover preserve pane, keyboard, and focus behavior`, async ({ mount, page }) => {
     const appearance = appearanceForProfile(profileName);
     await routeTrpc(page, {
+      ...SHELL_AMBIENT_ROUTES,
       "settings.getUserSettings": () => ({
         userId: `user_ct_shell_primacy_${profileName}`,
         schemaVersion: 1,
@@ -1828,6 +1869,7 @@ test("at 900px (48-64rem) the recents FINDER is still reachable — it moved to 
   // can still find a recent chat without hunting for a hidden panel. Home is now that finder, and home
   // declares NO list pane, so there is nothing to auto-overlay away.
   await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
     "chat.listChats": chatListResponder([makeChatSummary({ id: "chat_recent_900", title: "A grand adventure" })]),
     "character.list": { items: [makeCharacterSummary()], nextCursor: null },
   });
@@ -2440,9 +2482,7 @@ test("#176 full motion: the section swap captures the CONTENT pane only — the 
 // the old hook and fails on it.
 test("#170 a chat's carried background paints in the chats section and is GONE the moment another section is active", async ({ mount, page }) => {
   await page.setViewportSize(WIDE);
-  await routeTrpc(page, {
-    "chat.getChat": { participants: [ROOM_HUMAN_SEAT], background: ROOM_BACKGROUND },
-  });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": { participants: [ROOM_HUMAN_SEAT], background: ROOM_BACKGROUND } });
   // The room pointer as a real boot has it: in localStorage BEFORE any module runs, so the shell's first
   // render reads it (the store rehydrates synchronously — see the boot test below). An effect-seeded
   // pointer would be one commit late and could not pin first-paint behaviour.
@@ -3412,6 +3452,7 @@ const UA_ROOT_PX = 16;
 test("chatWidthPct stamps a real rendered max-width on a --width-shell-content consumer", async ({ mount, page }) => {
   const chatWidthPct = 90; // clear of the clamp's 680px floor at any CT viewport ≥ 756px wide.
   await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
     "settings.getUserSettings": () => ({
       userId: "user_ct_shell_width",
       schemaVersion: 1,
@@ -3436,6 +3477,7 @@ test("chatWidthPct stamps a real rendered max-width on a --width-shell-content c
 test("fontScale stamps a real rendered <html> font-size (UA root × fontScale)", async ({ mount, page }) => {
   const fontScale = 1.25;
   await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
     "settings.getUserSettings": () => ({
       userId: "user_ct_shell_fontscale",
       schemaVersion: 1,
@@ -3471,6 +3513,7 @@ const FLOORED_ANIMATION_S = 0.001;
 
 test("#188 the app's reduced-motion pref floors an animation OUTSIDE the shell grid (the boot-veil position)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
     "settings.getUserSettings": () => ({
       userId: "user_ct_shell_reduced_motion",
       schemaVersion: 1,
@@ -3523,7 +3566,7 @@ test("#188 a device that remembers reducedMotion=ON keeps the flag stamped while
   });
   await page.reload();
   const settings = trpcHold();
-  await routeTrpc(page, { "settings.getUserSettings": settings });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   // The barrier is the HELD request, not a timer: past this the shell has mounted and its root effect has
   // run with an unresolved read, which is exactly the window the boot veil animates in.
@@ -3535,7 +3578,7 @@ test("#188 a device that remembers reducedMotion=ON keeps the flag stamped while
 
 test("#188 CONTROL: a device with NO hint is not stamped ON by the pending read — the pref is remembered, never guessed", async ({ mount, page }) => {
   const settings = trpcHold();
-  await routeTrpc(page, { "settings.getUserSettings": settings });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   await settings.requested;
   await expect
@@ -3641,7 +3684,7 @@ test("a non-file drag is left entirely alone — the guard is files-only", async
 // ── PANE-LESS SECTIONS (side-eye F1/F2/F6) — no doors onto panes that do not exist ──────────────────
 
 test("a section with NO panes ships NO panel chrome: no list toggle, no detail-panel toggle, no focus toggle", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([]), "character.list": { items: [], nextCursor: null } });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.listChats": chatListResponder([]), "character.list": { items: [], nextCursor: null } });
   const shell = await mount(<AppShellOnSectionStory section="home" />);
 
   await expect(shell.locator('[data-home-tile="home.jump"]')).toBeVisible();
@@ -4174,7 +4217,7 @@ async function bootWithAppearanceHint(page: Page): Promise<void> {
 test("#231 a remembered fontScale survives the shell's first commit while getUserSettings is in flight", async ({ mount, page }) => {
   await bootWithAppearanceHint(page);
   const settings = trpcHold();
-  await routeTrpc(page, { "settings.getUserSettings": settings });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   await settings.requested;
   await expect
@@ -4187,7 +4230,7 @@ test("#231 a remembered fontScale survives the shell's first commit while getUse
 test("#231 a remembered theme survives it too — a Light user never cold-boots the dark palette", async ({ mount, page }) => {
   await bootWithAppearanceHint(page);
   const settings = trpcHold();
-  await routeTrpc(page, { "settings.getUserSettings": settings });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   await settings.requested;
   await expect
@@ -4197,7 +4240,7 @@ test("#231 a remembered theme survives it too — a Light user never cold-boots 
 
 test("#231 CONTROL: a device with NO hint is not scaled or themed by the pending read — remembered, never guessed", async ({ mount, page }) => {
   const settings = trpcHold();
-  await routeTrpc(page, { "settings.getUserSettings": settings });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   await settings.requested;
   const root = await page.evaluate(

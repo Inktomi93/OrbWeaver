@@ -170,7 +170,10 @@ async function stub(page: Page, shape: TrpcRoutes): Promise<TrpcRecorder> {
     }
     await route.fulfill({ status: 404 });
   });
-  return routeTrpc(page, shape);
+  // #649 — the viewer-identity read the invitation's run-the-pass door resolves off. Unfed it answered
+  // `routeTrpc`'s null, so this surface's viewer resolved through its no-data branch and nothing here
+  // exercised the identity-dependent path. Listed FIRST, so a caller's own `shape` still wins.
+  return routeTrpc(page, { "sessions.me": { userId: "user_ct_corpus", handle: "ct_corpus", globalRole: "user" }, ...shape });
 }
 
 test("UN-ANALYSED: the invitation holds the focal and the family map renders quiet beneath it", async ({ mount, page }) => {

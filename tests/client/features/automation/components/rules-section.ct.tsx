@@ -12,6 +12,7 @@
 // own copy. Every one of them was RED against the pre-fix source (measured 2026-08-24, cb-rules-section).
 // The mount is 384px — the narrowest REAL host (the docked CONTEXT pane), never a roomy story width.
 
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -25,6 +26,14 @@ const CHAT = castId<ChatId>("chat_ct_rules_0001");
 
 // A FIXED epoch, never `Date.now()` (test-determinism): the row and the log both render relative time.
 const A_PAST_INSTANT = 1_760_000_000_000;
+
+/** The viewer's settings row (#649) — spread FIRST into every `routeTrpc` call here. Not this file's subject
+ *  (the rules surface is), but unfed it resolved `routeTrpc`'s null, so every appearance/tier reader in this
+ *  384px mount fell to its default branch and the settings-driven presentation path never ran. Production
+ *  defaults, so no assertion here moves. */
+const VIEWER_SETTINGS_ROUTE: Readonly<Record<string, unknown>> = {
+  "settings.getUserSettings": { userId: "user_ct_rules", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: A_PAST_INSTANT },
+};
 const RUN_NOW_ITEM = /Run now/u;
 const LAST_RAN_LINE = /^Last ran /u;
 /** The defect this row killed: a TEXT BOX asking for a lorebook id. Any textbox named for the lorebook knob. */
@@ -153,6 +162,7 @@ interface StubOverrides {
 
 function stub(page: Page, overrides: StubOverrides = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    ...VIEWER_SETTINGS_ROUTE,
     "automation.listRules": () => overrides.rules ?? [RULE],
     "automation.listFires": () => overrides.fires ?? [],
     "automation.listRulePresets": () => overrides.presets ?? [PACING_PRESET],
@@ -505,6 +515,7 @@ test("#621 P1-3 re-derivation: the rule catalogue's summaries are not clipped by
 
 test("#616: the host's 'This chat' tab renders the grafted Rules section in the host-controls band", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...VIEWER_SETTINGS_ROUTE,
     "chat.setRoomOverrides": () => ({}),
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
@@ -535,6 +546,7 @@ test("#616: the host's 'This chat' tab renders the grafted Rules section in the 
 
 test("#616: a MEMBER's tab has no Rules section (host-only by MOUNT, not by a predicate)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...VIEWER_SETTINGS_ROUTE,
     "chat.setRoomOverrides": () => ({}),
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
@@ -566,6 +578,7 @@ test("#640 END-TO-END: a room with no books → attach in Lorebooks → the auto
   // The room's attachment list, MUTABLE — the stub answers what the server would after the write lands.
   const attached: unknown[] = [];
   const trpc = await routeTrpc(page, {
+    ...VIEWER_SETTINGS_ROUTE,
     "chat.setRoomOverrides": () => ({}),
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),

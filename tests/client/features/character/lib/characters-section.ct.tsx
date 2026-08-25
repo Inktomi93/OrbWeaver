@@ -56,6 +56,9 @@ async function routeAll(page: Page): Promise<void> {
     "worldInfo.listForCharacter": () => [],
     "persona.listConnectedToCharacter": () => [],
     "regex.listForCharacter": () => [],
+    // #649 — the editor pane's STAGED tag-suggestion read was the last unfed one here, so the suggestion
+    // tier ran INERT on `routeTrpc`'s null. Empty is the honest default (nothing staged for this card).
+    "tag.listPendingSuggestions": () => [],
   });
 }
 
