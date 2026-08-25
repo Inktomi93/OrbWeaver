@@ -30,7 +30,9 @@ export interface RegisteredTool {
    *  is a question asked about an entry WITHOUT invoking it: "which contributor tools may THIS user point at
    *  by name" — the automation `run_tool` mint gate, its per-fire pause check, and the per-turn attach
    *  contribution all ask exactly that, and none of them is in a position to invoke first and see.
-   *  `substrate/reachability.ts::isDirectDrivableBy` is the ONE predicate over it; nothing else reads it. */
+   *  `substrate/reachability.ts::isDirectDrivableBy` is the ONE predicate over it. It is ALSO the owner half of
+   *  the entry's {@link ToolRegistryKey} (#677) — the same fact, stored once, read two ways: the key decides
+   *  WHERE the entry lives, the predicate decides who may point at it. */
   readonly owner: UserId | null;
   readonly parameters: Record<string, unknown>;
   /** The zod raw shape (the registered object schema's `.shape`) the MCP projection hands the agent-sdk
@@ -41,10 +43,22 @@ export interface RegisteredTool {
   readonly run: (parsedJson: unknown, exec: ToolExecutionContext, gate: () => void) => Promise<RunOutcome>;
 }
 
+declare const toolRegistryKeyBrand: unique symbol;
+
+/** The registry's key: an entry's `(owner, name)` pair, flattened by the ONE derivation in
+ *  `substrate/partition.ts`. Branded so nothing else can mint one — a `registry.get(name)` keyed on a bare tool
+ *  name is a TYPE ERROR, which is what keeps the per-installer partition (#677) from silently collapsing back
+ *  into a global name shelf the first time someone adds a lookup. */
+export type ToolRegistryKey = string & { readonly [toolRegistryKeyBrand]: true };
+
 /** The registry's mutable state — created once per service. Compose-time `register` never removes (boot-
  *  fatal collision, v1); the RUNTIME plugin registrar (PL-A) adds + removes at activation/deactivation via
- *  {@link PluginToolHandle} — the ONE registry, two write paths (D48), never a parallel plugin-tool map. */
-export type ToolRegistry = Map<string, RegisteredTool>;
+ *  {@link PluginToolHandle} — the ONE registry, two write paths (D48), never a parallel plugin-tool map.
+ *
+ *  Keyed by {@link ToolRegistryKey}, NOT by name: the same namespaced plugin tool name legitimately exists once
+ *  per installing user (`substrate/partition.ts` carries the why). Iteration order stays insertion order, so
+ *  `listDrivableToolNames` still reports registration order within an owner. */
+export type ToolRegistry = Map<ToolRegistryKey, RegisteredTool>;
 
 /** The deregistration handle the runtime plugin registrar returns (PL-A). Plugin deactivation/uninstall calls
  *  `unregister` so a disabled plugin's tool never stays resolvable — no ghost tools. */
