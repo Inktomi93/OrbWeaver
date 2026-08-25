@@ -80,7 +80,20 @@ function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElemen
           return;
         }
         // Resolve the new asset's blob url (owner-scoped) so the detail lightbox can paint it, then hand off.
-        const refs = await queryClient.fetchQuery(trpc.assets.resolveBlobRefs.queryOptions({ assetIds: [first.assetId] }));
+        // The RESOLVE is a DISTINCT failure from the edit and must not fall into the outer catch: the asset is
+        // already minted and owned server-side, so a REJECTED resolve (a transient drop in the window right
+        // after a long generation) means "saved but not openable here", not "edit failed". Swallowing it left
+        // the modal unchanged with no toast, so the host reads a successful edit as a failure and pays for a
+        // duplicate — the file header's "surfaced, never swallowed" law. Surface it as the same partial success
+        // the empty-row arm below carries; the outer catch keeps covering only the mutation-rejection arm the
+        // global errorToast already speaks for.
+        let refs: readonly AssetBlobRef[];
+        try {
+          refs = await queryClient.fetchQuery(trpc.assets.resolveBlobRefs.queryOptions({ assetIds: [first.assetId] }));
+        } catch {
+          toast.add({ title: "Edited image saved", description: "Couldn't open it here — it's in your gallery." });
+          return;
+        }
         const ref = refs[0];
         if (ref === undefined) {
           toast.add({ title: "Edited image saved", description: "It's in your gallery." });

@@ -126,3 +126,35 @@ test("confirming the card calls confirmSuggestion once — the card's action is 
 
   await expect.poll(() => trpc.count("automation.confirmSuggestion"), { intervals: [20, 50, 100] }).toBe(1);
 });
+
+// ── #700 ARM A: the acting tab RETIRES its own card the moment the take resolves ─────────────────────────
+// The confirm/dismiss verbs delete the ask server-side, but the mutations are `busDriven` with no query to
+// refetch (RULED F1) and this room is live-only — so before the fix nothing on THIS tab dropped the answered
+// card: it sat rendered and re-enabled until TTL (30 min) / reconnect, and as the band's `cards.at(-1)` it
+// masked every older pending card behind a lying "+N pending". ARM A wires the per-call `onSuccess` local
+// removal. (The server is stubbed here, so only the client half runs — which is exactly ARM A's scope; the
+// `suggestionResolved` bus member covers the host's OTHER tabs and is proven in the fold unit test.)
+test("#700 ARM A: confirming the card retires it on THIS tab — the answered card leaves the band without waiting on TTL", async ({ mount, page }) => {
+  await routeRoom(page, [rewriteCardFrame()]);
+
+  const component = await mount(<AutomationSuggestionCardStory />);
+  const question = component.getByText("Fix the last reply — repeats itself?");
+  await expect(question).toBeVisible();
+
+  await component.getByRole("button", { name: "Do it" }).click();
+  // The mutation's per-call onSuccess filters the ask out of the mount's local state, so the whole card is
+  // gone — the settled state a working retire produces (before the fix this stayed visible).
+  await expect(question).toBeHidden();
+});
+
+test("#700 ARM A: dismissing the card retires it on THIS tab too", async ({ mount, page }) => {
+  await routeRoom(page, [rewriteCardFrame()]);
+
+  const component = await mount(<AutomationSuggestionCardStory />);
+  const question = component.getByText("Fix the last reply — repeats itself?");
+  await expect(question).toBeVisible();
+
+  // The band renders the dismiss affordance as `aria-label="Dismiss <title>"` (chat-controls-band.tsx).
+  await component.getByRole("button", { name: "Dismiss Fix the last reply — repeats itself?" }).click();
+  await expect(question).toBeHidden();
+});

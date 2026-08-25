@@ -51,8 +51,10 @@ const QUICK_REPLY_EVENT_ARMS: QuickReplyEventArms = {
     ...chips.filter((set) => sourceKey(set.source) !== sourceKey(event.source)),
     { source: event.source, choices: event.choices },
   ],
-  // Cards, not chips — the S4 fold's surface (see this file's header for why neither moves a chip).
+  // Cards, not chips — the S4 fold's surface (see this file's header for why neither moves a chip). A raise
+  // and its RETIREMENT twin both belong to the card fold; a chip has no id to match `suggestionResolved` on.
   suggestionRaised: (chips) => chips,
+  suggestionResolved: (chips) => chips,
   // The B2 fire-log signals — no chip lifecycle rides them (a chip has no server record to void; see header).
   ruleAutoDisabled: (chips) => chips,
   ruleFired: (chips) => chips,

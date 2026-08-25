@@ -241,6 +241,12 @@ export function createConfirmSuggestion(ctx: AutomationContext): AutomationServi
     if (claimed === null) {
       throw new SuggestionNotFoundError(suggestionId);
     }
+    // #700 — RETIRE THE CARD ON EVERY ATTACHED HOST TAB. The claim just deleted the ask from the in-RAM store,
+    // so it can never be answered again; emit here — BEFORE the origin re-checks — so even a refused confirm
+    // retires the card (the ask is spent either way). The acting tab also drops it optimistically via the
+    // mutation's onSuccess, but the host's OTHER tabs/devices have no query and no replay behind this
+    // live-only room, so this host-only event is their only retirement channel (§3-S4 spec delta).
+    ctx.notify({ type: "suggestionResolved", chatId: claimed.chatId, suggestionId });
     // BRANCH ON THE ORIGIN, not on the class — the liveness question and the executor are both origin-owned.
     // A plugin ask has no rule to re-read and no `runRuleNow` to fall back on: the invitation class is
     // structurally rule-only (it exists because `budget_refused` fires pre-predicate on a RULE), so a plugin

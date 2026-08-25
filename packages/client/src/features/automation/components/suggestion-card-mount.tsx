@@ -25,6 +25,7 @@
 // lets the band own that law.
 
 import type { StreamRoomRef } from "@orb/contracts/stream";
+import type { AutomationSuggestionId } from "@orb/kit/ids";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { DiffView } from "@orb/ui/diff";
 import { ScrollArea } from "@orb/ui/scroll-area";
@@ -44,6 +45,17 @@ const CONFIRM_LABEL = { confirm: "Do it", invitation: "Run now" } as const;
 
 /** Publish an empty list once when the source has nothing live (retiring anything it had raised). */
 const NO_ASKS: readonly PendingAsk[] = [];
+
+/** ARM A's error gate: on a take that REJECTED, is the ask provably gone from the server's store? A
+ *  `SuggestionNotFoundError` maps to NOT_FOUND (`transport/error-mapping.ts`) and collapses every way an ask
+ *  can be already-gone — never existed, already taken, TTL-swept, voided — so retiring the local card is
+ *  correct and a second click would only earn the "no longer available" toast on an answered card. A FORBIDDEN
+ *  (a demoted host) leaves the ask ALIVE server-side, so that card must STAY; the errorToast still speaks. The
+ *  structured `data.code` is the discriminator, never message text (the `use-recompute-stats`/`stale-session`
+ *  precedent). */
+function isSuggestionGone(error: unknown): boolean {
+  return (error as { data?: { code?: string } } | null | undefined)?.data?.code === "NOT_FOUND";
+}
 
 /** C3's card BODY — the rewrite behind a disclosure, closed by default.
  *
@@ -79,6 +91,16 @@ export function AutomationSuggestionMount({ state, publish }: ChatControlSourceM
   const dismiss = useDismissSuggestion({ trpc, invalidation });
   const [asks, setAsks] = useState<readonly PendingAsk[]>(NO_ASKS);
 
+  // ARM A — THE ACTING TAB'S OWN RETIREMENT (#700). The confirm/dismiss verbs delete the ask from the server's
+  // in-RAM store, but nothing on this tab drops the card for it: the mutations are `busDriven` with NO query to
+  // refetch (RULED F1), the client fold only hears `suggestionRaised`, and this room is live-only. So the card
+  // sat rendered and re-enabled until TTL (30 min) / reconnect / a same-source re-raise — and as the band's
+  // `cards.at(-1)` it MASKED every older pending card behind a lying "+N pending". The take is the transition
+  // `suggestion-mutations.ts` documents, so we make it real here: on the mutation's own resolution the source
+  // retires its row. This is the OPTIMISTIC, immediate half; the `suggestionResolved` bus member is what retires
+  // the same card on the host's OTHER tabs/devices (which have no query/replay to catch up on).
+  const retire = (id: AutomationSuggestionId): void => setAsks((prev) => prev.filter((a) => a.id !== id));
+
   const ref: Extract<StreamRoomRef, { channel: "automation" }> | null = chatId === null ? null : { channel: "automation", chatId };
   useBusRoom<"automation">(ref, {
     onEvent: (frame) => setAsks((prev) => applyAutomationBusEvent(pruneExpiredAsks(prev, timeLib.now()), frame.event)),
@@ -106,9 +128,12 @@ export function AutomationSuggestionMount({ state, publish }: ChatControlSourceM
   // from a render loop whose only symptom is a pegged CPU. Depending on VALUES only (the asks, the pending
   // flag) makes that structurally impossible: the effect re-runs when the ANSWER changes and at no other
   // time, whatever the compiler does with the closures around it.
-  const latest = useRef({ publish, confirm, dismiss });
+  // `retire` rides the box too: it is a fresh closure each render (it must be — it closes over nothing but the
+  // stable `setAsks`), and the publish effect below reads it, so listing it as a dep would re-run that effect
+  // every render — the exact identity-driven loop this ref-box exists to prevent.
+  const latest = useRef({ publish, confirm, dismiss, retire });
   useEffect(() => {
-    latest.current = { publish, confirm, dismiss };
+    latest.current = { publish, confirm, dismiss, retire };
   });
 
   const confirmPending = confirm.isPending;
@@ -127,13 +152,38 @@ export function AutomationSuggestionMount({ state, publish }: ChatControlSourceM
           id: ask.id,
           label: CONFIRM_LABEL[ask.kind],
           mode: "execute" as const,
-          run: (): void => box.confirm.mutate({ suggestionId: ask.id }),
+          // The per-call `MutateOptions` the factory forwards (create-entity-mutation.ts) run IN ADDITION to
+          // the baked recipe + global errorToast: retire this card the moment the take resolves, or on a
+          // NOT_FOUND refusal (the ask is already gone — see `isSuggestionGone`). A FORBIDDEN leaves the card.
+          run: (): void =>
+            box.confirm.mutate(
+              { suggestionId: ask.id },
+              {
+                onSuccess: (): void => box.retire(ask.id),
+                onError: (error): void => {
+                  if (isSuggestionGone(error)) {
+                    box.retire(ask.id);
+                  }
+                },
+              },
+            ),
           // The source owns the mutation, so only the source can say whether it is in flight — the band
           // never invents a pending state it cannot observe.
           pending: confirmPending,
         },
       ],
-      dismiss: (): void => box.dismiss.mutate({ suggestionId: ask.id }),
+      dismiss: (): void =>
+        box.dismiss.mutate(
+          { suggestionId: ask.id },
+          {
+            onSuccess: (): void => box.retire(ask.id),
+            onError: (error): void => {
+              if (isSuggestionGone(error)) {
+                box.retire(ask.id);
+              }
+            },
+          },
+        ),
     }));
     box.publish(controls);
   }, [asks, confirmPending]);

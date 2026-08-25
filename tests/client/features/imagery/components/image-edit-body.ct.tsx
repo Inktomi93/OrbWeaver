@@ -6,10 +6,13 @@ import { blobUrl } from "@orb/contracts/assets";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { holdPortraitImage, layoutBox, PORTRAIT_H, PORTRAIT_RATIO, PORTRAIT_W } from "../../../../support/ct/held-portrait-image.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { seedActiveChat } from "../../../../support/ct/seed-active-chat.ts";
 import { RoomImageDetailStory } from "../../chat/_ct-stories.tsx";
-import { EditFlowStory } from "../_ct-stories.tsx";
+import { EditFlowStory, EditToastStory } from "../_ct-stories.tsx";
+
+/** The production toast outlet's root — the only place the post-success resolve failure can be observed. */
+const TOAST_ROOT = '[data-slot="toast-root"]';
 
 const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
@@ -166,4 +169,47 @@ test("image edit: an instruction drives imagery.editImage and hands off to the d
 
   // Hand-off: the detail body appears on the edited asset (its Set-as-background action is the tell).
   await expect(cmp.getByRole("button", { name: "Set as background" })).toBeVisible();
+});
+
+// ── #702: a REJECTED resolve after a SUCCESSFUL edit must surface the partial success, never swallow it ──
+// editImage succeeds (the asset is minted + owned server-side), then `resolveBlobRefs` REJECTS — a transient
+// drop in the window right after a long generation. The old code let that fall into `.catch(() => undefined)`:
+// no toast, the modal unchanged, so the host read a successful edit as a failure and paid for a duplicate. The
+// fix wraps the resolve in its own try/catch and toasts "saved, but couldn't open it here", keeping it DISTINCT
+// from the edit-failed errorToast. Runs on `EditToastStory` — the only stack where the toast channel exists.
+test("#702: a resolve failure after a successful edit toasts the partial success (saved, not openable), not silence", async ({ mount, page }) => {
+  const chatId = mintTypeId(ID_PREFIX.chat);
+  const sourceAssetId = mintTypeId(ID_PREFIX.asset);
+  const editedAssetId = mintTypeId(ID_PREFIX.asset);
+  const generationId = mintTypeId(ID_PREFIX.imageryGeneration);
+  await routeTrpc(page, {
+    "imagery.editImage": {
+      images: [
+        { assetId: editedAssetId, generationId, block: { kind: "media", media: "image", alt: "edited", src: { kind: "asset", assetId: editedAssetId } } },
+      ],
+      prompt: "make it night",
+      promptSource: "user",
+      mode: "free",
+      model: "gpt-image-1",
+      costUsd: 0.05,
+      reused: false,
+      warnings: [],
+    },
+    // The edit committed; the READ-BACK of its blob url fails — the exact post-success window #702 names.
+    "assets.resolveBlobRefs": () => trpcError({ code: "SERVICE_UNAVAILABLE", message: "resolve dropped" }),
+    "imagery.readProvenance": null,
+  });
+  const cmp = await mount(<EditToastStory assetId={sourceAssetId} chatId={chatId} url={PNG} />);
+
+  await cmp.getByRole("textbox", { name: "Edit instruction" }).fill("make it night");
+  await cmp.getByRole("button", { name: "Generate edit" }).click();
+
+  // The partial-success toast IS shown — saved, just not openable here (the gallery hand-off line).
+  const toasts = page.locator(TOAST_ROOT);
+  await expect(toasts).toContainText("Couldn't open it here");
+  // And it is NOT the edit-failed message — the edit succeeded, only the display failed. That distinction is
+  // the whole point: `errorToast: "Couldn't edit the image."` must be nowhere on the page.
+  await expect(page.getByText("Couldn't edit the image.", { exact: false })).toBeHidden();
+  // The hand-off did NOT happen (no resolved ref), so the modal stays on the edit surface, not the detail body.
+  await expect(cmp.getByRole("button", { name: "Set as background" })).toBeHidden();
 });
