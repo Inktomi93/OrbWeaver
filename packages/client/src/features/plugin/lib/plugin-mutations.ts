@@ -89,6 +89,27 @@ export const useUninstallPlugin = createEntityMutation<{ readonly pluginId: Plug
   errorToast: serverReason("Couldn't remove that plugin."),
 });
 
+/**
+ * ADMIN — publish a bundle to every account (D147 clause (d)). It reconciles TWO reads: the published set it
+ * just changed, and the caller's OWN `plugin.list`, because the admin is a user too and the fan-out mints them
+ * a copy like everyone else — without the second invalidate their own pane would keep saying they have nothing
+ * until a reload. No optimistic paint: the result carries `applied`/`skipped` counts nothing client-side can
+ * predict (it depends on who already holds the slug).
+ */
+export const useDistributePlugin = createEntityMutation<inferInput<Trpc["plugin"]["installForAllUsers"]>, inferOutput<Trpc["plugin"]["installForAllUsers"]>>({
+  options: (trpc) => trpc.plugin.installForAllUsers.mutationOptions(),
+  invalidates: (trpc) => [trpc.plugin.listDistributed.queryFilter(), trpc.plugin.list.queryFilter()],
+  errorToast: serverReason("Couldn't distribute that plugin."),
+});
+
+/** ADMIN — withdraw a published plugin: drop it from the published set and uninstall every copy still at the
+ *  distributed version. Same two invalidates, same reason (the admin's own copy goes with everyone else's). */
+export const useWithdrawPlugin = createEntityMutation<inferInput<Trpc["plugin"]["uninstallForAllUsers"]>, inferOutput<Trpc["plugin"]["uninstallForAllUsers"]>>({
+  options: (trpc) => trpc.plugin.uninstallForAllUsers.mutationOptions(),
+  invalidates: (trpc) => [trpc.plugin.listDistributed.queryFilter(), trpc.plugin.list.queryFilter()],
+  errorToast: serverReason("Couldn't withdraw that plugin."),
+});
+
 /** Run one inline snippet as the caller in one chat. Reconciles nothing — a snippet is transient and
  *  registers nothing; the caller reads the returned drained log + contained `error` through `mutateAsync`.
  *  Its one refusal a person can act on is the per-user concurrency ceiling, whose message says exactly what

@@ -1,5 +1,7 @@
 // Front door for the boot protocol's step functions, run in order by entry/lifecycle.ts.
 
+export type { DistributedPluginApplier, DistributedPluginApplierDeps } from "./apply-distributed-plugins.ts";
+export { createDistributedPluginApplier } from "./apply-distributed-plugins.ts";
 export type { MigrateDeps } from "./migrate.ts";
 export { resolveMigrationsFolder, runBootMigrations } from "./migrate.ts";
 export type { ReclaimLocksDeps } from "./reclaim-locks.ts";

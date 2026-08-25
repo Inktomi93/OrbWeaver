@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b3c9109b-035f-4c72-ac28-38415767cc13",
+  "id": "c3423cb5-0718-4fae-901a-591841d9fe1f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -4775,6 +4775,95 @@
           "columnsFrom": ["avatar_asset_id"],
           "columnsTo": ["id"],
           "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "admin_distributed_plugins": {
+      "name": "admin_distributed_plugins",
+      "columns": {
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "bundle_asset_id": {
+          "name": "bundle_asset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "distributed_by": {
+          "name": "distributed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "distributed_at": {
+          "name": "distributed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "admin_distributed_plugins_bundle_asset_idx": {
+          "name": "admin_distributed_plugins_bundle_asset_idx",
+          "columns": ["bundle_asset_id"],
+          "isUnique": false
+        },
+        "admin_distributed_plugins_distributed_by_idx": {
+          "name": "admin_distributed_plugins_distributed_by_idx",
+          "columns": ["distributed_by"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "admin_distributed_plugins_bundle_asset_id_assets_id_fk": {
+          "name": "admin_distributed_plugins_bundle_asset_id_assets_id_fk",
+          "tableFrom": "admin_distributed_plugins",
+          "tableTo": "assets",
+          "columnsFrom": ["bundle_asset_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "admin_distributed_plugins_distributed_by_users_id_fk": {
+          "name": "admin_distributed_plugins_distributed_by_users_id_fk",
+          "tableFrom": "admin_distributed_plugins",
+          "tableTo": "users",
+          "columnsFrom": ["distributed_by"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },

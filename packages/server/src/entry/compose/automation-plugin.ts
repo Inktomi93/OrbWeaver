@@ -31,6 +31,7 @@ import { castId, ID_PREFIX } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
+import type { AdminService } from "#domain/admin";
 import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { AutomationService, ExecutePluginSuggestion } from "#domain/automation";
@@ -105,6 +106,10 @@ export interface AutomationPluginComposeDeps {
    *  resolve→execute pair every other tool consumer already funnels through. Deliberately still a `Pick` —
    *  neither automation nor the membrane may reach `register` (compose-time, first-party only). */
   readonly toolUse: Pick<ToolUseService, "registerPluginTool" | "isToolDrivableBy" | "resolveTools" | "executeToolCalls">;
+  /** The plugin fan-out's RECIPIENT enumeration (D147 clause (d)), and nothing else — a `Pick` of exactly the
+   *  one admin read, because `admin` is the only sanctioned reader of `users` and a distribution needs to know
+   *  who the humans are. It re-gates on the acting admin, so the list is never obtained on nobody's authority. */
+  readonly admin: Pick<AdminService, "listUsers">;
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
   /** C5 — the owner-GLOBAL lane's standing-authority read, threaded from `domain/sessions` because the
    *  `users` table belongs to sessions + admin alone (the no-direct-users-read chokepoint). A chat rule's
@@ -123,7 +128,7 @@ export interface AutomationPluginComposeResult {
 }
 
 export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): Promise<AutomationPluginComposeResult> {
-  const { db, now, chatCompose, worldInfo, notifications, imagery, settings, assets, resolveOwnerPrincipal, bindRoleClients } = deps;
+  const { db, now, chatCompose, worldInfo, notifications, imagery, settings, assets, admin, resolveOwnerPrincipal, bindRoleClients } = deps;
   const { service: chat } = chatCompose;
 
   // Automation (D46) — built AFTER its action-op collaborators (chat/world-info/imagery/notifications +
@@ -605,44 +610,76 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   // The late bind announced above: automation's S4 plugin arm executes through the PLUGIN's bridge, which
   // needs this op bundle. Assigned the moment the bundle exists, before any transport is served.
   confirmedActRunner = buildConfirmedActRunner(pluginHostOps, pluginBelts);
-  const plugin = createPluginService({
-    db,
-    now,
-    newPluginId: minter(ID_PREFIX.plugin),
-    // No `can` — plugin authority is OWNERSHIP, not a global role (D147). Every management verb decides on
-    // the owner-scoped row load alone, so there is nothing here for the privilege kernel to answer.
-    assets: {
-      store: (caller, bytes, mime) => assets.store({ principal: caller, bytes, kind: "plugin", mime }),
-      // The owner-scoped `plugins` row was already loaded (getById) before activation reads its bundle, so the
-      // un-principal CAS read is gated upstream; `_caller` documents the seam's owner without a second check.
-      readBytes: async (_caller, assetId) => {
+  const plugin = createPluginService(
+    {
+      db,
+      now,
+      newPluginId: minter(ID_PREFIX.plugin),
+      // No `can` — plugin authority is OWNERSHIP, not a global role (D147). Every management verb decides on
+      // the owner-scoped row load alone, so there is nothing here for the privilege kernel to answer.
+      assets: {
+        store: (caller, bytes, mime) => assets.store({ principal: caller, bytes, kind: "plugin", mime }),
+        // The owner-scoped `plugins` row was already loaded (getById) before activation reads its bundle, so the
+        // un-principal CAS read is gated upstream; `_caller` documents the seam's owner without a second check.
+        readBytes: async (_caller, assetId) => {
+          const bytes = await assets.loadAssetBytes(assetId);
+          if (bytes === null) {
+            throw new DomainNotFoundError("asset", assetId);
+          }
+          const ref = await assets.assetCasRefById(assetId);
+          return { bytes, mime: ref?.mime ?? "application/zip" };
+        },
+        reapOrphans: async (assetIds) => {
+          await assets.reapIfOrphan(assetIds);
+        },
+      },
+      host: pluginHost,
+      ops: pluginHostOps,
+      // The capability BELTS — process-wide state, minted ONCE here and shared by every activation (the
+      // resident-registry precedent); the domain's bridge claims the relevant one per guarded call. The two
+      // HOURLY floors are the only bounds on a RATE anywhere in the sandbox: every other cap is per-call or
+      // per-instance, and `HOST_CALLS_IN_FLIGHT_MAX` bounds concurrency, which is not a rate.
+      belts: pluginBelts,
+      // The per-user concurrent-snippet ceiling — same posture as the notify floor: process-wide state minted ONCE
+      // here. `runSnippet` is the one plugin verb a plain member reaches and each call pins a QuickJSContext.
+      snippetGate: createSnippetGate(),
+      // The snippet AUTHORITY seam: the caller's leak-free read/host authority for a chat.
+      resolveChatAuthority: async (caller, chatId) => {
+        const role = await loadPresentRole(db, chatId, caller.userId);
+        return { canRead: role !== null, canWrite: role === "host" };
+      },
+    },
+    // ── The SERVER-WIDE DISTRIBUTION deps (D147 clause (d)) — a SEPARATE bundle from the context above, and
+    //    that is the ruling, not a style choice: the per-row verbs must keep having no privilege seam at all
+    //    (clause (a)), so the admin gate is scoped to the three verbs whose question is global.
+    {
+      // The gate itself, spelled as the kernel call rather than a domain-local re-derivation. `domain/plugin`
+      // may not import `domain/admin` (no sideways imports), so it arrives injected here.
+      requireAdmin: (caller): void => {
+        can(caller, "admin", { kind: "global" });
+      },
+      // The recipient list is an ADMIN read performed under the ACTING admin (`listUsers` re-gates), filtered to
+      // HUMAN accounts — an agent row is not a person who can consent, and consent is the entire posture a
+      // distributed copy lands in. Each id is then resolved to a Principal by a ROW READ (`resolveOwnerPrincipal`
+      // = `createHostPrincipalResolver`), never stamped here: a UserId arriving at this seam carries no
+      // authority, and the recipient's own role is what their later acts are priced at (D135 clause G).
+      listRecipients: async (caller): Promise<readonly Principal[]> => {
+        const rows = await admin.listUsers({ principal: caller, kind: "human" });
+        return await Promise.all(rows.map((row) => resolveOwnerPrincipal(row.id)));
+      },
+      // The PUBLISHED bundle's bytes. Un-principal like the activation `readBytes` beside it and for a stricter
+      // reason: the id comes from the `admin_distributed_plugins` record an admin wrote, never from a caller,
+      // and the recipient's own `install` immediately stores its OWN CAS copy (D21) — so no cross-owner byte
+      // reference survives the call.
+      readPublishedBundle: async (assetId): Promise<Uint8Array> => {
         const bytes = await assets.loadAssetBytes(assetId);
         if (bytes === null) {
           throw new DomainNotFoundError("asset", assetId);
         }
-        const ref = await assets.assetCasRefById(assetId);
-        return { bytes, mime: ref?.mime ?? "application/zip" };
-      },
-      reapOrphans: async (assetIds) => {
-        await assets.reapIfOrphan(assetIds);
+        return bytes;
       },
     },
-    host: pluginHost,
-    ops: pluginHostOps,
-    // The capability BELTS — process-wide state, minted ONCE here and shared by every activation (the
-    // resident-registry precedent); the domain's bridge claims the relevant one per guarded call. The two
-    // HOURLY floors are the only bounds on a RATE anywhere in the sandbox: every other cap is per-call or
-    // per-instance, and `HOST_CALLS_IN_FLIGHT_MAX` bounds concurrency, which is not a rate.
-    belts: pluginBelts,
-    // The per-user concurrent-snippet ceiling — same posture as the notify floor: process-wide state minted ONCE
-    // here. `runSnippet` is the one plugin verb a plain member reaches and each call pins a QuickJSContext.
-    snippetGate: createSnippetGate(),
-    // The snippet AUTHORITY seam: the caller's leak-free read/host authority for a chat.
-    resolveChatAuthority: async (caller, chatId) => {
-      const role = await loadPresentRole(db, chatId, caller.userId);
-      return { canRead: role !== null, canWrite: role === "host" };
-    },
-  });
+  );
 
   return { automation, plugin };
 }

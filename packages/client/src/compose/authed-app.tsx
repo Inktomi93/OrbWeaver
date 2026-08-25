@@ -66,7 +66,7 @@ import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "#feature
 import { imageDetailModal, imageEditModal, imagerySlashCommands, imagineModal } from "#features/imagery";
 import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
-import { pluginSnippetConsoleSection, pluginsPane } from "#features/plugin";
+import { pluginDistributeSection, pluginSnippetConsoleSection, pluginsPane } from "#features/plugin";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexCollection } from "#features/regex";
@@ -358,6 +358,11 @@ const settingsSections = createContributorRegistry<SettingsSectionContribution>(
   appearanceReadingSection,
   appearanceEffectsSection,
   librarySettingsSection,
+  // plugins ← the admin half of the Plugins pane (D147 clause (d)). The pane itself is UNGATED (everyone has
+  // their own plugins); this section carries `when: viewer.isAdmin` and renders BELOW the pane's own
+  // Installed / Add-a-plugin sections, which is the order a person meets them in: your plugins first, the
+  // deployment-wide one last.
+  pluginDistributeSection,
 ]);
 
 // S2 — the key partition (SET-SEAMS §2.3). N sections patching ONE UserSettings namespace (or the ONE

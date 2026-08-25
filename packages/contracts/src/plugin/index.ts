@@ -26,7 +26,7 @@ export { HOST_FUNCTION_CAPABILITY, PLUGIN_LOG_LEVELS } from "./host-v1.ts";
 export type { PluginOrigin, PluginStatus } from "./lifecycle.ts";
 export { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "./lifecycle.ts";
 export type { PluginBuiltAgainst, PluginCapability, PluginManifest } from "./manifest.ts";
-export { NET_HOSTS_MAX, PLUGIN_CAPABILITIES, pluginBuiltAgainstSchema, pluginManifestSchema, pluginNetHostSchema } from "./manifest.ts";
+export { NET_HOSTS_MAX, PLUGIN_CAPABILITIES, pluginBuiltAgainstSchema, pluginManifestSchema, pluginNetHostSchema, pluginSlugSchema } from "./manifest.ts";
 export type {
   PluginEventSubscription,
   PluginHandlerRef,

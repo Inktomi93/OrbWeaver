@@ -2,9 +2,11 @@
 // verb passes the resolved `Principal` as `caller` (the domain is the authoritative gate). `authedProcedure`
 // is the RIGHT floor and not a gap: plugins are USER-SCOPED (D147) — anyone installs for themselves and the
 // plugin runs under them — so the authority question is "is this row yours", which only the domain can answer
-// off the row. An `adminProcedure` here would be the wrong shape twice over: it would lock every user out of
-// their own pane, and it would imply an authority the verbs deliberately do not have (there is no admin
-// any-row branch; a foreign pluginId is a leak-free NOT_FOUND). The
+// off the row. An `adminProcedure` on THOSE verbs would be the wrong shape twice over: it would lock every
+// user out of their own pane, and it would imply an authority they deliberately do not have (there is no
+// admin any-row branch; a foreign pluginId is a leak-free NOT_FOUND). The three DISTRIBUTION verbs at the
+// bottom are `adminProcedure` and are not a counter-example: they take no foreign id, publish deployment
+// policy rather than touching anyone's row, and mint only disabled zero-grant copies (D147 clause (d)). The
 // bundle bytes ride as base64 in the mutation input (a zip is ≤ 1 MiB — `substrate/manifest.ts` re-caps + is
 // the untrusted-input boundary); a multipart upload route can supersede this later without a domain change
 // (the bundle funnel is source-agnostic). `runSnippet` is the inline mode: the service
@@ -16,11 +18,11 @@
 // as a stranger holding another user's real pluginId; `install`/`list` are exempt there because neither takes
 // a foreign id (install mints the caller's own row, list takes no input at all).
 
-import { NET_HOSTS_MAX, PLUGIN_CAPABILITIES, PLUGIN_LOG_LIST_MAX_LIMIT, pluginNetHostSchema } from "@orb/contracts/plugin";
+import { NET_HOSTS_MAX, PLUGIN_CAPABILITIES, PLUGIN_LOG_LIST_MAX_LIMIT, pluginNetHostSchema, pluginSlugSchema } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc.ts";
+import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 
 const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
 // Lax like the chat router's chatId (leak-free gating is the service's `resolveChatAuthority`, not a strict
@@ -69,6 +71,25 @@ export const pluginRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.plugin.uninstall({ caller: ctx.auth, pluginId: input.pluginId })),
 
   list: authedProcedure.query(({ ctx }) => ctx.services.plugin.list({ caller: ctx.auth })),
+
+  // ── SERVER-WIDE DISTRIBUTION (D147 clause (d)) — the only `adminProcedure`s on this router, and the
+  //    exception that proves the rule above: the per-row verbs stay `authedProcedure` because their question
+  //    is "is this row yours", while these three ask "may this caller publish to the deployment", which is a
+  //    global-role question. The gate is DOUBLED on purpose (the `admin.linkSsoIdentity` posture): the ladder
+  //    refuses a non-admin here at layer 1, and the domain verb re-checks with its injected `requireAdmin`, so
+  //    neither half is load-bearing alone. Publishing MINTS disabled, zero-grant, consent-pending rows and
+  //    runs nothing — there is deliberately no force-enable verb, and adding one would reopen D147 clause (b).
+  installForAllUsers: adminProcedure
+    .input(z.object({ bundleBase64: z.string() }))
+    .mutation(({ ctx, input }) => ctx.services.plugin.installForAllUsers({ caller: ctx.auth, bundle: decodeBundle(input.bundleBase64) })),
+
+  // `slug` is the manifest id — a plain string by contract, never a branded id (a slug is the plugin author's
+  // own namespace, validated by `pluginManifestSchema` at the trust edge, not minted by us).
+  uninstallForAllUsers: adminProcedure
+    .input(z.object({ slug: pluginSlugSchema }))
+    .mutation(({ ctx, input }) => ctx.services.plugin.uninstallForAllUsers({ caller: ctx.auth, slug: input.slug })),
+
+  listDistributed: adminProcedure.query(({ ctx }) => ctx.services.plugin.listDistributedPlugins({ caller: ctx.auth })),
 
   getLog: authedProcedure
     .input(z.object({ pluginId: pluginIdSchema, limit: z.number().int().positive().max(PLUGIN_LOG_LIST_MAX_LIMIT).optional() }))

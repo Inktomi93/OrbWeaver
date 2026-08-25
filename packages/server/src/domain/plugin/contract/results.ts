@@ -5,7 +5,7 @@
 // `runSnippet` verb that produces it lives with the other verbs.
 
 import type { PluginBuiltAgainst, PluginCapability, PluginLogLevel, PluginOrigin, PluginStatus } from "@orb/contracts/plugin";
-import type { PluginId } from "@orb/kit/ids";
+import type { PluginId, UserId } from "@orb/kit/ids";
 
 /** One installed plugin as its owner sees it — the `plugins` row projected, minus the bundle bytes
  *  and the full manifest json. `builtAgainst` is lifted from the persisted manifest (display/warn provenance);
@@ -60,6 +60,56 @@ export interface PluginView {
   readonly lastError: string | null;
   readonly installedAt: number;
   readonly updatedAt: number;
+}
+
+/** One published plugin as the DISTRIBUTE surface sees it (D147 clause (d)) — the `admin_distributed_plugins`
+ *  row projected. It describes the deployment's POLICY, never anyone's install: no status, no grant, no
+ *  crash counter, because the record is a bundle the server publishes and every actual copy is an ordinary
+ *  per-owner `plugins` row with its own lifecycle. */
+export interface DistributedPluginView {
+  readonly slug: string;
+  readonly name: string;
+  readonly version: string;
+  readonly distributedAt: number;
+  readonly updatedAt: number;
+}
+
+/** Why one recipient was passed over by a fan-out. The ONE home for this axis (§5.5) — the client's admin
+ *  surface renders each arm's sentence off it, so a new arm fails `tsc` at the renderer rather than
+ *  degrading into an unexplained number.
+ *  - `already-installed` (install fan-out): the user already holds this slug, at any version. Their row is
+ *    theirs — a distribution never overwrites an install a person already made.
+ *  - `version-diverged` (uninstall fan-out): the user's row is at a different version than the distributed
+ *    one, so they have taken the plugin over and an admin withdrawal must not delete their choice. */
+export const PLUGIN_FANOUT_SKIP_REASONS = ["already-installed", "version-diverged"] as const;
+export type PluginFanoutSkipReason = (typeof PLUGIN_FANOUT_SKIP_REASONS)[number];
+
+/** One passed-over recipient. `userHandle` rather than a bare id because the only reader is a human admin
+ *  deciding whether to chase it up; the id is carried too so a surface can key rows without a second read. */
+export interface PluginFanoutSkip {
+  readonly userId: UserId;
+  readonly userHandle: string;
+  readonly reason: PluginFanoutSkipReason;
+}
+
+/** The outcome of an admin fan-out. `applied` counts the recipients the real verb ran for; `skipped` names
+ *  every recipient it did NOT — reported rather than swallowed, because "one user still has this plugin" is
+ *  precisely the fact an admin who just withdrew it needs, and a bare count would hide whose. */
+export interface PluginFanoutResult {
+  readonly slug: string;
+  readonly name: string;
+  readonly version: string;
+  readonly applied: number;
+  readonly skipped: readonly PluginFanoutSkip[];
+}
+
+/** What ONE user's application of the published set did (`applyDistributedPlugins`). Slugs, not views: the
+ *  caller is the entry hook, whose only interest is the log line and whether anything happened — the rows
+ *  themselves arrive through the ordinary `list`. `skippedSlugs` is the "already held at any version" arm,
+ *  which is also the whole idempotency story (the latch is belt, this is braces). */
+export interface DistributedPluginApplication {
+  readonly installedSlugs: readonly string[];
+  readonly skippedSlugs: readonly string[];
 }
 
 /** One line of a plugin's host.log ring — the rate-limited, ring-buffered log surface the owner reads
