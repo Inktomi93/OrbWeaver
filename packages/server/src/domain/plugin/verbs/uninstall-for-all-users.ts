@@ -52,7 +52,6 @@ export function createUninstallForAllUsers(
         continue;
       }
       // The REAL uninstall, as its OWNER — never an admin any-row path.
-      // biome-ignore lint/performance/noAwaitInLoops: serial by design — see the comment above the loop.
       await deps.uninstall({ caller: recipient, pluginId: row.id });
       applied += 1;
     }

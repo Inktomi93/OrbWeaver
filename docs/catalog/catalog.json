@@ -612,9 +612,9 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 505,
-      "bytes": 256334,
-      "sha256": "8cc3ef6d9d7a37f284bd9bc734a15a18975494a9365db5599ad2f7e499aba9eb",
+      "lines": 507,
+      "bytes": 266054,
+      "sha256": "979ccb192c1174b05d452f85b38a7e3743ca06b7dcbec176c28e4d41647da334",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -627,14 +627,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "5124206331ebea7db26779369597873c5848d72a7029dd3543f9d7ac1e199fa7",
+        "assignedSha256": "979ccb192c1174b05d452f85b38a7e3743ca06b7dcbec176c28e4d41647da334",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "5124206331ebea7db26779369597873c5848d72a7029dd3543f9d7ac1e199fa7",
-        "verifiedCommit": "4bf95cf8d6f22b3b153f6e899b3a76ce564b6eb3",
-        "verifiedAt": "2026-08-24",
+        "verifiedSha256": "979ccb192c1174b05d452f85b38a7e3743ca06b7dcbec176c28e4d41647da334",
+        "verifiedCommit": "0a2789a00834abe892bfa92839e8dec3c30a97af",
+        "verifiedAt": "2026-08-25",
         "evidence": [
+          "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
           "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
           "D61 B5a safeFetch clause truth-repaired 2026-08-23 (examine-media-forms lane receipt: infra/network/egress.ts self-enforcing pin built + no-raw-egress gate armed + three live consumer classes; the not-yet-built clause was false on the tree)",
           "GitHub issues #1, #4, and #63 corroborate the work-control, program-sprint, and comment-diet rulings",
@@ -678,7 +679,7 @@
         ],
         "summary": "Canonical D-ledger re-read through D144; D71 backdrop truth-repair; frozen assigned hash retained and current verified blob updated."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -8423,9 +8424,9 @@
       "path": "docs/architecture/proposed/plugin-design/02-manifest-capabilities-lifecycle.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 231,
-      "bytes": 17123,
-      "sha256": "5b206296c54a4e87f698c1547fb31384fe023230d304e49825070c88c7513e57",
+      "lines": 233,
+      "bytes": 17268,
+      "sha256": "866857af94a8c10dbd81c8a11ea712770d1631cf29716f6ca216e88d228f91f2",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -8565,16 +8566,16 @@
       "path": "docs/architecture/proposed/plugin-design/04-build-plan.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 81,
-      "bytes": 6599,
-      "sha256": "7b4ea391de15333e4274e4e7dc7264309fa84fffe6f454550b4d3583fa4f43e0",
+      "lines": 84,
+      "bytes": 6890,
+      "sha256": "f25b10e00c4aefc91ba53a58f9037d88c9334a4ee8b9dd90710aaf1f9a189bdb",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "spec",
           "status": "active",
-          "updated": "2026-07-03"
+          "updated": "2026-08-24"
         },
         "errors": []
       },
@@ -8630,7 +8631,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/proposed/plugin-design/README.md",
@@ -11489,9 +11490,9 @@
       "path": "docs/design/interaction-direction-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 623,
-      "bytes": 62239,
-      "sha256": "bf2bb2a366cecbca13ca5274bbf8a6c09a100adda7b18db4fe583a78436f4bb4",
+      "lines": 624,
+      "bytes": 63811,
+      "sha256": "e5ce5fede83586380b659e78f97045e0c9d0bb3464b490e1426055aa4b6442e2",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11532,7 +11533,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/interaction-substrate-spec.md",
@@ -25007,9 +25008,9 @@
       "path": "docs/reviews/stickler/2026-08-24-plugin-automation-juice.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 273,
-      "bytes": 21578,
-      "sha256": "1fcecb62acec276120d6706c1cfc84ac75c7d056d9b8f8cb7e512153a5ba9358",
+      "lines": 282,
+      "bytes": 22480,
+      "sha256": "13118c158824683d33a56ddd59c5cfe502a119a085fe748f4d1aa4fb4a24f174",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -25036,7 +25037,7 @@
         ],
         "summary": "Provenance: the preset-catalogue ideation corpus (three fable generations, two fun-honesty passes, a completed two-lens law/cost round — 16 findings, twelve survivors changed) behind the spec §4 catalogue and its graveyard."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md",
