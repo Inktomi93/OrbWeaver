@@ -15,6 +15,8 @@
 // that agree: the `feature-owns-definition` gate requires a feature dir to own a registered definition, and
 // the pane IS automation's surface (spec §3-S3 names it as the owner-global rules home when C5 lands).
 
+export type { ClockMeterProps } from "./components/clock-meter.tsx";
+export { ClockMeter } from "./components/clock-meter.tsx";
 export type { NeedleMeterProps } from "./components/needle-meter.tsx";
 export { NeedleMeter } from "./components/needle-meter.tsx";
 /** C5 — the Automation settings pane's BODY. Exported for the pane definition's own `render` (which is in
@@ -25,6 +27,7 @@ export { automationActivityTab } from "./lib/activity-context-tab.tsx";
 export type { PendingAsk } from "./lib/apply-automation-bus-event.ts";
 export { applyAutomationBusEvent, pruneExpiredAsks } from "./lib/apply-automation-bus-event.ts";
 export { automationPane } from "./lib/automation-pane.tsx";
+export { automationClockMeterSurface } from "./lib/clock-meter-surface.tsx";
 export { automationNeedleMeterSurface } from "./lib/needle-meter-surface.tsx";
 export { automationQuickReplySource } from "./lib/quick-reply-control-source.ts";
 export { automationRulesSection } from "./lib/rules-settings-section.tsx";

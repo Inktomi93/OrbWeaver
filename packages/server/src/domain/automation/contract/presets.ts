@@ -42,7 +42,7 @@ import type {
   RulePresetKnobValueOf,
   RulePresetScope,
 } from "@orb/contracts/automation";
-import { ANALYSIS_SCORE_MAX, NEEDLE_TENSION_VAR_KEY } from "@orb/contracts/automation";
+import { ANALYSIS_SCORE_MAX, CLOCK_MAX_VAR_KEY, CLOCK_VAR_KEY, NEEDLE_TENSION_VAR_KEY } from "@orb/contracts/automation";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 
@@ -257,9 +257,8 @@ const AUDIT_CADENCE_LABELS = {
   everyReply: "Every reply",
 } as const satisfies { readonly [TWhen in (typeof AUDIT_CADENCES)[number]]: string };
 
-/** The clock's chat variable. FIXED, not a knob — B9's `SegmentedClock` widget reads this one key, and a
- *  knob-supplied key would land in a CEL identifier position. */
-const CLOCK_VAR_KEY = "clock";
+// The clock's chat variables (`CLOCK_VAR_KEY` fill + `CLOCK_MAX_VAR_KEY` threshold) live in
+// `@orb/contracts/automation` now that B9's `SegmentedClock` flank widget reads BOTH back — see the doc there.
 /** The callback's two chat variables — the catalogue names them (§4 #12). */
 const DEBT_VAR_KEY = "debt";
 const DEBT_BEAT_VAR_KEY = "debtBeat";
@@ -638,7 +637,14 @@ const CLOCK_FIRES = defineRulePreset({
       {
         triggerType: "turnCompleted",
         predicate: null,
-        arms: [{ type: "set_variable", scope: "chat", key: CLOCK_VAR_KEY, op: "inc" }],
+        // Two free arms: count the fill up one step, and (re)publish the threshold so B9's flank widget can
+        // render `filled/segments` from the member-visible vars plane alone (the max is otherwise only a CEL
+        // literal in R2's predicate, which no member read exposes). Idempotent — `set` writes the same N each
+        // beat; R2 deletes only the fill, so the max survives a reset and the widget shows an honest 0/N.
+        arms: [
+          { type: "set_variable", scope: "chat", key: CLOCK_VAR_KEY, op: "inc" },
+          { type: "set_variable", scope: "chat", key: CLOCK_MAX_VAR_KEY, op: "set", value: String(knobs.n) },
+        ],
         maxFiresPerHour: COUNTER_RULE_MAX_FIRES_PER_HOUR, // law 4 — this one fires every beat.
       },
       {
