@@ -23,7 +23,7 @@ import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import type { ChatSummaryFixture } from "../../chat/fixtures.ts";
 import { chatListResponder, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { CharacterDetailContributorStory, CharacterEditorSurfaceStory, CharacterFacetInspectorStory } from "../_ct-stories.tsx";
-import { makeCharacterDetail, makeTagFixture } from "../fixtures.ts";
+import { CHARACTER_EDITOR_AMBIENT_ROUTES, makeCharacterDetail, makeTagFixture } from "../fixtures.ts";
 
 const TOKEN_SPLIT_RE = /\d+ total · \d+ permanent/;
 const BLUR_CLASS_RE = /blur-md/;
@@ -63,6 +63,7 @@ interface UpdateCall {
 
 async function routeEditor(page: Page): Promise<void> {
   await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => CARD,
     "chat.listChats": chatListResponder([]),
     "character.update": () => CARD,
@@ -116,7 +117,12 @@ async function stubDeploymentFloor(page: Page, trustHtml: boolean): Promise<void
       }),
     }),
   );
-  await routeTrpc(page, { "character.get": () => HTML_GREETING_CARD, "chat.listChats": () => [], "character.update": () => HTML_GREETING_CARD });
+  await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+    "character.get": () => HTML_GREETING_CARD,
+    "chat.listChats": () => [],
+    "character.update": () => HTML_GREETING_CARD,
+  });
 }
 
 // PRESENCE, not visibility: Streamdown mounts a rendered image `hidden` until its src loads and shows an
@@ -142,6 +148,7 @@ test("DRAFT-TRUST: the same INHERIT card previews UNTRUSTED on a strict floor (t
 test("§6.5/§7 the header carries the token split + AutosaveStatus, and editing debounce-persists a diff", async ({ mount, page }) => {
   let updateInput: UpdateCall | null = null;
   await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => CARD,
     "chat.listChats": chatListResponder([]),
     "character.update": (input: unknown) => {
@@ -197,6 +204,7 @@ test("#81 P0 — the header reads Saving… the instant the name is edited, neve
 test("§7/D78 — adding an opening persists the structural push via the store driver, then its content autosaves", async ({ mount, page }) => {
   let updateInput: UpdateCall | null = null;
   await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => CARD, // one greeting
     "chat.listChats": chatListResponder([]),
     "character.update": (input: unknown) => {
@@ -218,6 +226,7 @@ test("§7/D78 — adding an opening persists the structural push via the store d
 test("§7/D78 — removing an alternate persists the structural removal to the server via the store driver", async ({ mount, page }) => {
   let updateInput: UpdateCall | null = null;
   await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => GREETINGS_CARD, // two greetings
     "chat.listChats": chatListResponder([]),
     "character.update": (input: unknown) => {
@@ -288,6 +297,7 @@ test("§6.2 removing a tag chip fires bulkRemoveCardTag by name — an immediate
   let removedInput: unknown = null;
   let cardUpdated = false;
   await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => tagged,
     "chat.listChats": chatListResponder([]),
     "character.update": () => {
@@ -390,8 +400,10 @@ const SUGGESTIONS_CARD = makeCharacterDetail({
 
 async function routeSuggestions(page: Page): Promise<void> {
   await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => SUGGESTIONS_CARD,
     "chat.listChats": chatListResponder([]),
+    // The SUBJECT of this helper — listed after the spread, so it wins over the ambient empty default.
     "tag.listPendingSuggestions": () => suggestionFixtures(),
   });
 }
@@ -476,7 +488,7 @@ const OVERVIEW_CHATS: readonly ChatSummaryFixture[] = [
 // verified null, while the only copy that says what "permanent" means ("sent every turn") lives in the
 // CONTEXT pane, 300px away and closed by default. The datum now carries its own gloss where it is read.
 test("#493 the editor header's token census glosses its own jargon", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.get": () => OVERVIEW_CARD, "chat.listChats": chatListResponder([]) });
+  await routeTrpc(page, { ...CHARACTER_EDITOR_AMBIENT_ROUTES, "character.get": () => OVERVIEW_CARD, "chat.listChats": chatListResponder([]) });
   const component = await mount(<CharacterEditorSurfaceStory />);
 
   const census = component.getByText(TOKEN_TOTAL_RE).first();
@@ -493,6 +505,7 @@ test("#493 the editor header's token census glosses its own jargon", async ({ mo
 // panel is still an instrument, and it is no longer a second copy of the editor.
 test("F4/#513 the Field tab rests on an overview card carrying what CONTENT does not", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => OVERVIEW_CARD,
     "chat.listChats": chatListResponder(OVERVIEW_CHATS),
     "worldInfo.listForCharacter": () => [{ id: "wb_ct_1", name: "The Gilded Ember", role: "primary" }],
@@ -542,9 +555,12 @@ const MACRO_USER_GLOSS = "This game's tonal register.";
 
 test("MACU-2: a card facet completes against the ACTIVE PRESET's user macros", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => CARD,
     "chat.listChats": chatListResponder([]),
     "character.update": () => CARD,
+    // The SUBJECT here — the seeded default preset. After the spread, so this partial wins over the
+    // ambient full-defaults settings row.
     "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: "preset_ct_active" } } }),
     "preset.get": () => ({
       config: { userMacros: [{ name: "sceneTone", description: MACRO_USER_GLOSS, args: [], body: "hushed", inputs: [], strict: false }] },
@@ -715,6 +731,7 @@ test.describe("P2-5 suggestion chips at a coarse pointer", () => {
 // the wrong surface entirely.
 test("P2-7 the OWN LOOK badge points at the tab that actually holds the theme editor", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => ({ ...CARD, themeOverride: { primary: "#ff8800" } }),
     "chat.listChats": chatListResponder([]),
     "character.update": () => CARD,

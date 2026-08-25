@@ -19,7 +19,7 @@ import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterEditorSurfaceStory } from "../_ct-stories.tsx";
-import { makeCharacterDetail } from "../fixtures.ts";
+import { CHARACTER_EDITOR_AMBIENT_ROUTES, makeCharacterDetail } from "../fixtures.ts";
 
 /** Hoisted out of the fixture because its LENGTH is what a filled row announces (#254) — reading it back
  *  off `CARD` would be `string | null` and the count assertions would go vacuous on a `?? ""`. */
@@ -34,6 +34,9 @@ const CARD = makeCharacterDetail({
 
 async function routeEditor(page: Page): Promise<void> {
   await routeTrpc(page, {
+    // The editor tree's ambient reads (#649) — the attachment/suggestion/viewer-settings pipelines ran INERT
+    // on `routeTrpc`'s null in every test in this file; the row's a11y contract is the subject, not these.
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => CARD,
     "chat.listChats": chatListResponder([]),
     "character.update": () => CARD,

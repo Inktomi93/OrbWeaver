@@ -7,6 +7,7 @@
 
 import type { ChatBusDeps } from "@orb/client/data";
 import { applyChatBusEvent, createInvalidation, QueryBoundary, QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
+import { automationQuickReplySource } from "@orb/client/features/automation";
 import { characterSlashCommands } from "@orb/client/features/character";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
@@ -3200,6 +3201,27 @@ export function ChatControlsStory({ source = "fake", fixture = "chips" }: ChatCo
         <button type="button" data-testid="drive-source-relabel" onClick={(): void => setEpoch(2)}>
           republish, changed content
         </button>
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+// ── B3: the REAL automation quick-reply CHIP source, wired the door's way (interaction-direction-spec §7 B3)
+// The band CT above proves the SEAM with a synthetic source; this story proves the FIRST REAL member-visible
+// consumer — `automationQuickReplySource` from `features/automation`, appended to the `chat-controls` registry
+// exactly as `authed-app.tsx` does it, then rendered blind through the one `above-composer` mount. Its chips
+// come from a HAND-FIRED `quickReplySurfaced` frame on the automation room (the CT scripts the socket), so this
+// is the end-to-end proof the arm's `sendText`/`mode` reach a member's click. Full room (not a bare band) so
+// the compose-mode assertion can read THIS room's real composer draft.
+export function AutomationChipsStory(): ReactElement {
+  const sources = createContributorRegistry<ChatControlSource>("chat-controls", [automationQuickReplySource]);
+  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [makeChatControlsContribution(sources)]);
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <div style={{ height: 480 }}>
+          <ChatControlsRoom surfaceContributors={surfaceContributors} />
+        </div>
       </SocketHost>
     </CtDataProviders>
   );

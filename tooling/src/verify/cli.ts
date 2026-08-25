@@ -14,6 +14,7 @@
 //   check:orphan-ratchet     → cli.ts orphan-ratchet [--update]
 //   check:boot-chunk         → cli.ts boot-chunk
 //   debt                     → cli.ts debt [--gate substr] [--age]  (a LENS over the ratchet ledgers)
+//   test:ratchets            → cli.ts ratchet-gate  (the VITEST-tier train-gate aggregate, #667)
 import process from "node:process";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool, UsageError } from "../_shared/run-tool.ts";
@@ -31,6 +32,7 @@ import {
   runDebtWalk,
   runNewGate,
   runOrphanRatchet,
+  runRatchetGateCli,
   runScopedCli,
   runShow,
   runStructure,
@@ -65,6 +67,7 @@ const VERBS = [
   "orphan-ratchet",
   "boot-chunk",
   "debt",
+  "ratchet-gate",
 ] as const;
 
 const USAGE = `usage: node tooling/src/verify/cli.ts <${VERBS.join("|")}> [args…]`;
@@ -109,6 +112,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return await runBootChunkRatchet(root);
     case "debt":
       return runDebtWalk(root, rest);
+    case "ratchet-gate":
+      return runRatchetGateCli(root);
     default:
       throw new UsageError(`unknown verb "${verb}"\n${USAGE}`);
   }

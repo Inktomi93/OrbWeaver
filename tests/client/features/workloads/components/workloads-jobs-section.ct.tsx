@@ -21,6 +21,11 @@ import type { Page } from "@playwright/test";
 import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+// The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
+// SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`
+// never answers them and they rode `routeTrpc`'s lenient null in every mount here. Imported from the bus's
+// own fixture module rather than re-spelled, so the two directions of this feed cannot drift apart.
+import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { WorkloadsJobsSectionStory } from "../_ct-stories.tsx";
 
 const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" };
@@ -86,6 +91,7 @@ function routeWorkloadStream(page: Page, events: readonly WorkloadEvent[]): Prom
 
 test("lists the caller's own jobs with status badges; a plain user never fires admin.listUsers; tabs filter", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [
       workloadRow(),
       workloadRow({
@@ -135,6 +141,7 @@ test("lists the caller's own jobs with status badges; a plain user never fires a
 
 test("run dialog: singular by default, params ride the kind, and a non-owner sees NO bulk affordances", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [],
     "sessions.me": () => USER_VIEWER,
     "workloads.start": () => ({ id: "workload_ct_new" }),
@@ -177,6 +184,7 @@ test("run dialog: singular by default, params ride the kind, and a non-owner see
 
 test("owner bulk create-kind: the Bulk switch + required target picker wire targetOwnerId", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [],
     "sessions.me": () => OWNER_VIEWER,
     "admin.listUsers": () => ADMIN_USERS,
@@ -212,6 +220,7 @@ test("owner bulk create-kind: the Bulk switch + required target picker wire targ
 
 test("owner maintenance kind: the Maintenance group offers refresh-model-catalog; it runs mode:bulk with NO target", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [],
     "sessions.me": () => OWNER_VIEWER,
     "admin.listUsers": () => ADMIN_USERS,
@@ -246,6 +255,7 @@ test("owner maintenance kind: the Maintenance group offers refresh-model-catalog
 
 test("a failed row shows the FRIENDLY message; the raw exception stays one disclosure away", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [
       workloadRow({
         status: "failed",
@@ -269,6 +279,7 @@ test("a failed row shows the FRIENDLY message; the raw exception stays one discl
 
 test("an UNMAPPED failure falls back to the raw string verbatim (no disclosure)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [workloadRow({ status: "failed", error: "runtime: something weirdly specific" })],
     "sessions.me": () => USER_VIEWER,
   });
@@ -283,6 +294,7 @@ test("an UNMAPPED failure falls back to the raw string verbatim (no disclosure)"
 
 test("cancel is confirm-gated (AlertDialog) and retry fires on a failure terminal", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [
       workloadRow(),
       workloadRow({
@@ -318,10 +330,7 @@ test("cancel is confirm-gated (AlertDialog) and retry fires on a failure termina
 });
 
 test("a LIVE progress event drives the row's determinate progress bar (row-local buffer)", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "workloads.list": () => [workloadRow()],
-    "sessions.me": () => USER_VIEWER,
-  });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "workloads.list": () => [workloadRow()], "sessions.me": () => USER_VIEWER });
   await routeWorkloadStream(page, [
     {
       type: "progress",
@@ -347,6 +356,7 @@ const DEPENDENCY_FAILED_MESSAGE = "a dependency did not succeed (a non-success t
 
 test("run dialog: setting 'Run at' defers the run — start carries scheduledAt (epoch ms)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [],
     "sessions.me": () => USER_VIEWER,
     "workloads.start": () => ({ id: "workload_ct_new" }),
@@ -370,6 +380,7 @@ test("run dialog: setting 'Run at' defers the run — start carries scheduledAt 
 
 test("run dialog: 'Run after these complete' lists in-flight runs and wires dependsOn", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     // One in-flight run owned by the viewer → offered as a dependency candidate.
     "workloads.list": () => [workloadRow({ id: "workload_ct_dep", kind: "distill-characters", status: "running" })],
     "sessions.me": () => USER_VIEWER,
@@ -393,6 +404,7 @@ test("run dialog: 'Run after these complete' lists in-flight runs and wires depe
 
 test("list: a deferred (future-dated) queued row shows the Scheduled state, not a progress bar", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [
       workloadRow({
         status: "queued",
@@ -417,6 +429,7 @@ test("list: a deferred (future-dated) queued row shows the Scheduled state, not 
 // a sweep run AT THE SAME TIME. The section groups by lane so "why are two things running?" has an answer.
 test("list: rows in BOTH lanes render under their lane headings", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [
       workloadRow({ id: "workload_ct_ingest", kind: "databank-ingest", lane: "interactive", status: "running", params: {} }),
       workloadRow({ id: "workload_ct_sweep", kind: "import-st", lane: "sweep", status: "running", params: {} }),
@@ -436,6 +449,7 @@ test("list: rows in BOTH lanes render under their lane headings", async ({ mount
 
 test("list: with every row in ONE lane the heading is dropped (a lone group label is noise)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [workloadRow(), workloadRow({ id: "workload_ct_2", kind: "compute-themes", params: {} })],
     "sessions.me": () => USER_VIEWER,
   });
@@ -452,6 +466,7 @@ test("list: with every row in ONE lane the heading is dropped (a lone group labe
 // 61st second of a 20-minute import), and the row still renders its real position off the list read.
 test("list: a running row renders its DURABLE progress with no live event at all", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [workloadRow({ progress: { pct: 72, message: "Embedded 720 of 1000" } })],
     "sessions.me": () => USER_VIEWER,
   });
@@ -470,6 +485,7 @@ test("list: a running row renders its DURABLE progress with no live event at all
 // stays reserved for the status badge that owns it.
 test("list: the Bulk badge is a NEUTRAL category chip, never a warning beside a green status", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [workloadRow({ status: "succeeded", mode: "bulk", result: { embedded: 12, skipped: 0 } })],
     "sessions.me": () => USER_VIEWER,
   });
@@ -502,6 +518,7 @@ test("list: the Bulk badge is a NEUTRAL category chip, never a warning beside a 
 // A row whose stored params no longer parse used to VANISH from this list. It is now visibly broken here.
 test("list: a POISON row is visible, flagged, and retryable", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [workloadRow({ status: "failed", error: "unrecognized or malformed workload kind: compute-themes", params: null, poison: true })],
     "sessions.me": () => USER_VIEWER,
     "workloads.retry": () => ({ id: "workload_ct_retry" }),
@@ -519,6 +536,7 @@ test("list: a POISON row is visible, flagged, and retryable", async ({ mount, pa
 
 test("list: a queued row with dependsOn shows the Waiting-on-dependencies state", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [workloadRow({ status: "queued", dependsOn: ["workload_ct_a", "workload_ct_b"] })],
     "sessions.me": () => USER_VIEWER,
   });
@@ -533,6 +551,7 @@ test("list: a queued row with dependsOn shows the Waiting-on-dependencies state"
 
 test("list: a dependency_failed terminal is labelled apart from a normal failure", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => [workloadRow({ status: "failed", error: DEPENDENCY_FAILED_MESSAGE })],
     "sessions.me": () => USER_VIEWER,
   });
@@ -551,6 +570,7 @@ test("list: a dependency_failed terminal is labelled apart from a normal failure
 test("a LIVE terminal event refetches the list — Running flips to Succeeded without a refresh", async ({ mount, page }) => {
   let listCalls = 0;
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => {
       listCalls += 1;
       // The seed read sees the running row; the terminal-event invalidate refetches the succeeded one.
@@ -584,6 +604,7 @@ test("a LIVE terminal event refetches the list — Running flips to Succeeded wi
 test("THREE active rows attach THREE rooms over exactly ONE socket; a finished run gives its room back", async ({ mount, page }) => {
   let listCalls = 0;
   await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     "workloads.list": () => {
       listCalls += 1;
       const first = listCalls === 1 ? workloadRow() : workloadRow({ status: "succeeded", result: { embedded: 12 } });
@@ -637,10 +658,7 @@ test("THREE active rows attach THREE rooms over exactly ONE socket; a finished r
 // not a dead end — the header's "Run a job…" is on screen directly above it, so a per-tab CTA was a second
 // simultaneous home for one verb. Only the ALL tab (genuinely nothing to read, ever) keeps its own.
 test("empty states: only the ALL tab carries a run CTA; a filtered tab's empty state has none", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "workloads.list": () => [],
-    "sessions.me": () => USER_VIEWER,
-  });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "workloads.list": () => [], "sessions.me": () => USER_VIEWER });
   await routeWorkloadStream(page, []);
 
   await mount(<WorkloadsJobsSectionStory />);

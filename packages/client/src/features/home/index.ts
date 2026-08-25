@@ -5,8 +5,9 @@
 // home-owned until the owning feature exists, because an empty `features/buddy/` dir is G23-RED).
 //
 // Every OTHER tile is exported by the feature that owns its data + intent; home imports none of them.
+// (The automation dormant doorway was retired with B3 — its own contract said it stays "until B3", and
+// automation now owns a live surface, so its home-owned placeholder is gone.)
 
-export { automationDormantTile } from "./lib/automation-tile.tsx";
 export { buddyDormantTile } from "./lib/buddy-tile.tsx";
 export { makeHomeSection } from "./lib/home-section.tsx";
 export { orderHomeTiles } from "./lib/order-home-tiles.ts";
