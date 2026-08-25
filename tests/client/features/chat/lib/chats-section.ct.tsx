@@ -19,7 +19,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { ChatContextPanelStory, ChatContextTabContributorStory, ChatDeletedWhileOpenStory } from "../_ct-stories.tsx";
+import { ChatContextPanelStory, ChatContextTabContributorStory, ChatDeletedWhileOpenStory, RoomActivityTabStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES } from "../fixtures.ts";
 
 // #629 — the "This chat" tab's OWN section reads, which this file never stubbed. An unlisted proc answers
@@ -687,4 +687,82 @@ test("a chatDeleted for the OPEN room takes the reader to landing, not a room wh
   // …and the reader is on the landing surface, with no composer for a chat that no longer exists.
   await expect(component.getByTestId(testId("composer"))).toHaveCount(0);
   await expect(component.getByText("No chat selected")).toBeVisible();
+});
+
+// ── B11: the room ACTIVITY tab (interaction-direction-spec §7 B11) ──────────────────────────────────
+// A host-only CONTEXT-strip sibling grafted through the SAME contributor seam as the fake tab above, but
+// with the REAL `automationActivityTab` def: it renders `RoomActivityLog` over `automation.listChatActivity`
+// — this room's fire log across all its rules (fires · notices · plugin-tool runs · confirmed cards), each a
+// row here (the ONE-HOME `automation_fires` store). Proven through the real section → factory → mint path.
+
+// One fire-log row as the wire ships it (the FireView JSON crosses routeTrpc as a plain object).
+function activityFire(over: Record<string, unknown>): Record<string, unknown> {
+  return {
+    id: "automation_fire_ct",
+    ruleId: "automation_rule_ct",
+    chatId: "chat_ct_keystone",
+    triggerType: "messageCommitted",
+    outcome: "fired",
+    detail: null,
+    automationDepth: 0,
+    firedAt: 1_700_000_000_000,
+    ...over,
+  };
+}
+
+test("B11: a HOST sees the Activity tab and it lists this room's fires (with the confirmer stamp)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...THIS_CHAT_TAB_READS,
+    "chat.getChat": () => chatDetail("host"),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+    "automation.listChatActivity": () => [
+      // A human-confirmed suggestion card — its `confirmedByUserId` is what the row marks "Confirmed".
+      activityFire({ id: "automation_fire_ct_a", outcome: "fired", detail: { confirmedByUserId: "user_ct" }, firedAt: 1_700_000_002_000 }),
+      // An arm that failed — the error terminal a host must notice, with its reason from `detail`.
+      activityFire({ id: "automation_fire_ct_b", outcome: "action_error", detail: { error: "the tool timed out" }, firedAt: 1_700_000_001_000 }),
+    ],
+  });
+
+  const component = await mount(<RoomActivityTabStory />);
+
+  await component.getByRole("tab", { name: "Activity" }).click();
+  // The fired row: its outcome badge + the trigger phrase + the confirmer marker.
+  await expect(component.getByText("Fired", { exact: true })).toBeVisible();
+  await expect(component.getByText("Confirmed", { exact: true })).toBeVisible();
+  await expect(component.getByText("after every message").first()).toBeVisible();
+  // The error row: the badge + the detail sentence the fire recorded.
+  await expect(component.getByText("Action errored", { exact: true })).toBeVisible();
+  await expect(component.getByText("the tool timed out", { exact: false })).toBeVisible();
+});
+
+test("B11: a MEMBER does NOT see the Activity tab (host-only, the fire log is the host's hand)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...THIS_CHAT_TAB_READS,
+    "chat.getChat": () => chatDetail("member"),
+    "chat.listChatInjections": () => [],
+  });
+
+  const component = await mount(<RoomActivityTabStory />);
+
+  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "Activity" })).toHaveCount(0);
+});
+
+test("B11: a HOST with no out-of-band activity sees the load-bearing empty state", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...THIS_CHAT_TAB_READS,
+    "chat.getChat": () => chatDetail("host"),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+    "automation.listChatActivity": () => [],
+  });
+
+  const component = await mount(<RoomActivityTabStory />);
+
+  await component.getByRole("tab", { name: "Activity" }).click();
+  await expect(component.getByText("Nothing yet", { exact: false })).toBeVisible();
 });
