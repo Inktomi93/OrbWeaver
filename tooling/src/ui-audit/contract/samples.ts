@@ -185,7 +185,7 @@ export interface TextStyleInput {
    *  live findings the day their host was correctly marked aria-hidden. Contrast with `srOnly`, which IS
    *  an exemption — clipped text paints no pixels at all. Optional: absent in older fixture sample sets. */
   readonly ariaHidden?: boolean;
-  /** The `data-voice` @orb/ui `<Text>`/`<Heading>` stamped on this element (or the nearest carrier), empty
+  /** The `data-voice` \@orb/ui `<Text>`/`<Heading>` stamped on this element (or the nearest carrier), empty
    *  when the call site set none. A VOICE IS AN AUTHORED CLAIM ABOUT INTENT — "what this text IS on the
    *  surface", the closed axis that replaced picking size×weight×tone×transform by taste — which is why
    *  the caveat rule (#652) anchors on it rather than trying to infer importance from pixels. Optional:
