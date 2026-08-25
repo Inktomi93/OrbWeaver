@@ -33,6 +33,7 @@ import type {
   GetBudgetsParams,
   GetGlobalVariableParams,
   GetOwnerBudgetsParams,
+  ListChatActivityParams,
   ListFiresParams,
   ListGlobalVariablesParams,
   ListOwnerRulesParams,
@@ -144,6 +145,9 @@ export interface AutomationService {
   readonly listOwnerRules: (params: ListOwnerRulesParams) => Promise<RuleView[]>;
   /** The debug surface: a rule's recent fire log (host-only), newest first. */
   readonly listFires: (params: ListFiresParams) => Promise<FireView[]>;
+  /** B11 — the room ACTIVITY read: a chat's recent fire log across ALL its rules (host-only), newest first.
+   *  The per-chat twin of `listFires`, over the same `automation_fires` store (ONE-HOME). */
+  readonly listChatActivity: (params: ListChatActivityParams) => Promise<FireView[]>;
   /** Upsert the per-chat fire-rate cap (host-only; the loop-safety belt). */
   readonly setBudgets: (params: SetBudgetsParams) => Promise<void>;
   /** Read the per-chat fire-rate cap (host-only): the host-editable fire-rate ceiling. An absent budget row

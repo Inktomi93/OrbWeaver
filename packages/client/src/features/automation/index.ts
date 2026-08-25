@@ -21,6 +21,7 @@ export { NeedleMeter } from "./components/needle-meter.tsx";
  *  this feature) and for its CT story; nothing outside the feature mounts it directly. */
 export { OwnerAutomationSurface } from "./components/owner-rules-surface.tsx";
 export { RulesSection } from "./components/rules-section.tsx";
+export { automationActivityTab } from "./lib/activity-context-tab.tsx";
 export type { PendingAsk } from "./lib/apply-automation-bus-event.ts";
 export { applyAutomationBusEvent, pruneExpiredAsks } from "./lib/apply-automation-bus-event.ts";
 export { automationPane } from "./lib/automation-pane.tsx";

@@ -12,13 +12,13 @@
 // (`fireDetailLine`) and is unit-tested there; "Rate-capped" now carries WHICH cap and its number, which
 // is why this component takes the rule's `caps`.
 //
-// The outcome → label/tone map is an EXHAUSTIVE Record over `AUTOMATION_FIRE_OUTCOMES` (§5.5 string-union
-// dispatch): a new terminal fails `tsc` here until it declares its copy and tone, so the log can never
-// silently render a raw enum value.
+// The outcome → label/tone dispatch (`fireOutcomeView`) is an EXHAUSTIVE switch over `AUTOMATION_FIRE_OUTCOMES`
+// (§5.5 string-union dispatch) homed ONE file over in `lib/rule-copy.ts` beside the other fire copy: a new
+// terminal fails `tsc` there until it declares its copy and tone, so the log can never silently render a raw
+// enum value. It lives in the copy lib (not here) so B11's room Activity log renders the SAME badge from the
+// SAME dispatch (§5.5 one-home — the tell that a second surface must not re-spell the outcome vocabulary).
 
-import type { AutomationFireOutcome } from "@orb/contracts/automation";
 import type { AutomationRuleId } from "@orb/kit/ids";
-import type { BadgeProps } from "@orb/ui/badge";
 import { Badge } from "@orb/ui/badge";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -27,46 +27,11 @@ import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { timeLib } from "#lib";
 import type { RuleFireCaps } from "../lib/rule-copy.ts";
-import { fireDetailLine, triggerLabel } from "../lib/rule-copy.ts";
+import { fireDetailLine, fireOutcomeView, triggerLabel } from "../lib/rule-copy.ts";
 
 /** The default page the log requests — the recent tail is what answers "did my last few turns fire?"; the
  *  server caps at `AUTOMATION_FIRES_LIST_MAX_LIMIT` regardless. */
 const FIRE_LOG_LIMIT = 20;
-
-interface FireOutcomeView {
-  readonly label: string;
-  readonly intent: BadgeProps["intent"];
-}
-
-/** One fire outcome's host-facing copy + badge tone, dispatched EXHAUSTIVELY (§5.5 — a new
- *  `AutomationFireOutcome` fails `tsc` at the `never` default). `fired` is the only success; the refusals are
- *  neutral facts (the rule is healthy, its condition simply did not hold), and the error terminals are the
- *  ones a host must notice. `test_run` marks a dry run so a Test press does not read as a real fire. A switch
- *  (not an object literal) is what keeps the snake_case wire terminals off the `useNamingConvention` lint. */
-function fireOutcomeView(outcome: AutomationFireOutcome): FireOutcomeView {
-  switch (outcome) {
-    case "fired":
-      return { label: "Fired", intent: "success" };
-    case "predicate_false":
-      return { label: "Condition not met", intent: "neutral" };
-    case "predicate_error":
-      return { label: "Condition errored", intent: "danger" };
-    case "budget_refused":
-      return { label: "Rate-capped", intent: "warning" };
-    case "depth_refused":
-      return { label: "Cascade-capped", intent: "warning" };
-    case "action_error":
-      return { label: "Action errored", intent: "danger" };
-    case "authority_refused":
-      return { label: "No authority", intent: "danger" };
-    case "test_run":
-      return { label: "Test run", intent: "info" };
-    default: {
-      const exhaustive: never = outcome;
-      throw new Error(`unhandled automation fire outcome: ${JSON.stringify(exhaustive)}`);
-    }
-  }
-}
 
 export interface RuleFireLogProps {
   readonly ruleId: AutomationRuleId;

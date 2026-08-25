@@ -51,6 +51,17 @@ export async function listFiresForRule(db: Db, ruleId: AutomationRuleId, limit: 
   return rows.map(toFireView);
 }
 
+/** B11 — a CHAT's recent fire log across ALL its rules, newest first (the room Activity read). Reads the
+ *  `automation_fires_chat_idx` (`chat_id`) index; every automation dispatch/confirm/notice/plugin-tool run
+ *  for the room is a row here (the ONE-HOME store), so this returns the room's out-of-band history in ONE
+ *  read — no client-side fan-out over the chat's rules (the per-rule `listFiresForRule` would force that).
+ *  A deleted rule's fires CASCADE with it (`automation_fires.rule_id` FK is `onDelete: cascade`), so the
+ *  log reflects the chat's currently-live rules' activity. */
+export async function listFiresForChat(db: Db, chatId: ChatId, limit: number = DEFAULT_FIRE_LIMIT): Promise<FireView[]> {
+  const rows = await db.select().from(automationFires).where(eq(automationFires.chatId, chatId)).orderBy(desc(automationFires.firedAt)).limit(limit);
+  return rows.map(toFireView);
+}
+
 /** Count the actual FIRES (`outcome='fired'`) for a rule since `sinceMs` — the per-rule/hour budget source
  *  (the fire log IS the count source, on the `(rule_id, fired_at)` index). */
 export async function countRuleFiresSince(db: Db, ruleId: AutomationRuleId, sinceMs: number): Promise<number> {

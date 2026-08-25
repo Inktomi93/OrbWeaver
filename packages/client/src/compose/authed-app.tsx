@@ -29,6 +29,7 @@ import {
 } from "#features/app-shell";
 import { accountModal, reauthModal } from "#features/auth";
 import {
+  automationActivityTab,
   automationNeedleMeterSurface,
   automationPane,
   automationQuickReplySource,
@@ -135,6 +136,10 @@ import { queryClient, trpcProxy } from "./app-singletons.ts";
 // belongs as a SECTION inside "This chat", and it now grafts through `chatSettingsSections` below.)
 const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", [
   ...makeRpgContextTabs({ trpc: trpcProxy, queryClient }),
+  // B11 — the room ACTIVITY tab (host-only), automation's second CONTEXT-strip graft: a ready def (no injected
+  // read channel — its body reads through `useTRPC`), sibling of Members/"This chat"/Preview. automation owns
+  // it because `client-features-no-cross` forbids chat from importing the fire-outcome copy it renders.
+  automationActivityTab,
 ]);
 
 // The "This chat" tab's SECTION seam (§6c — the THIRTEENTH contributor family, minted at #616 on the
