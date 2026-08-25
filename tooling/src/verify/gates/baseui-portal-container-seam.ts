@@ -3,6 +3,7 @@
 // which is outside every `<ThemeScope>` in the tree: a popup that lands there resolves `var(--color-*)`
 // against the ROOT theme, so a menu opened from inside a themed card renders in the wrong palette — and it
 // also escapes the dialog's focus scope, which is the accessibility half of the same bug.
+// COMMENT POSTURE: comment-SAFE — portal tags, props members, and JSX attributes are AST nodes.
 //
 // TWO ARMS, because either half alone is a dead seam:
 //   A the seal renders a `*.Portal` but no exported `*Props` interface in that file declares `container` —
@@ -14,9 +15,10 @@
 // alert-dialog, drawer, select, combobox, autocomplete, toast) already declare `container?:
 // BasePortalProps["container"]` and thread it through `container={container ?? portalContainer}`. An honest
 // zero, held as a ratchet: the eleventh seal is the one that would have forgotten.
-import type { SourceFile } from "ts-morph";
+import type { JsxOpeningElement, JsxSelfClosingElement, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import { unwrapExpression } from "../lib/ast-read.ts";
 import { repoRelative, UI_SRC } from "../lib/baseui-read.ts";
 
 const CONTAINER = "container";
@@ -51,6 +53,25 @@ function declaresContainer(sf: SourceFile): boolean {
   return sf.getInterfaces().some((i) => i.isExported() && i.getProperties().some((p) => p.getName() === CONTAINER));
 }
 
+/** Presence is not wiring: `container={undefined}` is Base UI's default-body behavior in disguise. */
+function hasLiveContainer(el: JsxOpeningElement | JsxSelfClosingElement): boolean {
+  return el.getAttributes().some((attribute) => {
+    if (!Node.isJsxAttribute(attribute) || attribute.getNameNode().getText() !== CONTAINER) {
+      return false;
+    }
+    const initializer = attribute.getInitializer();
+    if (initializer === undefined || !Node.isJsxExpression(initializer)) {
+      return false;
+    }
+    const expression = initializer.getExpression();
+    if (expression === undefined) {
+      return false;
+    }
+    const value = unwrapExpression(expression);
+    return !((Node.isIdentifier(value) && value.getText() === "undefined") || value.isKind(SyntaxKind.NullKeyword));
+  });
+}
+
 function run(ctx: GateRunCtx): void {
   for (const sf of ctx.files) {
     const rel = repoRelative(sf.getFilePath());
@@ -68,8 +89,7 @@ function run(ctx: GateRunCtx): void {
       ctx.report(first, { token: ARM_TOKENS.noProp, offset: 0 });
     }
     for (const el of portals) {
-      const wired = el.getAttributes().some((a) => Node.isJsxAttribute(a) && a.getNameNode().getText() === CONTAINER);
-      if (!wired) {
+      if (!hasLiveContainer(el)) {
         ctx.report(el, { token: ARM_TOKENS.notWired, offset: 0 });
       }
     }
@@ -106,7 +126,7 @@ export const gate: GateDescriptor = {
     },
     {
       files:
-        'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface DialogPopupProps {\n  container?: unknown;\n}\nexport const P = () => <BaseDialog.Portal container={undefined} />;\nexport const Q = () => <BaseDialog.Portal />;\n',
+        'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface DialogPopupProps {\n  container?: unknown;\n}\nexport const P = () => <BaseDialog.Portal container={document.body} />;\nexport const Q = () => <BaseDialog.Portal />;\n',
       at: AT,
       expect: { count: 1, token: "container-not-wired" },
       why: "the SELF-CLOSING spelling, and per-OCCURRENCE granularity: one wired portal and one unwired portal in the same file must yield exactly one finding, on the unwired one",

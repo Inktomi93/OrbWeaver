@@ -8,14 +8,13 @@
 //   1. a literal duplicate import specifier — `import { X } from "./_ct-stories.tsx"` named twice in one
 //      file's import declarations (covers "named in a SECOND `as const` tuple array" too, since that
 //      re-imports the story under the same local name a second time in practice).
-//   2. an imported PascalCase (component-shaped) identifier referenced as a DIRECT element of an
-//      ArrayLiteralExpression at 2+ positions in the same file — the "component-in-array iteration"
-//      shape (`for (const [label, Story] of [[..., StoryA], [..., StoryA]])`), which ct rewrites into a
-//      duplicate generated const.
+//   2. an imported PascalCase identifier referenced at 2+ JSX render sites or as a DIRECT array element at
+//      2+ positions in the same file — both give playwright-ct multiple rewrite sites for one binding.
 //
 // Pure AST — comment-SAFE (subscribes to import specifiers + array-literal elements, reads no file text).
 // scanRoot is CT-scoped: `.ct.tsx` files and `_ct-stories.tsx` story modules (both are eval'd by the same
 // playwright-ct bundler and can carry either shape).
+// DECLARED LIMIT: non-component imports and repeated non-JSX references are not rewrite sites.
 import type { ArrayLiteralExpression, ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
@@ -101,6 +100,26 @@ function reportRepeatedArrayComponents(sf: SourceFile, ctx: GateRunCtx, imported
   }
 }
 
+/** Imported component JSX is also rewritten per reference; two render sites collide without an array. */
+function reportRepeatedJsxComponents(sf: SourceFile, ctx: GateRunCtx, importedComponents: ReadonlySet<string>): void {
+  const hits = new Map<string, Node[]>();
+  const elements = [...sf.getDescendantsOfKind(SyntaxKind.JsxOpeningElement), ...sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)];
+  for (const element of elements) {
+    const tag = element.getTagNameNode();
+    if (!(Node.isIdentifier(tag) && importedComponents.has(tag.getText()))) {
+      continue;
+    }
+    const list = hits.get(tag.getText()) ?? [];
+    list.push(tag);
+    hits.set(tag.getText(), list);
+  }
+  for (const [name, nodes] of hits) {
+    for (const node of nodes.slice(1)) {
+      ctx.report(node, { token: name, offset: 0 });
+    }
+  }
+}
+
 export const gate: GateDescriptor = {
   name: "ct-story-single-import",
   docRow: "core/Spine-Testing.md §7 (ct-story-double-import-identifier-collision, 2026-08-19)",
@@ -112,6 +131,7 @@ export const gate: GateDescriptor = {
   visitFile: (sf: SourceFile, ctx) => {
     const importedComponents = reportDuplicateImports(sf, ctx);
     reportRepeatedArrayComponents(sf, ctx, importedComponents);
+    reportRepeatedJsxComponents(sf, ctx, importedComponents);
   },
   mustFlag: [
     {

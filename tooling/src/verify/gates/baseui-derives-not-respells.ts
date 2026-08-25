@@ -2,6 +2,8 @@
 // with the Base UI component it wraps; it never hand-writes a second spelling of one. A re-spelling is not
 // a stylistic duplicate: it is a NARROWER type that silently deletes capability from every caller, and tsc
 // cannot tell you, because the seal only ever passes the value onward.
+// COMMENT POSTURE: comment-SAFE — imports, type identifiers, interfaces, and JSX forwarding are AST nodes;
+// the shared @orb-gate-ignore reader alone intentionally reads comments.
 //
 // ARM A — HANDLERS (hard, no exemption). A member whose name is a FUNCTION-typed prop of a Base UI part the
 // file renders must reference that part's props type. This is the eventDetails class, and it is the whole
@@ -27,9 +29,9 @@
 //
 // DECLARED LIMITS (each with a mustPass row): "derives" is a SYNTACTIC reference test — the member's type text
 // must name a Base UI props type the file imports, or a local alias whose body does (one hop, the
-// diagnostic-legibility idiom). A local type that merely happens to be named like a base props type passes.
-// And ARM B judges only `*Props` interfaces: a plain data shape in a seal file is not the seal's prop surface.
-import type { InterfaceDeclaration, SourceFile } from "ts-morph";
+// diagnostic-legibility idiom). Identifier identity is exact: a lookalike local name containing the imported
+// type's spelling is not a derive. ARM B judges only `*Props` interfaces: a plain data shape is not the seal.
+import type { InterfaceDeclaration, SourceFile, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { BaseUiBinding, ManifestPart, SurfaceManifest } from "../contract/baseui.ts";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
@@ -69,8 +71,8 @@ interface FileContext {
   readonly rootProps: Map<string, string>;
   /** Local identifiers bound to a Base UI TYPE import — naming one is what "derives" means here. */
   readonly baseTypes: Set<string>;
-  /** Local type-alias name → its right-hand text, for the one-hop derive resolution. */
-  readonly aliases: Map<string, string>;
+  /** Local aliases whose bodies structurally reference a Base UI type, for one-hop resolution. */
+  readonly derivedAliases: Set<string>;
 }
 
 /** Mutable accumulator for one file's scan — the three maps `fileContext` fills. */
@@ -137,11 +139,14 @@ function fileContext(sf: SourceFile, manifest: SurfaceManifest): FileContext | u
   if (!sawValue) {
     return;
   }
-  const aliases = new Map<string, string>();
+  const derivedAliases = new Set<string>();
   for (const alias of sf.getTypeAliases()) {
-    aliases.set(alias.getName(), alias.getTypeNode()?.getText() ?? "");
+    const type = alias.getTypeNode();
+    if (type !== undefined && referencesIdentifier(type, baseTypes)) {
+      derivedAliases.add(alias.getName());
+    }
   }
-  return { forwarded: forwardedProps(sf, surface), handlers: surface.handlers, rootProps: surface.rootProps, baseTypes, aliases };
+  return { forwarded: forwardedProps(sf, surface), handlers: surface.handlers, rootProps: surface.rootProps, baseTypes, derivedAliases };
 }
 
 /** Prop names this file hands to a Base UI part. A named attribute forwards itself; a SPREAD forwards
@@ -169,23 +174,12 @@ function forwardedProps(sf: SourceFile, surface: Surface): Set<string> {
 
 /** Does this member's declared type REFERENCE a Base UI props type — directly, or through one hop of a
  *  same-file type alias? (`ComboboxChangeDetails` → `Parameters<NonNullable<BaseRootProps[…]>>[1]`.) */
-function derivesFromBase(text: string, ctx: FileContext): boolean {
-  for (const name of ctx.baseTypes) {
-    if (text.includes(name)) {
-      return true;
-    }
-  }
-  for (const [alias, body] of ctx.aliases) {
-    if (!text.includes(alias)) {
-      continue;
-    }
-    for (const name of ctx.baseTypes) {
-      if (body.includes(name)) {
-        return true;
-      }
-    }
-  }
-  return false;
+function referencesIdentifier(type: TypeNode, names: ReadonlySet<string>): boolean {
+  return (Node.isIdentifier(type) && names.has(type.getText())) || type.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => names.has(id.getText()));
+}
+
+function derivesFromBase(type: TypeNode | undefined, ctx: FileContext): boolean {
+  return type !== undefined && (referencesIdentifier(type, ctx.baseTypes) || referencesIdentifier(type, ctx.derivedAliases));
 }
 
 function judgeInterface(gateCtx: GateRunCtx, iface: InterfaceDeclaration, ctx: FileContext): void {
@@ -193,8 +187,7 @@ function judgeInterface(gateCtx: GateRunCtx, iface: InterfaceDeclaration, ctx: F
   for (const member of iface.getProperties()) {
     const name = member.getName();
     const typeNode = member.getTypeNode();
-    const text = typeNode?.getText() ?? "";
-    if (derivesFromBase(text, ctx)) {
+    if (derivesFromBase(typeNode, ctx)) {
       continue;
     }
     // The token is the PROP NAME so a suppression can name its position (§4.3a) and the caret lands on it.
