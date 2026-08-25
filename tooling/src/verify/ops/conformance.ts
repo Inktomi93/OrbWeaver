@@ -10,6 +10,7 @@ import { dirname, join } from "node:path";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { Project } from "ts-morph";
 import type { Finding, GateDescriptor, GateExample } from "../contract/gate.ts";
+import type { PassResult } from "../contract/pass.ts";
 import type { ConformanceFailure } from "../contract/scoped.ts";
 import { runPass } from "../lib/pass.ts";
 
@@ -51,22 +52,20 @@ function inMemoryExampleProject(ex: GateExample, gate: GateDescriptor): Project 
 /** Run ONE gate standalone over an example project — the same begin→walk→run→finalize path as the real
  *  run. A dormant gate is run as-active here (runPass skips dormant gates in the real run) so its proof
  *  still holds. */
-function runGateStandalone(gate: GateDescriptor, project: Project, root: string): readonly Finding[] {
+function runGateStandalone(gate: GateDescriptor, project: Project, root: string): PassResult {
   const asActive: GateDescriptor = gate.status === "active" ? gate : { ...gate, status: "active" };
-  const result = runPass([asActive], {
+  return runPass([asActive], {
     root,
     project,
     scope: { kind: "project" },
     files: project.getSourceFiles(),
     checker: () => project.getTypeChecker(),
   });
-  const gateResult = result.gates.find((g) => g.name === gate.name);
-  return gateResult?.findings ?? [];
 }
 
 /** Run an `fsBacked` gate's example by materializing its files into a real auto-cleaned temp dir and
  *  loading a real-fs Project rooted there, so its readdirSync/existsSync/readFileSync calls see real disk. */
-function runFsBackedExample(gate: GateDescriptor, ex: GateExample): readonly Finding[] {
+function runFsBackedExample(gate: GateDescriptor, ex: GateExample): PassResult {
   const root = mkdtempSync(join(tmpdir(), "orb-conformance-"));
   try {
     for (const [rel, text] of Object.entries(exampleFiles(ex, gate))) {
@@ -83,7 +82,7 @@ function runFsBackedExample(gate: GateDescriptor, ex: GateExample): readonly Fin
 }
 
 /** Run one example on the substrate the descriptor declares. */
-function runExample(gate: GateDescriptor, ex: GateExample): readonly Finding[] {
+function runExample(gate: GateDescriptor, ex: GateExample): PassResult {
   return gate.fsBacked === true ? runFsBackedExample(gate, ex) : runGateStandalone(gate, inMemoryExampleProject(ex, gate), VROOT);
 }
 
@@ -118,7 +117,17 @@ function matchesExpect(findings: readonly Finding[], ex: GateExample, gateMessag
 function checkArm(gate: GateDescriptor, arm: "mustFlag" | "mustPass", examples: readonly GateExample[], out: ConformanceFailure[]): void {
   const wantBite = arm === "mustFlag";
   for (const ex of examples) {
-    const findings = runExample(gate, ex);
+    const result = runExample(gate, ex);
+    const findings = result.gates.find((g) => g.name === gate.name)?.findings ?? [];
+    if (result.toolErrors.length > 0) {
+      out.push({
+        gate: gate.name,
+        arm,
+        why: ex.why ?? "(no rationale given)",
+        detail: `TOOL ERROR while proving example: ${result.toolErrors.map((e) => `[${e.phase}] ${e.message}`).join("; ")}`,
+      });
+      continue;
+    }
     const ok = wantBite ? matchesExpect(findings, ex, gate.message) : findings.length === 0;
     if (!ok) {
       out.push({

@@ -2,8 +2,9 @@
 // Gate: vector-scope-derived (D20; Knowledge-Cluster.md invariants 1-2) — the no-cross-user-leak
 // chokepoints on the vector substrate: WRITE (inv 1) — every insert/update/delete on the five vector
 // tables lives in domain/embeddings/persistence/; COSINE (inv 2) — `vector_distance_cos` in code only
-// under domain/search/persistence/; IMPORT — the five table symbols importable only by the sanctioned domain set. A new importer is RED.
-import type { Node } from "ts-morph";
+// under domain/search/persistence/; IMPORT — named and `@orb/db` namespace table reads are confined to the
+// sanctioned domain set. Write table args are read in identifier and namespace-property spellings.
+import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 
@@ -70,8 +71,27 @@ function vectorTableImport(node: Node): string {
   return decl !== undefined && DB_SPECIFIER.test(decl.getModuleSpecifierValue()) ? name : "";
 }
 
+/** Resolve a direct vector-table identifier or an `@orb/db` namespace property access. */
+function vectorTableAccess(node: Node, sf: SourceFile): string {
+  if (node.isKind(SyntaxKind.Identifier) && VECTOR_TABLES.has(node.getText())) {
+    return node.getText();
+  }
+  if (!(node.isKind(SyntaxKind.PropertyAccessExpression) && VECTOR_TABLES.has(node.getName()))) {
+    return "";
+  }
+  const receiver = node.getExpression();
+  if (!receiver.isKind(SyntaxKind.Identifier)) {
+    return "";
+  }
+  const namespaceImports = sf.getImportDeclarations().flatMap((decl) => {
+    const ns = decl.getNamespaceImport();
+    return ns !== undefined && DB_SPECIFIER.test(decl.getModuleSpecifierValue()) ? [ns.getText()] : [];
+  });
+  return namespaceImports.includes(receiver.getText()) ? node.getName() : "";
+}
+
 /** Is this CallExpression a `.insert/.update/.delete(vectorTable)` write? Returns a label, else "". */
-function vectorWrite(node: Node): string {
+function vectorWrite(node: Node, sf: SourceFile): string {
   if (!node.isKind(SyntaxKind.CallExpression)) {
     return "";
   }
@@ -83,8 +103,11 @@ function vectorWrite(node: Node): string {
     return "";
   }
   const [firstArg] = node.getArguments();
-  const isTableArg = firstArg !== undefined && firstArg.isKind(SyntaxKind.Identifier) && VECTOR_TABLES.has(firstArg.getText());
-  return isTableArg ? `.${callee.getName()}(${firstArg.getText()})` : "";
+  if (firstArg === undefined) {
+    return "";
+  }
+  const table = vectorTableAccess(firstArg, sf);
+  return table === "" ? "" : `.${callee.getName()}(${firstArg.getText()})`;
 }
 
 export const gate: GateDescriptor = {
@@ -95,7 +118,7 @@ export const gate: GateDescriptor = {
   message: GROUP_MESSAGE,
   fix: "go through the ONE search engine with a mandatory producer scope; writes are embeddings.store lens arms, cosine is search/persistence's alone (D20).",
   scanRoot: (p) => SERVER_SRC.test(`/${p}`),
-  kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.CallExpression, ...LITERAL_KINDS],
+  kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.CallExpression, ...LITERAL_KINDS],
   visit: (node, sf, ctx) => {
     const path = sf.getFilePath();
     // Import arm.
@@ -104,8 +127,13 @@ export const gate: GateDescriptor = {
       reportAt(ctx, node, importedTable);
       return;
     }
+    const namespaceTable = IMPORT_SANCTIONED.test(path) ? "" : vectorTableAccess(node, sf);
+    if (namespaceTable !== "" && node.isKind(SyntaxKind.PropertyAccessExpression)) {
+      reportAt(ctx, node, namespaceTable);
+      return;
+    }
     // Write arm.
-    const write = WRITE_SANCTIONED.test(path) ? "" : vectorWrite(node);
+    const write = WRITE_SANCTIONED.test(path) ? "" : vectorWrite(node, sf);
     if (write !== "") {
       reportAt(ctx, node, write);
       return;
@@ -121,6 +149,12 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/hub/x.ts",
       expect: { token: "chatDigests" },
       why: "a vector-table symbol imported outside the sanctioned set — a NEW importer (inv 1)",
+    },
+    {
+      files: 'import * as schema from "@orb/db";\nexport const w = (db: Db) => db.insert(schema.chatDigests);\n',
+      at: "packages/server/src/domain/hub/namespace-write.ts",
+      expect: { count: 2 },
+      why: "a vector table reached through an @orb/db namespace is both an unsanctioned import use and an unsanctioned write; property-access syntax cannot hide either chokepoint bypass",
     },
     {
       files: 'export const q = "SELECT vector_distance_cos(a, b)";\n',

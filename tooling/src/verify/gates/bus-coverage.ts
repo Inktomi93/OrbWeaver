@@ -4,7 +4,7 @@
 // `CHAT_BUS_EVENT_TYPES` must have a server-side emit site OR a cited DEFERRED entry. DEFERRED is a
 // ratchet, self-cleaning in both directions (a lost emit site or a gained one on a deferred member is RED).
 // The reconcile is shared with the user/rpg bus twins (tooling/src/verify/lib/bus-coverage.ts) — this file is
-// the chat SPEC + its self-proof.
+// the chat SPEC + proof. COMMENT POSTURE: comment-SAFE — AST emitter calls + event objects only.
 
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { BusCoverageSpec } from "../contract/readers.ts";
@@ -54,10 +54,10 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
-        "packages/server/src/domain/chat/x.ts": 'export const q = "somethingElse";\n',
+        "packages/server/src/domain/chat/x.ts": 'export const q = "neverEmitted";\n',
       },
       expect: { messageIncludes: "NO server emit site" },
-      why: "a CHAT_BUS_EVENT_TYPES member with no server emit site + no DEFERRED entry — silent dead wire",
+      why: "an arbitrary matching literal is not an emit call — the chat member remains dead wire",
     },
   ],
   // The DEFERRED-covered mustPass example is RETIRED with the now-empty DEFERRED map: a synthetic member can
@@ -69,14 +69,14 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
-        "packages/server/src/domain/chat/x.ts": 'export const q = "emitted";\n',
+        "packages/server/src/domain/chat/x.ts": 'emit({ type: "emitted" });\n',
       },
-      why: "the member's discriminator appears as a server emit literal — covered, passes",
+      why: "the member's discriminator is carried by the chat emit call — covered, passes",
     },
     {
       files: {
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
-        "packages/server/src/entry/compose/room-reach.ts": 'export const q = "emitted";\n',
+        "packages/server/src/entry/compose/room-reach.ts": 'emitRoomEvent({ type: "emitted" });\n',
       },
       why: "THE WIDENED SCOPE, live: a member whose only producer is the composition root (the entity→room reach engine — a domain may not own its cross-domain reach queries) counts as covered for the CHAT bus. Two-sided with the mustFlag above, which still REDs an un-emitted member; and scoped — the sibling user-bus spec keeps the default scope, where a compose-only emit is deliberately NOT coverage",
     },

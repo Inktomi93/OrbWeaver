@@ -8,8 +8,9 @@
 // ARMS: A) inline `(el, args) => …` / `function (…) {…}` literal. B) a bare identifier resolving to a
 // module-scope function/const-arrow of the SAME file (`sweepOverflowEscapes`'s self-contained-by-contract
 // shape). Both are scope-checked identically via ts-morph symbol resolution — never name-matching.
-// DECLARED LIMITS: an identifier this reader cannot resolve to a value declaration (unbound, or resolves
-// only to a type — erased before serialization) is never guessed RED (`ctx.scan({ skipped })`, §"Verify").
+// DECLARED LIMIT: an identifier in a TYPE position is erased before serialization and ignored. An
+// unresolved RUNTIME identifier is not guessed into a capture finding, but it makes the checker itself
+// inconclusive and therefore throws a TOOL ERROR after preserving its scan count.
 import type { CallExpression, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
@@ -20,6 +21,7 @@ const EVALUATE_METHODS: ReadonlySet<string> = new Set(["evaluate", "evaluateAll"
 // identifier resolving OUTSIDE this file (lib.dom.d.ts, another module) is already exempt by the same-file
 // check below, so this list only matters for the (rare) case of a same-file `declare global` shadow.
 const BROWSER_GLOBALS: ReadonlySet<string> = new Set([
+  "undefined",
   "document",
   "window",
   "navigator",
@@ -176,24 +178,34 @@ function resolveCallback(arg: TsNode, sf: SourceFile): { readonly fnNode: TsNode
 
 interface ScopeCaptureCensus {
   readonly captures: readonly TsNode[];
-  readonly unresolved: number;
+  readonly unresolved: readonly TsNode[];
 }
 
-/** Walk every Identifier inside the resolved callback body. `unresolved` counts identifiers this reader
- *  could not resolve to a value declaration at all (no symbol, or the symbol has no VALUE form — a type,
- *  interface, or type-only import, erased before serialization and therefore never the #660 defect) —
- *  declared via `ctx.scan`, never guessed as a finding. */
+function isTypePosition(id: TsNode, boundary: TsNode): boolean {
+  let cur = id.getParent();
+  while (cur !== undefined && cur !== boundary) {
+    if (Node.isTypeNode(cur)) {
+      return true;
+    }
+    cur = cur.getParent();
+  }
+  return false;
+}
+
+/** Walk every runtime Identifier inside the resolved callback body. `unresolved` retains identifiers this
+ *  reader could not resolve to a value declaration; they become a tool error rather than a guessed capture
+ *  finding. Type positions are removed before this census because they are erased during serialization. */
 function censusScopeCaptures(fnNode: TsNode, declNode: TsNode, sf: SourceFile): ScopeCaptureCensus {
   const captures: TsNode[] = [];
-  let unresolved = 0;
+  const unresolved: TsNode[] = [];
   for (const id of fnNode.getDescendantsOfKind(SyntaxKind.Identifier)) {
-    if (isPropertyNamePosition(id) || BROWSER_GLOBALS.has(id.getText())) {
+    if (isPropertyNamePosition(id) || isTypePosition(id, fnNode) || BROWSER_GLOBALS.has(id.getText())) {
       continue;
     }
     const symbol = id.getSymbol();
     const decl = symbol?.getValueDeclaration();
     if (decl === undefined) {
-      unresolved += 1;
+      unresolved.push(id);
       continue;
     }
     if (decl === declNode) {
@@ -207,7 +219,7 @@ function censusScopeCaptures(fnNode: TsNode, declNode: TsNode, sf: SourceFile): 
   return { captures, unresolved };
 }
 
-let totalUnresolved = 0;
+const unresolvedRuntimeIdentifiers = new Set<string>();
 
 export const gate: GateDescriptor = {
   name: "evaluate-no-scope-capture",
@@ -222,7 +234,7 @@ export const gate: GateDescriptor = {
   kinds: [SyntaxKind.CallExpression],
 
   begin: () => {
-    totalUnresolved = 0;
+    unresolvedRuntimeIdentifiers.clear();
   },
 
   visit: (node, sf, ctx) => {
@@ -238,14 +250,21 @@ export const gate: GateDescriptor = {
       return; // a raw string / call expression / cross-file or unresolvable reference — not function-form here
     }
     const { captures, unresolved } = censusScopeCaptures(resolved.fnNode, resolved.declNode, sf);
-    totalUnresolved += unresolved;
+    for (const id of unresolved) {
+      unresolvedRuntimeIdentifiers.add(id.getText());
+    }
     for (const id of captures) {
       ctx.report(id, { token: id.getText(), offset: 0 });
     }
   },
 
   finalize: (ctx) => {
-    ctx.scan({ skipped: { "unresolved-identifier": totalUnresolved } });
+    ctx.scan({ skipped: { "unresolved-identifier": unresolvedRuntimeIdentifiers.size } });
+    if (unresolvedRuntimeIdentifiers.size > 0) {
+      throw new Error(
+        `could not resolve runtime identifier(s) inside serialized browser callbacks: ${[...unresolvedRuntimeIdentifiers].sort().join(", ")} — callback evidence is incomplete`,
+      );
+    }
   },
 
   mustFlag: [
@@ -281,6 +300,12 @@ export const gate: GateDescriptor = {
         "async function run(page: { evaluate: (fn: unknown) => Promise<unknown> }): Promise<unknown> {\n  return await page.evaluate(() => document.title);\n}\n",
       at: "tooling/src/motion-audit/ops/globals.ts",
       why: "a browser-global reference (document) — those are the BROWSER's, and in any case resolve OUTSIDE this file (lib.dom.d.ts), never a same-file module-scope declaration",
+    },
+    {
+      files:
+        "async function run(page: { evaluate: (fn: unknown) => Promise<boolean> }): Promise<boolean> {\n  return await page.evaluate(() => document.body.dataset.ready !== undefined);\n}\n",
+      at: "tooling/src/snap/ops/undefined-global.ts",
+      why: "JavaScript's built-in `undefined` exists in the serialized browser callback; it is not an unresolved user binding and must not make the checker inconclusive",
     },
     {
       files:

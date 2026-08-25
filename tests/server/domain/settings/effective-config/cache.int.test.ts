@@ -15,6 +15,7 @@ import {
 import { writeAppOverride } from "../../../../../packages/server/src/domain/settings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { makeHarness } from "../_support.ts";
 
 const AT = 1_750_000_000_000;
 const originalLevel = logger.level;
@@ -44,6 +45,18 @@ describe("effective-config cache", () => {
     const cfg = await reloadEffectiveConfig(db);
     expect(cfg.logLevel).toBe("debug");
     expect(getEffectiveConfig().logLevel).toBe("debug");
+    expect(logger.level).toBe("debug");
+  });
+
+  test("the assembled SettingsService reload boundary rebuilds the effective cache", async () => {
+    const db = await freshDb();
+    const { svc } = makeHarness(db);
+    await writeAppOverride(db, { logLevel: "debug", schemaVersion: 2 }, AT);
+
+    const cfg = await svc.reloadEffectiveConfig();
+
+    expect(cfg.logLevel).toBe("debug");
+    expect(svc.getEffectiveConfig().logLevel).toBe("debug");
     expect(logger.level).toBe("debug");
   });
 

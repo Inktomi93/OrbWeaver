@@ -1,6 +1,6 @@
 // Gate: automation-bus-coverage (ledger D50 twin; client-architecture-lockdown.md §13 law 4) — the
 // AutomationBusEvent emit-coverage ratchet, the fourth SPEC on the shared reconcile
-// (tooling/src/verify/lib/bus-coverage.ts). Minted 2026-08-14 with the G-B belt-existence arm.
+// (tooling/src/verify/lib/bus-coverage.ts). COMMENT POSTURE: comment-SAFE AST notify calls only.
 //
 // WHY IT EXISTS, measured not argued (event-bus coverage survey §2.3): the automation bus was built AFTER
 // the three ratchets and shipped WITHOUT a `*_EVENT_TYPES` belt, so `bus-definition-belts` never found it
@@ -55,25 +55,25 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/contracts/src/automation/index.ts": "export const AUTOMATION_BUS_EVENT_TYPES = { rulesChanged: true } satisfies Record<never, true>;\n",
-        "packages/server/src/domain/automation/engine/dispatch.ts": 'export const q = "ruleFired";\n',
+        "packages/server/src/domain/automation/engine/dispatch.ts": 'export const q = "rulesChanged";\n',
       },
       expect: { messageIncludes: "NO server emit site" },
-      why: "`rulesChanged` declared with no emit literal anywhere in the domain — the survey's founding instance, reproduced: the member the tree carried dead for the whole life of the bus",
+      why: "`rulesChanged` named by an arbitrary literal but never carried by notify — the founding dead-wire class",
     },
   ],
   mustPass: [
     {
       files: {
         "packages/contracts/src/automation/index.ts": "export const AUTOMATION_BUS_EVENT_TYPES = { rulesChanged: true } satisfies Record<never, true>;\n",
-        "packages/server/src/domain/automation/verbs/create-rule.ts": 'export const q = "rulesChanged";\n',
+        "packages/server/src/domain/automation/verbs/create-rule.ts": 'ctx.notify({ type: "rulesChanged" });\n',
       },
-      why: "the member's discriminator appears as an emit literal in the domain scope — covered, passes. This is the post-wave-2 state of the real tree",
+      why: "the member's discriminator is carried by the injected notify call — the post-wave-2 real shape",
     },
     {
       files: {
         "packages/contracts/src/automation/index.ts": "export const AUTOMATION_BUS_EVENT_TYPES = { quickReplySurfaced: true } satisfies Record<never, true>;\n",
-        "packages/server/src/entry/compose/automation-plugin.ts": 'export const q = "quickReplySurfaced";\n',
-        "packages/server/src/domain/automation/engine/arm-executors.ts": 'export const q = "quickReplySurfaced";\n',
+        "packages/server/src/entry/compose/automation-plugin.ts": 'pluginNotify({ type: "quickReplySurfaced" });\n',
+        "packages/server/src/domain/automation/engine/arm-executors.ts": 'deps.notify({ type: "quickReplySurfaced" });\n',
       },
       why: "DECLARED LIMIT pinned: the plugin-side emit under `entry/compose` is OUTSIDE the shared EMIT_SCOPE and contributes nothing — coverage here rests entirely on the domain-scope rule-side emit, exactly as the header states",
     },
