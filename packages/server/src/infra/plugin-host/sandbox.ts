@@ -68,10 +68,29 @@ export interface SandboxMembrane {
   readonly netHosts: readonly string[];
 }
 
-/** A guest error projected to plain data (never a live handle across the boundary). */
+/** A guest error projected to plain data (never a live handle across the boundary). `line` is the guest
+ *  source line the engine attributed the error to, lifted from `stack` (`plugin-guest.js:LINE:COL`) —
+ *  present for a compile-time `SyntaxError` (QuickJS always stamps one there) and absent when the dump
+ *  carried no `stack` at all. */
 export interface GuestError {
   readonly name: string;
   readonly message: string;
+  readonly line?: number;
+}
+
+/** The guest-source-line pattern in a QuickJS error's `stack` (`"    at plugin-guest.js:2:12\n"`,
+ *  measured against the shipped -ng build). */
+const GUEST_LINE_RE = /plugin-guest\.js:(\d+):\d+/;
+
+/** Pull the guest source line out of a QuickJS error's `stack`. Returns `undefined` on any shape that
+ *  doesn't match rather than guessing — an absent line is a silently omitted field, never a wrong one. */
+function extractGuestLine(stack: string): number | undefined {
+  const match = GUEST_LINE_RE.exec(stack);
+  if (match === null) {
+    return;
+  }
+  const line = Number(match[1]);
+  return Number.isFinite(line) ? line : undefined;
 }
 
 /** The result of one guest invocation — errors-as-data, logs drained, no live handles escape. */
@@ -93,8 +112,11 @@ const DEFAULT_LIMITS: SandboxLimits = {
 function readError(ctx: QuickJSContext, handle: QuickJSHandle): GuestError {
   const dumped: unknown = ctx.dump(handle);
   if (typeof dumped === "object" && dumped !== null) {
-    const record = dumped as { name?: unknown; message?: unknown };
-    return { name: String(record.name ?? "Error"), message: String(record.message ?? "") };
+    const record = dumped as { name?: unknown; message?: unknown; stack?: unknown };
+    const name = String(record.name ?? "Error");
+    const message = String(record.message ?? "");
+    const line = typeof record.stack === "string" ? extractGuestLine(record.stack) : undefined;
+    return line === undefined ? { name, message } : { name, message, line };
   }
   return { name: "Error", message: String(dumped) };
 }

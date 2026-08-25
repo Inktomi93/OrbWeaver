@@ -40,6 +40,12 @@ const NEW_TURN_CAPABILITY = /^Ask for a reply on its own/u;
 /** The re-consent notice's own escape action — named by the plugin, since a settings pane can hold several. */
 const REMOVE_WEATHER_TELLER = /^Remove Weather Teller/u;
 const A_PAST_INSTANT = 1_760_000_000_000;
+/** The bare-`host` tell the old starter shipped (#683) — a property read off `host` with no owning `.`/word
+ *  before it (so `orb.host(1)` itself doesn't false-positive). */
+const BARE_HOST_RE = /(?<![.\w])host\./u;
+/** The top-level-`await` tell the old starter shipped (#683) — `evalCode` runs script mode, not module mode,
+ *  so this shape is a QuickJS PARSE ERROR, not merely bad style. */
+const TOP_LEVEL_AWAIT_RE = /^\s*(?:const|let|var)\s+\w+\s*=\s*await\s/mu;
 
 interface ManifestFixture {
   readonly id: string;
@@ -447,4 +453,45 @@ test("the snippet console shows what a run logged, and shows a contained failure
   // ONESHOT-OK: the output region above settled on this run's OWN response, so the call it counts has
   // already returned; nothing else in the story can call the proc.
   expect(recorder.count("plugin.runSnippet")).toBe(1);
+});
+
+test("a fresh console's shipped starter is code that can actually run — no top-level await, no bare `host`", async ({ mount, page }) => {
+  // #683: the old starter used top-level `await` (a QuickJS PARSE ERROR — evalCode runs script mode, not
+  // module mode) and called bare `host` (undefined — the realm entry is `orb.host(1)`, realm.ts). This pins
+  // the SENT source is real, runnable code by construction: the textarea is untouched, Run is clicked, and
+  // the responder proves the exact source that would reach the sandbox on a fresh console's FIRST press.
+  const recorder = await routeTrpc(page, {
+    "plugin.runSnippet": () => ({ logLines: ["5 messages"] }),
+  });
+  await mount(<SnippetConsoleStory chatId={CHAT} />);
+
+  const starter = await page.getByLabel("Snippet code").inputValue();
+  expect(starter).toContain("orb.host(1)");
+  expect(starter).not.toMatch(BARE_HOST_RE);
+  expect(starter).not.toMatch(TOP_LEVEL_AWAIT_RE);
+
+  await page.getByRole("button", { name: "Run" }).click();
+
+  // SETTLED: the log line the stub returned for exactly the starter's own source proves the first Run is a
+  // real run, not the parse-error path this issue exists to catch.
+  const output = page.getByRole("status", { name: "Snippet output" });
+  await expect(output).toContainText("5 messages");
+  expect(recorder.lastInput("plugin.runSnippet")).toEqual({ chatId: CHAT, code: starter });
+});
+
+test("a parse failure says it never ran, with the line — never the empty-log lie", async ({ mount, page }) => {
+  // #683 part 2: before `errorKind` existed, an empty `logLines` + a set `error` rendered BOTH "It ran and
+  // logged nothing." and the raw engine message — a caption that is a lie for a snippet that never started
+  // executing. This drives the deliberately-broken-snippet arm and pins the copy no longer says that.
+  await routeTrpc(page, {
+    "plugin.runSnippet": () => ({ logLines: [], error: "expecting ';'", errorKind: "parse", errorLine: 1 }),
+  });
+  await mount(<SnippetConsoleStory chatId={CHAT} />);
+
+  await page.getByLabel("Snippet code").fill("const x = ;");
+  await page.getByRole("button", { name: "Run" }).click();
+
+  const output = page.getByRole("status", { name: "Snippet output" });
+  await expect(output).toContainText("Didn't run — syntax error at line 1: expecting ';'");
+  await expect(output.getByText("It ran and logged nothing.")).toHaveCount(0);
 });
