@@ -30,6 +30,8 @@ import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatControlsStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
+/** A non-empty `aria-describedby` — the disabled chip points at a real reason element, not title-only. */
+const NON_EMPTY = /\S/;
 const BAND = '[data-slot="chat-controls"]';
 const ABOVE_COMPOSER = '[data-slot="chat-above-composer"]';
 const CARDS = '[data-slot="chat-control-cards"]';
@@ -104,6 +106,24 @@ test("chips render their labels in one row", async ({ mount, page }) => {
   await expect(component.locator(CHIPS)).toHaveCSS("flex-direction", "row");
 });
 
+test("chips are DISTINGUISHABLE by mode: a per-mode glyph, a mode-prefixed accessible name, and data-mode", async ({ mount, page }) => {
+  // side-eye 2026-08-24 P1: the send chip (posts your turn instantly) and the compose chip (only drafts) were
+  // rendering byte-identical AND named label-only, so neither a sighted nor an SR user could tell them apart
+  // before clicking — the exact mode-confusion the S1 mode field exists to prevent.
+  await routeRoom(page);
+
+  const component = await mount(<ChatControlsStory fixture="chips" />);
+
+  const sendChip = component.locator(`${CHIPS} button[data-mode="send"]`);
+  const composeChip = component.locator(`${CHIPS} button[data-mode="compose"]`);
+  // The SR/keyboard signal: distinct accessible names, the visible label kept as a substring (WCAG 2.5.3).
+  await expect(sendChip).toHaveAccessibleName("Send: Draw your blade");
+  await expect(composeChip).toHaveAccessibleName("Draft: Time skip");
+  // The sighted signal: each chip carries a leading glyph, and the two modes render different components.
+  await expect(sendChip.locator("svg")).toHaveCount(1);
+  await expect(composeChip.locator("svg")).toHaveCount(1);
+});
+
 test("send mode: a chip click fires chat.send with the chip's text and leaves the composer draft alone", async ({ mount, page }) => {
   const trpc = await routeRoom(page);
 
@@ -145,6 +165,12 @@ test("BUSY IS PER MODE: a turn in flight disables the send chip with its reason;
 
   await expect(sendChip).toBeDisabled();
   await expect(sendChip).toHaveAttribute("title", "Wait for the current reply to finish, then pick");
+  // side-eye 2026-08-24 P2: the reason must be reachable by keyboard/SR, not `title` (hover) alone — it is
+  // bound through `aria-describedby` to a visually-hidden sibling. The MECHANISM is the defect proof: a
+  // `title`-only chip ALSO yields an accessible description (title is a last-resort source), so the
+  // discriminator is the explicit `aria-describedby` wiring the pre-fix band did not have.
+  await expect(sendChip).toHaveAttribute("aria-describedby", NON_EMPTY);
+  await expect(sendChip).toHaveAccessibleDescription("Wait for the current reply to finish, then pick");
   // THE DISCRIMINATOR: writing a draft is always legal, so the compose chip is untouched by the turn.
   await expect(composeChip).toBeEnabled();
 });
@@ -228,6 +254,10 @@ test("the chips row caps its display and discloses the remainder", async ({ moun
   await expect(component.locator(CHIPS).getByRole("button")).toHaveCount(4);
   await expect(component.getByText("+2 more")).toBeVisible();
   await expect(component.getByRole("button", { name: "Chip five" })).toHaveCount(0);
+  // side-eye 2026-08-24 P3: the row WRAPS rather than clipping — at a phone width four long-label chips
+  // overran the inline space and pushed "+2 more" off the (un-scrollable) right edge. A second line keeps
+  // every capped chip and its disclosure reachable.
+  await expect(component.locator(CHIPS)).toHaveCSS("flex-wrap", "wrap");
 });
 
 test("ONE visible card, its dismiss, and the pending count for the rest", async ({ mount, page }) => {
