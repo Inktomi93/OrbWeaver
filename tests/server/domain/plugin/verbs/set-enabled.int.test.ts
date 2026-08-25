@@ -110,6 +110,64 @@ test("a stranger cannot enable another user's plugin — not a plain user, and N
   expect((await h.service.list({ caller: principalFor(alice) }))[0]?.status).toBe("disabled");
 });
 
+// THE CONSENT-BYPASS PIN (2026-08-24). "Enabling grants nothing" was true of capability NAMES and FALSE of
+// `net.fetch`'s reach: an upgrade that keeps the capability and merely bolts a destination onto `netHosts`
+// lands `disabled` + `pending_reconsent` with the grant INTACT, and activation used to forward the NEW
+// manifest's list verbatim — so one flip of the switch the surface deliberately leaves live beside the
+// re-consent notice armed `safeFetch` at a host nobody confirmed, while the row still read "asked for more
+// than you allowed". The wall is what this asserts, not the status: the row may legitimately be enabled with
+// a standing ask (the two owner decisions stay separate), but its REACH is the confirmed set.
+test("enabling a row with a standing re-consent arms the wall at the CONSENTED hosts only", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const installed = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+    grant: ["net.fetch"],
+  });
+  // v2 widens REACH only — same capability set, one new destination. The grant survives by design.
+  await h.service.upgrade({
+    caller: ownerPrincipalFor(owner),
+    pluginId: installed.id,
+    bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
+  });
+
+  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+
+  const armed = h.port.created.at(-1);
+  expect(armed?.grants).toEqual(["net.fetch"]); // the stored grant crossed, untouched
+  expect(armed?.netHosts).toEqual(["api.vendor.example"]); // …and NOT the unanswered destination
+});
+
+test("a covering re-grant restores the full declared reach — the withholding is consent, not a latch", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const installed = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+    grant: ["net.fetch"],
+  });
+  const upgraded = await h.service.upgrade({
+    caller: ownerPrincipalFor(owner),
+    pluginId: installed.id,
+    bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
+  });
+
+  // The owner ANSWERS: `net.fetch` re-confirmed with the echo of every host the screen rendered.
+  await h.service.setGrant({
+    caller: ownerPrincipalFor(owner),
+    pluginId: installed.id,
+    grant: ["net.fetch"],
+    acknowledgedNetHosts: upgraded.netHosts ?? [],
+  });
+  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+
+  const armed = h.port.created.at(-1);
+  expect(armed?.netHosts).toEqual(["api.vendor.example", "collector.attacker.example"]);
+});
+
 test("DISABLING voids the plugin's pending posture-2 asks — a stale card never outlives the plugin", async () => {
   // The confirm-time liveness re-check is what makes a stale plugin card SAFE (it refuses); this sweep is what
   // makes it DISAPPEAR, so a host is never offered an answer that would only refuse. It fires UNCONDITIONALLY,

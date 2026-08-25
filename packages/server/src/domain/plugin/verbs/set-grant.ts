@@ -108,7 +108,13 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps): Plugin
       // that was `enabled` comes back up, and it comes back up under the grant just written. A contained
       // activation failure lands `errored` + `last_error` on the row (activate's own posture) and surfaces in
       // the returned view — the grant write stands either way, which is the honest outcome: consent was given.
-      await deps.activate({ caller, pluginId, bundleAssetId: existing.bundleAssetId, grants: granted });
+      // NOTHING IS WITHHELD FROM THE WALL HERE, and that is a statement about the acknowledgement gate above,
+      // not an omission. Either `net.fetch` is in this grant — in which case the caller echoed EVERY host the
+      // persisted manifest declares or this verb already threw — or it is not, in which case the capability
+      // gate refuses every fetch and the allowlist is inert. The row may still carry `widenedNetHosts` for the
+      // NOTICE (a partial re-grant deliberately keeps the marks standing about the same update), so passing
+      // that column here would withhold destinations the owner just confirmed by echo.
+      await deps.activate({ caller, pluginId, bundleAssetId: existing.bundleAssetId, grants: granted, withheldNetHosts: [] });
     }
 
     const row = await getById(ctx.db, caller.userId, pluginId);

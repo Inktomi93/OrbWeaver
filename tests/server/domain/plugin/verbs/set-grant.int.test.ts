@@ -478,8 +478,17 @@ describe("reconsentPending — the forced-disable flag", () => {
 
   test("ENABLING does not clear the HOST DELTA either — the marks outlive the toggle, like the flag", async () => {
     // Same inversion as the flag's, one column over: a person who works around the refusal by turning the
-    // plugin on must not thereby erase WHICH destination the system refused. It is running with the stored
-    // grant against a host it was never consented for, and the surface has to keep being able to say so.
+    // plugin on must not thereby erase WHICH destination the system refused, and the surface has to keep
+    // being able to say so.
+    //
+    // TRUTH-REPAIR (2026-08-24): this comment used to end "it is running with the stored grant against a host
+    // it was never consented for" — stated as the accepted shape, which BLESSED a real consent bypass. It was
+    // one toggle to an armed `safeFetch` at an unconfirmed destination, and the toggle is the control the
+    // notice itself points at ("turning it back on is still a separate step, above"). The row may still be
+    // enabled with a standing ask — the two owner decisions are deliberately separate — but the unanswered
+    // destination is withheld from the wall until it is answered (`consentedNetHosts`; the reach pin lives
+    // beside the act that arms it, `set-enabled.int.test.ts`). The delta assertions below are unchanged: what
+    // the notice SAYS was always right, it was the reach underneath it that was not.
     const db = await freshDb();
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -500,6 +509,8 @@ describe("reconsentPending — the forced-disable flag", () => {
     expect(row?.status).toBe("enabled");
     expect(row?.reconsentPending).toBe(true);
     expect(row?.widenedNetHosts).toEqual(["collector.attacker.example"]);
+    // …and the marked destination is exactly what the running instance CANNOT reach.
+    expect(h.port.created.at(-1)?.netHosts).toEqual(["api.vendor.example"]);
   });
 
   test("ENABLING does NOT clear it — re-enabling grants nothing, so the gap outlives the toggle", async () => {

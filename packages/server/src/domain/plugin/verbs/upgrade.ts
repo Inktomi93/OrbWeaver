@@ -89,9 +89,12 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
     const newCaps = newlyDeclaredCapabilities(manifest.capabilities, existing.grantedCapabilities);
     // The egress half of the same re-consent rule. Compared against the PRIOR MANIFEST's `netHosts` (the row's
     // persisted manifest json is the record of what was confirmed at install/last re-grant) — there is no
-    // `granted_net_hosts` column, and there does not need to be: `granted_capabilities ⊆ declared` is the
-    // capability ledger, and the manifest IS the host ledger because activation forwards the manifest's list
-    // verbatim to the SSRF wall (`activation/activate.ts` → `createInstance({netHosts})`).
+    // `granted_net_hosts` column: `granted_capabilities ⊆ declared` is the capability ledger, and the manifest
+    // plus the row's UNANSWERED delta are the host ledger. TRUTH-REPAIR (2026-08-24): this used to say
+    // activation forwards the manifest's list "verbatim" to the SSRF wall, and that was the hole rather than
+    // the design — verbatim meant one `setEnabled` toggle armed `safeFetch` at a destination a standing
+    // re-consent covered. Activation now forwards `declared \ withheldNetHosts` (`consentedNetHosts`), so the
+    // wall carries the owner's CONFIRMED reach and never more.
     const declaredHosts = manifest.netHosts ?? [];
     const priorHosts = existing.manifest.netHosts ?? [];
     const newHosts = widenedNetHosts(declaredHosts, priorHosts);
@@ -133,7 +136,11 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
     await ctx.assets.reapOrphans([existing.bundleAssetId]);
 
     if (reactivate) {
-      await deps.activate({ caller, pluginId, bundleAssetId: stored.assetId, grants: granted });
+      // `reactivate` only happens when THIS upgrade widened nothing — but a re-consent carried in from an
+      // EARLIER one can still be standing (`refusal.hosts`, the accumulated unanswered set filtered to what
+      // this manifest still declares), and those destinations stay withheld from the wall until they are
+      // answered. Same rule as `setEnabled`'s, at the other activation site.
+      await deps.activate({ caller, pluginId, bundleAssetId: stored.assetId, grants: granted, withheldNetHosts: refusal.hosts });
     }
 
     const row = await getById(ctx.db, caller.userId, pluginId);

@@ -6,8 +6,10 @@
 // untrusted bundle under another's identity, credential and rooms. The principal that owns the row is the
 // only principal that may start it.
 // Enable ⇒ (idempotent clean slate: deactivate any stale resident) → activate on the CAS
-// bundle under the granted subset; a contained activation failure surfaces as `PluginCrashedError` after the
-// row lands `errored`. Disable ⇒ dispose the instance + deregister its tools/transforms/subs →
+// bundle under the granted subset AND THE CONSENTED REACH (a standing re-consent's unanswered `netHosts` are
+// withheld from the egress wall — "enabling grants nothing" has to cover reach, not just capability names, or
+// this toggle settles a consent question by itself); a contained activation failure surfaces as
+// `PluginCrashedError` after the row lands `errored`. Disable ⇒ dispose the instance + deregister its tools/transforms/subs →
 // status `disabled`. Idempotent per target state.
 
 import { PluginCrashedError, PluginNotFoundError } from "../contract/errors.ts";
@@ -25,7 +27,20 @@ export function createSetEnabled(ctx: PluginContext, deps: ActivationDeps): Plug
     if (enabled) {
       // Clean slate: tear down any stale resident so a re-enable never leaks a second instance.
       deps.deactivate(pluginId);
-      const outcome = await deps.activate({ caller, pluginId, bundleAssetId: existing.bundleAssetId, grants: existing.grantedCapabilities });
+      // THE STORED GRANT, AND THE CONSENTED REACH — the two halves of "enabling grants nothing". The
+      // capability half needs no work (an unconfirmed capability was never written into the grant); the
+      // `net.fetch` half does, because its reach is parameterized by the MANIFEST, which an upgrade can widen
+      // while the grant stays byte-identical. The row's standing delta is exactly the set of destinations the
+      // owner has never answered for, so it is withheld from the wall here — otherwise this toggle, which the
+      // surface deliberately leaves live beside the re-consent notice, would arm `safeFetch` at a host nobody
+      // confirmed and quietly settle the question the notice is still asking.
+      const outcome = await deps.activate({
+        caller,
+        pluginId,
+        bundleAssetId: existing.bundleAssetId,
+        grants: existing.grantedCapabilities,
+        withheldNetHosts: existing.widenedNetHosts,
+      });
       if (!outcome.ok) {
         throw new PluginCrashedError(`plugin activation failed: ${outcome.error}`);
       }

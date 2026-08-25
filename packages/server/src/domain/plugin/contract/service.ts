@@ -107,6 +107,13 @@ export interface ActivateInput {
   readonly pluginId: PluginId;
   readonly bundleAssetId: AssetId;
   readonly grants: readonly PluginCapability[];
+  /** The declared `netHosts` this activation must WITHHOLD from the egress wall — the destinations the owner
+   *  has not answered for (a standing re-consent). Activation subtracts them from the re-validated manifest's
+   *  list (`consentedNetHosts`), so the wall can only ever be NARROWER than the manifest and never wider: the
+   *  allowlist is still DERIVED from the validated bundle, never caller-supplied. `[]` = nothing withheld.
+   *  Required, not optional, on purpose — a new activation site must state its consent fact rather than
+   *  inherit full reach by forgetting a field. */
+  readonly withheldNetHosts: readonly string[];
 }
 
 /** Activation result — success (resident + enabled), or a contained failure whose detail is on the errored row. */
