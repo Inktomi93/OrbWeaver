@@ -39,10 +39,11 @@ test("projectMessageHandlingForm flattens the nest and newline-joins the two lis
     autoSwipeBlacklist: "As an AI\nI cannot",
     customStoppingStrings: "###\nEND",
     tempChatTtlHours: 72,
+    offerChoices: true,
   });
 });
 
-// S1 (SET-SEAMS §2.3) — the patch is KEY-MINIMAL: exactly this section's eight owned keys, never the `chat`
+// S1 (SET-SEAMS §2.3) — the patch is KEY-MINIMAL: exactly this section's nine owned keys, never the `chat`
 // blob. The streaming keys (smoothStream/smoothStreamCps/streamScrollMode) belong to a SIBLING section, and
 // carrying them here would be the lost update §2.1 describes. The key list is re-spelled on purpose so the
 // assertion can't agree with the model's own `OWNS` tuple by construction.
@@ -56,6 +57,8 @@ test("toMessageHandlingPatch writes exactly this section's owned keys — no sib
     "customStoppingStrings",
     "enterSends",
     "generateOnEmptySend",
+    // B1: the per-user DEFAULT offer-choices posture a room inherits — owned here since 171e4aa5e.
+    "offerChoices",
     "tempChatTtlHours",
   ]);
   // `autoSwipe` is claimed at the TOP-level key, and its one editor-less leaf (`maxRetries`) is omitted so
@@ -73,6 +76,7 @@ test("toMessageHandlingPatch restores the nest and splits the list fields back t
     autoSwipe: { enabled: true, minLength: 120, blacklist: ["As an AI", "I cannot"] },
     customStoppingStrings: ["###", "END"],
     tempChatTtlHours: 72,
+    offerChoices: true,
   });
 });
 
