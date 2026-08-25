@@ -1,18 +1,20 @@
 // transport/trpc/routers/plugin — the D46 plugin management surface (core/Tier-4-Transport.md). authed; every
-// verb passes the resolved `Principal` as `caller` (the domain enforces install authority = owner∪admin via
-// its injected `can()` — so no `adminProcedure` here; the service is the authoritative gate). The
+// verb passes the resolved `Principal` as `caller` (the domain is the authoritative gate). `authedProcedure`
+// is the RIGHT floor and not a gap: plugins are USER-SCOPED (D147) — anyone installs for themselves and the
+// plugin runs under them — so the authority question is "is this row yours", which only the domain can answer
+// off the row. An `adminProcedure` here would be the wrong shape twice over: it would lock every user out of
+// their own pane, and it would imply an authority the verbs deliberately do not have (there is no admin
+// any-row branch; a foreign pluginId is a leak-free NOT_FOUND). The
 // bundle bytes ride as base64 in the mutation input (a zip is ≤ 1 MiB — `substrate/manifest.ts` re-caps + is
 // the untrusted-input boundary); a multipart upload route can supersede this later without a domain change
 // (the bundle funnel is source-agnostic). `runSnippet` is the inline mode: the service
 // gates the caller's chat authority leak-free (foreign chat ⇒ NOT_FOUND). Event delivery / tool invocation are
 // P4b.
 //
-// DORMANT BY BUILD-ORDER (owner-ruled 2026-08-03 — the full citation is `domain/plugin/index.ts`'s header):
-// every procedure below is mounted, authed and PROBED by the cross-tenant sweep, and NONE of them has a
-// client caller — `packages/client` names `trpc.plugin.*` nowhere, and `install` wants raw bundle bytes no
-// shipped affordance produces. That is a missing client WAVE, not a retired feature: read these as awaiting
-// the install/list pane, never as unreachable rows to prune. A sweep reader who finds them caller-less is
-// looking at the right thing and should leave them alone.
+// The client wave landed: `packages/client/src/features/plugin` is the install/list/grant pane and it calls
+// `trpc.plugin.*` for real. `upgrade`/`setGrant`/`setEnabled`/`uninstall` are PROBED by the cross-tenant sweep
+// as a stranger holding another user's real pluginId; `install`/`list` are exempt there because neither takes
+// a foreign id (install mints the caller's own row, list takes no input at all).
 
 import { NET_HOSTS_MAX, PLUGIN_CAPABILITIES, PLUGIN_LOG_LIST_MAX_LIMIT, pluginNetHostSchema } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";

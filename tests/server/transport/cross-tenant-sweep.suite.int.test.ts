@@ -15,14 +15,16 @@
 // security finding — this suite goes RED and the failure is a STOP-and-report item (route to
 // security-executor), NOT something the docs/test lane fixes.
 
-import { characterDocuments, documents, themes, userCredentials, workloadSchedules, workloads } from "@orb/db";
+import { assets, characterDocuments, documents, plugins, themes, userCredentials, workloadSchedules, workloads } from "@orb/db";
 import type {
+  AssetId,
   AutomationRuleId,
   CharacterId,
   ChatId,
   DocumentId,
   MessageId,
   PersonaId,
+  PluginId,
   PresetId,
   RefinerySchemaId,
   RefinerySessionId,
@@ -38,6 +40,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { appRouter } from "@orb/server/transport/trpc";
+import { strToU8, zipSync } from "fflate";
 import { describe } from "vitest";
 import type { AppCaller } from "../../support/fixtures.ts";
 import { expect, OWNER_USER_ID, test } from "../../support/fixtures.ts";
@@ -83,6 +86,11 @@ const MARK = {
   // stranger's patch overwrote the name, so both spellings are load-bearing. (The name must satisfy the
   // ResponseFormat identifier grammar `^[a-zA-Z_][a-zA-Z0-9_]*$` — hence no punctuation.)
   refinerySchema: "AlphaSecretSchema",
+  // D147 — an installed plugin owned by A. `plugins.ownerId` is the partition key and every management verb
+  // gates on it ALONE (there is no role gate any more, and deliberately no admin any-row branch), so these
+  // probes are the transport-tier proof of the whole authority model. The marker rides the plugin's `name`,
+  // which `toPluginView` returns verbatim — a leaked `upgrade`/`setGrant` result carries it.
+  plugin: "AlphaSecretPlugin",
 } as const;
 const MARKERS = Object.values(MARK);
 
@@ -115,6 +123,9 @@ interface OwnerIds {
   // refinery (R3) — A's real custom-schema id; the schema table carries its OWN ownerId, so the probe
   // exercises `loadOwnedSchemaRow`'s direct owner predicate (read AND the owner-in-the-WHERE writes).
   refinerySchemaId: RefinerySchemaId;
+  // plugin (D46/D147) — A's real installed plugin. Its whole authority model is `getById(db, caller.userId,
+  // pluginId)`, so a stranger holding this id is the exact shape the belt exists to refuse.
+  pluginId: PluginId;
 }
 
 /** tRPC's cross-realm error duck-type (matchers.ts precedent): an Error named "TRPCError" with a code. */
@@ -186,6 +197,26 @@ const VALID_SCORE_SCHEMA: Record<string, unknown> = {
   properties: { overallScore: { type: "number", minimum: 1, maximum: 10 } },
   required: ["overallScore"],
 };
+
+/** A REAL plugin bundle (the two entries the funnel admits), base64-encoded for the wire. Deliberately valid
+ *  and deliberately HOSTILE-shaped for the `plugin.upgrade` probe: it declares `net.fetch` at an attacker
+ *  host and a version above A's, so a dropped ownership belt would not merely resolve — it would SWAP THE
+ *  CODE A's row runs and re-point its egress wall. The post-sweep integrity re-read is what reads that back.
+ *  A bytes-garbage payload would have been refused by `parseBundle` and made a broken belt look leak-free. */
+function hostileBundleBase64(slug: string): string {
+  const manifest = {
+    id: slug,
+    name: "Hijacked",
+    version: "9.9.9",
+    hostVersion: 1,
+    entry: "main.js",
+    description: "the stranger's bundle",
+    capabilities: ["net.fetch"],
+    netHosts: ["collector.attacker.example"],
+  };
+  const zipped = zipSync({ "manifest.json": strToU8(JSON.stringify(manifest)), "main.js": strToU8("orb.host(1);\n") });
+  return Buffer.from(zipped).toString("base64");
+}
 
 const PROBES: readonly Probe[] = [
   // ── refinery (R1: ownership DERIVES through the character join — D23, no ownerId column; every probe
@@ -734,6 +765,16 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.chat.getVariablePicks({ chatId: i.chatId }),
   },
   {
+    // S5 §4 (#669 C1) — the room's RUNTIME variable fold. UNCLASSIFIED until 2026-08-24: the proc landed in
+    // f32b0af76 and nothing here covered it, so the completeness guard had been RED and this sweep was not a
+    // verdict for anyone who ran it. It is a member-gated READ of live room state (the vars plane the clock
+    // widget and the needle meter poll), so a dropped `requireParticipant` would hand a stranger the current
+    // fold of A's room — leak-free NOT_FOUND is the only acceptable answer. Filed by the cb-plugin-scope lane
+    // while re-classifying the plugin rows; the gate caught it exactly as designed.
+    path: "chat.getRuntimeVariables",
+    call: (c, i) => c.chat.getRuntimeVariables({ chatId: i.chatId }),
+  },
+  {
     // Probed with the D121-G `presetOverride` ON, so the sweep exercises the SAME two-foreign-id shape the
     // preset editor's bound Prompt readout sends. Identical verdict to `previewActionTemplates` below: the
     // chatId gate (`requireHost`) is the one that must bite, and the override needs no probe of its own
@@ -972,11 +1013,26 @@ const PROBES: readonly Probe[] = [
   { path: "automation.setBudgets", call: (c, i) => c.automation.setBudgets({ chatId: i.chatId, maxFiresPerHour: 5 }) },
   { path: "automation.getBudgets", call: (c, i) => c.automation.getBudgets({ chatId: i.chatId }) },
 
-  // ── plugin (D46) — getLog is owner-scoped (getById filters ownerId=caller, NOT admin-gated), so a stranger
+  // ── plugin (D46/D147) — the FOUR management verbs. They used to sit in EXEMPT with an "admin-gated: the
+  //    role gate precedes the pluginId ownership check" reason; that reason DIED when plugins went
+  //    user-scoped (anyone installs for themselves, and there is no admin any-row branch), so the ownership
+  //    predicate is now the ONLY thing between a stranger and A's row and it belongs under probe. Each takes
+  //    A's REAL pluginId. `upgrade` carries a real, valid, hostile bundle so a dropped belt would actually
+  //    swap A's code (the post-sweep re-read is its teeth — the verb's own leak would show as MARK.plugin in
+  //    the returned view). setGrant asks for the widest reach; setEnabled would BOOT A's guest code under the
+  //    stranger's principal, which is the confused-deputy case D147 exists to close. ──
+  { path: "plugin.upgrade", call: (c, i) => c.plugin.upgrade({ pluginId: i.pluginId, bundleBase64: hostileBundleBase64("alpha-plugin") }) },
+  {
+    path: "plugin.setGrant",
+    call: (c, i) => c.plugin.setGrant({ pluginId: i.pluginId, grant: ["chat.read", "net.fetch"], acknowledgedNetHosts: ["api.vendor.example"] }),
+  },
+  { path: "plugin.setEnabled", call: (c, i) => c.plugin.setEnabled({ pluginId: i.pluginId, enabled: true }) },
+  { path: "plugin.uninstall", call: (c, i) => c.plugin.uninstall({ pluginId: i.pluginId }) },
+  // getLog is owner-scoped the same way (getById filters ownerId=caller), so a stranger
   //    passing any pluginId reads absent → leak-free NOT_FOUND (the log ring lives on the caller's OWN resident
-  //    instance). Fabricated id (the established mintTypeId probe shape); the seeded-row teeth are in
-  //    get-plugin-log.int.test.ts. install/upgrade/setEnabled/uninstall are admin-gated (EXEMPT below). ──
-  { path: "plugin.getLog", call: (c) => c.plugin.getLog({ pluginId: mintTypeId(ID_PREFIX.plugin) }) },
+  //    instance). It gets A's REAL id like its four siblings above — the old fabricated-id shape predated the
+  //    seeded plugin row and could not tell a working belt from a missing row. ──
+  { path: "plugin.getLog", call: (c, i) => c.plugin.getLog({ pluginId: i.pluginId }) },
   // ── plugin.runSnippet (03 §1) takes owner A's chatId — the service gates on `resolveChatAuthority`
   //    (`loadPresentRole` under the caller): a stranger is not present ⇒ canRead=false ⇒ NOT_FOUND BEFORE the
   //    snippet ever runs (no read, no write, no execution against A's chat). Leak-free by the loadPresentRole
@@ -1341,16 +1397,14 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "admin.revokeUserSessions": "admin-gated: role gate",
   "admin.vllmEngines": "admin-gated: role gate",
   "admin.restartVllmEngine": "admin-gated: role gate",
-  // plugin (D46) — install/upgrade/setGrant/setEnabled/uninstall gate on `can(caller,"admin",{kind:"global"})` FIRST
-  // (owner∪admin, 02 §4), so a non-admin stranger is refused by the role gate BEFORE any pluginId ownership
-  // read — the admin.* pattern (a role gate, not an IDOR). `list` is self-scoped fetchOwned. `getLog` (owner-
-  // scoped, not admin-gated) IS probed above.
-  "plugin.install": "admin-gated: install authority role gate (creates the caller's own plugin, no foreign id)",
-  "plugin.upgrade": "admin-gated: the install-authority role gate precedes the pluginId ownership check",
-  "plugin.setGrant": "admin-gated: the install-authority role gate precedes the pluginId ownership check (the re-consent act, same door as upgrade)",
-  "plugin.setEnabled": "admin-gated: the install-authority role gate precedes the pluginId ownership check",
-  "plugin.uninstall": "admin-gated: the install-authority role gate precedes the pluginId ownership check",
-  "plugin.list": "self-scoped: the caller's own plugins (fetchOwned)",
+  // plugin (D46/D147) — RECLASSIFIED 2026-08-24. The five management verbs used to be exempt as "admin-gated:
+  // the install-authority role gate precedes the pluginId ownership check". That classification is DEAD:
+  // plugins are user-scoped, the `can(caller,"admin",{kind:"global"})` gate is gone from every verb, and the
+  // owner-scoped `getById(db, caller.userId, pluginId)` load is now the ONLY thing standing between a
+  // stranger and A's row. Four of the five are therefore PROBED above with A's real pluginId. Only the two
+  // that take no foreign id remain exempt:
+  "plugin.install": "self-scoped: install mints the CALLER's own row (ownerId = caller.userId) from bytes it was handed — there is no foreign id to probe",
+  "plugin.list": "self-scoped: takes NO input at all; listOwned filters WHERE owner_id = caller.userId, so there is no id a stranger could aim",
   "admin.embedCharacterCard": "admin-gated: role gate",
   // get/cancel/retry are PROBED above (owner-scoped, id-taking). start/list/subscribe below:
   "workloads.start": "self-scoped: a singular run stamps ownerId = caller (a bulk run requires the box owner); no foreign id",
@@ -1554,6 +1608,54 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     });
     const regexScriptId = regexScript.id;
 
+    // ── An installed PLUGIN owned by A (D46/D147). Seeded DIRECTLY rather than through `plugin.install`
+    //    because the front door stores the bundle in the real CAS; the ownership probes never read the
+    //    bytes, they gate on `plugins.owner_id`. The bundle asset row is seeded first — `bundle_asset_id` is
+    //    an FK with ON DELETE RESTRICT, so the plugin row cannot exist without it, and its survival is also
+    //    what proves the stranger's `uninstall` never reached the reaper. The row is born `disabled` with a
+    //    NARROW grant (`chat.read` only, `net.fetch` declared but NOT granted): every post-sweep field is
+    //    therefore something a leaked write would MOVE — status (setEnabled), grantedCapabilities/
+    //    reconsentPending (setGrant), version/name (upgrade). MARK.plugin rides `name`, which `toPluginView`
+    //    returns verbatim. ──
+    const pluginAssetId = castId<AssetId>("asset_alpha_plugin_bundle");
+    await db.insert(assets).values({
+      id: pluginAssetId,
+      ownerId: OWNER_USER_ID,
+      kind: "plugin",
+      mime: "application/zip",
+      size: 64,
+      hash: "alpha-plugin-bundle-hash",
+      uploadedAt: 1,
+    });
+    const pluginId = mintTypeId(ID_PREFIX.plugin);
+    await db.insert(plugins).values({
+      id: pluginId,
+      ownerId: OWNER_USER_ID,
+      slug: "alpha-plugin",
+      name: MARK.plugin,
+      version: "1.0.0",
+      manifest: {
+        id: "alpha-plugin",
+        name: MARK.plugin,
+        version: "1.0.0",
+        hostVersion: 1,
+        entry: "main.js",
+        description: "owned by A",
+        capabilities: ["chat.read", "net.fetch"],
+        netHosts: ["api.vendor.example"],
+      },
+      bundleAssetId: pluginAssetId,
+      grantedCapabilities: ["chat.read"],
+      status: "disabled",
+      origin: "upload",
+      pendingReconsent: false,
+      widenedNetHosts: [],
+      consecutiveCrashes: 0,
+      lastError: null,
+      installedAt: 1,
+      updatedAt: 1,
+    });
+
     // A theme row seeded directly (the front-door createTheme needs a full color-token override — the
     // lenient read seam accepts a partial blob, so this is representative for the ownership probe).
     const themeId = castId<ThemeId>("theme_alpha");
@@ -1591,6 +1693,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       regexScriptId,
       refinerySessionId: refinerySession.id,
       refinerySchemaId: refinerySchema.id,
+      pluginId,
     };
   }
 
@@ -1663,5 +1766,15 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     const sessionStill = await ownerCaller.refinery.getSession({ sessionId: ids.refinerySessionId });
     expect(sessionStill.status).toBe("active");
     expect(await ownerCaller.refinery.listRuns({ sessionId: ids.refinerySessionId })).toEqual([]);
+    // plugin (D147): every one of the four probes is a WRITE that returns void or a view, so A's row is the
+    // only evidence a silent IDOR would leave — and each field below is moved by a DIFFERENT probe, which is
+    // why they are asserted separately rather than as one object compare.
+    const pluginStill = await ownerCaller.plugin.list();
+    expect(pluginStill.map((p) => p.id)).toEqual([ids.pluginId]); // survived the stranger's uninstall
+    expect(pluginStill[0]?.version).toBe("1.0.0"); // the stranger's 9.9.9 bundle never swapped A's code
+    expect(pluginStill[0]?.name).toBe(MARK.plugin); // …nor its manifest-derived name
+    expect(pluginStill[0]?.grantedCapabilities).toEqual(["chat.read"]); // setGrant never widened A's grant
+    expect(pluginStill[0]?.netHosts).toEqual(["api.vendor.example"]); // the egress wall was not re-pointed
+    expect(pluginStill[0]?.status).toBe("disabled"); // setEnabled never booted A's guest code as the stranger
   });
 });

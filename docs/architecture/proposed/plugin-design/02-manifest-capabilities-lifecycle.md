@@ -66,7 +66,7 @@ never a boolean the guest trusts — each maps to a concrete host-side mechanism
 **installing principal**:
 
 | Capability | Host functions | Enforcement (per call, host-side) |
-|---|---|---|
+| - | - | - |
 | `chat.read` | `chat.current/listMessages/getVariables` | grant check + `can(installer,"read",{kind:"chat",roster})` — the installer must be a PARTICIPANT of the invocation chat; the reduced view (01 §2) is the read ceiling |
 | `chat.variables.write` | `applyVariableOps` | grant + `can(installer,"host",chat)` — room-state writes are host authority (the D46 member-overlay reservation applies to plugins identically) |
 | `chat.quick_reply` | `surfaceQuickReply` | grant + host on the chat |
@@ -192,13 +192,15 @@ getPluginLog(ctx, { pluginId, limit? }): Promise<PluginLogView[]>   // the host.
 runSnippet(ctx, { chatId, code }): Promise<SnippetResult>           // the inline mode — 03 §1
 ```
 
-**v1 install authority: `can(principal, "admin", {kind:"global"})` — owner ∪ admin only.** LEAN,
-with the criterion recorded: widen to any-user self-install (the model §2 already supports — every
-gate is per-installer) after the membrane-escape suite (04) has soaked and a real non-admin demand
-exists. WHY start narrow: the membrane is new security-load-bearing code on a self-hosted box; the
-D16/D20/D29 host-only-v1 conservatism applies to code execution more than to anything it ever
-applied to. *(Rejected: owner-only (`requireOwner`) — a delegated admin who can already touch every
-admin surface gains nothing by exclusion; rejected: open self-install v1 — soak first.)*
+**Install authority: ANY authenticated principal, for themselves — the row's `ownerId` is the whole
+gate (owner-ruled 2026-08-24, `Core-Path-Registry.md` D147).** The paragraph that stood here recorded
+`can(principal,"admin",{kind:"global"})` as a LEAN with an explicit widening criterion ("widen to
+any-user self-install — the model §2 already supports it, every gate is per-installer — after the
+membrane-escape suite has soaked and a real non-admin demand exists"). Both halves came due: the
+suite soaked and the owner ruled the demand. D147 is the resolution of this clause, not a
+contradiction of it — the mechanism §2 describes is unchanged, its CONDITION moved. D147 also adds
+what this clause did not anticipate: there is no admin any-row branch either, because enabling a
+plugin runs its guest code as the CALLER.
 `runSnippet` authority: any chat PARTICIPANT for read-only snippet profiles, host for the writing
 profile (03 §1).
 
