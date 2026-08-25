@@ -73,6 +73,10 @@ const SERIAL_INT = [
   // import plus the seed work. Thrice-sighted 5s-timeout flake under full-battery fork contention;
   // passes 7/7 isolated (2026-08-03).
   "tests/server/entry/boot/seed-demo-chats.int.test.ts",
+  // The `run_tool` compose wire (#691): a full-`createServices` app-fixture file whose first test pays the
+  // cold whole-server-graph import + compose (measured 5.2s in the parallel lane — the same 5s-timeout flake
+  // class as databank.int/persona-multihuman above).
+  "tests/server/entry/compose/automation-plugin.int.test.ts",
   // The run-completeness planted controls (#410): every case SPAWNS the real `verify structure` CLI over a
   // planted root and its abnormal arms are TIMING-SHAPED — the SIGKILL control gives the child 4s to boot
   // node, load the CLI and write its in-flight stub, then kills it. Under parallel fork contention the
