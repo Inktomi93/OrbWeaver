@@ -142,10 +142,14 @@ function retainLog(resident: Resident, lines: readonly string[], at: number): vo
 }
 
 /** The inline-snippet run's outcome — a transient one-shot, no residency: the drained `[level] msg` log
- *  lines + an `error` iff the snippet threw / hit its 5 s wall. Structurally the domain's `SnippetResult`. */
+ *  lines + an `error` iff the snippet threw / hit its 5 s wall. `errorKind`/`errorLine` mirror
+ *  `GuestError.line` + the `SyntaxError`-caught-before-any-execution distinction (see `SnippetResult`
+ *  for the full "didn't run vs ran empty" rationale). Structurally the domain's `SnippetResult`. */
 interface SnippetRunOut {
   readonly logLines: readonly string[];
   readonly error?: string;
+  readonly errorKind?: "parse" | "runtime";
+  readonly errorLine?: number;
 }
 
 /** Build the process runtime. One `QuickJSWASMModule` is shared (loaded lazily by `Sandbox.create`); each
@@ -255,7 +259,19 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
       });
       sandbox.setInvocationChat(input.chat);
       const outcome = await sandbox.evalGuest(input.code);
-      return outcome.ok ? { logLines: outcome.logs } : { logLines: outcome.logs, error: outcome.error?.message ?? "snippet failed" };
+      if (outcome.ok) {
+        return { logLines: outcome.logs };
+      }
+      // A "parse" outcome means the guest source never started executing — a QuickJS `SyntaxError` caught
+      // synchronously before the first job pump (`Sandbox.runToSettlement`'s `result.error` branch). Anything
+      // else threw or hit the wall MID-run, which is a genuinely different fact for the console to report.
+      const errorKind: "parse" | "runtime" = outcome.error?.name === "SyntaxError" ? "parse" : "runtime";
+      return {
+        logLines: outcome.logs,
+        error: outcome.error?.message ?? "snippet failed",
+        errorKind,
+        ...(outcome.error?.line === undefined ? {} : { errorLine: outcome.error.line }),
+      };
     },
 
     // A COPY, not the live ring: the ring is mutated by every later invoke, and a caller holding the array

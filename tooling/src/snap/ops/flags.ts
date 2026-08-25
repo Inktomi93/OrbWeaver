@@ -163,9 +163,10 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
       a.localStorage.push({ key: seed.head, value: seed.tail });
     }
   },
-  // --fill "selector=value" — LAST '=' splits (selectors contain '=').
+  // --fill "selector=value" — FIRST '=' splits (the value is a JS literal that routinely contains
+  // '=' itself, e.g. `--fill 'input=const a = 1;'`; the selector is the invariant, short prefix).
   "--fill": (a, rest, page) => {
-    const s = splitLastEq(rest.shift() ?? "");
+    const s = splitFirstEq(rest.shift() ?? "") ?? { head: "", tail: "" };
     pushStep(a, { kind: "fill", selector: s.head, value: s.tail, page });
   },
   // TWO forms, picked by whether the value carries an '=':
@@ -194,7 +195,8 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--wait-for": (a, rest, page) => {
     pushStep(a, { kind: "waitfor", selector: rest.shift() ?? "", page });
   },
-  // --upload <selector>=<path[,path...]> (#651): LAST '=' splits (--fill/--key convention); boundary +
+  // --upload <selector>=<path[,path...]> (#651): LAST '=' splits (--key convention; --fill diverges,
+  // see above — its value is a literal that commonly contains '='); boundary +
   // existence + real-input resolution happen at DRIVE time (_shared/upload.ts) — parse stays side-effect free.
   "--upload": (a, rest, page) => {
     const s = splitLastEq(rest.shift() ?? "");
