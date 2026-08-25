@@ -64,9 +64,15 @@ const SEED_COVERED = new Set<string>(["color.backdrop"]);
 //     `--color-primary` directly). No chrome renders it, so nothing to theme.
 //   • chart-1..5: a categorical data-viz ramp — the five hues are chosen for mutual DISTINGUISHABILITY,
 //     not to track the surface palette; recolouring them off the base would collapse the categories.
-//   • track-1..6: the D71 track ramp (Context-Panel-Program §4.8) — the SAME species as chart-*: a
-//     categorical ramp for pool/meter/clock FILLS, keyed by definition order for stable per-category
-//     color; base-only (a theme json MAY override, none is required to), meaning never rides color alone.
+//   • track-1..6: the D71 track ramp (Context-Panel-Program §4.8) — a categorical ramp for
+//     pool/meter/clock FILLS, keyed by definition order for stable per-category color, meaning never
+//     rides color alone. STATIC (semantic, not palette-tracking) like chart-*, but since #697 it is
+//     POLARITY-AWARE `light-dark()` like the divergent intents above, NOT a plain value: the gauge FILL
+//     is itself a non-text UI component (WCAG 1.4.11), and the mid-L ramp cleared 3:1 on dark but only
+//     1.89–2.65:1 on the light panel. The DARK arm is the original ramp (byte-identical); the LIGHT arm
+//     darkens each hue to clear ≥3:1 while the 6 stay mutually distinguishable — the categorical
+//     mechanism survived, its light-polarity INPUT changed. Still class 3 (the active arm follows
+//     color-scheme, exactly like destructive/success/warning/info).
 //   • sky-*: the Waystone ATMOSPHERIC palette (day/night/ember/twilight/star/cloud/rain/ash). Static for a
 //     STRONGER reason than the ramps — these are POLARITY-FIXED depictions, not palette roles: a night sky
 //     is dark and starlight is bright in EVERY theme, because that is what a night sky IS. Theming them
