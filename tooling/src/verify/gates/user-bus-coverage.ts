@@ -3,7 +3,7 @@
 // nothing machine-checks the PRODUCER side — a member can be declared, mapped on the client, and never
 // emitted (silently dead wire). Every `USER_BUS_EVENT_TYPES` discriminator must have a server-side emit
 // site OR a cited DEFERRED entry. DEFERRED is a self-cleaning ratchet (both directions). The reconcile is
-// shared with the chat/rpg bus twins (tooling/src/verify/lib/bus-coverage.ts) — this file is the user SPEC + proof.
+// shared with the chat/rpg twins. COMMENT POSTURE: comment-SAFE — AST emitter calls + event objects only.
 
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { BusCoverageSpec } from "../contract/readers.ts";
@@ -45,10 +45,10 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
-        "packages/server/src/domain/settings/x.ts": 'export const q = "somethingElse";\n',
+        "packages/server/src/domain/settings/x.ts": 'export const q = "neverEmitted";\n',
       },
       expect: { messageIncludes: "NO server emit site" },
-      why: "a USER_BUS_EVENT_TYPES member with no server emit site + no DEFERRED entry — a dead cross-device wire",
+      why: "an arbitrary matching literal is not an emitUserEvent call — the declared member remains dead wire",
     },
   ],
   // The STALE arm (a DEFERRED member that GAINS an emit site — `emitted && deferred`) is LIVE-RUN-COVERED:
@@ -59,9 +59,9 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
-        "packages/server/src/domain/settings/x.ts": 'export const q = "emitted";\n',
+        "packages/server/src/domain/settings/x.ts": 'ctx.emitUserEvent(ownerId, { type: "emitted" });\n',
       },
-      why: "the member's discriminator appears as a server emit literal — covered, passes",
+      why: "the member's discriminator is carried by the injected emitUserEvent call — covered, passes",
     },
     {
       files: {
