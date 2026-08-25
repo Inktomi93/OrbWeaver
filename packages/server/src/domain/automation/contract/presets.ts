@@ -291,12 +291,12 @@ const BACKDROP_INSTRUCTION_MAX = 512;
 const LORE_ENTRIES_MIN = 1;
 const LORE_ENTRIES_MAX = 20;
 /** §4 #18's rate belt. A `worldInfoActivated` reaction TURN is a heavy autonomous interjection, and its own
- *  reply re-runs assembly and can re-activate the same lore — a self-chain the engine's cascade-depth guard
- *  does NOT bound, because `worldInfoActivated` resolves at a hardcoded `automationDepth: 0`
- *  (`substrate/fact-resolver.ts`) so the depth never escalates toward the hard cap. A wall-clock cooldown
- *  (`engine/budget-gate.ts` reads `last_fired_at`) is therefore the load-bearing belt: it breaks the chain
- *  (the immediate re-activation lands inside the window and is refused) AND keeps the reaction from dominating
- *  the room. Conservative by law 5 — a few minutes between narrator interjections, not per-beat. */
+ *  reply re-runs assembly and can re-activate the same lore. The self-chain is bounded by the engine's
+ *  cascade-depth guard since #704 — `worldInfoActivated` now carries the generating turn's `automationDepth`
+ *  on the event (`substrate/fact-resolver.ts` reads it, no longer hardcoded 0), so a reaction's re-activation
+ *  escalates toward the hard cap like any cascade. The cooldown is COMPLEMENTARY, not the sole defence: within
+ *  the depth cap it still bounds PACE — a wall-clock gate (`engine/budget-gate.ts` reads `last_fired_at`) that
+ *  keeps the reaction from dominating the room. Conservative by law 5 — a few minutes between interjections. */
 const REACTIVE_TURN_COOLDOWN_SECONDS = 180;
 /** §4 #19's rate belt. `set_chat_background` re-picks over the author's library on a QUIET model call, and a
  *  backdrop that flipped on every message would be both jarring and a needless spend. A cooldown spaces the
@@ -1254,13 +1254,12 @@ const ILLUSTRATE_ON_LORE_REVEAL = defineRulePreset({
  *  significance filtering that #17 does by count is left off here on purpose — a reaction is cheap attention
  *  compared with an image, and the COOLDOWN, not a count, is what keeps it from dominating.
  *
- *  THE COOLDOWN IS LOAD-BEARING, not decoration, and this is the one worldInfoActivated preset where it must
- *  be spelled: a reaction TURN re-runs assembly and can re-activate the very lore that triggered it, and the
- *  engine's cascade-depth guard does NOT catch that loop because `worldInfoActivated` resolves at a hardcoded
- *  `automationDepth: 0` (`substrate/fact-resolver.ts`) — the depth never escalates toward the hard cap. A
- *  wall-clock cooldown (`engine/budget-gate.ts`) breaks the chain (the immediate re-activation lands inside
- *  the window and is refused) and, with the 30/hr cap and requestTurn's own per-member turn budget, bounds
- *  the reaction to a conservative pace. */
+ *  THE COOLDOWN BOUNDS PACE; the cascade-depth cap bounds RECURSION. A reaction TURN re-runs assembly and can
+ *  re-activate the very lore that triggered it — and since #704 the engine's cascade-depth guard DOES catch
+ *  that loop: `worldInfoActivated` carries the generating turn's `automationDepth` on the event
+ *  (`substrate/fact-resolver.ts` reads it, no longer hardcoded 0), so the re-activation escalates toward the
+ *  hard cap. The cooldown is complementary — a wall-clock gate (`engine/budget-gate.ts`) that, with the 30/hr
+ *  cap and requestTurn's own per-member turn budget, keeps the reaction at a conservative pace within the cap. */
 const REACT_TO_LORE_ACTIVATION = defineRulePreset({
   id: "reactToLoreActivation",
   title: "React to lore activation",
