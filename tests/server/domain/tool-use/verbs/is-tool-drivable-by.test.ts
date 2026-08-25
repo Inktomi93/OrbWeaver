@@ -53,6 +53,22 @@ test("a plugin tool is drivable by its INSTALLER and by nobody else", () => {
   expect(service.isToolDrivableBy("plugin_alice_report", BOB.userId)).toBe(false);
 });
 
+test("#677: when BOTH users installed the same plugin, each drives their OWN copy and the answer stays per-user", () => {
+  // The shared-name form of the pin above, and the case the `run_tool` mint/pause gate now meets routinely: the
+  // seeded example plugins install for every user, so `plugin_<slug>_<name>` is held once per installer. The
+  // predicate must key on the ASKING user's shelf — a name-only lookup would answer from whichever copy
+  // registered first, which is `true` for its installer and, worse, a coin flip for everyone else.
+  const service = serviceOf();
+  service.registerPluginTool(pluginSpec("plugin_shared_report", ALICE));
+  service.registerPluginTool(pluginSpec("plugin_shared_report", BOB));
+
+  expect(service.isToolDrivableBy("plugin_shared_report", ALICE.userId)).toBe(true);
+  expect(service.isToolDrivableBy("plugin_shared_report", BOB.userId)).toBe(true);
+  // …and a third party who installed neither copy is still refused — the rule author's typed refusal
+  // (`createRule` turns this `false` into one) does not soften just because the name is popular.
+  expect(service.isToolDrivableBy("plugin_shared_report", castId("user_carol"))).toBe(false);
+});
+
 test("a BUILTIN tool is drivable by NOBODY — first-party tools reach a turn through their own domain's seam", () => {
   // The deliberate v1 narrowing (`substrate/reachability.ts` carries the two receipts: the rpg builtins refuse
   // off a turn already, and imagery's builtin IS the `generate_image` arm). A builtin's owner is `null` and no

@@ -29,7 +29,8 @@ import {
   stageSweepVerdict,
   teardownConsent,
 } from "../lib/stage-plan.ts";
-import { removeStageDir, repoRoot, stopStage } from "./stage.ts";
+import { removeStageDir, stopStage } from "./stage.ts";
+import { repoRoot } from "./stage-git.ts";
 import { clearActive, markerRoot, readActive } from "./stage-marker.ts";
 import { bandIsBound, killProcessGroup, pidElapsedSeconds, pidIsStageRooted, stageBandPortPid, stageDirs } from "./stage-probe.ts";
 

@@ -53,8 +53,11 @@ interface RuleEditableParams {
 }
 
 export interface CreateRuleParams extends AutomationActorParams, RuleEditableParams {
-  /** v1 rules are chat-scoped (the nullable owner-global column is born-not-wired). */
-  readonly chatId: ChatId;
+  /** WHERE the rule lives: a chat, or NULL for the owner-GLOBAL lane (C5). The two scopes take two different
+   *  authority gates and two different arm sets — `verbs/create-rule.ts` states both. Required-and-nullable
+   *  rather than optional, deliberately: a caller must SAY which lane it means, so an omitted field can never
+   *  silently mint a global rule. */
+  readonly chatId: ChatId | null;
 }
 
 export interface UpdateRuleParams extends AutomationActorParams, RuleEditableParams {
@@ -65,7 +68,11 @@ export interface UpdateRuleParams extends AutomationActorParams, RuleEditablePar
  *  is a PARTIAL override bag; an absent key takes its descriptor default, and an unknown key is refused.
  *  v1 has no post-mint knob edit — the edit path is delete + re-mint (interaction-direction-spec §3-S3). */
 export interface CreateRuleFromPresetParams extends AutomationActorParams {
-  readonly chatId: ChatId;
+  /** The room to mint into, or NULL for the owner-GLOBAL lane. It must AGREE with the named preset's own
+   *  declared `scope` and the verb refuses a mismatch typed — a preset's rules are written against a scope
+   *  (a global preset's arms may not touch a room), so pairing them wrongly is an authoring error the mint
+   *  names rather than a configuration the engine tries to honour. */
+  readonly chatId: ChatId | null;
   readonly presetId: RulePresetId;
   readonly knobs?: RulePresetKnobOverrides;
 }
@@ -101,6 +108,21 @@ export interface ListFiresParams extends AutomationActorParams {
  *  default / current value. */
 export interface SetBudgetsParams extends AutomationActorParams {
   readonly chatId: ChatId;
+  readonly maxFiresPerHour?: number;
+}
+
+/** C5 — the OWNER-GLOBAL lane's rule list (the Automation settings pane's read). Takes no id at all: the
+ *  plane is single-owned, so the caller's own `principal.userId` IS the scope (the `listGlobalVariables`
+ *  posture). There is no way to ask for someone else's lane, which is what makes the read leak-free by
+ *  construction rather than by a gate. */
+export type ListOwnerRulesParams = AutomationActorParams;
+
+/** C5 — read the caller's own owner-global fire-rate cap. Same single-owned posture as above. */
+export type GetOwnerBudgetsParams = AutomationActorParams;
+
+/** C5 — upsert the caller's own owner-global fire-rate cap. An absent field keeps the DB default / current
+ *  value (the `SetBudgetsParams` shape, one plane over). */
+export interface SetOwnerBudgetsParams extends AutomationActorParams {
   readonly maxFiresPerHour?: number;
 }
 

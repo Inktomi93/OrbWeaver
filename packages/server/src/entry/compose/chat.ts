@@ -406,7 +406,7 @@ function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId
   // biome-ignore lint/suspicious/noExplicitAny: the opaque ChatToolSet round-trip (see the header note).
   const asResolvedSet = (set: ChatToolSet): ResolvedToolSet => set as any as ResolvedToolSet;
   return {
-    resolveTools: (names) => toolUse.resolveTools(names),
+    resolveTools: (driverUserId, names) => toolUse.resolveTools(driverUserId, names),
     toWireTools: (set) => toolUse.toWireTools(asResolvedSet(set)),
     executeToolCalls: async (set, calls, frame) =>
       toolUse.executeToolCalls(asResolvedSet(set), calls, {

@@ -10,9 +10,17 @@ import { processMacros } from "@orb/kit/macro";
 import type { ArmTemplateRender } from "../contract/ops.ts";
 
 /** The CEL activation an arm template's `{{expr::…}}` reads — SANS `event` (assembly/render has no trigger;
- *  the predicate path binds `event` separately). */
-function celBindingsForRender(env: AutomationCelEnv): CelBindings {
-  return { vars: env.vars, choice: env.choice, global: env.global, chat: env.chat, now: env.now };
+ *  the predicate path binds `event` separately), and SANS the CHAT PLANE when the frame has no room.
+ *
+ *  THE CHAT-PLANE OMISSION IS THE POINT, not an optimisation (C5). `AutomationCelEnv.chat`/`vars`/`choice`
+ *  stay REQUIRED at the type — the ruling that keeps every existing preset predicate valid and the
+ *  cel-goldens vector unchanged — so an owner-global frame necessarily carries EMPTY ones. Binding those
+ *  empties would make `{{expr::chat.messageCount}}` on a global rule render a confident `0` for a room that
+ *  does not exist. Leaving them UNBOUND makes the same template an `expr-error` diagnostic, which
+ *  `strictArgs` turns into the arm's typed refusal — visibly wrong instead of quietly wrong. */
+function celBindingsForRender(env: AutomationCelEnv, chatScoped: boolean): CelBindings {
+  const base: CelBindings = { global: env.global, now: env.now };
+  return chatScoped ? { ...base, vars: env.vars, choice: env.choice, chat: env.chat } : base;
 }
 
 /** The macro-render options for an arm template: empty char/user/persona context (a rule template addresses
@@ -28,7 +36,7 @@ function armMacroOptions(input: ArmTemplateRender, diagnostics: MacroDiagnostic[
     nowMs: input.nowMs,
     random: input.prng,
     globalVars: input.env.global,
-    celBindings: celBindingsForRender(input.env),
+    celBindings: celBindingsForRender(input.env, input.chatScoped),
     strictArgs: true,
     diagnostics,
   };

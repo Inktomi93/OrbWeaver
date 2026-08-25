@@ -1,6 +1,10 @@
 // design-audit — the deterministic UI defect scan. Argv parse + dispatch ONLY (the five-slot cap):
 // the programmatic surface is ./index.ts; `pnpm design-audit --help`-equivalent is the misuse help text.
 //
+// WHERE it audits: whatever `--base` serves (default the dev stack, which serves MAIN) — or, with
+// `--isolated`/`--ref <sha>` (#678), snap's ISOLATED STAGE, so a lane can audit its OWN branch and hand in
+// the "design-audit rows clean" receipt with its fix instead of leaving it as a post-merge step (ops/stage.ts).
+//
 // Loads a route in its own headless Playwright chromium (read-only, never touches app settings), waits
 // for `data-app-ready`, optionally drives the argv-ordered reveal queue, then flags high-value
 // usability/design/a11y defects. Two rule families, origin-tagged per finding: "orbweaver" (contrast/
@@ -26,7 +30,7 @@ import process from "node:process";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool } from "../_shared/run-tool.ts";
-import { DESIGN_AUDIT_HELP, parseAuditArgs, runUiAudit } from "./index.ts";
+import { configureAuditStage, DESIGN_AUDIT_HELP, parseAuditArgs, runUiAudit } from "./index.ts";
 
 async function main(): Promise<number> {
   const opts = parseAuditArgs(process.argv.slice(2));
@@ -37,6 +41,12 @@ async function main(): Promise<number> {
     print("");
     print(DESIGN_AUDIT_HELP);
     return EXIT.misuse;
+  }
+  // The isolated stage (#678) resolves BEFORE the browser: an unresolvable --ref is misuse and a stage that
+  // will not boot is an instrument failure — neither may fall through to an audit of the dev stack.
+  const stageExit = configureAuditStage(opts);
+  if (stageExit !== null) {
+    return stageExit;
   }
   return await runUiAudit(opts);
 }

@@ -147,6 +147,12 @@ const STATIC: ExemptionTable = {
   "automation.listFires": {
     why: "Same TWO drivers as automation.listRules, keyed by ruleId: testRule/runRuleNow `invalidates` trpc.automation.listFires.queryFilter({ruleId}) (rule-mutations.ts), and the automation-room feed in rules-section.tsx invalidates the fired rule's log on ruleFired/ruleErrored. This is the host's 'why didn't my rule fire' log, so the REMOTE edge is the one that matters — a bus-driven fire is exactly the row it exists to show.",
   },
+  "automation.listOwnerRules": {
+    why: "C5's owner-GLOBAL rule list, and it has exactly ONE driver where its per-chat twin has two (blind spot 4). (1) Every rule-lifecycle mutation `invalidates` it — the same five verbs drive both surfaces, and `ruleListFilter` in features/automation/lib/rule-mutations.ts maps a `chatId: null` scope onto trpc.automation.listOwnerRules.queryFilter(). (2) There is NO remote-fire edge, and that is a structural fact rather than a gap this cite is hiding: `AutomationBusEvent` is the per-CHAT feedback bus (every member carries a chatId; transport/trpc/stream/sources/automation.ts fans it to one chat's subscribers), so a chat-less rule's fire reaches no subscriber and there is no channel a bus row could ride. The durable fire LOG under each row is what answers 'did it run', and it is re-read on open. Ends the day an owner-plane bus member exists (it would need its own producer belt, coverage sites and a per-USER stream source). Proven by tests/client/features/automation/components/owner-rules-surface.ct.tsx.",
+  },
+  "automation.getOwnerBudgets": {
+    why: "C5's owner-GLOBAL fire-rate ceiling. Its ONLY writer is `setOwnerBudgets`, which `invalidates` trpc.automation.getOwnerBudgets.queryFilter() (features/automation/lib/owner-budget-mutations.ts) — a single-owned belt row nothing else can move: no other principal may write it (the plane is keyed by the caller's own userId) and no bus event touches it. Same no-remote-edge argument as automation.listOwnerRules above.",
+  },
   "automation.listRulePresets": {
     why: "IMMUTABLE for the session: the rule-preset catalogue is a pure projection of a compile-time Record (domain/automation/contract/presets.ts via verbs/list-rule-presets.ts — no principal, no chat, no db, per its own header). It cannot change without a deploy, so no bus row is warranted and no mutation can move it; the picker refetching it would answer identically forever.",
   },

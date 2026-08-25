@@ -24,16 +24,27 @@ export async function authorGlobals(db: Db, authorUserId: UserId): Promise<Recor
 }
 
 /** Build the live CEL activation for a rule dispatch. `chatId` is the RULE's chat (a domain-bus event has no
- *  chat of its own — the rule's chat supplies vars/choice/messageCount). */
+ *  chat of its own — the rule's chat supplies vars/choice/messageCount), or NULL for an owner-GLOBAL rule.
+ *
+ *  A GLOBAL RULE DOES THREE FEWER READS, and that is correctness before it is cost: there is no room whose
+ *  variable fold, choice picks or message count could be read, so the chat plane is built EMPTY. It is also
+ *  never BOUND — the binding builders omit the three chat-keyed roots entirely for a chat-less frame
+ *  (`substrate/dry-run.ts::toCelBindings`, `substrate/macro-render.ts`), so nothing can read these empties and
+ *  mistake them for a real quiet room. The fields exist only because `AutomationCelEnv` keeps them REQUIRED,
+ *  which is the ruling that leaves every existing preset predicate and the cel-goldens vector untouched. */
 export async function buildCelEnv(args: {
   readonly ops: AutomationOps;
   readonly db: Db;
   readonly authorUserId: UserId;
-  readonly chatId: ChatId;
+  readonly chatId: ChatId | null;
   readonly fact: TriggerFact;
   readonly nowMs: number;
 }): Promise<AutomationCelEnv> {
   const { ops, db, authorUserId, chatId, fact, nowMs } = args;
+  if (chatId === null) {
+    const global = await authorGlobals(db, authorUserId);
+    return { event: fact, vars: {}, choice: {}, global, chat: { id: "", messageCount: 0 }, now: nowFields(nowMs) };
+  }
   const [vars, choice, global, messageCount] = await Promise.all([
     ops.chat.readVariables(chatId),
     ops.chat.readChoicePicks(chatId),

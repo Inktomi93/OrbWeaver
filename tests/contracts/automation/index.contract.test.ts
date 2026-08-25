@@ -22,6 +22,7 @@ import {
   SPEND_ARM_TYPES,
   triggerFactSchema,
 } from "@orb/contracts/automation";
+import { DOMAIN_EVENT_TYPES } from "@orb/contracts/events";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("CHAT_TRIGGER_TYPES is the pinned 15-member chat-bus subset (v1 + reserved, 01 §1)", () => {
@@ -48,8 +49,13 @@ test("CHAT_TRIGGER_TYPES is the pinned 15-member chat-bus subset (v1 + reserved,
   expect(CHAT_TRIGGER_TYPES).not.toContain("chatDeleted");
 });
 
-test("DOMAIN_TRIGGER_TYPES is the pinned 2-member domain-bus subset (v1)", () => {
-  expect(DOMAIN_TRIGGER_TYPES).toEqual(["character.updated", "asset.created"]);
+test("S7: DOMAIN_TRIGGER_TYPES carries ALL FOUR live domain events — the tuple no longer trails its own bus", () => {
+  expect(DOMAIN_TRIGGER_TYPES).toEqual(["character.updated", "asset.created", "persona.updated", "world-info.updated"]);
+  // THE PROPERTY, not the list: the trigger vocabulary IS the domain bus's own union. The tuple sat at two
+  // members while the bus grew to four (2026-08-14, the entity→room freshness bridge), so a rule could not
+  // watch a persona or a lorebook edit at all. Deriving the assertion from `DOMAIN_EVENT_TYPES` is what
+  // keeps the two from parting again — a fifth bus member reds HERE, not at the next reader's surprise.
+  expect(DOMAIN_TRIGGER_TYPES.toSorted()).toEqual(DOMAIN_EVENT_TYPES.toSorted());
 });
 
 test("automationTriggerSchema discriminates on bus and refuses a cross-bus trigger name", () => {
@@ -115,6 +121,8 @@ const CHAT_SEEN: Record<ChatTriggerType, true> = {
 const DOMAIN_SEEN: Record<DomainTriggerType, true> = {
   "character.updated": true,
   "asset.created": true,
+  "persona.updated": true,
+  "world-info.updated": true,
 };
 
 test("the trigger unions have no member beyond their tuples", () => {
@@ -315,7 +323,17 @@ test("triggerFactSchema round-trips a full fact (every trigger-type projection)"
 
   // A minimal chat-scope fact (chatOpened) and a chat-less domain fact both parse.
   expect(triggerFactSchema.parse({ type: "chatOpened", bus: "chat", chatId: "chat_abc" }).chatId).toBe("chat_abc");
-  expect(triggerFactSchema.parse({ type: "character.updated", bus: "domain", chatId: null, characterId: "char_9" }).characterId).toBe("char_9");
+  // S7 — the character fact NESTS, and carries the source event's own `contentChanged` discriminator. It
+  // was a flat `characterId` and the resolver dropped the flag, which made every domain-bus character rule
+  // fire identically on a real card write and on a star toggle.
+  const characterFact = triggerFactSchema.parse({ type: "character.updated", bus: "domain", chatId: null, character: { id: "char_9", contentChanged: true } });
+  expect(characterFact.character).toEqual({ id: "char_9", contentChanged: true });
+  // The flag is REQUIRED inside the object — a fact that reached the schema without it is malformed, not
+  // "an edit we assume was content", because assuming it is what an edit-burst chore is made of.
+  expect(triggerFactSchema.safeParse({ type: "character.updated", bus: "domain", chatId: null, character: { id: "char_9" } }).success).toBe(false);
+  // S7's other two domain members carry their own owned row, id-only (the `assetId` shape).
+  expect(triggerFactSchema.parse({ type: "persona.updated", bus: "domain", chatId: null, personaId: "persona_1" }).personaId).toBe("persona_1");
+  expect(triggerFactSchema.parse({ type: "world-info.updated", bus: "domain", chatId: null, worldBookId: "book_1" }).worldBookId).toBe("book_1");
   expect(triggerFactSchema.parse({ type: "worldInfoActivated", bus: "chat", chatId: "c", worldInfo: { entryIds: ["e1", "e2"] } }).worldInfo?.entryIds).toEqual([
     "e1",
     "e2",

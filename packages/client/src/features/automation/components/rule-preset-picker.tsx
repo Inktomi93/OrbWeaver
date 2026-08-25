@@ -62,7 +62,7 @@ function spendLine(view: RulePresetView): string {
 }
 
 interface RulePresetConfigureProps {
-  readonly chatId: ChatId;
+  readonly chatId: ChatId | null;
   readonly preset: RulePresetView;
   readonly onBack: () => void;
   readonly onDone: () => void;
@@ -172,7 +172,7 @@ function RulePresetList({ presets, onPick }: RulePresetListProps): ReactElement 
 }
 
 interface RulePresetPickerBodyProps {
-  readonly chatId: ChatId;
+  readonly chatId: ChatId | null;
   readonly selected: RulePresetView | null;
   readonly onSelect: (preset: RulePresetView | null) => void;
   readonly onDone: () => void;
@@ -188,13 +188,21 @@ function RulePresetPickerBody({ chatId, selected, onSelect, onDone }: RulePreset
   const { data: presets } = useSuspenseQuery(trpc.automation.listRulePresets.queryOptions());
 
   if (selected === null) {
-    return <RulePresetList presets={presets} onPick={onSelect} />;
+    // The catalogue is ONE read filtered by scope, not two procedures: a preset's `scope` is server-DERIVED
+    // from the def (`substrate/presets.ts`), so the two pickers cannot disagree about which lane a row
+    // belongs to, and neither can offer a row whose own mint would refuse it.
+    const inScope = presets.filter((preset) => (preset.scope === "global") === (chatId === null));
+    return <RulePresetList presets={inScope} onPick={onSelect} />;
   }
   return <RulePresetConfigure chatId={chatId} preset={selected} onBack={(): void => onSelect(null)} onDone={onDone} />;
 }
 
 export interface RulePresetPickerProps {
-  readonly chatId: ChatId;
+  /** The SCOPE being configured: a room, or `null` for the owner-GLOBAL lane (C5). It decides which half of
+   *  the catalogue is offered AND what the mint is handed. A preset declares its OWN scope and the mint
+   *  refuses a mismatch by name, so offering the wrong half here would be an affordance that cannot work —
+   *  the #655 class this catalogue has already paid for once. */
+  readonly chatId: ChatId | null;
 }
 
 /** The "Add rule…" inline popover — the picker entry point for the Rules section. */

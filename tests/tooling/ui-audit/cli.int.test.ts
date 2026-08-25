@@ -6,6 +6,8 @@
 // (a file page never runs the app; without the attribute every case burns the full 10s ceiling), and
 // carry a <main> landmark so the only P1-severity finding in play is the planted one.
 import { writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -209,6 +211,114 @@ test("the same pane with a SECOND border side is a box again — the pair still 
 test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }) => {
   const res = await runCli("ui-audit", ["--definitely-not-a-flag"]);
   await expect(res).toExitWith(3);
+});
+
+// ── the ISOLATED STAGE mode (#678): a lane must be able to audit its OWN branch ─────────────────────────
+
+// @instrument-absence-proof: design-audit only ever measured whatever `--base` served, and the default is
+// the dev stack — which serves MAIN, never a lane's worktree. The failure mode of a naive `--ref` is
+// SILENT: an unresolvable ref falls back to the default base, the dev stack answers, and main's rows get
+// filed under the branch's name — a clean audit of the wrong tree, which is worse than no audit. So a ref
+// this checkout cannot name must REFUSE (misuse, exit 3) before git, before a stage and before a browser,
+// and every run must publish WHICH tree it measured on the machine line.
+test("an unresolvable --ref REFUSES loudly — it never falls back to auditing the dev stack", async ({ runCli }) => {
+  const res = await runCli("ui-audit", ["/", "--ref", "__orb_no_such_ref_678__"]);
+  expect(res.stdout).toContain("REF REFUSED");
+  expect(res.stdout, "the refusal must name the ref the operator typed").toContain("__orb_no_such_ref_678__");
+  expect(res.stdout, "the refusal must say no audit happened — a caller reads exit 3 as 'nothing measured'").toContain("no audit was run");
+  // The tell that no fallback audit ran: no RESULT line, no report path.
+  expect(res.stdout).not.toContain("RESULT");
+  await expect(res).toExitWith(3);
+});
+
+test("--base beside a stage flag is misuse — the tool never picks one of two answers to WHERE", async ({ runCli }) => {
+  const res = await runCli("ui-audit", ["/", "--isolated", "--base", "http://127.0.0.1:5173"]);
+  // The MESSAGE matters, not just the code: an unknown-flag refusal is also exit 3, so asserting the code
+  // alone would pass against a build that never learned the flag at all.
+  expect(res.stdout).toContain("both name WHERE to audit");
+  await expect(res).toExitWith(3);
+});
+
+test("--ref beside --dirty is misuse — a commit and the working tree are two different trees", async ({ runCli }) => {
+  const res = await runCli("ui-audit", ["/", "--dirty", "--ref", "HEAD"]);
+  expect(res.stdout).toContain("stages the WORKING TREE");
+  await expect(res).toExitWith(3);
+});
+
+test("the help states WHERE it audits, the stage flags, and the stage-db provenance limit", async ({ runCli }) => {
+  const res = await runCli("ui-audit", ["--definitely-not-a-flag"]);
+  expect(res.stdout).toContain("--isolated");
+  expect(res.stdout).toContain("--ref <sha|branch|tag>");
+  // The limitation is INHERITED from snap's stage and must not be inherited SILENTLY: a stage's db is
+  // whatever its dir holds (fresh sha = a dev-db copy, cached dir = its older state), so a corpus-dependent
+  // finding — or its absence — is a claim about that db, not about the app.
+  expect(res.stdout).toContain("STAGE DB:");
+});
+
+// @instrument-absence-proof: an APP ORIGIN whose app never mounted must be an INSTRUMENT ERROR, never a
+// clean audit. This is the #678 receipt's own failure: on a cold isolated stage (vite still optimizing) the
+// walk censused 14 nodes and printed `findings=0 … exit 0` over a planted 1:1 contrast defect the same
+// command REDed on at census 332 one run later. Fourteen is not zero and one reachable control is not zero,
+// so the census and reach gaps are structurally blind to it — the readiness signal is the discriminator, and
+// it must NOT fire on the file:// fixtures the rest of this file drives (no app is expected there).
+// A real http origin is required: the exemption is keyed on the scheme, so a file:// plant proves nothing.
+function serveOnce(html: string): Promise<{ readonly base: string; readonly close: () => void }> {
+  const server = createServer((_req, res) => {
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    res.end(html);
+  });
+  return new Promise((resolve) => {
+    server.listen(0, "127.0.0.1", () => {
+      const addr = server.address() as AddressInfo;
+      resolve({
+        base: `http://127.0.0.1:${addr.port}`,
+        close: (): void => {
+          server.close();
+        },
+      });
+    });
+  });
+}
+
+/** The SHELL a half-booted app leaves behind: real nodes, real text, one control — and no readiness flag. */
+const SHELL_HTML = `<!doctype html>
+<html><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff"><main><p style="font-size:16px;margin:24px">loading the workspace</p>
+<button style="height:48px;width:120px;font-size:16px">Retry</button></main></body></html>`;
+
+// This case deliberately BURNS the readiness wait (the app never announces itself), so it costs the full
+// selector budget on top of the browser spawn — an explicit budget, not a blanket file raise.
+test("an app origin whose app never mounted is an INSTRUMENT ERROR, never a clean audit", { timeout: 30_000 }, async ({ runCli }) => {
+  const server = await serveOnce(SHELL_HTML);
+  try {
+    const res = await runCli("ui-audit", ["/", "--base", server.base], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).toContain("INSTRUMENT ERROR");
+    expect(res.stdout, "the gap must name the readiness signal — it is a different absence from the census").toContain("readiness");
+    await expect(res).toExitWith(2);
+  } finally {
+    server.close();
+  }
+});
+
+test("the SAME page over the SAME origin with the readiness flag audits normally — the fence is not a blanket refusal", async ({ runCli }) => {
+  const server = await serveOnce(SHELL_HTML.replace("<html>", '<html data-app-ready="settled">'));
+  try {
+    const res = await runCli("ui-audit", ["/", "--base", server.base], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+    expect(res.stdout).toContain("RESULT design-audit");
+    await expect(res).toExitWith(0);
+  } finally {
+    server.close();
+  }
+});
+
+// A run with no stage still says so: `stage=live` is the honest label for "whatever --base served", and it
+// is what makes a PASTED receipt self-describing — the ambiguity that made #674's fix lane hand its receipt
+// duty back to the orchestrator.
+test("the machine line publishes WHICH tree was audited", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "good.html"), page("background:#000;color:#fff"));
+  const res = await runCli("ui-audit", ["/good.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("stage=live");
 });
 
 // ── ZERO HYGIENE (#409): an empty node census is absent evidence, never "no findings — clean" ──
