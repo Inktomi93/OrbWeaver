@@ -44,6 +44,8 @@ import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 const MATRIX_CONST = "CHAT_VERB_AUTHORITY";
 const SERVICE_TYPE = "ChatService";
 const CLAMP_FN = "isBelowHistoryFloor";
+const FLOOR_BINDING_RE = /^(?:floor|floorSeq|historyFloorSeq)$/u;
+const MEMBERSHIP_BINDING_RE = /(?:^|\.)membership$/u;
 const CHAT_DOMAIN_RE = /(?:^|\/)packages\/server\/src\/domain\/chat\//u;
 
 /** Matrix authorities that are ROOM plane (host-gated machinery) or gated elsewhere entirely. Everything
@@ -208,9 +210,88 @@ function reachFrom(root: Node, locals: ReadonlyMap<string, Node>): Reach {
   return acc;
 }
 
+function identifierComesFromParameter(id: Node, parameter: Node): boolean {
+  if (!id.isKind(SyntaxKind.Identifier)) {
+    return false;
+  }
+  return id
+    .getDefinitionNodes()
+    .some(
+      (definition) =>
+        definition === parameter || (definition.isKind(SyntaxKind.BindingElement) && definition.getFirstAncestorByKind(SyntaxKind.Parameter) === parameter),
+    );
+}
+
+/** The verdict's event argument must be the filtered element (or a property/destructured field of it), not
+ *  another event that happens to be in scope. */
+function comesFromFilterElement(expression: Node, parameter: Node): boolean {
+  const value = unwrap(expression);
+  if (value === undefined) {
+    return false;
+  }
+  if (value.isKind(SyntaxKind.Identifier)) {
+    return identifierComesFromParameter(value, parameter);
+  }
+  if (value.isKind(SyntaxKind.PropertyAccessExpression) || value.isKind(SyntaxKind.ElementAccessExpression)) {
+    return comesFromFilterElement(value.getExpression(), parameter);
+  }
+  return false;
+}
+
+/** The second verdict argument must be an explicit history-floor binding. A literal or unrelated number
+ *  cannot prove that this viewer's resolved floor protects the egress. */
+function isHistoryFloorBinding(expression: Node): boolean {
+  const value = unwrap(expression);
+  if (value === undefined) {
+    return false;
+  }
+  if (value.isKind(SyntaxKind.Identifier)) {
+    return FLOOR_BINDING_RE.test(value.getText()) && value.getDefinitionNodes().length > 0;
+  }
+  if (!value.isKind(SyntaxKind.PropertyAccessExpression)) {
+    return false;
+  }
+  const receiver = value.getExpression();
+  const receiverIds = receiver.isKind(SyntaxKind.Identifier) ? [receiver] : receiver.getDescendantsOfKind(SyntaxKind.Identifier);
+  return (
+    value.getName() === "historyFloorSeq" && MEMBERSHIP_BINDING_RE.test(receiver.getText()) && receiverIds.some((id) => id.getDefinitionNodes().length > 0)
+  );
+}
+
+/** A canonical filter retains an event only when the ONE floor verdict is false. The predicate must be the
+ *  direct callback result; merely mentioning a negated verdict in a larger expression is not a proof. */
+function callbackAppliesVisibleVerdict(callback: Node): boolean {
+  if (!(callback.isKind(SyntaxKind.ArrowFunction) || callback.isKind(SyntaxKind.FunctionExpression))) {
+    return false;
+  }
+  const parameter = callback.getParameters()[0];
+  if (parameter === undefined) {
+    return false;
+  }
+  const body = callback.getBody();
+  let returned: Node | undefined = body;
+  if (body.isKind(SyntaxKind.Block)) {
+    const statements = body.getStatements();
+    returned = statements.length === 1 ? statements[0]?.asKind(SyntaxKind.ReturnStatement)?.getExpression() : undefined;
+  }
+  const predicate = unwrap(returned);
+  if (!(predicate?.isKind(SyntaxKind.PrefixUnaryExpression) === true && predicate.getOperatorToken() === SyntaxKind.ExclamationToken)) {
+    return false;
+  }
+  const verdict = unwrap(predicate.getOperand());
+  if (verdict?.isKind(SyntaxKind.CallExpression) !== true) {
+    return false;
+  }
+  const [event, floor] = verdict.getArguments();
+  return (
+    calleeName(verdict) === CLAMP_FN && event !== undefined && floor !== undefined && comesFromFilterElement(event, parameter) && isHistoryFloorBinding(floor)
+  );
+}
+
 /** A floorless reader is discharged only when ITS result is the receiver of a `.filter(…)` whose callback
- *  applies the canonical floor verdict. A clamp over any other reachable collection proves nothing about
- *  this read. The receiver may contain the call inline or reference the same local result binding. */
+ *  rejects `isBelowHistoryFloor` for that filtered element and the viewer's resolved floor. A clamp over any
+ *  other collection/argument, or one with inverted polarity, proves nothing about this read. The receiver may
+ *  contain the call inline or reference the same local result binding. */
 function readerResultIsClamped(readerCall: Node): boolean {
   const fn = readerCall.getFirstAncestor(
     (ancestor) =>
@@ -232,7 +313,8 @@ function readerResultIsClamped(readerCall: Node): boolean {
       [receiver, ...receiver.getDescendantsOfKind(SyntaxKind.Identifier)].some(
         (part) => part.isKind(SyntaxKind.Identifier) && part.getDefinitionNodes().includes(resultDecl),
       );
-    return (inline || bound) && call.getDescendantsOfKind(SyntaxKind.CallExpression).some((nested) => calleeName(nested) === CLAMP_FN);
+    const callback = unwrap(call.getArguments()[0]);
+    return (inline || bound) && callback !== undefined && callbackAppliesVisibleVerdict(callback);
   });
 }
 
@@ -375,6 +457,42 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/persistence/queries.ts":
           "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
         "packages/server/src/domain/chat/verbs/read.ts":
+          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async () => (await loadChatEventReplay()).filter((event) => isBelowHistoryFloor(event, 1));\n}\nexport const x = createReplayChatEvents;\n',
+      },
+      expect: { count: 1, token: "replayChatEvents:loadChatEventReplay" },
+      why: "the positive floor verdict retains exactly the pre-join events it must withhold — presence of the clamp call is not enough without the rejecting polarity",
+    },
+    {
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { replayChatEvents: "member" } as const satisfies Record<string, string>;\n',
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
+        "packages/server/src/domain/chat/verbs/read.ts":
+          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params, floor: number) => (await loadChatEventReplay()).filter((event) => !isBelowHistoryFloor(unrelated, floor));\n}\nexport const x = createReplayChatEvents;\n',
+      },
+      expect: { count: 1, token: "replayChatEvents:loadChatEventReplay" },
+      why: "a correctly negated verdict over an unrelated event does not clamp the filtered canon row",
+    },
+    {
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { replayChatEvents: "member" } as const satisfies Record<string, string>;\n',
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
+        "packages/server/src/domain/chat/verbs/read.ts":
+          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params, floor: number) => (await loadChatEventReplay()).filter((event) => !isBelowHistoryFloor(event, unrelatedFloor));\n}\nexport const x = createReplayChatEvents;\n',
+      },
+      expect: { count: 1, token: "replayChatEvents:loadChatEventReplay" },
+      why: "a clamp fed an unrelated number is not bound to the viewer's resolved history floor",
+    },
+    {
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { replayChatEvents: "member" } as const satisfies Record<string, string>;\n',
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
+        "packages/server/src/domain/chat/verbs/read.ts":
           'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async () => {\n    const rows = await loadChatEventReplay();\n    const unrelated = otherRows.filter((e) => !isBelowHistoryFloor(e, 1));\n    return rows.concat(unrelated);\n  };\n}\nexport const x = createReplayChatEvents;\n',
       },
       expect: { count: 1, token: "replayChatEvents:loadChatEventReplay" },
@@ -443,9 +561,20 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/persistence/queries.ts":
           "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
         "packages/server/src/domain/chat/verbs/read.ts":
-          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async () => (await loadChatEventReplay()).filter((e) => !isBelowHistoryFloor(e, 1));\n}\nexport const x = createReplayChatEvents;\n',
+          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params, floor: number) => (await loadChatEventReplay()).filter((event) => !isBelowHistoryFloor(event, floor));\n}\nexport const x = createReplayChatEvents;\n',
       },
-      why: "the STRUCTURAL discharge: a viewer-plane verb that reads room-plane canon and clamps it in the same body before egress",
+      why: "the STRUCTURAL discharge: a viewer-plane verb retains only filtered canon elements whose canonical floor verdict is false",
+    },
+    {
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { replayChatEvents: "member" } as const satisfies Record<string, string>;\n',
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<Array<{ payload: number }>> {\n  return [];\n}\n",
+        "packages/server/src/domain/chat/verbs/read.ts":
+          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params, membership: { historyFloorSeq: number }) => (await loadChatEventReplay()).filter(({ payload }) => !isBelowHistoryFloor(payload, membership.historyFloorSeq));\n}\nexport const x = createReplayChatEvents;\n',
+      },
+      why: "the production replay shape: a destructured payload is the filtered row's canon event and membership.historyFloorSeq is the viewer's resolved floor",
     },
     {
       files: {
