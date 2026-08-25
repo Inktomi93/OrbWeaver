@@ -353,7 +353,6 @@ const ANALYSIS_STEER_MAX = 600;
 /** S5 — a route's APPLY posture: `direct` executes at fire time; `confirm` raises an S4 card and executes
  *  only on the host's yes. Declared ONCE as a tuple and derived (§5.5 — no inline union re-spell). */
 export const ANALYSIS_APPLY_MODES = ["direct", "confirm"] as const;
-export type AnalysisApplyMode = (typeof ANALYSIS_APPLY_MODES)[number];
 /** S5 — the `setVariable` route's NUMERIC-SCORE value contract: the ONLY shape an analysis pass may publish
  *  into the member-visible chat-vars plane (the needle, catalogue #16 — F6's single ruled exception). The
  *  applier writes `String(clamp(int(score), 0..ANALYSIS_SCORE_MAX))` and NOTHING ELSE — arcs, twists and
@@ -408,6 +407,7 @@ export type QuickReplyMode = (typeof QUICK_REPLY_MODES)[number];
  *  it now?" invitation when a run_tool rule is turned away by the fire-rate cap, which is the correct offer:
  *  the money at stake is the author's own. */
 export const SPEND_ARM_TYPES = ["trigger_turn", "generate_image", "run_analysis", "run_tool"] as const satisfies readonly AutomationActionType[];
+/** @public twin: SPEND_ARM_TYPES */
 export type SpendArmType = (typeof SPEND_ARM_TYPES)[number];
 
 /** S4 — the CONFIRM-FIRST flag, carried by the four SUGGESTIBLE arms and by nothing else (the shape IS the

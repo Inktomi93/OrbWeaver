@@ -141,8 +141,8 @@ function readVocabs(project: Project): readonly Vocab[] {
  *  array IS the vocabulary rather than a map over it. A vocab's tuple gets its own module once it has two
  *  readers; `settings-categories.ts` was split out of `shell-store.ts` on 2026-08-24 for exactly that
  *  reason (and because shell-store was seven lines under its `component-size` cap, so adding ONE member
- *  re-wrapped the tuple and REDDED that gate). Note the gate reads the tuples BY SYMBOL — `readTuple(project,
- *  "SETTINGS_CATEGORY_IDS")`, the path-keyed-gates-die-on-rename discipline — so a tuple that moves stays
+ *  re-wrapped the tuple and REDDED that gate). Note the gate reads the tuples BY SYMBOL — `readTuple`,
+ *  the path-keyed-gates-die-on-rename discipline — so a tuple that moves stays
  *  VISIBLE; only this allowlist has to learn its new home. */
 const TUPLE_HOME_SUFFIXES: readonly string[] = ["/state/shell-store.ts", "/state/section-ids.ts", "/state/settings-categories.ts"];
 
