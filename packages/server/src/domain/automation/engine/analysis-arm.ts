@@ -483,8 +483,8 @@ export async function runRunAnalysis(deps: ArmExecutorDeps, action: RunAnalysisA
       systemPrompt: buildAnalysisSystemPrompt(routes, prose),
       userPrompt: buildAnalysisUserPrompt(
         {
-          brief: brief.text ?? "",
-          steer: steer.text ?? "",
+          brief: brief.text,
+          steer: steer.text,
           state: inputs.state,
           fresh: inputs.fresh,
           settled: inputs.settled,
