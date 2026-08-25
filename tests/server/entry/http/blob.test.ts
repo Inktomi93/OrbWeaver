@@ -181,4 +181,43 @@ describe("registerBlob", () => {
     const res = await blobHandler({ assets, cas })(makeCtx(OWNER, { params: { hash: HASH }, query: { w: "96" } }));
     expect(res.status).toBe(404);
   });
+
+  // #709 (stored-XSS): a client-controlled asset mime is served same-origin. The app CSP's `script-src 'self'`
+  // permits a same-origin `<script src=/api/blob/…>` chain and nosniff does not help (text/javascript is a real
+  // script type), so an HTML/JS/SVG blob navigated-to or chained would execute with the owner's cookies. The
+  // serve route neutralizes any non-passive-media type to a downloaded octet-stream so it can NEVER render as
+  // an active same-origin document/script — regardless of how the bytes were stored.
+  describe("#709 serve-boundary neutralization", () => {
+    async function serve(mime: string): Promise<Response> {
+      const meta: { mime: string; size: number } = { mime, size: ORIGINAL.length };
+      const assets: BlobAssetsPort = {
+        getMetadata: (): Promise<{ mime: string; size: number }> => Promise.resolve(meta),
+        resolveVariant: (): Promise<undefined> => Promise.resolve(undefined),
+      };
+      const cas: BlobCasPort = { read: (): Promise<Uint8Array> => Promise.resolve(ORIGINAL) };
+      return await blobHandler({ assets, cas })(makeCtx(OWNER, { params: { hash: HASH } }));
+    }
+
+    for (const active of ["text/javascript", "text/html", "image/svg+xml", "application/xhtml+xml", "application/pdf", "text/plain"]) {
+      test(`${active} is served neutralized (octet-stream + attachment), never as its executable/document type`, async () => {
+        const res = await serve(active);
+        expect(res.status).toBe(200);
+        expect(res.headers.get("content-type")).toBe("application/octet-stream");
+        expect(res.headers.get("content-type")).not.toBe(active);
+        expect(res.headers.get("content-disposition")).toBe("attachment");
+        expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+        // the bytes still arrive — a download, not a rejection
+        expect(new Uint8Array(await res.arrayBuffer())).toEqual(ORIGINAL);
+      });
+    }
+
+    for (const media of ["image/png", "image/webp", "image/gif", "image/apng", "video/mp4", "video/webm", "audio/mpeg"]) {
+      test(`${media} still serves INLINE with its real type (no regression to the gallery/lightbox/backgrounds)`, async () => {
+        const res = await serve(media);
+        expect(res.status).toBe(200);
+        expect(res.headers.get("content-type")).toBe(media);
+        expect(res.headers.get("content-disposition")).toBeNull();
+      });
+    }
+  });
 });

@@ -28,6 +28,20 @@ const WEBM_MIME = "video/webm";
 const PDF_MIME = "application/pdf";
 // The OOXML/OPF zip containers we recognize (docx/epub are DB8 fast-follows; the belt ships with the design).
 const ZIP_CONTAINER_MIMES = new Set(["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/epub+zip"]);
+// #709 (stored-XSS): active document/script mimes are NEVER a servable asset type — a stored blob is served
+// from the app's own origin, where an HTML/SVG document runs scripts and a script type is `<script src>`-able
+// with the owner's cookies. Reject them at the store boundary rather than relying on a family arm to happen to
+// fail (text/html is valid UTF-8; an SVG carries no binary magic). The blob-serve route neutralizes the same
+// classes at read for any write that did not enforce magic.
+const ACTIVE_MIMES = new Set([
+  "text/html",
+  "application/xhtml+xml",
+  "image/svg+xml",
+  "text/javascript",
+  "application/javascript",
+  "application/ecmascript",
+  "text/ecmascript",
+]);
 
 // Leading byte signatures, spelled as their literal ASCII/control chars (escape sequences for the unprintable bytes; no numeric literals — the kit
 // image-sniff avoids `noMagicNumbers` the same way). Each `charCodeAt` IS the signature byte.
@@ -111,6 +125,11 @@ function assertImageMagic(bytes: Uint8Array, base: string, claimedMime: string):
  */
 export function assertMagicMatches(bytes: Uint8Array, claimedMime: string): void {
   const base = baseMime(claimedMime);
+
+  // #709: an active document/script type is never a servable asset — reject before any family check.
+  if (ACTIVE_MIMES.has(base)) {
+    throw new Error(`assets.store: refusing an executable/document mime ${claimedMime} — not a servable asset type`);
+  }
 
   if (base.startsWith(IMAGE_PREFIX)) {
     assertImageMagic(bytes, base, claimedMime);
