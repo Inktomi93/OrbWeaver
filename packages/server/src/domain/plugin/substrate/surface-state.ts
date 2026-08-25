@@ -16,6 +16,14 @@ import type { PluginSurfaceStateStore } from "../contract/service.ts";
  *  never a silent truncation of a state object whose shape the renderer binds by path. */
 const SURFACE_STATE_MAX_BYTES = 16_384;
 
+/** The per-plugin ceiling on the number of DISTINCT surfaceId keys the state plane holds (the storage.kv
+ *  256-key discipline, but SMALL — a plugin's surfaces are few). Without it a resident plugin could loop
+ *  `host.ui.setState(mint(), <16 KiB blob>)` with a fresh surfaceId each call and grow THIS Map without bound in
+ *  the DOMAIN's Node/V8 heap (NOT the guest WASM heap — the 32 MiB sandbox cap does not reach it), a host OOM
+ *  affecting every tenant (#707 Finding B). A NEW surfaceId past the cap is refused; an existing-surface
+ *  overwrite always proceeds (only a new key consumes a slot). `64 × 16 KiB ≈ 1 MiB` bounds one plugin's plane. */
+export const PLUGIN_SURFACE_STATE_MAX_KEYS = 64;
+
 /** UTF-8 byte length without `TextEncoder` (server code, but kept isomorphic-style for one home with the
  *  contract's `ui.ts` byte counter — `encodeURIComponent` emits one char per ASCII byte and a `%XX` triple per
  *  other, so collapsing each triple to one char yields the byte count). */
@@ -40,7 +48,24 @@ export function createPluginSurfaceStateStore(): PluginSurfaceStateStore {
       if (utf8ByteLength(JSON.stringify(state)) > SURFACE_STATE_MAX_BYTES) {
         throw new Error(`plugin host: ui.setState state exceeds the ${SURFACE_STATE_MAX_BYTES}-byte cap`);
       }
-      states.set(stateKey(pluginId, surfaceId), state);
+      const key = stateKey(pluginId, surfaceId);
+      // Only a NEW surfaceId consumes a slot — an existing-surface overwrite always proceeds (the storage.kv
+      // discipline). A fresh id past the cap is REFUSED, so a `setState(mint(), …)` loop cannot grow the plane
+      // unbounded (#707 Finding B). The count is a prefix scan over the shared Map; the cap is small so the
+      // scan stays tiny (at most PLUGIN_SURFACE_STATE_MAX_KEYS keys per plugin).
+      if (!states.has(key)) {
+        const prefix = `${pluginId}:`;
+        let count = 0;
+        for (const existing of states.keys()) {
+          if (existing.startsWith(prefix)) {
+            count += 1;
+          }
+        }
+        if (count >= PLUGIN_SURFACE_STATE_MAX_KEYS) {
+          throw new Error(`plugin host: ui.setState exceeds the ${PLUGIN_SURFACE_STATE_MAX_KEYS}-surface state cap for this plugin`);
+        }
+      }
+      states.set(key, state);
     },
     get: (pluginId, surfaceId): Record<string, unknown> | null => states.get(stateKey(pluginId, surfaceId)) ?? null,
     clearForPlugin: (pluginId): void => {
