@@ -70,6 +70,7 @@
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import { unwrapExpression } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 const ZOD_NS = "z";
@@ -247,6 +248,28 @@ function isZodErrorIssuesRead(node: Node): boolean {
   return receiver.isKind(SyntaxKind.PropertyAccessExpression) && receiver.getName() === ERROR_PROPERTY;
 }
 
+/** `const { issues } = result.error` — the binding-pattern spelling of the same issues read. */
+function isZodErrorIssuesDestructure(node: Node): boolean {
+  if (!node.isKind(SyntaxKind.BindingElement)) {
+    return false;
+  }
+  const property = node.getPropertyNameNode()?.getText() ?? node.getName();
+  if (property !== ISSUES_PROPERTY) {
+    return false;
+  }
+  const pattern = node.getParentIfKind(SyntaxKind.ObjectBindingPattern);
+  const decl = pattern?.getParentIfKind(SyntaxKind.VariableDeclaration);
+  const init = decl?.getInitializer();
+  const receiver = init === undefined ? undefined : unwrapExpression(init);
+  if (receiver === undefined) {
+    return false;
+  }
+  if (receiver.isKind(SyntaxKind.Identifier)) {
+    return receiver.getText() === ERROR_PROPERTY;
+  }
+  return receiver.isKind(SyntaxKind.PropertyAccessExpression) && receiver.getName() === ERROR_PROPERTY;
+}
+
 const passSeenIssuesAllowed = new Set<string>();
 
 function visitCall(node: Node, ctx: GateRunCtx): void {
@@ -273,7 +296,7 @@ export const gate: GateDescriptor = {
   // Sanctioned join sites are SCANNED, not scoped out (the macro-resolution-home precedent): the only
   // exemption is a CITED row, so a moved/renamed file goes RED instead of carrying its sanction along.
   scanRoot: (p) => p.includes(SCAN_PREFIX),
-  kinds: [SyntaxKind.CallExpression, SyntaxKind.PropertyAccessExpression],
+  kinds: [SyntaxKind.CallExpression, SyntaxKind.PropertyAccessExpression, SyntaxKind.BindingElement],
 
   begin: () => {
     passSeenIssuesAllowed.clear();
@@ -284,7 +307,7 @@ export const gate: GateDescriptor = {
       visitCall(node, ctx);
       return;
     }
-    if (!isZodErrorIssuesRead(node)) {
+    if (!(isZodErrorIssuesRead(node) || isZodErrorIssuesDestructure(node))) {
       return;
     }
     const rel = repoRel(sf.getFilePath());
@@ -346,6 +369,16 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/probe-preset/verbs/import-file.ts",
       expect: { count: 1, token: "error-issues" },
       why: "ARM C's founding shape — the `issues[0]` first-issue hand-flatten from F4 itself (a 500-section preset refused with no field named)",
+    },
+    {
+      files:
+        "export function refuse(result: { error: { issues: readonly { message: string }[] } }): string {\n" +
+        "  const { issues: failures } = result.error;\n" +
+        '  return failures.map((i) => i.message).join("; ");\n' +
+        "}\n",
+      at: "packages/server/src/domain/probe-plugin/substrate/destructured-manifest.ts",
+      expect: { count: 1, token: "error-issues" },
+      why: "destructuring `issues` from a zod-shaped `.error` receiver is the same path-dropping hand-flatten as a direct `.error.issues` read",
     },
     {
       files: 'import { z } from "zod";\nexport const s = z.enum(["true", "false"]).default("false").transform((v) => v === "true");\n',

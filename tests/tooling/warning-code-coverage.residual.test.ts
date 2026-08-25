@@ -75,10 +75,12 @@ test("a missing canonical warning tuple fails loud", () => {
   const gate = createWarningCodeCoverage([channel({})]);
   const v = gate.run(ctxFor({ [HOME]: "export const OTHER = ['alpha'] as const;\n" }));
   expect(v[0]?.message).toContain("canonical");
+  expect(v[0]?.message).toContain("tooling/src/verify/gates/warning-code-coverage.ts");
 });
 
 test("a missing canonical warning home fails loud", () => {
   const gate = createWarningCodeCoverage([channel({})]);
   const v = gate.run(ctxFor({ [EMIT]: 'warnings.push({ code: "alpha", message: "visible" });\n' }));
   expect(v[0]?.message).toContain("canonical");
+  expect(v[0]?.message).toContain("tooling/src/verify/gates/warning-code-coverage.ts");
 });

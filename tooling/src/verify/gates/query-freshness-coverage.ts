@@ -9,7 +9,8 @@
 // row in the central invalidation seam, or carry a cited registry entry — STATIC (sanctioned: no bus row is
 // warranted, with the reason) or DEFERRED (tracked staleness debt, with the remediation). Self-cleaning in
 // BOTH directions: a cited key that GAINS a row is STALE-RED; an entry naming a key nothing consumes any more
-// is ORPHAN-RED. The seam module is found BY SYMBOL (`createInvalidation`), never by path
+// is ORPHAN-RED. The seam module is the file pairing `createInvalidation` with its `Invalidation` anchor,
+// never the first same-named symbol and never a hardcoded path
 // (path-keyed-gates-die-on-rename), with a paired-anchor tripwire so a rename REDs loudly instead of going
 // vacuous-green.
 //
@@ -286,9 +287,9 @@ interface Coverage {
   readonly keys: ReadonlySet<string>;
 }
 
-/** The seam module: the client source file that DECLARES `createInvalidation` (symbol-keyed, blind spot 6). */
+/** The seam module: the client source file pairing `createInvalidation` with the `Invalidation` anchor. */
 function findSeam(project: Project): SourceFile | undefined {
-  return project.getSourceFiles().find((sf) => CLIENT_SRC.test(sf.getFilePath()) && declaresSeamFactory(sf));
+  return project.getSourceFiles().find((sf) => CLIENT_SRC.test(sf.getFilePath()) && declaresSeamFactory(sf) && sf.getInterface(SEAM_ANCHOR) !== undefined);
 }
 
 /** A sibling module the seam is allowed to keep its filter rows in: `data/invalidation-*.ts` beside the seam
@@ -487,6 +488,16 @@ export const gate: GateDescriptor = {
       },
       expect: { count: 1, token: "ghost.pagedRead" },
       why: "a nested-path consumer through a `deps.trpc` receiver + the infinite read terminal — the enumerator is not shallow-path- or bare-identifier-bound",
+    },
+    {
+      files: {
+        "packages/client/src/a-impersonator.ts": "export function createInvalidation(trpc: Trpc) {\n  return [trpc.ghost.frozenRead.pathFilter()];\n}\n",
+        "packages/client/src/data/invalidation.ts":
+          "export interface Invalidation { readonly invalidate: () => void }\nexport function createInvalidation(trpc: Trpc) {\n  return [trpc.other.thing.pathFilter()];\n}\n",
+        "packages/client/src/features/x/components/x.tsx": "export const q = trpc.ghost.frozenRead.queryOptions({});\n",
+      },
+      expect: { count: 1, token: "ghost.frozenRead" },
+      why: "the first unrelated same-named factory in project order cannot impersonate the canonical factory paired with the Invalidation seam anchor",
     },
     {
       // Coverage that is UNREACHABLE from createInvalidation (a dead helper) does not count.

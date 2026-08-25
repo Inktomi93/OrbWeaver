@@ -22,8 +22,9 @@
 // the cap with a lens by FILE, not by dataflow, so a lens over an unrelated array in the same file counts
 // (acceptable — the cap is the thing to delete either way, and the corpus is zero).
 import type { Node as TsNode } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
+import { unwrapExpression } from "../lib/ast-read.ts";
 
 const MESSAGE =
   "`maxPages` WINDOWS an infinite query's cache, and this surface cannot survive the window: with no " +
@@ -80,6 +81,19 @@ function prop(obj: TsNode, name: string): TsNode | undefined {
   return Node.isObjectLiteralExpression(obj) ? obj.getProperties().find((p) => Node.isPropertyAssignment(p) && p.getName() === name) : undefined;
 }
 
+/** Resolve an inline options expression or one same-file const binding. */
+function optionsObject(node: TsNode): TsNode {
+  const value = unwrapExpression(node);
+  const direct = Node.isIdentifier(value)
+    ? value
+        .getDefinitionNodes()
+        .filter(Node.isVariableDeclaration)
+        .find((decl) => decl.getSourceFile() === value.getSourceFile() && decl.getVariableStatement()?.getDeclarationKind() === VariableDeclarationKind.Const)
+        ?.getInitializer()
+    : undefined;
+  return direct === undefined ? value : unwrapExpression(direct);
+}
+
 let sawFactory = false;
 
 export const gate: GateDescriptor = {
@@ -107,7 +121,8 @@ export const gate: GateDescriptor = {
     }
     sawFactory = true;
     // The options object is the LAST argument of `x.infiniteQueryOptions(input, options)`.
-    const options = node.getArguments().at(-1);
+    const optionsArg = node.getArguments().at(-1);
+    const options = optionsArg === undefined ? undefined : optionsObject(optionsArg);
     const cap = options === undefined ? undefined : prop(options, MAX_PAGES);
     if (cap === undefined || options === undefined) {
       return;
@@ -132,6 +147,13 @@ export const gate: GateDescriptor = {
   },
 
   mustFlag: [
+    {
+      files:
+        "const options = { maxPages: 5, getNextPageParam: (p) => p.nextCursor };\nexport const q = (trpc) => trpc.character.list.infiniteQueryOptions({ limit: 30 }, options);\n",
+      at: "packages/client/src/features/character/hooks/use-indirect.ts",
+      expect: { count: 1, token: "maxPages/no-rewind" },
+      why: "a same-file const options object still configures the infinite query; one identifier hop cannot hide an unrecoverable cache window",
+    },
     {
       files:
         "export const q = (trpc) =>\n  trpc.character.list.infiniteQueryOptions(\n    { limit: 30 },\n    { maxPages: 5, getNextPageParam: (p) => p.nextCursor, getPreviousPageParam: () => undefined },\n  );\n",
@@ -170,11 +192,6 @@ export const gate: GateDescriptor = {
       files: "export const q = (trpc) => trpc.character.get.queryOptions({ id });\n",
       at: "packages/client/src/features/character/hooks/use-one.ts",
       why: "DECLARED LIMIT — a non-infinite query has no pages to window; only `infiniteQueryOptions` call sites are read",
-    },
-    {
-      files: "const options = { maxPages: 5 };\nexport const q = (trpc) => trpc.character.list.infiniteQueryOptions({ limit: 30 }, options);\n",
-      at: "packages/client/src/features/character/hooks/use-indirect.ts",
-      why: "DECLARED LIMIT — a cap reached through a variable is not read (the options literal is matched in place). No live surface spells it this way; the honest baseline is written here rather than assumed",
     },
   ],
 };
