@@ -1,7 +1,8 @@
 // Gate: owner-scoped-reads — a by-id READ of an `ownerId`-class table (table-scoping-class (a)) must put the
 // owner IN THE WHERE (`fetchOwned`, or `eq(T.ownerId, …)`), or resolve it POST-FETCH (the loadWorkload
 // F3-AUTHZ arm: project the ownerId and compare it — a distinct LEGAL shape, recognized here), or carry an
-// `// @owner-scope-ok: <reason>` marker. An unexplained bare `eq(T.id, x)` is the cross-tenant read hole.
+// `// @owner-scope-ok: <reason>` marker. The post-fetch comparison must read the result binding's ownerId;
+// an unrelated owner comparison in the same function proves nothing. A bare `eq(T.id, x)` is the hole.
 // TWO-SIDED: a marker on a function with no bare by-id read left is RED. DECLARED LIMIT: READS only — the
 // WRITE half is the sibling gate `owner-scoped-writes` (its own marker vocabulary), and membership-rung
 // completeness on (b)-class tables is control-flow-dependent (the cross-tenant behavioral sweep stays that
@@ -57,8 +58,12 @@ const markersUsed = new Set<string>();
 /** The POST-FETCH-FILTER arm (`workloads/verbs/get.ts` F3-AUTHZ): the enclosing function compares a
  *  `.ownerId` property with `===`/`!==`. The owner predicate is resolved in JS instead of SQL — a distinct
  *  LEGAL shape, and one the machine can see. */
-function hasPostFetchFilter(fn: Node | undefined): boolean {
+function hasPostFetchFilter(read: Node, fn: Node | undefined): boolean {
   if (fn === undefined) {
+    return false;
+  }
+  const resultDecl = read.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+  if (resultDecl === undefined) {
     return false;
   }
   return fn.getDescendantsOfKind(SyntaxKind.BinaryExpression).some((b) => {
@@ -66,7 +71,18 @@ function hasPostFetchFilter(fn: Node | undefined): boolean {
     if (op !== SyntaxKind.EqualsEqualsEqualsToken && op !== SyntaxKind.ExclamationEqualsEqualsToken) {
       return false;
     }
-    return [b.getLeft(), b.getRight()].some((side) => side.getText().includes(`.${OWNER_COL}`));
+    return [b.getLeft(), b.getRight()].some((side) => {
+      const descendants = side.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression);
+      const accesses = side.isKind(SyntaxKind.PropertyAccessExpression) ? [side, ...descendants] : descendants;
+      const ownerReads = accesses.filter((candidate) => candidate.getName() === OWNER_COL);
+      return ownerReads.some((ownerRead) => {
+        const receiver = ownerRead.getExpression();
+        if (receiver.isKind(SyntaxKind.Identifier) && receiver.getDefinitionNodes().includes(resultDecl)) {
+          return true;
+        }
+        return receiver.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => id.getDefinitionNodes().includes(resultDecl));
+      });
+    });
   });
 }
 
@@ -111,7 +127,7 @@ export const gate: GateDescriptor = {
     if (whereText.includes(OWNER_COL)) {
       return; // arm 1 — the owner is IN THE WHERE
     }
-    if (hasPostFetchFilter(enclosingFn(node))) {
+    if (hasPostFetchFilter(node, enclosingFn(node))) {
       return; // arm 2 — the F3-AUTHZ post-fetch filter
     }
     const markerKey = markerKeyFor(node, sf, MARKER_RE);
@@ -147,6 +163,15 @@ export const gate: GateDescriptor = {
   },
 
   mustFlag: [
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/queries.ts":
+          'import { characters } from "@orb/db";\nexport async function loadCard(db: Db, id: string, caller: string) {\n  const rows = await db.select().from(characters).where(eq(characters.id, id)).limit(1);\n  if (unrelated.ownerId !== caller) return null;\n  return rows[0];\n}\n',
+      },
+      expect: { count: 1 },
+      why: "an unrelated `.ownerId` comparison in the same function cannot authorize the row returned by this unscoped read",
+    },
     {
       files: {
         "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',

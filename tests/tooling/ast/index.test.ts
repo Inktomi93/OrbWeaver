@@ -161,6 +161,18 @@ describe("ast unwired lens", () => {
     expect(consumed.has("chat.listBooks")).toBe(false);
   });
 
+  test("enumerates procedures from an inline child router under their parent namespace", () => {
+    const project = projectOf({
+      "packages/server/src/transport/trpc/router.ts": `
+export const appRouter = t.router({
+  chat: t.router({ listMessages: authedProcedure.query(() => []) }),
+});
+`,
+    });
+
+    expect(collectServerProcedures(project).map((p) => p.full)).toEqual(["chat.listMessages"]);
+  });
+
   test("sees a BRACKET or OPTIONAL-CHAINED proxy read, and never invents one from a computed key", () => {
     // LENS CALIBRATION (2026-08-13): the proxy is an ordinary object at the value level, so `trpc.ns["proc"]`,
     // `trpc["ns"].proc` and `trpc?.ns?.proc` all reach a procedure. A dot-only matcher calls each of them
