@@ -122,3 +122,32 @@ export interface RunSnippetParams {
   readonly chatId: ChatId;
   readonly code: string;
 }
+
+/** `listSurfaces` — the CALLER's OWN enabled plugins' registered UI surfaces (plugin-ui-plane #679 U1). No id,
+ *  no foreign scope: like `list`, the owner-scoped read of the caller's rows IS the gate — a foreign plugin's
+ *  surfaces are simply never in the result. */
+export interface ListSurfacesParams {
+  readonly caller: Principal;
+}
+
+/** `getSurfaceState` — one surface's published state, for a plugin the caller OWNS. Owner-scoped on `pluginId`
+ *  (leak-free NOT_FOUND); the v1 invariant is viewer == installer, so the state's one legitimate reader is
+ *  exactly this owner. */
+export interface GetSurfaceStateParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+  readonly surfaceId: string;
+}
+
+/** `invokeUiAction` — the guest-action round-trip (plugin-ui-plane #679 U1). Owner-scoped on `pluginId`
+ *  (leak-free NOT_FOUND); re-enters the surface's `onAction` handler under the crash policy + the per-instance
+ *  invoke queue. `values` is the collected form-field bag (all strings on the wire); the guest may publish new
+ *  state via `host.ui.setState`, whose bus poke refreshes the caller's own client. Returns void — the effect is
+ *  the state update, never a direct result. */
+export interface InvokeUiActionParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+  readonly surfaceId: string;
+  readonly actionId: string;
+  readonly values: Record<string, string>;
+}

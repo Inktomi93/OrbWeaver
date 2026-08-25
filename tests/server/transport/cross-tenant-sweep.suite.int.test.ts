@@ -1101,6 +1101,17 @@ const PROBES: readonly Probe[] = [
   //    instance). It gets A's REAL id like its four siblings above — the old fabricated-id shape predated the
   //    seeded plugin row and could not tell a working belt from a missing row. ──
   { path: "plugin.getLog", call: (c, i) => c.plugin.getLog({ pluginId: i.pluginId }) },
+  // ── plugin.getSurfaceState / plugin.invokeUiAction (plugin-ui-plane #679 U1) — owner-scoped the SAME way as
+  //    getLog: `getById(db, caller.userId, pluginId)` reads absent for a stranger holding A's REAL id →
+  //    leak-free NOT_FOUND, BEFORE the surface/state is ever resolved. `invokeUiAction` is the guest-action
+  //    round-trip, so a dropped gate would re-enter A's guest `onAction` under the STRANGER's principal — the
+  //    confused-deputy case D147 exists to close. The surfaceId/actionId are inert (the owner gate refuses
+  //    first, so they never reach surface resolution). ──
+  { path: "plugin.getSurfaceState", call: (c, i) => c.plugin.getSurfaceState({ pluginId: i.pluginId, surfaceId: "probe_surface" }) },
+  {
+    path: "plugin.invokeUiAction",
+    call: (c, i) => c.plugin.invokeUiAction({ pluginId: i.pluginId, surfaceId: "probe_surface", actionId: "probe_action", values: {} }),
+  },
   // ── plugin.runSnippet (03 §1) takes owner A's chatId — the service gates on `resolveChatAuthority`
   //    (`loadPresentRole` under the caller): a stranger is not present ⇒ canRead=false ⇒ NOT_FOUND BEFORE the
   //    snippet ever runs (no read, no write, no execution against A's chat). Leak-free by the loadPresentRole
@@ -1473,6 +1484,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // that take no foreign id remain exempt:
   "plugin.install": "self-scoped: install mints the CALLER's own row (ownerId = caller.userId) from bytes it was handed — there is no foreign id to probe",
   "plugin.list": "self-scoped: takes NO input at all; listOwned filters WHERE owner_id = caller.userId, so there is no id a stranger could aim",
+  "plugin.listSurfaces":
+    "self-scoped: takes NO input; listOwned filters WHERE owner_id = caller.userId and only the caller's OWN resident instances are consulted, so a stranger's surfaces are never in the result (plugin-ui-plane #679 U1)",
   // ── SERVER-WIDE DISTRIBUTION (D147 clause (d), added 2026-08-24). All three are `adminProcedure` + a domain
   //    `requireAdmin` re-check, so the sweep's plain-user stranger is refused FORBIDDEN at LAYER 1 before any
   //    lookup — the `admin.*` role-gate pattern, tested by the admin-gate matrix, not IDOR. None takes a

@@ -122,7 +122,7 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
       return { ok: false, error };
     }
 
-    registry.set(input.pluginId, { instance, handles });
+    registry.set(input.pluginId, { instance, handles, invoke });
     await setStatus(ctx.db, input.pluginId, { status: "enabled", lastError: null, updatedAt: ctx.now() });
     return { ok: true };
   };

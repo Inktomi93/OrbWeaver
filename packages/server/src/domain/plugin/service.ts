@@ -15,10 +15,13 @@ import { createDeactivate } from "./activation/deactivate.ts";
 import type { PluginContext, PluginDistributionDeps, PluginRegistry, PluginService } from "./contract/service.ts";
 import { createApplyDistributedPlugins } from "./verbs/apply-distributed-plugins.ts";
 import { createGetPluginLog } from "./verbs/get-plugin-log.ts";
+import { createGetSurfaceState } from "./verbs/get-surface-state.ts";
 import { createInstall } from "./verbs/install.ts";
 import { createInstallForAllUsers } from "./verbs/install-for-all-users.ts";
+import { createInvokeUiAction } from "./verbs/invoke-ui-action.ts";
 import { createListDistributedPlugins } from "./verbs/list-distributed-plugins.ts";
 import { createListPlugins } from "./verbs/list-plugins.ts";
+import { createListSurfaces } from "./verbs/list-surfaces.ts";
 import { createRunSnippet } from "./verbs/run-snippet.ts";
 import { createSetEnabled } from "./verbs/set-enabled.ts";
 import { createSetGrant } from "./verbs/set-grant.ts";
@@ -60,5 +63,10 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
     applyDistributedPlugins: createApplyDistributedPlugins(ctx, fanout),
     getLog: createGetPluginLog(ctx, registry),
     runSnippet: createRunSnippet(ctx),
+    // The UI-surface read side (plugin-ui-plane #679 U1): listSurfaces + invokeUiAction drive the SAME resident
+    // registry the lifecycle owns; getSurfaceState reads the shared surface-state plane off the context.
+    listSurfaces: createListSurfaces(ctx, registry),
+    getSurfaceState: createGetSurfaceState(ctx),
+    invokeUiAction: createInvokeUiAction(ctx, registry),
   };
 }
