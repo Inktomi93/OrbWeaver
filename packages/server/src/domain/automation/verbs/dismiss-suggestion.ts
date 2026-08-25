@@ -1,6 +1,7 @@
 // verb: dismissSuggestion — S4's HOST NO (interaction-direction-spec §3-S4). The same take-once claim as
 // confirm, with nothing executed: the ask is gone from the store, so a second device showing the same card
-// stops offering it on its next reconcile and a second dismiss refuses leak-free.
+// retires it the instant the `suggestionResolved` bus event lands (#700 — the host-only retirement twin of
+// `suggestionRaised`) and a second dismiss refuses leak-free.
 //
 // WHY IT IS A SERVER VERB AND NOT A CLIENT-SIDE HIDE: a dismissed ask must actually DIE. If dismissal were
 // local state, the record would sit in the store until its TTL, the host's other tab would keep offering it,
@@ -37,5 +38,9 @@ export function createDismissSuggestion(ctx: AutomationContext): AutomationServi
     if (ctx.suggestions.drop(suggestionId, nowMs) === null) {
       throw new SuggestionNotFoundError(suggestionId);
     }
+    // #700 — the drop removed the ask from the store, so retire the card on every attached host tab. The
+    // acting tab drops it optimistically via the mutation's onSuccess; this host-only event is the only
+    // retirement channel for the host's OTHER tabs/devices (no query, no replay on this live-only room).
+    ctx.notify({ type: "suggestionResolved", chatId: seen.chatId, suggestionId });
   };
 }

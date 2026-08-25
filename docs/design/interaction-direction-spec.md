@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-08-24
+updated: 2026-08-25
 ---
 
 # THE INTERACTION DIRECTION — the one specification (substrate · platform · path · catalogue)
@@ -288,10 +288,17 @@ offer-orphans-to-the-new-host arm is the recorded rejection).
   merge-window CHECK edit (§6 R5, unbuilt-recorded). v1 writes no fire row at suggest time; the
   CONFIRMED execution records `fired`, stamped with the confirmer (recording lives in dispatch —
   the confirm verb writes its own row).
-- Bus: one NEW host-only `AutomationBusEvent` member + belt + coverage sites; NO transport edit
-  (the member filter is default-deny — `stream/sources/automation.ts:38,58`). The client
-  exhaustive total map over `AutomationBusEvent` + deleting the `SERVER_INTERNAL_REACH`
-  exemption row (`bus-definition-belts.ts:75-76,232-234`) land with the FIRST client consumer.
+- Bus: TWO host-only `AutomationBusEvent` members + belt + coverage sites; NO transport edit
+  (the member filter is default-deny — `stream/sources/automation.ts:38,58`). `suggestionRaised` is
+  the ask; `suggestionResolved` (added 2026-08-25, #700 — the one-line delta to this bullet's
+  original "one NEW member") is its RETIREMENT twin, emitted at the confirm CLAIM (before any
+  re-check, so a refused confirm retires too) and the dismiss DROP so an answered card leaves EVERY
+  attached host tab — not just the acting one, which also retires optimistically via the mutation's
+  per-call `onSuccess`. Without the retire member the host's OTHER tab/device held the dead card until
+  TTL (30 min): no query, no replay on this live-only room, and as the band's `cards.at(-1)` it masked
+  every older pending card behind a lying "+N pending". The client exhaustive total map over
+  `AutomationBusEvent` + deleting the `SERVER_INTERNAL_REACH` exemption row
+  (`bus-definition-belts.ts:75-76,232-234`) land with the FIRST client consumer.
 - Cross-system scope note: suggestion routes whose confirm surface lives OUTSIDE the room use the
   target domain's own pending-status where one exists (the precedent: `character_tags.status`
   pending/accepted with CHECK, `db/schema/tag.ts:118-125`; chat-tags carry no status).

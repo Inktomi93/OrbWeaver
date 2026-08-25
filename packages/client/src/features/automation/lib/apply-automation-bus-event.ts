@@ -9,7 +9,7 @@
 // is live-only (no cursor, no replay — `transport/trpc/stream/sources/automation.ts`) and a pending ask has
 // no query behind it. So the map's job is to fold events into the ask list the card source renders.
 //
-// The two arms that DO something, and why the other four honestly do not:
+// The three arms that DO something, and why the other three honestly do not:
 //   • suggestionRaised   — the ask itself. Replace-per-`(chatId, SOURCE)` MIRRORS the server store's own
 //                          rule (RULED F1): a cadence rule that keeps firing keeps ONE live ask, so the
 //                          band's one-visible-card budget stays bounded by ORIGIN count. Without the mirror
@@ -17,6 +17,11 @@
 //                          "+N pending" count would be a lie. The source is a union, not a rule id, because
 //                          PLUGINS raise asks too (they joined the three-posture law post-#24) — and a plugin
 //                          has no rule, so a synthetic id would be a lie in the key.
+//   • suggestionResolved — the ask was ANSWERED (confirm or dismiss) and left the server store; drop the
+//                          matching card here so every attached host tab retires it, not just the acting one
+//                          (#700). Id-keyed, not source-keyed: a resolve names the exact ask that left, so a
+//                          rule's newer live ask outlives its older answered one. Without this member a card
+//                          on the host's OTHER tab/device sat dead until TTL (30 min) — no query, no replay.
 //   • ruleAutoDisabled   — the server VOIDED that rule's asks (the 20-error ceiling); drop them here too.
 //   • quickReplySurfaced — the member-visible CHIPS. Not this source's: chips are B3's row, published by
 //                          its own control source into the same band. Folding them here would put two
@@ -72,6 +77,11 @@ const AUTOMATION_EVENT_ARMS: AutomationEventArms = {
       ...(event.detail === undefined ? {} : { detail: event.detail }),
     },
   ],
+  // The RETIREMENT twin of `suggestionRaised` (S4): the host answered THIS ask (confirm or dismiss) on some
+  // tab, the server deleted it from the in-RAM store and emitted this, so drop the matching card on THIS tab
+  // too. Id-keyed, not source-keyed: unlike a raise (one live card per origin) a resolve names the exact ask
+  // that left the store, so a rule's newer live ask survives its older one being answered.
+  suggestionResolved: (asks, event) => asks.filter((ask) => ask.id !== event.suggestionId),
   // A rule that auto-disabled had its asks VOIDED server-side; drop the same ones here. Plugin-origin asks are
   // untouched by a rule's death — their own void rides the plugin's deactivate/uninstall.
   ruleAutoDisabled: (asks, event) => asks.filter((ask) => !(ask.source.kind === "rule" && ask.source.ruleId === event.ruleId)),

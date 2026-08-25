@@ -42,6 +42,9 @@ test("the host's dismiss TAKES the ask — it is gone from the store, not merely
 
   expect(fx.ctx.suggestions.peek(ask.id, FIXED_NOW_MS)).toBeNull();
   expect(fx.ctx.suggestions.countForChat(fx.chatId)).toBe(0);
+  // #700 — the drop emits the host-only RETIREMENT event so every attached host tab drops the card (the
+  // acting tab also retires optimistically; this is the OTHER-tabs channel, no query/replay on this room).
+  expect(fx.events.filter((e) => e.type === "suggestionResolved" && e.suggestionId === ask.id)).toHaveLength(1);
 });
 
 test("a second dismiss refuses leak-free (idempotent by collapse, exactly like a double confirm)", async () => {

@@ -801,6 +801,16 @@ export type AutomationBusEvent =
        *  as every A4 card renders today, so this field changes no existing event's bytes. */
       detail?: SuggestionCardDetail;
     }
+  /** S4 RETIREMENT (host-only, id-only) — the twin of `suggestionRaised`: a pending ask was ANSWERED
+   *  (confirmed or dismissed) and deleted from the in-RAM store, so every attached HOST tab drops its card.
+   *  Emitted the moment the ask leaves the store — at the take-once CLAIM (confirm, before any re-check, so a
+   *  refused confirm retires the card too) and the DROP (dismiss). Id-only: there is no row to re-read
+   *  (RULED F1); the client fold filters the matching `asks` entry out. The acting tab also retires
+   *  optimistically (the mount's per-call `onSuccess`), but the host's OTHER tabs/devices have no query and no
+   *  replay behind this live-only room, so without this member their card sat dead until TTL (30 min). §3-S4
+   *  originally ruled ONE new host-only member (`suggestionRaised`); this retirement twin is the one-line spec
+   *  delta recorded in interaction-direction-spec §3-S4. */
+  | { type: "suggestionResolved"; chatId: ChatId; suggestionId: AutomationSuggestionId }
   | { type: "ruleFired"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "ruleErrored"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "ruleAutoDisabled"; chatId: ChatId; ruleId: AutomationRuleId }
@@ -828,6 +838,7 @@ export type AutomationBusEventType = AutomationBusEvent["type"];
 export const AUTOMATION_BUS_EVENT_TYPES = {
   quickReplySurfaced: true,
   suggestionRaised: true,
+  suggestionResolved: true,
   ruleFired: true,
   ruleErrored: true,
   ruleAutoDisabled: true,

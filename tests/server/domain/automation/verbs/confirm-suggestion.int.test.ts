@@ -141,6 +141,9 @@ describe("the confirm-first card", () => {
     });
 
     expect(result).toEqual({ ran: "stashed-arm", outcome: "fired" });
+    // #700 — the claim retires the card on every attached host tab: exactly one host-only `suggestionResolved`
+    // for THIS ask (emitted at the claim, so it precedes the fire event and rides even a later refusal).
+    expect(fixture.events.filter((e) => e.type === "suggestionResolved" && e.suggestionId === ask?.id)).toHaveLength(1);
     // THE IDENTITY LAW: the frame that executed is the AUTHOR's, with the author's steer, at the rule's own
     // cascade depth — the confirmer authorized it, they did not become its author.
     expect(turns).toEqual([{ authorUserId: fixture.host, chatId: fixture.chatId, automationDepth: 1, guided: "Recap the scene." }]);

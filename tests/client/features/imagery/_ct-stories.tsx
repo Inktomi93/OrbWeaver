@@ -96,3 +96,21 @@ export function EditFlowStory({ chatId, assetId, url }: { readonly chatId: ChatI
     </CtDataProviders>
   );
 }
+
+/** The edit modal on the REAL app QueryClient + the production toast outlet — the twin of `DetailToastStory`
+ *  for the edit surface. It is the ONE stack in which a post-success resolve FAILURE can be observed: the
+ *  edit succeeds server-side but `resolveBlobRefs` rejects, and the body must surface the partial-success
+ *  toast (#702) rather than swallow it. On the plain `CtDataProviders` client there is no toast outlet, so a
+ *  silent-swallow defect would be invisible. */
+export function EditToastStory({ chatId, assetId, url }: { readonly chatId: ChatId; readonly assetId: AssetId; readonly url: string }): ReactElement {
+  useEffect(() => {
+    openImageEdit({ assetId, chatId, url, alt: "a generated image" });
+  }, [assetId, chatId, url]);
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <ImageryHost />
+      </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
