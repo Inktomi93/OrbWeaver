@@ -51,6 +51,13 @@ CREATE TABLE `automation_fires` (
 --> statement-breakpoint
 CREATE INDEX `automation_fires_rule_time` ON `automation_fires` (`rule_id`,`fired_at`);--> statement-breakpoint
 CREATE INDEX `automation_fires_chat_idx` ON `automation_fires` (`chat_id`);--> statement-breakpoint
+CREATE TABLE `automation_owner_budgets` (
+	`owner_id` text PRIMARY KEY NOT NULL,
+	`max_fires_per_hour` integer DEFAULT 120 NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
 CREATE TABLE `automation_rule_state` (
 	`rule_id` text PRIMARY KEY NOT NULL,
 	`state` text NOT NULL,
@@ -84,7 +91,7 @@ CREATE TABLE `automation_rules` (
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "automation_rules_name_check" CHECK(length(name) <= 120),
 	CONSTRAINT "automation_rules_trigger_bus_check" CHECK(trigger_bus in ('chat', 'domain')),
-	CONSTRAINT "automation_rules_trigger_type_check" CHECK((trigger_bus = 'chat' AND trigger_type in ('chatOpened', 'messageCommitted', 'messageEdited', 'variantSelected', 'turnStarted', 'turnCompleted', 'turnAborted', 'worldInfoActivated', 'personaSwitched', 'chatCreated', 'messageHidden', 'messagesDeleted', 'chatUpdated', 'wiEntryAttached', 'wiEntryDetached')) OR (trigger_bus = 'domain' AND trigger_type in ('character.updated', 'asset.created')))
+	CONSTRAINT "automation_rules_trigger_type_check" CHECK((trigger_bus = 'chat' AND trigger_type in ('chatOpened', 'messageCommitted', 'messageEdited', 'variantSelected', 'turnStarted', 'turnCompleted', 'turnAborted', 'worldInfoActivated', 'personaSwitched', 'chatCreated', 'messageHidden', 'messagesDeleted', 'chatUpdated', 'wiEntryAttached', 'wiEntryDetached')) OR (trigger_bus = 'domain' AND trigger_type in ('character.updated', 'asset.created', 'persona.updated', 'world-info.updated')))
 );
 --> statement-breakpoint
 CREATE INDEX `automation_rules_chat_enabled` ON `automation_rules` (`chat_id`,`enabled`,`trigger_type`);--> statement-breakpoint

@@ -192,6 +192,7 @@ export function toRulePresetView(def: ErasedRulePresetDef): RulePresetView {
   const knobs: RulePresetKnobView[] = Object.entries(def.knobs).map(([key, descriptor]) => ({ ...descriptor, key }));
   return {
     id: def.id,
+    scope: def.scope,
     title: def.title,
     summary: def.summary,
     ruleCount: def.ruleCount,

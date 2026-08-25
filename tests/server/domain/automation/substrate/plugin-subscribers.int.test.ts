@@ -13,6 +13,7 @@
 // The fan-out runs alongside rule dispatch: a chat with a plugin subscriber but NO rules still delivers.
 
 import type { AutomationTrigger, TriggerFact } from "@orb/contracts/automation";
+import { worldBooks } from "@orb/db";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -22,6 +23,7 @@ import { createAutomationService, createPluginSubscriberRegistry } from "../../.
 import { createResolveViewerVisibility } from "../../../../../packages/server/src/domain/chat/verbs/resolve-viewer-visibility.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter } from "../../../../support/factories/character.ts";
+import { seedPersona } from "../../../../support/factories/persona.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedMessage, seedParticipant } from "../../chat/_support.ts";
 import { makeAutomationHarness, NO_TOOLS, seedHostChat, seedUser } from "../_support.ts";
@@ -245,8 +247,38 @@ describe("plugin events.on fan-out — the P4 delivery gates", () => {
 
     await f.svc.handleEvent({ type: "character.updated", characterId: char.id, contentChanged: true });
 
-    expect(owner.delivered.map((x) => x.characterId)).toEqual([char.id]);
+    expect(owner.delivered.map((x) => x.character?.id)).toEqual([char.id]);
     expect(outsider.delivered).toEqual([]); // a non-owner's plugin sees NOTHING — no cross-owner leak
+    // S7 — the fact CARRIES the source event's own content discriminator. The resolver used to drop it, so a
+    // guest could not tell a card rewrite from a star toggle.
+    expect(owner.delivered.map((x) => x.character?.contentChanged)).toEqual([true]);
+  });
+
+  test("(b) S7 — the two NEW domain facts deliver to their resource owner, and to nobody else", async () => {
+    // RED-FIRST RECEIPT (this one compiles against the pre-C5 source and FAILS there): `persona.updated` and
+    // `world-info.updated` have been live on the domain bus since 2026-08-14, and the automation trigger
+    // tuple did not carry them — so `resolveTrigger` returned null and the fan-out dropped BOTH facts before
+    // any gate ran. A plugin could DECLARE them, every cheap gate would pass, and delivery would silently
+    // never happen: a dead wire that reads as coverage. Widening the tuple without widening the visibility
+    // gate's chat-less arm would have left the same hole one layer down (a fail-closed default is the right
+    // DEFAULT and the wrong ANSWER), which is why both landed together.
+    const f = await setup();
+    const stranger = await seedUser(f.db, "user_stranger");
+    const persona = await seedPersona(f.db, { ownerId: f.host });
+    const bookId = mintTypeId(ID_PREFIX.worldBook);
+    await f.db.insert(worldBooks).values({ id: bookId, ownerId: f.host, name: "my lore" });
+
+    const owner = capturingSubscriber(f.host, ["persona.updated", "world-info.updated"]);
+    const outsider = capturingSubscriber(stranger, ["persona.updated", "world-info.updated"]);
+    f.registry.register(owner.subscriber);
+    f.registry.register(outsider.subscriber);
+
+    await f.svc.handleEvent({ type: "persona.updated", personaId: persona.id });
+    await f.svc.handleEvent({ type: "world-info.updated", bookId });
+
+    expect(owner.delivered.map((x) => x.type)).toEqual(["persona.updated", "world-info.updated"]);
+    expect(owner.delivered.map((x) => x.personaId ?? x.worldBookId)).toEqual([persona.id, bookId]);
+    expect(outsider.delivered).toEqual([]); // ownership is the chat-less gate, for the new members too
   });
 
   test("(a) cascade hard-cap — nothing delivers at depth ≥ 3, even declared + opted-in + visible", async () => {

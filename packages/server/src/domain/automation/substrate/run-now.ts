@@ -31,7 +31,7 @@ const MANUAL_DEPTH = 0;
 /** Run ONE rule now. `null` = the rule reached NO terminal, which for a chat-scoped enabled rule has exactly
  *  one cause: it is a `transform_draft` rule, which registers into the turn pipeline and never dispatches.
  *  The caller turns that into a typed refusal rather than reporting a fire that did not happen. */
-export async function dispatchRuleNow(ctx: AutomationContext, rule: RuleRow, chatId: ChatId, manualBy: UserId): Promise<AutomationRunOutcome | null> {
+export async function dispatchRuleNow(ctx: AutomationContext, rule: RuleRow, chatId: ChatId | null, manualBy: UserId): Promise<AutomationRunOutcome | null> {
   const trigger = { bus: rule.triggerBus, type: rule.triggerType } as AutomationTrigger;
   const resolved: ResolvedTrigger = { fact: synthFact(trigger, chatId), automationDepth: MANUAL_DEPTH };
   const summary = await runDispatch(ctx, [rule], resolved, { manualBy });

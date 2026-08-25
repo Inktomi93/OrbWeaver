@@ -16,7 +16,7 @@ import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { AutomationOps, ResolvedTrigger } from "../contract/ops.ts";
 
 /** How each trigger's fact is shaped (the table below). A homed tuple → derived union (no re-spelled literals). */
-const FACT_SHAPES = ["chatScope", "message", "turn", "worldInfo", "persona", "characterId", "assetId"] as const;
+const FACT_SHAPES = ["chatScope", "message", "turn", "worldInfo", "persona", "character", "assetId", "personaId", "worldBookId"] as const;
 type FactShape = (typeof FACT_SHAPES)[number];
 
 const FACT_SHAPE = {
@@ -37,14 +37,16 @@ const FACT_SHAPE = {
   wiEntryAttached: "chatScope",
   wiEntryDetached: "chatScope",
   // domain bus
-  "character.updated": "characterId",
+  "character.updated": "character",
   "asset.created": "assetId",
+  "persona.updated": "personaId",
+  "world-info.updated": "worldBookId",
 } as const satisfies Record<ChatTriggerType | DomainTriggerType, FactShape>;
 
 type TriggerType = keyof typeof FACT_SHAPE;
 type BusEvent = ChatBusEvent | DomainEvent;
 
-/** A DomainEvent (character.updated/asset.created + the agents/rpg mirrors) rides the domain bus — its type is
+/** A DomainEvent (all four live members + the agents/rpg mirrors) rides the domain bus — its type is
  *  namespaced with a dot; every ChatBusEvent is a bare discriminant. */
 function busOf(event: BusEvent): TriggerFact["bus"] {
   return event.type.includes(".") ? "domain" : "chat";
@@ -118,10 +120,21 @@ function resolveScalar(event: BusEvent): ResolvedTrigger {
     return { fact: { ...base, persona: { from: event.from, to: event.to } }, automationDepth: 0 };
   }
   if (event.type === "character.updated") {
-    return { fact: { ...base, characterId: event.characterId }, automationDepth: 0 };
+    // `contentChanged` is CARRIED, not dropped (S7). The source event has always discriminated a real card
+    // write from an identity-FLAG edit (star/archive/theme — `@orb/contracts/events`'s own note), and the
+    // resolver used to project only the id, which made every domain-bus character rule fire on a star toggle.
+    // A library rule that reacts to CONTENT — the living-library preset is the catalogue's case — degenerates
+    // into an edit-burst chore without it.
+    return { fact: { ...base, character: { id: event.characterId, contentChanged: event.contentChanged } }, automationDepth: 0 };
   }
   if (event.type === "asset.created") {
     return { fact: { ...base, assetId: event.assetId }, automationDepth: 0 };
+  }
+  if (event.type === "persona.updated") {
+    return { fact: { ...base, personaId: event.personaId }, automationDepth: 0 };
+  }
+  if (event.type === "world-info.updated") {
+    return { fact: { ...base, worldBookId: event.bookId }, automationDepth: 0 };
   }
   return { fact: base, automationDepth: 0 };
 }

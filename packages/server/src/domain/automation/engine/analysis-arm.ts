@@ -61,7 +61,7 @@ import {
   buildAnalysisPayloadSchema,
   mergeAnalysisState,
 } from "../contract/analysis.ts";
-import type { ArmExecutorDeps, ArmOutcome, DispatchFrame } from "../contract/ops.ts";
+import type { ArmExecutorDeps, ArmOutcome, ChatScopedDispatchFrame } from "../contract/ops.ts";
 import { latestAuditableReply, listAnalysisWindow, maxVisibleSeq } from "../persistence/canon-reads.ts";
 import { selectRuleState, upsertRuleState } from "../persistence/rule-state.ts";
 import { renderArmTemplate } from "../substrate/macro-render.ts";
@@ -154,7 +154,7 @@ function effectiveRoutes(action: RunAnalysisAction, live: { readonly lore: boole
  *  replace each other's cards). */
 function raiseAnalysisCard(
   deps: ArmExecutorDeps,
-  frame: DispatchFrame,
+  frame: ChatScopedDispatchFrame,
   card: { readonly act: AnalysisConfirmAct; readonly summary: string; readonly detail?: SuggestionCardDetail },
 ): void {
   const { act, summary, detail } = card;
@@ -218,7 +218,7 @@ const ROUTE_OK: RouteResult = { ok: true };
  *  output class fails `tsc` here before it can ship unrouted). `setState` is handled by the caller's single
  *  end-of-pass state write (its "applier" is a no-op marker); the Record still names it so the union and
  *  the routing can never drift silently. */
-type RouteApplier = (deps: ArmExecutorDeps, frame: DispatchFrame, pass: PassResolution) => Promise<RouteResult>;
+type RouteApplier = (deps: ArmExecutorDeps, frame: ChatScopedDispatchFrame, pass: PassResolution) => Promise<RouteResult>;
 
 const ROUTE_APPLIERS: Record<AnalysisOutputClass, RouteApplier> = {
   // The state merge is computed and written ONCE at the end of the pass (`finishPass`) — listed here so the
@@ -373,7 +373,7 @@ interface PassInputs {
  *  looking at three beats ago). `null` when the route is off, the room has no reply, or the reply is LONGER
  *  than a rewrite may be — the last one matters: the model would have to return a corrected copy capped at
  *  `ANALYSIS_REWRITE_MAX`, so auditing a longer reply could only ever produce a truncated "fix". */
-async function readAuditTarget(deps: ArmExecutorDeps, action: RunAnalysisAction, frame: DispatchFrame): Promise<AnalysisAuditTarget | null> {
+async function readAuditTarget(deps: ArmExecutorDeps, action: RunAnalysisAction, frame: ChatScopedDispatchFrame): Promise<AnalysisAuditTarget | null> {
   if (action.routes.rewrite === undefined) {
     return null;
   }
@@ -381,7 +381,7 @@ async function readAuditTarget(deps: ArmExecutorDeps, action: RunAnalysisAction,
   return target !== null && target.content.length <= ANALYSIS_REWRITE_MAX ? target : null;
 }
 
-async function readPassInputs(deps: ArmExecutorDeps, action: RunAnalysisAction, frame: DispatchFrame): Promise<PassInputs> {
+async function readPassInputs(deps: ArmExecutorDeps, action: RunAnalysisAction, frame: ChatScopedDispatchFrame): Promise<PassInputs> {
   const { state } = await selectRuleState(deps.db, frame.origin.ruleId);
   const fresh = await listAnalysisWindow(deps.db, frame.chatId, { limit: ANALYSIS_FRESH_WINDOW_MESSAGES });
   const audited = await readAuditTarget(deps, action, frame);
@@ -406,7 +406,7 @@ async function readPassInputs(deps: ArmExecutorDeps, action: RunAnalysisAction, 
  *  second failure — the caller maps it to a typed `arm_error`. */
 function runModelPass(
   deps: ArmExecutorDeps,
-  frame: DispatchFrame,
+  frame: ChatScopedDispatchFrame,
   args: { readonly routes: AnalysisRoutes; readonly systemPrompt: string; readonly userPrompt: string },
 ): Promise<AnalysisPayload> {
   const payloadSchema = buildAnalysisPayloadSchema(args.routes);
@@ -439,7 +439,7 @@ function runModelPass(
  *  idiom): the FIRST failure aborts the pass before any state write. Folds the two accumulator bits. */
 async function applyRoutes(
   deps: ArmExecutorDeps,
-  frame: DispatchFrame,
+  frame: ChatScopedDispatchFrame,
   pass: PassResolution,
   from: { readonly i: number; readonly suggested: boolean; readonly watermark: number },
 ): Promise<{ readonly ok: true; readonly suggested: boolean; readonly watermark: number } | { readonly ok: false; readonly detail: string }> {
@@ -458,14 +458,20 @@ async function applyRoutes(
   });
 }
 
-/** The `run_analysis` executor — invoked from the `runArm` switch. */
-export async function runRunAnalysis(deps: ArmExecutorDeps, action: RunAnalysisAction, frame: DispatchFrame): Promise<ArmOutcome> {
+/** The `run_analysis` executor — invoked from the `runArm` switch, which has already PROVEN the frame has a
+ *  room ({@link ChatScopedDispatchFrame}). That narrowing is why nothing below re-asks: `run_analysis` is
+ *  `chat-required` in the contracts scope Record, every window it thinks over is a chat-scoped canon read,
+ *  and a `null` chat here would be a dozen separate reads each free to answer it differently. */
+export async function runRunAnalysis(deps: ArmExecutorDeps, action: RunAnalysisAction, frame: ChatScopedDispatchFrame): Promise<ArmOutcome> {
   // 1. The HOST-authored fields render as templates (host text is macro-legal; the arm-field discipline).
-  const brief = renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: action.brief });
+  const brief = renderArmTemplate({ env: frame.env, chatScoped: true, nowMs: frame.now, prng: deps.prng, template: action.brief });
   if (brief.error !== undefined) {
     return { ok: false, kind: "arm_error", detail: brief.error };
   }
-  const steer = action.steer === undefined ? { text: "" } : renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: action.steer });
+  const steer =
+    action.steer === undefined
+      ? { text: "" }
+      : renderArmTemplate({ env: frame.env, chatScoped: true, nowMs: frame.now, prng: deps.prng, template: action.steer });
   if (steer.error !== undefined) {
     return { ok: false, kind: "arm_error", detail: steer.error };
   }
@@ -483,8 +489,11 @@ export async function runRunAnalysis(deps: ArmExecutorDeps, action: RunAnalysisA
       systemPrompt: buildAnalysisSystemPrompt(routes, prose),
       userPrompt: buildAnalysisUserPrompt(
         {
-          brief: brief.text ?? "",
-          steer: steer.text ?? "",
+          // Both are NARROWED non-undefined by the `error` guards above (`ArmRender` is a two-arm union), so
+          // the `?? ""` fallbacks they carried were dead conditionals — an eslint red on HEAD, cleared here
+          // because this landing touches the lines either way.
+          brief: brief.text,
+          steer: steer.text,
           state: inputs.state,
           fresh: inputs.fresh,
           settled: inputs.settled,

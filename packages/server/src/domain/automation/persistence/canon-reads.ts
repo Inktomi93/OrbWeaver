@@ -6,11 +6,12 @@
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { assets, characters, chatBooks, chatParticipants, chats, messages, messageVariants, rpgGames, worldEntries } from "@orb/db";
-import type { AssetId, CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
+import { assets, characters, chatBooks, chatParticipants, chats, messages, messageVariants, personas, rpgGames, worldBooks, worldEntries } from "@orb/db";
+import type { AssetId, CharacterId, ChatId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, desc, eq, gt, isNull, lte, sql } from "drizzle-orm";
 import type { AnalysisAuditTarget, AnalysisWindowRow } from "../contract/analysis.ts";
+import type { DomainRowKind } from "../contract/ops.ts";
 
 const LIMIT_ONE = 1;
 
@@ -65,7 +66,7 @@ export async function loadPresentHumanMemberIds(db: Db, chatId: ChatId): Promise
 }
 
 /** Whether the installing user OWNS the referenced row — the chat-less domain-fact visibility check
- *  (character.updated / asset.created). A forged / stale id names no row ⇒ `false` (fail-closed by
+ *  (one arm per {@link DomainRowKind}). A forged / stale id names no row ⇒ `false` (fail-closed by
  *  construction — the re-read IS the gate). `ownerId` is the D18/D23 scope anchor; the id arrives UNBRANDED
  *  (the TriggerFact wire shape) and is re-branded here only to query — a re-read gate, never a trust transfer.
  *  The drizzle table stays module-private (the caller names a KIND, not a schema object).
@@ -73,22 +74,82 @@ export async function loadPresentHumanMemberIds(db: Db, chatId: ChatId): Promise
  *  Consumed by the plugin fan-out's visibility gate (`substrate/plugin-subscribers::canInstallerSeeFact`). The
  *  CHAT arm of that gate is deliberately NOT here: a chat verdict is chat's `resolveViewerVisibility` op
  *  (membership AND floor as one answer), never a membership select this domain re-derives. */
-export async function isDomainRowOwnedBy(db: Db, kind: "character" | "asset", id: string, userId: UserId): Promise<boolean> {
-  if (kind === "character") {
-    const rows = await db
-      .select({ ownerId: characters.ownerId })
-      .from(characters)
-      .where(eq(characters.id, castId<CharacterId>(id)))
-      .limit(LIMIT_ONE);
-    return rows[0]?.ownerId === userId;
-  }
-  const rows = await db
-    .select({ ownerId: assets.ownerId })
-    .from(assets)
-    .where(eq(assets.id, castId<AssetId>(id)))
-    .limit(LIMIT_ONE);
-  return rows[0]?.ownerId === userId;
+export async function isDomainRowOwnedBy(db: Db, kind: DomainRowKind, id: string, userId: UserId): Promise<boolean> {
+  const ownerId = await selectDomainRowOwner(db, kind, id);
+  return ownerId === userId;
 }
+
+/** The owner of one referenced domain row, or `undefined` when no such row exists. Split out so
+ *  {@link isDomainRowOwnedBy} stays a one-line predicate and the per-kind SQL stays exhaustive — the
+ *  `default: never` arm is the pin, so a fifth {@link DomainRowKind} cannot be added without its read. */
+// @owner-scope-ok: this IS the POST-FETCH ownership arm, not a missing predicate. Every read here PROJECTS
+// `ownerId` and nothing else, and its two callers compare it to a known user — `isDomainRowOwnedBy` (the
+// plugin fan-out's visibility gate) and `isBookOwnedBy` (the owner-global lore gate) — so a foreign row can
+// only ever produce `false`, never a leaked row. Putting the owner in the WHERE instead would make the
+// function unable to answer the question it exists for ("WHO owns this?"), and both callers would still have
+// to compare. The ids arrive UNBRANDED off the wire-shaped `TriggerFact` and are re-branded only to query:
+// the re-read IS the gate. ENDS the day a caller wants the ROW rather than the owner id.
+async function selectDomainRowOwner(db: Db, kind: DomainRowKind, id: string): Promise<UserId | undefined> {
+  switch (kind) {
+    case "character": {
+      const rows = await db
+        .select({ ownerId: characters.ownerId })
+        .from(characters)
+        .where(eq(characters.id, castId<CharacterId>(id)))
+        .limit(LIMIT_ONE);
+      return rows[0]?.ownerId;
+    }
+    case "asset": {
+      const rows = await db
+        .select({ ownerId: assets.ownerId })
+        .from(assets)
+        .where(eq(assets.id, castId<AssetId>(id)))
+        .limit(LIMIT_ONE);
+      return rows[0]?.ownerId;
+    }
+    case "persona": {
+      const rows = await db
+        .select({ ownerId: personas.ownerId })
+        .from(personas)
+        .where(eq(personas.id, castId<PersonaId>(id)))
+        .limit(LIMIT_ONE);
+      return rows[0]?.ownerId;
+    }
+    case "worldBook": {
+      const rows = await db
+        .select({ ownerId: worldBooks.ownerId })
+        .from(worldBooks)
+        .where(eq(worldBooks.id, castId<WorldBookId>(id)))
+        .limit(LIMIT_ONE);
+      return rows[0]?.ownerId;
+    }
+    default: {
+      const exhaustive: never = kind;
+      throw new Error(`unhandled automation domain-row kind: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
+/** C5 — is `bookId` a book THIS user owns? The owner-GLOBAL arm of the `insert_world_info_entry` consent gate
+ *  (the RULED book-ownership call, interaction-direction-spec §3-S3).
+ *
+ *  IT IS A DIFFERENT CONSENT QUESTION FROM {@link isBookAttachedToChat}, not a weaker one. A room-fired lore
+ *  write asks the ROOM's consent, and the attachment IS that consent (`engine/arm-executors.ts`'s own note).
+ *  A global rule has no room to consent, so the write is a LIBRARY write into the author's own book —
+ *  `world_books.ownerId` is KEPT top-level single ownership (D23), and ownership IS that consent. No room
+ *  inherits the content unless that room's own scope junction says so, and the junctions are untouched by
+ *  this path, so the two gates bound different things and neither substitutes for the other. */
+export async function isBookOwnedBy(db: Db, bookId: WorldBookId, userId: UserId): Promise<boolean> {
+  return (await selectDomainRowOwner(db, "worldBook", bookId)) === userId;
+}
+
+// C5 — "is this author still an ENABLED account?" is DELIBERATELY NOT HERE. It was, briefly, and the
+// `no-direct-users-read` gate was right to refuse it: the `users` table is read and written by
+// `domain/sessions` + `domain/admin` ONLY (Spine-Identity-and-Auth.md), and every other domain takes what it
+// needs about a user from the resolved Principal or an injected op. So the owner-global lane's standing read
+// crosses as `IsAuthorEnabled` (`contract/ops.ts`), wired at compose to sessions' own `loadUserById`. The
+// note stays because the read is an obvious one to re-add here, and the reason it may not live here is a
+// spine rule rather than anything visible in this file.
 
 /** The titles of the entries a rule OWNS in a book (its `insert_world_info_entry` arm namespaces every entry
  *  title by the ruleId — see `engine/arm-executors`), for the per-rule ≤64-entries-per-book cap.

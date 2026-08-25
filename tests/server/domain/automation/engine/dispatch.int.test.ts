@@ -12,15 +12,34 @@
 // NOTHING: no fire row, no error tick, no `last_fired_at`, no auto-disable, no arm effects. Self-healing is
 // what falls out of that, and the re-enable row proves it costs no repair step.
 
-import type { AutomationRuleId, UserId } from "@orb/kit/ids";
+import type { AutomationActionInput } from "@orb/contracts/automation";
+import { worldBooks } from "@orb/db";
+import { DomainOperationError } from "@orb/kit/errors";
+import type { AutomationRuleId, UserId, WorldBookId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { AutomationOps, AutomationToolOutcome, AutomationToolRequest } from "@orb/server/domain/automation";
 import { describe } from "vitest";
-import type { AutomationContext } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
+import type { ArmExecutorDeps, AutomationImageRequest, DispatchFrame } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
+import type { AutomationContext, AutomationService } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
 import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
 import { createAutomationService } from "../../../../../packages/server/src/domain/automation/service.ts";
+import { seedCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { principal, ruleFixture } from "../_support.ts";
+import type { RuleFixture } from "../_support.ts";
+import { principal, ruleFixture, seedUser } from "../_support.ts";
+
+/** The refusal CODE a rejected verb threw, or `null` when it resolved. Asserting the code rather than the
+ *  message is what makes these pins about behaviour: the copy may be rewritten freely, and a DIFFERENT
+ *  refusal firing in place of the intended one still reds. */
+async function refusalCode(work: Promise<unknown>): Promise<string | null> {
+  try {
+    await work;
+    return null;
+  } catch (error) {
+    return error instanceof DomainOperationError ? error.code : `unexpected:${error instanceof Error ? error.name : String(error)}`;
+  }
+}
 
 const TOOL = "plugin_mood_report";
 /** The auto-disable ceiling the rot would have walked to (`engine/dispatch.ts`). Restated rather than imported
@@ -242,5 +261,262 @@ describe("the pause gate and the rest of the engine", () => {
     // owner, so if the gate had asked about anyone else it would have reported the tool missing and this
     // rule would have PAUSED instead of firing.
     expect(await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId })).toEqual({ outcome: "fired" });
+  });
+});
+
+// ── C5 helpers (the owner-global lane's dispatch pins below) ─────────────────────────────────────────────
+const C5_DOMAIN_TRIGGER = { bus: "domain", type: "character.updated" } as const;
+
+/** A quiet caption-mode image arm — the ONE image shape a chat-less rule may carry, and the living-library
+ *  preset's own arm. */
+const C5_QUIET_PORTRAIT: AutomationActionInput = {
+  type: "generate_image",
+  mode: "character_multimodal",
+  n: 1,
+  useAvatarReference: false,
+  reuse: "prefer",
+  quiet: true,
+};
+
+/** Mint an owner-global rule with the given arms. `chatId: null` IS the scope. */
+function mintGlobal(
+  f: RuleFixture,
+  actions: readonly AutomationActionInput[],
+  predicateCel: string | null = null,
+): ReturnType<AutomationService["createRule"]> {
+  return f.svc.createRule({ principal: principal(f.host), chatId: null, name: "library rule", trigger: C5_DOMAIN_TRIGGER, predicateCel, actions });
+}
+
+/** A capturing imagery op — the arm's real executor runs, the provider does not. */
+function captureImages(requests: AutomationImageRequest[]): ArmExecutorDeps["ops"]["imagery"] {
+  return {
+    generatePicture: (req): Promise<{ readonly imageCount: number }> => {
+      requests.push(req);
+      return Promise.resolve({ imageCount: 1 });
+    },
+  };
+}
+
+/** The fixture's own context with the REAL arm dispatcher wired over a capturing imagery op — the arm
+ *  executor, the env build, the frame and every gate are production code; only the provider call stops at
+ *  the seam. */
+function wireRealArms(f: RuleFixture, requests: AutomationImageRequest[]): { readonly svc: AutomationService; readonly reload: () => Promise<void> } {
+  const ctx = f.ctx;
+  const wired = {
+    ...ctx,
+    runArm: createArmExecutors({
+      db: f.db,
+      ops: { ...ctx.ops, imagery: captureImages(requests) },
+      prng: ctx.prng,
+      notify: ctx.notify,
+      suggestions: ctx.suggestions,
+      newSuggestionId: ctx.newSuggestionId,
+    }),
+  };
+  return { svc: createAutomationService(wired), reload: () => wired.enabled.reload() };
+}
+
+// ── C5: the OWNER-GLOBAL lane's dispatch half (interaction-direction-spec §3-S3 + §7 C5) ─────────────────
+// The ADMISSION matrix that decides which rules reach here is pinned at `../substrate/validate.int.test.ts`;
+// these are the pins about what the ENGINE does once a chat-less rule fires. The owner's test for the whole
+// lane is "fires on a character import with NO room open": a chat-less rule, a domain-bus event, no chat
+// anywhere in the frame, and a real arm executor running.
+//
+// Every refusal is asserted by its CODE (`RuleValidationError.code`), never by its prose — matching a
+// message would pin copy while claiming to pin behaviour.
+
+describe("C5 dispatch — the owner's test", () => {
+  test("a global rule FIRES on a character import with NO room open, through the real engine", async () => {
+    const requests: AutomationImageRequest[] = [];
+    const f = await ruleFixture();
+    const character = await seedCharacter(f.db, { ownerId: f.host, name: "Mira" });
+    const { svc, reload } = wireRealArms(f, requests);
+
+    const rule = await svc.createRule({
+      principal: principal(f.host),
+      chatId: null,
+      name: "living library",
+      trigger: C5_DOMAIN_TRIGGER,
+      predicateCel: "has(event.character) && event.character.contentChanged",
+      actions: [C5_QUIET_PORTRAIT],
+    });
+    await svc.setRuleEnabled({ principal: principal(f.host), ruleId: rule.id, enabled: true });
+    await reload();
+
+    // THE EVENT. No chat is opened, no chat exists in the frame, and the fact is chat-less by construction.
+    await svc.handleEvent({ type: "character.updated", characterId: character.id, contentChanged: true });
+
+    expect(requests).toHaveLength(1);
+    const request = requests[0];
+    expect(request?.chatId).toBeNull(); // the whole point: the arm ran with NO room
+    expect(request?.quiet).toBe(true);
+    expect(request?.authorUserId).toBe(f.host);
+    // The SUBJECT came off the FACT — an arm authored with no `subjectCharacterId` illustrates whichever
+    // character just changed, which is what makes one standing rule a LIBRARY rule rather than one card's.
+    expect(request?.subjectCharacterId).toBe(character.id);
+    // …and it is recorded as a real fire on the durable log, which is the global lane's only feedback
+    // surface (the transient bus is per-chat and correctly says nothing).
+    const fires = await svc.listFires({ principal: principal(f.host), ruleId: rule.id });
+    expect(fires.map((row) => row.outcome)).toEqual(["fired"]);
+    expect(fires[0]?.chatId).toBeNull();
+  });
+
+  test("S7 `contentChanged`: a CONTENT write fires it, a flag-only edit does not", async () => {
+    const requests: AutomationImageRequest[] = [];
+    const f = await ruleFixture();
+    const character = await seedCharacter(f.db, { ownerId: f.host, name: "Mira" });
+    const { svc, reload } = wireRealArms(f, requests);
+    const rule = await svc.createRule({
+      principal: principal(f.host),
+      chatId: null,
+      name: "living library",
+      trigger: C5_DOMAIN_TRIGGER,
+      predicateCel: "has(event.character) && event.character.contentChanged",
+      actions: [C5_QUIET_PORTRAIT],
+    });
+    await svc.setRuleEnabled({ principal: principal(f.host), ruleId: rule.id, enabled: true });
+    await reload();
+
+    // A FLAG-ONLY edit (star/archive/theme) raises the same event with `contentChanged: false`. Before S7
+    // the resolver DROPPED the flag entirely, so this fired identically to a real card write — the
+    // edit-burst chore the catalogue's fun pass killed, and the reason this preset needed the field.
+    await svc.handleEvent({ type: "character.updated", characterId: character.id, contentChanged: false });
+    expect(requests).toEqual([]);
+    // A `predicate_false` before a rule's first fire logs nothing (the LEAN first-match rule), so the empty
+    // log here is the honest evidence that nothing ran rather than an absence of instrumentation.
+    await expect(svc.listFires({ principal: principal(f.host), ruleId: rule.id })).resolves.toEqual([]);
+
+    await svc.handleEvent({ type: "character.updated", characterId: character.id, contentChanged: true });
+    expect(requests).toHaveLength(1);
+  });
+
+  test("a global rule does NOT fire on another owner's row — the subject gate", async () => {
+    const requests: AutomationImageRequest[] = [];
+    const f = await ruleFixture();
+    const stranger = await seedUser(f.db, "user_stranger");
+    const theirCharacter = await seedCharacter(f.db, { ownerId: stranger, name: "Not mine" });
+    const { svc, reload } = wireRealArms(f, requests);
+    const rule = await svc.createRule({
+      principal: principal(f.host),
+      chatId: null,
+      name: "living library",
+      trigger: C5_DOMAIN_TRIGGER,
+      predicateCel: null,
+      actions: [C5_QUIET_PORTRAIT],
+    });
+    await svc.setRuleEnabled({ principal: principal(f.host), ruleId: rule.id, enabled: true });
+    await reload();
+
+    // The domain bus is ONE global firehose and `loadEnabledDomainRules` matches across every owner. Without
+    // the subject gate this author's rule would spend their model budget illustrating a stranger's card into
+    // their own gallery.
+    await svc.handleEvent({ type: "character.updated", characterId: theirCharacter.id, contentChanged: true });
+    expect(requests).toEqual([]);
+    // QUIET: the rule did nothing wrong, so no fire row and no error budget spent — the same shape as the
+    // cascade-suppression skip it sits beside.
+    await expect(svc.listFires({ principal: principal(f.host), ruleId: rule.id })).resolves.toEqual([]);
+  });
+});
+
+describe("C5 belts — the owner rate ceiling and the book-ownership gate", () => {
+  test("the OWNER hourly cap refuses a global fire, and the refusal keeps the rule healthy", async () => {
+    const f = await ruleFixture();
+    const character = await seedCharacter(f.db, { ownerId: f.host, name: "Mira" });
+    // A ZERO ceiling is a real, useful setting — "stop all of my library rules" without disabling each one.
+    await f.svc.setOwnerBudgets({ principal: principal(f.host), maxFiresPerHour: 0 });
+    await expect(f.svc.getOwnerBudgets({ principal: principal(f.host) })).resolves.toEqual({ maxFiresPerHour: 0 });
+
+    const rule = await mintGlobal(f, [C5_QUIET_PORTRAIT]);
+    await f.svc.setRuleEnabled({ principal: principal(f.host), ruleId: rule.id, enabled: true });
+    await f.ctx.enabled.reload();
+    await f.svc.handleEvent({ type: "character.updated", characterId: character.id, contentChanged: true });
+
+    const fires = await f.svc.listFires({ principal: principal(f.host), ruleId: rule.id });
+    expect(fires.map((row) => row.outcome)).toEqual(["budget_refused"]);
+    expect(fires[0]?.detail).toMatchObject({ limit: "owner_hourly" }); // the OWNER belt, not a chat's
+    // A rate refusal is NOT an error — the rule stays enabled with a clean error ledger.
+    const [after] = await f.svc.listOwnerRules({ principal: principal(f.host) });
+    expect(after?.enabled).toBe(true);
+    expect(after?.consecutiveErrors).toBe(0);
+  });
+
+  test("an ABSENT owner-budget row is dispatched as — and projects to — the DDL default", async () => {
+    const f = await ruleFixture();
+    // The projection and the gate read the same default, so a host who never set a ceiling still SEES the
+    // one they are actually dispatched under.
+    await expect(f.svc.getOwnerBudgets({ principal: principal(f.host) })).resolves.toEqual({ maxFiresPerHour: 120 });
+    // …and the plane is single-owned: a second user's read is their own, unaffected by this one's write.
+    const other = await seedUser(f.db, "user_other");
+    await f.svc.setOwnerBudgets({ principal: principal(f.host), maxFiresPerHour: 7 });
+    await expect(f.svc.getOwnerBudgets({ principal: principal(other) })).resolves.toEqual({ maxFiresPerHour: 120 });
+    await expect(f.svc.getOwnerBudgets({ principal: principal(f.host) })).resolves.toEqual({ maxFiresPerHour: 7 });
+  });
+
+  test("the WORLD-INFO gate branches on scope: ownership for a global rule, attachment for a room's", async () => {
+    const f = await ruleFixture();
+    const stranger = await seedUser(f.db, "user_stranger");
+    const mine: WorldBookId = mintTypeId(ID_PREFIX.worldBook);
+    const theirs: WorldBookId = mintTypeId(ID_PREFIX.worldBook);
+    await f.db.insert(worldBooks).values({ id: mine, ownerId: f.host, name: "my lore" });
+    await f.db.insert(worldBooks).values({ id: theirs, ownerId: stranger, name: "their lore" });
+
+    const lore = (bookId: WorldBookId): AutomationActionInput => ({
+      type: "insert_world_info_entry",
+      bookId,
+      entryKey: "k",
+      keys: ["k"],
+      contentTemplate: "x",
+    });
+
+    // GLOBAL: ownership IS the consent (D23 — books are top-level single-owned, and a room consumes one only
+    // through its own scope junction, which this path never touches). My own book is admitted…
+    await expect(mintGlobal(f, [lore(mine)])).resolves.toMatchObject({ chatId: null });
+    // …and a stranger's is refused.
+    await expect(refusalCode(mintGlobal(f, [lore(theirs)]))).resolves.toBe("automation_rule_unattached_book");
+
+    // CHAT: the room's consent is the ATTACHMENT, unchanged — my own UNATTACHED book is still refused there,
+    // which is what makes these two different questions rather than one weakened for the global lane.
+    const roomCode = await refusalCode(
+      f.svc.createRule({
+        principal: principal(f.host),
+        chatId: f.chatId,
+        name: "room rule",
+        trigger: { bus: "chat", type: "messageCommitted" },
+        actions: [lore(mine)],
+      }),
+    );
+    expect(roomCode).toBe("automation_rule_unattached_book");
+  });
+});
+
+describe("C5 engine — the chat plane is UNBOUND on a global frame, never faked", () => {
+  test("an arm template reaching for a chat-keyed root ERRORS rather than rendering an invented empty room", async () => {
+    // The mint refuses a chat-keyed PREDICATE. An arm TEMPLATE is the second surface, and its belt is
+    // structural: a global frame's CEL activation OMITS `chat`/`vars`/`choice` entirely, so `{{expr::…}}`
+    // over one is an `expr-error` diagnostic that `strictArgs` turns into the arm's typed refusal. Binding
+    // the empties instead would render a confident `0` for a room that does not exist.
+    const f = await ruleFixture();
+    const frame: DispatchFrame = {
+      chatId: null,
+      authorUserId: f.host,
+      fact: { type: "character.updated", bus: "domain", chatId: null },
+      env: { vars: {}, choice: {}, global: { note: "kept" }, chat: { id: "", messageCount: 0 }, now: { epochMs: 0, hour: 0, dayOfWeek: 0 } },
+      origin: { ruleId: mintTypeId(ID_PREFIX.automationRule), automationDepth: 1 },
+      now: 0,
+    };
+    const runArm = createArmExecutors({
+      db: f.db,
+      ops: f.ctx.ops,
+      prng: f.ctx.prng,
+      notify: f.ctx.notify,
+      suggestions: f.ctx.suggestions,
+      newSuggestionId: f.ctx.newSuggestionId,
+    });
+    const chatKeyed = await runArm({ type: "set_variable", scope: "global", key: "k", op: "set", value: "{{expr::chat.messageCount}}" }, frame);
+    expect(chatKeyed.ok).toBe(false);
+    // The author's OWN global plane is still bound — the omission is the CHAT plane, not the whole env.
+    const authorPlane = await runArm({ type: "set_variable", scope: "global", key: "copy", op: "set", value: "{{expr::global.note}}" }, frame);
+    expect(authorPlane.ok).toBe(true);
+    await expect(f.svc.getGlobalVariable({ principal: principal(f.host), key: "copy" })).resolves.toBe("kept");
   });
 });

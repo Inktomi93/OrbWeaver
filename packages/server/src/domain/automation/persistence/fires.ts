@@ -5,9 +5,9 @@
 
 import type { AutomationFireOutcome } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
-import { automationFires } from "@orb/db";
-import type { AutomationFireId, AutomationRuleId, ChatId } from "@orb/kit/ids";
-import { and, desc, eq, gt, sql } from "drizzle-orm";
+import { automationFires, automationRules } from "@orb/db";
+import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
+import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import type { FireView } from "../contract/results.ts";
 
 const DEFAULT_FIRE_LIMIT = 50;
@@ -68,5 +68,25 @@ export async function countChatFiresSince(db: Db, chatId: ChatId, sinceMs: numbe
     .select({ count: sql<number>`count(*)` })
     .from(automationFires)
     .where(and(eq(automationFires.chatId, chatId), eq(automationFires.outcome, "fired"), gt(automationFires.firedAt, sinceMs)));
+  return rows[0]?.count ?? 0;
+}
+
+/** C5 — count an OWNER's chat-less FIRES since `sinceMs`: the per-owner/hour cap source
+ *  (`automation_owner_budgets.max_fires_per_hour`), the global lane's twin of the per-chat belt above.
+ *
+ *  IT JOINS THE RULE ROW, and it has to: `automation_fires` carries a nullable `chat_id` but no owner column,
+ *  so the only place a fire's author is written down is the rule it came from. The predicate is BOTH halves —
+ *  the rule's owner AND `chat_id IS NULL` — because an owner's ROOM fires are already bounded by their rooms'
+ *  own belts; counting them here would let a busy chat exhaust the global lane's ceiling and silently stop a
+ *  library rule that had not fired at all. (The join reads `automation_rules_owner_idx`; the fire side reads
+ *  `automation_fires_rule_time`.) */
+export async function countOwnerGlobalFiresSince(db: Db, ownerId: UserId, sinceMs: number): Promise<number> {
+  const rows = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(automationFires)
+    .innerJoin(automationRules, eq(automationRules.id, automationFires.ruleId))
+    .where(
+      and(eq(automationRules.ownerId, ownerId), isNull(automationRules.chatId), eq(automationFires.outcome, "fired"), gt(automationFires.firedAt, sinceMs)),
+    );
   return rows[0]?.count ?? 0;
 }

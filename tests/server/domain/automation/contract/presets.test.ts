@@ -113,8 +113,8 @@ test("the committed catalogue is exactly the A3 rows plus A4's four plus C1's pa
   // (story pacing analysis — the run_analysis arm's showcase, RULED F7 direct steer); C2 adds #11's two
   // confirm-first lore distillers (distill lore + rumour mill); #16 the needle rides C1's vars route +
   // the vars read proc; C3 adds #15's prose audit (the confirm-first rewrite card); C6 adds #2 (the
-  // async table nudge, the actor-excluding recipient's consumer) and #14 (spotlight balance). #20 rides
-  // the global lane and may not creep in.
+  // async table nudge, the actor-excluding recipient's consumer) and #14 (spotlight balance); C5 adds #20
+  // (the living library), the one owner-GLOBAL row and the last committed one.
   expect([...RULE_PRESET_IDS]).toEqual([
     "welcomeBackRecap",
     "autoAddLore",
@@ -134,6 +134,9 @@ test("the committed catalogue is exactly the A3 rows plus A4's four plus C1's pa
     "proseAudit",
     "asyncTableNudge",
     "spotlightBalance",
+    // C5 adds #20 (the living library) — the catalogue's LAST committed row and its only owner-GLOBAL one.
+    // With it the §4 catalogue is complete: 19 rows, no committed id left unbuilt.
+    "livingLibrary",
   ]);
 });
 

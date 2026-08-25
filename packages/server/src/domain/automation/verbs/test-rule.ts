@@ -7,7 +7,7 @@
 import type { TestRuleParams } from "../contract/params.ts";
 import type { TestRunResult } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
-import { requireRuleHost } from "../guard.ts";
+import { requireRuleAuthority } from "../guard.ts";
 import { countChatMessages } from "../persistence/canon-reads.ts";
 import { insertFire } from "../persistence/fires.ts";
 import { listGlobalVariables } from "../persistence/queries.ts";
@@ -16,21 +16,30 @@ import { emptyDryRunEnv, evaluatePredicate, renderArmPreview, synthFact } from "
 
 export function createTestRule(ctx: AutomationContext): AutomationService["testRule"] {
   return async ({ principal, ruleId, sampleEvent }: TestRuleParams): Promise<TestRunResult> => {
-    const rule = await requireRuleHost(ctx, principal, ruleId);
+    const rule = await requireRuleAuthority(ctx, principal, ruleId);
     const view = toRuleView(rule);
     const nowMs = ctx.now();
-    const [messageCount, globalViews] = await Promise.all([countChatMessages(ctx.db, rule.chatId), listGlobalVariables(ctx.db, principal.userId)]);
+    const chatId = rule.chatId;
+    // An owner-GLOBAL rule has no room, so there is no message count to read — its dry run has to be honest
+    // about that rather than count someone's messages. `chatScoped` then keeps the three chat-keyed CEL roots
+    // UNBOUND for the whole preview, so a template that reads one previews as the error it would really be at
+    // fire time (`substrate/macro-render.ts` states the rule).
+    const chatScoped = chatId !== null;
+    const [messageCount, globalViews] = await Promise.all([
+      chatId === null ? Promise.resolve(0) : countChatMessages(ctx.db, chatId),
+      listGlobalVariables(ctx.db, principal.userId),
+    ]);
     const global = Object.fromEntries(globalViews.map((v) => [v.key, v.value]));
-    const event = sampleEvent ?? synthFact(view.trigger, rule.chatId);
-    const env = emptyDryRunEnv({ chatId: rule.chatId, messageCount, global, event, nowMs });
+    const event = sampleEvent ?? synthFact(view.trigger, chatId);
+    const env = emptyDryRunEnv({ chatId, messageCount, global, event, nowMs });
 
-    const predicate = evaluatePredicate(view.predicateCel, env);
-    const arms = view.actions.map((action) => renderArmPreview(action, env, nowMs, ctx.prng));
+    const predicate = evaluatePredicate(view.predicateCel, env, chatScoped);
+    const arms = view.actions.map((action) => renderArmPreview(action, { env, chatScoped, nowMs, prng: ctx.prng }));
 
     await insertFire(ctx.db, {
       id: ctx.newFireId(),
       ruleId,
-      chatId: rule.chatId,
+      chatId,
       triggerType: view.trigger.type,
       outcome: "test_run",
       detail: { predicate, arms },
