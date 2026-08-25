@@ -71,10 +71,31 @@ const SESSIONS = [
   },
 ];
 
+/** Serve the `AdminUserView` a write verb answers with: the ROW the input names, carrying the field the
+ *  input asked to change. Falls back to the first row only when the id matches nothing — a shape the surface
+ *  cannot produce, kept non-throwing so a wrong-target write reds on the assertion rather than on the stub.
+ *
+ *  The decoded input is read as an OPEN record rather than through a `{ userId: string }` shape: this is the
+ *  fixture layer, where ids are plain wire strings (the `characterListResponder` precedent), and a
+ *  `userId: string` field declaration is a `brand-in-name-position` violation — the gate is right, and the
+ *  fixture layer is the exception it does not need to learn. */
+function applyToUser(input: unknown, change: (args: Record<string, unknown>) => Record<string, unknown>): unknown {
+  const args = (input ?? {}) as Record<string, unknown>;
+  const row = USERS.find((user) => user.id === args["userId"]) ?? USERS[0];
+  return { ...row, ...change(args) };
+}
+
 function stub(page: Page, viewer: typeof OWNER_VIEWER, extra: TrpcRoutes = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "admin.listUsers": () => USERS,
     "sessions.me": () => viewer,
+    // #649 — the row's two WRITE verbs. Both answer an `AdminUserView` (domain/admin/contract/results.ts:8-9),
+    // and both were unfed here: every click of a role picker or an enable toggle rode `routeTrpc`'s null, so
+    // the mutation's settle/invalidate path ran INERT. INPUT-AWARE rather than a fixed row, so the answer is
+    // the user the caller actually named carrying the change they actually asked for — a fixed row would let
+    // a wrong-target write pass. A test scripting a refusal lists the key in `extra` and wins.
+    "admin.setRole": (input: unknown) => applyToUser(input, ({ role }) => ({ role })),
+    "admin.setEnabled": (input: unknown) => applyToUser(input, ({ enabled }) => ({ enabled })),
     ...extra,
   });
 }

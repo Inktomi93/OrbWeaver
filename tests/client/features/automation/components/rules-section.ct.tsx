@@ -12,6 +12,7 @@
 // own copy. Every one of them was RED against the pre-fix source (measured 2026-08-24, cb-rules-section).
 // The mount is 384px — the narrowest REAL host (the docked CONTEXT pane), never a roomy story width.
 
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -25,6 +26,14 @@ const CHAT = castId<ChatId>("chat_ct_rules_0001");
 
 // A FIXED epoch, never `Date.now()` (test-determinism): the row and the log both render relative time.
 const A_PAST_INSTANT = 1_760_000_000_000;
+
+/** The viewer's settings row (#649) — spread FIRST into every `routeTrpc` call here. Not this file's subject
+ *  (the rules surface is), but unfed it resolved `routeTrpc`'s null, so every appearance/tier reader in this
+ *  384px mount fell to its default branch and the settings-driven presentation path never ran. Production
+ *  defaults, so no assertion here moves. */
+const VIEWER_SETTINGS_ROUTE: Readonly<Record<string, unknown>> = {
+  "settings.getUserSettings": { userId: "user_ct_rules", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: A_PAST_INSTANT },
+};
 const RUN_NOW_ITEM = /Run now/u;
 const LAST_RAN_LINE = /^Last ran /u;
 /** The defect this row killed: a TEXT BOX asking for a lorebook id. Any textbox named for the lorebook knob. */
@@ -153,6 +162,7 @@ interface StubOverrides {
 
 function stub(page: Page, overrides: StubOverrides = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    ...VIEWER_SETTINGS_ROUTE,
     "automation.listRules": () => overrides.rules ?? [RULE],
     "automation.listFires": () => overrides.fires ?? [],
     "automation.listRulePresets": () => overrides.presets ?? [PACING_PRESET],
@@ -505,6 +515,7 @@ test("#621 P1-3 re-derivation: the rule catalogue's summaries are not clipped by
 
 test("#616: the host's 'This chat' tab renders the grafted Rules section in the host-controls band", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...VIEWER_SETTINGS_ROUTE,
     "chat.setRoomOverrides": () => ({}),
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
@@ -535,6 +546,7 @@ test("#616: the host's 'This chat' tab renders the grafted Rules section in the 
 
 test("#616: a MEMBER's tab has no Rules section (host-only by MOUNT, not by a predicate)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...VIEWER_SETTINGS_ROUTE,
     "chat.setRoomOverrides": () => ({}),
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
@@ -566,6 +578,7 @@ test("#640 END-TO-END: a room with no books → attach in Lorebooks → the auto
   // The room's attachment list, MUTABLE — the stub answers what the server would after the write lands.
   const attached: unknown[] = [];
   const trpc = await routeTrpc(page, {
+    ...VIEWER_SETTINGS_ROUTE,
     "chat.setRoomOverrides": () => ({}),
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
@@ -727,13 +740,11 @@ test("#655: with a book attached, the blocking line still asks for the CHOICE (t
   await expect(page.getByText("Attach a lorebook under Lorebooks", { exact: false })).toHaveCount(0);
 });
 
-// The reported two-step defect had two halves and only ONE of them is fixed here. This pins that half: the
-// popover speaks with ONE heading and the heading names the step. The GEOMETRIC half (the frame's width and
-// anchor moving between steps) is NOT pinned, because both call-site levers were tried and measured wrong —
-// `min-w-cq-sm` overflowed the positioner's available width at the 384px docked pane, and `side`/`align`
-// only re-anchored a genuinely different box. It needs a `PopoverPopup` width variant in `@orb/ui` and a
-// real-host receipt; an assertion here would either encode this CT's short page as the spec or, worse,
-// pass while the real surface still jumps. (cb-rules-spend, 2026-08-24 — receipts in the picker's comment.)
+// The reported two-step defect had two halves. This pins the heading half: the popover speaks with ONE
+// heading and the heading names the step. The GEOMETRIC half is pinned separately below, at the real
+// docked-pane geometry (#663) — this CT's default 1280px viewport has room to spare either way, so it
+// cannot tell a stable frame from a resizing one; that receipt needs the narrow viewport.
+// (cb-rules-spend, 2026-08-24 — receipts in the picker's comment; cb-popup-width, #663, closed the fork.)
 test("#655: the picker speaks with ONE heading, and the heading names the step", async ({ mount, page }) => {
   await stub(page, { rules: [], presets: [PACING_PRESET, LORE_PRESET] });
   await mount(<RulesSectionStory chatId={CHAT} />);
@@ -759,6 +770,51 @@ test("#655: the picker speaks with ONE heading, and the heading names the step",
   await expect(reopened.getByRole("heading", { name: "Add a rule" })).toBeVisible();
 });
 
+// #663: the GEOMETRIC half — a NARROW viewport, matching the real docked pane (the context pane is
+// flush against the app window's own edge, so its available width IS the pane width, not this CT's
+// roomy 1280px default). `PopoverPopup width="stable"` (packages/ui/src/primitives/popover/popover.tsx)
+// resolves `min(24rem, --available-width)`: nothing overflows the pane, and the frame holds a width/x
+// within a FLOATING-UI RECOMPUTE tolerance across the swap, instead of resizing WITH the content (the
+// measured pre-fix teleport: {x:513 y:36 w:384} → {x:929 y:476 w:319} — hundreds of px, both axes). A
+// taller step DOES nudge Base UI's shift/collision middleware by a few px (measured against the fixed
+// source: {x:8.85 w:366.3} → {x:5 w:374}, an 8px width / 4px x drift) — real, expected recompute noise
+// from a genuinely different content height, not the defect. The tolerance below is an order of
+// magnitude tighter than the teleport it replaces and an order of magnitude looser than that noise.
+const STABLE_FRAME_TOLERANCE_PX = 24;
+
+test.describe("#663: the picker's popup at the real docked-pane geometry", () => {
+  test.use({ viewport: { width: 384, height: 700 } });
+
+  test("does not overflow the docked pane and holds a stable frame across both steps", async ({ mount, page }) => {
+    await stub(page, { rules: [], presets: [PACING_PRESET, LORE_PRESET] });
+    await mount(<RulesSectionStory chatId={CHAT} />);
+    const popup = await openPicker(page);
+    const viewportWidth = page.viewportSize()?.width ?? 0;
+    expect(viewportWidth).toBeGreaterThan(0);
+
+    const step1 = await popup.boundingBox();
+    expect(step1).not.toBeNull();
+    expect((step1?.x ?? 0) + (step1?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 1);
+    // Constrained, not just "fits": the popup took LESS than the 384px cap — proof `--available-width`
+    // actually won the `min()`, not that nothing happened to overflow by coincidence.
+    expect(step1?.width ?? 0).toBeLessThan(384);
+
+    await popup.getByRole("button", { name: "Periodic pacing nudge" }).click();
+    await expect(popup.getByRole("heading", { name: "Periodic pacing nudge" })).toBeVisible();
+    const step2 = await popup.boundingBox();
+    expect(step2).not.toBeNull();
+    expect((step2?.x ?? 0) + (step2?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 1);
+
+    // The teleport, as a number: the frame's box holds within a tight tolerance across the content swap
+    // instead of resizing/re-anchoring with it.
+    expect(Math.abs((step2?.width ?? 0) - (step1?.width ?? 0))).toBeLessThanOrEqual(STABLE_FRAME_TOLERANCE_PX);
+    expect(Math.abs((step2?.x ?? 0) - (step1?.x ?? 0))).toBeLessThanOrEqual(STABLE_FRAME_TOLERANCE_PX);
+    expect(Math.abs((step2?.y ?? 0) - (step1?.y ?? 0))).toBeLessThanOrEqual(STABLE_FRAME_TOLERANCE_PX);
+
+    await page.screenshot({ path: "reports/snaps/cb-popup-width-docked-pane.png" });
+  });
+});
+
 // The fire log is the "why didn't my rule fire" surface and this disclosure is its ONLY door. It shipped
 // `inline` — text-height, with `::after` resolving `content: none`, so no touch layer was in play at all.
 // A NARROW VIEWPORT WOULD NOT SEE THIS: pointer class is a browser-context flag, and at a fine pointer the
@@ -778,12 +834,14 @@ test.describe("#655: coarse pointer — the fire-log door meets the touch floor"
     const disclosure = page.getByRole("button", { name: "Recent activity for Illustrate the scene" });
     await expect(disclosure).toBeVisible();
     // THE BOX, not `hitExtent`, and the choice is measured rather than preferred. This trigger's fix is a
-    // REAL min-height (`size="control"`), not an overflowing `::after`, so its box IS its target — and
-    // `hitExtent` is structurally incapable of failing here: its `owns()` counts a point as owned when
-    // `elementFromPoint` returns an ANCESTOR (`hit.contains(el)`), which is how it sees a pseudo the DOM
-    // has no node for. Walking out of a 16px trigger lands on the Stack that wraps it, so the sweep ran to
-    // its 80-step ceiling. Proven, not asserted: this test PASSED against the reverted 413×16 source while
-    // the other five #655 pins went red (cb-rules-spend, 2026-08-24) — reported as an instrument finding.
+    // REAL min-height (`size="control"`), not an overflowing `::after`, so its box IS its target.
+    // `hitExtent`'s `owns()` used to count ANY ancestor as owned via `elementFromPoint` (`hit.contains(el)`
+    // unconditionally), so walking out of a 16px trigger landed on the Stack that wraps it and ran to its
+    // 80-step ceiling regardless of the trigger's real size. Proven, not asserted: this test PASSED against
+    // the reverted 413×16 source while the other five #655 pins went red (cb-rules-spend, 2026-08-24) —
+    // reported as an instrument finding, fixed at #662 by scoping ancestor credit to pseudo-carried floors
+    // only. `hitExtent` would now correctly measure this box-carried trigger too; the box read stays the
+    // assertion because a plain box-carried floor needs no compositor sweep.
     await expect.poll(async () => (await disclosure.boundingBox())?.height, { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);
   });
 });

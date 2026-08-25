@@ -73,8 +73,51 @@ const APP_CONFIG = {
 };
 const OWNER_VIEWER = { userId: "user_owner", handle: "owner", globalRole: "owner" };
 
+/**
+ * THE SHELL'S AMBIENT READS (#649) — spread FIRST into every `routeTrpc` call in this file.
+ *
+ * The shell mounts the WHOLE registry of contributed sections, so every mount fires the identity read the
+ * nav gates on, the AppSettings pair the admin-anchored sections suspend on, the personas roster, the key
+ * library, and the workloads run-history + schedule rows. None of that is any ONE test's subject — but
+ * `routeTrpc` answers an unlisted procedure `null`, which is not a view, so seven pipelines ran INERT
+ * across all thirty-three mounts and a regression in any of them was invisible to this file.
+ *
+ * DEFAULTS, NOT A CEILING. The identity-gate tests below list `sessions.me` AFTER the spread and win — the
+ * plain-`user` default here is precisely the un-privileged arm the ungated tests already assumed when the
+ * read resolved null.
+ */
+const SHELL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+  // `ViewerView` (transport/trpc/routers/sessions.ts:25) — a plain user, so the adminOnly nav rows stay
+  // hidden exactly as they did under the unfed null. The admin/owner arms override this key below.
+  "sessions.me": { userId: USER_SETTINGS_VIEW.userId, handle: "ct_settings", globalRole: "user" },
+  // The two AppSettings reads the `admin`-anchored sections suspend on — the SAME resolved config the
+  // admin tests already feed, so the sections resolve instead of falling into their boundary.
+  "settings.getAppSettings": APP_CONFIG,
+  "settings.getAppSettingsWithOverrides": { resolved: APP_CONFIG, overrides: {} },
+  // `PersonaDetail[]` — the personas pane's roster. Empty is the honest fresh-viewer default.
+  "persona.list": [],
+  // `CredentialView[]` — the Connections pane's key library.
+  "credentials.list": [],
+  // The workloads section's run history + schedule rows. Empty is honest: a fresh viewer has run nothing
+  // and scheduled nothing, and an empty ARRAY is a real shape the readers can select over.
+  "workloads.list": [],
+  "workloads.listSchedules": [],
+  // The Connections pane's role rows read the server's OWN chat resolution. A CASCADE row: it is not in the
+  // #649 ledger for this file because it was UNREACHABLE while the AppSettings pair above answered null —
+  // the pane died in its boundary before any role row mounted. Feeding them made it fire and the ratchet
+  // named it on the next run. The `Admin absorbed the System sections` test already fed exactly this and
+  // documented the hole it plugs; the ambient default carries the same settled descriptor everywhere.
+  "connection.resolveChatCapability": makeResolvedChatCapability(),
+  // `PluginView[]` — the Plugins pane's installed list. NOT in the #649 census the ledger carried: this row
+  // is UNBUDGETED and the ratchet REDS it, measured on the UNMODIFIED source at HEAD in this lane's
+  // before-run, so it is a pre-existing red the plugins section brought with it, not something this feed
+  // introduced. `plugins-settings-surface.tsx:29` suspends on it, and `[]` is the honest nothing-installed
+  // arm the surface's own empty state describes.
+  "plugin.list": [],
+};
+
 test("renders the USER + APP group headings and the category rows", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
 
   await expect(component.getByText("User", { exact: true })).toBeVisible();
@@ -87,7 +130,7 @@ test("renders the USER + APP group headings and the category rows", async ({ mou
 // "App" rendered as bare `paragraph:` nodes, so the nav landmark announced one flat run of rows and a reader
 // navigating by structure could not tell where the user tier ended and the app tier began.
 test("each nav tier is a NAMED group, labelled by its own kicker (not a bare paragraph)", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
 
   const nav = component.getByRole("navigation", { name: "Settings sections" });
@@ -104,7 +147,7 @@ test("each nav tier is a NAMED group, labelled by its own kicker (not a bare par
 // hardcodes `aria-expanded="true"` because it assumes its list is always mounted; this surface mounts the list
 // only while there is a query, so on load the combobox claimed to be expanded onto nothing.
 test("the search combobox reports COLLAPSED until a query mounts its list", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
 
   const search = component.getByRole("combobox", { name: "Search settings" });
@@ -126,7 +169,7 @@ test("the search combobox reports COLLAPSED until a query mounts its list", asyn
 // GROUP — it carries aria-expanded, never aria-current, because its active child already is the current
 // item. Both carrying aria-current announced two current items for one place.
 test("the nav is a navigation landmark; a section-owning category is a GROUP and only its leaf is aria-current", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
 
   await expect(component.getByRole("navigation", { name: "Settings sections" })).toBeVisible();
@@ -143,7 +186,7 @@ test("the nav is a navigation landmark; a section-owning category is a GROUP and
 // A category with NO sections has no leaf to hand the marker to — it IS the leaf, so it keeps aria-current
 // and has no aria-expanded (there is nothing to disclose).
 test("a section-less category stays the aria-current leaf", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
 
   const automation = component.getByRole("button", { name: "Automation" });
@@ -153,7 +196,7 @@ test("a section-less category stays the aria-current leaf", async ({ mount, page
 });
 
 test("the active category expands into indented subcategory rows (Discord grammar)", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
 
   // Appearance is active → its subcategory rows render as their own nav buttons.
@@ -165,7 +208,7 @@ test("the active category expands into indented subcategory rows (Discord gramma
 });
 
 test("Appearance is the default pane (a real setting-row surface, not a placeholder)", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
   // The migrated #31 appearance surface renders its "Message style" SECTION heading (the nav also has a
   // "Message style" subcategory row — target the pane's <h2> heading specifically).
@@ -173,7 +216,7 @@ test("Appearance is the default pane (a real setting-row surface, not a placehol
 });
 
 test("clicking a subcategory row marks it aria-current", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
 
   await component.getByRole("button", { name: "Avatars" }).click();
@@ -181,7 +224,7 @@ test("clicking a subcategory row marks it aria-current", async ({ mount, page })
 });
 
 test("switching to an unbuilt category shows ITS distinct teaching copy", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
 
   // Automation is still an unbuilt teaching placeholder — its distinct copy renders on switch.
@@ -211,6 +254,7 @@ test("switching to an unbuilt category shows ITS distinct teaching copy", async 
 // section, "Media & trust", is reachable through ADMIN now, and no System nav row exists.
 test("Admin absorbed the System sections; Connections is real; Automation stays a teaching placeholder", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
     "settings.getAppSettings": () => APP_CONFIG,
     "settings.getAppSettingsWithOverrides": () => ({ resolved: APP_CONFIG, overrides: {} }),
@@ -247,6 +291,7 @@ test("Admin absorbed the System sections; Connections is real; Automation stays 
 // the Admin category exists in the nav + search ONLY for owner ∪ admin viewers.
 test("a plain user never sees the Admin category (nav row + search entry hidden)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
     "sessions.me": () => ({ userId: "user_plain", handle: "plain", globalRole: "user" }),
   });
@@ -263,6 +308,7 @@ test("a plain user never sees the Admin category (nav row + search entry hidden)
 
 test("an admin viewer sees the Admin category and it mounts the REAL pane", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
     "sessions.me": () => ({ userId: "user_admin", handle: "admin", globalRole: "admin" }),
     "admin.listUsers": () => [],
@@ -283,6 +329,7 @@ test("an admin viewer sees the Admin category and it mounts the REAL pane", asyn
 // must re-apply the still-unsatisfied target once visibility GROWS — not fall back to Appearance forever.
 test("a deep-link to a when-gated pane lands on it once the viewer probe resolves (not stuck on the fallback)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
     "sessions.me": () => ({ userId: "user_admin", handle: "admin", globalRole: "admin" }),
     "admin.listUsers": () => [],
@@ -303,7 +350,7 @@ test("a deep-link to a when-gated pane lands on it once the viewer probe resolve
 // (category, subId) pair as a pane-owned one), which is the whole point: a feature can link straight to the
 // section it owns without knowing where the settings shell put it.
 test("a SUB-level deep link lands on the section's anchor (contributed sections included)", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellDeepLinkStory target="chat-behavior" subId="world-info" />);
 
   // The pane resolved AND the contributed section's own anchor is in view + selected in the nav.
@@ -313,7 +360,7 @@ test("a SUB-level deep link lands on the section's anchor (contributed sections 
 });
 
 test("a category-only deep link still lands at the TOP of the pane (no phantom jump)", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellDeepLinkStory target="chat-behavior" />);
 
   await expect(component.getByRole("region", { name: "Chat behavior settings" })).toBeVisible();
@@ -339,11 +386,7 @@ test("a category-only deep link still lands at the TOP of the pane (no phantom j
 // What this fence does own is the contract both halves of the fix serve: a deep-linked pane's FIRST
 // section is the current one, and nothing later takes it back.
 test("#549 a category-only deep link marks the pane's FIRST section current, and keeps it (fence)", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
-    "workloads.list": [],
-    "workloads.listSchedules": [],
-  });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW, "workloads.list": [], "workloads.listSchedules": [] });
   const component = await mount(<SettingsShellDeepLinkStory target="workloads" />);
 
   // SETTLED on the pane's own rendered region, so the assertion runs after the mount the spy raced.
@@ -360,6 +403,7 @@ test("#549 a category-only deep link marks the pane's FIRST section current, and
 // anchor. Since SET-SEAMS stage 4 that pane is ADMIN (§10 Q2), and the leaf is a CONTRIBUTED section's.
 test("fuzzy search jumps to the merged Operations section's admin anchor", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
     "settings.getAppSettings": () => APP_CONFIG,
     "settings.getAppSettingsWithOverrides": () => ({ resolved: APP_CONFIG, overrides: {} }),
@@ -386,7 +430,7 @@ test("fuzzy search jumps to the merged Operations section's admin anchor", async
 // pane-owned one — its nav merges into the appearance pane's subcategories, so its leaf setting is
 // searchable and the hit jumps to the contributed section's own anchor.
 test("fuzzy search finds a CONTRIBUTED section's setting and jumps to its anchor", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
 
   // Start elsewhere so the jump has to switch panes back to Appearance.
@@ -403,7 +447,7 @@ test("fuzzy search finds a CONTRIBUTED section's setting and jumps to its anchor
 });
 
 test("fuzzy search surfaces a setting result and jumps its pane into view", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
 
   // Start on a placeholder pane so the jump has to switch panes back to Appearance.
@@ -427,7 +471,7 @@ test("fuzzy search surfaces a setting result and jumps its pane into view", asyn
 // REGION plus the shell's one aggregate save-status footer (SET-SEAMS §3), which sits below the scroller
 // and must never scroll away — so the column, not the region alone, is what fills the row.
 test("both settings columns fill the row height (own their scroll axis; nav can't be swept)", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
   await expect(component.getByRole("combobox", { name: "Search settings" })).toBeVisible();
 
@@ -469,7 +513,7 @@ test("both settings columns fill the row height (own their scroll axis; nav can'
 // its own story: in the CT harness `[data-slot=dialog-popup]` computes `position: static`, so the escapees
 // land on the fixed viewport and the modal story cannot see the defect at all.
 test("no absolutely-positioned box escapes either settings scroller (the containing-block pin)", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
 
@@ -478,7 +522,7 @@ test("no absolutely-positioned box escapes either settings scroller (the contain
 });
 
 test("a positioned scrolling host around the shell gains NO phantom scroll (the owner's blank space)", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellInScrollingHostStory />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
 
@@ -495,7 +539,7 @@ test("a positioned scrolling host around the shell gains NO phantom scroll (the 
 // Scroll-spy (owner ruling): scrolling the pane updates which subcategory row is aria-current, and a
 // short trailing section still wins once you scroll to the very bottom.
 test("scrolling to the bottom activates the last subcategory (scroll-spy)", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
   // At rest, the first section is active — Library (the trailing section since the ⑪ pageSize row) is NOT.
@@ -516,7 +560,7 @@ test("scrolling to the bottom activates the last subcategory (scroll-spy)", asyn
 // programmatic smooth scroll: a MutationObserver records EVERY subcategory that gains aria-current from
 // the click until the scroll settles — only the target should ever appear.
 test("a distant subcategory click lands on the target, never an intermediate (spy suppressed)", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
 
@@ -581,7 +625,7 @@ test("a distant subcategory click lands on the target, never an intermediate (sp
 // hugs the section's own content (height == the section's height, no grid stretch), and it sits fully
 // within the scroll container's visible width (the inset ring can't be clipped at the scroll edge).
 test("the jump flash hugs the section box and stays within the scroll container", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
 
@@ -624,7 +668,7 @@ test("the jump flash hugs the section box and stays within the scroll container"
 // hairline spans the FULL modal content width (not a nav-column orphan), and the nav's "User" heading
 // starts at the SAME baseline as the pane's first section (the full-width search no longer offsets them).
 test("the modal header divider spans the full content width and the columns share a top baseline", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   await mount(<SettingsModalStory />);
   await page.getByRole("heading", { name: "Message style" }).waitFor();
 
@@ -659,7 +703,7 @@ test("the modal header divider spans the full content width and the columns shar
 // bottom arm used to win and light the LAST section while the reader is looking at the FIRST — a nav that
 // lies about where you are. No scroll ⇒ the first section is current.
 test("a pane that fits (no scroll) resolves the FIRST section, never the last", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellFitsStory />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
 
@@ -680,7 +724,7 @@ test("a pane that fits (no scroll) resolves the FIRST section, never the last", 
 // full string still rides the row's native `title` tooltip (ListRow's `fullTitle`), so the abbreviation is
 // recoverable on hover; pinned because a ListRow change that dropped the attribute would silently lose it.
 test("a navLabel section shows the SHORT name in the nav, the FULL one in its heading + tooltip", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
 
@@ -694,7 +738,7 @@ test("a navLabel section shows the SHORT name in the nav, the FULL one in its he
 // Search matches BOTH names (settings-search.ts merges `navLabel` into the entry's keywords): the reader who
 // remembers the heading and the reader who read the abbreviated nav row must land on the same section.
 test("search finds a navLabel section by its heading AND by its nav label", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
 
@@ -714,6 +758,7 @@ test("search finds a navLabel section by its heading AND by its nav label", asyn
 // only render while it is active.
 test("no nav row clips at the 220px column, in ANY category", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
     "settings.getAppSettings": () => APP_CONFIG,
     "settings.getAppSettingsWithOverrides": () => ({ resolved: APP_CONFIG, overrides: {} }),
@@ -750,7 +795,7 @@ test.describe("narrow (430×740)", () => {
   test.use({ viewport: { width: 430, height: 740 } });
 
   test("the nav list owns the whole pane, and selecting a section PUSHES the pane over it", async ({ mount, page }) => {
-    await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+    await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
     const component = await mount(<SettingsShellNarrowStory />);
     await expect(component.getByRole("button", { name: "Appearance" })).toBeVisible();
 
@@ -779,7 +824,7 @@ test.describe("narrow (430×740)", () => {
 
   // The P0 receipt itself: the pushed pane's FIRST CONTROL was off-screen at y=754 in a 740px viewport.
   test("the pushed pane's first control is on-screen", async ({ mount, page }) => {
-    await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+    await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
     const component = await mount(<SettingsShellNarrowStory />);
     await component.getByRole("button", { name: "Appearance" }).click();
 
@@ -793,7 +838,7 @@ test.describe("narrow (430×740)", () => {
 
   // A search jump has to land in the DETAIL view too — it names a destination, so it pushes.
   test("a search jump pushes the detail into view", async ({ mount, page }) => {
-    await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+    await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
     const component = await mount(<SettingsShellNarrowStory />);
     await expect(component.getByRole("button", { name: "Appearance" })).toBeVisible();
 

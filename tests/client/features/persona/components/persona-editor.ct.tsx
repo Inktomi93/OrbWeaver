@@ -22,8 +22,22 @@ const ACTIVE_PRESET_ID = "preset_ct_active";
 
 const USER_MACROS = [{ name: "sceneTone", description: USER_MACRO_GLOSS, args: [], body: "hushed", inputs: [], strict: false }];
 
+/** The persona editor's lorebook reads (#649) — spread FIRST into both `routeTrpc` calls. The editor mounts
+ *  its world-info attachment cluster beside the description field, so every mount here fires both; neither is
+ *  this file's subject (the macro plane is). Unfed they resolved `routeTrpc`'s null, which is not a view, so
+ *  the book-catalog and per-persona attachment pipelines ran INERT in both tests. Empty ARRAYS are the honest
+ *  default for a fresh viewer and a fresh persona — and unlike null they are real shapes the readers select
+ *  over, so the attachment resolve path actually runs. */
+const PERSONA_EDITOR_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+  // `WorldInfoBookView[]` — the viewer's whole book library, the picker's vocabulary.
+  "worldInfo.listBooks": [],
+  // The books already attached to THIS persona.
+  "worldInfo.listForPersona": [],
+};
+
 test("a persona description completes against the ACTIVE PRESET's user macros, gloss and all", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PERSONA_EDITOR_AMBIENT_ROUTES,
     "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: ACTIVE_PRESET_ID } } }),
     "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
     "persona.update": () => null,
@@ -44,6 +58,7 @@ test("with the BUILT-IN preset active there is no plane to read — the builtin 
   // `defaultPresetId: null` IS the built-in pick, which declares no user macros: the hook must not fetch a
   // preset at all, and the field must still be completable (never an empty popover waiting on a read).
   const trpc = await routeTrpc(page, {
+    ...PERSONA_EDITOR_AMBIENT_ROUTES,
     "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: null } } }),
     "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
     "persona.update": () => null,

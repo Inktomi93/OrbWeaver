@@ -10,6 +10,7 @@
 
 import type { RpgExtractionMode, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
 import { actorRefKey, carriesTracker } from "@orb/contracts/rpg";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -238,6 +239,65 @@ function configView(macros: readonly unknown[] = [], presetNames: readonly strin
   };
 }
 
+/**
+ * THE CHAT PANEL'S AMBIENT READS (#649) — spread FIRST into every `routeTrpc` call in this file.
+ *
+ * The rpg takeover mounts INSIDE the chat context panel, so its sibling meta tabs fire five chat-side reads
+ * that no rpg test is about: the macro/variable pick planes, the active databank set, the assembly preview
+ * and the shape trace. Unfed they resolved `routeTrpc`'s null, which is not a view — so five pipelines ran
+ * INERT under every mount here, including the error-arm mounts at the foot of the file.
+ *
+ * Every value is the honest EMPTY-but-real default for a room with no picks, no attachments and no history:
+ * a zero-token budget over an empty wire, and a shape trace with no rows (hence `no-stable-prefix` and NO
+ * `cacheBreakpointFromEnd` — that field is present only on the `placed` decision, assemble.ts:400-402).
+ * They are DEFAULTS: a test whose subject is one of these lists the key after the spread and wins.
+ */
+const EMPTY_ASSEMBLE_TRACE = {
+  staticSections: [],
+  dynamicSections: [],
+  worldInfoIncluded: 0,
+  worldInfoDropped: 0,
+  worldInfoActivated: [],
+  matchedKeys: [],
+  compactSummaryIncluded: false,
+  memoryIncluded: false,
+  guidedInstructionIncluded: false,
+  staticCacheBusters: [],
+  chatInjectionsIncluded: 0,
+  afterHistorySections: [],
+};
+const CHAT_PANEL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+  // The two PICK planes the Macro-picks section composes. Both reads or neither — feeding one leaves that
+  // section's boundary in its error arm, which is the trap `rules-section.ct.tsx` already documents.
+  "chat.getUserMacroPicks": { macros: [], values: {} },
+  "chat.getVariablePicks": { variables: [], values: {} },
+  // The databank set active for THIS room — empty is honest for a room with nothing attached.
+  "databank.listActiveForChat": [],
+  // This room's attached lorebooks. NOT in the #649 census the ledger carried: this row is UNBUDGETED and
+  // the ratchet REDS it, measured on the UNMODIFIED source at HEAD in this lane's before-run, so it is a
+  // pre-existing red rather than one this feed introduced. Empty is honest for a room with no books.
+  "worldInfo.listForChat": [],
+  // The Preview tab's `AssemblyPreview` (domain/chat/contract/views.ts:247) at its zero floor.
+  "chat.previewAssembly": {
+    prompt: { static: "", dynamic: "", afterHistory: [], sendHistory: true, trace: EMPTY_ASSEMBLE_TRACE },
+    trace: EMPTY_ASSEMBLE_TRACE,
+    budget: { ceilingTokens: 8192, ceilingEstimated: false, totalTokens: 0, sources: [], sections: [] },
+  },
+  // The viewer's settings row. A CASCADE row, not a census one: it does not appear in the #649 ledger for
+  // this file because it was UNREACHABLE while the reads above answered null — the panel's meta tabs died in
+  // their boundary before any settings reader mounted. Feeding them made this one fire, and the ratchet
+  // named it on the very next run. Production defaults, so nothing this file asserts moves.
+  "settings.getUserSettings": { userId: "user_ct_rpg", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
+  // The Diagnostics tab's `ShapeTrace` over an empty wire history.
+  "chat.getShapeTrace": {
+    multiCharacter: false,
+    stageCounts: { withTail: 0, injected: 0, squashed: 0, named: 0 },
+    squashMerges: 0,
+    breakpointDecision: "no-stable-prefix",
+    rows: [],
+  },
+};
+
 // A `rpg.listJournal` stub — the paged chronicle the Journal tab's All scope reads. Two hand/model beats
 // (the tab can't tell them apart, and the edit verb deliberately reaches both).
 // R4c: a `custom` entry carries its OWN free `label` ("prophecy") — the row must render that word, not the
@@ -275,6 +335,7 @@ function stubTakeover(
 ): ReturnType<typeof routeTrpc> {
   const readOnly = opts.readOnly ?? false;
   return routeTrpc(page, {
+    ...CHAT_PANEL_AMBIENT_ROUTES,
     // RESYNC-OR — the resync answers with a `ResyncResult` VERDICT, never a bare `undefined`: it is a model
     // call that can fail at the PROVIDER, and the client reads the verdict to tell "rebuilt" from "the round
     // never ran". A stub returning `undefined` would be testing a contract the server no longer has.
@@ -1162,6 +1223,7 @@ test.describe("FIX 3 — consolidated, announced error region", () => {
     // with bare ~34px retry links. Now the band collapses silently and the body owns the SINGLE `role="alert"`
     // region with scene-named copy + a real Button retry.
     await routeTrpc(page, {
+      ...CHAT_PANEL_AMBIENT_ROUTES,
       "chat.getChat": () => gameChat(),
       "rpg.getGame": () => trpcError({ code: "BAD_REQUEST", message: "incoherent routing: api=agent-sdk is not coherent with source=vllm" }),
       "rpg.getTrackerView": () => trpcError({ code: "BAD_REQUEST", message: "incoherent routing" }),
@@ -1191,6 +1253,7 @@ test.describe("FIX 3 — consolidated, announced error region", () => {
 test.describe("§3.3 — the dangling-pointer heal (typed NOT_FOUND, not a retry loop)", () => {
   test("a NOT_FOUND read renders the typed gone-state + the HOST's Detach action (no Retry)", async ({ mount, page }) => {
     const trpc = await routeTrpc(page, {
+      ...CHAT_PANEL_AMBIENT_ROUTES,
       "chat.getChat": () => gameChat(), // viewerIsHost: true
       // The dangling read: the game row is gone → the verb collapses to the leak-free NOT_FOUND.
       "rpg.getGame": () => trpcError({ code: "NOT_FOUND", message: "game" }),
@@ -1213,6 +1276,7 @@ test.describe("§3.3 — the dangling-pointer heal (typed NOT_FOUND, not a retry
 
   test("a MEMBER sees the gone-copy but NO Detach action (PERMISSION-omit — the host owns the heal)", async ({ mount, page }) => {
     await routeTrpc(page, {
+      ...CHAT_PANEL_AMBIENT_ROUTES,
       // A member viewer (not host) on a chat with a dangling pointer.
       "chat.getChat": () => ({ ...(gameChat() as Record<string, unknown>), viewerIsHost: false }),
       "rpg.getGame": () => trpcError({ code: "NOT_FOUND", message: "game" }),

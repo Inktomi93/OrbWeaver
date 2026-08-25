@@ -63,10 +63,12 @@ const HOME_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   ...STREAM_MUTATION_ROUTES,
   "sessions.me": { userId: castId<UserId>("user_ct"), globalRole: "user", handle: "app_root" },
   // The temp-chat tile's fire-and-forget janitor mutation fires once per HOME mount, on an idle deadline
-  // (home-temp-chat-tile-body.tsx REAP_IDLE_TIMEOUT_MS) — every test in this file mounts Home. Its own
-  // `onSuccess` reads `data.reaped` (`data !== undefined && data.reaped === 0`), so an unfed `null` throws
-  // reading `.reaped` off it — a real defect this feed retires rather than papers over: `{reaped: 0}` is the
-  // honest "nothing expired" default the temp-tile test already asserted explicitly.
+  // (home-temp-chat-tile-body.tsx REAP_IDLE_TIMEOUT_MS) — every test in this file mounts Home. The feed is
+  // for pipeline EXECUTION, not a defect fix: the wire type is non-nullable `{reaped: number}`, and the
+  // `invalidates` guard (`data !== undefined && data.reaped === 0`) is correct against it — only routeTrpc's
+  // lenient fulfil can fabricate the `null` that slips past `!== undefined`, a HARNESS artifact production
+  // never produces (there is no `onSuccess` reading `.reaped`; the only reader is `invalidates`). `{reaped: 0}`
+  // is the honest "nothing expired" shape so the invalidation path runs for real.
   "chat.reapTemporaryChats": { reaped: 0 },
 };
 

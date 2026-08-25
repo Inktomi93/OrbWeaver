@@ -14,6 +14,11 @@ import type { Page } from "@playwright/test";
 import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+// The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
+// SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`
+// never answers them and they rode `routeTrpc`'s lenient null in every mount here. Imported from the bus's
+// own fixture module rather than re-spelled, so the two directions of this feed cannot drift apart.
+import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { BackupSettingsStory } from "../_ct-stories.tsx";
 
 /** The tab's ONE socket, scripted with the import run's frames. The tracker mounts only AFTER the upload
@@ -27,7 +32,7 @@ function routeImportWorkloadSocket(page: Page, events: readonly WorkloadEvent[])
 }
 
 test("export: a full selection downloads the whole library (no kinds param); unchecking one narrows it + keeps assets", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES });
   let exportUrl: string | undefined;
   await page.route("**/api/export/library**", async (route) => {
     exportUrl = route.request().url();
@@ -61,7 +66,7 @@ test("export: a full selection downloads the whole library (no kinds param); unc
 });
 
 test("import: dropping a .zip POSTs the bundle, tails the workload, and shows the count summary", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES });
   let bundlePost: { method: string } | undefined;
   await page.route("**/api/import/bundle", async (route) => {
     bundlePost = { method: route.request().method() };

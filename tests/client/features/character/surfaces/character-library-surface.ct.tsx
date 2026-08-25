@@ -27,6 +27,24 @@ import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterLibrarySurfaceStory } from "../_ct-stories.tsx";
 import { characterListResponder, makeCharacterSummary, makeTagFixture } from "../fixtures.ts";
 
+/**
+ * THE LIBRARY PLANE'S AMBIENT READS (#649) — spread FIRST into every `routeTrpc` call in this file.
+ *
+ * Neither is this file's subject: the library CTs are about paging, search, filters and the census. But the
+ * plane mounts the editor pane beside the list, so it fires `chat.listChats`, and `createCollectionSurface`
+ * reads the viewer's `library.pageSize` off the settings row. Unfed, both resolved `routeTrpc`'s null — the
+ * chat-list pipeline never ran at all and the page-size resolve fell to its no-settings default, so a
+ * regression in either was invisible to all thirty-one mounts here.
+ *
+ * The page size is the SCHEMA DEFAULT, which is exactly what the unfed fallback produced (`settingsView`'s
+ * own note, below) — so this feeds the pipeline without moving any existing assertion. A test that needs a
+ * different size lists `settings.getUserSettings` AFTER the spread and wins (the eviction test does).
+ */
+const LIBRARY_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+  "settings.getUserSettings": { userId: "user_ct_lib", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
+  "chat.listChats": chatListResponder([]),
+};
+
 /** A library ROW, by its character's name.
  *
  *  `getByText` cannot address one any more, and that is a FIXTURE-REALISM fix rather than a workaround
@@ -66,7 +84,7 @@ function twoPageResponder(input: unknown): unknown {
 }
 
 test("renders the first page, then auto-fetches the next page (tail-fetch guard)", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": twoPageResponder });
+  await routeTrpc(page, { ...LIBRARY_AMBIENT_ROUTES, "character.list": twoPageResponder });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
 
@@ -85,7 +103,7 @@ test("the search box asks the SERVER — a match beyond the loaded page is found
     ...Array.from({ length: 40 }, (_unused, at) => makeCharacterSummary({ id: `char_fill_${String(at)}`, name: `Filler ${String(at)}`, createdAt: 9000 - at })),
     makeCharacterSummary({ id: "char_deep", name: "Zephyrine", createdAt: 10 }),
   ];
-  const trpc = await routeTrpc(page, { "character.list": characterListResponder(library), "chat.listChats": chatListResponder([]) });
+  const trpc = await routeTrpc(page, { ...LIBRARY_AMBIENT_ROUTES, "character.list": characterListResponder(library), "chat.listChats": chatListResponder([]) });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await expect(component.getByText("Filler 0")).toBeVisible();
@@ -111,7 +129,7 @@ const EMPTY_LIBRARY_INVITATION = /Weave your first one to begin/u;
 const EMPTY_LIBRARY_BAND_DOOR = /use New at the top of this pane/u;
 
 test("#532 an empty library teaches and POINTS at the band's New — it never mints a second door", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": characterListResponder([]) });
+  await routeTrpc(page, { ...LIBRARY_AMBIENT_ROUTES, "character.list": characterListResponder([]) });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
 
@@ -127,7 +145,11 @@ test("#532 an empty library teaches and POINTS at the band's New — it never mi
 });
 
 test("a search with no matches shows the 'no matches' empty state", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": characterListResponder([ARIA, BOLT, CASSIUS]), "chat.listChats": chatListResponder([]) });
+  await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
+    "character.list": characterListResponder([ARIA, BOLT, CASSIUS]),
+    "chat.listChats": chatListResponder([]),
+  });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await expect(row(component, "Cassius")).toBeVisible();
@@ -147,6 +169,7 @@ test("a read failure shows the error state with a working Retry (rule 1 — no d
   // list would render fine, which is a test that proves nothing about its own subject.
   let failed = false;
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": (input: unknown) => {
       const args = (input ?? {}) as { starred?: boolean; limit?: number };
       const isCollection = args.starred === undefined && args.limit !== 1;
@@ -215,6 +238,7 @@ const RPG_TAG_LIBRARY = tagLibraryOf({ id: "tag_rpg", name: "rpg", characters: 1
  *  empty `listChats` (empty resume map) + the tag library the chips come from. */
 function routeThree(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([STARLA, BOLT2, TAGGED]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => RPG_TAG_LIBRARY,
@@ -274,6 +298,7 @@ test("C9-1d an OPEN tag's group starts EXPANDED; a plain tag's group starts coll
     tags: [makeTagFixture({ id: "tag_rpg", name: "rpg", folderType: "NONE" })],
   });
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([inOpenFolder, inPlainGroup]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 1 }, { id: "tag_rpg", name: "rpg", characters: 1 }),
@@ -379,6 +404,7 @@ const LATE_FAVORITE = makeCharacterSummary({
 
 test("D1 a favorite that lives deep in the library arrives on the FIRST page of the filtered read", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([...PAGE1_FILLERS, LATE_FAVORITE]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],
@@ -424,6 +450,7 @@ test("the head page is NEVER evicted — all six pages stay loaded through a dee
     makeCharacterSummary({ id: `char_deep_${String(at)}`, name: `Deep ${String(at).padStart(2, "0")}`, createdAt: 100_000 - at }),
   );
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "settings.getUserSettings": () => settingsView(EVICTION_PAGE_SIZE),
     "character.list": characterListResponder(library),
     "chat.listChats": chatListResponder([]),
@@ -483,6 +510,7 @@ const TAG_VOCABULARY = tagLibraryOf({ id: "tag_adventure", name: "adventure", ch
 
 test("D2 the bulk Tag action opens a picker and applies a tag to the selection", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
@@ -516,6 +544,7 @@ test("D2 the bulk Tag action opens a picker and applies a tag to the selection",
 // act — the confirm says which of the two things the click will do.
 test("the tag picker suggests EXISTING tags as you type, and picking one attaches it", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
@@ -543,6 +572,7 @@ test("the tag picker suggests EXISTING tags as you type, and picking one attache
 
 test("a name that matches nothing makes CREATING the deliberate, labelled act", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
@@ -570,6 +600,7 @@ test("a name that matches nothing makes CREATING the deliberate, labelled act", 
 // suggestion list with nothing to suggest must not open at all.
 test("a no-match query opens NO popup — the confirm stays clickable and in the a11y tree", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
@@ -625,6 +656,7 @@ function settingsView(pageSize: number): unknown {
 
 test("⑪ the user's library.pageSize threads into the character.list request limit", async ({ mount, page }) => {
   const trpc: TrpcRecorder = await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "settings.getUserSettings": () => settingsView(42),
     "character.list": twoPageResponder,
   });
@@ -635,6 +667,7 @@ test("⑪ the user's library.pageSize threads into the character.list request li
 
 test("⑪ with no stored pageSize, the request falls to the schema default (30)", async ({ mount, page }) => {
   const trpc: TrpcRecorder = await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "settings.getUserSettings": () => settingsView(DEFAULT_USER_SETTINGS.library.pageSize),
     "character.list": twoPageResponder,
   });
@@ -739,6 +772,7 @@ function routeManyTags(page: Page, count: number, extra: readonly { readonly id:
     ...extra.map((one) => makeTagFixture(one)),
   ];
   return routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([makeCharacterSummary({ id: "char_tagged", name: "Tagged One", createdAt: 3000, tags })]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => tags.map((tag) => ({ id: tag.id, name: tag.name, isHiddenOnCard: false, characters: 1 })),
@@ -827,6 +861,7 @@ test("cycling a chip SPEAKS the new result count (it changed the list silently b
 
 test("the chip vocabulary is the TAG LIBRARY — a tag no loaded row carries still has a chip", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     // BOLT2 carries no tags at all, so a row-derived vocabulary would render zero chips here.
     "character.list": characterListResponder([BOLT2]),
     "chat.listChats": chatListResponder([]),
@@ -865,6 +900,7 @@ async function seedDeadTagFilter(page: Page, state: "include" | "exclude"): Prom
 test("a persisted filter for a DELETED tag still renders a clearable chip (it cannot be an invisible filter)", async ({ mount, page }) => {
   await seedDeadTagFilter(page, "include");
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([BOLT2]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 7 }),
@@ -891,6 +927,7 @@ test("a persisted filter for a DELETED tag still renders a clearable chip (it ca
 test("W5 a persisted include-filter for a DELETED tag does NOT empty the library", async ({ mount, page }) => {
   await seedDeadTagFilter(page, "include");
   const trpc = await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([BOLT2]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 7 }),
@@ -916,6 +953,7 @@ test("W5 a LIVE tag filter still filters — the drop is referential, not a disa
   });
   await page.reload();
   const trpc = await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([BOLT2, TAGGED]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => RPG_TAG_LIBRARY,
@@ -937,6 +975,7 @@ const COUNT_ONLY_PAGE = 1;
 test("the list band prints the server census, not the loaded row count", async ({ mount, page }) => {
   const rows = characterListResponder([STARLA, BOLT2, TAGGED]);
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": (input: unknown) => {
       const args = (input ?? {}) as { limit?: number };
       // The band asks for the cheapest possible page and reads `totalCount` off it.
@@ -1149,6 +1188,7 @@ const LAST_RAIL_CHIP = /^Filter by bulk-07:/u;
 function routeBigVocabulary(page: Page, count: number): Promise<TrpcRecorder> {
   const tags = Array.from({ length: count }, (_unused, at) => makeTagFixture({ id: `tag_v_${String(at)}`, name: `vocab-${String(at).padStart(3, "0")}` }));
   return routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([makeCharacterSummary({ id: "char_plain", name: "Tagged One", createdAt: 3000, tags: [] })]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => tags.map((tag) => ({ id: tag.id, name: tag.name, isHiddenOnCard: false, characters: 1 })),
@@ -1304,6 +1344,7 @@ test("P2 the filter rail RESERVES the tag lines — the vocabulary landing does 
   const hold = trpcHold();
   const tags = Array.from({ length: 12 }, (_unused, at) => makeTagFixture({ id: `tag_bulk_${String(at)}`, name: `bulk-${String(at).padStart(2, "0")}` }));
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([makeCharacterSummary({ id: "char_plain", name: "Tagged One", createdAt: 3000, tags: [] })]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": hold,
@@ -1439,6 +1480,7 @@ const TITLE_FLOOR_PX = 200;
 
 function routeOneLongName(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([makeCharacterSummary({ id: "char_long", name: LONG_NAME, createdAt: 3000, tags: [] })]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],
@@ -1450,6 +1492,7 @@ function routeOneLongName(page: Page): Promise<TrpcRecorder> {
 // agentic audit, and agent-nav scored 50/100 for it.
 test("P1-1 the library announces exactly ONE list, and it is the one holding the rows", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([ARIA, BOLT, CASSIUS]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],
@@ -1525,6 +1568,7 @@ test("P1-3 revealing the row's controls costs ZERO reflow — the title box is i
 // at rest) is met by the title-line ★ marker, which yields exactly when the toggle reveals.
 test("P1-3 a starred row shows its ★ at rest on the TITLE LINE, and it yields to the toggle on hover", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([makeCharacterSummary({ id: "char_star1", name: "Starla", starred: true, createdAt: 3000, tags: [] })]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],
@@ -1556,6 +1600,7 @@ const BIG_CENSUS = 327;
 
 function routePartialLibrary(page: Page, rows: readonly ReturnType<typeof makeCharacterSummary>[]): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": (input: unknown) => {
       const args = (input ?? {}) as { starred?: boolean; limit?: number };
       const isCollection = args.starred === undefined && args.limit !== COUNT_ONLY_PAGE;
@@ -1701,6 +1746,7 @@ const CHARLOTTE = makeCharacterSummary({ id: "char_c1", name: "Charlotte", handl
 
 test("#517 the qualifier is spent on AMBIGUITY — both Emilys carry one, the unique Charlotte does not", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([EMILY_PLAIN, EMILY_THIRD, CHARLOTTE]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],
@@ -1732,6 +1778,7 @@ test("#517 the qualifier is spent on AMBIGUITY — both Emilys carry one, the un
 // label is character-for-character its accessible name (WCAG 2.5.3 by identity, not by prefix rule).
 test("#517 the qualifier is VISIBLE, and the row's visible label IS its accessible name", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     // Both Emilys carry a pitch, so the old subtitle ladder shows the SAME line on both rows: the case the
     // corpus happened not to contain, and the one the sighted reader cannot solve.
     "character.list": characterListResponder([
@@ -1791,6 +1838,7 @@ test("#493 group-by-tag says it is grouping the LOADED page, not the library", a
 
 test("#493 a COMPLETE library groups with no caveat — the notice is a claim about partiality, not decoration", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([ARIA, BOLT, CASSIUS]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],
@@ -1837,6 +1885,7 @@ test("#502 the tag vocabulary is NOT read while the filter disclosure is shut �
 // simply no longer a second printed number.
 test("#518 the census has ONE visible home — the band answers the lens, the pane's line is spoken only", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([ARIA, BOLT, CASSIUS]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],

@@ -23,10 +23,18 @@ const SETTINGS_VIEW = {
 
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 
+/** The settings shell's viewer-identity read (#649) — the nav resolves the admin/owner-gated panes off it,
+ *  and it is nobody's subject in this file. Unfed it resolved `routeTrpc`'s null, so the whole identity-gated
+ *  nav pipeline ran INERT here. A plain `user` viewer is the un-privileged arm these save-status tests assume. */
+const SHELL_VIEWER_ROUTE: Readonly<Record<string, unknown>> = {
+  "sessions.me": { userId: SETTINGS_VIEW.userId, handle: "ct_save_status", globalRole: "user" },
+};
+
 /** The shell at the chat-behavior pane, whose contributed sections (memory ① · world-info ② · databank ④)
  *  all report into the host. `failSaves` makes every section save fail (the P4 error arm). */
 async function openChatBehavior(mount: (c: ReactElement) => Promise<unknown>, page: Page, failSaves: boolean): Promise<void> {
   await routeTrpc(page, {
+    ...SHELL_VIEWER_ROUTE,
     "settings.getUserSettings": () => SETTINGS_VIEW,
     [UPDATE_PROC]: () => (failSaves ? trpcError({ code: "INTERNAL_SERVER_ERROR", message: "nope" }) : {}),
   });
@@ -93,6 +101,7 @@ const PROSE_ANCHOR = "#settings-anchor-chat-behavior-prose";
 
 test("BLOCKED: a section holding its write flips the footer off 'Saved' and stays locatable", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...SHELL_VIEWER_ROUTE,
     "settings.getUserSettings": () => ({
       ...SETTINGS_VIEW,
       config: {

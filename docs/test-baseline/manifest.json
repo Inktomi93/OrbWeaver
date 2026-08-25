@@ -206,7 +206,6 @@
     "tests/client/features/discovery/surfaces/corpus-dossier-surface.ct.tsx",
     "tests/client/features/discovery/surfaces/corpus-list-surface.ct.tsx",
     "tests/client/features/home/components/home-tile.ct.tsx",
-    "tests/client/features/home/lib/automation-tile.ct.tsx",
     "tests/client/features/home/lib/buddy-tile.ct.tsx",
     "tests/client/features/home/lib/order-home-tiles.test.ts",
     "tests/client/features/home/lib/section-jump-tile.ct.tsx",
@@ -1763,6 +1762,9 @@
     "tests/ui/touch-target-floor.suite.ct.tsx"
   ],
   "deletions": {
+    "tests/client/features/home/lib/automation-tile.ct.tsx": {
+      "why": "its SUBJECT was RETIRED: `features/home/lib/automation-tile.tsx` (the dormant Automation home doorway) was removed with B3 (#670) — the tile's own contract said it stays \"until B3\", and B3 lands the member-visible quick-reply CHIPS that consume the `automation.stream` channel the doorway stood for, so an 'honest face of future stuff' doorway for a feature that now ships a live surface (the S1 chips + the automation settings pane) would be a lie. Nothing was dropped: the DOORWAY-BEHAVIOUR arms it pinned (name + teaser + tracked reason, ZERO interactive controls, the dashed inline rule, doorways sort LAST) are the generic doorway contract still pinned for the surviving buddy doorway in tests/client/features/home/lib/buddy-tile.ct.tsx and the group/fold + h3-title arms in tests/client/features/home/surfaces/home-surface.ct.tsx (both re-pinned to the single remaining doorway). Un-deletes only if a dormant Automation home tile is ever re-introduced."
+    },
     "tests/tooling/no-test-fabrication.residual.test.ts": {
       "why": "its SUBJECT was deleted: the no-test-fabrication per-file baseline ratchet reached its terminal `{}` (#590) and was removed per GATE-AUTHORING.md §4.8 (baseline + generator + the gate's loader/stale-row reader arms), so `createNoTestFabrication(baseline)` — the injected-baseline factory this residual test exercised — no longer exists. The gate's DETECTION coverage (double-cast/literal-cast FLAG, exempt-type + escape PASS, non-tests scope) is unaffected and lives in the gate's own mustFlag/mustPass conformance examples. Un-deletes only if a per-file admission ratchet is ever reintroduced for this gate."
     },
