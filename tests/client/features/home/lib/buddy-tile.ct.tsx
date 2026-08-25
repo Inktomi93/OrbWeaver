@@ -36,8 +36,9 @@ test("the doorways sort LAST — they never push a working tile below the fold",
   const home = await mount(<HomeRealDoorwaysStory />);
   await home.getByRole("button", { name: GROUP_LABEL }).click();
 
+  // Automation's doorway retired with B3, so buddy is the last dormant doorway; the SORT-LAST ordering
+  // against working tiles is pinned in home-surface.ct.tsx's shipped-registry stories.
   const tiles = home.locator("[data-home-tile]");
-  await expect(tiles).toHaveCount(2);
+  await expect(tiles).toHaveCount(1);
   await expect(tiles.nth(0)).toHaveAttribute("data-home-tile", "buddy");
-  await expect(tiles.nth(1)).toHaveAttribute("data-home-tile", "automation");
 });

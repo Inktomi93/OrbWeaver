@@ -50,7 +50,7 @@ import { makeConfigSection } from "@orb/client/features/config";
 import { connectionsPane } from "@orb/client/features/credentials";
 import { addDocumentModal, databankDocumentsTile, databankSection } from "@orb/client/features/databank";
 import { corpusSection } from "@orb/client/features/discovery";
-import { automationDormantTile, buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "@orb/client/features/home";
+import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "@orb/client/features/home";
 import { imageDetailModal, imageEditModal, imagineModal } from "@orb/client/features/imagery";
 import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
@@ -192,7 +192,6 @@ const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [
   chatTempChatTile,
   databankDocumentsTile,
   buddyDormantTile,
-  automationDormantTile,
 ];
 
 const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [

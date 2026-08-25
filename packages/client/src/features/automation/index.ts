@@ -16,5 +16,6 @@ export { RulesSection } from "./components/rules-section.tsx";
 export type { PendingAsk } from "./lib/apply-automation-bus-event.ts";
 export { applyAutomationBusEvent, pruneExpiredAsks } from "./lib/apply-automation-bus-event.ts";
 export { automationPane } from "./lib/automation-pane.tsx";
+export { automationQuickReplySource } from "./lib/quick-reply-control-source.ts";
 export { automationRulesSection } from "./lib/rules-settings-section.tsx";
 export { automationSuggestionSource } from "./lib/suggestion-control-source.ts";
