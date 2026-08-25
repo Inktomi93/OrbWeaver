@@ -2,7 +2,6 @@
 // (KV cascades) → reap the bundle asset. The end state is zero rows, zero KV, zero bundle bytes.
 
 import { pluginKv } from "@orb/db";
-import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PluginNotFoundError } from "@orb/server/domain/plugin";
@@ -83,15 +82,47 @@ test("uninstall takes the standing re-consent with it — a REINSTALL at the sam
   expect(row?.widenedNetHosts).toEqual([]);
 });
 
-test("a missing/foreign plugin is a leak-free NotFound; a non-admin is refused", async () => {
+test("a missing plugin id is a leak-free NotFound", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const user = await seedUser(db, { handle: castId<Handle>("user") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
 
   await expect(h.service.uninstall({ caller: ownerPrincipalFor(owner), pluginId: castId<PluginId>("plugin_missing") })).rejects.toBeInstanceOf(
     PluginNotFoundError,
   );
-  await expect(h.service.uninstall({ caller: principalFor(user), pluginId: installed.id })).rejects.toBeInstanceOf(DomainForbiddenError);
+});
+
+test("a plain user (role:'user') uninstalls their OWN plugin — D147", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const user = await seedUser(db, { handle: castId<Handle>("user") });
+  const installed = await h.service.install({ caller: principalFor(user), bundle: makeBundle({ id: "mine" }), grant: [] });
+
+  await h.service.uninstall({ caller: principalFor(user), pluginId: installed.id });
+
+  expect(await h.service.list({ caller: principalFor(user) })).toEqual([]);
+});
+
+// The DESTRUCTIVE cross-user arm. `uninstall` returns void, so a silent write-IDOR leaves no error to read —
+// the evidence is that A's row, A's KV and A's bundle bytes all SURVIVED the stranger's call. Both a plain
+// user and the apex role are refused identically: there is no admin any-row branch (D147).
+test("a stranger cannot uninstall another user's plugin — the row, its KV and its bundle all survive", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const alice = await seedUser(db, { handle: castId<Handle>("alice") });
+  const bob = await seedUser(db, { handle: castId<Handle>("bob") });
+  const boss = await seedUser(db, { handle: castId<Handle>("boss") });
+  const hers = await h.service.install({
+    caller: principalFor(alice),
+    bundle: makeBundle({ id: "mood", capabilities: ["storage.kv"] }),
+    grant: ["storage.kv"],
+  });
+  await upsertKv(db, { pluginId: hers.id, ownerId: alice }, { key: "k", value: "v", updatedAt: 1000 });
+
+  await expect(h.service.uninstall({ caller: principalFor(bob), pluginId: hers.id })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.uninstall({ caller: ownerPrincipalFor(boss), pluginId: hers.id })).rejects.toBeInstanceOf(PluginNotFoundError);
+
+  expect((await h.service.list({ caller: principalFor(alice) })).map((p) => p.id)).toEqual([hers.id]);
+  expect(await db.select().from(pluginKv).where(eq(pluginKv.pluginId, hers.id))).toHaveLength(1);
+  expect(h.storedBytes.size).toBe(1); // the bundle asset was never reaped out from under A
 });

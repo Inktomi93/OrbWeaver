@@ -1,6 +1,7 @@
 // Shared test harness for the domain/plugin slice (NOT a test file — no `.test` suffix). Builds a real-db
-// `PluginContext` with fakes at the edges per "fake at the edges, inject at the root": the REAL `can()` seam
-// (admin/guard — install authority is a real decision), a real assets fake that writes an `assets` row so the
+// `PluginContext` with fakes at the edges per "fake at the edges, inject at the root". There is no `can()`
+// seam to inject: plugin authority is the OWNER-SCOPED ROW LOAD against the real db (D147), so the authority
+// decision is exercised for real by every test here rather than mocked. Also: a real assets fake that writes an `assets` row so the
 // `plugins.bundle_asset_id` FK resolves + a reference-aware `reapOrphans` (mirrors `reapIfOrphan` — never reaps
 // a still-referenced bundle), the frozen clock + seeded ids, and a scriptable `PluginHostPort` fake. A separate
 // `makeSandboxPort` wires the REAL P1 `infra/plugin-host` `Sandbox` for the determinism-floor round-trip.
@@ -11,7 +12,6 @@ import type { Db } from "@orb/db";
 import { assets, plugins } from "@orb/db";
 import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { can } from "@orb/server/domain/admin";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { Sandbox } from "@orb/server/infra/plugin-host";
 import { and, eq, inArray } from "drizzle-orm";
@@ -41,12 +41,16 @@ export { seedUser } from "../embeddings/_support.ts";
 /** Parse a `[level] message` host.log line back into a structured `PluginLogView`. */
 const LOG_LINE_RE = /^\[(info|warn|error)\]\s(.*)$/su;
 
-/** A resolved `Principal` for `userId` — role `user` (a non-admin: install/upgrade/uninstall are REFUSED). */
+/** A resolved `Principal` for `userId` — role `user`. Under D147 this is the COMMON plugin caller: a plain
+ *  user installs for themselves and manages their own rows exactly like anyone else. (It used to be the
+ *  refused case — every management verb was admin-gated; that gate is gone.) */
 export function principalFor(userId: UserId): Principal {
   return { userId, role: "user", handle: castId<Handle>(userId), externalId: null, via: "fallback" };
 }
 
-/** The box-owner `Principal` for `userId` — satisfies the `can(_,"admin",{kind:"global"})` install gate. */
+/** The box-owner `Principal` for `userId` — the APEX global role. It buys nothing extra on the plugin
+ *  surface (D147: authority is the owner-scoped row load, not a role), which is exactly why the cross-user
+ *  refusal tests aim it at ANOTHER user's row: the apex role must be refused there too. */
 export function ownerPrincipalFor(userId: UserId): Principal {
   return { userId, role: "owner", handle: castId<Handle>(userId), externalId: null, via: "fallback" };
 }
@@ -191,7 +195,6 @@ export function makePluginHarness(
     db,
     now: () => clock.now(),
     newPluginId: () => castId<PluginId>(ids.next("plugin")),
-    can,
     assets: { store, readBytes, reapOrphans },
     host: overrides.port ?? fakePort,
     ops: overrides.ops ?? makeInertOps(),
