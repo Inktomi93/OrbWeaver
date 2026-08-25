@@ -124,7 +124,7 @@ test("the trigger unions have no member beyond their tuples", () => {
 
 // ── the action union + liveness (A4 — 03 / 01 §1) ────────────────────────────────────────────────
 
-test("AUTOMATION_ACTION_TYPES is the pinned 9-member live arm set", () => {
+test("AUTOMATION_ACTION_TYPES is the pinned 10-member live arm set", () => {
   expect(AUTOMATION_ACTION_TYPES).toEqual([
     "set_variable",
     "transform_draft",
@@ -134,6 +134,9 @@ test("AUTOMATION_ACTION_TYPES is the pinned 9-member live arm set", () => {
     "trigger_turn",
     "generate_image",
     "set_chat_background",
+    // S5 (C1) — the quiet-analysis arm, first-party, BEFORE run_tool so the boundary member stays last.
+    // The tuple position is also the arm-vocabulary display order (rule-copy's ARM_LABELS derives it).
+    "run_analysis",
     // D146-a — the CONTRIBUTOR bridge. The tuple stays CLOSED and gains ONE first-party member; the
     // open-world plugin tool name rides in its payload. This assertion is the guard on that clause: the day
     // someone adds a `plugin_*`-shaped or otherwise open member here, it fails, and it should.
@@ -206,6 +209,57 @@ test("run_tool carries the open-world name in its PAYLOAD, defaults argsTemplate
   expect(automationActionSchema.safeParse({ type: "run_tool", name: "x".repeat(64) }).success).toBe(true);
   // The result plane is the SAME closed axis `set_variable.scope` uses — one spelling, no third plane.
   expect(automationActionSchema.safeParse({ type: "run_tool", name: "t", resultScope: "session" }).success).toBe(false);
+});
+
+// S5 (C1) — the run_analysis arm's authoring contract, pinned: routes default their apply postures, absence
+// is the off switch, and the arm is deliberately NOT suggestible (consent is PER-ROUTE, never arm-level).
+test("run_analysis parses with per-route apply defaults; an absent route stays absent", () => {
+  const steerOnly = automationActionSchema.parse({
+    type: "run_analysis",
+    brief: "Maintain a secret arc and pace the scene.",
+    routes: { steer: {} },
+  });
+  expect(steerOnly).toEqual({
+    type: "run_analysis",
+    brief: "Maintain a secret arc and pace the scene.",
+    // steer applies DIRECT by default (RULED F7 — the pacing preset's posture).
+    routes: { steer: { apply: "direct" } },
+  });
+
+  const full = automationActionSchema.parse({
+    type: "run_analysis",
+    brief: "b",
+    steer: "slow burn",
+    routes: {
+      steer: { apply: "confirm" },
+      lore: { bookId: "world_book_01h0000000000000000000000x" },
+      suggest: {},
+      vars: { key: "tension" },
+    },
+  });
+  // lore defaults CONFIRM (a durable canon write earns a card); vars/suggest carry no apply knob at all.
+  expect(full).toMatchObject({
+    steer: "slow burn",
+    routes: {
+      steer: { apply: "confirm" },
+      lore: { apply: "confirm", bookId: "world_book_01h0000000000000000000000x" },
+      suggest: {},
+      vars: { key: "tension" },
+    },
+  });
+
+  // The apply axis is CLOSED.
+  expect(automationActionSchema.safeParse({ type: "run_analysis", brief: "b", routes: { steer: { apply: "auto" } } }).success).toBe(false);
+  // A brief is required — the pass IS its task.
+  expect(automationActionSchema.safeParse({ type: "run_analysis", brief: "", routes: { steer: {} } }).success).toBe(false);
+});
+
+test("run_analysis is SPEND-classed and NOT suggestible (consent is per-route)", () => {
+  expect(SPEND_ARM_TYPES).toContain("run_analysis");
+  // `confirmFirst` is unspellable on this arm — the parse strips it, so `SuggestibleArmType` never widens.
+  const parsed = automationActionSchema.parse({ type: "run_analysis", brief: "b", routes: { steer: {} }, confirmFirst: true });
+  expect(parsed).not.toHaveProperty("confirmFirst");
+  expect(isConfirmFirstArm(parsed)).toBe(false);
 });
 
 test("run_tool is SPEND-classed and deliberately NOT suggestible", () => {

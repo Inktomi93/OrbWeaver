@@ -16,7 +16,7 @@ import {
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("RULE_PRESET_IDS is the pinned 11-member catalogue (A3's seven + A4's four), in §4 build order", () => {
+test("RULE_PRESET_IDS is the pinned 12-member catalogue (A3's seven + A4's four + C1's pacing analysis), in §4 build order", () => {
   expect(RULE_PRESET_IDS).toEqual([
     "welcomeBackRecap",
     "autoAddLore",
@@ -29,12 +29,16 @@ test("RULE_PRESET_IDS is the pinned 11-member catalogue (A3's seven + A4's four)
     "callAVote",
     "callback",
     "cutaways",
+    // §4 #15 — C1's story-pacing analysis (RULED F7 direct steer; mint refuses on an active-game chat).
+    "storyPacing",
   ]);
   expect(rulePresetIdSchema.options).toEqual(RULE_PRESET_IDS);
-  // The rows riding LATER phases stay unspellable: #2 (C6's actor-excluding notification recipient) and
-  // #11/#14-#16 (C1's analysis arm).
+  // The rows riding LATER phases stay unspellable: #2 (C6's actor-excluding notification recipient),
+  // #11 rumor mill (C2's upsertLoreEntry route), #14 spotlight balance, and #16 the needle (the HELD
+  // juice-presets lane — its vars route + read proc shipped with C1, OFF by default per the ruling).
   expect(rulePresetIdSchema.safeParse("asyncTableNudge").success).toBe(false);
   expect(rulePresetIdSchema.safeParse("rumorMill").success).toBe(false);
+  expect(rulePresetIdSchema.safeParse("theNeedle").success).toBe(false);
 });
 
 test("RULE_PRESET_KNOB_KINDS is the pinned editor axis — four scalars plus the reference kind", () => {
@@ -74,6 +78,7 @@ const PRESET_SEEN: Record<RulePresetId, true> = {
   callAVote: true,
   callback: true,
   cutaways: true,
+  storyPacing: true,
 };
 const KIND_SEEN: Record<RulePresetKnobKind, true> = { number: true, text: true, textList: true, choice: true, entityRef: true };
 const ENTITY_SEEN: Record<RulePresetEntityKind, true> = { worldInfoBook: true };

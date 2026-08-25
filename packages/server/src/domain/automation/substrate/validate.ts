@@ -1,6 +1,8 @@
 // domain/automation/substrate/validate — the create/update write-edge validation. One async pass:
 // trigger liveness, CEL parse, action-arm shapes + caps + reserved-arm refusal, the
-// post_notification cooldown floor, world-info book attachment, and `run_tool` tool reachability. Throws a
+// post_notification cooldown floor, world-info book attachment (the arm's book AND a `run_analysis` lore
+// route's), the S5 analysis admission rows (≥1 route · ≤1 confirm-class route · the active-game fence),
+// and `run_tool` tool reachability. Throws a
 // TYPED refusal (AutomationReservedTriggerError / RuleValidationError) — a rule with any violation is never
 // stored. The db CHECKs + the `actions` zod are the ultimate guards; this gives a clean, user-visible refusal
 // first.
@@ -22,7 +24,7 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import { AutomationReservedTriggerError, RuleValidationError } from "../contract/errors.ts";
 import type { AutomationOps } from "../contract/ops.ts";
-import { isBookAttachedToChat } from "../persistence/canon-reads.ts";
+import { hasActiveGame, isBookAttachedToChat } from "../persistence/canon-reads.ts";
 
 /** The per-rule cooldown floor (seconds) enforced when a `post_notification` arm is present — inbox spam
  *  trains dismissal. DERIVED from the notice's own wire vocabulary (one home, two enforcers: this authoring
@@ -97,13 +99,54 @@ function assertTransformDraftShape(trigger: AutomationTrigger, actions: readonly
   }
 }
 
-/** Every `insert_world_info_entry` arm's book must be attached to the chat. One batched probe. */
+/** Every book an arm can WRITE must be attached to the chat — `insert_world_info_entry`'s own book AND a
+ *  `run_analysis` lore route's (both writes ride the ONE lore belt, so both mint against the same consent
+ *  gate). One batched probe. */
 async function assertBooksAttached(db: Db, chatId: ChatId, actions: readonly AutomationAction[]): Promise<void> {
-  const bookIds = actions.filter((a) => a.type === "insert_world_info_entry").map((a) => a.bookId);
+  const bookIds = actions.flatMap((a) => {
+    if (a.type === "insert_world_info_entry") {
+      return [a.bookId];
+    }
+    if (a.type === "run_analysis" && a.routes.lore !== undefined) {
+      return [a.routes.lore.bookId];
+    }
+    return [];
+  });
   const results = await Promise.all(bookIds.map((bookId) => isBookAttachedToChat(db, chatId, bookId)));
   const unattachedIdx = results.indexOf(false);
   if (unattachedIdx !== -1) {
     throw new RuleValidationError("unattached_book", `book '${bookIds[unattachedIdx]}' is not attached to this chat`);
+  }
+}
+
+/** S5's admission rows for a `run_analysis` arm, all three refusing at MINT so no stored rule can only
+ *  ever fail (the D146-b posture applied to this arm):
+ *   • ≥1 route — a routeless pass would think and route nothing, an arm that can never do anything;
+ *   • at most ONE confirm-class route — the S4 pending store REPLACES per `(chatId, ruleId)` slot
+ *     (RULED F1), so two card-raising routes on one rule would silently eat each other's asks;
+ *   • no analysis on an ACTIVE-game chat — the game owns its own steering (D109; the legacy
+ *     no-double-director law re-derived; §3-S5.7, deliberately v1-BROAD over every route and revisitable). */
+async function assertAnalysisAdmissible(db: Db, chatId: ChatId, actions: readonly AutomationAction[]): Promise<void> {
+  const analyses = actions.filter((a) => a.type === "run_analysis");
+  if (analyses.length === 0) {
+    return;
+  }
+  for (const arm of analyses) {
+    const routes = arm.routes;
+    const enabled = [routes.steer, routes.lore, routes.suggest, routes.vars].filter((r) => r !== undefined).length;
+    if (enabled === 0) {
+      throw new RuleValidationError("analysis_no_routes", "a run_analysis arm must enable at least one output route");
+    }
+    const confirmClass = [routes.steer?.apply === "confirm", routes.lore?.apply === "confirm", routes.suggest !== undefined].filter(Boolean).length;
+    if (confirmClass > 1) {
+      throw new RuleValidationError(
+        "analysis_confirm_slots",
+        "a run_analysis arm may carry at most one confirm-class route — pending cards replace per rule, so a second would silently displace the first",
+      );
+    }
+  }
+  if (await hasActiveGame(db, chatId)) {
+    throw new RuleValidationError("active_game", "this chat's game directs its own story — analysis rules cannot be added while a game is active");
   }
 }
 
@@ -148,5 +191,6 @@ export async function validateRuleInput(deps: ValidateDeps, chatId: ChatId, inpu
   assertTransformDraftShape(input.trigger, actions);
   assertToolsDrivable(deps, input.authorUserId, actions);
   await assertBooksAttached(deps.db, chatId, actions);
+  await assertAnalysisAdmissible(deps.db, chatId, actions);
   return { actions };
 }

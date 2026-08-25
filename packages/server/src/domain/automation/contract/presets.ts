@@ -635,6 +635,52 @@ const CUTAWAYS = defineRulePreset({
   ],
 });
 
+/** §4 #15 — story pacing analysis (class 1; C1's showcase — RULED F7: apply DIRECT steer). ONE rule riding
+ *  the S5 `run_analysis` arm with only the STEER route: every N beats a quiet schema-constrained pass reads
+ *  the fresh window + its private arc/twist state and refreshes ONE narrator-facing guidance line, delivered
+ *  verbatim by the S2 teaching contribution. The BRIEF is the arm's host-editable task (authored FRESH from
+ *  the legacy director's proven semantics — the statProfile precedent, no string ports); the STEER knob is
+ *  the host's standing direction, riding every pass ("" = none).
+ *
+ *  The predicate carries BOTH guards the issue names: the law-1 `has()` on `event.turn` (a `turnCompleted`
+ *  fact populates it, but the guard keeps a manual/odd dispatch from throwing), the law-2 `int()` coercions,
+ *  and `automationDepth == 0` — belt-and-suspenders over the engine's own default cascade suppression, so an
+ *  automation-triggered reply can never count as a beat even for a rule opted into cascades. Mint REFUSES on
+ *  an active-game chat (`substrate/validate.ts` `active_game` — the game owns its own steering, D109;
+ *  §3-S5.7, revisitable). */
+const STORY_PACING = defineRulePreset({
+  id: "storyPacing",
+  title: "Story pacing analysis",
+  summary: "Every few beats, a quiet analyst reads the scene and steers the narrator's pacing.",
+  ruleCount: 1,
+  knobs: {
+    everyN: { kind: "number", label: "Every N beats", help: "Counted over the chat's messages.", default: 8, min: CADENCE_MIN, max: CADENCE_MAX },
+    steer: {
+      kind: "text",
+      label: "Standing direction",
+      help: "Rides every pass — e.g. “slow burn”, “keep it cozy”. Leave empty for none.",
+      default: "",
+      maxLength: STEER_TEXT_MAX,
+    },
+  },
+  rules: (knobs) => [
+    {
+      triggerType: "turnCompleted",
+      predicate: `(!has(event.turn) || int(event.turn.automationDepth) == 0) && ${everyNBeats(knobs.everyN)}`,
+      arms: [
+        {
+          type: "run_analysis",
+          brief:
+            "Watch the story's pacing: where tension is rising or going slack, which planted threads are ready to pay off, " +
+            "and what would keep the next few turns alive without rushing them.",
+          steer: knobs.steer,
+          routes: { steer: { apply: "direct" } },
+        },
+      ],
+    },
+  ],
+});
+
 /** THE REGISTRY — exhaustive over `RulePresetId` (a new id without a def, or a def without an id, fails
  *  `tsc`). This is the S3 enforcer the spec names. */
 export const RULE_PRESETS = {
@@ -649,4 +695,5 @@ export const RULE_PRESETS = {
   callAVote: CALL_A_VOTE,
   callback: CALLBACK,
   cutaways: CUTAWAYS,
+  storyPacing: STORY_PACING,
 } as const satisfies Record<RulePresetId, ErasedRulePresetDef>;
