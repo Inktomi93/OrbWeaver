@@ -6,7 +6,9 @@
 import type { SourceFile } from "ts-morph";
 import type { ExactRow } from "../lib/grant-liveness.ts";
 
-/** One shape the evaluator refused to read, for the caller's fail-loud arm. */
+/** One shape the evaluator refused to read, for the caller's fail-loud arm.
+ *  @public knip type-face false positive — a structural field of `StaticRead`/`RowExtraction`, never
+ *  referenced by its own name at any call site. */
 export interface UnresolvedShape {
   /** The ts-morph SyntaxKind name — what the reader hit (`CallExpression`, `ConditionalExpression`, …). */
   readonly kind: string;
@@ -17,7 +19,9 @@ export interface UnresolvedShape {
 }
 
 /** What a static evaluation produced: the ordered strings it could prove, AND every shape it could not.
- *  A caller that ignores `unresolved` is printing a clean zero over rows it never read. */
+ *  A caller that ignores `unresolved` is printing a clean zero over rows it never read.
+ *  @public knip type-face false positive — the return type of `readValue`/`extractRows`, never referenced
+ *  by its own name at any call site. */
 export interface StaticRead {
   readonly values: readonly string[];
   readonly unresolved: readonly UnresolvedShape[];
@@ -31,7 +35,9 @@ export type ConfigRead =
   | { readonly kind: "ok"; readonly sf: SourceFile; readonly text: string };
 
 /** Classify one derived config value: the repo-relative path when it names ONE file, or `undefined` when it
- *  is a pattern (a declared skip). Registry-specific — glob syntax (eslint) vs regex source (dep-cruiser). */
+ *  is a pattern (a declared skip). Registry-specific — glob syntax (eslint) vs regex source (dep-cruiser).
+ *  @public knip type-face false positive — a structural field of `ExtractRequest`, never referenced by its
+ *  own name at any call site. */
 export type PathClassifier = (value: string) => string | undefined;
 
 export interface ExtractRequest {

@@ -13,7 +13,7 @@ import type { ConfigRead, ExtractRequest, RowExtraction, StaticRead, UnresolvedS
 import type { ExactRow } from "./grant-liveness.ts";
 import { lineFinder } from "./grant-liveness.ts";
 
-export type { ConfigRead, ExtractRequest, PathClassifier, RowExtraction, StaticRead, UnresolvedShape } from "../contract/config-read.ts";
+export type { ConfigRead, ExtractRequest, RowExtraction } from "../contract/config-read.ts";
 
 const EMPTY: StaticRead = { values: [], unresolved: [] };
 
@@ -81,7 +81,7 @@ function readConcat(node: Node, seen: Set<Node>): StaticRead {
  *  somewhere else in the expression", which is not a cycle at all: `.dependency-cruiser.cjs` spells
  *  `${UI}` nine times inside ONE `pathNot` array, and an accumulate-only fence refused eight of them —
  *  measured, and exactly the false-RED that would have blocked every lane's import-law floor. */
-export function readValue(node: Node, seen: Set<Node> = new Set()): StaticRead {
+function readValue(node: Node, seen: Set<Node> = new Set()): StaticRead {
   if (seen.has(node)) {
     return EMPTY;
   }

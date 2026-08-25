@@ -8,12 +8,12 @@ import { join } from "node:path";
 import type { CssRule } from "./css-rules.ts";
 import { callArguments, parseCssRules, selectorSubject } from "./css-rules.ts";
 
-export const PLATE_VAR = "var(--color-reading-plate)";
+const PLATE_VAR = "var(--color-reading-plate)";
 export const WALLPAPER_GATE = "[data-has-bg-image]";
 export const GLASS_GATE = "[data-blur-";
 export const TRANSPARENT = "transparent";
-export const MARKER = "@over-art-plate-ok";
-export const MARKER_GRAMMAR = `${MARKER}(<selector subject>)?: <reason>`;
+const MARKER = "@over-art-plate-ok";
+const MARKER_GRAMMAR = `${MARKER}(<selector subject>)?: <reason>`;
 /** `@over-art-plate-ok(<subject>)?: <reason>` — the position is optional, the reason never is (§4 rule 3). */
 const MARKER_RE = /@over-art-plate-ok(?<pos>\([^)]*\))?(?<colon>\s*:)?(?<reason>[^*\n]*)/gu;
 const TINT_RE = /var\(\s*(--color-[a-z0-9-]+)\s*\)/u;
@@ -75,7 +75,9 @@ function readBackground(value: string): Reading {
   return dark.kind === "plateless" && dark.tint === tint ? { kind: "provider", tint } : { kind: "dark-arm-moved" };
 }
 
-/** ONE glass declaration, keyed for pairing and for the ratchet. */
+/** ONE glass declaration, keyed for pairing and for the ratchet.
+ *  @public knip type-face false positive — a structural field of the exported `Judgement` shape (its
+ *  `live` map's value), never referenced by its own name outside this file. */
 export interface Site {
   readonly rel: string;
   readonly line: number;
@@ -87,13 +89,13 @@ export interface Site {
 
 /** The ratchet subject and the pairing key: one FILE's one SUBJECT at one TINT. Line-independent, so a rule
  *  that simply moves does not churn the ledger. */
-export function subjectKey(site: Site): string {
+function subjectKey(site: Site): string {
   return `${site.rel}::${site.subject}::${site.tint}`;
 }
 
 /** Every glass `background(-color)` declaration of one rule — one Site per SELECTOR, because a two-selector
  *  rule styles two subjects and each owes its own plate arm. */
-export function sitesOf(rel: string, rule: CssRule): Site[] {
+function sitesOf(rel: string, rule: CssRule): Site[] {
   const out: Site[] = [];
   if (!rule.selectorList.includes(GLASS_GATE)) {
     return out;
@@ -108,7 +110,7 @@ export function sitesOf(rel: string, rule: CssRule): Site[] {
   return out;
 }
 
-export interface Marker {
+interface Marker {
   readonly position: string | null;
   readonly malformed: boolean;
 }
@@ -117,7 +119,7 @@ export interface Marker {
  *  block and this rule's `{`, so they are BLOCK-SCOPED by construction (§4 rule 3b: a marker can never leak
  *  onto the next rule). Comments-INTENDED: the marker IS a comment, which is why this reads raw text while
  *  the value scan reads the blanked text at the same offsets. */
-export function markersFor(rawText: string, rule: CssRule): readonly Marker[] {
+function markersFor(rawText: string, rule: CssRule): readonly Marker[] {
   const region = rawText.slice(rule.preludeStart, rule.braceStart);
   const out: Marker[] = [];
   MARKER_RE.lastIndex = 0;
@@ -130,7 +132,9 @@ export function markersFor(rawText: string, rule: CssRule): readonly Marker[] {
   return out;
 }
 
-/** A file-level finding — exactly the `Finding` fields a stylesheet can carry (no node, so column 0). */
+/** A file-level finding — exactly the `Finding` fields a stylesheet can carry (no node, so column 0).
+ *  @public knip type-face false positive — a structural field of the exported `Judgement` shape (its
+ *  `findings` field), never referenced by its own name outside this file. */
 export interface CssFinding {
   readonly file: string;
   readonly line: number;

@@ -28,7 +28,7 @@ export function computeLoadFactor(loadavg1: number, cpuCount: number, cap = 8): 
 }
 
 /** The live factor, reading the real box. */
-export function loadFactor(cap?: number): number {
+function loadFactor(cap?: number): number {
   return computeLoadFactor(loadavg()[0] ?? 0, cpus().length, cap);
 }
 
@@ -46,7 +46,7 @@ export function isLoadKill(err: unknown): boolean {
 
 /** Build the self-identifying error. Its message leads with the marker and spells out the classification in
  *  full so a batch reader needs no archaeology: this is a TOOL/LOAD kill, exit-2 class, not a verdict. */
-export function loadKillError(what: string, budgetMs: number): Error {
+function loadKillError(what: string, budgetMs: number): Error {
   const la = loadavg()[0] ?? 0;
   return new Error(
     `${LOAD_KILL_MARKER}: ${what} exceeded its load-scaled budget (${budgetMs}ms) at loadavg ${la.toFixed(1)} ` +

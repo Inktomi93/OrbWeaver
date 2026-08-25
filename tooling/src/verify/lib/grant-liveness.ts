@@ -14,7 +14,7 @@ import type { ExemptionTable, Finding } from "../contract/gate.ts";
 
 /** Glob metacharacters the include/override syntaxes understand. A path carrying none of these is
  *  FILE-EXACT (mirrors biome-grant-liveness's own classifier so the four gates agree on the boundary). */
-export const GLOB_META_RE = /[*?[\]{}]/u;
+const GLOB_META_RE = /[*?[\]{}]/u;
 
 /** True iff `p` is a literal path (no glob metacharacters) — i.e. a grant on ONE named file. */
 export function isFileExact(p: string): boolean {
