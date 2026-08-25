@@ -117,6 +117,80 @@ test("re-granting an ENABLED plugin restarts the resident so the running grants 
   expect(h.port.created.at(-1)?.grants).toEqual(["chat.read"]); // and came back under the narrowed one
 });
 
+// #698 FOLLOW-UP — THE UNIFORM-WITHHOLD DIVERGENCE. A standing re-consent withholds its hosts from the egress
+// wall at EVERY activation site, decided only by whether the ask is fully answered — never by whether the row
+// happened to be enabled. This pins the divergence a fail-open audit found: a PARTIAL re-grant (net.fetch
+// re-confirmed WITH the full host echo, but ANOTHER capability of the same update left pending) of an already-
+// ENABLED row used to reactivate with the FULL declared reach, restoring a host that was echoed but not fully
+// consented — while the same partial re-grant on a DISABLED row, then enable, withheld it. Same consent state,
+// different reach. Now uniform: the still-unanswered host stays off the wall until a COVERING grant clears it.
+test("a PARTIAL re-grant of an ENABLED row does NOT restore the withheld host (uniform withhold, #698 follow-up)", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const installed = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+    grant: ["net.fetch"],
+  });
+  // v2 widens BOTH a capability (notify) AND a host (collector) — so a partial answer is possible.
+  const upgraded = await h.service.upgrade({
+    caller: ownerPrincipalFor(owner),
+    pluginId: installed.id,
+    bundle: makeBundle({
+      id: "pp",
+      version: "1.1.0",
+      capabilities: ["net.fetch", "notify"],
+      netHosts: ["api.vendor.example", "collector.attacker.example"],
+    }),
+  });
+  // Turn it ON while the re-consent stands — the switch the surface leaves live. Wall carries the consented set.
+  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  expect(h.port.created.at(-1)?.netHosts).toEqual(["api.vendor.example"]);
+
+  // PARTIAL re-grant of the now-ENABLED row: net.fetch re-confirmed with the full host echo, notify LEFT. The
+  // acknowledgement gate forces the echo to cover collector, yet the update is not fully consented (notify).
+  const partial = await h.service.setGrant({
+    caller: ownerPrincipalFor(owner),
+    pluginId: installed.id,
+    grant: ["net.fetch"],
+    acknowledgedNetHosts: upgraded.netHosts ?? [],
+  });
+  expect(partial.status).toBe("enabled"); // the enabled state is RESTORED (reactivation), as before
+  expect(partial.reconsentPending).toBe(true); // …but the ask is still standing (notify)
+  // The reactivation must NOT arm the wall at the still-unanswered host — this is the divergence #698's
+  // follow-up closes. Pre-fix this reactivated with `[]` and the wall carried collector.
+  expect(h.port.created.at(-1)?.netHosts).toEqual(["api.vendor.example"]);
+});
+
+test("a COVERING re-grant of an ENABLED row DOES restore full reach (the delta cleared, nothing withheld)", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const installed = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+    grant: ["net.fetch"],
+  });
+  const upgraded = await h.service.upgrade({
+    caller: ownerPrincipalFor(owner),
+    pluginId: installed.id,
+    bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
+  });
+  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  expect(h.port.created.at(-1)?.netHosts).toEqual(["api.vendor.example"]);
+
+  // COVERING re-grant: the whole ask answered (net.fetch is the only capability, echo covers every host).
+  const covered = await h.service.setGrant({
+    caller: ownerPrincipalFor(owner),
+    pluginId: installed.id,
+    grant: ["net.fetch"],
+    acknowledgedNetHosts: upgraded.netHosts ?? [],
+  });
+  expect(covered.reconsentPending).toBe(false); // the delta cleared
+  expect(h.port.created.at(-1)?.netHosts).toEqual(["api.vendor.example", "collector.attacker.example"]); // full reach restored
+});
+
 test("a grant outside the PERSISTED manifest's declared set is refused", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
