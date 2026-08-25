@@ -12,7 +12,30 @@ import { useState } from "react";
 // shell.css (the `.shell-modal-header` chrome) is loaded transitively by globals.css, but import it
 // directly so the modal-chrome story below has the header/divider styles even in isolation.
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders, CtPlaceholderPaneRegistry, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+
+/** The settings shell with one category (connections) rendered as a DECLARED-PLACEHOLDER pane (#696) — a
+ *  live subject for `SettingsPanePlaceholder`, the honest "not built yet" body whose production subjects all
+ *  graduated to real surfaces at C5. Mounts the REAL shell under {@link CtPlaceholderPaneRegistry} so the
+ *  placeholder is reached exactly the way a deferred category is: click its nav row and the shell's
+ *  `body: { placeholder: true }` branch (settings-shell-surface.tsx:418) mounts the teaching copy. */
+export function SettingsShellPlaceholderStory(): ReactElement {
+  // Deep-link straight to the placeholder category so it lands on the placeholder body without first
+  // mounting the default (Appearance) pane — the placeholder body itself reads no network.
+  useState(() => {
+    openSettingsTo("connections");
+    return null;
+  });
+  return (
+    <CtDataProviders>
+      <CtPlaceholderPaneRegistry>
+        <div style={{ height: 560, width: 900 }}>
+          <SettingsShell />
+        </div>
+      </CtPlaceholderPaneRegistry>
+    </CtDataProviders>
+  );
+}
 
 /** The full-bleed settings shell in a fixed-height box + the real data layer (network stubbed per-test).
  *  SettingsShell reads `useSettingsPaneRegistry()`, so it must mount under the pane-registry provider —

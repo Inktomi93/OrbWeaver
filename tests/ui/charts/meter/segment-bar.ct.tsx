@@ -3,8 +3,8 @@
 // aria-hidden (the datum is the SeriesRow text beside it). Assert computed geometry + resolved token colors,
 // never a hardcoded px/hex.
 import { SegmentBar } from "@orb/ui/meter";
-import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
 
 const SEGMENTS = [
   { id: "system", value: 25, color: 1 as const },
@@ -40,11 +40,12 @@ function colorComponents(color: string): number[] {
 
 test("each segment rides its own track-ramp step (the categorical series colors)", async ({ mount }) => {
   const component = await mount(<SegmentBar segments={SEGMENTS} />);
-  await expect(component.locator("[data-segment=system]")).toHaveCSS("background-color", TOKENS["color.track-1"].value);
-  await expect(component.locator("[data-segment=cards]")).toHaveCSS("background-color", TOKENS["color.track-4"].value);
+  // The ramp tokens are polarity-aware `light-dark()` now (#697); the dark-scheme CT paints the resolved dark arm.
+  await expect(component.locator("[data-segment=system]")).toHaveCSS("background-color", resolvedTokenColor("color.track-1"));
+  await expect(component.locator("[data-segment=cards]")).toHaveCSS("background-color", resolvedTokenColor("color.track-4"));
 
   const history = await component.locator("[data-segment=history]").evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(colorComponents(history)).toEqual(colorComponents(TOKENS["color.track-5"].value));
+  expect(colorComponents(history)).toEqual(colorComponents(resolvedTokenColor("color.track-5")));
 });
 
 test("an explicit `total` leaves the unused remainder as EMPTY rail (visible headroom)", async ({ mount }) => {

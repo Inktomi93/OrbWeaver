@@ -12,7 +12,7 @@ import { BACKGROUND_DIM_MIN } from "@orb/contracts/settings/appearance";
 import type { RampDeltas } from "@orb/kit/theme-derivation";
 import { READING_BAND_ALPHA, rampDeltas, readingBandSurface, readingPlateAlpha, shadowIngredients } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/_shared/wcag";
-import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "@orb/tooling/_shared/wcag";
+import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/_shared/wcag";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens, THEME_DERIVATION } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -208,6 +208,54 @@ test.each(
   for (const [bg, foreground] of INTENT_PILL_PAIRS) {
     const ratio = contrastRatio(resolveTokenRgb(foreground, palette), resolveTokenRgb(bg, palette));
     expect(ratio, `${foreground} on ${bg} (pill) @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  }
+});
+
+// ── #697: THE TRACK RAMP FILL — a non-text UI component (WCAG 1.4.11), floored at 3:1 on the LIGHT panel ──
+// The 6-step categorical ramp (--color-track-N) fills pool/meter/clock gauges (TrackBar/SegmentBar/RingGauge/
+// CoinFigure). The FILL is itself a graphical UI component conveying the reading, so 1.4.11's 3:1 applies even
+// though a value TEXT sits beside it (that is the old ruling this fix superseded). At the mid-L single value the
+// steps rendered 1.89–2.65:1 against the light panel; the fix made the token polarity-aware `light-dark()` and
+// darkened the LIGHT arm to clear 3:1, leaving the DARK arm byte-identical. Measured the QUANTIZED way — the
+// WORSE of the float and 8-bit-rounded ratio, because the pixel a reader sees is the rounded one (a float-only
+// contrast lies; the house rule). The backings are the panels a fill sits on PLUS the `bg-input` rail the two
+// bar species paint their fill inside (composited over the panel — a naive contrast on the alpha rail lies).
+const TRACK_FILL_PATHS = ["color.track-1", "color.track-2", "color.track-3", "color.track-4", "color.track-5", "color.track-6"] as const;
+const TRACK_PANELS = ["color.sidebar", "color.surface-raised", "color.card", "color.background"] as const;
+const quantizeRgb = (c: Rgb): Rgb => ({ r: Math.round(c.r), g: Math.round(c.g), b: Math.round(c.b) });
+/** The worse of the float and 8-bit-quantized contrast — the pixel a reader actually sees is the rounded one. */
+const worstContrast = (a: Rgb, b: Rgb): number => Math.min(contrastRatio(a, b), contrastRatio(quantizeRgb(a), quantizeRgb(b)));
+
+test.each(
+  PALETTES.filter((p) => p.colorScheme === "light").map((p) => [p.name, p] as const),
+)("#697 track-ramp gauge FILLS clear WCAG 1.4.11 3:1 on the %s panel (worse of float+8bit)", (_name, palette) => {
+  const inputTok = parseOklch(palette.vars[TOKENS["color.input"].cssVar] ?? TOKENS["color.input"].value);
+  for (const fillPath of TRACK_FILL_PATHS) {
+    const fill = resolveTokenRgb(fillPath, palette);
+    // Direct panel backings the ring gauge / coin disc ride.
+    for (const panel of TRACK_PANELS) {
+      expect(worstContrast(fill, resolveTokenRgb(panel, palette)), `${fillPath} fill on ${panel} @ ${palette.name}`).toBeGreaterThanOrEqual(
+        UI_COMPONENT_MIN_RATIO,
+      );
+    }
+    // The TrackBar / SegmentBar rail is `bg-input`: composite it over the panel and measure the fill in it.
+    for (const panel of ["color.card", "color.sidebar"] as const) {
+      const rail = compositeOver(inputTok, resolveTokenRgb(panel, palette));
+      expect(worstContrast(fill, rail), `${fillPath} fill on the bg-input rail over ${panel} @ ${palette.name}`).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+    }
+  }
+});
+
+test("#697 the track-ramp DARK arm is unchanged — still ≥3:1 on the dark panel (the mechanism survived)", () => {
+  const hearth = PALETTES.find((p) => p.name === "hearth");
+  if (hearth === undefined) {
+    throw new Error("hearth (base dark) palette missing");
+  }
+  for (const fillPath of TRACK_FILL_PATHS) {
+    const fill = resolveTokenRgb(fillPath, hearth);
+    for (const panel of ["color.sidebar", "color.surface-raised", "color.card"] as const) {
+      expect(worstContrast(fill, resolveTokenRgb(panel, hearth)), `${fillPath} dark fill on ${panel}`).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+    }
   }
 });
 

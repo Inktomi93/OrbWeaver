@@ -4,8 +4,8 @@
 // trigger it exists to live in) — a hidden control there would be invalid a11y.
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { SeriesRow } from "@orb/ui/series-row";
-import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
 
 /** The trigger's accessible name is composed from the row's spans — match the label within it. */
 const NAMED_BY_LABEL = /System/;
@@ -23,7 +23,8 @@ test("the swatch is decoration — aria-hidden, tinted by its ramp step", async 
   const swatch = component.locator("[data-slot=series-row-swatch]");
 
   await expect(swatch).toHaveAttribute("aria-hidden", "true");
-  await expect(swatch).toHaveCSS("background-color", TOKENS["color.track-4"].value);
+  // The ramp token is polarity-aware `light-dark()` now (#697); the dark-scheme CT paints the resolved dark arm.
+  await expect(swatch).toHaveCSS("background-color", resolvedTokenColor("color.track-4"));
 });
 
 test("no color ⇒ no swatch (a row that isn't keyed to a bar segment)", async ({ mount }) => {
