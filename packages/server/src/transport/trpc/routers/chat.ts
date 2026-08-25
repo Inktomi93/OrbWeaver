@@ -298,6 +298,7 @@ const setVariablesSchema = z.object({
   values: choiceBlockValuesSchema,
 });
 const getVariablePicksSchema = z.object({ chatId: brandedId<ChatId>() });
+const getRuntimeVariablesSchema = z.object({ chatId: brandedId<ChatId>() });
 
 // speakerCharacterId/guided mirror `PreviewAssemblyParams` (a hypothetical per-speaker turn); `guided`
 // rides the DERIVED `guidedSteerSchema` (F6 — the same wire boundary as `send`/`generate` above).
@@ -583,6 +584,12 @@ export const chatRouter = t.router({
   getVariablePicks: authedProcedure
     .input(getVariablePicksSchema)
     .query(({ ctx, input }) => ctx.services.chat.getVariablePicks({ principal: ctx.auth, ...input })),
+  // S5 §4 — the room's RUNTIME variable fold (member-gated INSIDE the verb; the vars plane is
+  // member-visible by design). B9's clock widget and the needle's meter read here; invalidation rides the
+  // existing turn-commit/swipe bus events.
+  getRuntimeVariables: authedProcedure
+    .input(getRuntimeVariablesSchema)
+    .query(({ ctx, input }) => ctx.services.chat.getRuntimeVariables({ principal: ctx.auth, ...input })),
   previewAssembly: authedProcedure.input(previewAssemblySchema).query(({ ctx, input }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input })),
   previewActionTemplates: authedProcedure
     .input(previewActionTemplatesSchema)

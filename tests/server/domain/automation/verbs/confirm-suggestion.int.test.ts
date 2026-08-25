@@ -507,3 +507,42 @@ describe("S4 — a PLUGIN-origin ask", () => {
     expect(fixture.ctx.suggestions.countForChat(fixture.chatId)).toBe(0);
   });
 });
+
+describe('S5 — an ANALYSIS-origin confirm (the {via:"analysis"} payload arm)', () => {
+  test("confirming a steer card writes the guidance through the analysis executor and records a `fired` row naming the act", async () => {
+    const { fixture } = await suggestFixture();
+    // An enabled analysis rule (the state row's FK parent + the liveness re-check's subject).
+    const rule = await fixture.svc.createRule({
+      principal: principal(fixture.host),
+      chatId: fixture.chatId,
+      name: "analysis",
+      trigger: { bus: "chat", type: "turnCompleted" },
+      actions: [{ type: "run_analysis", brief: "b", routes: { steer: { apply: "confirm" } } }],
+    });
+    await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId: rule.id, enabled: true });
+    // The card, as the engine raises it (the raise mechanics have their own engine pins — this suite owns
+    // the VERB branch: claim, re-checks, the analysis executor, the fire row).
+    const suggestionId = castId<AutomationSuggestionId>(mintTypeId(ID_PREFIX.automationSuggestion));
+    fixture.ctx.suggestions.raise({
+      id: suggestionId,
+      kind: "confirm",
+      chatId: fixture.chatId,
+      source: { kind: "rule", ruleId: rule.id },
+      actorUserId: fixture.host,
+      summary: "Adopt story guidance?",
+      expiresAt: FIXED_NOW_MS + 1,
+      payload: { via: "analysis", act: { kind: "steer", guidance: "Plant the courier's absence. {{getglobalvar::x}}" } },
+    });
+
+    const result = await fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId });
+    expect(result).toEqual({ ran: "stashed-arm", outcome: "fired" });
+
+    // The guidance landed VERBATIM (braces intact — §2 law 6)…
+    const { selectRuleState } = await import("../../../../../packages/server/src/domain/automation/persistence/rule-state.ts");
+    expect((await selectRuleState(fixture.db, rule.id)).guidance).toBe("Plant the courier's absence. {{getglobalvar::x}}");
+    // …and the fire log names the confirmer AND the act (the host's "why did this run" answer).
+    const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId: rule.id });
+    expect(fires[0]?.outcome).toBe("fired");
+    expect(fires[0]?.detail).toMatchObject({ confirmedByUserId: fixture.host, suggestionId, armType: "run_analysis", analysisAct: "steer" });
+  });
+});

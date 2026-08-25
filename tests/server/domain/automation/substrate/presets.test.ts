@@ -98,14 +98,27 @@ test("the picker projection flattens the knob schema and carries no CEL", () => 
 });
 
 // ── #655: the SPEND signal ────────────────────────────────────────────────────────────────────────────
-// The picker had none, and seven of the eleven presets commit the host to a RECURRING model charge. These
-// pin that the answer is DERIVED from the arms the builder actually emits — the whole reason a hand-kept
-// `spends: boolean` on the def was refused: a flag an author forgets to flip is a lie on a money surface.
+// The picker had none, and most of the presets commit the host to a RECURRING model charge (ten of the
+// fourteen as of C2's lore distillers). These pin that the answer is DERIVED from the arms the builder actually
+// emits — the whole reason a hand-kept `spends: boolean` on the def was refused: a flag an author forgets to
+// flip is a lie on a money surface.
 
 /** The presets whose default configuration mints a `SPEND_ARM_TYPES` arm — read off the catalogue, and the
  *  membership is the claim: `autoAddLore` writes a lore entry (free), `diceChips`/`openerChips`/`callAVote`
  *  surface chips (free), and everything else asks for a turn or an image. */
-const SPENDING_PRESET_IDS = ["welcomeBackRecap", "pacingNudge", "illustrateScenes", "clockFires", "sceneVeil", "callback", "cutaways"];
+const SPENDING_PRESET_IDS = [
+  "welcomeBackRecap",
+  "pacingNudge",
+  "illustrateScenes",
+  "clockFires",
+  "sceneVeil",
+  "callback",
+  "cutaways",
+  "storyPacing",
+  // C2's lore distillers each fire a `run_analysis` model pass on a cadence — SPEND-classed.
+  "distillLore",
+  "rumorMill",
+];
 
 test("#655: the spend signal names exactly the presets whose arms cost a model call", () => {
   const spending = RULE_PRESET_IDS.filter((id) => toRulePresetView(RULE_PRESETS[id]).spends);

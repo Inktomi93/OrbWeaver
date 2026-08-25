@@ -30,6 +30,10 @@ export const SEAM_FILES = [
   "packages/server/src/domain/chat/engine/smart-arbitrate.ts",
   "packages/server/src/domain/chat/verbs/compaction.ts",
   "packages/server/src/domain/automation/engine/arm-executors.ts",
+  // C1 (S5): the `run_analysis` prompt builder — a NEW prompt-assembly seam, added the commit it was born
+  // (its clauses are the `automation.analysis.*` slots; the population list is closed, so a seam nobody
+  // registers is a seam this gate cannot see).
+  "packages/server/src/domain/automation/engine/analysis-arm.ts",
   "packages/contracts/src/rpg/extraction-prompt.ts",
 ] as const;
 /** The sanctioned authoring homes (the landed PROSE-1 registry + the two legacy-adapted catalogs). */

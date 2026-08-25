@@ -6,7 +6,7 @@
 import { SkeletonRows } from "@orb/client/data";
 import { chatAlsoOpenTile, chatMastheadTile, chatQuickPicksTile, chatRecentsTile, chatTempChatTile } from "@orb/client/features/chat";
 import { databankDocumentsTile } from "@orb/client/features/databank";
-import { automationDormantTile, buddyDormantTile, HomeSurface, makeSectionJumpTile } from "@orb/client/features/home";
+import { buddyDormantTile, HomeSurface, makeSectionJumpTile } from "@orb/client/features/home";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import { rememberSurfaceBox, useActiveSection } from "@orb/client/state";
@@ -99,10 +99,10 @@ function ActiveSectionProbe(): ReactElement {
   return <output>section={useActiveSection()}</output>;
 }
 
-/** The REAL registered doorways (buddy + automation) — the shipped tiles, not fakes: proof the DORMANT
- *  arm survives the round trip through the door and the frame. */
+/** The REAL registered doorway (buddy — automation's retired with B3) — the shipped tile, not a fake: proof
+ *  the DORMANT arm survives the round trip through the door and the frame. */
 export function HomeRealDoorwaysStory(): ReactElement {
-  return <Story tiles={[buddyDormantTile, automationDormantTile]} />;
+  return <Story tiles={[buddyDormantTile]} />;
 }
 
 // ── The THREE REGIONS (#102, the Hearth Room) ───────────────────────────────────────────────────────
@@ -116,11 +116,11 @@ const REGION_TILES: readonly HomeTileContribution[] = [
   // No `region` at all — the DEFAULT, which must be the shelf (never a silent promotion into the hearth).
   { id: "unplaced", title: "Unplaced tile", icon: Clock, order: 30, body: () => <Text>unplaced body</Text> },
   buddyDormantTile,
-  automationDormantTile,
 ];
 
-/** All three regions + both real doorways: the masthead above the split, one tile per column, the
- *  unplaced tile defaulting to the shelf, and the two doorways collected under ONE fold (#455). */
+/** All three regions + the real doorway: the masthead above the split, one tile per column, the
+ *  unplaced tile defaulting to the shelf, and the (now single) doorway collected under ONE fold (#455 —
+ *  automation's doorway retired with B3). */
 export function HomeRegionStory(): ReactElement {
   return <Story tiles={REGION_TILES} />;
 }
@@ -273,7 +273,6 @@ const SHIPPED_TILES: readonly HomeTileContribution[] = [
   chatTempChatTile,
   databankDocumentsTile,
   buddyDormantTile,
-  automationDormantTile,
 ];
 
 // ── The COLUMN-BALANCE instrument (#226) ─────────────────────────────────────────────────────────────

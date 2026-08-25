@@ -239,6 +239,12 @@ function writeFixtures(): void {
   // into a STRING here on purpose: the fixture proves the check is AST-positional, since a text search would
   // call this module armed.
   fx("tooling/src/__g_opsguard/ops/x.ts", 'export const SCAFFOLD = `refuseDirectInvocation(import.meta.url, "pnpm x");`;\n');
+  // evaluate-no-scope-capture: an inline `.evaluate()` callback closing over a module-scope const (#660,
+  // the markContrastCandidates shape) instead of threading it through the explicit arg parameter.
+  fx(
+    "tooling/src/__g_evalcap/x.ts",
+    'const MARK = "x";\nexport async function tag(loc: { evaluate: (fn: unknown) => Promise<void> }): Promise<void> {\n  await loc.evaluate((el: { setAttribute: (n: string, v: string) => void }) => el.setAttribute(MARK, "1"));\n}\n',
+  );
   // tooling-instrument-proof: a reasoned marker in an UNREGISTERED tool's tree (the real registry is
   // armed-empty at P1) — the stale-vocabulary arm. This suite file itself is FLAT under tests/tooling,
   // which the gate's tool-dir derivation skips, so the literal below is inert here.

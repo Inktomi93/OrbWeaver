@@ -129,6 +129,16 @@ function everyNBeats(everyN: number): string {
   return `int(chat.messageCount) % ${celInt(everyN)} == 0`;
 }
 
+/** The predicate shape every SETTLED-span analysis preset shares: the law-1 `has()` guard on `event.turn` and
+ *  the law-2 `int()` coercion of `automationDepth`, AND the cadence gate. The `automationDepth == 0` clause is
+ *  belt-and-suspenders over the engine's own default cascade suppression (`engine/dispatch.ts`) — an
+ *  automation-triggered reply can never count as a beat even for a rule opted into cascades, so a distill pass
+ *  never re-triggers off its own confirmed lore write. C1's `storyPacing` inlines the identical shape; a future
+ *  consolidation folds it into this one home. */
+function analysisBeatPredicate(everyN: number): string {
+  return `(!has(event.turn) || int(event.turn.automationDepth) == 0) && ${everyNBeats(everyN)}`;
+}
+
 /** Law 1 + the sanctioned content-match forms: a case-insensitive OR over the needles. `.matches("(?i)…")`
  *  is NOT available (the inline-flag regex throws — goldens), so `lowerAscii().contains(…)` is the form, and
  *  the needles are lowercased HERE because `lowerAscii()` only lowers the haystack. */
@@ -635,6 +645,145 @@ const CUTAWAYS = defineRulePreset({
   ],
 });
 
+/** §4 #15 — story pacing analysis (class 1; C1's showcase — RULED F7: apply DIRECT steer). ONE rule riding
+ *  the S5 `run_analysis` arm with only the STEER route: every N beats a quiet schema-constrained pass reads
+ *  the fresh window + its private arc/twist state and refreshes ONE narrator-facing guidance line, delivered
+ *  verbatim by the S2 teaching contribution. The BRIEF is the arm's host-editable task (authored FRESH from
+ *  the legacy director's proven semantics — the statProfile precedent, no string ports); the STEER knob is
+ *  the host's standing direction, riding every pass ("" = none).
+ *
+ *  The predicate carries BOTH guards the issue names: the law-1 `has()` on `event.turn` (a `turnCompleted`
+ *  fact populates it, but the guard keeps a manual/odd dispatch from throwing), the law-2 `int()` coercions,
+ *  and `automationDepth == 0` — belt-and-suspenders over the engine's own default cascade suppression, so an
+ *  automation-triggered reply can never count as a beat even for a rule opted into cascades. Mint REFUSES on
+ *  an active-game chat (`substrate/validate.ts` `active_game` — the game owns its own steering, D109;
+ *  §3-S5.7, revisitable). */
+const STORY_PACING = defineRulePreset({
+  id: "storyPacing",
+  title: "Story pacing analysis",
+  summary: "Every few beats, a quiet analyst reads the scene and steers the narrator's pacing.",
+  ruleCount: 1,
+  knobs: {
+    everyN: { kind: "number", label: "Every N beats", help: "Counted over the chat's messages.", default: 8, min: CADENCE_MIN, max: CADENCE_MAX },
+    steer: {
+      kind: "text",
+      label: "Standing direction",
+      help: "Rides every pass — e.g. “slow burn”, “keep it cozy”. Leave empty for none.",
+      default: "",
+      maxLength: STEER_TEXT_MAX,
+    },
+  },
+  rules: (knobs) => [
+    {
+      triggerType: "turnCompleted",
+      predicate: `(!has(event.turn) || int(event.turn.automationDepth) == 0) && ${everyNBeats(knobs.everyN)}`,
+      arms: [
+        {
+          type: "run_analysis",
+          brief:
+            "Watch the story's pacing: where tension is rising or going slack, which planted threads are ready to pay off, " +
+            "and what would keep the next few turns alive without rushing them.",
+          steer: knobs.steer,
+          routes: { steer: { apply: "direct" } },
+        },
+      ],
+    },
+  ],
+});
+
+/** §4 #11 — distill lore (class 1; C2's showcase — RULED F7: CONFIRM-FIRST). ONE rule riding the S5
+ *  `run_analysis` arm with only the `upsertLoreEntry` route, `apply: "confirm"` — every N settled beats a quiet
+ *  schema-constrained pass distills durable, keyed lore from the SETTLED span (behind the protect tail, cursored
+ *  by the state row's HIGH-WATER MARK) and offers the entries on a CONFIRM CARD; the host's yes lands them
+ *  through the ONE lore belt (`engine/lore-write.ts` — attach gate + per-rule cap) and advances the watermark.
+ *
+ *  IDEMPOTENT ON RE-RUN, mechanically: the watermark advances ONLY on a successful apply (a raised-but-
+ *  unconfirmed card leaves it unmoved), and the applier SPAN-STAMPS each entry key (`s<spanStart>.<key>`), so a
+ *  re-run over an already-covered span reads no settled rows (the route drops for that pass) and a re-covered
+ *  span overwrites its OWN titles rather than duplicating. The keeper semantics ride the BRIEF (authored FRESH
+ *  from the legacy keeper's proven posture — durable-facts-only, merge-not-repeat, never-surface-a-secret; no
+ *  string ports). Model bytes are `neutralizeMacros`'d at the write boundary by the belt (§2 law 7).
+ *
+ *  Knobs: the SPAN FLOOR (the cadence — how many beats accrue between distill passes, so the settled span the
+ *  pass reads is at least this deep) and the TARGET BOOK (the `entityRef` chooser over this chat's attached
+ *  books, #630). Mint REFUSES an unattached book (`substrate/validate.ts` — the attach gate follows the origin,
+ *  re-checked at confirm) and an active-game chat (D109; both inherited from the arm's own admission rows). */
+const DISTILL_LORE = defineRulePreset({
+  id: "distillLore",
+  title: "Distill lore",
+  summary: "Every so often, a quiet analyst reads the settled scene and offers durable lore to save into one of this room's books.",
+  ruleCount: 1,
+  confirmFirst: true,
+  knobs: {
+    everyN: {
+      kind: "number",
+      label: "Distill every N beats",
+      help: "How many beats of settled play accrue between passes. Each pass reads only the stretch that has settled behind the live tip.",
+      default: 12,
+      min: CADENCE_MIN,
+      max: CADENCE_MAX,
+    },
+    bookId: { kind: "entityRef", entity: "worldInfoBook", label: "Lorebook", help: "The book to distill into — one of this room's own." },
+  },
+  rules: (knobs) => [
+    {
+      triggerType: "turnCompleted",
+      predicate: analysisBeatPredicate(knobs.everyN),
+      arms: [
+        {
+          type: "run_analysis",
+          brief:
+            "From the SETTLED stretch of play only, distill the durable facts worth keeping as lore — established places, people, " +
+            "relationships, and standing situations. Write each as a short, stable, keyed entry. Merge into what is already known rather " +
+            "than repeating it, and never record a secret the scene has not yet revealed on-screen.",
+          // Already a `WorldBookId` — the entityRef knob's own axis schema parsed it at resolution (no cast).
+          routes: { lore: { apply: "confirm", bookId: knobs.bookId } },
+        },
+      ],
+    },
+  ],
+});
+
+/** §4 #11's sibling — the rumour mill (class 1). The SAME plumbing as `distillLore` — a confirm-first
+ *  `run_analysis` → `upsertLoreEntry` route over the settled span, watermarked and span-stamped — differing
+ *  ONLY in the BRIEF: instead of durable facts, it distills the CONSEQUENCES and HEARSAY the settled events
+ *  would set in motion (what people beyond the scene now say, reputations shifting, repercussions gathering),
+ *  keyed for the narrator to draw on later. Same knobs (span floor + target book), same inherited belts. */
+const RUMOR_MILL = defineRulePreset({
+  id: "rumorMill",
+  title: "Rumour mill",
+  summary: "Every so often, a quiet analyst reads the settled scene and offers the rumours and consequences it would stir up, to save as lore.",
+  ruleCount: 1,
+  confirmFirst: true,
+  knobs: {
+    everyN: {
+      kind: "number",
+      label: "Distill every N beats",
+      help: "How many beats of settled play accrue between passes. Each pass reads only the stretch that has settled behind the live tip.",
+      default: 12,
+      min: CADENCE_MIN,
+      max: CADENCE_MAX,
+    },
+    bookId: { kind: "entityRef", entity: "worldInfoBook", label: "Lorebook", help: "The book to record rumours into — one of this room's own." },
+  },
+  rules: (knobs) => [
+    {
+      triggerType: "turnCompleted",
+      predicate: analysisBeatPredicate(knobs.everyN),
+      arms: [
+        {
+          type: "run_analysis",
+          brief:
+            "From the SETTLED stretch of play only, distill the CONSEQUENCES and HEARSAY the events would set in motion — what people " +
+            "beyond the scene would now be saying, rumours spreading, reputations shifting, and repercussions gathering. Write each as a " +
+            "short keyed entry the narrator can draw on later. Never reveal a secret the scene has kept hidden.",
+          routes: { lore: { apply: "confirm", bookId: knobs.bookId } },
+        },
+      ],
+    },
+  ],
+});
+
 /** THE REGISTRY — exhaustive over `RulePresetId` (a new id without a def, or a def without an id, fails
  *  `tsc`). This is the S3 enforcer the spec names. */
 export const RULE_PRESETS = {
@@ -649,4 +798,7 @@ export const RULE_PRESETS = {
   callAVote: CALL_A_VOTE,
   callback: CALLBACK,
   cutaways: CUTAWAYS,
+  storyPacing: STORY_PACING,
+  distillLore: DISTILL_LORE,
+  rumorMill: RUMOR_MILL,
 } as const satisfies Record<RulePresetId, ErasedRulePresetDef>;

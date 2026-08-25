@@ -72,8 +72,8 @@ import type { ChatComposeResult } from "./chat.ts";
 import { minter } from "./minter.ts";
 import { loadPluginMessages } from "./plugin-chat-reads.ts";
 
-const AUTOBG_SYSTEM =
-  "You choose the single best-matching background for a scene. Reply with ONLY the exact background name from the provided list, nothing else.";
+// (The /autobg SYSTEM line moved to `domain/automation/engine/arm-executors.ts` when `summarizeQuiet`
+// generalized at C1 — the domain owns its prompt text; this seam owns only the wire.)
 /** The HOST-authored system slot for a plugin `llm.quiet` call. The guest fills only the user slot, so it can
  *  never install a persona or a claim of authority here. Stating that the request is third-party plugin text
  *  is a prompt-injection MITIGATION, not a boundary — the boundary is that this call commits nothing. */
@@ -260,13 +260,19 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       }
       return record.isError ? { ok: false, reason: "failed", error: record.result } : { ok: true, result: record.result };
     },
-    // BG-F — the quiet summarize-role pick: one summarize generation under the author's connection. The side-gen
-    // sampling ladder: the `autobg` floor (temp 0.2, 32 out — a deterministic name pick) ← the author's
-    // default-preset params. A user with no preset params gets byte-identical behavior.
-    summarizeQuiet: async ({ authorUserId, prompt }) => {
+    // The generic quiet-LLM op (C1 widened it from the /autobg-only shape): the DOMAIN owns the prompt text
+    // and names its `SIDE_GEN_POSTURES` floor per call; this seam owns only the wire — resolve the author's
+    // role clients by ROW READ, fold their preset params over the named floor, and pass an optional
+    // `responseFormat` through the summarize facade, which routes a constrained call to the STRUCTURED role
+    // (role-clients.ts — the one facade, two wire roles). A user with no preset params gets the floor
+    // byte-identically.
+    summarizeQuiet: async ({ authorUserId, systemPrompt, prompt, posture, responseFormat }) => {
       const rc = await bindRoleClients(authorUserId);
-      const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.autobg, await deps.resolveUserPresetParams(authorUserId));
-      const res = await rc.summarize([{ systemPrompt: AUTOBG_SYSTEM, userPrompt: prompt }], toSummarizeOptions(posture));
+      const sampling = resolveSideGenSampling(SIDE_GEN_POSTURES[posture], await deps.resolveUserPresetParams(authorUserId));
+      const res = await rc.summarize([{ systemPrompt, userPrompt: prompt }], {
+        ...toSummarizeOptions(sampling),
+        ...(responseFormat !== undefined ? { responseFormat } : {}),
+      });
       const item = res.items[0];
       return { text: (item?.text ?? "").trim() };
     },
