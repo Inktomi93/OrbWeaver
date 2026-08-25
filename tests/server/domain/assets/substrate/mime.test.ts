@@ -58,6 +58,27 @@ describe("assertMagicMatches — document families", () => {
   });
 });
 
+// #709 (stored-XSS): an active document/script mime is never a servable asset type. Reject it at the store
+// boundary regardless of whether the bytes happen to satisfy a family check (text/html is valid UTF-8; an SVG
+// carries no binary magic). The blob-serve route neutralizes the same classes at read for any non-enforced path.
+describe("assertMagicMatches — active/executable mime reject (#709)", () => {
+  test("HTML, JS, SVG and XHTML claims are rejected even with plausible bytes", () => {
+    expect(() => assertMagicMatches(new TextEncoder().encode("<script>alert(1)</script>"), "text/html")).toThrow("executable/document mime");
+    expect(() => assertMagicMatches(new TextEncoder().encode("export{};alert(1)"), "text/javascript")).toThrow("executable/document mime");
+    expect(() => assertMagicMatches(new TextEncoder().encode("alert(1)"), "application/javascript")).toThrow("executable/document mime");
+    expect(() => assertMagicMatches(new TextEncoder().encode("<svg xmlns='http://www.w3.org/2000/svg'><script/></svg>"), "image/svg+xml")).toThrow(
+      "executable/document mime",
+    );
+    expect(() => assertMagicMatches(new TextEncoder().encode("<html/>"), "application/xhtml+xml")).toThrow("executable/document mime");
+    // the charset-parametered browser form is normalized before the check
+    expect(() => assertMagicMatches(new TextEncoder().encode("<b>hi</b>"), "text/html; charset=utf-8")).toThrow("executable/document mime");
+  });
+
+  test("a passive text type (markdown) is unaffected", () => {
+    expect(() => assertMagicMatches(new TextEncoder().encode("# hello"), "text/markdown")).not.toThrow();
+  });
+});
+
 describe("assertMagicMatches — video family (BG-V background layer)", () => {
   test("mp4 (ftyp box at byte 4) and webm (EBML header) signatures pass", () => {
     expect(() => assertMagicMatches(MP4, "video/mp4")).not.toThrow();

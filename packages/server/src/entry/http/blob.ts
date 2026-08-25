@@ -20,6 +20,31 @@ const WEBP_MIME = "image/webp";
 // Per-user cache: the response is scoped to one owner's session, immutable by content-address.
 const CACHE_CONTROL = "private, immutable";
 const DEFAULT_VARIANT_KIND: VariantKind = "icon";
+// #709 serve-boundary neutralization. A blob is served from the app's OWN origin, so a stored HTML/JS/SVG
+// asset navigated-to or `<script src=/api/blob/…>`-chained would execute with the owner's cookies: the app
+// CSP's `script-src 'self'` permits the same-origin script chain and `nosniff` does not help (text/javascript
+// is a real script type). So only PASSIVE MEDIA (image/video/audio) is served inline with its real type;
+// everything else — HTML, script, SVG, PDF, text, an octet-stream — is forced to a downloaded octet-stream so
+// it can never render as an active same-origin document. This holds regardless of how the bytes were stored
+// (the upload magic belt also rejects the active classes, but a non-magic-enforced write must still be safe).
+const OCTET_STREAM = "application/octet-stream";
+const NOSNIFF = "nosniff";
+const ATTACHMENT = "attachment";
+const INLINE_MEDIA_PREFIXES = ["image/", "video/", "audio/"] as const;
+// image/svg+xml carries the `image/` prefix but is a scriptable XML DOCUMENT (SVG runs `<script>`), so it is
+// the one media-prefixed type that must NOT serve inline. Kept explicit rather than folded into the prefix
+// test so the exception is legible at the call site.
+const NEVER_INLINE_MEDIA = new Set(["image/svg+xml"]);
+
+/** True iff the mime is passive media safe to render inline in the app's own origin (never an active
+ *  document/script). The `; charset=…`/`; codecs=…` parameter is stripped before the family test. */
+function isInlineServable(mime: string): boolean {
+  const base = (mime.split(";")[0] ?? "").trim().toLowerCase();
+  if (NEVER_INLINE_MEDIA.has(base)) {
+    return false;
+  }
+  return INLINE_MEDIA_PREFIXES.some((prefix) => base.startsWith(prefix));
+}
 
 /** The `assets` front-door slice the blob route consumes. `getMetadata` may include `ownerId` for the
  *  roster-avatar path. */
@@ -137,13 +162,20 @@ async function serveVariant(
 }
 
 function serveBytes(bytes: Uint8Array, mime: string): Response {
+  // #709: passive media serves inline with its real type; anything else is neutralized to a downloaded
+  // octet-stream so a stored user blob can never be rendered as an active same-origin document/script.
+  const inline = isInlineServable(mime);
+  const headers: Record<string, string> = {
+    "Content-Type": inline ? mime : OCTET_STREAM,
+    "Content-Length": String(bytes.byteLength),
+    "Cache-Control": CACHE_CONTROL,
+    // Restated here (the app middleware also sets it) so the neutralized type is honoured on every arm.
+    "X-Content-Type-Options": NOSNIFF,
+  };
+  if (!inline) {
+    headers["Content-Disposition"] = ATTACHMENT;
+  }
   // Node 26 undici BodyInit requires Uint8Array<ArrayBuffer>, not Uint8Array<ArrayBufferLike>.
   // new Uint8Array(bytes) copies into a concrete ArrayBuffer view — same pattern as egress.ts.
-  return new Response(new Uint8Array(bytes), {
-    headers: {
-      "Content-Type": mime,
-      "Content-Length": String(bytes.byteLength),
-      "Cache-Control": CACHE_CONTROL,
-    },
-  });
+  return new Response(new Uint8Array(bytes), { headers });
 }
