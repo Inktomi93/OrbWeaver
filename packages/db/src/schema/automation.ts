@@ -1,10 +1,12 @@
-// schema/automation — the D46 automation slice (producer: domain/automation). Five tables in the
+// schema/automation — the D46 automation slice (producer: domain/automation). Six tables in the
 // `0000_baseline` (decide-before-launch — the domain lands with NO table rebuilds):
-// automation_rules · automation_budgets · automation_fires · automation_rule_state · global_variables.
+// automation_rules · automation_budgets · automation_owner_budgets · automation_fires ·
+// automation_rule_state · global_variables.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
-//   • `automation_rules.chat_id` is NULLABLE FROM BIRTH; v1 verbs refuse NULL. An owner-global rule is a
-//     plausible v2 — the nullable column makes it additive (the D37 born-whole posture).
+//   • `automation_rules.chat_id` is NULLABLE FROM BIRTH, and C5 WIRED IT: NULL = an owner-global rule,
+//     admitted by `createRule` under an owner check and dispatched by the domain-bus lane. The column was
+//     born nullable for exactly this (the D37 born-whole posture) — the widening was additive, as promised.
 //   • Rules are born DISABLED (`enabled` default 0) — enabling is the consent act.
 //   • Actions are ONE json column, not a child table: an ordered value-object list (1..8) with no
 //     independent identity. Zod-validated at write, LAZY-parsed at read with the chat-metadata
@@ -26,6 +28,7 @@ import {
   ANALYSIS_GUIDANCE_MAX,
   AUTOMATION_CHAT_BUDGET_DEFAULTS,
   AUTOMATION_FIRE_OUTCOMES,
+  AUTOMATION_OWNER_BUDGET_DEFAULTS,
   AUTOMATION_TRIGGER_BUSES,
   CHAT_TRIGGER_TYPES,
   DOMAIN_TRIGGER_TYPES,
@@ -71,7 +74,8 @@ export const automationRules = sqliteTable(
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    // NULL = owner-global (BORN nullable, NOT wired v1 — v1 verbs refuse NULL; see header).
+    // NULL = owner-global — WIRED at C5 (`createRule` admits NULL under the owner check; the rate belt is
+    // `automation_owner_budgets`). A global rule's arms are restricted to the chat-INDEPENDENT set.
     chatId: text("chat_id")
       .$type<ChatId>()
       .references(() => chats.id, { onDelete: "cascade" }),
@@ -138,6 +142,27 @@ export const automationBudgets = sqliteTable("automation_budgets", {
     .primaryKey()
     .references(() => chats.id, { onDelete: "cascade" }),
   maxFiresPerHour: integer("max_fires_per_hour").notNull().default(AUTOMATION_CHAT_BUDGET_DEFAULTS.maxFiresPerHour),
+  updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// automation_owner_budgets — ONE row per OWNER with owner-global automation (C5). The SIBLING of
+// automation_budgets above, and it exists because that table's PK is `chat_id`: a NULL-scope budget row is
+// unrepresentable (SQLite PKs cannot be NULL), and a synthetic sentinel chat id would be the D24 soft-ref
+// class the ledger forbids. So the belt that bounds a whole SCOPE gets one table per scope kind, keyed by
+// what that scope actually is. A runaway owner-global rule otherwise multiplies by the author's entire
+// library rather than by one room — the exact hammering this belt exists to bound. A RATE cap only: the
+// per-day $/spend ceilings were stripped 2026-07-24 and nothing here re-introduces them.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const automationOwnerBudgets = sqliteTable("automation_owner_budgets", {
+  // NATURAL PK: the owner's own id + CASCADE FK (the `automation_budgets` chatId-PK pattern) — the PK is
+  // also the child-FK index in one column (`fk-columns-indexed` satisfied).
+  ownerId: text("owner_id")
+    .$type<UserId>()
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  maxFiresPerHour: integer("max_fires_per_hour").notNull().default(AUTOMATION_OWNER_BUDGET_DEFAULTS.maxFiresPerHour),
   updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
 });
 

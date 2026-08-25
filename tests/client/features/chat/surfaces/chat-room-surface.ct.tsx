@@ -372,6 +372,74 @@ test("#680 desktop: the flank wrapper is HEIGHT-neutral — a silent flank and n
   expect(withWrapper?.width).toBe(bare?.width);
 });
 
+// ── #685: THE FLANK COLUMN IS TOP-ANCHORED, AT BOTH ARMS ──────────────────────────────────────────────
+// The finding: the needle meter "floats mid-air" — a 138x80 card hovering half-way down the painting
+// instead of reading as room chrome. The mechanism is the flank column's cross-axis alignment, which is the
+// SAME axis-disagreement family #680 fixed one property over: a flank widget is content-height, so where it
+// sits in a full-height column is decided by the column's own alignment, and `Row`'s baked `items-center`
+// centred the whole column before `align="stretch"` landed.
+//
+// SO THIS LOOP MEASURES BOTH ARMS ON THE AXIS EACH ARM ACTUALLY HAS. `@max-lg:flex-col` flips DIRECTION, so
+// the flank's cross axis is the BLOCK axis beside (a centred column floats down the painting) and the INLINE
+// axis stacked (a centred column floats away from the reading edge). Measured against the pre-#680 source
+// (`git show cddc2b5ae^:…`), both arms are RED — which is the receipt that the centring the finding reported
+// was the SAME baked `items-center` #680 removed, i.e. this loop is a FENCE on today's tree, not a fix.
+// A one-arm pin is how the centring shipped in the first place (#680's own lesson).
+const FLANK_START_ARMS = [
+  { label: "desktop (beside)", viewport: DESKTOP, axis: "block" },
+  { label: "mobile (stacked)", viewport: { width: 430, height: 932 }, axis: "inline" },
+] as const;
+
+for (const { label, viewport, axis } of FLANK_START_ARMS) {
+  test(`#685 ${label}: the flank column starts at the flank ROW's ${axis} edge — never centred on its cross axis`, async ({ mount, page }) => {
+    await page.setViewportSize(viewport);
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(LONG_CANON) });
+
+    const component = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} />);
+
+    const widget = component.getByTestId("ct-fake-surface-contribution");
+    await expect(widget).toBeVisible();
+    const flank = page.locator('[data-slot="chat-thread-flank"]');
+    const row = page.locator('[data-slot="chat-room-flank-row"]');
+    await expect(flank).toBeVisible();
+    const flankBox = await flank.boundingBox();
+    const rowBox = await row.boundingBox();
+    const widgetBox = await widget.boundingBox();
+    expect(flankBox, "the flank column must have a box to compare").not.toBeNull();
+    expect(rowBox, "the flank row must have a box to compare").not.toBeNull();
+    expect(widgetBox, "the flank widget must have a box to compare").not.toBeNull();
+    // The CROSS-AXIS start: beside, the column's top is the row's top; stacked, its left is the row's left.
+    // A centred column sits at half the free space on exactly that axis.
+    const flankStart = axis === "block" ? (flankBox?.y ?? 0) : (flankBox?.x ?? 0);
+    const rowStart = axis === "block" ? (rowBox?.y ?? 0) : (rowBox?.x ?? 0);
+    expect(flankStart, `the flank's ${axis}-start against the row's`).toBeCloseTo(rowStart, 0);
+    // …and the widget is at the START of the column it sits in (no free space above it inside the flank).
+    expect(widgetBox?.y ?? 0).toBeCloseTo(flankBox?.y ?? 0, 0);
+  });
+}
+
+// The finding's own words, as a receipt: "flank top edge aligned to the thread's top". Kept SEPARATE from
+// the loop because it is inconclusive against the pre-#680 source for an unrelated reason — there the
+// transcript did not mount at all (the bounded-height tripwire threw), so it is a fence on today's tree.
+test("#685 desktop: the flank column's top edge is the TRANSCRIPT's top edge (room chrome, not a floater)", async ({ mount, page }) => {
+  await page.setViewportSize(DESKTOP);
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(LONG_CANON) });
+
+  const component = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} />);
+
+  await expect(component.getByTestId("ct-fake-surface-contribution")).toBeVisible();
+  const flank = page.locator('[data-slot="chat-thread-flank"]');
+  const scroller = page.locator('[data-slot="message-list-scroll"]');
+  await expect(scroller).toBeVisible();
+  const flankBox = await flank.boundingBox();
+  const threadBox = await scroller.boundingBox();
+  expect(flankBox, "the flank column must have a box").not.toBeNull();
+  expect(threadBox, "the transcript must have a box").not.toBeNull();
+  // BESIDE means beside: the two columns start on the same line. (Only asserted on this arm — stacked, the
+  // flank is BELOW the thread by construction, which the container-query row above already pins.)
+  expect(flankBox?.y ?? 0).toBeCloseTo(threadBox?.y ?? 0, 0);
+});
+
 // THE SILENT-CONTRIBUTOR COLLAPSE (#16's needle meter is the case that needed it). A contributor whose
 // applicability is DATA cannot answer the seam's SYNC `when`, so it mounts in every room and paints
 // nothing where it does not apply. Without the flank stack's `empty:hidden`, every room without a tension

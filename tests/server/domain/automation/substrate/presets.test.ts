@@ -128,6 +128,10 @@ const SPENDING_PRESET_IDS = [
   "proseAudit",
   // C6's #14 is a `run_analysis` pass too; its sibling #2 posts a notification, which costs nothing.
   "spotlightBalance",
+  // C5's #20 fires a `generate_image` — an image per changed card, on the AUTHOR's own connection. It is
+  // the one owner-GLOBAL row, and it is the row where the signal matters most: a library-wide rule bills on
+  // events the host is not watching (an import run, a bulk edit), so the picker must say so before the add.
+  "livingLibrary",
 ];
 
 test("#655: the spend signal names exactly the presets whose arms cost a model call", () => {

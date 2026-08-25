@@ -29,11 +29,13 @@
 // one predicate, plus the capability ceiling a builtin already declares. Not a new arm, not a second registry,
 // and not a special case here.
 
-import type { AutomationAction, QuickReplyMode } from "@orb/contracts/automation";
+import type { AutomationAction, AutomationVariableScope, QuickReplyMode } from "@orb/contracts/automation";
 import { AUTOMATION_VARIABLE_VALUE_MAX, isConfirmFirstArm } from "@orb/contracts/automation";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { RunAnalysisAction } from "../contract/analysis.ts";
 import type { ArmDispatch, ArmExecutorDeps, ArmOutcome, DispatchFrame } from "../contract/ops.ts";
@@ -56,6 +58,20 @@ function armError(detail: string): ArmOutcome {
  *  off cannot rot the rules that name its tools. Only `run_tool` can produce it, and it carries no detail
  *  because a pause writes no fire row — there is nowhere for one to go. */
 const PAUSED_ARM: ArmOutcome = { ok: false, kind: "paused" };
+
+/** C5 — THE SECOND BELT on a chat-required arm: a typed refusal when the frame has no room.
+ *
+ *  The FIRST belt is the mint (`substrate/validate.ts`'s owner-global admission matrix, driven by the
+ *  contracts `AUTOMATION_ARM_SCOPE` Record), which refuses these arms on a chat-less rule so no such rule is
+ *  ever stored. This exists anyway, and for the same reason `set_chat_background` re-enters chat's host gate
+ *  after `holdsAuthority` already passed (the DEF-11 wall): a non-null assertion here would be a claim about
+ *  a validator two modules away, and the day a new mint path forgets a row the failure would be a crash in
+ *  the fire-and-forget bus handler instead of one rule's honest `action_error`. Costing one comparison to
+ *  make an entire class of mistake un-crashable is the trade the house takes every time. */
+function chatRequiredRefusal(type: AutomationAction["type"]): ArmOutcome {
+  // PROSE-OK: a HOST-facing typed refusal read on the fire log, never bytes that reach a model — the prose catalogue is for strings a host may re-author into a PROMPT, and this one exists to repeat what the mint already said. Same for the three sibling refusals below.
+  return armError(`the '${type}' action needs a chat and this rule is owner-global`);
+}
 
 // ── 1.1 set_variable ──────────────────────────────────────────────────────────────────────────────
 /** Resolve the final value string for a `set`/`inc`/`dec` op given the current value + the rendered operand.
@@ -80,23 +96,39 @@ function resolveNumericValue(op: "inc" | "dec", current: string, operandText: st
 async function writeArmVariable(
   deps: ArmExecutorDeps,
   frame: DispatchFrame,
-  args: { readonly scope: "chat" | "global"; readonly key: string; readonly value: string },
-): Promise<void> {
+  args: { readonly scope: AutomationVariableScope; readonly key: string; readonly value: string },
+): Promise<ArmOutcome> {
   const { scope, key, value } = args;
+  const chatId = frame.chatId;
   if (scope === "chat") {
+    // C5's PLANE belt, the second one. The `chat` variable plane IS a room's fold, so a chat-less rule has
+    // nowhere to write it; the mint already refuses this configuration (the per-arm refinement the per-TYPE
+    // scope Record structurally cannot express), and reaching here anyway earns the SAME typed refusal every
+    // other unrunnable arm gets rather than a silent no-op — a variable write that quietly did not happen is
+    // the worst of the three possible answers, because the next arm's `inc` composes on top of it.
+    if (chatId === null) {
+      // PROSE-OK: a host-facing typed refusal (see `chatRequiredRefusal`), never model-facing bytes.
+      return armError(`the '${scope}' variable plane needs a chat and this rule is owner-global`);
+    }
     const ops: readonly VarOp[] = [{ op: "set", key, value }];
-    await deps.ops.chat.applyVariableOps(frame.chatId, ops);
+    await deps.ops.chat.applyVariableOps(chatId, ops);
     frame.env.vars[key] = value;
-    return;
+    return OK;
   }
   await upsertGlobalVariable(deps.db, { ownerId: frame.authorUserId, key, value, updatedAt: frame.now });
+  return OK;
 }
 
 async function runSetVariable(deps: ArmExecutorDeps, action: Extract<AutomationAction, { type: "set_variable" }>, frame: DispatchFrame): Promise<ArmOutcome> {
   const { scope, key, op } = action;
+  const chatId = frame.chatId;
   if (op === "delete") {
     if (scope === "chat") {
-      await deps.ops.chat.applyVariableOps(frame.chatId, [{ op: "delete", key }]);
+      if (chatId === null) {
+        // PROSE-OK: a host-facing typed refusal (see `chatRequiredRefusal`), never model-facing bytes.
+        return armError(`the '${scope}' variable plane needs a chat and this rule is owner-global`);
+      }
+      await deps.ops.chat.applyVariableOps(chatId, [{ op: "delete", key }]);
       // WRITE-THROUGH, the delete half (`writeArmVariable` states the rule for the set half): mirror the
       // delete onto the shared in-memory `vars` too, so a later `has()` in this batch is false.
       delete frame.env.vars[key];
@@ -107,7 +139,13 @@ async function runSetVariable(deps: ArmExecutorDeps, action: Extract<AutomationA
   }
 
   // `value` is a TEMPLATE (required for set; the operand for inc/dec, default "1").
-  const rendered = renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: action.value ?? String(DEFAULT_INC_DEC_OPERAND) });
+  const rendered = renderArmTemplate({
+    env: frame.env,
+    chatScoped: chatId !== null,
+    nowMs: frame.now,
+    prng: deps.prng,
+    template: action.value ?? String(DEFAULT_INC_DEC_OPERAND),
+  });
   if (rendered.error !== undefined) {
     return armError(rendered.error);
   }
@@ -122,8 +160,7 @@ async function runSetVariable(deps: ArmExecutorDeps, action: Extract<AutomationA
     value = resolveNumericValue(op, current, rendered.text);
   }
 
-  await writeArmVariable(deps, frame, { scope, key, value });
-  return OK;
+  return await writeArmVariable(deps, frame, { scope, key, value });
 }
 
 // ── 1.3 insert_world_info_entry ─────────────────────────────────────────────────────────────────────
@@ -136,7 +173,13 @@ async function runInsertWorldInfo(
   action: Extract<AutomationAction, { type: "insert_world_info_entry" }>,
   frame: DispatchFrame,
 ): Promise<ArmOutcome> {
-  const rendered = renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: action.contentTemplate });
+  const rendered = renderArmTemplate({
+    env: frame.env,
+    chatScoped: frame.chatId !== null,
+    nowMs: frame.now,
+    prng: deps.prng,
+    template: action.contentTemplate,
+  });
   if (rendered.error !== undefined) {
     return armError(rendered.error);
   }
@@ -152,9 +195,13 @@ async function runInsertWorldInfo(
 
 // ── 1.4 surface_quick_reply ─────────────────────────────────────────────────────────────────────────
 function runSurfaceQuickReply(deps: ArmExecutorDeps, action: Extract<AutomationAction, { type: "surface_quick_reply" }>, frame: DispatchFrame): ArmOutcome {
+  const chatId = frame.chatId;
+  if (chatId === null) {
+    return chatRequiredRefusal(action.type);
+  }
   const choices: { label: string; sendText: string; mode: QuickReplyMode }[] = [];
   for (const choice of action.choices) {
-    const rendered = renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: choice.sendTemplate });
+    const rendered = renderArmTemplate({ env: frame.env, chatScoped: true, nowMs: frame.now, prng: deps.prng, template: choice.sendTemplate });
     if (rendered.error !== undefined) {
       return armError(rendered.error);
     }
@@ -165,7 +212,7 @@ function runSurfaceQuickReply(deps: ArmExecutorDeps, action: Extract<AutomationA
   // The one MEMBER-visible automation-bus event — rendered display strings, no row (the chips are
   // transient). The `notify` sink is wired at compose to `publishAutomationEvent`, which fans this to the
   // chat's `automation.stream` subscribers; the client renders it as transient chips above the composer.
-  deps.notify({ type: "quickReplySurfaced", chatId: frame.chatId, source: { kind: "rule", ruleId: frame.origin.ruleId }, choices });
+  deps.notify({ type: "quickReplySurfaced", chatId, source: { kind: "rule", ruleId: frame.origin.ruleId }, choices });
   return OK;
 }
 
@@ -175,7 +222,11 @@ async function runPostNotification(
   action: Extract<AutomationAction, { type: "post_notification" }>,
   frame: DispatchFrame,
 ): Promise<ArmOutcome> {
-  const rendered = renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: action.messageTemplate });
+  const chatId = frame.chatId;
+  if (chatId === null) {
+    return chatRequiredRefusal(action.type);
+  }
+  const rendered = renderArmTemplate({ env: frame.env, chatScoped: true, nowMs: frame.now, prng: deps.prng, template: action.messageTemplate });
   if (rendered.error !== undefined) {
     return armError(rendered.error);
   }
@@ -188,14 +239,12 @@ async function runPostNotification(
   // it `frame.fact.message` is absent and the actor-excluding member would spare nobody.
   const recipients = await resolveNotificationRecipients(deps.db, {
     recipient: action.recipient,
-    chatId: frame.chatId,
+    chatId,
     hostUserId: frame.authorUserId,
     actorUserId: frame.fact.message?.authorUserId ?? null,
   });
   const source = { kind: "rule", ruleId: frame.origin.ruleId } as const;
-  await Promise.all(
-    recipients.map((recipientUserId) => deps.ops.notifications.emit({ type: "automation-notice", recipientUserId, chatId: frame.chatId, source, message })),
-  );
+  await Promise.all(recipients.map((recipientUserId) => deps.ops.notifications.emit({ type: "automation-notice", recipientUserId, chatId, source, message })));
   return OK;
 }
 
@@ -208,12 +257,21 @@ async function runGenerateImage(
   // The prompt is a template like every arm field; absent ⇒ imagery extracts from chat (a portrait mode).
   let prompt: string | undefined;
   if (action.prompt !== undefined) {
-    const rendered = renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: action.prompt });
+    const rendered = renderArmTemplate({ env: frame.env, chatScoped: frame.chatId !== null, nowMs: frame.now, prng: deps.prng, template: action.prompt });
     if (rendered.error !== undefined) {
       return armError(rendered.error);
     }
     prompt = rendered.text.length > 0 ? rendered.text : undefined;
   }
+  // THE SUBJECT, and where it comes from when the arm did not name one. An arm's `subjectCharacterId` is a
+  // literal fixed at authoring, which is fine for a room rule pointed at one character — and useless to the
+  // owner-global lane, whose whole point is "illustrate WHICHEVER character just changed". So an arm with no
+  // authored subject inherits the TRIGGERING FACT's character when the fact has one. It is the same class of
+  // read every other arm already does off the fact (`set_chat_background` takes its scene from
+  // `fact.message.content`; `post_notification` takes its actor from `fact.message.authorUserId`), and it is
+  // safe on the global lane specifically because the dispatch has already proven this author OWNS that
+  // character (`runGates`' subject gate) — otherwise this line would caption a stranger's avatar.
+  const subjectCharacterId = action.subjectCharacterId ?? (frame.fact.character === undefined ? undefined : castId<CharacterId>(frame.fact.character.id));
   await deps.ops.imagery.generatePicture({
     authorUserId: frame.authorUserId,
     chatId: frame.chatId,
@@ -225,7 +283,7 @@ async function runGenerateImage(
     ...(action.negative !== undefined ? { negative: action.negative } : {}),
     n: action.n,
     ...(action.size !== undefined ? { size: action.size } : {}),
-    ...(action.subjectCharacterId !== undefined ? { subjectCharacterId: action.subjectCharacterId } : {}),
+    ...(subjectCharacterId !== undefined ? { subjectCharacterId } : {}),
     useAvatarReference: action.useAvatarReference,
     reuse: action.reuse,
     // ONE /imagine path: honour `quiet`. `false` (the default) ⇒ the op POSTS the generated image into
@@ -238,10 +296,14 @@ async function runGenerateImage(
 
 // ── 1.6 trigger_turn (an autonomous chat turn) ─────────────────────────────────────────────────────────
 async function runTriggerTurn(deps: ArmExecutorDeps, action: Extract<AutomationAction, { type: "trigger_turn" }>, frame: DispatchFrame): Promise<ArmOutcome> {
+  const chatId = frame.chatId;
+  if (chatId === null) {
+    return chatRequiredRefusal(action.type);
+  }
   // The guided steer is a template like every arm field; absent ⇒ no steer.
   let guided: string | undefined;
   if (action.guidedTemplate !== undefined) {
-    const rendered = renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: action.guidedTemplate });
+    const rendered = renderArmTemplate({ env: frame.env, chatScoped: true, nowMs: frame.now, prng: deps.prng, template: action.guidedTemplate });
     if (rendered.error !== undefined) {
       return armError(rendered.error);
     }
@@ -256,7 +318,7 @@ async function runTriggerTurn(deps: ArmExecutorDeps, action: Extract<AutomationA
   try {
     await deps.ops.chat.requestTurn({
       authorUserId: frame.authorUserId,
-      chatId: frame.chatId,
+      chatId,
       automationDepth: frame.origin.automationDepth,
       ...(action.speakerCharacterId !== undefined ? { speakerCharacterId: action.speakerCharacterId } : {}),
       ...(guided !== undefined ? { guided } : {}),
@@ -295,6 +357,10 @@ async function runSetChatBackground(
   action: Extract<AutomationAction, { type: "set_chat_background" }>,
   frame: DispatchFrame,
 ): Promise<ArmOutcome> {
+  const chatId = frame.chatId;
+  if (chatId === null) {
+    return chatRequiredRefusal(action.type);
+  }
   const choices = await deps.ops.chat.listBackgroundChoices(frame.authorUserId);
   // Nothing to pick from — a soft no-op (the author has no owned backgrounds yet), never an error.
   if (choices.length === 0) {
@@ -302,14 +368,14 @@ async function runSetChatBackground(
   }
   let instruction = "";
   if (action.instruction !== undefined) {
-    const rendered = renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: action.instruction });
+    const rendered = renderArmTemplate({ env: frame.env, chatScoped: true, nowMs: frame.now, prng: deps.prng, template: action.instruction });
     if (rendered.error !== undefined) {
       return armError(rendered.error);
     }
     instruction = rendered.text;
   }
   const sceneText = frame.fact.message === undefined ? "" : frame.fact.message.content;
-  const prose = await deps.ops.chat.resolveChatProse(frame.chatId);
+  const prose = await deps.ops.chat.resolveChatProse(chatId);
   const prompt = buildAutobgPrompt(
     prose,
     sceneText,
@@ -318,7 +384,7 @@ async function runSetChatBackground(
   );
   const quiet = await deps.ops.summarizeQuiet({
     authorUserId: frame.authorUserId,
-    chatId: frame.chatId,
+    chatId,
     systemPrompt: resolveProseText("automation.autobg.system", prose),
     prompt,
     posture: "autobg",
@@ -336,7 +402,7 @@ async function runSetChatBackground(
   // outcome that keeps the rule healthy per the taxonomy), never a raw rejection the dispatcher logs as an
   // isolated fault.
   try {
-    await deps.ops.chat.setChatBackground({ authorUserId: frame.authorUserId, chatId: frame.chatId, background: chosen.background });
+    await deps.ops.chat.setChatBackground({ authorUserId: frame.authorUserId, chatId, background: chosen.background });
   } catch (err) {
     return armError(`set_chat_background refused: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -369,7 +435,7 @@ async function runSetChatBackground(
  *  Three belts, three owners, none of them this file's to re-implement. */
 async function runRunTool(deps: ArmExecutorDeps, action: Extract<AutomationAction, { type: "run_tool" }>, frame: DispatchFrame): Promise<ArmOutcome> {
   // The args are a TEMPLATE like every arm field — rendered in the author's env, at fire time, once.
-  const rendered = renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: action.argsTemplate });
+  const rendered = renderArmTemplate({ env: frame.env, chatScoped: frame.chatId !== null, nowMs: frame.now, prng: deps.prng, template: action.argsTemplate });
   if (rendered.error !== undefined) {
     return armError(rendered.error);
   }
@@ -387,7 +453,7 @@ async function runRunTool(deps: ArmExecutorDeps, action: Extract<AutomationActio
     // the cached CEL env into every later predicate and template render on this chat. A tool returning more
     // than the plane holds is misusing the channel — capture what fits and keep the rule healthy rather than
     // failing an invocation that actually succeeded.
-    await writeArmVariable(deps, frame, {
+    return await writeArmVariable(deps, frame, {
       scope: action.resultScope,
       key: action.resultVar,
       value: outcome.result.slice(0, AUTOMATION_VARIABLE_VALUE_MAX),
@@ -414,6 +480,16 @@ function stashConfirmFirstArm(deps: ArmExecutorDeps, action: AutomationAction, f
   if (!isConfirmFirstArm(action)) {
     return null;
   }
+  const chatId = frame.chatId;
+  // C5 — an owner-GLOBAL rule cannot ASK. The pending store keys its replace-per-kind slot on `(chatId,
+  // source)`, the card rides the per-CHAT automation bus, and the confirm verb gates the chat's HOST: an ask
+  // with no room is unanswerable in all three. The mint refuses `confirmFirst` on a chat-less rule for
+  // exactly this reason, so reaching here means a stored rule got past that — refuse it typed rather than
+  // stash a card that nothing could ever confirm and that the TTL would silently eat.
+  if (chatId === null) {
+    // PROSE-OK: a host-facing typed refusal (see `chatRequiredRefusal`), never model-facing bytes.
+    return armError(`'${action.type}' cannot ask first on an owner-global rule — a confirm card is raised in a room, to its host`);
+  }
   const id = deps.newSuggestionId();
   const expiresAt = frame.now + AUTOMATION_SUGGESTION_TTL_MS;
   const summary = summarizeSuggestibleArm(action);
@@ -421,14 +497,14 @@ function stashConfirmFirstArm(deps: ArmExecutorDeps, action: AutomationAction, f
   deps.suggestions.raise({
     id,
     kind: "confirm",
-    chatId: frame.chatId,
+    chatId,
     source,
     actorUserId: frame.authorUserId,
     summary,
     expiresAt,
     payload: { via: "arm", stashed: { action, frame } },
   });
-  deps.notify({ type: "suggestionRaised", chatId: frame.chatId, source, suggestionId: id, kind: "confirm", summary, expiresAt });
+  deps.notify({ type: "suggestionRaised", chatId, source, suggestionId: id, kind: "confirm", summary, expiresAt });
   // `suggested` is what keeps the fire log honest: the rule's remaining arms still run, but its TERMINAL
   // records no `fired` row, because nothing fired — a host was asked.
   return { ok: true, suggested: true };
@@ -474,8 +550,12 @@ function runArm(deps: ArmExecutorDeps, action: AutomationAction, frame: Dispatch
       return runSetChatBackground(deps, action as Extract<AutomationAction, { type: "set_chat_background" }>, frame);
     case "trigger_turn":
       return runTriggerTurn(deps, action as Extract<AutomationAction, { type: "trigger_turn" }>, frame);
-    case "run_analysis":
-      return runRunAnalysis(deps, action as RunAnalysisAction, frame);
+    case "run_analysis": {
+      // The one chat-required arm whose ENGINE is narrowed by TYPE rather than by a check at each read: the
+      // scope gate happens here, once, and everything downstream takes a `ChatScopedDispatchFrame`.
+      const chatId = frame.chatId;
+      return chatId === null ? Promise.resolve(chatRequiredRefusal(type)) : runRunAnalysis(deps, action as RunAnalysisAction, { ...frame, chatId });
+    }
     case "run_tool":
       return runRunTool(deps, action as Extract<AutomationAction, { type: "run_tool" }>, frame);
     // v1-unwired (typed refusal, NOT a stub — the honest not-yet-wired state):

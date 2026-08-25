@@ -1,8 +1,11 @@
 // transport/trpc/routers/automation — the client-facing surface of the automation LEAF (the rule editor +
-// list/reorder + fire log + budget panel the settings pane consumes). Every verb is
-// host-authored room authority in v1: the domain guard gates `can(principal, "host", {kind:"chat",
-// roster})` over the chat's membership — a non-member collapses to a leak-free NOT_FOUND, a member-not-host
-// propagates `can()`'s FORBIDDEN. Thin: validate the wire schema → `principal: ctx.auth` → the acting verb.
+// list/reorder + fire log + budget panels the chat Rules section and the Automation settings pane consume).
+// AUTHORITY FOLLOWS THE RULE'S SCOPE, decided in the domain guard, never here:
+//   • a CHAT-scoped rule — `can(principal, "host", {kind:"chat", roster})` over the chat's membership; a
+//     non-member collapses to a leak-free NOT_FOUND, a member-not-host propagates `can()`'s FORBIDDEN.
+//   • an OWNER-GLOBAL rule (C5) — the caller must BE the author; anyone else gets NOT_FOUND, because that
+//     lane is visible to exactly one person and FORBIDDEN would make a rule id an existence oracle.
+// Thin: validate the wire schema → `principal: ctx.auth` → the acting verb.
 // The trigger/action VOCABULARY is NOT re-spelled here — the wire wrappers reference `@orb/contracts/automation`'s
 // `automationTriggerSchema` + `automationActionsSchema` (one home per shape — `no-inline-union-redecl`); the
 // scalar rule fields + budget knobs are inline wire wrappers (imagery router precedent). testRule's optional
@@ -54,7 +57,10 @@ export const automationRouter = t.router({
   // The rule editor (host-only). createRule is born DISABLED (enabling is the consent act); updateRule replaces
   // the editable field set + resets `consecutive_errors`. Both run the full write-edge validation in the verb
   // (trigger liveness · CEL parse · action shapes/caps/reserved-arm refusal · book attachment · cooldown floor).
-  createRule: authedProcedure.input(ruleEditableSchema.extend({ chatId: brandedId<ChatId>() })).mutation(({ ctx, input }) =>
+  // `chatId` is NULLABLE on the wire (C5): null = the caller's owner-GLOBAL lane. Nullable rather than
+  // optional so an omitted field is a BAD_REQUEST instead of silently minting a global rule — a caller must
+  // say which lane it means.
+  createRule: authedProcedure.input(ruleEditableSchema.extend({ chatId: brandedId<ChatId>().nullable() })).mutation(({ ctx, input }) =>
     ctx.services.automation.createRule({
       principal: ctx.auth,
       chatId: input.chatId,
@@ -103,8 +109,10 @@ export const automationRouter = t.router({
   // typed refusal on anything off-shape or out of bounds), substitutes them into the CEL sources as literals,
   // and creates each rule through the EXISTING host-gated `createRule` — so the host gate fires per rule, and
   // every minted rule is born DISABLED. An absent `knobs` takes every descriptor default (exactOptional).
+  // `chatId` nullable for the same reason `createRule`'s is — and the verb additionally refuses a chat that
+  // DISAGREES with the named preset's own declared scope, in both directions.
   createRuleFromPreset: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>(), presetId: rulePresetIdSchema, knobs: rulePresetKnobValuesSchema.optional() }))
+    .input(z.object({ chatId: brandedId<ChatId>().nullable(), presetId: rulePresetIdSchema, knobs: rulePresetKnobValuesSchema.optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.automation.createRuleFromPreset({
         principal: ctx.auth,
@@ -170,4 +178,22 @@ export const automationRouter = t.router({
   getBudgets: authedProcedure
     .input(z.object({ chatId: brandedId<ChatId>() }))
     .query(({ ctx, input }) => ctx.services.automation.getBudgets({ principal: ctx.auth, chatId: input.chatId })),
+
+  // ── C5: the OWNER-GLOBAL lane (the Automation settings pane's three procedures) ──────────────────
+  // NONE OF THEM TAKES AN ID, and that is the whole authority story rather than a missing gate: the plane is
+  // single-owned (D18), so the scope IS `ctx.auth.userId` and there is no other lane a caller could name.
+  // The rule LIFECYCLE verbs the pane also drives (setRuleEnabled / deleteRule / testRule / runRuleNow /
+  // listFires) are the SAME procedures the chat surface uses — they take a ruleId and the domain guard
+  // answers for its scope, so the pane needs no duplicates of them.
+
+  listOwnerRules: authedProcedure.query(({ ctx }) => ctx.services.automation.listOwnerRules({ principal: ctx.auth })),
+
+  getOwnerBudgets: authedProcedure.query(({ ctx }) => ctx.services.automation.getOwnerBudgets({ principal: ctx.auth })),
+
+  setOwnerBudgets: authedProcedure.input(z.object({ maxFiresPerHour: z.number().int().min(0).optional() })).mutation(({ ctx, input }) =>
+    ctx.services.automation.setOwnerBudgets({
+      principal: ctx.auth,
+      ...(input.maxFiresPerHour === undefined ? {} : { maxFiresPerHour: input.maxFiresPerHour }),
+    }),
+  ),
 });

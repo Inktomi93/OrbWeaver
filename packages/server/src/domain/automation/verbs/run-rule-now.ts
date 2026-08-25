@@ -15,19 +15,20 @@ import { RuleValidationError } from "../contract/errors.ts";
 import type { RunRuleNowParams } from "../contract/params.ts";
 import type { RunRuleNowResult } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
-import { requireRuleHost } from "../guard.ts";
+import { requireRuleAuthority } from "../guard.ts";
 import { dispatchRuleNow } from "../substrate/run-now.ts";
 
 export function createRunRuleNow(ctx: AutomationContext): AutomationService["runRuleNow"] {
   return async ({ principal, ruleId }: RunRuleNowParams): Promise<RunRuleNowResult> => {
-    const rule = await requireRuleHost(ctx, principal, ruleId);
+    const rule = await requireRuleAuthority(ctx, principal, ruleId);
     if (!rule.enabled) {
       throw new RuleValidationError("rule_disabled", "this rule is disabled — enable it before running it");
     }
     const outcome = await dispatchRuleNow(ctx, rule, rule.chatId, principal.userId);
     if (outcome === null) {
-      // The one reachable null for an enabled chat-scoped rule: a transform_draft rule, which rewrites a
-      // draft INSIDE the turn pipeline and has no out-of-turn meaning at all.
+      // The one reachable null for an enabled rule of either scope: a transform_draft rule, which rewrites a
+      // draft INSIDE the turn pipeline and has no out-of-turn meaning at all. (An owner-global rule cannot
+      // carry that arm — `AUTOMATION_ARM_SCOPE` marks it chat-required — so this branch is a chat rule's.)
       throw new RuleValidationError(
         "transform_not_runnable",
         "a transform_draft rule runs inside the turn pipeline — there is no draft to rewrite out of turn",

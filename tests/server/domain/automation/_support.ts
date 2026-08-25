@@ -204,6 +204,14 @@ export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}):
       register: promptRegistry.register,
       unregister: promptRegistry.unregister,
     }),
+    // C5 — the owner-GLOBAL lane's standing-authority read, over the REAL `users` row (compose wires
+    // sessions' own `loadUserById` here). Never a stub `true`: the whole point of the predicate is that a
+    // disabled author's chat-less rules stop firing, and a harness that answered `true` unconditionally
+    // would make that unassertable.
+    isAuthorEnabled: async (userId): Promise<boolean> => {
+      const rows = await db.select({ enabled: users.enabled }).from(users).where(eq(users.id, userId)).limit(1);
+      return rows[0]?.enabled === true;
+    },
     resolveAuthor: async (userId): Promise<Principal | null> => {
       const rows = await db.select({ role: users.role, handle: users.handle }).from(users).where(eq(users.id, userId)).limit(1);
       const row = rows[0];

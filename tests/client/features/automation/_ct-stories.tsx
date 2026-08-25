@@ -11,7 +11,7 @@
 // and the wiring between them exists only at the composition root.
 
 import { QueryBoundary, QueryErrorState } from "@orb/client/data";
-import { automationRulesSection, NeedleMeter, RulesSection } from "@orb/client/features/automation";
+import { automationRulesSection, NeedleMeter, OwnerAutomationSurface, RulesSection } from "@orb/client/features/automation";
 import type { ChatSettingsSectionContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
@@ -24,6 +24,10 @@ import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 /** The narrowest REAL host for this surface — the CONTEXT pane at its docked width. A trailing control
  *  cluster sized in a wide story agrees with the bug (UI lane law: measure at the narrowest real mount). */
 const CONTEXT_PANE_WIDTH = 384;
+/** The narrowest REAL host for a SETTINGS pane body — the settings modal's content column. A settings
+ *  surface never renders in the docked context pane, so measuring it at 384px would be a mount that does
+ *  not exist (the other half of "measure at the narrowest REAL host"). */
+const SETTINGS_PANE_WIDTH = 560;
 
 /** The Rules section over the stubbed network — the tab body production wraps in its own `QueryBoundary`. */
 export function RulesSectionStory({ chatId, width = CONTEXT_PANE_WIDTH }: { readonly chatId: ChatId; readonly width?: number }): ReactElement {
@@ -72,6 +76,22 @@ export function RulesInThisChatTabStory({ chatId, isHost = true }: { readonly ch
     <CtDataProviders>
       <div style={{ width: CONTEXT_PANE_WIDTH }}>
         <CommittedSettingsTab chatId={chatId} roomOverrides={{}} isHost={isHost} background={null} showGroup={false} sections={sections} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** C5's OWNER-GLOBAL surface — the Automation settings pane's body, over the stubbed network. It carries
+ *  its OWN `QueryBoundary` per section (the settings-surface posture), so unlike the Rules section it needs
+ *  no wrapper boundary here: the story is exactly what `automationPane.body.render()` mounts.
+ *
+ *  THE WIDTH IS THE SETTINGS PANE's, not the docked context pane's — a settings surface's narrowest real
+ *  host is the modal's content column, and sizing this at 384px would measure a mount that does not exist. */
+export function OwnerAutomationSurfaceStory({ width = SETTINGS_PANE_WIDTH }: { readonly width?: number } = {}): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width }}>
+        <OwnerAutomationSurface />
       </div>
     </CtDataProviders>
   );

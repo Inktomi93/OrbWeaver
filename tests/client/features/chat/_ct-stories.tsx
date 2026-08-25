@@ -3017,7 +3017,18 @@ function ChatsSelectionTitleProbe(): ReactElement {
 // band at all); the fake source publishes from its OWN fiber the way a real one will.
 
 /** Which control set the fake source publishes — one per row of the CT mount matrix. */
-const CHAT_CONTROLS_FIXTURES = ["empty", "chips", "chips-over-cap", "card", "cards-stacked", "mixed", "execute", "execute-pending", "republish"] as const;
+const CHAT_CONTROLS_FIXTURES = [
+  "empty",
+  "chips",
+  "chips-over-cap",
+  "card",
+  "card-unstyled-detail",
+  "cards-stacked",
+  "mixed",
+  "execute",
+  "execute-pending",
+  "republish",
+] as const;
 // NOT exported: the CT names its fixture with a string literal, so an exported alias is dead wire
 // (`deps:knip` reds it). The tuple + the derived type stay — the axis is still declared once.
 type ChatControlsFixture = (typeof CHAT_CONTROLS_FIXTURES)[number];
@@ -3070,6 +3081,23 @@ function buildCtControls(fixture: ChatControlsFixture, deps: CtControlDeps): rea
           detail: <Text voice="gloss">A short catch-up on the last scene.</Text>,
           actions: [{ id: "card-recap-do", label: "Do it", mode: "execute", run: runOnce, pending: false }],
           dismiss: (): void => deps.dismiss("card-recap"),
+        },
+      ];
+    }
+    case "card-unstyled-detail": {
+      // #684 P3 — THE INHERITED-INK SPECIMEN. `detail` is an arbitrary `ReactNode` a SOURCE supplies, and a
+      // source outside chat has no reason to know the band's surface: this one renders a bare `<span>` that
+      // sets NO colour of its own, so what it paints is whatever the band's box hands down. The CT mounts it
+      // under a deliberately hostile inherited ink (the theme-scope boundary case the probe measured at
+      // 1.1:1) — the band must land it on its own reading surface's ink regardless.
+      return [
+        {
+          kind: "card",
+          id: "card-unstyled",
+          title: "An unstyled detail",
+          detail: <span data-testid="ct-unstyled-detail">inherited ink</span>,
+          actions: [{ id: "card-unstyled-do", label: "Do it", mode: "execute", run: runOnce, pending: false }],
+          dismiss: (): void => deps.dismiss("card-unstyled"),
         },
       ];
     }

@@ -10,7 +10,7 @@
 
 import type { RuleLoreWriteArgs, RuleLoreWriteOutcome } from "../contract/analysis.ts";
 import type { ArmExecutorDeps } from "../contract/ops.ts";
-import { isBookAttachedToChat, listRuleEntryTitles } from "../persistence/canon-reads.ts";
+import { isBookAttachedToChat, isBookOwnedBy, listRuleEntryTitles } from "../persistence/canon-reads.ts";
 
 /** A rule's `insert_world_info_entry`/analysis-lore entries are title-namespaced by the ruleId so a
  *  re-upsert with the same key UPDATES its own prior entry and two rules never collide on one title. */
@@ -27,9 +27,20 @@ function ruleLoreTitle(ruleId: string, entryKey: string): string {
  *  that stashed its entries minutes ago: the attach gate and the cap answer for the room's state NOW, so a
  *  book detached (or filled) between fire and confirm refuses instead of writing on stale consent. */
 export async function applyRuleLoreWrite(deps: Pick<ArmExecutorDeps, "db" | "ops">, args: RuleLoreWriteArgs): Promise<RuleLoreWriteOutcome> {
-  // The book must be attached to the rule's chat — the attachment IS the room's consent.
-  if (!(await isBookAttachedToChat(deps.db, args.chatId, args.bookId))) {
-    return { ok: false, refused: `book ${args.bookId} is not attached to this chat` };
+  // THE CONSENT GATE, one question answered by the rule's own SCOPE (the RULED book-ownership call,
+  // interaction-direction-spec §3-S3). A ROOM's rule asks the room: the attachment IS its consent, and it is
+  // re-read HERE (not trusted from the mint) so a book detached between fire and confirm refuses. A GLOBAL
+  // rule has no room to ask, so its write is a LIBRARY write into the author's OWN book and OWNERSHIP is that
+  // consent — books are top-level single-owned (D23), and rooms consume a book only through their own scope
+  // junctions, which this path never touches. Neither gate substitutes for the other and neither is the
+  // weaker one; `persistence/canon-reads.ts::isBookOwnedBy` carries the full argument.
+  const chatId = args.chatId;
+  const consented = chatId === null ? await isBookOwnedBy(deps.db, args.bookId, args.authorUserId) : await isBookAttachedToChat(deps.db, chatId, args.bookId);
+  if (!consented) {
+    return {
+      ok: false,
+      refused: chatId === null ? `book ${args.bookId} is not one this rule's author owns` : `book ${args.bookId} is not attached to this chat`,
+    };
   }
   const owned = await listRuleEntryTitles(deps.db, args.bookId, `${AUTO_ENTRY_TITLE_PREFIX}${args.ruleId}:`);
   const titles = args.entries.map((entry) => ruleLoreTitle(args.ruleId, entry.entryKey));

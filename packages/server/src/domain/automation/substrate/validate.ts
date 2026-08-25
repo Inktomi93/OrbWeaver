@@ -1,8 +1,9 @@
 // domain/automation/substrate/validate — the create/update write-edge validation. One async pass:
 // trigger liveness, CEL parse, action-arm shapes + caps + reserved-arm refusal, the
-// post_notification cooldown floor, world-info book attachment (the arm's book AND a `run_analysis` lore
-// route's), the S5 analysis admission rows (≥1 route · ≤1 confirm-class route · the active-game fence),
-// and `run_tool` tool reachability. Throws a
+// post_notification cooldown floor, the C5 owner-global SCOPE matrix (which arms and which CEL roots a
+// chat-less rule may carry), world-info book consent (the arm's book AND a `run_analysis` lore route's —
+// attachment for a room's rule, OWNERSHIP for a global one), the S5 analysis admission rows (≥1 route · ≤1
+// confirm-class route · the active-game fence), and `run_tool` tool reachability. Throws a
 // TYPED refusal (AutomationReservedTriggerError / RuleValidationError) — a rule with any violation is never
 // stored. The db CHECKs + the `actions` zod are the ultimate guards; this gives a clean, user-visible refusal
 // first.
@@ -16,7 +17,8 @@
 // opposite things by a `false`: here it means "you never had this", there it means "it went away".
 
 import type { AutomationAction, AutomationActionInput, AutomationTrigger } from "@orb/contracts/automation";
-import { automationActionsSchema, LIVE_TRIGGERS } from "@orb/contracts/automation";
+import { AUTOMATION_ARM_SCOPE, automationActionsSchema, LIVE_TRIGGERS } from "@orb/contracts/automation";
+import { MULTIMODAL_MODES } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { isCelParseError, parseCel } from "@orb/kit/cel";
@@ -24,7 +26,7 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import { AutomationReservedTriggerError, RuleValidationError } from "../contract/errors.ts";
 import type { AutomationOps } from "../contract/ops.ts";
-import { hasActiveGame, isBookAttachedToChat } from "../persistence/canon-reads.ts";
+import { hasActiveGame, isBookAttachedToChat, isBookOwnedBy } from "../persistence/canon-reads.ts";
 
 /** The per-rule cooldown floor (seconds) enforced when a `post_notification` arm is present — inbox spam
  *  trains dismissal. DERIVED from the notice's own wire vocabulary (one home, two enforcers: this authoring
@@ -60,6 +62,18 @@ interface ValidateInput {
 interface ValidateDeps {
   readonly db: Db;
   readonly ops: AutomationOps;
+}
+
+/** C5 — WHERE the rule being validated will live, as ONE value the whole pass reads.
+ *
+ *  `chatId: null` is the owner-GLOBAL scope, and `authorUserId` is not redundant beside it: an owner-global
+ *  rule's consent gates are ownership gates, so the author IS the scope. Passing the two as one value is what
+ *  stops a later check from branching on the chat while silently gating against the WRONG user (on
+ *  `updateRule` the author is the rule's existing owner, NOT the host doing the editing — the same trap
+ *  `assertToolsDrivable` already names). */
+interface RuleScope {
+  readonly chatId: ChatId | null;
+  readonly authorUserId: UserId;
 }
 
 /** Parse + arm-cap + reserved-arm + cooldown-floor checks (the synchronous half). Returns the parsed arms. */
@@ -99,10 +113,16 @@ function assertTransformDraftShape(trigger: AutomationTrigger, actions: readonly
   }
 }
 
-/** Every book an arm can WRITE must be attached to the chat — `insert_world_info_entry`'s own book AND a
- *  `run_analysis` lore route's (both writes ride the ONE lore belt, so both mint against the same consent
- *  gate). One batched probe. */
-async function assertBooksAttached(db: Db, chatId: ChatId, actions: readonly AutomationAction[]): Promise<void> {
+/** Every book an arm can WRITE must pass the SCOPE's own consent gate — `insert_world_info_entry`'s own book
+ *  AND a `run_analysis` lore route's (both writes ride the ONE lore belt, so both mint against the same
+ *  gate). One batched probe.
+ *
+ *  TWO GATES, ONE QUESTION, decided by the rule's scope (the RULED book-ownership call, §3-S3): a CHAT rule's
+ *  write asks the ROOM's consent and the attachment IS that consent; an owner-GLOBAL rule has no room to ask,
+ *  so its write is a LIBRARY write into the author's OWN book and ownership is that consent (D23 keeps
+ *  `world_books.ownerId` top-level single ownership, and no room inherits the content unless its own scope
+ *  junction says so). `persistence/canon-reads.ts::isBookOwnedBy` carries the full argument. */
+async function assertBooksWritable(deps: ValidateDeps, scope: RuleScope, actions: readonly AutomationAction[]): Promise<void> {
   const bookIds = actions.flatMap((a) => {
     if (a.type === "insert_world_info_entry") {
       return [a.bookId];
@@ -112,10 +132,127 @@ async function assertBooksAttached(db: Db, chatId: ChatId, actions: readonly Aut
     }
     return [];
   });
-  const results = await Promise.all(bookIds.map((bookId) => isBookAttachedToChat(db, chatId, bookId)));
-  const unattachedIdx = results.indexOf(false);
-  if (unattachedIdx !== -1) {
-    throw new RuleValidationError("unattached_book", `book '${bookIds[unattachedIdx]}' is not attached to this chat`);
+  const chatId = scope.chatId;
+  const results = await Promise.all(
+    bookIds.map((bookId) => (chatId === null ? isBookOwnedBy(deps.db, bookId, scope.authorUserId) : isBookAttachedToChat(deps.db, chatId, bookId))),
+  );
+  const refusedIdx = results.indexOf(false);
+  if (refusedIdx !== -1) {
+    throw new RuleValidationError(
+      "unattached_book",
+      chatId === null ? `book '${bookIds[refusedIdx]}' is not one this rule's author owns` : `book '${bookIds[refusedIdx]}' is not attached to this chat`,
+    );
+  }
+}
+
+// ── C5 — the OWNER-GLOBAL admission matrix ────────────────────────────────────────────────────────────
+// A rule with no chat may only carry acts that HAVE no chat. The per-TYPE half of that is one exhaustive
+// contracts Record (`AUTOMATION_ARM_SCOPE`, which a new arm fails `tsc` until it declares); everything below
+// is the half a per-type Record structurally cannot express — the arm CONFIGURATIONS that name a room even
+// though their arm type does not have to.
+//
+// Every refusal is TYPED and happens at the MINT, which is the D146-b posture applied to scope: a rule that
+// could only ever fail is never stored, so the fire log never fills with `action_error` rows explaining a
+// mistake the author made once at authoring time.
+
+/** The CAPTION image modes — the only ones a chat-less `generate_image` can run. `MULTIMODAL_MODES` is the
+ *  contracts home; this alias exists so the refusal below can NAME the set it enforces. */
+const CHAT_LESS_IMAGE_MODES: readonly string[] = MULTIMODAL_MODES;
+
+/** The per-ARM refusal reason for a chat-less rule, or `null` when the arm is admissible. Ordered
+ *  type-first: an arm whose whole TYPE needs a room is refused before its configuration is read. */
+function globalArmRefusal(action: AutomationAction): string | null {
+  if (AUTOMATION_ARM_SCOPE[action.type] === "chat-required") {
+    return `the '${action.type}' action needs a chat — an owner-global rule has no room to act in`;
+  }
+  // A SUGGESTIBLE arm asks a HOST. The S4 pending store is keyed `(chatId, ruleId)`, its card rides the
+  // per-CHAT automation bus, and its confirm gate is the chat's host — none of which exists here. The schema
+  // still ADMITS `confirmFirst` on these arms (unwired ≠ unshaped): an owner-plane ask surface is the graft
+  // this refusal names, and it is the one thing standing between a global rule and a card nobody can answer.
+  if ("confirmFirst" in action && action.confirmFirst) {
+    return `'${action.type}' cannot ask first on an owner-global rule — a confirm card is raised in a room, to its host, and this rule has neither`;
+  }
+  if (action.type === "generate_image") {
+    if (!action.quiet) {
+      // A non-quiet generation POSTS the image into a chat as a message (the ONE image-post seam).
+      return "a global 'generate_image' must be quiet — a non-quiet generation posts the image into a chat, and this rule has none";
+    }
+    if (!CHAT_LESS_IMAGE_MODES.includes(action.mode)) {
+      // The text-EXTRACTION modes resolve their prompt through chat's quiet shaper over the room's recent
+      // canon (`domain/imagery/verbs/extract-prompt.ts`); the CAPTION modes read the subject's avatar and
+      // touch no chat at all. Admitting an extraction mode here would store a rule that errors on every fire.
+      return `image mode '${action.mode}' reads a chat's recent messages to build its prompt — a global rule can only use ${CHAT_LESS_IMAGE_MODES.join(" or ")}`;
+    }
+  }
+  // The two PLANE refinements. Both arms are chat-INDEPENDENT as types and both can still name the `chat`
+  // variable plane, which is one room's own fold — the author's `global` plane is the chat-less one.
+  if (action.type === "set_variable" && action.scope === "chat") {
+    return "a global rule cannot write a chat variable — use the global scope (the author's own plane)";
+  }
+  if (action.type === "run_tool" && action.resultScope === "chat") {
+    return "a global rule cannot capture a tool result into a chat variable — use the global scope";
+  }
+  return null;
+}
+
+/** The TRIGGER half of the matrix: an owner-global rule may listen to the DOMAIN bus only.
+ *
+ *  IT IS A COST GATE, and the cost is structural rather than a policy preference. The domain bus is
+ *  chat-spanning and cheap — the pre-check is one in-process boolean (`hasDomainRules`) and a domain event
+ *  arrives when a library row changes, which is rare. A CHAT-bus global rule would have to be considered on
+ *  EVERY chat event in every room the process serves, which is the per-event scan the pre-check exists to
+ *  avoid, and it would fan one author's rule across rooms they may not even be a member of.
+ *
+ *  The trigger schema still ADMITS the pair (unwired ≠ unshaped, the platform bar), so this is a typed
+ *  refusal that NAMES the graft rather than a shape that cannot be expressed. */
+function assertGlobalTriggerAdmissible(scope: RuleScope, trigger: AutomationTrigger): void {
+  if (scope.chatId === null && trigger.bus !== "domain") {
+    throw new RuleValidationError(
+      "global_trigger_bus",
+      `an owner-global rule can only watch library events, not chat events like '${trigger.type}' — a global rule has no room whose events it could be listening to`,
+    );
+  }
+}
+
+/** The arm half of the owner-global admission matrix. Chat-scoped rules are unconstrained here (every arm is
+ *  admissible in a room), so this returns immediately for them. */
+function assertArmsScopeAdmissible(scope: RuleScope, actions: readonly AutomationAction[]): void {
+  if (scope.chatId !== null) {
+    return;
+  }
+  // `find` narrows the result to `string | undefined` — a `!== null` beside it would be a dead conditional.
+  const refusal = actions.map(globalArmRefusal).find((r) => r !== null);
+  if (refusal !== undefined) {
+    throw new RuleValidationError("global_arm_scope", refusal);
+  }
+}
+
+/** The CEL roots that only a room can bind. The RULED chat-less env (§3-S3): these three stay REQUIRED on
+ *  `AutomationCelEnv` — so every existing preset predicate and the cel-goldens vector are untouched — and a
+ *  GLOBAL rule's predicate simply may not NAME them. */
+const CHAT_KEYED_CEL_ROOTS: readonly string[] = ["chat", "vars", "choice"];
+
+/** The predicate half of the matrix: walk the PARSED predicate for chat-keyed roots and refuse them on a
+ *  chat-less rule.
+ *
+ *  IT WALKS THE AST, not the source text, and the difference is the whole reason `kit/cel` grew
+ *  `rootIdentifiers`: a substring scan would refuse the string literal `"chat"` and miss `vars` reached
+ *  through a comprehension. The walk over-reports exactly one shape (a comprehension VARIABLE named `chat`),
+ *  which is a fail-closed refusal rather than a hole — stated at the kit seam. */
+function assertPredicateScopeAdmissible(scope: RuleScope, predicateCel: string | null | undefined): void {
+  if (scope.chatId !== null || predicateCel === undefined || predicateCel === null || predicateCel === "") {
+    return;
+  }
+  const program = parseCel(predicateCel);
+  if (isCelParseError(program)) {
+    return; // The parse refusal is the caller's, and it fires first — nothing to add here.
+  }
+  const named = program.rootIdentifiers().find((root) => CHAT_KEYED_CEL_ROOTS.includes(root));
+  if (named !== undefined) {
+    throw new RuleValidationError(
+      "global_predicate_scope",
+      `a global rule's condition cannot read '${named}' — that is one room's state, and this rule has no room. Global conditions read event, global and now.`,
+    );
   }
 }
 
@@ -126,9 +263,11 @@ async function assertBooksAttached(db: Db, chatId: ChatId, actions: readonly Aut
  *     (RULED F1), so two card-raising routes on one rule would silently eat each other's asks;
  *   • no analysis on an ACTIVE-game chat — the game owns its own steering (D109; the legacy
  *     no-double-director law re-derived; §3-S5.7, deliberately v1-BROAD over every route and revisitable). */
-async function assertAnalysisAdmissible(db: Db, chatId: ChatId, actions: readonly AutomationAction[]): Promise<void> {
+async function assertAnalysisAdmissible(db: Db, chatId: ChatId | null, actions: readonly AutomationAction[]): Promise<void> {
   const analyses = actions.filter((a) => a.type === "run_analysis");
-  if (analyses.length === 0) {
+  // A chat-less rule cannot carry this arm at all — `AUTOMATION_ARM_SCOPE` marks it chat-required and
+  // `assertArmsScopeAdmissible` refused it above, so a null chat here means there is no analysis to admit.
+  if (analyses.length === 0 || chatId === null) {
     return;
   }
   for (const arm of analyses) {
@@ -173,10 +312,13 @@ function assertToolsDrivable(deps: ValidateDeps, authorUserId: UserId, actions: 
   }
 }
 
-/** Validate a create/update payload against the chat. Returns the parsed action list on success; throws a
- *  typed refusal otherwise. `deps.db`/`chatId` are needed for the book-attachment probe; `deps.ops` for the
- *  `run_tool` reachability probe. */
-export async function validateRuleInput(deps: ValidateDeps, chatId: ChatId, input: ValidateInput): Promise<ValidatedRule> {
+/** Validate a create/update payload against its SCOPE. Returns the parsed action list on success; throws a
+ *  typed refusal otherwise. `deps.db` + the scope are needed for the book consent probe; `deps.ops` for the
+ *  `run_tool` reachability probe.
+ *
+ *  The owner-global rows (`assertArmsScopeAdmissible`, `assertPredicateScopeAdmissible`) are NO-OPS for a
+ *  chat-scoped rule, so a room's rule is validated byte-identically to before C5. */
+export async function validateRuleInput(deps: ValidateDeps, scope: RuleScope, input: ValidateInput): Promise<ValidatedRule> {
   if (!LIVE_TRIGGERS[input.trigger.type]) {
     throw new AutomationReservedTriggerError(input.trigger.type);
   }
@@ -195,7 +337,13 @@ export async function validateRuleInput(deps: ValidateDeps, chatId: ChatId, inpu
   const actions = validateActions(input);
   assertTransformDraftShape(input.trigger, actions);
   assertToolsDrivable(deps, input.authorUserId, actions);
-  await assertBooksAttached(deps.db, chatId, actions);
-  await assertAnalysisAdmissible(deps.db, chatId, actions);
+  // The SCOPE rows run BEFORE the db probes: they are synchronous and they subsume most of what the probes
+  // would otherwise have to special-case (a global rule carrying a `run_analysis` arm is already refused by
+  // the arm matrix, so the game fence below never has to answer "an active game in WHICH chat?").
+  assertGlobalTriggerAdmissible(scope, input.trigger);
+  assertArmsScopeAdmissible(scope, actions);
+  assertPredicateScopeAdmissible(scope, input.predicateCel);
+  await assertBooksWritable(deps, scope, actions);
+  await assertAnalysisAdmissible(deps.db, scope.chatId, actions);
   return { actions };
 }
