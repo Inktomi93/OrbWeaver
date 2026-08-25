@@ -57,7 +57,9 @@ import {
   createNotifyFloor,
   createPluginRateFloor,
   createPluginService,
+  createPluginSurfaceStateStore,
   createSnippetGate,
+  createSurfaceStatePublisher,
   isPluginEnabledFor,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
@@ -68,7 +70,7 @@ import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import type { WorldInfoService } from "#domain/world-info";
 import { createPluginHost } from "#infra/plugin-host";
 import type { RoleClientsWithSignal } from "#infra/providers";
-import { publishAutomationEvent, publishNotification } from "../../transport/trpc/index.ts";
+import { publishAutomationEvent, publishNotification, publishUserEvent } from "../../transport/trpc/index.ts";
 import { createAutomationOps } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
 import { minter } from "./minter.ts";
@@ -398,6 +400,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     egress: createPluginRateFloor(now, { capability: "net.fetch", limit: PLUGIN_EGRESS_PER_HOUR }),
     quietLlm: createPluginRateFloor(now, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
   };
+  // The UI-surface STATE plane (plugin-ui-plane #679 U1) — ONE per process, shared by the `ui.setState` write
+  // op below, the `getSurfaceState` read verb (via `ctx.surfaceState`), and the deactivate sweep. Respawn wipes.
+  const pluginSurfaceState = createPluginSurfaceStateStore();
   const pluginHostOps: PluginHostOps = {
     // INVARIANT (injected-op-caller-gate, INFO-5): every chat op below takes a BARE chatId and does NOT re-check
     // caller authority — it TRUSTS that admission already happened. The membrane is the ONLY caller and the gate.
@@ -544,6 +549,12 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         automationSuggestions.voidPlugin(pluginId);
       },
     },
+    // host.ui.setState (ui.surface) — the DOMAIN publisher writes the surface state into the process-wide plane
+    // (the SAME store `ctx.surfaceState` reads + deactivate clears — shared by construction) and fires the
+    // per-user freshness poke. Homed in `domain/plugin/substrate` (not inline here) so the emit literal is where
+    // the `user-bus-coverage` gate can see it (its scope is domain|transport, not entry/compose). The 16 KiB
+    // cap is enforced inside the store's `set` (a throw ⇒ a rejected guest promise upstream).
+    ui: { setState: createSurfaceStatePublisher(pluginSurfaceState, publishUserEvent) },
     registrar: {
       // PL-A: a plugin tool namespaces `plugin_<slug'>_<name>` and lands in the ONE tool-use registry.
       registerTool: (reg, invoke, scope) =>
@@ -635,6 +646,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       },
       host: pluginHost,
       ops: pluginHostOps,
+      // The UI-surface state plane — the SAME store `ops.ui.setState` writes above (getSurfaceState reads it,
+      // deactivate clears it). Shared by construction, so a publish is visible to the very next read.
+      surfaceState: pluginSurfaceState,
       // The capability BELTS — process-wide state, minted ONCE here and shared by every activation (the
       // resident-registry precedent); the domain's bridge claims the relevant one per guarded call. The two
       // HOURLY floors are the only bounds on a RATE anywhere in the sandbox: every other cap is per-call or

@@ -7,6 +7,7 @@
 import type { Branded } from "@orb/kit/ids";
 import type { ChatTriggerType, DomainTriggerType } from "#automation";
 import type { PromptTransformPoint } from "#chat";
+import type { PluginSurfaceRegistrationMeta } from "./ui.ts";
 
 /** An opaque ref to a guest-registered callback, minted host-side during activation and carried on a collected
  *  registration. The port's `invoke` resolves it back into the resident guest; the domain treats it as opaque
@@ -38,11 +39,24 @@ export interface PluginEventSubscription {
   readonly handler: PluginHandlerRef;
 }
 
+/** A UI surface the guest registered via `host.ui.register` — collected at activation (plugin-ui-plane #679
+ *  U1, seam 4). Unlike tools/transforms/events, a surface needs NO external registrar: it is READ directly off
+ *  the resident instance by `plugin.listSurfaces`, and its `onAction` handler is re-entered by
+ *  `plugin.invokeUiAction` through the port's `invoke`. `spec` is the guest-supplied declarative node tree
+ *  (zod-validated host-side at collection — an invalid spec is a REGISTRATION refusal, the surface absent, never
+ *  activation-fatal); `onAction` is the opaque handler ref the action round-trip re-invokes (absent = a
+ *  display-only surface with no actions). `anchor`/`tier`/`spec` are the U0 vocabulary (`ui.ts`). */
+export type PluginSurfaceRegistration = PluginSurfaceRegistrationMeta & {
+  readonly onAction?: PluginHandlerRef;
+};
+
 /** A resident guest instance's collected registrations — what `main.js` registered at activation. The
  *  concrete runtime carries the guest handles + log ring internally (opaque to the domain, read via the port);
- *  the domain reads only these registration records to hand to the registrar ops. */
+ *  the domain reads only these registration records to hand to the registrar ops (tools/transforms/events) or,
+ *  for `surfaces`, to project directly to the client + re-enter on an action. */
 export interface PluginInstance {
   readonly tools: readonly PluginToolRegistration[];
   readonly transforms: readonly PluginTransformRegistration[];
   readonly events: readonly PluginEventSubscription[];
+  readonly surfaces: readonly PluginSurfaceRegistration[];
 }

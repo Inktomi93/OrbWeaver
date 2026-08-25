@@ -153,6 +153,22 @@ interface ResidentPlugin {
  *  precedent). Created once per service; enable adds, disable/uninstall unregisters + disposes + removes. */
 export type PluginRegistry = Map<PluginId, ResidentPlugin>;
 
+/** The in-memory UI-surface STATE plane (`host.ui.setState` writes; `plugin.getSurfaceState` reads —
+ *  plugin-ui-plane #679 U1). Minted ONCE per service at compose (the resident-registry / suggestion-store
+ *  precedent), `ASSUMES(single-replica)`, respawn wipes. The FACTORY (`createPluginSurfaceStateStore`) lives in
+ *  `substrate/surface-state.ts` (the SnippetGate/NotifyFloor convention: seam TYPE in contract, factory in
+ *  substrate). Keyed by pluginId + surfaceId; cleared per-plugin on deactivate. */
+export interface PluginSurfaceStateStore {
+  /** Replace the whole state for one surface. THROWS over the 16 KiB serialized cap (a rejected guest promise
+   *  upstream) rather than storing a truncated object the renderer would bind by path. */
+  readonly set: (pluginId: PluginId, surfaceId: string, state: Record<string, unknown>) => void;
+  /** The surface's published state, or `null` when nothing has been published (the renderer binds `null` to
+   *  each node's fallback). */
+  readonly get: (pluginId: PluginId, surfaceId: string) => Record<string, unknown> | null;
+  /** Drop every surface's state for one plugin — the deactivate/uninstall sweep (no ghost state). */
+  readonly clearForPlugin: (pluginId: PluginId) => void;
+}
+
 /** The injected-op bundle every plugin verb closes over, assembled at the composition root. */
 export interface PluginContext {
   readonly db: Db;
@@ -175,6 +191,10 @@ export interface PluginContext {
   };
   readonly host: PluginHostPort;
   readonly ops: PluginHostOps;
+  /** The UI-surface state plane (plugin-ui-plane #679 U1) — the read verb (`getSurfaceState`) reads it and
+   *  deactivate/uninstall clears it. Written by the compose-side `ops.ui.setState` (the same store instance,
+   *  shared by construction). Minted ONCE at compose (`createPluginSurfaceStateStore`). */
+  readonly surfaceState: PluginSurfaceStateStore;
   /** The snippet gate: resolve the caller's leak-free read/host authority for a chat. Caller-in-params
    *  (the injected-op-caller-gate rule); a foreign/unknown chat yields `{false,false}` — no existence oracle.
    *  Injected at compose (the domain never imports chat) — `loadPresentRole` under the caller. */
