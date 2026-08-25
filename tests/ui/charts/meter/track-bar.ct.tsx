@@ -3,7 +3,6 @@
 // (the datum is TEXT the consuming block renders — never the bar). Assert the computed width fraction,
 // the resolved ramp token color, and the aria-hidden contract — never a hardcoded px/hex.
 import { TrackBar } from "@orb/ui/meter";
-import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
 
@@ -16,12 +15,14 @@ test("fill width is value/max and the fill rides the track-ramp token color", as
   const fraction = (box?.width ?? 0) / (track?.width ?? 1);
   expect(fraction).toBeGreaterThan(0.78);
   expect(fraction).toBeLessThan(0.82);
-  await expect(fill).toHaveCSS("background-color", TOKENS["color.track-1"].value);
+  // The ramp token is polarity-aware `light-dark()` now (#697); the CT harness renders the base dark
+  // scheme, so the resolved DARK arm is what paints — `resolvedTokenColor` returns it.
+  await expect(fill).toHaveCSS("background-color", resolvedTokenColor("color.track-1"));
 });
 
 test("color=4 uses the fourth ramp step (categorical, by definition order)", async ({ mount }) => {
   const component = await mount(<TrackBar value={70} max={100} color={4} />);
-  await expect(component.locator("[data-slot=track-bar-fill]")).toHaveCSS("background-color", TOKENS["color.track-4"].value);
+  await expect(component.locator("[data-slot=track-bar-fill]")).toHaveCSS("background-color", resolvedTokenColor("color.track-4"));
 });
 
 test("the bar is decorative — aria-hidden, carrying no accessible value (text is the datum)", async ({ mount }) => {

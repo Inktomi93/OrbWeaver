@@ -314,6 +314,28 @@ const realSettingsPaneRegistry: SettingsPaneRegistry = createRegistry<SettingsCa
   REAL_SETTINGS_PANES,
 );
 
+// #696 — a live subject for the `settings-shell-surface.tsx:418` PLACEHOLDER branch. The
+// `SettingsPanePlaceholder` component (the honest "not built yet" body for a deferred settings category)
+// lost its last production subject at C5 (cb8026bfc turned the final `{ placeholder: true }` pane —
+// automation — into a real surface), so the placeholder body renders for nobody today. The mechanism is
+// deliberate scaffolded intent ("swapped for the real surface, pane by pane, as each category lands"), so
+// rather than delete future intent it earns a live subject here: a pane registry identical to the real one
+// but with ONE category (connections) swapped to a `{ placeholder: true }` body — a synthetic "if this
+// category's real surface hadn't landed yet" scenario, production panes untouched. Reuses connections'
+// real identity (id/group/label/icon/description) with no subcategories, the honest placeholder shape.
+const placeholderPaneDef: SettingsPaneDefinition = {
+  id: connectionsPane.id,
+  group: connectionsPane.group,
+  label: connectionsPane.label,
+  icon: connectionsPane.icon,
+  description: connectionsPane.description,
+  body: { placeholder: true },
+};
+const placeholderPaneRegistry: SettingsPaneRegistry = createRegistry<SettingsCategoryId, SettingsPaneDefinition>("settings-panes", SETTINGS_CATEGORY_IDS, {
+  ...REAL_SETTINGS_PANES,
+  connections: placeholderPaneDef,
+});
+
 // ── Chrome-registry CT provider ───────────────────────────────────────────────────────────────────
 // AppShell reads the chrome registry (its topbar.trail render) as a runtime context (mirrors main.tsx's
 // door). The section-registry providers below nest it, so every shell CT gets all four registries.
@@ -376,6 +398,24 @@ export function CtRealSectionRegistry({ children }: { readonly children: ReactNo
       <ModalRegistryProvider value={realModalRegistry}>
         <ChromeRegistryProvider value={realChromeRegistry}>
           <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>
+            <SettingsSectionRegistryProvider value={realSettingsSections}>{children}</SettingsSectionRegistryProvider>
+          </SettingsPaneRegistryProvider>
+        </ChromeRegistryProvider>
+      </ModalRegistryProvider>
+    </SectionRegistryProvider>
+  );
+}
+
+/** The real registries but with the settings-pane registry swapped for the {@link placeholderPaneRegistry}
+ *  (connections → a `{ placeholder: true }` body) — the #696 live subject for the shell's placeholder
+ *  branch. Everything else is the production wiring, so the shell, nav and search behave exactly as they do
+ *  for a real deferred category. */
+export function CtPlaceholderPaneRegistry({ children }: { readonly children: ReactNode }): ReactElement {
+  return (
+    <SectionRegistryProvider value={realRegistry}>
+      <ModalRegistryProvider value={realModalRegistry}>
+        <ChromeRegistryProvider value={realChromeRegistry}>
+          <SettingsPaneRegistryProvider value={placeholderPaneRegistry}>
             <SettingsSectionRegistryProvider value={realSettingsSections}>{children}</SettingsSectionRegistryProvider>
           </SettingsPaneRegistryProvider>
         </ChromeRegistryProvider>
