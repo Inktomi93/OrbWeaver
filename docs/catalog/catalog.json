@@ -425,9 +425,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 360,
-      "bytes": 179344,
-      "sha256": "397a1bc1138182b058791c8dceb2771674c805b1907345f5b79041b478fe9e09",
+      "lines": 363,
+      "bytes": 183128,
+      "sha256": "5c622a92c6c5bba0f5d05f113d4d41b579a4cf035bba66e72efc63efef977481",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -489,7 +489,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -612,9 +612,9 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 503,
-      "bytes": 252300,
-      "sha256": "5124206331ebea7db26779369597873c5848d72a7029dd3543f9d7ac1e199fa7",
+      "lines": 505,
+      "bytes": 256334,
+      "sha256": "8cc3ef6d9d7a37f284bd9bc734a15a18975494a9365db5599ad2f7e499aba9eb",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -678,7 +678,7 @@
         ],
         "summary": "Canonical D-ledger re-read through D144; D71 backdrop truth-repair; frozen assigned hash retained and current verified blob updated."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -1725,16 +1725,16 @@
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 306,
-      "bytes": 25066,
-      "sha256": "c7748c024cc536f699ffd6185dfb12c2106541f910badb97418cbc034c90f1a1",
+      "lines": 315,
+      "bytes": 26067,
+      "sha256": "dd76cc97b1d5f9d236b7718db1e12f34f021552823b71ffae27d0da0b43d31c6",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-22"
+          "updated": "2026-08-24"
         },
         "errors": []
       },
@@ -1768,7 +1768,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",
@@ -8352,16 +8352,16 @@
       "path": "docs/architecture/proposed/plugin-design/01-runtime-and-membrane.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 212,
-      "bytes": 12805,
-      "sha256": "af7fa059b8ca7f38987f0b981482ffbfa33892aac18ddcc28c05f41973df03cc",
+      "lines": 227,
+      "bytes": 13955,
+      "sha256": "766ed206a1e59b1807c04b12345398a38986db9e99a45ca2dac036ff4e465958",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "spec",
           "status": "active",
-          "updated": "2026-07-03"
+          "updated": "2026-08-24"
         },
         "errors": []
       },
@@ -8417,22 +8417,22 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/proposed/plugin-design/02-manifest-capabilities-lifecycle.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 178,
-      "bytes": 11456,
-      "sha256": "5bbd0bbaf769edc1721cb0611042f53b330a3ac9b674ae07d6d4bada78f532dd",
+      "lines": 231,
+      "bytes": 17123,
+      "sha256": "5b206296c54a4e87f698c1547fb31384fe023230d304e49825070c88c7513e57",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "spec",
           "status": "active",
-          "updated": "2026-07-03"
+          "updated": "2026-08-24"
         },
         "errors": []
       },
@@ -8488,7 +8488,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/proposed/plugin-design/03-execution-model.md",
@@ -12411,6 +12411,66 @@
             ]
           }
         ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/plugin-ui-plane.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 543,
+      "bytes": 51537,
+      "sha256": "32ad48a5d99f20b8f39f63be5daf2b142a799e036dd1e54f4dad1315b2289808",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "draft",
+          "updated": "2026-08-24"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/plugin-ui-plane.md",
+        "assignedSha256": "32ad48a5d99f20b8f39f63be5daf2b142a799e036dd1e54f4dad1315b2289808",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "32ad48a5d99f20b8f39f63be5daf2b142a799e036dd1e54f4dad1315b2289808",
+        "verifiedCommit": "76652500609cbe650f23da96c1a83c0ef91b7bff",
+        "verifiedAt": "2026-08-24",
+        "evidence": [
+          "born-reviewed by its authoring lane (cb-plugui-design, #679): every build-state claim tree-verified 2026-08-24 with path:line receipts before commit 766525006",
+          "designed against the full commissioned reading set: plugin-design 01-04, the D46 security review (docs/reviews/security/2026-08-24-d46-membrane-review.md), client-architecture-lockdown (D70), interaction-direction-spec §1/§3/§7-C7a, plugin-automation-juice (A2-F5), contribution-contracts.ts, the card-frame substrate (kit + entry/http + ui sandbox-frame), and issues #675/#677/#124",
+          "four owner steers folded verbatim (capability-first; ST-parity register; integrated-not-iframe primary; the open dep budget resolved to the live QuickJS family at infra/plugin-host/module.ts:12-14)",
+          "the ST parity register (§5) built from Core-SillyTavern-Feature-Map.md + Core-ST-Feature-Gap-Register.md plus the live ST extension-authoring docs fetched raw per the web-fetching rule 2026-08-24"
+        ],
+        "claims": [
+          {
+            "claim": "The plugin server stack is built and exposure-cleared; the client renderer plane is the recorded gap this design fills.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#679"
+              },
+              {
+                "kind": "issue",
+                "target": "#605"
+              }
+            ]
+          },
+          {
+            "claim": "Every mount rides an existing door-assembled contribution family; the S1 control band is refused as a plugin mount.",
+            "evidence": [
+              {
+                "kind": "ruling",
+                "target": "D70"
+              }
+            ]
+          }
+        ],
+        "summary": "The #679 design: plugin UI as a declarative contribution tree over sealed @orb/ui, two tiers (static server-round-trip + client-side QuickJS-worker scripted) sharing one zod spec vocabulary; one new ui.surface capability; anchors = settings/chat-flank/chat-settings-section/tool-card; the ST extension-ability parity register (35 rows, all classified); the iframe arm demoted to a parked ui.frame hatch riding the card-frame substrate; priced seams, U0-U6 phases, threat model with security-executor routing, and five owner questions with defaults."
       },
       "receiptCurrent": true
     },
