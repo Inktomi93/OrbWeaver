@@ -261,6 +261,12 @@ function messageCommitted(chatId: ChatId): ChatBusEvent {
   return { type: "messageCommitted", chatId, messageId: mintTypeId(ID_PREFIX.message) as MessageId };
 }
 
+/** A lore-activation event carrying `n` freshly-minted entry ids — the fact the resolver projects as
+ *  `event.worldInfo.entryIds` (opaque strings; #17 filters on their COUNT). */
+function worldInfoActivated(chatId: ChatId, entryCount: number): ChatBusEvent {
+  return { type: "worldInfoActivated", chatId, entryIds: Array.from({ length: entryCount }, () => mintTypeId(ID_PREFIX.worldEntry)) };
+}
+
 /** Every outcome the rule logged, oldest first. */
 async function outcomes(f: Fixture, view: RuleView): Promise<string[]> {
   const fires = await f.svc.listFires({ principal: principal(f.host), ruleId: view.id });
@@ -1233,5 +1239,71 @@ describe("§4 #14 spotlight balance", () => {
     await expect(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "spotlightBalance" })).rejects.toThrow(
       "directs its own story",
     );
+  });
+});
+
+// ── §4 #17-#19 the three OPTIONAL owner-picks (owner 2026-08-24 "everything optional gets included") ──────
+
+describe("§4 #17 illustrate on lore reveal", () => {
+  test("the entry filter gates on COUNT: a small reveal draws nothing, a reveal at the floor fires one scenario image", async () => {
+    const f = await setup();
+    const views = await mintAndEnable(f, "illustrateOnLoreReveal", { minEntries: 2 });
+    expect(nth(views, 0).trigger).toEqual({ bus: "chat", type: "worldInfoActivated" });
+
+    // One entry is below the floor of 2 — the predicate is false, and a rule that has never fired logs nothing.
+    await f.svc.handleEvent(worldInfoActivated(f.chatId, 1));
+    expect(f.images).toHaveLength(0);
+    expect(await outcomes(f, nth(views, 0))).toEqual([]);
+
+    // Two entries meet the floor — a non-quiet scenario image is posted into the room at automation depth 1.
+    await f.svc.handleEvent(worldInfoActivated(f.chatId, 2));
+    expect(f.images).toHaveLength(1);
+    expect(f.images[0]).toMatchObject({ chatId: f.chatId, authorUserId: f.host, mode: "scenario", n: 1, quiet: false, automationDepth: 1 });
+    expect(await outcomes(f, nth(views, 0))).toEqual(["fired"]);
+  });
+});
+
+describe("§4 #18 react to lore activation", () => {
+  test("a lore reveal steers a guided turn, and the cooldown belt refuses the immediate re-fire (the depth-blind self-chain guard)", async () => {
+    const f = await setup();
+    const views = await mintAndEnable(f, "reactToLoreActivation", { steer: "Have a character notice it." });
+    // The cooldown is the belt: worldInfoActivated resolves at a hardcoded automationDepth 0, so the engine's
+    // cascade guard can't bound a reaction turn's own re-activation — only this wall-clock cooldown can.
+    expect(nth(views, 0).cooldownSeconds).toBe(180);
+
+    await f.svc.handleEvent(worldInfoActivated(f.chatId, 1));
+    expect(f.turns).toHaveLength(1);
+    expect(f.turns[0]?.guided).toBe("Have a character notice it.");
+
+    // The clock is fixed, so a second reveal lands inside the cooldown window and is refused — the same gate
+    // that breaks the production self-chain, proven here.
+    await f.svc.handleEvent(worldInfoActivated(f.chatId, 1));
+    expect(f.turns).toHaveLength(1);
+    expect(await outcomes(f, nth(views, 0))).toEqual(["fired", "budget_refused"]);
+  });
+});
+
+describe("§4 #19 auto-set scene background", () => {
+  test("a committed message re-dresses the backdrop over the author's own library; the cooldown spaces the re-pick", async () => {
+    const f = await setup();
+    const background = armBackdrop(f);
+    const views = await mintAndEnable(f, "autoSetSceneBackground", { instruction: "Match where the scene is now." });
+    expect(nth(views, 0).trigger).toEqual({ bus: "chat", type: "messageCommitted" });
+    expect(nth(views, 0).cooldownSeconds).toBe(300);
+
+    f.setMessageContent("They step out of the storm and into the harbour tavern.");
+    await f.svc.handleEvent(messageCommitted(f.chatId));
+
+    // The quiet autobg pick ran and the chosen background was written — the row re-dressed itself, no post, no
+    // spend (set_chat_background is not SPEND_ARM_TYPES).
+    expect(f.quietCalls.map((c) => c.posture)).toEqual(["autobg"]);
+    expect(f.backgroundsSet).toEqual([background]);
+    expect(await outcomes(f, nth(views, 0))).toEqual(["fired"]);
+
+    // A second message inside the cooldown window does not re-pick — the backdrop holds and no second quiet call.
+    await f.svc.handleEvent(messageCommitted(f.chatId));
+    expect(f.backgroundsSet).toEqual([background]);
+    expect(f.quietCalls.map((c) => c.posture)).toEqual(["autobg"]);
+    expect(await outcomes(f, nth(views, 0))).toEqual(["fired", "budget_refused"]);
   });
 });
