@@ -5,7 +5,7 @@
 // cited DEFERRED entry. DEFERRED is a ratchet, self-cleaning in both directions (a lost emit site on a live
 // member, or a gained one on a deferred member, is RED). The reconcile is shared with the chat/user twins
 // (tooling/src/verify/lib/bus-coverage.ts) — this file is the rpg SPEC + its self-proof. The belt is the ARRAY
-// shape (`[…] as const satisfies readonly RpgBusEvent["type"][]`), so `keyShape: "array"`.
+// shape (`[…] as const satisfies readonly RpgBusEvent["type"][]`). COMMENT POSTURE: comment-SAFE AST calls.
 //
 // W1c-a landed the union + belt + this gate WITH every member DEFERRED; W1c-b wired every emit site (a verb/
 // flush calling the injected `EmitRpgEvent` op), so the DEFERRED map is now EMPTY — all five members are
@@ -59,10 +59,10 @@ export const gate: GateDescriptor = {
       // A member with neither an emit literal nor a DEFERRED entry — the pure MISSING arm (the array belt shape).
       files: {
         "packages/contracts/src/rpg/bus.ts": 'export const RPG_BUS_EVENT_TYPES = ["neverEmitted"] as const satisfies readonly never[];\n',
-        "packages/server/src/domain/rpg/x.ts": 'export const q = "somethingElse";\n',
+        "packages/server/src/domain/rpg/x.ts": 'export const q = "neverEmitted";\n',
       },
       expect: { messageIncludes: "NO server emit site" },
-      why: "an RPG_BUS_EVENT_TYPES member with no server emit site + no DEFERRED entry — silent dead wire",
+      why: "an arbitrary matching literal is not an emitBus call — the RPG member remains dead wire",
     },
   ],
   mustPass: [
@@ -70,9 +70,9 @@ export const gate: GateDescriptor = {
       // A member with a real emit literal AND not in the (empty) DEFERRED map — the emitted-covered (pass) arm.
       files: {
         "packages/contracts/src/rpg/bus.ts": 'export const RPG_BUS_EVENT_TYPES = ["freshEmit"] as const satisfies readonly never[];\n',
-        "packages/server/src/domain/rpg/x.ts": 'export const q = "freshEmit";\n',
+        "packages/server/src/domain/rpg/x.ts": 'ctx.emitBus({ type: "freshEmit" });\n',
       },
-      why: "the member's discriminator appears as a server emit literal and is not deferred — covered, passes",
+      why: "the member's discriminator is carried by the injected emitBus call and is not deferred — covered, passes",
     },
   ],
 };
