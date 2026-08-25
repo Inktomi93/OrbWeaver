@@ -9,6 +9,15 @@ import { asViolations } from "./exit-classifiers.ts";
 
 export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
   {
+    name: "tests:ratchets",
+    group: "tests",
+    tiers: ["manual"],
+    argv: ["pnpm", "test:ratchets"],
+    classify: asViolations,
+    manualReason:
+      "the ORCHESTRATOR's train-gate command (#667): the sub-minute vitest-tier ratchet aggregate `pnpm check`/`check:structure` structurally cannot see. Run by hand after each merge train, not part of the changed/push/full flow — `pnpm test` (push) already runs its member suites, so an auto tier here would double-run them.",
+  },
+  {
     name: "tests:scoped",
     group: "tests",
     tiers: ["manual"],

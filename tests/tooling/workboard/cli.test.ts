@@ -367,6 +367,7 @@ defineTest("help prints the complete Project operator path", () => {
   expect(result.stdout).toContain("Triage → Ready → Running → Review → Verify → Done");
   expect(result.stdout).toContain("Interrupted transitions are safe to rerun");
   expect(result.stdout).toContain(".github/ISSUE_TEMPLATE/*.yml");
+  expect(result.stdout).toContain("--evidence is capped at 1024 chars");
 });
 
 defineTest("list returns a stable filtered Project snapshot without mutation", () => {
@@ -500,6 +501,30 @@ defineTest("review gates verification and rejects blocked work", () => {
   const review = drive(blocked, "review", "11");
   expect(review.status).toBe(TOOL_ERROR_EXIT);
   expect(review.stderr).toContain("cannot enter Review while blocked");
+});
+
+defineTest("over-cap evidence refuses as misuse, distinct from a lifecycle-state refusal on the same verb (#664)", () => {
+  // GitHub's ProjectV2 text column rejects anything past 1024 chars (measured live 2026-08-24 against a
+  // scratch project: 1024 clean, 1025 UNPROCESSABLE) — a bare exit 2 there was indistinguishable from
+  // the "must be Review before Verify" state refusal below, which also exits 2.
+  const overCap = "x".repeat(1025);
+  const running = createState("Running");
+  const tooLong = drive(running, "verify", "11", "--evidence", overCap);
+  expect(tooLong.status).toBe(MISUSE_EXIT);
+  expect(tooLong.stderr).toContain("evidence is 1025 chars");
+  expect(tooLong.stderr).toContain("cap is 1024");
+  expect(fieldValue(running, EVIDENCE_FIELD)).toBeUndefined();
+
+  const atCap = "x".repeat(1024);
+  const reviewed = createState("Review");
+  const inCap = drive(reviewed, "verify", "11", "--evidence", atCap);
+  expect(inCap.status).toBe(0);
+  expect(fieldValue(reviewed, EVIDENCE_FIELD)).toBe(atCap);
+
+  // The same verb's genuine lifecycle-state refusal still exits 2, unchanged and still distinguishable.
+  const prematureVerify = drive(running, "verify", "11", "--evidence", "short receipt");
+  expect(prematureVerify.status).toBe(TOOL_ERROR_EXIT);
+  expect(prematureVerify.stderr).toContain("must be Review before Verify");
 });
 
 defineTest("reverify repairs stale Verify evidence without weakening the normal verify guard", () => {

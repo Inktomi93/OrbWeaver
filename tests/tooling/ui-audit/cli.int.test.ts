@@ -133,7 +133,12 @@ const CONTROL_SHELL =
 const PANEL_WITH_AN_ACTION =
   '<div style="border:1px solid #666;border-radius:8px;background:#222;padding:12px;width:240px;height:96px"><p style="font-size:16px">a decorative panel that also offers an action</p><button style="font-size:16px">Act on it</button></div>';
 
-test("a borderless panel whose class merely contains the card WORD is not a nested card", async ({ runCli, scratch }) => {
+// Each case here spawns a REAL cli subprocess + browser walk (~900ms measured solo, #666) — vitest's
+// 5000ms default testTimeout has no headroom left once a sibling lane's process contention slows the
+// spawn, so this one hit 5077ms under load and flaked. Not reducible from the test (the walk is real
+// work in the tool under audit); an explicit budget with headroom is the fix, not a blanket file raise
+// that would also hide the NEXT test that creeps toward the default.
+test("a borderless panel whose class merely contains the card WORD is not a nested card", { timeout: 20_000 }, async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "card-word.html"), panelInPanel(CARD_WORD_BORDERLESS_PANEL));
   const res = await runCli("ui-audit", ["/card-word.html", "--base", `file://${scratch}`, "--fail-on", "P3"], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).not.toContain("nested-card");
