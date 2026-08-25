@@ -32,6 +32,7 @@
     "sdk:injection-cache-probe": "node scripts/probes/sdk-injection-cache-probe.ts",
     "sdk:session-probe": "node scripts/probes/sdk-session-probe.ts",
     "probe:history-system-rows": "node scripts/probes/history-system-rows.ts",
+    "plugin:pack": "node scripts/pack-plugin.ts",
     "sse-tap": "node --experimental-eventsource tooling/src/wire-tap/cli.ts sse",
     "trace:render": "node tooling/src/render-trace/cli.ts render",
     "trace:tail": "node tooling/src/render-trace/cli.ts tail",

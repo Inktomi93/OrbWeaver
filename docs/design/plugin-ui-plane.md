@@ -16,6 +16,18 @@ updated: 2026-08-24
 > PRIMARY; the iframe is at most a parked escape hatch (§6). (4) The dependency budget is OPEN for a
 > load-bearing dep — the client-side sandbox row is §4.6.
 >
+> **REVISED 2026-08-24 (same day) — the FULL-PARITY ruling (steer 5, verbatim intent): "we would
+> want all the optional stuff — we need full extension capabilities and features."** This revision
+> folds it throughout: every deferred-with-shape parity row is COMMITTED and phase-slotted (§5/§8),
+> the `ui.frame` hatch is a SCHEDULED phase rather than woken-by-demand (§6.2/U7, still
+> security-executor-gated), the §6.1 arbitrary-pixels rows resolve to the hatch, and the former §10
+> open questions are resolved against the ruling — the residual owner-ask list is §10 and it is one
+> item. **Follow-up steer (6), same day: "some of those features I could be convinced to enable if
+> it means more flexibility"** — so the five structural refusals are refused-BY-DEFAULT with an
+> ENABLEMENT PRICE SHEET (§5a): each names its safest enablement shape, who its risk falls on, and
+> a recommendation; the owner purchases flexibility knowingly, and the walls that protect OTHER
+> users stay marked as such.
+>
 > Today plugins are HEADLESS by design: the membrane's own refusal list says *"DOM/UI beyond
 > quick-reply chips (the client extension story is a separate, undesigned surface — NOT this
 > membrane)"* (`docs/architecture/proposed/plugin-design/01-runtime-and-membrane.md:194-195`). This
@@ -42,11 +54,12 @@ first-party code at the existing contribution anchors, in two tiers sharing ONE 
 inside a first-party plugin-labeled shell (§4.8) — a plugin composes house components; it cannot
 fake host chrome, and it inherits tokens/theme/a11y/density/focus/positioning for free.
 
-**The sandboxed-iframe arm is DEMOTED to a PARKED escape hatch** (`ui.frame`, §6): fully shaped here
-(it rides the proven card-frame substrate), NOT in the build phases, wake criterion = a real plugin
-demanding an arbitrary-pixels row of the parity register (canvas games, live2d/VRM). The residual
-list the integrated arm cannot reach at full fidelity is §6.1 — it is short, and nothing on it is a
-committed product need today.
+**The sandboxed-iframe arm is DEMOTED to an escape hatch — and, under the full-parity ruling,
+SCHEDULED** (`ui.frame`, §6.2 / phase U7): it rides the proven card-frame substrate, exists for
+exactly the arbitrary-pixels rows the declarative arm cannot reach (canvas games, live2d/VRM, card
+art — §6.1), carries its own capability + consent line + threat model, and its merge is
+security-executor-gated. It is the LAST-RESORT arm, never the first: an ability expressible in the
+vocabulary ships in the vocabulary.
 
 **Every existing wall holds:** class-1 (no prose write — the vocabulary cannot express one), the
 grant/consent model (#675's per-user scoping; the surface renders only for its INSTALLER in v1), the
@@ -93,10 +106,12 @@ is a perf non-starter), and reopens the #124 exfil class wherever `allow-scripts
 (`card-frame/index.ts:80-90` — WebRTC/STUN beacon, no closing CSP directive). Its ONE honest
 advantage is arbitrary pixels. Verdict: DEMOTED to the parked hatch (§6).
 
-**ARM C — hybrid.** The committed shape is a DEGENERATE hybrid: the DSL is the plane; the hatch is
-shaped-and-parked rather than built. "Not in v1" here follows the platform ruling's honesty rule
-(*"only ever means UNWIRED-but-typed, never unshaped"* — `interaction-direction-spec.md:211`): §6.2
-is the full shape, capability name reserved, wake criterion stated.
+**ARM C — hybrid.** The committed shape (as revised by the full-parity ruling): a FULL hybrid with
+a hard priority order — the declarative plane is primary and covers everything it can express; the
+`ui.frame` hatch is a scheduled phase (U7) covering exactly the arbitrary-pixels remainder. The
+platform honesty rule (*"only ever means UNWIRED-but-typed, never unshaped"* —
+`interaction-direction-spec.md:211`) is satisfied the strong way: every arm is both shaped AND
+scheduled.
 
 ## §4 The design
 
@@ -105,9 +120,9 @@ is the full shape, capability name reserved, wake criterion stated.
 **One new member: `ui.surface`** — appended to `PLUGIN_CAPABILITIES` (`manifest.ts:13-28`; order is
 the confirm-dialog display order, so placement is a UX decision — recommend after `notify`, before
 the SPEND block). Consent copy (the grant screen line): *"Show its own panels and controls — drawn
-by the app, always labeled with the plugin's name."* The parked hatch reserves `ui.frame` (§6.2) —
-NOT added to the tuple until woken (an unshipped tuple member would be a lie in every consent
-dialog).
+by the app, always labeled with the plugin's name."* The hatch's `ui.frame` member (§6.2) lands
+WITH its own phase (U7), not at U0 — a tuple member visible in consent dialogs before its surface
+exists would be a lie (the root-slot-lands-with-occupant discipline); its consent line is §6.2's.
 
 Coupled sites (the §7 seam list carries enforcers): the tuple + the ordered vitest `toEqual`
 (`manifest.contract.test.ts:26`) + `HOST_FUNCTION_CAPABILITY` rows for each new host function + the
@@ -177,10 +192,13 @@ primitives. The house pattern: closed `as const` kind tuple + discriminated unio
 Global bounds (all zod, all host-side at registration AND client-side before mount — the server's
 call is the trust boundary, the client's is depth-in-depth, the `buildCardFrameDocument` clamp
 posture at `card-frame/index.ts:400-403`): spec ≤ 32 KiB, ≤ 256 nodes, depth ≤ 8, every string
-length-capped. **What the vocabulary deliberately cannot express** (the impersonation/attention
-walls, each a refusal by unspellability — compile-tier): raw HTML/CSS/className, modals/popovers it
-owns, toasts, host-chrome anatomy (rail/topbar/composer), a consent dialog, focus stealing, and any
-write channel (a node is data; only `actionId` round-trips).
+length-capped. **What the vocabulary deliberately cannot express** (the impersonation walls, each
+a refusal by unspellability — compile-tier): raw HTML/CSS/className, host-chrome anatomy
+(rail/topbar/composer), a consent dialog, focus stealing, and any write channel (a node is data;
+only `actionId` round-trips). Toasts and dialogs are NOT nodes either — they are HOST-MEDIATED
+affordances (`host.ui.toast` + the `dialog` surface kind, §4.5a): first-party chrome,
+plugin-attributed, rate-floored, so the ability exists at full function while impersonation stays
+unspellable.
 
 **Bindings:** any `text`/`meter`/`badge`/`keyValue` value may be `{ $state: "path.in.state" }` —
 resolved by the renderer against the surface's published state. Missing path renders the node's
@@ -254,7 +272,17 @@ by fixed first-party members, never per-plugin (the one-assembly law, G8):
   first-party `/plugin` dispatcher (`SlashCommandContribution`, one static registry row —
   `contribution-contracts.ts:319-338`) routes `/plugin <slug> <name> …` to the guest handler; a
   first-party "Plugins" chrome menu (the wand shape) lists registered commands. Full per-command
-  palette rows need a dynamic palette source — deferred, priced (§5 row 9).
+  palette rows (a dynamic palette source) are COMMITTED at U8 (full-parity ruling; §5 row 9).
+
+### 4.5a Dialogs + toasts (host-mediated affordances — committed U5, full-parity ruling)
+
+- **`dialog`** — a fifth surface KIND (not an anchor): a house modal shell, plugin-attributed
+  title, DSL body (Tier S or C), opened only by an explicit user act on one of the plugin's own
+  surfaces/commands (never spontaneously — focus theft stays unspellable). Covers ST's custom
+  `Popup` class at full function; consent/grant dialogs remain host-only forever.
+- **`host.ui.toast(level, msg)`** — the house toast, prefixed with the plugin name, length-capped,
+  rate-floored per plugin (constant named at build, the `AUTOMATION_NOTICE_COOLDOWN_SECONDS`
+  posture). Transient viewer-local feedback; the durable channel stays `notify`.
 
 ### 4.6 Tier C — the client-side guest, and THE DEPENDENCY ROW
 
@@ -369,7 +397,9 @@ Source of truth: the house feature map + gap register
 over ABILITIES) and the live ST extension docs (fetched raw 2026-08-24 per web-fetching law:
 `docs.sillytavern.app/for-contributors/writing-extensions/` + `/extensions/`). Verdicts:
 **PT** = parity today (membrane already covers) · **PD** = parity by this design (arm + fidelity
-named) · **REF** = refused (structural wall named) · **DEF** = deferred (real, priced, phased).
+named) · **REF** = refused (structural wall named — §5a) · **CMT** = committed by the 2026-08-24
+full-parity ruling, phase-slotted (this revision retired the deferred class: every former DEF row
+below is CMT with a phase, except the one substrate-blocked row, marked SUB).
 
 | # | ST ability | Verdict | How / fidelity / wall |
 | - | - | - | - |
@@ -377,68 +407,89 @@ named) · **REF** = refused (structural wall named) · **DEF** = deferred (real,
 | 2 | Persistent extension settings (`extensionSettings` + save) | **PT** | `storage.kv` (`host-v1.ts:113-120`) — and BETTER: per-plugin-private, unlike ST's world-readable settings blob (ST's own docs warn plugins can read each other's) |
 | 3 | Top-bar / wand-menu buttons | **PD** | the first-party "Plugins" chrome menu + `/plugin` dispatch (§4.5); fidelity: inside one labeled menu, not arbitrary top-bar DOM — the chrome registry stays door-owned |
 | 4 | Message decorations (badges/annotations on rows) | **PD (v2)** | `message-footer` DSL badges, phase U6; per-row caps; fidelity: adjacent decoration, not in-bubble markup |
-| 5 | Message TEXT display-transform (formatting hooks / furigana class) | **DEF** | not a canon write (display-only), so no wall — but it needs a render-pipeline seam with a per-message budget the client pipeline does not have; shape: a server-side display-transform registered like D50, applied at the render cache. Interim: row 4 decorations |
-| 6 | Popups / confirm / input dialogs (`Popup.show`) | **PD** | `confirmButton` (house ConfirmDialog, plugin-attributed) + inline card nodes; fidelity: no free-form plugin-owned modal — deliberate (impersonation wall §4.8) |
+| 5 | Message TEXT display-transform (formatting hooks / furigana class) | **CMT (U6)** | not a canon write (display-only), so no wall; a server-side display-transform seam registered like D50, applied at the render path with a per-message budget — the largest U6 item, priced as its own seam (§7.14). Interim: row 4 decorations |
+| 6 | Popups / confirm / input dialogs (`Popup.show`) | **PD** | `confirmButton` (house ConfirmDialog) + inline card nodes + the `dialog` surface kind (§4.5a, U5) — full function; the shell stays house-drawn, plugin-attributed (impersonation wall §4.8) |
 | 7 | Custom side panels / drawers | **PD** | `chat-flank` + `chat-settings-section` + `settings` anchors, Tier S/C |
-| 8 | Whole custom screens (chess, retro games, VN extras) | **DEF→§6** | the arbitrary-pixels residual — the parked `ui.frame` hatch's reason to exist |
-| 9 | Slash-command registration (with help/autocomplete) | **PD (partial)** | `/plugin <slug> <cmd>` via one static contribution (§4.5); full first-class palette rows per command need a dynamic palette source — priced, deferred |
+| 8 | Whole custom screens (chess, retro games, VN extras) | **CMT (U7)** | the arbitrary-pixels row — the `ui.frame` hatch, now scheduled (§6.2) |
+| 9 | Slash-command registration (with help/autocomplete) | **PD → full at U8** | `/plugin <slug> <cmd>` via one static contribution from U5 (§4.5); the dynamic palette source giving per-command first-class rows is COMMITTED at U8 |
 | 10 | Event hooks (message/chat/character/persona/settings lifecycle) | **PT** | `events.subscribe` over the closed trigger taxonomy (`host-v1.ts:159-164`); fidelity: the closed union is narrower than ST's \~40 event types — widenings ride the S7 batched merge-window discipline (`interaction-direction-spec.md:397-408`), by demand |
 | 11 | Per-token streaming hook (`STREAM_TOKEN_RECEIVED`) | **REF** | structural: a guest invoke per token violates the per-invocation budget architecture + FIFO-16 delivery (`03:59-75`); per-message facts are the floor |
 | 12 | Prompt interceptors — inject/steer before generation | **PT** | `chat.transform` at D50 points (`host-v1.ts:178-191`) + `worldInfo.upsertEntry`; the 250 ms transform deadline vs 5 s fetch incompatibility stands (juice §4.6) |
 | 13 | Prompt interceptors — MUTATE chat history (ST's mutable `chat` array) | **REF** | the class-1 wall: an unattributed edit of prose canon by non-human code (`interaction-direction-spec.md:43-49`); the sanctioned routes are transforms (attributed to the drafting human) + the S4 propose/confirm inbox |
-| 14 | Abort generation from an interceptor | **DEF** | not a prose write; shape: a typed abort outcome on the transform return; small, needs a D50-seam decision |
-| 15 | Custom macro registration | **DEF** | shape: `macros.register` host fn whose handler is a guest invoke under the assembly deadline (the D50 transform precedent proves mid-pipeline guest calls); kit/macro stays the ONE engine, plugin macros are data into it |
-| 16 | Quiet/raw generation (`generateQuietPrompt`/`generateRaw`) | **PT** | `llm.quiet` (`host-v1.ts:138-157`); structured-output variant: **DEF**, a `schema` param on the same op (the xgrammar lever), priced small |
+| 14 | Abort generation from an interceptor | **CMT (U6)** | not a prose write; a typed abort outcome on the transform return (a D50-seam widening, small) |
+| 15 | Custom macro registration | **CMT (U6)** | `macros.register` host fn whose handler is a guest invoke under the assembly deadline (the D50 transform precedent proves mid-pipeline guest calls); kit/macro stays the ONE engine, plugin macros are data into it |
+| 16 | Quiet/raw generation (`generateQuietPrompt`/`generateRaw`) | **PT + CMT (U6)** | `llm.quiet` today (`host-v1.ts:138-157`); the structured-output variant (a `schema` param on the same op — the xgrammar lever) is committed at U6 |
 | 17 | Function-tool registration | **PT** | `tools.register` (D48 source (b)); the render half is closed by this design (`tool-card`, §4.5) |
 | 18 | Tool-result rich cards (oracle-deck class) | **PD** | `tool-card` anchor — the A2-F5 gap closed; Tier S card spec; arbitrary card ART is §6.1 |
 | 19 | Chat metadata (per-chat extension state) | **PT** | chat variables (`applyVariableOps`, member-visible plane) + `storage.kv` keyed by chat (private plane); fidelity note: two planes where ST has one, deliberately (visibility is a choice) |
-| 20 | Character-card extension fields (`writeExtensionField`) | **DEF** | portable card data, not a wall; needs a card-extensions decision (D-entry: who owns the namespace on export/import); not this program |
-| 21 | Toast notifications | **PD** | action outcomes ride house toasts (typed refusals/results, §4.4); free-form `toastr` at will is REFUSED as attention-budget chrome — notifications ride `notify` (durable inbox, cooldown floor) |
+| 20 | Character-card extension fields (`writeExtensionField`) | **CMT (U8)** | portable card data; committed with the stated default namespace `data.extensions.plugin_<slug>` (mirrors the ST V2 card `extensions` object → import/export interop for free); the D-entry ratifying the namespace lands with the build |
+| 21 | Toast notifications | **CMT (U5)** | `host.ui.toast` (§4.5a) — house toast, plugin-prefixed, rate-floored (the earlier attention-budget refusal was a taste wall by the capability-first test, so the ruling flips it); durable notifications still ride `notify` |
 | 22 | i18n registration | **N/A** | the app is en-only today; nothing to hook |
 | 23 | Third-party script loading at runtime (import-from-URL) | **REF** | structural: the bundle is the consent unit — upgrade re-consent triggers on widened reach (#615); runtime-fetched code is reach nobody confirmed. CSP + no-module-loader make it unspellable (`02:54-60`) |
 | 24 | Emitting custom/app events (`eventSource.emit`) | **REF** | closed unions — a plugin-emitted domain event is a forged fact (`01:191-193`); plugin-internal eventing is its own code + storage |
 | 25 | Direct DOM access to the host document | **REF** | structural: the sealed UI layer + one-mount architecture + the exfil class; the ENTIRE design above is the replacement |
 | 26 | Install for self vs whole server | **PT (in flight)** | #675 — self-scoped management + admin server-wide variant with per-user consent junctions; owned there |
-| 27 | Extension auto-update / git-URL install | **DEF** | bundle upload today; URL install rides the hub wave (gap register `:108`); #615's re-consent already governs upgrades |
+| 27 | Extension auto-update / URL install | **CMT (U8)** | URL install = fetch the zip at INSTALL time through the same funnel + consent screen (an install act under the user's eyes — distinct from row 23's runtime loading, which stays refused); updates = a check + ONE-CLICK upgrade through the existing `upgradePlugin` verb with #615's re-consent gates — NEVER silent (silent auto-update would launder widened reach past the consent the upgrade verb exists to protect) |
 | 28 | Idle prompting (timer-driven) | **PT (reshaped)** | no guest timers, permanently (`03:70-71` — a sleeping guest is a held instance); time-based behavior rides automation cadence predicates + `events.subscribe`, or a rule the plugin's user mints. Fidelity: schedule lives in the rules plane, not the plugin |
-| 29 | Module class: translation | **PD (partial)** | `llm.quiet` + `net.fetch` + transforms cover input-side; MESSAGE display translation waits on row 5's seam |
-| 30 | Module class: expressions/sprites | **PD (partial)** | `chat-flank` Tier C surface + `image` nodes over bundle-shipped assets (an `ui/assets/` bundle dir → installer CAS, priced §7) + `events.subscribe` = classify-and-swap sprites; live2d/VRM ANIMATED models are §6.1 |
-| 31 | Module class: TTS/STT | **DEF (substrate)** | blocked on the audio transport + inference role the ENGINE lacks (gap register §2 — ARCHITECTURAL); no plugin plane can conjure it; not this program's wall |
-| 32 | Module class: image captioning | **DEF** | needs a vision-input arm on a quiet op; priced small once wanted |
-| 33 | Module class: vector storage / Data Bank scrapers | **DEF** | shape: a `databank.ingest` capability + host fn over the D107 ingest op; real, unpriced here |
+| 29 | Module class: translation | **PD → full at U6** | `llm.quiet` + `net.fetch` + transforms cover input-side today; MESSAGE display translation rides row 5's committed seam |
+| 30 | Module class: expressions/sprites | **PD → full at U7** | `chat-flank` Tier C surface + `image` nodes over bundle-shipped assets (an `ui/assets/` bundle dir → installer CAS, §7.11) + `events.subscribe` = classify-and-swap sprites; live2d/VRM ANIMATED models ride the U7 hatch |
+| 31 | Module class: TTS/STT | **SUB** | blocked on the audio transport + inference role the ENGINE lacks (gap register §2 — ARCHITECTURAL, an engine-level decision, not a plugin-plane wall); the ONE residual owner ask (§10) |
+| 32 | Module class: image captioning | **CMT (U6)** | a vision-input arm on the quiet op (rides the same U6 `llm.quiet` widening as the schema param) |
+| 33 | Module class: vector storage / Data Bank scrapers | **CMT (U8)** | a `databank.ingest` capability + host fn over the D107 ingest op (`domain/databank`), grant-gated like every write; its own consent line |
 | 34 | Module class: web-search / RSS feeds into context | **PT** | `net.fetch` (allowlisted) + `worldInfo.upsertEntry`/`notify` — the research-familiar shape (juice §1.11) |
 | 35 | Shared libs (`SillyTavern.libs`) | **N/A→PT** | guests bundle their own (`esbuild --bundle`, `02:54-56`); the 1 MiB main.js cap is the budget; no shared-lib surface wanted |
 
 Completeness: every ST-doc ability surfaced in the fetched extension-authoring doc + extensions
-overview is classified above; the REFUSED set is exactly {per-token hook, canon mutation, runtime
-code loading, event forgery, host DOM} — each a system/other-users wall, none a taste wall, per the
-capability-first test.
+overview is classified above. After the full-parity fold the classes are: parity-today,
+parity-by-design, COMMITTED-with-phase, one substrate-blocked row (§5.31), and the five structural
+refusals of §5a. No deferred class remains.
 
-## §6 The residual list + the parked hatch (the owner's decision surface)
+### §5a The ENABLEMENT PRICE SHEET (refused BY DEFAULT; each row is an owner decision)
 
-### 6.1 What the integrated arm cannot reach at full fidelity
+Steer (6): *"some of those features I could be convinced to enable if it means more flexibility."*
+Each row below stays REFUSED until the owner buys it — but the refusal is priced, not flat: the
+safest enablement shape that exists, whose risk it is (SYSTEM / OTHER USERS / the INSTALLER), and
+this design's recommendation. Rows whose risk falls on OTHER USERS are marked ⚠ — those are the
+walls the capability-first ruling itself said stay.
 
-| Row | Integrated fidelity | What the hatch would add | Recommendation |
+| Ability (default: refused) | Safest enablement shape | Risk, and for WHOM | Recommendation |
 | - | - | - | - |
-| Canvas minigames (chess board, retro games — §5.8) | game LOGIC yes (Tier C), board PIXELS no — a chess UI from house list/badge nodes is possible but ugly | full canvas | PARK — no committed product need; wake on a real plugin demand |
-| live2d / VRM animated models (§5.30) | static sprite swap via `image` nodes — the classify-and-swap loop works | animation runtimes | PARK — sprite-swap fidelity first; measure demand |
-| Arbitrary card ART on tool cards (§5.18) | structured house cards | pixel art | PARK — the "provably fair draw" value survives in house cards (juice §1.15) |
-| Arbitrary-HTML settings look (§5.1) | full FUNCTION via form nodes | pixel freedom | REFUSE — function parity is parity; look-freedom is the ghetto the owner named |
-| Embedded exotic renderers (mermaid/LaTeX class) | `markdown`/`code` nodes | arbitrary renderers | PREFER house primitives on demand (a mermaid/LaTeX primitive is an `@orb/ui` decision, benefiting everyone, not a plugin hole) |
+| Per-token streaming hook (§5.11) | a THROTTLED READ-ONLY digest: the host coalesces the stream (every N ms / K tokens, drop-on-backpressure — never a queue), delivers a read-only `streamDigest` fact under a hard per-turn invoke cap; opt-in per plugin | SYSTEM (guest-invoke CPU during every streaming turn; bounded by the throttle constants) — no new data exposure beyond `chat.read` | buildable if wanted; recommend AGAINST until a concrete plugin needs sub-message granularity — per-message facts cover the known uses |
+| Mutating chat history (§5.13) | an ATTRIBUTED edit-op limited to messages the INSTALLER authored, riding the EXISTING edit verb (variant-tracked, edit-marked, principal-attributed) — never free mutation of others' rows; broader edits keep the S4 propose/confirm route | ⚠ OTHER USERS (room members cannot distinguish a code edit from a human edit under the same name — transcript-trust erosion even when attributed); the narrow own-messages arm confines it to self-representation | recommend the narrow own-messages arm ONLY if a real plugin demands it; the class-1 wall for others' rows and unattributed writes is not purchasable |
+| Runtime code loading (§5.23) | HASH-PINNED remote code: the manifest names a URL whose content hash is pinned at grant; any changed hash lands the plugin `disabled` pending re-consent (#615's mechanism, extended) — install-time semantics with remote convenience | the INSTALLER (consent fatigue: re-consent per upstream change; availability coupling to a remote host). No system/other-user exposure beyond what the granted capabilities already reach | near-equivalent to U8's URL-install + one-click-update — recommend folding into U8's update-check instead of a separate loader; enable only if the update cadence makes per-change re-consent tolerable |
+| Custom events (§5.24) | a NAMESPACED plugin-event plane: `plugin:<slug>:<name>`, installer-scoped pub-sub on the resident host — never entering the domain/chat buses, never a `TriggerFact`, subscribable by the same installer's plugins; automation reach only via an explicit future `pluginEvent` trigger member (its own merge-window decision) | SYSTEM, small (delivery machinery under the existing FIFO budgets); zero other-user exposure while installer-scoped — the FORGERY wall stays absolute (domain vocabulary never widens) | genuinely useful for multi-plugin composition and LOW risk in this shape — recommend ENABLE at U8 if the owner wants it; the priced part is the pub-sub + its caps |
+| Host DOM access (§5.25) | **no safe shape exists** — any DOM handle is a live object across the membrane (breaks the inert-marshal law), reaches session/storage/sibling surfaces, and dissolves the sealed-UI + impersonation walls in one move | ⚠ OTHER USERS + SYSTEM, unboundable | permanent refusal; the declarative plane (§4) + the U7 frame are the replacement at equal-or-better ability |
 
-### 6.2 The parked `ui.frame` hatch (shaped, not built)
+Plus one SUBSTRATE exclusion that is not a wall and not purchasable here: TTS/STT (§5.31) waits on
+an engine-level audio transport + inference role no plugin plane can conjure — reopening it is a
+gap-register/ledger act (§10).
 
-If woken: its own capability `ui.frame`, its own consent line naming the risk honestly (*"runs its
-own interface code in an isolated frame — it can draw anything inside its box, and an isolated
-frame can beacon out through browser channels no policy closes"* — the #124 class), riding the
-card-frame substrate wholesale: routed document with its own response CSP
-(`buildCardFrameCsp`-family, `sandbox allow-scripts`, `default-src 'none'`, NO `connect-src`),
-per-user in-process handles (`entry/http/card-frame.ts:41-45`), window-identity postMessage
-(`sandbox-frame.tsx:92-117`), token injection (`use-sandbox-theme.ts`), height clamps. All frame
-I/O through a postMessage bridge relayed to the SAME `plugin.uiHostCall` proc — the frame gets no
-network of its own. Anchors: `chat-flank` and a modal-sized surface only; NEVER `message-footer`.
-Wake criterion: an owner-accepted plugin need on a §6.1 row. Until then the capability name is
-reserved and NOT in the tuple. A wake is `security-executor`-gated (§9).
+## §6 Full-parity resolution: the residual rows + the COMMITTED hatch
+
+### 6.1 The arbitrary-pixels rows — resolved per the full-parity ruling
+
+| Row | Integrated fidelity (ships first, U1-U6) | Resolution (ruling-folded) |
+| - | - | - |
+| Canvas minigames (chess board, retro games — §5.8) | game LOGIC yes (Tier C), board PIXELS no | **HATCH (U7)** — was park-on-demand |
+| live2d / VRM animated models (§5.30) | static sprite swap via `image` nodes | **HATCH (U7)** — sprite-swap ships earlier via the declarative arm; animated models ride the frame |
+| Arbitrary card ART on tool cards (§5.18) | structured house cards (the "provably fair draw" value survives there) | **HATCH-ELIGIBLE (U7)** — a plugin may register a frame card renderer; lazy-mounted, never per-row-eager |
+| Arbitrary-HTML settings look (§5.1) | full FUNCTION via form nodes | **HATCH-ELIGIBLE (U7)** — was refuse; the ruling reaches it (the installer's own screen, their consent); the integrated form remains the recommended authoring path |
+| Embedded exotic renderers (mermaid/LaTeX class) | `markdown`/`code` nodes | **BOTH** — the hatch serves immediately at U7; a house mermaid/LaTeX primitive remains the better long-term home (an `@orb/ui` decision benefiting everyone) and supersedes frame usage where it lands |
+
+### 6.2 The `ui.frame` hatch — COMMITTED (phase U7; security-executor-gated)
+
+Its own capability `ui.frame`, landing WITH U7 (§4.1's tuple-timing rule), its own consent line
+naming the risk honestly (*"runs its own interface code in an isolated frame — it can draw
+anything inside its box, and an isolated frame can beacon out through browser channels no policy
+closes"* — the #124 class), riding the card-frame substrate wholesale: routed document with its
+own response CSP (`buildCardFrameCsp`-family, `sandbox allow-scripts`, `default-src 'none'`, NO
+`connect-src`), per-user in-process handles (`entry/http/card-frame.ts:41-45`), window-identity
+postMessage (`sandbox-frame.tsx:92-117`), token injection (`use-sandbox-theme.ts`), height clamps.
+All frame I/O through a postMessage bridge relayed to the SAME `plugin.uiHostCall` proc — the
+frame gets no network of its own. Anchors: `chat-flank`, the `dialog` surface, and `tool-card`
+(lazy); NEVER `message-footer`-eager. The merge is `security-executor`-gated (§9), and the
+priority law stands: a surface expressible in the vocabulary ships in the vocabulary — the frame
+is the arbitrary-pixels arm, not a parallel UI system.
 
 ## §7 The priced seam list (every coupled site, with its enforcer tier)
 
@@ -456,6 +507,9 @@ reserved and NOT in the tuple. A wake is `security-executor`-gated (§9).
 | 10 | CSP: `script-src` gains `'wasm-unsafe-eval'` | `security-headers.ts:99` + its prod-script-src pin test (`tests/server/entry/http/security-headers.test.ts` — the pin must be UPDATED deliberately, it currently proves no-escape) | the pin test (edited with intent) + security-executor sign-off |
 | 11 | Bundle UI assets (`ui/assets/` → installer CAS, `image` node source) | bundle funnel + assets kind + the `image` node's assetId-only rule | zod (no URL arm exists) + the CAS ownership reads |
 | 12 | Consent copy + grant screen | `features/plugin/components/plugin-grant-list.tsx` + the capability-order decision | review + side-eye (copy is a consent artifact) |
+| 13 | U7 — the `ui.frame` hatch | `ui.frame` tuple member (+ both vitest pins move) · consent line (§6.2) · the plugin-frame routed doorway (`entry/http`, the card-frame shape: per-user handles, own response CSP, floor on every arm) · the `PluginFrame` client component (window-identity listener, `sandbox-frame` posture) · the postMessage→`uiHostCall` bridge | the card-frame belt set (kit CSP builder + route tests + CT) + security-executor gate |
+| 14 | U6 — the display-transform seam | a D50-shaped display-transform registrar (server-side, per-message budget, applied at the render path) + its registration host fn + refusal postures (timeout ⇒ skip, D53's law) | the D50 seam's own tests + a per-message budget pin |
+| 15 | U8 — ecosystem verbs | URL install (fetch→same funnel+consent; egress-guarded) · update check + one-click `upgradePlugin` (#615 re-consent, never silent) · `databank.ingest` capability + host fn (D107 op) · card extension fields (`data.extensions.plugin_<slug>`, D-entry with the build) · the dynamic palette source for per-command rows | each verb's own sweep-class int tests + the capability pins + the egress wall |
 
 ## §8 The phase plan (stop-anywhere; every row owner-testable)
 
@@ -466,18 +520,21 @@ reserved and NOT in the tuple. A wake is `security-executor`-gated (§9).
 | U2 | chat anchors: flank fan-out + settings-section contribution + the shell (seam 7) | a plugin renders a labeled flank widget updating on room events; disabled ⇒ byte-identical room | ordinary |
 | U3 | `tool-card`: `pluginToolRenderer` + card specs — **closes A2-F5** | the oracle-deck example's draw renders a house card; an unregistered tool still gets the generic block | ordinary |
 | U4 | Tier C: `uiEntry` + bytes route + worker host + `uiHostCall` + CSP delta (seams 8-10) — **security-executor review gates the merge** | a scripted surface filters a list with zero network on keystroke; a hung `ui.js` collapses to null within the deadline | ordinary (CSP edit deliberate) |
-| U5 | `/plugin` slash dispatch + the Plugins chrome menu + `ui.dialog`-class confirm affordances | `/plugin oracle draw` runs; the wand menu lists plugin commands | ordinary |
-| U6 | parity long tail: `message-footer` DSL badges · the display-transform seam decision (§5.5) · `llm.quiet` schema param (§5.16) | per row | per row |
+| U5 | `/plugin` slash dispatch + the Plugins chrome menu + the `dialog` surface kind + `host.ui.toast` (§4.5a) | `/plugin oracle draw` runs; the wand menu lists plugin commands; a plugin action opens a plugin-attributed house dialog and raises a prefixed toast | ordinary |
+| U6 | the committed parity tail (all CMT rows): `message-footer` DSL badges (§5.4) · the display-transform seam (§5.5/§5.29, seam 14) · `llm.quiet` schema + vision params (§5.16/§5.32) · the typed transform-abort outcome (§5.14) · `macros.register` (§5.15) | per row: a badge renders under a message; a display transform annotates rendered text; a structured quiet call returns schema-valid JSON; a transform aborts a generation typed; a plugin macro substitutes | ordinary |
+| U7 | the `ui.frame` hatch whole (seam 13; §6.2) — **security-executor review gates the merge** | a frame surface draws a chess board at `chat-flank`; a hostile frame reaches nothing off-box except the #124 channel its consent line names; every §6.1 row is servable | ordinary (CSP untouched — the frame carries its OWN response policy) |
+| U8 | ecosystem (seam 15): URL install + update check (one-click, re-consented) · `databank.ingest` · card extension fields · dynamic palette rows | install a plugin from a URL with the same consent screen; an update lands disabled-pending-reconsent when reach widened; a scraper plugin ingests into the databank; plugin commands appear as first-class palette rows | ordinary |
 
 No row renames or migrates anything an earlier row shipped; U1 alone already delivers the
-highest-demand ST parity row (per-extension settings UI).
+highest-demand ST parity row (per-extension settings UI). Any §5a enablement the owner buys is
+scheduled as its own additional row at purchase time, never folded silently into these.
 
 ## §9 Threat model (honest; what routes to security-executor)
 
 - **Exfiltration.** Tier S/C add NO new egress channel: the vocabulary's only media source is the
   installer's own CAS; all guest I/O rides the existing membrane fns behind the existing egress
   wall (`net.fetch` allowlist + SSRF guard + hourly floor). The client guest has no fetch — its
-  only wire is the re-gated `uiHostCall`. The #124 WebRTC class attaches ONLY to the parked frame
+  only wire is the re-gated `uiHostCall`. The #124 WebRTC class attaches ONLY to the U7 frame
   hatch (named in its consent line, §6.2). Residual: a `ui.js` could encode observed data into
   ARGUMENTS of granted calls (e.g. a `storage.kv` write later read by the server half and egressed
   via granted `net.fetch`) — that is the plugin exfiltrating data the INSTALLER already granted it
@@ -505,24 +562,29 @@ highest-demand ST parity row (per-extension settings UI).
   budgets unchanged; worker terminate. The `plugin.runSnippet` throttle lesson (D46 review P2-F)
   applies to `invokeUiAction`/`uiHostCall` from birth: name their rate bucket at build.
 - **Routes to `security-executor` before merge:** U4 whole (bytes route + worker host + `uiHostCall`
-  re-gate + the `'wasm-unsafe-eval'` widening), any wake of §6.2, and the #675-item-4 interlock
-  when it arrives. U0–U3 are standard-review (no plugin code executes client-side; every new
-  surface is data rendered by first-party code) — `verifier` + `side-eye` lenses suffice there.
+  re-gate + the `'wasm-unsafe-eval'` widening), U7 whole (the frame doorway + bridge + consent
+  copy), U8's URL-install funnel (server-side fetch of attacker-named zips — through the egress
+  guard, never a bare fetch), any PURCHASED §5a row, and the #675-item-4 interlock when it
+  arrives. U0–U3 are standard-review (no plugin code executes client-side; every new surface is
+  data rendered by first-party code) — `verifier` + `side-eye` lenses suffice there.
 
-## §10 Open owner questions (each with the stated default)
+## §10 Owner questions — RESOLVED by the full-parity ruling, plus the residual ask
 
-1. **Tier C in the committed phases, or Tier S first and C on demand?** Default: BUILD U4 (the
-   owner's dep steer reads as appetite, and Tier C is what makes "full-featured" true); U1–U3 are
-   independently shippable if the appetite changes.
-2. **The parked hatch (§6.2): park or refuse outright?** Default: PARK with the wake criterion
-   (capability-first says do not delete ability the register names; the residual list is real but
-   niche).
-3. **`message-footer` badges (U6): worth the per-row surface at all?** Default: yes as DSL-only
-   with hard caps; it is the ST "message decorations" row's honest home.
-4. **Per-command palette rows (§5.9 full fidelity)** need a dynamic palette source — widen the
-   slash/palette seam, or keep `/plugin` dispatch? Default: keep dispatch; widen only on felt pain.
-5. **The display-transform seam (§5.5/§5.29):** commit at U6 or park? Default: park with the shape
-   recorded; it is the largest unpriced item and no committed preset needs it.
+The five questions this design originally posed are all answered by steer (5) (capability-maximal;
+consent is the line), recorded here so nobody re-opens them: (1) Tier C — COMMITTED, U4. (2) the
+hatch — COMMITTED as scheduled phase U7, not woken-by-demand. (3) `message-footer` badges —
+COMMITTED, U6, DSL-only with hard caps. (4) per-command palette rows — COMMITTED, U8 (the dynamic
+palette source). (5) the display-transform seam — COMMITTED, U6 (seam 14).
+
+**The residual owner-ask list (what the blanket ruling genuinely does not answer):**
+
+1. **TTS/STT (§5.31)** — a SUBSTRATE decision, not a capability appetite: the engine has no audio
+   transport or speech inference role (gap register §2, ARCHITECTURAL, recorded by-design-out for
+   the engine). If the owner wants plugin-built voice, the ask is an ENGINE program (transport +
+   role) that this plane would then consume — a gap-register/ledger reopening, not a phase here.
+
+**Standing decision rows, no action needed until purchased:** the five §5a enablement rows — each
+refused by default with its price stated; buying one schedules its own phase row + security review.
 
 ## §11 Interlocks
 
@@ -532,7 +594,7 @@ highest-demand ST parity row (per-extension settings UI).
 - **#677** (tool-registry owner collision): `pluginToolRenderer` keys must follow the landed key
   shape (owner-scoped or per-install) — U3 consumes, never decides.
 - **#627** (runtime plugin log): §4.9's diagnosability leans on it; until then, activation-log only.
-- **#124** (WebRTC watch): attaches to §6.2 only; its wake condition is independent.
+- **#124** (WebRTC watch): attaches to the U7 frame hatch only; its wake condition is independent.
 - **The interaction spec §7-C7** (plugin client wave): U1–U3 here ARE C7's "plugin client" surface
   work; the `llm.quiet` pins and attach-seam rows in C7 are siblings, not duplicates — C7's
   vitest-pin pricing note (two exact pins move with any capability member) applies to `ui.surface`.
@@ -540,4 +602,5 @@ highest-demand ST parity row (per-extension settings UI).
 *Provenance: commissioned by #679; built against the full reading set (the membrane design docs 01-04,
 the D46 security review, D70, the interaction spec §1/§3/§7-C7a, the juice review, contribution
 contracts, the card-frame substrate, the ST parity corpus + live ST extension docs fetched raw
-2026-08-24). Four owner steers folded verbatim in §0.*
+2026-08-24). Six owner steers folded verbatim in §0 (four at first delivery; the full-parity ruling
+and the enablement-sheet follow-up folded the same day as the dated revision).*

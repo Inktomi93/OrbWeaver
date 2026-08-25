@@ -72,9 +72,16 @@ export interface PluginLogView {
 
 /** The inline-snippet run's result — echoed into the CALLER's own chat client (a personal REPL, not a
  *  room broadcast). `error` is present iff the snippet threw / hit its wall (a snippet crash is data, never a
- *  resident-crash counter — nothing is resident to protect). TYPE HOME ONLY here; `runSnippet` lives with the
- *  other verbs. */
+ *  resident-crash counter — nothing is resident to protect). `errorKind` distinguishes the two outcomes an
+ *  empty `logLines` + a set `error` collapsed into one copy path before this field existed: `"parse"` means the
+ *  guest source never started executing (a QuickJS `SyntaxError` caught before the first job pump — the
+ *  snippet console's "It ran and logged nothing" caption is a LIE for this arm), `"runtime"` means it threw or
+ *  hit the wall mid-run. `errorLine` is the guest source line the parse failed at, lifted from the QuickJS
+ *  error's `stack` (`plugin-guest.js:LINE:COL`) — absent when the engine didn't report one. TYPE HOME ONLY
+ *  here; `runSnippet` lives with the other verbs. */
 export interface SnippetResult {
   readonly logLines: readonly string[];
   readonly error?: string;
+  readonly errorKind?: "parse" | "runtime";
+  readonly errorLine?: number;
 }
