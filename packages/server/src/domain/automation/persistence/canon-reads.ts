@@ -10,7 +10,7 @@ import { assets, characters, chatBooks, chatParticipants, chats, messages, messa
 import type { AssetId, CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, desc, eq, gt, isNull, lte, sql } from "drizzle-orm";
-import type { AnalysisWindowRow } from "../contract/analysis.ts";
+import type { AnalysisAuditTarget, AnalysisWindowRow } from "../contract/analysis.ts";
 
 const LIMIT_ONE = 1;
 
@@ -136,6 +136,27 @@ export async function maxVisibleSeq(db: Db, chatId: ChatId): Promise<number | nu
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(eq(messages.chatId, chatId));
   return rows[0]?.max ?? null;
+}
+
+/** C3 — the newest AUDITABLE reply: the highest-seq assistant slot joined to its SELECTED variant, with
+ *  hidden slots excluded. `null` = the room has no assistant reply to audit (a fresh chat, or one whose only
+ *  replies are held out of assembly) — not an error, just nothing to do this pass.
+ *
+ *  THE THREE PREDICATES ARE EACH LOAD-BEARING, not defensive padding:
+ *   • `role = 'assistant'` — the audit is of MODEL prose. A human's own message is theirs to write badly.
+ *   • the selected-variant join — the same visibility predicate every other read here uses (D26): the audit
+ *     must read the swipe the room is actually looking at, or the card would quote text nobody can see.
+ *   • `excludedFromPrompt = false` — a hidden row is one the host has already held out of the story; offering
+ *     to rewrite it is offering to fix something they deliberately shelved. */
+export async function latestAuditableReply(db: Db, chatId: ChatId): Promise<AnalysisAuditTarget | null> {
+  const rows = await db
+    .select({ messageId: messages.id, variantId: messageVariants.id, content: messageVariants.content })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(and(eq(messages.chatId, chatId), eq(messages.role, "assistant"), eq(messages.excludedFromPrompt, false)))
+    .orderBy(desc(messages.seq))
+    .limit(LIMIT_ONE);
+  return rows[0] ?? null;
 }
 
 /** Whether the chat has an ACTIVE rpg game — the analysis-arm MINT fence (§3-S5.7: the game owns its own

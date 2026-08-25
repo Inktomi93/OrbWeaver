@@ -150,7 +150,7 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
   let outcome: AutomationRunOutcome;
   let error: string | null = null;
   try {
-    await runAnalysisConfirm({ db: ctx.db, ops: ctx.ops, nowMs }, pending, rule, payload.act);
+    await runAnalysisConfirm({ db: ctx.db, ops: ctx.ops, nowMs, applyProseRewrite: ctx.applyProseRewrite }, pending, rule, payload.act);
     outcome = "fired";
   } catch (err) {
     outcome = "action_error";

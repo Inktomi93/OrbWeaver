@@ -238,6 +238,12 @@ test("clamp DERIVED neutral chrome clears AA on every realistic light + dark bas
     }
     const mutedSurface = rampSurface(base, D.ramp.muted);
     expect(contrastRatio(muted, oklchToRgb(mutedSurface)), `derived muted-foreground on muted @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    // …and on the CARD ramp surface, which the seed table already floors (`bodyPairs`) but the derived
+    // sweep did not: #674 gave the S1 control band the composer's opaque `bg-card`, and the ink an
+    // `intent="outline"` chip paints on it is exactly this token. Without this row the band's contrast
+    // guarantee held on the three seeds and was merely BRACKETED (card sits between `background` and
+    // `muted` in L) on a user's own palette.
+    expect(contrastRatio(muted, oklchToRgb(surfaces.card)), `derived muted-foreground on card @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
 });
 

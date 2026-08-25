@@ -27,12 +27,13 @@ test("carries NO CEL and no arm templates — the picker never sees a predicate"
   expect(serialized).not.toContain("has(");
 });
 
-test("declares confirmFirst on every view — the A4 rows and C2's lore distillers ASK, the rest act directly", () => {
-  // #1 (welcome-back recap), #3 (auto-add lore), and C2's #11 pair (distill lore + rumour mill) are the
-  // confirm-first rows; the picker reads this to tell a host, BEFORE they enable it, whether the rule will act
-  // or ask. The distillers ask because a durable canon write earns a card (RULED F7 confirm-first).
+test("declares confirmFirst on every view — the A4 rows, C2's lore distillers and C3's prose audit ASK, the rest act directly", () => {
+  // #1 (welcome-back recap), #3 (auto-add lore), C2's #11 pair (distill lore + rumour mill) and C3's #14
+  // (prose audit) are the confirm-first rows; the picker reads this to tell a host, BEFORE they enable it,
+  // whether the rule will act or ask. The distillers ask because a durable canon write earns a card, and the
+  // audit asks because a rewrite of settled prose earns one twice over (RULED F7 confirm-first).
   const asking = listRulePresets()
     .filter((view) => view.confirmFirst)
     .map((view) => view.id);
-  expect(asking).toEqual(["welcomeBackRecap", "autoAddLore", "distillLore", "rumorMill"]);
+  expect(asking).toEqual(["welcomeBackRecap", "autoAddLore", "distillLore", "rumorMill", "proseAudit"]);
 });

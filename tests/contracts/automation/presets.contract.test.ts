@@ -17,7 +17,7 @@ import {
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("RULE_PRESET_IDS is the pinned 15-member catalogue (A3's seven + A4's four + C1's pacing analysis + C2's two lore-distillers + #16 the needle), in §4 build order", () => {
+test("RULE_PRESET_IDS is the pinned 18-member catalogue (A3's seven + A4's four + C1's pacing analysis + C2's two lore-distillers + #16 the needle + C3's prose audit + C6's two), in §4 build order", () => {
   expect(RULE_PRESET_IDS).toEqual([
     "welcomeBackRecap",
     "autoAddLore",
@@ -38,13 +38,17 @@ test("RULE_PRESET_IDS is the pinned 15-member catalogue (A3's seven + A4's four 
     // §4 #16 — the needle: the analysis pass's tension SCORE published into the member-visible vars plane
     // (F6's single ruled exception) plus the backdrop reaction. RULED 2026-08-24 — ships, off by default.
     "theNeedle",
+    // §4 #15 — C3's confirm-first prose audit, riding the run_analysis → suggestRewrite route.
+    "proseAudit",
+    // §4 #2 + #14 — C6's pair: the async table nudge (the actor-excluding recipient's consumer) and the
+    // spotlight-balance analysis. Appended, never re-ordered: the tuple is the catalogue's build order.
+    "asyncTableNudge",
+    "spotlightBalance",
   ]);
   expect(rulePresetIdSchema.options).toEqual(RULE_PRESET_IDS);
-  // The rows riding LATER phases stay unspellable: #2 (C6's actor-excluding notification recipient), #14
-  // spotlight balance, and #20 the owner-global living library (C5's lane). #16 the needle is now BUILT —
-  // this is the two-sided half of that flip: the id it used to prove UNSPELLABLE parses above.
-  expect(rulePresetIdSchema.safeParse("asyncTableNudge").success).toBe(false);
-  expect(rulePresetIdSchema.safeParse("spotlightBalance").success).toBe(false);
+  // The one row still riding a later phase stays unspellable: #20 the owner-global living library
+  // (C5's lane — the global rules surface mints it). Every other catalogue row is BUILT: the ids that
+  // once proved unspellable (#16, #15, #2, #14) parse above.
   expect(rulePresetIdSchema.safeParse("livingLibrary").success).toBe(false);
 });
 
@@ -97,6 +101,9 @@ const PRESET_SEEN: Record<RulePresetId, true> = {
   distillLore: true,
   rumorMill: true,
   theNeedle: true,
+  proseAudit: true,
+  asyncTableNudge: true,
+  spotlightBalance: true,
 };
 const KIND_SEEN: Record<RulePresetKnobKind, true> = { number: true, text: true, textList: true, choice: true, entityRef: true };
 const ENTITY_SEEN: Record<RulePresetEntityKind, true> = { worldInfoBook: true };

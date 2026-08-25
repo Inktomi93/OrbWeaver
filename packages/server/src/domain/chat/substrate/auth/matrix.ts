@@ -105,6 +105,11 @@ export const CHAT_VERB_AUTHORITY = {
   // pre-first-user-turn freeze and resolves its bytes from the card, never from the caller. PROBED in the
   // cross-tenant sweep.
   setSeededGreeting: "host",
+  // C3 — HOST, not author-or-host, and the asymmetry with `editMessage` is deliberate: the bytes are a rule's
+  // machine-authored rewrite, offered on a card the HOST confirms, and a member has no standing to accept a
+  // machine's rewrite of the room's prose. The verb additionally pins itself to the audited variant + a hash
+  // of its bytes, so even a host's confirm can only land on the exact body the audit read.
+  applyProseRewrite: "host",
   setMessageHidden: "author-or-host",
   deleteMessages: "author-or-host",
   editReasoning: "author-or-host",

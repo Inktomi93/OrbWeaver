@@ -42,7 +42,7 @@ import {
   createPluginSuggestionRaiser,
   createPromptTransformIndex,
   createSuggestionStore,
-  loadPresentHumanMemberIds,
+  resolveNotificationRecipients,
 } from "#domain/automation";
 import { loadPresentRole } from "#domain/chat";
 import type { ImageryService } from "#domain/imagery";
@@ -342,6 +342,15 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // The plugin half of the confirm-time liveness re-check — OWNER-SCOPED, so a row that is not this actor's
     // answers `false`. Fail-closed on disabled/errored/missing.
     isPluginLive: (pluginId, ownerId) => isPluginEnabledFor(db, ownerId, pluginId),
+    // C3 — the CONFIRM-ONLY prose-rewrite executor, onto chat's own host-gated verb under the rule AUTHOR's
+    // Principal (the `setChatBackground` wiring shape: the author's dispatch-time host authority was
+    // re-verified at the confirm's `holdsAuthority` re-check). It is wired HERE, on the context, rather than
+    // into `automationOps` on purpose — an op on `ops` is an op an ARM could call, and the class-1 wall says
+    // a rewrite of settled prose happens on a host's yes or not at all. The two pins the act carries are
+    // re-checked INSIDE the verb, so a swipe or an edit since the ask refuses and writes nothing.
+    applyProseRewrite: async ({ authorUserId, chatId, messageId, variantId, expectedContentHash, content }) => {
+      await chat.applyProseRewrite({ principal: await resolveOwnerPrincipal(authorUserId), chatId, messageId, variantId, expectedContentHash, content });
+    },
     notify: automationNotify,
   });
   // Prime the watcher's in-process enabled index + the transform registry from canon —
@@ -417,7 +426,11 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         publishNotification(await notifications.record({ event }));
       },
       post: async ({ pluginId, installerUserId, chatId, recipient, message }) => {
-        const recipients = recipient === "host" ? [installerUserId] : await loadPresentHumanMemberIds(db, chatId);
+        // The SAME axis resolver the `post_notification` arm uses — one home, so a new recipient member can
+        // never land on the rule path and silently miss this one. `actorUserId: null` is not a shrug: a guest
+        // `notify` carries no triggering fact, and its selector type (`PluginNotificationRecipient`) cannot
+        // name the actor-excluding member at all, so there is no actor to pass and none can be asked for.
+        const recipients = await resolveNotificationRecipients(db, { recipient, chatId, hostUserId: installerUserId, actorUserId: null });
         const capped = message.slice(0, AUTOMATION_NOTICE_MESSAGE_MAX);
         const source = { kind: "plugin", pluginId } as const;
         await Promise.all(

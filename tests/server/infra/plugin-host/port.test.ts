@@ -607,6 +607,31 @@ describe("membrane — notifications.post (notify): posts to the bridge; the gat
     host.dispose(outcome.instance);
   });
 
+  // C6 — the guest VOCABULARY fence. A REGRESSION GUARD, not a defect proof: the membrane already collapsed
+  // any unrecognised selector to `host`, and this pins that the actor-excluding member joins that class
+  // rather than the all-members one when the third recipient landed on the axis. It is the runtime half of a
+  // wall that is primarily TYPED (`PLUGIN_NOTIFICATION_RECIPIENTS` — a guest's selector cannot name it), and
+  // the reason it exists at all: a guest `notify` carries no triggering fact, so the member has no actor to
+  // exclude and would silently mean "everyone" — the widest set, reached by naming the narrowest-sounding
+  // word. Collapsing to `host` fails toward the SMALLEST recipient set instead.
+  test("a guest naming the actor-excluding recipient falls back to `host`, never to all_members", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const fake = fakeBridge();
+    const main = 'const h = orb.host(1); h.notifications.post(h.chat.current(), "all_members_except_actor", "psst").then(() => h.log.info("posted"));';
+    const outcome = await host.createInstance({
+      mainJs: main,
+      grants: ["chat.read", "notify"],
+      bridge: fake.bridge,
+      chat: { chatId: CHAT, canWrite: false, automationDepth: 0 },
+    });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) {
+      return;
+    }
+    expect(fake.notices).toEqual([{ recipient: "host", message: "psst" }]);
+    host.dispose(outcome.instance);
+  });
+
   test("notifications.post WITHOUT the notify grant rejects (capability gate) — bridge never called", { timeout: LONG }, async () => {
     const host = makeHost();
     const fake = fakeBridge();
