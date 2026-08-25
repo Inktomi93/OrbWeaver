@@ -668,7 +668,8 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
       );
       return loginErrorRedirect(c, exchange.code);
     }
-    const identity = identityFromClaims(exchange.claims, oidc.claims, oidc.groupsSeparator);
+    // #699 — the usable-identity gate refuses both no-username AND no-stable-subject logins (`oidcSessionIdentity`).
+    const identity = oidcSessionIdentity(exchange.claims, oidc.claims, oidc.groupsSeparator);
     if (identity === null) {
       return loginErrorRedirect(c, AUTH_ERROR_NO_IDENTITY);
     }
@@ -840,11 +841,16 @@ function readClaimPath(claims: { readonly [claim: string]: unknown }, path: stri
  *  row's binding, so the guard cannot fire and a handle match walks onto whatever row holds that handle. In
  *  `forward-header` that IS the model (the proxy asserted the handle behind the trusted-peer gate); in
  *  `oidc` it is a MISCONFIGURATION, because OIDC Core REQUIRES `sub` in an ID token, so a null here means
- *  `OIDC_UID_CLAIM` names a claim this IdP does not emit — and the box then runs guard-less for every login
- *  with nothing saying so. This mapper is the oidc-only seam (forward-header resolves in
- *  `infra/auth/modes/forward-header.ts`), so the warn is mode-scoped by construction. It is OBSERVABILITY:
- *  the returned identity is byte-identical with or without it, because refusing a subject-less login would
- *  break forward-header entirely — see `isSubjectMismatch`'s scope note, which prescribes exactly this. */
+ *  `OIDC_UID_CLAIM` names a claim this IdP does not emit. This mapper is the oidc-only seam (forward-header
+ *  resolves in `infra/auth/modes/forward-header.ts`), so the warn is mode-scoped by construction.
+ *
+ *  THE SECURITY EVENT IS OBSERVABILITY; THE REFUSAL LIVES AT THE CALLBACK (#699, 2026-08-25). This function
+ *  still returns a byte-identical identity with or without the warn — it must, because it is a pure mapper and
+ *  refusing here would conflate the diagnosis with the decision. But the box no longer "runs guard-less for
+ *  every login": the OIDC callback that owns this mapper now refuses a null-`externalId` identity outright
+ *  (fail-closed, oidc-only), so a misconfigured oidc box gets a denied login plus this tell, not a guard-less
+ *  session. The refusal is at the callback rather than in the verb because only the callback KNOWS the mode —
+ *  forward-header, where a null subject is legitimate, never routes through here or through that arm. */
 export function identityFromClaims(
   claims: { readonly [claim: string]: unknown } | undefined,
   claimMap: OidcClaimMap,
@@ -868,7 +874,7 @@ export function identityFromClaims(
     securityEvent(
       "oidc_subject_claim_missing",
       { handle, uidClaim: claimMap.uidClaim },
-      "security: an OIDC login carried no stable subject — OIDC_UID_CLAIM names a claim this IdP does not emit, so every login provisions externalId=null and the bind-once account-takeover guard cannot fire; point OIDC_UID_CLAIM at a claim the IdP emits (`sub` is required by OIDC Core)",
+      "security: an OIDC login carried no stable subject — OIDC_UID_CLAIM names a claim this IdP does not emit; the callback now REFUSES this login fail-closed (#699), so no session is minted and the bind-once takeover guard is never relied on, but every OIDC login stays locked out until this is fixed; point OIDC_UID_CLAIM at a claim the IdP emits (`sub` is required by OIDC Core)",
     );
   }
   const rawGroups = readClaimPath(claims, claimMap.groupsClaim);
@@ -885,4 +891,34 @@ export function identityFromClaims(
     groups,
     email,
   };
+}
+
+/**
+ * #699 — THE OIDC CALLBACK'S USABLE-IDENTITY GATE, fail-closed. Returns the mapped identity ONLY when it can
+ * key a session, else `null`:
+ *   • no usable username — `identityFromClaims` already returned `null` (no identity at all).
+ *   • NO STABLE SUBJECT (`externalId === null`) — the #699 refusal. `externalId` is the identity key, and the
+ *     bind-once takeover refusal (`isSubjectMismatch`, `domain/sessions/verbs/provision-identity`) is
+ *     structurally inert for a null-subject login — it has no subject to contradict — so provisioning would
+ *     fall through to a HANDLE match and authorize whatever row holds that handle, including one already bound
+ *     to a DIFFERENT subject (impersonation-for-this-session; an IdP handle reassignment, or the
+ *     publicly-guessable `OWNER_HANDLES` value, is the reach). `sub` is REQUIRED by OIDC Core and the token
+ *     exchange (`oauth4webapi` validatePresence) already refuses an ID token without it, so a null subject here
+ *     means `OIDC_UID_CLAIM` names a claim this IdP does not emit — a MISCONFIGURATION, never a legitimate
+ *     login. The operator tell already fired inside `identityFromClaims` (`oidc_subject_claim_missing`).
+ *
+ * OIDC-SCOPED BY CONSTRUCTION, which is why this refusal is SAFE here and FORBIDDEN in the verb. This is the
+ * oidc-only seam (the callback is registered only when `deps.oidc` is set = AUTH_MODE=oidc); forward-header
+ * resolves identity in `infra/auth/modes/forward-header.ts` and never reaches it, so a null subject — the
+ * NORMAL forward-header shape, where the proxy is the identity authority — is untouched. The verb must still
+ * NOT widen its own guard to null (that breaks forward-header); the ruling survives, its INPUT changed — the
+ * oidc half now fails closed one tier UP. See the residual note in `provision-identity.ts`.
+ */
+export function oidcSessionIdentity(
+  claims: { readonly [claim: string]: unknown } | undefined,
+  claimMap: OidcClaimMap,
+  groupsSeparator?: string,
+): ResolvedIdentity | null {
+  const identity = identityFromClaims(claims, claimMap, groupsSeparator);
+  return identity === null || identity.externalId === null ? null : identity;
 }

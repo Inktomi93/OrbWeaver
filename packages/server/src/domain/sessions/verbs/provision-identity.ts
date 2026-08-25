@@ -55,13 +55,19 @@ async function findExisting(ctx: SessionsContext, identity: ResolvedIdentity): P
 // there is nothing to compare and it walks past onto the handle-matched row. Who produces one:
 //   • `forward-header`, unsigned — the Authelia (`Remote-User`) and generic (`X-Forwarded-User`) arms carry no
 //     uid header AT ALL, and the custom-override arm carries none unless `FORWARD_AUTH_UID_HEADER` is set. In
-//     that mode the PROXY is the identity authority (it asserted the handle behind the trusted-peer gate).
-//   • `oidc` — `identityFromClaims` yields null when `OIDC_UID_CLAIM` names a claim the IdP does not emit. The
-//     default `sub` is REQUIRED by OIDC Core, so a default-configured box never reaches this.
-// RESIDUAL (a MISCONFIGURATION, not a default): an `oidc` box repointed at a claim the IdP omits loses this
-// guard per login. Do NOT close it by widening to null (that breaks forward-header). It is OPERATOR-VISIBLE
-// instead (#34): `identityFromClaims` warns `oidc_subject_claim_missing`, and {@link reportNullSubjectOnBoundRow}
-// warns `sso_null_subject_on_bound_row` when this guard is inert for a login that reached a BOUND row.
+//     that mode the PROXY is the identity authority (it asserted the handle behind the trusted-peer gate). This
+//     is the case the verb must stay OPEN for — refusing a null subject here would break forward-header, where
+//     null is the normal shape.
+//   • `oidc` — `identityFromClaims` yields a null EXTERNALID when `OIDC_UID_CLAIM` names a claim the IdP does
+//     not emit. The default `sub` is REQUIRED by OIDC Core, so a default-configured box never reaches this.
+// RESIDUAL, oidc half — CLOSED UPSTREAM 2026-08-25 (#699). "The ruling survives; its INPUT changed": this verb
+// still must NOT widen its guard to null (forward-header depends on that), so the fix lives one tier UP where
+// the mode IS known — the OIDC callback (`entry/http/auth-routes.ts`) now refuses a login whose `externalId`
+// is null, fail-closed, in oidc mode only. So a misconfigured `oidc` box (`OIDC_UID_CLAIM` repointed at a claim
+// the IdP omits) can no longer reach this verb with a null subject at all; forward-header still can, and still
+// should. The two observability tells remain the operator's diagnosis either way (#34): `identityFromClaims`
+// warns `oidc_subject_claim_missing`, and {@link reportNullSubjectOnBoundRow} warns `sso_null_subject_on_bound_row`
+// when a null-subject login (now: forward-header only) reaches a BOUND row.
 
 /**
  * Refresh `handle`/`externalId`/`email`; re-derive `role` only when the row is not the bootstrap owner and

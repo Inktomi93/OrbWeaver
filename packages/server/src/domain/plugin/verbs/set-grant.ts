@@ -108,13 +108,18 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps): Plugin
       // that was `enabled` comes back up, and it comes back up under the grant just written. A contained
       // activation failure lands `errored` + `last_error` on the row (activate's own posture) and surfaces in
       // the returned view — the grant write stands either way, which is the honest outcome: consent was given.
-      // NOTHING IS WITHHELD FROM THE WALL HERE, and that is a statement about the acknowledgement gate above,
-      // not an omission. Either `net.fetch` is in this grant — in which case the caller echoed EVERY host the
-      // persisted manifest declares or this verb already threw — or it is not, in which case the capability
-      // gate refuses every fetch and the allowlist is inert. The row may still carry `widenedNetHosts` for the
-      // NOTICE (a partial re-grant deliberately keeps the marks standing about the same update), so passing
-      // that column here would withhold destinations the owner just confirmed by echo.
-      await deps.activate({ caller, pluginId, bundleAssetId: existing.bundleAssetId, grants: granted, withheldNetHosts: [] });
+      //
+      // WHILE A RE-CONSENT STILL STANDS, ITS HOSTS STAY WITHHELD FROM THE WALL — the SAME rule `setEnabled`
+      // holds, at the SAME `refusal.hosts` set (empty on a COVERING grant → full reach restored; non-empty on
+      // a PARTIAL one → the still-unanswered destinations stay off the wall). A COVERING grant is exactly the
+      // case that clears the delta, so the common "you allowed the whole ask" path restores full reach here as
+      // it always did. What this closes is the divergence a uniform-withholding audit found (#698 follow-up): a
+      // PARTIAL re-grant of an already-ENABLED row used to reactivate with `[]` — restoring reach to a host the
+      // owner echoed but had NOT fully consented to (another capability of the same update still pending) —
+      // while a partial re-grant of a DISABLED row, then enable, withheld it. Same consent state, different
+      // reach, decided only by whether the row happened to be on. Fail-closed and uniform: a standing
+      // re-consent withholds its hosts everywhere until it is fully answered.
+      await deps.activate({ caller, pluginId, bundleAssetId: existing.bundleAssetId, grants: granted, withheldNetHosts: refusal.hosts });
     }
 
     const row = await getById(ctx.db, caller.userId, pluginId);
