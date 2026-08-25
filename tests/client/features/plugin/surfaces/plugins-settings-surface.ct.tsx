@@ -143,6 +143,31 @@ test("the grant screen names every declared permission, its consequence, and the
   await expect(page.getByText("It will be installed turned off.", { exact: false })).toBeVisible();
 });
 
+test("the grant screen shows the ui.surface consent line when a plugin declares its own surfaces (#679 U0)", async ({ mount, page }) => {
+  // THE U0 DONE-CRITERIA: a plugin declaring `ui.surface` reaches the consent screen with the new line, in the
+  // person's own words — the whole point of landing the capability member ahead of its rendering surface (U1).
+  await routeTrpc(page, { "plugin.list": () => [], "sessions.me": () => USER_VIEWER });
+  await mount(<PluginsSurfaceStory />);
+  await pickBundle(page, {
+    id: "panel-plugin",
+    name: "Panel Plugin",
+    version: "1.0.0",
+    hostVersion: 1,
+    entry: "main.js",
+    description: "Draws its own settings panel.",
+    capabilities: ["ui.surface"],
+  });
+
+  await expect(page.getByText("Panel Plugin 1.0.0")).toBeVisible();
+  // The new line, by its plain-English label and consequence — never the `ui.surface` wire spelling.
+  await expect(page.getByText("Show its own panels and controls")).toBeVisible();
+  await expect(page.getByText("always inside a box labelled with the plugin's name", { exact: false })).toBeVisible();
+  await expect(page.getByText("ui.surface")).toHaveCount(0);
+  // Benign band: ui.surface renders only for the installer, house-drawn — it neither spends nor reaches further.
+  await expect(page.getByText("Costs money")).toHaveCount(0);
+  await expect(page.getByText("Reaches further")).toHaveCount(0);
+});
+
 test("unchecking a permission installs the NARROWED subset, not what the bundle asked for", async ({ mount, page }) => {
   // The list read is STATEFUL so the test can barrier on a SETTLED rendered state — the installed row
   // appearing after the write's own invalidate — rather than on a toast or an in-flight flash.
