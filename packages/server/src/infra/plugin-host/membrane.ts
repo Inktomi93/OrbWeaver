@@ -33,7 +33,13 @@ import type {
   PluginTransformRegistration,
   PluginWorldEntryUpsert,
 } from "@orb/contracts/plugin";
-import { HOST_FUNCTION_CAPABILITY, PluginCapabilityError, PluginSuggestedError, pluginSurfaceRegistrationMetaSchema } from "@orb/contracts/plugin";
+import {
+  HOST_FUNCTION_CAPABILITY,
+  PLUGIN_SURFACE_ID_RE,
+  PluginCapabilityError,
+  PluginSuggestedError,
+  pluginSurfaceRegistrationMetaSchema,
+} from "@orb/contracts/plugin";
 import type { VarOp } from "@orb/kit/macro";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle } from "quickjs-emscripten-core";
 import { z } from "zod";
@@ -44,6 +50,8 @@ import {
   HOST_FN_ARGS_MAX_BYTES,
   HOST_FN_DEADLINE_MS,
   HOST_FN_RESULT_CAP_BYTES,
+  PLUGIN_DUMP_DEPTH_GUARD,
+  PLUGIN_DUMP_NODE_GUARD,
   PLUGIN_NET_MAX_BYTES,
   PLUGIN_QUIET_PROMPT_MAX_CHARS,
 } from "./budgets.ts";
@@ -187,6 +195,74 @@ export function attachMembrane(ctx: QuickJSContext, surface: QuickJSHandle, runt
   setUi(ctx, surface, runtime);
 }
 
+interface DumpWalkFrame {
+  readonly handle: QuickJSHandle;
+  readonly depth: number;
+  readonly owned: boolean;
+}
+
+/** Push each own-property value of an object/array HANDLE onto the walk stack at `depth + 1` — a single-level,
+ *  non-recursive read (array indices are own props), so it cannot itself overflow the host stack. A non-object
+ *  (or `null`, which is also `typeof "object"` but enumerates empty) contributes no children. */
+function pushDumpChildren(ctx: QuickJSContext, frame: DumpWalkFrame, frames: DumpWalkFrame[]): void {
+  if (ctx.typeof(frame.handle) !== "object") {
+    return;
+  }
+  const names = ctx.getOwnPropertyNames(frame.handle);
+  if (names.error) {
+    names.error.dispose();
+    return;
+  }
+  for (const nameH of names.value) {
+    frames.push({ handle: ctx.getProp(frame.handle, nameH), depth: frame.depth + 1, owned: true });
+  }
+  names.value.dispose(); // disposes the enumerated key handles (the getProp'd child handles are separate + owned)
+}
+
+/** Refuse a guest HANDLE too DEEPLY NESTED to hand to `ctx.dump` safely, WITHOUT materializing it. `ctx.dump`
+ *  walks the guest tree on the HOST call stack, and an overflow there does not merely throw — it CORRUPTS the
+ *  shared WASM runtime (the dispose-time `list_empty` abort, a crash of every co-resident plugin; see
+ *  `budgets.ts`). Guards BOTH the `ui.register` spec (before the additionally-recursive `z.lazy` parse, whose
+ *  cliff is tighter still) and every async host-fn ARG (`attachAsync`). This walk uses an EXPLICIT frame stack
+ *  (never the host call stack, so the guard itself cannot overflow) and a single-level property enumeration per
+ *  node, refusing the moment depth or the visited-node count exceeds its guard. It does NOT re-enforce the precise
+ *  downstream caps (the spec's superRefine, the arg-byte budget) — those run safely once a shallow, bounded tree
+ *  is guaranteed. The root handle is caller-owned (left alone); every handle THIS opens is disposed here —
+ *  including any still queued when it short-circuits. Returns `false` ⇒ the caller refuses (soft for a spec, a
+ *  rejected guest promise for an arg). */
+function handleSafeToDump(ctx: QuickJSContext, rootH: QuickJSHandle): boolean {
+  let visited = 0;
+  // Root frame is caller-owned (`owned:false`); every child handle `pushDumpChildren` opens is ours to dispose.
+  const frames: DumpWalkFrame[] = [{ handle: rootH, depth: 1, owned: false }];
+  try {
+    while (frames.length > 0) {
+      const frame = frames.pop();
+      if (frame === undefined) {
+        break;
+      }
+      visited += 1;
+      const overGuard = frame.depth > PLUGIN_DUMP_DEPTH_GUARD || visited > PLUGIN_DUMP_NODE_GUARD;
+      if (!overGuard) {
+        pushDumpChildren(ctx, frame, frames);
+      }
+      if (frame.owned) {
+        frame.handle.dispose();
+      }
+      if (overGuard) {
+        return false;
+      }
+    }
+    return true;
+  } finally {
+    // On a short-circuit `return false`, dispose every owned handle still queued (the root is never ours).
+    for (const frame of frames) {
+      if (frame.owned) {
+        frame.handle.dispose();
+      }
+    }
+  }
+}
+
 /** The DECLARATIVE UI plane (plugin-ui-plane #679 U1). Two host fns, both capability `ui.surface`:
  *   - `register(def)` — SYNC, activation-time (the `tools.register` mirror): validate the serializable metadata
  *     host-side (`pluginSurfaceRegistrationMetaSchema` — the trust boundary), keep the guest `onAction` HANDLE,
@@ -211,15 +287,34 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     using tierH = ctx.getProp(defHandle, "tier");
     using specH = ctx.getProp(defHandle, "spec");
     const onAction = ctx.getProp(defHandle, "onAction");
+    // DoS PRE-WALK (#707 Finding A): refuse a spec too deeply nested to `ctx.dump` + recursively parse BEFORE
+    // either walks it on the host stack. Without this, a ~2000-deep tree throws a `RangeError` past `safeParse`
+    // (activation-fatal, defeating §4.9) and a ~3000-deep tree overflows `ctx.dump` and corrupts the shared
+    // runtime. `spec` absent ⇒ `typeof "undefined"`, nothing to walk (a scripted-tier surface has no spec).
+    if (ctx.typeof(specH) !== "undefined" && !handleSafeToDump(ctx, specH)) {
+      onAction.dispose();
+      runtime.logWarn("ui.register refused a surface: spec is too deeply nested or too large to validate");
+      return ctx.undefined;
+    }
+    // The materialize + parse runs under a BELT: ANY throw (a residual `RangeError` the pre-walk did not pre-empt,
+    // a marshalling failure) becomes the §4.9 SOFT refusal, never an activation-fatal throw. `safeParse` catches
+    // `ZodError` but NOT a `RangeError`, so the try/catch is load-bearing, not decoration.
     // `spec` absent ⇒ `ctx.dump` yields `undefined`, which the schema's optional `spec` accepts.
-    const meta = {
-      id: ctx.dump(idH) as unknown,
-      anchor: ctx.dump(anchorH) as unknown,
-      title: ctx.dump(titleH) as unknown,
-      tier: ctx.dump(tierH) as unknown,
-      spec: ctx.dump(specH) as unknown,
-    };
-    const parsed = pluginSurfaceRegistrationMetaSchema.safeParse(meta);
+    let parsed: ReturnType<typeof pluginSurfaceRegistrationMetaSchema.safeParse>;
+    try {
+      const meta = {
+        id: ctx.dump(idH) as unknown,
+        anchor: ctx.dump(anchorH) as unknown,
+        title: ctx.dump(titleH) as unknown,
+        tier: ctx.dump(tierH) as unknown,
+        spec: ctx.dump(specH) as unknown,
+      };
+      parsed = pluginSurfaceRegistrationMetaSchema.safeParse(meta);
+    } catch (err) {
+      onAction.dispose();
+      runtime.logWarn(`ui.register refused a surface: ${err instanceof Error ? err.message : String(err)}`);
+      return ctx.undefined;
+    }
     if (!parsed.success) {
       // SOFT refusal: the surface is absent + a log line explains why; activation continues (§4.9).
       // `prettifyError` carries the PATH (which field failed) — the diagnostic a plugin author needs to fix a
@@ -248,6 +343,13 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       const surfaceId = args[0];
       if (typeof surfaceId !== "string") {
         throw new Error("plugin host: ui.setState requires a surfaceId string");
+      }
+      // Validate the surfaceId against the SAME bounded grammar `ui.register` enforces (the trust boundary): the
+      // domain state plane keys on `pluginId:surfaceId`, so an arbitrary/unbounded id would be an arbitrary map
+      // key — a fresh one per call is the unbounded-key DoS (#707 Finding B). The RE bounds each key; the store's
+      // per-plugin key cap bounds their COUNT.
+      if (!PLUGIN_SURFACE_ID_RE.test(surfaceId)) {
+        throw new Error("plugin host: ui.setState requires a valid surfaceId (/^[a-z][a-z0-9_]{0,40}$/)");
       }
       // A plain JSON object only — an array / scalar / null is an empty state (fail-safe: no throw). The domain
       // op caps the serialized size; the arg-budget belt already bounded the inbound bytes.
@@ -879,11 +981,23 @@ function chargeValue(value: unknown, pending: unknown[]): number {
 function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSpec): void {
   const { name, inFlight, pending, impl } = spec;
   using fn = ctx.newFunction(name, (...argHandles) => {
-    const args = argHandles.map((handle) => ctx.dump(handle) as unknown);
     // `deferred` is deliberately NOT `using`: its lifetime ESCAPES this scope (its `.handle` is the guest's
     // promise and the Sandbox's `pending` drain owns teardown). Same for the positional `argHandles`,
     // which quickjs-emscripten disposes itself.
     const deferred = ctx.newPromise();
+
+    // THE INBOUND DEPTH GUARD — checked BEFORE `ctx.dump` materializes the args, because a deeply-nested guest
+    // arg overflows `ctx.dump` HOST-side and CORRUPTS the shared WASM runtime (the `list_empty` dispose abort, a
+    // crash of every co-resident plugin), which is NOT a contained refusal (#707 Finding C — reachable from any
+    // async host fn with any grant). Refuse as guest errors-as-data; settles synchronously, so no `pending`.
+    for (const handle of argHandles) {
+      if (!handleSafeToDump(ctx, handle)) {
+        using err = ctx.newError(`plugin host: ${name} argument is too deeply nested`);
+        deferred.reject(err);
+        return deferred.handle;
+      }
+    }
+    const args = argHandles.map((handle) => ctx.dump(handle) as unknown);
 
     // THE INBOUND ARG CAP — the mirror of the result cap below, checked BEFORE the in-flight gate so a refused
     // call never charges a slot. Both refusal arms settle synchronously, so neither registers in `pending`.
