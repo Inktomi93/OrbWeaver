@@ -68,9 +68,11 @@ export type { AutomationService, AutomationWatcherEnv, AutomationWatcherHandle }
 export type { BudgetView, GlobalVariableView } from "./contract/views.ts";
 export { createArmExecutors } from "./engine/arm-executors.ts";
 export { createPromptTransformIndex } from "./engine/prompt-transforms.ts";
-export { loadPresentHumanMemberIds } from "./persistence/canon-reads.ts";
 export { createAutomationService } from "./service.ts";
 export { createEnabledRuleIndex } from "./substrate/enabled-index.ts";
+// The recipient AXIS's one resolver — the front door for the PLUGIN `notify` path, which compose wires to the
+// same durable inbox the `post_notification` arm writes (one axis, one resolution, both producers).
+export { resolveNotificationRecipients } from "./substrate/notification-recipients.ts";
 export { createPluginSubscriberRegistry } from "./substrate/plugin-subscribers.ts";
 // S4 — the in-RAM pending-ask store (RULED F1). Created ONCE at the composition root and injected on the
 // context, exactly like the enabled-rule index beside it.

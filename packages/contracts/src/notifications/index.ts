@@ -39,10 +39,36 @@ export const AUTOMATION_NOTICE_MESSAGE_MAX = 200;
  *  has no rule row to constrain, so the check has to live where the call does. */
 export const AUTOMATION_NOTICE_COOLDOWN_SECONDS = 60;
 
-/** Who a `post_notification`/plugin `notify` can address:
- *  the installer/host, or every present human member of the chat. Resolved DOMAIN-side, never client-asserted. */
-export const NOTIFICATION_RECIPIENTS = ["host", "all_members"] as const;
+/** Who a `post_notification`/plugin `notify` can address: the installer/host, every present human member of
+ *  the chat, or every present human member EXCEPT the one whose act triggered the fire. Resolved DOMAIN-side,
+ *  never client-asserted (a caller names a SELECTOR, never a user id).
+ *
+ *  `all_members_except_actor` is the async-table member (interaction-direction-spec §4 #2, C6): in a
+ *  play-by-post room the person who just posted does not need to be told that someone posted, and a nudge that
+ *  pings them anyway is the one notice that trains dismissal of the whole inbox. THE ACTOR IS THE TRIGGERING
+ *  FACT'S AUTHOR (`TriggerFact.message.authorUserId`) — which is why the preset that uses it rides
+ *  `messageCommitted` and NOT `turnCompleted`: the turn fact carries no user identity, so under it the member
+ *  would silently degenerate into `all_members`. A fire whose fact has no author (a model-authored message)
+ *  excludes nobody, and that is correct rather than a fallback: there was no human act to spare. */
+export const NOTIFICATION_RECIPIENTS = ["host", "all_members", "all_members_except_actor"] as const;
 export type NotificationRecipient = (typeof NOTIFICATION_RECIPIENTS)[number];
+
+/** The SUBSET a PLUGIN may name (`host.notifications.post`) — the guest vocabulary, deliberately narrower than
+ *  the tuple above and narrowed AT THE TYPE rather than by a runtime refusal.
+ *
+ *  WHY `all_members_except_actor` is not here, and it is a structural reason rather than the D46 default-deny
+ *  reflex: a plugin's `notify` is an arbitrary guest call carrying an admitted chat handle and nothing else —
+ *  there is NO triggering fact, so there is no actor to exclude. Admitting the member would give a guest a
+ *  selector that silently resolves to `all_members` on every call, i.e. a name that lies. Keeping the plugin
+ *  seam typed against this subset makes the member UNREPRESENTABLE on the guest path (the membrane, the
+ *  bridge, the domain op and the compose resolver all narrow together, and `tsc` names every site if the
+ *  subset ever widens) instead of leaving a runtime downgrade to be re-derived by the next reader.
+ *
+ *  The door, stated so it is not re-litigated from scratch: a plugin path that WANTS this member must first
+ *  carry an actor — the event-handler seam (`events.on`) does receive a `TriggerFact`, so the widening is
+ *  "notify from inside a fact-bearing handler", not "add a member here". */
+export const PLUGIN_NOTIFICATION_RECIPIENTS = ["host", "all_members"] as const satisfies readonly NotificationRecipient[];
+export type PluginNotificationRecipient = (typeof PLUGIN_NOTIFICATION_RECIPIENTS)[number];
 
 // The discriminant strings ARE the db `notifications.type` column values. Closed: a new delivery
 // reason is a member here + its chat producer; the contract test's exhaustiveness guard catches drift.

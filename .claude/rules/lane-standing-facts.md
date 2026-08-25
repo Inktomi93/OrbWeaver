@@ -147,6 +147,15 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   change (design-audit/snap/gates) never lands while a drive is live without messaging the driving lane;
   its before/after deltas silently span two instruments otherwise. (2026-08-21, db25e3d1d: "the ruling
   survives — its INPUT changed"; the old manual restart-at-merge-window is gone, this consequence is not.)
+- **The self-heal law has an ERA limit (2026-08-24 — "the ruling survives, its INPUT changed"):
+  per-save HMR is fine, but a LONG-LIVED vite that absorbed a multi-merge era can serve a CORRUPT
+  module graph** — proven live: :5173 boot-dead with a TypeError inside the prose REGISTRY while a
+  node import proved the source consistent (147/147); a clean restart fixed it, zero code changes.
+  Tells: a page error in a registry/composition module whose source proves consistent + a vite pid
+  (`ps -o lstart`) older than the merge train. TRAP: `.cache/stack/client.log`'s tail can belong to
+  a DIFFERENT since-exited vite — a log tail is NEVER a liveness check; probe the served app
+  (`data-app-ready` + page errors on a bare snap). After a merge train, check the vite pid's age
+  before taking rendered receipts; a receipt off a pre-train vite is void.
 - **`:5173` serves MAIN, never your worktree** (§L.6). Rendered proof from a lane comes from
   `snap --isolated --ref <your-sha>` or the CT browser.
 - **If the environment is lying — stale server, wrong build, thin stage db, a sibling holding the stage

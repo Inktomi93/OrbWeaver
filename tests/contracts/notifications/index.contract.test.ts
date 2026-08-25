@@ -1,5 +1,5 @@
 import type { NotificationEvent, NotificationType, PresenceView } from "@orb/contracts/notifications";
-import { AUTOMATION_NOTICE_MESSAGE_MAX, notificationEventSchema } from "@orb/contracts/notifications";
+import { AUTOMATION_NOTICE_MESSAGE_MAX, NOTIFICATION_RECIPIENTS, notificationEventSchema, PLUGIN_NOTIFICATION_RECIPIENTS } from "@orb/contracts/notifications";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
@@ -143,6 +143,28 @@ test("NotificationEvent variants expose only the allowlisted fields", () => {
 test("automation-notice message is length-capped", () => {
   const over = { ...FIXTURES["automation-notice"], message: "x".repeat(AUTOMATION_NOTICE_MESSAGE_MAX + 1) };
   expect(notificationEventSchema.safeParse(over).success).toBe(false);
+});
+
+// The recipient AXIS (C6) — the tuple every producer resolves through, and the SUBSET a guest may name.
+test("NOTIFICATION_RECIPIENTS pins the three-member recipient axis", () => {
+  expect(NOTIFICATION_RECIPIENTS).toEqual(["host", "all_members", "all_members_except_actor"]);
+});
+
+test("the PLUGIN subset excludes the actor-excluding member — a guest call carries no actor to exclude", () => {
+  expect(PLUGIN_NOTIFICATION_RECIPIENTS).toEqual(["host", "all_members"]);
+  // Stated as a relation rather than a second literal list: the subset must stay a SUBSET (a member here that
+  // the axis dropped would be a guest naming a selector no resolver handles), and it must keep excluding the
+  // one member that resolves against a triggering fact a plugin `notify` does not have.
+  //
+  // Both halves are read through WIDENED views on purpose, and the reason is itself the strongest pin here:
+  // comparing a member of the subset against the string "all_members_except_actor" DIRECTLY is a `tsc` error
+  // (TS2367, no overlap) — the exclusion is enforced at the TYPE, so a plugin seam can never name the member.
+  // These runtime lines exist for the other direction: a future edit that adds it to the subset tuple would
+  // make that comparison legal again, and this assertion is what goes red then.
+  const axis: readonly string[] = NOTIFICATION_RECIPIENTS;
+  const guestVocabulary: readonly string[] = PLUGIN_NOTIFICATION_RECIPIENTS;
+  expect(guestVocabulary.filter((member) => !axis.includes(member))).toEqual([]);
+  expect(guestVocabulary.includes("all_members_except_actor")).toBe(false);
 });
 
 // PresenceView shape pin: per-user, read-only, server-derived (no schema — presence is never client-asserted).

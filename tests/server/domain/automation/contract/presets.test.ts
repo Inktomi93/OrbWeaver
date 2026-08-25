@@ -106,13 +106,15 @@ test("the registry is exhaustive over RULE_PRESET_IDS, in catalogue order", () =
   expect(RULE_PRESET_IDS.map((id) => presetOf(id).id)).toEqual([...RULE_PRESET_IDS]);
 });
 
-test("the committed catalogue is exactly the A3 rows plus A4's four plus C1's pacing analysis, in §4 order", () => {
+test("the committed catalogue is exactly the A3 rows plus A4's four plus C1's pacing analysis plus C2's and C6's pairs, in §4 order", () => {
   // A3 landed the seven that ride the preset substrate alone; A4 adds #1 (welcome-back recap — the
   // confirm-first card), #3 (auto-add lore, confirm-first by default), #8 (the compose-mode opener deck,
   // riding A2's per-choice mode field) and #10 (call a vote — send-mode chips, R7-invoked); C1 adds #15
   // (story pacing analysis — the run_analysis arm's showcase, RULED F7 direct steer); C2 adds #11's two
-  // confirm-first lore distillers (distill lore + rumour mill); #16 the needle rides C1's vars route + the
-  // vars read proc. #2/#14/#20 ride later phases and may not creep in.
+  // confirm-first lore distillers (distill lore + rumour mill); #16 the needle rides C1's vars route +
+  // the vars read proc; C3 adds #15's prose audit (the confirm-first rewrite card); C6 adds #2 (the
+  // async table nudge, the actor-excluding recipient's consumer) and #14 (spotlight balance). #20 rides
+  // the global lane and may not creep in.
   expect([...RULE_PRESET_IDS]).toEqual([
     "welcomeBackRecap",
     "autoAddLore",
@@ -129,6 +131,9 @@ test("the committed catalogue is exactly the A3 rows plus A4's four plus C1's pa
     "distillLore",
     "rumorMill",
     "theNeedle",
+    "proseAudit",
+    "asyncTableNudge",
+    "spotlightBalance",
   ]);
 });
 
@@ -241,7 +246,7 @@ test("#655: every choice knob in the catalogue labels EVERY option it offers", (
     expect(Object.values(knob.optionLabels).filter((label) => label.trim().length === 0)).toEqual([]);
   }
   // The denominator, so a catalogue that lost its choice knobs cannot print a clean zero here.
-  expect(labelled).toEqual(["Before writing", "What to draw", "When it fills"]);
+  expect(labelled).toEqual(["Before writing", "What to draw", "When it fills", "When to audit"]);
 });
 
 test("#655: the illustrate preset does not offer `free` — its every fire would be an action_error", () => {
@@ -369,6 +374,70 @@ test("#16's threshold knob is bounded by the score's own scale — a 0 or an 11 
   expect(() => resolveRulePresetKnobs(knobs, { threshold: 0 })).toThrow();
   expect(() => resolveRulePresetKnobs(knobs, { threshold: ANALYSIS_SCORE_MAX + 1 })).toThrow();
   expect(() => resolveRulePresetKnobs(knobs, { threshold: ANALYSIS_SCORE_MAX })).not.toThrow();
+});
+
+// ── C6's two rows (interaction-direction-spec §4 #2 + #14) ────────────────────────────────────────────
+
+test("#2 the async nudge orders the NUDGE above the STAMP — the inverse of the clock, same mechanism", () => {
+  // The clock mints counter-then-threshold; this preset MUST mint threshold-then-counter. A chat's rules
+  // dispatch in position order over one write-through env, so a stamp minted first would refresh the beat
+  // time before the nudge's predicate read it and the measured gap would always be zero.
+  const [nudge, stamp] = buildWithDefaults("asyncTableNudge");
+  expect(nudge?.arms[0]).toMatchObject({ type: "post_notification", recipient: "all_members_except_actor" });
+  expect(nudge?.cooldownSeconds).toBe(60); // the post_notification floor, or createRule refuses the mint
+  expect(stamp?.predicate).toBeNull();
+  expect(stamp?.arms[0]).toMatchObject({ type: "set_variable", key: "nudgeBeatMs", op: "set", value: "{{expr::now.epochMs}}" });
+  expect(stamp?.maxFiresPerHour).toBe(RULE_MAX_FIRES_CAP); // law 4 — it stamps every beat
+});
+
+test("#2 rides messageCommitted on BOTH rules — turnCompleted's fact carries no author to exclude", () => {
+  // Not a style choice: `all_members_except_actor` resolves against `event.message.authorUserId`, which a
+  // turn fact does not populate. Under `turnCompleted` the arm would spare nobody and ping the poster.
+  expect(buildWithDefaults("asyncTableNudge").map((rule) => rule.triggerType)).toEqual(["messageCommitted", "messageCommitted"]);
+});
+
+test("#2's idle predicate is law-1 guarded — the FIRST-EVER post nudges instead of throwing", () => {
+  const preset = presetOf("asyncTableNudge");
+  const rules = preset.rules(resolveRulePresetKnobs(preset.knobs, { idleHours: 2, quietFromHour: 0, quietUntilHour: 0 }));
+  expect(rules[0]?.predicate).toBe("!has(vars.nudgeBeatMs) || int(now.epochMs) - int(vars.nudgeBeatMs) > 7200000");
+  expect(evaluate(rules[0]?.predicate as string, EMPTY_ENV)).toBe(true);
+  // …and a FRESH stamp refuses (the negative arm — the table is mid-conversation, nobody needs telling).
+  const fresh: CelBindings = { ...POPULATED_ENV, vars: { ...POPULATED_VARS, nudgeBeatMs: "1699999999000" } };
+  expect(evaluate(rules[0]?.predicate as string, fresh)).toBe(false);
+});
+
+test("#2's quiet hours build the WRAP shape, the same-day shape, and vanish when the window is empty", () => {
+  const preset = presetOf("asyncTableNudge");
+  const predicateFor = (quietFromHour: number, quietUntilHour: number): string =>
+    preset.rules(resolveRulePresetKnobs(preset.knobs, { idleHours: 1, quietFromHour, quietUntilHour }))[0]?.predicate ?? "";
+  // The default window spans midnight, so the awake clause is a CONJUNCTION — an OR there would be true at
+  // every hour of the day and the quiet window would silently do nothing.
+  const overnight = predicateFor(23, 8);
+  expect(overnight).toContain("&& (int(now.hour) < 23 && int(now.hour) >= 8)");
+  // A same-day window is the disjunction.
+  expect(predicateFor(1, 7)).toContain("&& (int(now.hour) < 1 || int(now.hour) >= 7)");
+  // Equal bounds = no quiet hours at all: the clause is absent rather than a tautology nobody can read.
+  expect(predicateFor(0, 0)).not.toContain("now.hour");
+  // And the idle disjunction is BRACKETED — unbracketed, the hour clause would bind to its second arm only.
+  const quiet: CelBindings = { ...EMPTY_ENV, now: { epochMs: 1_700_000_000_000, hour: 2, dayOfWeek: 3 } };
+  expect(evaluate(overnight, quiet)).toBe(false); // 02:00 UTC is inside 23→08, and there is no stamp at all
+  expect(evaluate(overnight, EMPTY_ENV)).toBe(true); // 12:00 UTC is awake
+});
+
+test("#14 spotlight balance is a DIRECT-steer analysis pass whose brief steers the narrator, not the players", () => {
+  const [rule] = buildWithDefaults("spotlightBalance");
+  expect(rule?.triggerType).toBe("turnCompleted");
+  expect(rule?.arms).toHaveLength(1);
+  const analysis = rule?.arms[0];
+  expect(analysis).toMatchObject({ type: "run_analysis", routes: { steer: { apply: "direct" } } });
+  // ONE route: a steer-only pass cannot write lore, publish a score, or raise a card — the enabled routes ARE
+  // the enforced response schema, so an un-authored route's field never exists to fill.
+  expect(analysis?.type === "run_analysis" ? Object.keys(analysis.routes) : []).toEqual(["steer"]);
+  // The narrator-not-players constraint, asserted on the shipped bytes rather than trusted to the comment.
+  const brief = analysis?.type === "run_analysis" ? analysis.brief : "";
+  expect(brief).toContain("NARRATOR");
+  expect(brief).toContain("never address a player");
+  expect(brief).toContain("say nothing"); // empty-is-the-common-case
 });
 
 test("law 3: every default chip is a line the CLICKING member would say, and is its own send text", () => {

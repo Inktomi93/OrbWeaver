@@ -65,6 +65,16 @@ export const RULE_PRESET_IDS = [
    *  threshold. RULED 2026-08-24: it SHIPS, OFF BY DEFAULT — F6's single exception (a published SCORE may
    *  cross into the member-visible vars plane; arcs, twists and guidance never do). */
   "theNeedle",
+  /** §4 #15 — C3's prose audit: a confirm-first `run_analysis` → `suggestRewrite` pass that audits the newest
+   *  reply and offers a conservative rewrite on a variant-pinned, content-hashed card. The confirmed rewrite
+   *  lands as a NEW VARIANT of the audited slot (the original stays selectable — that is the revert). */
+  "proseAudit",
+  /** §4 #2 — the async table nudge: when a post lands after a lull, ping the members who are WAITING (the
+   *  actor is excluded — `all_members_except_actor`), outside quiet hours. */
+  "asyncTableNudge",
+  /** §4 #14 — spotlight balance: a C1 analysis pass that steers the narrator toward whoever the scene has
+   *  been leaving out. Direct steer, like `storyPacing`; it never addresses or puppets a member. */
+  "spotlightBalance",
 ] as const;
 export type RulePresetId = (typeof RULE_PRESET_IDS)[number];
 export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS);

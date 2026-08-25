@@ -12,7 +12,7 @@
 import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
-import type { NotificationEvent, NotificationRecipient } from "@orb/contracts/notifications";
+import type { NotificationEvent, PluginNotificationRecipient } from "@orb/contracts/notifications";
 import type {
   InvocationChat,
   PluginEventSubscription,
@@ -142,6 +142,9 @@ export interface PluginHostOps {
    *     ids/resolve a roster, so it takes the ADMITTED chat + the recipient selector + the message and resolves the
    *     recipient set DOMAIN-side (host = the installer; all_members = the present human members — participants
    *     ONLY, a plugin can never notify a non-participant), stamping the notice `source:{kind:"plugin",pluginId}`.
+   *     Its selector is the PLUGIN SUBSET of the recipient axis (`PLUGIN_NOTIFICATION_RECIPIENTS`): the
+   *     actor-excluding member resolves against a TRIGGERING FACT, and a guest `notify` call has none, so the
+   *     member is unrepresentable on this seam rather than silently collapsing to `all_members`.
    *  `emit` capability: NONE (a host-internal crash notice); `post` capability: `notify`. Both wired at compose. */
   readonly notifications: {
     readonly emit: (event: NotificationEvent) => Promise<void>;
@@ -149,7 +152,7 @@ export interface PluginHostOps {
       readonly pluginId: PluginId;
       readonly installerUserId: UserId;
       readonly chatId: ChatId;
-      readonly recipient: NotificationRecipient;
+      readonly recipient: PluginNotificationRecipient;
       readonly message: string;
     }) => Promise<void>;
   };

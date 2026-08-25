@@ -99,7 +99,7 @@ test("the picker projection flattens the knob schema and carries no CEL", () => 
 
 // ── #655: the SPEND signal ────────────────────────────────────────────────────────────────────────────
 // The picker had none, and most of the presets commit the host to a RECURRING model charge (eleven of the
-// fifteen as of #16's needle). These pin that the answer is DERIVED from the arms the builder actually
+// eighteen as of #16's needle, C3's prose audit and C6's pair). These pin that the answer is DERIVED from the arms the builder actually
 // emits — the whole reason a hand-kept `spends: boolean` on the def was refused: a flag an author forgets to
 // flip is a lie on a money surface.
 
@@ -122,15 +122,22 @@ const SPENDING_PRESET_IDS = [
   // `set_chat_background` is deliberately NOT spend-classed — the quiet pick is cheap — so the row is true
   // because of the analysis, not the backdrop.)
   "theNeedle",
+  // C3's prose audit fires a `run_analysis` pass too. At its DEFAULT knob it fires only on demand, and it is
+  // still SPEND-classed — the derivation reads the ARM, not the cadence, and that is right: the money is spent
+  // the moment the host presses Run now, so the picker must say so at the decision point either way.
+  "proseAudit",
+  // C6's #14 is a `run_analysis` pass too; its sibling #2 posts a notification, which costs nothing.
+  "spotlightBalance",
 ];
 
 test("#655: the spend signal names exactly the presets whose arms cost a model call", () => {
   const spending = RULE_PRESET_IDS.filter((id) => toRulePresetView(RULE_PRESETS[id]).spends);
   expect([...spending].toSorted()).toEqual([...SPENDING_PRESET_IDS].toSorted());
-  // The negative half, stated: the free four are free, and a surface that marked everything would be as
-  // useless as one that marked nothing.
+  // The negative half, stated: the free five are free, and a surface that marked everything would be as
+  // useless as one that marked nothing. `asyncTableNudge` belongs here and the placement is the claim — its
+  // only arm writes an inbox row, so an async table can be nudged forever without billing the host.
   expect(RULE_PRESET_IDS.filter((id) => !toRulePresetView(RULE_PRESETS[id]).spends).toSorted()).toEqual(
-    ["autoAddLore", "diceChips", "openerChips", "callAVote"].toSorted(),
+    ["autoAddLore", "diceChips", "openerChips", "callAVote", "asyncTableNudge"].toSorted(),
   );
 });
 

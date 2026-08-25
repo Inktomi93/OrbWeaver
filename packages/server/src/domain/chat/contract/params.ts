@@ -327,6 +327,33 @@ export interface EditMessageParams extends MessageScopedParams {
 }
 
 /**
+ * `applyProseRewrite` — HOST-only. Lands an automation prose audit's CONFIRMED rewrite of one reply
+ * (interaction-direction-spec §7 C3), as a NEW VARIANT of the audited slot, selected.
+ *
+ * WHY IT IS ITS OWN VERB and not an arm of `editMessage`, which also writes caller text: the two differ on
+ * every axis that decides whether a machine may be given the door.
+ *  • IT IS PINNED. The caller must name the exact `variantId` its rewrite was written against AND the hash of
+ *    that variant's bytes. Both are re-read here and refused on mismatch (`rewrite_superseded` when the host
+ *    has swiped since, `rewrite_stale` when the text changed), so this door can only ever land on the exact
+ *    bytes an audit read — nothing a caller sends can overwrite a reply that moved under it. `editMessage`
+ *    has no such pin, by design: a human editing their own room's message means "whatever it says now".
+ *  • IT IS VARIANT-PRESERVING, which is the C3 REVERT OBLIGATION's mechanism. An in-place edit destroys the
+ *    original; appending a variant leaves the audited text sitting one swipe away, forever, using the control
+ *    the room already has. That is a durable undo with no expiry, no snapshot column, and nothing new to
+ *    teach — as opposed to an `originalContent` stamp, which is a schema change this row does not own.
+ *  • IT IS HOST-ONLY where edit is author-or-host: the rewrite is offered by a rule the HOST authored and
+ *    executed on the HOST's confirm, and a member has no standing to accept a machine's rewrite of the room.
+ */
+export interface ApplyProseRewriteParams extends MessageScopedParams {
+  /** The variant the audit READ. Must still be the slot's selected one, else `rewrite_superseded`. */
+  readonly variantId: MessageVariantId;
+  /** sha256-hex of that variant's content as the audit read it (`@orb/server/kit/content-hash`). */
+  readonly expectedContentHash: string;
+  /** The full corrected reply — already `neutralizeMacros`'d by the producer (§2 law 7). */
+  readonly content: string;
+}
+
+/**
  * `setSeededGreeting` — steps a seeded greeting row onto another of its character card's alternates.
  *
  * IT CARRIES AN INDEX, NOT TEXT (a deliberate divergence from the design doc's parenthetical

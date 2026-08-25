@@ -18,11 +18,12 @@
 
 import type { AutomationBusEvent, AutomationCelEnv, TriggerFact } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
-import { automationRuleState, automationRules, chatBooks, worldBooks } from "@orb/db";
-import type { AutomationRuleId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
+import { automationRuleState, automationRules, chatBooks, messages, worldBooks } from "@orb/db";
+import type { AutomationRuleId, ChatId, MessageId, MessageVariantId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { ZWSP } from "@orb/kit/macro";
+import { sha256Hex } from "@orb/server/kit/content-hash";
 import { eq } from "drizzle-orm";
 import { EMPTY_ANALYSIS_STATE } from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
 import type {
@@ -196,6 +197,7 @@ test("GOLDEN: fixture transcript + state build the exact deterministic prompts (
           { seq: 3, role: "user", speaker: null, content: "beat 3" },
         ],
         settled: null,
+        audited: null,
       },
       {},
     ),
@@ -329,6 +331,114 @@ test("suggest: ONE card carrying a NEUTRALIZED suggestTurn act at the raising di
   expect(pending?.payload).toMatchObject({ via: "analysis", act: { kind: "suggestTurn", automationDepth: 1 } });
   const act = pending?.payload?.via === "analysis" ? pending.payload.act : null;
   expect(act?.kind === "suggestTurn" ? act.steerText : "").toContain(`{${ZWSP}{roll::d20}${ZWSP}}`);
+});
+
+// ── C3: the prose-audit (rewrite) route ──────────────────────────────────────────────────────────────
+// The audited reply in `setup(N)` is always the highest-seq ASSISTANT row — with an even N that is seq N,
+// content `beat N`, so the pins below can name its bytes exactly.
+
+/** The audited row's ids as `seedMessage` mints them (castId, not minted — the seeder's own convention). */
+function auditedIds(chatId: ChatId, seq: number): { messageId: MessageId; variantId: MessageVariantId } {
+  return { messageId: castId<MessageId>(`message_${chatId}_${seq}`), variantId: castId<MessageVariantId>(`variant_${chatId}_${seq}_0`) };
+}
+
+test("rewrite: a FLAWED verdict raises ONE card pinned to the audited variant and hashed over its exact bytes", async () => {
+  const { db, host, chatId, ruleId } = await setup(4);
+  const { dispatch, captured, suggestions } = makeHarness(db, [
+    reply({ ...EMPTY_PLOT, rewrite: { verdict: "flawed", issue: "repeats itself", text: "Beat four, said once." } }),
+  ]);
+  const outcome = await dispatch(arm({ type: "run_analysis", brief: "b", routes: { rewrite: {} } }), makeFrame({ chatId, authorUserId: host, ruleId }));
+  expect(outcome).toEqual({ ok: true, suggested: true });
+
+  const ids = auditedIds(chatId, 4);
+  const pending = suggestions.listForChat(chatId, FIXED_NOW_MS)[0];
+  expect(pending?.payload).toEqual({
+    via: "analysis",
+    act: {
+      kind: "rewrite",
+      messageId: ids.messageId,
+      variantId: ids.variantId,
+      // The hash is over the AUDITED bytes, not the rewrite's — it is the staleness pin, and computing it
+      // over the wrong side is exactly the mistake that would make every confirm pass.
+      contentHash: sha256Hex("beat 4"),
+      content: "Beat four, said once.",
+    },
+  });
+  // The card's own body: the host sees the diff, not just the question.
+  const raised = captured.bus.find((e) => e.type === "suggestionRaised");
+  expect(raised).toMatchObject({ kind: "confirm", summary: "Fix the last reply — repeats itself?", detail: { kind: "rewrite", before: "beat 4" } });
+});
+
+test("rewrite: a CLEAN verdict draws NOTHING — no card, no bus event, and the pass still reports ok", async () => {
+  const { db, host, chatId, ruleId } = await setup(4);
+  const { dispatch, captured, suggestions } = makeHarness(db, [reply({ ...EMPTY_PLOT, rewrite: { verdict: "clean", issue: "", text: "" } })]);
+  const outcome = await dispatch(arm({ type: "run_analysis", brief: "b", routes: { rewrite: {} } }), makeFrame({ chatId, authorUserId: host, ruleId }));
+  // `ok` WITHOUT `suggested` is the clean verdict on the wire: the dispatch turns `suggested` into the
+  // `suggested` run terminal and a bare `ok` into `fired`, which is what makes R7's synchronous answer able
+  // to say "it ran and found nothing" rather than going silent (§7 C3's clean-verdict criterion).
+  expect(outcome).toEqual({ ok: true });
+  expect(suggestions.listForChat(chatId, FIXED_NOW_MS)).toEqual([]);
+  expect(captured.bus.filter((e) => e.type === "suggestionRaised")).toEqual([]);
+});
+
+test("rewrite: a FLAWED verdict that reproduces the reply verbatim is treated as clean — a no-op card is worse than none", async () => {
+  const { db, host, chatId, ruleId } = await setup(4);
+  const { dispatch, suggestions } = makeHarness(db, [reply({ ...EMPTY_PLOT, rewrite: { verdict: "flawed", issue: "hmm", text: "beat 4" } })]);
+  const outcome = await dispatch(arm({ type: "run_analysis", brief: "b", routes: { rewrite: {} } }), makeFrame({ chatId, authorUserId: host, ruleId }));
+  expect(outcome).toEqual({ ok: true });
+  expect(suggestions.listForChat(chatId, FIXED_NOW_MS)).toEqual([]);
+});
+
+test("rewrite: the model's bytes are NEUTRALIZED at the stash (law 7) — a rewrite can never carry live macro syntax into a message row", async () => {
+  const { db, host, chatId, ruleId } = await setup(4);
+  const { dispatch, suggestions } = makeHarness(db, [
+    reply({ ...EMPTY_PLOT, rewrite: { verdict: "flawed", issue: "i", text: "She said {{getglobalvar::secret}} again." } }),
+  ]);
+  await dispatch(arm({ type: "run_analysis", brief: "b", routes: { rewrite: {} } }), makeFrame({ chatId, authorUserId: host, ruleId }));
+  const pending = suggestions.listForChat(chatId, FIXED_NOW_MS)[0];
+  const act = pending?.payload?.via === "analysis" ? pending.payload.act : null;
+  expect(act?.kind === "rewrite" ? act.content : "").toContain(`{${ZWSP}{getglobalvar::secret}${ZWSP}}`);
+});
+
+test("rewrite: with NO auditable reply the route leaves the schema AND the prompt — the model is never asked", async () => {
+  // A room with only USER rows has nothing a prose audit could be about.
+  const db = await freshDb();
+  const host = await seedUser(db, "user_host");
+  const chatId = await seedChat(db, "noaudit");
+  await seedParticipant(db, { chatId, key: "noaudit_host", userId: host, role: "host" });
+  const ruleId = castId<AutomationRuleId>("automation_rule_noaudit");
+  await db.insert(automationRules).values({
+    id: ruleId,
+    ownerId: host,
+    chatId,
+    name: "analysis",
+    position: 1,
+    triggerBus: "chat",
+    triggerType: "turnCompleted",
+    actions: [],
+  });
+  await seedMessage(db, chatId, 1, { role: "user", content: "hello" });
+  const { dispatch, captured, suggestions } = makeHarness(db, [reply(EMPTY_PLOT)]);
+  const outcome = await dispatch(arm({ type: "run_analysis", brief: "b", routes: { rewrite: {} } }), makeFrame({ chatId, authorUserId: host, ruleId }));
+  expect(outcome).toEqual({ ok: true });
+  expect(captured.quiet[0]?.systemPrompt).not.toContain("AUDITED REPLY");
+  expect(captured.quiet[0]?.prompt).not.toContain("AUDITED REPLY");
+  expect(suggestions.listForChat(chatId, FIXED_NOW_MS)).toEqual([]);
+});
+
+test("rewrite: a HIDDEN reply is not auditable — the host already shelved it", async () => {
+  const { db, host, chatId, ruleId } = await setup(4);
+  await db
+    .update(messages)
+    .set({ excludedFromPrompt: true })
+    .where(eq(messages.id, auditedIds(chatId, 4).messageId));
+  const { dispatch, suggestions } = makeHarness(db, [reply({ ...EMPTY_PLOT, rewrite: { verdict: "flawed", issue: "i", text: "fixed" } })]);
+  await dispatch(arm({ type: "run_analysis", brief: "b", routes: { rewrite: {} } }), makeFrame({ chatId, authorUserId: host, ruleId }));
+  // seq 2 is the next-newest assistant row, so the audit falls back to it rather than to nothing — and the
+  // pin is that it never names the hidden row.
+  const pending = suggestions.listForChat(chatId, FIXED_NOW_MS)[0];
+  const act = pending?.payload?.via === "analysis" ? pending.payload.act : null;
+  expect(act?.kind === "rewrite" ? act.messageId : "").toBe(auditedIds(chatId, 2).messageId);
 });
 
 // ── failure honesty ──────────────────────────────────────────────────────────────────────────────────
