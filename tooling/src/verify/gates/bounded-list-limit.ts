@@ -2,13 +2,12 @@
 // tRPC input must never accept an UNBOUNDED `limit`. An inline `limit: z.number()…` chain WITHOUT a `.max(…)`
 // feeds an unbounded SQL `.limit()` — the #45 class (an 872-chat library / a big re-import that dies on the
 // fetch); a `.max()` at the trust boundary turns an over-ask into a BAD_REQUEST. Scanned in the two wire-schema
-// homes: the tRPC router tree + `packages/contracts/src`. A `limit` whose value is a NAMED schema (an
-// Identifier) is OUT of scope — it is separately defined and may be a recursion cap (`toolRecurseLimitSchema`),
+// homes: the tRPC router tree + `packages/contracts/src`. A same-file const schema is resolved one hop; an
+// IMPORTED named schema stays out of scope because it may be a recursion cap (`toolRecurseLimitSchema`),
 // not a page size. DECLARED LIMITS: `topN`-named top-N fields carry the SAME bomb class (bounded by hand this
 // lane in `search.*`) but the gate is `limit`-scoped by design; a `z.coerce.number()` root has no live `limit`
 // site on the tree. Escape: the shared `// @orb-gate-ignore bounded-list-limit: <reason>` marker.
-import type { Node } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
+import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 
@@ -51,6 +50,23 @@ function analyzeZodNumberChain(init: Node): { isZodNumber: boolean; hasMax: bool
   return { isZodNumber, hasMax };
 }
 
+/** Resolve one same-file const schema binding; imported/nested schema composition remains out of scope. */
+function resolveLocalSchema(init: Node): Node {
+  const node = unwrapExpression(init);
+  if (!Node.isIdentifier(node)) {
+    return node;
+  }
+  const decl = node
+    .getDefinitionNodes()
+    .filter(Node.isVariableDeclaration)
+    .find(
+      (candidate) =>
+        candidate.getSourceFile() === node.getSourceFile() && candidate.getVariableStatement()?.getDeclarationKind() === VariableDeclarationKind.Const,
+    );
+  const resolved = decl?.getInitializer();
+  return resolved === undefined ? node : unwrapExpression(resolved);
+}
+
 export const gate: GateDescriptor = {
   name: "bounded-list-limit",
   docRow: "Tier-4-Transport.md (#45/#46 unbounded list-`limit` ceiling)",
@@ -68,7 +84,7 @@ export const gate: GateDescriptor = {
     if (init === undefined) {
       return;
     }
-    const { isZodNumber, hasMax } = analyzeZodNumberChain(init);
+    const { isZodNumber, hasMax } = analyzeZodNumberChain(resolveLocalSchema(init));
     if (isZodNumber && !hasMax) {
       ctx.report(node, { token: "limit", offset: 0 });
     }
@@ -91,6 +107,12 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/transport/trpc/routers/probe.ts",
       expect: { count: 1, token: "limit" },
       why: "a bare unbounded `limit: z.number()` (no chain at all), RED",
+    },
+    {
+      files: 'import { z } from "zod";\nconst pageLimit = z.number().int().positive().optional();\nexport const s = z.object({ limit: pageLimit });\n',
+      at: "packages/contracts/src/probe/indirect.ts",
+      expect: { count: 1, token: "limit" },
+      why: "a same-file const schema remains the list boundary's schema; one identifier hop cannot hide an unbounded numeric limit",
     },
     {
       files: 'import { z } from "zod";\nexport const s = z.object({ limit: (z.number().int().optional()) });\n',

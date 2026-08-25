@@ -63,7 +63,8 @@ function routerObjectKeys(node: Node): string[] | null {
 }
 
 /** Resolve an appRouter property VALUE (a sub-router identifier like `pluginRouter`) to the `t.router`
- *  call that defines it, following the variable declaration's initializer. */
+ *  call that defines it, following the variable declaration's initializer. Inline router calls are read
+ *  directly by the caller before this identifier-only resolution step. */
 function resolveRouterInitializer(value: Node): Node | undefined {
   if (!Node.isIdentifier(value)) {
     return;
@@ -114,7 +115,7 @@ function collectFromAppRouter(appLiteral: Node, out: ServerProc[]): void {
     }
     const ns = prop.getName();
     const value = prop.getInitializerOrThrow();
-    const subRouter = resolveRouterInitializer(value);
+    const subRouter = routerObjectKeys(value) !== null ? value : resolveRouterInitializer(value);
     if (subRouter === undefined) {
       // A loose root procedure (`health: publicProcedure.query(…)`) — bare name, defined right here.
       out.push({ full: procFullName("", ns), decl: prop });
