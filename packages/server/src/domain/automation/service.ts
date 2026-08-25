@@ -15,6 +15,7 @@ import { createDismissSuggestion } from "./verbs/dismiss-suggestion.ts";
 import { createGetBudgets } from "./verbs/get-budgets.ts";
 import { createGetGlobalVariable } from "./verbs/get-global-variable.ts";
 import { createGetOwnerBudgets } from "./verbs/get-owner-budgets.ts";
+import { createListChatActivity } from "./verbs/list-chat-activity.ts";
 import { createListFires } from "./verbs/list-fires.ts";
 import { createListGlobalVariables } from "./verbs/list-global-variables.ts";
 import { createListOwnerRules } from "./verbs/list-owner-rules.ts";
@@ -50,6 +51,7 @@ export function createAutomationService(ctx: AutomationContext): AutomationServi
     listRules: createListRules(ctx),
     listOwnerRules: createListOwnerRules(ctx),
     listFires: createListFires(ctx),
+    listChatActivity: createListChatActivity(ctx),
     setBudgets: createSetBudgets(ctx),
     getBudgets: createGetBudgets(ctx),
     getOwnerBudgets: createGetOwnerBudgets(ctx),

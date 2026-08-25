@@ -7,7 +7,7 @@
 
 import type { ChatBusDeps } from "@orb/client/data";
 import { applyChatBusEvent, createInvalidation, QueryBoundary, QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
-import { automationQuickReplySource, automationSuggestionSource } from "@orb/client/features/automation";
+import { automationActivityTab, automationQuickReplySource, automationSuggestionSource } from "@orb/client/features/automation";
 import { characterSlashCommands } from "@orb/client/features/character";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
@@ -1889,6 +1889,24 @@ export function ChatContextTabContributorStory({ visible }: ChatContextTabContri
     body: (): ReactElement => <div data-testid="ct-fake-context-tab-body">fake tab body</div>,
   };
   const contextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", [fakeTab]);
+  return (
+    <CtDataProviders>
+      <CtChatContributorSectionRegistry contextContributors={contextContributors}>
+        <ChatContextHostHarness />
+      </CtChatContributorSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** B11 — the REAL room `automationActivityTab` grafted into the chat CONTEXT strip through the SAME
+ *  contributor seam the fake tab above proves, so a CT exercises the production tab (host gate + the
+ *  `RoomActivityLog` body over `automation.listChatActivity`) rather than a test double. The `.ct.tsx` stubs
+ *  `chat.getChat` (host vs member drives the tab's `when: isHost`) + `automation.listChatActivity` (the rows). */
+export function RoomActivityTabStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  const contextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", [automationActivityTab]);
   return (
     <CtDataProviders>
       <CtChatContributorSectionRegistry contextContributors={contextContributors}>
