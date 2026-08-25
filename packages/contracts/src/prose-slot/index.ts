@@ -133,6 +133,17 @@ export const PROSE_SLOT_IDS = [
   // ── per-USER: the automation quiet-pick prompts (census 91) ──
   "automation.autobg.task",
   "automation.autobg.reply",
+  "automation.autobg.system",
+  // ── per-USER: the S5 `run_analysis` system contract, ONE clause per output route (C1 — the clauses
+  //    compose per the arm's ENABLED routes, so an un-authored route's ask never reaches the model) ──
+  "automation.analysis.lead",
+  "automation.analysis.arc",
+  "automation.analysis.steer",
+  "automation.analysis.lore",
+  "automation.analysis.suggest",
+  "automation.analysis.vars",
+  "automation.analysis.close",
+  "automation.analysis.firstArc",
   // ── per-USER: discovery's three whole side-generation system prompts (S1b) ──
   "discovery.compare.system",
   "discovery.ask.system",

@@ -168,6 +168,8 @@ describe("armLabel", () => {
   test("names what the arm does, never its wire discriminator", () => {
     expect(armLabel("trigger_turn")).toBe("ask for a reply");
     expect(armLabel("set_chat_background")).toBe("change the background");
+    // The quiet pass is labelled by what the host FEELS it doing, never "analysis" (wire vocabulary).
+    expect(armLabel("run_analysis")).toBe("study the story");
     // The open-world arm is labelled by its ACT, not its payload: WHICH tool lives in the arm's `name` field,
     // and a label that leaked `run_tool` would put the wire discriminator on the one surface built to hide it.
     expect(armLabel("run_tool")).toBe("run a tool");

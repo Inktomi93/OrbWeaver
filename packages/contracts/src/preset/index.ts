@@ -115,6 +115,7 @@ export const SIDE_GEN_KINDS = [
   "analyze",
   "greeting_studio",
   "autobg",
+  "rule_analysis",
   "caption",
   "refine_score",
   "refine_rewrite",
@@ -159,6 +160,9 @@ export const SIDE_GEN_POSTURES = {
   // Automation /autobg background pick: a deterministic classify (pick ONE background name from a list) —
   // a tiny output budget because we want a name, nothing else.
   autobg: { temperature: 0.2, maxOutputTokens: 32 },
+  // Automation `run_analysis` quiet pass (S5/C1): a bounded schema-constrained analysis payload (arc/twists/
+  // guidance/lore ops), not creative prose — the quiet_generate floor's class (temp 0.3, 1024 out).
+  rule_analysis: { temperature: 0.3, maxOutputTokens: 1024 },
   // Vision caption: an EMPTY floor — the caption call historically passed NO sampling options (the backend
   // defaults stood). An empty posture is the honest encoding; the caller's preset params CAN now reach it.
   caption: {},

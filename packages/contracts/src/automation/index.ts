@@ -172,6 +172,10 @@ export const AUTOMATION_ACTION_TYPES = [
   "trigger_turn",
   "generate_image",
   "set_chat_background",
+  // S5 — the quiet-analysis arm (C1). Placed BEFORE `run_tool` deliberately: it is a first-party model-lane
+  // arm and `run_tool` stays the tuple's closing closed/open BOUNDARY member (the D146-a comment below).
+  // The tuple position is also the arm-vocabulary display order (`rule-copy.ts::ARM_LABELS` derives it).
+  "run_analysis",
   "run_tool",
 ] as const;
 export type AutomationActionType = (typeof AUTOMATION_ACTION_TYPES)[number];
@@ -216,6 +220,20 @@ export const AUTOMATION_ACTION_ARMS_MAX = 8;
  *  bound and the SQL bound can never drift. Sized to the steer-line class (a guidance line is ONE concrete
  *  narrator instruction — the legacy director's contract — not a document). */
 export const ANALYSIS_GUIDANCE_MAX = 600;
+/** The `run_analysis` arm's authored TASK BRIEF cap — a paragraph-class instruction (the `LORE_NOTE` class),
+ *  not the 8 KiB template ceiling: the brief rides every pass's prompt, so its bound is a prompt budget. */
+const ANALYSIS_BRIEF_MAX = 2000;
+/** The host's standing STEER knob cap — one steer-line-class sentence rides every pass. */
+const ANALYSIS_STEER_MAX = 600;
+/** S5 — a route's APPLY posture: `direct` executes at fire time; `confirm` raises an S4 card and executes
+ *  only on the host's yes. Declared ONCE as a tuple and derived (§5.5 — no inline union re-spell). */
+export const ANALYSIS_APPLY_MODES = ["direct", "confirm"] as const;
+export type AnalysisApplyMode = (typeof ANALYSIS_APPLY_MODES)[number];
+/** S5 — the `setVariable` route's NUMERIC-SCORE value contract: the ONLY shape an analysis pass may publish
+ *  into the member-visible chat-vars plane (the needle, catalogue #16 — F6's single ruled exception). The
+ *  applier writes `String(clamp(int(score), 0..ANALYSIS_SCORE_MAX))` and NOTHING ELSE — arcs, twists and
+ *  guidance are disjoint payload fields no code path hands to the vars writer. */
+export const ANALYSIS_SCORE_MAX = 10;
 
 /** How a surfaced chip's text is CONSUMED when the member clicks it (S1, the in-chat control seam):
  *  `send` fires it as that member's next turn immediately; `compose` seeds their composer draft so they
@@ -231,8 +249,8 @@ export type QuickReplyMode = (typeof QUICK_REPLY_MODES)[number];
 /** S4 — the arms that COST something to run: a model call the rule author funds. The machine-readable spend
  *  set the fire-rate REFUSAL path reads (interaction-direction-spec §3-S4 / RULED F4: a `budget_refused` on a
  *  rule carrying one of these raises the "rate-capped — run it now?" invitation, ON by default). Until now the
- *  class existed only as the words "SPEND-classed" in two arm comments. `run_analysis` (C1) and `run_tool`
- *  (C4) join this tuple as part of their own landings — the tuple is exact-as-built, never forward-declared.
+ *  class existed only as the words "SPEND-classed" in two arm comments. The tuple is exact-as-built, never
+ *  forward-declared: `run_tool` joined at C4 and `run_analysis` at C1, each riding its own landing.
  *
  *  NOT the same axis as the CONFIRM-FIRST (suggestible) set below: SPEND is about who pays and therefore what
  *  a rate refusal may offer to re-run; suggestible is about CONSENT — which arms a host may be asked to
@@ -244,7 +262,7 @@ export type QuickReplyMode = (typeof QUICK_REPLY_MODES)[number];
  *  installer's connection), `net.fetch`, and image generation. The host therefore gets F4's "rate-capped — run
  *  it now?" invitation when a run_tool rule is turned away by the fire-rate cap, which is the correct offer:
  *  the money at stake is the author's own. */
-export const SPEND_ARM_TYPES = ["trigger_turn", "generate_image", "run_tool"] as const satisfies readonly AutomationActionType[];
+export const SPEND_ARM_TYPES = ["trigger_turn", "generate_image", "run_analysis", "run_tool"] as const satisfies readonly AutomationActionType[];
 export type SpendArmType = (typeof SPEND_ARM_TYPES)[number];
 
 /** S4 — the CONFIRM-FIRST flag, carried by the four SUGGESTIBLE arms and by nothing else (the shape IS the
@@ -325,6 +343,42 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     type: z.literal("set_chat_background"),
     instruction: z.string().max(AUTOBG_INSTRUCTION_MAX).optional(),
     confirmFirst: confirmFirstSchema,
+  }),
+  // 1.8b run_analysis (S5, SPEND-classed) — the QUIET schema-constrained analysis pass, the honest carrier of
+  // the purged crew director's think-first loop. A fire runs ONE structured model call over {the read window,
+  // the rule's stored state, the host's steer} and routes each OUTPUT CLASS through the domain's closed union
+  // (setState · steer · upsertLoreEntry · suggest · setVariable — `domain/automation/contract/analysis.ts`).
+  //
+  // `routes` IS the consent-and-capability surface, and ABSENCE is the off switch: a route the author did not
+  // spell is not merely skipped — it is REMOVED from the model's enforced response schema (the xgrammar lever),
+  // so the pass cannot even emit that output class. The `vars` route is the needle's publication gate
+  // (RULED 2026-08-24, OFF by default): no default, no preset in C1 authors it — a host opts a room in by
+  // spelling it, and the ONLY value that can cross into member-visible chat vars is the clamped NUMERIC score
+  // ({@link ANALYSIS_SCORE_MAX}); arcs/twists/guidance NEVER cross (F6's wall, held by disjoint payload fields).
+  //
+  // NOT suggestible (no `confirmFirst`): consent is PER-ROUTE (`apply: "confirm"`), because one pass can mix
+  // postures — a direct steer beside a confirm-first lore write. `brief`/`steer` are HOST-authored and render
+  // as templates like every arm field; the model's OUTPUTS are machine-authored DATA and never render (laws 6/7).
+  z.object({
+    type: z.literal("run_analysis"),
+    /** The analysis TASK the pass runs (preset-authored, host-editable) — what to watch, what to maintain. */
+    brief: z.string().min(1).max(ANALYSIS_BRIEF_MAX),
+    /** The host's standing direction ("slow burn", "keep it cozy") — rides every pass. Absent ⇒ no steer. */
+    steer: z.string().max(ANALYSIS_STEER_MAX).optional(),
+    routes: z.object({
+      /** The guidance slot: ONE narrator-facing instruction, stored verbatim, delivered by the S2 teaching
+       *  contribution. RULED F7: the pacing preset applies it DIRECT. */
+      steer: z.object({ apply: z.enum(ANALYSIS_APPLY_MODES).default("direct") }).optional(),
+      /** Durable lore distillation into an attached book (the C2 route; settled-span windowed, watermarked,
+       *  `neutralizeMacros`-belted). Defaults CONFIRM — a durable canon write earns a card. */
+      lore: z.object({ apply: z.enum(ANALYSIS_APPLY_MODES).default("confirm"), bookId: typeIdSchema(ID_PREFIX.worldBook) }).optional(),
+      /** Model-suggested guided-turn asks as S4 cards. Confirm-class BY NATURE (a suggestion IS an ask), so
+       *  it carries no apply knob — an empty object is the enable switch. */
+      suggest: z.object({}).optional(),
+      /** The needle's score publication (host-OPT-IN — see the header). `key` is the ONE chat var the clamped
+       *  score lands in; fixed at authoring, never model-chosen. Direct BY NATURE (a cadence meter). */
+      vars: z.object({ key: z.string().min(1).max(VAR_KEY_MAX) }).optional(),
+    }),
   }),
   // 1.9 run a registered TOOL by name (SPEND-classed — a tool may call a model, fetch, or generate an image).
   //

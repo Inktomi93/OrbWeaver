@@ -68,8 +68,18 @@ function armTemplate(action: AutomationAction): string | undefined {
     return action.choices.map((c) => c.sendTemplate).join(" | ");
   }
   const rec: Record<string, unknown> = action;
+  // `brief` is `run_analysis`'s primary template (its host-authored task). The preview answers "does my
+  // template render" ONLY — it never runs the model pass (the same no-spend contract as `run_tool`'s
+  // args-only preview, stated in the header).
   const template =
-    rec["value"] ?? rec["template"] ?? rec["contentTemplate"] ?? rec["messageTemplate"] ?? rec["guidedTemplate"] ?? rec["prompt"] ?? rec["argsTemplate"];
+    rec["value"] ??
+    rec["template"] ??
+    rec["contentTemplate"] ??
+    rec["messageTemplate"] ??
+    rec["guidedTemplate"] ??
+    rec["prompt"] ??
+    rec["argsTemplate"] ??
+    rec["brief"];
   return typeof template === "string" ? template : undefined;
 }
 

@@ -85,8 +85,9 @@ export interface AutomationActionOpsDeps {
   readonly setChatBackground: (args: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly background: ThemeBackground }) => Promise<void>;
   /** PROSE-1 census 91 — the room HOST's prose overrides for a chat (chat's `resolveChatProse`). */
   readonly resolveChatProse: (chatId: ChatId) => Promise<ProseOverrides>;
-  /** BG-F — the quiet summarize-role LLM pick (the `set_chat_background` arm's model call). */
-  readonly summarizeQuiet: (args: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly prompt: string }) => Promise<{ readonly text: string }>;
+  /** The generic quiet-LLM op (the /autobg pick + the `run_analysis` structured pass) — the ONE lane;
+   *  `contract/ops.ts` states the variant split. Same signature as the op (a pure passthrough here). */
+  readonly summarizeQuiet: AutomationOps["summarizeQuiet"];
   /** D146 — the `run_tool` arm's two seams onto the ONE tool registry: the direct-drive reachability predicate
    *  (the mint gate + the per-fire pause gate) and the invocation itself. Both bound in
    *  `compose/automation-plugin.ts`, where `domain/tool-use` is in scope. */
