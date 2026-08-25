@@ -51,6 +51,18 @@ test("a warning record pushed into the warnings channel counts as an emit", () =
   expect(gate.run(ctxFor({ [HOME]: TUPLE, [EMIT]: emit }))).toEqual([]);
 });
 
+test("a warning-shaped record pushed into an unrelated accumulator does not count", () => {
+  const gate = createWarningCodeCoverage([channel({ beta: "unbuilt — cited" })]);
+  const v = gate.run(ctxFor({ [HOME]: TUPLE, [EMIT]: 'audit.push({ code: "alpha", message: "visible" });\n' }));
+  expect(v.some((finding) => finding.message.includes('"alpha"'))).toBe(true);
+});
+
+test("an alias of the warnings accumulator counts as the same channel", () => {
+  const gate = createWarningCodeCoverage([channel({ beta: "unbuilt — cited" })]);
+  const emit = 'const sink = warnings;\nsink.push({ code: "alpha", message: "visible" });\n';
+  expect(gate.run(ctxFor({ [HOME]: TUPLE, [EMIT]: emit }))).toEqual([]);
+});
+
 test("a chat warning carried by the quiet emitter counts as an emit", () => {
   const chatHome = "packages/contracts/src/chat/bus.ts";
   const chatEmit = "packages/server/src/domain/chat/engine/engine.ts";

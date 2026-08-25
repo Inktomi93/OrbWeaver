@@ -13,6 +13,7 @@ import { fileLoaded } from "../lib/pass.ts";
 
 const SERVICE_CONTRACT_RE = /\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\/service\.ts$/u;
 const DOMAIN_TEST_RE = /\/tests\/server\/domain\/(?<domain>[^/]+)\//u;
+const SERVICE_FACTORY_RE = /^create[A-Z].*Service$/u;
 
 // Verbs DECLARED on a *Service interface with zero test invocation anywhere — the W1i backlog. A new
 // uncovered verb NOT on this list is RED.
@@ -87,6 +88,54 @@ function isFactoryBoundVerb(call: CallExpression, verb: string): boolean {
     });
 }
 
+function isServiceFactoryCall(call: CallExpression): boolean {
+  const name = calledName(call);
+  return name !== undefined && SERVICE_FACTORY_RE.test(name);
+}
+
+function isAssembledServiceExpression(node: Node, seen = new Set<string>()): boolean {
+  const expression = unwrapExpression(node);
+  if (Node.isCallExpression(expression)) {
+    if (isServiceFactoryCall(expression)) {
+      return true;
+    }
+    const helperName = calledName(expression);
+    if (helperName === undefined) {
+      return false;
+    }
+    const helper = expression.getSourceFile().getFunction(helperName);
+    return (
+      helper?.getDescendantsOfKind(SyntaxKind.ReturnStatement).some((statement) => {
+        const returned = statement.getExpression();
+        return returned !== undefined && isAssembledServiceExpression(returned, seen);
+      }) === true
+    );
+  }
+  if (!Node.isIdentifier(expression)) {
+    return false;
+  }
+  const name = expression.getText();
+  const key = `${expression.getSourceFile().getFilePath()}:${name}`;
+  if (seen.has(key)) {
+    return false;
+  }
+  seen.add(key);
+  const declaration = expression
+    .getSourceFile()
+    .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
+    .find((candidate) => candidate.getName() === name);
+  const initializer = declaration?.getInitializer();
+  return initializer !== undefined && isAssembledServiceExpression(initializer, seen);
+}
+
+function isAssembledServiceCall(call: CallExpression): boolean {
+  const expression = unwrapExpression(call.getExpression());
+  if (Node.isPropertyAccessExpression(expression) || Node.isElementAccessExpression(expression)) {
+    return isAssembledServiceExpression(expression.getExpression());
+  }
+  return false;
+}
+
 function isCovered(files: readonly SourceFile[], verb: string): boolean {
   const factory = factoryName(verb);
   return files.some((sf) =>
@@ -95,7 +144,7 @@ function isCovered(files: readonly SourceFile[], verb: string): boolean {
       if (name === factory) {
         return true;
       }
-      return name === verb && (!Node.isIdentifier(call.getExpression()) || isFactoryBoundVerb(call, verb));
+      return name === verb && (isAssembledServiceCall(call) || isFactoryBoundVerb(call, verb));
     }),
   );
 }
@@ -238,10 +287,18 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
+        "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  readonly save: () => void;\n}\n",
+        "tests/server/domain/hub/x.test.ts": "logger.save();\n",
+      },
+      expect: { messageIncludes: "hub.save" },
+      why: "a same-named method on an unrelated receiver is not evidence that the assembled HubService ran",
+    },
+    {
+      files: {
         [ANCHOR]: "export const server = 1;\n",
         "packages/server/src/domain/discovery/contract/service.ts": "export interface DiscoveryService {\n  readonly themes: () => void;\n}\n",
         "packages/server/src/domain/chat/contract/service.ts": "export interface ChatService {\n  readonly getRoomOverridesForChat: () => void;\n}\n",
-        "tests/server/domain/chat/x.test.ts": "await service.getRoomOverridesForChat({ id: 1 });\n",
+        "tests/server/domain/chat/x.test.ts": "const service = createChatService(ctx);\nawait service.getRoomOverridesForChat({ id: 1 });\n",
       },
       expect: { count: 1, messageIncludes: "stale DEFERRED row" },
       why: "THE RATCHET'S OTHER SIDE: the anchor is loaded; discovery.themes is still uncovered and keeps its row, but chat.getRoomOverridesForChat now HAS its test — the burn-down row suppressed nothing and must be pruned, exactly as the header's bus-coverage precedent promised",
@@ -251,9 +308,16 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  coveredVerb(): void;\n}\n",
-        "tests/server/domain/hub/x.test.ts": "export const q = service.coveredVerb();\n",
+        "tests/server/domain/hub/x.test.ts": "const service = createHubService(ctx);\nexport const q = service.coveredVerb();\n",
       },
-      why: "the verb is invoked as a service method in the domain test tree — covered, passes",
+      why: "the verb is invoked on a service assembled by its domain factory — covered, passes",
+    },
+    {
+      files: {
+        "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  save(): void;\n}\n",
+        "tests/server/domain/hub/x.test.ts": "const svc = createHubService(ctx);\nconst alias = svc;\nalias.save();\n",
+      },
+      why: "a local alias of the assembled service preserves receiver identity — covered, passes",
     },
     {
       // covered only by its create<Verb>( factory (the alias-invoked closure shape).

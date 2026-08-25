@@ -83,12 +83,36 @@ function callName(node: CallExpression): string | undefined {
   return Node.isPropertyAccessExpression(expression) ? expression.getName() : undefined;
 }
 
+function isWarningsReceiver(node: Node, seen = new Set<string>()): boolean {
+  const expression = unwrapExpression(node);
+  if (!Node.isIdentifier(expression)) {
+    return false;
+  }
+  const name = expression.getText();
+  if (name === "warnings") {
+    return true;
+  }
+  const key = `${expression.getSourceFile().getFilePath()}:${name}`;
+  if (seen.has(key)) {
+    return false;
+  }
+  seen.add(key);
+  const declaration = expression
+    .getSourceFile()
+    .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
+    .find((candidate) => candidate.getName() === name);
+  const initializer = declaration?.getInitializer();
+  return initializer !== undefined && isWarningsReceiver(initializer, seen);
+}
+
 function isExecutableWarningRecord(object: ObjectLiteralExpression, channel: WarningChannel): boolean {
   const call = object.getFirstAncestorByKind(SyntaxKind.CallExpression);
   const returned = object.getFirstAncestorByKind(SyntaxKind.ReturnStatement);
   const name = call === undefined ? undefined : callName(call);
   if (name === "push") {
-    return object.getProperty("message") !== undefined;
+    const expression = unwrapExpression(call?.getExpression());
+    const receiver = Node.isPropertyAccessExpression(expression) ? expression.getExpression() : undefined;
+    return receiver !== undefined && isWarningsReceiver(receiver) && object.getProperty("message") !== undefined;
   }
   if (channel.tuple === "CHAT_WARNING_CODES" && (name === "emit" || name === "emitQuiet")) {
     const type = object.getProperty("type");
@@ -207,6 +231,16 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
+        [PROVIDER_HOME]: 'export const WARNING_CODES = ["wrong_receiver"] as const;\n',
+        [PROVIDER_EMIT]: 'audit.push({ code: "wrong_receiver", message: "not a provider warning" });\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'emit({ type: "warning", code: "chat_ok" });\n',
+      },
+      expect: { messageIncludes: "NO emit site" },
+      why: "a code/message record pushed into an unrelated accumulator is not a warning-channel emission",
+    },
+    {
+      files: {
         [PROVIDER_HOME]: PROVIDER_HOME_FIXTURE,
         [PROVIDER_EMIT]: PROVIDER_EMIT_FIXTURE,
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["never_emitted"] as const;\n',
@@ -238,6 +272,15 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        [PROVIDER_HOME]: 'export const WARNING_CODES = ["aliased_warning"] as const;\n',
+        [PROVIDER_EMIT]: 'const warningSink = warnings;\nwarningSink.push({ code: "aliased_warning", message: "visible" });\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'emit({ type: "warning", code: "chat_ok" });\n',
+      },
+      why: "a local alias of the canonical warnings accumulator preserves warning-channel identity",
+    },
     {
       files: {
         [PROVIDER_HOME]: PROVIDER_HOME_FIXTURE,
