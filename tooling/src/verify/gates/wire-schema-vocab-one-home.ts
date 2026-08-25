@@ -48,6 +48,9 @@ const DEAD_ENGINE =
   `${ENGINE_REL} resolves but declares none of ${VOCAB_CONSTS.join("/")} — this gate reads its vocabulary from ` +
   "those arrays, so it is now scanning for NOTHING and reports ✓ forever. Repoint the const names in " +
   `${GATE_SELF} (tooling/src/verify/gates/GATE-AUTHORING.md §4).`;
+const MISSING_ENGINE =
+  `${ENGINE_REL} is missing from the project — this gate has no vocabulary to compare and cannot issue a clean verdict. ` +
+  "Restore the one scrub engine or re-home this gate with it.";
 
 const RESPELLS = (names: readonly string[]): string =>
   `this file spells the wire keyword table itself (${names.join(", ")}) instead of calling ${ENGINE_REL}. ${MESSAGE}`;
@@ -108,11 +111,9 @@ function scan(ctx: GateRunCtx): void {
   const engine = ctx.project.getSourceFile(`${ctx.root}/${ENGINE_REL}`);
   const vocab = vocabulary(engine);
   if (vocab.size === 0) {
-    // §4.6 blindness tripwire: the engine is HERE but its vocabulary arrays are not — the gate is a no-op.
-    // (No engine at all ⇒ this fileset is not the real tree; judge nothing.)
-    if (engine !== undefined) {
-      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: DEAD_ENGINE });
-    }
+    // §4.6 blindness tripwire: missing evidence and an unreadable vocabulary are both broken checkers,
+    // never a clean comparison. Conformance examples that exercise this gate plant the engine explicitly.
+    ctx.report({ file: GATE_SELF, line: 1, column: 0, message: engine === undefined ? MISSING_ENGINE : DEAD_ENGINE });
     return;
   }
   const hitAllowlisted = new Set<string>();
@@ -159,6 +160,11 @@ export const gate: GateDescriptor = {
   scanRoot: inScope,
   run: scan,
   mustFlag: [
+    {
+      files: { "packages/server/src/infra/providers/backends/newvendor/schema.ts": 'export const DROP = ["title", "default"];\n' },
+      expect: { messageIncludes: "missing from the project" },
+      why: "the vocabulary engine is absent — without the source vocabulary the gate cannot distinguish clean from blind",
+    },
     {
       files: {
         [ENGINE_REL]: ENGINE_SRC,

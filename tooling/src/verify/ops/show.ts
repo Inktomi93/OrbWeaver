@@ -12,7 +12,8 @@
  *   --help, -h        usage.
  *
  * Exit code: mirrors the report's overall `ok` (0 clean / 1 dirty) — unless a filter is active,
- * in which case this is an inspection view and always exits 0.
+ * in which case ordinary violations are an inspection view (0). Broken evidence is always toolError (2),
+ * and invalid argv is always misuse (3), filters or not.
  */
 import { readFileSync } from "node:fs";
 import process from "node:process";
@@ -26,6 +27,7 @@ import { nearCapAdvisories } from "../lib/near-cap.ts";
 refuseDirectInvocation(import.meta.url, "pnpm check:show");
 
 const DEFAULT_LIMIT = 10;
+const POSITIVE_INTEGER = /^\d+$/;
 /** The artifact this view reads. ROOT arrives from the cli (the caller's cwd) — never a depth-derived
  *  `import.meta.dirname` walk, whose up-count silently changes at every move (playbook §9.1-4). */
 const REPORT_NAME = "check-structure.json";
@@ -108,14 +110,6 @@ interface Filter {
   readonly limit: number;
 }
 
-function flagValue(args: readonly string[], name: string): string | null {
-  const i = args.indexOf(name);
-  if (i < 0) {
-    return null;
-  }
-  return args[i + 1] ?? null;
-}
-
 function parseArgs(argv: readonly string[]): Filter | "help" {
   if (argv.includes("--help") || argv.includes("-h")) {
     print(
@@ -128,13 +122,50 @@ function parseArgs(argv: readonly string[]): Filter | "help" {
     );
     return "help";
   }
-  const limitArg = flagValue(argv, "--limit");
-  return {
-    errorsOnly: argv.includes("--errors-only"),
-    gate: flagValue(argv, "--gate"),
-    file: flagValue(argv, "--file"),
-    limit: limitArg === null ? DEFAULT_LIMIT : Number(limitArg) || DEFAULT_LIMIT,
+  let errorsOnly = false;
+  let gate: string | null = null;
+  let file: string | null = null;
+  let limit = DEFAULT_LIMIT;
+  const valueAfter = (index: number, flag: string): string => {
+    const value = argv[index + 1];
+    if (value === undefined || value.startsWith("-")) {
+      throw new UsageError(`check:show — ${flag} requires a value`);
+    }
+    return value;
   };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === undefined) {
+      continue;
+    }
+    switch (arg) {
+      case "--errors-only":
+        errorsOnly = true;
+        break;
+      case "--gate":
+        gate = valueAfter(i, arg);
+        i += 1;
+        break;
+      case "--file":
+        file = valueAfter(i, arg);
+        i += 1;
+        break;
+      case "--limit": {
+        const raw = valueAfter(i, arg);
+        const parsed = Number(raw);
+        const valid = POSITIVE_INTEGER.test(raw) && Number.isSafeInteger(parsed) && parsed >= 1;
+        if (!valid) {
+          throw new UsageError(`check:show — --limit must be a positive integer, got ${JSON.stringify(raw)}`);
+        }
+        limit = parsed;
+        i += 1;
+        break;
+      }
+      default:
+        throw new UsageError(`check:show — unknown argument ${JSON.stringify(arg)}`);
+    }
+  }
+  return { errorsOnly, gate, file, limit };
 }
 
 function matchesGate(g: GateReport, f: Filter): boolean {
@@ -209,8 +240,9 @@ function refuseIncomplete(report: StructureReport): string | null {
 function printVerdictAndToolErrors(report: StructureReport): void {
   const toolErrors = report.toolErrors ?? [];
   const blind = report.scanAlarms ?? [];
+  const evidenceBroken = toolErrors.length + blind.length > 0;
   print(
-    report.ok
+    report.ok && !evidenceBroken
       ? ANSI.green("✓ check:structure passed (filter view)\n")
       : ANSI.red(
           `✗ check:structure FAILED — ${report.total} violation(s)${toolErrors.length > 0 ? ` + ${toolErrors.length} TOOL ERROR(S)` : ""}${blind.length > 0 ? ` + ${blind.length} BLIND GATE(S)` : ""} across its gates\n`,
@@ -278,8 +310,9 @@ export function runShow(root: string, argv: readonly string[]): number {
     return EXIT.toolError;
   }
   const filtersActive = filter.gate !== null || filter.file !== null;
+  const evidenceBroken = (report.toolErrors?.length ?? 0) + (report.scanAlarms?.length ?? 0) > 0;
 
-  if (report.ok && !filtersActive) {
+  if (report.ok && !filtersActive && !evidenceBroken) {
     // The admitted total rides the PASS line: a ratchet baseline is declared debt a green run is still
     // carrying, and "green" was the only thing this line said until 2026-08-13 (Codex GA-H-02).
     const admitted = report.gates.reduce((n, g) => n + (g.scan?.admitted ?? 0), 0);
@@ -295,5 +328,8 @@ export function runShow(root: string, argv: readonly string[]): number {
     printNearCapAdvisories(root);
   }
 
+  if (evidenceBroken) {
+    return EXIT.toolError;
+  }
   return filtersActive || report.ok ? EXIT.clean : EXIT.violations;
 }

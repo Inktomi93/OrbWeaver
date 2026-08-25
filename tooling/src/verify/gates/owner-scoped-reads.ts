@@ -7,7 +7,7 @@
 // WRITE half is the sibling gate `owner-scoped-writes` (its own marker vocabulary), and membership-rung
 // completeness on (b)-class tables is control-flow-dependent (the cross-tenant behavioral sweep stays that
 // proof).
-import type { Node } from "ts-morph";
+import type { Identifier, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
@@ -55,6 +55,27 @@ const markedFns = new Map<string, { readonly fn: string; readonly file: string }
 /** Marker keys that actually guarded a bare read. */
 const markersUsed = new Set<string>();
 
+/** True when `id` is the read result binding itself or a one-hop local alias initialized from it. */
+function derivesFromReadResult(id: Identifier, resultDecl: Node): boolean {
+  for (const def of id.getDefinitionNodes()) {
+    if (def === resultDecl) {
+      return true;
+    }
+    if (!def.isKind(SyntaxKind.VariableDeclaration)) {
+      continue;
+    }
+    const init = def.getInitializer();
+    if (init === undefined) {
+      continue;
+    }
+    const sources = init.isKind(SyntaxKind.Identifier) ? [init] : init.getDescendantsOfKind(SyntaxKind.Identifier);
+    if (sources.some((source) => source.getDefinitionNodes().includes(resultDecl))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** The POST-FETCH-FILTER arm (`workloads/verbs/get.ts` F3-AUTHZ): the enclosing function compares a
  *  `.ownerId` property with `===`/`!==`. The owner predicate is resolved in JS instead of SQL — a distinct
  *  LEGAL shape, and one the machine can see. */
@@ -77,10 +98,10 @@ function hasPostFetchFilter(read: Node, fn: Node | undefined): boolean {
       const ownerReads = accesses.filter((candidate) => candidate.getName() === OWNER_COL);
       return ownerReads.some((ownerRead) => {
         const receiver = ownerRead.getExpression();
-        if (receiver.isKind(SyntaxKind.Identifier) && receiver.getDefinitionNodes().includes(resultDecl)) {
+        if (receiver.isKind(SyntaxKind.Identifier) && derivesFromReadResult(receiver, resultDecl)) {
           return true;
         }
-        return receiver.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => id.getDefinitionNodes().includes(resultDecl));
+        return receiver.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => derivesFromReadResult(id, resultDecl));
       });
     });
   });
@@ -216,6 +237,14 @@ export const gate: GateDescriptor = {
           'import { workloads } from "@orb/db";\nexport async function loadIt(db: Db, id: string, caller: string) {\n  const rows = await db.select().from(workloads).where(eq(workloads.id, id)).limit(1);\n  if (rows[0]?.ownerId !== caller) {\n    return null;\n  }\n  return rows[0];\n}\n',
       },
       why: "arm 2 — the F3-AUTHZ POST-FETCH filter the census named as a distinct LEGAL class: the owner predicate is resolved in JS, collapsing a foreign row to the same leak-free absent answer",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/queries.ts":
+          'import { characters } from "@orb/db";\nexport async function loadIt(db: Db, id: string, caller: string) {\n  const rows = await db.select().from(characters).where(eq(characters.id, id)).limit(1);\n  const card = rows[0];\n  if (card === undefined || card.ownerId !== caller) return null;\n  return card;\n}\n',
+      },
+      why: "arm 2 through one local alias — `rows -> card -> card.ownerId` is still a relationship to this read result, matching persona/loadOwnedCharacterCard",
     },
     {
       files: {
