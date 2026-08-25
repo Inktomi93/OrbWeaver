@@ -124,6 +124,6 @@ export function remainsOperable(kind: InactiveKind): boolean {
 /** Below this ratio an inactive control has stopped reading as a CONTROL at all — the "is it even there?"
  *  case the exemption must not swallow. Cited, not invented: it is WCAG 1.4.11's own UI-component boundary,
  *  used here as an advisory floor rather than as a pass/fail criterion.
- *  @alias deliberately the SAME numeric value as `UI_COMPONENT_MIN_RATIO`, under its own name because it
+ *  Deliberately the SAME numeric value as `UI_COMPONENT_MIN_RATIO`, kept under its own name because it
  *  is a distinct concept (an advisory floor, not a pass/fail minimum), not an accidental duplicate. */
 export const INACTIVE_ADVISORY_MAX_RATIO = UI_COMPONENT_MIN_RATIO;

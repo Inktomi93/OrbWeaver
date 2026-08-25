@@ -108,6 +108,7 @@ test("a section's save carries none of its siblings' keys and never re-fires or 
     "customStoppingStrings",
     "enterSends",
     "generateOnEmptySend",
+    "offerChoices",
     "tempChatTtlHours",
   ]);
 
