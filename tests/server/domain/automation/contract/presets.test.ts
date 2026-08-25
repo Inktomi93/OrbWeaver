@@ -103,11 +103,12 @@ test("the registry is exhaustive over RULE_PRESET_IDS, in catalogue order", () =
   expect(RULE_PRESET_IDS.map((id) => presetOf(id).id)).toEqual([...RULE_PRESET_IDS]);
 });
 
-test("the committed catalogue is exactly the A3 rows plus A4's four, in §4 order", () => {
+test("the committed catalogue is exactly the A3 rows plus A4's four plus C1's pacing analysis, in §4 order", () => {
   // A3 landed the seven that ride the preset substrate alone; A4 adds #1 (welcome-back recap — the
   // confirm-first card), #3 (auto-add lore, confirm-first by default), #8 (the compose-mode opener deck,
-  // riding A2's per-choice mode field) and #10 (call a vote — send-mode chips, R7-invoked).
-  // #2/#11/#14-#16/#20 ride later phases and may not creep in.
+  // riding A2's per-choice mode field) and #10 (call a vote — send-mode chips, R7-invoked); C1 adds #15
+  // (story pacing analysis — the run_analysis arm's showcase, RULED F7 direct steer).
+  // #2/#11/#14/#16/#20 ride later phases and may not creep in.
   expect([...RULE_PRESET_IDS]).toEqual([
     "welcomeBackRecap",
     "autoAddLore",
@@ -120,6 +121,7 @@ test("the committed catalogue is exactly the A3 rows plus A4's four, in §4 orde
     "callAVote",
     "callback",
     "cutaways",
+    "storyPacing",
   ]);
 });
 
