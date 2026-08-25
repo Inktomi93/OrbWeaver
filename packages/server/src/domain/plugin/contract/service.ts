@@ -12,16 +12,20 @@ import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { PluginBelts, PluginHostOps, PluginRegistrationHandle, SnippetGate } from "./ops.ts";
 import type {
+  ApplyDistributedPluginsParams,
   GetPluginLogParams,
+  InstallForAllUsersParams,
   InstallPluginParams,
+  ListDistributedPluginsParams,
   ListPluginsParams,
   RunSnippetParams,
   SetPluginEnabledParams,
   SetPluginGrantParams,
+  UninstallForAllUsersParams,
   UninstallPluginParams,
   UpgradePluginParams,
 } from "./params.ts";
-import type { PluginLogView, PluginView, SnippetResult } from "./results.ts";
+import type { DistributedPluginApplication, DistributedPluginView, PluginFanoutResult, PluginLogView, PluginView, SnippetResult } from "./results.ts";
 
 /** The caller's leak-free chat authority for the snippet gate: `canRead` admits the chat at all,
  *  `canWrite` unlocks the write half of the fixed profile (host authority). An unknown/foreign chat resolves
@@ -181,6 +185,43 @@ export interface PluginContext {
   readonly snippetGate: SnippetGate;
 }
 
+/** The deps the SERVER-WIDE DISTRIBUTION verbs close over — a SEPARATE bundle from {@link PluginContext},
+ *  and that separation is the whole point (D147 clause (a)).
+ *
+ *  The per-row management verbs still have no `can` seam and must never grow one: their authority question is
+ *  "is this row yours", the owner-scoped load answers it, and an "admins may manage any row" branch would run
+ *  one user's untrusted guest bundle under another user's identity. Distribution asks a DIFFERENT question —
+ *  "may this caller publish to the deployment" — which is a global-role question and has no per-row answer.
+ *  So the gate arrives here, scoped to the two verbs that need it, instead of widening the context every verb
+ *  shares. `requireAdmin` (not the general `can`) is what gets injected for the same reason: the narrowest
+ *  seam that answers the one question.
+ *
+ *  WHY THE ADMIN VERB IS SAFE WHERE AN ADMIN ANY-ROW BRANCH IS NOT: publishing only MINTS disabled,
+ *  zero-grant, consent-pending rows. It runs no guest code, spends no credential, and never touches an
+ *  existing row's consent or status — the recipient's own enable is still the only act that executes
+ *  anything, and it still runs as them. */
+export interface PluginDistributionDeps {
+  /** The global-admin gate (`domain/admin`'s `requireAdmin` — `can(caller,"admin",{kind:"global"})`), injected
+   *  at compose because a domain may not sideways-import another. THROWS `DomainForbiddenError` on a
+   *  non-admin, which is the right shape here and not a leak: the distribution set is deployment policy, not
+   *  an owned entity, so there is no existence to oracle (the `admin.*` router posture). */
+  readonly requireAdmin: (caller: Principal) => void;
+  /** Every user a fan-out reaches, as a resolved `Principal` — minted at the ENTRY seam (only entry mints a
+   *  Principal, the constitution) through the same row→Principal resolver the frozen-host bridge uses, so a
+   *  recipient's role/enabled state is a ROW READ and never invented. Scoped to HUMAN accounts at compose: an
+   *  agent row is not a person who can consent, and consent is the whole posture a distributed copy lands in.
+   *
+   *  It takes the ACTING admin because the enumeration itself is an admin read (`admin.listUsers`, which
+   *  re-gates) — the recipient list is never obtained on nobody's authority. */
+  readonly listRecipients: (caller: Principal) => Promise<readonly Principal[]>;
+  /** The PUBLISHED bundle's bytes by asset id. Deliberately NOT `ctx.assets.readBytes`: this read is
+   *  cross-owner by construction (the bytes belong to the publishing admin; the recipient is someone else),
+   *  and it is legitimate for exactly one reason — the id never comes from a caller, it comes from the
+   *  distribution record an admin wrote. The recipient's own install then stores its OWN CAS copy (D21: no
+   *  shared bytes), so nothing cross-owner survives the call. */
+  readonly readPublishedBundle: (assetId: AssetId) => Promise<Uint8Array>;
+}
+
 /** The plugin lifecycle surface, incl. `runSnippet` (the inline mode). */
 export interface PluginService {
   /** Unzip+validate the bundle → grant ⊆ declared → store bytes in the CAS → `disabled` row. */
@@ -197,6 +238,17 @@ export interface PluginService {
   readonly uninstall: (params: UninstallPluginParams) => Promise<void>;
   /** The caller's OWN installed plugins (fetchOwned), newest-installed first. */
   readonly list: (params: ListPluginsParams) => Promise<readonly PluginView[]>;
+  /** ADMIN: publish a bundle to the deployment — record it, then fan out a real per-user install to every
+   *  existing user (each disabled, zero-grant, consent-pending). Never enables anything for anyone. */
+  readonly installForAllUsers: (params: InstallForAllUsersParams) => Promise<PluginFanoutResult>;
+  /** ADMIN: withdraw a published plugin — drop the record, then fan out a real per-user uninstall, SKIPPING
+   *  (and reporting) any recipient whose row diverged from the distributed version. */
+  readonly uninstallForAllUsers: (params: UninstallForAllUsersParams) => Promise<PluginFanoutResult>;
+  /** ADMIN: the published set. */
+  readonly listDistributedPlugins: (params: ListDistributedPluginsParams) => Promise<readonly DistributedPluginView[]>;
+  /** SELF: install every published plugin the caller does not already hold — the new-user half of the
+   *  fan-out, driven once per user by the entry hook behind its onboarding latch. */
+  readonly applyDistributedPlugins: (params: ApplyDistributedPluginsParams) => Promise<DistributedPluginApplication>;
   /** The host.log ring for an owned plugin — empty for a plugin with no resident instance. */
   readonly getLog: (params: GetPluginLogParams) => Promise<readonly PluginLogView[]>;
   /** The inline mode: run `code` once as the caller in `chatId` under the fixed capability profile ∩

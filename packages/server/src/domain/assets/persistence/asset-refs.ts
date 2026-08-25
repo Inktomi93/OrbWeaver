@@ -13,7 +13,18 @@
 // `chats.metadata.background` (host-set per-chat), so a cross-user carried background asset is never reaped.
 
 import type { Db } from "@orb/db";
-import { characters, chats, documents, galleryItems, imageryGenerations, messageAssets, personas, plugins, userSettings } from "@orb/db";
+import {
+  adminDistributedPlugins,
+  characters,
+  chats,
+  documents,
+  galleryItems,
+  imageryGenerations,
+  messageAssets,
+  personas,
+  plugins,
+  userSettings,
+} from "@orb/db";
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isNotNull, sql } from "drizzle-orm";
@@ -33,6 +44,12 @@ export const ASSET_REFS: readonly AssetRef[] = [
   { table: documents, column: documents.sourceAssetId },
   // An installed plugin's bundle bytes (RESTRICT — must never be reaped under the install).
   { table: plugins, column: plugins.bundleAssetId },
+  // A SERVER-WIDE PUBLISHED plugin bundle (D147 clause (d)) — the bytes every future new-user application
+  // re-reads. RETAINING for exactly that reason: the publishing admin may have no `plugins` row of their own
+  // at that slug (they can uninstall their copy), and without this the blob would be reaped out from under
+  // the distribution set while the record still pointed at it. Its own FK is CASCADE (a distribution cannot
+  // outlive its bytes), which is the delete direction — this list is about the GC direction.
+  { table: adminDistributedPlugins, column: adminDistributedPlugins.bundleAssetId },
 ];
 
 /** DERIVED asset-FK columns — regenerable rows that do NOT pin the blob. Held as `<table>.<column>`

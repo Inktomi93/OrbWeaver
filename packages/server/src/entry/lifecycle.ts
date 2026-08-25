@@ -516,6 +516,10 @@ export function createLifecycle(): Lifecycle {
         // Independent of the character/chat chain — the example plugins attach to nothing, so they race
         // nobody. Fire-and-forget like its siblings; `ensureSeeded` never throws.
         void built.examplePluginSeeder.ensureSeeded(principal);
+        // The SERVER-WIDE published plugin set (D147 clause (d)) — the new-user half of the admin fan-out, for
+        // a user created after a publish ran. Independent of everything above (a distributed plugin attaches to
+        // no card and no chat) and latched per user, so a withdrawal by its owner is respected.
+        void built.distributedPluginApplier.ensureApplied(principal);
       },
       oidcProviderName: env.OIDC_PROVIDER_NAME,
       ...(localAuth ?? {}),

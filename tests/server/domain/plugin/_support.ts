@@ -12,6 +12,7 @@ import type { Db } from "@orb/db";
 import { assets, plugins } from "@orb/db";
 import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { can } from "@orb/server/domain/admin";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { Sandbox } from "@orb/server/infra/plugin-host";
 import { and, eq, inArray } from "drizzle-orm";
@@ -22,6 +23,7 @@ import type {
   CreateInstanceInput,
   CreateInstanceOutcome,
   PluginContext,
+  PluginDistributionDeps,
   PluginHostPort,
   PluginService,
 } from "../../../../packages/server/src/domain/plugin/contract/service.ts";
@@ -168,6 +170,9 @@ export function makePluginHarness(
     /** Narrow the two HOURLY per-plugin ceilings (default: the production constants) so a suite can reach one
      *  in a couple of calls. The floors themselves stay REAL — only the limit moves. */
     readonly rateLimits?: { readonly egress?: number; readonly quietLlm?: number };
+    /** The fan-out's recipient list (D147 clause (d)). Default EMPTY — a distribution suite states its own
+     *  cast, and every other suite is unaffected by a fan-out it never calls. */
+    readonly listRecipients?: PluginDistributionDeps["listRecipients"];
   } = {},
 ): PluginHarness {
   const clock = createFrozenClock(FROZEN_AT_MS);
@@ -232,7 +237,26 @@ export function makePluginHarness(
     snippetGate: createSnippetGate(overrides.snippetConcurrency),
   };
 
-  return { ctx, service: createPluginService(ctx), port: fakePort, storedBytes, advance: (ms) => clock.advance(ms) };
+  // The SERVER-WIDE DISTRIBUTION deps (D147 clause (d)) — REAL, not permissive. `requireAdmin` is the
+  // production kernel call, so a non-admin caller in a test is refused by exactly what refuses one in
+  // production; the recipient list and the published-bundle read are the two genuine EDGES (a user table read
+  // and a CAS read), faked here over the harness's own db + byte map like `store`/`readBytes` above. A test
+  // that needs a specific recipient set overrides `recipients`.
+  const distribution: PluginDistributionDeps = {
+    requireAdmin: (caller): void => {
+      can(caller, "admin", { kind: "global" });
+    },
+    listRecipients: overrides.listRecipients ?? ((): Promise<readonly Principal[]> => Promise.resolve([])),
+    readPublishedBundle: (assetId): Promise<Uint8Array> => {
+      const bytes = storedBytes.get(assetId);
+      if (bytes === undefined) {
+        return Promise.reject(new Error(`published bundle asset ${assetId} not found`));
+      }
+      return Promise.resolve(bytes);
+    },
+  };
+
+  return { ctx, service: createPluginService(ctx, distribution), port: fakePort, storedBytes, advance: (ms) => clock.advance(ms) };
 }
 
 /** An inert `PluginHostOps`: every op rejects/no-ops (the host functions are P4). The registrar seams record
