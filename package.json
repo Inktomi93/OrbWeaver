@@ -80,7 +80,7 @@
     "check:show": "node tooling/src/verify/cli.ts show",
     "debt": "node tooling/src/verify/cli.ts debt",
     "test:ratchets": "node tooling/src/verify/cli.ts ratchet-gate",
-    "test": "nice -n 19 vitest run --project unit --project integration --project integration-serial --project contract --reporter=default --reporter=json --outputFile.json=reports/test-report.json && pnpm test:ct --retries=2",
+    "test": "node scripts/vitest-supervised.mjs run --project unit --project integration --project integration-serial --project contract --reporter=default --reporter=json --outputFile.json=reports/test-report.json && pnpm test:ct --retries=2",
     "test:types": "nice -n 19 vitest run --project types",
     "test:coverage": "nice -n 19 vitest run --coverage",
     "test:ct": "rm -rf playwright/.cache && nice -n 19 playwright test -c playwright-ct.config.ts",
