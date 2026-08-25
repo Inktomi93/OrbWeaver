@@ -21,7 +21,6 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type {
   PluginBadgeNode,
-  PluginBoundNumber,
   PluginBoundString,
   PluginButtonNode,
   PluginConfirmButtonNode,
@@ -60,12 +59,11 @@ import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useInvokeUiAction } from "../lib/plugin-mutations.ts";
-
-/** A `meter` with no explicit `max` scales to 100 (the house percentage default). */
-const METER_DEFAULT_MAX = 100;
+import { collectDefaults, collectImageAssetIds, METER_DEFAULT_MAX, numFromValues, resolveNumber, resolveString } from "../lib/plugin-surface-bindings.ts";
 
 /** The seven display leaves (no form state) and the seven form/action leaves — partition the non-container node
- *  union so each leaf renderer's switch stays exhaustive over a SMALL union (a new kind still fails `tsc`). */
+ *  union so each leaf renderer stays over a SMALL union (a new kind still fails `tsc`). Local to the renderer:
+ *  these are rendering partitions, not a cross-boundary contract shape. */
 type DisplayNode = PluginTextNode | PluginBadgeNode | PluginMeterNode | PluginKeyValueNode | PluginListNode | PluginImageNode | PluginMarkdownNode;
 type FormNode =
   | PluginTextFieldNode
@@ -93,46 +91,6 @@ interface RenderCtx {
   readonly imageUrls: ReadonlyMap<string, string>;
 }
 
-/** Read a dotted path out of the published state (`{ $state: "a.b" }`); `undefined` for any miss or non-object hop. */
-function readStatePath(state: Record<string, unknown>, path: string): unknown {
-  let cursor: unknown = state;
-  for (const segment of path.split(".")) {
-    if (typeof cursor !== "object" || cursor === null) {
-      return;
-    }
-    cursor = (cursor as Record<string, unknown>)[segment];
-  }
-  return cursor;
-}
-
-/** Resolve a bindable STRING: a `{ $state }` binding against the published state, else the literal. A miss
- *  renders the empty string (never a raw object). */
-function resolveString(value: PluginBoundString, state: Record<string, unknown>): string {
-  if (typeof value === "string") {
-    return value;
-  }
-  const resolved = readStatePath(state, value.$state);
-  if (typeof resolved === "string") {
-    return resolved;
-  }
-  return typeof resolved === "number" ? String(resolved) : "";
-}
-
-/** Resolve a bindable NUMBER: a `{ $state }` binding, else the literal. A miss/non-number resolves to 0. */
-function resolveNumber(value: PluginBoundNumber, state: Record<string, unknown>): number {
-  if (typeof value === "number") {
-    return value;
-  }
-  const resolved = readStatePath(state, value.$state);
-  return typeof resolved === "number" ? resolved : 0;
-}
-
-/** A numeric form value with a fallback for the empty/unset state. */
-function numFromValues(values: Record<string, string>, name: string, fallback: number): number {
-  const raw = values[name];
-  return raw === undefined || raw === "" ? fallback : Number(raw);
-}
-
 /** The house Text voice for a plugin `text`/section voice — `gloss`/`label` pass through; `body` is the default. */
 function BoundText({
   value,
@@ -152,51 +110,6 @@ function BoundText({
     );
   }
   return <Text prose={true}>{text}</Text>;
-}
-
-/** Collect every `image` node's assetId (resolved once, owner-scoped, at the top). */
-function collectImageAssetIds(node: PluginSurfaceNode, out: AssetId[]): void {
-  if (node.kind === "image") {
-    out.push(node.assetId);
-    return;
-  }
-  if (node.kind === "stack" || node.kind === "row" || node.kind === "section") {
-    for (const child of node.children) {
-      collectImageAssetIds(child, out);
-    }
-  }
-}
-
-/** Stringify a primitive form default. Concretely typed so the toString is the primitive's own, never a
- *  default-object one (the nursery `noBaseToString` guard). */
-function primToString(value: number | boolean): string {
-  return value.toString();
-}
-
-/** Collect form-field defaults — the initial `values` bag (every field serializes to a string). */
-function collectDefaults(node: PluginSurfaceNode, out: Record<string, string>): void {
-  switch (node.kind) {
-    case "stack":
-    case "row":
-    case "section":
-      for (const child of node.children) {
-        collectDefaults(child, out);
-      }
-      return;
-    case "textField":
-    case "select":
-      out[node.name] = node.value ?? "";
-      return;
-    case "numberField":
-    case "slider":
-      out[node.name] = node.value === undefined ? "" : primToString(node.value);
-      return;
-    case "toggle":
-      out[node.name] = primToString(node.value ?? false);
-      return;
-    default:
-      return;
-  }
 }
 
 /** The renderer entry: validate the spec (caps), resolve owner-scoped image urls + surface state, hold the form
@@ -264,82 +177,89 @@ function SurfaceNode({ node, depth, ctx }: { readonly node: PluginSurfaceNode; r
   if (depth > PLUGIN_SPEC_MAX_DEPTH) {
     return null;
   }
-  switch (node.kind) {
-    case "stack":
-      return <Stack gap={node.gap ?? "block"}>{renderChildren(node.children, depth, ctx)}</Stack>;
-    case "row":
-      return <Row gap={node.gap ?? "field"}>{renderChildren(node.children, depth, ctx)}</Row>;
-    case "section":
-      return (
-        <Stack gap="field">
-          <Text voice="kicker">{node.kicker}</Text>
-          {renderChildren(node.children, depth, ctx)}
-        </Stack>
-      );
-    default:
-      return isFormNode(node) ? <FormLeaf ctx={ctx} node={node} /> : <DisplayLeaf ctx={ctx} node={node} />;
+  // Containers vs leaves is a DISPATCH, not an exhaustive case-per-kind: each container guard narrows `node`,
+  // and what remains flows to the leaf renderers (each exhaustive over its own SMALL union). An if-chain, not a
+  // switch, so the three container kinds carry no obligation to re-list the fourteen leaves the leaf switches own.
+  if (node.kind === "stack") {
+    return <Stack gap={node.gap ?? "block"}>{renderChildren(node.children, depth, ctx)}</Stack>;
   }
+  if (node.kind === "row") {
+    return <Row gap={node.gap ?? "field"}>{renderChildren(node.children, depth, ctx)}</Row>;
+  }
+  if (node.kind === "section") {
+    return (
+      <Stack gap="field">
+        <Text voice="kicker">{node.kicker}</Text>
+        {renderChildren(node.children, depth, ctx)}
+      </Stack>
+    );
+  }
+  return isFormNode(node) ? <FormLeaf ctx={ctx} node={node} /> : <DisplayLeaf ctx={ctx} node={node} />;
 }
 
-/** The seven DISPLAY leaves (no form state). */
+/** The seven DISPLAY leaves (no form state). An if-chain, not a switch: each guard narrows `node`, and the
+ *  final `markdown` return doubles as the forward-compat fallback over an untrusted (post-validation) spec. */
 function DisplayLeaf({ node, ctx }: { readonly node: DisplayNode; readonly ctx: RenderCtx }): ReactElement {
-  switch (node.kind) {
-    case "text":
-      return <BoundText state={ctx.state} value={node.value} voice={node.voice} />;
-    case "badge":
-      return (
-        <Badge intent={node.intent ?? "neutral"} size="sm" tone="soft">
-          {resolveString(node.text, ctx.state)}
-        </Badge>
-      );
-    case "meter":
-      return (
-        <Meter
-          kind="linear"
-          label={node.label ?? ""}
-          max={node.max ?? METER_DEFAULT_MAX}
-          showValue={node.label !== undefined}
-          value={resolveNumber(node.value, ctx.state)}
-        />
-      );
-    case "keyValue":
-      return (
-        <Stack gap="tight">
-          {node.rows.map((kv) => (
-            <Row align="baseline" gap="field" justify="between" key={kv.key}>
-              <Text voice="label">{kv.key}</Text>
-              <Text prose={true} voice="gloss">
-                {resolveString(kv.value, ctx.state)}
-              </Text>
-            </Row>
-          ))}
-        </Stack>
-      );
-    case "list":
-      return (
-        <Stack gap="tight">
-          {node.items.map((item, index) => (
-            <Text
-              // biome-ignore lint/suspicious/noArrayIndexKey: a list item is a bindable string with no id and the list is static per render — index is a stable key here.
-              key={index}
-              prose={true}
-            >
-              {resolveString(item, ctx.state)}
-            </Text>
-          ))}
-        </Stack>
-      );
-    case "image":
-      return <SurfaceImage node={node} url={ctx.imageUrls.get(node.assetId)} />;
-    default:
-      // Untrusted plugin markdown — the sealed Streamdown renderer's `untrusted` tier (Tier-A allowlist + url
-      // gate), the same posture model output takes; never `trusted`.
-      return (
-        <Markdown mode="static" trust="untrusted">
-          {resolveString(node.value, ctx.state)}
-        </Markdown>
-      );
+  if (node.kind === "text") {
+    return <BoundText state={ctx.state} value={node.value} voice={node.voice} />;
   }
+  if (node.kind === "badge") {
+    return (
+      <Badge intent={node.intent ?? "neutral"} size="sm" tone="soft">
+        {resolveString(node.text, ctx.state)}
+      </Badge>
+    );
+  }
+  if (node.kind === "meter") {
+    return (
+      <Meter
+        kind="linear"
+        label={node.label ?? ""}
+        max={node.max ?? METER_DEFAULT_MAX}
+        showValue={node.label !== undefined}
+        value={resolveNumber(node.value, ctx.state)}
+      />
+    );
+  }
+  if (node.kind === "keyValue") {
+    return (
+      <Stack gap="tight">
+        {node.rows.map((kv) => (
+          <Row align="baseline" gap="field" justify="between" key={kv.key}>
+            <Text voice="label">{kv.key}</Text>
+            <Text prose={true} voice="gloss">
+              {resolveString(kv.value, ctx.state)}
+            </Text>
+          </Row>
+        ))}
+      </Stack>
+    );
+  }
+  if (node.kind === "list") {
+    return (
+      <Stack gap="tight">
+        {node.items.map((item, index) => (
+          <Text
+            // biome-ignore lint/suspicious/noArrayIndexKey: a list item is a bindable string with no id and the list is static per render — index is a stable key here.
+            key={index}
+            prose={true}
+          >
+            {resolveString(item, ctx.state)}
+          </Text>
+        ))}
+      </Stack>
+    );
+  }
+  if (node.kind === "image") {
+    return <SurfaceImage node={node} url={ctx.imageUrls.get(node.assetId)} />;
+  }
+  // Untrusted plugin markdown — the sealed Streamdown renderer's `untrusted` tier (Tier-A allowlist + url gate),
+  // the same posture model output takes; never `trusted`. Last in the chain, so it is also the safe fallback.
+  return (
+    <Markdown mode="static" trust="untrusted">
+      {resolveString(node.value, ctx.state)}
+    </Markdown>
+  );
 }
 
 /** An `image` node — the src is ALWAYS an owner-scoped CAS blob url; a miss is the empty placeholder. */
@@ -357,78 +277,83 @@ function SurfaceImage({ node, url }: { readonly node: PluginImageNode; readonly 
   return <MessageMedia alt={node.alt ?? ""} media="image" src={{ kind: "asset", url }} />;
 }
 
-/** The seven FORM/ACTION leaves. Values are client-transient until an action submits the whole bag. */
+/** The seven FORM/ACTION leaves. Values are client-transient until an action submits the whole bag. An if-chain,
+ *  not a switch: each guard narrows `node`, and the final `confirmButton` return doubles as the safe fallback. */
 function FormLeaf({ node, ctx }: { readonly node: FormNode; readonly ctx: RenderCtx }): ReactElement {
-  switch (node.kind) {
-    case "textField":
-      return (
-        <Field description={node.placeholder} label={node.label}>
-          <Input onValueChange={(next: string): void => ctx.setValue(node.name, next)} placeholder={node.placeholder} value={ctx.values[node.name] ?? ""} />
-        </Field>
-      );
-    case "numberField":
-      return (
-        <Field label={node.label}>
-          <NumberField
-            max={node.max}
-            min={node.min}
-            onValueChange={(next): void => ctx.setValue(node.name, next === null ? "" : String(next))}
-            step={node.step}
-            value={ctx.values[node.name] === undefined || ctx.values[node.name] === "" ? null : Number(ctx.values[node.name])}
-          />
-        </Field>
-      );
-    case "toggle":
-      return (
-        <Field label={node.label} orientation="horizontal">
-          <Switch checked={ctx.values[node.name] === "true"} onCheckedChange={(next): void => ctx.setValue(node.name, String(next))} />
-        </Field>
-      );
-    case "select":
-      return (
-        <Field label={node.label}>
-          <Select
-            items={node.options.map((o) => ({ label: o.label, value: o.value }))}
-            onValueChange={(next: string | null): void => ctx.setValue(node.name, next ?? "")}
-            value={ctx.values[node.name] ?? ""}
-          />
-        </Field>
-      );
-    case "slider":
-      return (
-        <Slider
-          label={node.label}
+  if (node.kind === "textField") {
+    return (
+      <Field description={node.placeholder} label={node.label}>
+        <Input onValueChange={(next: string): void => ctx.setValue(node.name, next)} placeholder={node.placeholder} value={ctx.values[node.name] ?? ""} />
+      </Field>
+    );
+  }
+  if (node.kind === "numberField") {
+    return (
+      <Field label={node.label}>
+        <NumberField
           max={node.max}
           min={node.min}
-          onValueChange={(next): void => ctx.setValue(node.name, String(next))}
-          step={node.step ?? 1}
-          value={numFromValues(ctx.values, node.name, node.min)}
+          onValueChange={(next): void => ctx.setValue(node.name, next === null ? "" : String(next))}
+          step={node.step}
+          value={ctx.values[node.name] === undefined || ctx.values[node.name] === "" ? null : Number(ctx.values[node.name])}
         />
-      );
-    case "button":
-      return (
-        <Button
-          intent={node.variant === "outline" ? "outline" : "secondary"}
-          loading={ctx.submitting}
-          onClick={(): void => ctx.submit(node.actionId)}
-          size="sm"
-        >
+      </Field>
+    );
+  }
+  if (node.kind === "toggle") {
+    return (
+      <Field label={node.label} orientation="horizontal">
+        {/* aria-label carries the field label onto the control itself — Field renders the visible label, but
+            the a11y rule wants the Switch to carry its OWN accessible name (same string, no double-voicing). */}
+        <Switch aria-label={node.label} checked={ctx.values[node.name] === "true"} onCheckedChange={(next): void => ctx.setValue(node.name, String(next))} />
+      </Field>
+    );
+  }
+  if (node.kind === "select") {
+    return (
+      <Field label={node.label}>
+        {/* aria-label mirrors the Field label onto the trigger — Base UI's Select.Label doesn't reach the
+            trigger's aria-labelledby standalone, and the static a11y rule wants the control's own name. */}
+        <Select
+          aria-label={node.label}
+          items={node.options.map((o) => ({ label: o.label, value: o.value }))}
+          onValueChange={(next: string | null): void => ctx.setValue(node.name, next ?? "")}
+          value={ctx.values[node.name] ?? ""}
+        />
+      </Field>
+    );
+  }
+  if (node.kind === "slider") {
+    return (
+      <Slider
+        label={node.label}
+        max={node.max}
+        min={node.min}
+        onValueChange={(next): void => ctx.setValue(node.name, String(next))}
+        step={node.step ?? 1}
+        value={numFromValues(ctx.values, node.name, node.min)}
+      />
+    );
+  }
+  if (node.kind === "button") {
+    return (
+      <Button intent={node.variant === "outline" ? "outline" : "secondary"} loading={ctx.submitting} onClick={(): void => ctx.submit(node.actionId)} size="sm">
+        {node.label}
+      </Button>
+    );
+  }
+  // confirmButton — last in the chain, so it is also the safe fallback over an untrusted (post-validation) spec.
+  return (
+    <ConfirmDialog
+      confirmLabel={node.label}
+      description={node.confirmBody ?? ""}
+      onConfirm={(): void => ctx.submit(node.actionId)}
+      title={node.confirmTitle}
+      trigger={
+        <Button intent="destructive" loading={ctx.submitting} size="sm">
           {node.label}
         </Button>
-      );
-    default:
-      return (
-        <ConfirmDialog
-          confirmLabel={node.label}
-          description={node.confirmBody ?? ""}
-          onConfirm={(): void => ctx.submit(node.actionId)}
-          title={node.confirmTitle}
-          trigger={
-            <Button intent="destructive" loading={ctx.submitting} size="sm">
-              {node.label}
-            </Button>
-          }
-        />
-      );
-  }
+      }
+    />
+  );
 }
