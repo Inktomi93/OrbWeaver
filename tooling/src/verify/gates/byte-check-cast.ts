@@ -53,9 +53,10 @@ function fixtureSource(capExpr: string, constName: string, constValue: number): 
   );
 }
 
-/** The SQL template text of a `check("name", sql.raw(\`...\`))` call, or undefined if this call isn't
- *  that shape (a `check()` with a different second-arg form — e.g. the `type in (...)` list-check callers
- *  that pass a precomputed string — never RESOLVES a length() cap and is correctly out of reach). */
+/** The SQL template text of a `check("name", sql.raw(...))` call (where the second arg is a template
+ *  literal), or undefined if this call isn't that shape (a `check()` with a different second-arg form
+ *  — e.g. the `type in (...)` list-check callers that pass a precomputed string — never RESOLVES a
+ *  length() cap and is correctly out of reach). */
 function checkSqlTemplate(call: Node): string | undefined {
   if (!Node.isCallExpression(call) || call.getExpression().getText() !== CHECK_FN) {
     return;

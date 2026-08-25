@@ -236,20 +236,18 @@ export function PluginGrantList({
               name, and the same word, never a colour. Marked hosts are exactly `addedNetHosts` and nothing
               is inferred here: the whole list still renders, because consent to an exact-host allowlist is
               consent to the SET, and the mark only says which members of it are new. */}
-          <ul className="m-0 flex list-none flex-col gap-tight p-0">
+          <Stack gap="tight" role="list">
             {netHosts.map((host) => (
-              <li key={host}>
-                <Row align="center" gap="field">
-                  <Text voice="datumMono">{host}</Text>
-                  {addedHostSet.has(host) ? (
-                    <Badge intent="info" size="sm" tone="soft">
-                      New
-                    </Badge>
-                  ) : null}
-                </Row>
-              </li>
+              <Row key={host} align="center" gap="field" role="listitem">
+                <Text voice="datumMono">{host}</Text>
+                {addedHostSet.has(host) ? (
+                  <Badge intent="info" size="sm" tone="soft">
+                    New
+                  </Badge>
+                ) : null}
+              </Row>
             ))}
-          </ul>
+          </Stack>
         </Stack>
       ) : null}
     </Stack>

@@ -45,8 +45,8 @@
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import process from "node:process";
-import { runNicedSync } from "../../_shared/proc.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { runNicedSync } from "../../_shared/proc.ts";
 
 // This is a LIBRARY module — the real door is `pnpm test:ratchets` (→ `cli.ts ratchet-gate`). Refuse being
 // the process entry so `node <this path>` cannot load, run nothing, and print a bare zero a reader trusts.
