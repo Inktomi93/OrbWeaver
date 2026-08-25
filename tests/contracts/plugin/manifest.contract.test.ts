@@ -1,5 +1,5 @@
 // Contract tests for @orb/contracts/plugin/manifest (plugin-design P2 §1): the install-time trust edge. The
-// capability axis (the pinned 13-member closed list, confirm-dialog order), the manifest matrix (every refusal
+// capability axis (the pinned 15-member closed list, confirm-dialog order), the manifest matrix (every refusal
 // typed — bad slug, unserved hostVersion, bad semver, wrong entry, the netHosts ⟺ net.fetch biconditional,
 // netHosts SSRF regex, caps superset), and the OPTIONAL builtAgainst provenance block. Mirror of manifest.ts.
 
@@ -18,11 +18,13 @@ const BASE = {
 
 // THE ORDER IS THE CONFIRM-DIALOG DISPLAY ORDER (`manifest.ts` says so), so this `toEqual` is not a count pin
 // wearing a list's clothes — it is the consent screen's reading order, and the client's `CAPABILITY_COPY_ROWS`
-// is written to match it. `llm.quiet` was inserted at position 11 rather than appended: it is SPEND class, and
-// the three spend capabilities (`turn.trigger`, `imagery.generate`, `llm.quiet`) sit adjacent so the "Costs
-// money" badge and the reading order reinforce each other on a screen whose scan question is "what can this
-// cost me". Moving a member is a UX decision, not a refactor.
-test("PLUGIN_CAPABILITIES is the pinned 14-member axis (02 §1) in confirm-dialog order", () => {
+// is written to match it. `llm.quiet` sits at position 12: it is SPEND class, and the three spend capabilities
+// (`turn.trigger`, `imagery.generate`, `llm.quiet`) sit adjacent so the "Costs money" badge and the reading
+// order reinforce each other on a screen whose scan question is "what can this cost me". `ui.surface` (#679)
+// was inserted at position 9 — after `notify`, BEFORE the spend block — deliberately: it is neither spend nor
+// risk (it renders only for the installer, house-drawn, and cannot impersonate host chrome), so it reads in the
+// benign band and does not split the three adjacent spend rows. Moving a member is a UX decision, not a refactor.
+test("PLUGIN_CAPABILITIES is the pinned 15-member axis (02 §1; ui.surface #679) in confirm-dialog order", () => {
   expect(PLUGIN_CAPABILITIES).toEqual([
     "chat.read",
     "chat.variables.write",
@@ -32,6 +34,7 @@ test("PLUGIN_CAPABILITIES is the pinned 14-member axis (02 §1) in confirm-dialo
     "global_vars",
     "storage.kv",
     "notify",
+    "ui.surface",
     "turn.trigger",
     "imagery.generate",
     "llm.quiet",
@@ -39,6 +42,13 @@ test("PLUGIN_CAPABILITIES is the pinned 14-member axis (02 §1) in confirm-dialo
     "tools.register",
     "net.fetch",
   ]);
+});
+
+test("pluginManifestSchema accepts the ui.surface capability (a plugin may declare its own surfaces)", () => {
+  const parsed = pluginManifestSchema.parse({ ...BASE, capabilities: ["ui.surface"] });
+  expect(parsed.capabilities).toEqual(["ui.surface"]);
+  // ui.surface carries no netHosts coupling — it is not a network grant.
+  expect(parsed.netHosts).toBeUndefined();
 });
 
 test("pluginManifestSchema accepts a minimal well-formed manifest", () => {
