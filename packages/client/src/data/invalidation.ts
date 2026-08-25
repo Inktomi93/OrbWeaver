@@ -16,7 +16,7 @@ import { roomRegistry } from "./bus/room-registry.ts";
 import { collapseFilters } from "./collapse-filters.ts";
 import { applyCanonView } from "./invalidation-carrier.ts";
 import type { InvalidateFilter } from "./invalidation-reads.ts";
-import { chatCanonReads, chatReads, hiddenRevealRead, promptPreviewReads, ROOM_ENTITY_FILTERS } from "./invalidation-reads.ts";
+import { chatCanonReads, chatReads, hiddenRevealRead, promptPreviewReads, ROOM_ENTITY_FILTERS, runtimeVariablesRead } from "./invalidation-reads.ts";
 import type { Trpc } from "./trpc.ts";
 
 export type { InvalidateFilter } from "./invalidation-reads.ts";
@@ -87,7 +87,7 @@ const BUS_FILTERS: BusFilterMap = {
 
   // Canon-terminal commit — the open chat's canon only; the chat list/character-library recency is
   // driven by the user-bus chatsChanged fan on this same moment (avoids a triple-invalidate).
-  messageCommitted: (_e, trpc) => [...chatCanonReads(trpc), ...hiddenRevealRead(trpc)],
+  messageCommitted: (_e, trpc) => [...chatCanonReads(trpc), ...hiddenRevealRead(trpc), ...runtimeVariablesRead(trpc)],
   messageEdited: (_e, trpc) => chatReads(trpc),
   messageHidden: (_e, trpc) => chatReads(trpc),
   // A pointer flip changes both canon and the RPG lineage projected from that selected variant. No RPG
@@ -98,7 +98,7 @@ const BUS_FILTERS: BusFilterMap = {
   reasoningEdited: (_e, trpc) => chatReads(trpc),
   reasoningCleared: (_e, trpc) => chatReads(trpc),
 
-  turnCompleted: (_e, trpc) => chatCanonReads(trpc),
+  turnCompleted: (_e, trpc) => [...chatCanonReads(trpc), ...runtimeVariablesRead(trpc)],
   turnAborted: (_e, trpc) => chatReads(trpc),
 
   // A re-anchored persona rewrites `{{user}}` (and the persona block) in the NEXT turn's prompt — the room
