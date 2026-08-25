@@ -126,4 +126,4 @@ export function remainsOperable(kind: InactiveKind): boolean {
  *  used here as an advisory floor rather than as a pass/fail criterion.
  *  Deliberately the SAME numeric value as `UI_COMPONENT_MIN_RATIO`, kept under its own name because it
  *  is a distinct concept (an advisory floor, not a pass/fail minimum), not an accidental duplicate. */
-export const INACTIVE_ADVISORY_MAX_RATIO = UI_COMPONENT_MIN_RATIO;
+export const INACTIVE_ADVISORY_MAX_RATIO = 3;

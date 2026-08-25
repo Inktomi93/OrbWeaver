@@ -175,7 +175,11 @@ const STATIC: ExemptionTable = {
 // `chatsChanged` row; `assets.listOwned` gained its upload-seam driver and moved to STATIC above). The lane
 // stays: this is where a key with a REAL freshness debt gets tracked with its remediation, rather than being
 // laundered into STATIC (which asserts the key is fine as-is).
-const DEFERRED: ExemptionTable = {};
+const DEFERRED: ExemptionTable = {
+  "automation.listChatActivity": {
+    why: "the host-only room Activity readout (features/automation/components/room-activity-log.tsx) reads on tab mount; a new fire lands SERVER-side with no client bus event to drive invalidation. v1 is a read-on-open readout (switching CONTEXT tabs remounts and refetches); the live in-view fire-arrival digest is the separately-priced B6 reactions-while-away bus (interaction-direction-spec B11 / R5). Remediation: add the invalidation row when B6's bus carries the fire-arrival signal.",
+  },
+};
 
 // ── the seam, found BY SYMBOL (never by path) ────────────────────────────────────────────────────────────
 const SEAM_FACTORY = "createInvalidation";

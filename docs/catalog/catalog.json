@@ -11491,8 +11491,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 631,
-      "bytes": 64484,
-      "sha256": "75f9d89296bf0238608546489d611bdb7d428bfd111e83e0bab8d1bb54b4e8d1",
+      "bytes": 64889,
+      "sha256": "19765fe58b934826b76349e6dd604c39760f6345be0ad6dbf93d70be7bef2c53",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11509,8 +11509,8 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "75f9d89296bf0238608546489d611bdb7d428bfd111e83e0bab8d1bb54b4e8d1",
-        "verifiedCommit": "1587bbc97af2643f09413d38c0b69b4eff94bc82",
+        "verifiedSha256": "19765fe58b934826b76349e6dd604c39760f6345be0ad6dbf93d70be7bef2c53",
+        "verifiedCommit": "b1b76f2602a38c24a300cfa987094d911668b772",
         "verifiedAt": "2026-08-25",
         "evidence": [
           "docs/design/interaction-direction-spec.md read in full by the orchestrator before commit (1a7f20ed3); the needle ruling folded at both sites by the orchestrator after the owner's 2026-08-24 call",
