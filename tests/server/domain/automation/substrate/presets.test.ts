@@ -98,8 +98,8 @@ test("the picker projection flattens the knob schema and carries no CEL", () => 
 });
 
 // ── #655: the SPEND signal ────────────────────────────────────────────────────────────────────────────
-// The picker had none, and most of the presets commit the host to a RECURRING model charge (ten of the
-// fourteen as of C2's lore distillers). These pin that the answer is DERIVED from the arms the builder actually
+// The picker had none, and most of the presets commit the host to a RECURRING model charge (eleven of the
+// fifteen as of #16's needle). These pin that the answer is DERIVED from the arms the builder actually
 // emits — the whole reason a hand-kept `spends: boolean` on the def was refused: a flag an author forgets to
 // flip is a lie on a money surface.
 
@@ -118,6 +118,10 @@ const SPENDING_PRESET_IDS = [
   // C2's lore distillers each fire a `run_analysis` model pass on a cadence — SPEND-classed.
   "distillLore",
   "rumorMill",
+  // #16 the needle: its READ half is a `run_analysis` pass every N beats. (Its other rule's
+  // `set_chat_background` is deliberately NOT spend-classed — the quiet pick is cheap — so the row is true
+  // because of the analysis, not the backdrop.)
+  "theNeedle",
 ];
 
 test("#655: the spend signal names exactly the presets whose arms cost a model call", () => {
