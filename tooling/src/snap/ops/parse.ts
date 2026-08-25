@@ -1,5 +1,5 @@
 // Argv → Args: the side-effect-free scan (unknown flags, value/type validation, page-suffix rules),
-// the parse loop over ops/flags.ts's table, mode cross-validation, and the ARG WARNING set.
+// the parse loop over ops/flags-handlers.ts's table, mode cross-validation, and the ARG WARNING set.
 import { appearanceHelpBlock } from "../../_shared/appearance.ts";
 import { parseViewport, splitFirstEq, splitLastEq, splitPageSuffix } from "../../_shared/argv.ts";
 import { DEFAULT_BASE, DEFAULT_DEBUG_TOKEN } from "../../_shared/browser.ts";
@@ -8,7 +8,9 @@ import { themeHelpBlock } from "../../_shared/theme.ts";
 import type { Args } from "../contract/types.ts";
 import { CROP_RE } from "../lib/out-names.ts";
 import { selectorRefusalForFlag } from "../lib/selector-shape.ts";
-import { DEFAULT_VIEWPORT, FLAG_HANDLERS, MS_PER_SECOND, OPTIONAL_SELECTOR_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags.ts";
+import { OPTIONAL_SELECTOR_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
+import { FLAG_HANDLERS } from "./flags-handlers.ts";
+import { DEFAULT_VIEWPORT, MS_PER_SECOND } from "./flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 

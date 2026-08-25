@@ -21,7 +21,7 @@ export { SELECTOR_VALUE_FLAGS, selectorRefusalForFlag, unmatchableSelectorRefusa
 export { resolveContextsMode, snapContexts } from "./ops/contexts.ts";
 export { splitTrailingEvals } from "./ops/drive.ts";
 export { resolveFixtureTarget } from "./ops/fixture.ts";
-export { OPTIONAL_SELECTOR_FLAGS } from "./ops/flags.ts";
+export { OPTIONAL_SELECTOR_FLAGS } from "./ops/flags-classes.ts";
 export { configureStage, refuseFileMode } from "./ops/guards.ts";
 export { snapMatrix } from "./ops/matrix.ts";
 export { isSandboxTraceNoise, isViteDepChurn, partitionFailedRequests, SANDBOX_TRACE_NOISE_RE } from "./ops/noise.ts";
