@@ -73,12 +73,23 @@ test("a DEACTIVATED plugin's tools drop out of the list, and every listed name s
   service.registerPluginTool(pluginSpec("plugin_alice_one", ALICE));
   const two = service.registerPluginTool(pluginSpec("plugin_alice_two", ALICE));
 
-  expect(() => service.resolveTools([...service.listDrivableToolNames(ALICE.userId)])).not.toThrow();
+  expect(() => service.resolveTools(ALICE.userId, [...service.listDrivableToolNames(ALICE.userId)])).not.toThrow();
 
   two.unregister();
   expect(service.listDrivableToolNames(ALICE.userId)).toEqual(["plugin_alice_one"]);
   // The whole point: the list is a live read, so what it returns is still resolvable AFTER the deactivation.
-  expect(() => service.resolveTools([...service.listDrivableToolNames(ALICE.userId)])).not.toThrow();
+  expect(() => service.resolveTools(ALICE.userId, [...service.listDrivableToolNames(ALICE.userId)])).not.toThrow();
   // ...and the CONTROL, so the assertion above is not passing vacuously: the dropped name really would throw.
-  expect(() => service.resolveTools(["plugin_alice_two"])).toThrow();
+  expect(() => service.resolveTools(ALICE.userId, ["plugin_alice_two"])).toThrow();
+});
+
+test("the enumerate→resolve pair agrees on the DRIVER — Bob cannot resolve a name only Alice's list carries", () => {
+  // #677 completes the round trip. `listDrivableToolNames` was already per-user; `resolveTools` was not, so a
+  // name enumerated for Alice used to resolve for anybody who could utter it. Now the two halves are keyed the
+  // same way, which is what makes "the attach union is the HOST's" true at the resolve step and not just at the
+  // enumerate step.
+  const service = serviceOf();
+  service.registerPluginTool(pluginSpec("plugin_alice_one", ALICE));
+  expect(() => service.resolveTools(ALICE.userId, ["plugin_alice_one"])).not.toThrow();
+  expect(() => service.resolveTools(BOB.userId, ["plugin_alice_one"])).toThrow();
 });
