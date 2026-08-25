@@ -51,6 +51,7 @@ import type {
   ClearVariablesParams,
   DeleteChatInjectionParams,
   DeleteChatParams,
+  GetRuntimeVariablesParams,
   GetUserMacroPicksParams,
   GetVariablePicksParams,
   GetVariablesParams,
@@ -69,7 +70,7 @@ import type { ChatService } from "../contract/service.ts";
 import type { ChatInjectionView, UserMacroPicksView, VariablePicksView } from "../contract/views.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
-import { loadChatInjections, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries.ts";
+import { loadChatInjections, loadRuntimeVariables, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
 import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
@@ -108,6 +109,7 @@ type ChatLifecycleVerbs = Pick<
   | "getVariables"
   | "getUserMacroPicks"
   | "getVariablePicks"
+  | "getRuntimeVariables"
   | "setVariables"
   | "setUserMacroValues"
   | "clearVariables"
@@ -463,6 +465,18 @@ function createGetVariablePicks(ctx: ChatContext): ChatService["getVariablePicks
   };
 }
 
+/** `getRuntimeVariables` — member. The room's RUNTIME variable fold (`chats.runtimeVariables` — the plane a
+ *  `set_variable` arm, a turn's `{{setvar}}` delta, and the needle's GATED score write all land in; S5 §4).
+ *  Member-gated by design (the plane is member-visible — the reason analysis arcs/twists/guidance may never
+ *  write into it); the plugin membrane's `getVariables` reads the same column through its own admission.
+ *  No claim, no emit — a pure read; client invalidation rides the existing turn-commit/swipe bus events. */
+function createGetRuntimeVariables(ctx: ChatContext): ChatService["getRuntimeVariables"] {
+  return async ({ principal, chatId }: GetRuntimeVariablesParams): Promise<Record<string, string>> => {
+    await requireParticipant(ctx, principal, chatId);
+    return loadRuntimeVariables(ctx.db, chatId);
+  };
+}
+
 /** `clearVariables` — member. Null the persisted variable flush. Emits `chatUpdated`. */
 function createClearVariables(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["clearVariables"] {
   return async ({ principal, chatId }: ClearVariablesParams): Promise<void> => {
@@ -554,6 +568,7 @@ export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): 
     setUserMacroValues: createSetUserMacroValues(ctx, emit, claimChat),
     getUserMacroPicks: createGetUserMacroPicks(ctx),
     getVariablePicks: createGetVariablePicks(ctx),
+    getRuntimeVariables: createGetRuntimeVariables(ctx),
     clearVariables: createClearVariables(ctx, emit, claimChat),
     setChatInjection: createSetChatInjection(ctx, emit, claimChat),
     listChatInjections: createListChatInjections(ctx),

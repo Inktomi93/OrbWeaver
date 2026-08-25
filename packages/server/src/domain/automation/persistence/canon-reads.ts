@@ -6,10 +6,11 @@
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { assets, characters, chatBooks, chatParticipants, chats, messages, messageVariants, worldEntries } from "@orb/db";
+import { assets, characters, chatBooks, chatParticipants, chats, messages, messageVariants, rpgGames, worldEntries } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, lte, sql } from "drizzle-orm";
+import type { AnalysisWindowRow } from "../contract/analysis.ts";
 
 const LIMIT_ONE = 1;
 
@@ -96,4 +97,55 @@ export async function isDomainRowOwnedBy(db: Db, kind: "character" | "asset", id
 export async function listRuleEntryTitles(db: Db, bookId: WorldBookId, titlePrefix: string): Promise<string[]> {
   const rows = await db.select({ title: worldEntries.title }).from(worldEntries).where(eq(worldEntries.worldBookId, bookId));
   return rows.flatMap((row) => (row.title.startsWith(titlePrefix) ? [row.title] : []));
+}
+
+// ── S5 — the run_analysis read windows + the game fence ────────────────────────────────────────────────
+// The row shape is `contract/analysis.ts::AnalysisWindowRow` (the type home); these reads implement it.
+
+/** Read one analysis window, oldest-first. `afterSeq`/`throughSeq` bound the span (both optional); `limit`
+ *  keeps the NEWEST rows of the span (the query walks newest-first and the result is re-reversed), which is
+ *  the legacy slice posture: a cold start over a long chat reads what is freshest and the watermark still
+ *  advances over the whole span. */
+export async function listAnalysisWindow(
+  db: Db,
+  chatId: ChatId,
+  opts: { readonly afterSeq?: number; readonly throughSeq?: number; readonly limit: number },
+): Promise<AnalysisWindowRow[]> {
+  const bounds = [
+    eq(messages.chatId, chatId),
+    ...(opts.afterSeq !== undefined ? [gt(messages.seq, opts.afterSeq)] : []),
+    ...(opts.throughSeq !== undefined ? [lte(messages.seq, opts.throughSeq)] : []),
+  ];
+  const rows = await db
+    .select({ seq: messages.seq, role: messages.role, speaker: characters.name, content: messageVariants.content })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .leftJoin(characters, eq(characters.id, messages.characterId))
+    .where(and(...bounds))
+    .orderBy(desc(messages.seq))
+    .limit(opts.limit);
+  return rows.reverse();
+}
+
+/** The chat's newest VISIBLE seq (the settled-span upper bound derives from it: `maxSeq − protectTail`).
+ *  `null` = an empty chat (no settled span can exist). */
+export async function maxVisibleSeq(db: Db, chatId: ChatId): Promise<number | null> {
+  const rows = await db
+    .select({ max: sql<number | null>`max(${messages.seq})` })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(eq(messages.chatId, chatId));
+  return rows[0]?.max ?? null;
+}
+
+/** Whether the chat has an ACTIVE rpg game — the analysis-arm MINT fence (§3-S5.7: the game owns its own
+ *  steering, D109; the legacy no-double-director law). A narrow schema-level read of `rpg_games` (the
+ *  sanctioned canon-read posture — this file's header), never an rpg service call. */
+export async function hasActiveGame(db: Db, chatId: ChatId): Promise<boolean> {
+  const rows = await db
+    .select({ id: rpgGames.id })
+    .from(rpgGames)
+    .where(and(eq(rpgGames.chatId, chatId), eq(rpgGames.status, "active")))
+    .limit(LIMIT_ONE);
+  return rows.length > 0;
 }

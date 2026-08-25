@@ -51,6 +51,15 @@ CREATE TABLE `automation_fires` (
 --> statement-breakpoint
 CREATE INDEX `automation_fires_rule_time` ON `automation_fires` (`rule_id`,`fired_at`);--> statement-breakpoint
 CREATE INDEX `automation_fires_chat_idx` ON `automation_fires` (`chat_id`);--> statement-breakpoint
+CREATE TABLE `automation_rule_state` (
+	`rule_id` text PRIMARY KEY NOT NULL,
+	`state` text NOT NULL,
+	`guidance` text DEFAULT '' NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`rule_id`) REFERENCES `automation_rules`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "automation_rule_state_guidance_check" CHECK(length(guidance) <= 600)
+);
+--> statement-breakpoint
 CREATE TABLE `automation_rules` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,

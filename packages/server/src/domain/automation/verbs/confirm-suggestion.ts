@@ -50,6 +50,7 @@ import type { AutomationContext, AutomationService } from "../contract/service.t
 import { loadCallerRole } from "../persistence/canon-reads.ts";
 import { insertFire } from "../persistence/fires.ts";
 import { selectRuleRow, stampRuleFired } from "../persistence/rules.ts";
+import { runAnalysisConfirm } from "../substrate/analysis-confirm.ts";
 import { holdsChatHostAuthority } from "../substrate/authority.ts";
 import { dispatchRuleNow } from "../substrate/run-now.ts";
 import { armToExecute } from "../substrate/suggestions.ts";
@@ -133,9 +134,59 @@ async function runPluginAct(ctx: AutomationContext, pending: PendingSuggestion, 
   return "fired";
 }
 
+/** Execute a CONFIRMED analysis act (the `{via:"analysis"}` payload — S5's confirm-routed outputs) and
+ *  record the confirmed fire, stamped with who authorized it. The act executes through the analysis
+ *  engine's OWN confirm executor (`substrate/analysis-confirm.ts`), NOT `ctx.runArm`: a re-synthesized arm
+ *  would macro-render the model's bytes (§2 law 6) and could not advance the settled-span watermark on
+ *  apply — the enforcement set still has one home (the lore act rides the same `applyRuleLoreWrite` belt
+ *  the arm does, re-checked at confirm time). Errors-as-data like the stashed-arm path: a refusal is an
+ *  `action_error` outcome the host reads, never a thrown 500 — the ask is already spent. */
+async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<AutomationRunOutcome> {
+  const payload = pending.payload;
+  if (payload === null || payload.via !== "analysis") {
+    throw new SuggestionRefusedError("no_stashed_arm", "this suggestion carries nothing to execute");
+  }
+  const nowMs = ctx.now();
+  let outcome: AutomationRunOutcome;
+  let error: string | null = null;
+  try {
+    await runAnalysisConfirm({ db: ctx.db, ops: ctx.ops, nowMs }, pending, rule, payload.act);
+    outcome = "fired";
+  } catch (err) {
+    outcome = "action_error";
+    error = err instanceof Error ? err.message : String(err);
+  }
+  if (outcome === "fired") {
+    await stampRuleFired(ctx.db, rule.id, nowMs);
+  }
+  await insertFire(ctx.db, {
+    id: ctx.newFireId(),
+    ruleId: rule.id,
+    chatId: pending.chatId,
+    triggerType: rule.triggerType,
+    outcome,
+    detail: {
+      confirmedByUserId: confirmer.userId,
+      suggestionId: pending.id,
+      armType: "run_analysis",
+      analysisAct: payload.act.kind,
+      ...(error === null ? {} : { error }),
+    },
+    automationDepth: 0,
+    firedAt: nowMs,
+  });
+  ctx.notify(
+    outcome === "fired" ? { type: "ruleFired", chatId: pending.chatId, ruleId: rule.id } : { type: "ruleErrored", chatId: pending.chatId, ruleId: rule.id },
+  );
+  return outcome;
+}
+
 /** Execute the STASHED arm and record the confirmed fire, stamped with who authorized it. */
 async function runStashedArm(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<AutomationRunOutcome> {
   const payload = pending.payload;
+  if (payload !== null && payload.via === "analysis") {
+    return runAnalysisAct(ctx, pending, rule, confirmer);
+  }
   const stashed = payload !== null && payload.via === "arm" ? payload.stashed : null;
   if (stashed === null) {
     // Unreachable through the store (a `confirm` always carries one), and a THROW rather than a silent

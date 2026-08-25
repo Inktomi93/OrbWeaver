@@ -307,6 +307,28 @@ describe("variables — the config-plane round-trip (member)", () => {
   });
 });
 
+describe("getRuntimeVariables — the RUNTIME fold read (member; S5 §4's vars read)", () => {
+  test("a member reads the runtime fold ({} when nothing ever set); a stranger gets the leak-free not-found", async () => {
+    const { member, chatId } = await seedRoom();
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
+
+    // Empty room: the fold is `{}` — never null, never a throw.
+    expect(await life.getRuntimeVariables({ principal: principal(member), chatId })).toEqual({});
+
+    // The RUNTIME plane is `chats.runtimeVariables` (the delta-fold cache a `set_variable` arm / a turn's
+    // `{{setvar}}` / the needle's gated score land in) — DISTINCT from the config-plane `variableValues`.
+    await db
+      .update(chats)
+      .set({ runtimeVariables: { tension: "7" } })
+      .where(eq(chats.id, chatId));
+    expect(await life.getRuntimeVariables({ principal: principal(member), chatId })).toEqual({ tension: "7" });
+
+    // A NON-member learns nothing — not even that the chat exists (the membership floor).
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
+    await expect(life.getRuntimeVariables({ principal: principal(stranger), chatId })).rejects.toThrow(ChatNotFoundError);
+  });
+});
+
 describe("getVariablePicks — the picks pane's ChoiceBlock half (member)", () => {
   // The host's preset declarations the pane renders controls from — one single-pick variable and one
   // multi-select POOL. `resolvePromptVariables` is the compose op the verb reads.

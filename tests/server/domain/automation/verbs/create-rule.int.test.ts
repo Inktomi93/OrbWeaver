@@ -2,6 +2,8 @@
 // cap · cooldown floor · unattached book), and the born-disabled/position-0 creation (04 §2).
 
 import type { AutomationActionInput, AutomationTrigger } from "@orb/contracts/automation";
+import { rpgGameConfigSchema } from "@orb/contracts/rpg";
+import { rpgGames } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -157,5 +159,54 @@ describe("createRule — validation refusals", () => {
     await expect(svc.createRule({ principal: principal(host), chatId, name: "x", trigger: MSG_COMMITTED, actions: [arm] })).rejects.toThrow(
       RuleValidationError,
     );
+  });
+});
+
+describe("createRule — the S5 run_analysis admission rows", () => {
+  const turnTrigger: AutomationTrigger = { bus: "chat", type: "turnCompleted" };
+
+  test("refuses a routeless analysis arm (an arm that could think and do nothing)", async () => {
+    const { host, chatId, svc } = await ruleFixture();
+    const arm: AutomationActionInput = { type: "run_analysis", brief: "b", routes: {} };
+    await expect(svc.createRule({ principal: principal(host), chatId, name: "x", trigger: turnTrigger, actions: [arm] })).rejects.toThrow(
+      "at least one output route",
+    );
+  });
+
+  test("refuses TWO confirm-class routes on one arm — the S4 store replaces per (chat, rule), so cards would silently displace each other", async () => {
+    const { host, chatId, svc } = await ruleFixture();
+    const arm: AutomationActionInput = { type: "run_analysis", brief: "b", routes: { steer: { apply: "confirm" }, suggest: {} } };
+    await expect(svc.createRule({ principal: principal(host), chatId, name: "x", trigger: turnTrigger, actions: [arm] })).rejects.toThrow(
+      "at most one confirm-class route",
+    );
+  });
+
+  test("refuses a lore route whose book is not attached (the same consent gate as the insert arm's)", async () => {
+    const { host, chatId, svc } = await ruleFixture();
+    const arm: AutomationActionInput = { type: "run_analysis", brief: "b", routes: { lore: { bookId: mintTypeId(ID_PREFIX.worldBook) } } };
+    await expect(svc.createRule({ principal: principal(host), chatId, name: "x", trigger: turnTrigger, actions: [arm] })).rejects.toThrow("not attached");
+  });
+
+  test("refuses ANY analysis arm on an ACTIVE-game chat (the game owns its own steering — D109; §3-S5.7, typed `active_game`)", async () => {
+    const { db, host, chatId, svc } = await ruleFixture();
+    await db.insert(rpgGames).values({
+      id: mintTypeId(ID_PREFIX.rpgGame),
+      chatId,
+      mode: "lite",
+      status: "active",
+      // The REAL all-defaults config (the same `parse({})` the fresh-game path folds to) — never a cast.
+      config: rpgGameConfigSchema.parse({}),
+    });
+    const arm: AutomationActionInput = { type: "run_analysis", brief: "b", routes: { steer: {} } };
+    await expect(svc.createRule({ principal: principal(host), chatId, name: "x", trigger: turnTrigger, actions: [arm] })).rejects.toThrow(
+      "directs its own story",
+    );
+  });
+
+  test("admits + stores the pacing shape (steer-direct) with the parsed defaults, on a game-less chat", async () => {
+    const { host, chatId, svc } = await ruleFixture();
+    const arm: AutomationActionInput = { type: "run_analysis", brief: "Watch the pacing.", steer: "slow burn", routes: { steer: {} } };
+    const rule = await svc.createRule({ principal: principal(host), chatId, name: "pacing", trigger: turnTrigger, actions: [arm] });
+    expect(rule.actions).toEqual([{ type: "run_analysis", brief: "Watch the pacing.", steer: "slow burn", routes: { steer: { apply: "direct" } } }]);
   });
 });

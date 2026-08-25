@@ -35,19 +35,17 @@ import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { VarOp } from "@orb/kit/macro";
+import type { RunAnalysisAction } from "../contract/analysis.ts";
 import type { ArmDispatch, ArmExecutorDeps, ArmOutcome, DispatchFrame } from "../contract/ops.ts";
-import { isBookAttachedToChat, listRuleEntryTitles, loadPresentHumanMemberIds } from "../persistence/canon-reads.ts";
+import { loadPresentHumanMemberIds } from "../persistence/canon-reads.ts";
 import { deleteGlobalVariable, selectGlobalVariable, upsertGlobalVariable } from "../persistence/queries.ts";
 import { renderArmTemplate } from "../substrate/macro-render.ts";
 import { AUTOMATION_SUGGESTION_TTL_MS, summarizeSuggestibleArm } from "../substrate/suggestions.ts";
+import { runRunAnalysis } from "./analysis-arm.ts";
+import { applyRuleLoreWrite } from "./lore-write.ts";
 
 const DECIMAL_RADIX = 10;
 const DEFAULT_INC_DEC_OPERAND = 1;
-/** A rule's `insert_world_info_entry` entries are title-namespaced by the ruleId so a re-upsert with the same
- *  `entryKey` UPDATES its own prior entry and two rules never collide on one title. */
-const AUTO_ENTRY_TITLE_PREFIX = "auto/";
-/** The per-rule ≤64-entries-per-book cap — a looping inserter fills a book otherwise. */
-const RULE_MAX_ENTRIES_PER_BOOK = 64;
 
 const OK: ArmOutcome = { ok: true };
 function armError(detail: string): ArmOutcome {
@@ -58,11 +56,6 @@ function armError(detail: string): ArmOutcome {
  *  off cannot rot the rules that name its tools. Only `run_tool` can produce it, and it carries no detail
  *  because a pause writes no fire row — there is nowhere for one to go. */
 const PAUSED_ARM: ArmOutcome = { ok: false, kind: "paused" };
-
-/** The title a rule's `insert_world_info_entry` arm writes under (ruleId-namespaced idempotency handle). */
-function ruleEntryTitle(frame: DispatchFrame, entryKey: string): string {
-  return `${AUTO_ENTRY_TITLE_PREFIX}${frame.origin.ruleId}:${entryKey}`;
-}
 
 // ── 1.1 set_variable ──────────────────────────────────────────────────────────────────────────────
 /** Resolve the final value string for a `set`/`inc`/`dec` op given the current value + the rendered operand.
@@ -134,31 +127,27 @@ async function runSetVariable(deps: ArmExecutorDeps, action: Extract<AutomationA
 }
 
 // ── 1.3 insert_world_info_entry ─────────────────────────────────────────────────────────────────────
+// The BELTS (attach gate · per-rule entry cap · ruleId-namespaced title) live in the ONE lore-write home
+// (`engine/lore-write.ts`) shared with the `run_analysis` lore route — this executor's own half is the
+// HOST-authored template render (host text is macro-legal; the analysis route's model text is neutralized
+// instead, at its own boundary).
 async function runInsertWorldInfo(
   deps: ArmExecutorDeps,
   action: Extract<AutomationAction, { type: "insert_world_info_entry" }>,
   frame: DispatchFrame,
 ): Promise<ArmOutcome> {
-  // The book must be attached to the rule's chat — the attachment IS the room's consent.
-  if (!(await isBookAttachedToChat(deps.db, frame.chatId, action.bookId))) {
-    return armError(`book ${action.bookId} is not attached to this chat`);
-  }
   const rendered = renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: action.contentTemplate });
   if (rendered.error !== undefined) {
     return armError(rendered.error);
   }
-  const title = ruleEntryTitle(frame, action.entryKey);
-  const owned = await listRuleEntryTitles(deps.db, action.bookId, `${AUTO_ENTRY_TITLE_PREFIX}${frame.origin.ruleId}:`);
-  // A cap breach only when this is a NEW entry (an update of an existing title never grows the count).
-  if (!owned.includes(title) && owned.length >= RULE_MAX_ENTRIES_PER_BOOK) {
-    return armError(`rule already owns ${RULE_MAX_ENTRIES_PER_BOOK} entries in book ${action.bookId}`);
-  }
-  await deps.ops.worldInfo.upsertEntries({
+  const written = await applyRuleLoreWrite(deps, {
     authorUserId: frame.authorUserId,
+    chatId: frame.chatId,
+    ruleId: frame.origin.ruleId,
     bookId: action.bookId,
-    entries: [{ title, keys: [...action.keys], content: rendered.text }],
+    entries: [{ entryKey: action.entryKey, keys: action.keys, content: rendered.text }],
   });
-  return OK;
+  return written.ok ? OK : armError(written.refused);
 }
 
 // ── 1.4 surface_quick_reply ─────────────────────────────────────────────────────────────────────────
@@ -273,6 +262,9 @@ async function runTriggerTurn(deps: ArmExecutorDeps, action: Extract<AutomationA
 /** The scene hint fed to the pick — the triggering message's content, capped so a long turn can't blow the
  *  quiet prompt. */
 const AUTOBG_SCENE_MAX = 1200;
+// The /autobg SYSTEM prompt moved here from compose when `summarizeQuiet` generalized (C1) and became the
+// `automation.autobg.system` PROSE-1 slot in the same move — the domain owns its prompt text, hosts own
+// its bytes, compose owns only the wire.
 /** Build the model-facing pick prompt: the (capped) scene + the candidate NAMES + an optional rendered
  *  instruction, framed by the two authored PROSE-1 clauses (census 91) — the task lead and the strict
  *  "reply with only the name" contract the name-match depends on. The `Scene:`/`Available backgrounds:`/
@@ -308,13 +300,20 @@ async function runSetChatBackground(
     instruction = rendered.text;
   }
   const sceneText = frame.fact.message === undefined ? "" : frame.fact.message.content;
+  const prose = await deps.ops.chat.resolveChatProse(frame.chatId);
   const prompt = buildAutobgPrompt(
-    await deps.ops.chat.resolveChatProse(frame.chatId),
+    prose,
     sceneText,
     choices.map((c) => c.name),
     instruction,
   );
-  const quiet = await deps.ops.summarizeQuiet({ authorUserId: frame.authorUserId, chatId: frame.chatId, prompt });
+  const quiet = await deps.ops.summarizeQuiet({
+    authorUserId: frame.authorUserId,
+    chatId: frame.chatId,
+    systemPrompt: resolveProseText("automation.autobg.system", prose),
+    prompt,
+    posture: "autobg",
+  });
   const picked = quiet.text.trim().toLowerCase();
   // Match the model's free-text pick back to a real choice (case/space-insensitive). A miss (an off-list or
   // empty generation) is a SOFT no-op — the model declining to pick a valid name must not error the rule.
@@ -466,6 +465,8 @@ function runArm(deps: ArmExecutorDeps, action: AutomationAction, frame: Dispatch
       return runSetChatBackground(deps, action as Extract<AutomationAction, { type: "set_chat_background" }>, frame);
     case "trigger_turn":
       return runTriggerTurn(deps, action as Extract<AutomationAction, { type: "trigger_turn" }>, frame);
+    case "run_analysis":
+      return runRunAnalysis(deps, action as RunAnalysisAction, frame);
     case "run_tool":
       return runRunTool(deps, action as Extract<AutomationAction, { type: "run_tool" }>, frame);
     // v1-unwired (typed refusal, NOT a stub — the honest not-yet-wired state):
