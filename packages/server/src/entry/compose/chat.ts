@@ -90,7 +90,7 @@ import type { AuditEntry } from "#foundation/observability";
 import { recordMemoryLog } from "#foundation/observability";
 import type { AgentSeedTurn, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, RoleClientsWithSignal, WarningCode } from "#infra/providers";
 import { AGENT_PROMPT_TAIL_JOINER, createAgentToolServer } from "#infra/providers";
-import { createRegexApplyReplace } from "#kit/regex";
+import { createRegexApplyReplace, createRegexTest } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit.ts";
 import { publishNotification } from "../../transport/trpc/index.ts";
 import { createChatChangedEmitter } from "./emit-chat-changed.ts";
@@ -851,6 +851,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // (principal-blind) — this composition-root helper enumerates membership.
     emitChatChanged: createChatChangedEmitter(db),
     applyRegexReplace: createRegexApplyReplace(),
+    testRegexKey: createRegexTest(),
     // D121-E: the four-scope junction dereference (global/preset/cast/room). Chat owns the UNION
     // (`substrate/regex-tier`), the regex domain owns the STORAGE — one seam, no blob copies.
     resolveRegexSources: input.resolveRegexSources,

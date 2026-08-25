@@ -205,12 +205,26 @@ export function isDelimitedKeyPattern(key: string): boolean {
   return compileKeyPattern(key) !== null;
 }
 
+/** Seam over `regex.test(haystack)` for a REGEX-mode (V3 `use_regex`) key — the world-info twin of the regex
+ *  executor's `applyReplace`. Default (see {@link matchEntryKeys}): native `.test` with NO timeout — the
+ *  browser's lot, guarded only by the pre-compile complexity heuristic. The server injects a node:vm-sandboxed
+ *  version with a per-call budget so a catastrophic-backtracking USER key throws (→ treated as a non-match +
+ *  reported) instead of hanging the event loop for every user on the process (#710 ReDoS). Isomorphic —
+ *  RegExp+string in, boolean out, no `node:*` — so kit stays browser-safe and the timeout lives server-side. */
+export type TestKeyRegex = (regex: RegExp, haystack: string) => boolean;
+
+/** The default {@link TestKeyRegex}: a bare native `.test`, no runtime budget. This is all the browser can do;
+ *  the server overrides it with its node:vm watchdog. */
+const nativeTestKeyRegex: TestKeyRegex = (regex, haystack) => regex.test(haystack);
+
 /** How {@link matchEntryKeys} compiles an entry's keys. `keyMode` comes from {@link resolveEntryKeyMode} off
  *  the entry's metadata; `onKeyCompileFailure` is the host's warn seam for a bad user-authored pattern (kit is
- *  pure — the caller owns the logger, as it does for the regex executor's `onScriptFailure`). */
+ *  pure — the caller owns the logger, as it does for the regex executor's `onScriptFailure`); `testRegex` is
+ *  the injected ReDoS-bounded `.test` seam (see {@link TestKeyRegex}). */
 export interface MatchEntryKeysOptions {
   readonly keyMode?: EntryKeyMode | undefined;
   readonly onKeyCompileFailure?: ((key: string, reason: string) => void) | undefined;
+  readonly testRegex?: TestKeyRegex | undefined;
 }
 
 /** The keys of `keys` that match the (already lowercased) haystack. Empty array = no fire. Shared by the
@@ -221,7 +235,24 @@ export interface MatchEntryKeysOptions {
  *  its escapes (`\W` → `\w` inverts the class); case-insensitivity comes from the forced `i` flag instead. */
 export function matchEntryKeys(keys: readonly string[], haystack: string, options?: MatchEntryKeysOptions): string[] {
   if (options?.keyMode === "regex") {
-    return keys.filter((key) => key.trim().length > 0 && keyRegex(key, "regex", options.onKeyCompileFailure).test(haystack));
+    // A user-authored pattern is UNTRUSTED: the pre-compile heuristic misses one-stack alternation/nesting
+    // (`(a|a)+$`, `(a+)+$`), so the actual `.test` runs under the injected budget (`testRegex`). A throw from
+    // it (the server watchdog's timeout, or any executor error) is caught HERE — the key is treated as a
+    // NON-match (fail-closed on the pathological key) and reported through `onKeyCompileFailure`, exactly as a
+    // bad compile is; the turn proceeds fail-open on the remaining keys rather than hanging or crashing (#710).
+    const testRegex = options.testRegex ?? nativeTestKeyRegex;
+    return keys.filter((key) => {
+      if (key.trim().length === 0) {
+        return false;
+      }
+      const compiled = keyRegex(key, "regex", options.onKeyCompileFailure);
+      try {
+        return testRegex(compiled, haystack);
+      } catch (err) {
+        options.onKeyCompileFailure?.(key, err instanceof Error ? err.message : String(err));
+        return false;
+      }
+    });
   }
   return keys.map((key) => key.trim().toLowerCase()).filter((key) => key.length > 0 && keyRegex(key).test(haystack));
 }
