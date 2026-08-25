@@ -264,6 +264,10 @@
       "version": 1,
       "sha256": "9e90cb7f852c264248cdfdae3ae07ce9b7bdaa5b13f2cfb15d3e4f4a5f942f64"
     },
+    "automation.analysis.rewrite": {
+      "version": 1,
+      "sha256": "5d33e968495ee046de766169d46f992046817ed8f97dfe29cc4e13cf764cebc0"
+    },
     "automation.analysis.vars": {
       "version": 1,
       "sha256": "6d7ae65d704b8e4146bde6133f8bd6399bc66508d1b22332e34ca909a00ef34f"
