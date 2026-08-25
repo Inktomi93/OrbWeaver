@@ -210,6 +210,13 @@ const TOOL_ARGS_TEMPLATE_MAX = 8192;
 export const AUTOMATION_ACTION_ARMS_MIN = 1;
 export const AUTOMATION_ACTION_ARMS_MAX = 8;
 
+/** S5 — the `run_analysis` arm's stored-GUIDANCE cap, in characters. ONE home, TWO enforcers (the
+ *  `GLOBAL_VARIABLE_*` pattern above): the analysis applier SLICES the model's guidance to this bound at the
+ *  write boundary, and the `automation_rule_state.guidance` DDL CHECK mirrors the same value — so the app
+ *  bound and the SQL bound can never drift. Sized to the steer-line class (a guidance line is ONE concrete
+ *  narrator instruction — the legacy director's contract — not a document). */
+export const ANALYSIS_GUIDANCE_MAX = 600;
+
 /** How a surfaced chip's text is CONSUMED when the member clicks it (S1, the in-chat control seam):
  *  `send` fires it as that member's next turn immediately; `compose` seeds their composer draft so they
  *  own and edit it before sending. The pair is the wire half of the client's control-mode axis (the
