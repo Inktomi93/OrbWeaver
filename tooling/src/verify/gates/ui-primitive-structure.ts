@@ -625,15 +625,11 @@ export const gate: GateDescriptor = {
       expect: { count: 1, line: 2 },
       why: "issue #507 — the position fence must not become a regex loosening: a `#abc` in a toHaveCSS argument is exactly what clause 5 exists for, and it fires even when the same file's TITLE carries a citation",
     },
-    {
-      files: {
-        // Issue #507 DECLARED LIMIT: an INTERPOLATED title keeps scanning, because blanking a
-        // TemplateExpression's span would also blank its interpolations — and those are CODE.
-        "tests/ui/primitives/thing/thing.ct.tsx": "test(`the band ${1} is #abc`, () => {});\n",
-      },
-      expect: { count: 1, line: 1 },
-      why: "issue #507 — the fence covers quote-shaped literals only; a template-expression title is not blanked, so this row writes that limit down instead of leaving it assumed",
-    },
+    // Issue #507's old DECLARED-LIMIT mustFlag row ("an interpolated title keeps scanning") was
+    // REPEALED 2026-08-24: the fence now blanks a template's literal head/middle/tail chunks (only
+    // its `${…}` interpolations stay CODE), so a citation-shaped literal in a template title no
+    // longer fires. The blanked-template-title case is now a mustPass proof; the "color inside `${…}`
+    // still fires" case is its sibling mustFlag row below.
     {
       files: {
         // The founding REGEX-SMUGGLING shape (diff.ct.tsx) re-proven under the #507 value lookahead: a
