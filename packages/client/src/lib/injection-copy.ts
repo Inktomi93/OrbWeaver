@@ -94,6 +94,12 @@ export const SWIPE_NEEDS_REPLY = "needs an existing reply (try Generate reply or
  *  PLAIN reroll (ignores any typed steer), Swipe is the steer-aware reroll. Both reroll the tail assistant. */
 export const REGENERATE_PLAIN_HELPER = "Creates another version of the last reply — ignores your typed direction.";
 
+/** The ✨-menu "Offer choices" row's hover helper (R3/B1). Its whole job is to distinguish the ONE-SHOT ask
+ *  from the STANDING posture that wears the same two words in the "This chat" tab — a user who found only one
+ *  of them would reasonably read it as the other, and then either wonder why it stopped or why it will not.
+ *  Names the door to the standing one, since that is the setting people go looking for. */
+export const OFFER_CHOICES_ONE_SHOT = "Asks for choices at the end of the NEXT reply only. For every reply, turn on Offer choices in This chat.";
+
 /** The hover cue shown on a guided icon while the composer HAS text — teaches the typed-text-becomes-steer
  *  contract at the point of action (defuses the invisible mode-switch). Per-icon variants read naturally. */
 // The guided-IMPERSONATE failure surface. Impersonate rides a SUBSCRIPTION, not a mutation, so it has no

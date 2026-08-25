@@ -7,6 +7,7 @@ import { describe } from "vitest";
 import {
   newlyDeclaredCapabilities,
   normalizeGrant,
+  pendingWidenedNetHosts,
   ungrantableCapabilities,
   widenedNetHosts,
 } from "../../../../../packages/server/src/domain/plugin/substrate/grants.ts";
@@ -94,5 +95,51 @@ describe("widenedNetHosts", () => {
 
   test("duplicates collapse and the reported spelling is the manifest's own", () => {
     expect(widenedNetHosts(["New.Example", "new.example"], [])).toEqual(["New.Example"]);
+  });
+});
+
+// The DISPLAY half of the same fact — what the re-consent notice marks "New", persisted on the row because
+// the comparison is only possible before the upgrade overwrites the prior manifest (#659). `widenedNetHosts`
+// answers "what did THIS upgrade add" (the right trigger question); this answers "what is the owner still
+// being asked about" (the right display question), and they differ exactly when a widening goes unanswered.
+describe("pendingWidenedNetHosts", () => {
+  test("with nothing carried it is the plain widening — the ordinary first-refusal case", () => {
+    expect(pendingWidenedNetHosts(["api.vendor.example", "collector.attacker.example"], ["api.vendor.example"], [])).toEqual(["collector.attacker.example"]);
+    expect(pendingWidenedNetHosts(["api.vendor.example"], ["api.vendor.example"], [])).toEqual([]);
+  });
+
+  test("an EARLIER unanswered widening stays marked when a later upgrade adds another", () => {
+    // The defect this accumulation exists for. v2 added X (refused, recorded); v3 adds Y. Judged against v2's
+    // manifest, v3 widens only Y — so a REPLACE would render X unmarked beside a marked Y, and on a consent
+    // surface an unmarked host reads as "carried forward, you already allowed this". X was never allowed.
+    expect(
+      pendingWidenedNetHosts(
+        ["a.vendor.example", "x.attacker.example", "y.attacker.example"],
+        ["a.vendor.example", "x.attacker.example"],
+        ["x.attacker.example"],
+      ),
+    ).toEqual(["x.attacker.example", "y.attacker.example"]);
+  });
+
+  test("a carried host the new manifest DROPPED is gone — unreachable, so nothing left to consent to", () => {
+    expect(pendingWidenedNetHosts(["a.vendor.example"], ["a.vendor.example", "x.attacker.example"], ["x.attacker.example"])).toEqual([]);
+  });
+
+  test("a host consented to earlier is NOT marked just because a later upgrade widened elsewhere", () => {
+    // The false-badge direction, which is the one that matters most: `a.vendor.example` was in the prior
+    // manifest and is not carried, so only the genuinely new destination is marked. An earlier revision of
+    // this surface badged EVERY host on a re-consent — that is the lie this whole column exists to retire.
+    expect(pendingWidenedNetHosts(["a.vendor.example", "new.attacker.example"], ["a.vendor.example"], [])).toEqual(["new.attacker.example"]);
+  });
+
+  test("the result is spelled and ordered as the NEW manifest declares, de-duplicated", () => {
+    // The mark is matched against the rendered list by exact string, and the rendered list is this manifest's
+    // own `netHosts` — so a carried host the new manifest RE-SPELLS must come back in the new spelling, or the
+    // client's membership test silently misses it and the badge vanishes.
+    expect(pendingWidenedNetHosts(["X.Attacker.Example", "x.attacker.example"], [], ["x.attacker.example"])).toEqual(["X.Attacker.Example"]);
+  });
+
+  test("case is not identity here either — the one fold, shared with the enforcer", () => {
+    expect(pendingWidenedNetHosts(["API.Vendor.Example"], ["api.vendor.example"], [])).toEqual([]);
   });
 });

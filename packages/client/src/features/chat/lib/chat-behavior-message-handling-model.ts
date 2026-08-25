@@ -35,6 +35,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: SettingsSubcategory = {
     { id: "auto-swipe", label: "Auto-swipe short replies", keywords: ["swipe", "regenerate", "retry", "blacklist"] },
     { id: "custom-stopping-strings", label: "Custom stopping strings", keywords: ["stop", "stopping", "sequence", "generation"] },
     { id: "temp-chat-ttl", label: "Delete temp chats after", keywords: ["temporary", "temp", "ttl", "expire", "delete", "retention"] },
+    { id: "offer-choices", label: "Offer choices in new chats", keywords: ["choices", "options", "cyoa", "branching", "interactive"] },
   ],
 };
 
@@ -53,6 +54,12 @@ export const CHAT_MESSAGE_HANDLING_KEYS = [
   "autoSwipe",
   "customStoppingStrings",
   "tempChatTtlHours",
+  // B1 — the per-user DEFAULT offer-choices posture a room inherits when its own key is absent. Lands in
+  // this section for the `tempChatTtlHours` reason spelled in the header: it is not literally "message
+  // handling" either, but the pane's only other section is Streaming (reveal pacing), and a chat's default
+  // storytelling posture is a chat BEHAVIOR the same way auto-continue is. Forking a third section for one
+  // switch would cost a nav row and a save footer to say less.
+  "offerChoices",
 ] as const;
 
 export const AUTO_SWIPE_MIN_LENGTH_MIN = 0;
@@ -77,6 +84,7 @@ export interface ChatMessageHandlingForm {
   readonly autoSwipeBlacklist: string;
   readonly customStoppingStrings: string;
   readonly tempChatTtlHours: number;
+  readonly offerChoices: boolean;
 }
 
 /** The section's WRITE shape, DERIVED from the `OWNS` tuple: exactly the owned keys, with `autoSwipe`
@@ -108,6 +116,7 @@ export function projectMessageHandlingForm(chat: ChatSettings): ChatMessageHandl
     autoSwipeBlacklist: chat.autoSwipe.blacklist.join("\n"),
     customStoppingStrings: chat.customStoppingStrings.join("\n"),
     tempChatTtlHours: chat.tempChatTtlHours,
+    offerChoices: chat.offerChoices,
   };
 }
 
@@ -125,5 +134,6 @@ export function toMessageHandlingPatch(form: ChatMessageHandlingForm): ChatMessa
     },
     customStoppingStrings: linesToList(form.customStoppingStrings),
     tempChatTtlHours: form.tempChatTtlHours,
+    offerChoices: form.offerChoices,
   };
 }

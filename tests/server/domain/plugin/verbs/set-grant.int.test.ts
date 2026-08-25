@@ -251,8 +251,9 @@ test("a missing/foreign plugin is a leak-free NotFound; a non-admin is refused",
 // THE SYSTEM'S OWN REFUSAL, RECORDED (#650 P1-1). A forced disable used to render identically to the owner's
 // own toggle-off, so the surface presented OUR refusal as THEIR decision. `reconsentPending` is the event —
 // deliberately not derived, because `declared ⊄ granted` is legitimately true for an ENABLED plugin whose
-// owner granted a paranoid subset, and the netHosts half is judged against the PRIOR manifest, which nothing
-// persists. These rows pin all three transitions plus the one that must NOT move it.
+// owner granted a paranoid subset. Its host half rides `widenedNetHosts` (#659), the column that made the
+// "which destinations are new" question answerable at all. These rows pin every transition of the pair, plus
+// the ones that must NOT move them.
 describe("reconsentPending — the forced-disable flag", () => {
   test("a WIDENED-CAPABILITY upgrade raises it; the flag is what distinguishes our refusal from a toggle-off", async () => {
     const db = await freshDb();
@@ -368,6 +369,81 @@ describe("reconsentPending — the forced-disable flag", () => {
 
     expect(partial.grantedCapabilities).toEqual(["chat.read", "notify"]);
     expect(partial.reconsentPending).toBe(true);
+  });
+
+  test("the HOST DELTA moves with the flag: carried by a partial re-grant, emptied by a covering one", async () => {
+    // #659. The delta is what the notice marks "New", and the notice renders iff `reconsentPending` — so the
+    // two move together or the surface ends up marking an ask nobody is being asked about. The db refuses
+    // the settled-but-marked combination outright (`plugins_widened_hosts_check`); this pins that the verb
+    // never gets there, in both directions, over a single row.
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+      grant: ["net.fetch"],
+    });
+    // v2 adds a destination AND a capability, so a partial answer is possible.
+    const upgraded = await h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({
+        id: "pp",
+        version: "1.1.0",
+        capabilities: ["net.fetch", "notify"],
+        netHosts: ["api.vendor.example", "collector.attacker.example"],
+      }),
+    });
+    expect(upgraded.widenedNetHosts).toEqual(["collector.attacker.example"]);
+
+    // A PARTIAL answer — `net.fetch` re-confirmed with the full echo, `notify` still refused. The same notice
+    // is still standing about the same update, so its marks stay: dropping them would quietly remove
+    // information from a live consent surface.
+    const partial = await h.service.setGrant({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      grant: ["net.fetch"],
+      acknowledgedNetHosts: upgraded.netHosts ?? [],
+    });
+    expect(partial.reconsentPending).toBe(true);
+    expect(partial.widenedNetHosts).toEqual(["collector.attacker.example"]);
+
+    // The COVERING answer clears both — there is no longer an ask to mark.
+    const full = await h.service.setGrant({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      grant: ["net.fetch", "notify"],
+      acknowledgedNetHosts: upgraded.netHosts ?? [],
+    });
+    expect(full.reconsentPending).toBe(false);
+    expect(full.widenedNetHosts).toEqual([]);
+  });
+
+  test("ENABLING does not clear the HOST DELTA either — the marks outlive the toggle, like the flag", async () => {
+    // Same inversion as the flag's, one column over: a person who works around the refusal by turning the
+    // plugin on must not thereby erase WHICH destination the system refused. It is running with the stored
+    // grant against a host it was never consented for, and the surface has to keep being able to say so.
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+      grant: ["net.fetch"],
+    });
+    await h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
+    });
+
+    await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+
+    const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+    expect(row?.status).toBe("enabled");
+    expect(row?.reconsentPending).toBe(true);
+    expect(row?.widenedNetHosts).toEqual(["collector.attacker.example"]);
   });
 
   test("ENABLING does NOT clear it — re-enabling grants nothing, so the gap outlives the toggle", async () => {

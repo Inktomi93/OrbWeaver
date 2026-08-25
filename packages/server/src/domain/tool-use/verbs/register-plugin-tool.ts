@@ -69,6 +69,12 @@ export function createRegisterPluginTool(registry: ToolRegistry): (spec: PluginT
       // The turn-caller ceiling is null (member floor); the real ceiling is the PL-C installer gate in `run`.
       capability: null,
       source: "plugin",
+      // D146-c — the host namespaced this tool from an identity the guest cannot forge, so the host also owns
+      // the answer to "whose contributor is this". Retained on the entry because DIRECT-DRIVE reachability
+      // (`substrate/reachability.ts`) is asked BEFORE any invocation exists, where the PL-C closure below
+      // cannot be consulted: PL-C answers "may the installer act in THIS room", never "may this OTHER user
+      // spend the installer's grant by naming their tool".
+      owner: spec.installer.userId,
       parameters: projectJsonSchema(argsSchema),
       argShape: argsSchema.shape,
       run: async (parsedJson, exec): Promise<RunOutcome> => {

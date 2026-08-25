@@ -76,3 +76,34 @@ export function widenedNetHosts(newlyDeclared: readonly string[], priorDeclared:
     return true;
   });
 }
+
+/** The hosts an UNANSWERED re-consent covers — what the notice marks "New" — persisted on the row
+ *  (`plugins.widened_net_hosts`) because the comparison that produces it is only possible at the instant of
+ *  upgrade, before the prior manifest is overwritten.
+ *
+ *  IT ACCUMULATES, and that is the whole reason it is not just {@link widenedNetHosts}. `widenedNetHosts`
+ *  answers "what did THIS upgrade add", which is the right trigger question and the wrong display question:
+ *  ship v2 adding host X (refused, recorded), then ship v3 adding host Y, and v3 widens only Y relative to
+ *  v2's manifest — so a replace would leave X rendering unmarked beside the marked Y, which on a consent
+ *  surface reads as "X was carried forward, you already allowed it". X was never allowed. So the answer is
+ *  the UNION of this upgrade's widening and any earlier widening the owner never resolved (`carriedPending`,
+ *  passed by the verb only while `pending_reconsent` still stands).
+ *
+ *  Result spelling and order are the NEW manifest's own, de-duplicated — a mark has to match the string the
+ *  screen renders, and the screen renders `manifest.netHosts`. A carried host the new manifest DROPPED is
+ *  absent by construction (it is filtered out of `newlyDeclared`): it is no longer reachable, so there is
+ *  nothing left to consent to. Host identity is {@link foldNetHost}, the one fold the enforcer and the
+ *  re-consent trigger already share — the client never re-implements it, because the persisted delta is a
+ *  literal subset of the same array the client renders. */
+export function pendingWidenedNetHosts(newlyDeclared: readonly string[], priorDeclared: readonly string[], carriedPending: readonly string[]): string[] {
+  const unanswered = new Set([...widenedNetHosts(newlyDeclared, priorDeclared), ...carriedPending].map(foldNetHost));
+  const seen = new Set<string>();
+  return newlyDeclared.filter((host) => {
+    const folded = foldNetHost(host);
+    if (seen.has(folded) || !unanswered.has(folded)) {
+      return false;
+    }
+    seen.add(folded);
+    return true;
+  });
+}

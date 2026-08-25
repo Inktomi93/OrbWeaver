@@ -58,6 +58,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "home-recents-tile-body",
     why: "ChatRecentsTileStory mounts chatAlsoOpenTile alongside recents through the real HomeSurface; home-recents-tile-body.ct exercises the also-open list rows next to the hero.",
   },
+  "add-chat-book-dialog": {
+    deferred:
+      "REAL coverage lives OUTSIDE this checker's chat glob: tests/client/features/automation/components/rules-section.ct.tsx (#640's end-to-end) opens the dialog from the Lorebooks rack ('Attach a lorebook', :596) and drives it to a REAL `worldInfo.attachToChat` with the room's chatId (:598); chat-books-section.ct additionally pins the member arm's absence (:63). This checker only resolves chat-dir CTs, so citing rules-section as coveredBy reads as dangling (see header); recorded here instead. Row written by the orchestrator, not the #640 lane — the gap was merge debt (this ratchet is vitest, invisible to `pnpm check`, and the merge floor did not run it).",
+  },
   "chats-with-character-pane": {
     deferred:
       "REAL coverage lives OUTSIDE this checker's chat glob: tests/client/features/character/components/character-chats-projection-shell.ct.tsx mounts this pane through the characters section's CONTEXT Chats tab (#501 — it was the LIST pane's projection until the library stayed docked) and drives the rows, the departed-seat semantics, the avatar-stack upgrade, the accname collision and the empty state's primary. This checker only resolves chat-dir CTs, so citing it as coveredBy reads as dangling (see header); recorded here instead.",
@@ -112,6 +116,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
   "host-display-scripts-control": {
     coveredBy: "settings-context-tab",
     why: "the host-only 'share my display scripts' switch (D121-E) renders inside CommittedSettingsTab's Host controls group; settings-context-tab.ct drives it end-to-end (host sees + toggles → setHostDisplayScripts fires; member sees no control), the tool-recurse-control precedent.",
+  },
+  "offer-choices-control": {
+    coveredBy: "settings-context-tab",
+    why: "the host-only per-room 'Offer choices' switch (B1) renders inside CommittedSettingsTab's Host controls group; settings-context-tab.ct drives it end-to-end (host sees + toggles → setOfferChoices fires; the never-pinned room seats from the host's per-user default; member sees no control), the host-display-scripts-control precedent.",
   },
   "chat-list-header": { coveredBy: "chat-list-surface", why: "the list header renders inside the list surface; chat-list-surface.ct covers it." },
   "chat-list-character-filter": {

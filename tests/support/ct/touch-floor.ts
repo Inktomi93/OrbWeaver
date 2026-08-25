@@ -41,15 +41,46 @@ export function touchFloorPx(page: Page): Promise<number> {
 }
 
 /** A control's reachable extent on one axis — walked out from its centre with `elementFromPoint` until the
- *  point stops resolving inside it. The sweep runs inside the page, so it is ONE settled read. */
+ *  point stops resolving inside it. The sweep runs inside the page, so it is ONE settled read.
+ *
+ *  BOX- vs PSEUDO-CARRIED FLOOR (#662, fixed from the prior unconditional `hit.contains(el)`). Ancestor
+ *  credit exists for exactly one shape: an overflowing `::after`/`::before` touch-target pseudo (the
+ *  `@orb/ui` Button glyph ramp — packages/ui/src/primitives/button/variants.ts `glyphBox`,
+ *  `after:content-['']` + `after:absolute`) has no DOM node, so a probed point on its clipped-away edge
+ *  falls through to whatever plain box paints there — usually the control's own wrapper — and THAT
+ *  fallback IS the control's real extent. A control with no such pseudo carries its floor on its OWN
+ *  border box (a real height/min-height, e.g. the CONTROL_SIZE ramp), so walking off that box onto ANY
+ *  ancestor is never evidence of ownership — it is the wrapper's padding/gap. Crediting it unconditionally
+ *  was the #662 hole: a 413×16 trigger measured 44 by borrowing its `Stack` wrapper's whole extent, and the
+ *  sweep was structurally incapable of ever reporting less (cb-rules-spend, 2026-08-24 — PASSED against the
+ *  reverted 413×16 source while five sibling pins went red).
+ *
+ *  DECLARED LIMIT: this kit has no composite-row mechanism (design-audit's `sharedCompositeOwns` — a
+ *  Base UI Slider's real target is the whole `h-control-sm` row, box-carried on an ANCESTOR, not on the
+ *  probed element and not via a pseudo). A composite control measured through this kit under-reports to
+ *  its own bare box. None of this kit's live CT consumers hit that shape (verified: every `hitExtent`
+ *  call site targets a CONTROL_SIZE-height Button, which carries its own floor directly) — a future
+ *  composite consumer needs its own box measurement (`boundingBox()` on the row), not this sweep. */
 export function hitExtent(cell: Locator, axis: "x" | "y"): Promise<number> {
   return cell.evaluate((el: HTMLElement, ax: "x" | "y"): number => {
     const box = el.getBoundingClientRect();
     const cx = box.left + box.width / 2;
     const cy = box.top + box.height / 2;
+    const pseudoCarriesFloor = (): boolean => {
+      const extendsOutward = (style: CSSStyleDeclaration): boolean =>
+        style.content !== "none" && style.content !== "normal" && (style.position === "absolute" || style.position === "fixed");
+      return extendsOutward(getComputedStyle(el, "::after")) || extendsOutward(getComputedStyle(el, "::before"));
+    };
+    const pseudoCarried = pseudoCarriesFloor();
     const owns = (x: number, y: number): boolean => {
       const hit = document.elementFromPoint(x, y);
-      return hit !== null && (hit === el || el.contains(hit) || hit.contains(el));
+      if (hit === null) {
+        return false;
+      }
+      if (hit === el || el.contains(hit)) {
+        return true;
+      }
+      return pseudoCarried && hit.contains(el);
     };
     const reach = (dx: number, dy: number): number => {
       let n = 0;

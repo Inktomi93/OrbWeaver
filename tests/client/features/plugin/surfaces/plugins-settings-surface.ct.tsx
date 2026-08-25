@@ -12,11 +12,12 @@
 // projects a declared capability list from un-installed bytes, so the grant screen's list can only come from
 // a client-side manifest read, and a story that passed the list in as a prop would prove nothing.
 //
-// THE WIDENED-REACH RE-CONSENT CASE is the last test and the one that most needs a rendered receipt. The
-// server lands a reach-widening upgrade `disabled` (`domain/plugin/verbs/upgrade.ts`) with `reconsentPending:
-// true`, and this asserts the row SAYS WHAT WIDENED — the new capability by name and consequence, the new
-// host verbatim — then drives the REAL escape path (`plugin.setGrant`) end to end and asserts the notice
-// clears once the server's own settled truth says the whole ask is granted.
+// THE WIDENED-REACH RE-CONSENT CASE is the one that most needs a rendered receipt. The server lands a
+// reach-widening upgrade `disabled` (`domain/plugin/verbs/upgrade.ts`) with `reconsentPending: true`, and
+// these assert the row SAYS WHAT WIDENED — the new capability by name and consequence, the new host
+// verbatim AND MARKED, the carried-forward host verbatim and UNMARKED — then drive the REAL escape path
+// (`plugin.setGrant`) end to end, in both its arms: a covering answer that clears the notice, and a PARTIAL
+// one that records exactly the narrower subset and leaves the notice standing.
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -34,6 +35,8 @@ const FILE_TRIGGER_INPUT = '[data-slot="file-trigger-input"]';
 const CHAT = castId<ChatId>("chat_ct_plugin_0001");
 /** The re-consent row's accessible name carries "(new in this update)" after the label, so match by prefix. */
 const NEW_LORE_CAPABILITY = /^Write lorebook entries/u;
+/** Same prefix-match reason: the spendy capability a partial re-consent deliberately leaves unticked. */
+const NEW_TURN_CAPABILITY = /^Ask for a reply on its own/u;
 /** The re-consent notice's own escape action — named by the plugin, since a settings pane can hold several. */
 const REMOVE_WEATHER_TELLER = /^Remove Weather Teller/u;
 const A_PAST_INSTANT = 1_760_000_000_000;
@@ -84,6 +87,10 @@ const INSTALLED_ROW = {
   grantedCapabilities: ["chat.read", "net.fetch"],
   netHosts: ["api.weather.example"],
   reconsentPending: false,
+  // The recorded host delta of a pending re-consent (#659). Empty here in lockstep with the flag — the db
+  // CHECK makes any other pairing unwritable, so a fixture carrying one on a settled row would be a state
+  // the server cannot produce.
+  widenedNetHosts: [],
   builtAgainst: null,
   consecutiveCrashes: 0,
   lastError: null,
@@ -210,8 +217,9 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
   // The server's verdict for a reach-widening upgrade: the row lands `disabled` at the NEW version with
   // `reconsentPending: true`, and the grant is `normalizeGrant(newDeclared, priorGranted)` — the
   // INTERSECTION, so the newly-declared capability is NOT in it. `declaredCapabilities`/`netHosts` carry the
-  // full new ask; the re-consent notice is DERIVED from these three fields (plugin-row.tsx), not from a
-  // local snapshot the upgrade response handed the row — so the list read alone is what drives the notice.
+  // full new ask, `widenedNetHosts` carries the recorded host delta; the re-consent notice is DERIVED from
+  // these fields (plugin-row.tsx), not from a local snapshot the upgrade response handed the row — so the
+  // list read alone is what drives the notice.
   let upgraded = false;
   let allowed = false;
   const upgradedRow = {
@@ -222,10 +230,14 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
     grantedCapabilities: ["chat.read", "net.fetch"],
     netHosts: ["api.weather.example", "collector.elsewhere.example"],
     reconsentPending: true,
+    // ONE of the two hosts is new. `api.weather.example` came forward from v1 unchanged and is deliberately
+    // NOT in here — that asymmetry inside a single fixture is what makes the badge assertions below mean
+    // something rather than just counting.
+    widenedNetHosts: ["collector.elsewhere.example"],
   };
-  // `setGrant` grants the WHOLE declared set and clears the flag — the server's own settled truth after
-  // "Allow", never faked client-side.
-  const allowedRow = { ...upgradedRow, grantedCapabilities: upgradedRow.declaredCapabilities, reconsentPending: false };
+  // `setGrant` grants the WHOLE declared set and clears BOTH halves of the recorded refusal — the server's
+  // own settled truth after the confirm, never faked client-side.
+  const allowedRow = { ...upgradedRow, grantedCapabilities: upgradedRow.declaredCapabilities, reconsentPending: false, widenedNetHosts: [] };
   const recorder = await routeTrpc(page, {
     "plugin.list": () => {
       if (!upgraded) {
@@ -262,40 +274,159 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
   // The row-level status also stops reading as a plain "Off" (P1-1) — the same durable flag that raised
   // the notice is what this badge reads, so the two can never disagree.
   await expect(page.getByText("Off — asked for more than you allowed")).toBeVisible();
-  // WHAT widened — the new capability by its own name and consequence, not a bare count.
+  // WHAT widened — the new capability by its own name and consequence, not a bare count…
   await expect(notice).toContainText("Write lorebook entries");
   await expect(notice).toContainText("lorebooks already attached to the room");
-  // The new capability is NOT rendered as a disabled, tickable-looking checkbox (P1-3, #650): a
-  // read-only row that isn't granted is a "Not granted" STATEMENT, because a disabled control beside
-  // "asks for a permission you hadn't allowed" reads as a live control that silently does nothing on
-  // click. There is exactly one ungranted row in this notice (chat.read/net.fetch are both still granted).
-  await expect(notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY })).toHaveCount(0);
-  await expect(notice.getByText("Not granted")).toHaveCount(1);
-  // Both destinations verbatim: the host list IS the reach for net.fetch, and consent is to the SET.
+  // …and the host count too, which used to be un-nameable: the server compares against the PRIOR manifest,
+  // and nothing persisted it until `widenedNetHosts` (#659). "It can now also reach one new host" is the
+  // decision a person can make; "re-read these hostnames" is not.
+  await expect(notice).toContainText("adds a new host it can reach");
+
+  // THE ROWS ARE REALLY INTERACTIVE (#658) — the same arm install uses. Two shapes were wrong here before:
+  // a DISABLED checkbox that looked live and silently did nothing (#650 P1-3), then a read-only statement
+  // with one all-or-nothing button. The ungranted capability is now a live, UNTICKED control.
+  const newCapability = notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY });
+  await expect(newCapability).toBeEnabled();
+  await expect(newCapability).not.toBeChecked();
+  // …and it is live in the RENDERED sense, not just the DOM sense. #650 P1-3 was a control that carried
+  // `cursor:pointer` over `pointer-events:none` — it looked exactly like something you could tick and
+  // swallowed the click in silence. A disabled Checkbox still computes `cursor:pointer` from the shared
+  // selection-control skin, so "enabled" alone would not have caught it; the computed style is what does.
+  await expect(newCapability).toHaveCSS("pointer-events", "auto");
+  // The DEFAULT is the PRIOR GRANT with nothing new ticked — pre-ticking the row the system refused on the
+  // owner's behalf would hand back consent they never gave, one click after we said we withheld it.
+  await expect(notice.getByRole("checkbox", { name: "Read this room's messages" })).toBeChecked();
+  await expect(notice.getByRole("checkbox", { name: "Reach the internet" })).toBeChecked();
+  // The read-only "Not granted" STATEMENT belongs to the durable disclosure, which reports a settled fact.
+  // It has no place in a notice that is asking a question — every row here is answerable.
+  await expect(notice.getByText("Not granted")).toHaveCount(0);
+
+  // Both destinations verbatim: the host list IS the reach for net.fetch, and consent is to the SET…
   await expect(notice).toContainText("collector.elsewhere.example");
   await expect(notice).toContainText("api.weather.example");
-  // …and NEITHER is marked "New" — which host changed is not derivable client-side (the `PluginView`
-  // projection carries no prior `netHosts`), so a mark here would be an invented claim on a consent
-  // screen. This assertion is the fence: an earlier revision badged EVERY host, including the one
-  // carried forward unchanged.
-  await expect(notice.getByText("New", { exact: true })).toHaveCount(1);
+  // …and EXACTLY the one the server recorded as new wears the mark. This assertion replaces the older fence
+  // ("no host is ever badged"), and it is deliberately written from BOTH sides, because the defect the old
+  // fence caught was a revision that badged EVERY host including the one carried forward unchanged from v1.
+  // A count alone would pass that bug the moment a second badge appeared anywhere, so the marks are read
+  // per LIST ITEM instead.
+  const newHost = notice.getByRole("listitem").filter({ hasText: "collector.elsewhere.example" });
+  const carriedHost = notice.getByRole("listitem").filter({ hasText: "api.weather.example" });
+  await expect(newHost.getByText("New", { exact: true })).toHaveCount(1);
+  await expect(carriedHost.getByText("New", { exact: true })).toHaveCount(0);
+  // RENDERED, not merely present. The badge sits after a raw hostname — the widest, least-breakable string
+  // on this surface — inside the settings pane's REAL 560px column, so a mark that existed in the DOM and
+  // fell off the right edge would read to a person as "no host is new". Measured against the notice's own
+  // box rather than a hardcoded px.
+  const badge = newHost.getByText("New", { exact: true });
+  await expect(badge).toBeVisible();
+  const badgeBox = await badge.boundingBox();
+  const noticeBox = await notice.boundingBox();
+  expect(badgeBox === null || noticeBox === null).toBe(false);
+  expect((badgeBox?.x ?? 0) + (badgeBox?.width ?? 0)).toBeLessThanOrEqual((noticeBox?.x ?? 0) + (noticeBox?.width ?? 0));
+
   // THE ESCAPE ACTION LIVES INSIDE THE NOTICE (P1-3): a reachable control right here, not three UI regions
   // away behind the row's unrelated ⋯ menu, and it is now a REAL path (P1-1), not a dead end.
   await expect(notice.getByRole("button", { name: REMOVE_WEATHER_TELLER })).toBeVisible();
 
-  await notice.getByRole("button", { name: "Allow the whole ask" }).click();
+  // The owner allows the whole ask — which now takes an explicit tick, not a button that decided for them.
+  await newCapability.click();
+  await notice.getByRole("button", { name: "Allow selected" }).click();
 
   // SETTLED: barrier on the notice clearing (the server's own post-grant truth) BEFORE reading the recorder
   // — the mutation is provably complete only once the invalidate has repainted the row.
   await expect(notice).toHaveCount(0);
   await expect(page.getByText("Off — asked for more than you allowed")).toHaveCount(0);
   // The ANTI-TOCTOU ECHO: the server refuses a `setGrant` whose `acknowledgedNetHosts` doesn't match its
-  // own manifest, so the client MUST send exactly the host list it rendered (`plugin.netHosts`), not an
-  // empty array or a client-computed guess.
+  // own manifest, so the client MUST send exactly the host list it RENDERED (`plugin.netHosts`) — not an
+  // empty array, not a client-computed guess, and NOT a function of which boxes were ticked. Both hosts
+  // are echoed even though the person only ticked one capability.
   // ONESHOT-OK: the settle assertions above prove the call completed before this read.
   expect(recorder.lastInput("plugin.setGrant")).toEqual({
     pluginId: INSTALLED_ROW.id,
     grant: upgradedRow.declaredCapabilities,
+    acknowledgedNetHosts: upgradedRow.netHosts,
+  });
+});
+
+test("a PARTIAL re-consent records exactly the narrower subset, and the notice keeps saying so", async ({ mount, page }) => {
+  // THE GRANULARITY THIS ROW EXISTS FOR (#658). Install has always let a person tick individual boxes; the
+  // notice offered "the whole ask, or remove". The server never had that limit — `setGrant` takes an
+  // arbitrary subset and computes `pendingReconsent` honestly for a partial one — so the gap was client-only.
+  // This drives the middle path end to end: allow ONE of the two newly-declared capabilities, and assert
+  // both that the recorded input is the narrower set and that the surface still says an ask is outstanding.
+  let upgraded = false;
+  let partiallyAllowed = false;
+  const upgradedRow = {
+    ...INSTALLED_ROW,
+    version: "2.0.0",
+    status: "disabled",
+    declaredCapabilities: ["chat.read", "turn.trigger", "net.fetch", "worldinfo.write"],
+    grantedCapabilities: ["chat.read", "net.fetch"],
+    netHosts: ["api.weather.example", "collector.elsewhere.example"],
+    reconsentPending: true,
+    widenedNetHosts: ["collector.elsewhere.example"],
+  };
+  // The server's verdict for a partial answer: the extra capability IS granted, and the flag STAYS UP
+  // because the plugin is still asking for something unallowed. Not faked client-side — the surface reads
+  // the same `reconsentPending` it always did.
+  const partialRow = { ...upgradedRow, grantedCapabilities: ["chat.read", "net.fetch", "worldinfo.write"] };
+  const recorder = await routeTrpc(page, {
+    "plugin.list": () => {
+      if (!upgraded) {
+        return [INSTALLED_ROW];
+      }
+      return [partiallyAllowed ? partialRow : upgradedRow];
+    },
+    "plugin.upgrade": () => {
+      upgraded = true;
+      return upgradedRow;
+    },
+    "plugin.setGrant": () => {
+      partiallyAllowed = true;
+      return partialRow;
+    },
+    "plugin.getLog": () => [],
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  await page.locator(FILE_TRIGGER_INPUT).setInputFiles({
+    name: "weather-teller-2.zip",
+    mimeType: "application/zip",
+    buffer: bundle({
+      ...WEATHER_MANIFEST,
+      version: "2.0.0",
+      capabilities: ["chat.read", "turn.trigger", "net.fetch", "worldinfo.write"],
+      netHosts: ["api.weather.example", "collector.elsewhere.example"],
+    }),
+  });
+
+  const notice = page.getByRole("alert").filter({ hasText: "stayed off" });
+  // TWO capabilities are outstanding, and the headline counts them — this is also the pre-state the settle
+  // below is read against, so the barrier cannot pass on the local draft.
+  await expect(notice).toContainText("asks for 2 permissions you hadn't allowed and adds a new host it can reach");
+  // The owner allows the lorebook one and leaves the spendy one alone.
+  await notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY }).click();
+  await expect(notice.getByRole("checkbox", { name: NEW_TURN_CAPABILITY })).not.toBeChecked();
+  await notice.getByRole("button", { name: "Allow selected" }).click();
+
+  // SETTLED: the headline dropped to ONE outstanding permission. That count is derived from the SERVER's
+  // `grantedCapabilities`, never from the local draft, so only the write plus its invalidate can produce it
+  // — a checkbox assertion here would have passed the instant it was clicked and read the recorder before
+  // the mutation ever fired.
+  await expect(notice).toContainText("asks for a permission you hadn't allowed and adds a new host it can reach");
+  // …and the notice is STILL STANDING, because `turn.trigger` is still unallowed. A surface that went quiet
+  // here would be claiming the person had answered an ask they explicitly declined half of.
+  await expect(notice).toBeVisible();
+  await expect(page.getByText("Off — asked for more than you allowed")).toBeVisible();
+  // The row the owner just allowed now reads as granted — from the server's truth, after the reset.
+  await expect(notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY })).toBeChecked();
+
+  // ONESHOT-OK: the settle assertions above prove the call completed before this read.
+  // The recorded input is the NARROWER subset — prior grant plus the one row ticked, and NOT `turn.trigger`.
+  // The host echo is unchanged by the narrowing: it is about what was RENDERED, not what was ticked.
+  expect(recorder.lastInput("plugin.setGrant")).toEqual({
+    pluginId: INSTALLED_ROW.id,
+    grant: ["chat.read", "net.fetch", "worldinfo.write"],
     acknowledgedNetHosts: upgradedRow.netHosts,
   });
 });

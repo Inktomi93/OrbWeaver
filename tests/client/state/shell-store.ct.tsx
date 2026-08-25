@@ -94,6 +94,25 @@ test("publishContextTabIds / getAvailableContextTabIds round-trip the mounted su
   await expect(probe.getByText("ctxTabIds=runs,setup,versions|runs:Runs,setup:Setup,versions:Versions")).toBeVisible();
 });
 
+// THE DEV BRIDGE'S MOUNT SIGNAL (#656). `agent-nav`'s contextTab arm used to validate a requested tab
+// against the published id set while that set was still EMPTY (a tabbed surface publishes from a mount
+// effect), which validated vacuously and returned `ok:true` on a panel showing a different tab. The arm now
+// WAITS on this pair — `subscribeShellState` fires on every store write, `getContextTab` reads back what the
+// panel would resolve — so a store that does not deliver the signal breaks the bridge, and this pins it.
+test("subscribeShellState fires on a store write and getContextTab reads the landed tab back", async ({ mount }) => {
+  const probe = await mount(<ShellStoreProbe />);
+  // Subscribed at mount, nothing written yet.
+  await expect(probe.getByText("watchedTab=idle")).toBeVisible();
+
+  await probe.getByRole("button", { name: "set context tab" }).click();
+  await expect(probe.getByText("watchedTab=tab=members")).toBeVisible();
+
+  // A DIFFERENT write still delivers, and the imperative read tracks it — the arm's landing check depends on
+  // the signal firing for every write, not only the first.
+  await probe.getByRole("button", { name: "reveal context panel" }).click();
+  await expect(probe.getByText("watchedTab=tab=field")).toBeVisible();
+});
+
 test("revealContextPanel dual-writes: contextTab + openOverlayPanel + the CONTEXT panel dock", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");

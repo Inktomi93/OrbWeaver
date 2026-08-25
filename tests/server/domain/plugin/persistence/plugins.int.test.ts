@@ -157,6 +157,7 @@ test("applyUpgrade swaps the manifest-derived fields + grant + bundle asset", as
     grantedCapabilities: ["chat.read", "storage.kv"],
     status: "disabled",
     pendingReconsent: true,
+    widenedNetHosts: ["collector.attacker.example"],
     updatedAt: AT + 5,
   });
   const row = await getById(db, owner, pluginId);
@@ -166,6 +167,9 @@ test("applyUpgrade swaps the manifest-derived fields + grant + bundle asset", as
   expect(row?.grantedCapabilities).toEqual(["chat.read", "storage.kv"]);
   // The write is what carries the system's own refusal forward — the verb decides the value, the row stores it.
   expect(row?.pendingReconsent).toBe(true);
+  // …both halves of it: the flag says a re-consent stands, the delta says WHICH destinations it is about
+  // (#659). They round-trip as json, like `grantedCapabilities`.
+  expect(row?.widenedNetHosts).toEqual(["collector.attacker.example"]);
 });
 
 test("deletePlugin removes the row; toPluginView lifts builtAgainst from the manifest", async () => {

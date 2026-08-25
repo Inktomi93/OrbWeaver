@@ -103,6 +103,40 @@ export interface AutomationTurnRequest {
   readonly guided?: string | undefined;
 }
 
+// ── the `run_tool` arm's seam onto the ONE tool registry (D146) ───────────────────────────────────────
+// Automation declares the TYPE; `entry/compose` binds it to `domain/tool-use` (the cake — automation never
+// imports a sibling domain). The arm hands over a NAME and a RENDERED args document and gets DATA back; there
+// is no message-write op on this surface and none may be added (the class-1 wall: a tool result is data back
+// to the arm, never a message insert).
+
+/** The `run_tool` arm's request. `argsJson` is the arm's macro-rendered `argsTemplate` — the arm renders, the
+ *  op executes, exactly like every other templated arm. `authorUserId` is the rule AUTHOR: the tool runs as
+ *  them, on their grant, in their variable namespace, and it is their direct-drive reachability the op
+ *  re-checks before invoking. */
+export interface AutomationToolRequest {
+  readonly authorUserId: UserId;
+  readonly chatId: ChatId;
+  readonly name: string;
+  readonly argsJson: string;
+}
+
+/** What ONE `run_tool` invocation produced. Three arms, and the middle one is the whole of D146-d:
+ *
+ *  • `ok` — the tool's result STRING, verbatim (a guest tool's return is already its own JSON document; the
+ *    execute pipeline never re-stringifies it). The arm may capture it into a variable.
+ *  • `unavailable` — the named tool is not drivable by this author RIGHT NOW. It passed the mint gate once, so
+ *    this means the CONTRIBUTOR WENT AWAY (the plugin was disabled, upgraded or uninstalled — ordinary user
+ *    action). The arm PAUSES the rule on it. It is a separate arm from `failed` precisely so the pause can
+ *    never be mistaken for a fault: routing it through `failed` would spend `consecutive_errors` and
+ *    auto-disable the rule at 20, which is the rot D146-d names.
+ *  • `failed` — the tool ran and refused, or its args did not parse, or its handler threw. That IS a fault
+ *    worth an `arm_error`: the rule's author wrote something the tool rejects, and the error budget is how a
+ *    rule that can only ever fail eventually stops. */
+export type AutomationToolOutcome =
+  | { readonly ok: true; readonly result: string }
+  | { readonly ok: false; readonly reason: "unavailable" }
+  | { readonly ok: false; readonly reason: "failed"; readonly error: string };
+
 /** The NARROW turn result automation reads — how many replies committed. Never chat's message views:
  *  automation triggers the turn, it does not render it. (Cost VISIBILITY rides the stats domain off the
  *  turn's own metering; automation no longer accumulates spend — the $/day ceiling was stripped.) */
@@ -184,6 +218,22 @@ export interface AutomationOps {
   readonly imagery: {
     readonly generatePicture: (req: AutomationImageRequest) => Promise<AutomationImageResult>;
   };
+  /** D146 — the ONE tool registry, reached by the `run_tool` arm. Wired at compose to `domain/tool-use`. */
+  readonly tools: {
+    /** DIRECT-DRIVE reachability: may `authorUserId` name `toolName` themselves? Answers `true` only for a
+     *  contributor tool that author INSTALLED (`tool-use/substrate/reachability.ts` states why the plugin's
+     *  own PL-C invocation ceiling is not sufficient for this question).
+     *
+     *  TWO callers, one predicate, two meanings for `false` — this is the D146-d hinge:
+     *    • the MINT gate (`substrate/validate.ts`) ⇒ a typed refusal; the rule is never stored.
+     *    • the per-fire PAUSE gate (`engine/dispatch.ts::runGates`) ⇒ the rule pauses, spending nothing.
+     *  Synchronous because the registry is an in-process Map — a per-fire gate must cost nothing. */
+    readonly isToolDrivableBy: (toolName: string, authorUserId: UserId) => boolean;
+    /** Invoke one tool as the rule author. Re-checks reachability ITSELF (never trusting that a caller
+     *  checked) and returns `unavailable` when it has gone — so the pause posture holds even when a plugin is
+     *  deactivated in the window between the gate and this call. Never throws for a tool-level failure. */
+    readonly runTool: (req: AutomationToolRequest) => Promise<AutomationToolOutcome>;
+  };
   /** BG-F — the FIRST quiet LLM op in `AutomationOps`: a one-shot summarize-role generation that returns raw
    *  text and posts NOTHING to the chat (the `set_chat_background` arm's model pick). Wired at compose to the
    *  author's resolved `summarize`-role connection (the D79 quiet-turn seam), author-scoped for the
@@ -262,9 +312,16 @@ export interface DispatchFrame {
   readonly now: number;
 }
 
-/** One arm's execution outcome. `ok` on success; else a typed `arm_error` refusal → the `action_error` fire
- *  terminal (increments `consecutive_errors`, aborts the rule's remaining arms). The first non-`ok` outcome
- *  aborts the rule's remaining arms. */
+/** One arm's execution outcome. `ok` on success; else one of TWO non-ok kinds, and the difference between them
+ *  is the whole of D146-d — both abort the rule's remaining arms, and they part company on what the rule PAYS:
+ *
+ *  • `arm_error` — a typed refusal → the `action_error` fire terminal. Increments `consecutive_errors`, which
+ *    auto-disables the rule at 20. That is correct for a FAULT.
+ *  • `paused` — the arm's CONTRIBUTOR is not available to this author right now (only `run_tool` can produce
+ *    it). → the `paused` run terminal: NO fire row, NO error increment, NO `last_fired_at` stamp, no state
+ *    changed at all, so the next event after the contributor returns dispatches normally. Routing this through
+ *    `arm_error` is exactly the rot D146-d forbids: disabling one plugin would silently consume every rule
+ *    naming its tools, and re-enabling would not bring them back. */
 export type ArmOutcome =
   | {
       readonly ok: true;
@@ -273,7 +330,11 @@ export type ArmOutcome =
        *  the host says yes (§3-S4's fire-log honesty). Absent/false = the arm really ran. */
       readonly suggested?: boolean;
     }
-  | { readonly ok: false; readonly kind: "arm_error"; readonly detail: string };
+  | { readonly ok: false; readonly kind: "arm_error"; readonly detail: string }
+  /** Carries NO `detail`, deliberately: a pause writes no fire row, so there is nowhere for a detail to go and
+   *  a field that exists only to be discarded is dead wire. The WHY is not lost — the rule's terminal is
+   *  `paused`, and "a tool from a plugin that isn't enabled" is the only thing that can produce it. */
+  | { readonly ok: false; readonly kind: "paused" };
 
 /** The arm dispatcher. ONE function that runs any arm — dispatch is a `switch(action.type)` (the
  *  RUNNERS discipline realized as a switch, NOT an object map: no snake_case property keys, a `default: never`

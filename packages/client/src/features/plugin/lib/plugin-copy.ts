@@ -208,18 +208,30 @@ export function statusCopy(
  * (`domain/plugin/verbs/upgrade.ts` — a newly-declared capability OR a `netHosts` entry the prior manifest
  * never carried), and this is the sentence that tells a person WHY the plugin stopped.
  *
- * It names the CAPABILITY count exactly, because that delta is computable client-side from the same two
- * inputs the server compares. It NEVER names a host count: the server compares against the prior MANIFEST's
- * hosts, which no read surface projects, so any number here would be invented. The hosts-only arm therefore
- * says what is true and no more — the reach changed, and the full list is right below.
+ * BOTH COUNTS ARE NOW EXACT. The capability delta was always computable client-side from the two projected
+ * grant fields; the host delta was not — the server compares against the PRIOR manifest, which the same
+ * upgrade overwrites — so this line used to fall back to a bare "changed what this plugin can reach" rather
+ * than invent a number. `PluginView.widenedNetHosts` (#659) is that number, recorded server-side at the one
+ * moment it existed, and naming it is the whole point of the row: "it can now ALSO reach one new host" is
+ * the decision a person can actually make, where "re-read these eight hostnames" is not.
+ *
+ * The bare arm survives for the one state that can still reach it: a re-consent whose delta was recorded
+ * before this field existed. It says what is true and no more, and the full list is right below.
  */
-export function reConsentLine(addedCapabilities: readonly PluginCapability[]): string {
+export function reConsentLine(addedCapabilities: readonly PluginCapability[], addedNetHosts: readonly string[] = []): string {
   const tail = "so it stayed off. Check what it wants below.";
-  if (addedCapabilities.length === 0) {
-    return `This update changed what this plugin can reach, ${tail}`;
-  }
   const permissions = addedCapabilities.length === 1 ? "a permission you hadn't allowed" : `${addedCapabilities.length} permissions you hadn't allowed`;
-  return `This update asks for ${permissions}, ${tail}`;
+  const hosts = addedNetHosts.length === 1 ? "a new host it can reach" : `${addedNetHosts.length} new hosts it can reach`;
+  if (addedCapabilities.length > 0 && addedNetHosts.length > 0) {
+    return `This update asks for ${permissions} and adds ${hosts}, ${tail}`;
+  }
+  if (addedCapabilities.length > 0) {
+    return `This update asks for ${permissions}, ${tail}`;
+  }
+  if (addedNetHosts.length > 0) {
+    return `This update adds ${hosts}, ${tail}`;
+  }
+  return `This update changed what this plugin can reach, ${tail}`;
 }
 
 /** The one canonical explanation of what removing a plugin does — the row's overflow menu and the

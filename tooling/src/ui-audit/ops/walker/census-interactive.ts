@@ -149,10 +149,6 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
   // test alone stalled the walk there and printed a fine-pointer P1 at 22px on a 32px row.
   // A hit is now ALSO owned when the nearest ancestor el and hit share offers exactly ONE control and that
   // control is el — a neighbouring button IS another offered control, so a genuine sub-target still fires.
-  // DECLARED LIMIT: a lone control inside a larger non-interactive wrapper within COMPOSITE_WALK_MAX levels
-  // is credited with the wrapper's extent even if the wrapper takes no pointer. That direction (under-
-  // reporting one sub-target) is the deliberate trade against the measured FP class: 10 of 13 "sub-target"
-  // findings in one audit were hit-area misreads.
   var COMPOSITE_WALK_MAX = 4;
   // The same "is this an offered target" filter the tap-target census itself applies (aria-hidden Base UI
   // twins, dev chrome, 1-2px plumbing) — two vocabularies here would let a phantom control veto a real
@@ -162,6 +158,31 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     if (el.closest("[aria-hidden='true']")) return false;
     var r = el.getBoundingClientRect();
     return Math.min(r.width, r.height) > 2;
+  }
+  // BOX- vs NOT-BOX-CARRIED ANCESTOR CREDIT (#662/#665 — fixed from an unconditional hit.contains(el)
+  // that made a short control alone in a padded wrapper UN-FAILABLE: it measured 44 no matter how short,
+  // because walking off its own box always landed back on the wrapper). Ancestor credit — via EITHER the
+  // plain containment clause below OR sharedCompositeOwns — is legitimate for exactly two shapes, both of
+  // which have NO paintable box of their own at the probed point, so the ancestor is the only thing that
+  // CAN answer:
+  //   · PSEUDO-CARRIED: an overflowing ::after/::before touch-target pseudo (the @orb/ui Button glyph
+  //     ramp — packages/ui/src/primitives/button/variants.ts glyphBox, content-[''] + absolute
+  //     positioning) has no DOM node at all.
+  //   · VISUALLY-HIDDEN: Base UI's native range input inside a Slider Thumb (isVisuallyHidden, core.ts —
+  //     a collapsed clip-path) paints nothing; elementFromPoint on its own centre already resolves to
+  //     the Thumb div that visually represents it (verified live: the input's own rect sits UNDER the
+  //     Thumb, and even the probe at its own centre hits the Thumb, not the input).
+  // A control with NEITHER — a plain, visible, appropriately-sized button — carries its floor on its OWN
+  // border box (a real height/min-height, e.g. the CONTROL_SIZE ramp), so an ancestor is never evidence
+  // of ownership for it: this is the #662/#665 hole, and it is refused before either ancestor path runs.
+  function pseudoCarriesFloor(el) {
+    function extendsOutward(style) {
+      return style.content !== "none" && style.content !== "normal" && (style.position === "absolute" || style.position === "fixed");
+    }
+    return extendsOutward(getComputedStyle(el, "::after")) || extendsOutward(getComputedStyle(el, "::before"));
+  }
+  function ancestorCreditAllowed(el) {
+    return pseudoCarriesFloor(el) || isVisuallyHidden(el);
   }
   function sharedCompositeOwns(el, hit) {
     var scope = el.parentElement;
@@ -178,11 +199,18 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     }
     return false;
   }
+  // DECLARED LIMIT: a lone control inside a larger non-interactive wrapper within COMPOSITE_WALK_MAX
+  // levels is STILL credited with the wrapper's extent when the control itself is pseudo-carried or
+  // visually-hidden (e.g. a glyph Button with no genuine composite siblings at all). That direction
+  // (crediting a control that is, rarely, genuinely alone) is the accepted trade against the measured FP
+  // class this file's tap-target census exists to avoid — see the THE HIT AREA IS NOT THE BOX note above.
   function ownsPoint(el, x, y) {
     if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) return false;
     var hit = document.elementFromPoint(x, y);
     if (hit === null) return false;
-    if (hit === el || el.contains(hit) || hit.contains(el)) return true;
+    if (hit === el || el.contains(hit)) return true;
+    if (!ancestorCreditAllowed(el)) return false;
+    if (hit.contains(el)) return true;
     return sharedCompositeOwns(el, hit);
   }
   // Grow outward from the centre while the control still answers on all four cardinal offsets. Returns

@@ -23,8 +23,10 @@ export class AutomationReservedTriggerError extends DomainOperationError {
 }
 
 /** `createRule`/`updateRule` refused for a validation reason other than a reserved trigger: a reserved
- *  action arm, an unparseable CEL predicate, an out-of-range arm cap, a cooldown floor violation, or an
- *  unattached world-info book. Carries a machine `code` for the editor's inline surface. */
+ *  action arm, an unparseable CEL predicate, an out-of-range arm cap, a cooldown floor violation, an
+ *  unattached world-info book, or (`unknown_tool`) a `run_tool` arm naming a tool the rule's AUTHOR cannot
+ *  drive — D146-b's per-rule replacement for a first-party seam's boot-fatal assertion. Carries a machine
+ *  `code` for the editor's inline surface. */
 export class RuleValidationError extends DomainOperationError {
   constructor(code: string, reason: string) {
     super(`automation_rule_${code}`, reason);

@@ -107,6 +107,58 @@ test("plugins round-trips, unique(ownerId,slug) collides, status CHECK bites", a
   ).rejects.toSatisfy(isConstraintErr);
 });
 
+test("the widened-hosts CHECK refuses a SETTLED row that still carries a re-consent delta", async () => {
+  // #659, the physics tier of the delta's lifecycle. `widened_net_hosts` names WHICH destinations a pending
+  // re-consent added, and it is what a notice marks "New" — a row with the flag DOWN and marks still on it
+  // would put a claim on a consent surface about an ask nobody is being asked about. The verbs clear the two
+  // together (one `refusalAfter*` decision each); this makes the other combination unwritable, so a future
+  // writer that forgets gets a constraint violation instead of a badge that lies.
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_plugin_d" });
+  const bundleAssetId = await seedAsset(db, ownerId, "asset_plugin_d");
+  const base = {
+    ownerId,
+    slug: "delta-plugin",
+    name: "Delta Plugin",
+    version: "1.0.0",
+    manifest: MANIFEST,
+    bundleAssetId,
+    grantedCapabilities: GRANTS,
+    status: "disabled" as const,
+    origin: "upload" as const,
+    installedAt: 1000,
+    updatedAt: 1000,
+  };
+
+  // PLANTED POSITIVE CONTROL: the settled-but-marked row the verbs must never write.
+  await expect(
+    db.insert(plugins).values({ ...base, id: castId<PluginId>("plugin_d_bad"), pendingReconsent: false, widenedNetHosts: ["collector.attacker.example"] }),
+  ).rejects.toSatisfy(isConstraintErr);
+
+  // …and both legitimate shapes pass, so the CHECK is a lifecycle guard and not a blanket refusal.
+  await db
+    .insert(plugins)
+    .values({ ...base, id: castId<PluginId>("plugin_d_pending"), pendingReconsent: true, widenedNetHosts: ["collector.attacker.example"] });
+  await db.insert(plugins).values({ ...base, id: castId<PluginId>("plugin_d_settled"), slug: "delta-plugin-2", pendingReconsent: false });
+  expect(
+    (
+      await db
+        .select()
+        .from(plugins)
+        .where(eq(plugins.id, castId<PluginId>("plugin_d_settled")))
+    )[0]?.widenedNetHosts,
+  ).toEqual([]);
+
+  // Clearing the flag while the marks stand is the same violation on the UPDATE path (a `setGrant` that
+  // moved one column and forgot the other), which is where it would actually be reached.
+  await expect(
+    db
+      .update(plugins)
+      .set({ pendingReconsent: false })
+      .where(eq(plugins.id, castId<PluginId>("plugin_d_pending"))),
+  ).rejects.toSatisfy(isConstraintErr);
+});
+
 test("bundleAssetId RESTRICT blocks the bundle's asset delete while installed; owner CASCADE drops the plugin", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_plugin_b" });

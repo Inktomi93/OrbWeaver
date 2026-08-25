@@ -8,13 +8,16 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { TeachingContext, TeachingContribution } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
-import { collectTeaching, DEFAULT_TEACHING_KNOBS } from "../../../../../packages/server/src/domain/chat/substrate/teaching.ts";
+import { DEFAULT_CHAT_BEHAVIOR } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
+import { collectTeaching, resolveTeachingKnobs } from "../../../../../packages/server/src/domain/chat/substrate/teaching.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const TCTX: TeachingContext = {
   chatId: castId<ChatId>("chat_teach"),
   runAsUserId: castId<UserId>("user_host"),
-  knobs: DEFAULT_TEACHING_KNOBS,
+  knobs: { offerChoices: false },
+  prose: {},
+  identity: { user: "Alex", char: "Aria" },
   rpgGather: null,
 };
 
@@ -128,8 +131,20 @@ describe("collectTeaching — the S2 fold", () => {
   });
 });
 
-describe("DEFAULT_TEACHING_KNOBS", () => {
-  test("offerChoices is OFF until B1 lands the per-chat read — nothing teaches choices on today's tree", () => {
-    expect(DEFAULT_TEACHING_KNOBS).toEqual({ offerChoices: false });
+// B1 — the knob's PRECEDENCE, pinned as its own unit because every other pin in this repo that touches it
+// reads it through a turn: the ROOM value wins, an ABSENT room value inherits the frozen host's per-user
+// default, and there is no third rule. The `false || true` arm is the one that matters — an `||` instead of a
+// `??` would pass three of these four and silently make "off for this room" unrepresentable.
+describe("resolveTeachingKnobs — room over host default", () => {
+  const hostDefault = (offerChoices: boolean): typeof DEFAULT_CHAT_BEHAVIOR => ({ ...DEFAULT_CHAT_BEHAVIOR, offerChoices });
+
+  test("an ABSENT room value inherits the host's default (both polarities)", () => {
+    expect(resolveTeachingKnobs({}, hostDefault(true))).toEqual({ offerChoices: true });
+    expect(resolveTeachingKnobs({}, hostDefault(false))).toEqual({ offerChoices: false });
+  });
+
+  test("an EXPLICIT room value wins over the host's default (both polarities)", () => {
+    expect(resolveTeachingKnobs({ offerChoices: true }, hostDefault(false))).toEqual({ offerChoices: true });
+    expect(resolveTeachingKnobs({ offerChoices: false }, hostDefault(true))).toEqual({ offerChoices: false });
   });
 });
