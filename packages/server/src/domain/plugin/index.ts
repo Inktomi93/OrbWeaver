@@ -65,10 +65,13 @@ export type {
 export type {
   ApplyDistributedPluginsParams,
   GetPluginLogParams,
+  GetSurfaceStateParams,
   InstallForAllUsersParams,
   InstallPluginParams,
+  InvokeUiActionParams,
   ListDistributedPluginsParams,
   ListPluginsParams,
+  ListSurfacesParams,
   RunSnippetParams,
   SetPluginEnabledParams,
   SetPluginGrantParams,
@@ -83,6 +86,8 @@ export type {
   PluginFanoutSkip,
   PluginFanoutSkipReason,
   PluginLogView,
+  PluginSurfaceState,
+  PluginSurfaceView,
   PluginView,
   SnippetResult,
 } from "./contract/results.ts";

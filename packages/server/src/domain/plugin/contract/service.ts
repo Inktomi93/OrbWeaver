@@ -10,14 +10,17 @@ import type { Principal } from "@orb/contracts/identity";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
-import type { PluginBelts, PluginHostOps, PluginRegistrationHandle, SnippetGate } from "./ops.ts";
+import type { PluginBelts, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle, SnippetGate } from "./ops.ts";
 import type {
   ApplyDistributedPluginsParams,
   GetPluginLogParams,
+  GetSurfaceStateParams,
   InstallForAllUsersParams,
   InstallPluginParams,
+  InvokeUiActionParams,
   ListDistributedPluginsParams,
   ListPluginsParams,
+  ListSurfacesParams,
   RunSnippetParams,
   SetPluginEnabledParams,
   SetPluginGrantParams,
@@ -25,7 +28,16 @@ import type {
   UninstallPluginParams,
   UpgradePluginParams,
 } from "./params.ts";
-import type { DistributedPluginApplication, DistributedPluginView, PluginFanoutResult, PluginLogView, PluginView, SnippetResult } from "./results.ts";
+import type {
+  DistributedPluginApplication,
+  DistributedPluginView,
+  PluginFanoutResult,
+  PluginLogView,
+  PluginSurfaceState,
+  PluginSurfaceView,
+  PluginView,
+  SnippetResult,
+} from "./results.ts";
 
 /** The caller's leak-free chat authority for the snippet gate: `canRead` admits the chat at all,
  *  `canWrite` unlocks the write half of the fixed profile (host authority). An unknown/foreign chat resolves
@@ -143,10 +155,14 @@ export interface CrashPolicy {
 }
 
 /** One resident enabled plugin: its live instance + the registrar handles (`deactivate`/`uninstall`
- *  `unregister`s each — no ghost registrations). */
+ *  `unregister`s each — no ghost registrations) + the crash-policy'd invoker. */
 interface ResidentPlugin {
   readonly instance: PluginInstance;
   readonly handles: readonly PluginRegistrationHandle[];
+  /** The per-plugin crash-counting invoker activation built (the SAME closure the registrars drive): a UI
+   *  action re-enters the surface's `onAction` through THIS so a throwing handler bumps `consecutive_crashes`
+   *  (3-strike auto-disable) exactly like a tool/transform/event handler does (plugin-ui-plane §4.4). */
+  readonly invoke: PluginInvokeHandler;
 }
 
 /** The in-process resident-instance registry the lifecycle owns (`ASSUMES(single-replica)` — the enabled-index
@@ -290,4 +306,12 @@ export interface PluginService {
    *  the caller's chat authority (read admits, host unlocks writes), disposed after. Refuses NOT_FOUND when the
    *  caller cannot read the chat (leak-free). */
   readonly runSnippet: (params: RunSnippetParams) => Promise<SnippetResult>;
+  /** The caller's OWN enabled plugins' registered UI surfaces (plugin-ui-plane #679 U1) — owner-scoped, no
+   *  foreign id (a plugin the caller does not own is never in the result). */
+  readonly listSurfaces: (params: ListSurfacesParams) => Promise<readonly PluginSurfaceView[]>;
+  /** One owned surface's published state (`null` if nothing published). Owner-scoped on `pluginId` (leak-free). */
+  readonly getSurfaceState: (params: GetSurfaceStateParams) => Promise<PluginSurfaceState | null>;
+  /** Re-enter a surface's `onAction` under the crash policy (owner-scoped, leak-free). Void — the state update
+   *  the handler may publish rides the `pluginSurfaceStateChanged` bus poke to the caller's own client. */
+  readonly invokeUiAction: (params: InvokeUiActionParams) => Promise<void>;
 }
