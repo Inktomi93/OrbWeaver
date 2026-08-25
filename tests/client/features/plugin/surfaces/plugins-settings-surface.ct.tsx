@@ -40,6 +40,11 @@ const NEW_TURN_CAPABILITY = /^Ask for a reply on its own/u;
 /** The re-consent notice's own escape action — named by the plugin, since a settings pane can hold several. */
 const REMOVE_WEATHER_TELLER = /^Remove Weather Teller/u;
 const A_PAST_INSTANT = 1_760_000_000_000;
+/** The surface reads `sessions.me` to gate the admin-only "Distribute to everyone" section (D147(d)). Every
+ *  test here drives PER-USER plugin management, so the viewer is a plain user: `isAdmin` is false, the
+ *  distribute contribution resolves out, and the pane renders exactly its own two sections. Fed (not left
+ *  inert) so that admin gate runs LIVE under these mounts rather than answering an unstubbed `null`. */
+const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" };
 /** The bare-`host` tell the old starter shipped (#683) — a property read off `host` with no owning `.`/word
  *  before it (so `orb.host(1)` itself doesn't false-positive). */
 const BARE_HOST_RE = /(?<![.\w])host\./u;
@@ -110,7 +115,7 @@ async function pickBundle(page: Page, manifest: ManifestFixture): Promise<void> 
 }
 
 test("the grant screen names every declared permission, its consequence, and the exact hosts it can reach", async ({ mount, page }) => {
-  await routeTrpc(page, { "plugin.list": () => [] });
+  await routeTrpc(page, { "plugin.list": () => [], "sessions.me": () => USER_VIEWER });
   await mount(<PluginsSurfaceStory />);
 
   await expect(page.getByText("Nothing installed yet.", { exact: false })).toBeVisible();
@@ -148,6 +153,7 @@ test("unchecking a permission installs the NARROWED subset, not what the bundle 
       installed = true;
       return { ...INSTALLED_ROW, grantedCapabilities: ["chat.read", "net.fetch"] };
     },
+    "sessions.me": () => USER_VIEWER,
   });
   await mount(<PluginsSurfaceStory />);
   await pickBundle(page, WEATHER_MANIFEST);
@@ -166,7 +172,7 @@ test("unchecking a permission installs the NARROWED subset, not what the bundle 
 });
 
 test("a bundle that is not a plugin is refused with a reason, before anything is uploaded", async ({ mount, page }) => {
-  const recorder = await routeTrpc(page, { "plugin.list": () => [] });
+  const recorder = await routeTrpc(page, { "plugin.list": () => [], "sessions.me": () => USER_VIEWER });
   await mount(<PluginsSurfaceStory />);
 
   await page.locator(DROPZONE_INPUT).setInputFiles({
@@ -193,6 +199,7 @@ test("an installed plugin says whether it is on and what it is allowed to do", a
       return null; // the verb resolves void; the stub answers a JSON-encodable nothing
     },
     "plugin.getLog": () => [],
+    "sessions.me": () => USER_VIEWER,
   });
   await mount(<PluginsSurfaceStory />);
 
@@ -260,6 +267,7 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
       return allowedRow;
     },
     "plugin.getLog": () => [],
+    "sessions.me": () => USER_VIEWER,
   });
   await mount(<PluginsSurfaceStory />);
 
@@ -392,6 +400,7 @@ test("a PARTIAL re-consent records exactly the narrower subset, and the notice k
       return partialRow;
     },
     "plugin.getLog": () => [],
+    "sessions.me": () => USER_VIEWER,
   });
   await mount(<PluginsSurfaceStory />);
 
