@@ -778,8 +778,8 @@ async function sampleTopBandPixel(page: Page, scroller: Locator): Promise<{ read
     el.scrollTop = 200;
   });
   await expect(scroller).toHaveAttribute("data-fade-top", "");
+  await expect.poll(async () => scroller.boundingBox()).not.toBeNull();
   const box = await scroller.boundingBox();
-  expect(box).not.toBeNull();
   // 8px below the top edge: deep inside the 10% (~40px) band, where the mask's alpha is ~0.2.
   return await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) + 8));
 }
@@ -826,8 +826,8 @@ const ART_BACKDROP_GREEN = 255;
  *  plate's own block padding, at the horizontal centre so no rounded corner is in play. */
 async function sampleLoadingPlatePixel(page: Page, skeleton: Locator): Promise<{ readonly r: number; readonly g: number; readonly b: number }> {
   await expect(skeleton).toBeVisible();
+  await expect.poll(async () => skeleton.boundingBox()).not.toBeNull();
   const box = await skeleton.boundingBox();
-  expect(box).not.toBeNull();
   return await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) - 4));
 }
 
@@ -875,8 +875,8 @@ test("#690 LOADING OVER ART, LIGHT ROOM: the skeleton bars are visibly distinct 
 
   const skeleton = component.locator('[data-slot="skeleton"]').first();
   await expect(skeleton).toBeVisible();
+  await expect.poll(async () => skeleton.boundingBox()).not.toBeNull();
   const box = await skeleton.boundingBox();
-  expect(box).not.toBeNull();
   // ONESHOT-OK: the visibility barrier settled the box; a framebuffer read is a SEQUENTIAL browser op.
   const plate = await sampleLoadingPlatePixel(page, skeleton);
   const bar = await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) + (box?.height ?? 0) / 2));
@@ -897,8 +897,8 @@ test("#690 LOADING OVER ART, REDUCED MOTION: the flat base fill carries the same
 
   const skeleton = component.locator('[data-slot="skeleton"]').first();
   await expect(skeleton).toBeVisible();
+  await expect.poll(async () => skeleton.boundingBox()).not.toBeNull();
   const box = await skeleton.boundingBox();
-  expect(box).not.toBeNull();
   const plate = await sampleLoadingPlatePixel(page, skeleton);
   const bar = await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) + (box?.height ?? 0) / 2));
   const ratio = contrastRatio(bar, plate);
@@ -916,8 +916,8 @@ test("#690 LOADING OVER ART, DARK ROOM: the same bars stay distinct on the polar
 
   const skeleton = component.locator('[data-slot="skeleton"]').first();
   await expect(skeleton).toBeVisible();
+  await expect.poll(async () => skeleton.boundingBox()).not.toBeNull();
   const box = await skeleton.boundingBox();
-  expect(box).not.toBeNull();
   const plate = await sampleLoadingPlatePixel(page, skeleton);
   const bar = await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) + (box?.height ?? 0) / 2));
   const ratio = contrastRatio(bar, plate);
@@ -1192,15 +1192,16 @@ test("#113 a turn taller than the scrollport pins its speaker row to the top of 
   await scroller.evaluate((el: HTMLElement) => {
     el.scrollTop = 900;
   });
-  const offsetFromTop = await scroller.evaluate((el: HTMLElement) => {
-    const name = el.querySelector('[data-slot="message-name-row"][data-sticky]');
-    if (name === null) {
-      return Number.NaN;
-    }
-    return name.getBoundingClientRect().top - el.getBoundingClientRect().top;
-  });
-  expect(offsetFromTop).toBeGreaterThanOrEqual(0);
-  expect(offsetFromTop).toBeLessThan(1);
+  const readOffsetFromTop = async (): Promise<number> =>
+    scroller.evaluate((el: HTMLElement) => {
+      const name = el.querySelector('[data-slot="message-name-row"][data-sticky]');
+      if (name === null) {
+        return Number.NaN;
+      }
+      return name.getBoundingClientRect().top - el.getBoundingClientRect().top;
+    });
+  await expect.poll(readOffsetFromTop).toBeGreaterThanOrEqual(0);
+  await expect.poll(readOffsetFromTop).toBeLessThan(1);
   await expect(component.locator(STUCK_NAME_ROW).getByText("Narrator")).toBeVisible();
 
   // …and the breathing did not vanish, it MOVED: scrolled to the very top, the first row still sits one

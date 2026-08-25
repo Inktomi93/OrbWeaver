@@ -76,11 +76,9 @@ test("the brand's icon COLOUR carries the state, like every nav sibling — no a
   await resting.unmount();
 
   const active = await mount(<RailBrandActiveStory />);
-  const activeColor = await active.getByRole("button", { name: "Home" }).evaluate(readGlyphColor);
-
-  expect(restColor).not.toBe(activeColor);
+  await expect.poll(async () => active.getByRole("button", { name: "Home" }).evaluate(readGlyphColor)).not.toBe(restColor);
   // PARITY: the active brand resolves to the same ember the active nav buttons use — one state grammar.
-  expect(activeColor).toBe(navActiveColor);
+  await expect.poll(async () => active.getByRole("button", { name: "Home" }).evaluate(readGlyphColor)).toBe(navActiveColor);
 });
 
 test("clicking the glyph fires setActiveSection('home') — assert the STORE, not a rendered echo", async ({ mount }) => {

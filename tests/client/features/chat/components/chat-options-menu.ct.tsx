@@ -72,7 +72,6 @@ test("#40: committed 'Turn on RPG' → 'Freeform story' fires rpg.createGame (mo
   await page.getByRole("menuitem", { name: "Freeform story" }).click();
 
   await expect.poll(() => trpc.count("rpg.createGame"), { intervals: [20, 50, 100] }).toBe(1);
-  const input = trpc.lastInput("rpg.createGame");
-  expect(input).toMatchObject({ chatId: CHAT_ID, mode: "lite" });
-  expect(input).not.toHaveProperty("profile"); // freeform = the create default (no packaged profile)
+  await expect.poll(() => trpc.lastInput("rpg.createGame")).toMatchObject({ chatId: CHAT_ID, mode: "lite" });
+  await expect.poll(() => trpc.lastInput("rpg.createGame")).not.toHaveProperty("profile"); // freeform = the create default (no packaged profile)
 });

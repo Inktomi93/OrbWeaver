@@ -423,8 +423,7 @@ test("avatarShape=rounded / avatarAspect=portrait / avatarRing=accent thread thr
   const root = component.locator(AVATAR);
   await expect(root).toHaveCSS("border-radius", "8px"); // rounded = --radius-base, the PORTRAIT step (density S2 / D6)
   await expect(root).toHaveCSS("aspect-ratio", "2 / 3");
-  const boxShadow = await root.evaluate((el) => getComputedStyle(el).boxShadow);
-  expect(boxShadow).not.toBe("none");
+  await expect.poll(async () => root.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
   // RENDERED geometry, not just class presence — a collapse-to-0 regression (avatar/variants.ts'
   // header documents this avatar bit ONCE already: a bare icon-left avatar's `h-full` resolved against
   // an undefined parent height and collapsed to ~0px) would pass every assertion above silently.
@@ -484,11 +483,10 @@ test("whisper: the header band renders a 3:1 aspect box (matches the server's ba
   // The band is an `--aspect-banner` (3:1) box — height DERIVES from the bubble width so the displayed
   // box always matches the server's 3:1 crop at ANY width (never a fixed height that drifts the aspect).
   // Assert the RENDERED ratio (done ≠ rendered), which is width-independent by construction.
+  await expect.poll(async () => band.boundingBox()).not.toBeNull();
   const box = await band.boundingBox();
-  expect(box).not.toBeNull();
   expect(Math.abs((box?.width ?? 0) / (box?.height ?? 1) - 3)).toBeLessThan(0.1);
-  const bgImage = await band.evaluate((el) => getComputedStyle(el).backgroundImage);
-  expect(bgImage).toContain("?v=banner&w=");
+  await expect.poll(async () => band.evaluate((el) => getComputedStyle(el).backgroundImage)).toContain("?v=banner&w=");
 });
 
 // ⚑ THIS PAIR REPLACES TWO PINS THAT HELD THE #212 DEFECTS IN PLACE, and the reversal is stated rather
@@ -503,8 +501,7 @@ test("echo: the art pane is a FIXED column outside the prose measure, sized to t
   const component = await mount(<MessageRowStory chatStyle="echo" messageRole="assistant" characterId={ALICE_ID} participants={[aliceWithAvatar()]} />);
   const bubble = component.locator(BUBBLE);
   const artWidthPx = remTokenPx(TOKENS["immersive.echo-art-width"].value);
-  const paddingRightPx = await bubble.evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingRight));
-  expect(paddingRightPx).toBe(artWidthPx);
+  await expect.poll(async () => bubble.evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingRight))).toBe(artWidthPx);
   // The art layer is sized to that pane and anchored to its TOP outer corner — never `cover` over the
   // whole bubble, which upscaled a 400x600 portrait 4.94x and cropped past the subject on a long turn.
   const [bgSize, bgPos] = await bubble.evaluate((el) => {
@@ -537,25 +534,23 @@ test("echo: a persona-kind (user) row is decorated too, mirrored to its own oute
 test("echo: an UNATTRIBUTED row still gets no art (the kind gate survives the both-roles change)", async ({ mount }) => {
   const component = await mount(<MessageRowStory chatStyle="echo" messageRole="system" content="System notice." />);
   const bubble = component.locator(BUBBLE);
-  const inlinePaddingLeft = await bubble.evaluate((el) => (el as HTMLElement).style.paddingLeft);
-  const inlinePaddingRight = await bubble.evaluate((el) => (el as HTMLElement).style.paddingRight);
-  expect(inlinePaddingLeft).toBe("");
-  expect(inlinePaddingRight).toBe("");
+  await expect.poll(async () => bubble.evaluate((el) => (el as HTMLElement).style.paddingLeft)).toBe("");
+  await expect.poll(async () => bubble.evaluate((el) => (el as HTMLElement).style.paddingRight)).toBe("");
 });
 
 test("ripple: the welded avatar's boundingBox width resolves to --immersive-ripple-portrait-width; position is sticky", async ({ mount }) => {
   const component = await mount(<MessageRowStory chatStyle="ripple" messageRole="assistant" characterId={ALICE_ID} participants={[aliceWithAvatar()]} />);
   const avatar = component.locator(AVATAR);
-  const box = await avatar.boundingBox();
-  expect(Math.round(box?.width ?? 0)).toBe(remTokenPx(TOKENS["immersive.ripple-portrait-width"].value));
+  await expect.poll(async () => Math.round((await avatar.boundingBox())?.width ?? 0)).toBe(remTokenPx(TOKENS["immersive.ripple-portrait-width"].value));
   await expect(avatar).toHaveCSS("position", "sticky");
 });
 
 test("hush: the left stripe resolves to --immersive-stripe-width and the character's --color-speaker", async ({ mount }) => {
   const component = await mount(<MessageRowStory chatStyle="hush" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
   const bubble = component.locator(BUBBLE);
-  const stripeWidthPx = await bubble.evaluate((el) => Number.parseFloat(getComputedStyle(el).borderLeftWidth));
-  expect(stripeWidthPx).toBe(remTokenPx(TOKENS["immersive.stripe-width"].value));
+  await expect
+    .poll(async () => bubble.evaluate((el) => Number.parseFloat(getComputedStyle(el).borderLeftWidth)))
+    .toBe(remTokenPx(TOKENS["immersive.stripe-width"].value));
   const borderColor = await bubble.evaluate((el) => getComputedStyle(el).borderLeftColor);
   const speakerColor = await cssVar(bubble, "--color-speaker");
   expect(parseOklch(borderColor)).toEqual(parseOklch(speakerColor));
@@ -612,15 +607,14 @@ test("narration ink is DISTINCT from the speaker's dialogue ink (the em run keep
   const dialogue = bubble.locator(DIALOGUE_SPAN);
   await expect(dialogue).toHaveCount(1);
 
-  const emColor = await em.evaluate((el) => getComputedStyle(el).color);
   const dialogueColor = await dialogue.evaluate((el) => getComputedStyle(el).color);
   const speakerVar = await cssVar(bubble, "--color-speaker");
   const narrationVar = await cssVar(bubble, "--color-narration");
   // The two inks differ…
-  expect(emColor).not.toBe(dialogueColor);
+  await expect.poll(async () => em.evaluate((el) => getComputedStyle(el).color)).not.toBe(dialogueColor);
   // …because the row scope no longer overwrites the palette's narration token with the speaker hash.
   expect(parseOklch(narrationVar)).not.toEqual(parseOklch(speakerVar));
-  expect(parseOklch(emColor)).toEqual(parseOklch(narrationVar));
+  await expect.poll(async () => parseOklch(await em.evaluate((el) => getComputedStyle(el).color))).toEqual(parseOklch(narrationVar));
 });
 
 // THE AVATARS-OFF RULING (owner, 2026-08-18 — #212-6): `showInChatAvatars` governs ALL identity art, not
@@ -642,8 +636,9 @@ test("avatars OFF removes the IMMERSIVE art too — echo's pane, whisper's band,
   );
   await expect(whisper.locator(BAND)).toHaveCount(0);
   // …but the speaker STRIPE is chrome, not identity art, and stays.
-  const stripe = await whisper.locator(BUBBLE).evaluate((el) => Number.parseFloat(getComputedStyle(el).borderTopWidth));
-  expect(stripe).toBe(remTokenPx(TOKENS["immersive.stripe-width"].value));
+  await expect
+    .poll(async () => whisper.locator(BUBBLE).evaluate((el) => Number.parseFloat(getComputedStyle(el).borderTopWidth)))
+    .toBe(remTokenPx(TOKENS["immersive.stripe-width"].value));
   await whisper.unmount();
 
   const ripple = await mount(
@@ -740,12 +735,12 @@ test("echo (no avatar): the FALLBACK edge tile IS the art — hue field + initia
   await expect(tile).toContainText("A");
   // Owner ruling 2026-07-09 (side-eye): the initial is a scannable identity mark, sized off the
   // hero-avatar glyph token (~4× the old 16px title), not an easter egg — RENDERED font-size, not a class.
-  const glyphPx = await tile.locator('[data-slot="text"]').evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
-  expect(glyphPx).toBe(remTokenPx(TOKENS["spacing.avatar-hero"].value));
+  await expect
+    .poll(async () => tile.locator('[data-slot="text"]').evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize)))
+    .toBe(remTokenPx(TOKENS["spacing.avatar-hero"].value));
   // Reading geometry is IDENTICAL to the with-image echo (the regression pin above): text is padded
   // clear by the art pane's own width token, never a reserved-but-empty gap.
-  const inlinePaddingRight = await bubble.evaluate((el) => (el as HTMLElement).style.paddingRight);
-  expect(inlinePaddingRight).toBe("var(--immersive-echo-art-width)");
+  await expect.poll(async () => bubble.evaluate((el) => (el as HTMLElement).style.paddingRight)).toBe("var(--immersive-echo-art-width)");
   // The tile's field is the entity's deterministic hue — the SAME color the row's chip paints (one
   // entity, one hue everywhere).
   const chip = component.locator(`${AVATAR} ${FALLBACK}`);
@@ -769,11 +764,14 @@ test("whisper (no avatar): the FALLBACK band renders at the SAME 3:1 geometry (h
   await expect(band).toBeVisible();
   await expect(band).toContainText("A");
   // SAME 3:1 aspect box as the imaged band (the regression pin above) — height derives from width.
-  const box = await band.boundingBox();
-  expect(Math.abs((box?.width ?? 0) / (box?.height ?? 1) - 3)).toBeLessThan(0.1);
+  await expect
+    .poll(async () => {
+      const box = await band.boundingBox();
+      return Math.abs((box?.width ?? 0) / (box?.height ?? 1) - 3);
+    })
+    .toBeLessThan(0.1);
   // A hue FIELD, not a banner <img> (the with-image band's `?v=banner` URL must be absent here).
-  const bgImage = await band.evaluate((el) => getComputedStyle(el).backgroundImage);
-  expect(bgImage).not.toContain("?v=banner");
+  await expect.poll(async () => band.evaluate((el) => getComputedStyle(el).backgroundImage)).not.toContain("?v=banner");
   await expectInBand(band);
 });
 
@@ -1065,14 +1063,17 @@ test("a hosted route names itself on hover too — `title` is UNCONDITIONAL now 
   // The #115 stutter rule dropped `title` when the derivation changed nothing — correct while the string
   // was also printed beside it, and a datum with NO door once it was not.
   await expect(credit).toHaveAttribute("title", HOSTED_MODEL_RE);
-  const visible = await credit.evaluate((el) => {
-    const clone = el.cloneNode(true) as HTMLElement;
-    for (const node of clone.querySelectorAll(".sr-only")) {
-      node.remove();
-    }
-    return (clone.textContent ?? "").trim();
-  });
-  expect(visible).toBe("");
+  await expect
+    .poll(async () =>
+      credit.evaluate((el) => {
+        const clone = el.cloneNode(true) as HTMLElement;
+        for (const node of clone.querySelectorAll(".sr-only")) {
+          node.remove();
+        }
+        return (clone.textContent ?? "").trim();
+      }),
+    )
+    .toBe("");
 });
 
 test("showModelIcon off: nothing is credited anywhere in the row (the toggle still gates it)", async ({ mount }) => {
@@ -1113,8 +1114,7 @@ test("action cluster is hidden-at-rest (opacity 0, in-flow, inert) and never sta
   expect(actionsBox?.width).toBeGreaterThan(0); // in flow, occupying real space at rest
   // The name row doesn't overflow its own box — the icon+⋯ cluster leaves room for the name (no
   // sibling-starve). scrollWidth ≤ clientWidth ⇒ nothing clipped/pushed past the edge.
-  const overflow = await nameRow.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
-  expect(overflow).toBe(false);
+  await expect.poll(async () => nameRow.evaluate((el) => el.scrollWidth > el.clientWidth + 1)).toBe(false);
 });
 
 // ── #204: the HEADER HUGS ITS TEXT — the invisible action cluster contributes NO height ─────────────
@@ -1489,13 +1489,16 @@ test("at a desktop-width column the portrait keeps its full size — the step-do
   const wide = await mount(
     <MessageRowStory chatStyle="bubble" characterId={ALICE_ID} messageRole="assistant" participants={[alice()]} width={DESKTOP_COLUMN} />,
   );
-  const avatarWidth = await wide
-    .locator(AVATAR)
-    .first()
-    .evaluate((el: HTMLElement) => el.getBoundingClientRect().width);
   // The `sm` avatar token is 32px; the narrow step is 24px. Asserting ">= 32" pins that the wide arm is
   // untouched without hardcoding the narrow number on both sides.
-  expect(avatarWidth).toBeGreaterThanOrEqual(32);
+  await expect
+    .poll(async () =>
+      wide
+        .locator(AVATAR)
+        .first()
+        .evaluate((el: HTMLElement) => el.getBoundingClientRect().width),
+    )
+    .toBeGreaterThanOrEqual(32);
 });
 
 // ── #113: the sticky attribution holds in EVERY standard mode ─────────────────────────────────────
@@ -1663,14 +1666,17 @@ test("#168 FENCE (green before the fix): nothing in the row's content out-paints
     await component.evaluate((el: HTMLElement, y: number) => {
       el.scrollTop = y;
     }, top);
-    const topmostIsBand = await nameRow.evaluate((band: HTMLElement) => {
-      const r = band.getBoundingClientRect();
-      return [0.05, 0.5, 0.95].every((fy) => {
-        const el = document.elementFromPoint(r.left + r.width * 0.5, r.top + r.height * fy);
-        return el !== null && band.contains(el);
-      });
-    });
-    expect(topmostIsBand).toBe(true);
+    await expect
+      .poll(async () =>
+        nameRow.evaluate((band: HTMLElement) => {
+          const r = band.getBoundingClientRect();
+          return [0.05, 0.5, 0.95].every((fy) => {
+            const el = document.elementFromPoint(r.left + r.width * 0.5, r.top + r.height * fy);
+            return el !== null && band.contains(el);
+          });
+        }),
+      )
+      .toBe(true);
   }
 });
 
@@ -1944,11 +1950,14 @@ for (const style of HEADER_INSIDE_STYLES) {
     expect(Number.parseFloat(own.radius)).toBe(0);
     // … while the legibility GUARANTEE #167 minted is intact, one box out: the container the header now
     // lives in paints a real backing over the wallpaper.
-    const container = await component
-      .locator(BUBBLE)
-      .first()
-      .evaluate((el) => getComputedStyle(el).backgroundColor);
-    expect(container).not.toBe(TRANSPARENT);
+    await expect
+      .poll(async () =>
+        component
+          .locator(BUBBLE)
+          .first()
+          .evaluate((el) => getComputedStyle(el).backgroundColor),
+      )
+      .not.toBe(TRANSPARENT);
   });
 }
 
@@ -2002,12 +2011,15 @@ test("#288 a user row mirrors its header like the ST ref — time paints before 
   const timeBox = await component.locator(TIMESTAMP).boundingBox();
   expect(timeBox?.x ?? 0).toBeLessThan(nameBox?.x ?? 0);
   // The a11y order is the one that did NOT flip: the speaker still comes first in the tree.
-  const domOrder = await component
-    .locator(NAME_ROW)
-    .evaluate((el) =>
-      [...el.querySelectorAll('[data-slot="message-attribution"], [data-slot="message-metadata-timestamp"]')].map((n) => n.getAttribute("data-slot")),
-    );
-  expect(domOrder).toEqual(["message-attribution", "message-metadata-timestamp"]);
+  await expect
+    .poll(async () =>
+      component
+        .locator(NAME_ROW)
+        .evaluate((el) =>
+          [...el.querySelectorAll('[data-slot="message-attribution"], [data-slot="message-metadata-timestamp"]')].map((n) => n.getAttribute("data-slot")),
+        ),
+    )
+    .toEqual(["message-attribution", "message-metadata-timestamp"]);
 });
 
 test("#288 an assistant row is NOT mirrored — name then time, leading edge (the ST character side)", async ({ mount }) => {

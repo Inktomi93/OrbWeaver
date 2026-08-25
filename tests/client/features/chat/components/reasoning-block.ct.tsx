@@ -128,10 +128,10 @@ test("auto-collapse SNAPS: the answer prose paints at its anchored position, not
   // `anchor-row` IS the mounted story root, and `component` points AT that root — a
   // `component.getByTestId("anchor-row")` searches only DESCENDANTS and never matches (30s timeout).
   // Probe the root directly; `anchor-prose` is a genuine descendant so it stays a getByTestId.
+  await expect.poll(async () => component.boundingBox()).not.toBeNull();
+  await expect.poll(async () => component.getByTestId("anchor-prose").boundingBox()).not.toBeNull();
   const rowBox = await component.boundingBox();
   const proseBox = await component.getByTestId("anchor-prose").boundingBox();
-  expect(rowBox).not.toBeNull();
-  expect(proseBox).not.toBeNull();
   const proseTopInRow = (proseBox?.y ?? 0) - (rowBox?.y ?? 0);
   expect(proseTopInRow).toBeLessThan(ANCHORED_CEILING_PX);
 });

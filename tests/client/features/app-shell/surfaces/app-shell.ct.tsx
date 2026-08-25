@@ -691,14 +691,13 @@ test("the command palette reserves a compact, stable result viewport while filte
   const input = dialog.getByRole("combobox");
   const list = dialog.getByRole("listbox");
   await expect(input).toBeVisible();
+  await expect.poll(async () => list.boundingBox()).not.toBeNull();
   const before = await list.boundingBox();
 
   await input.fill("analytics");
   await expect(dialog.getByRole("option", { name: "Analytics" })).toBeVisible();
+  await expect.poll(async () => list.boundingBox()).not.toBeNull();
   const after = await list.boundingBox();
-
-  expect(before).not.toBeNull();
-  expect(after).not.toBeNull();
   // A 12rem viewport still scrolls the complete command set, while one result does not leave the former
   // 24rem sheet-sized void beneath it.
   expect(after?.height).toBeLessThanOrEqual(192);
@@ -707,10 +706,10 @@ test("the command palette reserves a compact, stable result viewport while filte
   await input.fill("zzzzzzzz");
   const empty = dialog.getByText("No matches.", { exact: true });
   await expect(empty).toBeVisible();
+  await expect.poll(async () => empty.boundingBox()).not.toBeNull();
+  await expect.poll(async () => list.boundingBox()).not.toBeNull();
   const emptyBox = await empty.boundingBox();
   const emptyListBox = await list.boundingBox();
-  expect(emptyBox).not.toBeNull();
-  expect(emptyListBox).not.toBeNull();
   const emptyCenter = (emptyBox?.y ?? 0) + (emptyBox?.height ?? 0) / 2;
   const listCenter = (emptyListBox?.y ?? 0) + (emptyListBox?.height ?? 0) / 2;
   expect(emptyCenter).toBeCloseTo(listCenter, 0);
@@ -829,12 +828,10 @@ for (const modalId of MODAL_SLOT_IDS) {
     //    (the dialog header is a SIBLING of the scroll region; the drawer header pins via `sticky top-0`).
     //    This is the proof the title + close never scroll away with the content.
     const header = page.locator(".shell-modal-header");
+    await expect.poll(async () => header.boundingBox()).not.toBeNull();
     const beforeBox = await header.boundingBox();
     await scrollInteriorToBottom(page);
-    const afterBox = await header.boundingBox();
-    expect(beforeBox).not.toBeNull();
-    expect(afterBox).not.toBeNull();
-    expect(Math.abs((afterBox?.y ?? 0) - (beforeBox?.y ?? -999))).toBeLessThan(1.5);
+    await expect.poll(async () => Math.abs(((await header.boundingBox())?.y ?? 0) - (beforeBox?.y ?? -999))).toBeLessThan(1.5);
   });
 }
 
@@ -866,8 +863,7 @@ for (const modalId of MODAL_SLOT_IDS) {
     });
     await page.getByTestId("tall-modal-body").waitFor({ state: "attached" });
     const popup = page.locator('[data-slot="dialog-popup"], [data-slot="drawer-popup"]');
-    const bg = await popup.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-background").trim());
-    expect(bg).toContain("300");
+    await expect.poll(async () => popup.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-background").trim())).toContain("300");
   });
 }
 
@@ -944,20 +940,22 @@ test("the skip link is the first tab stop and lands focus on the main scroll con
   // live shell RESUMES from a stop after the skip. Blurring does not reset that (the sequential focus
   // navigation starting point survives a blur), so a Tab-from-mount test would walk straight past the
   // control and pass for the wrong reason. Measured: it lands on the story's "content control".
-  const firstTabbable = await page.locator(".shell-grid").evaluate((grid) => {
-    const candidates = [...grid.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')];
-    const first = candidates.find((el) => !el.hasAttribute("disabled") && el.tabIndex >= 0);
-    return first?.textContent ?? "";
-  });
-  expect(firstTabbable).toBe("Skip to content");
+  await expect
+    .poll(async () =>
+      page.locator(".shell-grid").evaluate((grid) => {
+        const candidates = [...grid.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')];
+        const first = candidates.find((el) => !el.hasAttribute("disabled") && el.tabIndex >= 0);
+        return first?.textContent ?? "";
+      }),
+    )
+    .toBe("Skip to content");
 
   // AT REST it costs the pointer user nothing — asserted through the RESOLVED clip, not the class string
   // (which could survive a variant change that stopped clipping). Deliberately not a box assertion: the
   // button's own `size` arm pins a control height in a custom token, which is opaque to tailwind-merge and
   // survives `sr-only`'s 1px pair, so the rest box measures ~26px wide and is invisible anyway — the CLIP
   // is what hides it, and the clip is what this must read.
-  const restClip = await skip.evaluate((el) => globalThis.getComputedStyle(el).clipPath);
-  expect(restClip).toBe("inset(50%)");
+  await expect.poll(async () => skip.evaluate((el) => globalThis.getComputedStyle(el).clipPath)).toBe("inset(50%)");
   const restBox = await skip.boundingBox();
 
   // A real Tab first, so the page is in KEYBOARD modality — `:focus-visible` (which is what un-hides the
@@ -969,8 +967,7 @@ test("the skip link is the first tab stop and lands focus on the main scroll con
 
   // …and taking focus REVEALS it (`not-focus-visible:sr-only`) — a skip link nobody can see while using it
   // is a keyboard trap wearing a fix. Unclipped AND wider than the clipped stub, both rendered.
-  const focusedClip = await skip.evaluate((el) => globalThis.getComputedStyle(el).clipPath);
-  expect(focusedClip).toBe("none");
+  await expect.poll(async () => skip.evaluate((el) => globalThis.getComputedStyle(el).clipPath)).toBe("none");
   const focusedBox = await skip.boundingBox();
   expect(focusedBox?.width ?? 0).toBeGreaterThan(restBox?.width ?? 0);
 
@@ -984,8 +981,7 @@ test("the skip link is the first tab stop and lands focus on the main scroll con
   expect(focusedBox?.width ?? 0).toBeGreaterThanOrEqual(TARGET_SIZE_FLOOR_PX);
   // The box comes back because the control is simply the `sm` Button it declares itself to be — padding
   // included. Asserted separately from the height so a future `min-h-*` band-aid cannot pass this.
-  const focusedPadding = await skip.evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).paddingInlineStart));
-  expect(focusedPadding).toBeGreaterThan(0);
+  await expect.poll(async () => skip.evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).paddingInlineStart))).toBeGreaterThan(0);
 
   // It moves focus to the `<main>` scroll container itself (tabIndex=-1, named by the active section)
   // rather than to a control inside it, so the NEXT Tab lands on the section's first real affordance
@@ -1085,8 +1081,7 @@ test("mobile: the bottom bar is the curated four; overflow + footer affordances 
   // exceed the thumb-reach budget — a def flipping to `mobile: "tab"` must not silently balloon it. The
   // rail is now ONE DOM list (no `.shell-rail-mobile` twin); `getByRole` counts only the VISIBLE buttons,
   // so the `[data-mobile="sheet"]` entries (display:none on the bar) are correctly excluded.
-  const tabCount = await page.locator(".shell-rail").getByRole("button").count();
-  expect(tabCount).toBeLessThanOrEqual(MAX_MOBILE_TAB_BUTTONS);
+  await expect.poll(async () => page.locator(".shell-rail").getByRole("button").count()).toBeLessThanOrEqual(MAX_MOBILE_TAB_BUTTONS);
 });
 
 // SUPERSEDED IN PART — read this with the ONE-SHELL block at the foot of this file. The original ruling
@@ -3103,12 +3098,15 @@ test("#138 receipt: an emulated high-contrast user reports `more`; the shipped `
   // Not a defect pin (it passes against the un-respelled sheet) — it is the instrument receipt the whole
   // block rests on, and it reds if a chromium/playwright change ever revives the WebKit-era value.
   await emulateContrast(page, "more");
-  const seen = await page.evaluate(() => ({
-    more: matchMedia("(prefers-contrast: more)").matches,
-    high: matchMedia("(prefers-contrast: high)").matches,
-    noPreference: matchMedia("(prefers-contrast: no-preference)").matches,
-  }));
-  expect(seen).toStrictEqual({ more: true, high: false, noPreference: false });
+  await expect
+    .poll(async () =>
+      page.evaluate(() => ({
+        more: matchMedia("(prefers-contrast: more)").matches,
+        high: matchMedia("(prefers-contrast: high)").matches,
+        noPreference: matchMedia("(prefers-contrast: no-preference)").matches,
+      })),
+    )
+    .toStrictEqual({ more: true, high: false, noPreference: false });
 });
 
 test("contrast: more thickens ONLY the side each surface authors — the other three stay at 0px", async ({ mount, page }) => {
@@ -3442,8 +3440,7 @@ test("useAppearanceRootEffects lands a representative axis on <html> as a real c
   await mount(<ShellCascadeFixture fontScale={1.25} />);
   // globals.css's `:root { font-size: calc(100% * var(--font-scale)) }` floor reads this custom
   // property — proves the root-stamp hook actually reaches computed style, not just a JS assignment.
-  const fontScale = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--font-scale").trim());
-  expect(fontScale).toBe("1.25");
+  await expect.poll(async () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--font-scale").trim())).toBe("1.25");
 });
 
 // ── chatWidthPct / fontScale root vars — through the REAL AppShell (§11.1), not the bare fixture ──
@@ -3475,9 +3472,8 @@ test("chatWidthPct stamps a real rendered max-width on a --width-shell-content c
   // The COMPUTED `max-width` (the browser's own dvw→px resolution of the clamp formula) — not the
   // rendered box width, which the CONTENT column's own (narrower, panel-shared) available space also
   // bounds. This isolates the one thing under test: the --width-shell-content var reaching the probe.
-  const computedMaxWidthPx = await shell.getByTestId("width-probe").evaluate((el) => Number.parseFloat(getComputedStyle(el).maxWidth));
   const expectedPx = (chatWidthPct / 100) * viewportWidth;
-  expect(computedMaxWidthPx).toBeCloseTo(expectedPx, 0);
+  await expect.poll(async () => shell.getByTestId("width-probe").evaluate((el) => Number.parseFloat(getComputedStyle(el).maxWidth))).toBeCloseTo(expectedPx, 0);
 });
 
 test("fontScale stamps a real rendered <html> font-size (UA root × fontScale)", async ({ mount, page }) => {
@@ -3725,13 +3721,16 @@ test("MOBILE: a collapsed drawer is the FULL viewport wide and entirely off-scre
   const assertOffScreenDrawer = async (side: string): Promise<void> => {
     const panel = page.locator(`.shell-panel[data-panel-side="${side}"]`);
     await expect(panel).toHaveAttribute("data-panel-mode", "collapsed");
-    const width = await panel.evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).width));
-    expect(width).toBe(MOBILE.width);
+    await expect.poll(async () => panel.evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).width))).toBe(MOBILE.width);
     // …and its visible x-range is entirely outside the viewport (left of 0, or right of the width).
-    const box = await panel.boundingBox();
-    const start = box?.x ?? 0;
-    const end = start + (box?.width ?? 0);
-    expect(end <= 0 || start >= MOBILE.width).toBe(true);
+    await expect
+      .poll(async () => {
+        const box = await panel.boundingBox();
+        const start = box?.x ?? 0;
+        const end = start + (box?.width ?? 0);
+        return end <= 0 || start >= MOBILE.width;
+      })
+      .toBe(true);
   };
 
   await assertOffScreenDrawer("list");

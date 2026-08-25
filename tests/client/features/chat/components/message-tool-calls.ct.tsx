@@ -42,9 +42,10 @@ test("an isError record is visibly distinguishable from a successful one", async
   await expect(failed).toContainText("Error");
   await expect(ok).toContainText("Success");
   // Not merely different words: the error badge paints a different colour than the success badge.
-  const failedColor = await failed.locator('[data-slot="tool-call-block-status"]').evaluate((el) => getComputedStyle(el.firstElementChild ?? el).color);
   const okColor = await ok.locator('[data-slot="tool-call-block-status"]').evaluate((el) => getComputedStyle(el.firstElementChild ?? el).color);
-  expect(failedColor).not.toBe(okColor);
+  await expect
+    .poll(async () => failed.locator('[data-slot="tool-call-block-status"]').evaluate((el) => getComputedStyle(el.firstElementChild ?? el).color))
+    .not.toBe(okColor);
 });
 
 test("an empty record set renders nothing at all — no list, no empty shell", async ({ mount }) => {

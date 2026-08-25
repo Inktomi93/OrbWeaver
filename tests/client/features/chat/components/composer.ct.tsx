@@ -51,10 +51,10 @@ test("D111: the ⋯ chat-options menu renders in the composer, LEFT of the guide
   const options = component.getByRole("button", { name: "Chat options" });
   await expect(options).toBeVisible();
 
+  await expect.poll(async () => options.boundingBox()).not.toBeNull();
+  await expect.poll(async () => component.getByRole("group", { name: "Your message", exact: true }).boundingBox()).not.toBeNull();
   const optionsBox = await options.boundingBox();
   const guidedBox = await component.getByRole("group", { name: "Your message", exact: true }).boundingBox();
-  expect(optionsBox).not.toBeNull();
-  expect(guidedBox).not.toBeNull();
   expect(optionsBox?.x ?? 0).toBeLessThan(guidedBox?.x ?? 0);
 });
 
@@ -302,8 +302,8 @@ async function expectCoarseComposerLayout(page: Page, component: Locator, action
   expect(pointer.touchPoints, "the browser context must expose touch input").toBeGreaterThan(0);
 
   const composer = component.locator('[data-slot="composer"]');
+  await expect.poll(async () => composer.boundingBox()).not.toBeNull();
   const composerBox = await composer.boundingBox();
-  expect(composerBox).not.toBeNull();
   const bounds = composerBox ?? { x: 0, y: 0, width: 0, height: 0 };
   const boxes = await controlBoxes(component, actions);
   const viewportWidth = await page.evaluate(() => innerWidth);
@@ -414,16 +414,21 @@ test("#206: each control has one truthful nearest owner, one Send, and desktop o
 
   const boxes = await controlBoxes(component, COMPOSER_ACTIONS);
   expectRowMajorOrder(boxes);
-  const yours = await component.getByRole("group", { name: "Your message", exact: true }).boundingBox();
-  const theirs = await component.getByRole("group", { name: "Their reply", exact: true }).boundingBox();
-  const attach = await component.getByRole("group", { name: "Attach and send", exact: true }).boundingBox();
-  const tryAnother = await component.getByRole("button", { name: "Try another reply", exact: true }).boundingBox();
-  const generate = await component.getByRole("button", { name: "Generate reply", exact: true }).boundingBox();
-  expect(yours).not.toBeNull();
-  expect(theirs).not.toBeNull();
-  expect(attach).not.toBeNull();
-  expect(tryAnother).not.toBeNull();
-  expect(generate).not.toBeNull();
+  const yoursLocator = component.getByRole("group", { name: "Your message", exact: true });
+  const theirsLocator = component.getByRole("group", { name: "Their reply", exact: true });
+  const attachLocator = component.getByRole("group", { name: "Attach and send", exact: true });
+  const tryAnotherLocator = component.getByRole("button", { name: "Try another reply", exact: true });
+  const generateLocator = component.getByRole("button", { name: "Generate reply", exact: true });
+  await expect.poll(async () => yoursLocator.boundingBox()).not.toBeNull();
+  await expect.poll(async () => theirsLocator.boundingBox()).not.toBeNull();
+  await expect.poll(async () => attachLocator.boundingBox()).not.toBeNull();
+  await expect.poll(async () => tryAnotherLocator.boundingBox()).not.toBeNull();
+  await expect.poll(async () => generateLocator.boundingBox()).not.toBeNull();
+  const yours = await yoursLocator.boundingBox();
+  const theirs = await theirsLocator.boundingBox();
+  const attach = await attachLocator.boundingBox();
+  const tryAnother = await tryAnotherLocator.boundingBox();
+  const generate = await generateLocator.boundingBox();
   const intraGroupGap = (generate?.x ?? 0) - ((tryAnother?.x ?? 0) + (tryAnother?.width ?? 0));
   const youToThemGap = (theirs?.x ?? 0) - ((yours?.x ?? 0) + (yours?.width ?? 0));
   const themToAttachGap = (attach?.x ?? 0) - ((theirs?.x ?? 0) + (theirs?.width ?? 0));
@@ -1202,6 +1207,7 @@ test("#376 paste: a clipboard carrying BOTH text and an image attaches the image
     return !event.defaultPrevented;
   });
 
+  // ONESHOT-OK: dispatching the paste twice would mutate the composer twice; this asserts the one event's synchronous cancellation result.
   expect(defaultSurvived).toBe(true);
   await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(1);
 });

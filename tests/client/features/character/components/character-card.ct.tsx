@@ -164,8 +164,7 @@ test("§4.4 the raw-metadata reveal carries handle · tokenSize (mono)", async (
 test("P0 regression: the title column keeps a real width at rest (reveal cluster must not starve it)", async ({ mount }) => {
   const component = await mount(<CharacterCardTileStory handle={castId<CharacterHandle>("aria-nightshade")} name="Aria Nightshade" />);
   // The story row is 360px. The regression measured the title at ~0px; it must claim a substantial share.
-  const titleW = await component.locator('[data-slot="list-row-title"]').evaluate((el) => el.getBoundingClientRect().width);
-  expect(titleW).toBeGreaterThan(150);
+  await expect.poll(async () => component.locator('[data-slot="list-row-title"]').evaluate((el) => el.getBoundingClientRect().width)).toBeGreaterThan(150);
   // The wide metadata reveal shares the subtitle's ONE grid cell (`list-row-subtitle-stack`) and is
   // `visibility:hidden` at rest — its box is RESERVED on purpose (a hover-keyed display swap is the P0 hover
   // oscillator, packages/client/src/components/row-reveal.ts), and it lives on the subtitle's line, a
@@ -202,12 +201,12 @@ test("P1 regression: the revealed metadata is a legible line, and the floated cl
   // Reveal deterministically via keyboard focus (group-focus-within) — :focus-within is reliable in CT
   // where :hover is not; focusing the row BODY (the reveal lives in its content column) triggers the swap.
   await component.locator('[data-slot="list-row-body"]').focus();
-  const revealBox = await component.locator('[data-slot="list-row-subtitle-reveal"]').boundingBox();
   // Legible — a real line, not the ~12px sliver the bleed regression squeezed it to.
-  expect(revealBox?.width ?? 0).toBeGreaterThan(60);
+  await expect.poll(async () => (await component.locator('[data-slot="list-row-subtitle-reveal"]').boundingBox())?.width ?? 0).toBeGreaterThan(60);
 
-  const clusterFill = await component.locator('[data-slot="list-row-actions"]').evaluate((el: Element) => getComputedStyle(el).backgroundColor);
-  expect(clusterFill).not.toBe("rgba(0, 0, 0, 0)");
+  await expect
+    .poll(async () => component.locator('[data-slot="list-row-actions"]').evaluate((el: Element) => getComputedStyle(el).backgroundColor))
+    .not.toBe("rgba(0, 0, 0, 0)");
 });
 
 test("bulk mode: the row body toggles selection (not open-editor) and shows a checkbox", async ({ mount }) => {
