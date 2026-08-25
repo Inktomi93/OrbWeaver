@@ -26,7 +26,11 @@ updated: 2026-08-24
 > it means more flexibility"** — so the five structural refusals are refused-BY-DEFAULT with an
 > ENABLEMENT PRICE SHEET (§5a): each names its safest enablement shape, who its risk falls on, and
 > a recommendation; the owner purchases flexibility knowingly, and the walls that protect OTHER
-> users stay marked as such.
+> users stay marked as such. **Addendum steer (7), same day:** extensions with "lots of bits and
+> bobs" (motivating example: a hub browser) need a full-page home — the `ui.page` surface kind +
+> ONE house "Extensions" rail entry (§4.5b, slotted U5), and a `character.ingest` capability
+> joins the U8 funnel as `databank.ingest`'s sibling; the hub browser is the ui.page + ingest
+> showcase (§8-U8).
 >
 > Today plugins are HEADLESS by design: the membrane's own refusal list says *"DOM/UI beyond
 > quick-reply chips (the client extension story is a separate, undesigned surface — NOT this
@@ -245,8 +249,9 @@ for non-installers — recorded as a hard interlock (§11).
 
 ### 4.5 Anchors — where a plugin surface may mount
 
-`PLUGIN_SURFACE_ANCHORS = ["settings", "chat-flank", "chat-settings-section", "tool-card"] as const`
-(v1; closed tuple in `@orb/contracts/plugin/ui.ts`). Every anchor lands through an EXISTING
+`PLUGIN_SURFACE_ANCHORS = ["settings", "chat-flank", "chat-settings-section", "tool-card", "page"]
+as const` (closed tuple in `@orb/contracts/plugin/ui.ts`; `page` added by steer 7 — §4.5b, lands
+at U5). Every anchor lands through an EXISTING
 door-assembled family via ONE first-party contribution owned by `features/plugin` — the door grows
 by fixed first-party members, never per-plugin (the one-assembly law, G8):
 
@@ -256,6 +261,7 @@ by fixed first-party members, never per-plugin (the one-assembly law, G8):
 | `chat-flank` | `chatSurfaceContributors` `thread-flank` | ONE `pluginFlankSurface` contribution fanning per-plugin by `listSurfaces` data; mount-and-null when none (the flank activates on a sync `when` that cannot see query data — render null, `empty:hidden` collapses; NEVER `useSuspenseQuery` here) | `chat-room-surface.tsx:151` + a CT pinning null-render width-identity |
 | `chat-settings-section` | `chatSettingsSections` (host-controls band) | one first-party contribution per the `pluginSnippetConsoleSection` precedent (`authed-app.tsx:146-149`); host-gated by MOUNT (`contribution-contracts.ts:78-83`) | the family's own walls |
 | `tool-card` | the `toolRenderers` registry (`authed-app.tsx:187-190`) | ONE first-party `pluginToolRenderer` claiming `plugin_*`-prefixed wire names, rendering the owning plugin's registered card spec; unclaimed/unregistered names keep the generic `ToolCallBlock` fallback. **Closes the A2-F5 renderer gap.** Key scoping follows whatever #677 lands | `contribution-contracts.ts:244-254` |
+| `page` (U5) | the house **Extensions** rail SECTION (§4.5b) | full-page DSL surface (Tier S/C; frame-eligible at U7) behind the section's page switcher — ONE rail item for the platform, never per-plugin | the §6a SECTION\_IDS playbook + the page-scale shell (§4.5b) |
 
 - **`message-footer` is v2** (priced, phase U6): per-ROW mounts multiply by transcript length — DSL
   badges only, hard node caps, and never a scripted tier per row. The frame arm is banned there
@@ -283,6 +289,89 @@ by fixed first-party members, never per-plugin (the one-assembly law, G8):
 - **`host.ui.toast(level, msg)`** — the house toast, prefixed with the plugin name, length-capped,
   rate-floored per plugin (constant named at build, the `AUTOMATION_NOTICE_COOLDOWN_SECONDS`
   posture). Transient viewer-local feedback; the durable channel stays `notify`.
+
+### 4.5b The Extensions section + `ui.page` (steer 7 — committed U5)
+
+**The need:** an extension with "lots of bits and bobs" — the motivating example is a HUB BROWSER
+(search → results → preview → import) — has no home in panel-scale anchors. `ui.page` is a
+full-page surface kind; its host is **ONE house rail entry, "Extensions"**, never a rail item per
+plugin (rail bloat + the largest impersonation surface; ST's own extensions-drawer mental model).
+Per-plugin rail promotion is RECORDED as a later owner knob, not built.
+
+**Provenance, corrected (owner, 2026-08-24): the prior hub was THIS repo's own** — a full house-UI
+rail section (`features/hub`: `hub-browse-section.tsx` + capability-driven controls + a
+`createCollectionSurface` result feed + a detail/preview/import drawer, built through the wave-4/5
+closes `cc6b7db38`/`8d95cad08`), purged in the 2026-07-22 hub drop (`f6c5c588e`, "purge
+crew/rpg/expressions/comfyui/hub/venice/anthropic domain wiring"; the gap register's "returns with
+the hub wave", `Core-ST-Feature-Gap-Register.md:108` — a `ui.page` plugin IS that vehicle). It was
+sanctioned house-primitive UI and the owner's verdict is verbatim: it still *"looked and functioned
+like fucking ass."* That verdict is this section's design input — the FLOW is carried as semantics,
+the UI is designed fresh, and the mined failure list below is what the page grammar must make HARD
+TO GET WRONG (the vocabulary alone does not guarantee a good surface).
+
+**The mined failure list (read from the purged surface at `8d95cad08`):**
+
+1. **Results as management rows, not a browse grid.** `hub-card-tile.tsx` rendered a VISUAL medium
+   (character cards) as `ListRow`s — small avatar, title, one compressed "by X · N downloads · N
+   tokens" meta string, \~76 px virtual rows. The genre's primary signal (card art) was absent
+   because the shelf's path of least resistance is entity-management furniture (G6 pushes
+   `ListRow`).
+2. **The decision surface got the least design.** The preview — the moment a person decides to
+   import — was stacked labeled text blocks inside a cramped drawer
+   (`hub-card-detail-drawer.tsx`): no art hero, no reading layout for prose-heavy fields.
+3. **Flat, equal-weight controls.** Search, sort, rating, creator, token-range rendered as uniform
+   stacked rows (`hub-search-controls.tsx`) — no hierarchy between the ONE primary affordance (the
+   query) and long-tail filters.
+4. **Browse session context evaporated** — controls deliberately reset per hub-tab switch (only
+   NSFW persisted), and loading states were line-shape `SkeletonRows` under a media feed.
+
+**What the page grammar therefore provides (U5 vocabulary additions, priced in seam 16) — the
+constraint being: make the row-list browse surface the HARD thing to build and the media-forward
+one the default:**
+
+- a **`grid`** node — media-forward tile grid (cover-image slot + title + badge slots,
+  aspect-ratio'd `image` variant, shape-matched tile skeletons), so results-as-rows stops being the
+  default browse shape;
+- a **`masterDetail`** page arrangement — a page declares stages (list/grid stage + a detail stage
+  with a hero slot and reading-width prose fields), so previews stop being drawer-crammed;
+- a **`searchBar`** page slot (prominent, one per page) with `filters` as a collapsed disclosure —
+  the hierarchy failure 3 names, encoded structurally;
+- page STATE persists across the switcher and in-page stage navigation for free in this model (it
+  lives in the guest/server, not the mount — an improvement the purged surface never had).
+
+Where a node needs a house composite that does not exist yet (the media-tile grid is the likely
+case), the composite lands in `@orb/ui`/`components/` benefiting the whole app — the §4.3
+shelf-exposure rule; a browse-genre gap in the shelf is exactly what failure 1 was.
+
+- **The section (D70 mechanics, the §6a SECTION\_IDS playbook walked in full — seam 16):** a tenth
+  `SECTION_IDS` member `extensions` (tuple ORDER IS RAIL ORDER — placement is a build-time UX
+  decision, recommend beside `config`), owned by `features/plugin`
+  (`lib/extensions-section.tsx`, exported on the front door, one door row —
+  `authed-app.tsx:247-266`'s total Record carries it by tsc). LIST pane = the PAGE SWITCHER: one
+  house row per registered `page` surface across the caller's granted-and-enabled plugins
+  (plugin name + page title, plugin-labeled rows); selection = a `createDrillSelectionStore` mint
+  (playbook site 4). CONTENT = the selected page inside the page-scale shell.
+- **Empty state — VISIBLE with a teaching empty, argued against the hide-by-default reading.** The
+  byte-identical-when-off law governs CONTRIBUTIONS (zero registrants ⇒ the host renders its own
+  default); a rail SECTION is house chrome, and the house ships visible sections in honest empty
+  states by law (the three-states law, `client-architecture-lockdown.md` §11 — EMPTY teaches with
+  an action; refinery ships rail-visible as `planned`). A hidden Extensions entry makes the
+  platform undiscoverable — the empty state IS the advertisement: *"No extension pages yet —
+  install a plugin with page surfaces"* + the action opening Settings → Plugins
+  (`empty-state-has-action`, LIVE). The hide-when-empty variant is PRICED as the same later owner
+  knob as per-plugin promotion (a data-gated rail-visibility arm touching `assembleChrome`
+  derivation + `__orb.nav` vocabulary + the CT mirror — a new chrome mechanism, not a `when` that
+  exists today), decided if the owner prefers a quieter rail.
+- **Mobile (the one-shell law):** the page renders in the CONTENT region; `rail.mobile` fate =
+  `"sheet"` (not a thumb-reach primary tab — playbook site 7); no new viewport `@media`.
+- **A11y/nav:** the switcher is a standard list-pane nav; each page is a labeled region whose
+  accessible name is "«plugin name» — «page title»"; focus and landmarks are the house
+  primitives'; `setActiveSection("extensions")` + drill-seed is the cross-feature nav channel, and
+  `__orb.nav` gains the id (playbook site 5).
+- **The page-scale shell:** the `PluginSurfaceShell` at page scale keeps a PERSISTENT header band —
+  plugin name + glyph + an "Extension" kicker — pinned above the scrollable page body, no opt-out.
+  A full page is the biggest impersonation canvas in this design; the threat-model line (§9)
+  carries the weight accordingly.
 
 ### 4.6 Tier C — the client-side guest, and THE DEPENDENCY ROW
 
@@ -410,7 +499,7 @@ below is CMT with a phase, except the one substrate-blocked row, marked SUB).
 | 5 | Message TEXT display-transform (formatting hooks / furigana class) | **CMT (U6)** | not a canon write (display-only), so no wall; a server-side display-transform seam registered like D50, applied at the render path with a per-message budget — the largest U6 item, priced as its own seam (§7.14). Interim: row 4 decorations |
 | 6 | Popups / confirm / input dialogs (`Popup.show`) | **PD** | `confirmButton` (house ConfirmDialog) + inline card nodes + the `dialog` surface kind (§4.5a, U5) — full function; the shell stays house-drawn, plugin-attributed (impersonation wall §4.8) |
 | 7 | Custom side panels / drawers | **PD** | `chat-flank` + `chat-settings-section` + `settings` anchors, Tier S/C |
-| 8 | Whole custom screens (chess, retro games, VN extras) | **CMT (U7)** | the arbitrary-pixels row — the `ui.frame` hatch, now scheduled (§6.2) |
+| 8 | Whole custom screens (chess, retro games, VN extras, hub browsers) | **CMT (U5/U7)** | house-vocabulary pages: `ui.page` in the Extensions section (§4.5b, U5); arbitrary-pixels screens: the `ui.frame` hatch (§6.2, U7) — the same page slot, frame-bodied |
 | 9 | Slash-command registration (with help/autocomplete) | **PD → full at U8** | `/plugin <slug> <cmd>` via one static contribution from U5 (§4.5); the dynamic palette source giving per-command first-class rows is COMMITTED at U8 |
 | 10 | Event hooks (message/chat/character/persona/settings lifecycle) | **PT** | `events.subscribe` over the closed trigger taxonomy (`host-v1.ts:159-164`); fidelity: the closed union is narrower than ST's \~40 event types — widenings ride the S7 batched merge-window discipline (`interaction-direction-spec.md:397-408`), by demand |
 | 11 | Per-token streaming hook (`STREAM_TOKEN_RECEIVED`) | **REF** | structural: a guest invoke per token violates the per-invocation budget architecture + FIFO-16 delivery (`03:59-75`); per-message facts are the floor |
@@ -486,8 +575,9 @@ own response CSP (`buildCardFrameCsp`-family, `sandbox allow-scripts`, `default-
 `connect-src`), per-user in-process handles (`entry/http/card-frame.ts:41-45`), window-identity
 postMessage (`sandbox-frame.tsx:92-117`), token injection (`use-sandbox-theme.ts`), height clamps.
 All frame I/O through a postMessage bridge relayed to the SAME `plugin.uiHostCall` proc — the
-frame gets no network of its own. Anchors: `chat-flank`, the `dialog` surface, and `tool-card`
-(lazy); NEVER `message-footer`-eager. The merge is `security-executor`-gated (§9), and the
+frame gets no network of its own. Anchors: `chat-flank`, the `dialog` surface, `tool-card` (lazy),
+and `page` (a frame-bodied Extensions page under the page-scale shell, §4.5b); NEVER
+`message-footer`-eager. The merge is `security-executor`-gated (§9), and the
 priority law stands: a surface expressible in the vocabulary ships in the vocabulary — the frame
 is the arbitrary-pixels arm, not a parallel UI system.
 
@@ -510,6 +600,8 @@ is the arbitrary-pixels arm, not a parallel UI system.
 | 13 | U7 — the `ui.frame` hatch | `ui.frame` tuple member (+ both vitest pins move) · consent line (§6.2) · the plugin-frame routed doorway (`entry/http`, the card-frame shape: per-user handles, own response CSP, floor on every arm) · the `PluginFrame` client component (window-identity listener, `sandbox-frame` posture) · the postMessage→`uiHostCall` bridge | the card-frame belt set (kit CSP builder + route tests + CT) + security-executor gate |
 | 14 | U6 — the display-transform seam | a D50-shaped display-transform registrar (server-side, per-message budget, applied at the render path) + its registration host fn + refusal postures (timeout ⇒ skip, D53's law) | the D50 seam's own tests + a per-message budget pin |
 | 15 | U8 — ecosystem verbs | URL install (fetch→same funnel+consent; egress-guarded) · update check + one-click `upgradePlugin` (#615 re-consent, never silent) · `databank.ingest` capability + host fn (D107 op) · card extension fields (`data.extensions.plugin_<slug>`, D-entry with the build) · the dynamic palette source for per-command rows | each verb's own sweep-class int tests + the capability pins + the egress wall |
+| 16 | U5 — `ui.page` + the Extensions section | `PLUGIN_SURFACE_ANCHORS` gains `page` · the tenth `SECTION_IDS` member `extensions` walking the FULL §6a playbook (`client-architecture-lockdown.md`): tuple + rail order · persisted-state sanitizers (`isSectionId`, `panelOverrides`) · the co-located `SectionDefinition` + front-door export + door row · the drill selection store (G27 mint) · `__orb.nav` vocabulary · the `ct-data-providers` door mirror · the mobile fate (`sheet`) · chrome self-derivation verified-not-edited · DISTINCT placeholder copy · the rail prose in `UI-Architecture-and-Layout.md` §4.1 — PLUS the page switcher + the page-scale shell + the teaching empty state + the BROWSE-GENRE vocabulary nodes (`grid` · `masterDetail` · `searchBar`/`filters`, §4.5b — incl. any new house media-tile composite they require) | tsc (total Record) + G1/G2/G8 + the placeholder-copy gate + `empty-state-has-action` + a CT on the switcher/empty + the exhaustive node-renderer Record |
+| 17 | U8 — `character.ingest` | capability member (sibling of `databank.ingest`, same consent grammar) + host fn over the character-create/import op (a canon write under the installer, riding the import domain's ContentChanged-emitting path so the indexer auto-runs — `AGENTS.md` §6 import row) + `HOST_FUNCTION_CAPABILITY` row + both vitest pins + its consent line | the capability pins + sweep-class int tests (installer-owned rows only) + the existing import-domain belts |
 
 ## §8 The phase plan (stop-anywhere; every row owner-testable)
 
@@ -520,10 +612,10 @@ is the arbitrary-pixels arm, not a parallel UI system.
 | U2 | chat anchors: flank fan-out + settings-section contribution + the shell (seam 7) | a plugin renders a labeled flank widget updating on room events; disabled ⇒ byte-identical room | ordinary |
 | U3 | `tool-card`: `pluginToolRenderer` + card specs — **closes A2-F5** | the oracle-deck example's draw renders a house card; an unregistered tool still gets the generic block | ordinary |
 | U4 | Tier C: `uiEntry` + bytes route + worker host + `uiHostCall` + CSP delta (seams 8-10) — **security-executor review gates the merge** | a scripted surface filters a list with zero network on keystroke; a hung `ui.js` collapses to null within the deadline | ordinary (CSP edit deliberate) |
-| U5 | `/plugin` slash dispatch + the Plugins chrome menu + the `dialog` surface kind + `host.ui.toast` (§4.5a) | `/plugin oracle draw` runs; the wand menu lists plugin commands; a plugin action opens a plugin-attributed house dialog and raises a prefixed toast | ordinary |
+| U5 | `/plugin` slash dispatch + the Plugins chrome menu + the `dialog` surface kind + `host.ui.toast` (§4.5a) + **`ui.page` + the Extensions section** (§4.5b, seam 16) | `/plugin oracle draw` runs; the wand menu lists plugin commands; a plugin action opens a plugin-attributed house dialog and raises a prefixed toast; a plugin registers a page and it appears behind the Extensions rail entry's switcher; zero pages ⇒ the teaching empty | ordinary (the SECTION\_IDS tuple edit is the §6a playbook, not a merge window) |
 | U6 | the committed parity tail (all CMT rows): `message-footer` DSL badges (§5.4) · the display-transform seam (§5.5/§5.29, seam 14) · `llm.quiet` schema + vision params (§5.16/§5.32) · the typed transform-abort outcome (§5.14) · `macros.register` (§5.15) | per row: a badge renders under a message; a display transform annotates rendered text; a structured quiet call returns schema-valid JSON; a transform aborts a generation typed; a plugin macro substitutes | ordinary |
 | U7 | the `ui.frame` hatch whole (seam 13; §6.2) — **security-executor review gates the merge** | a frame surface draws a chess board at `chat-flank`; a hostile frame reaches nothing off-box except the #124 channel its consent line names; every §6.1 row is servable | ordinary (CSP untouched — the frame carries its OWN response policy) |
-| U8 | ecosystem (seam 15): URL install + update check (one-click, re-consented) · `databank.ingest` · card extension fields · dynamic palette rows | install a plugin from a URL with the same consent screen; an update lands disabled-pending-reconsent when reach widened; a scraper plugin ingests into the databank; plugin commands appear as first-class palette rows | ordinary |
+| U8 | ecosystem (seams 15+17): URL install + update check (one-click, re-consented) · `databank.ingest` · **`character.ingest`** · card extension fields · dynamic palette rows | install a plugin from a URL with the same consent screen; an update lands disabled-pending-reconsent when reach widened; a scraper plugin ingests into the databank; plugin commands appear as first-class palette rows; **the HUB-BROWSER showcase becomes buildable** — a `ui.page` Extensions page (search → results grid → preview → import; the flow of THIS repo's own 2026-07-22-purged `features/hub` carried as semantics, its UI designed fresh against the §4.5b failure list, `f6c5c588e` the dated drop) importing via `character.ingest`; it joins the example-plugin candidates (#673's seeded set) as the ui.page + ingest showcase | ordinary |
 
 No row renames or migrates anything an earlier row shipped; U1 alone already delivers the
 highest-demand ST parity row (per-extension settings UI). Any §5a enablement the owner buys is
@@ -543,7 +635,12 @@ scheduled as its own additional row at purchase time, never folded silently into
 - **Host-chrome impersonation / consent spoofing.** Walled at the vocabulary (no modal/anatomy
   nodes — compile), the shell (every surface labeled — code + CT), and the rule that consent
   dialogs are host modals only. A DSL surface can render text claiming anything; it does so inside
-  a container that names its author — the same trust story as a chat message.
+  a container that names its author — the same trust story as a chat message. **`ui.page` raises
+  the stakes and the shell carries them (§4.5b):** a full page is the biggest impersonation canvas
+  in this design — a page could draw a fake "settings screen" out of house primitives — so the
+  page-scale shell's pinned header band (plugin name + glyph + "Extension" kicker, no opt-out) and
+  the no-host-chrome vocabulary walls are load-bearing there, not decoration; a frame-bodied page
+  (U7) sits under the same band. The CT floor for U5 pins the band's presence on every page.
 - **The bridge as the new membrane (Tier C).** Threats: caller spoofing (server derives plugin from
   the caller's OWN rows — cross-tenant sweep per proc), capability escalation (per-call
   `fn ∈ UI_PROXYABLE ∩ grants` re-gate; the client's grant view is display-only), args abuse (zod
@@ -602,5 +699,6 @@ refused by default with its price stated; buying one schedules its own phase row
 *Provenance: commissioned by #679; built against the full reading set (the membrane design docs 01-04,
 the D46 security review, D70, the interaction spec §1/§3/§7-C7a, the juice review, contribution
 contracts, the card-frame substrate, the ST parity corpus + live ST extension docs fetched raw
-2026-08-24). Six owner steers folded verbatim in §0 (four at first delivery; the full-parity ruling
-and the enablement-sheet follow-up folded the same day as the dated revision).*
+2026-08-24). Seven owner steers folded verbatim in §0 (four at first delivery; the full-parity
+ruling, the enablement-sheet follow-up, and the ui.page/Extensions addendum folded the same day as
+dated revisions).*
