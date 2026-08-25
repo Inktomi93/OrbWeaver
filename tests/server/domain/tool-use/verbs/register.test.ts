@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { createToolUseService, ToolNameCollisionError } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { defOf, makeHarness } from "../_support.ts";
+import { ANY_DRIVER, defOf, makeHarness } from "../_support.ts";
 
 const okHandler = (): Promise<{ ok: true; value: unknown }> => Promise.resolve({ ok: true, value: null });
 
@@ -31,7 +31,7 @@ test("the JSON-schema projection is cached at registration and served by resolve
       handler: okHandler,
     }),
   );
-  const set = svc.resolveTools(["tick_clock"]);
+  const set = svc.resolveTools(ANY_DRIVER, ["tick_clock"]);
   const params = set.entries[0]?.parameters;
   expect(params?.["additionalProperties"]).toBe(false);
   expect(JSON.stringify(params)).toContain("how far to advance");

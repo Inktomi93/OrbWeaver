@@ -691,7 +691,10 @@ async function attachTools(
   if (!toolsSupported) {
     return { request: baseRequest, set: null, unsupported: true, mcpRecords: [] };
   }
-  const set = args.tools.resolveTools(args.attachedToolNames);
+  // Resolved on the TURN HOST's shelf (#677) — the same identity the teaching contributions enumerated the
+  // attach union from (`tctx.runAsUserId`). A guest in the room never pulls their own plugin's tools in, and
+  // the host's copy of a plugin two people installed is the one that runs.
+  const set = args.tools.resolveTools(args.toolExecFrame.runAsUserId, args.attachedToolNames);
   if (args.connection.api === "agent-sdk") {
     const mcpRecords: ToolCallRecord[] = [];
     const server = await args.tools.toAgentToolServer(set, args.toolExecFrame, (record) => mcpRecords.push(record));

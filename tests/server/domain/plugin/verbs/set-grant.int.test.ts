@@ -11,7 +11,6 @@
 //   • the ANTI-TOCTOU echo: `net.fetch` is the one capability whose reach the owner does not type, so a
 //     manifest that moved under a rendered consent screen must not arm a host nobody confirmed.
 
-import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CapabilityNotGrantedError, PluginNetHostsUnacknowledgedError, PluginNotFoundError } from "@orb/server/domain/plugin";
@@ -229,23 +228,80 @@ test("the netHosts echo is only consulted when net.fetch is in the grant", async
   expect(dropped.grantedCapabilities).toEqual(["chat.read"]);
 });
 
-test("a missing/foreign plugin is a leak-free NotFound; a non-admin is refused", async () => {
+test("a missing plugin id is a leak-free NotFound", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const user = await seedUser(db, { handle: castId<Handle>("user") });
-  const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
-    bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
-    grant: [],
-  });
 
   await expect(
     h.service.setGrant({ caller: ownerPrincipalFor(owner), pluginId: castId<PluginId>("plugin_missing"), grant: [], acknowledgedNetHosts: [] }),
   ).rejects.toBeInstanceOf(PluginNotFoundError);
+});
+
+test("a plain user (role:'user') re-consents on their OWN plugin — D147", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const user = await seedUser(db, { handle: castId<Handle>("user") });
+  const installed = await h.service.install({
+    caller: principalFor(user),
+    bundle: makeBundle({ id: "pp", capabilities: ["chat.read", "notify"] }),
+    grant: ["chat.read"],
+  });
+
+  const regranted = await h.service.setGrant({
+    caller: principalFor(user),
+    pluginId: installed.id,
+    grant: ["chat.read", "notify"],
+    acknowledgedNetHosts: [],
+  });
+
+  expect(regranted.grantedCapabilities).toEqual(["chat.read", "notify"]);
+  expect(regranted.reconsentPending).toBe(false);
+});
+
+// THE SEEDER SHAPE, as a plain user (interlock with the example-plugins seeder, #673). It seeds per-user with
+// `install({grant: []})` followed by `setGrant({grant: [], acknowledgedNetHosts: []})`, and under the old
+// admin gate that pair THREW for every non-admin. Pinned as its own row rather than folded into the test
+// above because the EMPTY grant is the part with a distinct path: it must not trip the grant ⊆ declared check
+// (∅ is a subset of anything) and must not reach the `net.fetch` host acknowledgement (nothing to acknowledge).
+test("the seeder's own shape works for a plain user: install(grant:[]) then setGrant(grant:[])", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const user = await seedUser(db, { handle: castId<Handle>("user") });
+  const installed = await h.service.install({ caller: principalFor(user), bundle: makeBundle({ id: "example", capabilities: [] }), grant: [] });
+
+  const settled = await h.service.setGrant({ caller: principalFor(user), pluginId: installed.id, grant: [], acknowledgedNetHosts: [] });
+
+  expect(settled.grantedCapabilities).toEqual([]);
+  expect(settled.status).toBe("disabled"); // a re-grant never enables (the two acts stay separate)
+  expect(settled.reconsentPending).toBe(false); // nothing declared, so nothing left unanswered
+});
+
+// The CONSENT arm of the cross-user matrix, and the one whose failure would be worst: `setGrant` is the verb
+// that WIDENS what a plugin may do, so an ungated one would let a stranger grant themselves-by-proxy powers
+// over another user's reach. Refused for a plain user and for the apex role alike — no admin any-row branch
+// (D147) — and A's grant is asserted UNCHANGED, since the verb answers with a view rather than a mutation
+// count and a silent widening would leave no other trace.
+test("a stranger cannot re-grant another user's plugin — not a plain user, and NOT an owner/admin either", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const alice = await seedUser(db, { handle: castId<Handle>("alice") });
+  const bob = await seedUser(db, { handle: castId<Handle>("bob") });
+  const boss = await seedUser(db, { handle: castId<Handle>("boss") });
+  const hers = await h.service.install({
+    caller: principalFor(alice),
+    bundle: makeBundle({ id: "pp", capabilities: ["chat.read", "notify"] }),
+    grant: ["chat.read"],
+  });
+
   await expect(
-    h.service.setGrant({ caller: principalFor(user), pluginId: installed.id, grant: ["chat.read"], acknowledgedNetHosts: [] }),
-  ).rejects.toBeInstanceOf(DomainForbiddenError);
+    h.service.setGrant({ caller: principalFor(bob), pluginId: hers.id, grant: ["chat.read", "notify"], acknowledgedNetHosts: [] }),
+  ).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(
+    h.service.setGrant({ caller: ownerPrincipalFor(boss), pluginId: hers.id, grant: ["chat.read", "notify"], acknowledgedNetHosts: [] }),
+  ).rejects.toBeInstanceOf(PluginNotFoundError);
+
+  expect((await h.service.list({ caller: principalFor(alice) }))[0]?.grantedCapabilities).toEqual(["chat.read"]);
 });
 
 // THE SYSTEM'S OWN REFUSAL, RECORDED (#650 P1-1). A forced disable used to render identically to the owner's

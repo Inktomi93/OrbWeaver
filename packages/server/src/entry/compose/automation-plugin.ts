@@ -224,7 +224,11 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       }
       let set: ResolvedToolSet;
       try {
-        set = deps.toolUse.resolveTools([name]);
+        // Resolved on the RULE AUTHOR's own shelf (#677): a rule names a tool its author installed, and the
+        // gate above already refused anything else. Passing the author here is what makes that structural —
+        // with N users' copies of the same plugin resident, a name-only resolve would hand the arm whichever
+        // copy happened to register first, i.e. it would spend a stranger's grant on the author's rule.
+        set = deps.toolUse.resolveTools(authorUserId, [name]);
       } catch {
         // `resolveTools` THROWS on an unknown name — its documented "at attach time this is OUR wiring bug"
         // posture, which is right for a turn and wrong for this consumer. Reaching it here means the
@@ -590,7 +594,8 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     db,
     now,
     newPluginId: minter(ID_PREFIX.plugin),
-    can,
+    // No `can` — plugin authority is OWNERSHIP, not a global role (D147). Every management verb decides on
+    // the owner-scoped row load alone, so there is nothing here for the privilege kernel to answer.
     assets: {
       store: (caller, bytes, mime) => assets.store({ principal: caller, bytes, kind: "plugin", mime }),
       // The owner-scoped `plugins` row was already loaded (getById) before activation reads its bundle, so the

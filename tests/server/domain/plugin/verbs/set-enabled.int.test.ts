@@ -2,7 +2,6 @@
 // (a contained failure surfaces as PluginCrashedError after the row lands errored); disable disposes + status
 // disabled. Idempotent per target state.
 
-import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PluginCrashedError, PluginNotFoundError } from "@orb/server/domain/plugin";
@@ -57,17 +56,58 @@ test("disable disposes the instance + lands the row disabled (idempotent)", asyn
   expect(view?.status).toBe("disabled");
 });
 
-test("a missing/foreign plugin is a leak-free NotFound; a non-admin is refused", async () => {
+test("a missing plugin id is a leak-free NotFound", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const user = await seedUser(db, { handle: castId<Handle>("user") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
 
   await expect(h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: castId<PluginId>("plugin_missing"), enabled: true })).rejects.toBeInstanceOf(
     PluginNotFoundError,
   );
-  await expect(h.service.setEnabled({ caller: principalFor(user), pluginId: installed.id, enabled: true })).rejects.toBeInstanceOf(DomainForbiddenError);
+});
+
+test("a plain user (role:'user') enables their OWN plugin — D147", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const user = await seedUser(db, { handle: castId<Handle>("user") });
+  const installed = await h.service.install({
+    caller: principalFor(user),
+    bundle: makeBundle({ id: "mine", capabilities: ["chat.read"] }),
+    grant: ["chat.read"],
+  });
+
+  await h.service.setEnabled({ caller: principalFor(user), pluginId: installed.id, enabled: true });
+
+  expect(h.port.created[0]?.grants).toEqual(["chat.read"]);
+  expect((await h.service.list({ caller: principalFor(user) }))[0]?.status).toBe("enabled");
+});
+
+// THE CONFUSED-DEPUTY PIN (D147). `setEnabled` is the act that RUNS a plugin's untrusted guest bundle, and
+// `activate` runs it as the CALLER: `buildPluginBridge(ops, caller.userId, …)` and `scope.installer = caller`.
+// A cross-owner enable would therefore not be a mere authorization slip — it would execute user A's code
+// under user B's identity, credential and rooms. Both arms assert the refusal AND that NOTHING was activated
+// (`port.created` untouched), because a NotFound thrown AFTER an activation would be exactly the hole.
+// The second arm uses the APEX role deliberately: there is no admin/owner any-row branch, and adding one is
+// the specific mistake this test exists to red.
+test("a stranger cannot enable another user's plugin — not a plain user, and NOT an owner/admin either", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const alice = await seedUser(db, { handle: castId<Handle>("alice") });
+  const bob = await seedUser(db, { handle: castId<Handle>("bob") });
+  const boss = await seedUser(db, { handle: castId<Handle>("boss") });
+  const hers = await h.service.install({
+    caller: principalFor(alice),
+    bundle: makeBundle({ id: "mood", capabilities: ["chat.read"] }),
+    grant: ["chat.read"],
+  });
+
+  await expect(h.service.setEnabled({ caller: principalFor(bob), pluginId: hers.id, enabled: true })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.setEnabled({ caller: ownerPrincipalFor(boss), pluginId: hers.id, enabled: true })).rejects.toBeInstanceOf(PluginNotFoundError);
+
+  // No guest code ever booted, under either principal.
+  expect(h.port.created.length).toBe(0);
+  // …and A's row is untouched — a refusal that had already flipped the status would be a write-IDOR.
+  expect((await h.service.list({ caller: principalFor(alice) }))[0]?.status).toBe("disabled");
 });
 
 test("DISABLING voids the plugin's pending posture-2 asks — a stale card never outlives the plugin", async () => {

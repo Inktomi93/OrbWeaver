@@ -3,24 +3,19 @@
 // `PluginHostPort` runtime from `infra/plugin-host` + the `PluginHostOps` op bundle — P4) and the CAS ops. The
 // runtime + the host-fn bodies are wired UPWARD at compose; this domain sideways-imports nothing.
 //
-// DORMANT BY BUILD-ORDER, NOT BY DESIGN (PD-93-style citation). This domain is REAL and it is UNREACHABLE
-// FROM THE PRODUCT, and the two facts are not in tension:
-//   • REAL — the service, the install/upgrade/enable/uninstall/list/log/runSnippet verbs, the manifest +
-//     capability-grant boundary and the crash-disable policy are all built and tested, and the QuickJS
-//     membrane they run on is exercised hard under AUTOMATION, which is a LIVE consumer of the same host
-//     (`entry/compose/automation-plugin.ts` mints the one `PluginHostPort`; the escape/marshal/membrane/
-//     realm/sandbox suites at tests/server/infra/plugin-host are the sandbox's proof).
-//   • UNREACHABLE — the `plugin` tRPC router is mounted (`transport/trpc/router.ts`) and has ZERO client
-//     callers: no surface anywhere in `packages/client` names `trpc.plugin.*`. There is also no ARRIVAL
-//     DOOR — `install` takes raw base64 bundle bytes that no shipped affordance can produce.
-// It reads exactly like the dead-wire archetype and it is NOT one: nothing was cut, the client wave simply
-// has not been built. Citing it here is what keeps the wired-or-cited rule (D107) honest — an uncited
-// zero-caller domain is indistinguishable from rot, and the next reader's correct instinct would be to
-// delete it.
+// AWAKE (truth-repaired 2026-08-24 — this header used to say DORMANT BY BUILD-ORDER / zero client callers,
+// and that died when the client wave landed). The arrival door exists: `packages/client/src/features/plugin`
+// is the Settings → Plugins pane (dropzone → grant screen → install) plus the chat-side snippet console, and
+// it calls `trpc.plugin.*` for real (`lib/plugin-mutations.ts`).
 //
-// THE WAVE THAT WAKES THIS: the plugin INSTALL/LIST PANE — a client surface that can produce a bundle (drop a
-// .zip / pick from a source) and render `list`/`getLog`/`setEnabled` — plus the first real cargo to install.
-// Until that lands nothing here changes; when it does, this citation comes out with it.
+// AUTHORITY, stated here because it is the one thing a reader must not re-derive from instinct: a plugin is
+// USER-SCOPED (D147). Any authenticated principal installs FOR THEMSELVES; the row carries `ownerId`; every
+// management verb's gate is the owner-scoped row load and NOTHING else — no `can()`, no global role, and
+// deliberately no "an admin may manage any row" branch. The reason is not tidiness: enabling a plugin RUNS
+// its untrusted guest bundle as the ENABLING caller (the bridge closes over `caller.userId`, the PL-C ceiling
+// resolves that caller's own room role, `llm.quiet` spends that caller's credential), so a cross-owner
+// management path would be a confused-deputy escalation. The SERVER-WIDE install (one row serving every user,
+// admin-gated) is a real but UNBUILT shape whose consent + run-as-whom design is open — see D147.
 
 // The infra↔domain WIRE shapes (`PluginInstance` + the collected-registration records + `PluginHandlerRef`)
 // live in `@orb/contracts/plugin` (the cake — infra mints them without importing a domain); re-exported here

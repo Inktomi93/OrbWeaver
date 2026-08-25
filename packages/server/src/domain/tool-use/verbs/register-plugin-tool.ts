@@ -5,7 +5,9 @@
 //
 //   (a) COLLISION IS ACTIVATION-FATAL, not boot-fatal — a runtime source can't be boot-fatal (nothing runs
 //       at boot). A duplicate name throws `ToolNameCollisionError`, which the plugin activation catches and
-//       treats as a contained activation failure (row → errored), never a process crash.
+//       treats as a contained activation failure (row → errored), never a process crash. It is also scoped PER
+//       INSTALLER (#677 — `substrate/partition.ts`): the same namespaced name held by two different users is
+//       normal, so only a duplicate on this installer's own shelf (or a name a builtin already holds) is fatal.
 //   (b) The args schema is UNTRUSTED GUEST JSON Schema (a guest can't author zod). It is LIFTED to zod
 //       host-side via `@orb/kit/json-schema` `liftJsonSchema` (PL-B — conservative-or-refuse: an unsupported
 //       construct throws `JsonSchemaLiftError`, also activation-fatal), then the wire `parameters` is DERIVED
@@ -28,6 +30,7 @@ import { ToolNameCollisionError } from "../contract/errors.ts";
 import type { PluginToolSpec, ToolExecutionContext } from "../contract/params.ts";
 import { TOOL_NAME_RE } from "../contract/params.ts";
 import type { PluginToolHandle, RegisteredTool, RunOutcome, ToolRegistry } from "../contract/results.ts";
+import { toolRegistryKey } from "../substrate/partition.ts";
 
 /** Resolve the resident handler's invocation-chat scope, as the INSTALLING principal (PL-C). `"denied"` = the
  *  installer is not a present member of the exec chat (the tool call fails errors-as-data, never a cross-tenant
@@ -57,8 +60,20 @@ export function createRegisterPluginTool(registry: ToolRegistry): (spec: PluginT
     if (!TOOL_NAME_RE.test(spec.name)) {
       throw new ToolNameCollisionError(`${spec.name} (invalid — must match the registry name charset ${TOOL_NAME_RE.source})`);
     }
-    if (registry.has(spec.name)) {
+    // #677 — COLLISION IS PER INSTALLER, not per process. The same namespaced name legitimately exists once per
+    // installing user (two people install the same plugin; the seeded examples install for everyone), so the
+    // only fatal duplicate is one INSIDE this installer's own shelf — a plugin registering the same tool twice,
+    // or a second copy of the same slug, both of which are genuinely its own bug.
+    const key = toolRegistryKey(spec.installer.userId, spec.name);
+    if (registry.has(key)) {
       throw new ToolNameCollisionError(spec.name);
+    }
+    // A contributor may never SHADOW a first-party tool for its installer: the driver-scoped lookup prefers the
+    // installer's own shelf, so admitting this would let a plugin silently take over a builtin's name for the
+    // one user who installed it — capability confusion, and the exact ambiguity that lets `lookupForDriver`
+    // stay a two-step with no precedence rule to reason about.
+    if (registry.has(toolRegistryKey(null, spec.name))) {
+      throw new ToolNameCollisionError(`${spec.name} (a first-party tool already holds this name)`);
     }
     // Untrusted guest JSON Schema → zod (throws JsonSchemaLiftError on an unsupported construct — activation-fatal).
     const argsSchema = liftJsonSchema(spec.parameters);
@@ -100,10 +115,12 @@ export function createRegisterPluginTool(registry: ToolRegistry): (spec: PluginT
         }
       },
     };
-    registry.set(spec.name, registered);
+    registry.set(key, registered);
     return {
       unregister: (): void => {
-        registry.delete(spec.name);
+        // Keyed, so a deactivation removes THIS installer's copy only — another user's copy of the same plugin
+        // keeps running (the cross-user isolation half of #677).
+        registry.delete(key);
       },
     };
   };

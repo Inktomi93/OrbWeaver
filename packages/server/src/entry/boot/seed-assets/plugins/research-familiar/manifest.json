@@ -1,0 +1,11 @@
+{
+  "id": "research-familiar",
+  "name": "Research Familiar",
+  "version": "1.0.0",
+  "hostVersion": 1,
+  "entry": "main.js",
+  "description": "Watches the room for ((lookup: Thing)) and quietly files what it finds into a lore book. No model spend — it reads Wikipedia, not an LLM.",
+  "author": "Orbweaver",
+  "capabilities": ["chat.read", "worldinfo.write", "global_vars", "storage.kv", "events.subscribe", "net.fetch"],
+  "netHosts": ["en.wikipedia.org"]
+}

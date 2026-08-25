@@ -1,9 +1,14 @@
-// verb: install — the trust edge. Authority = `can(caller,"admin",{kind:"global"})` (owner ∪ admin in
-// v1 — the membrane is new security-load-bearing code). Flow: gate → `parseBundle` (unzip+validate the
-// untrusted bytes — throws `ManifestInvalidError` on a bad zip/bomb/manifest) → the grant ⊆ declared check →
-// slug-collision check → store the WHOLE bundle in the caller's CAS (kind `"plugin"`) → insert a `disabled`
-// row (enabling is a second explicit act, like rules). The row lands `origin:"upload"` (the reserved single-arm
-// — a future catalog fetcher feeds the SAME bundle funnel).
+// verb: install — the trust edge. Authority = SELF (D147): any authenticated principal installs FOR
+// THEMSELVES, and the row is stamped `ownerId: caller.userId`. There is no role gate — a plugin runs under
+// its INSTALLER's own ceiling (the bridge closes over `caller.userId`, PL-C resolves the installer's own
+// room role, `llm.quiet` spends the installer's own credential), so an install grants the caller authority
+// over nothing but their own reach. The SERVER-WIDE install (one row serving every user) is the admin-gated
+// variant and is NOT BUILT — see D147.
+// Flow: `parseBundle` (unzip+validate the untrusted bytes — throws `ManifestInvalidError` on a bad
+// zip/bomb/manifest) → the grant ⊆ declared check → per-owner slug-collision check → store the WHOLE bundle
+// in the caller's CAS (kind `"plugin"`) → insert a `disabled` row (enabling is a second explicit act, like
+// rules). The row lands `origin:"upload"` (the reserved single-arm — a future catalog fetcher feeds the SAME
+// bundle funnel).
 
 import { CapabilityNotGrantedError, PluginAlreadyInstalledError } from "../contract/errors.ts";
 import type { InstallPluginParams } from "../contract/params.ts";
@@ -14,8 +19,6 @@ import { PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
 
 export function createInstall(ctx: PluginContext): PluginService["install"] {
   return async ({ caller, bundle, grant }: InstallPluginParams) => {
-    ctx.can(caller, "admin", { kind: "global" });
-
     const { manifest } = parseBundle(bundle);
 
     const ungrantable = ungrantableCapabilities(manifest.capabilities, grant);

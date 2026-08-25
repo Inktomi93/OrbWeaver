@@ -293,8 +293,9 @@ export interface NotifyFloor {
   readonly admit: (pluginId: PluginId, chatId: ChatId) => void;
 }
 
-/** The per-USER ceiling on concurrently-running inline snippets. `runSnippet` is the one plugin path a plain
- *  chat MEMBER reaches, and each call mints a whole fresh `QuickJSContext` (32 MiB ceiling) held for up to the
+/** The per-USER ceiling on concurrently-running inline snippets. `runSnippet` is the one plugin path with no
+ *  installed row behind it (so no per-plugin belt can bound it), and each call mints a whole fresh
+ *  `QuickJSContext` (32 MiB ceiling) held for up to the
  *  snippet's settlement wall — so the bound that matters is how many a single user may hold AT ONCE, which no
  *  request-rate bucket can express. */
 export interface SnippetGate {

@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { createToolUseService } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { defOf, execOf, makeHarness } from "../_support.ts";
+import { ANY_DRIVER, defOf, execOf, makeHarness } from "../_support.ts";
 
 const NOOP_SCHEMA = z.object({});
 
@@ -21,7 +21,7 @@ test("unknown tool (model hallucination) → errors-as-data; the batch CONTINUES
     }),
   );
   const records = await svc.executeToolCalls(
-    svc.resolveTools(["real"]),
+    svc.resolveTools(ANY_DRIVER, ["real"]),
     [
       { toolCallId: "c1", name: "ghost", arguments: "{}" },
       { toolCallId: "c2", name: "real", arguments: "{}" },
@@ -43,7 +43,7 @@ test("malformed JSON and zod-invalid args each carry a readable correction surfa
       handler: () => Promise.resolve({ ok: true, value: null }),
     }),
   );
-  const set = svc.resolveTools(["typed"]);
+  const set = svc.resolveTools(ANY_DRIVER, ["typed"]);
   const records = await svc.executeToolCalls(
     set,
     [
@@ -77,7 +77,7 @@ test("capability denial + chat-scope-without-roster are data, never a dead turn;
       },
     }),
   );
-  const set = svc.resolveTools(["gated"]);
+  const set = svc.resolveTools(ANY_DRIVER, ["gated"]);
   // Null roster (non-chat consumer) → denial before can() is even consulted.
   const noRoster = await svc.executeToolCalls(set, [{ toolCallId: "c1", name: "gated", arguments: "{}" }], execOf({ chatId: null, roster: null }));
   expect(noRoster[0]?.isError).toBe(true);
@@ -103,7 +103,7 @@ test("a throwing handler becomes data (message only, no stack) and the batch con
     }),
   );
   const records = await svc.executeToolCalls(
-    svc.resolveTools(["boom", "after"]),
+    svc.resolveTools(ANY_DRIVER, ["boom", "after"]),
     [
       { toolCallId: "c1", name: "boom", arguments: "{}" },
       { toolCallId: "c2", name: "after", arguments: "{}" },
@@ -133,7 +133,7 @@ test("the ONE stringify site: ok:false is a legality result; a string-returning 
     }),
   );
   const records = await svc.executeToolCalls(
-    svc.resolveTools(["misses", "stringy"]),
+    svc.resolveTools(ANY_DRIVER, ["misses", "stringy"]),
     [
       { toolCallId: "c1", name: "misses", arguments: "{}" },
       { toolCallId: "c2", name: "stringy", arguments: "{}" },
@@ -174,7 +174,7 @@ test("sequential in emission order; durationMs rides the injected clock", async 
     }),
   );
   const records = await svc.executeToolCalls(
-    svc.resolveTools(["slow_first", "fast_second"]),
+    svc.resolveTools(ANY_DRIVER, ["slow_first", "fast_second"]),
     [
       { toolCallId: "c1", name: "slow_first", arguments: "{}" },
       { toolCallId: "c2", name: "fast_second", arguments: "{}" },

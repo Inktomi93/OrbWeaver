@@ -141,10 +141,49 @@ test("the accent picker derives --color-primary-foreground off the picked accent
 test("the hover/selected accent SURFACE + its foreground derive off the base (light-theme P2 fix)", () => {
   // --color-accent joins the neutral ramp so a selected row tracks the theme; --color-accent-foreground
   // derives off the SAME shifted L (single-level off base, not a nested relative-color). (#16)
+  // The SHIFT is the base's polarity arm (#682): a near-white base's selected row recedes (−0.05, the
+  // Light seed's own 0.93) instead of the dark arm's +0.127, which clamped it to the same white as the
+  // card it sits on. What this test pins is that BOTH tokens read the same delta, whichever arm it is.
   const { vars } = clampThemeTokens({ background: "oklch(0.98 0.004 75)" });
-  expect(vars["--color-accent"]).toContain("oklch(from oklch(0.98 0.004 75) calc(l + 0.127)");
+  expect(vars["--color-accent"]).toContain("oklch(from oklch(0.98 0.004 75) calc(l + -0.05)");
   expect(vars["--color-accent-foreground"]).toContain("oklch(from oklch(0.98 0.004 75)");
-  expect(vars["--color-accent-foreground"]).toContain("l + 0.127");
+  expect(vars["--color-accent-foreground"]).toContain("l + -0.05");
+  // …and on a DARK base both still spell the pre-#682 rise, byte for byte.
+  const dark = clampThemeTokens({ background: "oklch(0.158 0.006 60)" }).vars;
+  expect(dark["--color-accent"]).toContain("oklch(from oklch(0.158 0.006 60) calc(l + 0.127)");
+  expect(dark["--color-accent-foreground"]).toContain("l + 0.127");
+});
+
+// ── #682: THE RAMP'S DARK ARM IS BYTE-IDENTICAL — a FENCE, not a defect proof (it passed pre-fix too) ──
+// The two-arm ramp's landing bar: not one dark room, and not one palette whose polarity we cannot read,
+// may move a byte. Spelled as the literal emitted CSS rather than as a delta comparison, because the byte
+// IS the guarantee.
+const DARK_RAMP_EMIT: ReadonlyArray<readonly [name: string, css: string]> = [
+  ["--color-sidebar", "oklch(from oklch(0.158 0.006 60) calc(l + -0.026) c h)"],
+  ["--color-surface-raised", "oklch(from oklch(0.158 0.006 60) calc(l + 0.027) c h)"],
+  ["--color-card", "oklch(from oklch(0.158 0.006 60) calc(l + 0.047) c h)"],
+  ["--color-popover", "oklch(from oklch(0.158 0.006 60) calc(l + 0.087) c h)"],
+  ["--color-accent", "oklch(from oklch(0.158 0.006 60) calc(l + 0.127) c h)"],
+  ["--color-sidebar-accent", "oklch(from oklch(0.158 0.006 60) calc(l + 0.077) c h)"],
+  ["--color-secondary", "oklch(from oklch(0.158 0.006 60) calc(l + 0.097) c h)"],
+  ["--color-muted", "oklch(from oklch(0.158 0.006 60) calc(l + 0.097) c h)"],
+];
+
+test("#682 a DARK base emits the pre-#682 ramp byte-for-byte", () => {
+  const { vars } = clampThemeTokens({ background: "oklch(0.158 0.006 60)" });
+  for (const [name, css] of DARK_RAMP_EMIT) {
+    expect(vars[name], name).toBe(css);
+  }
+});
+
+test("#682 an UNJUDGEABLE base keeps the dark arm — polarity is not guessed, and its bytes do not move", () => {
+  // A named colour resolves in the browser but neither reader parses it, so its polarity is unknowable
+  // (`colorSchemeFor`'s rule). The plate falls back to opaque and the elevation ingredients are skipped;
+  // the ramp cannot be skipped — it IS the chrome — so it keeps emitting exactly what it emitted before.
+  const { vars } = clampThemeTokens({ background: "rebeccapurple" });
+  expect(vars["--color-card"]).toBe("oklch(from rebeccapurple calc(l + 0.047) c h)");
+  expect(vars["--color-muted"]).toBe("oklch(from rebeccapurple calc(l + 0.097) c h)");
+  expect(vars["--color-accent"]).toBe("oklch(from rebeccapurple calc(l + 0.127) c h)");
 });
 
 test("unknown keys are stripped and a non-object input yields an empty map", () => {

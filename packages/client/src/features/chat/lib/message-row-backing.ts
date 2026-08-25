@@ -150,8 +150,15 @@ export const BG_PHOTO_BAND_PLATE = "in-data-[has-bg-image]:bg-reading-plate in-d
 // corners; a block that floats in one must). It names NO ink, and that is deliberate rather than an
 // omission of the #204 pairing: a skeleton is `aria-hidden` decoration carrying its own `bg-muted` fill
 // (@orb/ui skeleton variants) — there is no text on this plate for an ink to pair with, and `bg-muted`
-// is `base + ramp.muted` (+0.097) against a plate at `base + readingPlate.deltaL` (−0.038), so the bars
-// clear their own backing by a derived ΔL 0.135 in every palette rather than by a hand-picked value.
+// is `base + ramp.<arm>.muted` against a plate at `base + readingPlate.deltaL` (−0.038), so the bars
+// clear their own backing by a DERIVED ΔL rather than by a hand-picked value.
+//
+// THAT ΔL IS PER-POLARITY, and the "0.135 in every palette" this line used to claim was never true of the
+// LIGHT palettes (truth-repaired 2026-08-24 with #682): on a dark base it is 0.097 − (−0.038) = 0.135, but
+// the shipped Light seed has always spelled muted 0.95 against a plate at 0.942 — ΔL 0.008 — and since
+// #682 gave the ramp its polarity arm (muted −0.03 on a light base) a CUSTOM light theme derives the same
+// 0.008 the seed ships. Whether a light-palette skeleton is legible on its own plate is therefore a real,
+// PRE-EXISTING question about the light arm's muted step, not a property this file can assert.
 //
 // Self-gated on `in-data-[has-bg-image]` like its three siblings, so a plain-background room is
 // byte-identical to before. Static (no transition) ⇒ reduced-motion-safe.
@@ -159,6 +166,32 @@ export const BG_PHOTO_BAND_PLATE = "in-data-[has-bg-image]:bg-reading-plate in-d
 // `getComputedStyle` reports the same class list in both arms — message-list-surface.ct.tsx's
 // "LOADING OVER ART" pair samples the framebuffer, with the flag-off arm as its positive control.
 export const BG_PHOTO_LOADING_PLATE = "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:rounded-card";
+
+// ERROR backing (#681) — the LOADING plate's twin for the state on the other side of the same read, and
+// the family's fifth member. The transcript's `QueryBoundary` renders `fallback` and `renderError` into
+// the same empty column; only the fallback was ever given a surface, so over art the error state's
+// "Couldn't load this conversation." + Retry drew straight onto the wallpaper — pixel-measured at 1.50:1
+// and 1.57:1 (side-eye #681, a carried-art room, desktop). Same defect class as its four siblings, on the
+// one member of the column that still had no answer.
+//
+// IT IS OPAQUE `card`, NOT THE TRANSLUCENT PLATE, AND THE INK IS WHY (the ct-framebuffer-contrast law:
+// route by ink, not by which sibling looks nearest). The loading plate can be a translucent window because
+// it carries NO TEXT — its own comment says so, and its skeleton bars clear it by a derived ΔL. This one
+// carries REAL prose in the MUTED tone plus an interactive control, and the plate/band's FLOORED pairing
+// is `text-foreground` alone (`palette-contrast.suite.test.ts` #204/#241). `muted-foreground` IS floored
+// against `card` in that same suite ("derived muted-foreground on card", every realistic base), so the
+// opaque card fill is the member whose pairing this state's ink actually has — and an opaque fill also
+// makes `backdrop-blur` dead paint, so the blur is deliberately absent (the #168 ruling).
+//
+// The #223/#241 two-whites argument does NOT reach here: that step existed because a band was stacked in
+// the prose column OVER plate-riding prose. This state REPLACES the column's content — there is no second
+// surface under it to step against.
+//
+// Self-gated on `in-data-[has-bg-image]` like all four siblings, so a plain-background room is
+// byte-identical. Static (no transition) ⇒ reduced-motion-safe. Pinned by PIXELS (the composite is what a
+// reader sees): the `#681` pair in message-list-surface.ct.tsx samples the framebuffer through the shared
+// `pixelContrast` kernel at two widths, with the pre-fix ratio as the defect it names.
+export const BG_PHOTO_ERROR_PLATE = "in-data-[has-bg-image]:bg-card in-data-[has-bg-image]:rounded-card";
 
 // STICKY SPEAKER ATTRIBUTION (#113) — a DIFFERENT backing from the two above, deliberately not merged
 // with them. Those two answer "the chrome is floating on a wallpaper at rest" and are wallpaper-gated.

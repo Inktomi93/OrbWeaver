@@ -21,8 +21,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 export const MS_PER_SECOND = 1000;
 
 export const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
-// --wide: layout sanity at a real monitor width (neo's default 1280 disguised a
-// dialog max-width bug for a whole morning).
+// --wide: layout sanity at a real monitor width (neo's 1280 default disguised a dialog max-width bug for a morning).
 const WIDE_VIEWPORT: Viewport = { width: 1920, height: 1080 };
 // --mobile: a Playwright device descriptor name (registry lookup in _shared/browser.ts). Real touch +
 // pointer:coarse + mobile UA + DPR3, so the app's coarse-pointer progressive-disclosure and bottom-tab

@@ -1,5 +1,8 @@
-// verb: upgrade — replace an installed plugin's bundle. Authority = install authority (owner ∪ admin).
-// Flow: gate → load the owned row (leak-free NotFound) → `parseBundle` the new bytes → the new manifest's slug
+// verb: upgrade — replace an installed plugin's bundle. Authority = OWNERSHIP (D147): the owner-scoped row
+// load IS the gate (a foreign row is a leak-free NotFound); no admin any-row branch. It is a trust edge like
+// install — it swaps the code a resident instance will run under the row owner's own ceiling — so the
+// principal that owns the row is the only one who may swap it.
+// Flow: load the owned row (leak-free NotFound) → `parseBundle` the new bytes → the new manifest's slug
 // MUST match the installed slug (a bundle for a different plugin is a `ManifestInvalidError`) → REFUSE a version
 // LOWER than installed (`PluginDowngradeRefusedError` — a re-uploaded old bundle must never silently roll back)
 // → recompute the grant (prior grant ∩ newly-declared) → stop the old resident
@@ -70,8 +73,6 @@ function refusalAfterUpgrade(
 
 export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginService["upgrade"] {
   return async ({ caller, pluginId, bundle }: UpgradePluginParams) => {
-    ctx.can(caller, "admin", { kind: "global" });
-
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
       throw new PluginNotFoundError(pluginId);

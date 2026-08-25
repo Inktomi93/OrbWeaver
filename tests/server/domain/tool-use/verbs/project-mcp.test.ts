@@ -8,7 +8,7 @@ import { vi } from "vitest";
 import { z } from "zod";
 import { createProjectMcp } from "../../../../../packages/server/src/domain/tool-use/verbs/project-mcp.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { defOf, execOf, makeHarness } from "../_support.ts";
+import { ANY_DRIVER, defOf, execOf, makeHarness } from "../_support.ts";
 
 // The fake D47 factory: return the wrapped specs verbatim as the opaque server so the test can invoke a
 // wrapped handler by name (standing in for the agent-sdk loop).
@@ -37,7 +37,7 @@ function invoke(specs: WrappedSpecs, name: string, args: Record<string, unknown>
 test("a wrapped handler routes through the SAME executeToolCalls (gate + parse + record all fire)", async () => {
   const svc = createToolUseService(makeHarness().ctx);
   svc.register(defOf({ name: "echo_tool", schema: z.object({ text: z.string() }), handler: (args) => echo(args) }));
-  const set = svc.resolveTools(["echo_tool"]);
+  const set = svc.resolveTools(ANY_DRIVER, ["echo_tool"]);
 
   const executeSpy = vi.fn(svc.executeToolCalls);
   const factory = fakeFactory();
@@ -56,7 +56,7 @@ test("a wrapped handler routes through the SAME executeToolCalls (gate + parse +
 test("gate fires on the wrapped path: a chat-scoped ceiling with a null roster is an errors-as-data denial", async () => {
   const svc = createToolUseService(makeHarness().ctx);
   svc.register(defOf({ name: "gated_tool", schema: z.object({}), handler: () => echo({}), capability: { scope: "chat", action: "host" } }));
-  const set = svc.resolveTools(["gated_tool"]);
+  const set = svc.resolveTools(ANY_DRIVER, ["gated_tool"]);
 
   const factory = fakeFactory();
   const records: { isError: boolean }[] = [];
@@ -71,7 +71,7 @@ test("gate fires on the wrapped path: a chat-scoped ceiling with a null roster i
 test("record parity: an MCP-wrapper call is byte-equal to the same call via executeToolCalls", async () => {
   const svc = createToolUseService(makeHarness().ctx);
   svc.register(defOf({ name: "echo_tool", schema: z.object({ text: z.string() }), handler: (args) => echo(args) }));
-  const set = svc.resolveTools(["echo_tool"]);
+  const set = svc.resolveTools(ANY_DRIVER, ["echo_tool"]);
   const exec = execOf();
 
   // The wrapper synthesizes toolCallId `mcp_<name>_1` for the first invocation — mirror it on the direct call.
