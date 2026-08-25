@@ -21,9 +21,9 @@
 // owner-gated read is not quietly widened.
 
 import type { ApplyDistributedPluginsParams } from "../contract/params.ts";
-import type { PluginContext, PluginDistributionDeps, PluginService } from "../contract/service.ts";
+import type { DistributionInstallDeps, PluginContext, PluginDistributionDeps, PluginService } from "../contract/service.ts";
 import { listDistributions } from "../persistence/distributed-plugins.ts";
-import type { DistributionInstallDeps } from "../substrate/distribution.ts";
+
 import { alreadyHolds, installDistributedCopy } from "../substrate/distribution.ts";
 
 export function createApplyDistributedPlugins(

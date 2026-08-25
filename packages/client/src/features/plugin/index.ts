@@ -13,6 +13,7 @@
 // screen and the console exercise.
 
 export { SnippetConsole } from "./components/snippet-console.tsx";
+export { pluginDistributeSection } from "./lib/plugin-distribute-section.tsx";
 export { pluginsPane } from "./lib/plugins-pane.tsx";
 export { pluginSnippetConsoleSection } from "./lib/snippet-console-section.tsx";
 export { PluginsSettingsSurface } from "./surfaces/plugins-settings-surface.tsx";

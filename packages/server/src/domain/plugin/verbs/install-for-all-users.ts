@@ -28,9 +28,9 @@
 
 import type { InstallForAllUsersParams } from "../contract/params.ts";
 import type { PluginFanoutSkip } from "../contract/results.ts";
-import type { PluginContext, PluginDistributionDeps, PluginService } from "../contract/service.ts";
+import type { DistributionInstallDeps, PluginContext, PluginDistributionDeps, PluginService } from "../contract/service.ts";
 import { upsertDistribution } from "../persistence/distributed-plugins.ts";
-import type { DistributionInstallDeps } from "../substrate/distribution.ts";
+
 import { alreadyHolds, installDistributedCopy } from "../substrate/distribution.ts";
 import { PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
 

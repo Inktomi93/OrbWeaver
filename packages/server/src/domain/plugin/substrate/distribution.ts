@@ -16,15 +16,8 @@
 // never be performed on someone's behalf).
 
 import type { Principal } from "@orb/contracts/identity";
-import type { PluginContext, PluginService } from "../contract/service.ts";
+import type { DistributionInstallDeps, PluginContext } from "../contract/service.ts";
 import { getByOwnerSlug } from "../persistence/plugins.ts";
-
-/** The two REAL verbs a fan-out drives. Passed as functions (the `ActivationDeps` verb-to-verb precedent)
- *  rather than the whole service, so the substrate cannot reach a verb it has no business calling. */
-export interface DistributionInstallDeps {
-  readonly install: PluginService["install"];
-  readonly setGrant: PluginService["setGrant"];
-}
 
 /** Does `recipient` already hold `slug`, at ANY version? A distribution never overwrites a row a person
  *  already has — theirs may be newer, older, or simply their own choice, and all three are theirs. */

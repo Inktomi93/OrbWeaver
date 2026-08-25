@@ -54,7 +54,7 @@ import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "@orb/cli
 import { imageDetailModal, imageEditModal, imagineModal } from "@orb/client/features/imagery";
 import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
-import { pluginsPane } from "@orb/client/features/plugin";
+import { pluginDistributeSection, pluginsPane } from "@orb/client/features/plugin";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import { regexCollection } from "@orb/client/features/regex";
@@ -290,6 +290,10 @@ const realSettingsSections: ContributorRegistry<SettingsSectionContribution> = c
   appearanceReadingSection,
   appearanceEffectsSection,
   librarySettingsSection,
+  // plugins ← the admin-gated "Distribute to everyone" section (D147 clause (d)), last in the door's order.
+  // Its own `when` is what the shell CT's admin/plain-user pair exercises, so it MUST be here: an omission
+  // would make the gate untestable and read as "the section never renders" in every CT.
+  pluginDistributeSection,
 ]);
 
 const REAL_SETTINGS_PANES: Record<SettingsCategoryId, SettingsPaneDefinition> = {
