@@ -1,9 +1,10 @@
 // domain/plugin — COMPOSITION ROOT. Wires the verbs over the injected `PluginContext` + the ONE resident-
 // instance registry the lifecycle shares (activate adds, deactivate/uninstall removes). ZERO logic: it builds
 // the activation factories once (so every verb drives the SAME registry) and assembles the `PluginService`
-// (typed return → a missing/renamed verb fails `tsc`). The context (db + injected clock/id/can seams + the CAS
-// ops + the `PluginHostPort` runtime + the `PluginHostOps` op bundle) is built at the entry composition root
-// and passed in — plugin sideways-imports nothing.
+// (typed return → a missing/renamed verb fails `tsc`). The context (db + injected clock/id seams + the CAS
+// ops + the `PluginHostPort` runtime + the `PluginHostOps` op bundle + the belts) is built at the entry
+// composition root and passed in — plugin sideways-imports nothing. Every management verb's authority is the
+// owner-scoped row load, not a role gate (D147).
 
 import { createActivate } from "./activation/activate.ts";
 import { createCrashPolicy } from "./activation/crash-policy.ts";

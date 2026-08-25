@@ -6,7 +6,7 @@
 // infra/plugin-host → nothing).
 
 import type { StoredAsset } from "@orb/contracts/assets";
-import type { Can, Principal } from "@orb/contracts/identity";
+import type { Principal } from "@orb/contracts/identity";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
@@ -147,9 +147,13 @@ export interface PluginContext {
   readonly db: Db;
   readonly now: () => number;
   readonly newPluginId: () => PluginId;
-  /** The `can()` privilege seam (install authority = `can(caller,"admin",{kind:"global"})` — owner ∪ admin).
-   *  Injected (the domain never imports `admin`). */
-  readonly can: Can;
+  // NO `can` SEAM, and that is the design (D147). A plugin is USER-SCOPED: anyone installs for themselves,
+  // every management verb loads its row through the owner-scoped `getById(db, caller.userId, pluginId)`, and
+  // that load IS the whole authority decision. There is no global-role factor to consult, so injecting the
+  // `can()` kernel here would be a seam nothing asks — and a tempting one to answer WRONG, because the
+  // obvious "admins may manage any row" branch would run one user's untrusted guest bundle under another
+  // user's identity (the bridge and the PL-C ceiling both close over the ENABLING caller). The admin-gated
+  // SERVER-WIDE install is a separate, unbuilt shape (D147); it does not reuse these verbs.
   /** The per-user CAS ops the bundle bytes ride: `store` (kind fixed `"plugin"`), the owner-gated `readBytes`
    *  (activation re-reads + re-parses — "re-validated on load"), and `reapOrphans` (uninstall reaps the bundle
    *  asset AFTER the row's FK reference is deleted — the RESTRICT/`reapIfOrphan` posture). */

@@ -798,6 +798,13 @@ const onboardingSchema = z
     // immutable; a stamp behind the shipped pack runs the seeder's heal, which only ever fills fields still
     // at their seeded default (it never stomps a choice the user made in their copy of an example).
     demoChatsPackVersion: z.number().int().min(0).catch(0).default(0),
+    // The two SHOWCASE PLUGIN examples (`entry/boot/seed-example-plugins.ts`) — its OWN latch for the same
+    // reason the demo chats have theirs: the examples are installed (disabled, ungranted) per user, and this
+    // flag is also the DELETION-RESPECT guard. A user who uninstalls an example must not find it back on
+    // their next request. No pack-version twin: a plugin's own manifest `version` + the `upgrade` verb are
+    // the release channel for bundle content, and re-dressing an INSTALLED plugin behind the user's back is
+    // exactly what the consent posture exists to prevent.
+    examplePluginsSeeded: z.boolean().catch(false).default(false),
   })
   .prefault({});
 

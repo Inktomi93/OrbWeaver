@@ -664,9 +664,17 @@ module.exports = {
       // is the cheap in-graph tripwire for NEW orphans.
       name: "no-orphans",
       comment:
-        "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority. instruments.ts is carved: the tooling-instrument-proof gate reads it STRUCTURALLY (an AST read, no import edge exists by design — tooling-package.md §4.5); knip covers it via the tooling workspace entry.",
+        "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority. instruments.ts is carved: the tooling-instrument-proof gate reads it STRUCTURALLY (an AST read, no import edge exists by design — tooling-package.md §4.5); knip covers it via the tooling workspace entry. The seeded EXAMPLE-PLUGIN bundles are carved for a stronger reason: `seed-assets/plugins/<slug>/main.js` is GUEST source, not host source — it is read as BYTES by `packSeedPluginBundle`, zipped, and executed inside the QuickJS sandbox against `orb.host(1)`, a global that does not exist in this graph. An import edge is not merely absent, it is impossible: the guest realm has no module loader. They ride `packages/server/src` because that is the only tree the image copies, and their liveness is proven behaviourally by `tests/server/entry/boot/seed-example-plugins.int.test.ts`, which installs and runs each one.",
       severity: "warn",
-      from: { orphan: true, pathNot: ["\\.d\\.ts$", "(^|/)index\\.ts$", "^tooling/src/_shared/instruments\\.ts$"] },
+      from: {
+        orphan: true,
+        pathNot: [
+          "\\.d\\.ts$",
+          "(^|/)index\\.ts$",
+          "^tooling/src/_shared/instruments\\.ts$",
+          "^packages/server/src/entry/boot/seed-assets/plugins/[^/]+/main\\.js$",
+        ],
+      },
       to: {},
     },
   ],

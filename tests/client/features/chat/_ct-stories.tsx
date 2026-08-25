@@ -1033,11 +1033,23 @@ export function MessageListSurfaceStory(): ReactElement {
  *  precedent). The CT holds `chat.listMessages` so the suspense fallback is a settled, indefinitely-stable
  *  render rather than a flash. `artBackdrop={false}` is the same probe with the flag off — the planted
  *  positive control that proves the sampler can see the raw backdrop at all. */
-export function MessageListOverArtStory({ artBackdrop }: { readonly artBackdrop: boolean }): ReactElement {
+export function MessageListOverArtStory({
+  artBackdrop,
+  art = "rgb(0 255 0)",
+  fullWidth = false,
+}: {
+  readonly artBackdrop: boolean;
+  /** The wallpaper under the surface. Defaults to the loading pair's SATURATED green (its one-channel
+   *  probe); #681's contrast pair passes its own worst-case art instead. */
+  readonly art?: string;
+  /** Span the viewport instead of the loading pair's fixed 640 — #681 measures at two real widths, and a
+   *  fixed story width would make the narrow arm a lie. @defaultValue false */
+  readonly fullWidth?: boolean;
+}): ReactElement {
   return (
     <CtDataProviders>
       <SocketHost>
-        <div {...(artBackdrop ? { "data-has-bg-image": "" } : {})} style={{ background: "rgb(0 255 0)", width: 640 }}>
+        <div {...(artBackdrop ? { "data-has-bg-image": "" } : {})} style={{ background: art, width: fullWidth ? "100%" : 640 }}>
           <SurfaceHarness />
         </div>
       </SocketHost>

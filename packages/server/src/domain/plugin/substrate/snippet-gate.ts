@@ -1,5 +1,7 @@
 // domain/plugin/substrate/snippet-gate — the per-USER concurrent-snippet ceiling. `plugin.runSnippet` is the
-// ONE plugin path a plain chat MEMBER reaches (every other verb is admin-gated install authority), and each call
+// one plugin path that mints a context WITHOUT an installed row behind it (every other verb operates on the
+// caller's OWN `plugins` row, whose per-plugin belts bound it — a snippet is anonymous and transient, so the
+// only unit left to bound it by is the USER), and each call
 // mints a whole fresh `QuickJSContext` on the shared WASM module — a 32 MiB memory ceiling held for as long as
 // the run takes, up to the snippet's settlement wall. The transport's `general` rate bucket bounds requests per
 // MINUTE, which is the wrong axis entirely: it cannot say how many contexts one user may pin AT ONCE, and a
