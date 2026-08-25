@@ -22,7 +22,7 @@ import {
 } from "../lib/budgets.ts";
 import { CHURN_LINE, isContextChurn } from "../lib/eval-text.ts";
 import { captureEvals } from "./evidence.ts";
-import { MS_PER_SECOND } from "./flags.ts";
+import { MS_PER_SECOND } from "./flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
