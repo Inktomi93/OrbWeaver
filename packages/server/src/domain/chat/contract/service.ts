@@ -20,6 +20,7 @@ import type {
   AcceptHostHandoffParams,
   AcceptInviteParams,
   AddCharacterToChatParams,
+  ApplyProseRewriteParams,
   ArchiveChatParams,
   ChatEventBoundsParams,
   ClearReasoningParams,
@@ -259,6 +260,10 @@ export interface ChatService {
    *  pre-first-user-turn malleability window — after the freeze it refuses `greeting_frozen`). The bytes come
    *  from the CARD, resolved by index; the caller never supplies content. */
   readonly setSeededGreeting: (params: SetSeededGreetingParams) => Promise<MessageView>;
+  /** Land an automation prose audit's CONFIRMED rewrite as a NEW VARIANT of the audited slot (HOST-only,
+   *  variant-pinned + content-hashed — a swipe or an edit since the audit refuses `rewrite_superseded` /
+   *  `rewrite_stale` and writes nothing). The audited variant survives as a swipe: that IS the revert. */
+  readonly applyProseRewrite: (params: ApplyProseRewriteParams) => Promise<MessageView>;
   /** Toggle `excludedFromPrompt` (held out of assembly; the row survives). */
   readonly setMessageHidden: (params: SetMessageHiddenParams) => Promise<MessageView>;
   /** Delete a set of slots (author-or-host; cascades variants). */

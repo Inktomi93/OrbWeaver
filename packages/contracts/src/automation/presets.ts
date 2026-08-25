@@ -60,6 +60,21 @@ export const RULE_PRESET_IDS = [
   /** §4 #11's sibling — the rumour mill: the SAME confirm-first lore route, distilling the consequences and
    *  hearsay the settled events would stir up rather than the durable facts. */
   "rumorMill",
+  /** §4 #16 — the needle: C1's analysis pass scoring narrative tension 0-10 into the ONE member-visible chat
+   *  variable (`NEEDLE_TENSION_VAR_KEY`, this package's index) plus a sibling rule that redresses the room's backdrop past a
+   *  threshold. RULED 2026-08-24: it SHIPS, OFF BY DEFAULT — F6's single exception (a published SCORE may
+   *  cross into the member-visible vars plane; arcs, twists and guidance never do). */
+  "theNeedle",
+  /** §4 #15 — C3's prose audit: a confirm-first `run_analysis` → `suggestRewrite` pass that audits the newest
+   *  reply and offers a conservative rewrite on a variant-pinned, content-hashed card. The confirmed rewrite
+   *  lands as a NEW VARIANT of the audited slot (the original stays selectable — that is the revert). */
+  "proseAudit",
+  /** §4 #2 — the async table nudge: when a post lands after a lull, ping the members who are WAITING (the
+   *  actor is excluded — `all_members_except_actor`), outside quiet hours. */
+  "asyncTableNudge",
+  /** §4 #14 — spotlight balance: a C1 analysis pass that steers the narrator toward whoever the scene has
+   *  been leaving out. Direct steer, like `storyPacing`; it never addresses or puppets a member. */
+  "spotlightBalance",
 ] as const;
 export type RulePresetId = (typeof RULE_PRESET_IDS)[number];
 export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS);

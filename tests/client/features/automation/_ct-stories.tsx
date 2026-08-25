@@ -11,7 +11,7 @@
 // and the wiring between them exists only at the composition root.
 
 import { QueryBoundary, QueryErrorState } from "@orb/client/data";
-import { automationRulesSection, RulesSection } from "@orb/client/features/automation";
+import { automationRulesSection, NeedleMeter, RulesSection } from "@orb/client/features/automation";
 import type { ChatSettingsSectionContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
@@ -73,6 +73,18 @@ export function RulesInThisChatTabStory({ chatId, isHost = true }: { readonly ch
       <div style={{ width: CONTEXT_PANE_WIDTH }}>
         <CommittedSettingsTab chatId={chatId} roomOverrides={{}} isHost={isHost} background={null} showGroup={false} sections={sections} />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** #16's NEEDLE METER over the stubbed network — the REAL `chat.getRuntimeVariables` read path. NO wrapper
+ *  width and NO `QueryBoundary`, both matching production: the widget mounts as a `thread-flank`
+ *  contribution, which is content-sized beside the transcript and is rendered with no Suspense boundary of
+ *  its own (which is exactly why the component is non-suspending). */
+export function NeedleMeterStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  return (
+    <CtDataProviders>
+      <NeedleMeter chatId={chatId} />
     </CtDataProviders>
   );
 }

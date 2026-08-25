@@ -75,11 +75,28 @@ export function promptPreviewReads(trpc: Trpc): readonly InvalidateFilter[] {
   return [trpc.chat.previewAssembly.pathFilter(), trpc.chat.getShapeTrace.pathFilter(), trpc.chat.previewActionTemplates.pathFilter()];
 }
 
+// The room's RUNTIME VARIABLE FOLD (`chat.getRuntimeVariables`) — #16's needle meter is its first client
+// consumer. It is a SEPARATE set rather than a line inside `chatCanonReads` because it is not canon and does
+// not ride the preview/fit family; it rides the CANON TERMINALS (this is where a turn's `{{setvar}}` delta
+// and every automation `set_variable`/analysis-score write land — `chat/engine/engine.ts`,
+// `chat/substrate/variable-ops.ts`) and, through `chatReads` below, every event that RE-FOLDS it: a swipe
+// selects a different lineage's fold and an edit/delete/reorder re-folds the remaining chain
+// (`chat/verbs/edit.ts` — three `runtimeVariablesUpdateStatement` call sites, one per family).
+//
+// THE FOLD LAGS BY ONE TERMINAL FOR AUTOMATION WRITES, AND THAT IS THE PRICED BEHAVIOUR (spec §3-S5.4:
+// "invalidated by the existing turn-commit/swipe chat-bus events"). An automation arm runs in the WATCHER,
+// after the commit event has already fanned — so a score written by a fire this event triggered lands after
+// the refetch it triggered, and the meter shows it from the next terminal. A tighter driver would cost a new
+// member-visible bus member with its full belt/coverage/CHECK price, which the needle's row does not buy.
+export function runtimeVariablesRead(trpc: Trpc): readonly InvalidateFilter[] {
+  return [trpc.chat.getRuntimeVariables.pathFilter()];
+}
+
 // Canon reads plus the chat list, for non-terminal canon events the server fires no chatsChanged for. Every
 // event on this set moves (or can move) a stored body — an edit, a swipe, a hide, a delete/reorder — so the
 // host-reveal derivation rides with it.
 export function chatReads(trpc: Trpc): readonly InvalidateFilter[] {
-  return [...chatCanonReads(trpc), ...hiddenRevealRead(trpc), trpc.chat.listChats.pathFilter()];
+  return [...chatCanonReads(trpc), ...hiddenRevealRead(trpc), ...runtimeVariablesRead(trpc), trpc.chat.listChats.pathFilter()];
 }
 
 /** Per-entity-kind filters for `roomEntityChanged`. Total over `RoomEntityKind` (the mapped type is the

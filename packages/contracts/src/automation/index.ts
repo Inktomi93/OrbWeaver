@@ -234,6 +234,26 @@ export type AnalysisApplyMode = (typeof ANALYSIS_APPLY_MODES)[number];
  *  applier writes `String(clamp(int(score), 0..ANALYSIS_SCORE_MAX))` and NOTHING ELSE — arcs, twists and
  *  guidance are disjoint payload fields no code path hands to the vars writer. */
 export const ANALYSIS_SCORE_MAX = 10;
+/** S5/C3 — the prose-audit route's REWRITE body cap, in characters. It bounds three things at once and they
+ *  must agree: the model's emitted `rewrite.text`, the before/after strings the host-only card event carries
+ *  for its diff, and the content the confirmed apply writes into a message variant. Sized to a long RP reply
+ *  (the class `WI_CONTENT_MAX` is sized for) rather than a document — a rewrite that would not fit was never a
+ *  conservative repair of one reply. */
+export const ANALYSIS_REWRITE_MAX = 8000;
+/** S5/C3 — the one-phrase FLAW the audit names on the card ("contradicts the locked door", "speaks for Mira").
+ *  Summary-class: it rides `AUTOMATION_SUGGESTION_SUMMARY_MAX` after the question wrapper. */
+export const ANALYSIS_REWRITE_ISSUE_MAX = 120;
+/** §4 #16 (the needle) — the ONE chat variable the tension score publishes into, shared by the preset that
+ *  authors the `vars` route and the client meter that renders it.
+ *
+ *  IT LIVES IN `contracts` FOR THE SAME REASON EVERY WIRE SHAPE DOES: two packages must agree on it and
+ *  neither may re-spell it. The other preset variable keys (`clock`, `debt`, `lastBeatMs`) are domain-local
+ *  constants because nothing outside the server reads them yet; this one is read by a client surface, so a
+ *  server-side literal would make the client's own literal the second home of one name. It is a CONSTANT and
+ *  never a knob for the reason `contract/presets.ts` states: a knob-supplied key is interpolated into a CEL
+ *  IDENTIFIER position (`has(vars.<k>)`), which is both an injection surface and a value the meter would have
+ *  no way to learn. */
+export const NEEDLE_TENSION_VAR_KEY = "tension";
 
 /** How a surfaced chip's text is CONSUMED when the member clicks it (S1, the in-chat control seam):
  *  `send` fires it as that member's next turn immediately; `compose` seeds their composer draft so they
@@ -375,6 +395,12 @@ export const automationActionSchema = z.discriminatedUnion("type", [
       /** Model-suggested guided-turn asks as S4 cards. Confirm-class BY NATURE (a suggestion IS an ask), so
        *  it carries no apply knob — an empty object is the enable switch. */
       suggest: z.object({}).optional(),
+      /** C3's PROSE AUDIT: the pass reads the newest reply and offers a conservative rewrite on a card that
+       *  PINS the audited variant + a hash of its bytes. Confirm-class BY NATURE — a rewrite of settled canon
+       *  is never a direct write, so like `suggest` it carries no apply knob and an empty object is the enable
+       *  switch. The pinning is what makes the confirm safe across time: a swipe or an edit between the ask and
+       *  the yes REFUSES typed, touching nothing (§3-S4's stale-accept guard). */
+      rewrite: z.object({}).optional(),
       /** The needle's score publication (host-OPT-IN — see the header). `key` is the ONE chat var the clamped
        *  score lands in; fixed at authoring, never model-chosen. Direct BY NATURE (a cadence meter). */
       vars: z.object({ key: z.string().min(1).max(VAR_KEY_MAX) }).optional(),
@@ -593,6 +619,26 @@ export type AutomationEmitSource = { kind: "rule"; ruleId: AutomationRuleId } | 
  *  subscriber and drops everything else (`transport/trpc/stream/sources/automation.ts`). It carries display
  *  strings for the same reason the chips do: the pending record is in RAM (RULED F1), so there is nothing to
  *  re-read. */
+/** The optional STRUCTURED half of a raised ask — what a card needs to show that one line of summary prose
+ *  cannot. It exists for exactly one reason and gains members the same way: a REWRITE card must show the host
+ *  WHAT WOULD CHANGE before they say yes, and a "Fix the prose?" summary is not that. Both strings are capped
+ *  at {@link ANALYSIS_REWRITE_MAX} at the producer.
+ *
+ *  IT RIDES THE EVENT rather than a query for the same reason `summary` does: the pending record is in RAM
+ *  (RULED F1), so there is no row to re-read. And it is safe to ride a host-only event: `suggestionRaised` is
+ *  never forwarded to a member subscriber (the room source's member filter is default-deny), so the audited
+ *  text crosses to exactly the host who could already read it in the transcript.
+ *
+ *  DISCRIMINATED FROM ONE MEMBER: `kind` is spelled today so the second detail is a union arm rather than a
+ *  re-type of every consumer (the single-arm-union seam shape). */
+export interface RewriteCardDetail {
+  readonly kind: "rewrite";
+  /** The audited variant's bytes AS THEY WERE at the ask — the diff's left side and the host's "before". */
+  readonly before: string;
+  readonly after: string;
+}
+export type SuggestionCardDetail = RewriteCardDetail;
+
 export type AutomationBusEvent =
   | { type: "quickReplySurfaced"; chatId: ChatId; source: AutomationEmitSource; choices: readonly { label: string; sendText: string; mode: QuickReplyMode }[] }
   | {
@@ -611,6 +657,10 @@ export type AutomationBusEvent =
       /** The injected-clock deadline the pending record dies at — the client drops its card on the same
        *  edge the server sweeps, so a stale card never sits offering an ask that would refuse. */
       expiresAt: number;
+      /** OPTIONAL structured body ({@link SuggestionCardDetail}) — present only for the ask classes whose card
+       *  shows more than a question (today: C3's rewrite diff). Absent ⇒ the card is title + actions, exactly
+       *  as every A4 card renders today, so this field changes no existing event's bytes. */
+      detail?: SuggestionCardDetail;
     }
   | { type: "ruleFired"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "ruleErrored"; chatId: ChatId; ruleId: AutomationRuleId }
