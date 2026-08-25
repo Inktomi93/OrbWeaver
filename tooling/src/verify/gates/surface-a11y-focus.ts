@@ -1,4 +1,4 @@
-// A feature `surfaces/*.tsx` manages focus on mount, OR declares — in source, with an owner and a reason —
+// A feature `surfaces/*.tsx` manages focus during mount/lifecycle, OR declares — in source, with an owner and a reason —
 // that its section's arrival focus is owned by ANOTHER pane. Four arms: missing focus · a valid declaration
 // (pass) · a declaration on a surface that DOES focus (stale, two-sided) · a malformed declaration.
 // COMMENT POSTURE: comment-SAFE for focus detection (call/JSX AST identity) and comments-INTENDED for the
@@ -21,6 +21,7 @@ const AUTO_FOCUS_PRIMITIVES = new Set(["Popover", "Dialog", "Tooltip", "Dropdown
 // We check if a surface explicitly calls `.focus()` (usually via a `useLayoutEffect` and a `surfaceRef`).
 // Or if it uses the shared `useFocusOnMount` hook, or delegates focus management to an internal component.
 const FOCUS_HOOK = "useFocusOnMount";
+const LIFECYCLE_HOOKS = new Set(["useEffect", "useLayoutEffect"]);
 
 // ── THE DECLARED EXEMPTION (side-eye corpus re-pass #2 P2-4, ruled 2026-08-19) ────────────────────────
 // The absolute rule was structurally incomplete for a REAL composition: a section whose LIST pane owns
@@ -63,7 +64,22 @@ function markerLine(raw: string): number {
  *  one construction site (`finding-overload-provenance`: one literal, not four). */
 function isFocusCall(call: CallExpression): boolean {
   const callee = call.getExpression();
-  return (Node.isPropertyAccessExpression(callee) && callee.getName() === "focus") || (Node.isIdentifier(callee) && callee.getText() === FOCUS_HOOK);
+  if (Node.isIdentifier(callee) && callee.getText() === FOCUS_HOOK) {
+    return true;
+  }
+  if (!(Node.isPropertyAccessExpression(callee) && callee.getName() === "focus")) {
+    return false;
+  }
+  const callback = call.getFirstAncestor((ancestor) => Node.isArrowFunction(ancestor) || Node.isFunctionExpression(ancestor));
+  if (callback === undefined) {
+    return false;
+  }
+  const lifecycleCall = callback.getParentIfKind(SyntaxKind.CallExpression);
+  if (lifecycleCall === undefined || lifecycleCall.getArguments()[0] !== callback) {
+    return false;
+  }
+  const lifecycleCallee = lifecycleCall.getExpression();
+  return Node.isIdentifier(lifecycleCallee) && LIFECYCLE_HOOKS.has(lifecycleCallee.getText());
 }
 
 function verdictFor(sf: SourceFile): { readonly message: string; readonly line: number } | null {
@@ -160,7 +176,7 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/client/src/features/x/surfaces/stale.tsx":
-          "// @surface-focus-elsewhere(SearchOmnibox): the list pane owns arrival focus\nexport const Pane = () => {\n  ref.current?.focus();\n  return <div>content</div>;\n};\n",
+          "// @surface-focus-elsewhere(SearchOmnibox): the list pane owns arrival focus\nexport const Pane = () => {\n  useLayoutEffect(() => { ref.current?.focus(); }, []);\n  return <div>content</div>;\n};\n",
       },
       expect: { messageIncludes: "stale" },
       why: "TWO-SIDED (§4.4): the surface manages its own focus, so the declaration promises something that is no longer true — and a stale marker is a loaded gun for the next author who deletes that focus call",
@@ -169,7 +185,8 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/client/src/features/x/surfaces/ok.tsx": "export const Ok = () => {\n  ref.current?.focus();\n  return <div>content</div>;\n};\n",
+        "packages/client/src/features/x/surfaces/ok.tsx":
+          "export const Ok = () => {\n  useLayoutEffect(() => { ref.current?.focus(); }, []);\n  return <div>content</div>;\n};\n",
       },
       why: "the surface calls .focus() on mount — manages its own focus restoration, passes",
     },
@@ -183,7 +200,7 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/client/src/features/x/surfaces/mention.tsx":
-          "/** Prose that MENTIONS the vocabulary: a surface may declare @surface-focus-elsewhere when another pane owns arrival focus. */\nexport const Mention = () => {\n  ref.current?.focus();\n  return <div>content</div>;\n};\n",
+          "/** Prose that MENTIONS the vocabulary: a surface may declare @surface-focus-elsewhere when another pane owns arrival focus. */\nexport const Mention = () => {\n  useLayoutEffect(() => { ref.current?.focus(); }, []);\n  return <div>content</div>;\n};\n",
       },
       why: "THE MENTION FENCE (§4.3): the vocabulary quoted inside a JSDoc block is an inert mention, not a declaration — so it is neither an exemption nor a stale-marker accusation against a surface that does manage focus",
     },

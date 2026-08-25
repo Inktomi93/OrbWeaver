@@ -54,7 +54,7 @@ function PersonaSettingsForm(): ReactElement {
 
   return (
     <Stack gap="section">
-      <Section heading={PERSONA_SUBCATEGORY_LABEL} id={settingsAnchorId("personas", PERSONA_SUBCATEGORY_IDS.personas)}>
+      <Section container={true} heading={PERSONA_SUBCATEGORY_LABEL} id={settingsAnchorId("personas", PERSONA_SUBCATEGORY_IDS.personas)}>
         <SettingSwitchRow
           label="Notify me when my persona changes in a chat"
           checked={data.config.persona.showNotifications}
