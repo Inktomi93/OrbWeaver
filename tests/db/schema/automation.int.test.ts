@@ -2,14 +2,16 @@
 // (FK PRAGMA ON). Covers: the enum test-mirrors (trigger_bus ← AUTOMATION_TRIGGER_BUSES, outcome ←
 // AUTOMATION_FIRE_OUTCOMES); automation_rules round-trip (born disabled, action blob, defaults) + the
 // paired bus↔tuple trigger CHECK (a cross-bus trigger name is unrepresentable) + the 120-char name
-// CHECK; automation_budgets defaults; automation_fires FK CASCADE off the rule; global_variables —
-// composite (ownerId, key) PK (same key across owners coexists; same owner+key collides), the 128-char
-// key CHECK, and the 64 KiB BYTE-accurate value CHECK (multibyte text counts bytes, not characters).
+// CHECK; automation_budgets defaults; automation_fires FK CASCADE off the rule; automation_rule_state —
+// rule-id natural PK (one row per rule), CASCADE off the rule, the guidance default + the
+// ANALYSIS_GUIDANCE_MAX-mirrored CHECK; global_variables — composite (ownerId, key) PK (same key across
+// owners coexists; same owner+key collides), the 128-char key CHECK, and the 64 KiB BYTE-accurate value
+// CHECK (multibyte text counts bytes, not characters).
 
 import type { ChatTriggerType } from "@orb/contracts/automation";
-import { AUTOMATION_FIRE_OUTCOMES, AUTOMATION_TRIGGER_BUSES } from "@orb/contracts/automation";
+import { ANALYSIS_GUIDANCE_MAX, AUTOMATION_FIRE_OUTCOMES, AUTOMATION_TRIGGER_BUSES } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
-import { automationBudgets, automationFires, automationRules, chats, globalVariables } from "@orb/db";
+import { automationBudgets, automationFires, automationRuleState, automationRules, chats, globalVariables } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -175,6 +177,68 @@ test("automation_budgets borns the fire-rate cap (one row per chat)", async () =
 
   const rows = await db.select().from(automationBudgets);
   expect(rows[0]?.maxFiresPerHour).toBe(120);
+});
+
+// ── automation_rule_state: the S5 analysis-arm state row ───────────────────────────────────────────────
+
+test("automation_rule_state round-trips, keys one row per rule, and CASCADEs off its rule", async () => {
+  const db = await freshDb();
+  const { ownerId, chatId } = await seedOwnerAndChat(db, "state_rt");
+  const rule = ruleValues("automation_rule_st", ownerId, chatId);
+  await db.insert(automationRules).values(rule);
+  await db.insert(automationRuleState).values({
+    ruleId: rule.id,
+    state: { arc: "the debt comes due", twists: ["a clue"], retiredTwists: [], settledThroughSeq: 12 },
+    guidance: "Plant the courier's absence without explaining it.",
+  });
+
+  const rows = await db.select().from(automationRuleState);
+  expect(rows).toHaveLength(1);
+  expect(rows[0]?.state).toEqual({ arc: "the debt comes due", twists: ["a clue"], retiredTwists: [], settledThroughSeq: 12 });
+  expect(rows[0]?.guidance).toBe("Plant the courier's absence without explaining it.");
+
+  // The rule's own id IS the identity — a second row for the same rule collides on the PK.
+  let dup: unknown;
+  try {
+    await db.insert(automationRuleState).values({ ruleId: rule.id, state: {} });
+  } catch (err) {
+    dup = err;
+  }
+  expect(isConstraintViolation(dup)).toBeDefined();
+
+  // CASCADE: the state row dies with its rule (authority derives ruleId → rule — nothing to orphan).
+  await db.delete(automationRules).where(eq(automationRules.id, rule.id));
+  expect(await db.select().from(automationRuleState)).toHaveLength(0);
+});
+
+test("automation_rule_state.guidance defaults empty and its CHECK mirrors ANALYSIS_GUIDANCE_MAX", async () => {
+  const db = await freshDb();
+  const { ownerId, chatId } = await seedOwnerAndChat(db, "state_cap");
+  const rule = ruleValues("automation_rule_stcap", ownerId, chatId);
+  await db.insert(automationRules).values(rule);
+
+  // Default: "" = no standing guidance (the common case).
+  await db.insert(automationRuleState).values({ ruleId: rule.id, state: {} });
+  const rows = await db.select().from(automationRuleState);
+  expect(rows[0]?.guidance).toBe("");
+
+  // AT the cap — accepted (the write boundary slices to this exact bound, so the CHECK never bites in app
+  // flow; it exists so the SQL bound and the app bound cannot drift — the global_variables pattern).
+  await db
+    .update(automationRuleState)
+    .set({ guidance: "g".repeat(ANALYSIS_GUIDANCE_MAX) })
+    .where(eq(automationRuleState.ruleId, rule.id));
+
+  let over: unknown;
+  try {
+    await db
+      .update(automationRuleState)
+      .set({ guidance: "g".repeat(ANALYSIS_GUIDANCE_MAX + 1) })
+      .where(eq(automationRuleState.ruleId, rule.id));
+  } catch (err) {
+    over = err;
+  }
+  expect(isConstraintViolation(over)?.kind).toBe("check");
 });
 
 // ── global_variables: the natural-key KV plane ─────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "3d770e16-8874-4084-ad27-436db344f98d",
+  "id": "26cf5878-8d24-414c-8059-2b2f3f85b0d8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -335,6 +335,61 @@
         "automation_fires_outcome_check": {
           "name": "automation_fires_outcome_check",
           "value": "outcome in ('fired', 'predicate_false', 'predicate_error', 'budget_refused', 'depth_refused', 'action_error', 'authority_refused', 'test_run')"
+        }
+      }
+    },
+    "automation_rule_state": {
+      "name": "automation_rule_state",
+      "columns": {
+        "rule_id": {
+          "name": "rule_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "guidance": {
+          "name": "guidance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "automation_rule_state_rule_id_automation_rules_id_fk": {
+          "name": "automation_rule_state_rule_id_automation_rules_id_fk",
+          "tableFrom": "automation_rule_state",
+          "tableTo": "automation_rules",
+          "columnsFrom": ["rule_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "automation_rule_state_guidance_check": {
+          "name": "automation_rule_state_guidance_check",
+          "value": "length(guidance) <= 600"
         }
       }
     },
