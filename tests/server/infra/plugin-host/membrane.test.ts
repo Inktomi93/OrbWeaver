@@ -201,6 +201,40 @@ describe("attachMembrane — the in-flight slot is charged to the IMPL, not to t
   });
 });
 
+describe("attachMembrane — a deeply-nested ARG is refused BEFORE ctx.dump (the shared-runtime DoS, #707 Finding C)", () => {
+  test("a ~12000-deep arg to an async host fn is a contained rejection — the runtime stays disposable", async () => {
+    // RED-FIRST (2026-08-25, against the post-Finding-A source): every async host fn `ctx.dump`-s its args in
+    // `attachAsync` BEFORE the arg-budget cap. A deeply-nested guest arg overflows `ctx.dump` HOST-side and
+    // CORRUPTS the shared WASM runtime — the dispose-time `list_empty(&rt->gc_obj_list)` abort, a crash of EVERY
+    // co-resident plugin, not a contained refusal. Reachable with ANY async grant (here just `chat.read`). A's
+    // spec pre-walk does NOT cover this path. The fix pre-walks each arg handle with the SAME depth guard and
+    // rejects an over-deep arg as guest errors-as-data before the dump. On unmodified source this test failed
+    // with a `RuntimeError: Aborted(... list_empty ...)` at the `withHost` teardown dispose.
+    const { bridge } = fakeBridge();
+    await withHost(["chat.read"], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        `(async () => {
+           let deep = {};
+           for (let i = 0; i < 12000; i++) { deep = { n: deep }; }
+           try { await host.chat.listMessages(${JSON.stringify(TOKEN)}, deep); return "reached"; }
+           catch (e) { return "caught:" + (e && e.name); }
+         })()`,
+      );
+      expect(out).not.toContain("reached"); // the over-deep arg never reached the bridge
+      expect(out).toContain("caught"); // a CONTAINED rejection
+    });
+    // THE LOAD-BEARING HALF: a SIBLING plugin still invokes a host fn to completion on a FRESH context of the
+    // SAME shared WASM module. On unmodified source the deep-arg block above tore the shared runtime down with the
+    // `list_empty` abort, so this second invocation could never run.
+    const sibling = fakeBridge();
+    await withHost(["chat.read"], false, sibling.bridge, async (ctx) => {
+      const out = await runAsync(ctx, `host.chat.getVariables(${JSON.stringify(TOKEN)}).then((v) => JSON.stringify(v), (e) => "err:" + e.name)`);
+      expect(out).toContain("tension"); // the fake bridge answered — the runtime is intact
+    });
+  });
+});
+
 describe("attachMembrane — grant set is guest-readable (feature-detection)", () => {
   test("host.grants reflects exactly the granted capabilities", async () => {
     const { bridge } = fakeBridge();
@@ -685,6 +719,67 @@ describe("host.ui — declarative surface registration + state publish (plugin-u
       expect(out).toBe("done");
     });
     expect(performed.uiSetState).toEqual([{ surfaceId: "affinity_panel", state: { affinity: 7, mood: "warm" } }]);
+  });
+
+  test("a DEEP surface spec is a SOFT refusal — activation SURVIVES, surface skipped, a sibling tool still registers (§4.9)", async () => {
+    // RED-FIRST (2026-08-25, #707 Finding A, against unmodified source): the spec schema is a `z.lazy`
+    // discriminated union that recurses to FULL input depth; the depth/node/byte caps run in a `superRefine`
+    // AFTER that base parse. A ~2000+-deep tree (built iteratively in the guest, well within the 32 MiB heap)
+    // makes `pluginSurfaceRegistrationMetaSchema.safeParse` THROW a `RangeError` — which `safeParse` does NOT
+    // catch (it only wraps `ZodError`). The throw escapes `ui.register`, so the guest's `main` dies and the
+    // whole activation goes `ok:false`, defeating the §4.9 SOFT refusal (skip the panel, keep tools/events
+    // alive). The `ctx.dump` that materializes the tree also recurses host-side before zod runs. The fix: an
+    // iterative pre-walk enforces the caps before the recursive parse, and a try/catch belt turns ANY throw
+    // into the soft refusal.
+    const collected: unknown[] = [];
+    const tools: string[] = [];
+    const warned: string[] = [];
+    const { bridge } = fakeBridge();
+    const runtime: MembraneRuntime = {
+      ...makeRuntime([...uiGrants, "tools.register"], false, bridge, {
+        collectSurface: (meta) => collected.push(meta),
+        logWarn: (msg) => warned.push(msg),
+      }),
+      collectTool: (reg, handler): void => {
+        tools.push(reg.name);
+        handler.dispose(); // this test keeps no resident
+      },
+    };
+    await withRuntime(runtime, (ctx) => {
+      const res = ctx.evalCode(
+        `let spec = { kind: "text", value: "leaf" };
+         for (let i = 0; i < 3000; i++) { spec = { kind: "stack", children: [spec] }; }
+         host.tools.register({ name: "sibling", description: "d", parameters: {}, handler: () => {} });
+         let outcome = "survived";
+         try { host.ui.register({ id: "deep", anchor: "settings", title: "Deep", tier: "static", spec }); }
+         catch (e) { outcome = "threw:" + (e && e.name); }
+         outcome`,
+      );
+      if (res.error) {
+        // A HOST-side throw (RangeError from dump/zod) that escaped the guest function surfaces as an eval error.
+        throw new Error(`register escaped as a host throw: ${readString(ctx, res.error)}`);
+      }
+      expect(ctx.getString(res.value)).toBe("survived");
+      res.value.dispose();
+    });
+    expect(tools).toEqual(["sibling"]); // the sibling tool registered — activation is intact
+    expect(collected).toHaveLength(0); // the deep surface was skipped
+    expect(warned).toHaveLength(1); // and logged
+  });
+
+  test("host.ui.setState REFUSES a surfaceId that is not a valid surface id — the bridge is never reached (#707 Finding B)", async () => {
+    // RED-FIRST (2026-08-25, against unmodified source): the membrane checked only `typeof surfaceId === "string"`,
+    // so an arbitrary string (uppercase, spaces, unbounded length) reached the domain op and became a fresh
+    // state-plane key — the raw material of the unbounded-key DoS. The surfaceId is a bounded programmatic id
+    // (`PLUGIN_SURFACE_ID_RE`, the same grammar `ui.register` validates); the membrane is the trust boundary.
+    const { bridge, performed } = fakeBridge();
+    const runtime = makeRuntime(uiGrants, false, bridge);
+    await withRuntime(runtime, async (ctx) => {
+      const out = await runAsync(ctx, `host.ui.setState("Bad Id!", { a: 1 }).then(() => "reached", (e) => "caught:" + e.message)`);
+      expect(out).not.toContain("reached");
+      expect(out).toContain("surfaceId");
+    });
+    expect(performed.uiSetState).toEqual([]); // nothing reached the bridge → no state-plane key was minted
   });
 
   test("host.ui.register / host.ui.setState are gated by the ui.surface capability", async () => {

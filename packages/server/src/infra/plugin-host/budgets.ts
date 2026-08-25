@@ -97,6 +97,29 @@ export const PLUGIN_INVOKE_ARGS_MAX_BYTES = 1_048_576;
  *  = symmetric with the outbound result cap; a legitimate host call carries keys, ids and short strings. */
 export const HOST_FN_ARGS_MAX_BYTES = 1_048_576;
 
+/** The guest-value `ctx.dump` pre-walk guards — a DoS bound that protects EVERY place the membrane materializes an
+ *  untrusted guest handle host-side: the `ui.register` SPEC (before the recursive `pluginSurfaceSpecSchema` parse)
+ *  AND the ARGUMENTS of every async host fn (`attachAsync` dumps them before the arg-budget cap). `ctx.dump` walks
+ *  the guest tree on the HOST call stack, so a deeply-nested guest value overflows it and CORRUPTS the shared WASM
+ *  runtime — the `list_empty(&rt->gc_obj_list)` abort at dispose, a hard crash of EVERY co-resident plugin, not a
+ *  contained refusal (measured 2026-08-25, #707: ~3000-deep spec via `ui.register`, ~12000-deep arg via any async
+ *  host fn with only `chat.read`). The recursive `z.lazy` spec parse has a TIGHTER cliff still — at ~2000 deep it
+ *  throws a `RangeError` that ESCAPES `safeParse`, turning the §4.9 soft refusal into an activation-fatal throw.
+ *  The SPEC's own semantic caps (`@orb/contracts/plugin/ui`: 256 nodes / depth 8 / 32 KiB) cannot stand in for
+ *  this, because they run in a `superRefine` AFTER that base parse. `membrane.ts`'s `handleSafeToDump` walks the
+ *  guest HANDLE with an EXPLICIT stack (never the host call stack, so the guard itself can never overflow) and
+ *  refuses before dump/parse.
+ *
+ *  DEPTH_GUARD bounds the JS-graph nesting depth: a VALID spec (≤8 container levels) is ≤~20 graph levels deep
+ *  (each container is object→`children`-array→object), and a legitimate host-fn arg is a flat DTO (ids, short
+ *  strings, a small op array) — so 64 is generous headroom for both while sitting 30×+ below the overflow cliff.
+ *  NODE_GUARD bounds the total values the walk visits — pure host-work containment against a pathologically WIDE
+ *  (not deep) payload; it is far above any byte-capped payload's value count so it never false-refuses a
+ *  legitimate spec or arg. The precise per-surface / per-arg caps stay downstream (the spec's superRefine and
+ *  `exceedsArgBudget`), which run SAFELY once the pre-walk has guaranteed a shallow, bounded tree. */
+export const PLUGIN_DUMP_DEPTH_GUARD = 64;
+export const PLUGIN_DUMP_NODE_GUARD = 65_536;
+
 /** `host.log` volume per invocation, ring-buffered per plugin (256 lines / 16 KiB). The byte budget is a HARD
  *  bound on the drained volume, including for a single line: `LogRing.push` CLAMPS an oversized message to what
  *  is left of the budget, because those drained lines are now RETAINED (see the runtime ring below) and a
