@@ -12,7 +12,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { afterAll, beforeAll, expect, test } from "vitest";
+import { afterAll, beforeAll } from "vitest";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const SUPERVISOR = join(process.cwd(), "scripts", "vitest-supervised.mjs");
 
@@ -63,7 +64,7 @@ function runSupervisor(mode: string, reportFile: string, pidFile?: string): Prom
   env["ORB_VITEST_BIN"] = fakeBin;
   env["ORB_TEST_HANG_TIMEOUT_MS"] = "1500";
   env["FAKE_MODE"] = mode;
-  if (pidFile) {
+  if (pidFile !== undefined) {
     env["FAKE_PID_FILE"] = pidFile;
   }
   return new Promise((resolve) => {
