@@ -8,7 +8,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { CreateCommand, GraphqlVariables, ListRow, RawListPage } from "../contract/types.ts";
 import { issueNumber } from "../lib/parse.ts";
 import { LIST_QUERY } from "../lib/queries.ts";
-import { ISSUE_CLASSES, ISSUE_URL_RE, PROJECT_NUMBER, REPOSITORY } from "../lib/vocab.ts";
+import { EVIDENCE_MAX_LENGTH, ISSUE_CLASSES, ISSUE_URL_RE, PROJECT_NUMBER, REPOSITORY } from "../lib/vocab.ts";
 import { fieldOf, itemFields } from "../lib/writes.ts";
 import { gh, graphql } from "./gh.ts";
 import { ensureItem, fetchIssueContext, setField, withProjectContext, writeFields } from "./project.ts";
@@ -182,6 +182,7 @@ ready <issue> | claim <issue> --lane <lane> | review <issue> | needs-owner <issu
 block <issue> --by <blocker> | unblock <issue> --by <blocker> | park <issue> --wake <condition>
 verify <issue> --evidence <receipt> | reverify <issue> --evidence <replacement-receipt> | done <issue> --evidence <same-receipt>
 refute <issue> --evidence <refutation-receipt> — Verify only; returns the row to Ready with Evidence replaced (outcome stands, rework is claimable)
+--evidence is capped at ${EVIDENCE_MAX_LENGTH} chars (GitHub's Project text-column limit) — post the full receipt as an issue comment and keep --evidence short
 
 Lifecycle: Triage → Ready → Running → Review → Verify → Done. Set Kind, Priority, Area, and Review before Ready. Decisions enter Needs owner. Interrupted transitions are safe to rerun. Use .github/ISSUE_TEMPLATE/*.yml for canonical issue bodies; Project holds mutable lifecycle state.`);
 }
