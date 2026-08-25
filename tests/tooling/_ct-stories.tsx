@@ -5,6 +5,7 @@
 // Imports go through the SAME `@orb/ui/*` aliases the CT providers use — a relative path into
 // packages/ui would resolve a second module instance and mount blank.
 
+import { Button } from "@orb/ui/button";
 import { Slider } from "@orb/ui/slider";
 import type { ReactElement } from "react";
 
@@ -269,6 +270,46 @@ export function WalkerNeighbourButtonsStory(): ReactElement {
       <button data-testid="neighbour-b" style={{ height: 20, width: 20 }} type="button">
         B
       </button>
+    </div>
+  );
+}
+
+/** The BOX-CARRIED regression stage (#662/#665): a plain, undersized, non-pseudo button ALONE in a
+ *  padded, STATIC wrapper — deliberately the shape the fix must close. It carries no touch-target
+ *  ::after (no `after:` classes) and no min-height/min-width, so its floor is its own 16x16 border box.
+ *  Before the fix, `ownsPoint`'s unconditional `hit.contains(el)` (and `sharedCompositeOwns`'s own
+ *  static-wrapper credit) walked out to the wrapper at every probe radius and measured 44 regardless —
+ *  structurally un-failable. The wrapper is deliberately huge (120px padding) and `position: static`
+ *  (the default — no positioning context) so nothing but the plain-wrapper credit can rescue the number,
+ *  and no sibling sits within the 22px probe band (an isolated control is exactly the #665 shape; a
+ *  sibling nearby would make the OLD code fail too, masking the defect this fixture exists to prove).
+ *  Inset from the left edge for the same reason the below-fold-extent stage is: `ownsPoint` refuses
+ *  negative viewport coordinates, so a control flush against x=0 fails its own left probe at every radius
+ *  regardless of the fix under test. */
+export function WalkerBoxCarriedIsolatedControlStory(): ReactElement {
+  return (
+    <div style={{ padding: 120, position: "static", width: 400 }}>
+      <button data-testid="box-carried-isolated" style={{ display: "block", height: 16, marginInlineStart: 48, padding: 0, width: 16 }} type="button">
+        x
+      </button>
+    </div>
+  );
+}
+
+/** The PSEUDO-CARRIED companion (#662/#665): the ancestor-credit clause's MINTED purpose must still
+ *  pass after the fix. A glyph-sm Button's visible box is far under the floor (packages/ui/src/primitives
+ *  /button/variants.ts glyphBox — `size-glyph-sm`), and the floor is carried entirely by its overflowing
+ *  `::after` (`after:size-touch-target`, `after:absolute`) — no DOM node of its own, so the outward probe
+ *  legitimately falls through to the wrapper at the pseudo's clipped edge. Isolated (no sibling in the
+ *  probe band) and inset from x=0 for the same reasons as the box-carried stage above — this stage is the
+ *  one shape that MUST still measure the full floor once ancestor-credit is scoped to pseudo-carried
+ *  controls only. */
+export function WalkerPseudoCarriedIsolatedGlyphStory(): ReactElement {
+  return (
+    <div style={{ padding: 120, position: "static", width: 400 }}>
+      <div style={{ marginInlineStart: 48 }}>
+        <Button aria-label="Regenerate" data-testid="pseudo-carried-isolated" size="glyph-sm" />
+      </div>
     </div>
   );
 }

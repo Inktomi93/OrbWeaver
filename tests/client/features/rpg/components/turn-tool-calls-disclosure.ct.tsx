@@ -244,10 +244,12 @@ test.describe("coarse touch floor", () => {
   test.use({ hasTouch: true });
 
   test("the trigger's RENDERED box clears the touch floor — measured against the resolved token, not a literal", async ({ mount, page }) => {
-    // THE BOX, not an `elementFromPoint` sweep: this trigger has no hit pseudo, so its floor IS its box —
-    // and a sweep is the WRONG instrument here anyway. `hitExtent`'s ownership predicate counts an ANCESTOR
-    // as owning the point, and a full-bleed row's ancestors span the whole footer, so a sweep passes on a
-    // 16px trigger (verified: it did, against the pre-fix source). A test that cannot fail is not evidence.
+    // THE BOX, not an `elementFromPoint` sweep: this trigger has no hit pseudo, so its floor IS its box.
+    // `hitExtent` used to count ANY ancestor as owning the point (a full-bleed row's ancestors span the
+    // whole footer), so a sweep passed on a 16px trigger regardless of its real size (verified: it did,
+    // against the pre-fix source) — a test that cannot fail is not evidence. `hitExtent` now scopes
+    // ancestor credit to pseudo-carried floors only (#662), so it would correctly fail this trigger too;
+    // the box read stays the assertion because it needs no compositor sweep for a plain box-carried floor.
     // The floor is read off `--spacing-touch-target` because a literal 44 both survives a token retune and
     // fails a correct fix.
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);

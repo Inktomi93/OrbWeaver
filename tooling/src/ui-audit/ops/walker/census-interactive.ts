@@ -149,10 +149,6 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
   // test alone stalled the walk there and printed a fine-pointer P1 at 22px on a 32px row.
   // A hit is now ALSO owned when the nearest ancestor el and hit share offers exactly ONE control and that
   // control is el — a neighbouring button IS another offered control, so a genuine sub-target still fires.
-  // DECLARED LIMIT: a lone control inside a larger non-interactive wrapper within COMPOSITE_WALK_MAX levels
-  // is credited with the wrapper's extent even if the wrapper takes no pointer. That direction (under-
-  // reporting one sub-target) is the deliberate trade against the measured FP class: 10 of 13 "sub-target"
-  // findings in one audit were hit-area misreads.
   var COMPOSITE_WALK_MAX = 4;
   // The same "is this an offered target" filter the tap-target census itself applies (aria-hidden Base UI
   // twins, dev chrome, 1-2px plumbing) — two vocabularies here would let a phantom control veto a real
@@ -163,10 +159,35 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     var r = el.getBoundingClientRect();
     return Math.min(r.width, r.height) > 2;
   }
+  // BOX- vs PSEUDO-CARRIED ANCESTOR CREDIT (#662/#665 — fixed from an unconditional hit.contains(el)
+  // that made a short control alone in a padded wrapper UN-FAILABLE: it measured 44 no matter how short,
+  // because walking off its own box always landed back on the wrapper). Ancestor credit is legitimate for
+  // exactly ONE shape: an overflowing ::after/::before touch-target pseudo (the @orb/ui Button glyph
+  // ramp — packages/ui/src/primitives/button/variants.ts glyphBox, content-[''] + absolute positioning)
+  // has no DOM node, so a probed point on its clipped-away edge falls through to whatever plain box paints
+  // there — usually the control's own wrapper — and THAT fallback is the control's real extent. A control
+  // with no such pseudo carries its floor on its OWN border box (a real height/min-height, e.g. the
+  // CONTROL_SIZE ramp), so an ancestor is never evidence of ownership for it.
+  function pseudoCarriesFloor(el) {
+    function extendsOutward(style) {
+      return style.content !== "none" && style.content !== "normal" && (style.position === "absolute" || style.position === "fixed");
+    }
+    return extendsOutward(getComputedStyle(el, "::after")) || extendsOutward(getComputedStyle(el, "::before"));
+  }
   function sharedCompositeOwns(el, hit) {
     var scope = el.parentElement;
     for (var d = 0; d < COMPOSITE_WALK_MAX && scope !== null; d += 1) {
       if (scope.contains(hit)) {
+        // A POSITIONING CONTEXT IS REQUIRED (#665). A genuine composite host establishes ITS OWN
+        // stacking/positioning context for its parts (Base UI positions the Slider Thumb absolute
+        // inside a relative Control row — packages/ui/src/primitives/slider/variants.ts, "relative
+        // is LOAD-BEARING"). A plain STATIC layout wrapper (padding/gap, no positioning) is never that
+        // anatomy — crediting it is exactly how a control alone in a padded div measured 44 no matter
+        // how short. A static scope is refused and the walk keeps climbing for a genuine host.
+        if (getComputedStyle(scope).position === "static") {
+          scope = scope.parentElement;
+          continue;
+        }
         var controls = scope.querySelectorAll(INTERACTIVE_SELECTOR);
         for (var c = 0; c < controls.length; c += 1) {
           var other = controls[c];
@@ -178,11 +199,17 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     }
     return false;
   }
+  // DECLARED LIMIT (both clauses below): a lone control inside a POSITIONED non-interactive wrapper
+  // (e.g. a relative decorative badge host unrelated to any composite anatomy) still gets ancestor
+  // credit — the positioning-context check is a heuristic keyed to how this codebase's OWN composites are
+  // built, not a proof of intentional compositing. That under-reporting direction (crediting a control
+  // that is, rarely, genuinely alone) is the accepted trade against the #662/#665 FP class it closes.
   function ownsPoint(el, x, y) {
     if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) return false;
     var hit = document.elementFromPoint(x, y);
     if (hit === null) return false;
-    if (hit === el || el.contains(hit) || hit.contains(el)) return true;
+    if (hit === el || el.contains(hit)) return true;
+    if (hit.contains(el) && pseudoCarriesFloor(el)) return true;
     return sharedCompositeOwns(el, hit);
   }
   // Grow outward from the centre while the control still answers on all four cardinal offsets. Returns

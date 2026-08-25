@@ -778,12 +778,14 @@ test.describe("#655: coarse pointer — the fire-log door meets the touch floor"
     const disclosure = page.getByRole("button", { name: "Recent activity for Illustrate the scene" });
     await expect(disclosure).toBeVisible();
     // THE BOX, not `hitExtent`, and the choice is measured rather than preferred. This trigger's fix is a
-    // REAL min-height (`size="control"`), not an overflowing `::after`, so its box IS its target — and
-    // `hitExtent` is structurally incapable of failing here: its `owns()` counts a point as owned when
-    // `elementFromPoint` returns an ANCESTOR (`hit.contains(el)`), which is how it sees a pseudo the DOM
-    // has no node for. Walking out of a 16px trigger lands on the Stack that wraps it, so the sweep ran to
-    // its 80-step ceiling. Proven, not asserted: this test PASSED against the reverted 413×16 source while
-    // the other five #655 pins went red (cb-rules-spend, 2026-08-24) — reported as an instrument finding.
+    // REAL min-height (`size="control"`), not an overflowing `::after`, so its box IS its target.
+    // `hitExtent`'s `owns()` used to count ANY ancestor as owned via `elementFromPoint` (`hit.contains(el)`
+    // unconditionally), so walking out of a 16px trigger landed on the Stack that wraps it and ran to its
+    // 80-step ceiling regardless of the trigger's real size. Proven, not asserted: this test PASSED against
+    // the reverted 413×16 source while the other five #655 pins went red (cb-rules-spend, 2026-08-24) —
+    // reported as an instrument finding, fixed at #662 by scoping ancestor credit to pseudo-carried floors
+    // only. `hitExtent` would now correctly measure this box-carried trigger too; the box read stays the
+    // assertion because a plain box-carried floor needs no compositor sweep.
     await expect.poll(async () => (await disclosure.boundingBox())?.height, { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);
   });
 });

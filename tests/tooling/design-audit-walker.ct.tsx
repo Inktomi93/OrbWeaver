@@ -18,6 +18,7 @@ import {
   WalkerAccentBorderStory,
   WalkerAriaHiddenVisualStory,
   WalkerBelowTheFoldStory,
+  WalkerBoxCarriedIsolatedControlStory,
   WalkerCapsTrackingStory,
   WalkerClippedInflowControlStory,
   WalkerDimmedContrastStory,
@@ -29,6 +30,7 @@ import {
   WalkerNeighbourButtonsStory,
   WalkerPaintLayerStory,
   WalkerProgrammaticFocusDoorStory,
+  WalkerPseudoCarriedIsolatedGlyphStory,
   WalkerReadingMeasureStory,
   WalkerScreenReaderOnlyStory,
   WalkerSliderCompositeStory,
@@ -90,6 +92,32 @@ test("two genuine neighbours stay sub-targets — the widening is per composite,
   for (const testid of ["neighbour-a", "neighbour-b"]) {
     expect(smallestSide(targets, testid), `${testid} must still measure as a sub-target`).toBeLessThan(FINE_POINTER_FLOOR);
   }
+});
+
+// ── #662/#665: box- vs pseudo-carried ancestor credit ────────────────────────────────────────────────
+// Before the fix, `ownsPoint`'s ancestor clause (and `sharedCompositeOwns`'s own static-wrapper credit)
+// made a control ALONE in a padded wrapper structurally un-failable: walking outward always landed back
+// on the wrapper, so the census reported the full 44px floor no matter how small the control's real box
+// was. Both directions are pinned: the box-carried stage must now FAIL (measure its own tiny box), and
+// the pseudo-carried stage — the ancestor clause's one legitimate purpose — must still PASS.
+
+test("#662/#665: a box-carried control alone in a padded wrapper measures its OWN box, not the wrapper", async ({ mount, page }) => {
+  await mount(<WalkerBoxCarriedIsolatedControlStory />);
+  const measured = smallestSide(await tapTargets(page), "box-carried-isolated");
+
+  // The regression this exists for: the unconditional ancestor clause reported 44 here regardless of the
+  // control's real 16x16 box. A correct measurement is close to the box, never the wrapper's fabricated
+  // floor.
+  expect(measured, "a plain 16px button must not borrow its padded wrapper's extent").toBeLessThan(FINE_POINTER_FLOOR);
+});
+
+test("#662/#665: an overflowing ::after pseudo still carries the floor when its control is isolated", async ({ mount, page }) => {
+  await mount(<WalkerPseudoCarriedIsolatedGlyphStory />);
+  const measured = smallestSide(await tapTargets(page), "pseudo-carried-isolated");
+
+  // The ancestor clause's MINTED purpose (the pseudo has no DOM node of its own) must survive the fix —
+  // this is the one shape ancestor-credit exists for, and closing #662/#665 must not also close this.
+  expect(measured, "a glyph button's overflowing ::after must still reach the coarse touch floor").toBeGreaterThanOrEqual(FINE_POINTER_FLOOR);
 });
 
 test("a list-row wrapper around its one control is not a nested card, while a real inner panel remains red", async ({ mount, page }) => {
