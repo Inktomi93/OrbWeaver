@@ -13,6 +13,9 @@ const ASSETS_MODULE_RE = /assets(\.ts)?$/u;
 const TABLE_FN = "sqliteTable";
 const REFERENCES_METHOD = "references";
 const BUILDER_FNS = new Set(["text", "integer", "real", "blob"]);
+const GATE_SELF = "tooling/src/verify/gates/asset-refs-fk-coverage.ts";
+const MISSING_REGISTRY =
+  "domain/assets/persistence/asset-refs.ts is missing from the project — asset FK coverage cannot be reconciled, so this is broken evidence rather than a clean verdict.";
 
 interface FkColumn {
   readonly tableJs: string;
@@ -220,6 +223,7 @@ export const gate: GateDescriptor = {
   run: (ctx) => {
     const { registrySf, schemaFiles } = partitionProject(ctx.project);
     if (registrySf === undefined) {
+      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: MISSING_REGISTRY });
       return;
     }
     const { retaining, derived } = parseRegistry(registrySf);
@@ -240,6 +244,15 @@ export const gate: GateDescriptor = {
     }
   },
   mustFlag: [
+    {
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { assets } from "./assets";\nexport const t = sqliteTable("thing", { assetId: text("asset_id").references(() => assets.id) });\n',
+        "packages/db/src/schema/assets.ts": 'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
+      },
+      expect: { messageIncludes: "missing from the project" },
+      why: "the asset registry is absent — without the enumeration seam the gate cannot establish coverage",
+    },
     {
       files: {
         "packages/db/src/schema/x.ts":
@@ -271,14 +284,6 @@ export const gate: GateDescriptor = {
           'export const ASSET_REFS = [];\nexport const DERIVED_ASSET_COLUMNS = ["thing.asset_id"];\n',
       },
       why: "the FK column is classified DERIVED in DERIVED_ASSET_COLUMNS (the image_embeddings precedent) — passes",
-    },
-    {
-      files: {
-        "packages/db/src/schema/x.ts":
-          'import { assets } from "./assets";\nexport const t = sqliteTable("thing", {\n  assetId: text("asset_id").references(() => assets.id),\n});\n',
-        "packages/db/src/schema/assets.ts": 'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
-      },
-      why: "vacuous: the asset-refs registry file isn't in the project — nothing to reconcile against, passes",
     },
     {
       // a schema column with no FK to assets.id is not an asset ref — ignored.

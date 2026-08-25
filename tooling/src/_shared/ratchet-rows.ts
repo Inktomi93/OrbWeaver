@@ -23,8 +23,8 @@
 //     `{ "<subject>": { "count": 3, "ratified": 3, "why": "…", "cite": ["…"] } }`.
 //   • ENTRIES-MAP — the orphan ratchet's `{ "note": "…", "entries": { "<subject>": "<reason>" } }`, where a
 //     row is one membership (count 1) carrying its reason as its `why`.
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { execNicedSync } from "./proc.ts";
 
 /** The class AXIS, homed as one `as const` tuple so the union derives instead of being re-spelled
@@ -183,7 +183,19 @@ export function rowProblems(root: string, row: RatchetRow): readonly string[] {
  *  prose and is stripped before the check (see the header's declared limit). */
 export function citeResolves(root: string, cite: string): boolean {
   const path = (cite.split("#")[0] ?? cite).split("§")[0]?.trim() ?? "";
-  return path !== "" && existsSync(join(root, path));
+  if (path === "" || isAbsolute(path)) {
+    return false;
+  }
+  const rootAbs = resolve(root);
+  const candidate = resolve(rootAbs, path);
+  const lexicalRel = relative(rootAbs, candidate);
+  if (lexicalRel === ".." || lexicalRel.startsWith(`..${sep}`) || isAbsolute(lexicalRel) || !existsSync(candidate)) {
+    return false;
+  }
+  const realRoot = realpathSync(rootAbs);
+  const realCandidate = realpathSync(candidate);
+  const physicalRel = relative(realRoot, realCandidate);
+  return physicalRel !== ".." && !physicalRel.startsWith(`..${sep}`) && !isAbsolute(physicalRel);
 }
 
 /** The `(D debt · R ratified)` half every consumer prints beside an admitted total — ONE spelling, so the
