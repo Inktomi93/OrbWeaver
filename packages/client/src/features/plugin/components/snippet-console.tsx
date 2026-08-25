@@ -39,11 +39,13 @@ type SnippetResult = inferOutput<Trpc["plugin"]["runSnippet"]>;
 const SNIPPET_CODE_MAX = 65_536;
 
 /** What the box starts with — a runnable line that reads the room, so the first Run proves the membrane is
- *  there instead of returning an empty log. The inner backticks are escaped: this is guest SOURCE, and it
- *  has to reach the textarea spelled exactly as a plugin author would type it. */
-const STARTER = `const chat = host.chat.current();
-const messages = await host.chat.listMessages(chat, { limit: 5 });
-host.log.info(\`\${messages.length} messages\`);
+ *  there instead of returning an empty log. Two things a bare-looking REPL snippet gets wrong that this one
+ *  doesn't: the entry point is `orb.host(1)`, never a bare `host` global (`realm.ts` — the guest realm installs
+ *  exactly `orb`); and QuickJS evaluates this source as a plain script, not a module, so top-level `await`
+ *  is a PARSE ERROR — a `.then` chain proves the same membrane without it. The inner backticks are escaped:
+ *  this is guest SOURCE, and it has to reach the textarea spelled exactly as a plugin author would type it. */
+const STARTER = `orb.host(1).chat.listMessages(orb.host(1).chat.current(), { limit: 5 })
+  .then((messages) => orb.host(1).log.info(\`\${messages.length} messages\`));
 `;
 
 export interface SnippetConsoleProps {
@@ -98,8 +100,24 @@ export function SnippetConsole({ chatId }: SnippetConsoleProps): ReactElement {
 }
 
 /** The drained log plus the contained error, if the run produced one. `role="status"`: the output appears
- *  asynchronously after a button press, so without it a screen-reader user hears nothing at all. */
+ *  asynchronously after a button press, so without it a screen-reader user hears nothing at all.
+ *
+ *  THREE distinct outcomes, not two — `errorKind: "parse"` means the guest source never started executing (a
+ *  `SyntaxError` caught before the first job pump), so "It ran and logged nothing" would be a lie for that
+ *  arm; it never shows the empty-log caption or the log viewer for a parse failure. `errorKind: "runtime"`
+ *  (or an older server that didn't send `errorKind` at all) means it threw or hit the wall mid-run, so the
+ *  drained log + error both render. No error at all falls through to the ran/empty split. */
 function SnippetOutput({ result }: { readonly result: SnippetResult }): ReactElement {
+  if (result.error !== undefined && result.errorKind === "parse") {
+    return (
+      <Stack aria-label="Snippet output" gap="block" role="status">
+        <Text className="text-destructive" voice="gloss">
+          {`Didn't run — syntax error${result.errorLine === undefined ? "" : ` at line ${result.errorLine}`}: ${result.error}`}
+        </Text>
+      </Stack>
+    );
+  }
+
   return (
     <Stack aria-label="Snippet output" gap="block" role="status">
       {result.logLines.length === 0 ? <Text voice="gloss">It ran and logged nothing.</Text> : <LogViewer className="max-h-48" lines={[...result.logLines]} />}
