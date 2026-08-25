@@ -3,8 +3,9 @@
 // chokepoints on the vector substrate: WRITE (inv 1) — every insert/update/delete on the five vector
 // tables lives in domain/embeddings/persistence/; COSINE (inv 2) — `vector_distance_cos` in code only
 // under domain/search/persistence/; IMPORT — named and `@orb/db` namespace table reads are confined to the
-// sanctioned domain set. Write table args are read in identifier and namespace-property spellings.
-import type { Node, SourceFile } from "ts-morph";
+// sanctioned domain set. Write table args resolve their @orb/db import declaration, so named aliases and
+// namespace members retain the table's ownership identity.
+import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 
@@ -71,10 +72,37 @@ function vectorTableImport(node: Node): string {
   return decl !== undefined && DB_SPECIFIER.test(decl.getModuleSpecifierValue()) ? name : "";
 }
 
-/** Resolve a direct vector-table identifier or an `@orb/db` namespace property access. */
-function vectorTableAccess(node: Node, sf: SourceFile): string {
-  if (node.isKind(SyntaxKind.Identifier) && VECTOR_TABLES.has(node.getText())) {
-    return node.getText();
+/** The vector table exported by an \@orb/db ImportSpecifier, including `import { x as local }`. */
+function importedVectorTable(node: Node): string {
+  if (!node.isKind(SyntaxKind.ImportSpecifier)) {
+    return "";
+  }
+  return vectorTableImport(node);
+}
+
+function comesFromDbNamespace(node: Node): boolean {
+  return node.getDefinitionNodes().some((definition) => {
+    if (definition.getKind() !== SyntaxKind.NamespaceImport) {
+      return false;
+    }
+    const declaration = definition.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
+    return declaration !== undefined && DB_SPECIFIER.test(declaration.getModuleSpecifierValue());
+  });
+}
+
+/** Resolve a direct vector-table identifier, a named \@orb/db import alias, or an \@orb/db namespace member. */
+function vectorTableAccess(node: Node): string {
+  if (node.isKind(SyntaxKind.Identifier)) {
+    if (VECTOR_TABLES.has(node.getText())) {
+      return node.getText();
+    }
+    for (const definition of node.getDefinitionNodes()) {
+      const table = importedVectorTable(definition);
+      if (table !== "") {
+        return table;
+      }
+    }
+    return "";
   }
   if (!(node.isKind(SyntaxKind.PropertyAccessExpression) && VECTOR_TABLES.has(node.getName()))) {
     return "";
@@ -83,15 +111,11 @@ function vectorTableAccess(node: Node, sf: SourceFile): string {
   if (!receiver.isKind(SyntaxKind.Identifier)) {
     return "";
   }
-  const namespaceImports = sf.getImportDeclarations().flatMap((decl) => {
-    const ns = decl.getNamespaceImport();
-    return ns !== undefined && DB_SPECIFIER.test(decl.getModuleSpecifierValue()) ? [ns.getText()] : [];
-  });
-  return namespaceImports.includes(receiver.getText()) ? node.getName() : "";
+  return comesFromDbNamespace(receiver) ? node.getName() : "";
 }
 
 /** Is this CallExpression a `.insert/.update/.delete(vectorTable)` write? Returns a label, else "". */
-function vectorWrite(node: Node, sf: SourceFile): string {
+function vectorWrite(node: Node): string {
   if (!node.isKind(SyntaxKind.CallExpression)) {
     return "";
   }
@@ -106,7 +130,7 @@ function vectorWrite(node: Node, sf: SourceFile): string {
   if (firstArg === undefined) {
     return "";
   }
-  const table = vectorTableAccess(firstArg, sf);
+  const table = vectorTableAccess(firstArg);
   return table === "" ? "" : `.${callee.getName()}(${firstArg.getText()})`;
 }
 
@@ -127,13 +151,13 @@ export const gate: GateDescriptor = {
       reportAt(ctx, node, importedTable);
       return;
     }
-    const namespaceTable = IMPORT_SANCTIONED.test(path) ? "" : vectorTableAccess(node, sf);
+    const namespaceTable = IMPORT_SANCTIONED.test(path) ? "" : vectorTableAccess(node);
     if (namespaceTable !== "" && node.isKind(SyntaxKind.PropertyAccessExpression)) {
       reportAt(ctx, node, namespaceTable);
       return;
     }
     // Write arm.
-    const write = WRITE_SANCTIONED.test(path) ? "" : vectorWrite(node, sf);
+    const write = WRITE_SANCTIONED.test(path) ? "" : vectorWrite(node);
     if (write !== "") {
       reportAt(ctx, node, write);
       return;
@@ -155,6 +179,12 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/hub/namespace-write.ts",
       expect: { count: 2 },
       why: "a vector table reached through an @orb/db namespace is both an unsanctioned import use and an unsanctioned write; property-access syntax cannot hide either chokepoint bypass",
+    },
+    {
+      files: 'import { chatDigests as table } from "@orb/db";\nexport const w = (db: Db) => db.insert(table);\n',
+      at: "packages/server/src/domain/search/persistence/aliased-write.ts",
+      expect: { token: ".insert(table)" },
+      why: "a sanctioned reader cannot become a vector writer by aliasing the imported table name — write ownership follows the import declaration's symbol identity",
     },
     {
       files: 'export const q = "SELECT vector_distance_cos(a, b)";\n',
@@ -179,6 +209,11 @@ export const gate: GateDescriptor = {
       files: "export const w = (db: { insert: (t: unknown) => void }) => db.insert(chatDigests);\n",
       at: "packages/server/src/domain/embeddings/persistence/store.ts",
       why: "the same vector-table write INSIDE embeddings/persistence (WRITE_SANCTIONED) — a lens arm, passes",
+    },
+    {
+      files: 'import { chatDigests as table } from "@orb/db";\nexport const w = (db: Db) => db.insert(table);\n',
+      at: "packages/server/src/domain/embeddings/persistence/aliased-store.ts",
+      why: "the embeddings persistence owner remains the sanctioned writer when the local import binding is aliased",
     },
     {
       files: "// vector_distance_cos is search's — cited in a comment\nexport const x = 1;\n",

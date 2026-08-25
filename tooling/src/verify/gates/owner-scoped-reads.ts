@@ -6,10 +6,12 @@
 // TWO-SIDED: a marker on a function with no bare by-id read left is RED. DECLARED LIMIT: READS only — the
 // WRITE half is the sibling gate `owner-scoped-writes` (its own marker vocabulary), and membership-rung
 // completeness on (b)-class tables is control-flow-dependent (the cross-tenant behavioral sweep stays that
-// proof).
+// proof). A post-fetch arm is valid only when a rejecting guard compares that exact result (or a one-hop
+// alias) with the caller's owner binding; a self-comparison, unrelated owner, or unused comparison is RED.
 import type { Identifier, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
+import { unwrapExpression } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
 import { enclosingFn, markedFunctions, markerKeyFor, predicatesOwnId, whereArgOf } from "../lib/tenancy-read.ts";
 import { ownerScopedTableIdents } from "./table-scoping-class.ts";
@@ -22,6 +24,7 @@ const OWNER_COL = "ownerId";
  *  and a bare marker exempts NOTHING. */
 const MARKER_RE = /@owner-scope-ok:\s*\S/u;
 const MARKER = "@owner-scope-ok";
+const CALLER_OWNER_BINDING_RE = /^(?:caller|(?:caller|owner|user)[A-Za-z0-9_]*Id)$/u;
 
 const MESSAGE =
   "a by-id READ of an ownerId-scoped table with NO owner predicate — this is the cross-tenant read hole: " +
@@ -76,9 +79,101 @@ function derivesFromReadResult(id: Identifier, resultDecl: Node): boolean {
   return false;
 }
 
-/** The POST-FETCH-FILTER arm (`workloads/verbs/get.ts` F3-AUTHZ): the enclosing function compares a
- *  `.ownerId` property with `===`/`!==`. The owner predicate is resolved in JS instead of SQL — a distinct
- *  LEGAL shape, and one the machine can see. */
+/** The `.ownerId` reads on this side that derive from the exact query-result declaration. */
+function resultOwnerReads(side: Node, resultDecl: Node): Node[] {
+  const descendants = side.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression);
+  const accesses = side.isKind(SyntaxKind.PropertyAccessExpression) ? [side, ...descendants] : descendants;
+  return accesses.filter((candidate) => {
+    if (candidate.getName() !== OWNER_COL) {
+      return false;
+    }
+    const receiver = candidate.getExpression();
+    if (receiver.isKind(SyntaxKind.Identifier) && derivesFromReadResult(receiver, resultDecl)) {
+      return true;
+    }
+    return receiver.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => derivesFromReadResult(id, resultDecl));
+  });
+}
+
+function expressionDerivesFromReadResult(expression: Node, resultDecl: Node): boolean {
+  const value = unwrapExpression(expression);
+  if (value.isKind(SyntaxKind.Identifier) && derivesFromReadResult(value, resultDecl)) {
+    return true;
+  }
+  return value.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => derivesFromReadResult(id, resultDecl));
+}
+
+/** Does this expression name the caller-side owner identity rather than another fetched/ambient row? The
+ *  accepted forms are an explicit local binding (`ownerId`, `caller`, `callerUserId`) or the authenticated
+ *  identity projection (`principal.userId` / `caller.userId`). An arbitrary `other.ownerId` is not an
+ *  authority relationship merely because it shares the column name. */
+function isCallerOwnerBinding(side: Node, resultDecl: Node): boolean {
+  const value = unwrapExpression(side);
+  if (expressionDerivesFromReadResult(value, resultDecl)) {
+    return false;
+  }
+  if (value.isKind(SyntaxKind.Identifier)) {
+    return CALLER_OWNER_BINDING_RE.test(value.getText());
+  }
+  if (!value.isKind(SyntaxKind.PropertyAccessExpression) || value.getName() !== "userId") {
+    return false;
+  }
+  const principalText = value.getExpression().getText();
+  return principalText === "principal" || principalText === "caller" || principalText.endsWith(".principal") || principalText.endsWith(".caller");
+}
+
+/** A mismatch branch protects egress only when it definitely leaves without returning the fetched result.
+ *  This deliberately recognises the guard-clause register (`throw`, `return null`, or a block ending in one)
+ *  and rejects a logging-only branch or `return row`. */
+function rejectsFetchedResult(statement: Node, resultDecl: Node): boolean {
+  if (statement.isKind(SyntaxKind.ThrowStatement)) {
+    return true;
+  }
+  if (statement.isKind(SyntaxKind.ReturnStatement)) {
+    const expression = statement.getExpression();
+    return expression === undefined || !expressionDerivesFromReadResult(expression, resultDecl);
+  }
+  if (!statement.isKind(SyntaxKind.Block)) {
+    return false;
+  }
+  const outerFn = enclosingFn(statement);
+  const leaksOnAnyBranch = statement.getDescendantsOfKind(SyntaxKind.ReturnStatement).some((ret) => {
+    if (enclosingFn(ret) !== outerFn) {
+      return false;
+    }
+    const expression = ret.getExpression();
+    return expression !== undefined && expressionDerivesFromReadResult(expression, resultDecl);
+  });
+  if (leaksOnAnyBranch) {
+    return false;
+  }
+  const last = statement.getStatements().at(-1);
+  return last !== undefined && rejectsFetchedResult(last, resultDecl);
+}
+
+/** Walk a `!==` mismatch through parentheses / OR clauses to the `if` it makes true. `&&` is intentionally
+ *  excluded: a second false conjunct would let a mismatched row continue to egress. */
+function rejectingGuardOf(comparison: Node, resultDecl: Node): boolean {
+  let condition: Node = comparison;
+  for (;;) {
+    const parent = condition.getParent();
+    if (parent?.isKind(SyntaxKind.ParenthesizedExpression) === true) {
+      condition = parent;
+      continue;
+    }
+    if (parent?.isKind(SyntaxKind.BinaryExpression) === true && parent.getOperatorToken().getKind() === SyntaxKind.BarBarToken) {
+      condition = parent;
+      continue;
+    }
+    if (parent?.isKind(SyntaxKind.IfStatement) !== true || parent.getExpression() !== condition) {
+      return false;
+    }
+    return rejectsFetchedResult(parent.getThenStatement(), resultDecl);
+  }
+}
+
+/** The POST-FETCH-FILTER arm: the enclosing function must relate the exact fetched result's `.ownerId` to
+ *  the caller's authorized owner binding, and that mismatch must drive a rejecting guard. */
 function hasPostFetchFilter(read: Node, fn: Node | undefined): boolean {
   if (fn === undefined) {
     return false;
@@ -89,21 +184,18 @@ function hasPostFetchFilter(read: Node, fn: Node | undefined): boolean {
   }
   return fn.getDescendantsOfKind(SyntaxKind.BinaryExpression).some((b) => {
     const op = b.getOperatorToken().getKind();
-    if (op !== SyntaxKind.EqualsEqualsEqualsToken && op !== SyntaxKind.ExclamationEqualsEqualsToken) {
+    if (op !== SyntaxKind.ExclamationEqualsEqualsToken) {
       return false;
     }
-    return [b.getLeft(), b.getRight()].some((side) => {
-      const descendants = side.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression);
-      const accesses = side.isKind(SyntaxKind.PropertyAccessExpression) ? [side, ...descendants] : descendants;
-      const ownerReads = accesses.filter((candidate) => candidate.getName() === OWNER_COL);
-      return ownerReads.some((ownerRead) => {
-        const receiver = ownerRead.getExpression();
-        if (receiver.isKind(SyntaxKind.Identifier) && derivesFromReadResult(receiver, resultDecl)) {
-          return true;
-        }
-        return receiver.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => derivesFromReadResult(id, resultDecl));
-      });
-    });
+    const left = b.getLeft();
+    const right = b.getRight();
+    const leftIsResultOwner = resultOwnerReads(left, resultDecl).length > 0;
+    const rightIsResultOwner = resultOwnerReads(right, resultDecl).length > 0;
+    if (leftIsResultOwner === rightIsResultOwner) {
+      return false;
+    }
+    const callerOwner = leftIsResultOwner ? right : left;
+    return isCallerOwnerBinding(callerOwner, resultDecl) && rejectingGuardOf(b, resultDecl);
   });
 }
 
@@ -192,6 +284,60 @@ export const gate: GateDescriptor = {
       },
       expect: { count: 1 },
       why: "an unrelated `.ownerId` comparison in the same function cannot authorize the row returned by this unscoped read",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/queries.ts":
+          'import { characters } from "@orb/db";\nexport async function loadCard(db: Db, id: string) {\n  const rows = await db.select().from(characters).where(eq(characters.id, id)).limit(1);\n  if (rows[0]?.ownerId !== rows[0]?.ownerId) return null;\n  return rows[0];\n}\n',
+      },
+      expect: { count: 1 },
+      why: "a fetched owner compared with itself is a tautology, not a relationship to the caller's authorized owner",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/queries.ts":
+          'import { characters } from "@orb/db";\nexport async function loadCard(db: Db, id: string, caller: string) {\n  const rows = await db.select().from(characters).where(eq(characters.id, id)).limit(1);\n  const sameOwner = rows[0]?.ownerId === caller;\n  void sameOwner;\n  return rows[0];\n}\n',
+      },
+      expect: { count: 1 },
+      why: "a correct owner relationship that does not control a rejecting guard leaves the fetched row free to egress",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/queries.ts":
+          'import { characters } from "@orb/db";\nexport async function loadCard(db: Db, id: string) {\n  const rows = await db.select().from(characters).where(eq(characters.id, id)).limit(1);\n  if (rows[0]?.ownerId !== unrelated.ownerId) return null;\n  return rows[0];\n}\n',
+      },
+      expect: { count: 1 },
+      why: "the fetched owner must relate to the caller's authorized owner, not merely to a different ambient row's ownerId",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/queries.ts":
+          'import { characters } from "@orb/db";\nexport async function loadCard(db: Db, id: string, caller: string) {\n  const rows = await db.select().from(characters).where(eq(characters.id, id)).limit(1);\n  if (rows[0]?.ownerId !== caller) {\n    auditForeignRead();\n  }\n  return rows[0];\n}\n',
+      },
+      expect: { count: 1 },
+      why: "a mismatch branch that records but does not reject is non-protective — the foreign row still reaches the return",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/queries.ts":
+          'import { characters } from "@orb/db";\nexport async function loadCard(db: Db, id: string, caller: string) {\n  const rows = await db.select().from(characters).where(eq(characters.id, id)).limit(1);\n  if (rows[0]?.ownerId !== caller) return rows[0];\n  return null;\n}\n',
+      },
+      expect: { count: 1 },
+      why: "a mismatch branch that returns the fetched result is egress, not rejection, even though the comparison itself is correct",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/queries.ts":
+          'import { characters } from "@orb/db";\nexport async function loadCard(db: Db, id: string, caller: string, debug: boolean) {\n  const rows = await db.select().from(characters).where(eq(characters.id, id)).limit(1);\n  if (rows[0]?.ownerId !== caller) {\n    if (debug) return rows[0];\n    return null;\n  }\n  return rows[0];\n}\n',
+      },
+      expect: { count: 1 },
+      why: "a block whose final statement rejects is still unsafe when an earlier branch can return the fetched foreign row",
     },
     {
       files: {
