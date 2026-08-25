@@ -30,8 +30,35 @@ export const linearMeterVariants = tv({
 
 export const arcMeterVariants = tv({
   slots: {
-    root: "block size-control-lg",
-    track: "text-muted",
+    // THE DIAL IS A DISPLAY GRAPHIC, SO IT TAKES A DISPLAY SIZE (#685 — "a 138x80 card holding a 40x40 arc
+    // is a lot of card"). It was `size-control-lg`, and a CONTROL token was the wrong nature twice over: it
+    // is POINTER-CONDITIONAL (D62 P1), so the dial rendered 56px on a touch device and shrank to 40px on the
+    // desktop where the finding was taken — a graphic that resizes with the input device, which is exactly
+    // what §13.9's display family (avatars, switch-thumb, checkbox, slider-thumb) exists to prevent — and
+    // 40px under a ~138px label row is a gauge the card is mostly not. 80px is the ambient step: one below
+    // the waystone's narrowest (76px is its SMALL-container step, and the waystone is a panel's FOCAL
+    // element while this is room chrome beside a transcript), pointer-independent at every pointer.
+    //
+    // Its ONE production consumer is automation's needle meter: `ast-grep -p '<Meter $$$ARGS />' -l tsx
+    // packages` (scannedFileCount=684) returns four `<Meter>` sites — this one and three refinery
+    // `kind="linear"` ones — so this is that widget's size, not a ramp every surface pays for.
+    root: "block size-20",
+    // THE EMPTY TRACK IS A GRAPHIC, SO IT TAKES THE EDGE TOKEN, NOT THE SURFACE ONE (#685, the follow-up to
+    // #682). `text-muted` is a SURFACE token one ramp step from `card`, and one step is all it can ever be:
+    // measured in this browser it renders 1.131:1 (dark) / 1.140:1 (light) against the card the arc is drawn
+    // on — honest, consistent, and very nearly invisible for a 6-unit stroke. `border` is the token whose JOB
+    // is "an edge that reads against its surface", and it measures 1.465 / 1.335 — the strongest separation
+    // available on BOTH polarities from a token that is not an ink.
+    //
+    // WHY NOT 3:1 (WCAG 1.4.11), which the finding asked for: no token reaches it without becoming LOUDER
+    // THAN THE VALUE. Measured against card, both polarities: muted 1.13/1.14 · input 1.38/1.29 ·
+    // border 1.47/1.34 · primary (the FILL) 6.82/2.58 · muted-foreground 10.26/11.55. The only ≥3:1
+    // candidate is `muted-foreground`, an INK — and on the light polarity that paints the empty track at
+    // 11.5:1 beside a 2.58:1 value arc, i.e. the part of the gauge that means "nothing here" shouting over
+    // the part that carries the reading, and the two indistinguishable in greyscale. A gauge whose fill and
+    // track differ only by hue is the colour-alone defect wearing a graphic's clothes. The reading is not
+    // lost either way: the arc is `aria-hidden` and the datum is the `showValue` numeral beside it (§3.2).
+    track: "text-border",
     fill: "text-primary",
   },
   variants: {

@@ -39,6 +39,41 @@ test("a scored room renders the dial, named and on its OWN scale (never a percen
   await expect(meter).toHaveAttribute("aria-valuetext", `7 of ${ANALYSIS_SCORE_MAX}`);
 });
 
+// ── #685: THE CARD-TO-GAUGE RATIO ────────────────────────────────────────────────────────────────────
+// The finding: "a 138x80 card holding a 40x40 arc is a lot of card". The 40 was the tell — the dial rode
+// `size-control-lg`, a POINTER-CONDITIONAL control token (D62 P1), so the graphic rendered 56px on a touch
+// device and shrank to 40px on the desktop the review was taken on. A display graphic that resizes with the
+// input device is the nature error §13.9's display family exists to prevent, so the dial now takes a
+// pointer-independent display step (80px, `charts/meter/variants.ts`).
+//
+// Measured RED against the pre-fix source: 40x40 at this project's (fine) pointer.
+/** The dial's display step in rendered px — pointer-INDEPENDENT, unlike the control ramp it left. */
+const DIAL_PX = 80;
+/** What the card may cost for that dial — the ratio the finding actually complained about. */
+const MAX_CARD_TO_DIAL = 2.5;
+
+test("#685 the dial is a DISPLAY-sized graphic, and the card is sized for it rather than around it", async ({ mount, page }) => {
+  await routeVariables(page, { [NEEDLE_TENSION_VAR_KEY]: "7" });
+
+  const component = await mount(<NeedleMeterStory chatId={CHAT} />);
+
+  const dial = component.locator('[data-slot="meter-track"]');
+  await expect(dial).toBeVisible();
+  // ONESHOT-OK: the visibility barrier settled this node; an SVG's intrinsic box does not move after paint.
+  const dialBox = await dial.boundingBox();
+  expect(dialBox?.width, "dial width").toBe(DIAL_PX);
+  expect(dialBox?.height, "dial height").toBe(DIAL_PX);
+
+  // …and the card around it is no longer mostly not-a-gauge. Asserted as a RATIO, not as px: the card's
+  // width is the label row's, which is copy, and pinning copy metrics here would red on a wording change.
+  // Queried off the PAGE, not the mount: the story renders providers that emit no DOM, so the meter's Card
+  // IS the mounted root element — and a `component.locator(…)` search only ever sees DESCENDANTS of it.
+  const card = page.locator('[data-slot="card-root"]');
+  const cardBox = await card.boundingBox();
+  expect(cardBox, "the meter card must have a box").not.toBeNull();
+  expect((cardBox?.height ?? 0) / DIAL_PX, "card height per dial px").toBeLessThanOrEqual(MAX_CARD_TO_DIAL);
+});
+
 test("a room with NO score renders nothing at all — no dial, no empty card, no chrome", async ({ mount, page }) => {
   // The overwhelmingly common case: the preset was never added, or its first pass has not landed.
   await routeVariables(page, {});

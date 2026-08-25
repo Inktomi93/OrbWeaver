@@ -10,15 +10,17 @@
 //
 // A CHIP ALSO SHOWS ITS MODE (side-eye 2026-08-24): the mode field exists to stop send/compose confusion, but
 // the chips were rendering byte-identical, so a click that POSTS looked exactly like one that only DRAFTS. So
-// a chip carries a per-mode leading glyph (`MODE_GLYPH`) AND a mode-prefixed accessible name
-// (`MODE_ACCNAME_PREFIX`) — the visible and the non-sighted halves of the same signal — and every disabled
+// a chip carries a per-mode leading glyph (`MODE_GLYPH`) AND the mode WORD (`CONTROL_MODE_WORD`), rendered as
+// its kicker and reused as the accessible name's prefix — a SHAPE channel and a TEXT channel, because the
+// glyph pair alone was still the "distinguished by one 16px silhouette" defect (#684 P1) — and every disabled
 // control names its unlock through `aria-describedby` (keyboard/SR-reachable), not `title` alone.
 //
 // THE STACKING LAW (§3-S1 + authoring law 5, the attention budget). `CHAT_CONTROL_KINDS` declares the
 // stack order (cards above chips) and the renderer map below is exhaustive over it, so a new kind fails
 // `tsc` until it has both. Cards: exactly ONE visible (the newest), the rest disclosed as a mono count —
 // the per-arm `max(4)` bounds one rule's chips, nothing bounds N rules firing on one event. Chips: one row,
-// a display cap, the remainder disclosed the same way. Card buttons are neutral/outline and each card
+// a display cap, the remainder behind an EXPANDER (#684 P2 — a count is a dead end when the hidden chips are
+// another rule's vote options). Card buttons are neutral/outline and each card
 // carries an explicit dismiss; the composer's Send stays CONTENT's one `primary` (UI §4.3 rule 3).
 //
 // THE BAND OWNS THE READING SURFACE, not the controls on it (#674 — `BAND_READING_SURFACE` below states the
@@ -34,9 +36,9 @@ import { Icon, Pencil, Play, Send, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { Fragment, useId } from "react";
+import { Fragment, useId, useState } from "react";
 import type { ChatControl, ChatControlAction, ChatControlKind, ChatControlMode, ChatControlSource, ContributorRegistry } from "#lib";
-import { CHAT_CONTROL_KINDS, CONTROL_MODE_CONSEQUENCE, controlOverflowNotice } from "#lib";
+import { CHAT_CONTROL_KINDS, CONTROL_CHIPS_COLLAPSE, CONTROL_MODE_CONSEQUENCE, CONTROL_MODE_WORD, controlOverflowNotice } from "#lib";
 import { requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
 import { useChatControls } from "../hooks/use-chat-controls.tsx";
 import { useSendMessage } from "../hooks/use-send-message.ts";
@@ -80,8 +82,18 @@ const CARD_DISPLAY_CAP = 1;
  *
  *  IT COVERS THE WHOLE BAND, so it fixes the chips, the S4 cards and every future S1 control at once — the
  *  family remedy at the ANCHOR. It cannot paint an empty strip: the band renders NO `chat-controls` element
- *  at all when nothing is live (see `ChatControlsBand` below), so a silent room is byte-identical. */
-const BAND_READING_SURFACE = "rounded-card border border-border bg-card px-field py-field";
+ *  at all when nothing is live (see `ChatControlsBand` below), so a silent room is byte-identical.
+ *
+ *  AND IT DECLARES THE INK THAT PAIRS WITH THE SURFACE (#684 P3 — the latent half of the same family). A
+ *  surface without an ink is only half a reading surface: text inside it INHERITS colour from wherever the
+ *  band happens to be mounted, and this band is mounted inside the room's `ThemeScope`, so a carried palette
+ *  can hand it an ink derived against a background this box does not paint (a probe span measured 1.1:1
+ *  across that boundary). Every band text sets its own ink TODAY, which is exactly why this is a defence and
+ *  not a bug fix: `ChatControl.detail` is an arbitrary `ReactNode` a SOURCE supplies, so the one text node
+ *  the band cannot style is the one a feature outside chat wrote. `text-card-foreground` is the ink the
+ *  `bg-card` guarantee is stated for (the `@orb/ui` Card's own base pairs the two), so the box now carries
+ *  both halves of one contract and an unstyled child lands on the proven pair. */
+const BAND_READING_SURFACE = "rounded-card border border-border bg-card px-field py-field text-card-foreground";
 
 export interface ChatControlsBandProps {
   readonly chatId: ChatId;
@@ -130,7 +142,7 @@ interface ControlActionButtonProps {
   readonly as: ChatControlKind;
 }
 
-/** The leading GLYPH per consumption mode — a chip's whole visible tell that `send` POSTS as your turn,
+/** The leading GLYPH per consumption mode — one half of a chip's visible tell that `send` POSTS as your turn,
  *  `compose` only DRAFTS, and `execute` RUNS a verb (side-eye 2026-08-24 P1: send/compose/execute chips were
  *  byte-identical, so a "Draw your blade" send chip that fires instantly looked exactly like a "Time skip"
  *  compose chip that only drafts). Decorative — the mode is ALSO carried in the accessible name below, so the
@@ -141,21 +153,12 @@ const MODE_GLYPH: Record<ChatControlMode, LucideIcon> = {
   execute: Play,
 };
 
-/** The accessible-name PREFIX per mode — the SR/keyboard half of the same signal (side-eye 2026-08-24 P1:
- *  the accessible name was label-only, so a non-sighted user got ZERO mode signal). The visible label stays
- *  the suffix, so the accessible name CONTAINS it (WCAG 2.5.3 label-in-name / voice-control match). */
-const MODE_ACCNAME_PREFIX: Record<ChatControlMode, string> = {
-  send: "Send",
-  compose: "Draft",
-  execute: "Run",
-};
-
 /** ONE affordance, in either dress. Disabled state and its REASON come from the one behavior contract, and
  *  a disabled button stays focusable so the reason is reachable without a pointer.
  *
- *  A CHIP carries the per-mode glyph + accessible-name prefix (a chip's bare label cannot tell send from
+ *  A CHIP carries the per-mode glyph AND the per-mode WORD (a chip's bare label cannot tell send from
  *  compose); a CARD's action reads in the context of its title and its label is deliberate copy ("Run now"
- *  must not become "Run: Run now"), so it stays plain. The disabled REASON is bound by `aria-describedby` to
+ *  must not become "Run Run now"), so it stays plain. The disabled REASON is bound by `aria-describedby` to
  *  a visually-hidden sibling in BOTH dresses — `title` alone is hover-only, unreachable by keyboard/SR
  *  (side-eye 2026-08-24 P2). The span is a SIBLING, never a child: inside the button it would append to the
  *  accessible name.
@@ -166,7 +169,18 @@ const MODE_ACCNAME_PREFIX: Record<ChatControlMode, string> = {
  *  enabled one falls through to `CONTROL_MODE_CONSEQUENCE`, the mode's one-line cost, homed in the copy file
  *  beside every other enabled-row helper. Deliberately BOTH dresses: a card's action is the same three modes,
  *  and `title` is a hover helper rather than the accessible name — so unlike the chip-only name prefix it
- *  cannot turn a card's deliberate label into "Run: Run now".
+ *  cannot turn a card's deliberate label into "Run Run now".
+ *
+ *  THE MODE IS A WORD, NOT ONLY A SILHOUETTE (#684 P1). The glyph pair shipped by #674 is a SHAPE channel,
+ *  and "never by colour alone" generalises to it: 16px of Send-arrow vs Pencil is a smaller distinction than
+ *  the colour rule already forbids, and the consequence it gates is irreversible (a send chip posts a turn
+ *  with no confirm). So the chip renders `CONTROL_MODE_WORD` as its own leading kicker — a text channel that
+ *  survives greyscale, low vision, an icon font that fails to load, and a reader who has never met the glyph.
+ *  The alternative arm — distinct chip INTENTS (a coloured send pill) — was refused twice over: it is the
+ *  colour-alone channel wearing a new hat, and a filled send pill next to the composer would be a second
+ *  `primary` (UI §4.3 rule 3, the law the #670-era no-box-colour call rests on). The accessible name is the
+ *  SAME word + the label, with NO separator punctuation, so the whole visible string is a substring of the
+ *  name (WCAG 2.5.3 label-in-name — a "Send: …" name beside a "Send …" visible label would not be).
  *
  *  THE CHIP GLYPH IS SIZED AT THE CALL SITE (#674 P2). A bare lucide component renders at its intrinsic 24px;
  *  the house body-adjacent step is 16px (`ICON_SM`, `Icon size="sm"`). The fix belongs here and NOT on
@@ -180,7 +194,7 @@ function ControlActionButton({ action, consumer, as }: ControlActionButtonProps)
     <>
       <Button
         aria-describedby={availability.reason === null ? undefined : reasonId}
-        aria-label={chip ? `${MODE_ACCNAME_PREFIX[action.mode]}: ${action.label}` : undefined}
+        aria-label={chip ? `${CONTROL_MODE_WORD[action.mode]} ${action.label}` : undefined}
         data-mode={action.mode}
         disabled={availability.disabled}
         focusableWhenDisabled={true}
@@ -190,7 +204,18 @@ function ControlActionButton({ action, consumer, as }: ControlActionButtonProps)
         size={chip ? "chip" : "sm"}
         title={availability.reason ?? CONTROL_MODE_CONSEQUENCE[action.mode]}
       >
-        {chip ? <Icon icon={Glyph} size="sm" /> : null}
+        {chip ? (
+          <>
+            <Icon icon={Glyph} size="sm" />
+            {/* `interactiveKicker` is the voice for "a kicker that IS the visible label of a control" — the
+                mode reads as the chip's register mark, not as a second label competing with the copy. No
+                `data-slot` override (Text owns `data-slot=text`, which tiers.css reads): the word is
+                addressable as the chip's own rendered text, which is the channel under test anyway. */}
+            <Text as="span" voice="interactiveKicker">
+              {CONTROL_MODE_WORD[action.mode]}
+            </Text>
+          </>
+        ) : null}
         {action.label}
       </Button>
       {availability.reason === null ? null : (
@@ -251,22 +276,43 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
   );
 }
 
-/** The CHIP row: capped, remainder disclosed — and it WRAPS. At a phone width four long-label chips overrun
+/** The CHIP row: capped, remainder REACHABLE — and it WRAPS. At a phone width four long-label chips overrun
  *  the available inline space and an ancestor clips the overflow, so the "+N more" disclosure (and later
  *  chips) were pushed off the right edge, unreachable with no scrollbar (side-eye 2026-08-24 P3). A second
  *  line is cheap above the composer, so the row wraps rather than clips — every capped chip and its
- *  disclosure stay on screen. */
+ *  disclosure stay on screen.
+ *
+ *  THE DISCLOSURE IS AN EXPANDER, NOT A COUNT (#684 P2). The cap is a per-ROW budget, but the chips crossing
+ *  it belong to RULES: one rule that surfaces three openers and another that surfaces three vote options put
+ *  six chips in the row, so the member saw one vote option and a dead `<p>` reading "+2 more" — the other two
+ *  options were not hidden behind an affordance, they were GONE, with no pointer trick and no keyboard path
+ *  to them. The alternative arm (budget the cap per SOURCE) does not answer it: the quick-reply source
+ *  flattens every live rule's set into ONE source's publish (`quick-reply-chip-mount.tsx`), so a per-source
+ *  budget is the row budget with extra steps. So the count becomes a real `<button>` with `aria-expanded`:
+ *  focusable, keyboard-operable, and reversible. The cap still governs the RESTING row (law 5 — one row,
+ *  never a wall); expansion is the member's own choice, and it is per-mount transient state, exactly like the
+ *  chips it discloses. */
 function ControlChips({ controls, consumer }: { readonly controls: readonly ChatControl[]; readonly consumer: ControlConsumer }): ReactElement | null {
+  const [expanded, setExpanded] = useState(false);
   const chips = controls.filter((control) => control.kind === "chip");
   if (chips.length === 0) {
     return null;
   }
+  const hidden = chips.length - CHIP_DISPLAY_CAP;
+  const shown = expanded ? chips : chips.slice(0, CHIP_DISPLAY_CAP);
   return (
     <Row align="center" className="flex-wrap" data-slot="chat-control-chips" gap="field">
-      {chips.slice(0, CHIP_DISPLAY_CAP).map((chip) => (
+      {shown.map((chip) => (
         <ControlActionButton action={chip.action} as="chip" consumer={consumer} key={chip.id} />
       ))}
-      <OverflowCount hidden={chips.length - CHIP_DISPLAY_CAP} noun="more" slot="chat-control-chips-overflow" />
+      {/* No `data-slot` override on the disclosure: `@orb/ui` Button owns that attribute (tiers.css keys
+          padding/height off `data-slot=button`, and the density-tier gate proves those rules are live). It is
+          addressable as the row's one `aria-expanded` button, which is also how a member's AT finds it. */}
+      {hidden <= 0 ? null : (
+        <Button aria-expanded={expanded} intent="ghost" onClick={(): void => setExpanded((open) => !open)} shape="pill" size="chip">
+          {expanded ? CONTROL_CHIPS_COLLAPSE : controlOverflowNotice(hidden, "more")}
+        </Button>
+      )}
     </Row>
   );
 }

@@ -402,12 +402,65 @@ test("#243 a CUSTOM dark theme's elevation ring stays light-from-above (the dark
 // track's own computed `color` against the panel's computed `background-color`.
 const NEAR_WHITE_BASE = "oklch(0.98 0.004 75)";
 
-/** The track's stroke colour vs the card it is painted on, WCAG-contrasted on framebuffer pixels. */
-const trackVsCard = (panel: Element): number => {
-  const track = panel.querySelector('[data-slot="meter-track"] circle');
-  if (track === null) {
-    throw new Error("no arc meter track in the panel");
+/** One arc circle's stroke vs the card it is painted on, WCAG-contrasted on framebuffer pixels.
+ *
+ *  IT COMPOSITES THE STROKE OVER THE CARD before measuring, and that is not a refinement — it is required
+ *  for correctness the moment a track token carries ALPHA (`--color-border` is white at 8%). Reading such a
+ *  colour straight through a canvas measures it over TRANSPARENT BLACK, which on a white card reports a
+ *  near-black stroke and a spectacular fake ratio. Painting card-then-stroke is what the reader sees, and it
+ *  is byte-identical for an opaque token, so the older `muted` numbers this file cites still hold. */
+const arcPartVsCard = (panel: Element, slot: string): number => {
+  const part = panel.querySelector(`[data-slot="meter-track"] ${slot}`);
+  if (part === null) {
+    throw new Error(`no arc meter ${slot} in the panel`);
   }
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) {
+    throw new Error("no 2d context");
+  }
+  const lumOfPixel = (): number => {
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    const [lr, lg, lb] = [r ?? 0, g ?? 0, b ?? 0].map((v) => {
+      const c = v / 255;
+      return c <= 0.039_28 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    }) as [number, number, number];
+    return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+  };
+  const card = getComputedStyle(panel).backgroundColor;
+  ctx.fillStyle = card;
+  ctx.fillRect(0, 0, 1, 1);
+  const cardLum = lumOfPixel();
+  ctx.fillStyle = getComputedStyle(part).color;
+  ctx.fillRect(0, 0, 1, 1);
+  const partLum = lumOfPixel();
+  return (Math.max(partLum, cardLum) + 0.05) / (Math.min(partLum, cardLum) + 0.05);
+};
+
+// The two arcs, as selectors rather than wrapper functions: `evaluate` serializes ONLY the function it is
+// handed, so a helper that closed over `arcPartVsCard` would arrive in the page as a ReferenceError.
+/** The EMPTY track ring — the circle that is not the fill. */
+const TRACK_ARC = "circle:not([data-slot])";
+/** The VALUE arc — the part that carries the reading. */
+const FILL_ARC = 'circle[data-slot="fill"]';
+
+// #685 ANSWERED THE QUESTION #682 LEFT OPEN, and these two rows moved with it. #682's comment ended
+// "whether a 1.13 neighbour step is enough for a GRAPHIC is a meter-side question (which token the track
+// picks), not a derivation one" — it is not enough, and the meter now picks `border` instead of `muted`
+// (charts/meter/variants.ts). So the DERIVATION fence that used to ride the rendered track (a
+// `toBeCloseTo(1.1315)` on the dark arm) is re-homed onto the pair it was actually protecting —
+// `--color-muted` against `--color-card` — where a derivation change still reds it and a meter-side token
+// swap does not. The RENDERED rows now floor the track at the separation the new token buys.
+//
+// The number the finding asked for (3:1, WCAG 1.4.11) is deliberately NOT the floor here, and the meter
+// file states why: the only token that reaches it on both polarities is an INK, which on the light arm
+// paints the EMPTY track at 11.5:1 beside a 2.58:1 value arc.
+const MUTED_STEP_DARK = 1.1315;
+
+/** Two custom properties, WCAG-contrasted on framebuffer pixels — the DERIVATION pair, no component. */
+const tokenPairContrast = (el: Element, names: readonly [string, string]): number => {
   const toRgb = (color: string): [number, number, number] => {
     const canvas = document.createElement("canvas");
     canvas.width = 1;
@@ -428,42 +481,66 @@ const trackVsCard = (panel: Element): number => {
     }) as [number, number, number];
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
-  const la = lum(toRgb(getComputedStyle(track).color));
-  const lb = lum(toRgb(getComputedStyle(panel).backgroundColor));
+  const style = getComputedStyle(el);
+  const [first, second] = names;
+  const la = lum(toRgb(style.getPropertyValue(first).trim()));
+  const lb = lum(toRgb(style.getPropertyValue(second).trim()));
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 };
 
-test("#682 an arc meter's TRACK is still a graphic on a card under a near-white carried palette", async ({ mount }) => {
-  const cmp = await mount(
-    <ThemeScope tokens={{ background: NEAR_WHITE_BASE }}>
-      <div data-testid="card-panel" style={{ backgroundColor: "var(--color-card)" }}>
-        <Meter kind="arc" label="Stamina" value={40} />
-      </div>
-    </ThemeScope>,
-  );
-  // Pre-#682 the track and the card resolved to the identical white: 1.0000:1 RENDERED, an arc that is
-  // not there. The floor is the class the DARK arm renders at (1.1315:1 measured in this browser on the
-  // Hearth base, the test below) — two NEIGHBOURING ramp surfaces cannot reach the 3:1 non-text ratio on
-  // either polarity (the shipped Hearth pair is 1.1356 in node math), so the pin is "as legible as the
-  // polarity that was never broken", not WCAG 1.4.11. Whether a 1.13 neighbour step is enough for a
-  // GRAPHIC is a meter-side question (which token the track picks), not a derivation one.
-  await expect.poll(() => cmp.getByTestId("card-panel").evaluate(trackVsCard), { intervals: [20, 50, 100] }).toBeGreaterThan(1.1);
-});
-
-test("#682 the DARK arm's track/card separation does not move (the polarity that was never broken)", async ({ mount }) => {
+test("#682 the DARK arm's muted/card derivation does not move (the polarity that was never broken)", async ({ mount }) => {
   const cmp = await mount(
     <ThemeScope tokens={{ background: DARK_SEED_BASE }}>
-      <div data-testid="card-panel-dark" style={{ backgroundColor: "var(--color-card)" }}>
-        <Meter kind="arc" label="Stamina" value={40} />
-      </div>
+      <span data-testid="ramp-probe">x</span>
     </ThemeScope>,
   );
-  const ratio = await cmp.getByTestId("card-panel-dark").evaluate(trackVsCard);
   // Hearth's derived pair as this browser RESOLVES it (1.1315; node's own oklch math says 1.1356 — the
   // gap is 8-bit channel quantization, not a disagreement). A fence, not a defect proof: it passes
   // pre-fix too, and its job is to red if the dark arm ever moves a digit.
-  expect(ratio).toBeCloseTo(1.1315, 3);
+  const ratio = await cmp.getByTestId("ramp-probe").evaluate(tokenPairContrast, ["--color-muted", "--color-card"] as const);
+  expect(ratio).toBeCloseTo(MUTED_STEP_DARK, 3);
 });
+
+// The RENDERED track floor, both polarities. `toBeGreaterThan(MUTED_STEP_DARK * 1.15)` is spelled against
+// the ramp step rather than a bare number so the row states its own claim: the track is meaningfully
+// STRONGER than one neighbouring ramp step, which is exactly what `muted` could never be.
+const TRACK_FLOOR = MUTED_STEP_DARK * 1.15;
+const TRACK_ARMS = [
+  { label: "near-white carried palette", base: NEAR_WHITE_BASE, testId: "card-panel" },
+  { label: "the dark seed", base: DARK_SEED_BASE, testId: "card-panel-dark" },
+] as const;
+
+for (const { label, base, testId } of TRACK_ARMS) {
+  test(`#685 an arc meter's TRACK reads as a graphic on a card under ${label}`, async ({ mount }) => {
+    const cmp = await mount(
+      <ThemeScope tokens={{ background: base }}>
+        <div data-testid={testId} style={{ backgroundColor: "var(--color-card)" }}>
+          <Meter kind="arc" label="Stamina" value={40} />
+        </div>
+      </ThemeScope>,
+    );
+    // Pre-#682 the near-white arm measured 1.0000:1 (an arc that is not there); after #682 both arms sat at
+    // the honest ~1.14 ramp step, which is what #685 found still too faint for a 6-unit stroke.
+    await expect.poll(() => cmp.getByTestId(testId).evaluate(arcPartVsCard, TRACK_ARC), { intervals: [20, 50, 100] }).toBeGreaterThan(TRACK_FLOOR);
+  });
+
+  test(`#685 the track never outshouts the FILL under ${label} — the value keeps the loudest voice`, async ({ mount }) => {
+    // The invariant that decided the token (see charts/meter/variants.ts): a stronger track is an improvement
+    // only while the EMPTY part of the gauge stays quieter than the part carrying the reading. This is the
+    // row that would red if a later lane "just" raised the track to an ink to satisfy 1.4.11.
+    const cmp = await mount(
+      <ThemeScope tokens={{ background: base }}>
+        <div data-testid={testId} style={{ backgroundColor: "var(--color-card)" }}>
+          <Meter kind="arc" label="Stamina" value={40} />
+        </div>
+      </ThemeScope>,
+    );
+    const panel = cmp.getByTestId(testId);
+    const track = await panel.evaluate(arcPartVsCard, TRACK_ARC);
+    const fill = await panel.evaluate(arcPartVsCard, FILL_ARC);
+    expect(fill, `fill ${String(fill)} must stay louder than track ${String(track)}`).toBeGreaterThan(track);
+  });
+}
 
 test("a provider-less ink-only scope FAILS OPEN, rendering the author's ink byte-identically", async ({ mount }) => {
   // Nothing named the surface (a preview, a CT story, any mount outside the shell) ⇒ the pre-#236 rule
