@@ -3,23 +3,35 @@
 // the activation factories once (so every verb drives the SAME registry) and assembles the `PluginService`
 // (typed return → a missing/renamed verb fails `tsc`). The context (db + injected clock/id seams + the CAS
 // ops + the `PluginHostPort` runtime + the `PluginHostOps` op bundle + the belts) is built at the entry
-// composition root and passed in — plugin sideways-imports nothing. Every management verb's authority is the
-// owner-scoped row load, not a role gate (D147).
+// composition root and passed in — plugin sideways-imports nothing. Every PER-ROW management verb's authority
+// is the owner-scoped row load, not a role gate (D147 clause (a)). The exception is the DISTRIBUTION trio
+// (`installForAllUsers`/`uninstallForAllUsers`/`listDistributedPlugins`, D147 clause (d)), whose question is
+// global — "may this caller publish to the deployment" — and whose gate therefore arrives in a SEPARATE
+// `PluginDistributionDeps` parameter rather than in the context every verb shares.
 
 import { createActivate } from "./activation/activate.ts";
 import { createCrashPolicy } from "./activation/crash-policy.ts";
 import { createDeactivate } from "./activation/deactivate.ts";
-import type { PluginContext, PluginRegistry, PluginService } from "./contract/service.ts";
+import type { PluginContext, PluginDistributionDeps, PluginRegistry, PluginService } from "./contract/service.ts";
+import { createApplyDistributedPlugins } from "./verbs/apply-distributed-plugins.ts";
 import { createGetPluginLog } from "./verbs/get-plugin-log.ts";
 import { createInstall } from "./verbs/install.ts";
+import { createInstallForAllUsers } from "./verbs/install-for-all-users.ts";
+import { createListDistributedPlugins } from "./verbs/list-distributed-plugins.ts";
 import { createListPlugins } from "./verbs/list-plugins.ts";
 import { createRunSnippet } from "./verbs/run-snippet.ts";
 import { createSetEnabled } from "./verbs/set-enabled.ts";
 import { createSetGrant } from "./verbs/set-grant.ts";
 import { createUninstall } from "./verbs/uninstall.ts";
+import { createUninstallForAllUsers } from "./verbs/uninstall-for-all-users.ts";
 import { createUpgrade } from "./verbs/upgrade.ts";
 
-export function createPluginService(ctx: PluginContext): PluginService {
+/** `distribution` is a SEPARATE parameter, never folded into {@link PluginContext} (D147 clause (a)): the
+ *  per-row verbs must keep having no privilege seam at all, and the two admin distribution verbs must have
+ *  exactly one. Required rather than optional, so every composition root — production and test — is forced to
+ *  state how the admin gate and the recipient list resolve there; an optional bundle would let a caller build
+ *  a service whose admin verbs silently do not exist. */
+export function createPluginService(ctx: PluginContext, distribution: PluginDistributionDeps): PluginService {
   // The ONE resident-instance registry (ASSUMES single-replica — the automation enabled-index precedent). Built
   // here so activate/deactivate + getLog share the same live map.
   const registry: PluginRegistry = new Map();
@@ -28,13 +40,24 @@ export function createPluginService(ctx: PluginContext): PluginService {
   // counter (auto-disable + owner-notify at the threshold), a clean run resets it.
   const crashPolicy = createCrashPolicy(ctx, deactivate);
   const activate = createActivate(ctx, registry, crashPolicy);
+  // The fan-out verbs drive the REAL per-user verbs (the `ActivationDeps` verb-to-verb precedent), so a
+  // distributed copy is never a second install path: same trust edge, same consent posture, same owner-scoped
+  // uninstall — only the CALLER differs, and it is always the recipient themselves.
+  const install = createInstall(ctx);
+  const setGrant = createSetGrant(ctx, { activate, deactivate });
+  const uninstall = createUninstall(ctx, { deactivate });
+  const fanout = { ...distribution, install, setGrant };
   return {
-    install: createInstall(ctx),
+    install,
     upgrade: createUpgrade(ctx, { activate, deactivate }),
-    setGrant: createSetGrant(ctx, { activate, deactivate }),
+    setGrant,
     setEnabled: createSetEnabled(ctx, { activate, deactivate }),
-    uninstall: createUninstall(ctx, { deactivate }),
+    uninstall,
     list: createListPlugins(ctx),
+    installForAllUsers: createInstallForAllUsers(ctx, fanout),
+    uninstallForAllUsers: createUninstallForAllUsers(ctx, { ...distribution, uninstall }),
+    listDistributedPlugins: createListDistributedPlugins(ctx, distribution),
+    applyDistributedPlugins: createApplyDistributedPlugins(ctx, fanout),
     getLog: createGetPluginLog(ctx, registry),
     runSnippet: createRunSnippet(ctx),
   };

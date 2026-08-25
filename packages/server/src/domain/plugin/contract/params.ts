@@ -74,6 +74,47 @@ export interface GetPluginLogParams {
   readonly limit?: number;
 }
 
+/** `installForAllUsers` — the ONE admin-gated verb in this domain (D147 clause (d), resolved 2026-08-24).
+ *  PUBLISH `bundle` to the deployment: record it in the distribution set, then FAN OUT one ordinary per-user
+ *  install to every existing user. `caller` is the publishing admin — their `can(caller,"admin",{kind:"global"})`
+ *  is checked before anything is validated or written, and their CAS holds the published bytes.
+ *
+ *  There is deliberately no `grant`: a fan-out mints rows the recipients never asked for, so every copy lands
+ *  with an EMPTY grant and a standing consent ask, exactly like the example seeder. Enabling stays each
+ *  recipient's own act and cannot be performed for them (D147 clause (b) — enabling RUNS guest code as the
+ *  enabler, so no role is senior enough to do it on someone's behalf). */
+export interface InstallForAllUsersParams {
+  readonly caller: Principal;
+  readonly bundle: Uint8Array;
+}
+
+/** `uninstallForAllUsers` — withdraw a published plugin: drop the distribution record, then fan out one
+ *  ordinary per-user uninstall. Admin-gated like its twin.
+ *
+ *  THE DIVERGENCE POLICY IS SLUG **AND VERSION** (decided at build, D147): a recipient whose row is at a
+ *  different version than the distributed one has taken the plugin over — they upgraded it themselves, or
+ *  they installed their own copy before the distribution ever reached them — and an admin withdrawal must not
+ *  delete the thing they chose. Those rows are SKIPPED and reported, never silently left behind. */
+export interface UninstallForAllUsersParams {
+  readonly caller: Principal;
+  readonly slug: string;
+}
+
+/** `listDistributedPlugins` — the published set, for the admin's distribute surface. Admin-gated: it is
+ *  DEPLOYMENT policy, not a per-user read, and a plain member's own copies already show up in `list`. */
+export interface ListDistributedPluginsParams {
+  readonly caller: Principal;
+}
+
+/** `applyDistributedPlugins` — SELF-scoped (no admin, no foreign id): install any published plugin the CALLER
+ *  does not already hold, under the caller's own Principal. This is the NEW-USER half of the fan-out — a user
+ *  created after a distribution was published never appeared in its recipient list, so the entry hook drives
+ *  this once per user (the `ensureSeeded` precedent, latched in `UserSettings.onboarding`). Idempotent: a slug
+ *  the caller already has at ANY version is skipped. */
+export interface ApplyDistributedPluginsParams {
+  readonly caller: Principal;
+}
+
 /** `runSnippet` — the inline mode: a fresh instance, run once as the caller, disposed. TYPE HOME ONLY
  *  here — the verb implementation lives with the other verbs. */
 export interface RunSnippetParams {

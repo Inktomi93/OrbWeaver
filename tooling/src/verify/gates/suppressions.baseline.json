@@ -515,6 +515,24 @@
     "why": "ratified by rule: lint/performance/noAwaitInLoops×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
+  "packages/server/src/domain/plugin/verbs/apply-distributed-plugins.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/performance/noAwaitInLoops×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "packages/server/src/domain/plugin/verbs/install-for-all-users.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/performance/noAwaitInLoops×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "packages/server/src/domain/plugin/verbs/uninstall-for-all-users.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/performance/noAwaitInLoops×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
   "packages/server/src/domain/preset/contract/errors.ts": {
     "count": 1,
     "ratified": 1,

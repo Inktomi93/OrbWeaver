@@ -93,6 +93,19 @@ export class PluginNotFoundError extends DomainNotFoundError {
   }
 }
 
+/** `uninstallForAllUsers` for a slug the server has not published (D147 clause (d)). DISTINCT from
+ *  `PluginNotFoundError` on purpose: the plugin may well exist — several users may have installed it
+ *  themselves — what is absent is the DISTRIBUTION RECORD, and an admin who mistypes a slug needs to be told
+ *  which of those two things is missing. Maps to NOT_FOUND. No leak concern: the published set is deployment
+ *  policy the caller is already admin over, not an owned entity whose existence could be oracled. */
+// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
+// `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
+export class PluginNotDistributedError extends DomainNotFoundError {
+  constructor(slug: string) {
+    super("plugin distribution", slug);
+  }
+}
+
 /** `runSnippet` while the caller already holds the maximum number of concurrently-running snippets. A snippet is
  *  a personal REPL — one at a time is the real usage shape — and each concurrent run pins a whole
  *  `QuickJSContext` (32 MiB ceiling) for up to its settlement wall. Maps to CONFLICT: retryable the moment the

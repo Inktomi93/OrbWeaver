@@ -101,8 +101,8 @@ import { createPresenceRegistry } from "../../transport/trpc/presence-registry.t
 import type { SocketRegistry } from "../../transport/trpc/stream/socket-registry.ts";
 import { createSocketRegistry } from "../../transport/trpc/stream/socket-registry.ts";
 import { createHostPrincipalResolver } from "../auth/index.ts";
-import type { DefaultPersonaSeeder, ExamplePluginSeeder } from "../boot/index.ts";
-import { createExamplePluginSeeder } from "../boot/index.ts";
+import type { DefaultPersonaSeeder, DistributedPluginApplier, ExamplePluginSeeder } from "../boot/index.ts";
+import { createDistributedPluginApplier, createExamplePluginSeeder } from "../boot/index.ts";
 import { packSeedPluginBundle, readSeedDemoChat } from "../boot/seed-assets/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import { buildAdmin } from "./admin.ts";
@@ -261,6 +261,10 @@ export interface ServicesResult {
   /** Mirrors `characterSeeder`, for the two SHOWCASE PLUGIN examples. Independent of the three above (it
    *  attaches to nothing), and it seeds the rows INSTALLED-BUT-UNGRANTED — the user's first act is consent. */
   readonly examplePluginSeeder: ExamplePluginSeeder;
+  /** The SERVER-WIDE published plugin set applied to a user (D147 clause (d)) — the new-user half of the admin
+   *  fan-out, driven by the same first-authed-request hook and latched per user. Distinct from
+   *  `examplePluginSeeder`: that ships with the build, this is whatever THIS deployment's admin published. */
+  readonly distributedPluginApplier: DistributedPluginApplier;
   /** The rpg `ChatRpgOps` runtime (the turn hooks chat fires) — surfaced top-level so the composed-real int
    *  test drives a turn's flush (`onTurnCompleted`) through the REAL compose graph (the [compose-stub-goes-stale]
    *  antidote). Not on the transport `Services` bundle (chat's turn lifecycle is its only production caller). */
@@ -825,6 +829,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     settings,
     assets,
     toolUse,
+    // The fan-out's RECIPIENT enumeration (D147 clause (d)) — the admin verb, so the list is read under the
+    // acting admin's own authority and re-gated there rather than swept off `users` by a domain that may not
+    // read it.
+    admin,
     resolveOwnerPrincipal,
     // C5 — the owner-global lane's standing-authority read rides SESSIONS, the one domain that owns `users`.
     sessions,
@@ -1025,6 +1033,18 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
 
+  // The ONE distributed-plugin applier the app's first-request hook drives (D147 clause (d)). It owns nothing
+  // but the once-per-user latch: the plugin logic — which slugs are published, what a distributed copy lands
+  // as, the already-held skip — lives in the self-scoped verb, which this drives under the ARRIVING user's own
+  // Principal. The latch is a settings fact, which is why it is wired here and not in the domain.
+  const distributedPluginApplier = createDistributedPluginApplier({
+    apply: async (principal) => await services.plugin.applyDistributedPlugins({ caller: principal }),
+    isApplied: async (principal): Promise<boolean> => (await settings.getUserSettings({ principal })).config.onboarding.distributedPluginsApplied,
+    markApplied: async (principal): Promise<void> => {
+      await settings.updateUserSettingsSection({ principal, input: { section: "onboarding", patch: { distributedPluginsApplied: true } } });
+    },
+  });
+
   return {
     services,
     automation,
@@ -1051,6 +1071,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     personaSeeder,
     demoChatSeeder,
     examplePluginSeeder,
+    distributedPluginApplier,
     rpgChatOps: rpgCompose.chatOps,
     rpgTrace,
     recallRecorder,

@@ -16,10 +16,10 @@ import { Container, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useRef } from "react";
-import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { Fragment, useRef } from "react";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useSettingsViewerView, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
-import { settingsAnchorId } from "#state";
+import { settingsAnchorId, useSettingsSections } from "#state";
 import { PluginInstallCard } from "../components/plugin-install-card.tsx";
 import { PluginRow } from "../components/plugin-row.tsx";
 import { PLUGINS_SUBCATEGORY_IDS } from "../lib/plugins-nav.ts";
@@ -49,6 +49,14 @@ function InstalledPluginsList(): ReactElement {
 export function PluginsSettingsSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
+  // A `surface` pane HOSTS the sections contributed at its anchor and renders them ITSELF, at the position it
+  // owns (`settings-pane-registry.ts` §5.3 — the shell renders contributions only for a `sections` skimmer).
+  // This is the first surface to take that up, because it is the first with a contribution: the admin-gated
+  // "Distribute to everyone" section (D147 clause (d)). LAST, after the reader's own two sections — your
+  // plugins first, the deployment-wide control after — and each contribution's own `when` has already been
+  // applied by the resolver, so a non-admin gets an empty array and this renders byte-identically to before.
+  const viewer = useSettingsViewerView();
+  const contributed = useSettingsSections("plugins", viewer);
 
   return (
     <Stack className="outline-none" ref={surfaceRef} tabIndex={-1}>
@@ -65,6 +73,9 @@ export function PluginsSettingsSurface(): ReactElement {
           <Section divider={true} heading="Add a plugin" id={settingsAnchorId("plugins", PLUGINS_SUBCATEGORY_IDS.install)}>
             <PluginInstallCard />
           </Section>
+          {contributed.map((section) => (
+            <Fragment key={section.id}>{section.node}</Fragment>
+          ))}
         </Stack>
       </Container>
     </Stack>

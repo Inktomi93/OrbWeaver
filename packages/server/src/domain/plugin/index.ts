@@ -14,8 +14,15 @@
 // deliberately no "an admin may manage any row" branch. The reason is not tidiness: enabling a plugin RUNS
 // its untrusted guest bundle as the ENABLING caller (the bridge closes over `caller.userId`, the PL-C ceiling
 // resolves that caller's own room role, `llm.quiet` spends that caller's credential), so a cross-owner
-// management path would be a confused-deputy escalation. The SERVER-WIDE install (one row serving every user,
-// admin-gated) is a real but UNBUILT shape whose consent + run-as-whom design is open — see D147.
+// management path would be a confused-deputy escalation.
+//
+// THE SERVER-WIDE INSTALL IS BUILT (2026-08-24 — this header used to say UNBUILT with an open design), and it
+// is NOT a shared row: an admin PUBLISHES a bundle (`installForAllUsers`) and the server fans out one ordinary
+// per-owner row to every user, each disabled with an empty grant and a standing consent ask. So there is still
+// no shared principal and no consent junction — D147's two recorded open questions dissolved rather than got
+// answered. `uninstallForAllUsers` withdraws it, skipping rows whose version the user has diverged;
+// `applyDistributedPlugins` is the self-scoped new-user half. Enabling remains each owner's own act, and the
+// admin verbs mint nothing that runs.
 
 // The infra↔domain WIRE shapes (`PluginInstance` + the collected-registration records + `PluginHandlerRef`)
 // live in `@orb/contracts/plugin` (the cake — infra mints them without importing a domain); re-exported here
@@ -37,6 +44,7 @@ export {
   PluginCrashedError,
   PluginDowngradeRefusedError,
   PluginNetHostsUnacknowledgedError,
+  PluginNotDistributedError,
   PluginNotFoundError,
   PluginSnippetBusyError,
 } from "./contract/errors.ts";
@@ -54,17 +62,38 @@ export type {
   VoidPluginSuggestions,
 } from "./contract/ops.ts";
 export type {
+  ApplyDistributedPluginsParams,
   GetPluginLogParams,
+  InstallForAllUsersParams,
   InstallPluginParams,
+  ListDistributedPluginsParams,
   ListPluginsParams,
   RunSnippetParams,
   SetPluginEnabledParams,
   SetPluginGrantParams,
+  UninstallForAllUsersParams,
   UninstallPluginParams,
   UpgradePluginParams,
 } from "./contract/params.ts";
-export type { PluginLogView, PluginView, SnippetResult } from "./contract/results.ts";
-export type { CreateInstanceInput, CreateInstanceOutcome, PluginBudgets, PluginHostPort, PluginService } from "./contract/service.ts";
+export type {
+  DistributedPluginApplication,
+  DistributedPluginView,
+  PluginFanoutResult,
+  PluginFanoutSkip,
+  PluginFanoutSkipReason,
+  PluginLogView,
+  PluginView,
+  SnippetResult,
+} from "./contract/results.ts";
+export { PLUGIN_FANOUT_SKIP_REASONS } from "./contract/results.ts";
+export type {
+  CreateInstanceInput,
+  CreateInstanceOutcome,
+  PluginBudgets,
+  PluginDistributionDeps,
+  PluginHostPort,
+  PluginService,
+} from "./contract/service.ts";
 export { isPluginEnabledFor } from "./persistence/plugins.ts";
 export { createPluginService } from "./service.ts";
 export { buildConfirmedActRunner } from "./substrate/confirmed-act.ts";

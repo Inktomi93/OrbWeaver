@@ -103,6 +103,62 @@ export const plugins = sqliteTable(
   ],
 );
 
+/** The SERVER-WIDE DISTRIBUTION SET (D147 clause (d), resolved 2026-08-24): what an admin has published to
+ *  every user. It is a LIST OF PUBLISHED BUNDLES, never an install — the installs themselves are ordinary
+ *  per-owner `plugins` rows minted by the fan-out, so nothing here is shared at run time (no shared row, no
+ *  shared principal, no consent junction).
+ *
+ *  WHY IT IS ITS OWN TABLE rather than a marker on somebody's `plugins` row or a list in a settings blob —
+ *  both were considered and both are defects:
+ *    1. A marker on a user's row makes a USER act (their own uninstall, their own upgrade) silently mutate
+ *       SERVER policy, which is the confused-ownership shape D147 exists to refuse.
+ *    2. An `AssetId` held inside a JSON settings blob is INVISIBLE to `ASSET_REFS` (the FK enumeration both
+ *       asset-GC paths iterate), so the published bundle's blob becomes reap-eligible the moment the
+ *       distributing admin's own row goes away, and every future new-user application dangles. The FK below
+ *       is what keeps those bytes alive — it is registered in `ASSET_REFS` as a RETAINING reference.
+ *
+ *  `slug` is the PRIMARY KEY, which states the invariant at the physics tier: a slug IS the plugin's
+ *  identity, so the server publishes at most one bundle per slug. Re-distributing a slug REPLACES the record
+ *  (version + bytes) — that is also how an admin publishes an update.
+ *
+ *  CASCADE, not RESTRICT, on the bundle FK — the opposite of `plugins.bundle_asset_id`, deliberately. Assets
+ *  are PER-USER (D21: no cross-user shared bytes), so the published bundle is an asset owned by the
+ *  distributing admin, and RESTRICT would make that admin's account undeletable by a policy row. A
+ *  distribution whose bytes are gone is not a distribution, so it goes with them; existing recipients are
+ *  untouched (each holds its own CAS copy) and only FUTURE new-user application stops. */
+export const adminDistributedPlugins = sqliteTable(
+  "admin_distributed_plugins",
+  {
+    // The manifest slug — the plugin's identity, and therefore the natural PK (see the header).
+    slug: text("slug").primaryKey(),
+    // Display fields denormalized off the VALIDATED manifest, so the admin's list reads without unzipping a
+    // bundle. `version` is also load-bearing: `uninstallForAllUsers` compares it against each recipient's row
+    // to decide whether that user has diverged.
+    name: text("name").notNull(),
+    version: text("version").notNull(),
+    // The PUBLISHED bytes, in the distributing admin's own CAS — the source every later fan-out and every
+    // new-user application re-reads. See the header for why this is CASCADE.
+    bundleAssetId: text("bundle_asset_id")
+      .$type<AssetId>()
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    // WHO published it — provenance for the admin surface, and the reason a deleted admin's distribution stops
+    // applying (their assets cascade away with them, and so does this row).
+    distributedBy: text("distributed_by")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    distributedAt: integer("distributed_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [
+    // Both FKs get a leading index (`fk-columns-indexed`): an asset delete and a user delete each probe this
+    // table, and neither column leads the PK.
+    index("admin_distributed_plugins_bundle_asset_idx").on(t.bundleAssetId),
+    index("admin_distributed_plugins_distributed_by_idx").on(t.distributedBy),
+  ],
+);
+
 // The PER-PLUGIN spend envelope (`plugin_budgets`) was stripped 2026-07-24 — enterprise spend enforcement.
 // A runaway plugin's autonomous turns/images stay bounded by the per-member turn RATE cap + the cascade-depth
 // guard (shared with automation); cost VISIBILITY rides the stats domain. No per-plugin $/action ceiling.
