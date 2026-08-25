@@ -78,10 +78,14 @@ export async function navigateAndReveal(page: AuditPage, opts: Args, url: string
   } else if (!resp.ok()) {
     navError = `HTTP ${resp.status()}`;
   }
-  await page
+  // Graceful for a `file://` fixture (which never runs the app) — but the OUTCOME is now reported, because
+  // on an app origin a missing readiness signal means the walk is about to census a shell (lib/evidence.ts
+  // `readinessGap`, #678).
+  const appReady = await page
     .locator("html[data-app-ready]")
     .waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS })
-    .catch(() => undefined);
+    .then(() => true)
+    .catch(() => false);
 
   let actionsFailed = 0;
   for (const action of opts.actions) {
@@ -91,14 +95,14 @@ export async function navigateAndReveal(page: AuditPage, opts: Args, url: string
   await settle(page, opts.waitMs);
 
   if (navError !== null) {
-    return { navError, actionsFailed, samples: null };
+    return { navError, actionsFailed, appReady, samples: null };
   }
   try {
     const samples = (await page.evaluate(COLLECT_SAMPLES_JS)) as RawSamples;
-    return { navError, actionsFailed, samples };
+    return { navError, actionsFailed, appReady, samples };
   } catch (e) {
     // The prefix is load-bearing: ops/run.ts reads it to tell an INSTRUMENT failure (the walk threw)
     // apart from a page-level nav error, which is a real defect of the page (#409).
-    return { navError: `${SAMPLE_COLLECTION_PREFIX}: ${errorMessage(e)}`, actionsFailed, samples: null };
+    return { navError: `${SAMPLE_COLLECTION_PREFIX}: ${errorMessage(e)}`, actionsFailed, appReady, samples: null };
   }
 }
