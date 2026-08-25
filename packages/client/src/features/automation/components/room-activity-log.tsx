@@ -18,7 +18,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { timeLib } from "#lib";
+import { testId, timeLib } from "#lib";
 import { fireDetailLine, fireOutcomeView, triggerLabel } from "../lib/rule-copy.ts";
 
 /** The recent tail the tab requests — a room spans several rules, so a slightly deeper page than the
@@ -47,7 +47,7 @@ export function RoomActivityLog({ chatId }: RoomActivityLogProps): ReactElement 
   }
 
   return (
-    <Stack gap="block" data-testid="room-activity-log">
+    <Stack gap="block" data-testid={testId("roomActivityLog")}>
       {fires.map((fire) => {
         const view = fireOutcomeView(fire.outcome);
         // `caps: null` — the room log spans every rule, so no single rule's caps apply (see the header).

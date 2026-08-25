@@ -215,6 +215,7 @@ export const TEST_IDS = {
   /** ONE advisory row. Carries `data-advisory` = the advisory CODE, so a CT pins the CLASS that fired
    *  rather than a sentence that copy edits will move. */
   refinerySchemaAdvisory: "refinery-schema-advisory",
+  roomActivityLog: "room-activity-log",
 } as const;
 
 export type TestIdKey = keyof typeof TEST_IDS;
