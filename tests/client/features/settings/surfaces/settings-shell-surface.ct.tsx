@@ -77,6 +77,15 @@ const APP_CONFIG = {
 };
 const OWNER_VIEWER = { userId: "user_owner", handle: "owner", globalRole: "owner" };
 
+/** The owner-global fire-rate ceiling the Automation pane's budget section renders (`OwnerBudgetView`). */
+const OWNER_RATE_CEILING = 30;
+
+/** The Automation surface's opening gloss — the line that says what is DIFFERENT about the library-wide
+ *  lane, and the pane's most load-bearing string: it is the first thing the pane paints, it is NOT the
+ *  pane's `description` (a `surface` pane never renders that), and it is what distinguishes this pane's
+ *  content from every other category's. Top-level so both tests below anchor on the SAME copy. */
+const AUTOMATION_GLOSS = "These rules watch your library and act on their own — no chat has to be open.";
+
 /**
  * THE SHELL'S AMBIENT READS (#649) — spread FIRST into every `routeTrpc` call in this file.
  *
@@ -118,6 +127,15 @@ const SHELL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // introduced. `plugins-settings-surface.tsx:29` suspends on it, and `[]` is the honest nothing-installed
   // arm the surface's own empty state describes.
   "plugin.list": [],
+  // C5 — the Automation pane's two OWNER-GLOBAL reads (`features/automation/components/owner-rules-surface.tsx`).
+  // The pane stopped being `{placeholder: true}` and became a real `surface`, so every test that clicks
+  // Automation now mounts two `useSuspenseQuery` sections; unfed they answer `null`, both boundaries paint
+  // their error state, and the pane's content assertions would be asserting a failure screen. Fed HERE (not
+  // as a ratchet baseline row): the reads are ambient to this file's Automation clicks, not any one test's
+  // subject. `[]` is the honest fresh-viewer arm — the surface's own empty state describes it — and the
+  // ceiling is a REAL number rather than the DDL default so the rendered belt is a value the pane chose.
+  "automation.listOwnerRules": [],
+  "automation.getOwnerBudgets": { maxFiresPerHour: OWNER_RATE_CEILING },
 };
 
 test("renders the USER + APP group headings and the category rows", async ({ mount, page }) => {
@@ -189,14 +207,32 @@ test("the nav is a navigation landmark; a section-owning category is a GROUP and
 
 // A category with NO sections has no leaf to hand the marker to — it IS the leaf, so it keeps aria-current
 // and has no aria-expanded (there is nothing to disclose).
-test("a section-less category stays the aria-current leaf", async ({ mount, page }) => {
+// RE-ANCHORED, and the reason is worth stating because it is a COVERAGE LOSS, not a rename (C5, cb8026bfc):
+// this test used to pin the nav column's LEAF arm (`selected={isActive}` — a pane with no sections keeps
+// `aria-current` itself) and Automation was its last live subject. Automation is now a real `surface` pane
+// with two subcategories, and every one of the nine registered panes has at least one nav row (own
+// subcategories: personas/backup/automation/connections/plugins · contributed section navs:
+// appearance/chat-behavior/admin/workloads), so the leaf arm has NO instantiable subject left in the
+// production registry and cannot be pinned from this story. What IS still pinnable — and is the actual a11y
+// defect the pair was minted for (`ui/primitives/list-row/list-row.tsx:145-148`: "aria-current on both a
+// parent and its child announces two current items for one location") — is the DISCLOSURE arm and the
+// one-marker invariant, which the count assertion below states directly rather than by implication.
+test("a sectioned category is a disclosure group whose FIRST section is the one aria-current leaf", async ({ mount, page }) => {
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
 
   const automation = component.getByRole("button", { name: "Automation" });
   await automation.click();
-  await expect(automation).toHaveAttribute("aria-current", "true");
-  await expect(automation).not.toHaveAttribute("aria-expanded", "true");
+  // The category row announces the disclosure it now owns, and does NOT also claim to be the location.
+  await expect(automation).toHaveAttribute("aria-expanded", "true");
+  await expect(automation).not.toHaveAttribute("aria-current", "true");
+  // Landing at the top of the pane IS landing on its first section (`firstSubIdOf`), so the marker is on
+  // "Library-wide rules" — the first of the two subcategories `automationPane` declares.
+  await expect(component.getByRole("button", { name: "Library-wide rules" })).toHaveAttribute("aria-current", "true");
+  // …and it is the ONLY one in the whole nav. This is the assertion the old pair could only make by
+  // implication, and it is what would red if a parent and its child ever both claimed the location again.
+  const nav = component.getByRole("navigation", { name: "Settings sections" });
+  await expect(nav.locator('[aria-current="true"]')).toHaveCount(1);
 });
 
 test("the active category expands into indented subcategory rows (Discord grammar)", async ({ mount, page }) => {
@@ -227,36 +263,54 @@ test("clicking a subcategory row marks it aria-current", async ({ mount, page })
   await expect(component.getByRole("button", { name: "Avatars" })).toHaveAttribute("aria-current", "true");
 });
 
-test("switching to an unbuilt category shows ITS distinct teaching copy", async ({ mount, page }) => {
+// Was "switching to an unbuilt category shows ITS distinct teaching copy" — the INTENT survives (switching
+// category swaps in content that belongs to THAT category and to no other), the anchors moved because the
+// state it described is dead: C5 (cb8026bfc) turned Automation from `{placeholder: true}` into a real
+// `surface`, and a `surface` pane NEVER renders its `description` (`settings-shell-surface.tsx:418` — only
+// the placeholder arm does). The old assertions named the pane's description string, the placeholder's
+// "Not built yet" chip and its "meanwhile" pointer: three things this pane cannot paint any more. They are
+// replaced by what the owner-global surface actually shows, section by section.
+test("switching to Automation shows ITS distinct content — the owner-global rules surface", async ({ mount, page }) => {
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
 
-  // Automation is still an unbuilt teaching placeholder — its distinct copy renders on switch.
   await component.getByRole("button", { name: "Automation" }).click();
-  await expect(component.getByText("Scheduled and triggered actions across your library.")).toBeVisible();
 
-  // …AND IT SAYS SO (side-eye 2026-08-06 P3, [[empty-states-are-load-bearing]]). A title plus one sentence
-  // in an otherwise blank column is indistinguishable from a pane whose controls failed to render — the
-  // reader is left deciding whether the app is broken. Two additions: the status chip, and a "meanwhile"
-  // pointer in the pane's OWN copy (a generic placeholder cannot know one; the pane does).
-  await expect(component.getByText("Not built yet", { exact: true })).toBeVisible();
-  await expect(component.getByText("Jobs → Schedules", { exact: false })).toBeVisible();
+  // Section 1 — the rule list, on `listOwnerRules: []`: the opening gloss plus the empty state that says
+  // what to do about it ([[empty-states-are-load-bearing]] — the lesson the retired placeholder arm carried
+  // is the same one this arm owes, and the surface answers it with copy the placeholder could not know).
+  await expect(component.getByText(AUTOMATION_GLOSS)).toBeVisible();
+  await expect(component.getByText("Nothing is watching your library yet.", { exact: false })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Add a rule" })).toBeVisible();
 
-  // THE MEASURE, not just the content (side-eye re-verify 2026-08-08): EmptyState's root is a
-  // `@container` (inline-size containment) — re-parented under a shrink-to-fit centering wrapper it
-  // resolved to width 0 and rendered the copy as an 18-line one-word ribbon while this test's content
-  // assertions stayed GREEN. A rendered teaching description must be a paragraph, not a column.
-  const description = component.getByText("Scheduled and triggered actions across your library.");
-  const box = await description.boundingBox();
+  // Section 2 — the owner RATE BELT, which has no per-chat equivalent and is the clearest tell that this is
+  // the global lane's own surface. The control is asserted BY ITS LABEL, not by a placeholder string: the
+  // `Field`-owned association is the thing that would break silently if a second `aria-label` were added.
+  await expect(component.getByRole("textbox", { name: "Runs per hour" })).toHaveValue(String(OWNER_RATE_CEILING));
+  await expect(component.getByRole("button", { name: "Save limit" })).toBeVisible();
+
+  // …and the pane's `description` is NOT on screen — the assertion that keeps this test honest about which
+  // body arm rendered (a regression back to the placeholder arm would paint it and every check above would
+  // fail for a reason this line names).
+  await expect(component.getByText("Rules that watch your whole library", { exact: false })).toHaveCount(0);
+
+  // THE MEASURE, not just the content (side-eye re-verify 2026-08-08, carried forward onto the new anchor):
+  // a `@container` root re-parented under a shrink-to-fit centering wrapper resolved to width 0 and painted
+  // the copy as a one-word ribbon while the content assertions stayed GREEN. Prose in a pane must be a
+  // paragraph, not a column.
+  const gloss = component.getByText(AUTOMATION_GLOSS);
+  const box = await gloss.boundingBox();
   expect(box).not.toBeNull();
   expect(box?.width ?? 0).toBeGreaterThan(200);
 });
 
-// Task #37 — Connections is a REAL pane (the placeholder is GONE), while the last unbuilt APP category
-// (Automation) STAYS a teaching placeholder; Admin is a REAL pane too (its own gate tests below +
-// admin-pane.ct.tsx). SET-SEAMS stage 4 (§10 Q2) retired the `system` category entirely — its former first
-// section, "Media & trust", is reachable through ADMIN now, and no System nav row exists.
-test("Admin absorbed the System sections; Connections is real; Automation stays a teaching placeholder", async ({ mount, page }) => {
+// Task #37 — Connections is a REAL pane (the placeholder is GONE); Admin is a REAL pane too (its own gate
+// tests below + admin-pane.ct.tsx). SET-SEAMS stage 4 (§10 Q2) retired the `system` category entirely — its
+// former first section, "Media & trust", is reachable through ADMIN now, and no System nav row exists.
+// C5 (cb8026bfc) took the LAST placeholder with it: Automation is a `surface` too, so this test's closing
+// arm now asserts the same "every APP category is real" claim it always made — with the one category that
+// used to be the exception standing on its own content instead of on teaching copy.
+test("Admin absorbed the System sections; Connections and Automation are real panes", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...SHELL_AMBIENT_ROUTES,
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
@@ -286,9 +340,10 @@ test("Admin absorbed the System sections; Connections is real; Automation stays 
   await expect(component.getByRole("heading", { name: "Model roles" })).toBeVisible();
   await expect(component.getByText("Provider credentials and model connections.")).toHaveCount(0);
 
-  // The last unbuilt APP category still renders its OWN distinct teaching copy.
+  // Automation → its real owner-global rules surface (the opening gloss), NOT the retired teaching copy.
   await component.getByRole("button", { name: "Automation" }).click();
-  await expect(component.getByText("Scheduled and triggered actions across your library.")).toBeVisible();
+  await expect(component.getByText(AUTOMATION_GLOSS)).toBeVisible();
+  await expect(component.getByText("Scheduled and triggered actions across your library.")).toHaveCount(0);
 });
 
 // The admin gate (settings-nav-model `adminOnly` — UX honesty over the server's adminProcedure floor):
