@@ -39,7 +39,7 @@ import { selectRuleState } from "../../../../../packages/server/src/domain/autom
 import { createSuggestionStore } from "../../../../../packages/server/src/domain/automation/substrate/suggestions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { seedMessage } from "../../chat/_support.ts";
+import { seedMessage, seedParticipant } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, makeAutomationHarness, NO_TOOLS, principal, seedHostChat, seedUser } from "../_support.ts";
 
 /** The typed refusals these suites assert (hoisted — `useTopLevelRegex`). */
@@ -785,5 +785,138 @@ describe("§4 #11 rumour mill (C2 — the same route, the consequences-and-hears
     const pending = f.suggestions.listForChat(f.chatId, FIXED_NOW_MS)[0];
     expect(pending?.kind).toBe("confirm");
     expect(pending?.payload).toMatchObject({ via: "analysis", act: { kind: "lore", bookId, spanEnd: DISTILL_SPAN_END } });
+  });
+});
+
+// ── §4 #2 the async table nudge (C6 — the actor-excluding recipient's consumer) ────────────────────────
+// The row's owner test is "in a two-human room, only the WAITING member is pinged", which is why every case
+// here seeds a second present human: with one member the preset is indistinguishable from `all_members`.
+
+/** The fixture's chat gains a second PRESENT human member — the other seat at the async table. */
+async function seedSecondMember(f: Fixture, id: string): Promise<UserId> {
+  const member = await seedUser(f.db, id);
+  await seedParticipant(f.db, { chatId: f.chatId, key: `auto_${id}`, userId: member, role: "member" });
+  return member;
+}
+
+/** The nudge's idle stamp — the same `vars` key the preset's own stamp rule writes. Setting it to a time N
+ *  hours back is how a test declares "the table has been quiet that long". */
+const NUDGE_BEAT_KEY = "nudgeBeatMs";
+/** Quiet hours OFF — equal bounds. The fixture's fixed clock sits at 22:00 UTC, and a test about idleness
+ *  should not be silently deciding a second thing. */
+const NO_QUIET_HOURS = { quietFromHour: 0, quietUntilHour: 0 };
+/** The fixed clock's own UTC hour (`FIXED_NOW_MS` = 2023-11-14T22:13:20Z) — used to build a window that
+ *  provably CONTAINS it. */
+const FIXED_NOW_UTC_HOUR = 22;
+
+describe("§4 #2 async table nudge", () => {
+  test("create → fire: after a lull, the WAITING member is notified and the one who posted is not", async () => {
+    const f = await setup();
+    const waiting = await seedSecondMember(f, "user_waiting");
+    const views = await mintAndEnable(f, "asyncTableNudge", { idleHours: 1, message: "Your move.", ...NO_QUIET_HOURS });
+    expect(views.map((v) => v.name)).toEqual(["Async table nudge (1/2)", "Async table nudge (2/2)"]);
+
+    // The table has been quiet for two hours; then the HOST posts (the harness's fact author).
+    f.vars[NUDGE_BEAT_KEY] = String(FIXED_NOW_MS - 2 * MS_PER_HOUR);
+    await f.svc.handleEvent(messageCommitted(f.chatId));
+
+    // Exactly ONE notice, to the member who was waiting — the actor is spared.
+    expect(f.notices).toEqual([
+      { type: "automation-notice", recipientUserId: waiting, chatId: f.chatId, source: { kind: "rule", ruleId: nth(views, 0).id }, message: "Your move." },
+    ]);
+    expect(await outcomes(f, nth(views, 0))).toEqual(["fired"]);
+
+    // THE ORDER PROOF, and it is only visible here: the stamp rule ran in the SAME batch and refreshed the
+    // beat time to now — yet the notice still went out, which can only be true if the nudge's predicate read
+    // the stamp BEFORE the stamp arm overwrote it. Minted the other way round, the gap would read zero.
+    expect(f.vars[NUDGE_BEAT_KEY]).toBe(String(FIXED_NOW_MS));
+    expect(await outcomes(f, nth(views, 1))).toEqual(["fired"]);
+  });
+
+  test("mid-conversation it stays silent — a fresh beat is not a lull", async () => {
+    const f = await setup();
+    await seedSecondMember(f, "user_waiting");
+    const views = await mintAndEnable(f, "asyncTableNudge", { idleHours: 1, ...NO_QUIET_HOURS });
+
+    f.vars[NUDGE_BEAT_KEY] = String(FIXED_NOW_MS - 60_000); // a minute ago
+    await f.svc.handleEvent(messageCommitted(f.chatId));
+
+    // No notice, and the discriminator is the room's shape: with a second present human, a TRUE predicate
+    // would have notified them (the actor-excluding set is non-empty here). Silence is the predicate.
+    expect(f.notices).toEqual([]);
+    // The fire log is empty rather than carrying `predicate_false` — the engine logs that outcome only after
+    // a rule's FIRST fire (the lean first-match debug posture, `engine/dispatch.ts`), which this rule has not
+    // had. Asserted so the absence reads as the engine's rule and not as a missing receipt.
+    expect(await outcomes(f, nth(views, 0))).toEqual([]);
+  });
+
+  test("quiet hours mute it — an IDLE table stays silent inside the window", async () => {
+    const f = await setup();
+    await seedSecondMember(f, "user_waiting");
+    // A window that provably contains the fixed clock's hour, built from the knobs a host would set.
+    const views = await mintAndEnable(f, "asyncTableNudge", {
+      idleHours: 1,
+      quietFromHour: FIXED_NOW_UTC_HOUR,
+      quietUntilHour: FIXED_NOW_UTC_HOUR + 1,
+    });
+
+    // The SAME idle gap that fired in the first case — so the only thing deciding this outcome is the hour.
+    f.vars[NUDGE_BEAT_KEY] = String(FIXED_NOW_MS - 2 * MS_PER_HOUR);
+    await f.svc.handleEvent(messageCommitted(f.chatId));
+
+    expect(f.notices).toEqual([]);
+    expect(await outcomes(f, nth(views, 0))).toEqual([]); // never fired ⇒ no `predicate_false` row (lean log)
+    // The STAMP half is unaffected — quiet hours mute the notice, not the room's own bookkeeping.
+    expect(f.vars[NUDGE_BEAT_KEY]).toBe(String(FIXED_NOW_MS));
+  });
+});
+
+// ── §4 #14 spotlight balance (C6 — a C1 run_analysis row, direct steer) ───────────────────────────────
+
+describe("§4 #14 spotlight balance", () => {
+  test("create → fire: the cadence beat runs ONE quiet pass and its narrator-only guidance lands verbatim", async () => {
+    const f = await setup();
+    const views = await mintAndEnable(f, "spotlightBalance", { everyN: 2 });
+    expect(nth(views, 0).name).toBe("Spotlight balance"); // single rule ⇒ bare title
+    expect(nth(views, 0).actions[0]).toMatchObject({ type: "run_analysis", routes: { steer: { apply: "direct" } } });
+
+    await f.seedBeats(2);
+    f.setQuietReply(
+      JSON.stringify({
+        arcStatus: "active",
+        updatedArc: "the quiet one has a debt",
+        successorArc: null,
+        twistOps: [],
+        guidance: "Turn the scene toward the one who has not spoken: put the next question where only they can answer it.",
+      }),
+    );
+    await f.svc.handleEvent(turnCompleted(f.chatId)); // messageCount 2 ⇒ 2 % 2 == 0
+
+    expect(f.quietCalls).toHaveLength(1);
+    // The spotlight brief — not the pacing one — rode the pass.
+    expect(f.quietCalls[0]?.prompt).toContain("Your task: Watch how the spotlight has been moving");
+    expect(await outcomes(f, nth(views, 0))).toEqual(["fired"]);
+    const stored = await selectRuleState(f.db, castId<AutomationRuleId>(nth(views, 0).id));
+    expect(stored.guidance).toBe("Turn the scene toward the one who has not spoken: put the next question where only they can answer it.");
+
+    // Off the cadence: silent, and no model call is spent (this row is SPEND-classed).
+    await f.seedBeats(1);
+    await f.svc.handleEvent(turnCompleted(f.chatId));
+    expect(f.quietCalls).toHaveLength(1);
+    expect(await outcomes(f, nth(views, 0))).toEqual(["fired", "predicate_false"]);
+  });
+
+  test("mint REFUSES on an active-game chat — it inherits the analysis arm's own admission row (D109)", async () => {
+    const f = await setup();
+    await f.db.insert(rpgGames).values({
+      id: mintTypeId(ID_PREFIX.rpgGame),
+      chatId: f.chatId,
+      mode: "lite",
+      status: "active",
+      config: rpgGameConfigSchema.parse({}),
+    });
+    await expect(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "spotlightBalance" })).rejects.toThrow(
+      "directs its own story",
+    );
   });
 });

@@ -60,6 +60,12 @@ export const RULE_PRESET_IDS = [
   /** §4 #11's sibling — the rumour mill: the SAME confirm-first lore route, distilling the consequences and
    *  hearsay the settled events would stir up rather than the durable facts. */
   "rumorMill",
+  /** §4 #2 — the async table nudge: when a post lands after a lull, ping the members who are WAITING (the
+   *  actor is excluded — `all_members_except_actor`), outside quiet hours. */
+  "asyncTableNudge",
+  /** §4 #14 — spotlight balance: a C1 analysis pass that steers the narrator toward whoever the scene has
+   *  been leaving out. Direct steer, like `storyPacing`; it never addresses or puppets a member. */
+  "spotlightBalance",
 ] as const;
 export type RulePresetId = (typeof RULE_PRESET_IDS)[number];
 export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS);

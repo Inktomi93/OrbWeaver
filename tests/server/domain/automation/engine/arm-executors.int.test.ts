@@ -167,7 +167,16 @@ function makeHarness(db: Db, opts: HarnessOptions = {}): { dispatch: ArmDispatch
 }
 
 /** Build a dispatch frame for an arm — an empty CEL env unless overridden. */
-function makeFrame(args: { chatId: ChatId; authorUserId: UserId; ruleId?: AutomationRuleId; vars?: Record<string, string> }): DispatchFrame {
+function makeFrame(args: {
+  chatId: ChatId;
+  authorUserId: UserId;
+  ruleId?: AutomationRuleId;
+  vars?: Record<string, string>;
+  /** The TRIGGERING fact. Default: a `chatOpened` fact, which carries no `message` — so an arm that reads
+   *  the actor (`post_notification`'s actor-excluding recipient) sees the honest "no human act" shape unless
+   *  a test hands it a message-bearing fact. */
+  fact?: TriggerFact;
+}): DispatchFrame {
   const env: AutomationCelEnv = {
     vars: args.vars ?? {},
     choice: {},
@@ -175,7 +184,7 @@ function makeFrame(args: { chatId: ChatId; authorUserId: UserId; ruleId?: Automa
     chat: { id: args.chatId, messageCount: 0 },
     now: { epochMs: FIXED_NOW_MS, hour: 22, dayOfWeek: 2 },
   };
-  const fact: TriggerFact = { type: "chatOpened", bus: "chat", chatId: args.chatId };
+  const fact: TriggerFact = args.fact ?? { type: "chatOpened", bus: "chat", chatId: args.chatId };
   return {
     chatId: args.chatId,
     authorUserId: args.authorUserId,
@@ -380,6 +389,71 @@ test("post_notification all_members → one automation-notice per present human 
   const { dispatch, captured } = makeHarness(db);
   await dispatch({ type: "post_notification", recipient: "all_members", messageTemplate: "hi" }, makeFrame({ chatId, authorUserId: host }));
   expect(captured.notifications.map((n) => n.recipientUserId).sort(byId)).toEqual([host, guest].sort(byId));
+});
+
+// C6 — the actor-excluding recipient. THE MATRIX, because the member's whole value is a difference between
+// two members of the same roster: who is spared, and what happens when there is nobody to spare.
+/** A `messageCommitted` fact authored by `author` — the shape the actor-excluding member resolves against. */
+function committedBy(chatId: ChatId, author: UserId | null): TriggerFact {
+  return {
+    type: "messageCommitted",
+    bus: "chat",
+    chatId,
+    message: { id: "message_probe", role: "user", authorUserId: author, characterId: null, seq: 1, content: "your move" },
+  };
+}
+
+test("post_notification all_members_except_actor → every present human EXCEPT the fact's author", async () => {
+  const { db, host, chatId } = await setup();
+  const guest = await seedUser(db, "user_guest");
+  await seedParticipant(db, { chatId, key: "auto_guest", userId: guest, role: "member" });
+  const { dispatch, captured } = makeHarness(db);
+
+  // The GUEST posted, so the guest is the one member who does not need telling.
+  await dispatch(
+    { type: "post_notification", recipient: "all_members_except_actor", messageTemplate: "your move" },
+    makeFrame({ chatId, authorUserId: host, fact: committedBy(chatId, guest) }),
+  );
+
+  expect(captured.notifications.map((n) => n.recipientUserId)).toEqual([host]);
+});
+
+test("the actor-excluding member spares the HOST too when the host is the one who posted", async () => {
+  // The exclusion follows the ACT, not the role — otherwise a host playing in their own async room would be
+  // pinged by their own post, which is the exact notice the member exists to suppress.
+  const { db, host, chatId } = await setup();
+  const guest = await seedUser(db, "user_guest");
+  await seedParticipant(db, { chatId, key: "auto_guest", userId: guest, role: "member" });
+  const { dispatch, captured } = makeHarness(db);
+
+  await dispatch(
+    { type: "post_notification", recipient: "all_members_except_actor", messageTemplate: "your move" },
+    makeFrame({ chatId, authorUserId: host, fact: committedBy(chatId, host) }),
+  );
+
+  expect(captured.notifications.map((n) => n.recipientUserId)).toEqual([guest]);
+});
+
+test("a fact with NO human author excludes nobody — there was no human act to spare", async () => {
+  // A model-authored message (`authorUserId: null`) and a fact with no `message` at all (a turn fact) both
+  // land here. Excluding nobody is the correct answer, not a fallback: the alternative is a silent no-op.
+  const { db, host, chatId } = await setup();
+  const guest = await seedUser(db, "user_guest");
+  await seedParticipant(db, { chatId, key: "auto_guest", userId: guest, role: "member" });
+  const { dispatch, captured } = makeHarness(db);
+
+  await dispatch(
+    { type: "post_notification", recipient: "all_members_except_actor", messageTemplate: "the scene moves" },
+    makeFrame({ chatId, authorUserId: host, fact: committedBy(chatId, null) }),
+  );
+  // The default frame's `chatOpened` fact carries no `message` field at all — the same verdict by a
+  // different absence, which is why both are pinned.
+  await dispatch(
+    { type: "post_notification", recipient: "all_members_except_actor", messageTemplate: "the scene moves" },
+    makeFrame({ chatId, authorUserId: host }),
+  );
+
+  expect(captured.notifications.map((n) => n.recipientUserId).sort(byId)).toEqual([host, guest, host, guest].sort(byId));
 });
 
 // ── 1.7 generate_image (the /imagine engine) ──────────────────────────────────────────────────────────
