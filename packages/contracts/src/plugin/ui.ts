@@ -16,6 +16,8 @@
 // the node that first needs it), and the `page` anchor + `grid`/`masterDetail`/`searchBar` browse vocabulary
 // (U5). Adding those is a priced phase, not a widening of this file.
 
+import type { AssetId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 // ── Vocabulary axes (closed tuples; a member is a compile-tier fact) ─────────────────────────────────────────
@@ -91,7 +93,6 @@ export const PLUGIN_TEXT_MAX_BYTES = 2048;
 export const PLUGIN_ROWS_MAX = 64;
 
 const LABEL_MAX = 200;
-const ASSET_ID_MAX = 128;
 const STATE_PATH_MAX = 128;
 /** Form-field `name` and `button` `actionId` are programmatic keys into the action's `values` bag — a bounded
  *  identifier grammar (the surface-id spirit), so a value key is an ident and never arbitrary text. */
@@ -158,8 +159,9 @@ export interface PluginListNode {
 }
 export interface PluginImageNode {
   readonly kind: "image";
-  /** An asset in the INSTALLER's CAS ONLY — never a URL (no URL arm exists; the "no exfil pixel" wall). */
-  readonly assetId: string;
+  /** An asset in the INSTALLER's CAS ONLY — a well-formed asset id (the `typeIdSchema` rejects a URL: the
+   *  seam-11 "no URL arm exists" wall). The FORMAT is validated here; the CAS OWNERSHIP resolve is server-side. */
+  readonly assetId: AssetId;
   readonly alt?: string | undefined;
 }
 export interface PluginMarkdownNode {
@@ -273,7 +275,7 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
     z.object({ kind: z.literal("meter"), value: boundNumber, max: finiteNumber.optional(), label: labelSchema.optional() }),
     z.object({ kind: z.literal("keyValue"), rows: z.array(z.object({ key: labelSchema, value: boundString(LABEL_MAX) })).max(PLUGIN_ROWS_MAX) }),
     z.object({ kind: z.literal("list"), items: z.array(boundString(LABEL_MAX)).max(PLUGIN_ROWS_MAX) }),
-    z.object({ kind: z.literal("image"), assetId: z.string().min(1).max(ASSET_ID_MAX), alt: z.string().max(LABEL_MAX).optional() }),
+    z.object({ kind: z.literal("image"), assetId: typeIdSchema(ID_PREFIX.asset), alt: z.string().max(LABEL_MAX).optional() }),
     z.object({ kind: z.literal("markdown"), value: boundString(PLUGIN_TEXT_MAX_BYTES) }),
     z.object({
       kind: z.literal("textField"),
@@ -358,3 +360,26 @@ export const pluginSurfaceSpecSchema: z.ZodType<PluginSurfaceSpec> = pluginSurfa
     ctx.addIssue({ code: "custom", message: `surface spec exceeds ${PLUGIN_SPEC_MAX_BYTES} bytes` });
   }
 });
+
+// ── Registration metadata (U1, seam 4 — the guest's `host.ui.register` def MINUS the `onAction` handle) ───────
+
+/** A surface's `id` grammar (`host.ui.register`'s `id`; plugin-ui-plane §4.2) — unique per plugin, a bounded
+ *  programmatic identifier (the values-bag / registry key discipline), never arbitrary text. */
+export const PLUGIN_SURFACE_ID_RE = /^[a-z][a-z0-9_]{0,40}$/;
+/** The shell label line cap (`host.ui.register`'s `title`; plugin-ui-plane §4.2). */
+export const PLUGIN_SURFACE_TITLE_MAX = 80;
+
+/** The SERIALIZABLE part of a `host.ui.register` def — validated host-side at collection (the trust boundary)
+ *  AND the exact descriptor `plugin.listSurfaces` projects to the client renderer. The `onAction` handler is NOT
+ *  here (it is a guest function, kept as an opaque `PluginHandlerRef` on the collected
+ *  {@link PluginSurfaceRegistration}); `spec` is REQUIRED for a static-tier surface to render anything, but is
+ *  optional at THIS schema because a scripted-tier (U4) surface computes its tree client-side. An invalid meta
+ *  is a REGISTRATION refusal (surface absent + a plugin log line), never activation-fatal (plugin-ui-plane §4.9). */
+export const pluginSurfaceRegistrationMetaSchema = z.object({
+  id: z.string().regex(PLUGIN_SURFACE_ID_RE),
+  anchor: z.enum(PLUGIN_SURFACE_ANCHORS),
+  title: z.string().min(1).max(PLUGIN_SURFACE_TITLE_MAX),
+  tier: z.enum(PLUGIN_SURFACE_TIERS),
+  spec: pluginSurfaceSpecSchema.optional(),
+});
+export type PluginSurfaceRegistrationMeta = z.infer<typeof pluginSurfaceRegistrationMetaSchema>;

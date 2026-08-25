@@ -226,5 +226,11 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // Transient quick-reply chips onto the chat's automation bus — host-authority is gated UPSTREAM in the
     // membrane (`InvocationChat.canWrite`); the source stamps THIS plugin.
     surfaceQuickReply: (chatId, choices) => ops.quickReply.surface({ pluginId: requirePluginId("surfaceQuickReply"), chatId, choices }),
+    // Publish a UI surface's state (`host.ui.setState`, ui.surface). The pluginId + installer are closed over
+    // here (a guest names only the surfaceId + state); the op writes the state row + emits the per-user poke.
+    // A transient snippet has no pluginId — and no `ui.surface` grant, so the capability gate never reaches this.
+    ui: {
+      setState: (surfaceId, state) => ops.ui.setState(requirePluginId("ui.setState"), installerUserId, surfaceId, state),
+    },
   };
 }

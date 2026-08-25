@@ -29,10 +29,11 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
   llm: { prompts: string[] };
   egress: { count: number };
   suggested: { acts: PluginSuggestedAct[] };
-  performed: { turns: number; lore: number; pictures: number; chips: number };
+  performed: { turns: number; lore: number; pictures: number; chips: number; uiSetState: { surfaceId: string; state: Record<string, unknown> }[] };
 } {
   const writes = { count: 0 };
-  const performed = { turns: 0, lore: 0, pictures: 0, chips: 0 };
+  const uiSetState: { surfaceId: string; state: Record<string, unknown> }[] = [];
+  const performed = { turns: 0, lore: 0, pictures: 0, chips: 0, uiSetState };
   const llm: { prompts: string[] } = { prompts: [] };
   const egress = { count: 0 };
   const suggested: { acts: PluginSuggestedAct[] } = { acts: [] };
@@ -85,6 +86,12 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
       performed.chips += 1;
       return Promise.resolve();
     },
+    ui: {
+      setState: (surfaceId, state) => {
+        performed.uiSetState.push({ surfaceId, state });
+        return Promise.resolve();
+      },
+    },
   };
   return { bridge, writes, llm, egress, suggested, performed };
 }
@@ -94,6 +101,8 @@ interface RuntimeExtras {
   readonly netHosts?: readonly string[];
   readonly collectTransform?: MembraneRuntime["collectTransform"];
   readonly collectEvent?: MembraneRuntime["collectEvent"];
+  readonly collectSurface?: MembraneRuntime["collectSurface"];
+  readonly logWarn?: MembraneRuntime["logWarn"];
 }
 
 function makeRuntime(grants: readonly PluginCapability[], canWrite: boolean, bridge: PluginBridge, extra: RuntimeExtras = {}): MembraneRuntime {
@@ -109,6 +118,8 @@ function makeRuntime(grants: readonly PluginCapability[], canWrite: boolean, bri
     collectTool: () => undefined,
     collectTransform: extra.collectTransform ?? ((): void => undefined),
     collectEvent: extra.collectEvent ?? ((): void => undefined),
+    collectSurface: extra.collectSurface ?? ((): void => undefined),
+    logWarn: extra.logWarn ?? ((): void => undefined),
   };
 }
 
@@ -606,5 +617,92 @@ describe("attachMembrane — llm.quiet (SPEND, class 1: writes nothing)", () => 
       expect(out).toBe("caught");
       expect(llm.prompts).toEqual([]);
     });
+  });
+});
+
+describe("host.ui — declarative surface registration + state publish (plugin-ui-plane #679 U1)", () => {
+  const uiGrants: readonly PluginCapability[] = ["ui.surface"];
+
+  test("host.ui.register collects a VALIDATED surface (id/anchor/title/tier/spec) + keeps the onAction handle", async () => {
+    const collected: { meta: unknown; hasAction: boolean }[] = [];
+    const { bridge } = fakeBridge();
+    const runtime = makeRuntime(uiGrants, false, bridge, {
+      collectSurface: (meta, onAction) => {
+        collected.push({ meta, hasAction: onAction !== null });
+        // Ownership of the guest handle TRANSFERS to collectSurface (the real Sandbox keeps it in `handlers`
+        // for the action round-trip + disposes at teardown). This test keeps no resident, so it disposes here —
+        // an un-disposed guest handle at `ctx.dispose()` aborts the shared WASM runtime (`list_empty`).
+        onAction?.dispose();
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      const res = ctx.evalCode(
+        `host.ui.register({ id: "affinity_panel", anchor: "settings", title: "Affinity", tier: "static", spec: { kind: "stack", children: [{ kind: "text", value: "hi" }] }, onAction: () => {} }); "ok"`,
+      );
+      if (res.error) {
+        throw new Error(readString(ctx, res.error));
+      }
+      res.value.dispose();
+    });
+    expect(collected).toHaveLength(1);
+    expect(collected[0]?.meta).toEqual({
+      id: "affinity_panel",
+      anchor: "settings",
+      title: "Affinity",
+      tier: "static",
+      spec: { kind: "stack", children: [{ kind: "text", value: "hi" }] },
+    });
+    // The guest function handle transferred to the Sandbox (kept for the action round-trip).
+    expect(collected[0]?.hasAction).toBe(true);
+  });
+
+  test("an INVALID surface spec is a SOFT refusal — logged + skipped, NEVER activation-fatal (§4.9)", async () => {
+    const collected: unknown[] = [];
+    const warned: string[] = [];
+    const { bridge } = fakeBridge();
+    const runtime = makeRuntime(uiGrants, false, bridge, { collectSurface: (meta) => collected.push(meta), logWarn: (msg) => warned.push(msg) });
+    await withRuntime(runtime, (ctx) => {
+      // `iframe` is not a node kind — the spec fails zod. `register` must return WITHOUT throwing so the
+      // activation that also registered this plugin's tools/events survives (a stale panel is not fatal).
+      const res = ctx.evalCode(
+        `let threw = false; try { host.ui.register({ id: "bad", anchor: "settings", title: "Bad", tier: "static", spec: { kind: "iframe" } }); } catch { threw = true; } threw ? "threw" : "survived"`,
+      );
+      if (res.error) {
+        throw new Error(readString(ctx, res.error));
+      }
+      expect(ctx.getString(res.value)).toBe("survived");
+      res.value.dispose();
+    });
+    expect(collected).toHaveLength(0); // surface absent
+    expect(warned).toHaveLength(1); // logged
+  });
+
+  test("host.ui.setState publishes the whole state through the bridge (the domain writes + emits)", async () => {
+    const { bridge, performed } = fakeBridge();
+    const runtime = makeRuntime(uiGrants, false, bridge);
+    await withRuntime(runtime, async (ctx) => {
+      const out = await runAsync(ctx, `(async () => { await host.ui.setState("affinity_panel", { affinity: 7, mood: "warm" }); return "done"; })()`);
+      expect(out).toBe("done");
+    });
+    expect(performed.uiSetState).toEqual([{ surfaceId: "affinity_panel", state: { affinity: 7, mood: "warm" } }]);
+  });
+
+  test("host.ui.register / host.ui.setState are gated by the ui.surface capability", async () => {
+    const { bridge, performed } = fakeBridge();
+    const runtime = makeRuntime([], false, bridge); // NO ui.surface grant
+    await withRuntime(runtime, async (ctx) => {
+      const registerName = ctx.evalCode(
+        `let name = ""; try { host.ui.register({ id: "x", anchor: "settings", title: "X", tier: "static" }); } catch (e) { name = e.name; } name`,
+      );
+      if (registerName.error) {
+        throw new Error(readString(ctx, registerName.error));
+      }
+      expect(ctx.getString(registerName.value)).toBe("PluginCapabilityError");
+      registerName.value.dispose();
+      // setState too — the async arm rejects with the same typed error, and nothing reaches the bridge.
+      const setStateName = await runAsync(ctx, `host.ui.setState("x", {}).then(() => "ok", (e) => e.name)`);
+      expect(setStateName).toBe("PluginCapabilityError");
+    });
+    expect(performed.uiSetState).toEqual([]);
   });
 });

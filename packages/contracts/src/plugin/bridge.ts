@@ -124,6 +124,16 @@ export interface PluginBridge {
    *  (stamped as the emit `source`) + the injected bus sink (`publishAutomationEvent`, composed UP — infra never
    *  imports transport). Transient (no row): the chips are ephemeral display strings. */
   readonly surfaceQuickReply: (chatId: ChatId, choices: readonly { readonly label: string; readonly sendText: string }[]) => Promise<void>;
+  /** Publish a UI surface's STATE (`host.ui.setState`, capability ui.surface — plugin-ui-plane #679 U1). The
+   *  membrane passes the guest-named `surfaceId` + the whole replacement state as JSON-safe data; the domain
+   *  builder closes over the `pluginId` + installer, writes the per-`(pluginId, surfaceId)` in-memory state row
+   *  (the S4-suggestion-store precedent — respawn wipes; durable state is the plugin's own `storage.kv` job) and
+   *  emits the per-user freshness poke (`pluginSurfaceStateChanged`) so the installer's own client refetches.
+   *  NO chat scope: a v1 surface renders only for its installer, so the state plane is keyed by the plugin the
+   *  guest is, never a room. Authority-agnostic like every bridge op — infra holds no pluginId or Principal. */
+  readonly ui: {
+    readonly setState: (surfaceId: string, state: Record<string, unknown>) => Promise<void>;
+  };
 }
 
 /** The admitted invocation chat + whether the acting principal is HOST of it (the write ceiling:

@@ -212,6 +212,17 @@ export interface PluginHostOps {
     readonly raise: RaisePluginSuggestion;
     readonly voidForPlugin: VoidPluginSuggestions;
   };
+  /** The declarative UI-surface state seam (`host.ui.setState`, capability `ui.surface` — plugin-ui-plane #679
+   *  U1). `setState` publishes a surface's whole replacement state: the compose op writes the per-`(pluginId,
+   *  surfaceId)` in-memory state row (the S4-suggestion-store precedent — respawn wipes; durable state is the
+   *  plugin's own `storage.kv` job) and emits the per-user `pluginSurfaceStateChanged` freshness poke so the
+   *  INSTALLER's own client refetches. Keyed by BOTH `pluginId` AND `installerUserId` (the store guard + the
+   *  emit channel), closed over the installer domain-side — a guest names only the surfaceId + state. NO chat
+   *  scope: a v1 surface renders only for its installer. The read half (`plugin.getSurfaceState`) lands with U1's
+   *  read verbs. Wired at compose. */
+  readonly ui: {
+    readonly setState: (pluginId: PluginId, installerUserId: UserId, surfaceId: string, state: Record<string, unknown>) => Promise<void>;
+  };
   /** The runtime registrar seams (PL-A tool-use, D50 transform, event subscribe). Each takes a collected
    *  registration + the per-handler invoker + the per-activation {@link PluginActivationScope} (slug for
    *  namespacing, installer for the PL-C ceiling) and returns an `unregister` handle. `registerTool` is wired

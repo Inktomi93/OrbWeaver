@@ -13,20 +13,13 @@ import type { ChatId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import { busDupCheck, busInvalidate, IS_DEV } from "#lib";
 import { roomRegistry } from "./bus/room-registry.ts";
-import { collapseFilters } from "./collapse-filters.ts";
+import { collapseFilters, filterKeyName } from "./collapse-filters.ts";
 import { applyCanonView } from "./invalidation-carrier.ts";
 import type { InvalidateFilter } from "./invalidation-reads.ts";
 import { chatCanonReads, chatReads, hiddenRevealRead, promptPreviewReads, ROOM_ENTITY_FILTERS, runtimeVariablesRead } from "./invalidation-reads.ts";
 import type { Trpc } from "./trpc.ts";
 
 export type { InvalidateFilter } from "./invalidation-reads.ts";
-
-/** The tRPC filter's dotted path — the readable key name the `[bus]` dev log keys off. Dev-only. */
-function filterKeyName(filter: InvalidateFilter): string {
-  const queryKey = (filter as { readonly queryKey?: readonly unknown[] }).queryKey;
-  const path = Array.isArray(queryKey) ? queryKey[0] : undefined;
-  return Array.isArray(path) ? path.join(".") : "?";
-}
 
 export interface Invalidation {
   /** The bus half — routes a `ChatBusEvent` through the exhaustive map. Fire-and-forget. */
@@ -315,6 +308,9 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // admin's reads (writer-local, per their own cited `query-freshness-coverage` entries); this member only
   // ever reaches the AFFECTED user's channel.
   identityChanged: (_e, trpc) => identityFilters(trpc),
+  // READ-PENDING (plugin-ui-plane #679 U1): EMITTED live (`host.ui.setState`); the filter is `[]` until
+  // `plugin.getSurfaceState` lands with U1's read verbs (the RPG-bus deferral style) — wire its `pathFilter()` then.
+  pluginSurfaceStateChanged: () => [],
   // Deferred member — never emitted today; the map entry is ready for when it lands.
   connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter()],
 };
