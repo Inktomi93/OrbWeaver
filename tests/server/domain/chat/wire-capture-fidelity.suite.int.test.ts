@@ -251,12 +251,12 @@ const rejectNonRetryable = (): Promise<never> => Promise.reject(new ProviderErro
 /** OpenRouter: the SDK client's `chat.send` / `beta.responses.send` reject non-retryably; captureWire fires
  *  before `.send` and records the body reparsed through the SDK's `$outboundSchema` (the TRUE snake_case wire). */
 const openRouterSurface: SurfaceFactory = (sink) => {
-  // FABRICATION-OK: minimal SDK client — only chat.send/beta.responses.send are reached (reject AFTER capture); real backend builds the wire.
+  // FABRICATION-OK: only chat.send/beta.responses.send are reached (reject AFTER capture); the real backend builds the wire.
   const fakeOrClient = {
     chat: { send: rejectNonRetryable },
     beta: { responses: { send: rejectNonRetryable } },
     // fake reaches only chat.send / beta.responses.send (both reject AFTER capture); the REAL backend builds the wire.
-  } as unknown as OrClient; // FABRICATION-OK: minimal SDK client double
+  } as unknown as OrClient;
   const backend = createOpenRouterBackend({
     now: () => 1000,
     getClient: () => fakeOrClient,
@@ -308,7 +308,7 @@ const agentSdkSurface: SurfaceFactory = (sink) => {
 
 /** A `custom_openai` {@link ResolvedCredential} double — only the fields the custom-byo runner reads. */
 function customOpenAiCredential(): ResolvedCredential {
-  // FABRICATION-OK: custom_openai credential double — the runner reads only source/baseUrl/includeBody/excludeBody.
+  // FABRICATION-OK: the runner reads only source/baseUrl/includeBody/excludeBody from this credential double.
   return {
     source: "custom_openai",
     baseUrl: "http://127.0.0.1:0",
@@ -321,7 +321,7 @@ function customOpenAiCredential(): ResolvedCredential {
     excludeBody: null,
     responseMap: null,
     // runner reads only source/baseUrl/includeBody/excludeBody off this credential.
-  } as unknown as ResolvedCredential; // FABRICATION-OK: custom_openai credential double
+  } as unknown as ResolvedCredential;
 }
 
 /** A {@link ResolvedConnection} over {@link TEST_CAPABILITY} with an explicit source/api/credential. */

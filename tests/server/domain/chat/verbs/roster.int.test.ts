@@ -845,7 +845,7 @@ describe("setMemberHistoryVisibility — the host's per-member join-history writ
     const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster
-      // FABRICATION-OK: a participant id forged into the userId slot — the point is that no key reaches a character seat.
+      // A participant id is forged through castId into the userId slot; no assertion cast is involved here.
       .setMemberHistoryVisibility({ principal: principal(host), chatId, userId: castId<UserId>(seatId), visibility: "from-join" })
       .catch((e: unknown) => e);
 

@@ -10,6 +10,7 @@
 import type { AsExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor } from "../contract/gate.ts";
+import { unwrapExpression } from "../lib/ast-read.ts";
 
 const TESTS_REL_RE = /\/(?<rel>tests\/.*)$/u;
 const ESCAPE = "FABRICATION-OK";
@@ -17,6 +18,15 @@ const MARKER_OPENER_RE = /^\/\/\s*FABRICATION-OK\b/u;
 const MARKER_RE = /^\/\/\s*FABRICATION-OK\s*:\s*\S.*$/u;
 const COMMENT_LINE_RE = /^\s*(?:\/\/|\*|\/\*)/u;
 const BLANK_LINE_RE = /^\s*$/u;
+const LITERAL_KINDS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.StringLiteral,
+  SyntaxKind.NoSubstitutionTemplateLiteral,
+  SyntaxKind.TemplateHead,
+  SyntaxKind.TemplateMiddle,
+  SyntaxKind.TemplateTail,
+  SyntaxKind.RegularExpressionLiteral,
+  SyntaxKind.JsxText,
+]);
 /** Cast targets that are NOT a fabrication claim: `as const` (a literal-narrowing operator), `as any` /
  *  `as unknown` (widening escapes with their own rules). This is the PREDICATE'S VOCABULARY, not an
  *  exemption ledger — no site is granted a pass here, and there is nothing that could go stale (the words
@@ -33,8 +43,8 @@ const LITERAL_CAST_MSG = (typeText: string): string =>
   `object/array-literal \`as ${typeText}\` in a test — a hand-shaped literal asserted complete survives ` +
   `${typeText} growing a field (test-support-dry-punchlist.md W1h). Use a typed factory or \`satisfies ` +
   `${typeText}\` (which re-checks on every change). Deliberate invalid-input probe? mark it \`// ${ESCAPE}: <reason>\`.`;
-const MALFORMED_MARKER_MSG = `malformed \`// ${ESCAPE}\` marker — the grammar is \`// ${ESCAPE}: <reason>\`; a bare marker exempts nothing.`;
-const STALE_MARKER_MSG = `stale \`// ${ESCAPE}: <reason>\` marker — it guards no fabrication cast. Delete the loaded-gun exemption.`;
+const MALFORMED_MARKER_MSG = `malformed \`// ${ESCAPE}\` marker — the grammar is \`// ${ESCAPE}: <reason>\`; a bare marker exempts nothing (core/Spine-Testing.md §5).`;
+const STALE_MARKER_MSG = `stale \`// ${ESCAPE}: <reason>\` marker — it guards no fabrication cast. Delete the loaded-gun exemption (core/Spine-Testing.md §5).`;
 
 /** True when the AsExpression is `<inner> as unknown as Y` — i.e. its expression is itself an AsExpression
  *  casting to the `unknown` keyword. Detected on the OUTER node so each double-cast counts once. */
@@ -48,7 +58,7 @@ function isDoubleUnknownCast(node: AsExpression): boolean {
 
 /** True when the AsExpression casts an object/array LITERAL to a concrete type (not const/any/unknown). */
 function isLiteralFabrication(node: AsExpression): boolean {
-  const expr = node.getExpression();
+  const expr = unwrapExpression(node.getExpression());
   if (!(Node.isObjectLiteralExpression(expr) || Node.isArrayLiteralExpression(expr))) {
     return false;
   }
@@ -67,26 +77,44 @@ interface Candidate {
   readonly message: string;
 }
 
+function commentOpener(lineText: string, lineStart: number, literalSpans: readonly (readonly [number, number])[]): number | undefined {
+  let opener = lineText.indexOf("//");
+  let found: number | undefined;
+  while (opener !== -1) {
+    const position = lineStart + opener;
+    if (!literalSpans.some(([start, end]) => position >= start && position < end)) {
+      found = opener;
+      break;
+    }
+    opener = lineText.indexOf("//", opener + 2);
+  }
+  return found;
+}
+
 /** Comment-block-scoped markers: each guards the next authored line, or its own line when trailing code. */
 function markersIn(sf: SourceFile): readonly Marker[] {
   const raw = sf.getFullText();
-  const lines = sf.getFullText().split("\n");
+  const lines = raw.split("\n");
   const markers: Marker[] = [];
-  const comments = new Map<number, string>();
-  const collect = (node: Node): void => {
-    for (const range of [...node.getLeadingCommentRanges(), ...node.getTrailingCommentRanges()]) {
-      comments.set(range.getPos(), range.getText());
-    }
-  };
-  collect(sf);
-  sf.forEachDescendant(collect);
-  for (const [position, text] of comments) {
-    if (!MARKER_OPENER_RE.test(text.trim())) {
+  const literalSpans = sf
+    .getDescendants()
+    .filter((node) => LITERAL_KINDS.has(node.getKind()))
+    .map((node) => [node.getStart(), node.getEnd()] as const);
+  let lineStart = 0;
+  for (let index = 0; index < lines.length; index += 1) {
+    const lineText = lines[index] ?? "";
+    const opener = commentOpener(lineText, lineStart, literalSpans);
+    if (opener === undefined) {
+      lineStart += lineText.length + 1;
       continue;
     }
-    const line = sf.getLineAndColumnAtPos(position).line;
-    const lineStart = raw.lastIndexOf("\n", position - 1) + 1;
-    const beforeComment = raw.slice(lineStart, position);
+    const text = lineText.slice(opener);
+    if (!MARKER_OPENER_RE.test(text.trim())) {
+      lineStart += lineText.length + 1;
+      continue;
+    }
+    const line = index + 1;
+    const beforeComment = lineText.slice(0, opener);
     let guards = line;
     if (BLANK_LINE_RE.test(beforeComment)) {
       guards += 1;
@@ -95,6 +123,7 @@ function markersIn(sf: SourceFile): readonly Marker[] {
       }
     }
     markers.push({ line, guards, valid: MARKER_RE.test(text.trim()) });
+    lineStart += lineText.length + 1;
   }
   return markers.sort((a, b) => a.line - b.line);
 }
@@ -188,6 +217,12 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "literal" },
       why: "an array-literal `as Y[]` — the same fabrication shape",
     },
+    {
+      files: "export const d = ({ n: 1 }) as Widget;\n",
+      at: "tests/tooling/paren.test.ts",
+      expect: { messageIncludes: "literal" },
+      why: "parentheses do not change an object literal into a typed value; shared wrapper unwrapping keeps the fabrication visible",
+    },
   ],
   mustPass: [
     {
@@ -209,6 +244,12 @@ export const gate: GateDescriptor = {
       files: "// FABRICATION-OK: deliberate invalid-input probe exercises the parser boundary\nexport const a = {} as unknown as Widget;\n",
       at: "tests/tooling/escape-above.test.ts",
       why: "a `// FABRICATION-OK` comment on the line ABOVE exempts the site — passes",
+    },
+    {
+      files:
+        "export const a = source\n  // FABRICATION-OK: deliberate invalid-input probe exercises the parser boundary\n  .map((value) => value as unknown as Widget);\n",
+      at: "tests/tooling/escape-chain.test.ts",
+      why: "a marker before a chained call's dot token is a real line comment even when ts-morph exposes no attached comment range",
     },
     {
       files: "export const a = {} as unknown as { n: number };\n",

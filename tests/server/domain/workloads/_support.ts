@@ -45,7 +45,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
   // Only the contributions' PARAMS SCHEMAS matter here (the verbs + the row read path validate against
   // them); their run bodies are pinned at each domain's own mirror. Every dep below is a stub frame.
   const contributions: readonly AnyWorkloadContribution[] = [
-    // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+    // Only the contribution's params schema is read from this stub frame (see above).
     ...createEmbeddingsWorkloadContributions({
       // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
       embeddings: { embedCorpus: stub({ embedded: 3, skipped: 1 }), embedAssets: stub({ embedded: 2, skipped: 0 }) } as never,
@@ -54,7 +54,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
       emitUserEvent: () => undefined,
       listCorpusOwners: () => Promise.resolve([]),
     }),
-    // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+    // Only the contribution's params schema is read from this stub frame (see above).
     ...createDiscoveryWorkloadContributions({
       // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
       discovery: {
@@ -69,14 +69,14 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
       emitUserEvent: () => undefined,
       listCorpusOwners: () => Promise.resolve([]),
     }),
-    // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+    // FABRICATION-OK: only the contribution's params schema is read from this Db stub frame (see above).
     ...createStatsWorkloadContributions({ db: {} as Db, now: () => T0 }),
-    // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+    // Only the contribution's params schema is read from this stub frame (see above).
     ...createConnectionWorkloadContributions({
       // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
       connection: { refreshCatalog: stub({ models: [] }), refreshAgentSdkCatalog: stub({ models: [] }) } as never,
     }),
-    // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+    // Only the contribution's params schema is read from this stub frame (see above).
     ...createAssetsWorkloadContributions({
       // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
       db: {} as Db,
@@ -93,7 +93,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
       // `memory-backfill` refuses enqueue when memory is off for the row's owner.
       isMemoryEnabled: stub(opts.memoryEnabled ?? true),
     }),
-    // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+    // Only the contribution's params schema is read from this stub frame (see above).
     ...createDatabankWorkloadContributions({
       // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
       databankIngest: { ingestDocument: stub({}), reindex: stub({}) } as never,

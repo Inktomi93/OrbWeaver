@@ -198,6 +198,7 @@ function inviteSurface(verb: keyof ChatService, drive: (ctx: Context) => Promise
   return {
     path: `invites.${verb}`,
     make: (): ReturnType<BeltSurface["make"]> => {
+      // FABRICATION-OK: the belt assertions observe only call count; the mocked verb result is never read.
       const fn = vi.fn(async () => ({}) as never);
       return { services: { chat: { [verb]: fn } }, presence: inertPresence, probe: fn };
     },

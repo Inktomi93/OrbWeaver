@@ -44,7 +44,8 @@ function fakeClient(): { client: VllmEngineClient; hits: EngineHit[] } {
           choices: [{ message: { content: "ok" } }],
         } as T);
       }
-      // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case). FABRICATION-OK: see the T rationale above.
+      // FABRICATION-OK: T is enginePost's caller-resolved generic, so no concrete factory can name it here.
+      // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case).
       return Promise.resolve({ model: "served", results: [], usage: { total_tokens: 0 } } as T);
     },
     engineStream: () => Promise.reject(new Error("not exercised here")),

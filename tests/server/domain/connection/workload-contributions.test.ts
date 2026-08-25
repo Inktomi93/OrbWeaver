@@ -35,7 +35,7 @@ describe("refresh-model-catalog contribution", () => {
   });
 
   test("a failed lane reports null and does NOT discard the other lane's refresh (null ≠ 0)", async () => {
-    // FABRICATION-OK: a deliberately REJECTING lane — the failure path is exactly what is under test.
+    // A deliberately REJECTING lane: the failure path is exactly what is under test.
     const contribution = build({
       // FABRICATION-OK: a deliberately REJECTING lane — the failure path is exactly what is under test.
       refreshAgentSdkCatalog: vi.fn(() =>
@@ -48,7 +48,7 @@ describe("refresh-model-catalog contribution", () => {
 
   test("BOTH lanes failing fails the run (the row is a real failure, not a silent empty refresh)", async () => {
     const reject = (): Promise<never> => Promise.reject(new Error("offline"));
-    // FABRICATION-OK: two deliberately REJECTING lanes — the both-failed path is exactly what is under test.
+    // Two deliberately REJECTING lanes: the both-failed path is exactly what is under test.
     const contribution = build({
       // FABRICATION-OK: two deliberately REJECTING lanes — the both-failed path is exactly under test.
       refreshCatalog: reject as unknown as ConnectionWorkloadDeps["connection"]["refreshCatalog"],

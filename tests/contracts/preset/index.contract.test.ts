@@ -428,7 +428,7 @@ test("guidedActionConfigSchema: a stored per-template `sampling` override is STR
   // the whole preset to defaults), and the parsed action carries prompt + role only.
   const parsed = guidedActionsSchema.parse({
     ...DEFAULT_GUIDED_ACTIONS,
-    // FABRICATION-OK: the DELETED field — the point of the test is that a legacy blob carrying it still parses.
+    // The DELETED field is deliberate: the point is that a legacy blob carrying it still parses.
     greeting_new: { prompt: "g", role: "system", sampling: { temperature: 1.2, maxOutputTokens: 700 } },
   });
   expect(parsed.greeting_new).toEqual({ prompt: "g", role: "system" });
