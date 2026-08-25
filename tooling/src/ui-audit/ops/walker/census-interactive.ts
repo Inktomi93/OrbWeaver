@@ -159,35 +159,35 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     var r = el.getBoundingClientRect();
     return Math.min(r.width, r.height) > 2;
   }
-  // BOX- vs PSEUDO-CARRIED ANCESTOR CREDIT (#662/#665 — fixed from an unconditional hit.contains(el)
+  // BOX- vs NOT-BOX-CARRIED ANCESTOR CREDIT (#662/#665 — fixed from an unconditional hit.contains(el)
   // that made a short control alone in a padded wrapper UN-FAILABLE: it measured 44 no matter how short,
-  // because walking off its own box always landed back on the wrapper). Ancestor credit is legitimate for
-  // exactly ONE shape: an overflowing ::after/::before touch-target pseudo (the @orb/ui Button glyph
-  // ramp — packages/ui/src/primitives/button/variants.ts glyphBox, content-[''] + absolute positioning)
-  // has no DOM node, so a probed point on its clipped-away edge falls through to whatever plain box paints
-  // there — usually the control's own wrapper — and THAT fallback is the control's real extent. A control
-  // with no such pseudo carries its floor on its OWN border box (a real height/min-height, e.g. the
-  // CONTROL_SIZE ramp), so an ancestor is never evidence of ownership for it.
+  // because walking off its own box always landed back on the wrapper). Ancestor credit — via EITHER the
+  // plain containment clause below OR sharedCompositeOwns — is legitimate for exactly two shapes, both of
+  // which have NO paintable box of their own at the probed point, so the ancestor is the only thing that
+  // CAN answer:
+  //   · PSEUDO-CARRIED: an overflowing ::after/::before touch-target pseudo (the @orb/ui Button glyph
+  //     ramp — packages/ui/src/primitives/button/variants.ts glyphBox, content-[''] + absolute
+  //     positioning) has no DOM node at all.
+  //   · VISUALLY-HIDDEN: Base UI's native range input inside a Slider Thumb (isVisuallyHidden, core.ts —
+  //     a collapsed clip-path) paints nothing; elementFromPoint on its own centre already resolves to
+  //     the Thumb div that visually represents it (verified live: the input's own rect sits UNDER the
+  //     Thumb, and even the probe at its own centre hits the Thumb, not the input).
+  // A control with NEITHER — a plain, visible, appropriately-sized button — carries its floor on its OWN
+  // border box (a real height/min-height, e.g. the CONTROL_SIZE ramp), so an ancestor is never evidence
+  // of ownership for it: this is the #662/#665 hole, and it is refused before either ancestor path runs.
   function pseudoCarriesFloor(el) {
     function extendsOutward(style) {
       return style.content !== "none" && style.content !== "normal" && (style.position === "absolute" || style.position === "fixed");
     }
     return extendsOutward(getComputedStyle(el, "::after")) || extendsOutward(getComputedStyle(el, "::before"));
   }
+  function ancestorCreditAllowed(el) {
+    return pseudoCarriesFloor(el) || isVisuallyHidden(el);
+  }
   function sharedCompositeOwns(el, hit) {
     var scope = el.parentElement;
     for (var d = 0; d < COMPOSITE_WALK_MAX && scope !== null; d += 1) {
       if (scope.contains(hit)) {
-        // A POSITIONING CONTEXT IS REQUIRED (#665). A genuine composite host establishes ITS OWN
-        // stacking/positioning context for its parts (Base UI positions the Slider Thumb absolute
-        // inside a relative Control row — packages/ui/src/primitives/slider/variants.ts, "relative
-        // is LOAD-BEARING"). A plain STATIC layout wrapper (padding/gap, no positioning) is never that
-        // anatomy — crediting it is exactly how a control alone in a padded div measured 44 no matter
-        // how short. A static scope is refused and the walk keeps climbing for a genuine host.
-        if (getComputedStyle(scope).position === "static") {
-          scope = scope.parentElement;
-          continue;
-        }
         var controls = scope.querySelectorAll(INTERACTIVE_SELECTOR);
         for (var c = 0; c < controls.length; c += 1) {
           var other = controls[c];
@@ -199,17 +199,18 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     }
     return false;
   }
-  // DECLARED LIMIT (both clauses below): a lone control inside a POSITIONED non-interactive wrapper
-  // (e.g. a relative decorative badge host unrelated to any composite anatomy) still gets ancestor
-  // credit — the positioning-context check is a heuristic keyed to how this codebase's OWN composites are
-  // built, not a proof of intentional compositing. That under-reporting direction (crediting a control
-  // that is, rarely, genuinely alone) is the accepted trade against the #662/#665 FP class it closes.
+  // DECLARED LIMIT: a lone control inside a larger non-interactive wrapper within COMPOSITE_WALK_MAX
+  // levels is STILL credited with the wrapper's extent when the control itself is pseudo-carried or
+  // visually-hidden (e.g. a glyph Button with no genuine composite siblings at all). That direction
+  // (crediting a control that is, rarely, genuinely alone) is the accepted trade against the measured FP
+  // class this file's tap-target census exists to avoid — see the THE HIT AREA IS NOT THE BOX note above.
   function ownsPoint(el, x, y) {
     if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) return false;
     var hit = document.elementFromPoint(x, y);
     if (hit === null) return false;
     if (hit === el || el.contains(hit)) return true;
-    if (hit.contains(el) && pseudoCarriesFloor(el)) return true;
+    if (!ancestorCreditAllowed(el)) return false;
+    if (hit.contains(el)) return true;
     return sharedCompositeOwns(el, hit);
   }
   // Grow outward from the centre while the control still answers on all four cardinal offsets. Returns
