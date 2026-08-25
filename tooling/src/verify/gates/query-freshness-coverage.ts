@@ -339,6 +339,20 @@ function seamBindings(modules: readonly SourceFile[]): Map<string, Node> {
   return out;
 }
 
+/** True when an identifier resolves to the top-level seam binding, following an import alias to the
+ * declaration in an admitted split-seam sibling. Object property names can share the same text but resolve
+ * to their own property declaration, so they do not manufacture a call-graph edge. */
+function referencesBinding(identifier: Node, binding: Node): boolean {
+  if (!N.isIdentifier(identifier)) {
+    return false;
+  }
+  const symbol = identifier.getSymbol();
+  if (symbol === undefined) {
+    return false;
+  }
+  return (symbol.getAliasedSymbol() ?? symbol).getDeclarations().includes(binding);
+}
+
 /** The filter rows reachable from `createInvalidation` — the closure over the seam's own helpers/maps, so a
  *  filter in a helper nothing calls contributes NO coverage. */
 function seamCoverage(seam: SourceFile): Coverage {
@@ -353,10 +367,12 @@ function seamCoverage(seam: SourceFile): Coverage {
     }
     seen.add(name);
     collectFilters(decl, roots, keys);
-    for (const id of decl.getDescendantsOfKind(SyntaxKind.Identifier)) {
-      const text = id.getText();
-      if (text !== name && bindings.has(text)) {
-        walk(text);
+    for (const [candidate, binding] of bindings) {
+      if (candidate === name) {
+        continue;
+      }
+      if (decl.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => referencesBinding(id, binding))) {
+        walk(candidate);
       }
     }
   };
@@ -510,6 +526,15 @@ export const gate: GateDescriptor = {
       why: "a filter row parked in a helper nothing reaches from createInvalidation is dead wire, not coverage",
     },
     {
+      files: {
+        "packages/client/src/data/invalidation.ts":
+          "export interface Invalidation { readonly invalidate: () => void }\nfunction deadHelper(trpc: Trpc) {\n  return [trpc.ghost.propertyCollision.pathFilter()];\n}\nexport function createInvalidation(trpc: Trpc) {\n  return [{ deadHelper: false }, trpc.other.thing.pathFilter()];\n}\n",
+        "packages/client/src/features/x/components/x.tsx": "export const q = trpc.ghost.propertyCollision.queryOptions({});\n",
+      },
+      expect: { count: 1, token: "ghost.propertyCollision" },
+      why: "an inert object property key that merely shares a helper's text is not a declaration reference and cannot make the helper's filter callable from createInvalidation",
+    },
+    {
       // STALE: a cited key that GAINED its row. A synthetic tree cannot inject into this module's own maps, so
       // the proof BORROWS a live registry key — `notifications.list` (STATIC: SSE-driven) — and gives it a
       // row. NEXT PRUNER: if that entry is ever deleted, repoint this fixture at another SURVIVING registry
@@ -557,6 +582,14 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/x/components/x.tsx": "export const q = trpc.ghost.livingRead.queryOptions({});\n",
       },
       why: "the key's row lives in a helper the map composes — helper composition is followed, so it passes",
+    },
+    {
+      files: {
+        "packages/client/src/data/invalidation.ts":
+          "export interface Invalidation { readonly invalidate: () => void }\nfunction livingHelper(trpc: Trpc) {\n  return [trpc.ghost.calledHelper.pathFilter()];\n}\nexport function createInvalidation(trpc: Trpc) {\n  return livingHelper(trpc);\n}\n",
+        "packages/client/src/features/x/components/x.tsx": "export const q = trpc.ghost.calledHelper.queryOptions({});\n",
+      },
+      why: "a real symbol reference in a call from createInvalidation reaches the helper and counts its filter as coverage",
     },
     {
       // THE SEAM IS TWO FILES: the row lives in the sibling `invalidation-reads.ts` the seam imports.

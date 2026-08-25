@@ -34,7 +34,7 @@ function isCallableRuntimeExport(sf: Parameters<NonNullable<GateDescriptor["visi
       return false;
     }
     const value = unwrapExpression(initializer);
-    return Node.isArrowFunction(value) || Node.isFunctionExpression(value) || declaration.getType().getCallSignatures().length > 0;
+    return Node.isArrowFunction(value) || Node.isFunctionExpression(value) || value.getType().getCallSignatures().length > 0;
   });
 }
 
@@ -78,12 +78,22 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/chat/verbs/start-chat.ts",
       why: "a non-callable runtime constant has the expected spelling but is not a verb factory",
     },
+    {
+      files: "export const createStartChat: () => void = 1 as never;\n",
+      at: "packages/server/src/domain/chat/verbs/start-chat.ts",
+      why: "a callable annotation cannot turn a non-callable runtime initializer into a verb factory — judge the value that will execute, not its declared call signature",
+    },
   ],
   mustPass: [
     {
       files: "export const createStartChat = (ctx: unknown) => ctx;\n",
       at: "packages/server/src/domain/chat/verbs/start-chat.ts",
       why: "the verb file exports create<Pascal(base)> = createStartChat — the sanctioned shape, passes",
+    },
+    {
+      files: "function buildStartChat() { return () => undefined; }\nexport const createStartChat = buildStartChat;\n",
+      at: "packages/server/src/domain/chat/verbs/start-chat.ts",
+      why: "a runtime alias whose initializer resolves to a callable value remains a sanctioned verb factory",
     },
     {
       files: 'export { createStartChat } from "./start-chat";\n',

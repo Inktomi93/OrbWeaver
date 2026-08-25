@@ -67,8 +67,7 @@
 //   overrides went with it; the reason now lives once on `MESSAGE`, which is where the harness homes it.
 //   The `finalize` STALE arm KEEPS the Finding overload deliberately — it anchors on this gate FILE, has no
 //   node to read a marker from, and §1 reserves the overload for exactly that.
-import type { Node } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
@@ -237,15 +236,24 @@ function isBooleanStringEnum(node: Node): boolean {
  *  and the bare `error.issues` of a helper taking a `z.ZodError` parameter. `first.issues` (our own
  *  `ParseOutcome`) and `this.issues` (the StructuredOutputError field) are a different receiver and never
  *  match. */
-function isZodErrorIssuesRead(node: Node): boolean {
-  if (!(node.isKind(SyntaxKind.PropertyAccessExpression) && node.getName() === ISSUES_PROPERTY)) {
+function isErrorReceiver(receiver: Node, followAlias: boolean): boolean {
+  if (receiver.isKind(SyntaxKind.Identifier)) {
+    if (receiver.getText() === ERROR_PROPERTY) {
+      return true;
+    }
+    if (followAlias) {
+      const symbol = receiver.getSymbol();
+      const declaration = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations().find(Node.isVariableDeclaration);
+      const initializer = declaration?.getInitializer();
+      return initializer !== undefined && isErrorReceiver(unwrapExpression(initializer), false);
+    }
     return false;
   }
-  const receiver = node.getExpression();
-  if (receiver.isKind(SyntaxKind.Identifier)) {
-    return receiver.getText() === ERROR_PROPERTY;
-  }
   return receiver.isKind(SyntaxKind.PropertyAccessExpression) && receiver.getName() === ERROR_PROPERTY;
+}
+
+function isZodErrorIssuesRead(node: Node): boolean {
+  return node.isKind(SyntaxKind.PropertyAccessExpression) && node.getName() === ISSUES_PROPERTY && isErrorReceiver(node.getExpression(), true);
 }
 
 /** `const { issues } = result.error` — the binding-pattern spelling of the same issues read. */
@@ -261,13 +269,7 @@ function isZodErrorIssuesDestructure(node: Node): boolean {
   const decl = pattern?.getParentIfKind(SyntaxKind.VariableDeclaration);
   const init = decl?.getInitializer();
   const receiver = init === undefined ? undefined : unwrapExpression(init);
-  if (receiver === undefined) {
-    return false;
-  }
-  if (receiver.isKind(SyntaxKind.Identifier)) {
-    return receiver.getText() === ERROR_PROPERTY;
-  }
-  return receiver.isKind(SyntaxKind.PropertyAccessExpression) && receiver.getName() === ERROR_PROPERTY;
+  return receiver !== undefined && isErrorReceiver(receiver, true);
 }
 
 const passSeenIssuesAllowed = new Set<string>();
@@ -381,6 +383,17 @@ export const gate: GateDescriptor = {
       why: "destructuring `issues` from a zod-shaped `.error` receiver is the same path-dropping hand-flatten as a direct `.error.issues` read",
     },
     {
+      files:
+        "export function refuse(parsed: { error: { issues: readonly { message: string }[] } }): string {\n" +
+        "  const failure = parsed.error;\n" +
+        "  const { issues } = failure;\n" +
+        '  return issues.map((issue) => issue.message).join("; ");\n' +
+        "}\n",
+      at: "packages/server/src/domain/probe-plugin/substrate/aliased-manifest.ts",
+      expect: { count: 1, token: "error-issues" },
+      why: "a one-hop symbol alias of `.error` does not make destructured issues safe — the same path-dropping hand-flatten remains visible",
+    },
+    {
       files: 'import { z } from "zod";\nexport const s = z.enum(["true", "false"]).default("false").transform((v) => v === "true");\n',
       at: "packages/server/src/probe-env/index.ts",
       expect: { count: 1, token: "bool-enum" },
@@ -448,6 +461,16 @@ export const gate: GateDescriptor = {
       files: "export function fail(first: { issues: string }): string {\n  return first.issues;\n}\n",
       at: "packages/server/src/probe-outcome/index.ts",
       why: "a NON-zod `.issues` field (our own `ParseOutcome`/`StructuredOutputError` shape) — the arm keys on an `error`-tailed receiver, so it never reaches these",
+    },
+    {
+      files:
+        "export function fail(first: { issues: readonly string[] }): string {\n" +
+        "  const failure = first;\n" +
+        "  const { issues } = failure;\n" +
+        '  return issues.join("; ");\n' +
+        "}\n",
+      at: "packages/server/src/probe-aliased-outcome/index.ts",
+      why: "a one-hop alias of a NON-zod outcome remains outside ARM C — symbol tracing must end at an `.error` receiver, not merely any alias",
     },
     {
       files: 'import { z } from "zod";\nexport const s = z.enum(["true", "false", "auto"]);\n',

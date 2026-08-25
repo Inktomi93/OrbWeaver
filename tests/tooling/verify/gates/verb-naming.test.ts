@@ -27,10 +27,18 @@ test("a non-callable expected-name constant is not a runtime verb factory", () =
   expect(findings("export const createStartChat = 1;\n")).toHaveLength(1);
 });
 
+test("a callable annotation cannot make a non-callable initializer into a verb factory", () => {
+  expect(findings("export const createStartChat: () => void = 1 as never;\n")).toHaveLength(1);
+});
+
 test("an exported function declaration is a runtime verb factory", () => {
   expect(findings("export function createStartChat() { return () => undefined; }\n")).toEqual([]);
 });
 
 test("an exported arrow function is a runtime verb factory", () => {
   expect(findings("export const createStartChat = () => () => undefined;\n")).toEqual([]);
+});
+
+test("an exported alias of a callable runtime value is a verb factory", () => {
+  expect(findings("function buildStartChat() { return () => undefined; }\nexport const createStartChat = buildStartChat;\n")).toEqual([]);
 });
