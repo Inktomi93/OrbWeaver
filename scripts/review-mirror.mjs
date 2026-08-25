@@ -23,6 +23,11 @@ import { dirname, extname, join } from "node:path";
 import process from "node:process";
 import ts from "typescript";
 
+const GIT_LS_MAX_BUFFER = 268_435_456; // 256 MiB — a large repo's git ls-files output
+const MISSING_SAMPLE = 20; // paths printed on a missing-code failure
+const HASH_LINE_RE = /^\s*#/;
+const CODE_EXT_RE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
+
 const REPO = execSync("git rev-parse --show-toplevel").toString().trim();
 const TARGET = process.argv[2] ?? join(homedir(), "Documents", "orbweaver-code-review");
 
@@ -116,6 +121,7 @@ function stripTsLike(text, scriptKind) {
   return out + text.slice(cur);
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: single-pass char scanner, inherently branchy
 function stripCss(s) {
   let out = "";
   let i = 0;
@@ -163,6 +169,7 @@ function stripCss(s) {
 function stripHtml(s) {
   return s.replace(/<!--[\s\S]*?-->/g, (m) => "\n".repeat((m.match(/\n/g) || []).length));
 }
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: single-pass char scanner, inherently branchy
 function stripSql(s) {
   let out = "";
   let i = 0;
@@ -217,7 +224,12 @@ function stripSql(s) {
 function stripHashFullLine(s) {
   return s
     .split("\n")
-    .map((line, idx) => (idx === 0 && line.startsWith("#!") ? line : /^\s*#/.test(line) ? "" : line))
+    .map((line, idx) => {
+      if (idx === 0 && line.startsWith("#!")) {
+        return line;
+      }
+      return HASH_LINE_RE.test(line) ? "" : line;
+    })
     .join("\n");
 }
 const tidy = (s) => s.replace(/[ \t]+$/gm, "").replace(/\n{3,}/g, "\n\n");
@@ -244,10 +256,7 @@ function stripperFor(file) {
 }
 
 // ── run ─────────────────────────────────────────────────────────────────────────────────────────────────
-const tracked = execSync("git ls-files", { cwd: REPO, maxBuffer: 256 * 1024 * 1024 })
-  .toString()
-  .split("\n")
-  .filter(Boolean);
+const tracked = execSync("git ls-files", { cwd: REPO, maxBuffer: GIT_LS_MAX_BUFFER }).toString().split("\n").filter(Boolean);
 let stripped = 0;
 let copied = 0;
 let dropped = 0;
@@ -288,7 +297,7 @@ for (const rel of tracked) {
 
 // sanity: every tracked CODE file must exist in the mirror (the footgun the rsync version had)
 const missing = tracked
-  .filter((r) => /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(r) && !DROP_PREFIX.some((p) => r.startsWith(p)))
+  .filter((r) => CODE_EXT_RE.test(r) && !DROP_PREFIX.some((p) => r.startsWith(p)))
   .filter((r) => {
     try {
       closeSync(openSync(join(TARGET, r), "r"));
@@ -300,7 +309,7 @@ const missing = tracked
 
 console.log(JSON.stringify({ target: TARGET, tracked: tracked.length, stripped, copied, dropped, errored, missingCode: missing.length }, null, 2));
 if (missing.length > 0) {
-  console.error("MISSING CODE FILES (should be 0):", missing.slice(0, 20));
+  console.error("MISSING CODE FILES (should be 0):", missing.slice(0, MISSING_SAMPLE));
   process.exit(1);
 }
 console.log(`\nnext:  biome format --write "${TARGET}"   ·   tokei "${TARGET}"`);
