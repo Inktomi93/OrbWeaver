@@ -51,6 +51,15 @@ export const RULE_PRESET_IDS = [
   "callback",
   /** §4 #13 — a short cutaway every N beats. */
   "cutaways",
+  /** §4 #15 — the C1 story-pacing analysis: a quiet think-first pass steering the narrator (RULED F7,
+   *  direct steer). Mint refuses on an active-game chat (the game owns its own steering, D109). */
+  "storyPacing",
+  /** §4 #11 — C2's distill-lore: a confirm-first `run_analysis` → `upsertLoreEntry` pass that distills durable
+   *  keyed lore from the settled span (watermarked, span-stamped, idempotent on re-run) onto a confirm card. */
+  "distillLore",
+  /** §4 #11's sibling — the rumour mill: the SAME confirm-first lore route, distilling the consequences and
+   *  hearsay the settled events would stir up rather than the durable facts. */
+  "rumorMill",
 ] as const;
 export type RulePresetId = (typeof RULE_PRESET_IDS)[number];
 export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS);

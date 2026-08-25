@@ -42,8 +42,11 @@ export interface PendingAsk {
 }
 
 /** The replace-per-kind key, MIRRORING the server's `slotKey`: one live card per origin. The prefix keeps the
- *  two id namespaces from colliding on a shared string — the same reason the server's key carries it. */
-function sourceKey(source: AutomationEmitSource): string {
+ *  two id namespaces from colliding on a shared string — the same reason the server's key carries it. ONE
+ *  home for the namespace grammar: B3's chip fold (`apply-quick-reply-event.ts`) keys its own replace-per-
+ *  source the same way, and both must agree with the server's `slotKey` — so the string is minted here once,
+ *  not re-spelled per consumer where a prefix could drift. */
+export function sourceKey(source: AutomationEmitSource): string {
   return source.kind === "rule" ? `rule|${source.ruleId}` : `plugin|${source.pluginId}`;
 }
 

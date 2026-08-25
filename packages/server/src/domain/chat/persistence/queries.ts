@@ -1131,6 +1131,13 @@ export async function loadStoredVariables(db: Db, chatId: ChatId): Promise<Recor
   return rows.at(0)?.variableValues ?? null;
 }
 
+/** The chat's CURRENT runtime variables — the materialized delta-fold cache (`chats.runtimeVariables`, the
+ *  same column the CEL env and the plugin membrane's `getVariables` read). `{}` = no variable ever set. */
+export async function loadRuntimeVariables(db: Db, chatId: ChatId): Promise<Record<string, string>> {
+  const rows = await db.select({ runtimeVariables: chats.runtimeVariables }).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
+  return rows.at(0)?.runtimeVariables ?? {};
+}
+
 /** The persisted per-chat user-macro INPUT picks (WAVE MU) — the `values` bag the turn build feeds
  *  `buildTurnUserMacros`. Parsed at the read seam (`userMacroValuesSchema`, never cast); a malformed/absent
  *  blob degrades to `{}` (the defaults posture — unpicked inputs resolve their per-kind defaults). */

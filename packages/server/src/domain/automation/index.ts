@@ -75,4 +75,7 @@ export { createPluginSubscriberRegistry } from "./substrate/plugin-subscribers.t
 // S4 — the in-RAM pending-ask store (RULED F1). Created ONCE at the composition root and injected on the
 // context, exactly like the enabled-rule index beside it.
 export { AUTOMATION_SUGGESTION_TTL_MS, createPluginSuggestionRaiser, createSuggestionStore } from "./substrate/suggestions.ts";
+// S5 — the guidance-delivery teaching contribution (the D145 root slot's third occupant). Front-door ONLY:
+// `entry/compose` registers it onto `ChatContext.teaching`; the cruiser stanza forbids every other importer.
+export { createAutomationTeachingContributions } from "./teaching-contribution.ts";
 export { startAutomationWatcher } from "./watcher/start-automation-watcher.ts";

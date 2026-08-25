@@ -393,6 +393,11 @@ export interface DeleteChatInjectionParams extends ChatScopedParams {
 /** `getVariables` — the effective ChoiceBlock variables computed for the next turn. */
 export interface GetVariablesParams extends ChatScopedParams {}
 
+/** `getRuntimeVariables` — the room's RUNTIME variable fold (S5 §4's vars read, priced with `setVariable`;
+ *  the needle's meter and B9's clock widget both consume it). Member-gated: the vars plane is
+ *  member-visible BY DESIGN — which is exactly why analysis arcs/twists/guidance never write into it. */
+export interface GetRuntimeVariablesParams extends ChatScopedParams {}
+
 /** `getVariablePicks` — the picks pane's ChoiceBlock read: the chat's declared variables + the persisted
  *  picks `setVariables` writes (the `getUserMacroPicks` sibling — the pane's two knob families). */
 export interface GetVariablePicksParams extends ChatScopedParams {}

@@ -1,6 +1,6 @@
-// schema/automation — the D46 automation slice (producer: domain/automation). Four tables born into
-// the `0000_baseline` (decide-before-launch — the domain lands later with NO table rebuilds):
-// automation_rules · automation_budgets · automation_fires · global_variables.
+// schema/automation — the D46 automation slice (producer: domain/automation). Five tables in the
+// `0000_baseline` (decide-before-launch — the domain lands with NO table rebuilds):
+// automation_rules · automation_budgets · automation_fires · automation_rule_state · global_variables.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
 //   • `automation_rules.chat_id` is NULLABLE FROM BIRTH; v1 verbs refuse NULL. An owner-global rule is a
@@ -23,6 +23,7 @@
 
 import type { ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
 import {
+  ANALYSIS_GUIDANCE_MAX,
   AUTOMATION_CHAT_BUDGET_DEFAULTS,
   AUTOMATION_FIRE_OUTCOMES,
   AUTOMATION_TRIGGER_BUSES,
@@ -177,6 +178,45 @@ export const automationFires = sqliteTable(
     index("automation_fires_chat_idx").on(t.chatId),
     check("automation_fires_outcome_check", sql.raw(`outcome in (${checkList(AUTOMATION_FIRE_OUTCOMES)})`)),
   ],
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// automation_rule_state — ONE row per rule with a `run_analysis` arm (S5, interaction-direction-spec §3-S5):
+// the arm's durable per-chat plot state (arc + twist banks + the settled-span HIGH-WATER MARK, inside the
+// `state` JSON) and the ONE narrator-facing `guidance` line the S2 teaching contribution delivers VERBATIM.
+// Authority DERIVES ruleId → rule (ownerId, chatId) — no ownerId here (D23-clean; the D18 inherited-scope
+// posture), no member or plugin read surface, and NOT swipe-folded (authored DIRECTION, never a function of
+// canon — the #29 fence: a rebuild from canon could not reproduce it, so it is never rebuilt).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const automationRuleState = sqliteTable(
+  "automation_rule_state",
+  {
+    // NATURAL PK: the rule's own id + CASCADE FK (the `automation_budgets` chatId-PK pattern above) — the
+    // PK is also the spec's UNIQUE and the child-FK index in one column (`fk-columns-indexed` satisfied).
+    ruleId: text("rule_id")
+      .$type<AutomationRuleId>()
+      .primaryKey()
+      .references(() => automationRules.id, { onDelete: "cascade" }),
+    // The analysis state blob — `{arc, twists, retiredTwists, settledThroughSeq}`. Typed opaque here (the
+    // shape lands with the domain — the `automation_rules.actions` posture); zod parse-on-read with
+    // corrupt→EMPTY fault isolation (losing analysis state costs one cold pass, never a disabled rule).
+    // `settledThroughSeq` is the C2 high-water mark: the settled-span cursor DURABLE-WRITE routes advance
+    // ONLY on a successful apply, so a failed/unconfirmed pass re-covers its span (the retryability law).
+    // VERSION POSTURE (orchestrator ruling 2026-08-24): "corrupt" means UNPARSEABLE, never merely OLD —
+    // every field of the read schema carries a default, so a row written before a field existed reads
+    // with that field defaulted and its WATERMARK PRESERVED. Only non-JSON / non-object garbage resets to
+    // empty (watermark 0 = re-cover, which duplicates work but never SKIPS a span). A reader that treated
+    // a schema-version mismatch as corruption would discard a valid watermark and re-distill an
+    // already-covered span into duplicate lore — pinned in the domain's rule-state tests.
+    state: text("state", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    // ONE narrator-facing instruction, stored VERBATIM (machine-authored DATA — macro-inert by authoring
+    // law 6; it never passes renderArmTemplate/processMacros). "" = no standing guidance (the common case).
+    // Sliced to ANALYSIS_GUIDANCE_MAX at the write boundary; the CHECK below mirrors the same const.
+    guidance: text("guidance").notNull().default(""),
+    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  () => [check("automation_rule_state_guidance_check", sql.raw(`length(guidance) <= ${ANALYSIS_GUIDANCE_MAX}`))],
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
