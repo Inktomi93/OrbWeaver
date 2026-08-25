@@ -8,6 +8,7 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { strToU8, zipSync } from "fflate";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { readClippedNavLabels, readEscapedAbsolutes, readSettingsShellColumns } from "../../../../support/ct/settings-geometry.ts";
 import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
@@ -31,6 +32,36 @@ const USER_SETTINGS_VIEW = {
 /** The search option for the Plugins category — a prefix match, since the option's accessible name carries
  *  the category beside the section it jumps to. Top-level so the regex is compiled once (biome). */
 const PLUGINS_OPTION = /Plugins/u;
+
+/** The admin-only Distribute section's search option — the absence assertion's needle (top-level per
+ *  `useTopLevelRegex`). */
+const DISTRIBUTE_OPTION = /Distribute/u;
+/** The Distribute section's own dropzone input, addressed by its ACCESSIBLE NAME — the pane now hosts TWO
+ *  dropzones (install for yourself · distribute to everyone) and the shared `data-slot` selector resolves to
+ *  both, so the slot alone is a strict-mode violation. The name is also what tells the two apart on screen. */
+const DISTRIBUTE_DROPZONE_LABEL = "Choose a plugin bundle to distribute";
+
+/** A REAL, installable bundle (the two entries the funnel admits) for the distribute flow — built with the
+ *  same `fflate` the surface reads it back with, so the confirm step's capability list comes from a genuine
+ *  client-side manifest read rather than a prop. */
+function distributableBundle(): Buffer {
+  return Buffer.from(
+    zipSync({
+      "manifest.json": strToU8(
+        JSON.stringify({
+          id: "house-style",
+          name: "House Style",
+          version: "1.0.0",
+          hostVersion: 1,
+          entry: "main.js",
+          description: "Keeps the house voice consistent.",
+          capabilities: ["chat.read"],
+        }),
+      ),
+      "main.js": strToU8("export function activate() {}\n"),
+    }),
+  );
+}
 
 /** A resolved EffectiveAppConfig + owner viewer — every `admin`-anchored AppSettings section suspends on
  *  these (eight of them since SET-SEAMS stage 4 merged the System pane in). */
@@ -118,6 +149,11 @@ const SHELL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // introduced. `plugins-settings-surface.tsx:29` suspends on it, and `[]` is the honest nothing-installed
   // arm the surface's own empty state describes.
   "plugin.list": [],
+  // `DistributedPluginView[]` — the ADMIN-gated Distribute section's read (D147 clause (d)). It only mounts
+  // for an admin viewer on the Plugins pane, so the plain-user default never fires it; fed here so the admin
+  // arms below resolve the section instead of falling into its boundary. `[]` = nothing published, the honest
+  // fresh-deployment arm the section's own empty state describes.
+  "plugin.listDistributed": [],
 };
 
 test("renders the USER + APP group headings and the category rows", async ({ mount, page }) => {
@@ -333,6 +369,67 @@ test("a plain user DOES see the Plugins category, and it mounts the real per-use
   // …and it is searchable for them too — a gate left on the nav would also have cut the search index.
   await component.getByRole("combobox", { name: "Search settings" }).fill("plugin");
   await expect(component.getByRole("option", { name: PLUGINS_OPTION }).first()).toBeVisible();
+});
+
+// D147 clause (d) — the ADMIN half of the same pane. The server-wide install is a viewer-gated SECTION
+// contributed at the `plugins` anchor, never a gate on the pane, so this pair asserts the gate from BOTH
+// sides on the SAME screen: a plain user reaches their own plugins and does NOT see the deployment-wide
+// control, an admin sees both. Asserted on the rendered section (heading + its control), not on the nav row:
+// the row existing while the body refused is the same failure one screen further in.
+test("a plain user does NOT see the Distribute section on their Plugins pane", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    "sessions.me": () => ({ userId: "user_plain", handle: "plain", globalRole: "user" }),
+  });
+  const component = await mount(<SettingsShellStory />);
+
+  await component.getByRole("button", { name: "Plugins" }).click();
+  // Their own sections are there…
+  await expect(component.getByRole("heading", { name: "Installed" })).toBeVisible();
+  // …and the admin one is absent from the body, the sub-nav AND the search index (one `when`, three consumers).
+  await expect(component.getByRole("heading", { name: "Distribute to everyone" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Distribute to everyone" })).toHaveCount(0);
+  await component.getByRole("combobox", { name: "Search settings" }).fill("distribute");
+  await expect(component.getByRole("option", { name: DISTRIBUTE_OPTION })).toHaveCount(0);
+});
+
+test("an ADMIN sees the Distribute section on the Plugins pane, and publishing lands in the published list", async ({ mount, page }) => {
+  // Stateful so the barrier is a SETTLED rendered state — the published row appearing after the write's own
+  // invalidate — rather than a toast or an in-flight flash.
+  let published: readonly unknown[] = [];
+  await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    "sessions.me": () => ({ userId: "user_admin", handle: "admin", globalRole: "admin" }),
+    "plugin.listDistributed": () => published,
+    "plugin.installForAllUsers": () => {
+      published = [{ slug: "house-style", name: "House Style", version: "1.0.0", distributedAt: 0, updatedAt: 0 }];
+      return { slug: "house-style", name: "House Style", version: "1.0.0", applied: 3, skipped: [] };
+    },
+  });
+  const component = await mount(<SettingsShellStory />);
+
+  await component.getByRole("button", { name: "Plugins" }).click();
+  await expect(component.getByRole("heading", { name: "Distribute to everyone" })).toBeVisible();
+  // THE SENTENCE THAT MAKES THE BUTTON HONEST: distributing does not turn anything on for anyone. Without it
+  // "Distribute to everyone" reads as a promise the system deliberately does not keep (enabling runs the
+  // plugin's code as the person who enables it, so it can never be done on their behalf).
+  await expect(component.getByText("switched off, allowed nothing", { exact: false })).toBeVisible();
+  await expect(component.getByText("Nothing is being given out.", { exact: false })).toBeVisible();
+
+  await component.getByLabel(DISTRIBUTE_DROPZONE_LABEL).setInputFiles({
+    name: "house-style.zip",
+    mimeType: "application/zip",
+    buffer: distributableBundle(),
+  });
+  // The confirm step names what every recipient will be asked for, in the person's words.
+  await expect(component.getByText("Read this room's messages")).toBeVisible();
+  await component.getByRole("button", { name: "Distribute to everyone" }).click();
+
+  // SETTLED: the published list repainted from the server's own truth after the invalidate.
+  await expect(component.getByText("house-style · 1.0.0")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Stop giving it out" })).toBeVisible();
 });
 
 test("an admin viewer sees the Admin category and it mounts the REAL pane", async ({ mount, page }) => {

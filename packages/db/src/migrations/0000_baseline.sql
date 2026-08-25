@@ -741,6 +741,20 @@ CREATE TABLE `personas` (
 --> statement-breakpoint
 CREATE INDEX `personas_owner_idx` ON `personas` (`owner_id`);--> statement-breakpoint
 CREATE INDEX `personas_avatar_asset_idx` ON `personas` (`avatar_asset_id`);--> statement-breakpoint
+CREATE TABLE `admin_distributed_plugins` (
+	`slug` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`version` text NOT NULL,
+	`bundle_asset_id` text NOT NULL,
+	`distributed_by` text NOT NULL,
+	`distributed_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	FOREIGN KEY (`bundle_asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`distributed_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `admin_distributed_plugins_bundle_asset_idx` ON `admin_distributed_plugins` (`bundle_asset_id`);--> statement-breakpoint
+CREATE INDEX `admin_distributed_plugins_distributed_by_idx` ON `admin_distributed_plugins` (`distributed_by`);--> statement-breakpoint
 CREATE TABLE `plugin_kv` (
 	`plugin_id` text NOT NULL,
 	`owner_id` text NOT NULL,

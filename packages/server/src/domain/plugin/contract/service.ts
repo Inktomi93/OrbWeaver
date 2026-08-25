@@ -222,6 +222,14 @@ export interface PluginDistributionDeps {
   readonly readPublishedBundle: (assetId: AssetId) => Promise<Uint8Array>;
 }
 
+/** The two REAL per-user verbs a fan-out drives, passed as functions (the `ActivationDeps` verb-to-verb
+ *  precedent) rather than the whole service, so the distribution path cannot reach a verb it has no business
+ *  calling — notably `setEnabled`, which is the one act D147 clause (b) forbids performing for someone. */
+export interface DistributionInstallDeps {
+  readonly install: PluginService["install"];
+  readonly setGrant: PluginService["setGrant"];
+}
+
 /** The plugin lifecycle surface, incl. `runSnippet` (the inline mode). */
 export interface PluginService {
   /** Unzip+validate the bundle → grant ⊆ declared → store bytes in the CAS → `disabled` row. */

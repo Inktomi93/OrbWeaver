@@ -222,6 +222,10 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
   world_entries: { scope: "parent", why: "book entries — scope derives through `world_books.ownerId`; entries stamp no owner (D23)." },
 
   // ── (e) global / system — no tenancy predicate exists. ─────────────────────────────────────────────────
+  admin_distributed_plugins: {
+    scope: "global",
+    why: "D147(d) DEPLOYMENT POLICY — the set of plugin bundles an admin publishes to everyone. It has no tenant: `distributedBy` is a publisher-attribution stamp (and the CASCADE that lets that account be deleted), not a read scope, and the per-user INSTALLS it fans out to are ordinary owner-scoped `plugins` rows. Its authorization is the `requireAdmin` gate on the three distribution verbs, not a column.",
+  },
   audit_logs: {
     scope: "global",
     why: "the append-only system log (writer: foundation/observability's `logAudit`); `actorUserId` is a SET-NULL attribution stamp, not a read scope — the log outlives its actor by design (D24).",

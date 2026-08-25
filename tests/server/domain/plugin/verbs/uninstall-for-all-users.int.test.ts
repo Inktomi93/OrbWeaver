@@ -62,7 +62,9 @@ test("a recipient who UPGRADED their copy is skipped and reported, with their gr
   const result = await h.service.uninstallForAllUsers({ caller: ownerPrincipalFor(boss), slug: "house-style" });
 
   expect(result.applied).toBe(1);
-  expect(result.skipped).toEqual([{ userId: ann, userHandle: castId<Handle>("ann"), reason: "version-diverged" }]);
+  // The skip NAMES the diverged user (`userHandle` is their PRINCIPAL's handle; this harness mints it from
+  // the user id) — an admin who just withdrew a plugin needs to know WHO still has it.
+  expect(result.skipped).toEqual([{ userId: ann, userHandle: principalFor(ann as UserId).handle, reason: "version-diverged" }]);
   // HERS SURVIVES, at her version, with the grant she gave — the withdrawal touched neither.
   const [survivor] = await h.service.list({ caller: principalFor(ann as UserId) });
   expect(survivor?.id).toBe(hersId);

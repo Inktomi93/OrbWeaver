@@ -103,7 +103,9 @@ test("a user who already holds the slug is SKIPPED and reported — their own ro
   });
 
   expect(result.applied).toBe(2);
-  expect(result.skipped).toEqual([{ userId: ann, userHandle: castId<Handle>("ann"), reason: "already-installed" }]);
+  // The skip NAMES the user — id and handle both, since the only reader is a human admin deciding whether to
+  // chase it up. (`userHandle` is the recipient PRINCIPAL's handle; this harness mints it from the user id.)
+  expect(result.skipped).toEqual([{ userId: ann, userHandle: principalFor(ann as UserId).handle, reason: "already-installed" }]);
   // ANN'S ROW IS UNTOUCHED — same id, same version, same GRANT. A distribution that "healed" a user's own
   // install would be revoking a consent decision on their behalf.
   const [hersNow] = await h.service.list({ caller: principalFor(ann as UserId) });
