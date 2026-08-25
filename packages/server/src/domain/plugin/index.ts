@@ -109,4 +109,4 @@ export { createPluginRateFloor, PLUGIN_EGRESS_PER_HOUR, PLUGIN_QUIET_LLM_PER_HOU
 export { buildPluginPromptTransform, capFactContent } from "./substrate/registrar.ts";
 export { createSnippetGate } from "./substrate/snippet-gate.ts";
 export { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "./substrate/storage.ts";
-export { createPluginSurfaceStateStore, createSurfaceStatePublisher } from "./substrate/surface-state.ts";
+export { createPluginSurfaceStateStore, createSurfaceStatePublisher, PLUGIN_SURFACE_STATE_MAX_KEYS } from "./substrate/surface-state.ts";
