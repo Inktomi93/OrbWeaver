@@ -28,7 +28,13 @@ import {
   youModal,
 } from "#features/app-shell";
 import { accountModal, reauthModal } from "#features/auth";
-import { automationPane, automationQuickReplySource, automationRulesSection, automationSuggestionSource } from "#features/automation";
+import {
+  automationNeedleMeterSurface,
+  automationPane,
+  automationQuickReplySource,
+  automationRulesSection,
+  automationSuggestionSource,
+} from "#features/automation";
 import { characterSlashCommands, librarySettingsSection, makeCharactersSection } from "#features/character";
 import {
   appearanceAvatarsSection,
@@ -172,6 +178,10 @@ const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContributio
   rpgTurnToolCallsSurface,
   // The ONE above-composer control mount, consuming the registry above.
   makeChatControlsContribution(chatControlSources),
+  // …and the seam's THIRD tenant + first `thread-flank` one (#16): automation's needle meter, rendering the
+  // tension score its preset publishes into the room's chat variables. Silent — and therefore invisible in
+  // the layout, the flank stack being `empty:hidden` — in every room that carries no score.
+  automationNeedleMeterSurface,
 ]);
 
 // The per-tool-name renderer seam (§6c): EMPTY but typed — zero contributions ⇒ every persisted tool record

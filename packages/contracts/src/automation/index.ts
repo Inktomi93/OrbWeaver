@@ -234,6 +234,17 @@ export type AnalysisApplyMode = (typeof ANALYSIS_APPLY_MODES)[number];
  *  applier writes `String(clamp(int(score), 0..ANALYSIS_SCORE_MAX))` and NOTHING ELSE — arcs, twists and
  *  guidance are disjoint payload fields no code path hands to the vars writer. */
 export const ANALYSIS_SCORE_MAX = 10;
+/** §4 #16 (the needle) — the ONE chat variable the tension score publishes into, shared by the preset that
+ *  authors the `vars` route and the client meter that renders it.
+ *
+ *  IT LIVES IN `contracts` FOR THE SAME REASON EVERY WIRE SHAPE DOES: two packages must agree on it and
+ *  neither may re-spell it. The other preset variable keys (`clock`, `debt`, `lastBeatMs`) are domain-local
+ *  constants because nothing outside the server reads them yet; this one is read by a client surface, so a
+ *  server-side literal would make the client's own literal the second home of one name. It is a CONSTANT and
+ *  never a knob for the reason `contract/presets.ts` states: a knob-supplied key is interpolated into a CEL
+ *  IDENTIFIER position (`has(vars.<k>)`), which is both an injection surface and a value the meter would have
+ *  no way to learn. */
+export const NEEDLE_TENSION_VAR_KEY = "tension";
 
 /** How a surfaced chip's text is CONSUMED when the member clicks it (S1, the in-chat control seam):
  *  `send` fires it as that member's next turn immediately; `compose` seeds their composer draft so they
