@@ -43,9 +43,7 @@ export function createApplyDistributedPlugins(
         skippedSlugs.push(record.slug);
         continue;
       }
-      // biome-ignore lint/performance/noAwaitInLoops: serial by design — see the comment above the loop.
       const bundle = await deps.readPublishedBundle(record.bundleAssetId);
-      // biome-ignore lint/performance/noAwaitInLoops: serial by design — see the comment above the loop.
       await installDistributedCopy(deps, caller, bundle);
       installedSlugs.push(record.slug);
     }

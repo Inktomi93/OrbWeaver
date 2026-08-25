@@ -63,7 +63,6 @@ export function createInstallForAllUsers(ctx: PluginContext, deps: PluginDistrib
         skipped.push({ userId: recipient.userId, userHandle: recipient.handle, reason: "already-installed" });
         continue;
       }
-      // biome-ignore lint/performance/noAwaitInLoops: serial by design — see the comment above the loop.
       await installDistributedCopy(deps, recipient, bundle);
       applied += 1;
     }
