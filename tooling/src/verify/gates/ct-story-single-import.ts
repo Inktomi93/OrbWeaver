@@ -8,27 +8,31 @@
 //   1. a literal duplicate import specifier — `import { X } from "./_ct-stories.tsx"` named twice in one
 //      file's import declarations (covers "named in a SECOND `as const` tuple array" too, since that
 //      re-imports the story under the same local name a second time in practice).
-//   2. an imported PascalCase identifier referenced at 2+ JSX render sites or as a DIRECT array element at
-//      2+ positions in the same file — both give playwright-ct multiple rewrite sites for one binding.
+//   2. an imported `_ct-stories` / `.fixtures` component referenced twice inside ONE JSX tree, or as a
+//      DIRECT array element at 2+ positions in one function/module scope — both give playwright-ct
+//      multiple rewrite sites for one story binding. Separate test callbacks and separate mount trees are
+//      separate generated scopes and may reuse the same story.
 //
 // Pure AST — comment-SAFE (subscribes to import specifiers + array-literal elements, reads no file text).
 // scanRoot is CT-scoped: `.ct.tsx` files and `_ct-stories.tsx` story modules (both are eval'd by the same
 // playwright-ct bundler and can carry either shape).
 // DECLARED LIMIT: non-component imports and repeated non-JSX references are not rewrite sites.
-import type { ArrayLiteralExpression, ImportDeclaration, SourceFile } from "ts-morph";
+import type { ArrayLiteralExpression, ImportDeclaration, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 
 const CT_SCOPE_RE = /(\.ct\.tsx|_ct-stories\.tsx)$/u;
 const PASCAL_CASE = /^[A-Z]/;
+const STORY_MODULE_RE = /(?:_ct-stories|\.fixtures)(?:\.tsx)?$/u;
 
 const MESSAGE =
   "a CT story/component identifier is declared into this file's scope TWICE — playwright-ct rewrites each " +
-  "JSX/array reference of an imported component into a generated const, so a second binding of the same " +
+  "same-tree JSX/array reference of an imported CT story into a generated const, so a second binding of the same " +
   "name fails the whole bundle at eval with `SyntaxError: Identifier already declared` (memory: " +
   "ct-story-double-import-identifier-collision, 2026-08-19 — looks exactly like the stale-cache phantom, " +
   "but `rm -rf playwright/.cache` does not fix it). One import site per story name; never reference the " +
-  "same story component as more than one array element in a tuple/loop table (core/Spine-Testing.md §7).";
+  "same story component twice in one JSX tree or as more than one array element in a tuple/loop table " +
+  "(core/Spine-Testing.md §7).";
 const FIX =
   "import the story/component exactly ONCE, and if it is iterated, pass it via a helper taking the mounted " +
   "Locator instead of listing the component itself as a repeated array value (core/Spine-Testing.md §7).";
@@ -61,7 +65,7 @@ function reportDuplicateImports(sf: SourceFile, ctx: GateRunCtx): Set<string> {
   const components = new Set<string>();
   for (const decl of sf.getImportDeclarations()) {
     for (const { name, node } of importedLocalNames(decl)) {
-      if (PASCAL_CASE.test(name)) {
+      if (PASCAL_CASE.test(name) && STORY_MODULE_RE.test(decl.getModuleSpecifierValue())) {
         components.add(name);
       }
       const prior = seen.get(name);
@@ -75,48 +79,77 @@ function reportDuplicateImports(sf: SourceFile, ctx: GateRunCtx): Set<string> {
   return components;
 }
 
+/** The generated declaration scope: playwright-ct may reuse a story in another test callback, but two
+ *  rewrite sites in the SAME function (or at module top-level) collide. */
+function rewriteScope(node: TsNode, sf: SourceFile): TsNode {
+  return (
+    node.getFirstAncestor((ancestor) => Node.isArrowFunction(ancestor) || Node.isFunctionDeclaration(ancestor) || Node.isFunctionExpression(ancestor)) ?? sf
+  );
+}
+
+function reportRepeatedHits(hits: ReadonlyMap<string, readonly Node[]>, ctx: GateRunCtx): void {
+  for (const [name, nodes] of hits) {
+    for (const node of nodes.slice(1)) {
+      ctx.report(node, { token: name, offset: 0 });
+    }
+  }
+}
+
 /** Shape 2: an imported, component-shaped identifier referenced as a direct array element at 2+
  *  positions — the component-in-array-iteration double-declare shape. */
 function reportRepeatedArrayComponents(sf: SourceFile, ctx: GateRunCtx, importedComponents: ReadonlySet<string>): void {
-  const arrayHits = new Map<string, Node[]>();
+  const arrayHits = new Map<TsNode, Map<string, Node[]>>();
   for (const arr of sf.getDescendantsOfKind(SyntaxKind.ArrayLiteralExpression)) {
+    const scope = rewriteScope(arr, sf);
+    const scopeHits = arrayHits.get(scope) ?? new Map<string, Node[]>();
+    arrayHits.set(scope, scopeHits);
     for (const id of directIdentifierElements(arr)) {
       const name = id.getText();
       if (!importedComponents.has(name)) {
         continue;
       }
-      const list = arrayHits.get(name) ?? [];
+      const list = scopeHits.get(name) ?? [];
       list.push(id);
-      arrayHits.set(name, list);
+      scopeHits.set(name, list);
     }
   }
-  for (const [name, hits] of arrayHits) {
-    if (hits.length < 2) {
-      continue;
-    }
-    for (const hit of hits.slice(1)) {
-      ctx.report(hit, { token: name, offset: 0 });
-    }
+  for (const scopeHits of arrayHits.values()) {
+    reportRepeatedHits(scopeHits, ctx);
   }
 }
 
-/** Imported component JSX is also rewritten per reference; two render sites collide without an array. */
+/** The outer JSX tree containing a tag. Separate `mount(<Story />)` calls are separate rewrites and may
+ *  reuse the import; two references inside ONE tree ask the transform for the binding twice. */
+function jsxTreeRoot(node: TsNode): TsNode {
+  let root = node;
+  for (const ancestor of node.getAncestors()) {
+    if (Node.isJsxElement(ancestor) || Node.isJsxFragment(ancestor) || Node.isJsxSelfClosingElement(ancestor)) {
+      root = ancestor;
+      continue;
+    }
+    break;
+  }
+  return root;
+}
+
+/** Imported story JSX is rewritten per reference within a rendered tree; two sites in that tree collide. */
 function reportRepeatedJsxComponents(sf: SourceFile, ctx: GateRunCtx, importedComponents: ReadonlySet<string>): void {
-  const hits = new Map<string, Node[]>();
+  const hits = new Map<TsNode, Map<string, Node[]>>();
   const elements = [...sf.getDescendantsOfKind(SyntaxKind.JsxOpeningElement), ...sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)];
   for (const element of elements) {
     const tag = element.getTagNameNode();
     if (!(Node.isIdentifier(tag) && importedComponents.has(tag.getText()))) {
       continue;
     }
-    const list = hits.get(tag.getText()) ?? [];
+    const scope = jsxTreeRoot(tag);
+    const scopeHits = hits.get(scope) ?? new Map<string, Node[]>();
+    hits.set(scope, scopeHits);
+    const list = scopeHits.get(tag.getText()) ?? [];
     list.push(tag);
-    hits.set(tag.getText(), list);
+    scopeHits.set(tag.getText(), list);
   }
-  for (const [name, nodes] of hits) {
-    for (const node of nodes.slice(1)) {
-      ctx.report(node, { token: name, offset: 0 });
-    }
+  for (const scopeHits of hits.values()) {
+    reportRepeatedHits(scopeHits, ctx);
   }
 }
 
@@ -162,9 +195,20 @@ export const gate: GateDescriptor = {
     },
     {
       files:
-        'import { test } from "@playwright/experimental-ct-react";\nimport { StoryA } from "./_ct-stories.tsx";\ntest("a", () => {\n  StoryA;\n});\ntest("b", () => {\n  StoryA;\n});\n',
+        'import { test } from "@playwright/experimental-ct-react";\nimport { StoryA } from "./_ct-stories.tsx";\ntest("a", () => <StoryA />);\ntest("b", () => <StoryA />);\n',
       at: "tests/ui/charts/reuse.ct.tsx",
-      why: "the same story used across two SEPARATE test() bodies (not both as array elements) — not the array-declare shape",
+      why: "the same story rendered across two SEPARATE test() bodies — generated declarations live in separate scopes",
+    },
+    {
+      files:
+        'import { test } from "@playwright/experimental-ct-react";\nimport { StoryA } from "./_ct-stories.tsx";\ntest("a", async ({ mount }) => {\n  await mount(<StoryA />);\n  await mount(<StoryA />);\n});\n',
+      at: "tests/ui/charts/remount.ct.tsx",
+      why: "separate mount JSX trees in one test are separate rewrites and may reuse the same story import",
+    },
+    {
+      files: 'import { Button } from "@orb/ui/button";\nexport const Pair = () => <>\n  <Button>One</Button>\n  <Button>Two</Button>\n</>;\n',
+      at: "tests/ui/charts/primitive.ct.tsx",
+      why: "ordinary UI primitives may repeat in one rendered tree; only imported CT story modules are rewritten as story bindings",
     },
     {
       files: "export function StoryA() {\n  return null;\n}\n",

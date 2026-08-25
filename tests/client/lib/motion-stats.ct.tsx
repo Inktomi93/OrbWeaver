@@ -105,7 +105,7 @@ interface MotionRead {
 }
 
 async function resetMotion(page: Page): Promise<void> {
-  // FABRICATION-OK: paired with MotionAnchoredPortalStory's same-module probe slot.
+  // Paired with MotionAnchoredPortalStory's same-module probe slot.
   await page.evaluate(async () => {
     await new Promise<void>((resolve) => {
       requestAnimationFrame(() => {

@@ -330,7 +330,6 @@ describe("read — listChats orders by the clock its rows DISPLAY (#150)", () =>
     for (const [index, at] of stamps.entries()) {
       // biome-ignore lint/performance/noAwaitInLoops: a keyset walk is sequential by definition, and these rooms are seeded in a fixed order so the page seams are deterministic.
       const room = await seedRoom(`keyset${String(index)}`, me);
-      // biome-ignore lint/performance/noAwaitInLoops: same — the message stamp is what this arm pages across.
       await seedMessage(db, room, 1, { role: "user", authorUserId: me, content: `line ${String(index)}`, createdAt: at });
       rooms.push(room);
     }
@@ -2144,7 +2143,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       const m = await seedMessage(db, chatId, 1, { role: "assistant", content: "He shrugs." });
       // The engine writes a full `AssembledPrompt` here; the read PROJECTS it through `sentPromptSchema`, so
       // only the projected fields are under test (`trace` is dropped by design — asserted below).
-      const blob = Snapshot as never; // FABRICATION-OK: an AssembledPrompt stand-in; the read projects it.
+      const blob = Snapshot as never; // An AssembledPrompt stand-in; the read projects it.
       await db
         .update(messageVariants)
         .set({ promptSnapshot: blob, params: { temperature: 0.7 } })

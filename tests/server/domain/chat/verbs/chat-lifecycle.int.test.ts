@@ -483,7 +483,8 @@ describe("getUserMacroPicks — the picks pane read (#24, member)", () => {
     return createChatLifecycle(
       makeChatContext(db, {
         resolvePromptUserMacros: () => Promise.resolve(defs),
-        // A minimal rpg op set: the pane read reaches ONLY the declaration op (FABRICATION-OK).
+        // A minimal rpg op set: the pane read reaches ONLY the declaration op.
+        // FABRICATION-OK: the conditional stub exposes only resolveUserMacros, the sole operation reached here.
         ...(gameDefs === undefined ? {} : { rpg: { resolveUserMacros: () => Promise.resolve(gameDefs) } as unknown as NonNullable<ChatContext["rpg"]> }),
       }),
       lifecycleDeps(),

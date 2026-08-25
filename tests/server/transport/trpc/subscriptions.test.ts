@@ -37,7 +37,8 @@ function* yieldThen(events: readonly string[], throwing: unknown): Generator<unk
  *  re-spelled, because the tests package deliberately does not depend on `@trpc/server`. */
 function wrap(source: Generator<unknown>): AsyncIterable<unknown> {
   // The wrapper re-yields a source envelope UNTOUCHED (it only MINTS one, for the terminal frame), so the
-  // tuple shape is the whole contract here. FABRICATION-OK: there is no field for a change to break.
+  // tuple shape is the whole contract here.
+  // FABRICATION-OK: the wrapper preserves the opaque source envelope, so there is no field contract to fabricate.
   return withSubscriptionErrors(source as unknown as Parameters<typeof withSubscriptionErrors>[0]);
 }
 

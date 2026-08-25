@@ -96,7 +96,7 @@ type OidcConfig = Awaited<ReturnType<OidcRoutesDeps["getConfig"]>>;
 /** A fake openid-client Configuration exposing only `serverMetadata()` — the one field the logout (A6) and
  *  back-channel (A5) routes read. openid-client's Configuration has no public test constructor, so this is the
  *  single sanctioned fabrication; every OidcRoutesDeps stub built below is otherwise fully typed. */
-// FABRICATION-OK: openid-client Configuration has no test constructor; only serverMetadata() is exercised.
+// openid-client Configuration has no test constructor; only serverMetadata() is exercised.
 function fakeConfig(meta: { issuer: string; jwks_uri?: string; end_session_endpoint?: string }): OidcConfig {
   // FABRICATION-OK: openid-client Configuration has no test constructor; only serverMetadata() is exercised.
   return { serverMetadata: () => meta } as unknown as OidcConfig;

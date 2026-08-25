@@ -261,6 +261,7 @@ describe("dynamicContextOptions — the mid-conversation operator-context seam",
     // The callback's own param type (derived from the seam — no SDK import, keeping the D8 seal); the
     // hook ignores its input, so a structurally-satisfying literal is enough and stays type-checked.
     type HookInput = Parameters<NonNullable<typeof hook>>[0];
+    // FABRICATION-OK: the callback ignores its input; this probe supplies only the SDK fields relevant to invocation.
     const input = {
       hook_event_name: "UserPromptSubmit",
       prompt: "hi",

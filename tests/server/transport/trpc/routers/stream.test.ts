@@ -224,7 +224,8 @@ describe("the staged fold leaves no dual transport", () => {
           chat: { chatEventBounds: seated },
           automation: { resolveStreamAuthority: () => Promise.resolve("member") },
           // The workloads room's gate is the throw-or-not verdict of `get`; no field of the row is ever read
-          // (sources/workloads.test.ts). FABRICATION-OK: an id-only `WorkloadRowAnyKind` double.
+          // (sources/workloads.test.ts).
+          // FABRICATION-OK: an id-only WorkloadRowAnyKind double; the room reads no other field.
           workloads: { get: ({ id }) => Promise.resolve({ id } as unknown as WorkloadRowAnyKind) },
         },
       }),

@@ -133,8 +133,12 @@ const tracker = (over: Partial<RpgTrackerDef>): RpgTrackerDef =>
     write: "delta",
     locked: false,
     appliesTo: "everyone",
+    color: null,
+    icon: null,
+    sort: 0,
+    pinned: false,
     ...over,
-  }) as RpgTrackerDef;
+  }) satisfies RpgTrackerDef;
 
 /** The game that lights EVERY gated clause at once — the fixtures' own config, spelled once. */
 function everythingConfig(): RpgGameConfig {
