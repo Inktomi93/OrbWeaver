@@ -805,6 +805,13 @@ const onboardingSchema = z
     // the release channel for bundle content, and re-dressing an INSTALLED plugin behind the user's back is
     // exactly what the consent posture exists to prevent.
     examplePluginsSeeded: z.boolean().catch(false).default(false),
+    // The SERVER-WIDE published plugin set (D147 clause (d)) applied to THIS user — its own latch, distinct
+    // from `examplePluginsSeeded` because the two carry different content from different authors: the examples
+    // ship with the build, the distributed set is whatever this deployment's admin published. A fan-out reaches
+    // every user who existed when it ran, so this latch exists for the users created AFTER one — and, exactly
+    // like its siblings, it is the DELETION-RESPECT guard: a user who uninstalls a distributed plugin must not
+    // find it back on their next request.
+    distributedPluginsApplied: z.boolean().catch(false).default(false),
   })
   .prefault({});
 

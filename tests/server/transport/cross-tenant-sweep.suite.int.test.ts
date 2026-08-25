@@ -1405,6 +1405,18 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // that take no foreign id remain exempt:
   "plugin.install": "self-scoped: install mints the CALLER's own row (ownerId = caller.userId) from bytes it was handed — there is no foreign id to probe",
   "plugin.list": "self-scoped: takes NO input at all; listOwned filters WHERE owner_id = caller.userId, so there is no id a stranger could aim",
+  // ── SERVER-WIDE DISTRIBUTION (D147 clause (d), added 2026-08-24). All three are `adminProcedure` + a domain
+  //    `requireAdmin` re-check, so the sweep's plain-user stranger is refused FORBIDDEN at LAYER 1 before any
+  //    lookup — the `admin.*` role-gate pattern, tested by the admin-gate matrix, not IDOR. None takes a
+  //    foreign id: `installForAllUsers` takes BYTES, `uninstallForAllUsers` takes a SLUG (deployment policy,
+  //    not an owned entity — it names a published bundle, and the withdrawal it drives runs per-recipient
+  //    under EACH RECIPIENT's own Principal through the owner-scoped uninstall), and `listDistributed` takes
+  //    no input. The cross-tenant property they DO have — a fan-out never touches a row a user already holds,
+  //    and skips a diverged one — is pinned in tests/server/domain/plugin/verbs/{install,uninstall}-for-all-
+  //    users.int.test.ts, where a stranger's row surviving is the assertion.
+  "plugin.installForAllUsers": "admin-gated: role gate (publishes deployment policy; takes bundle bytes, no foreign id)",
+  "plugin.uninstallForAllUsers": "admin-gated: role gate (withdraws deployment policy by SLUG; per-recipient uninstall runs as the recipient)",
+  "plugin.listDistributed": "admin-gated: role gate (reads deployment policy; no input at all)",
   "admin.embedCharacterCard": "admin-gated: role gate",
   // get/cancel/retry are PROBED above (owner-scoped, id-taking). start/list/subscribe below:
   "workloads.start": "self-scoped: a singular run stamps ownerId = caller (a bulk run requires the box owner); no foreign id",

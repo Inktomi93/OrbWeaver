@@ -31,6 +31,10 @@ export type PluginCapability = (typeof PLUGIN_CAPABILITIES)[number];
 /** A lowercase slug, unique per installing owner — NOT reverse-DNS (nothing federates; a slug is what users
  *  type and logs show). Also the tool namespace prefix root. */
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,63}$/;
+/** The slug as a STANDALONE input schema — the manifest field's own grammar, exported so a transport verb
+ *  that takes a slug (`plugin.uninstallForAllUsers`) validates with the ONE rule rather than re-spelling a
+ *  length cap that would drift from it. Same regex object, so the two can never disagree. */
+export const pluginSlugSchema = z.string().regex(SLUG_RE);
 /** The plugin's OWN semver (display + upgrade ordering) — distinct from `hostVersion` (the membrane major). */
 const PLUGIN_SEMVER_RE = /^\d+\.\d+\.\d+$/;
 /** An exact hostname `net.fetch` may reach (the SSRF posture; the per-request enforcer is `validateUrl`
