@@ -158,6 +158,15 @@ updated: 2026-08-24
   cap correction (A1-F7):** plugin event delivery has NO hourly rate belt — the membrane caps are
   per-invocation only — so this plugin performs one external egress per committed message with no
   ceiling; the plugin self-debounces v1, and an egress rate floor is named to #24.
+- **TRUTH-REPAIR 2026-08-24 (lane cb-plugin-examples, #673), on the A1-F7 clause above.** Its EGRESS half
+  is DEAD: a per-plugin hourly egress floor exists and is live — `PLUGIN_EGRESS_PER_HOUR = 120`
+  (`domain/plugin/substrate/rate-floor.ts:42`), minted at compose into `PluginBelts.egress`
+  (`entry/compose/automation-plugin.ts:365`) and CLAIMED before every fetch, before the first await, via
+  `runtime.bridge.admitEgress()` (`infra/plugin-host/membrane.ts:671` → `substrate/bridge.ts:223-225`).
+  Its DELIVERY half stands: nothing rate-limits event delivery itself, so a plugin still owes its own
+  debounce — which is why the shipped example gates on an explicit `((lookup: …))` marker plus a
+  seen-set plus a minimum fetch gap. Also stale in the same neighbourhood: the auto-disable threshold is
+  THREE consecutive crashed invocations, not twenty (`activation/crash-policy.ts:18`).
 - **New:** the `neutralizeMacros`-on-plugin-lore-writes host belt (a #24 line item — and yes,
   that one call IS host-side work; the row's cost is "plugin bundle + one host belt", stated
   plainly).
