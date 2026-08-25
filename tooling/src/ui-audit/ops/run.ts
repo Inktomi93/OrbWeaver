@@ -19,21 +19,31 @@ import type { CensusReachInput, RawSamples } from "../contract/samples.ts";
 import type { Args, BackdropRefusal } from "../contract/types.ts";
 import { checkScriptErrors } from "../lib/checks-quality.ts";
 import { collectFindings } from "../lib/collect.ts";
-import { censusGap, censusTotal, reachGap, SAMPLE_COLLECTION_PREFIX, walkFailureGap } from "../lib/evidence.ts";
+import { censusGap, censusTotal, reachGap, readinessGap, SAMPLE_COLLECTION_PREFIX, walkFailureGap } from "../lib/evidence.ts";
 import { isAtOrAboveSeverity } from "../lib/severity.ts";
+import { stageLabel } from "../lib/stage-request.ts";
 import { navigateAndReveal } from "./drive.ts";
 import { resolvePixelBackdrops } from "./pixels.ts";
 import { countBySeverity, navVerdict, printBackdropRefusals, printCensusReach, printFindingsTable } from "./report.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
-/** ZERO HYGIENE, both arms, in one place (#409 + #653). Returns the gap that makes this run an
+/** ZERO HYGIENE, every arm, in one place (#409 + #653 + #678). Returns the gap that makes this run an
  *  INSTRUMENT failure rather than a verdict, or null when the walk is entitled to be believed:
+ *   • `readinessGap` — on an app origin, the app never published `data-app-ready`: the walk censused the
+ *     SHELL, which is a small NON-ZERO count the two arms below are structurally blind to;
  *   • `censusGap` — the walk censused nothing at all (blank mount / error boundary / wrong route);
  *   • `reachGap`  — it censused plenty of text but reached NOT ONE offered control, so the tap-target,
  *     action-door and silhouette families each folded an empty list into "no findings".
  *  Only for a page that LOADED — a nav error is reported as itself. */
-function evidenceGapOf(census: number, samples: RawSamples | null, url: string): EvidenceGap | null {
+function evidenceGapOf(census: number, samples: RawSamples | null, url: string, appReady: boolean): EvidenceGap | null {
+  // READINESS FIRST (#678): a shell censuses a small-but-nonzero node count, so this arm has to be judged
+  // BEFORE the two count-based ones — they cannot see it, and the run would otherwise print a clean verdict
+  // over a page whose app never mounted.
+  const readiness = readinessGap(url, appReady);
+  if (readiness !== null) {
+    return readiness;
+  }
   if (census === 0) {
     return censusGap(url);
   }
@@ -74,7 +84,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
     localStorage: [],
   });
 
-  const { navError, actionsFailed, samples } = await navigateAndReveal(session.page, opts, url);
+  const { navError, actionsFailed, appReady, samples } = await navigateAndReveal(session.page, opts, url);
   // ZERO HYGIENE (#409), the apparatus arm: the WALK failing is an instrument failure, not a finding.
   // An HTTP nav error stays a violation below — that one IS a fact about the page.
   if (navError?.startsWith(SAMPLE_COLLECTION_PREFIX) === true) {
@@ -90,7 +100,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
   const reach = pixels.samples?.censusReach;
   // The evidence arms: a walk that saw nothing — or one that reached no offered control — folds check
   // families to zero and prints "no findings — clean". Guarded only where the page LOADED.
-  const gap = navError === null ? evidenceGapOf(census, pixels.samples, url) : null;
+  const gap = navError === null ? evidenceGapOf(census, pixels.samples, url, appReady) : null;
   if (gap !== null) {
     print(`URL          ${url}`);
     return instrumentError(gap);
@@ -111,6 +121,10 @@ export async function runUiAudit(opts: Args): Promise<number> {
       {
         route: opts.route,
         url,
+        // WHICH TREE this run measured (#678): the stage's short sha, or `live` for whatever --base served.
+        // A rendered receipt that cannot say which commit it audited is the ambiguity the stage mode exists
+        // to end — so it rides both the machine line and the artifact.
+        stage: stageLabel(opts.stageShortSha),
         viewport: opts.viewport,
         device: opts.device,
         actions: opts.actions,
@@ -139,6 +153,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
   printFindingsTable(findings);
 
   printResult("design-audit", [
+    ["stage", stageLabel(opts.stageShortSha)],
     ["findings", findings.length],
     ["p0", counts.P0],
     ["p1", counts.P1],

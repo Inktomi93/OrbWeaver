@@ -67,6 +67,7 @@ import {
   stagePaths,
   stagePorts,
 } from "../lib/stage-plan.ts";
+import { addWorktree, removeWorktree, repoRoot, resolveRef, worktreeExists } from "./stage-git.ts";
 import { clearActive, markerRoot, readActive, touchActive, writeActive } from "./stage-marker.ts";
 import { bandIsBound, killProcessGroup, pidIsStageRooted, stageBandPortPid, stageDirs } from "./stage-probe.ts";
 
@@ -74,18 +75,8 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const DEBUG_TOKEN_BYTES = 16;
 
-// ── git / repo helpers ───────────────────────────────────────────────────────────────────────────────
-
-export function repoRoot(): string {
-  return execNicedSync("git", ["rev-parse", "--show-toplevel"]).trim();
-}
-
-/** Resolve a ref (branch/tag/sha/HEAD) to a full commit sha. Throws (git non-zero) on an unknown ref. */
-function resolveRef(root: string, ref: string): string {
-  return execNicedSync("git", ["rev-parse", ref], { cwd: root }).trim();
-}
-
-// ── health / version / worktree primitives ─────────────────────────────────────────────────────────────
+// ── health / version primitives ────────────────────────────────────────────────────────────────────────
+// (the git/worktree primitives are ops/stage-git.ts — same by-nature split as the marker and probe modules)
 
 function curlOk(url: string): boolean {
   return runNicedSync("curl", ["-sf", "-m", "2", url], { stdio: "ignore" }).status === 0;
@@ -140,24 +131,6 @@ function syncDirtyTree(root: string, dir: string): void {
   if (res.status !== 0) {
     throw new Error(`rsync of the working tree into dirty stage ${dir} failed`);
   }
-}
-
-function worktreeExists(dir: string): boolean {
-  // A linked worktree carries a `.git` FILE (a gitdir pointer), not a directory.
-  return existsSync(join(dir, ".git"));
-}
-
-function addWorktree(root: string, dir: string, sha: string): void {
-  // A crashed run can leave a bare dir; `git worktree add` needs the path empty/absent.
-  rmSync(dir, { recursive: true, force: true });
-  runNicedSync("git", ["worktree", "add", "--detach", dir, sha], { cwd: root, stdio: "inherit" });
-}
-
-function removeWorktree(root: string, dir: string): void {
-  // --force: the worktree carries gitignored node_modules/db — git refuses a "dirty" remove otherwise.
-  runNicedSync("git", ["worktree", "remove", "--force", dir], { cwd: root, stdio: "inherit" });
-  runNicedSync("git", ["worktree", "prune"], { cwd: root, stdio: "ignore" });
-  rmSync(dir, { recursive: true, force: true });
 }
 
 function pnpmInstall(dir: string): void {
