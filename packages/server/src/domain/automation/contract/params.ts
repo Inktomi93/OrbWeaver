@@ -104,6 +104,17 @@ export interface ListFiresParams extends AutomationActorParams {
   readonly limit?: number;
 }
 
+/** B11 — the room Activity read: a CHAT's recent fire log across ALL its rules, newest first (host-only).
+ *  Chat-scoped like `listRules`, so authority is `requireChatHost(chatId)` — a non-member collapses to a
+ *  leak-free NOT_FOUND. Distinct from `listFires` (per-rule): this is the room's out-of-band history in ONE
+ *  indexed read (`automation_fires_chat_idx`), so the surface needs no client-side fan-out over the chat's
+ *  rules. A deleted rule's fires CASCADE with it (FK `onDelete: cascade`), so the log reflects the chat's
+ *  currently-live rules' activity. */
+export interface ListChatActivityParams extends AutomationActorParams {
+  readonly chatId: ChatId;
+  readonly limit?: number;
+}
+
 /** Upsert the per-chat fire-rate cap (host-editable — the loop-safety belt). An absent field keeps the DB
  *  default / current value. */
 export interface SetBudgetsParams extends AutomationActorParams {

@@ -1032,6 +1032,11 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.automation.createRuleFromPreset({ chatId: i.chatId, presetId: "autoAddLore", knobs: { bookId: i.bookId } }),
   },
   { path: "automation.listFires", call: (c, i) => c.automation.listFires({ ruleId: i.automationRuleId }) },
+  // B11 — the room Activity read is chat-scoped (like `listRules`/`getBudgets`): `requireChatHost(chatId)`
+  // gates it, so a non-member stranger passing A's chatId collapses to a leak-free AutomationChatNotFoundError
+  // → NOT_FOUND before any fire row is read. A no-id proc is NOT auto-exempt — it is PROBED because it takes
+  // A's chatId, the foreign handle a leak would ride.
+  { path: "automation.listChatActivity", call: (c, i) => c.automation.listChatActivity({ chatId: i.chatId }) },
   { path: "automation.setBudgets", call: (c, i) => c.automation.setBudgets({ chatId: i.chatId, maxFiresPerHour: 5 }) },
   { path: "automation.getBudgets", call: (c, i) => c.automation.getBudgets({ chatId: i.chatId }) },
 

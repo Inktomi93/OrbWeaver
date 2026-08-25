@@ -8,17 +8,20 @@
 // VOCABULARY (owner ruling, #599): bare "preset" means a GENERATION preset in this app, so nothing here
 // says it — these are rule presets, and a rule is a "rule".
 //
-// THE DISPATCHES ARE SWITCHES, NOT OBJECT LITERALS (the `fireOutcomeView` precedent one file over): the
-// wire vocabularies are snake_case (`set_variable`) and dotted (`character.updated`), and an object literal
-// keyed by them fights `useNamingConvention`. Each switch is exhaustive over its closed tuple with a
-// `never` default, so a new trigger/arm fails `tsc` HERE until it is given copy (§5.5).
+// THE DISPATCHES ARE SWITCHES, NOT OBJECT LITERALS: the wire vocabularies are snake_case (`set_variable`)
+// and dotted (`character.updated`), and an object literal keyed by them fights `useNamingConvention`. Each
+// switch is exhaustive over its closed tuple with a `never` default, so a new trigger/arm/outcome fails `tsc`
+// HERE until it is given copy (§5.5). `fireOutcomeView` (the outcome→badge dispatch) lives here for that
+// one-home reason: it was co-located with the per-rule log until B11 added a SECOND fire surface (the room
+// Activity log), at which point re-spelling the outcome vocabulary in two places would break §5.5.
 //
 // `triggerLabel` takes a plain `string` on purpose: `FireView.triggerType` is a stored column typed
 // `string`, not the union — a fire written before a vocabulary change must still render. An unknown value
 // falls back to itself, which is the honest answer and is exactly what the guarded narrow buys.
 
-import type { AutomationActionType, AutomationRunOutcome, ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
+import type { AutomationActionType, AutomationFireOutcome, AutomationRunOutcome, ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
 import { AUTOMATION_ACTION_TYPES, CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES, SPEND_ARM_TYPES } from "@orb/contracts/automation";
+import type { BadgeProps } from "@orb/ui/badge";
 import { timeLib } from "#lib";
 
 /** The plain-English phrase for a CHAT-bus trigger — "when this rule looks", in the room's own terms. */
@@ -199,15 +202,17 @@ function actionErrorLine(detail: Record<string, unknown>): string {
   return `Couldn't ${ARM_LABELS[armType] ?? armType}${which}: ${error}`;
 }
 
-/** The `budget_refused` sentence — which cap turned the rule away, with the number a host can act on. */
-function budgetRefusedLine(detail: Record<string, unknown>, caps: RuleFireCaps): string {
+/** The `budget_refused` sentence — which cap turned the rule away, with the number a host can act on.
+ *  `caps` is `null` on the room ACTIVITY log (B11): that surface spans every rule, so it holds no single
+ *  rule's caps and the cooldown/rule-hourly arms fall to the generic line (the number would be a lie). */
+function budgetRefusedLine(detail: Record<string, unknown>, caps: RuleFireCaps | null): string {
   // `?? ""` rather than a `case null`: the switch is over a HOST-facing vocabulary, and "absent" and
   // "unrecognized" get the same honest generic line.
   switch (detailString(detail, "limit") ?? "") {
     case "cooldown":
-      return `Its cooldown hadn't elapsed — it runs at most once every ${caps.cooldownSeconds}s.`;
+      return caps === null ? "Its cooldown hadn't elapsed." : `Its cooldown hadn't elapsed — it runs at most once every ${caps.cooldownSeconds}s.`;
     case "rule_hourly":
-      return `It had already run ${caps.maxFiresPerHour} times this hour — its own cap.`;
+      return caps === null ? "It had already hit its own hourly cap." : `It had already run ${caps.maxFiresPerHour} times this hour — its own cap.`;
     case "chat_hourly":
       return "This chat had already hit its hourly cap across all rules.";
     default:
@@ -229,7 +234,7 @@ function testRunLine(detail: Record<string, unknown>): string {
  *  (a plain condition-not-met fire is fully described by its badge). This is the read the contract
  *  promised and the surface never made: without it the Run-now toast's "see the fire log" pointed at a log
  *  that showed a badge, a raw discriminator, and a timestamp. */
-export function fireDetailLine(outcome: string, detail: Record<string, unknown> | null, caps: RuleFireCaps): string | null {
+export function fireDetailLine(outcome: string, detail: Record<string, unknown> | null, caps: RuleFireCaps | null): string | null {
   if (detail === null) {
     return null;
   }
@@ -287,6 +292,45 @@ export function runOutcomeNotice(name: string, outcome: AutomationRunOutcome): {
     default: {
       const exhaustive: never = outcome;
       throw new Error(`unhandled automation run outcome: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
+/** One fire outcome as a badge label + tone. */
+export interface FireOutcomeView {
+  readonly label: string;
+  readonly intent: BadgeProps["intent"];
+}
+
+/** One fire outcome's host-facing copy + badge tone, dispatched EXHAUSTIVELY (§5.5 — a new
+ *  `AutomationFireOutcome` fails `tsc` at the `never` default). `fired` is the only success; the refusals are
+ *  neutral facts (the rule is healthy, its condition simply did not hold), and the error terminals are the
+ *  ones a host must notice. `test_run` marks a dry run so a Test press does not read as a real fire. A switch
+ *  (not an object literal) keeps the snake_case wire terminals off the `useNamingConvention` lint.
+ *
+ *  ONE HOME for both fire surfaces (§5.5): the per-rule `RuleFireLog` and B11's room `RoomActivityLog` render
+ *  the SAME badge from this dispatch, so a new terminal is written once. */
+export function fireOutcomeView(outcome: AutomationFireOutcome): FireOutcomeView {
+  switch (outcome) {
+    case "fired":
+      return { label: "Fired", intent: "success" };
+    case "predicate_false":
+      return { label: "Condition not met", intent: "neutral" };
+    case "predicate_error":
+      return { label: "Condition errored", intent: "danger" };
+    case "budget_refused":
+      return { label: "Rate-capped", intent: "warning" };
+    case "depth_refused":
+      return { label: "Cascade-capped", intent: "warning" };
+    case "action_error":
+      return { label: "Action errored", intent: "danger" };
+    case "authority_refused":
+      return { label: "No authority", intent: "danger" };
+    case "test_run":
+      return { label: "Test run", intent: "info" };
+    default: {
+      const exhaustive: never = outcome;
+      throw new Error(`unhandled automation fire outcome: ${JSON.stringify(exhaustive)}`);
     }
   }
 }

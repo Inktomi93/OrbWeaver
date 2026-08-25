@@ -157,6 +157,20 @@ export const automationRouter = t.router({
       }),
     ),
 
+  // B11 — the room ACTIVITY read (host-only, newest first): this chat's fire log ACROSS all its rules, the
+  // "what happened out-of-band while I was away" surface the chat Activity tab renders. Chat-scoped, so the
+  // domain guard is `requireChatHost(chatId)` — a non-member passing a foreign chatId collapses to a leak-free
+  // NOT_FOUND, exactly like `listRules`. Same page ceiling as `listFires`.
+  listChatActivity: authedProcedure
+    .input(z.object({ chatId: brandedId<ChatId>(), limit: z.number().int().min(1).max(AUTOMATION_FIRES_LIST_MAX_LIMIT).optional() }))
+    .query(({ ctx, input }) =>
+      ctx.services.automation.listChatActivity({
+        principal: ctx.auth,
+        chatId: input.chatId,
+        ...(input.limit === undefined ? {} : { limit: input.limit }),
+      }),
+    ),
+
   // The per-chat fire-rate cap (host-only; the loop-safety belt). An absent field keeps the current value.
   setBudgets: authedProcedure
     .input(
