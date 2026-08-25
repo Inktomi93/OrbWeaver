@@ -50,6 +50,7 @@ import type {
   ChatId,
   DocumentId,
   PersonaId,
+  PluginId,
   PresetId,
   RefinerySessionId,
   RegexScriptId,
@@ -92,6 +93,14 @@ export type UserBusEvent =
   // SSO login that renamed the handle / re-derived the role. NO id — the channel key IS the affected user
   // (see the MEMBERSHIP note), so there is no sub-entity to hint at and nothing for a hint to target.
   | { type: "identityChanged" }
+  // A plugin UI surface's published STATE changed (plugin-ui-plane #679 U1) — `host.ui.setState` writes the
+  // in-memory state plane and fires this so the installer's own client refetches `plugin.getSurfaceState`. The
+  // per-person bus is exactly right: a v1 surface renders ONLY for its installer, so the state's one viewer IS
+  // this channel's user. COARSE with a `pluginId` hint, following every member here: the client path-invalidates
+  // the surface-state read regardless, so a finer `surfaceId`/`chatId` (the design doc's shape) would buy the
+  // coarse map nothing AND a raw plugin-local `surfaceId` string is not a branded id — the shape law this file
+  // opens with. The blast radius is a handful of the installer's own surfaces.
+  | { type: "pluginSurfaceStateChanged"; pluginId?: PluginId }
   // DEFERRED (no server emit yet — see the MEMBERSHIP note + the `user-bus-coverage` DEFERRED allowlist): a
   // user's connection config lives in settings today, so nothing emits this. Declared so the client map +
   // the ratchet track it for the day a per-user connection store lands.
@@ -115,6 +124,7 @@ export const USER_BUS_EVENT_TYPES = {
   databankChanged: true,
   corpusRecomputed: true,
   identityChanged: true,
+  pluginSurfaceStateChanged: true,
   connectionsChanged: true,
 } satisfies Record<UserBusEvent["type"], true>;
 
@@ -148,6 +158,7 @@ export const COARSE_USER_BUS_EVENT = {
   databankChanged: { type: "databankChanged" },
   corpusRecomputed: { type: "corpusRecomputed" },
   identityChanged: { type: "identityChanged" },
+  pluginSurfaceStateChanged: { type: "pluginSurfaceStateChanged" },
   connectionsChanged: { type: "connectionsChanged" },
 } satisfies Record<UserBusEvent["type"], UserBusEvent>;
 

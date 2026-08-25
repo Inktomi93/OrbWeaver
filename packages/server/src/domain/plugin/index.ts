@@ -31,6 +31,7 @@ export type {
   PluginEventSubscription,
   PluginHandlerRef,
   PluginInstance,
+  PluginSurfaceRegistration,
   PluginToolRegistration,
   PluginTransformRegistration,
 } from "@orb/contracts/plugin";
@@ -93,6 +94,7 @@ export type {
   PluginDistributionDeps,
   PluginHostPort,
   PluginService,
+  PluginSurfaceStateStore,
 } from "./contract/service.ts";
 export { isPluginEnabledFor } from "./persistence/plugins.ts";
 export { createPluginService } from "./service.ts";
@@ -102,3 +104,4 @@ export { createPluginRateFloor, PLUGIN_EGRESS_PER_HOUR, PLUGIN_QUIET_LLM_PER_HOU
 export { buildPluginPromptTransform, capFactContent } from "./substrate/registrar.ts";
 export { createSnippetGate } from "./substrate/snippet-gate.ts";
 export { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "./substrate/storage.ts";
+export { createPluginSurfaceStateStore, createSurfaceStatePublisher } from "./substrate/surface-state.ts";
