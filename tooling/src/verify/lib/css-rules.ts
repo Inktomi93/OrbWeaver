@@ -5,7 +5,9 @@
 // which is what lets a caller read a line-adjacent `/* @marker: … */` back out of the raw bytes.
 import { blankCssComments } from "./comment-spans.ts";
 
-/** ONE declaration inside a rule block, with the line its finding anchors on. */
+/** ONE declaration inside a rule block, with the line its finding anchors on.
+ *  @public knip type-face false positive — a structural field of the exported `CssRule` shape (its
+ *  `declarations` field), never referenced by its own name outside this file. */
 export interface CssDeclaration {
   readonly prop: string;
   /** Whitespace-collapsed value, `;` and surrounding trivia stripped. */
@@ -140,14 +142,14 @@ export function parseCssRules(rawText: string): readonly CssRule[] {
 }
 
 /** Split at top-level commas only — `:not(a, b)` and `[attr="x,y"]` keep their commas. */
-export function splitSelectorList(prelude: string): readonly string[] {
+function splitSelectorList(prelude: string): readonly string[] {
   return splitTopLevel(prelude, ",")
     .map(collapse)
     .filter((s) => s !== "");
 }
 
 /** Split `text` at `sep`, ignoring separators nested inside `()`/`[]` or a quoted run. */
-export function splitTopLevel(text: string, sep: string): readonly string[] {
+function splitTopLevel(text: string, sep: string): readonly string[] {
   const out: string[] = [];
   let start = 0;
   walkTopLevel(text, (ch, i) => {

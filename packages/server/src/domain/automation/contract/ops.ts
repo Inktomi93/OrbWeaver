@@ -474,7 +474,10 @@ export interface StashedArm {
  *
  *  `null` is the INVITATION class and is `null` by construction — `budget_refused` is decided before the
  *  predicate and before any env exists, so no rendered arm can be stashed, which is also why that path has
- *  no TOCTOU. */
+ *  no TOCTOU.
+ *
+ *  @public knip type-face false positive — it is a structural field of the exported `Suggestion` shape
+ *  (its `payload` field), never referenced by its own name at any call site. */
 export type SuggestionPayload =
   | { readonly via: "arm"; readonly stashed: StashedArm }
   /** A plugin-origin act, re-executed through `domain/plugin`'s OWN bridge at confirm (the injected
