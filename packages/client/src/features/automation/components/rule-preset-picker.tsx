@@ -221,19 +221,17 @@ export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElemen
           </Button>
         }
       />
-      {/* No call-site width: the popup slot already seals its own box (`max-w-cq-sm` + the
-          `max-h-(--available-height)` cap, capped-and-scrollable) — a `w-80` here would fight that seal
-          rather than express anything the primitive does not already own (`ui-size-via-variant`).
-          THE RULING SURVIVED A CHALLENGE (#655): the picker was reported to TELEPORT between its two steps
-          ({x:513 y:36 w:384} → {x:929 y:476 w:319}), and both call-site levers were tried and MEASURED
-          WRONG. `min-w-cq-sm` forces 24rem even where the positioner has less room — the 384px docked pane
-          rendered a 384px popup inside 376.09px of available width. `side="top" align="end"` did not pin
-          the anchor either (bottom/right went 311/1019 → 428/1024 at a 1024px mount): the positioner is
-          re-solving a genuinely different box, not mis-aligning the same one. The honest lever is a WIDTH
-          VARIANT on `PopoverPopup` resolving `min(cq-sm, --available-width)`, which is `@orb/ui`'s to add
-          and needs a real-host receipt, not this CT's short page. The TITLE half of that report IS fixed
-          below, and it is the half a screen reader could hear. */}
-      <PopoverPopup>
+      {/* THE RULING SURVIVED A CHALLENGE (#655), THEN GOT ITS FIX (#663). The picker was reported to
+          TELEPORT between its two steps ({x:513 y:36 w:384} → {x:929 y:476 w:319}), and both call-site
+          levers were tried and MEASURED WRONG. `min-w-cq-sm` forces 24rem even where the positioner has
+          less room — the 384px docked pane rendered a 384px popup inside 376.09px of available width.
+          `side="top" align="end"` did not pin the anchor either (bottom/right went 311/1019 → 428/1024 at
+          a 1024px mount): the positioner is re-solving a genuinely different box, not mis-aligning the
+          same one. The honest lever was a WIDTH VARIANT on `PopoverPopup` — `width="stable"` resolves
+          `min(cq-sm, --available-width)`, so this two-step body reads as content swapping inside a fixed
+          frame instead of the popup itself resizing. No call-site className: the seal is a variant PROP,
+          never a call-site utility (`ui-size-via-variant`). */}
+      <PopoverPopup width="stable">
         {/* ONE heading, and it names the STEP. Step 2 used to render a second title inside the body while
             this one still said "Add a rule" — so the dialog's accessible name never changed and a sighted
             host read two titles in reversed order. */}
