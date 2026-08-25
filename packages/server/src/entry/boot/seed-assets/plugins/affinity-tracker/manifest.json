@@ -1,0 +1,10 @@
+{
+  "id": "affinity-tracker",
+  "name": "Affinity Tracker",
+  "version": "1.0.0",
+  "hostVersion": 1,
+  "entry": "main.js",
+  "description": "Every so often it reads the last few messages, asks the model in private how warm the scene has become, and keeps the number to itself until it moves.",
+  "author": "Orbweaver",
+  "capabilities": ["chat.read", "storage.kv", "notify", "llm.quiet", "events.subscribe"]
+}
