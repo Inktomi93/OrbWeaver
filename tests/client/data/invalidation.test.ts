@@ -14,7 +14,7 @@ import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
-import type { CharacterId, ChatId, ChatTurnId, MessageId, PresetId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, MessageId, PluginId, PresetId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, vi } from "vitest";
@@ -24,6 +24,7 @@ import { makeMessageView } from "../features/chat/fixtures.ts";
 const CHAT_ID = castId<ChatId>("chat_invalidationtest");
 const MESSAGE_ID = castId<MessageId>("msg_invalidationtest0");
 const CHARACTER_ID = castId<CharacterId>("char_invalidationtest");
+const PLUGIN_ID = castId<PluginId>("plugin_invalidationtest0");
 const PRESET_ID = castId<PresetId>("preset_invalidationtest");
 
 /** Fresh client + proxy per test — no shared cache state to bleed across assertions. */
@@ -341,6 +342,10 @@ const USER_TRACKED_KEYS = [
   // live client only on a full page reload. Tracked separately from `userSettings`/`persona` — the other two
   // legs of the viewer triple — because those two have their own members and would mask a missing row here.
   "sessionsMe",
+  // A plugin UI surface's published state (`plugin.getSurfaceState`, plugin-ui-plane #679 U1). Before
+  // `pluginSurfaceStateChanged` it had no driver — `staleTime:Infinity` would freeze a rendered surface at its
+  // first fetch; the member path-invalidates the read so `host.ui.setState` reaches the installer's own client.
+  "pluginSurfaceState",
 ] as const;
 type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 
@@ -384,9 +389,9 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // bus half and the ladder half cannot drift apart.
   // Deliberately NOT the character/chat roots: a role grant changes what the viewer may DO, not what they own.
   identityChanged: ["sessionsMe", "userSettings", "persona"],
-  // READ-PENDING member (plugin-ui-plane #679 U1) — EMITTED live (`host.ui.setState`), but its client filter is
-  // `[]` until `plugin.getSurfaceState` lands with U1's read verbs; wire it to that read's key then.
-  pluginSurfaceStateChanged: [],
+  // A plugin surface published new state (plugin-ui-plane #679 U1): path-invalidates the surface-state read so
+  // the installer's own client refetches. Coarse by design — NOT `listSurfaces` (registration is unmoved).
+  pluginSurfaceStateChanged: ["pluginSurfaceState"],
   // DEFERRED member — never emitted, but the map entry is live; it path-invalidates the WHOLE connection
   // router, so the capability read under it goes stale too.
   connectionsChanged: ["connection", "chatCapability"],
@@ -433,6 +438,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         similarArt: trpc.search.similarArt.queryKey({ characterId: CHARACTER_ID }),
         searchQuery: trpc.search.search.queryKey({ query: "anything" }),
         sessionsMe: trpc.sessions.me.queryKey(),
+        pluginSurfaceState: trpc.plugin.getSurfaceState.queryKey({ pluginId: PLUGIN_ID, surfaceId: "panel" }),
       };
       for (const key of Object.values(keys)) {
         // FABRICATION-OK: cache-presence seed; the test asserts isInvalidated only, never the data bytes.

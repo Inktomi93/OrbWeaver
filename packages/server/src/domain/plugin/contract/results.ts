@@ -4,7 +4,7 @@
 // host.log ring. `SnippetResult` is the inline-mode return — TYPE HOME ONLY here; the
 // `runSnippet` verb that produces it lives with the other verbs.
 
-import type { PluginBuiltAgainst, PluginCapability, PluginLogLevel, PluginOrigin, PluginStatus } from "@orb/contracts/plugin";
+import type { PluginBuiltAgainst, PluginCapability, PluginLogLevel, PluginOrigin, PluginStatus, PluginSurfaceRegistrationMeta } from "@orb/contracts/plugin";
 import type { PluginId, UserId } from "@orb/kit/ids";
 
 /** One installed plugin as its owner sees it — the `plugins` row projected, minus the bundle bytes
@@ -61,6 +61,17 @@ export interface PluginView {
   readonly installedAt: number;
   readonly updatedAt: number;
 }
+
+/** One registered UI surface as the CALLER's client renders it (`listSurfaces` — plugin-ui-plane #679 U1): the
+ *  serializable registration meta (id/anchor/title/tier/spec — the `onAction` handle stays server-side) plus the
+ *  `pluginId` it belongs to (the client joins to the plugin's own name/glyph for the labeled shell). */
+export interface PluginSurfaceView extends PluginSurfaceRegistrationMeta {
+  readonly pluginId: PluginId;
+}
+
+/** A surface's published state (`getSurfaceState` — plugin-ui-plane #679 U1): the whole JSON map the renderer
+ *  resolves `{ $state: "path" }` bindings against. `null` from the verb when nothing has been published yet. */
+export type PluginSurfaceState = Record<string, unknown>;
 
 /** One published plugin as the DISTRIBUTE surface sees it (D147 clause (d)) — the `admin_distributed_plugins`
  *  row projected. It describes the deployment's POLICY, never anyone's install: no status, no grant, no
