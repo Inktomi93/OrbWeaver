@@ -371,13 +371,28 @@ export const ANALYSIS_REWRITE_ISSUE_MAX = 120;
  *  authors the `vars` route and the client meter that renders it.
  *
  *  IT LIVES IN `contracts` FOR THE SAME REASON EVERY WIRE SHAPE DOES: two packages must agree on it and
- *  neither may re-spell it. The other preset variable keys (`clock`, `debt`, `lastBeatMs`) are domain-local
- *  constants because nothing outside the server reads them yet; this one is read by a client surface, so a
- *  server-side literal would make the client's own literal the second home of one name. It is a CONSTANT and
- *  never a knob for the reason `contract/presets.ts` states: a knob-supplied key is interpolated into a CEL
- *  IDENTIFIER position (`has(vars.<k>)`), which is both an injection surface and a value the meter would have
- *  no way to learn. */
+ *  neither may re-spell it. The remaining preset variable keys (`debt`, `lastBeatMs`) are domain-local
+ *  constants because nothing outside the server reads them yet; this one and the clock pair below are read by
+ *  a client surface, so a server-side literal would make the client's own literal the second home of one
+ *  name. It is a CONSTANT and never a knob for the reason `contract/presets.ts` states: a knob-supplied key is
+ *  interpolated into a CEL IDENTIFIER position (`has(vars.<k>)`), which is both an injection surface and a
+ *  value the meter would have no way to learn. */
 export const NEEDLE_TENSION_VAR_KEY = "tension";
+
+/** §4 #7 (the clock, `clockFires`) — the pair of chat variables B9's `SegmentedClock` flank widget renders:
+ *  the current FILL and the threshold it fills TO. Both live in `contracts` for the `NEEDLE_TENSION_VAR_KEY`
+ *  reason: the clock preset AUTHORS them into the member-visible `vars` plane (R1 increments the fill and
+ *  publishes the max, both free `set_variable` arms) and the client meter READS them back through
+ *  `chat.getRuntimeVariables`, so the two packages must agree on one spelling.
+ *
+ *  WHY THE MAX IS A PUBLISHED VARIABLE and not read from the rule: the threshold is a mint-time knob that
+ *  lands as a LITERAL inside R2's CEL predicate (`int(vars.clock) >= N`), which no member-visible read exposes
+ *  and which the client may not re-derive (a predicate is server logic — `contract/presets.ts`). Publishing N
+ *  as a sibling variable is the correct home: the data the widget needs comes from the plane it already
+ *  reads, member-gated exactly like the fill. Both are CONSTANTS, never knobs, for the CEL-identifier reason
+ *  above. */
+export const CLOCK_VAR_KEY = "clock";
+export const CLOCK_MAX_VAR_KEY = "clockMax";
 
 /** How a surfaced chip's text is CONSUMED when the member clicks it (S1, the in-chat control seam):
  *  `send` fires it as that member's next turn immediately; `compose` seeds their composer draft so they
