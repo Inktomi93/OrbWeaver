@@ -97,6 +97,7 @@ import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Text } from "@orb/ui/text";
+import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -1037,6 +1038,7 @@ export function MessageListOverArtStory({
   artBackdrop,
   art = "rgb(0 255 0)",
   fullWidth = false,
+  palette,
 }: {
   readonly artBackdrop: boolean;
   /** The wallpaper under the surface. Defaults to the loading pair's SATURATED green (its one-channel
@@ -1045,14 +1047,20 @@ export function MessageListOverArtStory({
   /** Span the viewport instead of the loading pair's fixed 640 — #681 measures at two real widths, and a
    *  fixed story width would make the narrow arm a lie. @defaultValue false */
   readonly fullWidth?: boolean;
+  /** A CARRIED palette's base surface, wrapped around the room as the app does (#690). The CT harness
+   *  paints the base DARK theme, and the over-art plate family's defects are polarity-split — the
+   *  skeleton-on-plate collision is a LIGHT-arm one — so a room whose polarity the test chooses is the
+   *  only way to measure the arm that fails. Omitted ⇒ the harness's own theme, byte-identical to before. */
+  readonly palette?: string;
 }): ReactElement {
+  const room = (
+    <div {...(artBackdrop ? { "data-has-bg-image": "" } : {})} style={{ background: art, width: fullWidth ? "100%" : 640 }}>
+      <SurfaceHarness />
+    </div>
+  );
   return (
     <CtDataProviders>
-      <SocketHost>
-        <div {...(artBackdrop ? { "data-has-bg-image": "" } : {})} style={{ background: art, width: fullWidth ? "100%" : 640 }}>
-          <SurfaceHarness />
-        </div>
-      </SocketHost>
+      <SocketHost>{palette === undefined ? room : <ThemeScope tokens={{ background: palette }}>{room}</ThemeScope>}</SocketHost>
     </CtDataProviders>
   );
 }

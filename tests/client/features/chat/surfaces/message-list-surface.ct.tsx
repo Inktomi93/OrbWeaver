@@ -23,6 +23,7 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { contrastRatio } from "@orb/tooling/_shared/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { pixelContrast } from "../../../../support/ct/pixel-contrast.ts";
@@ -843,6 +844,84 @@ test("LOADING OVER ART: the transcript's skeleton rides a reading plate, not the
   // The backdrop is pure green. Anything backing the skeleton knocks that channel down hard; the raw
   // wallpaper leaves it pinned at the top of the range.
   expect(pixel.g).toBeLessThan(ART_BACKDROP_GREEN - 48);
+});
+
+// ── #690: THE BARS ON THAT PLATE, in a LIGHT carried room ─────────────────────────────────────────
+// The pair above proves the loading block is an OBJECT over art. This one asks the question that leaves
+// open: can you see the three bars ON it? On a LIGHT palette `muted` (−0.03) and `accent` (−0.05) sit
+// ΔL 0.008 / 0.012 from the reading plate (−0.038) — and the shimmer's 200%-wide `::after` means those two
+// ARE the bar whenever motion is on. Measured pre-fix at 1.01:1 over bright art: a blank card where the
+// transcript's "something is happening" belongs. Both stops + the reduced-motion base fill now take the
+// palette's polarity-DERIVED alpha washes (`message-row-backing.ts` states the algebra).
+//
+// PIXELS, not computed style: the bar is composited over a translucent plate over art, and the class list
+// is identical in both arms. The ratio is the shared WCAG kernel over two framebuffer samples — the bar's
+// own centre against the plate 4px above it.
+/** The worst legal art for a LIGHT plate is the BRIGHT one (D144/#217's polarity inversion), and it is
+ *  where the pre-fix bar measured its 1.01. */
+const LIGHT_ROOM_WORST_ART = "#ffffff";
+/** A near-white carried base — the Light seed's own surface, the polarity this defect lives on. */
+const LIGHT_ROOM_PALETTE = "oklch(0.98 0.004 75)";
+/** Visibly distinct, not merely non-identical. `muted`-on-plate could reach 1.22 over the DARKEST art and
+ *  still vanish over the brightest; the derived washes hold ~1.26 whatever the art is, so this floor is
+ *  one the old token cannot reach in the arm that failed. */
+const SKELETON_ON_PLATE_FLOOR = 1.2;
+
+test("#690 LOADING OVER ART, LIGHT ROOM: the skeleton bars are visibly distinct from the plate they ride", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": hold });
+  const component = await mount(<MessageListOverArtStory artBackdrop={true} art={LIGHT_ROOM_WORST_ART} palette={LIGHT_ROOM_PALETTE} />);
+  await hold.requested;
+
+  const skeleton = component.locator('[data-slot="skeleton"]').first();
+  await expect(skeleton).toBeVisible();
+  const box = await skeleton.boundingBox();
+  expect(box).not.toBeNull();
+  // ONESHOT-OK: the visibility barrier settled the box; a framebuffer read is a SEQUENTIAL browser op.
+  const plate = await sampleLoadingPlatePixel(page, skeleton);
+  const bar = await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) + (box?.height ?? 0) / 2));
+  const ratio = contrastRatio(bar, plate);
+  expect(ratio, `bar ${JSON.stringify(bar)} on plate ${JSON.stringify(plate)}`).toBeGreaterThan(SKELETON_ON_PLATE_FLOOR);
+});
+
+test("#690 LOADING OVER ART, REDUCED MOTION: the flat base fill carries the same separation the sweep does", async ({ mount, page }) => {
+  // The sweep's `::after` is REMOVED under reduced motion, so this arm measures the bar's own `bg-*` — the
+  // one a reduced-motion reader sees, and the half of the fix the two rows above structurally cannot see
+  // (the pseudo covers the base whenever motion is on). `page.emulateMedia` re-resolves the mounted tree
+  // live; the harness page outlives the test, so it is reset at the end.
+  const hold = trpcHold();
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": hold });
+  const component = await mount(<MessageListOverArtStory artBackdrop={true} art={LIGHT_ROOM_WORST_ART} palette={LIGHT_ROOM_PALETTE} />);
+  await hold.requested;
+  await page.emulateMedia({ reducedMotion: "reduce" });
+
+  const skeleton = component.locator('[data-slot="skeleton"]').first();
+  await expect(skeleton).toBeVisible();
+  const box = await skeleton.boundingBox();
+  expect(box).not.toBeNull();
+  const plate = await sampleLoadingPlatePixel(page, skeleton);
+  const bar = await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) + (box?.height ?? 0) / 2));
+  const ratio = contrastRatio(bar, plate);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  expect(ratio, `flat bar ${JSON.stringify(bar)} on plate ${JSON.stringify(plate)}`).toBeGreaterThan(SKELETON_ON_PLATE_FLOOR);
+});
+
+test("#690 LOADING OVER ART, DARK ROOM: the same bars stay distinct on the polarity that was never broken", async ({ mount, page }) => {
+  // The other arm of the same change — the washes replace `muted`/`accent` on BOTH polarities, so the dark
+  // room owes a receipt too. Its worst art is the DARK one (the plate is dark, its inks are light).
+  const hold = trpcHold();
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": hold });
+  const component = await mount(<MessageListOverArtStory artBackdrop={true} art="#000000" palette="oklch(0.158 0.006 60)" />);
+  await hold.requested;
+
+  const skeleton = component.locator('[data-slot="skeleton"]').first();
+  await expect(skeleton).toBeVisible();
+  const box = await skeleton.boundingBox();
+  expect(box).not.toBeNull();
+  const plate = await sampleLoadingPlatePixel(page, skeleton);
+  const bar = await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) + (box?.height ?? 0) / 2));
+  const ratio = contrastRatio(bar, plate);
+  expect(ratio, `bar ${JSON.stringify(bar)} on plate ${JSON.stringify(plate)}`).toBeGreaterThan(SKELETON_ON_PLATE_FLOOR);
 });
 
 test("LOADING OVER ART CONTROL: the same probe reads the raw backdrop where no art flag is set", async ({ mount, page }) => {

@@ -253,7 +253,17 @@ export const waystoneVariants = tv({
     // viewport ones (§4b axis-1). The previous `@max-lg`/`@max-md` (32rem/28rem) were both ABOVE the panel's
     // 30rem ceiling, so even a maxed-out panel could only ever have reached the smallest step.
     root: "block",
-    track: "text-muted",
+    // THE DIAL TRACK TAKES THE EDGE TOKEN, for the reason and by the measurement `arcMeterVariants.track`
+    // states (#685, swept here by #693): `text-muted` is a SURFACE token, and one ramp step is all it can
+    // ever be against the panel this stone sits on. MEASURED in situ — the dial ring is drawn OUTSIDE the
+    // `--color-sidebar` sky disc, so its backing is the panel itself: `muted` renders 1.0150:1 on a light
+    // panel and 1.2723:1 on the dark one, i.e. FAINTER on both polarities than the 1.14 the arc meter was
+    // fixed for, and on a light room a dial with no dial. `border` — the token whose job is "an edge that
+    // reads against its surface" — measures 1.3252 / 1.3677 on the same pair, the strongest separation
+    // available from a token that is not an ink. The stone's own indicators keep the loudest voice by a
+    // wide margin (the marker is `primary`; the lit dial arcs their own tone), so the empty-track-must-stay
+    // quieter invariant is not close here.
+    track: "text-border",
   },
   variants: {
     // THE UNSET STONE IS ONE STEP SMALLER AT EVERY CONTAINER STEP (HUD-1 §7.3 — the band's compressed
@@ -283,8 +293,15 @@ export const ringGaugeVariants = tv({
     // The orb column: the ring over an optional label + value readout (the mockup .orb stack).
     root: "flex flex-col items-center gap-field",
     svg: "block size-control-lg",
-    // The empty ring track (faint) + the value glyph centered in the arc.
-    track: "text-muted",
+    // The empty ring track + the value glyph centered in the arc. The track takes the EDGE token for the
+    // reason `arcMeterVariants.track` states (#685, swept here by #693 — this gauge is the arc meter's
+    // twin, and it wore the same `text-muted`). MEASURED in situ on the panel these orbs ride: `muted`
+    // renders 1.0150:1 against `sidebar` on a light palette (1.0455 against `surface-raised`, the ramp
+    // elevation's panel) and 1.2723 / 1.1815 on the dark one — fainter on BOTH polarities than the arc's
+    // 1.14. `border` measures 1.3252 / 1.3269 light and 1.3677 / 1.4495 dark. The VALUE arc keeps the
+    // loudest voice: the track ramp steps this gauge fills with measure 1.89–2.65 light and 5.9–9.3 dark
+    // against the same panel, every one of them above the track.
+    track: "text-border",
     valueText: "fill-foreground font-semibold text-label tabular-nums",
     label: "text-micro text-muted-foreground uppercase tracking-micro",
     readout: "text-micro text-muted-foreground tabular-nums",

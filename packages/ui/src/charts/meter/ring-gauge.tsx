@@ -77,7 +77,18 @@ export function RingGauge({
     <div className={cn(slots.root(), className)} data-slot="ring-gauge">
       {/* aria-hidden: the ring is decoration; the datum is the sr-only line below. */}
       <svg aria-hidden={true} className={slots.svg()} data-slot="ring-gauge-svg" viewBox={`0 0 ${SIZE} ${SIZE}`}>
-        <circle className={slots.track()} cx={CENTER} cy={CENTER} fill="none" r={RADIUS} stroke="currentColor" strokeWidth={STROKE} />
+        {/* The empty track carries its own slot so the #693 contrast pin has an anchor that resolves
+            UNIQUELY (a `circle:not([data-slot])` sweep would also match a defs circle in a sibling part). */}
+        <circle
+          className={slots.track()}
+          cx={CENTER}
+          cy={CENTER}
+          data-slot="ring-gauge-track"
+          fill="none"
+          r={RADIUS}
+          stroke="currentColor"
+          strokeWidth={STROKE}
+        />
         <circle
           className={danger ? "text-destructive" : fillClass}
           cx={CENTER}

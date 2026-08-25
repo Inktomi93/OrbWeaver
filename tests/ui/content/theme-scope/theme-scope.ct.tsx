@@ -542,6 +542,69 @@ for (const { label, base, testId } of TRACK_ARMS) {
   });
 }
 
+// ── #692: THE VALUE ARC ITSELF, under a carried palette that picks no accent ───────────────────────
+// The two #685 arms above mount with NO ambient accent, which is the pre-#692 shell: the scope inherits
+// the CT page's own `--color-primary` (Hearth's `oklch(0.72 0.175 52)`) and paints the meter's FILL with
+// it. Over the near-white base's derived card that measures 2.5858:1 — the part of the gauge that carries
+// the reading, under WCAG 1.4.11's 3:1, on the polarity where the room is brightest.
+//
+// It is NOT a ramp light-arm defect and there was no seed to promote: the shipped Light seed's own primary
+// measures 5.07:1 against the same card. `--color-primary` is simply the one PICKED token no base derives,
+// so a room that carries a light background inherits a DARK-authored accent — the #243/#682 polarity
+// divorce, one token over. The shell threads the active theme's accent as `ambientAccent`, and the clamp
+// judges it against the card exactly as #236 judges an ink against the base.
+//
+// Measured on FRAMEBUFFER pixels through the same composited kernel as the track rows (`arcPartVsCard`
+// paints card-then-part, so an alpha-carrying token is measured over its real backing, not over
+// transparent black).
+/** WCAG 1.4.11's floor for a non-text graphical object — what the VALUE arc owes the card it is drawn on. */
+const GRAPHIC_CONTRAST = 3;
+/** Hearth's accent — what a carried room inherits when the app theme is the base palette. */
+const AMBIENT_DARK_ACCENT = "oklch(0.72 0.175 52)";
+
+for (const { label, base, testId } of TRACK_ARMS) {
+  test(`#692 the arc meter's FILL clears 1.4.11 under ${label} when the room inherits a dark-authored accent`, async ({ mount }) => {
+    const cmp = await mount(
+      <ThemeScope tokens={{ background: base }} ambientAccent={AMBIENT_DARK_ACCENT}>
+        <div data-testid={testId} style={{ backgroundColor: "var(--color-card)" }}>
+          <Meter kind="arc" label="Stamina" value={40} />
+        </div>
+      </ThemeScope>,
+    );
+    // Pre-#692 the near-white arm measured 2.58:1 here (the dark arm's 6.83 was never the defect, and the
+    // clamp leaves it byte-identical — this row is that arm's fence).
+    await expect.poll(() => cmp.getByTestId(testId).evaluate(arcPartVsCard, FILL_ARC), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(GRAPHIC_CONTRAST);
+  });
+
+  test(`#692 the corrected fill still outshouts the track under ${label} — the #685 invariant survives`, async ({ mount }) => {
+    // Raising the fill must not invert the gauge's voice: the empty part stays quieter than the reading.
+    const cmp = await mount(
+      <ThemeScope tokens={{ background: base }} ambientAccent={AMBIENT_DARK_ACCENT}>
+        <div data-testid={testId} style={{ backgroundColor: "var(--color-card)" }}>
+          <Meter kind="arc" label="Stamina" value={40} />
+        </div>
+      </ThemeScope>,
+    );
+    const panel = cmp.getByTestId(testId);
+    const track = await panel.evaluate(arcPartVsCard, TRACK_ARC);
+    const fill = await panel.evaluate(arcPartVsCard, FILL_ARC);
+    expect(fill, `fill ${String(fill)} must stay louder than track ${String(track)}`).toBeGreaterThan(track);
+  });
+}
+
+test("#692 an ambient accent that ALREADY clears is not touched — the fill renders the author's colour", async ({ mount }) => {
+  // The byte-identical pass-through, asserted where it is observable: the Light seed's own accent in a
+  // near-white room (5.07:1) must reach the DOM unchanged, not as a re-derived relative colour.
+  const seedAccent = "oklch(0.55 0.16 50)";
+  const cmp = await mount(
+    <ThemeScope tokens={{ background: NEAR_WHITE_BASE }} ambientAccent={seedAccent}>
+      <span data-testid="accent-probe">x</span>
+    </ThemeScope>,
+  );
+  const inline = await cmp.evaluate((el) => (el as HTMLElement).style.getPropertyValue("--color-primary"));
+  expect(inline).toBe("");
+});
+
 test("a provider-less ink-only scope FAILS OPEN, rendering the author's ink byte-identically", async ({ mount }) => {
   // Nothing named the surface (a preview, a CT story, any mount outside the shell) ⇒ the pre-#236 rule
   // stands: never guess a polarity. The author's value reaches the DOM untouched.

@@ -245,16 +245,38 @@ function narrationArgIndex(call: CallExpression): number | undefined {
   return root !== undefined && NARRATION_CALLEES.has(root) ? 0 : undefined;
 }
 
-/** DECLARED LIMIT: only quote-shaped literals are fenced. A TemplateExpression title — a backticked one
- *  carrying an interpolation — keeps scanning, because blanking its span would blank that too, and an
- *  interpolation is CODE: hiding it is the permissive direction this gate must never take. */
+/** THE INTERPOLATED TITLE (the third form of the #507 FP class, found 2026-08-24 by a lane whose
+ *  parameterized rows spell a backticked title carrying an interpolation — a `for` over two polarity arms, the
+ *  house idiom for a two-arm rendered pin). This function used to carry a DECLARED LIMIT saying a
+ *  TemplateExpression keeps scanning "because blanking its span would blank the interpolation too, and an
+ *  interpolation is CODE: hiding it is the permissive direction this gate must never take".
+ *
+ *  THAT RULING SURVIVES — ITS INPUT CHANGED. The concern was never "templates are suspicious", it was
+ *  "never blank code", and a template's PROSE and its CODE are separate nodes: the head/middle/tail
+ *  literal chunks are the authored text, the substitutions are expressions. Blanking exactly the chunks
+ *  keeps every interpolated value scanned (a color literal smuggled through a substitution still REDS — the mustFlag
+ *  row pins it), while a `#nnn` citation in a parameterized title stops reading as a 3-digit hex. Without
+ *  it the only way past this gate is rewording the title, which is precisely what #507 was minted to stop
+ *  two lanes doing. */
 function narrationSpans(sf: SourceFile): { readonly pos: number; readonly end: number }[] {
   const out: { readonly pos: number; readonly end: number }[] = [];
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     const index = narrationArgIndex(call);
     const arg = index === undefined ? undefined : call.getArguments()[index];
-    if (arg !== undefined && (Node.isStringLiteral(arg) || Node.isNoSubstitutionTemplateLiteral(arg))) {
+    if (arg === undefined) {
+      continue;
+    }
+    if (Node.isStringLiteral(arg) || Node.isNoSubstitutionTemplateLiteral(arg)) {
       out.push({ pos: arg.getStart(), end: arg.getEnd() });
+      continue;
+    }
+    if (Node.isTemplateExpression(arg)) {
+      const head = arg.getHead();
+      out.push({ pos: head.getStart(), end: head.getEnd() });
+      for (const span of arg.getTemplateSpans()) {
+        const literal = span.getLiteral();
+        out.push({ pos: literal.getStart(), end: literal.getEnd() });
+      }
     }
   }
   return out;
@@ -545,6 +567,16 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
+        // Clause 5's INTERPOLATION control (2026-08-24): the narration fence now reaches a template TITLE,
+        // and this is the half that proves it did not go permissive. The blanking covers the template's
+        // literal CHUNKS only — a color smuggled through a SUBSTITUTION is code, and code still scans.
+        "tests/ui/primitives/thing/thing.ct.tsx": 'test(`the seal ${"oklch(0.5 0.1 20)"}`, () => {\n  expect(1).toBe(1);\n});\n',
+      },
+      expect: { messageIncludes: "hardcoded color literal" },
+      why: "clause 5 — the interpolated-title fence is PROSE-only: a color literal inside a `${…}` substitution is CODE and still reds, which is the ruling the old declared limit was protecting",
+    },
+    {
+      files: {
         // Clause 9 COMMENT POSTURE (issue #117/#132): the locator is read from CODE, so a header EXPLAINING
         // the data-slot law does not stand in for stamping one.
         "packages/ui/src/primitives/thing/thing.tsx":
@@ -729,6 +761,16 @@ export const gate: GateDescriptor = {
         "tests/ui/primitives/thing/thing.ct.tsx": "export const BASE_ARM = /^oklch\\(/;\nexport const MIX = /^color-mix\\(/;\n",
       },
       why: "issue #507 — the value lookahead: a format-only `oklch(`/`rgb(` match carries no color VALUE, so it is not the hardcoded literal clause 5 bans (the mustFlag row above keeps the value-bearing regex red)",
+    },
+    {
+      files: {
+        // #507's THIRD form (2026-08-24): a PARAMETERIZED title — the house idiom for a two-arm rendered
+        // pin — citing its issue. Only the template's literal chunks are blanked, so this passes while the
+        // mustFlag twin (an interpolated color literal in the same position) still reds.
+        "tests/ui/primitives/thing/thing.ct.tsx":
+          "for (const arm of [1, 2]) {\n  test(`#693 the track reads as a graphic under ${String(arm)}`, () => {\n    expect(1).toBe(1);\n  });\n}\n",
+      },
+      why: "the interpolated-title fence: a `#nnn` citation in a backticked, parameterized test title is the same NARRATION a quoted one is — without this a lane's only way past the gate is rewording the title, the exact routing-around #507 exists to stop",
     },
   ],
 };

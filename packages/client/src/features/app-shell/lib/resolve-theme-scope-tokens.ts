@@ -26,31 +26,39 @@ export interface ResolvedThemeScope {
   readonly density: ThemeDensity;
   /** The base surface the ACTIVE theme paints — <ThemeScope>'s ambient root, a judging input only (#236). */
   readonly ambientBackground: string;
+  /** The accent the ACTIVE theme paints — <ThemeScope>'s ambient-ACCENT root, a judging input only (#692).
+   *  Resolved from the same three sources as the base, for the same reason: a carried palette that picks a
+   *  background and no accent inherits THIS value, and `--color-primary` is the one token no base derives. */
+  readonly ambientAccent: string;
 }
 
 /** The base `@theme` ramp's own surface — what paints when no `[data-theme]` block is in force. */
 const BASE_THEME_BACKGROUND = TOKENS["color.background"].value;
+/** …and its accent, the ambient-accent chain's fallback for exactly the same three cases (#692). */
+const BASE_THEME_ACCENT = TOKENS["color.primary"].value;
 
-/** Every seed's painted base, keyed the way the `[data-theme]` block is (the lowercased theme name). */
-const SEED_BACKGROUNDS: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(SEED_THEME_VALUE_SETS).map(([name, set]) => [name, set.vars["--color-background"]]),
+/** Every seed's painted base + accent, keyed the way the `[data-theme]` block is (the lowercased name). */
+const SEED_AMBIENTS: Readonly<Record<string, { readonly background: string; readonly accent: string }>> = Object.fromEntries(
+  Object.entries(SEED_THEME_VALUE_SETS).map(([name, set]) => [name, { background: set.vars["--color-background"], accent: set.vars["--color-primary"] }]),
 );
 
-function seedBackground(name: string): string {
-  // Hearth has no value-set: it IS the base `@theme`, so it falls through to the base ramp.
-  return SEED_BACKGROUNDS[name.toLowerCase()] ?? BASE_THEME_BACKGROUND;
+/** Hearth has no value-set: it IS the base `@theme`, so it falls through to the base ramp — both members. */
+function seedAmbient(name: string): { readonly background: string; readonly accent: string } {
+  return SEED_AMBIENTS[name.toLowerCase()] ?? { background: BASE_THEME_BACKGROUND, accent: BASE_THEME_ACCENT };
 }
 
 export function resolveThemeScopeTokens(theme: Theme | null, appearanceDensity: ThemeDensity): ResolvedThemeScope {
   if (theme === null) {
-    return { tokens: {}, density: appearanceDensity, ambientBackground: BASE_THEME_BACKGROUND };
+    return { tokens: {}, density: appearanceDensity, ambientBackground: BASE_THEME_BACKGROUND, ambientAccent: BASE_THEME_ACCENT };
   }
   if (theme.isSeed === true) {
-    return { tokens: {}, density: appearanceDensity, ambientBackground: seedBackground(theme.name) };
+    const ambient = seedAmbient(theme.name);
+    return { tokens: {}, density: appearanceDensity, ambientBackground: ambient.background, ambientAccent: ambient.accent };
   }
   return {
     tokens: theme.override,
     density: theme.override.density ?? appearanceDensity,
     ambientBackground: theme.override.background ?? BASE_THEME_BACKGROUND,
+    ambientAccent: theme.override.accent ?? BASE_THEME_ACCENT,
   };
 }

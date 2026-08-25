@@ -553,6 +553,80 @@ export function rampDeltas(base: Oklch): RampDeltas {
   return base.l > THEME_DERIVATION.fgPivotL ? THEME_DERIVATION.ramp.light : THEME_DERIVATION.ramp.dark;
 }
 
+/** The alpha grid the accent-fill search walks its LIGHTNESS on — the same 3-decimal precision the plate's
+ *  alpha search uses, for the same reason: the number reaches a CSS literal. */
+const ACCENT_L_STEP = 0.001;
+
+/**
+ * THE ACCENT-FILL SEARCH'S JUDGE — the ratio of a fill against its card measured BOTH ways, at the WORSE
+ * of the two (#692): the float triple this file's math produces, and the 8-BIT PIXEL a browser actually
+ * paints (`Math.round`). Everything else here judges the float, and for a fence a fraction of a percent
+ * does not matter; for a search that STOPS at its first clearing step it decides the answer, in both
+ * directions. MEASURED at the shipped case (Hearth's accent over the near-white card): at L 0.680 float
+ * 3.0111 / quantized 3.0098, and the CT browser's framebuffer reads 3.0098 — the quantized number to the
+ * digit. Quantization is NOT monotone in L (L 0.681 measures float 2.9995 but quantized 3.0096), so a
+ * float-only judge can ship a fill the browser paints under the floor, and a quantized-only judge can stop
+ * at a step whose true colour is still under it. Taking the minimum is the only conservative reading.
+ */
+function fillVsCardRatio(fill: Rgb, card: Rgb): number {
+  const quantized = ({ r, g, b }: Rgb): Rgb => ({ r: Math.round(r), g: Math.round(g), b: Math.round(b) });
+  return Math.min(wcagContrastRatio(fill, card), wcagContrastRatio(quantized(fill), quantized(card)));
+}
+
+/**
+ * THE ACCENT FILL'S LIGHTNESS for a carried base — the §7a ink clamp's shape, applied to the one PICKED
+ * token that paints a GRAPHIC rather than an ink (#692). `null` ⇒ the accent already clears against the
+ * card it is painted on, so the caller passes it through BYTE-IDENTICALLY (the no-op-where-the-pick-was-
+ * sensible guarantee `proseInkLightness` states); a number ⇒ the lightness to re-derive it at, keeping the
+ * author's hue and chroma.
+ *
+ * THE MOTIVATING MEASUREMENT (#692, and it is not a light-arm ramp defect): `--color-primary` is never
+ * derived — `clamp.ts` emits the PICKED accent, so a scope that carries a light background and no accent
+ * INHERITS the app theme's. Hearth's `oklch(0.72 0.175 52)` over the near-white base's derived card
+ * (0.98 → 0.995) measures 2.5858:1 — the arc meter's VALUE arc, the part that carries the reading, under
+ * WCAG 1.4.11's 3:1 floor. The shipped Light seed's own primary measures 5.07:1 against the same card, so
+ * there is nothing to promote and no ramp arm to move: this is the #243/#682 POLARITY DIVORCE ("a custom
+ * light theme inherited the base palette's dark smoke") one token over, and the remedy is the one #236
+ * already minted for inks — judge the carried token against the surface it will actually be painted on.
+ *
+ * THE SURFACE IS THE CARD, not the base: every low-emphasis graphic this protects (the arc meter's value
+ * arc, a ring gauge's fill, a track bar) is painted on a panel, and the card is the ramp member panels
+ * take. The floor is {@link AA_LARGE_RATIO} (3:1) because a fill IS a non-text graphical object.
+ *
+ * THE DIRECTION IS THE PIVOT'S, so this can never fight the foreground flip: above the pivot the card is
+ * light and the accent must go DARKER; at or below it, lighter. The search walks `ACCENT_L_STEP` at a time
+ * and stops at the FIRST clearing lightness — the smallest move that buys legibility, so an author's pick
+ * is nudged rather than replaced. A translucent accent is composited over the card before judging (a naive
+ * ratio on a translucent fill lies, `proseInkLightness`'s own trap) and the caller re-emits it OPAQUE.
+ *
+ * Returns `null` rather than a bound when NO lightness in `[fgLMin, fgLMax]` clears — a base whose card
+ * cannot carry this hue at all. Failing open is the pre-#692 behaviour, and inventing a colour is what
+ * this whole file exists not to do.
+ */
+export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Oklch): number | null {
+  const card = oklchToSrgb(rampSurface(base, rampDeltas(base).card));
+  const at = (l: number): Rgb => {
+    const opaque = oklchToSrgb({ l, c: accent.c, h: accent.h });
+    return accentAlpha < 1 ? compositeSrgb(opaque, accentAlpha, card) : opaque;
+  };
+  if (fillVsCardRatio(at(accent.l), card) >= AA_LARGE_RATIO) {
+    return null;
+  }
+  const towardDark = base.l > THEME_DERIVATION.fgPivotL;
+  const limit = towardDark ? THEME_DERIVATION.fgLMin : THEME_DERIVATION.fgLMax;
+  const steps = Math.round(Math.abs(accent.l - limit) / ACCENT_L_STEP);
+  for (let step = 1; step <= steps; step += 1) {
+    const l = accent.l + (towardDark ? -step : step) * ACCENT_L_STEP;
+    // Judged OPAQUE at the re-derived lightness: the caller emits it opaque for the same reason the ink
+    // clamp does — a minimal alpha sits on the boundary and re-judging it is a fixed point that never passes.
+    if (fillVsCardRatio(oklchToSrgb({ l, c: accent.c, h: accent.h }), card) >= AA_LARGE_RATIO) {
+      // Re-round: accent.l + n×0.001 accumulates binary-float dust that would reach the CSS literal.
+      return Math.round(l / ACCENT_L_STEP) * ACCENT_L_STEP;
+    }
+  }
+  return null;
+}
+
 /**
  * Can orb DERIVE an acceptable palette from this base surface? False inside the pivot mid-band, where the
  * step flip produces a mid-tone foreground and the pair is inherently low-contrast (see the module header).

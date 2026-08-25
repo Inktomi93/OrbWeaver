@@ -133,8 +133,10 @@ export function AppShell(): ReactElement {
   // A seed theme paints from its generated [data-theme] block (keyed by `dataTheme` above), NOT its stored
   // override — see resolve-theme-scope-tokens for the shadowing bug this prevents.
   // `ambientBackground` is the ROOT of the #236 ambient chain: the surface the active theme paints, so a
-  // carried card that picks inks and no base gets judged against what it actually lands on.
-  const { tokens: scopeTokens, density, ambientBackground } = resolveThemeScopeTokens(theme, appearance.density);
+  // carried card that picks inks and no base gets judged against what it actually lands on. `ambientAccent`
+  // is its #692 sibling — the accent the active theme paints, so a carried palette that picks a background
+  // and no accent gets its inherited fill judged against the card that palette derives.
+  const { tokens: scopeTokens, density, ambientBackground, ambientAccent } = resolveThemeScopeTokens(theme, appearance.density);
   // BG-C: the active chat's carried background (per-chat > card-carried) wins over the viewer's own appearance
   // ONLY in a true-solo room; `undefined` (any other composition, landing, an unresolved read) ⇒ the viewer's
   // appearance source. fit/dim/blur always stay the viewer's own treatment (source-only carry).
@@ -218,7 +220,7 @@ export function AppShell(): ReactElement {
       ) : (
         <ThemeBackgroundLayer url={bgUrl} fit={appearance.backgroundFit} dim={appearance.backgroundDim} blur={appearance.backgroundBlur} />
       )}
-      <ThemeScope tokens={scopeTokens} className="contents" ambientBackground={ambientBackground}>
+      <ThemeScope tokens={scopeTokens} className="contents" ambientBackground={ambientBackground} ambientAccent={ambientAccent}>
         <PortalContainerContext value={portalRootRef}>
           {/* The grid is the app's LIVE-TOKEN ROOT (#504): canvas + foreign-realm consumers (ECharts chrome,
               the sandbox card frame) resolve their concrete token values from HERE rather than from <html>,
