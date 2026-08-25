@@ -1,10 +1,12 @@
 // biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TS fixture snippets
 // (verb-file exports), not secrets.
-// A domain verb file must export create<Pascal(base)>(ctx).
-// Gate: verb-naming (core/Core-0-Architecture-and-Structure.md §4/§7) — one verb per file, named for the file. Each
+// Gate: verb-naming (Core-0 §4/§7) — a verb file exports a callable runtime create<Pascal(base)>.
+// COMMENT POSTURE: comment-SAFE — exported AST declarations and callable initializers only.
 // domain/<f>/verbs/**/<verb>.ts must export `create<Pascal(verb)>(ctx, deps?)` (e.g. create.ts →
 // createCreate, bulk-archive.ts → createBulkArchive). index.ts barrels are exempt.
+import { Node } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
+import { unwrapExpression } from "../lib/ast-read.ts";
 
 const VERB_FILE = /\/packages\/server\/src\/domain\/[^/]+\/(?:[^/]+\/)*verbs\/(?:[^/]+\/)*[^/]+\.ts$/u;
 
@@ -17,6 +19,23 @@ function pascal(kebab: string): string {
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
+}
+
+function isCallableRuntimeExport(sf: Parameters<NonNullable<GateDescriptor["visitFile"]>>[0], name: string): boolean {
+  return (sf.getExportedDeclarations().get(name) ?? []).some((declaration) => {
+    if (Node.isFunctionDeclaration(declaration)) {
+      return true;
+    }
+    if (!Node.isVariableDeclaration(declaration)) {
+      return false;
+    }
+    const initializer = declaration.getInitializer();
+    if (initializer === undefined) {
+      return false;
+    }
+    const value = unwrapExpression(initializer);
+    return Node.isArrowFunction(value) || Node.isFunctionExpression(value) || declaration.getType().getCallSignatures().length > 0;
+  });
 }
 
 export const gate: GateDescriptor = {
@@ -34,7 +53,7 @@ export const gate: GateDescriptor = {
       return;
     }
     const expected = `create${pascal(base)}`;
-    if (!sf.getExportedDeclarations().has(expected)) {
+    if (!isCallableRuntimeExport(sf, expected)) {
       ctx.report({
         file: relPath(ctx.root, sf.getFilePath()),
         line: 0,
@@ -48,6 +67,16 @@ export const gate: GateDescriptor = {
       files: "export const wrongName = 1;\n",
       at: "packages/server/src/domain/chat/verbs/start-chat.ts",
       why: "a verb file exporting the wrong name (not createStartChat) — one verb per file, named for it",
+    },
+    {
+      files: "export type createStartChat = () => void;\n",
+      at: "packages/server/src/domain/chat/verbs/start-chat.ts",
+      why: "a type-only export has the expected spelling but provides no callable runtime verb factory",
+    },
+    {
+      files: "export const createStartChat = 1;\n",
+      at: "packages/server/src/domain/chat/verbs/start-chat.ts",
+      why: "a non-callable runtime constant has the expected spelling but is not a verb factory",
     },
   ],
   mustPass: [

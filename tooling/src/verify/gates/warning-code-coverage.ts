@@ -1,11 +1,12 @@
 // Gate: warning-code-coverage — the emit-coverage ratchet for two warning-code tuples: WARNING_CODES
 // (infra/providers/contract/resolve.ts, emitted in infra/providers/**) and CHAT_WARNING_CODES
 // (@orb/contracts/chat, emitted in domain/chat/**). A declared-never-emitted code is silently dead; a
-// stale DEFERRED entry (gained an emit) is RED too. tsc owns the consumer side; this owns the producer.
-import type { Project, SourceFile } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
+// stale DEFERRED entry (gained an emit) is RED too. COMMENT POSTURE: comment-SAFE — AST warning records only.
+import type { CallExpression, ObjectLiteralExpression, Project, SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Check, Violation } from "../contract/harness.ts";
+import { readStringValue, unwrapExpression } from "../lib/ast-read.ts";
 
 /** One warning channel: where its tuple lives + where its emits live + the tracked-deferred allowlist. */
 export interface WarningChannel {
@@ -13,13 +14,17 @@ export interface WarningChannel {
   readonly tuple: string;
   /** Locates the source file declaring the tuple (also EXCLUDED from the emit corpus). */
   readonly homeFile: RegExp;
-  /** Files whose code literals count as emit sites. */
+  /** Files whose executable warning records count as emit sites. */
   readonly emitScope: RegExp;
   /** Declared-not-emitted members, each with its tracked citation (the self-cleaning ratchet). */
   readonly deferred: Readonly<Record<string, string>>;
 }
 
 const PKG_PREFIX_RE = /^.*\/packages\//u;
+const PROVIDER_HOME = "packages/server/src/infra/providers/contract/resolve.ts";
+const PROVIDER_EMIT = "packages/server/src/infra/providers/resolve-chat.ts";
+const PROVIDER_HOME_FIXTURE = 'export const WARNING_CODES = ["provider_ok"] as const;\n';
+const PROVIDER_EMIT_FIXTURE = 'warnings.push({ code: "provider_ok", message: "visible" });\n';
 
 const CHANNELS: readonly WarningChannel[] = [
   {
@@ -50,40 +55,103 @@ function tupleMembers(home: SourceFile, tuple: string): string[] {
   if (arr === undefined) {
     return [];
   }
-  return arr.getElements().flatMap((el) => (el.isKind(SyntaxKind.StringLiteral) ? [el.getLiteralText()] : []));
+  return arr.getElements().flatMap((el) => {
+    const value = readStringValue(el);
+    return value === undefined ? [] : [value];
+  });
 }
 
-/** Every string-ish literal in the emit scope (minus the home file), concatenated (comments excluded). */
-function emitCorpus(project: { getSourceFiles: () => SourceFile[] }, channel: WarningChannel): string {
-  const parts: string[] = [];
+function localStringValue(node: Node): string | undefined {
+  const direct = readStringValue(node);
+  if (direct !== undefined || !Node.isIdentifier(unwrapExpression(node))) {
+    return direct;
+  }
+  const identifier = unwrapExpression(node);
+  if (!Node.isIdentifier(identifier)) {
+    return;
+  }
+  const declaration = identifier.getSourceFile().getVariableDeclaration(identifier.getText());
+  const initializer = declaration?.getInitializer();
+  return initializer === undefined ? undefined : readStringValue(initializer);
+}
+
+function callName(node: CallExpression): string | undefined {
+  const expression = unwrapExpression(node.getExpression());
+  if (Node.isIdentifier(expression)) {
+    return expression.getText();
+  }
+  return Node.isPropertyAccessExpression(expression) ? expression.getName() : undefined;
+}
+
+function isExecutableWarningRecord(object: ObjectLiteralExpression, channel: WarningChannel): boolean {
+  const call = object.getFirstAncestorByKind(SyntaxKind.CallExpression);
+  const returned = object.getFirstAncestorByKind(SyntaxKind.ReturnStatement);
+  const name = call === undefined ? undefined : callName(call);
+  if (name === "push") {
+    return object.getProperty("message") !== undefined;
+  }
+  if (channel.tuple === "CHAT_WARNING_CODES" && (name === "emit" || name === "emitQuiet")) {
+    const type = object.getProperty("type");
+    return Node.isPropertyAssignment(type) && readStringValue(type.getInitializerOrThrow()) === "warning";
+  }
+  return returned !== undefined && call === undefined && object.getProperty("message") !== undefined;
+}
+
+function warningCodesInFile(sf: SourceFile, channel: WarningChannel): string[] {
+  const codes: string[] = [];
+  for (const object of sf.getDescendantsOfKind(SyntaxKind.ObjectLiteralExpression)) {
+    const property = object.getProperty("code");
+    if (!(Node.isPropertyAssignment(property) && isExecutableWarningRecord(object, channel))) {
+      continue;
+    }
+    const value = localStringValue(property.getInitializerOrThrow());
+    if (value !== undefined) {
+      codes.push(value);
+    }
+  }
+  return codes;
+}
+
+function mapperCodes(sf: SourceFile, channel: WarningChannel): string[] {
+  if (channel.tuple !== "CHAT_WARNING_CODES") {
+    return [];
+  }
+  return (sf.getFunction("toChatWarningCode")?.getDescendantsOfKind(SyntaxKind.ReturnStatement) ?? []).flatMap((statement) => {
+    const expression = statement.getExpression();
+    const value = expression === undefined ? undefined : readStringValue(expression);
+    return value === undefined ? [] : [value];
+  });
+}
+
+/** Warning discriminators carried by executable warning records, not arbitrary literals. */
+function emittedCodes(project: { getSourceFiles: () => SourceFile[] }, channel: WarningChannel): ReadonlySet<string> {
+  const emitted = new Set<string>();
   for (const sf of project.getSourceFiles()) {
     const path = sf.getFilePath();
     if (!channel.emitScope.test(path) || channel.homeFile.test(path)) {
       continue;
     }
-    for (const kind of [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral] as const) {
-      for (const lit of sf.getDescendantsOfKind(kind)) {
-        parts.push(lit.getLiteralText());
-      }
+    for (const value of [...warningCodesInFile(sf, channel), ...mapperCodes(sf, channel)]) {
+      emitted.add(value);
     }
   }
-  return ` ${parts.join(" ")} `;
+  return emitted;
 }
 
 function channelViolations(project: { getSourceFiles: () => SourceFile[] }, channel: WarningChannel): Violation[] {
   const home = project.getSourceFiles().find((sf) => channel.homeFile.test(sf.getFilePath()));
   if (home === undefined) {
-    return []; // tuple home not in the project (placeholder tree) — vacuous
+    return [{ file: "tooling/src/verify/gates/warning-code-coverage.ts", line: 1, message: `canonical warning tuple home is missing for ${channel.tuple}` }];
   }
   const members = tupleMembers(home, channel.tuple);
   if (members.length === 0) {
-    return [];
+    return [{ file: home.getFilePath().replace(PKG_PREFIX_RE, "packages/"), line: 1, message: `canonical warning tuple ${channel.tuple} is missing or empty` }];
   }
-  const corpus = emitCorpus(project, channel);
+  const emittedSet = emittedCodes(project, channel);
   const file = home.getFilePath().replace(PKG_PREFIX_RE, "packages/");
   const violations: Violation[] = [];
   for (const code of members) {
-    const emitted = corpus.includes(` ${code} `);
+    const emitted = emittedSet.has(code);
     const deferred = code in channel.deferred;
     if (!(emitted || deferred)) {
       violations.push({ file, line: 1, message: missingMessage(channel, code) });
@@ -127,6 +195,8 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
+        [PROVIDER_HOME]: PROVIDER_HOME_FIXTURE,
+        [PROVIDER_EMIT]: PROVIDER_EMIT_FIXTURE,
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["never_emitted"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'export const q = "something_else";\n',
       },
@@ -137,19 +207,33 @@ export const gate: GateDescriptor = {
       // the tuple home file is EXCLUDED from its own emit corpus: the member string appears in the home
       // declaration but there is no separate emit site, so it still flags (the home copy doesn't count).
       files: {
+        [PROVIDER_HOME]: PROVIDER_HOME_FIXTURE,
+        [PROVIDER_EMIT]: PROVIDER_EMIT_FIXTURE,
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["home_only"] as const;\n',
       },
       expect: { messageIncludes: "NO emit site" },
       why: "the tuple home file is excluded from its own emit corpus — a home-only member has no emit, flags",
     },
+    {
+      files: {
+        [PROVIDER_HOME]: PROVIDER_HOME_FIXTURE,
+        [PROVIDER_EMIT]: PROVIDER_EMIT_FIXTURE,
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["literal_only"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'export const q = "literal_only";\n',
+      },
+      expect: { messageIncludes: "NO emit site" },
+      why: "an arbitrary matching literal is not a warning event emit — the code remains dead",
+    },
   ],
   mustPass: [
     {
       files: {
+        [PROVIDER_HOME]: PROVIDER_HOME_FIXTURE,
+        [PROVIDER_EMIT]: PROVIDER_EMIT_FIXTURE,
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["emitted_code"] as const;\n',
-        "packages/server/src/domain/chat/x.ts": 'export const q = "emitted_code";\n',
+        "packages/server/src/domain/chat/x.ts": 'emit({ type: "warning", code: "emitted_code" });\n',
       },
-      why: "the code's discriminator appears as an emit literal in the channel scope — covered, passes",
+      why: "the code is carried by an emitted warning event in the channel scope — covered, passes",
     },
   ],
 };

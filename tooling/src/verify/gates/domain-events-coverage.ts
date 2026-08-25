@@ -9,7 +9,7 @@
 // SERVER_INTERNAL reach lane in bus-definition-belts.ts. The producer side is what THIS gate holds: both
 // members emit today (`character.updated` from the character verbs, `asset.created` from assets/verbs/store),
 // so the ratchet's real job is the NEXT member — the union's own header plans `crew.*`/`rpg.*` grafts back
-// onto it, and a grafted member with no emit would otherwise be exactly the dead wire D50 names.
+// onto it. COMMENT POSTURE: comment-SAFE — AST emit calls + event objects only.
 
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { BusCoverageSpec } from "../contract/readers.ts";
@@ -48,19 +48,19 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/contracts/src/events/index.ts": 'export const DOMAIN_EVENT_TYPES = ["crew.updated"] as const satisfies readonly never[];\n',
-        "packages/server/src/domain/character/verbs/update.ts": 'export const q = "character.updated";\n',
+        "packages/server/src/domain/character/verbs/update.ts": 'export const q = "crew.updated";\n',
       },
       expect: { messageIncludes: "NO server emit site" },
-      why: "the GRAFT case this ratchet is actually for — a member added back onto the union (the header plans `crew.*`) with no emit wired is dead wire the type system happily accepts",
+      why: "the GRAFT member is named by an arbitrary literal but never carried by ctx.emit — still dead wire",
     },
   ],
   mustPass: [
     {
       files: {
         "packages/contracts/src/events/index.ts": 'export const DOMAIN_EVENT_TYPES = ["asset.created"] as const satisfies readonly never[];\n',
-        "packages/server/src/domain/assets/verbs/store.ts": 'export const q = "asset.created";\n',
+        "packages/server/src/domain/assets/verbs/store.ts": 'ctx.emit({ type: "asset.created" });\n',
       },
-      why: "the live state — a DOTTED discriminator emits as a plain literal and the space-delimited corpus test matches it exactly; this row also pins that the dot is not treated as a path separator anywhere in the reconcile",
+      why: "the live state — a DOTTED discriminator carried by ctx.emit is read as one exact value",
     },
   ],
 };

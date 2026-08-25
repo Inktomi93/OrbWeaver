@@ -2,12 +2,13 @@
 // `test-presence`'s FILE-mirror rule: it catches a method a `*Service` interface DECLARES but no test
 // ever invokes (wired into the contract with zero behavioral coverage). Enumerates every exported
 // `*Service` interface's members per `domain/<d>/contract/service.ts` and requires a boundary-anchored
-// bare call `<verb>(` or its `create<Verb>(` factory call in `tests/server/domain/<d>/**`. DEFERRED is a ratchet (bus-coverage.ts precedent).
-import type { InterfaceDeclaration, Project, SourceFile } from "ts-morph";
-import { Node } from "ts-morph";
+// service call `<service>.<verb>(` or its `create<Verb>(` factory call in domain tests. COMMENT POSTURE:
+// comment-SAFE — AST CallExpressions only. DEFERRED is a ratchet (bus-coverage.ts precedent).
+import type { CallExpression, InterfaceDeclaration, Project, SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
-import { blankTsComments } from "../lib/comment-spans.ts";
+import { unwrapExpression } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 const SERVICE_CONTRACT_RE = /\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\/service\.ts$/u;
@@ -41,7 +42,7 @@ const seenDeferred = new Set<string>();
 
 const MESSAGE = (verb: string): string =>
   `${verb} — the *Service interface declares this verb but no test in its domain tree invokes ` +
-  `\`${verb.split(".")[1]}(\` or its \`create<Verb>(\` factory (core/Spine-Testing.md §5; ` +
+  "it as a service method or through its `create<Verb>(` factory (core/Spine-Testing.md §5; " +
   "test-support-dry-punchlist.md W1i). Add a behavioral test at tests/server/domain/ or, for a tracked " +
   "gap, a DEFERRED entry in contract-verb-presence.ts.";
 
@@ -50,16 +51,53 @@ function factoryName(verb: string): string {
   return `create${verb.charAt(0).toUpperCase()}${verb.slice(1)}`;
 }
 
-/** A verb is COVERED when a test file has a boundary-anchored bare call `<verb>(` (not a longer identifier
- *  ending in the verb) OR its `create<Verb>(` factory call — IN CODE. A verb named in a test COMMENT (the
- *  most ordinary sentence in this tree: "covers createStartChat(") is not coverage, and reading it as
- *  coverage is the PERMISSIVE half of the comment-blindness class (#117/#132) — the gate would go silently
- *  green on exactly the wired-with-zero-coverage verb it exists to find. The raw `.test` is the CANDIDATE
- *  FENCE: blanking only removes matches, so a file whose raw text misses cannot match blanked either, and
- *  the AST is materialised only for files that could actually cover the verb. */
+/** A verb is COVERED by an AST CallExpression through a service receiver, a binding destructured from a
+ *  `create*` service bundle, or its exact `create<Verb>` factory. A same-named helper/declaration/comment is
+ *  not evidence that the service boundary ran. */
+function calledName(node: CallExpression): string | undefined {
+  const expression = node.getExpression();
+  if (Node.isIdentifier(expression)) {
+    return expression.getText();
+  }
+  if (Node.isPropertyAccessExpression(expression)) {
+    return expression.getName();
+  }
+  const argument = Node.isElementAccessExpression(expression) ? expression.getArgumentExpression() : undefined;
+  return argument !== undefined && Node.isStringLiteral(argument) ? argument.getLiteralText() : undefined;
+}
+
+/** A bare identifier is a service invocation only when it was destructured from a runtime service factory.
+ *  This is the bundle shape used by domain integration tests (`const { listChats } = createRead(...)`). */
+function isFactoryBoundVerb(call: CallExpression, verb: string): boolean {
+  if (!Node.isIdentifier(call.getExpression())) {
+    return false;
+  }
+  return call
+    .getSourceFile()
+    .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
+    .some((declaration) => {
+      const name = declaration.getNameNode();
+      const initializer = declaration.getInitializer();
+      const factoryCall = initializer === undefined ? undefined : unwrapExpression(initializer);
+      if (!(Node.isObjectBindingPattern(name) && factoryCall !== undefined && Node.isCallExpression(factoryCall))) {
+        return false;
+      }
+      const factory = calledName(factoryCall);
+      return factory?.startsWith("create") === true && name.getElements().some((element) => element.getName() === verb);
+    });
+}
+
 function isCovered(files: readonly SourceFile[], verb: string): boolean {
-  const re = new RegExp(`(?:[^\\w]|^)${verb}\\(|${factoryName(verb)}\\(`, "u");
-  return files.some((sf) => re.test(sf.getFullText()) && re.test(blankTsComments(sf)));
+  const factory = factoryName(verb);
+  return files.some((sf) =>
+    sf.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
+      const name = calledName(call);
+      if (name === factory) {
+        return true;
+      }
+      return name === verb && (!Node.isIdentifier(call.getExpression()) || isFactoryBoundVerb(call, verb));
+    }),
+  );
 }
 
 /** A property member is verb-shaped when its type is a function type (`(…) => …`) — the codebase's
@@ -192,10 +230,18 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
+        "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  readonly save: () => void;\n}\n",
+        "tests/server/domain/hub/x.test.ts": "function save() {}\nsave();\n",
+      },
+      expect: { messageIncludes: "hub.save" },
+      why: "a same-named bare helper call is not evidence that the HubService method ran",
+    },
+    {
+      files: {
         [ANCHOR]: "export const server = 1;\n",
         "packages/server/src/domain/discovery/contract/service.ts": "export interface DiscoveryService {\n  readonly themes: () => void;\n}\n",
         "packages/server/src/domain/chat/contract/service.ts": "export interface ChatService {\n  readonly getRoomOverridesForChat: () => void;\n}\n",
-        "tests/server/domain/chat/x.test.ts": "await getRoomOverridesForChat({ id: 1 });\n",
+        "tests/server/domain/chat/x.test.ts": "await service.getRoomOverridesForChat({ id: 1 });\n",
       },
       expect: { count: 1, messageIncludes: "stale DEFERRED row" },
       why: "THE RATCHET'S OTHER SIDE: the anchor is loaded; discovery.themes is still uncovered and keeps its row, but chat.getRoomOverridesForChat now HAS its test — the burn-down row suppressed nothing and must be pruned, exactly as the header's bus-coverage precedent promised",
@@ -205,9 +251,9 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  coveredVerb(): void;\n}\n",
-        "tests/server/domain/hub/x.test.ts": "export const q = coveredVerb();\n",
+        "tests/server/domain/hub/x.test.ts": "export const q = service.coveredVerb();\n",
       },
-      why: "the verb is invoked (`coveredVerb(`) in the domain test tree — covered, passes",
+      why: "the verb is invoked as a service method in the domain test tree — covered, passes",
     },
     {
       // covered only by its create<Verb>( factory (the alias-invoked closure shape).
