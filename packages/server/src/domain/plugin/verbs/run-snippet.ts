@@ -14,7 +14,8 @@
 // an anonymous one-shot has no durable identity to bill or to bound — a snippet that could egress or spend
 // would be the one unbelted path in the sandbox, reachable by any plain member.
 //
-// THE RESOURCE BELT (`snippetGate`): this is the one plugin verb a plain MEMBER reaches, and every call mints a
+// THE RESOURCE BELT (`snippetGate`): this is the one plugin verb with NO installed row behind it — every other
+// verb acts on the caller's own `plugins` row and is bounded by that row's per-plugin belts — and every call mints a
 // fresh 32 MiB-ceiling QuickJSContext held for the length of the run. The transport's request bucket bounds
 // calls per minute, which cannot say how many contexts one member pins AT ONCE — so the slot is claimed here,
 // per user, for the duration, and released in a `finally`.

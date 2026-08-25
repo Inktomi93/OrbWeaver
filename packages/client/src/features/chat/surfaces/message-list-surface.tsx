@@ -41,7 +41,7 @@ import { resolveRowAttribution } from "../lib/attribution.ts";
 import { CHAT_TRACK } from "../lib/chat-track.ts";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
 import { isGreetingWindowOpen, resolveGreetingBinding } from "../lib/greeting-window.ts";
-import { BG_PHOTO_LOADING_PLATE } from "../lib/message-row-backing.ts";
+import { BG_PHOTO_ERROR_PLATE, BG_PHOTO_LOADING_PLATE } from "../lib/message-row-backing.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
 
@@ -94,7 +94,19 @@ export function MessageListSurface({ chatId, busDeps, onChatForked, surfaceContr
             <SkeletonRows count={3} />
           </Stack>
         }
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="this conversation" onRetry={retry} />}
+        // THE ERROR STATE IS PART OF THE COLUMN TOO (#681) — the same argument as the fallback directly
+        // above, for the state on the other side of the same read. It took the transcript's TRACK and a
+        // surface of its own; over art it had neither, so the muted "Couldn't load…" line and its Retry
+        // drew onto the wallpaper at 1.50:1 / 1.57:1. The backing is the OPAQUE `card` member rather than
+        // the loading sibling's translucent plate because this state carries real MUTED-tone text and a
+        // control, and `muted-foreground` is floored against `card` (BG_PHOTO_ERROR_PLATE states the ink
+        // routing in full). Both classes are inert on a plain background.
+        // It hands the battery its SURFACE rather than wrapping it: `render-error-via-battery` REDs an arm
+        // that does not render `QueryErrorState` directly (proven — the wrapper this replaced tripped it),
+        // and that gate is right, so the plate rides the component's own `className`.
+        renderError={(_error, retry): ReactElement => (
+          <QueryErrorState className={`${CHAT_TRACK} ${BG_PHOTO_ERROR_PLATE}`} label="this conversation" onRetry={retry} />
+        )}
       >
         {/* The parent content region owns the console warning; this nested profiler only attributes its cost. */}
         <RenderProfiler id={CHAT_TRANSCRIPT_PROFILER_ID} warn={false}>

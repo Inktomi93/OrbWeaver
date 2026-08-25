@@ -153,11 +153,29 @@ test("snap rejects missing and malformed flag values", () => {
       "--click requires a value",
       '--pages expects an integer >= 1, got "0"',
       '--viewport expects positive WxH, got "wide"',
-      '--fill expects selector=value with a non-empty selector, got "input"',
+      '--fill expects sel=value with a non-empty selector, got "input"',
       '--ls expects key=value with a non-empty key, got "broken"',
       '--crop expects WxH or WxH+X+Y, got "100x"',
     ]),
   );
+});
+
+// #686: --fill splits on the FIRST '=' — its value is a JS literal that routinely contains '=' itself
+// (`--fill '[data-composer]=const a = 1;'`). Splitting on the LAST '=' instead misparses the selector
+// (swallowing the value's own '=' into it) and falsely refuses with "not an element name". Two-direction
+// pin: a value containing '=' parses correctly, and a genuinely missing '=' still refuses.
+test("snap --fill splits on the first '=', so a JS-literal value containing '=' parses correctly", () => {
+  const args = parseSnapArgs(["/", "--fill", "[data-composer]=const a = 1;"]);
+
+  expect(args.errors).toEqual([]);
+  const fillAction = args.actions.find((a) => a.type === "step" && a.action.kind === "fill");
+  expect(fillAction).toMatchObject({ type: "step", action: { kind: "fill", selector: "[data-composer]", value: "const a = 1;" } });
+});
+
+test("snap --fill with no '=' at all still refuses, naming the expected sel=value shape", () => {
+  const args = parseSnapArgs(["/", "--fill", "input"]);
+
+  expect(args.errors).toContain('--fill expects sel=value with a non-empty selector, got "input"');
 });
 
 // #550: the refusal reaches EVERY selector-bearing flag class, not just the --wait-for that exposed it —

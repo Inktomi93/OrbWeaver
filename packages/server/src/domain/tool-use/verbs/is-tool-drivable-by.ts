@@ -16,11 +16,16 @@
 
 import type { UserId } from "@orb/kit/ids";
 import type { ToolRegistry } from "../contract/results.ts";
+import { toolRegistryKey } from "../substrate/partition.ts";
 import { isDirectDrivableBy } from "../substrate/reachability.ts";
 
 export function createIsToolDrivableBy(registry: ToolRegistry): (name: string, userId: UserId) => boolean {
   return (name: string, userId: UserId): boolean => {
-    const entry = registry.get(name);
+    // Keyed straight onto THIS user's shelf (#677) — not `lookupForDriver`, which falls back to the first-party
+    // partition, and a builtin is never direct-drivable. So the lookup itself already answers "is this one of
+    // yours"; `isDirectDrivableBy` stays as the belt that states the policy (and that a future third
+    // `ToolSource` landing on a user's shelf must still satisfy).
+    const entry = registry.get(toolRegistryKey(userId, name));
     return entry !== undefined && isDirectDrivableBy(entry, userId);
   };
 }

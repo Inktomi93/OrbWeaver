@@ -3010,7 +3010,7 @@ function toolDeclaringTeacher(name: string): NonNullable<ChatContext["teaching"]
  *  narrows it), so a fake owns its own shape and narrows it back on the way out. */
 function fakeChatToolOps(): NonNullable<ChatContext["tools"]> {
   return {
-    resolveTools: (names) => ({ names }),
+    resolveTools: (_driverUserId, names) => ({ names }),
     toWireTools: (set) =>
       (set as { readonly names: readonly string[] }).names.map((n) => ({ name: n, description: "d", parameters: { type: "object" as const } })),
     toAgentToolServer: () => Promise.resolve({}),
@@ -3081,7 +3081,7 @@ test("R2 end-to-end: a REAL plugin registration reaches the WIRE, and a deactiva
   // The tool ops wired the way `entry/compose/chat.ts::buildChatToolOps` wires them: chat's opaque
   // `ChatToolSet` IS the registry's `ResolvedToolSet`, round-tripped through this seam.
   const toolOps: NonNullable<ChatContext["tools"]> = {
-    resolveTools: (toolNames) => toolUse.resolveTools(toolNames),
+    resolveTools: (driverUserId, toolNames) => toolUse.resolveTools(driverUserId, toolNames),
     toWireTools: (set) => toolUse.toWireTools(set as ReturnType<typeof toolUse.resolveTools>),
     toAgentToolServer: () => Promise.resolve({}),
     executeToolCalls: () => Promise.resolve([]),
@@ -3098,6 +3098,47 @@ test("R2 end-to-end: a REAL plugin registration reaches the WIRE, and a deactiva
   handle.unregister();
   await h.turn.send({ principal: principal(host), chatId, content: "and now?" });
   expect((requests[1] as { tools?: unknown }).tools).toBeUndefined();
+});
+
+// #677 — THE SAME HOP WITH TWO INSTALLERS. The row above proves one host's plugin reaches the wire; this one
+// proves it still does when SOMEONE ELSE has the same plugin installed, which is the normal case now that the
+// example plugins seed per user. Pre-fix the second registration threw `ToolNameCollisionError` (so the second
+// user's activation landed `errored` and their turn shipped tool-less); the unit pins cover the registry, this
+// covers the turn's own resolve, which is the only place the wrong copy could be handed to a real send.
+test("R2 end-to-end: a STRANGER holds the same plugin tool name, and the host's turn attaches the HOST's copy", async () => {
+  const { host, chatId, names } = await seedRoom("attach_shared", ["aria"]);
+  const stranger = await seedUser(db, castId<Handle>("shared_stranger"));
+  const toolUse = createToolUseService({ can: (() => undefined) as Can, clock: () => 0 });
+  const specFor = (installerUserId: UserId, description: string): Parameters<typeof toolUse.registerPluginTool>[0] => ({
+    name: "plugin_mood_report",
+    description,
+    parameters: { type: "object", properties: {}, additionalProperties: false },
+    installer: principal(installerUserId),
+    invoke: () => Promise.resolve("ok"),
+    resolveInstallerRole: () => Promise.resolve("host"),
+  });
+  // The stranger enables FIRST — pre-fix this squatted the name and the room host's own activation would have
+  // thrown; post-fix both are resident and the turn must pick the host's.
+  toolUse.registerPluginTool(specFor(stranger, "the stranger's copy"));
+  toolUse.registerPluginTool(specFor(host, "the host's copy"));
+
+  const requests: unknown[] = [];
+  const toolOps: NonNullable<ChatContext["tools"]> = {
+    resolveTools: (driverUserId, toolNames) => toolUse.resolveTools(driverUserId, toolNames),
+    toWireTools: (set) => toolUse.toWireTools(set as ReturnType<typeof toolUse.resolveTools>),
+    toAgentToolServer: () => Promise.resolve({}),
+    executeToolCalls: () => Promise.resolve([]),
+  };
+  const teaching = createToolUseTeachingContributions({ listDrivableToolNames: toolUse.listDrivableToolNames });
+  const h = harness(db, names, { teaching, tools: toolOps, connection: TOOLS_CONNECTION, onChatRequest: (req) => requests.push(req) });
+
+  await h.turn.send({ principal: principal(host), chatId, content: "how do we feel?" });
+
+  // The wire `description` is the observable that says WHICH copy rode — the NAME is identical by construction,
+  // so a resolve that picked "whoever registered first" would ship the stranger's tool into this room.
+  const tools = (requests[0] as { tools?: { name: string; description: string }[] }).tools;
+  expect(tools?.map((t) => t.name)).toEqual(["plugin_mood_report"]);
+  expect(tools?.[0]?.description).toBe("the host's copy");
 });
 
 // ── M2 keep-last-X: ABSENT ≠ ZERO, proved at the TURN seam ───────────────────────────────────────

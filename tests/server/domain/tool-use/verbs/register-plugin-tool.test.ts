@@ -3,20 +3,23 @@
 // and ENFORCED (bad args → errors-as-data); an unsupported schema construct is an activation-fatal refusal
 // (PL-B); a collision is activation-fatal (`ToolNameCollisionError`, not boot-fatal); the ceiling runs as the
 // INSTALLING principal (PL-C — the installer's role in THIS chat, not the turn caller's roster); and
-// unregister leaves no ghost tool.
+// unregister leaves no ghost tool. #677 adds the PER-INSTALLER partition: the same namespaced name is held once
+// per installing user, so the collision is scoped to one shelf and a deactivation touches only that shelf.
 
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import type { InvocationChat } from "@orb/contracts/plugin";
+import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { JsonSchemaLiftError } from "@orb/kit/json-schema";
 import { can as realCan } from "@orb/server/domain/admin";
 import { describe } from "vitest";
-import type { PluginToolSpec, ToolCallRecord } from "../../../../../packages/server/src/domain/tool-use/index.ts";
+import { z } from "zod";
+import type { PluginToolSpec, ToolCallRecord, ToolExecutionContext } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { createToolUseService, ToolNameCollisionError } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { execOf } from "../_support.ts";
+import { defOf, execOf } from "../_support.ts";
 
 type Service = ReturnType<typeof createToolUseService>;
 
@@ -45,9 +48,17 @@ function specOf(over: Partial<PluginToolSpec> = {}): PluginToolSpec {
   };
 }
 
-/** Resolve + execute one call against `name`, returning its record. */
-async function runOne(service: Service, name: string, args: unknown, exec = execOf()): Promise<ToolCallRecord | undefined> {
-  const set = service.resolveTools([name]);
+/** Resolve + execute one call against `name`, returning its record. Resolved as the INSTALLER (#677 —
+ *  `resolveTools` is driver-scoped, and every spec here is installed by {@link INSTALLER} unless it says
+ *  otherwise); `driver` overrides that for the cross-installer pins. */
+async function runOne(
+  service: Service,
+  name: string,
+  args: unknown,
+  over: { readonly exec?: ToolExecutionContext; readonly driver?: UserId } = {},
+): Promise<ToolCallRecord | undefined> {
+  const exec = over.exec ?? execOf();
+  const set = service.resolveTools(over.driver ?? INSTALLER.userId, [name]);
   const records = await service.executeToolCalls(set, [{ toolCallId: "c1", name, arguments: JSON.stringify(args) }], exec);
   return records[0];
 }
@@ -104,7 +115,8 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
     };
     // The installer is a stranger to chat_x (no participant row); the turn caller is its host.
     service.registerPluginTool(specOf({ name: "plugin_denied", installer: STRANGER, invoke, resolveInstallerRole: () => Promise.resolve(null) }));
-    const rec = await runOne(service, "plugin_denied", { tag: "calm" }, hostCallerExec);
+    // Driven by STRANGER — the entry lives on THEIR shelf (#677), and the PL-C ceiling is what denies it.
+    const rec = await runOne(service, "plugin_denied", { tag: "calm" }, { exec: hostCallerExec, driver: STRANGER.userId });
     expect(rec?.isError).toBe(true);
     expect(rec?.result).toContain("not permitted");
     expect(invoked).toBe(false);
@@ -121,7 +133,7 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
       return Promise.resolve("ok");
     };
     service.registerPluginTool(specOf({ name: "plugin_member", installer: INSTALLER, invoke, resolveInstallerRole: () => Promise.resolve("member") }));
-    const rec = await runOne(service, "plugin_member", { tag: "calm" }, hostCallerExec);
+    const rec = await runOne(service, "plugin_member", { tag: "calm" }, { exec: hostCallerExec });
     expect(rec?.isError).toBe(false);
     expect(seen?.chatId).toBe("chat_x");
     expect(seen?.canWrite).toBe(false);
@@ -137,7 +149,7 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
       return Promise.resolve("ok");
     };
     service.registerPluginTool(specOf({ name: "plugin_host", installer: INSTALLER, invoke, resolveInstallerRole: () => Promise.resolve("host") }));
-    const rec = await runOne(service, "plugin_host", { tag: "calm" }, execOf({ chatId: castId("chat_x"), roster: { role: "member" } }));
+    const rec = await runOne(service, "plugin_host", { tag: "calm" }, { exec: execOf({ chatId: castId("chat_x"), roster: { role: "member" } }) });
     expect(rec?.isError).toBe(false);
     expect(seen?.canWrite).toBe(true);
   });
@@ -162,8 +174,8 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
         },
       }),
     );
-    const okRec = await runOne(service, "plugin_per_chat", { tag: "a" }, execOf({ chatId: castId("chat_x"), roster: { role: "member" } }));
-    const deniedRec = await runOne(service, "plugin_per_chat", { tag: "b" }, execOf({ chatId: castId("chat_y"), roster: { role: "host" } }));
+    const okRec = await runOne(service, "plugin_per_chat", { tag: "a" }, { exec: execOf({ chatId: castId("chat_x"), roster: { role: "member" } }) });
+    const deniedRec = await runOne(service, "plugin_per_chat", { tag: "b" }, { exec: execOf({ chatId: castId("chat_y"), roster: { role: "host" } }) });
     expect(okRec?.isError).toBe(false);
     expect(deniedRec?.isError).toBe(true);
     expect(asked).toEqual(["chat_x", "chat_y"]);
@@ -189,7 +201,7 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
     // The installer is not a present member of the chat the rule fires in. Nothing about `roster: null` may be
     // read as "no membership to check" — the ceiling's input is the INSTALLER's row read, and it says no.
     service.registerPluginTool(specOf({ name: "plugin_auto_denied", invoke, resolveInstallerRole: () => Promise.resolve(null) }));
-    const rec = await runOne(service, "plugin_auto_denied", { tag: "calm" }, automationExec);
+    const rec = await runOne(service, "plugin_auto_denied", { tag: "calm" }, { exec: automationExec });
     expect(rec?.isError).toBe(true);
     expect(rec?.result).toContain("not permitted");
     expect(invoked).toBe(false);
@@ -203,7 +215,7 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
       return Promise.resolve("ok");
     };
     service.registerPluginTool(specOf({ name: "plugin_auto_member", invoke, resolveInstallerRole: () => Promise.resolve("member") }));
-    const rec = await runOne(service, "plugin_auto_member", { tag: "calm" }, automationExec);
+    const rec = await runOne(service, "plugin_auto_member", { tag: "calm" }, { exec: automationExec });
     expect(rec?.isError).toBe(false);
     // The write half stays LOCKED. With no roster in scope at all, a ceiling that had been reading the caller's
     // role would have had to either crash or default — it does neither, because it never reads it.
@@ -224,10 +236,65 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
   });
 });
 
+// #677 — THE PER-INSTALLER PARTITION. `plugins` is unique per (owner, slug), so two users installing the same
+// plugin is the NORMAL case (the seeded examples install for everyone), and the namespaced tool name they both
+// produce is byte-identical. A registry keyed by NAME ALONE therefore let the first user to ENABLE squat the
+// name for the whole process: every other user's activation caught a `ToolNameCollisionError` and landed
+// `errored`. These pins are written at the SERVICE surface (the affordance an installer has) rather than over
+// the key derivation, so they stay true of any partition shape.
+describe("#677: the same tool name may be held once PER INSTALLER", () => {
+  test("two users installing the SAME slug both register — first-to-enable does not squat the name", () => {
+    const service = serviceWith();
+    service.registerPluginTool(specOf({ installer: INSTALLER }));
+    expect(() => service.registerPluginTool(specOf({ installer: STRANGER }))).not.toThrow();
+  });
+
+  test("both installers may direct-drive their OWN copy of the shared name", () => {
+    const service = serviceWith();
+    service.registerPluginTool(specOf({ installer: INSTALLER }));
+    service.registerPluginTool(specOf({ installer: STRANGER }));
+    expect(service.isToolDrivableBy("plugin_mood_report", INSTALLER.userId)).toBe(true);
+    expect(service.isToolDrivableBy("plugin_mood_report", STRANGER.userId)).toBe(true);
+  });
+
+  test("a SECOND registration by the SAME installer is still activation-fatal", () => {
+    const service = serviceWith();
+    service.registerPluginTool(specOf({ installer: INSTALLER }));
+    expect(() => service.registerPluginTool(specOf({ installer: INSTALLER }))).toThrow(ToolNameCollisionError);
+  });
+
+  test("one installer's deactivation leaves the OTHER installer's copy resolvable", () => {
+    const service = serviceWith();
+    const mine = service.registerPluginTool(specOf({ installer: INSTALLER }));
+    service.registerPluginTool(specOf({ installer: STRANGER }));
+    mine.unregister();
+    expect(service.isToolDrivableBy("plugin_mood_report", INSTALLER.userId)).toBe(false);
+    expect(service.isToolDrivableBy("plugin_mood_report", STRANGER.userId)).toBe(true);
+    // …and the survivor still RESOLVES, not merely "is drivable": the two answers come from different reads.
+    expect(() => service.resolveTools(STRANGER.userId, ["plugin_mood_report"])).not.toThrow();
+    expect(() => service.resolveTools(INSTALLER.userId, ["plugin_mood_report"])).toThrow();
+  });
+
+  test("a contributor may NOT take a first-party name, even on its own shelf", () => {
+    // The one cross-partition rule the per-owner keying still needs. `resolveTools` prefers the driver's own
+    // shelf, so admitting this would silently replace a builtin for the installing user — capability confusion,
+    // and it is what keeps the two-step lookup free of any precedence question.
+    const service = serviceWith();
+    service.register(
+      defOf({
+        name: "plugin_mood_report",
+        schema: z.object({}),
+        handler: (): Promise<{ ok: true; value: unknown }> => Promise.resolve({ ok: true, value: 1 }),
+      }),
+    );
+    expect(() => service.registerPluginTool(specOf())).toThrow(ToolNameCollisionError);
+  });
+});
+
 test("unregister removes the tool — no ghost after deactivation", () => {
   const service = serviceWith();
   const handle = service.registerPluginTool(specOf());
   handle.unregister();
   // resolveTools throws for an unknown name (attach-time wiring surface) — the tool is gone.
-  expect(() => service.resolveTools(["plugin_mood_report"])).toThrow();
+  expect(() => service.resolveTools(INSTALLER.userId, ["plugin_mood_report"])).toThrow();
 });

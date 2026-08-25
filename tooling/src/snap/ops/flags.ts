@@ -21,8 +21,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 export const MS_PER_SECOND = 1000;
 
 export const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
-// --wide: layout sanity at a real monitor width (neo's default 1280 disguised a
-// dialog max-width bug for a whole morning).
+// --wide: layout sanity at a real monitor width (neo's 1280 default disguised a dialog max-width bug for a morning).
 const WIDE_VIEWPORT: Viewport = { width: 1920, height: 1080 };
 // --mobile: a Playwright device descriptor name (registry lookup in _shared/browser.ts). Real touch +
 // pointer:coarse + mobile UA + DPR3, so the app's coarse-pointer progressive-disclosure and bottom-tab
@@ -163,9 +162,10 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
       a.localStorage.push({ key: seed.head, value: seed.tail });
     }
   },
-  // --fill "selector=value" — LAST '=' splits (selectors contain '=').
+  // --fill "selector=value" — FIRST '=' splits (the value is a JS literal that routinely contains
+  // '=' itself, e.g. `--fill 'input=const a = 1;'`; the selector is the invariant, short prefix).
   "--fill": (a, rest, page) => {
-    const s = splitLastEq(rest.shift() ?? "");
+    const s = splitFirstEq(rest.shift() ?? "") ?? { head: "", tail: "" };
     pushStep(a, { kind: "fill", selector: s.head, value: s.tail, page });
   },
   // TWO forms, picked by whether the value carries an '=':
@@ -194,7 +194,8 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--wait-for": (a, rest, page) => {
     pushStep(a, { kind: "waitfor", selector: rest.shift() ?? "", page });
   },
-  // --upload <selector>=<path[,path...]> (#651): LAST '=' splits (--fill/--key convention); boundary +
+  // --upload <selector>=<path[,path...]> (#651): LAST '=' splits (--key convention; --fill diverges,
+  // see above — its value is a literal that commonly contains '='); boundary +
   // existence + real-input resolution happen at DRIVE time (_shared/upload.ts) — parse stays side-effect free.
   "--upload": (a, rest, page) => {
     const s = splitLastEq(rest.shift() ?? "");

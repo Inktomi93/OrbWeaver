@@ -25,8 +25,9 @@ import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { pixelContrast } from "../../../../support/ct/pixel-contrast.ts";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
-import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import {
   MessageListFooterDisclosureStory,
   MessageListOverArtStory,
@@ -657,6 +658,14 @@ test("a completed SWIPE keeps the new variant on screen with the refetch still i
     // The FIRST read is the pre-swipe canon; every later one is held open (see holdListMessagesRefetch), so
     // the only way the new variant can be on screen is the carrier the seam applied.
     "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW]),
+    // FED, not incidental (the unfed-read ratchet named it): the carrier lands `AI_REROLLED` with
+    // `variantCount: 2`, which is exactly what UN-GATES `useVariantHistory` (`useGatedQuery` fires only
+    // for a slot that HAS siblings) — so this is the one mount in the file whose swipe strip really asks
+    // for the sibling set, and answering it `null` left that resolver running inert behind a green test.
+    "chat.listMessageVariants": () => [
+      { variantId: AI_VIEW.selectedVariantId, idx: 0 },
+      { variantId: AI_REROLLED.selectedVariantId, idx: 1 },
+    ],
     ...ROSTER_STUB,
   });
   await routeOrbSocket(page, { frames: chatFrames(SWIPE_TURN), awaitAttaches: 1 });
@@ -848,6 +857,70 @@ test("LOADING OVER ART CONTROL: the same probe reads the raw backdrop where no a
   const pixel = await sampleLoadingPlatePixel(page, component.locator('[data-slot="skeleton"]').first());
 
   expect(pixel.g).toBeGreaterThan(ART_BACKDROP_GREEN - 8);
+});
+
+// ── #681: THE ERROR STATE'S READING SURFACE (the over-art family's fifth member) ───────────────────
+// The sibling pair directly above proves the LOADING state rides a plate over art. The ERROR state — the
+// other side of the same read, rendered into the same empty column by the same `QueryBoundary` — had no
+// surface at all: side-eye pixel-measured its `[role=status]` line at 1.50:1 and its Retry at 1.57:1 over
+// a carried-art room. These are PIXEL receipts through the shared `pixelContrast` kernel, because the
+// composite is what a reader sees and `getComputedStyle` reports the same class list in both arms.
+//
+// TWO WIDTHS, because a point measurement never proves a range property (the desktop mount and the
+// narrow one wrap the copy differently, and the plate must follow the text either way).
+//
+// THE ART IS WHITE ON PURPOSE: the story's palette is the dark seed, so the error ink is the LIGHT muted
+// tone and the worst legal wallpaper is the BRIGHT one (D144/#217's polarity inversion).
+const ERROR_WORST_ART = "#ffffff";
+/** WCAG AA for normal text — what a room's failure message and its recovery control owe their backdrop. */
+const AA_NORMAL_TEXT = 4.5;
+const ERROR_CONTRAST_WIDTHS = [
+  { label: "desktop", width: 1280, height: 800 },
+  { label: "mobile", width: 430, height: 932 },
+] as const;
+
+for (const { label, width, height } of ERROR_CONTRAST_WIDTHS) {
+  test(`#681 ${label} (${String(width)}px): the transcript's ERROR state clears AA over worst-case art`, async ({ mount, page }) => {
+    await page.setViewportSize({ width, height });
+    // The read FAILS — the one input that makes `renderError` the settled render of this column.
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": trpcError({ code: "INTERNAL_SERVER_ERROR", message: "boom" }) });
+
+    const component = await mount(<MessageListOverArtStory artBackdrop={true} art={ERROR_WORST_ART} fullWidth={true} />);
+
+    // The barrier: the error state is actually rendered, so neither measurement below can be vacuous.
+    const status = component.getByRole("status");
+    await expect(status).toBeVisible();
+    await expect(status).toHaveText("Couldn't load this conversation.");
+    const retry = component.getByRole("button", { name: "Retry" });
+    await expect(retry).toBeVisible();
+
+    // ONESHOT-OK: both boxes are settled by the visibility barriers above; a framebuffer read is a
+    // SEQUENTIAL browser operation, so the two samples cannot be taken concurrently.
+    const statusContrast = await pixelContrast(page, status);
+    expect(statusContrast.ratio, `error copy: ${statusContrast.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+    const retryContrast = await pixelContrast(page, retry);
+    expect(retryContrast.ratio, `retry control: ${retryContrast.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+  });
+}
+
+test("#681 CONTROL: with no art flag the SAME probe reads the raw backdrop — the plate is self-gated", async ({ mount, page }) => {
+  // The planted positive control for the pair above, and the byte-identity half of the fix: the plate is
+  // self-gated on `in-data-[has-bg-image]` exactly like its four siblings, so a plain-background room
+  // paints nothing new. If this probe ever stops seeing the naked backdrop here, the two measurements
+  // above are measuring nothing (the LOADING pair's control, same argument, same shape).
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": trpcError({ code: "INTERNAL_SERVER_ERROR", message: "boom" }) });
+
+  const component = await mount(<MessageListOverArtStory artBackdrop={false} art={ERROR_WORST_ART} fullWidth={true} />);
+
+  const status = component.getByRole("status");
+  await expect(status).toBeVisible();
+  // ONESHOT-OK: the visibility barrier above settled the box; a framebuffer read is sequential.
+  const contrast = await pixelContrast(page, status);
+  // The raw white story backdrop, unplated — and therefore the DEFECT's own number, which is what makes
+  // the ≥AA assertions above a receipt for the plate rather than for the palette.
+  expect(contrast.backdrop.r, contrast.describe).toBeGreaterThan(240);
+  expect(contrast.ratio, contrast.describe).toBeLessThan(AA_NORMAL_TEXT);
 });
 
 // ── #107: the transcript's cost to a keyboard reader ──────────────────────────────────────────────

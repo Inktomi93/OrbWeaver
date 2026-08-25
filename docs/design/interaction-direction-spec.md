@@ -431,10 +431,10 @@ part of the plan; OPTIONAL rows are owner picks.
 | 14 | spotlight balance | C1 preset: analysis reads the fresh window, emits ONE `steer` line (narrator-not-players) | cadence | C1 | committed |
 | 15 | story pacing analysis (C1) · distill-lore (C2) · prose-audit (C3) | the three RULED analysis presets (§7 Phase C; C1 apply: direct steer; C2/C3 confirm-first; C3 cards variant-pinned + hash-guarded + revert obligation; on-demand = R7 with the synchronous clean verdict) | steer; cadence; every-turn vs on-demand | C1–C3 | committed (RULED F7) |
 | 16 | the needle (score → meter + backdrop) | C1 scoring tension 0-10 → `setVariable`; sibling rule `int(vars.tension) >= N` → `set_chat_background` | cadence; N | the `setVariable` route + the vars read proc | **RULED 2026-08-24 — SHIPS, OFF BY DEFAULT** (host opts in per room; the F6 exception's boundary is §2's clause: scores may cross, arcs/twists/guidance never) |
-| 17 | illustrate on lore reveal | `worldInfoActivated` → `generate_image` | entry filter | A3 | optional |
-| 18 | react to lore activation | `worldInfoActivated` → `trigger_turn` | guided text | A3 | optional |
-| 19 | auto-set scene background | predicate → `set_chat_background` (the autobg quiet-pick, `arm-executors.ts:256-300`) | instruction bias | A3 | optional |
-| 20 | living library (owner-global) | GLOBAL rule: `character.updated` + `contentChanged` (the S7 fact field) → quiet `generate_image` mode `character` | — | the owner-global lane (§3-S3) + S7 | optional (the global lane's showcase) |
+| 17 | illustrate on lore reveal | `worldInfoActivated` → `generate_image` | entry filter | A3 | **committed** (owner 2026-08-24: "everything optional gets included") |
+| 18 | react to lore activation | `worldInfoActivated` → `trigger_turn` | guided text | A3 | **committed** (owner 2026-08-24) |
+| 19 | auto-set scene background | predicate → `set_chat_background` (the autobg quiet-pick, `arm-executors.ts:256-300`) | instruction bias | A3 | **committed** (owner 2026-08-24) |
+| 20 | living library (owner-global) | GLOBAL rule: `character.updated` + `contentChanged` (the S7 fact field) → quiet `generate_image` (mode corrected to `character_multimodal` at C5 build — the chat-less caption path; the `character` extraction mode is chat-required as built) | — | the owner-global lane (§3-S3) + S7 | **committed** (C5's lane, in flight 2026-08-24) |
 
 Graveyarded preset shapes (recorded so nobody re-mints them): auto-fire recap · genre-move decks
 · keyword tension clocks · blind spotlight rotation · reaction-heat steering (conditional-revive:
@@ -504,6 +504,7 @@ Preview (host-only, crown)** — `features/chat/lib/chats-section.tsx:54-88`.
 | B8 | checks | ask=S1; result=canon | S1 + the `rollDice` verb (member-gated CSPRNG bake-once) | chip → server roll → narration reacts | ask: the S1 mount (game arm); result: a `tool-renderers` contribution in-thread | ordinary | game config |
 | B9 | clocks | 1 | the clock preset (two-rule) + `SegmentedClock` over `vars` + **the vars read proc (priced at S5's `setVariable`; B9 consumes it)** | clock fills; the arm fires; host resets via the Rules row (mechanism: R7 over a preset-minted reset rule, decided at build) | widget: a `thread-flank` contribution (stacks below the thread <512px by the seam's own law); config: the Rules section | ordinary | N; the fired arm |
 | B10 | saved casts (#26) | — | `rosterMemberSpecSchema`/`seatKnobsSchema` (`contracts/chat/roster.ts:76-99` — pre-cut; D80 `setSeatKnobs`) + the room's enabled PRESET IDS + KNOB VALUES re-minted on apply (the accrual travels; doubles as B2's provenance flip-shape record) | save a cast + rules; one click into a new chat | save: Members tab host action; apply-new: the `newChat` picker modal gains "Start from saved cast"; apply-existing: Members "Add cast…"; library management: a Configuration-section `CollectionContribution` | **merge-window** (schema) | seat knobs + preset ids |
+| B11 | room Activity tab + inbox doorway (#687; owner-placed 2026-08-24) | — | the EXISTING durable stores read cross-source: the automation fire log (confirmed-suggestion executions carry the confirmer stamp), notices, plugin invocations for this chat — ONE-HOME: no second store, the tab is a READ of what the Rules-section fire log already consumes; (digest) B6's reactions plane when it lands | open the Activity tab: this room's fires/cards/plugin actions listed; the shell badge opens the inbox | tab: a CONTEXT-strip sibling of Members/"This chat"/Preview (CONTEXT→sheet mobile); cross-room stays the EXISTING notifications inbox — the top-bar/room-list spot is a BADGE/entry to it, never a second feed (the #227 reachability fix rides this) | ordinary | none new. Rides the B6 wave (the reactions-while-away digest pairs). Pending S4 cards stay F1 in-RAM: the feed = live-pending + durable history; "missed cards" = the recorded R5 durable-row flip, priced separately |
 
 **Phase C — the analysis arm + the platform machinery:**
 
@@ -527,6 +528,30 @@ Preview (host-only, crown)** — `features/chat/lib/chats-section.tsx:54-88`.
 6. **The membrane's standing walls C7 must not re-litigate:** no message-write op exists on the plugin surface and none may be added (§1's class-1 wall); plugin lore writes carry `neutralizeMacros` + the attach gate + the 64-entry cap (#611); `notify` carries the 60 s per-(plugin, chat) floor one-homed at `AUTOMATION_NOTICE_COOLDOWN_SECONDS`; `runSnippet` carries a per-user concurrent-snippet ceiling (#613).
 
 *Provenance: `docs/reviews/stickler/2026-08-24-automation-platform-axes.md` §3 (written against the BUILT membrane, unlike the parked plugin set) + `plugin-automation-juice.md` rows 11/14/15.*
+
+**§7-C7b — THE PLUGIN UI PLANE (#679) — pointer only; the design is ONE-homed at
+[`docs/design/plugin-ui-plane.md`](plugin-ui-plane.md) (owner-ruled 2026-08-24, build-phase-ready).**
+The juice A2-F5 renderer gap ("a plugin cannot register a client ToolRenderer") is CLOSED BY DESIGN
+there. What a builder needs to know from here: plugin UI is a DECLARATIVE CONTRIBUTION TREE over
+sealed `@orb/ui` at the existing D70 contribution anchors, two tiers on one zod spec vocabulary
+(Tier S: activation-registered specs, server-guest action round-trips; Tier C: an optional `ui.js`
+in a client-side QuickJS-WASM Web Worker — the same engine family as `infra/plugin-host`), one new
+`ui.surface` capability, every surface inside a first-party plugin-labeled shell. Owner rulings
+folded there (six steers, verbatim in its §0): capability-first (walls protect the system and OTHER
+users only); ST extension-ability PARITY is the bar (its §5 register, 35 rows all classified);
+integrated-primary — the iframe arm is DEMOTED to the `ui.frame` hatch, which the full-parity
+ruling then COMMITTED as scheduled phase U7 (security-executor-gated, rides the card-frame
+substrate); "all the optional stuff" COMMITTED — no deferred class remains (phases U0–U8,
+stop-anywhere: U0 contracts · U1 Tier-S settings · U2 chat anchors · U3 tool cards · U4 Tier C +
+the one CSP delta · U5 slash/chrome/dialog/toast · U6 parity tail incl. the display-transform seam
+· U7 the frame hatch · U8 ecosystem: URL install, `databank.ingest`, card extension fields,
+dynamic palette rows); the five structural refusals are an ENABLEMENT PRICE SHEET (its §5a) —
+refused by default, owner-purchasable, other-user walls marked. Residual owner ask: TTS/STT
+(substrate, engine-level). Build-state receipts (dated 2026-08-24): user-scoped plugin management
+IS LANDED BRANCH-SIDE pending merge to main — D147, #675, commit `8340b7f87` ("plugins are
+USER-SCOPED — ownership is the authority"); the five seeded example plugins likewise —
+commit `79e89d255`, branch-side pending merge. Neither is on local `main` as of this fold; re-derive
+before building against them.
 
 **Stop-anywhere:** after A: silent, pins green. B1: chats offer choices. B2: rules as toggles
 with feedback. B3/B4: the room talks back and asks permission. B5: images in the room. B6/B7:
