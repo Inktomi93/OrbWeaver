@@ -8,6 +8,12 @@
 // `busy` from the shared turn phase; a compose click seeding this room's composer draft + focus. Per-mode
 // operability is `lib/chat-control-availability.ts` — the one home for "is this control disabled, and why".
 //
+// A CHIP ALSO SHOWS ITS MODE (side-eye 2026-08-24): the mode field exists to stop send/compose confusion, but
+// the chips were rendering byte-identical, so a click that POSTS looked exactly like one that only DRAFTS. So
+// a chip carries a per-mode leading glyph (`MODE_GLYPH`) AND a mode-prefixed accessible name
+// (`MODE_ACCNAME_PREFIX`) — the visible and the non-sighted halves of the same signal — and every disabled
+// control names its unlock through `aria-describedby` (keyboard/SR-reachable), not `title` alone.
+//
 // THE STACKING LAW (§3-S1 + authoring law 5, the attention budget). `CHAT_CONTROL_KINDS` declares the
 // stack order (cards above chips) and the renderer map below is exhaustive over it, so a new kind fails
 // `tsc` until it has both. Cards: exactly ONE visible (the newest), the rest disclosed as a mono count —
@@ -18,12 +24,13 @@
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { X } from "@orb/ui/icons";
+import type { LucideIcon } from "@orb/ui/icons";
+import { Pencil, Play, Send, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { Fragment } from "react";
-import type { ChatControl, ChatControlAction, ChatControlKind, ChatControlSource, ContributorRegistry } from "#lib";
+import { Fragment, useId } from "react";
+import type { ChatControl, ChatControlAction, ChatControlKind, ChatControlMode, ChatControlSource, ContributorRegistry } from "#lib";
 import { CHAT_CONTROL_KINDS, controlOverflowNotice } from "#lib";
 import { requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
 import { useChatControls } from "../hooks/use-chat-controls.tsx";
@@ -83,23 +90,63 @@ interface ControlActionButtonProps {
   readonly as: ChatControlKind;
 }
 
+/** The leading GLYPH per consumption mode — a chip's whole visible tell that `send` POSTS as your turn,
+ *  `compose` only DRAFTS, and `execute` RUNS a verb (side-eye 2026-08-24 P1: send/compose/execute chips were
+ *  byte-identical, so a "Draw your blade" send chip that fires instantly looked exactly like a "Time skip"
+ *  compose chip that only drafts). Decorative — the mode is ALSO carried in the accessible name below, so the
+ *  icon is `aria-hidden`. Exhaustive over the mode axis: a new `CHAT_CONTROL_MODES` member fails `tsc` here. */
+const MODE_GLYPH: Record<ChatControlMode, LucideIcon> = {
+  send: Send,
+  compose: Pencil,
+  execute: Play,
+};
+
+/** The accessible-name PREFIX per mode — the SR/keyboard half of the same signal (side-eye 2026-08-24 P1:
+ *  the accessible name was label-only, so a non-sighted user got ZERO mode signal). The visible label stays
+ *  the suffix, so the accessible name CONTAINS it (WCAG 2.5.3 label-in-name / voice-control match). */
+const MODE_ACCNAME_PREFIX: Record<ChatControlMode, string> = {
+  send: "Send",
+  compose: "Draft",
+  execute: "Run",
+};
+
 /** ONE affordance, in either dress. Disabled state and its REASON come from the one behavior contract, and
- *  a disabled button stays focusable so the reason is reachable without a pointer. */
+ *  a disabled button stays focusable so the reason is reachable without a pointer.
+ *
+ *  A CHIP carries the per-mode glyph + accessible-name prefix (a chip's bare label cannot tell send from
+ *  compose); a CARD's action reads in the context of its title and its label is deliberate copy ("Run now"
+ *  must not become "Run: Run now"), so it stays plain. The disabled REASON is bound by `aria-describedby` to
+ *  a visually-hidden sibling in BOTH dresses — `title` alone is hover-only, unreachable by keyboard/SR
+ *  (side-eye 2026-08-24 P2). The span is a SIBLING, never a child: inside the button it would append to the
+ *  accessible name. */
 function ControlActionButton({ action, consumer, as }: ControlActionButtonProps): ReactElement {
   const availability = resolveControlAvailability(action, consumer.turn);
   const chip = as === "chip";
+  const reasonId = useId();
+  const Glyph = MODE_GLYPH[action.mode];
   return (
-    <Button
-      disabled={availability.disabled}
-      focusableWhenDisabled={true}
-      intent={chip ? "outline" : "secondary"}
-      onClick={(): void => runControlAction(action, consumer)}
-      shape={chip ? "pill" : "control"}
-      size={chip ? "chip" : "sm"}
-      title={availability.reason ?? undefined}
-    >
-      {action.label}
-    </Button>
+    <>
+      <Button
+        aria-describedby={availability.reason === null ? undefined : reasonId}
+        aria-label={chip ? `${MODE_ACCNAME_PREFIX[action.mode]}: ${action.label}` : undefined}
+        data-mode={action.mode}
+        disabled={availability.disabled}
+        focusableWhenDisabled={true}
+        intent={chip ? "outline" : "secondary"}
+        onClick={(): void => runControlAction(action, consumer)}
+        shape={chip ? "pill" : "control"}
+        size={chip ? "chip" : "sm"}
+        title={availability.reason ?? undefined}
+      >
+        {chip ? <Glyph aria-hidden={true} /> : null}
+        {action.label}
+      </Button>
+      {availability.reason === null ? null : (
+        <Text as="span" className="sr-only" id={reasonId}>
+          {availability.reason}
+        </Text>
+      )}
+    </>
   );
 }
 
@@ -150,14 +197,18 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
   );
 }
 
-/** The CHIP row: one row, capped, remainder disclosed. */
+/** The CHIP row: capped, remainder disclosed — and it WRAPS. At a phone width four long-label chips overrun
+ *  the available inline space and an ancestor clips the overflow, so the "+N more" disclosure (and later
+ *  chips) were pushed off the right edge, unreachable with no scrollbar (side-eye 2026-08-24 P3). A second
+ *  line is cheap above the composer, so the row wraps rather than clips — every capped chip and its
+ *  disclosure stay on screen. */
 function ControlChips({ controls, consumer }: { readonly controls: readonly ChatControl[]; readonly consumer: ControlConsumer }): ReactElement | null {
   const chips = controls.filter((control) => control.kind === "chip");
   if (chips.length === 0) {
     return null;
   }
   return (
-    <Row align="center" data-slot="chat-control-chips" gap="field">
+    <Row align="center" className="flex-wrap" data-slot="chat-control-chips" gap="field">
       {chips.slice(0, CHIP_DISPLAY_CAP).map((chip) => (
         <ControlActionButton action={chip.action} as="chip" consumer={consumer} key={chip.id} />
       ))}
