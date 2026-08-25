@@ -139,7 +139,16 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
             <Container className="min-h-0 flex-1">
               <Row gap="block" className="h-full @max-lg:flex-col" data-slot="chat-room-flank-row">
                 {thread}
-                <Stack gap="block" data-slot="chat-thread-flank">
+                {/* `empty:hidden` is the SILENT-CONTRIBUTOR collapse, the same property (and the same
+                    reason) the above-composer band carries below: the column activates on the CONTRIBUTION
+                    COUNT, which is decided by a SYNC `when` that cannot see query data — so a contributor
+                    whose applicability is DATA (automation's needle meter: is there a tension score in this
+                    room?) must mount everywhere and paint nothing where it does not apply. Without this,
+                    every room without a score paid a flex child and its `gap="block"` step beside the
+                    transcript. `:empty` takes the stack out of layout entirely, so "mounted but silent" and
+                    "not mounted" render identically; it cannot hide a live contribution, since any rendered
+                    node makes the stack non-empty. */}
+                <Stack gap="block" className="empty:hidden" data-slot="chat-thread-flank">
                   {flankContributions.map((c) => (
                     <Fragment key={c.id}>{c.node}</Fragment>
                   ))}

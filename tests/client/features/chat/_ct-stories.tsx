@@ -1882,6 +1882,10 @@ export interface ChatSurfaceContributorStoryProps {
   readonly anchor: ChatSurfaceAnchor;
   /** Drives the fake contribution's `when` — `false` proves the anchor HIDES it. */
   readonly visible: boolean;
+  /** MOUNTED BUT SILENT: `when` passes, the BODY renders null. The real shape of a contributor whose
+   *  applicability is DATA (automation's needle meter asks "does this room carry a tension score?", which a
+   *  sync `when` cannot answer), and the case the flank stack's `empty:hidden` collapse exists for. */
+  readonly silent?: boolean;
 }
 
 const CT_SURFACE_CONTRIBUTION_ID = "ct-fake-surface-contribution";
@@ -1890,7 +1894,7 @@ const CT_SURFACE_CONTRIBUTION_ID = "ct-fake-surface-contribution";
  *  given anchor, registered at a `CtChatContributorSectionRegistry` door in place of the empty registry,
  *  mounted through the REAL `chats` section's `content()` → `ChatContent` → `ChatRoomSurface`/`MessageRow`
  *  anchor-consumer path (chat-room-surface.tsx / message-row.tsx). */
-export function ChatSurfaceContributorStory({ anchor, visible }: ChatSurfaceContributorStoryProps): ReactElement {
+export function ChatSurfaceContributorStory({ anchor, visible, silent = false }: ChatSurfaceContributorStoryProps): ReactElement {
   useEffect(() => {
     selectChat(CHAT_ID);
   }, []);
@@ -1900,13 +1904,13 @@ export function ChatSurfaceContributorStory({ anchor, visible }: ChatSurfaceCont
           id: CT_SURFACE_CONTRIBUTION_ID,
           anchor: "message-footer",
           when: () => visible,
-          body: (): ReactElement => <div data-testid="ct-fake-surface-contribution">fake footer</div>,
+          body: (): ReactElement | null => (silent ? null : <div data-testid="ct-fake-surface-contribution">fake footer</div>),
         }
       : {
           id: CT_SURFACE_CONTRIBUTION_ID,
           anchor,
           when: () => visible,
-          body: (): ReactElement => <div data-testid="ct-fake-surface-contribution">fake {anchor}</div>,
+          body: (): ReactElement | null => (silent ? null : <div data-testid="ct-fake-surface-contribution">fake {anchor}</div>),
         };
   const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [fakeContribution]);
   return (

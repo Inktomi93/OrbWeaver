@@ -11,7 +11,7 @@
 // The dialect facts themselves are pinned separately in `tests/kit/cel/cel-goldens.json`.
 
 import type { AutomationActionInput, RulePresetId } from "@orb/contracts/automation";
-import { automationActionsSchema, LIVE_TRIGGERS, RULE_PRESET_IDS } from "@orb/contracts/automation";
+import { ANALYSIS_SCORE_MAX, automationActionsSchema, LIVE_TRIGGERS, NEEDLE_TENSION_VAR_KEY, RULE_PRESET_IDS } from "@orb/contracts/automation";
 import type { CelBindings } from "@orb/kit/cel";
 import { evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -111,8 +111,9 @@ test("the committed catalogue is exactly the A3 rows plus A4's four plus C1's pa
   // confirm-first card), #3 (auto-add lore, confirm-first by default), #8 (the compose-mode opener deck,
   // riding A2's per-choice mode field) and #10 (call a vote — send-mode chips, R7-invoked); C1 adds #15
   // (story pacing analysis — the run_analysis arm's showcase, RULED F7 direct steer); C2 adds #11's two
-  // confirm-first lore distillers (distill lore + rumour mill); C3 adds #14's prose audit (the confirm-first
-  // rewrite card). #2/#16/#20 ride later phases and may not creep in.
+  // confirm-first lore distillers (distill lore + rumour mill); #16 the needle rides C1's vars route + the
+  // vars read proc; C3 adds #15's prose audit (the confirm-first rewrite card). #2/#14/#20 ride later
+  // phases and may not creep in.
   expect([...RULE_PRESET_IDS]).toEqual([
     "welcomeBackRecap",
     "autoAddLore",
@@ -128,6 +129,7 @@ test("the committed catalogue is exactly the A3 rows plus A4's four plus C1's pa
     "storyPacing",
     "distillLore",
     "rumorMill",
+    "theNeedle",
     "proseAudit",
   ]);
 });
@@ -325,6 +327,50 @@ test("#10 never fires on its own — its predicate is a constant false (the on-d
   // Both envs, because "never" is the claim: no bus event of its trigger can reach the arms.
   expect(evaluate(rule?.predicate as string, EMPTY_ENV)).toBe(false);
   expect(evaluate(rule?.predicate as string, POPULATED_ENV)).toBe(false);
+});
+
+// ── §4 #16 the needle (RULED 2026-08-24 — ships, OFF by default) ──────────────────────────────────────
+
+test("#16 the needle authors ONLY the vars route — the def half of F6's wall", () => {
+  // The RULING is "a published SCORE may cross into the member-visible vars plane; arcs, twists and guidance
+  // NEVER do". The ENGINE holds that in three tiers (`engine/analysis-arm.ts`), and this is the preset's own
+  // part: its arm enables `vars` and nothing else, so a pass has no steer route to store or deliver guidance
+  // through, no lore route, and no card. A future edit adding `steer: {...}` here fails THIS assertion.
+  const [read] = buildWithDefaults("theNeedle");
+  const arm = read?.arms[0];
+  expect(arm).toMatchObject({ type: "run_analysis", routes: { vars: { key: NEEDLE_TENSION_VAR_KEY } } });
+  const routes = arm?.type === "run_analysis" ? arm.routes : {};
+  expect(Object.keys(routes)).toEqual(["vars"]);
+  // Nothing in the preset is confirm-class: a dial that asked permission to move would not be a dial.
+  expect(presetOf("theNeedle").confirmFirst).toBe(false);
+});
+
+test("#16's reaction rule reads the score with law 1's guard and law 2's coercion, on the SAME cadence", () => {
+  const preset = presetOf("theNeedle");
+  const rules = preset.rules(resolveRulePresetKnobs(preset.knobs, { everyN: 4, threshold: 6 }));
+  // Both knobs substituted as INT LITERALS, and the cadence rides BOTH rules — the score only moves on a
+  // cadence beat, so reacting off one would re-run the backdrop's quiet pick against an unchanged value.
+  expect(rules[0]?.predicate).toBe("(!has(event.turn) || int(event.turn.automationDepth) == 0) && int(chat.messageCount) % 4 == 0");
+  expect(rules[1]?.predicate).toBe(
+    "(!has(event.turn) || int(event.turn.automationDepth) == 0) && int(chat.messageCount) % 4 == 0 && has(vars.tension) && int(vars.tension) >= 6",
+  );
+  // Law 1 in the shape that matters: before the first pass lands there IS no score, and the unguarded read
+  // would THROW "No such key" on every beat until then.
+  expect(evaluate(rules[1]?.predicate as string, EMPTY_ENV)).toBe(false);
+  // Past the threshold it fires; under it, it does not (messageCount 24 ⇒ 24 % 4 == 0 in both arms).
+  const tense: CelBindings = { ...POPULATED_ENV, vars: { ...POPULATED_VARS, tension: "9" } };
+  const calm: CelBindings = { ...POPULATED_ENV, vars: { ...POPULATED_VARS, tension: "2" } };
+  expect(evaluate(rules[1]?.predicate as string, tense)).toBe(true);
+  expect(evaluate(rules[1]?.predicate as string, calm)).toBe(false);
+});
+
+test("#16's threshold knob is bounded by the score's own scale — a 0 or an 11 is a typed refusal", () => {
+  // The dial is 0..ANALYSIS_SCORE_MAX and the applier clamps to it, so a threshold outside that range would
+  // mint a rule that either fires on every read or can never fire at all.
+  const knobs = presetOf("theNeedle").knobs;
+  expect(() => resolveRulePresetKnobs(knobs, { threshold: 0 })).toThrow();
+  expect(() => resolveRulePresetKnobs(knobs, { threshold: ANALYSIS_SCORE_MAX + 1 })).toThrow();
+  expect(() => resolveRulePresetKnobs(knobs, { threshold: ANALYSIS_SCORE_MAX })).not.toThrow();
 });
 
 test("law 3: every default chip is a line the CLICKING member would say, and is its own send text", () => {
