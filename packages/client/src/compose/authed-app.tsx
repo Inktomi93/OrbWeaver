@@ -30,6 +30,7 @@ import {
 import { accountModal, reauthModal } from "#features/auth";
 import {
   automationActivityTab,
+  automationClockMeterSurface,
   automationNeedleMeterSurface,
   automationPane,
   automationQuickReplySource,
@@ -187,6 +188,10 @@ const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContributio
   // tension score its preset publishes into the room's chat variables. Silent — and therefore invisible in
   // the layout, the flank stack being `empty:hidden` — in every room that carries no score.
   automationNeedleMeterSurface,
+  // B9 (#7): the clock's fill meter, a second `thread-flank` tenant. It reads the `clockFires` preset's
+  // published fill + threshold from the same member-visible vars plane and is silent (layout-neutral) in every
+  // room that carries no clock.
+  automationClockMeterSurface,
 ]);
 
 // The per-tool-name renderer seam (§6c): EMPTY but typed — zero contributions ⇒ every persisted tool record

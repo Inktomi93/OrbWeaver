@@ -11,7 +11,7 @@
 // and the wiring between them exists only at the composition root.
 
 import { QueryBoundary, QueryErrorState } from "@orb/client/data";
-import { automationRulesSection, NeedleMeter, OwnerAutomationSurface, RulesSection } from "@orb/client/features/automation";
+import { automationRulesSection, ClockMeter, NeedleMeter, OwnerAutomationSurface, RulesSection } from "@orb/client/features/automation";
 import type { ChatSettingsSectionContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
@@ -105,6 +105,17 @@ export function NeedleMeterStory({ chatId }: { readonly chatId: ChatId }): React
   return (
     <CtDataProviders>
       <NeedleMeter chatId={chatId} />
+    </CtDataProviders>
+  );
+}
+
+/** B9's CLOCK METER over the stubbed network — the REAL `chat.getRuntimeVariables` read path, same non-wrapped
+ *  posture as the needle: the widget mounts as a content-sized `thread-flank` contribution with no Suspense
+ *  boundary of its own (which is why the component is non-suspending). */
+export function ClockMeterStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  return (
+    <CtDataProviders>
+      <ClockMeter chatId={chatId} />
     </CtDataProviders>
   );
 }
