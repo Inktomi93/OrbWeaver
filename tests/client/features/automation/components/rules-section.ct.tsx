@@ -727,13 +727,11 @@ test("#655: with a book attached, the blocking line still asks for the CHOICE (t
   await expect(page.getByText("Attach a lorebook under Lorebooks", { exact: false })).toHaveCount(0);
 });
 
-// The reported two-step defect had two halves and only ONE of them is fixed here. This pins that half: the
-// popover speaks with ONE heading and the heading names the step. The GEOMETRIC half (the frame's width and
-// anchor moving between steps) is NOT pinned, because both call-site levers were tried and measured wrong —
-// `min-w-cq-sm` overflowed the positioner's available width at the 384px docked pane, and `side`/`align`
-// only re-anchored a genuinely different box. It needs a `PopoverPopup` width variant in `@orb/ui` and a
-// real-host receipt; an assertion here would either encode this CT's short page as the spec or, worse,
-// pass while the real surface still jumps. (cb-rules-spend, 2026-08-24 — receipts in the picker's comment.)
+// The reported two-step defect had two halves. This pins the heading half: the popover speaks with ONE
+// heading and the heading names the step. The GEOMETRIC half is pinned separately below, at the real
+// docked-pane geometry (#663) — this CT's default 1280px viewport has room to spare either way, so it
+// cannot tell a stable frame from a resizing one; that receipt needs the narrow viewport.
+// (cb-rules-spend, 2026-08-24 — receipts in the picker's comment; cb-popup-width, #663, closed the fork.)
 test("#655: the picker speaks with ONE heading, and the heading names the step", async ({ mount, page }) => {
   await stub(page, { rules: [], presets: [PACING_PRESET, LORE_PRESET] });
   await mount(<RulesSectionStory chatId={CHAT} />);
@@ -757,6 +755,51 @@ test("#655: the picker speaks with ONE heading, and the heading names the step",
   await expect(popup).toHaveCount(0);
   const reopened = await openPicker(page);
   await expect(reopened.getByRole("heading", { name: "Add a rule" })).toBeVisible();
+});
+
+// #663: the GEOMETRIC half — a NARROW viewport, matching the real docked pane (the context pane is
+// flush against the app window's own edge, so its available width IS the pane width, not this CT's
+// roomy 1280px default). `PopoverPopup width="stable"` (packages/ui/src/primitives/popover/popover.tsx)
+// resolves `min(24rem, --available-width)`: nothing overflows the pane, and the frame holds a width/x
+// within a FLOATING-UI RECOMPUTE tolerance across the swap, instead of resizing WITH the content (the
+// measured pre-fix teleport: {x:513 y:36 w:384} → {x:929 y:476 w:319} — hundreds of px, both axes). A
+// taller step DOES nudge Base UI's shift/collision middleware by a few px (measured against the fixed
+// source: {x:8.85 w:366.3} → {x:5 w:374}, an 8px width / 4px x drift) — real, expected recompute noise
+// from a genuinely different content height, not the defect. The tolerance below is an order of
+// magnitude tighter than the teleport it replaces and an order of magnitude looser than that noise.
+const STABLE_FRAME_TOLERANCE_PX = 24;
+
+test.describe("#663: the picker's popup at the real docked-pane geometry", () => {
+  test.use({ viewport: { width: 384, height: 700 } });
+
+  test("does not overflow the docked pane and holds a stable frame across both steps", async ({ mount, page }) => {
+    await stub(page, { rules: [], presets: [PACING_PRESET, LORE_PRESET] });
+    await mount(<RulesSectionStory chatId={CHAT} />);
+    const popup = await openPicker(page);
+    const viewportWidth = page.viewportSize()?.width ?? 0;
+    expect(viewportWidth).toBeGreaterThan(0);
+
+    const step1 = await popup.boundingBox();
+    expect(step1).not.toBeNull();
+    expect((step1?.x ?? 0) + (step1?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 1);
+    // Constrained, not just "fits": the popup took LESS than the 384px cap — proof `--available-width`
+    // actually won the `min()`, not that nothing happened to overflow by coincidence.
+    expect(step1?.width ?? 0).toBeLessThan(384);
+
+    await popup.getByRole("button", { name: "Periodic pacing nudge" }).click();
+    await expect(popup.getByRole("heading", { name: "Periodic pacing nudge" })).toBeVisible();
+    const step2 = await popup.boundingBox();
+    expect(step2).not.toBeNull();
+    expect((step2?.x ?? 0) + (step2?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 1);
+
+    // The teleport, as a number: the frame's box holds within a tight tolerance across the content swap
+    // instead of resizing/re-anchoring with it.
+    expect(Math.abs((step2?.width ?? 0) - (step1?.width ?? 0))).toBeLessThanOrEqual(STABLE_FRAME_TOLERANCE_PX);
+    expect(Math.abs((step2?.x ?? 0) - (step1?.x ?? 0))).toBeLessThanOrEqual(STABLE_FRAME_TOLERANCE_PX);
+    expect(Math.abs((step2?.y ?? 0) - (step1?.y ?? 0))).toBeLessThanOrEqual(STABLE_FRAME_TOLERANCE_PX);
+
+    await page.screenshot({ path: "reports/snaps/cb-popup-width-docked-pane.png" });
+  });
 });
 
 // The fire log is the "why didn't my rule fire" surface and this disclosure is its ONLY door. It shipped
