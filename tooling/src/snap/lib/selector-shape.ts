@@ -14,7 +14,7 @@
 // anything carrying CSS syntax (`.x`, `#x`, `[x]`, `:x`) and never on a custom element (hyphenated, per
 // the spec) — so `nav a`, `ul li` and every real selector pass untouched. A table short by one element
 // name would be a FALSE refusal, which is worse than the lie, so the table is the whole element census.
-import { splitLastEq } from "../../_shared/argv.ts";
+import { splitFirstEq, splitLastEq } from "../../_shared/argv.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -45,6 +45,11 @@ export const SELECTOR_VALUE_FLAGS: ReadonlySet<string> = new Set([
 /** Flags whose value is `selector=…`, so only the HEAD is a selector. `--key Tab` (no '=') is a bare
  *  key name and carries no selector at all. */
 const SELECTOR_HEAD_FLAGS: ReadonlySet<string> = new Set(["--fill", "--key", "--expect-text", "--expect-count", "--upload"]);
+
+/** `--fill` splits on the FIRST '=' (its value is a JS literal that routinely contains '=' itself —
+ *  `--fill 'input=const a = 1;'`); every other head flag keeps the LAST-'=' convention (selectors can
+ *  themselves contain '=', e.g. `[data-x="a=b"]`). */
+const FIRST_EQ_HEAD_FLAGS: ReadonlySet<string> = new Set(["--fill"]);
 
 /** Every element name a CSS type selector can legitimately name: HTML (incl. the legacy tags a mock or
  *  an imported card can still carry), SVG, and MathML. Compared case-insensitively — an HTML-document
@@ -157,7 +162,14 @@ function selectorOf(flag: string, raw: string): string | null {
   if (SELECTOR_VALUE_FLAGS.has(flag)) {
     return raw;
   }
-  return SELECTOR_HEAD_FLAGS.has(flag) && raw.includes("=") ? splitLastEq(raw).head : null;
+  if (!(SELECTOR_HEAD_FLAGS.has(flag) && raw.includes("="))) {
+    return null;
+  }
+  if (FIRST_EQ_HEAD_FLAGS.has(flag)) {
+    const split = splitFirstEq(raw);
+    return split === null ? null : split.head;
+  }
+  return splitLastEq(raw).head;
 }
 
 /** The parse-time entry point: the refusal for a flag's raw value, or null when this flag carries no

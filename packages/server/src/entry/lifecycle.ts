@@ -55,6 +55,7 @@ import {
   seedDefaultPersona,
   seedDefaultPreset,
   seedDemoChats,
+  seedExamplePlugins,
   seedOwner,
   seedThemes,
 } from "./boot/index.ts";
@@ -374,6 +375,9 @@ export function createLifecycle(): Lifecycle {
     await seedDefaultPersona({ seeder: built.personaSeeder, owner });
     // AFTER the cards — each bundled example attaches to seeded characters by handle.
     await seedDemoChats({ seeder: built.demoChatSeeder, owner });
+    // Independent of the three above (the examples attach to nothing) — the rows land installed, disabled and
+    // ungranted, so the owner's first act on the Plugins pane is a real consent.
+    await seedExamplePlugins({ seeder: built.examplePluginSeeder, owner });
     // The CAS maintenance cadence (#11) — GC weekly, fsck monthly. Existence-gated per kind, so an owner's
     // cadence/enabled edits survive a restart. Runs after the owner exists (the row's owner is NOT NULL).
     await seedCasSchedules({ workloads: built.services.workloads, ownerId: owner.userId });
@@ -509,6 +513,9 @@ export function createLifecycle(): Lifecycle {
         // must not race the pack. `ensureSeeded` never throws, so the `.then` is unconditional.
         void built.characterSeeder.ensureSeeded(principal).then((): Promise<void> => built.demoChatSeeder.ensureSeeded(principal));
         void built.personaSeeder.ensureSeeded(principal);
+        // Independent of the character/chat chain — the example plugins attach to nothing, so they race
+        // nobody. Fire-and-forget like its siblings; `ensureSeeded` never throws.
+        void built.examplePluginSeeder.ensureSeeded(principal);
       },
       oidcProviderName: env.OIDC_PROVIDER_NAME,
       ...(localAuth ?? {}),

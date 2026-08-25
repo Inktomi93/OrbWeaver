@@ -87,6 +87,10 @@ function makeFakePort(): FakePort {
       }
       return Promise.resolve(outcome);
     },
+    // TRUTH-REPAIR 2026-08-24: this is a statement about THIS FAKE, not about the tree. The real invoke path
+    // is live (`infra/plugin-host/port.ts:200-241`), and `tests/server/entry/boot/seed-example-plugins.int.test.ts`
+    // drives real registrations through it. A reader who took this line as a tree fact concluded, wrongly,
+    // that plugin tools and event handlers cannot run.
     invoke: (): Promise<string> => Promise.reject(new Error("plugin invoke is not exercised by the fake port (see the composed-real int test)")),
     runSnippet: (): Promise<{ logLines: readonly string[] }> => Promise.resolve({ logLines: [] }),
     readLog: (instance: PluginInstance): readonly DomainPluginLogView[] => logs.get(instance) ?? [],
@@ -97,9 +101,16 @@ function makeFakePort(): FakePort {
 }
 
 /** A `PluginHostPort` over the REAL P1 `Sandbox` — createInstance runs `main.js` through `evalGuest` under the
- *  injected determinism seams (the round-trip's determinism-floor depth). No registrations are collectible at
- *  the P1 realm (the gated namespaces are P4), so `tools/transforms/events` are empty; the activation-run log
- *  lines are captured for `readLog`. `invoke` is P4. */
+ *  injected determinism seams (the round-trip's determinism-floor depth). This port builds the sandbox WITHOUT
+ *  a membrane, so the guest sees only the determinism floor and `tools/transforms/events` are necessarily
+ *  empty; the activation-run log lines are captured for `readLog`.
+ *
+ *  TRUTH-REPAIR 2026-08-24: that emptiness is a property of THIS PORT's own wiring, not of the tree. The
+ *  earlier spelling ("the gated namespaces are P4", "`invoke` is P4") read as a statement about the product
+ *  and cost at least one reader a wrong conclusion. The gated namespaces are live (`membrane.ts:557-645`
+ *  attaches `tools.register`, `transforms.register` and `events.on`; `port.ts:186-193` collects what they
+ *  registered) — a port built with `createPluginHost` gets all of it, which is what
+ *  `tests/server/entry/boot/seed-example-plugins.int.test.ts` uses. */
 export function makeSandboxPort(seams: HostSeams): PluginHostPort {
   const logs = new Map<PluginInstance, readonly DomainPluginLogView[]>();
   const sandboxes = new Map<PluginInstance, Sandbox>();
@@ -123,6 +134,8 @@ export function makeSandboxPort(seams: HostSeams): PluginHostPort {
       logs.set(instance, toLog(outcome.logs));
       return { ok: true, instance };
     },
+    // Same repair as the fake port above: this port mints no handlers (no membrane ⇒ nothing to invoke), which
+    // is a fact about this wiring, never about the product's invoke path.
     invoke: (): Promise<string> => Promise.reject(new Error("plugin invoke is not exercised by the sandbox-floor port")),
     runSnippet: (): Promise<{ logLines: readonly string[] }> => Promise.resolve({ logLines: [] }),
     readLog: (instance: PluginInstance): readonly DomainPluginLogView[] => logs.get(instance) ?? [],

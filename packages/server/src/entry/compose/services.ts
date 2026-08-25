@@ -101,8 +101,9 @@ import { createPresenceRegistry } from "../../transport/trpc/presence-registry.t
 import type { SocketRegistry } from "../../transport/trpc/stream/socket-registry.ts";
 import { createSocketRegistry } from "../../transport/trpc/stream/socket-registry.ts";
 import { createHostPrincipalResolver } from "../auth/index.ts";
-import type { DefaultPersonaSeeder } from "../boot/index.ts";
-import { readSeedDemoChat } from "../boot/seed-assets/index.ts";
+import type { DefaultPersonaSeeder, ExamplePluginSeeder } from "../boot/index.ts";
+import { createExamplePluginSeeder } from "../boot/index.ts";
+import { packSeedPluginBundle, readSeedDemoChat } from "../boot/seed-assets/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import { buildAdmin } from "./admin.ts";
 import { buildAssetsCharacter } from "./assets-character.ts";
@@ -257,6 +258,9 @@ export interface ServicesResult {
   /** Mirrors `characterSeeder`, for the bundled EXAMPLE conversations. MUST run AFTER `characterSeeder` —
    *  each example attaches to seeded cards (a missing handle skips that example, never a partial room). */
   readonly demoChatSeeder: DemoChatSeeder;
+  /** Mirrors `characterSeeder`, for the two SHOWCASE PLUGIN examples. Independent of the three above (it
+   *  attaches to nothing), and it seeds the rows INSTALLED-BUT-UNGRANTED — the user's first act is consent. */
+  readonly examplePluginSeeder: ExamplePluginSeeder;
   /** The rpg `ChatRpgOps` runtime (the turn hooks chat fires) — surfaced top-level so the composed-real int
    *  test drives a turn's flush (`onTurnCompleted`) through the REAL compose graph (the [compose-stub-goes-stale]
    *  antidote). Not on the transport `Services` bundle (chat's turn lifecycle is its only production caller). */
@@ -998,6 +1002,27 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
 
+  // The ONE example-plugin seeder instance boot + the app first-request hook share. It drives the REAL plugin
+  // verbs under the RECEIVING USER's own Principal — never a synthetic installer and never a second install
+  // path: the bundle meets the same unzip hardening, manifest validation and CAS store a hand upload meets,
+  // and `install`'s own `(owner, slug)` collision refusal is the seeder's layer-2 idempotency.
+  const examplePluginSeeder = createExamplePluginSeeder({
+    packBundle: packSeedPluginBundle,
+    // An EMPTY grant, deliberately (the seeder's header): the row lands able to do nothing at all.
+    install: async ({ caller, bundle }) => await services.plugin.install({ caller, bundle, grant: [] }),
+    // …and the empty RE-GRANT right after it, which is what raises `pending_reconsent` — the standing "this
+    // plugin is asking for capabilities you have not allowed" state the client's consent affordance is gated
+    // on. `acknowledgedNetHosts` is `[]` because the echo gate only runs when the grant includes `net.fetch`.
+    requestConsent: async ({ caller, pluginId }) => {
+      await services.plugin.setGrant({ caller, pluginId, grant: [], acknowledgedNetHosts: [] });
+    },
+    alreadyInstalled: async (caller, slug) => (await services.plugin.list({ caller })).some((row) => row.slug === slug),
+    isSeeded: async (principal): Promise<boolean> => (await settings.getUserSettings({ principal })).config.onboarding.examplePluginsSeeded,
+    markSeeded: async (principal): Promise<void> => {
+      await settings.updateUserSettingsSection({ principal, input: { section: "onboarding", patch: { examplePluginsSeeded: true } } });
+    },
+  });
+
   return {
     services,
     automation,
@@ -1023,6 +1048,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     characterSeeder,
     personaSeeder,
     demoChatSeeder,
+    examplePluginSeeder,
     rpgChatOps: rpgCompose.chatOps,
     rpgTrace,
     recallRecorder,
