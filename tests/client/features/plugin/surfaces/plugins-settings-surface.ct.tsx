@@ -115,7 +115,7 @@ async function pickBundle(page: Page, manifest: ManifestFixture): Promise<void> 
 }
 
 test("the grant screen names every declared permission, its consequence, and the exact hosts it can reach", async ({ mount, page }) => {
-  await routeTrpc(page, { "plugin.list": () => [], "sessions.me": () => USER_VIEWER });
+  await routeTrpc(page, { "plugin.list": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
   await mount(<PluginsSurfaceStory />);
 
   await expect(page.getByText("Nothing installed yet.", { exact: false })).toBeVisible();
@@ -146,7 +146,7 @@ test("the grant screen names every declared permission, its consequence, and the
 test("the grant screen shows the ui.surface consent line when a plugin declares its own surfaces (#679 U0)", async ({ mount, page }) => {
   // THE U0 DONE-CRITERIA: a plugin declaring `ui.surface` reaches the consent screen with the new line, in the
   // person's own words — the whole point of landing the capability member ahead of its rendering surface (U1).
-  await routeTrpc(page, { "plugin.list": () => [], "sessions.me": () => USER_VIEWER });
+  await routeTrpc(page, { "plugin.list": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
   await mount(<PluginsSurfaceStory />);
   await pickBundle(page, {
     id: "panel-plugin",
@@ -178,6 +178,7 @@ test("unchecking a permission installs the NARROWED subset, not what the bundle 
       installed = true;
       return { ...INSTALLED_ROW, grantedCapabilities: ["chat.read", "net.fetch"] };
     },
+    "plugin.listSurfaces": () => [],
     "sessions.me": () => USER_VIEWER,
   });
   await mount(<PluginsSurfaceStory />);
@@ -197,7 +198,7 @@ test("unchecking a permission installs the NARROWED subset, not what the bundle 
 });
 
 test("a bundle that is not a plugin is refused with a reason, before anything is uploaded", async ({ mount, page }) => {
-  const recorder = await routeTrpc(page, { "plugin.list": () => [], "sessions.me": () => USER_VIEWER });
+  const recorder = await routeTrpc(page, { "plugin.list": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
   await mount(<PluginsSurfaceStory />);
 
   await page.locator(DROPZONE_INPUT).setInputFiles({
@@ -224,6 +225,7 @@ test("an installed plugin says whether it is on and what it is allowed to do", a
       return null; // the verb resolves void; the stub answers a JSON-encodable nothing
     },
     "plugin.getLog": () => [],
+    "plugin.listSurfaces": () => [],
     "sessions.me": () => USER_VIEWER,
   });
   await mount(<PluginsSurfaceStory />);
@@ -292,6 +294,7 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
       return allowedRow;
     },
     "plugin.getLog": () => [],
+    "plugin.listSurfaces": () => [],
     "sessions.me": () => USER_VIEWER,
   });
   await mount(<PluginsSurfaceStory />);
@@ -425,6 +428,7 @@ test("a PARTIAL re-consent records exactly the narrower subset, and the notice k
       return partialRow;
     },
     "plugin.getLog": () => [],
+    "plugin.listSurfaces": () => [],
     "sessions.me": () => USER_VIEWER,
   });
   await mount(<PluginsSurfaceStory />);

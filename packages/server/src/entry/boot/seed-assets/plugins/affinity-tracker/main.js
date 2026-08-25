@@ -124,4 +124,88 @@ host.events.on("messageCommitted", async (fact) => {
   }
 });
 
+// ── THE SETTINGS PANEL (ui.surface) ──────────────────────────────────────────────────────────────────────
+//
+// A plugin's UI is a DECLARATIVE SPEC drawn by the app itself — you name house controls as DATA, never DOM.
+// This one shows the person a PRIVATE roll-up of the warmth readings this plugin has taken (nothing here is
+// ever visible in a room), and a button that recomputes it on demand.
+//
+// THE STATE MODEL, because it is the whole point of `setState`: the spec's values are bound with `{ $state }`
+// to a state object you PUBLISH. `setState` replaces the whole object and the app refetches — so the panel is
+// always a projection of what you last published, never a value you hand-wove into the tree. The panel starts
+// empty (nothing published yet), and the button's action is what fills it.
+//
+// The `onAction` handler runs SERVER-SIDE in this same guest, under the invocation budget, when a button is
+// clicked — exactly like an event handler. It reads the plugin's OWN storage (no new capability: `storage.kv`
+// is already granted) and publishes the summary. It commits nothing to any room; a settings panel has no room.
+
+/** The one place a WARMTH number is turned into a human phrase — the spec renders the label, the code owns it. */
+const AVERAGE_DIVISOR = 10;
+
+/** The declarative surface spec — a stack of house nodes, all bound to the published state. */
+const AFFINITY_PANEL_SPEC = {
+  kind: "stack",
+  gap: "block",
+  children: [
+    {
+      kind: "text",
+      voice: "gloss",
+      value: "A private summary of the warmth readings this plugin has taken across your rooms. Nothing here is ever visible in a room — it is yours to read.",
+    },
+    {
+      kind: "keyValue",
+      rows: [
+        { key: "Chats tracked", value: { $state: "trackedChats" } },
+        { key: "Average warmth", value: { $state: "averageLabel" } },
+      ],
+    },
+    { kind: "meter", label: "Average warmth", max: SCORE_MAX, value: { $state: "averageWarmth" } },
+    { kind: "text", value: { $state: "summary" } },
+    { kind: "button", actionId: "refresh", label: "Refresh readings", variant: "outline" },
+  ],
+};
+
+/** Recompute the roll-up from the plugin's OWN per-chat score keys and publish it. `storage.list("score:")`
+ *  returns this plugin's keys only (per plugin × installing owner), so the summary can never leak another
+ *  plugin's or another person's data. */
+async function publishSummary() {
+  const keys = await host.storage.list("score:");
+  // Read the scores in parallel (a person tracks a handful of rooms; the membrane caps concurrent host calls
+  // at 32 and contains any overflow), then fold — no per-key await in the loop.
+  const raw = await Promise.all(keys.map((key) => host.storage.get(key)));
+  let sum = 0;
+  let count = 0;
+  for (const value of raw.map(Number)) {
+    if (Number.isFinite(value)) {
+      sum += value;
+      count += 1;
+    }
+  }
+  const average = count === 0 ? 0 : Math.round((sum / count) * AVERAGE_DIVISOR) / AVERAGE_DIVISOR;
+  await host.ui.setState("affinity_summary", {
+    trackedChats: count,
+    averageWarmth: average,
+    averageLabel: count === 0 ? "no readings yet" : `${average} / ${SCORE_MAX}`,
+    summary:
+      count === 0
+        ? "No readings yet. The tracker takes one every few messages once a room gets going — come back after some conversation."
+        : `Tracking ${count} chat${count === 1 ? "" : "s"}, at an average warmth of ${average} out of ${SCORE_MAX}.`,
+  });
+}
+
+host.ui.register({
+  id: "affinity_summary",
+  anchor: "settings",
+  title: "Affinity readings",
+  tier: "static",
+  spec: AFFINITY_PANEL_SPEC,
+  // The action round-trip. A settings surface carries no room, so `a.chat` is null; the handler reads private
+  // storage and publishes — which is the whole allowed shape (a UI action cannot write a room by itself).
+  onAction: async (a) => {
+    if (a.actionId === "refresh") {
+      await publishSummary();
+    }
+  },
+});
+
 host.log.info(`affinity tracker ready — scoring every ${SCORE_EVERY} messages (grants: ${host.grants.join(", ") || "none"})`);

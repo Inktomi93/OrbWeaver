@@ -45,7 +45,13 @@ export const useInstallPlugin = createEntityMutation<inferInput<Trpc["plugin"]["
  *  a re-activation on the new bundle writes to it. */
 export const useUpgradePlugin = createEntityMutation<inferInput<Trpc["plugin"]["upgrade"]>, inferOutput<Trpc["plugin"]["upgrade"]>>({
   options: (trpc) => trpc.plugin.upgrade.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.plugin.list.queryFilter(), trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId })],
+  // `listSurfaces` too: a new bundle registers a different surface set (plugin-ui-plane #679 U1), and the
+  // plugin lifecycle has no bus event — the write is the freshness driver.
+  invalidates: (trpc, vars) => [
+    trpc.plugin.list.queryFilter(),
+    trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),
+    trpc.plugin.listSurfaces.queryFilter(),
+  ],
   errorToast: serverReason("Couldn't update that plugin."),
 });
 
@@ -77,7 +83,13 @@ export const useSetPluginEnabled = createEntityMutation<inferInput<Trpc["plugin"
     update: (old, vars) =>
       old === undefined ? old : old.map((row) => (row.id === vars.pluginId ? { ...row, status: vars.enabled ? "enabled" : "disabled" } : row)),
   },
-  invalidates: (trpc, vars) => [trpc.plugin.list.queryFilter(), trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId })],
+  // `listSurfaces` too: enabling brings a plugin's surfaces resident (disabling drops them), and the lifecycle
+  // has no bus event — this write is their freshness driver.
+  invalidates: (trpc, vars) => [
+    trpc.plugin.list.queryFilter(),
+    trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),
+    trpc.plugin.listSurfaces.queryFilter(),
+  ],
   errorToast: serverReason("Couldn't change whether that plugin is on."),
 });
 
@@ -85,7 +97,7 @@ export const useSetPluginEnabled = createEntityMutation<inferInput<Trpc["plugin"
  *  behind a confirm, and a failed uninstall flashing a row back is worse than the brief settle refetch. */
 export const useUninstallPlugin = createEntityMutation<{ readonly pluginId: PluginId }, inferOutput<Trpc["plugin"]["uninstall"]>>({
   options: (trpc) => trpc.plugin.uninstall.mutationOptions(),
-  invalidates: (trpc) => [trpc.plugin.list.queryFilter()],
+  invalidates: (trpc) => [trpc.plugin.list.queryFilter(), trpc.plugin.listSurfaces.queryFilter()],
   errorToast: serverReason("Couldn't remove that plugin."),
 });
 
@@ -108,6 +120,16 @@ export const useWithdrawPlugin = createEntityMutation<inferInput<Trpc["plugin"][
   options: (trpc) => trpc.plugin.uninstallForAllUsers.mutationOptions(),
   invalidates: (trpc) => [trpc.plugin.listDistributed.queryFilter(), trpc.plugin.list.queryFilter()],
   errorToast: serverReason("Couldn't withdraw that plugin."),
+});
+
+/** Submit a UI-surface action (plugin-ui-plane #679 U1). Re-enters the surface's `onAction` in the guest,
+ *  which may publish new state via `host.ui.setState` — whose `pluginSurfaceStateChanged` bus poke is the
+ *  cross-device freshness driver. The `invalidates` here is the SAME-TAB belt: it refetches this surface's
+ *  state immediately, so the panel repaints on the round-trip without waiting for the bus round-trip. */
+export const useInvokeUiAction = createEntityMutation<inferInput<Trpc["plugin"]["invokeUiAction"]>, inferOutput<Trpc["plugin"]["invokeUiAction"]>>({
+  options: (trpc) => trpc.plugin.invokeUiAction.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.plugin.getSurfaceState.queryFilter({ pluginId: vars.pluginId, surfaceId: vars.surfaceId })],
+  errorToast: serverReason("That plugin action couldn't run."),
 });
 
 /** Run one inline snippet as the caller in one chat. Reconciles nothing — a snippet is transient and
