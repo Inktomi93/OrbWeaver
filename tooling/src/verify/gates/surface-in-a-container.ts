@@ -3,15 +3,16 @@
 // `<Section container>` that owns `container-type`. Flags a surfaces/*.tsx that renders structural JSX
 // but references no `@orb/ui/layout` container, either in the surface itself or in any file under its
 // feature's `anchors/` dir — §4's realized shape is anchor-wraps-surface. Per-FEATURE match, not per-surface-to-specific-anchor tracing.
+// COMMENT POSTURE: comment-SAFE — structural/container evidence is exact JSX tag identity. DECLARED LIMIT:
+// composed-child-only surfaces need no container; any anchor container is the feature-level wrapper proof.
 // biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TSX surface fixture
 // snippets, not secrets.
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import type { SourceFile } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
-import { blankTsCommentsInText } from "../lib/comment-spans.ts";
+import { renderedTagNames } from "../lib/baseui-read.ts";
+import { repoRel } from "../lib/pass.ts";
 
-const FEATURES = "packages/client/src/features";
 // The shell tier is the top-level container PROVIDER (§4.1) — exempt from "sit inside a Container".
 // TWO-SIDED (gate-hub #10): a SHELL_EXEMPT row naming a feature that no longer exists is RED — the
 // exemption ratchets down with its feature instead of silently un-scanning a name someone later reuses.
@@ -22,64 +23,70 @@ const GATE_SELF = "tooling/src/verify/gates/surface-in-a-container.ts";
 const ANCHOR_FEATURE = "chat";
 const STALE_PREFIX = "stale SHELL_EXEMPT row — no such feature dir under packages/client/src/features (ratchet down): ";
 // A layout container from @orb/ui/layout: the surface (or, once cross-file, its anchor) must render one.
-const CONTAINER_RE = /<(?:Container|Section)[\s/>]/u;
+const CONTAINER_TAGS = new Set(["Container", "Section"]);
 // A structural root worth containing — the surface establishes layout (a raw box/grid/flex element).
 // A surface that returns only text / a single composed child needs no container of its own.
-const STRUCTURAL_RE = /<(?:div|main|section|ul|ol|form|Stack|Row|Grid|Toolbar)[\s/>]/u;
+const STRUCTURAL_TAGS = new Set(["div", "main", "section", "ul", "ol", "form", "Stack", "Row", "Grid", "Toolbar"]);
+const FEATURE_FILE_RE = /^packages\/client\/src\/features\/([^/]+)\/(surfaces|anchors)\/[^/]+\.tsx$/u;
 
-function surfaceFiles(dir: string): string[] {
-  const surfaces = join(dir, "surfaces");
-  if (!existsSync(surfaces)) {
-    return [];
-  }
-  return readdirSync(surfaces, { withFileTypes: true })
-    .filter((e) => e.isFile() && e.name.endsWith(".tsx"))
-    .map((e) => e.name);
+function hasTag(sf: SourceFile, names: ReadonlySet<string>): boolean {
+  return [...renderedTagNames(sf).keys()].some((tag) => names.has(tag));
 }
 
 // The calibrated cross-file exemption: does ANY `.tsx` file under this feature's `anchors/` dir render
 // a layout container? (the anchor-wraps-surface shape §4 mandates — message-thread-anchor.tsx is the
 // first real instance). No anchors dir, or none of its files mention Container/Section → false.
-function anchorHasContainer(dir: string): boolean {
-  const anchors = join(dir, "anchors");
-  if (!existsSync(anchors)) {
-    return false;
+function anchorHasContainer(anchors: readonly SourceFile[]): boolean {
+  return anchors.some((sf) => hasTag(sf, CONTAINER_TAGS));
+}
+
+interface FeatureFiles {
+  readonly surfaces: ReadonlyMap<string, readonly { readonly rel: string; readonly sf: SourceFile }[]>;
+  readonly anchors: ReadonlyMap<string, readonly SourceFile[]>;
+  readonly features: ReadonlySet<string>;
+}
+
+function indexFeatureFiles(root: string, files: readonly SourceFile[]): FeatureFiles {
+  const surfaces = new Map<string, { rel: string; sf: SourceFile }[]>();
+  const anchors = new Map<string, SourceFile[]>();
+  const features = new Set<string>();
+  for (const sf of files) {
+    const rel = repoRel(root, sf.getFilePath());
+    const match = FEATURE_FILE_RE.exec(rel);
+    const feature = match?.[1];
+    const kind = match?.[2];
+    if (feature === undefined || kind === undefined) {
+      continue;
+    }
+    features.add(feature);
+    if (kind === "anchors") {
+      anchors.set(feature, [...(anchors.get(feature) ?? []), sf]);
+    } else {
+      surfaces.set(feature, [...(surfaces.get(feature) ?? []), { rel, sf }]);
+    }
   }
-  return readdirSync(anchors, { withFileTypes: true })
-    .filter((e) => e.isFile() && e.name.endsWith(".tsx"))
-    .some((e) => CONTAINER_RE.test(blankTsCommentsInText(readFileSync(join(anchors, e.name), "utf8"))));
+  return { surfaces, anchors, features };
 }
 
 const CONTAINER_MESSAGE =
   "surface establishes raw structural layout but sits in no <Container>/<Section container> — a surface is the containment CONSUMER; wrap it in an @orb/ui/layout container (its own or its anchor's), never raw container-type (UI-Architecture-and-Layout.md §4).";
 
-/** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
-function scanSurfaceInAContainer(root: string): Violation[] {
-  const base = join(root, FEATURES);
-  if (!existsSync(base)) {
-    return [];
-  }
+/** The shared-workspace AST scan used by the single-pass `run` descriptor. */
+function scanSurfaceInAContainer(root: string, files: readonly SourceFile[]): { readonly violations: Violation[]; readonly features: ReadonlySet<string> } {
   const out: Violation[] = [];
-  for (const feat of readdirSync(base, { withFileTypes: true })) {
-    if (!feat.isDirectory() || SHELL_EXEMPT.has(feat.name)) {
+  const indexed = indexFeatureFiles(root, files);
+  for (const [feature, featureSurfaces] of indexed.surfaces) {
+    if (SHELL_EXEMPT.has(feature)) {
       continue;
     }
-    const dir = join(base, feat.name);
-    for (const f of surfaceFiles(dir)) {
-      // Comments blanked before both regexes (issue #117/#132): a header naming `<Container>` would
-      // satisfy the containment requirement for a surface that renders none (permissive), and one
-      // showing structural JSX in an example would conscript a surface that renders none (positive).
-      const src = blankTsCommentsInText(readFileSync(join(dir, "surfaces", f), "utf8"));
-      if (STRUCTURAL_RE.test(src) && !CONTAINER_RE.test(src) && !anchorHasContainer(dir)) {
-        out.push({
-          file: `${FEATURES}/${feat.name}/surfaces/${f}`,
-          line: 0,
-          message: CONTAINER_MESSAGE,
-        });
+    const containedByAnchor = anchorHasContainer(indexed.anchors.get(feature) ?? []);
+    for (const { rel, sf } of featureSurfaces) {
+      if (hasTag(sf, STRUCTURAL_TAGS) && !hasTag(sf, CONTAINER_TAGS) && !containedByAnchor) {
+        out.push({ file: rel, line: 0, message: CONTAINER_MESSAGE });
       }
     }
   }
-  return out;
+  return { violations: out, features: indexed.features };
 }
 
 export const gate: GateDescriptor = {
@@ -87,18 +94,18 @@ export const gate: GateDescriptor = {
   docRow: "UI-Architecture-and-Layout.md §4",
   status: "active",
   scopeSafety: "whole-project",
-  fsBacked: true,
   message: CONTAINER_MESSAGE,
   fix: "wrap the surface in an @orb/ui/layout <Container>/<Section container> (its own or its anchor's) — never raw container-type.",
   run: (ctx) => {
-    for (const v of scanSurfaceInAContainer(ctx.root)) {
+    const scan = scanSurfaceInAContainer(ctx.root, ctx.files);
+    for (const v of scan.violations) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    if (!existsSync(join(ctx.root, FEATURES, ANCHOR_FEATURE))) {
+    if (!scan.features.has(ANCHOR_FEATURE)) {
       return; // synthetic tree — the stale arm is a whole-tree claim
     }
     for (const feat of SHELL_EXEMPT) {
-      if (!existsSync(join(ctx.root, FEATURES, feat))) {
+      if (!scan.features.has(feat)) {
         ctx.report({
           file: GATE_SELF,
           line: 1,

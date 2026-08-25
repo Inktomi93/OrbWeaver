@@ -21,6 +21,8 @@
 // NOT flagged (already retrying): `expect.poll(...)` / `expect(...).toPass()` and the web-first locator
 // matchers (`toBeFocused`/`toBeVisible`/`toHaveText`…). ZERO baseline — every occurrence is resolved (fixed
 // or escaped) in the tree, so the whole CT suite passes this hard gate.
+// COMMENT POSTURE: comment-SAFE for detection (calls/definitions are AST nodes); comments-INTENDED for the
+// ONESHOT-OK escape block. DECLARED LIMIT: only `*.ct.tsx` and the enumerated mutable-read APIs are judged.
 import type { CallExpression, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
@@ -146,9 +148,23 @@ function rootRead(arg: TsNode): TsNode {
   return inner;
 }
 
+/** Follow a local snapshot into its initializer. The assignment does not settle the mutable read. */
+function localInitializer(node: TsNode): TsNode {
+  const inner = unwrap(node);
+  if (!Node.isIdentifier(inner)) {
+    return node;
+  }
+  for (const definition of inner.getDefinitionNodes()) {
+    if (Node.isVariableDeclaration(definition)) {
+      return definition.getInitializer() ?? node;
+    }
+  }
+  return node;
+}
+
 /** True when `<arg>` is `await <locator/page>.<domReadMethod>(...)` — a one-shot live-DOM read. */
 function readsAwaitedDom(arg: TsNode): boolean {
-  const inner = rootRead(arg);
+  const inner = rootRead(localInitializer(arg));
   if (!Node.isAwaitExpression(inner)) {
     return false;
   }
@@ -162,7 +178,7 @@ function readsAwaitedDom(arg: TsNode): boolean {
 
 /** True when `<arg>` is a direct `<x>.count/inputs/lastInput(...)` — a CT tRPC recorder read. */
 function readsRecorder(arg: TsNode): boolean {
-  const inner = rootRead(arg);
+  const inner = rootRead(localInitializer(arg));
   if (!Node.isCallExpression(inner)) {
     return false;
   }

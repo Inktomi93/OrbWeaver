@@ -1,25 +1,26 @@
 // A feature `surfaces/*.tsx` manages focus on mount, OR declares — in source, with an owner and a reason —
 // that its section's arrival focus is owned by ANOTHER pane. Four arms: missing focus · a valid declaration
 // (pass) · a declaration on a surface that DOES focus (stale, two-sided) · a malformed declaration.
-// COMMENT POSTURE: comment-BLIND for the focus detection (wired through `comment-spans.ts` — a comment
-// naming `.focus(` must not exempt) and comments-INTENDED for the marker, which is read from RAW text.
+// COMMENT POSTURE: comment-SAFE for focus detection (call/JSX AST identity) and comments-INTENDED for the
+// marker, which is read from raw comment text. DECLARED LIMIT: app-shell/topbar surfaces do not transition.
 // biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TSX surface fixture
 // snippets, not secrets.
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import type { CallExpression, SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
-import { blankTsCommentsInText } from "../lib/comment-spans.ts";
+import { renderedTagNames } from "../lib/baseui-read.ts";
+import { repoRel } from "../lib/pass.ts";
 
 const FEATURES = "packages/client/src/features";
 
 // Base UI primitives that inherently trap/manage focus on mount. Surfaces returning these as their root
 // are exempt from manual focus restoration.
-const AUTO_FOCUS_PRIMITIVES_RE = /<(?:Popover|Dialog|Tooltip|Dropdown|Sheet)[\s/>]/u;
+const AUTO_FOCUS_PRIMITIVES = new Set(["Popover", "Dialog", "Tooltip", "Dropdown", "Sheet"]);
 
 // We check if a surface explicitly calls `.focus()` (usually via a `useLayoutEffect` and a `surfaceRef`).
 // Or if it uses the shared `useFocusOnMount` hook, or delegates focus management to an internal component.
-const FOCUS_CALL_RE = /(?:\.focus\(|useFocusOnMount)/u;
+const FOCUS_HOOK = "useFocusOnMount";
 
 // ── THE DECLARED EXEMPTION (side-eye corpus re-pass #2 P2-4, ruled 2026-08-19) ────────────────────────
 // The absolute rule was structurally incomplete for a REAL composition: a section whose LIST pane owns
@@ -49,15 +50,7 @@ const STALE_MESSAGE = `stale \`${MARKER}\` — this surface DOES manage focus on
 const MALFORMED_MESSAGE = `malformed \`${MARKER}\` — the grammar is \`// ${MARKER}(<owner>): <reason>\`, and BOTH parts are required: the owner names the control that actually takes the section's arrival focus, the reason states why and names the test that pins it. A marker that exempts nothing must not sit there looking like protection (UI-Gates-and-Lessons.md §8).`;
 const BLIND_MESSAGE = `${FEATURES} exists but this gate found ZERO surface files — its \`surfaces/\` derivation came back empty, so it is a no-op reporting green. Re-point the derivation (tooling/src/verify/gates/GATE-AUTHORING.md §4).`;
 
-function surfaceFiles(dir: string): string[] {
-  const surfaces = join(dir, "surfaces");
-  if (!existsSync(surfaces)) {
-    return [];
-  }
-  return readdirSync(surfaces, { withFileTypes: true })
-    .filter((e) => e.isFile() && e.name.endsWith(".tsx"))
-    .map((e) => e.name);
-}
+const SURFACE_RE = /^packages\/client\/src\/features\/([^/]+)\/surfaces\/[^/]+\.tsx$/u;
 
 /** 1-based line of the first marker opener, for a finding that points at the declaration itself. */
 function markerLine(raw: string): number {
@@ -68,11 +61,15 @@ function markerLine(raw: string): number {
 
 /** The verdict for ONE surface file, given its raw text. Split out so the report shape below has exactly
  *  one construction site (`finding-overload-provenance`: one literal, not four). */
-function verdictFor(raw: string): { readonly message: string; readonly line: number } | null {
-  // Comments blanked for the FOCUS detection (issue #117/#132), the PERMISSIVE direction: a surface whose
-  // comment names `.focus()` or an auto-focus primitive would read as focus-managing while managing none.
-  const code = blankTsCommentsInText(raw);
-  const managesFocus = AUTO_FOCUS_PRIMITIVES_RE.test(code) || FOCUS_CALL_RE.test(code);
+function isFocusCall(call: CallExpression): boolean {
+  const callee = call.getExpression();
+  return (Node.isPropertyAccessExpression(callee) && callee.getName() === "focus") || (Node.isIdentifier(callee) && callee.getText() === FOCUS_HOOK);
+}
+
+function verdictFor(sf: SourceFile): { readonly message: string; readonly line: number } | null {
+  const raw = sf.getFullText();
+  const tags = renderedTagNames(sf);
+  const managesFocus = [...tags.keys()].some((tag) => AUTO_FOCUS_PRIMITIVES.has(tag)) || sf.getDescendantsOfKind(SyntaxKind.CallExpression).some(isFocusCall);
   // The marker is read from RAW text on purpose — it IS a comment (comments-INTENDED).
   const declared = MARKER_RE.exec(raw);
   const opens = MARKER_OPENER_RE.test(raw);
@@ -86,34 +83,32 @@ function verdictFor(raw: string): { readonly message: string; readonly line: num
   return managesFocus ? null : { message: A11Y_MESSAGE, line: 0 };
 }
 
-/** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
-function scanSurfaceA11yFocus(root: string): Violation[] {
-  const base = join(root, FEATURES);
-  if (!existsSync(base)) {
-    return [];
-  }
+/** The shared-workspace AST scan used by the single-pass `run` descriptor. */
+function scanSurfaceA11yFocus(root: string, files: readonly SourceFile[]): Violation[] {
   const out: Violation[] = [];
   let surfacesSeen = 0;
-  for (const feat of readdirSync(base, { withFileTypes: true })) {
-    if (!feat.isDirectory()) {
+  let featuresSeen = false;
+  for (const sf of files) {
+    const rel = repoRel(root, sf.getFilePath());
+    if (rel.startsWith(`${FEATURES}/`)) {
+      featuresSeen = true;
+    }
+    const match = SURFACE_RE.exec(rel);
+    if (match === null) {
       continue;
     }
-    const dir = join(base, feat.name);
-    for (const f of surfaceFiles(dir)) {
-      // Exclude shell layout surfaces that never unmount or don't represent drill-down pane transitions.
-      if (f.includes("app-shell") || f.includes("topbar")) {
-        continue;
-      }
-      surfacesSeen += 1;
-      const verdict = verdictFor(readFileSync(join(dir, "surfaces", f), "utf8"));
-      if (verdict !== null) {
-        out.push({ file: `${FEATURES}/${feat.name}/surfaces/${f}`, line: verdict.line, message: verdict.message });
-      }
+    if (rel.includes("app-shell") || rel.includes("topbar")) {
+      continue;
+    }
+    surfacesSeen += 1;
+    const verdict = verdictFor(sf);
+    if (verdict !== null) {
+      out.push({ file: rel, line: verdict.line, message: verdict.message });
     }
   }
   // §4.6 BLINDNESS TRIPWIRE: this gate is keyed on an exact directory NAME. The day `surfaces/` is renamed
   // (or the features root moves under it), the loop above walks nothing and the gate reports ✓ forever.
-  if (surfacesSeen === 0) {
+  if (featuresSeen && surfacesSeen === 0) {
     out.push({ file: `${FEATURES}`, line: 0, message: BLIND_MESSAGE });
   }
   return out;
@@ -124,11 +119,10 @@ export const gate: GateDescriptor = {
   docRow: "UI-Gates-and-Lessons.md §8",
   status: "active",
   scopeSafety: "whole-project",
-  fsBacked: true,
   message: A11Y_MESSAGE,
   fix: "manage focus on mount (`ref.current?.focus()` / `useFocusOnMount`), wrap the surface in a focus-trapping primitive (Popover/Dialog), or — when another pane owns the section's arrival focus — declare `// @surface-focus-elsewhere(<owner>): <reason>` in the surface.",
   run: (ctx) => {
-    for (const v of scanSurfaceA11yFocus(ctx.root)) {
+    for (const v of scanSurfaceA11yFocus(ctx.root, ctx.files)) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
   },
