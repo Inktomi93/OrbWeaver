@@ -28,7 +28,7 @@ import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
 import type { automationRules, Db } from "@orb/db";
-import type { AutomationRuleId, AutomationSuggestionId, CharacterId, ChatId, MessageId, PluginId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { AutomationRuleId, AutomationSuggestionId, CharacterId, ChatId, MessageId, MessageVariantId, PluginId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { ResolveViewerVisibility } from "#domain/chat";
 import type { AnalysisConfirmAct } from "./analysis.ts";
@@ -436,13 +436,38 @@ export interface PendingSuggestion {
   readonly payload: SuggestionPayload | null;
 }
 
+/** C3 — apply a HOST-CONFIRMED prose rewrite to one audited reply, wired at `entry/compose` to chat's own
+ *  `applyProseRewrite` verb under the rule author's Principal (the `setChatBackground` wiring shape).
+ *
+ *  IT IS DELIBERATELY NOT ON {@link AutomationOps}, and that placement IS the enforcer. `AutomationOps` is
+ *  handed to every arm executor ({@link ArmExecutorDeps}), so an op on it is an op an ARM can call — and the
+ *  class-1 wall says no arm-surface op may write prose into canon (§1). This op lives on the
+ *  `AutomationContext` beside {@link ExecutePluginSuggestion} (the same "confirm-only executor" class) and
+ *  reaches the arms' side of the domain nowhere: `ArmExecutorDeps` cannot spell it, so "only a host-confirmed
+ *  card can move this" is a fact about the type graph rather than a promise in a comment.
+ *
+ *  The REFUSALS are the verb's own and they are typed, because they are the whole point of a pinned card: the
+ *  chat verb re-reads the slot and refuses if the pinned variant is no longer selected (superseded) or its
+ *  bytes no longer hash to `expectedContentHash` (stale), writing nothing either way. Rejects on refusal; the
+ *  confirm verb surfaces it as `action_error`. */
+export type ApplyProseRewrite = (req: {
+  readonly authorUserId: UserId;
+  readonly chatId: ChatId;
+  readonly messageId: MessageId;
+  readonly variantId: MessageVariantId;
+  readonly expectedContentHash: string;
+  readonly content: string;
+}) => Promise<void>;
+
 /** What the analysis CONFIRM executor (`substrate/analysis-confirm.ts`) needs — a subset of the verb's ctx
- *  (db + the injected ops + the claim-time clock value). Homed here beside the payload union it executes:
- *  the deps name `AutomationOps`, and a home in `contract/analysis.ts` would make `analysis ⇄ ops` a cycle. */
+ *  (db + the injected ops + the claim-time clock value + C3's confirm-only rewrite op). Homed here beside the
+ *  payload union it executes: the deps name `AutomationOps`, and a home in `contract/analysis.ts` would make
+ *  `analysis ⇄ ops` a cycle. */
 export interface AnalysisConfirmDeps {
   readonly db: Db;
   readonly ops: AutomationOps;
   readonly nowMs: number;
+  readonly applyProseRewrite: ApplyProseRewrite;
 }
 
 /** Execute a CONFIRMED plugin-origin act through `domain/plugin`'s own bridge — declared here as a TYPE and

@@ -141,6 +141,7 @@ export const PROSE_SLOT_IDS = [
   "automation.analysis.steer",
   "automation.analysis.lore",
   "automation.analysis.suggest",
+  "automation.analysis.rewrite",
   "automation.analysis.vars",
   "automation.analysis.close",
   "automation.analysis.firstArc",

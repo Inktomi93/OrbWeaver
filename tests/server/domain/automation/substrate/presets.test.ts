@@ -98,8 +98,8 @@ test("the picker projection flattens the knob schema and carries no CEL", () => 
 });
 
 // ── #655: the SPEND signal ────────────────────────────────────────────────────────────────────────────
-// The picker had none, and most of the presets commit the host to a RECURRING model charge (ten of the
-// fourteen as of C2's lore distillers). These pin that the answer is DERIVED from the arms the builder actually
+// The picker had none, and most of the presets commit the host to a RECURRING model charge (eleven of the
+// fifteen as of C3's prose audit). These pin that the answer is DERIVED from the arms the builder actually
 // emits — the whole reason a hand-kept `spends: boolean` on the def was refused: a flag an author forgets to
 // flip is a lie on a money surface.
 
@@ -118,6 +118,10 @@ const SPENDING_PRESET_IDS = [
   // C2's lore distillers each fire a `run_analysis` model pass on a cadence — SPEND-classed.
   "distillLore",
   "rumorMill",
+  // C3's prose audit fires a `run_analysis` pass too. At its DEFAULT knob it fires only on demand, and it is
+  // still SPEND-classed — the derivation reads the ARM, not the cadence, and that is right: the money is spent
+  // the moment the host presses Run now, so the picker must say so at the decision point either way.
+  "proseAudit",
 ];
 
 test("#655: the spend signal names exactly the presets whose arms cost a model call", () => {

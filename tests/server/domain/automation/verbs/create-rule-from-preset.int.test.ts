@@ -19,12 +19,14 @@ import type { NotificationEvent } from "@orb/contracts/notifications";
 import { rpgGameConfigSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { chatBooks, rpgGames, worldBooks, worldEntries } from "@orb/db";
-import type { AutomationRuleId, ChatId, MessageId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { AutomationRuleId, AutomationSuggestionId, ChatId, MessageId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { ZWSP } from "@orb/kit/macro";
+import { sha256Hex } from "@orb/server/kit/content-hash";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type {
+  ApplyProseRewrite,
   ArmDispatch,
   AutomationImageRequest,
   AutomationOps,
@@ -77,7 +79,13 @@ interface Fixture {
   readonly seedBeats: (count: number) => Promise<void>;
 }
 
-async function setup(): Promise<Fixture> {
+/** Harness knobs a test may need on the CONTEXT rather than on the ops bundle. C3's rewrite op is the one
+ *  member today — it is confirm-only and therefore not on `ops` by construction (`contract/ops.ts`). */
+interface SetupOverrides {
+  readonly applyProseRewrite?: ApplyProseRewrite;
+}
+
+async function setup(setupOverrides: SetupOverrides = {}): Promise<Fixture> {
   const db = await freshDb();
   const host = await seedUser(db, "user_host");
   const chatId = await seedHostChat(db, host);
@@ -150,7 +158,15 @@ async function setup(): Promise<Fixture> {
     suggestions,
     newSuggestionId: () => mintTypeId(ID_PREFIX.automationSuggestion),
   });
-  const svc = createAutomationService(makeAutomationHarness(db, { runArm, ops, notify, suggestions }));
+  const svc = createAutomationService(
+    makeAutomationHarness(db, {
+      runArm,
+      ops,
+      notify,
+      suggestions,
+      ...(setupOverrides.applyProseRewrite === undefined ? {} : { applyProseRewrite: setupOverrides.applyProseRewrite }),
+    }),
+  );
 
   return {
     db,
@@ -785,5 +801,114 @@ describe("§4 #11 rumour mill (C2 — the same route, the consequences-and-hears
     const pending = f.suggestions.listForChat(f.chatId, FIXED_NOW_MS)[0];
     expect(pending?.kind).toBe("confirm");
     expect(pending?.payload).toMatchObject({ via: "analysis", act: { kind: "lore", bookId, spanEnd: DISTILL_SPAN_END } });
+  });
+});
+
+// ── §4 #14 C3's prose audit ───────────────────────────────────────────────────────────────────────────
+// The confirm-first rewrite card, end to end through the REAL engine: mint → R7 run → card (variant-pinned +
+// content-hashed) → confirm (the op receives the pins) — plus the clean verdict, which is the whole reason
+// the on-demand arm is the default (a `fired` outcome with zero cards is "it ran and found nothing", legibly
+// different from `predicate_false`'s "it never ran").
+
+/** A canned audit reply. `clean` is the common verdict; `flawed` carries the full corrected reply. */
+function auditReply(verdict: "clean" | "flawed", text = ""): string {
+  return JSON.stringify({
+    arcStatus: "active",
+    updatedArc: null,
+    successorArc: null,
+    twistOps: [],
+    rewrite: { verdict, issue: verdict === "flawed" ? "repeats itself" : "", text },
+  });
+}
+
+describe("§4 #14 prose audit (C3 — confirm-first, variant-pinned + hash-guarded)", () => {
+  test("the stored arm is the audit shape: a rewrite-route analysis that never fires on its own at the default knob", async () => {
+    const f = await setup();
+    const views = await mintAndEnable(f, "proseAudit");
+
+    expect(nth(views, 0).name).toBe("Prose audit");
+    const stored: readonly AutomationAction[] = nth(views, 0).actions;
+    expect(stored[0]).toMatchObject({ type: "run_analysis", routes: { rewrite: {} } });
+    // NO other route: the audit may not steer, write lore, or publish a var (the brief's own fence).
+    expect(stored[0]?.type === "run_analysis" ? Object.keys(stored[0].routes) : []).toEqual(["rewrite"]);
+    // Law 5's conservative default, spelled as CEL: `false` never fires by itself, so an enabled audit costs
+    // nothing until the host presses Run now.
+    expect(nth(views, 0).predicateCel).toBe("false");
+  });
+
+  test("R7 on a FLAWED reply raises ONE card pinned to the audited variant + hashed over its bytes, and reports `suggested`", async () => {
+    const f = await setup();
+    const views = await mintAndEnable(f, "proseAudit");
+    await f.seedBeats(3); // seq 3 is the newest assistant reply — `body-3`
+    f.setQuietReply(auditReply("flawed", "Said once, cleanly."));
+
+    const { outcome } = await f.svc.runRuleNow({ principal: principal(f.host), ruleId: castId<AutomationRuleId>(nth(views, 0).id) });
+
+    expect(outcome).toBe("suggested");
+    const pending = f.suggestions.listForChat(f.chatId, FIXED_NOW_MS)[0];
+    expect(pending?.kind).toBe("confirm");
+    expect(pending?.summary).toBe("Fix the last reply — repeats itself?");
+    expect(pending?.payload).toMatchObject({
+      via: "analysis",
+      act: { kind: "rewrite", contentHash: sha256Hex("body-3"), content: "Said once, cleanly." },
+    });
+    // The card's own body — the host reads the change, not just the question (the `@orb/ui/diff` payload).
+    const raised = f.bus.find((e) => e.type === "suggestionRaised");
+    expect(raised).toMatchObject({ detail: { kind: "rewrite", before: "body-3", after: "Said once, cleanly." } });
+  });
+
+  test("R7 on a CLEAN reply returns the clean verdict SYNCHRONOUSLY and draws nothing", async () => {
+    const f = await setup();
+    const views = await mintAndEnable(f, "proseAudit");
+    await f.seedBeats(3);
+    f.setQuietReply(auditReply("clean"));
+
+    const { outcome } = await f.svc.runRuleNow({ principal: principal(f.host), ruleId: castId<AutomationRuleId>(nth(views, 0).id) });
+
+    // `fired` — it RAN. That is the legacy transient-clean lesson carried without a new terminal: a host who
+    // pressed Run now learns "checked, nothing wrong" rather than getting silence they cannot tell from a
+    // rule that never fired.
+    expect(outcome).toBe("fired");
+    expect(f.suggestions.listForChat(f.chatId, FIXED_NOW_MS)).toEqual([]);
+    expect(f.bus.filter((e) => e.type === "suggestionRaised")).toEqual([]);
+  });
+
+  test("confirm hands the CARD's pins to the rewrite op unchanged, in the AUTHOR frame, and records a fired row", async () => {
+    const rewrites: Parameters<ApplyProseRewrite>[0][] = [];
+    const f = await setup({
+      applyProseRewrite: (req): Promise<void> => {
+        rewrites.push(req);
+        return Promise.resolve();
+      },
+    });
+    const views = await mintAndEnable(f, "proseAudit");
+    await f.seedBeats(3);
+    f.setQuietReply(auditReply("flawed", "Said once, cleanly."));
+    await f.svc.runRuleNow({ principal: principal(f.host), ruleId: castId<AutomationRuleId>(nth(views, 0).id) });
+    const raisedId = f.suggestions.listForChat(f.chatId, FIXED_NOW_MS)[0]?.id;
+    expect(raisedId).toBeDefined();
+
+    const result = await f.svc.confirmSuggestion({ principal: principal(f.host), suggestionId: castId<AutomationSuggestionId>(String(raisedId)) });
+
+    expect(result).toEqual({ ran: "stashed-arm", outcome: "fired" });
+    expect(rewrites).toEqual([
+      {
+        authorUserId: f.host, // the AUTHOR, never the confirmer (§3-S4's identity law)
+        chatId: f.chatId,
+        messageId: `message_${f.chatId}_3`,
+        variantId: `variant_${f.chatId}_3_0`,
+        expectedContentHash: sha256Hex("body-3"),
+        content: "Said once, cleanly.",
+      },
+    ]);
+    // TAKE-ONCE: the ask is spent, so a double-click finds nothing rather than rewriting twice.
+    expect(f.suggestions.listForChat(f.chatId, FIXED_NOW_MS)).toEqual([]);
+  });
+
+  test("the every-reply knob mints the beat predicate WITH law 4's explicit cap — an uncapped per-reply audit would freeze stale", async () => {
+    const f = await setup();
+    const views = await mintAndEnable(f, "proseAudit", { when: "everyReply" });
+    expect(nth(views, 0).predicateCel).toBe("!has(event.turn) || int(event.turn.automationDepth) == 0");
+    expect(nth(views, 0).maxFiresPerHour).toBe(240);
   });
 });

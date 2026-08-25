@@ -60,6 +60,10 @@ export const RULE_PRESET_IDS = [
   /** §4 #11's sibling — the rumour mill: the SAME confirm-first lore route, distilling the consequences and
    *  hearsay the settled events would stir up rather than the durable facts. */
   "rumorMill",
+  /** §4 #14 — C3's prose audit: a confirm-first `run_analysis` → `suggestRewrite` pass that audits the newest
+   *  reply and offers a conservative rewrite on a variant-pinned, content-hashed card. The confirmed rewrite
+   *  lands as a NEW VARIANT of the audited slot (the original stays selectable — that is the revert). */
+  "proseAudit",
 ] as const;
 export type RulePresetId = (typeof RULE_PRESET_IDS)[number];
 export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS);

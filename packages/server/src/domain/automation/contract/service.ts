@@ -11,6 +11,7 @@ import type { Can } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, AutomationSuggestionId } from "@orb/kit/ids";
 import type {
+  ApplyProseRewrite,
   ArmDispatch,
   AutomationOps,
   EmitAutomationEvent,
@@ -86,6 +87,10 @@ export interface AutomationContext {
   /** S4 plugin arm — the plugin half of the confirm-time liveness re-check (still installed AND enabled).
    *  Wired at compose to `domain/plugin`'s owner-scoped read; fail-CLOSED on anything else. */
   readonly isPluginLive: IsPluginLive;
+  /** C3 — the CONFIRM-ONLY prose-rewrite executor, wired at compose to chat's own host-gated verb. It sits
+   *  here rather than on `ops` precisely so no ARM can reach it (see {@link ApplyProseRewrite}): a rewrite of
+   *  settled canon happens on a host's yes or not at all. */
+  readonly applyProseRewrite: ApplyProseRewrite;
   /** The automation feedback-bus sink — wired at compose to `publishAutomationEvent`, fanning
    *  the event to the chat's `automation.stream` subscribers (member-visible chips + host-only fire/error). */
   readonly notify: EmitAutomationEvent;

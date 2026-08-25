@@ -7,7 +7,7 @@
 
 import type { ChatBusDeps } from "@orb/client/data";
 import { applyChatBusEvent, createInvalidation, QueryBoundary, QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
-import { automationQuickReplySource } from "@orb/client/features/automation";
+import { automationQuickReplySource, automationSuggestionSource } from "@orb/client/features/automation";
 import { characterSlashCommands } from "@orb/client/features/character";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
@@ -3215,6 +3215,25 @@ export function ChatControlsStory({ source = "fake", fixture = "chips" }: ChatCo
 // the compose-mode assertion can read THIS room's real composer draft.
 export function AutomationChipsStory(): ReactElement {
   const sources = createContributorRegistry<ChatControlSource>("chat-controls", [automationQuickReplySource]);
+  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [makeChatControlsContribution(sources)]);
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <div style={{ height: 480 }}>
+          <ChatControlsRoom surfaceContributors={surfaceContributors} />
+        </div>
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+// ── C3: the REAL automation SUGGESTION-CARD source, wired the door's way (interaction-direction-spec §7 C3)
+// The twin of the chips story one seam over: `automationSuggestionSource` from `features/automation`, in the
+// SAME registry `authed-app.tsx` builds, rendered blind through the one `above-composer` mount. Its card comes
+// from a hand-fired `suggestionRaised` frame carrying C3's rewrite DETAIL, so this is the end-to-end proof
+// that the host-only bus payload becomes a collapsed `@orb/ui/diff` body a host can open.
+export function AutomationSuggestionCardStory(): ReactElement {
+  const sources = createContributorRegistry<ChatControlSource>("chat-controls", [automationSuggestionSource]);
   const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [makeChatControlsContribution(sources)]);
   return (
     <CtDataProviders>

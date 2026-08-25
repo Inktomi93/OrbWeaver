@@ -111,7 +111,8 @@ test("the committed catalogue is exactly the A3 rows plus A4's four plus C1's pa
   // confirm-first card), #3 (auto-add lore, confirm-first by default), #8 (the compose-mode opener deck,
   // riding A2's per-choice mode field) and #10 (call a vote — send-mode chips, R7-invoked); C1 adds #15
   // (story pacing analysis — the run_analysis arm's showcase, RULED F7 direct steer); C2 adds #11's two
-  // confirm-first lore distillers (distill lore + rumour mill). #2/#14/#16/#20 ride later phases and may not creep in.
+  // confirm-first lore distillers (distill lore + rumour mill); C3 adds #14's prose audit (the confirm-first
+  // rewrite card). #2/#16/#20 ride later phases and may not creep in.
   expect([...RULE_PRESET_IDS]).toEqual([
     "welcomeBackRecap",
     "autoAddLore",
@@ -127,6 +128,7 @@ test("the committed catalogue is exactly the A3 rows plus A4's four plus C1's pa
     "storyPacing",
     "distillLore",
     "rumorMill",
+    "proseAudit",
   ]);
 });
 
@@ -239,7 +241,7 @@ test("#655: every choice knob in the catalogue labels EVERY option it offers", (
     expect(Object.values(knob.optionLabels).filter((label) => label.trim().length === 0)).toEqual([]);
   }
   // The denominator, so a catalogue that lost its choice knobs cannot print a clean zero here.
-  expect(labelled).toEqual(["Before writing", "What to draw", "When it fills"]);
+  expect(labelled).toEqual(["Before writing", "What to draw", "When it fills", "When to audit"]);
 });
 
 test("#655: the illustrate preset does not offer `free` — its every fire would be an action_error", () => {

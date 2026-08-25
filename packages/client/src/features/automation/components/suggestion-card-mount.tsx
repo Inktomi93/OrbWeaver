@@ -25,6 +25,9 @@
 // lets the band own that law.
 
 import type { StreamRoomRef } from "@orb/contracts/stream";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
+import { DiffView } from "@orb/ui/diff";
+import { ScrollArea } from "@orb/ui/scroll-area";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useBusRoom, useInvalidation, useTRPC } from "#data";
@@ -41,6 +44,32 @@ const CONFIRM_LABEL = { confirm: "Do it", invitation: "Run now" } as const;
 
 /** Publish an empty list once when the source has nothing live (retiring anything it had raised). */
 const NO_ASKS: readonly PendingAsk[] = [];
+
+/** C3's card BODY — the rewrite behind a disclosure, closed by default.
+ *
+ *  WHY COLLAPSED: the band sits above the composer in the room's reading column, and a rewrite is a whole
+ *  reply's worth of text. Expanded by default it would push the transcript off-screen to ask a question the
+ *  title already asks ("Fix the last reply — repeats itself?"), which is the one-visible-card attention budget
+ *  spent on a body most hosts answer without reading. Open it and the diff is exact.
+ *
+ *  The diff is the SEALED `@orb/ui/diff` primitive at word granularity: a prose repair moves words, and the
+ *  char mode renders a single-letter tense fix as confetti inside otherwise-identical sentences. */
+function RewriteDetail({ before, after }: { readonly before: string; readonly after: string }): ReactNode {
+  return (
+    <Collapsible>
+      <CollapsibleTrigger size="inline">Show the change</CollapsibleTrigger>
+      <CollapsiblePanel>
+        {/* Capped and scrolled: a rewrite may be a whole long reply, and an uncapped panel would push the
+            transcript out of the room to show it. `wrapContent` because the diff is a prose column whose
+            width is the viewport's — without it Base UI's fit-content Content lays it out at max-content and
+            the paragraphs never wrap. */}
+        <ScrollArea viewportClassName="max-h-48" wrapContent={true}>
+          <DiffView before={before} after={after} mode="words" />
+        </ScrollArea>
+      </CollapsiblePanel>
+    </Collapsible>
+  );
+}
 
 export function AutomationSuggestionMount({ state, publish }: ChatControlSourceMountProps): ReactNode {
   const chatId = state.chatId;
@@ -89,6 +118,10 @@ export function AutomationSuggestionMount({ state, publish }: ChatControlSourceM
       kind: "card" as const,
       id: ask.id,
       title: ask.summary,
+      // The band does NOT compare `detail` across publishes (it compares kind/id/title/actions), which is
+      // safe here for the reason the contract names: a card's detail is a pure function of its ask, and an
+      // ask that changes gets a new `id` from the server.
+      ...(ask.detail === undefined ? {} : { detail: <RewriteDetail before={ask.detail.before} after={ask.detail.after} /> }),
       actions: [
         {
           id: ask.id,
