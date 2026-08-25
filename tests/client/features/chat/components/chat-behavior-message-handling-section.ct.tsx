@@ -2,7 +2,7 @@
 // decomposed chat-behavior pane is built from. Drives the production autosave path: `getUserSettings` seeds
 // the projected form, each control change debounces then fires `updateUserSettingsSection("chat")`.
 //
-// P1 — PATCH MINIMALITY (SET-SEAMS §9): the wire payload carries EXACTLY this section's eight owned keys, and
+// P1 — PATCH MINIMALITY (SET-SEAMS §9): the wire payload carries EXACTLY this section's nine owned keys, and
 // never the sibling Streaming section's. The expected key set is re-spelled here on purpose — importing the
 // section's own `OWNS` tuple would make the test agree with the code by construction and prove nothing.
 
@@ -24,6 +24,7 @@ const OWNED_KEYS = [
   "customStoppingStrings",
   "enterSends",
   "generateOnEmptySend",
+  "offerChoices",
   "tempChatTtlHours",
 ];
 
@@ -44,7 +45,7 @@ test("mounts with the persisted defaults rendered (Enter-to-send on)", async ({ 
   await expect(page.getByRole("switch", { name: "Enter to send" })).toBeChecked();
 });
 
-test("toggling Enter-to-send patches the chat section with ONLY this section's six keys", async ({ mount, page }) => {
+test("toggling Enter-to-send patches the chat section with ONLY this section's nine keys", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<ChatMessageHandlingSectionStory />);
   await page.getByRole("switch", { name: "Enter to send" }).click();
