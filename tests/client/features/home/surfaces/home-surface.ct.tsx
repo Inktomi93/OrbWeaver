@@ -235,8 +235,9 @@ test("#102 DOORWAYS are grouped under ONE band, not framed one by one", async ({
   await expect(group).toBeVisible();
   // #455: the band is a FOLD now, so the grouping contract is asserted on the opened panel.
   await group.getByRole("button", { name: GROUP_LABEL }).click();
-  // Both real doorways live inside that ONE band…
-  await expect(group.locator("[data-home-tile]")).toHaveCount(2);
+  // The one remaining real doorway lives inside that ONE band (automation's doorway retired with B3 — its
+  // chips now consume the channel it stood for; buddy is the last genuinely-dormant feature)…
+  await expect(group.locator("[data-home-tile]")).toHaveCount(1);
   // …and neither wears a band, a badge or a control of its own (a doorway has no chrome to spend).
   await expect(group.getByText("Dormant")).toHaveCount(0);
   // The group's ONE button is its own fold trigger (#455) — scoped per doorway, the count is still zero,
@@ -250,7 +251,7 @@ test("#102 DOORWAYS are grouped under ONE band, not framed one by one", async ({
   // assertion carries — "a doorway has no chrome of its own" — is untouched: an `h3` is structure, not
   // chrome (no band, no rule, no badge, no control), and the voice is byte-identical to the `<p>`'s.
   await expect(group.getByRole("heading", { level: 2 })).toHaveCount(1);
-  await expect(group.getByRole("heading", { level: 3 })).toHaveCount(2);
+  await expect(group.getByRole("heading", { level: 3 })).toHaveCount(1);
 });
 
 // ── RED-FIRST (#102 review F6): the doorway group is a PEER block, not a child of the tile above it ──
@@ -272,7 +273,7 @@ test("#102-F6 the doorway group names itself with an h2, level with home's other
   // actually ruled: every h3 on the surface is INSIDE the doorway region, and no block draws one.
   const subheadings = page.getByRole("heading", { level: 3 });
   await expect(subheadings).toHaveCount(await group.getByRole("heading", { level: 3 }).count());
-  await expect(subheadings).toHaveText(["Buddy", "Automation"]);
+  await expect(subheadings).toHaveText(["Buddy"]);
 });
 
 // ── A11y STRUCTURE (side-eye F3/F4) — the frame owns it, so every contributed tile inherits it ──────
@@ -749,7 +750,6 @@ test("#455 the doorway group ships COLLAPSED — one control line, and the roadm
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
   // The teaser line is ALL that is rendered: no doorway body, no title, no roadmap prose.
   await expect(home.locator('[data-home-tile="buddy"]')).toHaveCount(0);
-  await expect(home.locator('[data-home-tile="automation"]')).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 3 })).toHaveCount(0);
 });
 
@@ -759,10 +759,10 @@ test("#455 opening the fold restores the block WHOLE — #457's h3 titles and ra
   await page.getByRole("button", { name: GROUP_LABEL }).click();
   await expect(page.getByRole("button", { name: GROUP_LABEL })).toHaveAttribute("aria-expanded", "true");
   await expect(home.locator('[data-home-tile="buddy"]')).toBeVisible();
-  await expect(home.locator('[data-home-tile="automation"]')).toBeVisible();
   // #457's work SURVIVES the fold rather than being folded away with it: real h3 titles, and the teaser
   // still on the `prose` length modifier (the ramp stop above bare micro), which is what P3-6 ruled.
-  await expect(page.getByRole("heading", { level: 3 })).toHaveText(["Buddy", "Automation"]);
+  // (Automation's doorway retired with B3, so buddy is the one remaining h3 title.)
+  await expect(page.getByRole("heading", { level: 3 })).toHaveText(["Buddy"]);
   const teaserSize = await home.getByText(TEASER_RE).evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize));
   const triggerSize = await page.getByRole("button", { name: GROUP_LABEL }).evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize));
   // P3-6's actual defect: the explanatory paragraph rendered at the SAME step as the label above it.

@@ -28,7 +28,7 @@ import {
   youModal,
 } from "#features/app-shell";
 import { accountModal, reauthModal } from "#features/auth";
-import { automationPane, automationRulesSection, automationSuggestionSource } from "#features/automation";
+import { automationPane, automationQuickReplySource, automationRulesSection, automationSuggestionSource } from "#features/automation";
 import { characterSlashCommands, librarySettingsSection, makeCharactersSection } from "#features/character";
 import {
   appearanceAvatarsSection,
@@ -56,7 +56,7 @@ import { makeConfigSection } from "#features/config";
 import { connectionsPane } from "#features/credentials";
 import { addDocumentModal, databankDocumentsTile, databankSection } from "#features/databank";
 import { corpusSection } from "#features/discovery";
-import { automationDormantTile, buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "#features/home";
+import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "#features/home";
 import { imageDetailModal, imageEditModal, imagerySlashCommands, imagineModal } from "#features/imagery";
 import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
@@ -159,12 +159,14 @@ const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContex
 // transient interactive controls near the transcript (rule chips, confirm cards, a dice ask). A feature
 // appends a source here without importing chat, and chat renders it blind through the one band.
 //
-// ITS FIRST TENANT (A4): automation's S4 suggest/confirm CARDS. The zero-source acceptance property the
-// seam shipped with still holds and is still what the CTs pin — with an empty array the mount below
-// `when`-filters itself out and the room is byte-identical to a build with no control seam — but the array
-// is no longer empty, so the honest statement of the property is now "a room with no live control renders
-// no band chrome", which the source itself delivers by publishing nothing until an ask arrives.
-const chatControlSources = createContributorRegistry<ChatControlSource>("chat-controls", [automationSuggestionSource]);
+// ITS TENANTS: automation's S4 suggest/confirm CARDS (A4) and B3's member-visible quick-reply CHIPS — two
+// sources, one band, each publishing its own control KIND (card / chip) so the stacking law has one owner per
+// kind. The zero-source acceptance property the seam shipped with still holds and is still what the CTs pin —
+// with an empty array the mount below `when`-filters itself out and the room is byte-identical to a build with
+// no control seam — but the array is no longer empty, so the honest statement of the property is now "a room
+// with no live control renders no band chrome", which each source delivers by publishing nothing until its
+// own bus event arrives.
+const chatControlSources = createContributorRegistry<ChatControlSource>("chat-controls", [automationSuggestionSource, automationQuickReplySource]);
 
 const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [
   rpgTurnToolCallsSurface,
@@ -204,9 +206,9 @@ const characterDetailContributors = createContributorRegistry<CharacterDetailCon
 // ONE co-located file in the OWNING feature plus ONE array member HERE — home is never edited. Canonical
 // `(order, id)` at the door: chat's masthead line is order 0, its recents hero 10, its also-open list 15,
 // the face shelf 20 and temp chat 30; home's own "Elsewhere in the house" rail is 40; databank's tile 50;
-// the dormant
-// doorways 80/90. WHICH COLUMN each lands in is the tile's own `region`, never a list here. Home consumes
-// the registry BLIND through `makeHomeSection`.
+// the buddy dormant doorway 80 (automation's dormant tile 90 was RETIRED with B3 — its own contract said it
+// stays "until B3", and B3's chips now consume the channel it stood for). WHICH COLUMN each lands in is the
+// tile's own `region`, never a list here. Home consumes the registry BLIND through `makeHomeSection`.
 const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [
   chatMastheadTile,
   chatRecentsTile,
@@ -215,7 +217,6 @@ const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [
   chatTempChatTile,
   databankDocumentsTile,
   buddyDormantTile,
-  automationDormantTile,
 ];
 
 const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [
