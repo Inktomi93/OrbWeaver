@@ -3,7 +3,7 @@
 // and must never read as one.
 import { UsageError } from "../../_shared/run-tool.ts";
 import type { CreateCommand, IssueClass, ListCommand, WorkCommand } from "../contract/types.ts";
-import { CREATE_OPTION_COUNT, ISSUE_CLASSES, ISSUE_RE, LIFECYCLE_FIELDS } from "./vocab.ts";
+import { CREATE_OPTION_COUNT, EVIDENCE_MAX_LENGTH, ISSUE_CLASSES, ISSUE_RE, LIFECYCLE_FIELDS } from "./vocab.ts";
 
 export function issueNumber(raw: string | undefined): number {
   const number = Number(raw);
@@ -20,6 +20,20 @@ function option(args: readonly string[], name: string): string {
   }
   if (extra.length > 0) {
     throw new UsageError(`${name} accepts exactly one value`);
+  }
+  return value;
+}
+
+/** `--evidence` is written to GitHub's Evidence text column, which server-side rejects anything past
+ *  EVIDENCE_MAX_LENGTH chars — refuse it HERE (misuse, exit 3) so the message names the limit and the
+ *  actual length, instead of letting it reach the network and come back as a generic tool error (exit
+ *  2) indistinguishable from a lifecycle-state refusal. */
+function evidenceOption(args: readonly string[]): string {
+  const value = option(args, "--evidence");
+  if (value.length > EVIDENCE_MAX_LENGTH) {
+    throw new UsageError(
+      `evidence is ${value.length} chars; cap is ${EVIDENCE_MAX_LENGTH} (GitHub's Project text-column limit) — post the full receipt as an issue comment and pass a short evidence string`,
+    );
   }
   return value;
 }
@@ -83,7 +97,7 @@ function parseLifecycle(name: string | undefined, issue: number, rest: readonly 
     return parseSet(issue, rest);
   }
   if (name === "verify" || name === "reverify" || name === "done" || name === "refute") {
-    return { kind: name, issue, evidence: option(rest, "--evidence") };
+    return { kind: name, issue, evidence: evidenceOption(rest) };
   }
   if (name === "park") {
     return { kind: name, issue, wake: option(rest, "--wake") };
