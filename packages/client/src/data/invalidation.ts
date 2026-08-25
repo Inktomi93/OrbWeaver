@@ -308,9 +308,12 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // admin's reads (writer-local, per their own cited `query-freshness-coverage` entries); this member only
   // ever reaches the AFFECTED user's channel.
   identityChanged: (_e, trpc) => identityFilters(trpc),
-  // READ-PENDING (plugin-ui-plane #679 U1): EMITTED live (`host.ui.setState`); the filter is `[]` until
-  // `plugin.getSurfaceState` lands with U1's read verbs (the RPG-bus deferral style) — wire its `pathFilter()` then.
-  pluginSurfaceStateChanged: () => [],
+  // A plugin surface published new state (`host.ui.setState`, plugin-ui-plane #679 U1). PATH-invalidate the
+  // surface-state read — coarse by the member's own design (a `pluginId` hint the coarse map ignores): the only
+  // viewer is the installer and they hold a handful of surfaces, so refetching all their `getSurfaceState`
+  // entries on a poke is cheap and correct. NOT `listSurfaces` — a state change never moves the registration set
+  // (that rides enable/disable, a different write).
+  pluginSurfaceStateChanged: (_e, trpc) => [trpc.plugin.getSurfaceState.pathFilter()],
   // Deferred member — never emitted today; the map entry is ready for when it lands.
   connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter()],
 };
