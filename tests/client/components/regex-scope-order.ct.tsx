@@ -191,7 +191,7 @@ test("the global tier's run order is authored where its membership is", async ({
   // RENDERED, at the NARROWEST real host: this pane is the config rail's 320px context column, and a grip
   // that overflows it is an affordance nobody can reach. Measured against the pane's own box, not a px
   // literal, so a token change cannot drift out from under the assertion.
-  const fit = await page.evaluate(() => {
+  let fit = await page.evaluate(() => {
     const pane = document.querySelector('[data-slot="regex-context-body"]');
     const handle = document.querySelector('[data-slot="sortable-handle"]');
     if (pane === null || handle === null) {
@@ -199,7 +199,19 @@ test("the global tier's run order is authored where its membership is", async ({
     }
     return { handleRight: handle.getBoundingClientRect().right, paneRight: pane.getBoundingClientRect().right };
   });
-  expect(fit).not.toBeNull();
+  await expect
+    .poll(async () => {
+      fit = await page.evaluate(() => {
+        const pane = document.querySelector('[data-slot="regex-context-body"]');
+        const handle = document.querySelector('[data-slot="sortable-handle"]');
+        if (pane === null || handle === null) {
+          return null;
+        }
+        return { handleRight: handle.getBoundingClientRect().right, paneRight: pane.getBoundingClientRect().right };
+      });
+      return fit;
+    })
+    .not.toBeNull();
   expect(fit?.handleRight).toBeLessThanOrEqual(fit?.paneRight ?? 0);
 
   const handles = page.locator('[data-slot="sortable-handle"]');

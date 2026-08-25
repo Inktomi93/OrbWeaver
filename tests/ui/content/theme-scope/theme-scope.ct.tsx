@@ -26,8 +26,7 @@ test("a hostile accent value is DROPPED (no injected custom property)", async ({
   );
   // Check the INLINE style (what ThemeScope actually set) — computed would resolve the inherited
   // :root default. A dropped value leaves the inline custom property unset.
-  const inline = await cmp.evaluate((el) => (el as HTMLElement).style.getPropertyValue("--color-primary"));
-  expect(inline).toBe("");
+  await expect.poll(async () => await cmp.evaluate((el) => (el as HTMLElement).style.getPropertyValue("--color-primary"))).toBe("");
 });
 
 // ── Rendered-contrast (done ≠ rendered) ────────────────────────────────────────────────────────────
@@ -160,9 +159,8 @@ test("nested ThemeScope: a hostile INNER override is dropped — the outer (safe
     </ThemeScope>,
   );
   const probe = cmp.getByTestId("probe");
-  const computed = await probe.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-primary").trim());
-  expect(computed).toBe("oklch(0.3 0.1 20)"); // inherited from the outer scope — the clamp dropped it
-  expect(computed).not.toContain("url(");
+  await expect.poll(async () => await probe.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-primary").trim())).toBe("oklch(0.3 0.1 20)"); // inherited from the outer scope — the clamp dropped it
+  await expect.poll(async () => await probe.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-primary").trim())).not.toContain("url(");
 });
 
 // ── Anchored-float portal theming (D44 §12.1 · defect #1) ──────────────────────────────────────────
@@ -195,8 +193,7 @@ test("an OPEN popover popup resolves the ThemeScope override (portals into the t
   await page.getByRole("button", { name: "open" }).click();
   // The popup is portaled (a document child), so query the PAGE, not the mount root.
   await expect(page.getByTestId("pop-probe")).toBeVisible();
-  const value = await page.getByTestId("pop-probe").evaluate(readPrimary);
-  expect(value).toBe(FLOAT_ACCENT); // Hearth's static --color-primary would be oklch(0.72 0.175 52)
+  await expect.poll(async () => await page.getByTestId("pop-probe").evaluate(readPrimary)).toBe(FLOAT_ACCENT); // Hearth's static --color-primary would be oklch(0.72 0.175 52)
 });
 
 test("an OPEN select popup resolves the ThemeScope override", async ({ mount, page }) => {
@@ -497,8 +494,9 @@ test("#682 the DARK arm's muted/card derivation does not move (the polarity that
   // Hearth's derived pair as this browser RESOLVES it (1.1315; node's own oklch math says 1.1356 — the
   // gap is 8-bit channel quantization, not a disagreement). A fence, not a defect proof: it passes
   // pre-fix too, and its job is to red if the dark arm ever moves a digit.
-  const ratio = await cmp.getByTestId("ramp-probe").evaluate(tokenPairContrast, ["--color-muted", "--color-card"] as const);
-  expect(ratio).toBeCloseTo(MUTED_STEP_DARK, 3);
+  await expect
+    .poll(async () => await cmp.getByTestId("ramp-probe").evaluate(tokenPairContrast, ["--color-muted", "--color-card"] as const))
+    .toBeCloseTo(MUTED_STEP_DARK, 3);
 });
 
 // The RENDERED track floor, both polarities. `toBeGreaterThan(MUTED_STEP_DARK * 1.15)` is spelled against
@@ -601,8 +599,7 @@ test("#692 an ambient accent that ALREADY clears is not touched — the fill ren
       <span data-testid="accent-probe">x</span>
     </ThemeScope>,
   );
-  const inline = await cmp.evaluate((el) => (el as HTMLElement).style.getPropertyValue("--color-primary"));
-  expect(inline).toBe("");
+  await expect.poll(async () => await cmp.evaluate((el) => (el as HTMLElement).style.getPropertyValue("--color-primary"))).toBe("");
 });
 
 test("a provider-less ink-only scope FAILS OPEN, rendering the author's ink byte-identically", async ({ mount }) => {
@@ -613,6 +610,7 @@ test("a provider-less ink-only scope FAILS OPEN, rendering the author's ink byte
       <span data-testid="loose">she leans in</span>
     </ThemeScope>,
   );
-  const value = await cmp.getByTestId("loose").evaluate((el) => getComputedStyle(el).getPropertyValue("--color-narration").trim());
-  expect(value).toBe(ST_DARK_INK);
+  await expect
+    .poll(async () => await cmp.getByTestId("loose").evaluate((el) => getComputedStyle(el).getPropertyValue("--color-narration").trim()))
+    .toBe(ST_DARK_INK);
 });

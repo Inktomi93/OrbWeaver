@@ -59,8 +59,7 @@ test("animates by default: the orb spin on the svg, the WEAVE loop (with its das
   expect(offsetNow).toBeLessThanOrEqual(spiralLength);
   await expect.poll(async () => spiral.evaluate((el) => getComputedStyle(el).strokeDashoffset)).not.toBe(spiralStyle.offset);
   // The spokes breathe under it instead of sitting at a fixed dim.
-  const spokes = await page.locator("svg .orb-web-spokes").evaluate((el) => getComputedStyle(el).animationName);
-  expect(spokes).toBe("orb-web-breathe");
+  await expect.poll(async () => await page.locator("svg .orb-web-spokes").evaluate((el) => getComputedStyle(el).animationName)).toBe("orb-web-breathe");
 });
 
 test("reduced motion renders the STATIC glyph — no animation, and the spiral is SOLID (no dash)", async ({ mount, page }) => {
@@ -80,6 +79,5 @@ test("reduced motion renders the STATIC glyph — no animation, and the spiral i
   expect(spiralStyle.animation).toBe("none");
   expect(spiralStyle.dash).toBe("none");
   expect(Number.parseFloat(spiralStyle.offset)).toBe(0);
-  const spokes = await page.locator("svg .orb-web-spokes").evaluate((el) => getComputedStyle(el).animationName);
-  expect(spokes).toBe("none");
+  await expect.poll(async () => await page.locator("svg .orb-web-spokes").evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
 });

@@ -54,8 +54,13 @@ function stub(page: Page, tags: readonly unknown[]): Promise<unknown> {
 /** What the browser's own hit test finds at a control's centre — the only honest answer to "is it
  *  clickable", and the exact probe that returned `<div role="option">` over Cancel before this fix. */
 async function topmostAt(page: Page, name: string): Promise<string> {
-  const box = await page.getByRole("button", { name, exact: true }).boundingBox();
-  expect(box).not.toBeNull();
+  let box = await page.getByRole("button", { name, exact: true }).boundingBox();
+  await expect
+    .poll(async () => {
+      box = await page.getByRole("button", { name, exact: true }).boundingBox();
+      return box;
+    })
+    .not.toBeNull();
   const at = { x: (box?.x ?? 0) + (box?.width ?? 0) / 2, y: (box?.y ?? 0) + (box?.height ?? 0) / 2 };
   return page.evaluate((point: { x: number; y: number }): string => {
     const el = document.elementFromPoint(point.x, point.y);
@@ -152,10 +157,20 @@ test("suggestions showing: the list stays INSIDE the dialog card, on a 430px pho
   await page.getByRole("combobox", { name: "Tag name" }).fill("fantas");
   await expect(page.getByRole("option", { name: "fantasy-0" })).toBeVisible();
 
-  const card = await page.locator('[data-slot="dialog-popup"]').boundingBox();
-  const list = await page.locator('[data-slot="autocomplete-inline-list"]').boundingBox();
-  expect(card).not.toBeNull();
-  expect(list).not.toBeNull();
+  let card = await page.locator('[data-slot="dialog-popup"]').boundingBox();
+  let list = await page.locator('[data-slot="autocomplete-inline-list"]').boundingBox();
+  await expect
+    .poll(async () => {
+      card = await page.locator('[data-slot="dialog-popup"]').boundingBox();
+      return card;
+    })
+    .not.toBeNull();
+  await expect
+    .poll(async () => {
+      list = await page.locator('[data-slot="autocomplete-inline-list"]').boundingBox();
+      return list;
+    })
+    .not.toBeNull();
   // The popup overshot the card by 264px on desktop and flipped ABOVE the title on mobile; in flow it can
   // do neither, and the title is still the topmost thing in the card.
   expect((list?.y ?? 0) + (list?.height ?? 0)).toBeLessThanOrEqual((card?.y ?? 0) + (card?.height ?? 0));
@@ -186,8 +201,9 @@ test.describe("on a real phone (coarse pointer, 430px)", () => {
 
     // The token, never a literal 44 — the CT's rendering context is not the app's.
     const floor = await touchFloorPx(page);
-    const rowHeight = await page.getByRole("option", { name: "fantasy-0" }).evaluate((el: Element) => el.getBoundingClientRect().height);
-    expect(rowHeight).toBeGreaterThanOrEqual(floor);
+    await expect
+      .poll(async () => await page.getByRole("option", { name: "fantasy-0" }).evaluate((el: Element) => el.getBoundingClientRect().height))
+      .toBeGreaterThanOrEqual(floor);
 
     // Containment and hit-testability re-proven at the taller rows: the inline list is a BOUNDED scroller, so
     // growing the rows must scroll them, never grow the card past the footer it sits above.
@@ -274,8 +290,13 @@ test("the helper line is WIRED to the field and announces the create ⇄ attach 
   await stub(page, LIBRARY);
   await mount(<TagPickerDialogHarness />);
   const field = page.getByRole("combobox", { name: "Tag name" });
-  const describedBy = await field.getAttribute("aria-describedby");
-  expect(describedBy).not.toBeNull();
+  let describedBy = await field.getAttribute("aria-describedby");
+  await expect
+    .poll(async () => {
+      describedBy = await field.getAttribute("aria-describedby");
+      return describedBy;
+    })
+    .not.toBeNull();
 
   const helper = page.locator(`[id="${describedBy ?? ""}"]`);
   await expect(helper).toHaveAttribute("aria-live", "polite");

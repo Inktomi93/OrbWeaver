@@ -96,8 +96,13 @@ test("clicking a point fires onPointClick with that point's opaque id", async ({
   );
   const canvas = component.locator("canvas");
   await expect(canvas).toBeVisible();
-  const box = await canvas.boundingBox();
-  expect(box).not.toBeNull();
+  let box = await canvas.boundingBox();
+  await expect
+    .poll(async () => {
+      box = await canvas.boundingBox();
+      return box;
+    })
+    .not.toBeNull();
   const width = box?.width ?? 0;
   const height = box?.height ?? 0;
   // Sweep a grid across the plot until a click lands on a symbol; the id that fires is one of the

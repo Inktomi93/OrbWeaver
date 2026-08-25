@@ -17,8 +17,7 @@ test("Text body default lands the body size + foreground tone tokens on a <p>", 
   const text = await mount(<Text>hello</Text>);
   await expect(text).toHaveCSS("font-size", sizePx("text.body"));
   await expect(text).toHaveCSS("color", TOKENS["color.foreground"].value);
-  const tag = await text.evaluate((el) => el.tagName.toLowerCase());
-  expect(tag).toBe("p");
+  await expect.poll(async () => await text.evaluate((el) => el.tagName.toLowerCase())).toBe("p");
 });
 
 test("Text size=label tone=muted rides the label + muted-foreground tokens (the route-stub case)", async ({ mount }) => {
@@ -50,8 +49,9 @@ test("Heading level renders the matching REAL h1-h6 tag", async ({ mount, page }
     </div>,
   );
   // One real h1..h6 exists per level (a styled <div> heading would fail these role/tag lookups).
-  const tags = await page.evaluate(() => [1, 2, 3, 4, 5, 6].map((n) => document.querySelectorAll(`h${n}`).length));
-  expect(tags).toEqual([1, 1, 1, 1, 1, 1]);
+  await expect
+    .poll(async () => await page.evaluate(() => [1, 2, 3, 4, 5, 6].map((n) => document.querySelectorAll(`h${n}`).length)))
+    .toEqual([1, 1, 1, 1, 1, 1]);
 });
 
 test("Heading level drives the default size — h1 headline steps down to h2 title (the ~1.2 scale)", async ({ mount }) => {
@@ -86,8 +86,7 @@ test("size=micro rides the micro type + tracking tokens (the section-label voice
   const text = await mount(<Text size="micro">members</Text>);
   await expect(text).toHaveCSS("font-size", sizePx("text.micro"));
   // The micro tracking token is applied (not the default "normal").
-  const tracking = await text.evaluate((el) => getComputedStyle(el).letterSpacing);
-  expect(tracking).not.toBe("normal");
+  await expect.poll(async () => await text.evaluate((el) => getComputedStyle(el).letterSpacing)).not.toBe("normal");
 });
 
 test("transform=caps uppercases while leaving other sizes intact", async ({ mount }) => {

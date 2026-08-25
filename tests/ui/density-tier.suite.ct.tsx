@@ -252,8 +252,13 @@ test("VOICE: `hero` is THE number a surface exists to produce — display step, 
   expect(hero.variant).toContain("tabular-nums");
   // The whole point of the voice: it is NOT the `datum` step. A regression that collapsed them would
   // silently restore the 13px hero the review filed.
-  const datumSize = await mounted.getByTestId("hero-datum").evaluate((el) => getComputedStyle(el).fontSize);
-  expect(datumSize).toBe(resolved.label);
+  let datumSize = await mounted.getByTestId("hero-datum").evaluate((el) => getComputedStyle(el).fontSize);
+  await expect
+    .poll(async () => {
+      datumSize = await mounted.getByTestId("hero-datum").evaluate((el) => getComputedStyle(el).fontSize);
+      return datumSize;
+    })
+    .toBe(resolved.label);
   expect(hero.size).not.toBe(datumSize);
 });
 
@@ -412,10 +417,15 @@ test("VOICE: `promoted` is the TITLE step — the name of one item in a shelf, a
     probe.remove();
     return px;
   });
-  const name = await mounted.getByTestId("promoted").evaluate((el) => getComputedStyle(el).fontSize);
+  let name = await mounted.getByTestId("promoted").evaluate((el) => getComputedStyle(el).fontSize);
   const gloss = await mounted.getByTestId("promoted-gloss").evaluate((el) => getComputedStyle(el).fontSize);
 
-  expect(name).toBe(titleStep);
+  await expect
+    .poll(async () => {
+      name = await mounted.getByTestId("promoted").evaluate((el) => getComputedStyle(el).fontSize);
+      return name;
+    })
+    .toBe(titleStep);
   expect(Number.parseFloat(name)).toBeGreaterThan(Number.parseFloat(gloss));
 });
 
@@ -527,10 +537,8 @@ test("VOICE: `quiet` and `datumMono` are the RECEDED steps — body-muted and co
   expect(mono.color).toBe(mono.muted);
   expect(datum.color).not.toBe(datum.muted);
   expect(Number.parseFloat(mono.leading)).toBeGreaterThan(Number.parseFloat(datum.leading));
-  const variants = await mounted.getByTestId("mono").evaluate((el) => getComputedStyle(el).fontVariantNumeric);
-  expect(variants).not.toContain("tabular-nums");
-  const datumVariants = await mounted.getByTestId("mono-datum").evaluate((el) => getComputedStyle(el).fontVariantNumeric);
-  expect(datumVariants).toContain("tabular-nums");
+  await expect.poll(async () => await mounted.getByTestId("mono").evaluate((el) => getComputedStyle(el).fontVariantNumeric)).not.toContain("tabular-nums");
+  await expect.poll(async () => await mounted.getByTestId("mono-datum").evaluate((el) => getComputedStyle(el).fontVariantNumeric)).toContain("tabular-nums");
 });
 
 /** The px a font-size token resolves to in the live document (the `resolveToken` probe, font-size arm). */
@@ -683,17 +691,21 @@ test("CD3: exactly ONE focal element at rest in a surface (accent fill or elevat
       <Card elevated={true}>The one focal island</Card>
     </Surface>,
   );
-  const focalCount = await surface.evaluate((root) => {
-    const probe = root.ownerDocument.createElement("div");
-    probe.style.backgroundColor = "var(--color-primary)";
-    root.ownerDocument.body.append(probe);
-    const accent = getComputedStyle(probe).backgroundColor;
-    probe.remove();
-    const nodes = [...root.querySelectorAll<HTMLElement>("*")];
-    return nodes.filter((node) => {
-      const style = getComputedStyle(node);
-      return style.boxShadow !== "none" || style.backgroundColor === accent;
-    }).length;
-  });
-  expect(focalCount).toBe(1);
+  await expect
+    .poll(
+      async () =>
+        await surface.evaluate((root) => {
+          const probe = root.ownerDocument.createElement("div");
+          probe.style.backgroundColor = "var(--color-primary)";
+          root.ownerDocument.body.append(probe);
+          const accent = getComputedStyle(probe).backgroundColor;
+          probe.remove();
+          const nodes = [...root.querySelectorAll<HTMLElement>("*")];
+          return nodes.filter((node) => {
+            const style = getComputedStyle(node);
+            return style.boxShadow !== "none" || style.backgroundColor === accent;
+          }).length;
+        }),
+    )
+    .toBe(1);
 });

@@ -599,8 +599,7 @@ test("issue 238: a blockquote renders its rule + indent + separation, and does n
   // …and the narration voice beside it carries NONE of that geometry: the two are no longer the same
   // rendering (both are italic + muted by design; the quote's distinctness has to come from its box).
   const narration = cmp.locator("em").first();
-  const narrationBorder = await narration.evaluate((el) => Number.parseFloat(getComputedStyle(el).borderLeftWidth));
-  expect(narrationBorder).toBe(0);
+  await expect.poll(async () => await narration.evaluate((el) => Number.parseFloat(getComputedStyle(el).borderLeftWidth))).toBe(0);
 });
 
 test("issue 238: inline code renders its horizontal padding (the vendor's own utility never compiled)", async ({ mount }) => {
@@ -610,8 +609,7 @@ test("issue 238: inline code renders its horizontal padding (the vendor's own ut
     </Markdown>,
   );
   const code = cmp.locator("code").first();
-  const padding = await code.evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingLeft));
-  expect(padding).toBeGreaterThan(0);
+  await expect.poll(async () => await code.evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingLeft))).toBeGreaterThan(0);
 });
 
 // #490 — the OTHER TWO declarations #238 left on the floor. The vendor spells a SIZE and a VERTICAL

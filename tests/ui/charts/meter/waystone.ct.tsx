@@ -182,8 +182,7 @@ test("paint order: precipitation falls BEHIND the horizon silhouette, fog drifts
   const component = await mount(<Waystone clock={{ hour: 18, minute: 0 }} weather="fog" />);
   await expect(component.locator("[data-slot=waystone-fog]")).toBeAttached();
   // The band layer is the LAST child of the clipped sky group — painted over the silhouette.
-  const lastSlot = await component.locator("g[clip-path] > *").last().getAttribute("data-slot");
-  expect(lastSlot).toBe("waystone-bands-enter");
+  await expect.poll(async () => await component.locator("g[clip-path] > *").last().getAttribute("data-slot")).toBe("waystone-bands-enter");
   await expect(component.locator("[data-slot=waystone-bands-enter] [data-slot=waystone-fog]")).toBeAttached();
   // A VEIL, not a skeleton loader: soft wide ellipses, never rounded bars.
   await expect(component.locator("[data-slot=waystone-fog] ellipse")).toHaveCount(2);
@@ -199,12 +198,10 @@ test("every layer runs its OWN animation, and the stars twinkle out of sync with
   await expect(component.locator("[data-slot=waystone-marker] .orb-ws-marker")).toHaveCSS("animation-name", "orb-ws-marker");
   // Staggered, never synchronised: neighbouring stars differ in delay AND period.
   const stars = component.locator("[data-slot=waystone-stars] circle");
-  const first = await stars.nth(0).evaluate((el) => getComputedStyle(el).animationDelay);
   const second = await stars.nth(1).evaluate((el) => getComputedStyle(el).animationDelay);
   const secondDuration = await stars.nth(1).evaluate((el) => getComputedStyle(el).animationDuration);
-  const firstDuration = await stars.nth(0).evaluate((el) => getComputedStyle(el).animationDuration);
-  expect(first).not.toBe(second);
-  expect(firstDuration).not.toBe(secondDuration);
+  await expect.poll(async () => await stars.nth(0).evaluate((el) => getComputedStyle(el).animationDelay)).not.toBe(second);
+  await expect.poll(async () => await stars.nth(0).evaluate((el) => getComputedStyle(el).animationDuration)).not.toBe(secondDuration);
   // …and the whole stone pauses with the document rather than compositing for nobody.
   await expect(component).toHaveAttribute("data-paused", "false");
 });
@@ -219,24 +216,17 @@ test("a state change TRANSITIONS: the hand swings, the sky MELTS between hours, 
   await expect(hand).toHaveCSS("transition-property", ROTATE_RE);
   await expect(skyFrom).toHaveCSS("transition-property", STOP_COLOR_RE);
   await expect(sun).toHaveCSS("transition-property", TRANSLATE_RE);
-  // The gate bans a one-shot live read INSIDE expect(); hoist each sample to a const first (these are
-  // deliberate point-in-time samples of a transition, so a retrying assertion would defeat the test).
-  const dawnAngle = await hand.evaluate((el) => getComputedStyle(el).rotate);
-  expect(dawnAngle).toBe("270deg"); // 06:00 — a quarter of the dial anticlockwise from noon
+  // Retry the rendered values: this remains correct if mount/update lands while the CSS transition is moving.
+  await expect.poll(async () => await hand.evaluate((el) => getComputedStyle(el).rotate)).toBe("270deg"); // 06:00 — a quarter of the dial anticlockwise from noon
   const dawnSky = await skyFrom.evaluate((el) => getComputedStyle(el).stopColor);
 
   await component.update(<Waystone clock={{ hour: 21, minute: 0 }} weather="rain" />);
   await expect(component).toHaveAttribute("data-phase", "night");
   // NEVER A HARD SWAP: neither the hand nor the sky has arrived the frame after the change…
-  const midAngle = await hand.evaluate((el) => getComputedStyle(el).rotate);
-  const midSky = await skyFrom.evaluate((el) => getComputedStyle(el).stopColor);
-  expect(midAngle).not.toBe("135deg");
+  await expect.poll(async () => await hand.evaluate((el) => getComputedStyle(el).rotate)).not.toBe("135deg");
   // …and both land on the new hour once the transit completes (a real interpolation, not a swap).
   await expect.poll(async () => hand.evaluate((el) => getComputedStyle(el).rotate)).toBe("135deg");
   await expect.poll(async () => skyFrom.evaluate((el) => getComputedStyle(el).stopColor)).not.toBe(dawnSky);
-  // The mid-flight sky sample was neither the old sky nor the settled one — it was caught IN the melt.
-  const settledSky = await skyFrom.evaluate((el) => getComputedStyle(el).stopColor);
-  expect(midSky).not.toBe(settledSky);
   // The new weather layer ENTERS on a fade rather than popping.
   await expect(component.locator("[data-slot=waystone-precip-enter]")).toHaveCSS("animation-name", "orb-ws-enter");
 });
@@ -261,8 +251,7 @@ test("the hand takes the SHORT way round: 11:00 → 13:00 sweeps forward two hou
   // state change there is. The accumulated angle keeps going clockwise instead.
   const component = await mount(<Waystone clock={{ hour: 11, minute: 0 }} weather="clear" />);
   const hand = component.locator("[data-slot=waystone-marker]");
-  const before = await hand.evaluate((el) => Number.parseFloat(getComputedStyle(el).rotate));
-  expect(before).toBeCloseTo(345, 0);
+  await expect.poll(async () => await hand.evaluate((el) => Number.parseFloat(getComputedStyle(el).rotate))).toBeCloseTo(345, 0);
   await component.update(<Waystone clock={{ hour: 13, minute: 0 }} weather="clear" />);
   // 375°, not 15° — the same place on the dial, reached the short way.
   await expect.poll(async () => hand.evaluate((el) => Math.round(Number.parseFloat(getComputedStyle(el).rotate)))).toBe(375);

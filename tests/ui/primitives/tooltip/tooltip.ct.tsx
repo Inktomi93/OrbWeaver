@@ -60,8 +60,13 @@ test("wires role=tooltip + aria-describedby between trigger and popup", async ({
 
   const popup = page.locator('[data-slot="tooltip-popup"]');
   await expect(popup).toHaveRole("tooltip");
-  const describedBy = await trigger.getAttribute("aria-describedby");
-  expect(describedBy).not.toBeNull();
+  let describedBy = await trigger.getAttribute("aria-describedby");
+  await expect
+    .poll(async () => {
+      describedBy = await trigger.getAttribute("aria-describedby");
+      return describedBy;
+    })
+    .not.toBeNull();
   await expect(popup).toHaveAttribute("id", describedBy ?? "");
 });
 

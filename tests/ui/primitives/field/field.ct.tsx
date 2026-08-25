@@ -181,14 +181,18 @@ test("a horizontal row with NO description centres its label against the control
       <Switch />
     </Field>,
   );
-  const offset = await page.locator('[data-slot="field-root"]').evaluate((root: HTMLElement): number => {
-    const label = root.querySelector('[data-slot="field-label"]') as HTMLElement;
-    const control = root.querySelector('[data-slot="field-control-col"]') as HTMLElement;
-    const labelBox = label.getBoundingClientRect();
-    const controlBox = control.getBoundingClientRect();
-    return Math.abs(labelBox.top + labelBox.height / 2 - (controlBox.top + controlBox.height / 2));
-  });
-  expect(offset).toBeLessThan(1.5);
+  await expect
+    .poll(
+      async () =>
+        await page.locator('[data-slot="field-root"]').evaluate((root: HTMLElement): number => {
+          const label = root.querySelector('[data-slot="field-label"]') as HTMLElement;
+          const control = root.querySelector('[data-slot="field-control-col"]') as HTMLElement;
+          const labelBox = label.getBoundingClientRect();
+          const controlBox = control.getBoundingClientRect();
+          return Math.abs(labelBox.top + labelBox.height / 2 - (controlBox.top + controlBox.height / 2));
+        }),
+    )
+    .toBeLessThan(1.5);
 });
 
 test("a horizontal row WITH a description keeps the control on the first line", async ({ mount, page }) => {

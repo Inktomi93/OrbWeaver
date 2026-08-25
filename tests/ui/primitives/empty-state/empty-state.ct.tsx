@@ -124,7 +124,7 @@ test("#483 — `measure=wide` gives the description the focal reading measure", 
       <EmptyState description={copy} title="Tune it" />
     </div>,
   );
-  const narrowWidth = await narrow.locator('[data-slot="empty-state-description"]').evaluate((el) => el.getBoundingClientRect().width);
+  await expect.poll(() => narrow.locator('[data-slot="empty-state-description"]').evaluate((el) => el.getBoundingClientRect().width)).toBeCloseTo(24 * REM, 0);
   await narrow.unmount();
 
   const wide = await mount(
@@ -132,9 +132,6 @@ test("#483 — `measure=wide` gives the description the focal reading measure", 
       <EmptyState description={copy} measure="wide" title="Tune it" />
     </div>,
   );
-  const wideWidth = await wide.locator('[data-slot="empty-state-description"]').evaluate((el) => el.getBoundingClientRect().width);
-
   // Rendered, not the class: `--container-cq-sm` (24rem) → `--container-cq-md` (32rem), in the SAME slot.
-  expect(narrowWidth).toBeCloseTo(24 * REM, 0);
-  expect(wideWidth).toBeCloseTo(32 * REM, 0);
+  await expect.poll(() => wide.locator('[data-slot="empty-state-description"]').evaluate((el) => el.getBoundingClientRect().width)).toBeCloseTo(32 * REM, 0);
 });

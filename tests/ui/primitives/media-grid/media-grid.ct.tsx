@@ -15,9 +15,8 @@ const NAV_ITEM_COUNT = 9; // 3x3, fully mounted — no virtualization truncation
 test("renders only a window of a 30-item grid", async ({ mount }) => {
   const component = await mount(<BasicGrid heightPx={300} itemCount={ITEM_COUNT} minCellWidth={MIN_CELL_WIDTH_PX} widthPx={WIDE_PX} />);
   await expect(component.getByRole("gridcell", { name: "Item 0" })).toBeVisible();
-  const rendered = await component.getByRole("gridcell").count();
-  expect(rendered).toBeGreaterThan(0);
-  expect(rendered).toBeLessThan(ITEM_COUNT);
+  await expect.poll(async () => await component.getByRole("gridcell").count()).toBeGreaterThan(0);
+  await expect.poll(async () => await component.getByRole("gridcell").count()).toBeLessThan(ITEM_COUNT);
   // A deep item is NOT in the DOM before scrolling.
   await expect(component.getByRole("gridcell", { name: "Item 29" })).toHaveCount(0);
 });

@@ -95,8 +95,7 @@ test("#365 a visible face-filter caption clears the 11px functional-label floor"
     <FaceStrip caption={true} items={[AZARAEL]} label="Filter by character" onSelect={(): void => undefined} selectedId={null} verb="Show chats with" />,
   );
   const caption = component.getByText(AZARAEL.name, { exact: true });
-  const fontSize = await caption.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
-  expect(fontSize).toBeGreaterThanOrEqual(11);
+  await expect.poll(async () => await caption.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(11);
   await expect(component.getByRole("button", { name: `Show chats with ${AZARAEL.name}`, exact: true })).toBeVisible();
 });
 
@@ -105,8 +104,7 @@ test("#365 the visible overflow count inside its face-filter button clears the 1
   const tile = component.getByRole("button", { name: "More — Filter by another character", exact: true });
   await expect(tile).toBeVisible();
   const count = tile.getByText(OVERFLOW_COUNT_TEXT_RE);
-  const fontSize = await count.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
-  expect(fontSize).toBeGreaterThanOrEqual(11);
+  await expect.poll(async () => await count.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(11);
   await expect(tile).toHaveAccessibleName("More — Filter by another character");
 });
 
@@ -123,16 +121,29 @@ test("#153 captioned: every face cell is ONE width regardless of name length, an
     <FaceStrip caption={true} items={[BO, KOHAKU, CALAMITY, AZARAEL]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />,
   );
   await expect(component.getByRole("listitem")).toHaveCount(4);
-  const widths = await component.evaluate((root) => [...root.querySelectorAll("button")].map((el) => Math.round(el.getBoundingClientRect().width)));
-  expect(widths).toHaveLength(4);
+  let widths = await component.evaluate((root) => [...root.querySelectorAll("button")].map((el) => Math.round(el.getBoundingClientRect().width)));
+  await expect
+    .poll(async () => {
+      widths = await component.evaluate((root) => [...root.querySelectorAll("button")].map((el) => Math.round(el.getBoundingClientRect().width)));
+      return widths;
+    })
+    .toHaveLength(4);
   expect(new Set(widths).size).toBe(1);
   // …and the PITCH is what the reader sees: the gap between consecutive portraits is the same all the way
   // down the row (the defect was visible as portrait spacing, not as button boxes).
-  const gaps = await component.evaluate((root) => {
+  let gaps = await component.evaluate((root) => {
     const lefts = [...root.querySelectorAll('[data-slot="avatar-root"]')].map((el) => el.getBoundingClientRect().left);
     return lefts.slice(1).map((left, index) => Math.round(left - (lefts[index] ?? 0)));
   });
-  expect(gaps).toHaveLength(3);
+  await expect
+    .poll(async () => {
+      gaps = await component.evaluate((root) => {
+        const lefts = [...root.querySelectorAll('[data-slot="avatar-root"]')].map((el) => el.getBoundingClientRect().left);
+        return lefts.slice(1).map((left, index) => Math.round(left - (lefts[index] ?? 0)));
+      });
+      return gaps;
+    })
+    .toHaveLength(3);
   expect(new Set(gaps).size).toBe(1);
 });
 

@@ -53,25 +53,29 @@ test("the thumb paints and hit-tests over its whole box — the track never clip
   await mount(<Slider defaultValue={50} label="Volume" />);
   const thumbEl = page.locator(THUMB);
   const box = await thumbEl.boundingBox();
-  const ownedVertical = await thumbEl.evaluate((el) => {
-    const rect = el.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const owns = (y: number): boolean => {
-      const hit = document.elementFromPoint(cx, y);
-      return hit !== null && (hit === el || el.contains(hit));
-    };
-    let up = 0;
-    let down = 0;
-    while (up < rect.height && owns(cy - up - 1)) {
-      up += 1;
-    }
-    while (down < rect.height && owns(cy + down + 1)) {
-      down += 1;
-    }
-    return up + down + 1;
-  });
-  expect(ownedVertical).toBeGreaterThanOrEqual(Math.round(box?.height ?? 0) - 1);
+  await expect
+    .poll(
+      async () =>
+        await thumbEl.evaluate((el) => {
+          const rect = el.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const owns = (y: number): boolean => {
+            const hit = document.elementFromPoint(cx, y);
+            return hit !== null && (hit === el || el.contains(hit));
+          };
+          let up = 0;
+          let down = 0;
+          while (up < rect.height && owns(cy - up - 1)) {
+            up += 1;
+          }
+          while (down < rect.height && owns(cy + down + 1)) {
+            down += 1;
+          }
+          return up + down + 1;
+        }),
+    )
+    .toBeGreaterThanOrEqual(Math.round(box?.height ?? 0) - 1);
 });
 
 test("showValue renders the formatted readout", async ({ mount, page }) => {
@@ -208,8 +212,7 @@ test("tone: default keeps the ember fill; neutral drops the accent for WEIGHT; g
   // NEUTRAL (the KnobRow's EXPLICIT arm) — a real fill, but OFF the accent: weight, not ember (§4.1's
   // CD3 ration). The thumb stays full-weight foreground.
   await expect(thumbs.nth(1)).toHaveCSS("background-color", resolvedTokenColor("color.foreground"));
-  const neutralFill = await indicators.nth(1).evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(neutralFill).not.toBe(resolvedTokenColor("color.primary"));
+  await expect.poll(async () => await indicators.nth(1).evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(resolvedTokenColor("color.primary"));
   expect(await backgroundAlpha(indicators.nth(1))).toBeGreaterThan(0);
 
   // GHOST (the INHERITED arm) — a HOLLOW thumb sitting at the effective value over a BARE rail. No fill

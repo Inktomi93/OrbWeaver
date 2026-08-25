@@ -114,8 +114,7 @@ test("placeholder renders on the input while the value is empty (not on the root
   await expect(page.locator('[data-slot="number-field-root"]')).not.toHaveAttribute("placeholder");
   // RENDERED, not just present: the empty-state text reads muted (the input/textarea placeholder skin), so
   // it can't be mistaken for a real value.
-  const placeholderColor = await input.evaluate((el) => getComputedStyle(el, "::placeholder").color);
-  expect(placeholderColor).toBe(resolvedTokenColor("color.muted-foreground"));
+  await expect.poll(async () => await input.evaluate((el) => getComputedStyle(el, "::placeholder").color)).toBe(resolvedTokenColor("color.muted-foreground"));
   // Typing a value hides it — the placeholder never becomes the field's value.
   await input.fill("64");
   await input.blur();
@@ -265,16 +264,13 @@ test("size=inline is the mono right-aligned token box; md keeps the centered ful
   // The datum treatment: mono, tabular, right-aligned — so a column of knob values reads down one edge.
   await expect(inlineInput).toHaveCSS("text-align", "right");
   await expect(formInput).toHaveCSS("text-align", "center");
-  const inlineFont = await inlineInput.evaluate((el) => getComputedStyle(el).fontFamily);
-  expect(inlineFont).toContain("Geist Mono");
-  const formFont = await formInput.evaluate((el) => getComputedStyle(el).fontFamily);
-  expect(formFont).not.toContain("Geist Mono");
+  await expect.poll(async () => await inlineInput.evaluate((el) => getComputedStyle(el).fontFamily)).toContain("Geist Mono");
+  await expect.poll(async () => await formInput.evaluate((el) => getComputedStyle(el).fontFamily)).not.toContain("Geist Mono");
   await expect(inlineInput).toHaveCSS("font-variant-numeric", "tabular-nums");
 
   // The widest datum the deck feeds it fits without clipping (the token's sizing premise).
   await expect(inlineInput).toHaveValue("131,072");
-  const overflow = await inlineInput.evaluate((el: HTMLInputElement) => el.scrollWidth - el.clientWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
+  await expect.poll(async () => await inlineInput.evaluate((el: HTMLInputElement) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
 });
 
 test("size=inline keeps the scrub area and the blank-means-default placeholder", async ({ mount, page }) => {

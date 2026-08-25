@@ -100,11 +100,9 @@ test("menu items animate the highlight color swap (motion guide §4.2 #9)", asyn
   // The `data-highlighted:bg-accent` swap rides a `transition-colors` at --motion-fast rather than
   // hard-cutting — assert the transition names the animated color properties + a real (non-zero)
   // duration, so a future edit that drops the transition class is caught.
-  const props = await item.evaluate((el) => getComputedStyle(el).transitionProperty);
-  expect(props).toContain("background-color");
-  expect(props).toContain("color");
-  const duration = await item.evaluate((el) => getComputedStyle(el).transitionDuration);
-  expect(duration).not.toBe("0s");
+  await expect.poll(async () => await item.evaluate((el) => getComputedStyle(el).transitionProperty)).toContain("background-color");
+  await expect.poll(async () => await item.evaluate((el) => getComputedStyle(el).transitionProperty)).toContain("color");
+  await expect.poll(async () => await item.evaluate((el) => getComputedStyle(el).transitionDuration)).not.toBe("0s");
 });
 
 // THE HIGHLIGHT NEEDS A REAL INDICATOR (side-eye 2026-08-08 P2). The only cue a highlighted row carried
@@ -284,8 +282,7 @@ test("a link item renders an anchor with its href", async ({ mount, page }) => {
   await page.getByRole("button", { name: "Actions" }).click();
   const link = page.getByRole("menuitem", { name: "Settings" });
   await expect(link).toHaveAttribute("href", "/settings");
-  const tagName = await link.evaluate((el) => el.tagName);
-  expect(tagName).toBe("A");
+  await expect.poll(async () => await link.evaluate((el) => el.tagName)).toBe("A");
 });
 
 // A long menu must stay INSIDE the viewport. Base UI's Positioner publishes `--available-height`
@@ -309,8 +306,13 @@ test("a long menu clamps to the available height and scrolls instead of running 
 
   const viewportHeight = page.viewportSize()?.height ?? 0;
   expect(viewportHeight).toBeGreaterThan(0);
-  const box = await popup.boundingBox();
-  expect(box).not.toBeNull();
+  let box = await popup.boundingBox();
+  await expect
+    .poll(async () => {
+      box = await popup.boundingBox();
+      return box;
+    })
+    .not.toBeNull();
   // Fits on screen, top and bottom.
   expect(box?.height ?? 0).toBeLessThanOrEqual(viewportHeight);
   expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewportHeight + 1);
@@ -387,7 +389,7 @@ test("every command row's LABEL starts on one column — icon-less rows and subm
   await page.getByRole("button", { name: "Actions" }).click();
   await expect(page.getByRole("menu")).toBeVisible();
 
-  const lefts = await page
+  let lefts = await page
     .getByRole("menu")
     .first()
     .evaluate((menu: HTMLElement): readonly number[] =>
@@ -401,7 +403,25 @@ test("every command row's LABEL starts on one column — icon-less rows and subm
         return Math.round(range.getBoundingClientRect().left);
       }),
     );
-  expect(lefts).toHaveLength(4);
+  await expect
+    .poll(async () => {
+      lefts = await page
+        .getByRole("menu")
+        .first()
+        .evaluate((menu: HTMLElement): readonly number[] =>
+          Array.from(menu.children).map((row): number => {
+            const text = Array.from(row.childNodes).find((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim() !== "");
+            if (text === undefined) {
+              return -1;
+            }
+            const range = document.createRange();
+            range.selectNodeContents(text);
+            return Math.round(range.getBoundingClientRect().left);
+          }),
+        );
+      return lefts;
+    })
+    .toHaveLength(4);
   expect(lefts.every((left) => left > 0)).toBe(true);
   expect(new Set(lefts).size, `label left edges drifted: ${lefts.join(", ")}`).toBe(1);
 });

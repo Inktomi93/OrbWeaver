@@ -209,13 +209,12 @@ test("keyboard Tab into the panel paints the focus ring (not the bare UA outline
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
   await expect(panel).toBeFocused();
-  const shadow = await panel.evaluate((el) => getComputedStyle(el).boxShadow);
-  expect(shadow).not.toBe("none");
+  await expect.poll(async () => await panel.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
   // The ring rides the `--color-ring` token and stays INSIDE the panel box (no offset halo to be clipped
   // by a scroll parent) — read the token from the same document, never a hardcoded color.
   const ring = await panel.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-ring").trim());
   expect(ring.length).toBeGreaterThan(0);
-  expect(shadow).toContain("inset");
+  await expect.poll(async () => await panel.evaluate((el) => getComputedStyle(el).boxShadow)).toContain("inset");
 });
 
 test("Home/End jump to the first/last tab", async ({ mount, page }) => {

@@ -30,10 +30,20 @@ test("children render in the actions slot on the right", async ({ mount }) => {
   const label = bar.locator('[data-slot="save-bar-label"]');
   const actions = bar.locator('[data-slot="save-bar-actions"]');
   await expect(actions.getByRole("button", { name: "Save" })).toBeVisible();
-  const labelBox = await label.boundingBox();
-  const actionsBox = await actions.boundingBox();
-  expect(labelBox).not.toBeNull();
-  expect(actionsBox).not.toBeNull();
+  let labelBox = await label.boundingBox();
+  let actionsBox = await actions.boundingBox();
+  await expect
+    .poll(async () => {
+      labelBox = await label.boundingBox();
+      return labelBox;
+    })
+    .not.toBeNull();
+  await expect
+    .poll(async () => {
+      actionsBox = await actions.boundingBox();
+      return actionsBox;
+    })
+    .not.toBeNull();
   expect(actionsBox?.x ?? 0).toBeGreaterThan((labelBox?.x ?? 0) + (labelBox?.width ?? 0) - 1);
 });
 
@@ -58,11 +68,15 @@ test("keyboard order runs title then actions (DOM/tab order, source-ordered flex
       <button type="button">Save</button>
     </SaveBar>,
   );
-  const labelBeforeActions = await bar.evaluate((el) => {
-    const html = el.innerHTML;
-    return html.indexOf('data-slot="save-bar-label"') < html.indexOf('data-slot="save-bar-actions"');
-  });
-  expect(labelBeforeActions).toBe(true);
+  await expect
+    .poll(
+      async () =>
+        await bar.evaluate((el) => {
+          const html = el.innerHTML;
+          return html.indexOf('data-slot="save-bar-label"') < html.indexOf('data-slot="save-bar-actions"');
+        }),
+    )
+    .toBe(true);
 
   await page.keyboard.press("Tab");
   await expect(bar.getByRole("button", { name: "Discard" })).toBeFocused();

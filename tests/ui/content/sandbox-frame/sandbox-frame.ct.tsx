@@ -12,10 +12,9 @@ import type { Page, Route } from "@playwright/test";
 
 test("the SRCDOC FLOOR is sandboxed with NO allow-scripts and NO allow-same-origin", async ({ mount }) => {
   const cmp = await mount(<SandboxFrame html="<p>card</p>" title="card" />);
-  const sandbox = await cmp.getAttribute("sandbox");
-  expect(sandbox).not.toBeNull();
-  expect(sandbox).not.toContain("allow-scripts");
-  expect(sandbox).not.toContain("allow-same-origin");
+  await expect.poll(async () => await cmp.getAttribute("sandbox")).not.toBeNull();
+  await expect.poll(async () => await cmp.getAttribute("sandbox")).not.toContain("allow-scripts");
+  await expect.poll(async () => await cmp.getAttribute("sandbox")).not.toContain("allow-same-origin");
 });
 
 test("the srcdoc carries the deny-by-default CSP", async ({ mount }) => {
@@ -51,8 +50,7 @@ test("a <script> inside the untrusted html does not reach the parent (sandboxed,
   await mount(<SandboxFrame html={`<p>hi</p>${payload}`} title="c" />);
   // scripts are disabled by the empty sandbox → the injected script can never run in the parent realm.
   // FABRICATION-OK: probing an untyped injection target on globalThis — not a fabricated domain value.
-  const pwned = await page.evaluate(() => (globalThis as unknown as { __pwned?: number }).__pwned);
-  expect(pwned).toBeUndefined();
+  await expect.poll(async () => await page.evaluate(() => (globalThis as unknown as { __pwned?: number }).__pwned)).toBeUndefined();
 });
 
 // ── The TWO DELIVERIES ────────────────────────────────────────────────────────────────────────────────

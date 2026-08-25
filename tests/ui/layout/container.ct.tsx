@@ -10,8 +10,7 @@ test("establishes inline-size containment", async ({ mount }) => {
       <div>surface</div>
     </Container>,
   );
-  const containerType = await component.evaluate((el) => getComputedStyle(el).containerType);
-  expect(containerType).toBe("inline-size");
+  await expect.poll(async () => await component.evaluate((el) => getComputedStyle(el).containerType)).toBe("inline-size");
 });
 
 test("name lands as container-name via the style attr", async ({ mount }) => {
@@ -20,8 +19,7 @@ test("name lands as container-name via the style attr", async ({ mount }) => {
       <div>surface</div>
     </Container>,
   );
-  const containerName = await component.evaluate((el) => getComputedStyle(el).containerName);
-  expect(containerName).toBe("panel");
+  await expect.poll(async () => await component.evaluate((el) => getComputedStyle(el).containerName)).toBe("panel");
 });
 
 test("size constrains width to the --container-cq-* token scale", async ({ mount }) => {

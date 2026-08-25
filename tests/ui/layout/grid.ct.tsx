@@ -54,8 +54,12 @@ test("actionBar wraps below the md container step only when the homes no longer 
       </Grid>
     </Container>,
   );
-  const rows = await page
-    .getByTestId("action-bar")
-    .evaluate((element) => new Set([...element.children].map((child) => Math.round(child.getBoundingClientRect().top))).size);
-  expect(rows).toBeGreaterThan(1);
+  await expect
+    .poll(
+      async () =>
+        await page
+          .getByTestId("action-bar")
+          .evaluate((element) => new Set([...element.children].map((child) => Math.round(child.getBoundingClientRect().top))).size),
+    )
+    .toBeGreaterThan(1);
 });
