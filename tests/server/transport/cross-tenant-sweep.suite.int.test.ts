@@ -128,6 +128,12 @@ interface OwnerIds {
   rpgJournalId: RpgJournalId;
   rpgCheckpointId: RpgCheckpointId;
   regexScriptId: RegexScriptId;
+  // #708 — two of A's scripts attached to A's GLOBAL tier in a known order. The `applyScopeOrder` global-scope
+  // probe reverses them as the stranger; the post-sweep integrity re-read proves the order never moved. The
+  // global tier has NO owner column (its scope IS the script's), so the verb's ownership pre-gate is the ONLY
+  // belt between a stranger and A's execution order — the exact hole #708 closed.
+  regexGlobalOrderAId: RegexScriptId;
+  regexGlobalOrderBId: RegexScriptId;
   // refinery (R1) — A's real session id; every session verb derives ownership through the character join
   // (D23, no ownerId column), so a stranger passing it must collapse to leak-free NOT_FOUND.
   refinerySessionId: RefinerySessionId;
@@ -1292,6 +1298,16 @@ const PROBES: readonly Probe[] = [
     path: "regex.applyScopeOrder",
     call: (c, i) => c.regex.applyScopeOrder({ scope: { kind: "character", characterId: i.characterId }, orderedScriptIds: [i.regexScriptId] }),
   },
+  // #708 — the GLOBAL-scope arm of the SAME verb (a second row for the same path, both run). The character arm
+  // above is belted by the owned scope row; the global tier has NO owner column, so the verb's OWN ownership
+  // pre-gate (`loadOwnedScriptsByIds`) is the only belt. A stranger naming A's globally-attached ids must
+  // collapse to leak-free NOT_FOUND BEFORE any position write. The [B, A] reversal is what a dropped belt
+  // would apply to A's tier; the leak check is marker-blind to a `{reordered}` count, so the post-sweep ORDER
+  // re-read carries the teeth.
+  {
+    path: "regex.applyScopeOrder",
+    call: (c, i) => c.regex.applyScopeOrder({ scope: { kind: "global" }, orderedScriptIds: [i.regexGlobalOrderBId, i.regexGlobalOrderAId] }),
+  },
 ];
 
 // Every remaining procedure, with WHY it is not a cross-tenant IDOR probe. A new procedure that lands in
@@ -1716,6 +1732,21 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     });
     const regexScriptId = regexScript.id;
 
+    // #708 — two MORE A-owned scripts, this time ATTACHED to A's global tier in a known order [A, B]. Unlike
+    // `regexScriptId` above (deliberately un-attached — the attachGlobal/bulkSetGlobal teeth need A's tier to
+    // start empty of it), these exist so the `applyScopeOrder` GLOBAL-scope probe has an ORDER to try to
+    // reverse. The tier has no owner column, so only the verb's ownership pre-gate stands between a stranger
+    // and A's execution order; a dropped gate leaves the marker-blind leak check green, so the ORDER re-read
+    // in the post-sweep integrity block is the only teeth.
+    const regexGlobalOrderA = await owner.regex.createScript({
+      input: { name: "GlobalOrderOne", enabled: true, findRegex: "a", replaceString: "b", placement: ["AI_OUTPUT"] },
+    });
+    const regexGlobalOrderB = await owner.regex.createScript({
+      input: { name: "GlobalOrderTwo", enabled: true, findRegex: "a", replaceString: "b", placement: ["AI_OUTPUT"] },
+    });
+    await owner.regex.attachGlobal({ scriptId: regexGlobalOrderA.id }); // position 0
+    await owner.regex.attachGlobal({ scriptId: regexGlobalOrderB.id }); // position 1
+
     // ── An installed PLUGIN owned by A (D46/D147). Seeded DIRECTLY rather than through `plugin.install`
     //    because the front door stores the bundle in the real CAS; the ownership probes never read the
     //    bytes, they gate on `plugins.owner_id`. The bundle asset row is seeded first — `bundle_asset_id` is
@@ -1800,6 +1831,8 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       rpgJournalId,
       rpgCheckpointId,
       regexScriptId,
+      regexGlobalOrderAId: regexGlobalOrderA.id,
+      regexGlobalOrderBId: regexGlobalOrderB.id,
       refinerySessionId: refinerySession.id,
       refinerySchemaId: refinerySchema.id,
       pluginId,
@@ -1874,6 +1907,10 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(regexScriptStill.placement).toEqual(["AI_OUTPUT"]); // A's seeded placement — untouched by the stranger's regex.bulkSetPlacement probe
     const regexGlobalStill = await ownerCaller.regex.listGlobal();
     expect(regexGlobalStill.map((s) => s.id)).not.toContain(ids.regexScriptId); // no stranger attachGlobal/bulkSetGlobal reached A's tier
+    // #708 — A's global EXECUTION ORDER is intact: the stranger's `applyScopeOrder({scope:global})` [B,A] reversal
+    // was refused (NOT_FOUND) before any write, so A's two attached scripts are still in seed order [A, B]. A
+    // dropped ownership pre-gate would have written the reversal and left the marker-blind leak check green.
+    expect(regexGlobalStill.map((s) => s.id)).toEqual([ids.regexGlobalOrderAId, ids.regexGlobalOrderBId]);
     // refinery R3: A's schema row SURVIVED `deleteSchema` and is UNPATCHED by `updateSchema` — both return
     // void/a summary, so the row itself is the only evidence a silent write-IDOR would leave. `version` is
     // the sharpest of the three: updateSchema bumps it on any content change, so an unmoved 1 proves the

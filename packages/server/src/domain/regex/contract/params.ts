@@ -148,7 +148,9 @@ export interface ListRoomDisplayScriptsParams extends RegexActorParams {
 }
 
 /** Rewrite the execution ORDER of one scope's attachments. Position 0 runs FIRST (the executor applies its
- *  input list in order). Stale/foreign ids are silently dropped; an omitted attachment keeps its position. */
+ *  input list in order). An omitted attachment keeps its position. Foreign/stale ids that match no junction row
+ *  are dropped in the scope arms; the GLOBAL arm PRE-GATES ownership of every id (the tier has no scope row of
+ *  its own), so a script the caller does not own is `RegexNotFoundError`, never a silent reorder (#708). */
 export interface ApplyScopeOrderParams extends RegexActorParams {
   readonly scope: RegexAttachScopeRef;
   readonly orderedScriptIds: readonly RegexScriptId[];
