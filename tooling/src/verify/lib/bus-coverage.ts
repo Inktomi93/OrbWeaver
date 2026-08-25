@@ -59,6 +59,26 @@ const DIRECT_DISCRIMINATOR_ARGUMENT = new Map<string, ReadonlyMap<string, number
 
 const DISCRIMINATOR_PROPERTY = new Map<string, ReadonlyMap<string, string>>([["CHAT_BUS_EVENT_TYPES", new Map([["writeReasoning", "event"]])]]);
 const PLUGIN_SURFACE_STATE = /\/domain\/plugin\/substrate\/surface-state\.ts$/u;
+const CANONICAL_RECEIVERS = new Set(["ctx", "deps", "rc.ctx"]);
+const CANONICAL_IMPORT_RE = /(?:^|\/)(?:bus|transport\/trpc)(?:\/|$)/u;
+const CANONICAL_LOCAL_FUNCTIONS = new Map<string, ReadonlyMap<string, RegExp>>([
+  ["AUTOMATION_BUS_EVENT_TYPES", new Map([["notifyRuleEvent", /\/domain\/automation\/engine\/dispatch\.ts$/u]])],
+  [
+    "CHAT_BUS_EVENT_TYPES",
+    new Map([
+      ["emitQuiet", /\/domain\/chat\/engine\/engine\.ts$/u],
+      ["writeReasoning", /\/domain\/chat\/verbs\/edit\.ts$/u],
+    ]),
+  ],
+]);
+
+interface EmitterBindingQuery {
+  readonly sf: SourceFile;
+  readonly localName: string;
+  readonly emitterName: string;
+  readonly spec: BusCoverageSpec;
+  readonly seen: Set<string>;
+}
 
 function calleeName(call: CallExpression): string | undefined {
   const expression = unwrapExpression(call.getExpression());
@@ -70,6 +90,83 @@ function calleeName(call: CallExpression): string | undefined {
   }
   const argument = Node.isElementAccessExpression(expression) ? expression.getArgumentExpression() : undefined;
   return argument === undefined ? undefined : readStringValue(argument);
+}
+
+function isCanonicalReceiver(expression: Expression): boolean {
+  return CANONICAL_RECEIVERS.has(unwrapExpression(expression).getText());
+}
+
+function isCanonicalVariableBinding({ sf, localName, emitterName, spec, seen }: EmitterBindingQuery): boolean {
+  for (const declaration of sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
+    const name = declaration.getNameNode();
+    const initializer = declaration.getInitializer();
+    if (initializer === undefined) {
+      continue;
+    }
+    if (Node.isIdentifier(name) && name.getText() === localName && Node.isExpression(initializer)) {
+      return isCanonicalEmitterExpression(initializer, emitterName, spec, seen);
+    }
+    if (Node.isObjectBindingPattern(name) && isCanonicalReceiver(initializer)) {
+      const element = name.getElements().find((candidate) => candidate.getName() === localName);
+      const boundName = element?.getPropertyNameNode()?.getText() ?? element?.getName();
+      if (boundName === emitterName) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function isCanonicalImportBinding(sf: SourceFile, localName: string, emitterName: string): boolean {
+  for (const declaration of sf.getImportDeclarations()) {
+    if (!CANONICAL_IMPORT_RE.test(declaration.getModuleSpecifierValue())) {
+      continue;
+    }
+    const imported = declaration.getNamedImports().find((candidate) => candidate.getAliasNode()?.getText() === localName || candidate.getName() === localName);
+    if (imported !== undefined && imported.getName() === emitterName) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isCanonicalEmitterExpression(expression: Expression, emitterName: string, spec: BusCoverageSpec, seen: Set<string>): boolean {
+  const value = unwrapExpression(expression);
+  if (Node.isPropertyAccessExpression(value)) {
+    return value.getName() === emitterName && isCanonicalReceiver(value.getExpression());
+  }
+  if (Node.isElementAccessExpression(value)) {
+    const name = value.getArgumentExpression();
+    return name !== undefined && readStringValue(name) === emitterName && isCanonicalReceiver(value.getExpression());
+  }
+  if (!Node.isIdentifier(value)) {
+    return false;
+  }
+  const sf = value.getSourceFile();
+  const localName = value.getText();
+  const key = `${sf.getFilePath()}:${localName}:${emitterName}`;
+  if (seen.has(key)) {
+    return false;
+  }
+  seen.add(key);
+  if (isCanonicalVariableBinding({ sf, localName, emitterName, spec, seen }) || isCanonicalImportBinding(sf, localName, emitterName)) {
+    return true;
+  }
+
+  const localFunction = CANONICAL_LOCAL_FUNCTIONS.get(spec.typesConst)?.get(localName);
+  return localName === emitterName && localFunction?.test(sf.getFilePath()) === true;
+}
+
+function isCanonicalEmitterCall(call: CallExpression, emitterName: string, spec: BusCoverageSpec): boolean {
+  const expression = unwrapExpression(call.getExpression());
+  if (Node.isPropertyAccessExpression(expression)) {
+    return expression.getName() === emitterName && isCanonicalReceiver(expression.getExpression());
+  }
+  if (Node.isElementAccessExpression(expression)) {
+    const argument = expression.getArgumentExpression();
+    return argument !== undefined && readStringValue(argument) === emitterName && isCanonicalReceiver(expression.getExpression());
+  }
+  return Node.isIdentifier(expression) && isCanonicalEmitterExpression(expression, emitterName, spec, new Set());
 }
 
 function objectExpressions(expression: Expression): ObjectLiteralExpression[] {
@@ -105,8 +202,8 @@ function propertyValues(objects: readonly ObjectLiteralExpression[], propertyNam
   return values;
 }
 
-function discriminatorValues(call: CallExpression, spec: BusCoverageSpec): string[] {
-  const name = calleeName(call);
+function discriminatorValues(call: CallExpression, spec: BusCoverageSpec, canonicalName = calleeName(call)): string[] {
+  const name = canonicalName;
   const directIndex = name === undefined ? undefined : DIRECT_DISCRIMINATOR_ARGUMENT.get(spec.typesConst)?.get(name);
   const direct = directIndex === undefined ? undefined : call.getArguments()[directIndex];
   const directValue = direct === undefined ? undefined : readStringValue(direct);
@@ -115,6 +212,18 @@ function discriminatorValues(call: CallExpression, spec: BusCoverageSpec): strin
     .getArguments()
     .flatMap((argument) => (Node.isExpression(argument) ? propertyValues(objectExpressions(argument), propertyName) : []));
   return directValue === undefined ? objectValues : [...objectValues, directValue];
+}
+
+function canonicalEmitterName(call: CallExpression, spec: BusCoverageSpec, emitterNames: ReadonlySet<string>): string | undefined {
+  const called = calleeName(call);
+  if (called !== undefined && emitterNames.has(called) && isCanonicalEmitterCall(call, called, spec)) {
+    return called;
+  }
+  const expression = unwrapExpression(call.getExpression());
+  if (!Node.isIdentifier(expression)) {
+    return;
+  }
+  return [...emitterNames].find((name) => isCanonicalEmitterExpression(expression, name, spec, new Set()));
 }
 
 function yieldedChatDiscriminators(sf: SourceFile): string[] {
@@ -140,14 +249,14 @@ function yieldedChatDiscriminators(sf: SourceFile): string[] {
 
 function callDiscriminators(sf: SourceFile, spec: BusCoverageSpec, emitterNames: ReadonlySet<string>): string[] {
   return sf.getDescendantsOfKind(SyntaxKind.CallExpression).flatMap((call) => {
-    const name = calleeName(call);
-    if (name === undefined || !emitterNames.has(name)) {
+    const name = canonicalEmitterName(call, spec, emitterNames);
+    if (name === undefined) {
       return [];
     }
     if (spec.typesConst === "USER_BUS_EVENT_TYPES" && name === "emit" && !PLUGIN_SURFACE_STATE.test(sf.getFilePath())) {
       return [];
     }
-    return discriminatorValues(call, spec);
+    return discriminatorValues(call, spec, name);
   });
 }
 

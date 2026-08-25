@@ -53,6 +53,14 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'logger.emit({ type: "emitted" });\n',
+      },
+      expect: { messageIncludes: "NO server emit site" },
+      why: "a same-named emit method on an unrelated receiver cannot satisfy chat-bus producer coverage",
+    },
+    {
+      files: {
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
         "packages/server/src/domain/chat/x.ts": 'export const q = "neverEmitted";\n',
       },
@@ -69,14 +77,14 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
-        "packages/server/src/domain/chat/x.ts": 'emit({ type: "emitted" });\n',
+        "packages/server/src/domain/chat/x.ts": 'const emit = deps.emit;\nemit({ type: "emitted" });\n',
       },
       why: "the member's discriminator is carried by the chat emit call — covered, passes",
     },
     {
       files: {
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
-        "packages/server/src/entry/compose/room-reach.ts": 'emitRoomEvent({ type: "emitted" });\n',
+        "packages/server/src/entry/compose/room-reach.ts": 'const emitRoomEvent = ctx.emitRoomEvent;\nemitRoomEvent({ type: "emitted" });\n',
       },
       why: "THE WIDENED SCOPE, live: a member whose only producer is the composition root (the entity→room reach engine — a domain may not own its cross-domain reach queries) counts as covered for the CHAT bus. Two-sided with the mustFlag above, which still REDs an un-emitted member; and scoped — the sibling user-bus spec keeps the default scope, where a compose-only emit is deliberately NOT coverage",
     },

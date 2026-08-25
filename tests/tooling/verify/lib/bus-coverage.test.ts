@@ -49,6 +49,24 @@ test("an unrelated call carrying a type-shaped object does not count as a bus em
   ).toHaveLength(1);
 });
 
+test("a same-named method on the wrong receiver does not count as a bus emit", () => {
+  expect(
+    findings({
+      [HOME]: "export const USER_BUS_EVENT_TYPES = { alpha: true } as const;\n",
+      [EMIT]: 'logger.emitUserEvent(ownerId, { type: "alpha" });\n',
+    }),
+  ).toHaveLength(1);
+});
+
+test("a locally shadowed emitter name does not count as the injected bus operation", () => {
+  expect(
+    findings({
+      [HOME]: "export const USER_BUS_EVENT_TYPES = { alpha: true } as const;\n",
+      [EMIT]: 'function emitUserEvent(_ownerId: string, _event: object) {}\nemitUserEvent(ownerId, { type: "alpha" });\n',
+    }),
+  ).toHaveLength(1);
+});
+
 test("the user-bus emitter call with the discriminator object counts", () => {
   expect(
     findings({
@@ -58,11 +76,21 @@ test("the user-bus emitter call with the discriminator object counts", () => {
   ).toEqual([]);
 });
 
+test("an alias bound from the injected user-bus operation counts", () => {
+  expect(
+    findings({
+      [HOME]: "export const USER_BUS_EVENT_TYPES = { alpha: true } as const;\n",
+      [EMIT]: 'const publish = ctx.emitUserEvent;\npublish(ownerId, { type: "alpha" });\n',
+    }),
+  ).toEqual([]);
+});
+
 test("an event object bound to a local and passed to the user publisher counts", () => {
   expect(
     findings({
       [HOME]: "export const USER_BUS_EVENT_TYPES = { alpha: true } as const;\n",
-      [EMIT]: 'const event = ready ? { type: "alpha" } : { type: "alpha", detail: true };\npublishUserEvent(ownerId, event);\n',
+      [EMIT]:
+        'import { publishUserEvent } from "../../../transport/trpc/index.ts";\nconst event = ready ? { type: "alpha" } : { type: "alpha", detail: true };\npublishUserEvent(ownerId, event);\n',
     }),
   ).toEqual([]);
 });

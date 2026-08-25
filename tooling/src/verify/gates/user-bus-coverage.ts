@@ -44,6 +44,15 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
+        "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
+        "packages/server/src/domain/settings/x.ts":
+          'function emitUserEvent(_ownerId: string, _event: object) {}\nemitUserEvent(ownerId, { type: "emitted" });\n',
+      },
+      expect: { messageIncludes: "NO server emit site" },
+      why: "a locally shadowed same-named function is not the injected emitUserEvent operation",
+    },
+    {
+      files: {
         "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
         "packages/server/src/domain/settings/x.ts": 'export const q = "neverEmitted";\n',
       },

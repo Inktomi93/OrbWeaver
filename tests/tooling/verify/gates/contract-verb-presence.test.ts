@@ -28,7 +28,15 @@ test("a same-named bare helper call is not service coverage", () => {
 });
 
 test("a service method invocation is coverage", () => {
-  expect(findings("service.coveredVerb();\n")).toEqual([]);
+  expect(findings("const service = createHubService(ctx);\nservice.coveredVerb();\n")).toEqual([]);
+});
+
+test("a same-named method on an unrelated receiver is not service coverage", () => {
+  expect(findings("logger.coveredVerb();\n")).toHaveLength(1);
+});
+
+test("an alias of an assembled service retains coverage identity", () => {
+  expect(findings("const service = createHubService(ctx);\nconst api = service;\napi.coveredVerb();\n")).toEqual([]);
 });
 
 test("a verb destructured from a service factory is coverage", () => {
