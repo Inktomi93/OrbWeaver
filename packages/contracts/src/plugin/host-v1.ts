@@ -15,6 +15,7 @@ import type { PromptTransformPoint } from "#chat";
 import type { GenerateImageActionArgs } from "#imagery";
 import type { PluginNotificationRecipient } from "#notifications";
 import type { PluginCapability } from "./manifest.ts";
+import type { PluginSurfaceAnchor, PluginSurfaceSpec, PluginSurfaceTier } from "./ui.ts";
 
 // ── Opaque handles (branded strings; minted host-side; forged values fail resolution) ──────────────────────
 export type ChatHandle = Branded<"PluginChatHandle">;
@@ -196,6 +197,29 @@ export interface PluginHostV1 {
      *  D61 B5a). */
     fetch: (url: string, init?: { method?: "GET" | "POST"; headers?: Record<string, string>; body?: string }) => Promise<{ status: number; body: string }>;
   };
+
+  /** The DECLARATIVE UI plane (plugin-ui-plane #679, U0 vocabulary). A plugin registers surfaces built from the
+   *  closed `@orb/contracts/plugin/ui` node vocabulary (`ui.ts`) — first-party code renders them at the existing
+   *  contribution anchors inside a plugin-labeled shell; plugin code never touches the real DOM and the
+   *  vocabulary cannot express host chrome, a modal, or a write channel (§4.3/§4.8). This namespace is the
+   *  guest-facing membrane surface; the resident registration + state store + event round-trip land with U1.
+   *  Guests feature-detect via `grants` (does it hold `ui.surface`?) — the same posture every capability uses. */
+  readonly ui: {
+    /** Register a surface at activation (resident state, like `tools.register`/`transforms.register` — rebuilt
+     *  on re-activation, deregistered on disable). An invalid `spec` is a REGISTRATION refusal (logged, surface
+     *  absent), never activation-fatal. capability: ui.surface */
+    register: (def: {
+      id: string; // /^[a-z][a-z0-9_]{0,40}$/, unique per plugin
+      anchor: PluginSurfaceAnchor;
+      title: string; // the shell label line (≤ 80 chars)
+      tier: PluginSurfaceTier; // scripted requires the bundle's ui.js (U4)
+      spec?: PluginSurfaceSpec; // REQUIRED for the static tier; zod-validated host-side (ui.ts)
+      onAction?: (a: { actionId: string; values: Record<string, string>; chat: ChatHandle | null }) => void | Promise<void>;
+    }) => void;
+    /** Publish surface STATE (the data the spec's `$state` bindings resolve against). ≤ 16 KiB JSON; replaces
+     *  the whole state; emits the per-user freshness poke. capability: ui.surface */
+    setState: (surfaceId: string, state: Record<string, unknown>) => Promise<void>;
+  };
 }
 
 // ── The capability → host-function completeness pin (the enforcement table, coded) ──────────────────────────
@@ -240,4 +264,6 @@ export const HOST_FUNCTION_CAPABILITY = {
   "tools.register": "tools.register",
   "transforms.register": "chat.transform",
   "net.fetch": "net.fetch",
+  "ui.register": "ui.surface",
+  "ui.setState": "ui.surface",
 } as const satisfies Record<HostFunctionRef, PluginCapability>;

@@ -21,7 +21,7 @@
 // `spends` marks the three SPEND-class capabilities (`turn.trigger`, `imagery.generate`, `llm.quiet`) — the
 // ones that draw on the installer's model budget every time the plugin uses them. Money is the one consequence
 // a checkbox label must never bury, and the automation surface already names its spend arms the same way. The
-// three sit ADJACENT in `PLUGIN_CAPABILITIES` (positions 9-11) so the badge and the reading order reinforce
+// three sit ADJACENT in `PLUGIN_CAPABILITIES` (positions 10-12, after `ui.surface`) so the badge and the reading order reinforce
 // each other on a screen whose scan question is "what can this cost me".
 //
 // A consequence line STATES ITS BOUND when the capability has one (`notify`'s minute, `storage.kv`'s 256 keys,
@@ -101,6 +101,12 @@ export const CAPABILITY_COPY_ROWS = [
     id: "notify",
     label: "Send notifications",
     consequence: "Posts short notices to room participants, at most one a minute per room.",
+  },
+  {
+    id: "ui.surface",
+    label: "Show its own panels and controls",
+    consequence:
+      "Draws panels and controls the app renders itself, always inside a box labelled with the plugin's name — only for you, and it can't fake the app's own screens.",
   },
   {
     id: "turn.trigger",
