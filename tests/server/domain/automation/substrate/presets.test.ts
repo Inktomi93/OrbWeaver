@@ -105,7 +105,7 @@ test("the picker projection flattens the knob schema and carries no CEL", () => 
 /** The presets whose default configuration mints a `SPEND_ARM_TYPES` arm — read off the catalogue, and the
  *  membership is the claim: `autoAddLore` writes a lore entry (free), `diceChips`/`openerChips`/`callAVote`
  *  surface chips (free), and everything else asks for a turn or an image. */
-const SPENDING_PRESET_IDS = ["welcomeBackRecap", "pacingNudge", "illustrateScenes", "clockFires", "sceneVeil", "callback", "cutaways"];
+const SPENDING_PRESET_IDS = ["welcomeBackRecap", "pacingNudge", "illustrateScenes", "clockFires", "sceneVeil", "callback", "cutaways", "storyPacing"];
 
 test("#655: the spend signal names exactly the presets whose arms cost a model call", () => {
   const spending = RULE_PRESET_IDS.filter((id) => toRulePresetView(RULE_PRESETS[id]).spends);

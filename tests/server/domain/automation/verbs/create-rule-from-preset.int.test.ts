@@ -16,10 +16,11 @@ import type { AutomationAction, AutomationBusEvent, TriggerFact } from "@orb/con
 import { RULE_PRESET_IDS } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { NotificationEvent } from "@orb/contracts/notifications";
+import { rpgGameConfigSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
-import { chatBooks, worldBooks, worldEntries } from "@orb/db";
-import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { chatBooks, rpgGames, worldBooks, worldEntries } from "@orb/db";
+import type { AutomationRuleId, ChatId, MessageId, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type {
   ArmDispatch,
@@ -32,6 +33,7 @@ import type { RuleView } from "../../../../../packages/server/src/domain/automat
 import type { AutomationService } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
 import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
 import { createAutomationService } from "../../../../../packages/server/src/domain/automation/index.ts";
+import { selectRuleState } from "../../../../../packages/server/src/domain/automation/persistence/rule-state.ts";
 import { createSuggestionStore } from "../../../../../packages/server/src/domain/automation/substrate/suggestions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -66,6 +68,10 @@ interface Fixture {
   readonly suggestions: SuggestionStore;
   /** The message projection `getMessageFact` serves for the next `messageCommitted` event. */
   readonly setMessageContent: (content: string) => void;
+  /** The canned `summarizeQuiet` reply (#15's analysis pass) — "" until a test sets one. */
+  readonly setQuietReply: (text: string) => void;
+  /** Every prompt the quiet op received (system + user), in call order. */
+  readonly quietCalls: { systemPrompt: string; prompt: string }[];
   readonly seedBeats: (count: number) => Promise<void>;
 }
 
@@ -78,7 +84,9 @@ async function setup(): Promise<Fixture> {
   const images: AutomationImageRequest[] = [];
   const notices: NotificationEvent[] = [];
   const bus: AutomationBusEvent[] = [];
+  const quietCalls: { systemPrompt: string; prompt: string }[] = [];
   let messageContent = "";
+  let quietReply = "";
   let seeded = 0;
 
   const ops: AutomationOps = {
@@ -122,7 +130,10 @@ async function setup(): Promise<Fixture> {
         return Promise.resolve({ costUsd: null, imageCount: 1 });
       },
     },
-    summarizeQuiet: () => Promise.resolve({ text: "", costUsd: null }),
+    summarizeQuiet: ({ systemPrompt, prompt }) => {
+      quietCalls.push({ systemPrompt, prompt });
+      return Promise.resolve({ text: quietReply, costUsd: null });
+    },
   };
   const notify = (event: AutomationBusEvent): void => void bus.push(event);
   // ONE store for the arm dispatcher AND the verbs (the compose posture): a confirm-first preset's fire
@@ -153,6 +164,10 @@ async function setup(): Promise<Fixture> {
     setMessageContent: (content: string): void => {
       messageContent = content;
     },
+    setQuietReply: (text: string): void => {
+      quietReply = text;
+    },
+    quietCalls,
     seedBeats: async (count: number): Promise<void> => {
       // Recursive, not a loop (the `noAwaitInLoops` discipline the sibling suites follow).
       const step = async (remaining: number): Promise<void> => {
@@ -551,4 +566,56 @@ test("minted arms round-trip as real AutomationActions off the stored row", asyn
   const views = await mintAndEnable(f, "illustrateScenes");
   const stored: readonly AutomationAction[] = nth(views, 0).actions;
   expect(stored[0]?.type).toBe("generate_image");
+});
+
+describe("§4 #15 story pacing analysis (C1 — RULED F7 direct steer)", () => {
+  test("create → fire through the real engine: the cadence beat runs ONE quiet pass and the guidance line lands verbatim", async () => {
+    const f = await setup();
+    const views = await mintAndEnable(f, "storyPacing", { everyN: 2, steer: "slow burn" });
+    // The stored arm is the pacing shape: steer route only, DIRECT (the ruling), the host steer substituted.
+    expect(nth(views, 0).actions[0]).toMatchObject({ type: "run_analysis", steer: "slow burn", routes: { steer: { apply: "direct" } } });
+
+    await f.seedBeats(2);
+    f.setQuietReply(
+      JSON.stringify({
+        arcStatus: "active",
+        updatedArc: "the debt comes due",
+        successorArc: null,
+        twistOps: [{ op: "add", twist: "the missing courier" }],
+        guidance: "Plant the courier's absence without explaining it.",
+      }),
+    );
+    await f.svc.handleEvent(turnCompleted(f.chatId)); // messageCount 2 ⇒ 2 % 2 == 0
+
+    expect(f.quietCalls).toHaveLength(1);
+    // The host's standing direction rode the pass's user prompt (the steer knob's whole job).
+    expect(f.quietCalls[0]?.prompt).toContain("Host's standing direction (obey it): slow burn");
+    expect(await outcomes(f, nth(views, 0))).toEqual(["fired"]);
+    // The guidance + plot state landed on the rule-state row, VERBATIM.
+    const stored = await selectRuleState(f.db, castId<AutomationRuleId>(nth(views, 0).id));
+    expect(stored.guidance).toBe("Plant the courier's absence without explaining it.");
+    expect(stored.state.arc).toBe("the debt comes due");
+    expect(stored.state.twists).toEqual(["the missing courier"]);
+
+    // Off the cadence: the predicate stays silent and NO model call is spent.
+    await f.seedBeats(1);
+    await f.svc.handleEvent(turnCompleted(f.chatId));
+    expect(f.quietCalls).toHaveLength(1);
+    expect(await outcomes(f, nth(views, 0))).toEqual(["fired", "predicate_false"]);
+  });
+
+  test("mint REFUSES on an active-game chat — the game owns its own steering (D109; §3-S5.7)", async () => {
+    const f = await setup();
+    await f.db.insert(rpgGames).values({
+      id: mintTypeId(ID_PREFIX.rpgGame),
+      chatId: f.chatId,
+      mode: "lite",
+      status: "active",
+      config: rpgGameConfigSchema.parse({}),
+    });
+    await expect(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "storyPacing" })).rejects.toThrow(
+      "directs its own story",
+    );
+    expect(await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId })).toEqual([]);
+  });
 });

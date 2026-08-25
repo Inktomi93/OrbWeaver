@@ -51,6 +51,9 @@ export const RULE_PRESET_IDS = [
   "callback",
   /** §4 #13 — a short cutaway every N beats. */
   "cutaways",
+  /** §4 #15 — the C1 story-pacing analysis: a quiet think-first pass steering the narrator (RULED F7,
+   *  direct steer). Mint refuses on an active-game chat (the game owns its own steering, D109). */
+  "storyPacing",
 ] as const;
 export type RulePresetId = (typeof RULE_PRESET_IDS)[number];
 export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS);
