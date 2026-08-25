@@ -172,6 +172,70 @@ test("applyUpgrade swaps the manifest-derived fields + grant + bundle asset", as
   expect(row?.widenedNetHosts).toEqual(["collector.attacker.example"]);
 });
 
+// #698 FAIL-OPEN GUARANTEE — the two DB-level facts the egress-withhold fix (`consentedNetHosts`) leans on.
+// The withhold set an activation reads is the row's `widenedNetHosts`; the fix is only sound if that column
+// can never be a stale-empty on a pending row whose reach IS unconsented, AND can never carry a mark on a
+// settled row. The first is the verbs' job (upgrade's `pendingWidenedNetHosts` always records a widened host —
+// pinned in the verb + grants suites); THIS is the second: the CHECK constraint makes a settled-but-marked row
+// physically unwritable, so a `pendingReconsent === false` view always means an empty delta — no half-cleared
+// state a reader could misjudge.
+test("the widened_hosts CHECK rejects a SETTLED row that still carries a delta (pending=false + non-empty)", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const pluginId = await seedPlugin(db, owner, "plugin_ck");
+  const newAsset = await seedBundleAsset(db, owner, "asset_ck");
+
+  // The forbidden combination: the flag says "settled" while the delta still names a host. The delta moves in
+  // lockstep with the flag — a settled row asserting a "New" mark is a lie — so the write must be rejected.
+  await expect(
+    applyUpgrade(db, pluginId, {
+      name: "Test Plugin",
+      version: "1.1.0",
+      manifest: manifest({ version: "1.1.0" }),
+      bundleAssetId: newAsset,
+      grantedCapabilities: ["chat.read"],
+      status: "disabled",
+      pendingReconsent: false,
+      widenedNetHosts: ["collector.attacker.example"],
+      updatedAt: AT + 5,
+    }),
+  ).rejects.toThrow(); // drizzle wraps the CHECK as "Failed query …"; the CHECK text rides `.cause` (see below).
+
+  // The write was REJECTED, not partially applied: the row is byte-for-byte the seeded 1.0.0, with the flag
+  // cleared and the delta empty — the settled-with-marks state is physically unreachable.
+  const row = await getById(db, owner, pluginId);
+  expect(row?.version).toBe("1.0.0");
+  expect(row?.pendingReconsent).toBe(false);
+  expect(row?.widenedNetHosts).toEqual([]);
+});
+
+test("a fresh install writes an EMPTY delta and a CLEARED flag — a new row never spuriously withholds", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const pluginId = castId<PluginId>("plugin_fresh");
+  const bundleAssetId = await seedBundleAsset(db, owner, "asset_fresh");
+  await insertPlugin(db, {
+    id: pluginId,
+    ownerId: owner,
+    slug: "test-plugin",
+    name: "Test Plugin",
+    version: "1.0.0",
+    manifest: manifest(),
+    bundleAssetId,
+    grantedCapabilities: ["chat.read"],
+    status: "disabled",
+    origin: "upload",
+    installedAt: AT,
+    updatedAt: AT,
+  });
+  const row = await getById(db, owner, pluginId);
+  // insertPlugin hardcodes both — a reinstall at a slug an uninstall freed can never resurrect a stale delta,
+  // and an activation of a fresh row withholds nothing (its declared reach is exactly what the owner just
+  // granted at install).
+  expect(row?.pendingReconsent).toBe(false);
+  expect(row?.widenedNetHosts).toEqual([]);
+});
+
 test("deletePlugin removes the row; toPluginView lifts builtAgainst from the manifest", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });

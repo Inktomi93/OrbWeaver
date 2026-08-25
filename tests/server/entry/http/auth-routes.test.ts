@@ -12,7 +12,14 @@ import type { SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
 import type { AuthRoutesDeps, AuthSessionsPort, LocalAuthenticator, OidcClaimMap, OidcRoutesDeps, SessionSocketEviction } from "@orb/server/entry/http";
-import { deriveRedirectUri, identityFromClaims, registerAuthRoutes, serializeClearedSessionCookie, serializeSessionCookie } from "@orb/server/entry/http";
+import {
+  deriveRedirectUri,
+  identityFromClaims,
+  oidcSessionIdentity,
+  registerAuthRoutes,
+  serializeClearedSessionCookie,
+  serializeSessionCookie,
+} from "@orb/server/entry/http";
 import { logger } from "@orb/server/foundation/observability";
 import type { OidcTransaction } from "@orb/server/infra/auth";
 import { describe, vi } from "vitest";
@@ -465,10 +472,11 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
   // deliberately scoped to SUBJECT-BEARING logins — with a null subject there is nothing to contradict, so
   // the guard cannot fire and a handle match walks straight onto whatever row holds that handle. In `oidc`
   // mode a null subject is a MISCONFIGURATION, never a posture (OIDC Core REQUIRES `sub` in an ID token), so
-  // it means OIDC_UID_CLAIM names a claim this IdP does not emit — and the box then runs guard-less for
-  // EVERY login with nothing in the logs saying so. This mapper is the oidc-only seam (forward-header
-  // resolves in infra/auth/modes/forward-header.ts, where null IS the normal shape), so the warn is
-  // mode-scoped by construction. Observability only: the returned identity is byte-identical either way.
+  // it means OIDC_UID_CLAIM names a claim this IdP does not emit. The `identityFromClaims` MAPPER stays
+  // observability-only (identity byte-identical either way, the warn is the tell) — but since #699 the box no
+  // longer runs guard-less: `oidcSessionIdentity` REFUSES a null-subject identity at the callback (pinned
+  // below). This is the oidc-only seam (forward-header resolves in infra/auth/modes/forward-header.ts, where
+  // null IS the normal shape and stays legitimate), so the warn AND the refusal are mode-scoped by construction.
   test("a uid claim the IdP omits WARNS (oidc runs with the bind-once guard inert) — identity unchanged", () => {
     const spy = vi.spyOn(logger, "warn");
     const identity = identityFromClaims({ preferred_username: "carol" }, authentikClaims);
@@ -485,6 +493,36 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
     const spy = vi.spyOn(logger, "warn");
     identityFromClaims({ preferred_username: "alice", sub: "sub-alice" }, authentikClaims);
     expect(spy).not.toHaveBeenCalled();
+  });
+
+  // #699 — THE FAIL-CLOSED REFUSAL, at the seam the OIDC callback actually calls. No red-first proof is
+  // possible for the ROUTE (the null-subject state is unreachable by default — `oauth4webapi` validatePresence
+  // refuses an ID token without `sub`, so the token exchange never yields a subject-less claims object on a
+  // correctly-configured box — and the exchange is a module-level `openid-client` import, not an injected dep,
+  // so it can't be driven without a real IdP; see the R7 note below). So the guard is pinned at its pure,
+  // exported seam instead: `oidcSessionIdentity`, which is exactly what the callback branches on. A null
+  // externalId ⇒ null ⇒ the callback redirects to ?authError=no_identity and mints no session. `identityFromClaims`
+  // itself is UNCHANGED (still returns the subject-less identity + fires the tell); the refusal lives one tier up.
+  test("oidcSessionIdentity REFUSES a null-subject identity (the #699 fail-closed gate)", () => {
+    // A well-formed username but the uid claim absent — the exact misconfigured-OIDC_UID_CLAIM shape.
+    expect(oidcSessionIdentity({ preferred_username: "carol" }, authentikClaims)).toBeNull();
+    // …and the mapper it wraps still HANDS BACK that identity (the refusal is the callback's, not the mapper's).
+    expect(identityFromClaims({ preferred_username: "carol" }, authentikClaims)).toEqual({
+      externalId: null,
+      handle: "carol",
+      groups: [],
+      email: null,
+    });
+  });
+
+  test("oidcSessionIdentity ADMITS a subject-bearing identity unchanged (the fix refuses nothing legitimate)", () => {
+    const identity = oidcSessionIdentity({ preferred_username: "alice", sub: "sub-alice", email: "alice@corp.example" }, authentikClaims);
+    expect(identity).toEqual({ externalId: "sub-alice", handle: "alice", groups: [], email: "alice@corp.example" });
+  });
+
+  test("oidcSessionIdentity refuses a no-username login too (folds the pre-existing null-identity arm)", () => {
+    expect(oidcSessionIdentity({ sub: "sub-only", groups: [] }, authentikClaims)).toBeNull();
+    expect(oidcSessionIdentity(undefined, authentikClaims)).toBeNull();
   });
 
   // The username claim missing already fails closed (null identity, no session) — there is no login to warn
