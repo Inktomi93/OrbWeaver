@@ -45,6 +45,7 @@ import type {
   GetGroupConfigForChatParams,
   GetMemberCardParams,
   GetRoomOverridesForChatParams,
+  GetRuntimeVariablesParams,
   GetShapeTraceParams,
   GetUserMacroPicksParams,
   GetVariablePicksParams,
@@ -288,6 +289,11 @@ export interface ChatService {
   readonly getUserMacroPicks: (params: GetUserMacroPicksParams) => Promise<UserMacroPicksView>;
   /** The picks pane's ChoiceBlock read — the declared variables + the persisted picks. Member-gated. */
   readonly getVariablePicks: (params: GetVariablePicksParams) => Promise<VariablePicksView>;
+  /** The room's RUNTIME variable fold (the vars plane a `set_variable` arm / a `{{setvar}}` turn / the
+   *  needle's gated score write all land in). Member-gated — the ONE transport-facing read of the plane
+   *  (S5 §4; B9's clock widget consumes it; the plugin membrane's `getVariables` reads the same column
+   *  through its own admission). Invalidation rides the existing turn-commit/swipe chat-bus events. */
+  readonly getRuntimeVariables: (params: GetRuntimeVariablesParams) => Promise<Record<string, string>>;
 
   // ── chat-row ──────────────────────────────────────────────────────────────────
   /** Delete the chat (host-only; cascades messages/roster/invites/etc.). */
