@@ -19,6 +19,7 @@ export const PLUGIN_CAPABILITIES = [
   "global_vars", // the installing user's {{getglobalvar}} namespace
   "storage.kv", // plugin-private KV
   "notify",
+  "ui.surface", // draw its own house-rendered panels/controls (plugin-ui-plane #679; NOT spend, NOT admin-gated — renders only for the installer)
   "turn.trigger", // SPEND
   "imagery.generate", // SPEND
   "llm.quiet", // SPEND — a non-canon generation on the installer's own summarize-role connection; writes NOTHING
