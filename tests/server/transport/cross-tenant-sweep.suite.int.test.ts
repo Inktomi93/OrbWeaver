@@ -703,6 +703,13 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.chat.setHostDisplayScripts({ chatId: i.chatId, enabled: true }),
   },
   {
+    // B1 — the per-room offer-choices posture. Same `requireHost` → `requireParticipant` shape as its
+    // neighbour above, and it matters MORE here: this key reaches the PROMPT, so a stranger who could write
+    // it would be steering someone else's room's model. Leak-free NOT_FOUND before any metadata write.
+    path: "chat.setOfferChoices",
+    call: (c, i) => c.chat.setOfferChoices({ chatId: i.chatId, enabled: true }),
+  },
+  {
     // WAVE MU: the per-chat user-macro INPUT picks flush — `requireParticipant` miss on a stranger's chatId is
     // a leak-free NOT_FOUND (the setVariables/member shape) BEFORE any `chats.user_macro_values` write.
     path: "chat.setUserMacroValues",

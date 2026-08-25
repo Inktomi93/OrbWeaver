@@ -81,6 +81,8 @@ export { generateSuppressionsBaseline } from "./ops/gen/suppressions.ts";
 export { generateTestBaselineManifest } from "./ops/gen/test-baseline-manifest.ts";
 export { runNewGate } from "./ops/new-gate.ts";
 export { runOrphanRatchet } from "./ops/orphan-export-ratchet.ts";
+export type { RatchetClassification, RatchetExclusion } from "./ops/ratchet-gate.ts";
+export { classifyRatchetFiles, discoverTestFiles, isRatchetShaped, runRatchetGateCli } from "./ops/ratchet-gate.ts";
 export { noticesIn, runVerify } from "./ops/run.ts";
 export { runScopedCli, runScopedPass } from "./ops/scoped.ts";
 export { runShow } from "./ops/show.ts";

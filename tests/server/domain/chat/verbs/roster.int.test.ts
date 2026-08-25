@@ -1449,3 +1449,60 @@ describe("setHostDisplayScripts — the host's display-tier broadcast option", (
     expect(emitted).toEqual([]);
   });
 });
+
+// ── B1: the per-room offer-choices posture (RULED F2) ──────────────────────────────────────────────────
+// The display-scripts shape one sub-blob over, with ONE law that differs and is the reason this verb is
+// host-gated at all: it reaches the PROMPT. The tri-state is the other difference — absent means INHERIT the
+// host's per-user default, so `false` and never-written are DIFFERENT rows, and `ChatDetail.offerChoices`
+// must carry that difference rather than collapsing it to a boolean.
+describe("setOfferChoices — the per-room offer-choices posture", () => {
+  test("the host can pin it ON, merging rather than nuking the sibling sub-blobs", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+
+    await roster.setRoomOverrides({ principal: principal(host), chatId, overrides: roomOverridesSchema.parse({ scenario: "keep me" }) });
+    emitted.length = 0;
+
+    expect(await roster.setOfferChoices({ principal: principal(host), chatId, enabled: true })).toBe(true);
+
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    const metadata = row?.metadata as { offerChoices?: boolean; roomOverrides?: { scenario?: string } };
+    expect(metadata.offerChoices).toBe(true);
+    expect(metadata.roomOverrides?.scenario).toBe("keep me");
+    expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
+  });
+
+  // THE TRI-STATE, which is the whole point of the knob: pinning OFF is a stored `false`, distinct from a
+  // room that was never written (which inherits). A `=== true` projection would erase that distinction and
+  // silently turn "this room, specifically, is off" into "this room follows me", which is the opposite.
+  test("pinning it OFF stores an explicit false — never confused with a never-written room", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+
+    await roster.setOfferChoices({ principal: principal(host), chatId, enabled: true });
+    expect(await roster.setOfferChoices({ principal: principal(host), chatId, enabled: false })).toBe(false);
+
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect((row?.metadata as { offerChoices?: boolean }).offerChoices).toBe(false);
+  });
+
+  test("a plain MEMBER is refused with not_host — no write, no emit (this key steers the room's model)", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+
+    const err = await roster.setOfferChoices({ principal: principal(member), chatId, enabled: true }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_host");
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect((row?.metadata as { offerChoices?: boolean } | null)?.offerChoices).toBeUndefined();
+    expect(emitted).toEqual([]);
+  });
+});

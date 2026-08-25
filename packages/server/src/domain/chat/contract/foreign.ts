@@ -26,10 +26,15 @@ import type { MemoryConfig } from "./memory.ts";
  *   • `autoContinue`          — after a length-capped reply, auto-issue continues (up to `autoContinueRounds`).
  *   • `autoContinueRounds`    — PD-146 bound: the max auto-continue follow-ups (the AUTO_CONTINUE loop cap).
  *   • `autoSwipe`             — after a too-short / blacklisted reply, auto-regenerate (up to `autoSwipe.maxRetries`).
+ *   • `offerChoices`          — B1 / RULED F2: the host's per-USER DEFAULT for the offer-choices posture, which
+ *                               a room inherits when its own `chatMetadata.offerChoices` is absent. It rides
+ *                               HERE rather than being read chat-side because it is a settings value under the
+ *                               frozen host (D19), which is exactly what this seam resolves; the room half is
+ *                               chat's own metadata, and the two meet at `resolveTeachingKnobs`.
  *  `enterSends`/`continueOnSend`/`smoothStream*` are CLIENT-honored (composer keydown / empty-send / stream
  *  pacer) and carry no server arm, so they are deliberately absent here. All fields default off/empty ⇒ a
  *  host who never touched the pane sees byte-identical behavior. */
-export type ChatBehaviorInputs = Pick<ChatSettings, "autoContinue" | "autoContinueRounds" | "autoSwipe" | "customStoppingStrings">;
+export type ChatBehaviorInputs = Pick<ChatSettings, "autoContinue" | "autoContinueRounds" | "autoSwipe" | "customStoppingStrings" | "offerChoices">;
 
 /** The resolved personas for a turn (the persona domain owns the read — FOREIGN). `anchor` is `{{user}}` for
  *  card-derived sections (the chat-open anchor — `chats.anchorPersonaId`); `active` is `{{user}}` for
@@ -121,6 +126,7 @@ export const DEFAULT_CHAT_BEHAVIOR: ChatBehaviorInputs = {
   autoContinueRounds: 1,
   autoSwipe: { enabled: false, minLength: 0, blacklist: [], maxRetries: 1 },
   customStoppingStrings: [],
+  offerChoices: false,
 };
 
 /**

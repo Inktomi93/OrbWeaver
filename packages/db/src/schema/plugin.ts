@@ -55,11 +55,33 @@ export const plugins = sqliteTable(
     // `disabled`, cleared when the owner re-consents to the whole ask (`setGrant`) and on a fresh install.
     // It is a stored EVENT, not a derivable state, and that is what earns it a column: "declared ⊄ granted"
     // is TRUE for an enabled plugin with a paranoid grant and for a user's own toggle-off, so it cannot tell
-    // the system's refusal from the person's choice; and the netHosts half is not derivable at all, because
-    // the widening is judged against the PRIOR manifest, which nothing persists. Without it a forced disable
-    // renders identically to a toggle-off — the system refuses permissions on the user's behalf and then
-    // makes its refusal look like their own decision.
+    // the system's refusal from the person's choice. Without it a forced disable renders identically to a
+    // toggle-off — the system refuses permissions on the user's behalf and then makes its refusal look like
+    // their own decision. Once raised it is cleared by a COVERING `setGrant` and by nothing else — not by
+    // enabling (which grants nothing) and not by a later non-widening upgrade (which would let an author
+    // erase our refusal by shipping a follow-up bundle; see `verbs/upgrade.ts#refusalAfterUpgrade`).
     pendingReconsent: integer("pending_reconsent", { mode: "boolean" }).notNull().default(false),
+    // WHICH HOSTS the pending re-consent added — the half of the delta `pending_reconsent` alone cannot name.
+    // The capability half is computable from projected state (`declared \ granted`); the host half is not, and
+    // never was: the widening is judged against the PRIOR manifest, and the `manifest` column above is
+    // OVERWRITTEN by the same upgrade that computes the verdict. So the fact dies at the instant it exists
+    // unless it is written down here, which is why a re-consent notice could only ever render the whole host
+    // list unmarked (a false "New" on a consent surface being strictly worse than none).
+    //
+    // FULL LIFECYCLE, because a delta column that is set and never cleared is a stale-badge generator — the
+    // same lie, delayed:
+    //   SET    `verbs/upgrade.ts`, the one moment the prior manifest still exists. The value is the
+    //          ACCUMULATED unanswered widening (`pendingWidenedNetHosts`), not just this upgrade's own — two
+    //          widening upgrades in a row without a re-consent between them would otherwise silently un-badge
+    //          the first one's hosts, which on a consent surface reads as "carried forward, already allowed".
+    //   CLEAR  in LOCKSTEP with `pending_reconsent`: a covering `setGrant` empties it, a non-widening upgrade
+    //          on a settled row writes `[]`, and a fresh install writes `[]`.
+    //   DIES   at uninstall with the row (`deletePlugin`) — there is no clear-at-uninstall write to add, and a
+    //          reinstall at the same slug mints a NEW row whose delta starts empty.
+    // The lockstep is not prose: the CHECK below makes `pending_reconsent = 0 AND a non-empty delta` unwritable,
+    // so a future writer that clears the flag and forgets the list gets a constraint violation instead of a
+    // badge claiming an update is asking for something nobody is being asked about.
+    widenedNetHosts: text("widened_net_hosts", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
     // The 03 §4 auto-disable counter — a clean invocation resets it, 3 consecutive crashes → errored.
     consecutiveCrashes: integer("consecutive_crashes").notNull().default(0),
     lastError: text("last_error"),
@@ -73,6 +95,11 @@ export const plugins = sqliteTable(
     index("plugins_bundle_asset_idx").on(t.bundleAssetId),
     check("plugins_status_check", sql.raw(`status in (${STATUS_CHECK_LIST})`)),
     check("plugins_origin_check", sql.raw(`origin in (${ORIGIN_CHECK_LIST})`)),
+    // The delta's lockstep with the flag, at the physics tier (constitution §2.2 — push enforcement up the
+    // ladder; a lifecycle that lives only in the verbs' comments is a wish). A settled row cannot carry a
+    // "New" mark for an ask nobody is being asked about. `json_array_length` rather than a `= '[]'` string
+    // compare so the constraint holds for any JSON spelling of empty, not just the one drizzle emits today.
+    check("plugins_widened_hosts_check", sql.raw("pending_reconsent = 1 or json_array_length(widened_net_hosts) = 0")),
   ],
 );
 

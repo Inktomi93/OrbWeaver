@@ -3,6 +3,7 @@
 
 import type { AutomationActionInput, AutomationTrigger } from "@orb/contracts/automation";
 import { DomainForbiddenError } from "@orb/kit/errors";
+import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { AutomationChatNotFoundError, AutomationReservedTriggerError, RuleValidationError } from "@orb/server/domain/automation";
 import { describe } from "vitest";
@@ -99,6 +100,48 @@ describe("createRule — validation refusals", () => {
     const trigger: AutomationTrigger = { bus: "chat", type: "turnStarted" };
     const rule = await svc.createRule({ principal: principal(host), chatId, name: "xf", trigger, actions: [arm] });
     expect(rule.actions).toEqual([arm]);
+  });
+
+  // D146-b — THE MINT GATE. A first-party contributor seam asserts exhaustive-and-unique against a compile-time
+  // tuple and is BOOT-FATAL both ways; a contributor seam cannot (the vocabulary is not knowable at compile
+  // time), so the equivalent strictness moves to the mint and is fatal to the ONE rule that got it wrong.
+  //
+  // It is also what makes the dispatch-time PAUSE unambiguous: because a stored rule's tool was drivable ONCE,
+  // a later `false` can only mean the contributor went away — the engine never has to guess between "gone" and
+  // "never yours", and a typo can never masquerade as a paused plugin.
+  test("refuses a run_tool arm naming a tool this author cannot drive — the rule is never STORED", async () => {
+    const { host, chatId, svc } = await ruleFixture(); // the default tool seam: NOTHING is drivable
+    const arm: AutomationActionInput = { type: "run_tool", name: "plugin_someone_elses_tool" };
+    await expect(svc.createRule({ principal: principal(host), chatId, name: "x", trigger: MSG_COMMITTED, actions: [arm] })).rejects.toThrow(
+      RuleValidationError,
+    );
+    // Nothing stored, and nothing announced — the roster event rides the durable insert.
+    expect(await svc.listRules({ principal: principal(host), chatId })).toEqual([]);
+  });
+
+  test("accepts a run_tool arm whose tool the author CAN drive — and asks about the AUTHOR, not the chat", async () => {
+    // The control for the refusal above: same verb, same shape, one difference — the tool is this author's.
+    const asks: { name: string; userId: UserId }[] = [];
+    // Bound AFTER the fixture exists (the predicate is only called at `createRule`, below) so the stub can
+    // compare against the real seeded author rather than a hand-spelled id.
+    let author: UserId | null = null;
+    const { host, chatId, svc } = await ruleFixture({
+      tools: {
+        isToolDrivableBy: (name, userId): boolean => {
+          asks.push({ name, userId });
+          return name === "plugin_mine" && userId === author;
+        },
+        runTool: () => Promise.resolve({ ok: false, reason: "unavailable" }),
+      },
+    });
+    author = host;
+    const arm: AutomationActionInput = { type: "run_tool", name: "plugin_mine", argsTemplate: '{"a":1}' };
+
+    const rule = await svc.createRule({ principal: principal(host), chatId, name: "x", trigger: MSG_COMMITTED, actions: [arm] });
+
+    // The STORED shape is the PARSED one — the defaults the verb filled, never the caller's params.
+    expect(rule.actions).toEqual([{ type: "run_tool", name: "plugin_mine", argsTemplate: '{"a":1}', resultScope: "chat" }]);
+    expect(asks).toEqual([{ name: "plugin_mine", userId: host }]);
   });
 
   test("refuses an insert_world_info_entry arm whose (valid) book is not attached to the chat", async () => {

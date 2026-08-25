@@ -53,6 +53,7 @@ import type {
   SetGroupConfigParams,
   SetHostDisplayScriptsParams,
   SetMemberHistoryVisibilityParams,
+  SetOfferChoicesParams,
   SetRoomOverridesParams,
   SetSeatKnobsParams,
   SetToolRecurseLimitParams,
@@ -105,6 +106,7 @@ type RosterVerbs = Pick<
   | "setChatDocumentVisibility"
   | "setChatBackground"
   | "setHostDisplayScripts"
+  | "setOfferChoices"
   | "setToolRecurseLimit"
   | "getGroupConfigForChat"
   | "getRoomOverridesForChat"
@@ -124,6 +126,7 @@ export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
     setChatDocumentVisibility: createSetChatDocumentVisibility(ctx, emit, claimChat),
     setChatBackground: createSetChatBackground(ctx, emit, claimChat),
     setHostDisplayScripts: createSetHostDisplayScripts(ctx, emit, claimChat),
+    setOfferChoices: createSetOfferChoices(ctx, emit, claimChat),
     setToolRecurseLimit: createSetToolRecurseLimit(ctx, emit, claimChat),
     getGroupConfigForChat: createGetGroupConfigForChat(ctx),
     getRoomOverridesForChat: createGetRoomOverridesForChat(ctx),
@@ -305,6 +308,33 @@ function createSetHostDisplayScripts(ctx: ChatContext, emit: EmitChatEvent, clai
       { actorUserId: principal.userId, action: "chat.setHostDisplayScripts", entityType: "chat", entityId: chatId, metadata: { enabled } },
       ctx.now(),
     );
+    return enabled;
+  };
+}
+
+/** `setOfferChoices` — host-only. Writes the B1 offer-choices POSTURE into `chatMetadata.offerChoices`.
+ *
+ *  WHAT IT GOVERNS: with it ON, this room's turns teach the model the standing `:::choices` fence, and the
+ *  reading surface renders an emitted fence as click-to-compose chips. That is PROMPT CONTENT for everyone in
+ *  the room, which is why it is host authority and not a per-viewer preference — the display-scripts switch
+ *  next door is deliberately the opposite (render-only, and it says so).
+ *
+ *  WRITING `false` IS NOT THE SAME AS NEVER HAVING WRITTEN. An absent key inherits the host's per-user
+ *  default (`resolveOfferChoices`); an explicit `false` pins this room off even for a host who plays with
+ *  choices on everywhere else. Both are reachable from the toggle, and that is the intended shape of "this
+ *  room, specifically".
+ *
+ *  The write MERGES into the sibling sub-blobs (`...chat.metadata`) so it never nukes roomOverrides/group. */
+function createSetOfferChoices(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setOfferChoices"] {
+  return async ({ principal, chatId, enabled }: SetOfferChoicesParams): Promise<boolean> => {
+    const { chat } = await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
+    // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
+    // spread and the freshness excess-property check never fires on the new key.
+    const nextMetadata = { ...chat.metadata, offerChoices: enabled };
+    await ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+    await emit({ type: "chatUpdated", chatId });
+    await ctx.audit({ actorUserId: principal.userId, action: "chat.setOfferChoices", entityType: "chat", entityId: chatId, metadata: { enabled } }, ctx.now());
     return enabled;
   };
 }

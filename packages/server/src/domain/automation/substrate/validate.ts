@@ -1,17 +1,27 @@
 // domain/automation/substrate/validate — the create/update write-edge validation. One async pass:
 // trigger liveness, CEL parse, action-arm shapes + caps + reserved-arm refusal, the
-// post_notification cooldown floor, and world-info book attachment. Throws a TYPED refusal
-// (AutomationReservedTriggerError / RuleValidationError) — a rule with any violation is never stored. The db
-// CHECKs + the `actions` zod are the ultimate guards; this gives a clean, user-visible refusal first.
+// post_notification cooldown floor, world-info book attachment, and `run_tool` tool reachability. Throws a
+// TYPED refusal (AutomationReservedTriggerError / RuleValidationError) — a rule with any violation is never
+// stored. The db CHECKs + the `actions` zod are the ultimate guards; this gives a clean, user-visible refusal
+// first.
+//
+// D146-b — WHERE THE BOOT-FATAL POSTURE WENT. A first-party contributor seam asserts exhaustive-and-unique
+// against a compile-time tuple and is BOOT-FATAL both ways, because a first-party contributor is a build
+// artifact: absent means the build is wrong. A CONTRIBUTOR (plugin) seam can do none of that — the vocabulary
+// is not knowable at compile time. The equivalent strictness moves HERE, to the mint: a rule naming a tool its
+// author cannot drive is never STORED. That is per-rule fatal and nothing else — never fatal to the process,
+// never fatal to a sibling rule. The mint gate and the dispatch PAUSE gate ask the SAME predicate and mean
+// opposite things by a `false`: here it means "you never had this", there it means "it went away".
 
 import type { AutomationAction, AutomationActionInput, AutomationTrigger } from "@orb/contracts/automation";
 import { automationActionsSchema, LIVE_TRIGGERS } from "@orb/contracts/automation";
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { isCelParseError, parseCel } from "@orb/kit/cel";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import { AutomationReservedTriggerError, RuleValidationError } from "../contract/errors.ts";
+import type { AutomationOps } from "../contract/ops.ts";
 import { isBookAttachedToChat } from "../persistence/canon-reads.ts";
 
 /** The per-rule cooldown floor (seconds) enforced when a `post_notification` arm is present — inbox spam
@@ -35,6 +45,19 @@ interface ValidateInput {
   readonly actions: readonly AutomationActionInput[];
   readonly cooldownSeconds: number;
   readonly maxFiresPerHour: number;
+  /** The identity the stored rule will RUN AS — the rule's owner, which on `updateRule` is the rule's existing
+   *  author and NOT necessarily the host doing the editing. `run_tool` reachability is checked against this
+   *  user for exactly that reason: a co-host editing someone else's rule must not be able to point it at a
+   *  tool the rule's actual author could never drive. */
+  readonly authorUserId: UserId;
+}
+
+/** The reads this validation needs: the db (the book-attachment probe) and the injected tool registry
+ *  (the `run_tool` reachability probe). `AutomationContext` satisfies it structurally, so both call sites hand
+ *  over their own ctx rather than assembling a bag. */
+interface ValidateDeps {
+  readonly db: Db;
+  readonly ops: AutomationOps;
 }
 
 /** Parse + arm-cap + reserved-arm + cooldown-floor checks (the synchronous half). Returns the parsed arms. */
@@ -84,9 +107,28 @@ async function assertBooksAttached(db: Db, chatId: ChatId, actions: readonly Aut
   }
 }
 
+/** D146-b — every `run_tool` arm must name a tool the rule's AUTHOR can actually drive, or the rule does not
+ *  get stored. Refusing at the mint is what makes the dispatch-time PAUSE unambiguous: because the name was
+ *  drivable once, a later `false` can only mean the contributor went away, so the engine can pause instead of
+ *  guessing between "gone" and "never yours" — and a typo can never masquerade as a paused plugin.
+ *
+ *  Synchronous: the registry is an in-process Map. The FIRST offending name is named in the refusal (a rule
+ *  carries at most 8 arms; a list of every bad name would read worse than the one to fix). */
+function assertToolsDrivable(deps: ValidateDeps, authorUserId: UserId, actions: readonly AutomationAction[]): void {
+  const named = actions.filter((action) => action.type === "run_tool").map((action) => action.name);
+  const unreachable = named.find((name) => !deps.ops.tools.isToolDrivableBy(name, authorUserId));
+  if (unreachable !== undefined) {
+    throw new RuleValidationError(
+      "unknown_tool",
+      `tool '${unreachable}' is not available to this rule's author — a rule may only run tools from a plugin that author installed and enabled`,
+    );
+  }
+}
+
 /** Validate a create/update payload against the chat. Returns the parsed action list on success; throws a
- *  typed refusal otherwise. `db`/`chatId` are needed only for the book-attachment probe. */
-export async function validateRuleInput(db: Db, chatId: ChatId, input: ValidateInput): Promise<ValidatedRule> {
+ *  typed refusal otherwise. `deps.db`/`chatId` are needed for the book-attachment probe; `deps.ops` for the
+ *  `run_tool` reachability probe. */
+export async function validateRuleInput(deps: ValidateDeps, chatId: ChatId, input: ValidateInput): Promise<ValidatedRule> {
   if (!LIVE_TRIGGERS[input.trigger.type]) {
     throw new AutomationReservedTriggerError(input.trigger.type);
   }
@@ -104,6 +146,7 @@ export async function validateRuleInput(db: Db, chatId: ChatId, input: ValidateI
   }
   const actions = validateActions(input);
   assertTransformDraftShape(input.trigger, actions);
-  await assertBooksAttached(db, chatId, actions);
+  assertToolsDrivable(deps, input.authorUserId, actions);
+  await assertBooksAttached(deps.db, chatId, actions);
   return { actions };
 }

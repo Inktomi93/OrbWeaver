@@ -210,3 +210,77 @@ test("opens imperatively via a detached handle and routes the trigger payload to
   await expect(popup).toBeVisible();
   await expect(popup).toContainText("Reached content");
 });
+
+// ── #663: width="stable" — min(24rem, --available-width) ────────────────────────────────────────────
+// The receipt this variant exists for: a plain `min-w-cq-sm` className forced 24rem/384px regardless of
+// how much room the positioner actually had, and OVERFLOWED a narrow real host — 384px rendered inside
+// 376.09px of available width at a 384px docked pane (rule-preset-picker, #655/#663). A width MATRIX,
+// not a point measurement: the cap arm (room to spare) and the constrained arm (a real docked pane, at
+// the BROWSER viewport's own width — a wrapping `<div>` narrower than the viewport does NOT constrain
+// Base UI's Positioner, which solves against the viewport/boundary, not the parent container).
+test.describe('width="stable"', () => {
+  test("at a roomy mount, it takes the full cap — not a shrink-wrapped content width", async ({ mount, page }) => {
+    await mount(
+      <Popover defaultOpen={true}>
+        <PopoverTrigger>Show details</PopoverTrigger>
+        <PopoverPopup width="stable">
+          <PopoverTitle>Details</PopoverTitle>
+        </PopoverPopup>
+      </Popover>,
+    );
+    const popup = page.locator('[data-slot="popover-popup"]');
+    await expect(popup).toBeVisible();
+    const box = await popup.boundingBox();
+    // 24rem at the default 16px root = 384px (`--container-cq-sm`) — the cap, with plenty of room to
+    // spare at this CT's default 1280px viewport.
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(380);
+    expect(box?.width ?? 0).toBeLessThanOrEqual(388);
+  });
+
+  // The docked-pane geometry: the whole BROWSER viewport at the pane's own width, not a narrow wrapper
+  // div inside a roomy one — the positioner solves against the viewport/boundary, so only a narrow
+  // viewport reproduces "less room than the cap" the way the real docked pane does.
+  test.describe("at the docked-pane geometry (a 384px real host, not the CT's roomy default)", () => {
+    test.use({ viewport: { width: 384, height: 700 } });
+
+    // RED FIRST (the shape #655 measured wrong): a plain `min-w-cq-sm` call-site className forces the
+    // cap regardless of how much room the positioner has, and overflows the narrow host.
+    test("a plain min-w-cq-sm className overflows the narrow host (the defect, reproduced)", async ({ mount, page }) => {
+      await mount(
+        <Popover defaultOpen={true}>
+          <PopoverTrigger>Add a rule</PopoverTrigger>
+          <PopoverPopup align="start" className="min-w-cq-sm">
+            <PopoverTitle>Add a rule</PopoverTitle>
+          </PopoverPopup>
+        </Popover>,
+      );
+      const popup = page.locator('[data-slot="popover-popup"]');
+      await expect(popup).toBeVisible();
+      const box = await popup.boundingBox();
+      const viewportWidth = page.viewportSize()?.width ?? 0;
+      expect(viewportWidth).toBeGreaterThan(0);
+      // The overflow, as a number: the popup's right edge runs PAST the viewport it is docked inside.
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeGreaterThan(viewportWidth);
+    });
+
+    test('width="stable" shrinks to the real room instead of overflowing it', async ({ mount, page }) => {
+      await mount(
+        <Popover defaultOpen={true}>
+          <PopoverTrigger>Add a rule</PopoverTrigger>
+          <PopoverPopup align="start" width="stable">
+            <PopoverTitle>Add a rule</PopoverTitle>
+          </PopoverPopup>
+        </Popover>,
+      );
+      const popup = page.locator('[data-slot="popover-popup"]');
+      await expect(popup).toBeVisible();
+      const box = await popup.boundingBox();
+      const viewportWidth = page.viewportSize()?.width ?? 0;
+      expect(viewportWidth).toBeGreaterThan(0);
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 1);
+      // …and it shrank BELOW the cap — proof the `--available-width` half of `min()` actually won here,
+      // not just that nothing overflowed by coincidence.
+      expect(box?.width ?? 0).toBeLessThan(384);
+    });
+  });
+});

@@ -2,6 +2,12 @@
 // the predicate, and MACRO-RENDER each arm's template — executing NOTHING (no injected op, no budget). The
 // same `toCelBindings`/`nowFields` helpers the dispatch engine reuses to build its live env; here they run
 // over a host-supplied sample. Determinism: the injected clock + prng feed the macro engine (test-determinism).
+//
+// `run_tool` previews its RENDERED ARGS (`argsTemplate`) and nothing else, which is this engine's whole
+// contract: it answers "does my template render", the dominant authoring failure, without a spend. It does NOT
+// answer "is that tool available right now" — that is a live-registry question the DISPATCH asks, and its
+// answer is the D146-d PAUSE terminal a host sees from "Run now". Answering it here through `ArmPreview.error`
+// would read as a template bug and would be a lie about what broke.
 
 import type { AutomationAction, AutomationCelEnv, AutomationTrigger, TriggerFact } from "@orb/contracts/automation";
 import type { CelBindings } from "@orb/kit/cel";
@@ -62,7 +68,8 @@ function armTemplate(action: AutomationAction): string | undefined {
     return action.choices.map((c) => c.sendTemplate).join(" | ");
   }
   const rec: Record<string, unknown> = action;
-  const template = rec["value"] ?? rec["template"] ?? rec["contentTemplate"] ?? rec["messageTemplate"] ?? rec["guidedTemplate"] ?? rec["prompt"];
+  const template =
+    rec["value"] ?? rec["template"] ?? rec["contentTemplate"] ?? rec["messageTemplate"] ?? rec["guidedTemplate"] ?? rec["prompt"] ?? rec["argsTemplate"];
   return typeof template === "string" ? template : undefined;
 }
 

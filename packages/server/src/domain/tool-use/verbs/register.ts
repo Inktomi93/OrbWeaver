@@ -24,6 +24,10 @@ function eraseDefinition<A>(def: ToolDefinition<A>): RegisteredTool {
     description: def.description,
     capability: def.capability,
     source: def.source,
+    // A compose-time definition is a BUILD ARTIFACT — it belongs to the process, not to a user. `null` is
+    // therefore the honest owner, and it is also what makes a builtin un-direct-drivable by construction
+    // (`substrate/reachability.ts`): no `UserId` equals null.
+    owner: null,
     parameters: projectJsonSchema(def.argsSchema),
     argShape: def.argsSchema.shape,
     run: async (parsedJson: unknown, exec: ToolExecutionContext, gate: () => void): Promise<RunOutcome> => {

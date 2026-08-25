@@ -42,9 +42,19 @@ export interface PluginView {
    *  WHY IT IS PROJECTED RATHER THAN DERIVED. Without it a forced disable renders identically to the owner's
    *  own toggle-off, and the surface then presents the system's refusal as the person's decision. It is not
    *  recoverable from current state: `declaredCapabilities ⊄ grantedCapabilities` is legitimately TRUE for an
-   *  ENABLED plugin whose owner granted a paranoid subset, and the netHosts half of a widening is judged
-   *  against the PRIOR manifest, which nothing persists. It records an EVENT. */
+   *  ENABLED plugin whose owner granted a paranoid subset. It records an EVENT. */
   readonly reconsentPending: boolean;
+  /** WHICH of {@link netHosts} the pending re-consent added — a SUBSET of that array, by construction (the
+   *  server filters it out of the same persisted manifest), so a surface marks them with an exact-string
+   *  membership test and never re-implements the host fold.
+   *
+   *  ALWAYS EMPTY WHEN {@link reconsentPending} IS FALSE, enforced by a CHECK on the row rather than by
+   *  convention. Its existence is the answer to a question that used to be unanswerable: the widening is
+   *  judged against the PRIOR manifest, which the same upgrade overwrites, so the host half of the delta
+   *  died at the instant it was computed and a notice could only render the whole list unmarked. That was
+   *  the correct answer while nothing persisted it — a false "New" on a consent surface is worse than no
+   *  mark at all — and this field is what makes the mark derivable instead of invented. */
+  readonly widenedNetHosts: readonly string[];
   readonly builtAgainst: PluginBuiltAgainst | null;
   readonly consecutiveCrashes: number;
   readonly lastError: string | null;

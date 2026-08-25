@@ -143,6 +143,15 @@ async function runStashedArm(ctx: AutomationContext, pending: PendingSuggestion,
     throw new SuggestionRefusedError("no_stashed_arm", "this suggestion carries nothing to execute");
   }
   const armOutcome = await ctx.runArm(armToExecute(stashed.action), stashed.frame);
+  if (!armOutcome.ok && armOutcome.kind === "paused") {
+    // UNREACHABLE BY THE ARM VOCABULARY: only `run_tool` can pause (D146-d) and `run_tool` is deliberately not
+    // suggestible, so nothing that can pause can ever have been stashed. Spelled as a loud invariant rather
+    // than folded into the `action_error` arm below, because folding it would make the day that changes a
+    // SILENT mislabel — a paused act written to the fire log as a fault, spending exactly the error budget the
+    // pause exists to protect. The same posture as the missing-payload throw above: a broken invariant is not
+    // a user outcome.
+    throw new Error(`confirm: a stashed ${stashed.action.type} arm paused — no suggestible arm can pause`);
+  }
   const outcome: AutomationRunOutcome = armOutcome.ok ? "fired" : "action_error";
   const nowMs = ctx.now();
   if (armOutcome.ok) {

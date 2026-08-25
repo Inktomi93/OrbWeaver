@@ -564,6 +564,12 @@ export const chatRouter = t.router({
   setHostDisplayScripts: authedProcedure
     .input(z.object({ chatId: brandedId<ChatId>(), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.chat.setHostDisplayScripts({ principal: ctx.auth, ...input })),
+
+  // B1 — the per-room offer-choices posture. Host-gated in the verb (a member's call is a refusal, not a
+  // no-op), like every other `chatMetadata` write on this router.
+  setOfferChoices: authedProcedure
+    .input(z.object({ chatId: brandedId<ChatId>(), enabled: z.boolean() }))
+    .mutation(({ ctx, input }) => ctx.services.chat.setOfferChoices({ principal: ctx.auth, ...input })),
   setToolRecurseLimit: authedProcedure
     .input(setToolRecurseLimitSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setToolRecurseLimit({ principal: ctx.auth, ...input })),
