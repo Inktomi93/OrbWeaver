@@ -299,8 +299,10 @@ export const ringGaugeVariants = tv({
     // renders 1.0150:1 against `sidebar` on a light palette (1.0455 against `surface-raised`, the ramp
     // elevation's panel) and 1.2723 / 1.1815 on the dark one — fainter on BOTH polarities than the arc's
     // 1.14. `border` measures 1.3252 / 1.3269 light and 1.3677 / 1.4495 dark. The VALUE arc keeps the
-    // loudest voice: the track ramp steps this gauge fills with measure 1.89–2.65 light and 5.9–9.3 dark
-    // against the same panel, every one of them above the track.
+    // loudest voice: the track ramp steps this gauge fills with measure ≥3:1 light (~4.2–4.9 vs the panel,
+    // ~3.1–3.6 vs the composited bg-input rail — the #697 fix that darkened the ramp's LIGHT arm to clear
+    // WCAG 1.4.11; they measured 1.89–2.65 before) and 5.9–9.3 dark against the same panel, every one of
+    // them above the track.
     track: "text-border",
     valueText: "fill-foreground font-semibold text-label tabular-nums",
     label: "text-micro text-muted-foreground uppercase tracking-micro",

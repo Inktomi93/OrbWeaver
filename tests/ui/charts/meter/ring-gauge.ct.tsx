@@ -13,8 +13,9 @@ test("the arc fill strokes the requested track-ramp step and the svg is decorati
   const component = await mount(<RingGauge value={12} max={20} color={2} label="Sanity" />);
   const svg = component.locator("[data-slot=ring-gauge-svg]");
   await expect(svg).toHaveAttribute("aria-hidden", "true");
-  // The arc stroke reads `currentColor`; the ramp is applied as text-track-N → the element's `color`.
-  await expect(component.locator("[data-slot=ring-gauge-fill]")).toHaveCSS("color", TOKENS["color.track-2"].value);
+  // The arc stroke reads `currentColor`; the ramp is applied as text-track-N → the element's `color`. The
+  // ramp token is polarity-aware `light-dark()` now (#697); the dark-scheme CT paints the resolved dark arm.
+  await expect(component.locator("[data-slot=ring-gauge-fill]")).toHaveCSS("color", resolvedTokenColor("color.track-2"));
 });
 
 test("the accessible datum is a visually-hidden `label value/max` line (text is the datum)", async ({ mount }) => {
