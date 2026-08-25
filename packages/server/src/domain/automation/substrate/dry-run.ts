@@ -13,6 +13,7 @@ import type { AutomationAction, AutomationCelEnv, AutomationTrigger, TriggerFact
 import type { CelBindings } from "@orb/kit/cel";
 import { CelEvalError, evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
 import type { ChatId } from "@orb/kit/ids";
+import type { ArmTemplateRender } from "../contract/ops.ts";
 import type { ArmPreview } from "../contract/results.ts";
 import { renderArmTemplate } from "./macro-render.ts";
 
@@ -23,9 +24,13 @@ export function nowFields(epochMs: number): AutomationCelEnv["now"] {
 }
 
 /** Flatten the env into the CEL activation's named bindings. `event` is present only for a predicate (a
- *  `{{expr::…}}` render passes `withEvent:false` — assembly has no trigger). */
-function toCelBindings(env: AutomationCelEnv, withEvent: boolean): CelBindings {
-  const base: CelBindings = { vars: env.vars, choice: env.choice, global: env.global, chat: env.chat, now: env.now };
+ *  `{{expr::…}}` render passes `withEvent:false` — assembly has no trigger), and the three CHAT-KEYED roots
+ *  are present only for a chat-scoped frame (C5 — `substrate/macro-render.ts` states why the omission is the
+ *  point: an unbound root ERRORS, an empty one LIES). */
+function toCelBindings(env: AutomationCelEnv, withEvent: boolean, chatScoped: boolean): CelBindings {
+  const base: CelBindings = chatScoped
+    ? { vars: env.vars, choice: env.choice, global: env.global, chat: env.chat, now: env.now }
+    : { global: env.global, now: env.now };
   return withEvent && env.event !== undefined ? { ...base, event: env.event } : base;
 }
 
@@ -35,8 +40,11 @@ export function synthFact(trigger: AutomationTrigger, chatId: ChatId | null): Tr
 }
 
 /** Evaluate a rule predicate: `null` ⇒ always fire (`true`); a parse/eval error or a non-boolean result
- *  ⇒ the error branch (the dry-run surfaces it without a spend). */
-export function evaluatePredicate(predicateCel: string | null, env: AutomationCelEnv): boolean | { readonly error: string } {
+ *  ⇒ the error branch (the dry-run surfaces it without a spend). `chatScoped` decides whether the chat-keyed
+ *  roots are bound at all — for an owner-global rule they are not, so a chat-keyed predicate that somehow
+ *  reached storage answers `predicate_error` rather than evaluating against an invented empty room (the
+ *  mint refusal is the first belt; this is the second). */
+export function evaluatePredicate(predicateCel: string | null, env: AutomationCelEnv, chatScoped: boolean): boolean | { readonly error: string } {
   if (predicateCel === null || predicateCel === "") {
     return true;
   }
@@ -45,7 +53,7 @@ export function evaluatePredicate(predicateCel: string | null, env: AutomationCe
     return { error: program.message };
   }
   try {
-    const result = evalCel(program, toCelBindings(env, true));
+    const result = evalCel(program, toCelBindings(env, true, chatScoped));
     if (typeof result !== "boolean") {
       return { error: "predicate must evaluate to a boolean" };
     }
@@ -83,24 +91,31 @@ function armTemplate(action: AutomationAction): string | undefined {
   return typeof template === "string" ? template : undefined;
 }
 
+/** Everything a preview render needs EXCEPT the template itself — a slice of the ONE render seam
+ *  ({@link ArmTemplateRender}) rather than a second parameter list, so `chatScoped` and the injected
+ *  clock/PRNG cannot drift between the dry run and the live arm. Also what keeps this under the 4-param bar. */
+type ArmPreviewContext = Omit<ArmTemplateRender, "template" | "macroEnv">;
+
 /** Render one arm to a preview: the macro-rendered template, or a first-error message when strict-arg
  *  validation flags the template. Executes NO op. A `transform_draft` template addresses `{{draft}}` (the
  *  turn's live target text, unknown at test time) — the preview seeds it EMPTY so the render exercises the
  *  rest of the template without a strict `unknown-macro` error on the absent draft. */
-export function renderArmPreview(action: AutomationAction, env: AutomationCelEnv, nowMs: number, prng: () => number): ArmPreview {
+export function renderArmPreview(action: AutomationAction, render: ArmPreviewContext): ArmPreview {
   const template = armTemplate(action);
   if (template === undefined) {
     return { type: action.type };
   }
   const macroEnv = action.type === "transform_draft" ? { draft: "" } : undefined;
-  const rendered = renderArmTemplate({ env, nowMs, prng, template, ...(macroEnv !== undefined ? { macroEnv } : {}) });
+  const rendered = renderArmTemplate({ ...render, template, ...(macroEnv !== undefined ? { macroEnv } : {}) });
   return rendered.error === undefined ? { type: action.type, renderedPreview: rendered.text } : { type: action.type, error: rendered.error };
 }
 
 /** The empty-context env for a dry run with no live chat vars/choice. `global` is the author's own
  *  plane (read via the global-var persistence); `chat` carries the id + message count. */
 export function emptyDryRunEnv(parts: {
-  chatId: ChatId;
+  /** `null` on an owner-GLOBAL rule. The `chat` projection is still BUILT (the ruled env keeps the field
+   *  required), and it is never BOUND for such a rule — see {@link toCelBindings}. */
+  chatId: ChatId | null;
   messageCount: number;
   global: Record<string, string>;
   event: TriggerFact;
@@ -111,7 +126,7 @@ export function emptyDryRunEnv(parts: {
     vars: {},
     choice: {},
     global: parts.global,
-    chat: { id: parts.chatId, messageCount: parts.messageCount },
+    chat: { id: parts.chatId ?? "", messageCount: parts.messageCount },
     now: nowFields(parts.nowMs),
   };
 }

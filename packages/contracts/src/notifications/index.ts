@@ -117,7 +117,16 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("automation-notice"),
     recipientUserId: recipientUserIdSchema,
-    chatId: chatIdSchema,
+    /** The room the notice is about, or NULL when there is none — an owner-GLOBAL automation rule (C5) has
+     *  no chat, and its author still has to learn that it auto-disabled itself after 20 consecutive errors.
+     *  Without the null arm that notice could not be constructed at all, so a rotting global rule would go
+     *  silent in the ONE surface built to make rot visible (the transient `ruleAutoDisabled` bus event is
+     *  per-chat too, so the durable inbox is not a second channel there — it is the only one).
+     *
+     *  NULL is a scope fact, never a fallback: every notice raised BY a room still carries its room, so the
+     *  deep-link is unchanged for every producer that has one. No migration — `chatId` lives inside the JSON
+     *  `payload` blob, not a column (`db/schema/notifications.ts`). */
+    chatId: chatIdSchema.nullable(),
     source: z.discriminatedUnion("kind", [
       z.object({ kind: z.literal("rule"), ruleId: automationRuleIdSchema }),
       z.object({ kind: z.literal("plugin"), pluginId: pluginIdSchema }),

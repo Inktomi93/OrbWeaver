@@ -822,6 +822,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     assets,
     toolUse,
     resolveOwnerPrincipal,
+    // C5 — the owner-global lane's standing-authority read rides SESSIONS, the one domain that owns `users`.
+    sessions,
     bindRoleClients,
     resolveUserPresetParams,
   });

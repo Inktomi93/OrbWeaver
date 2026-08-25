@@ -51,9 +51,10 @@ import { clampKnobNumber, knobBlockingLine, knobIssue } from "../lib/rule-preset
 
 export interface KnobFieldProps {
   readonly knob: RulePresetKnobView;
-  /** The room being configured. Only the `entityRef` arm reads it (its options ARE this chat's rows); the
-   *  scalar arms are pure over their descriptor and ignore it. */
-  readonly chatId: ChatId;
+  /** The SCOPE being configured — a room, or `null` for the owner-GLOBAL lane (C5). Only the `entityRef`
+   *  arm reads it (its options ARE this chat's rows); the scalar arms are pure over their descriptor and
+   *  ignore it entirely, which is why the global lane needs nothing from them. */
+  readonly chatId: ChatId | null;
   readonly value: RulePresetKnobValueInput | undefined;
   readonly onChange: (next: RulePresetKnobValueInput) => void;
   /** Show the blocking issue on the FIELD. False until the host has touched it or pressed Add: a form that
@@ -186,7 +187,27 @@ function ChoiceKnobField({
  *  door exists now: the "This chat" tab's Lorebooks section (`features/chat/chat-books-section.tsx`), which
  *  is the SAME attachment `substrate/validate.ts` gates the mint on, so the sentence names the one place
  *  that makes this card completable. */
-function WorldInfoBookKnobField({ knob, chatId, value, onChange, showIssue }: KnobFieldProps): ReactElement {
+function WorldInfoBookKnobField({ chatId, ...props }: KnobFieldProps): ReactElement {
+  // The SPLIT is a hooks-rules fix, not decoration: the chat arm runs `useQuery`, so the chat-less arm has
+  // to be a different COMPONENT rather than an early return. (An `enabled: false` query would report
+  // `isPending` forever and paint "Loading this room's lorebooks…" at a surface that has no room.)
+  return chatId === null ? <GlobalEntityRefUnavailable knob={props.knob} /> : <ChatWorldInfoBookKnobField {...props} chatId={chatId} />;
+}
+
+/** The chat-less arm of every `entityRef` knob, TYPED-AND-REFUSING (C5). A library-wide rule has no room
+ *  whose attached books could be listed, and the honest widening is a chooser over the AUTHOR's OWN library
+ *  — a read that does not exist on this surface yet. No committed global preset declares an entityRef knob,
+ *  so this is unreachable today; it exists because the NEXT one will, and an unhandled kind would otherwise
+ *  render an empty control that silently blocks the mint. It says what is missing instead. */
+function GlobalEntityRefUnavailable({ knob }: { readonly knob: RulePresetKnobView }): ReactElement {
+  return (
+    <KnobRow knob={knob} issue={null}>
+      <Text voice="gloss">Library-wide rules can't pick a lorebook here yet — add this rule inside a chat, where its books can be listed.</Text>
+    </KnobRow>
+  );
+}
+
+function ChatWorldInfoBookKnobField({ knob, chatId, value, onChange, showIssue }: KnobFieldProps & { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
   const books = useQuery(trpc.worldInfo.listForChat.queryOptions({ chatId }));
   const chosen = typeof value === "string" && value.length > 0 ? value : null;
@@ -249,7 +270,8 @@ function EntityRefKnobField({ descriptor, ...props }: KnobFieldProps & { readonl
 export interface KnobBlockingLineProps {
   /** The first knob whose value is not yet usable — what the mint is waiting on. */
   readonly knob: RulePresetKnobView;
-  readonly chatId: ChatId;
+  /** The scope being configured; `null` = the owner-global lane (see {@link KnobFieldProps.chatId}). */
+  readonly chatId: ChatId | null;
 }
 
 /** The lorebook arm of the blocking line. It asks the SAME chat-scoped read the chooser above it asks
@@ -259,6 +281,11 @@ export interface KnobBlockingLineProps {
  *  the position a host reads LAST before pressing Add (#655). An empty chooser is not a missing CHOICE, it
  *  is a missing PREREQUISITE, and only the read knows which one it is. */
 function WorldInfoBookBlockingLine({ knob, chatId }: KnobBlockingLineProps): ReactElement {
+  // The chat-less arm splits into its own component for the SAME hooks-rules reason the chooser above does.
+  return chatId === null ? <Text voice="gloss">{knobBlockingLine(knob)}</Text> : <ChatWorldInfoBookBlockingLine knob={knob} chatId={chatId} />;
+}
+
+function ChatWorldInfoBookBlockingLine({ knob, chatId }: KnobBlockingLineProps & { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
   const books = useQuery(trpc.worldInfo.listForChat.queryOptions({ chatId }));
   // Only a SETTLED empty read re-points the line: while it is loading or errored there is no evidence the

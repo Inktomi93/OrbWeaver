@@ -17,6 +17,9 @@
 
 export type { NeedleMeterProps } from "./components/needle-meter.tsx";
 export { NeedleMeter } from "./components/needle-meter.tsx";
+/** C5 — the Automation settings pane's BODY. Exported for the pane definition's own `render` (which is in
+ *  this feature) and for its CT story; nothing outside the feature mounts it directly. */
+export { OwnerAutomationSurface } from "./components/owner-rules-surface.tsx";
 export { RulesSection } from "./components/rules-section.tsx";
 export type { PendingAsk } from "./lib/apply-automation-bus-event.ts";
 export { applyAutomationBusEvent, pruneExpiredAsks } from "./lib/apply-automation-bus-event.ts";
