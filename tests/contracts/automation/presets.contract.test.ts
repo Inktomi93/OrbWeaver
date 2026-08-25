@@ -16,7 +16,7 @@ import {
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("RULE_PRESET_IDS is the pinned 14-member catalogue (A3's seven + A4's four + C1's pacing analysis + C2's two lore-distillers), in §4 build order", () => {
+test("RULE_PRESET_IDS is the pinned 16-member catalogue (A3's seven + A4's four + C1's pacing analysis + C2's two lore-distillers + C6's two), in §4 build order", () => {
   expect(RULE_PRESET_IDS).toEqual([
     "welcomeBackRecap",
     "autoAddLore",
@@ -34,13 +34,14 @@ test("RULE_PRESET_IDS is the pinned 14-member catalogue (A3's seven + A4's four 
     // §4 #11 — C2's confirm-first lore distillers, both riding the run_analysis → upsertLoreEntry route.
     "distillLore",
     "rumorMill",
+    // §4 #2 + #14 — C6's pair: the async table nudge (the actor-excluding recipient's consumer) and the
+    // spotlight-balance analysis. Appended, never re-ordered: the tuple is the catalogue's build order.
+    "asyncTableNudge",
+    "spotlightBalance",
   ]);
   expect(rulePresetIdSchema.options).toEqual(RULE_PRESET_IDS);
-  // The rows riding LATER phases stay unspellable: #2 (C6's actor-excluding notification recipient),
-  // #14 spotlight balance, and #16 the needle (the HELD juice-presets lane — its vars route + read proc
-  // shipped with C1, OFF by default per the ruling). #11's rumour mill is now BUILT (C2).
-  expect(rulePresetIdSchema.safeParse("asyncTableNudge").success).toBe(false);
-  expect(rulePresetIdSchema.safeParse("spotlightBalance").success).toBe(false);
+  // The one row still riding a later phase stays unspellable: #16 the needle (the HELD juice-presets lane —
+  // its vars route + read proc shipped with C1, OFF by default per the ruling).
   expect(rulePresetIdSchema.safeParse("theNeedle").success).toBe(false);
 });
 
@@ -84,6 +85,8 @@ const PRESET_SEEN: Record<RulePresetId, true> = {
   storyPacing: true,
   distillLore: true,
   rumorMill: true,
+  asyncTableNudge: true,
+  spotlightBalance: true,
 };
 const KIND_SEEN: Record<RulePresetKnobKind, true> = { number: true, text: true, textList: true, choice: true, entityRef: true };
 const ENTITY_SEEN: Record<RulePresetEntityKind, true> = { worldInfoBook: true };

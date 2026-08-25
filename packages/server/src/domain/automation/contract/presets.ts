@@ -41,6 +41,7 @@ import type {
   RulePresetKnobValueOf,
 } from "@orb/contracts/automation";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
+import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 
 /** A caller's PARTIAL knob overrides for a mint — an absent key takes its descriptor's default. Validated
  *  against the named preset's own descriptors by `substrate/presets`'s `resolveRulePresetKnobs` before any build. */
@@ -139,6 +140,29 @@ function analysisBeatPredicate(everyN: number): string {
   return `(!has(event.turn) || int(event.turn.automationDepth) == 0) && ${everyNBeats(everyN)}`;
 }
 
+/** #2 — the AWAKE-HOURS clause: true outside the host's quiet window, `null` when there is no window to
+ *  respect (`from == until` — the honest spelling of "never mute me", since a zero-length window is the only
+ *  way a single pair of bounds can say it).
+ *
+ *  The WRAP CASE is the normal one and is why this is a builder rather than one interpolated string: quiet
+ *  hours are typically 23→08, which spans midnight, so the clause is a CONJUNCTION there
+ *  (`h < 23 && h >= 8`) and a DISJUNCTION for a same-day window (`h < 1 || h >= 7`). Both bounds are literals
+ *  at mint, so which shape is built is decided once, here, rather than by a CEL expression that has to
+ *  compute it on every event. Law 2's `int()` rides `now.hour` for the same reason it rides everything else.
+ *
+ *  THE HOURS ARE UTC, and that is a real limitation rather than an implicit convention: `now.hour` is
+ *  `getUTCHours()` (`substrate/dry-run.ts::nowFields`) — the dispatch env carries no timezone, and inventing
+ *  one for this preset would be a second clock the engine does not have. The knob help says so out loud. */
+function awakeHoursPredicate(fromHour: number, untilHour: number): string | null {
+  if (fromHour === untilHour) {
+    return null;
+  }
+  const hour = "int(now.hour)";
+  return fromHour < untilHour
+    ? `(${hour} < ${celInt(fromHour)} || ${hour} >= ${celInt(untilHour)})`
+    : `(${hour} < ${celInt(fromHour)} && ${hour} >= ${celInt(untilHour)})`;
+}
+
 /** Law 1 + the sanctioned content-match forms: a case-insensitive OR over the needles. `.matches("(?i)…")`
  *  is NOT available (the inline-flag regex throws — goldens), so `lowerAscii().contains(…)` is the form, and
  *  the needles are lowercased HERE because `lowerAscii()` only lowers the haystack. */
@@ -179,6 +203,9 @@ const IMAGES_PER_FIRE = 1;
  *  ceiling is a month, past which the room is not "idle", it is over. */
 const IDLE_HOURS_MIN = 1;
 const IDLE_HOURS_MAX = 720;
+/** #2's quiet-hours bounds — an hour of the day, `now.hour`'s own range. */
+const HOUR_MIN = 0;
+const HOUR_MAX = 23;
 /** Hours → the epoch-ms the `now.epochMs` predicate compares in. */
 const MS_PER_HOUR = 3_600_000;
 /** `insert_world_info_entry`'s own `entryKey` cap (`automationActionSchema`). */
@@ -199,6 +226,14 @@ const DEBT_VAR_KEY = "debt";
 const DEBT_BEAT_VAR_KEY = "debtBeat";
 /** #1's beat stamp — the wall-clock of the last committed message, written by R1 and read by R2. */
 const LAST_BEAT_VAR_KEY = "lastBeatMs";
+/** #2's OWN beat stamp, deliberately NOT `lastBeatMs` even though both hold "the wall-clock of the last
+ *  committed message". Sharing the key would make this preset's correctness depend on the POSITION of a
+ *  DIFFERENT preset's rule: #1's stamp rule also fires on `messageCommitted`, and the dispatch runs a chat's
+ *  rules in position order over one write-through env — so if #1 were minted first, its stamp would refresh
+ *  before this preset's nudge predicate ever read it and the nudge could never fire in a room that also runs
+ *  the recap. A private key keeps the ordering that decides this preset INSIDE this preset, where the mint
+ *  controls it. */
+const NUDGE_BEAT_VAR_KEY = "nudgeBeatMs";
 
 /** The illustration modes a scene-cadence preset may pick: the two SCENE modes, and ONLY those. The
  *  character/face/multimodal modes need a subject + an avatar and are the `/imagine` surface's, not a
@@ -784,6 +819,135 @@ const RUMOR_MILL = defineRulePreset({
   ],
 });
 
+/** §4 #2 — the async table nudge (class 1; C6's row). TWO rules on `messageCommitted`, and BOTH the trigger
+ *  and the ORDER are load-bearing:
+ *
+ *  THE TRIGGER IS `messageCommitted`, NOT `turnCompleted`, because the actor-excluding recipient resolves
+ *  against the triggering fact's `message.authorUserId` and a turn fact carries no `message` at all — under
+ *  `turnCompleted` the arm would spare nobody and the preset would ping the very person who just posted.
+ *
+ *  THE NUDGE IS RULE 1 AND THE STAMP IS RULE 2 — the inverse of the clock's counter-then-threshold order, for
+ *  the same mechanism. A chat's rules dispatch in position order over ONE write-through env, so a stamp
+ *  minted first would refresh `vars` before the nudge's predicate read it and the gap would always measure
+ *  zero. Rule 1 therefore reads the PREVIOUS beat's stamp — which is exactly the quantity the row is about:
+ *  how long the table had been silent before this post landed.
+ *
+ *  Law 1 is why the `!has(…)` arm exists, and its semantics here are deliberate rather than defensive: on the
+ *  first-ever post there is no stamp, so the nudge fires — an async table's first beat is precisely when the
+ *  other seats want telling. The `post_notification` arm forces `cooldownSeconds ≥ 60`
+ *  (`substrate/validate.ts`), which also bounds a burst of first posts. */
+const ASYNC_TABLE_NUDGE = defineRulePreset({
+  id: "asyncTableNudge",
+  title: "Async table nudge",
+  summary: "When someone posts after the table has been quiet a while, notify the members who are waiting — never the one who just posted.",
+  ruleCount: 2,
+  knobs: {
+    idleHours: {
+      kind: "number",
+      label: "Quiet for at least (hours)",
+      help: "How long the room must have been silent before a new post is worth a notification.",
+      default: 6,
+      min: IDLE_HOURS_MIN,
+      max: IDLE_HOURS_MAX,
+    },
+    message: {
+      kind: "text",
+      label: "The notice",
+      help: "What the waiting members are told. Macros and expressions over this room's state are available.",
+      default: "The scene has moved — there is a new post waiting for you.",
+      // The arm's own `messageTemplate` bound and the stored notice's bound are the same 200 by design
+      // (`AUTOMATION_NOTICE_MESSAGE_MAX` is the wire cap the executor slices the RENDERED text to); refusing
+      // at the knob means an over-long notice is a typed mint refusal rather than a silent truncation.
+      maxLength: AUTOMATION_NOTICE_MESSAGE_MAX,
+    },
+    quietFromHour: {
+      kind: "number",
+      label: "Quiet hours start (UTC)",
+      help: "No notifications from this hour. Set both bounds to the same hour for none. Hours are UTC — the engine's clock has no timezone.",
+      default: 23,
+      min: HOUR_MIN,
+      max: HOUR_MAX,
+    },
+    quietUntilHour: {
+      kind: "number",
+      label: "Quiet hours end (UTC)",
+      help: "Notifications resume from this hour.",
+      default: 8,
+      min: HOUR_MIN,
+      max: HOUR_MAX,
+    },
+  },
+  rules: (knobs) => {
+    const idle = `!has(vars.${NUDGE_BEAT_VAR_KEY}) || int(now.epochMs) - int(vars.${NUDGE_BEAT_VAR_KEY}) > ${celInt(knobs.idleHours * MS_PER_HOUR)}`;
+    const awake = awakeHoursPredicate(knobs.quietFromHour, knobs.quietUntilHour);
+    return [
+      {
+        triggerType: "messageCommitted",
+        // The idle test is parenthesised: it is a disjunction, and an unbracketed `a || b && c` would bind
+        // the quiet-hours clause to the second arm only — muting the never-stamped case is not the same rule.
+        predicate: awake === null ? idle : `(${idle}) && ${awake}`,
+        arms: [{ type: "post_notification", recipient: "all_members_except_actor", messageTemplate: knobs.message }],
+        cooldownSeconds: NOTIFY_COOLDOWN_SECONDS,
+      },
+      {
+        triggerType: "messageCommitted",
+        predicate: null,
+        arms: [{ type: "set_variable", scope: "chat", key: NUDGE_BEAT_VAR_KEY, op: "set", value: "{{expr::now.epochMs}}" }],
+        maxFiresPerHour: COUNTER_RULE_MAX_FIRES_PER_HOUR, // law 4 — this one stamps every beat.
+      },
+    ];
+  },
+});
+
+/** §4 #14 — spotlight balance (class 1; a C1 `run_analysis` row — direct steer, the `storyPacing` posture).
+ *  ONE rule: every N beats a quiet pass reads the FRESH window and refreshes the single narrator-facing
+ *  guidance line, this time watching WHO the scene has been carrying and who has gone quiet.
+ *
+ *  IT STEERS THE NARRATOR, NEVER THE PLAYERS, and that is the row's whole constraint rather than a style
+ *  note: the guidance is delivered verbatim into the prompt by the S2 teaching contribution, so a brief that
+ *  invited the pass to say what a member's character does would put words in a human's mouth through the
+ *  narrator's voice. The brief below asks only for framing the narrator controls — where the camera turns,
+ *  what the world does next, whose answer the scene needs.
+ *
+ *  NO STEER KNOB, unlike `storyPacing`: the catalogue row's knob is the cadence, and the standing-direction
+ *  channel this preset would duplicate already exists on the pacing row for the host who wants one. Ships OFF
+ *  like every rule (`createRule` mints DISABLED — law 5) and inherits the analysis arm's own admission rows,
+ *  including the active-game refusal (D109; §3-S5.7). */
+const SPOTLIGHT_BALANCE = defineRulePreset({
+  id: "spotlightBalance",
+  title: "Spotlight balance",
+  summary: "Every so often, a quiet analyst notices who the scene has been leaving out and steers the narrator toward them.",
+  ruleCount: 1,
+  knobs: {
+    everyN: {
+      kind: "number",
+      label: "Every N beats",
+      help: "Counted over the chat's messages. A spotlight only looks unbalanced over a stretch — short cadences read noise.",
+      default: 10,
+      min: CADENCE_MIN,
+      max: CADENCE_MAX,
+    },
+  },
+  rules: (knobs) => [
+    {
+      triggerType: "turnCompleted",
+      predicate: analysisBeatPredicate(knobs.everyN),
+      arms: [
+        {
+          type: "run_analysis",
+          brief:
+            "Watch how the spotlight has been moving: which characters have carried the last several beats, and who has been " +
+            "standing at the edge of the frame with nothing to answer. If someone has been sidelined for a while, give the " +
+            "NARRATOR one concrete way to turn the scene toward them — a door they are nearest, a question only they can " +
+            "answer, a consequence that lands on them. Steer the narrator's framing only: never address a player, and never " +
+            "say what anyone's character does or says. If the spotlight is already moving around the table, say nothing.",
+          routes: { steer: { apply: "direct" } },
+        },
+      ],
+    },
+  ],
+});
+
 /** THE REGISTRY — exhaustive over `RulePresetId` (a new id without a def, or a def without an id, fails
  *  `tsc`). This is the S3 enforcer the spec names. */
 export const RULE_PRESETS = {
@@ -801,4 +965,6 @@ export const RULE_PRESETS = {
   storyPacing: STORY_PACING,
   distillLore: DISTILL_LORE,
   rumorMill: RUMOR_MILL,
+  asyncTableNudge: ASYNC_TABLE_NUDGE,
+  spotlightBalance: SPOTLIGHT_BALANCE,
 } as const satisfies Record<RulePresetId, ErasedRulePresetDef>;

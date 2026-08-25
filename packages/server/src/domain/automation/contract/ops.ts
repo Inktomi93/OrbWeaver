@@ -20,7 +20,7 @@ import type {
 import type { PromptTransform, TurnInitiator } from "@orb/contracts/chat";
 import type { Can, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
-import type { NotificationEvent } from "@orb/contracts/notifications";
+import type { NotificationEvent, NotificationRecipient } from "@orb/contracts/notifications";
 import type { PluginSuggestedAct } from "@orb/contracts/plugin";
 import type { SideGenKind } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -318,6 +318,21 @@ export interface PromptTransformIndexDeps {
  *  replay-ring annotation). */
 export interface PromptTransformIndex {
   readonly reload: () => Promise<void>;
+}
+
+/** C6 — the inputs a `NotificationRecipient` selector resolves against (`substrate/notification-recipients`).
+ *  Homed here rather than beside the resolver because it is the SHARED shape of two producers: the
+ *  `post_notification` arm (host = the rule author, actor = the triggering fact's message author) and the
+ *  plugin `notify` path wired at compose (host = the installer, actor = none).
+ *
+ *  `actorUserId` is deliberately UNBRANDED: it arrives from the wire-shaped `TriggerFact` (all scalars, no
+ *  brands) and is used ONLY as an exclusion key against ids the db just returned — never as a lookup — so
+ *  branding it would claim a validation it has not had. `null` = no human act to spare ⇒ nobody is excluded. */
+export interface NotificationRecipientQuery {
+  readonly recipient: NotificationRecipient;
+  readonly chatId: ChatId;
+  readonly hostUserId: UserId;
+  readonly actorUserId: string | null;
 }
 
 // ── the dispatch seam the arm executors plug into ─────────────────────────────────────────────────

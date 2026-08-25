@@ -37,9 +37,9 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { VarOp } from "@orb/kit/macro";
 import type { RunAnalysisAction } from "../contract/analysis.ts";
 import type { ArmDispatch, ArmExecutorDeps, ArmOutcome, DispatchFrame } from "../contract/ops.ts";
-import { loadPresentHumanMemberIds } from "../persistence/canon-reads.ts";
 import { deleteGlobalVariable, selectGlobalVariable, upsertGlobalVariable } from "../persistence/queries.ts";
 import { renderArmTemplate } from "../substrate/macro-render.ts";
+import { resolveNotificationRecipients } from "../substrate/notification-recipients.ts";
 import { AUTOMATION_SUGGESTION_TTL_MS, summarizeSuggestibleArm } from "../substrate/suggestions.ts";
 import { runRunAnalysis } from "./analysis-arm.ts";
 import { applyRuleLoreWrite } from "./lore-write.ts";
@@ -181,8 +181,17 @@ async function runPostNotification(
   }
   // The rendered output can expand past the template cap; the `automation-notice` member caps the wire string.
   const message = rendered.text.slice(0, AUTOMATION_NOTICE_MESSAGE_MAX);
-  // host = the rule author (v1 authors ARE hosts); all_members = the present human roster.
-  const recipients = action.recipient === "host" ? [frame.authorUserId] : await loadPresentHumanMemberIds(deps.db, frame.chatId);
+  // The recipient AXIS is resolved in its ONE home (`substrate/notification-recipients`), exhaustively — this
+  // was a binary ternary until C6, and a third member would have fallen silently into the all-members branch.
+  // host = the rule author (v1 authors ARE hosts). The ACTOR is the triggering fact's message author, which is
+  // why the async-nudge preset rides `messageCommitted`: a `turnCompleted` fact carries no `message`, so under
+  // it `frame.fact.message` is absent and the actor-excluding member would spare nobody.
+  const recipients = await resolveNotificationRecipients(deps.db, {
+    recipient: action.recipient,
+    chatId: frame.chatId,
+    hostUserId: frame.authorUserId,
+    actorUserId: frame.fact.message?.authorUserId ?? null,
+  });
   const source = { kind: "rule", ruleId: frame.origin.ruleId } as const;
   await Promise.all(
     recipients.map((recipientUserId) => deps.ops.notifications.emit({ type: "automation-notice", recipientUserId, chatId: frame.chatId, source, message })),
