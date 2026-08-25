@@ -279,20 +279,105 @@ test("a fake thread-flank contribution appears beside the thread (the flank colu
   await expect(flankRow).toHaveCSS("flex-direction", "row");
 });
 
-test("a fake thread-flank contribution with `when:false` renders NO flank column (today's layout, unchanged)", async ({ mount, page }) => {
+test("a fake thread-flank contribution with `when:false` paints NO flank column (today's layout, unchanged)", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
   const component = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={false} />);
 
   await expect(component.getByTestId("ct-fake-surface-contribution")).toHaveCount(0);
-  await expect(page.locator('[data-slot="chat-thread-flank"]')).toHaveCount(0);
+  // The STACK is now always in the tree (#680: the room's height chain must not fork on whether a
+  // contributor happens to be registered) and carries `empty:hidden`, so the contract this row has always
+  // asserted — no flank column in the layout — is now spelled as "out of layout" rather than "absent".
+  await expect(page.locator('[data-slot="chat-thread-flank"]')).toBeHidden();
 });
 
-// THE SILENT-CONTRIBUTOR COLLAPSE (#16's needle meter is the case that needed it). The column activates on
-// the CONTRIBUTION COUNT, decided by a SYNC `when` that cannot see query data — so a contributor whose
-// applicability is DATA must mount in every room and paint nothing where it does not apply. Without the
-// flank stack's `empty:hidden`, every room without a tension score paid a flex child and its `gap="block"`
-// step beside the transcript. This pins that "mounted but silent" and "not mounted" render IDENTICALLY.
+// ── #680: THE FLANK WRAPPER MUST BE LAYOUT-NEUTRAL ON BOTH AXES, AT BOTH ARMS ─────────────────────────
+// ONE root cause, TWO defects, and the second is the silent one — both from `Row` baking `items-center`
+// (@orb/ui layout variants) under a `@max-lg:flex-col` that flips DIRECTION but not ALIGNMENT:
+//   · DESKTOP (row): the transcript is a content-height row child, so `MessageList`'s bounded-height
+//     tripwire (`@orb/ui/lib/virtual-gap.ts` — THROWN, not warned) fires at mount and the room renders
+//     "Couldn't load this conversation." with zero messages. Loud.
+//   · MOBILE (column): `items-center` becomes a horizontal shrink-to-content, so the transcript computes
+//     to WIDTH 0 — rows render zero-wide and thousands of px tall, off-screen. The reader sees an empty
+//     room with NO console error and NO retry. Silent, and therefore worse.
+// This is the axis-disagreement family: a direction override on a primitive that bakes cross-axis
+// alignment. The fix replaces the baked alignment (`align="stretch"`) rather than overriding it at one
+// breakpoint, so ONE declaration answers both arms.
+//
+// THE PIN THAT SHIPPED THE DEFECT MEASURED ONE AXIS AT ONE WIDTH. Width-equality was blind to the severed
+// height chain; a desktop-only run was blind to the 0-width column. So this loop asserts BOTH axes at
+// BOTH arms, with a thread long enough that an unbounded container exceeds the guard's 3×-viewport bound
+// (`LONG_CANON` is the instrument: at 2 rows the broken layout measures short enough to pass, which is
+// exactly how this went green).
+const LONG_CANON = Array.from({ length: 80 }, (_, i) =>
+  makeMessageView({
+    id: castId<MessageId>(`msg_room_long_${String(i)}`),
+    role: i % 2 === 0 ? "user" : "assistant",
+    content: `Beat ${String(i)} — the harbour lamps gutter, and somewhere below deck a rope goes tight.`,
+    seq: i + 1,
+  }),
+);
+/** The tripwire's own bound (`UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER`) — the number this pin measures against. */
+const UNBOUNDED_VIEWPORT_MULTIPLE = 3;
+const DESKTOP = { width: 1280, height: 800 } as const;
+/** The two arms of the flank's own container query — beside (row) and stacked (column). The column arm is
+ *  the one that rendered a 0-width transcript, so it is not optional coverage. */
+const FLANK_ARMS = [
+  { label: "desktop (beside)", viewport: DESKTOP },
+  { label: "mobile (stacked)", viewport: { width: 430, height: 932 } },
+] as const;
+
+for (const { label, viewport } of FLANK_ARMS) {
+  test(`#680 ${label}: a SILENT flank contributor leaves the transcript a REAL box — width > 0, height bounded`, async ({ mount, page }) => {
+    await page.setViewportSize(viewport);
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(LONG_CANON) });
+
+    const component = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} silent={true} />);
+
+    // THE ROOM LOADED. Measured red against the pre-fix source: on the row arm the scroll window did not
+    // exist at all (the tripwire throws inside `MessageList`'s layout effect, so the subtree never mounts
+    // — live, the read boundary swaps in "Couldn't load this conversation."), and on the column arm it
+    // existed at ZERO WIDTH with its rows parked off-screen.
+    const scroller = page.locator('[data-slot="message-list-scroll"]');
+    await expect(scroller).toBeVisible();
+    await expect(component.getByText("Couldn't load this conversation.")).toHaveCount(0);
+    const box = await scroller.boundingBox();
+    // WIDTH — the silent defect. A zero-width transcript is an empty room with no error to report it.
+    expect(box?.width).toBeGreaterThan(0);
+    // HEIGHT — the loud one, pinned as the guard's OWN predicate (it throws above 3× the viewport)
+    // rather than as a magic number.
+    expect(box?.height).toBeGreaterThan(0);
+    expect(box?.height).toBeLessThan(viewport.height * UNBOUNDED_VIEWPORT_MULTIPLE);
+    // …and the rows are ON SCREEN, which is the reader's own version of both assertions above.
+    await expect(component.getByText("Beat 79 —", { exact: false })).toBeInViewport();
+  });
+}
+
+test("#680 desktop: the flank wrapper is HEIGHT-neutral — a silent flank and no flank bound the transcript identically", async ({ mount, page }) => {
+  await page.setViewportSize(DESKTOP);
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(LONG_CANON) });
+
+  const silent = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} silent={true} />);
+  await expect(page.locator('[data-slot="message-list-scroll"]')).toBeVisible();
+  const withWrapper = await page.locator('[data-slot="message-list-scroll"]').boundingBox();
+
+  await silent.unmount();
+  const absent = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={false} />);
+  await expect(absent.getByText("Couldn't load this conversation.")).toHaveCount(0);
+  const bare = await page.locator('[data-slot="message-list-scroll"]').boundingBox();
+
+  // Both axes, because the lane that shipped #680 pinned only one of them.
+  expect(withWrapper?.height).toBeGreaterThan(0);
+  expect(withWrapper?.height).toBe(bare?.height);
+  expect(withWrapper?.width).toBe(bare?.width);
+});
+
+// THE SILENT-CONTRIBUTOR COLLAPSE (#16's needle meter is the case that needed it). A contributor whose
+// applicability is DATA cannot answer the seam's SYNC `when`, so it mounts in every room and paints
+// nothing where it does not apply. Without the flank stack's `empty:hidden`, every room without a tension
+// score paid a flex child and its `gap="block"` step beside the transcript. This pins that "mounted but
+// silent" and "not mounted" render IDENTICALLY — on the WIDTH axis, which is all it ever claimed; the
+// #680 loop above is what covers the axes and arms this one is blind to.
 test("a MOUNTED BUT SILENT thread-flank contribution costs the room nothing — the thread keeps its full width", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1024, height: 600 });
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
@@ -310,7 +395,7 @@ test("a MOUNTED BUT SILENT thread-flank contribution costs the room nothing — 
   await silent.unmount();
   const absent = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={false} />);
   await expect(absent.getByText("Well met, traveller.")).toBeVisible();
-  await expect(page.locator('[data-slot="chat-thread-flank"]')).toHaveCount(0);
+  await expect(page.locator('[data-slot="chat-thread-flank"]')).toBeHidden();
   const absentThread = await page.locator('[data-slot="message-list-scroll"]').boundingBox();
 
   // Both boxes must EXIST before their equality means anything — two `undefined`s compare equal, which is
