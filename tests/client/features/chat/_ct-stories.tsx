@@ -7,7 +7,7 @@
 
 import type { ChatBusDeps } from "@orb/client/data";
 import { applyChatBusEvent, createInvalidation, QueryBoundary, QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
-import { automationQuickReplySource } from "@orb/client/features/automation";
+import { automationQuickReplySource, automationSuggestionSource } from "@orb/client/features/automation";
 import { characterSlashCommands } from "@orb/client/features/character";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
@@ -1882,6 +1882,10 @@ export interface ChatSurfaceContributorStoryProps {
   readonly anchor: ChatSurfaceAnchor;
   /** Drives the fake contribution's `when` — `false` proves the anchor HIDES it. */
   readonly visible: boolean;
+  /** MOUNTED BUT SILENT: `when` passes, the BODY renders null. The real shape of a contributor whose
+   *  applicability is DATA (automation's needle meter asks "does this room carry a tension score?", which a
+   *  sync `when` cannot answer), and the case the flank stack's `empty:hidden` collapse exists for. */
+  readonly silent?: boolean;
 }
 
 const CT_SURFACE_CONTRIBUTION_ID = "ct-fake-surface-contribution";
@@ -1890,7 +1894,7 @@ const CT_SURFACE_CONTRIBUTION_ID = "ct-fake-surface-contribution";
  *  given anchor, registered at a `CtChatContributorSectionRegistry` door in place of the empty registry,
  *  mounted through the REAL `chats` section's `content()` → `ChatContent` → `ChatRoomSurface`/`MessageRow`
  *  anchor-consumer path (chat-room-surface.tsx / message-row.tsx). */
-export function ChatSurfaceContributorStory({ anchor, visible }: ChatSurfaceContributorStoryProps): ReactElement {
+export function ChatSurfaceContributorStory({ anchor, visible, silent = false }: ChatSurfaceContributorStoryProps): ReactElement {
   useEffect(() => {
     selectChat(CHAT_ID);
   }, []);
@@ -1900,13 +1904,13 @@ export function ChatSurfaceContributorStory({ anchor, visible }: ChatSurfaceCont
           id: CT_SURFACE_CONTRIBUTION_ID,
           anchor: "message-footer",
           when: () => visible,
-          body: (): ReactElement => <div data-testid="ct-fake-surface-contribution">fake footer</div>,
+          body: (): ReactElement | null => (silent ? null : <div data-testid="ct-fake-surface-contribution">fake footer</div>),
         }
       : {
           id: CT_SURFACE_CONTRIBUTION_ID,
           anchor,
           when: () => visible,
-          body: (): ReactElement => <div data-testid="ct-fake-surface-contribution">fake {anchor}</div>,
+          body: (): ReactElement | null => (silent ? null : <div data-testid="ct-fake-surface-contribution">fake {anchor}</div>),
         };
   const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [fakeContribution]);
   return (
@@ -3215,6 +3219,25 @@ export function ChatControlsStory({ source = "fake", fixture = "chips" }: ChatCo
 // the compose-mode assertion can read THIS room's real composer draft.
 export function AutomationChipsStory(): ReactElement {
   const sources = createContributorRegistry<ChatControlSource>("chat-controls", [automationQuickReplySource]);
+  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [makeChatControlsContribution(sources)]);
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <div style={{ height: 480 }}>
+          <ChatControlsRoom surfaceContributors={surfaceContributors} />
+        </div>
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+// ── C3: the REAL automation SUGGESTION-CARD source, wired the door's way (interaction-direction-spec §7 C3)
+// The twin of the chips story one seam over: `automationSuggestionSource` from `features/automation`, in the
+// SAME registry `authed-app.tsx` builds, rendered blind through the one `above-composer` mount. Its card comes
+// from a hand-fired `suggestionRaised` frame carrying C3's rewrite DETAIL, so this is the end-to-end proof
+// that the host-only bus payload becomes a collapsed `@orb/ui/diff` body a host can open.
+export function AutomationSuggestionCardStory(): ReactElement {
+  const sources = createContributorRegistry<ChatControlSource>("chat-controls", [automationSuggestionSource]);
   const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [makeChatControlsContribution(sources)]);
   return (
     <CtDataProviders>

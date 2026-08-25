@@ -135,6 +135,28 @@ export const AUTOMATION_PROSE_SLOTS = {
     title: "Story analysis — the suggestion ask",
     fires: "A `run_analysis` pass whose arm enables the suggest route.",
   },
+  "automation.analysis.rewrite": {
+    id: "automation.analysis.rewrite",
+    home: "user",
+    version: 1,
+    // The legacy prose-audit's proven posture, authored fresh: CLEAN is the common verdict, the rewrite is
+    // CONSERVATIVE (fix the flaw, keep the voice and every story fact), and "when in doubt, clean" — a pass
+    // that invents a complaint costs the host a card and teaches them to stop reading the cards.
+    text:
+      "Audit the AUDITED REPLY below for prose flaws only — contradictions with what the transcript established, " +
+      "speaking or acting for a human's character, broken point-of-view or tense, or a line that repeats itself. " +
+      'Set rewrite.verdict to "clean" and leave rewrite.text empty unless a real flaw is present; clean is the ' +
+      'common verdict. When it is "flawed", name the flaw in one short phrase as rewrite.issue and put the FULL ' +
+      "corrected reply in rewrite.text — a conservative repair that keeps the original voice, length and every " +
+      "story fact, changing only what the flaw requires. Never continue the scene and never add new events.",
+    macros: "none",
+    requiredMacros: [],
+    // The wire fields this clause teaches + the user-prompt section label it points at — an override that
+    // drops one teaches a contract the enforced schema cannot be filled against.
+    requiredTokens: ["rewrite.verdict", "rewrite.text", "AUDITED REPLY"],
+    title: "Story analysis — the prose audit",
+    fires: "A `run_analysis` pass whose arm enables the rewrite route and whose chat has an auditable reply.",
+  },
   "automation.analysis.vars": {
     id: "automation.analysis.vars",
     home: "user",

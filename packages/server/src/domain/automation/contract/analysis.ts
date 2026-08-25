@@ -17,13 +17,18 @@
 //   • the OUTPUT-CLASS union (`ANALYSIS_OUTPUT_CLASSES`) — the executor routes through an exhaustive
 //     `Record<AnalysisOutputClass, …>` (`engine/analysis-arm.ts`), so a new class fails `tsc` (§3-S5.4).
 //
+// C3 ADDED `suggestRewrite`, the ONE output class that touches PROSE CANON, and it is fenced twice over: the
+// class raises an S4 card and never writes (its confirm act runs through a HOST-only chat verb that lives on
+// the AutomationContext, not on `ops`, so no arm can reach it), and the act carries the audited variant id +
+// a hash of its bytes so the confirm can only ever land on the body the audit actually read.
+//
 // The twist-bank MERGE is here as a pure function with property tests: RETIRES apply first (freeing the
 // bank before adds — the legacy D93 Finding-2 posture: an arc-completion pass retires the spent set AND
 // seeds the successor in one pass), then ADDS dedup + fill to `ANALYSIS_TWIST_CAP`, overflow dropped.
 
 import type { AutomationAction } from "@orb/contracts/automation";
-import { ANALYSIS_SCORE_MAX } from "@orb/contracts/automation";
-import type { AutomationRuleId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
+import { ANALYSIS_REWRITE_ISSUE_MAX, ANALYSIS_REWRITE_MAX, ANALYSIS_SCORE_MAX } from "@orb/contracts/automation";
+import type { AutomationRuleId, ChatId, MessageId, MessageVariantId, UserId, WorldBookId } from "@orb/kit/ids";
 import { z } from "zod";
 
 /** The `run_analysis` arm as stored/dispatched (the parsed schema member — one home, derived). */
@@ -100,7 +105,7 @@ export function parseAnalysisState(raw: unknown): AnalysisState {
 // ── the output-class union (the closed routing vocabulary — §3-S5.4) ─────────────────────────────────
 /** Every class a pass's output routes through. The executor holds an exhaustive
  *  `Record<AnalysisOutputClass, …>` — a new class fails `tsc` there before it can ship unrouted. */
-const ANALYSIS_OUTPUT_CLASSES = ["setState", "steer", "upsertLoreEntry", "suggest", "setVariable"] as const;
+const ANALYSIS_OUTPUT_CLASSES = ["setState", "steer", "upsertLoreEntry", "suggest", "suggestRewrite", "setVariable"] as const;
 export type AnalysisOutputClass = (typeof ANALYSIS_OUTPUT_CLASSES)[number];
 
 // ── the model payload (composed per enabled routes) ───────────────────────────────────────────────────
@@ -115,6 +120,20 @@ const analysisLoreEntrySchema = z.object({
 type AnalysisLoreEntry = z.infer<typeof analysisLoreEntrySchema>;
 
 const twistOpSchema = z.object({ op: z.enum(["add", "retire"]), twist: z.string().min(1).max(TWIST_MAX) });
+
+/** C3 — the PROSE AUDIT's verdict, as the model emits it. `clean` is the COMMON case and is spelled as a
+ *  first-class arm rather than an empty `text`: the legacy prose-audit's when-in-doubt-clean posture only
+ *  survives if "nothing is wrong" is something the model is asked to SAY, and the executor keys the
+ *  draws-nothing path off the verdict rather than guessing from a blank string a stingy model might also
+ *  return for a real flaw it declined to fix. */
+const analysisRewriteSchema = z.object({
+  verdict: z.enum(["clean", "flawed"]),
+  /** The flaw in one phrase — the card's own question. Empty on `clean`. */
+  issue: z.string().max(ANALYSIS_REWRITE_ISSUE_MAX),
+  /** The FULL corrected reply (not a patch — the applier writes it as a whole variant). Empty on `clean`. */
+  text: z.string().max(ANALYSIS_REWRITE_MAX),
+});
+type AnalysisRewrite = z.infer<typeof analysisRewriteSchema>;
 
 /** The ALWAYS-present half of every pass payload — the private plot state ops (the legacy director payload
  *  shape carried: `arcStatus`/`updatedArc`/`successorArc` + `twistOps`). */
@@ -140,6 +159,7 @@ export function buildAnalysisPayloadSchema(routes: AnalysisRoutes): z.ZodType<An
     ...(routes.steer !== undefined ? { guidance: z.string().max(ARC_MAX + TWIST_MAX) } : {}),
     ...(routes.lore !== undefined ? { lore: z.array(analysisLoreEntrySchema).max(LORE_PER_PASS) } : {}),
     ...(routes.suggest !== undefined ? { suggestions: z.array(z.object({ text: z.string().min(1).max(SUGGESTION_TEXT_MAX) })).max(SUGGESTIONS_PER_PASS) } : {}),
+    ...(routes.rewrite !== undefined ? { rewrite: analysisRewriteSchema } : {}),
     ...(routes.vars !== undefined ? { score: z.number().min(0).max(ANALYSIS_SCORE_MAX) } : {}),
   }) as z.ZodType<AnalysisPayload>;
 }
@@ -155,6 +175,8 @@ export interface AnalysisPayload {
   readonly guidance?: string;
   readonly lore?: readonly AnalysisLoreEntry[];
   readonly suggestions?: readonly { readonly text: string }[];
+  /** C3 — present only when the arm authored `routes.rewrite`; `verdict: "clean"` draws nothing. */
+  readonly rewrite?: AnalysisRewrite;
   readonly score?: number;
 }
 
@@ -270,6 +292,17 @@ export interface AnalysisWindowRow {
   readonly content: string;
 }
 
+/** C3 — the REPLY a prose-audit pass audits: the newest visible assistant slot joined to the variant that is
+ *  SELECTED right now. Both ids ride onto the card, because both are what "the thing I audited" means: the
+ *  SLOT is what a confirm writes to, and the VARIANT is which swipe of it the audit read. The content is
+ *  carried too — it is the diff's left side and the input the hash is taken over, and re-reading it at confirm
+ *  is exactly how the staleness check is made (a re-read gate, never a trust transfer). */
+export interface AnalysisAuditTarget {
+  readonly messageId: MessageId;
+  readonly variantId: MessageVariantId;
+  readonly content: string;
+}
+
 /** A rule's analysis state + standing guidance as `persistence/rule-state.ts` reads it. An absent row
  *  reads as the EMPTY state (a first pass is a cold start, not an error). */
 export interface RuleStateRead {
@@ -286,6 +319,9 @@ export interface AnalysisPromptInputs {
   readonly state: AnalysisState;
   readonly fresh: readonly AnalysisWindowRow[];
   readonly settled: readonly AnalysisWindowRow[] | null;
+  /** C3 — the reply under audit, quoted as its own prompt section. `null` when the rewrite route is off or
+   *  the chat has no assistant reply yet (a room with nothing to audit is not an error). */
+  readonly audited: AnalysisAuditTarget | null;
 }
 
 // ── the S4 confirm payload (the {via:"analysis"} arm — contract/ops.ts imports this DOWN) ─────────────
@@ -302,4 +338,20 @@ export type AnalysisConfirmAct =
   /** A model-suggested guided turn. Executes through the SAME `ops.chat.requestTurn` seam the
    *  `trigger_turn` arm rides (D17 consent + depth + rate belts live INSIDE it); `automationDepth` is the
    *  raising dispatch's child depth, carried so the turn's cascade stamp matches a direct fire's. */
-  | { readonly kind: "suggestTurn"; readonly steerText: string; readonly automationDepth: number };
+  | { readonly kind: "suggestTurn"; readonly steerText: string; readonly automationDepth: number }
+  /** C3 — a conservative rewrite of ONE audited reply, PINNED to the variant it audited and HASHED over that
+   *  variant's bytes (§3-S4 class 1: the legacy stale-accept guard). Both pins are re-checked at confirm
+   *  against the room as it stands NOW, and either mismatch REFUSES without touching canon:
+   *    • `variantId` no longer the slot's selected one ⇒ SUPERSEDED (the host swiped between ask and yes);
+   *    • the hash no longer matches ⇒ STALE (someone edited the text the audit was written against).
+   *  `content` is already `neutralizeMacros`'d at the stash (law 7 — a model-authored `{{…}}` must not become
+   *  live syntax in a message row) and is written WHOLE as a new variant, which is the revert obligation's
+   *  mechanism: the audited variant survives as a swipe, so undoing a confirmed rewrite is the swipe control
+   *  the room already has, forever, with no expiry. */
+  | {
+      readonly kind: "rewrite";
+      readonly messageId: MessageId;
+      readonly variantId: MessageVariantId;
+      readonly contentHash: string;
+      readonly content: string;
+    };

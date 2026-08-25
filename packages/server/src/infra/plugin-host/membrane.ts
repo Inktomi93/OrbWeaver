@@ -21,6 +21,8 @@
 import type { ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
 import { CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES } from "@orb/contracts/automation";
 import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
+import type { PluginNotificationRecipient } from "@orb/contracts/notifications";
+import { PLUGIN_NOTIFICATION_RECIPIENTS } from "@orb/contracts/notifications";
 import type {
   HostFunctionRef,
   InvocationChat,
@@ -490,13 +492,21 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
 }
 
 /** notifications.post — capability notify. Post a durable participant notice: the guest supplies
- *  the recipient selector (`"host"|"all_members"`) + the message; the bridge closed the pluginId + installer over
+ *  the recipient selector (`PLUGIN_NOTIFICATION_RECIPIENTS`) + the message; the bridge closed the pluginId + installer over
  *  the op, which resolves the recipient set DOMAIN-side (host = installer; all_members = the present human roster)
  *  and emits the `automation-notice`. A plugin can never notify a non-participant (the roster is resolved
  *  domain-side from the ADMITTED chat, never guest-supplied). Requires an admitted chat scope; NOT host-authority
  *  gated (a member-visible notice to participants is the read floor, matching the automation `post_notification`
  *  arm's own `host|all_members` recipients — the arm gates the roster, not host authority). The message is
- *  host-capped by the domain op (200 chars). */
+ *  host-capped by the domain op (200 chars).
+ *
+ *  THE SELECTOR IS RESOLVED AGAINST THE PLUGIN SUBSET TUPLE, not against a hand-spelled literal, and the two
+ *  halves of that matter separately. (1) An unrecognised value — junk, or a member of the FULL axis a guest
+ *  is not entitled to name (`all_members_except_actor`, which needs a triggering fact this call does not
+ *  have) — resolves to `host`, the narrowest recipient set: a guest can never widen its own reach by naming
+ *  a string the host did not admit. (2) Reading the tuple rather than re-spelling its members means widening
+ *  the guest vocabulary is a one-line edit in `@orb/contracts/notifications` that this site follows
+ *  automatically, instead of a downgrade that silently outlives the member it was written against. */
 function setNotifications(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using notifications = ctx.newObject();
   attachAsync(ctx, notifications, {
@@ -506,7 +516,8 @@ function setNotifications(ctx: QuickJSContext, surface: QuickJSHandle, runtime: 
     impl: async (args) => {
       requireCapability(runtime, "notifications.post");
       const scope = resolveChat(runtime, args[0]);
-      const recipient = args[1] === "all_members" ? "all_members" : "host";
+      const named = args[1];
+      const recipient: PluginNotificationRecipient = PLUGIN_NOTIFICATION_RECIPIENTS.find((member) => member === named) ?? "host";
       const message = typeof args[2] === "string" ? args[2] : "";
       await runtime.bridge.notifications.post(scope.chatId, recipient, message);
       return null;

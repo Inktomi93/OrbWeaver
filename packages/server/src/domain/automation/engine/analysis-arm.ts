@@ -31,16 +31,19 @@
 // the retry re-runs the whole pass, and the span-stamped lore keys make any already-landed entry write an
 // UPDATE, not a duplicate.
 
-import { ANALYSIS_GUIDANCE_MAX, ANALYSIS_SCORE_MAX } from "@orb/contracts/automation";
+import type { SuggestionCardDetail } from "@orb/contracts/automation";
+import { ANALYSIS_GUIDANCE_MAX, ANALYSIS_REWRITE_MAX, ANALYSIS_SCORE_MAX } from "@orb/contracts/automation";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { VarOp } from "@orb/kit/macro";
 import { neutralizeMacros } from "@orb/kit/macro";
+import { sha256Hex } from "@orb/server/kit/content-hash";
 import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
 import { getLog } from "#foundation/observability";
 import type {
+  AnalysisAuditTarget,
   AnalysisConfirmAct,
   AnalysisOutputClass,
   AnalysisPayload,
@@ -59,7 +62,7 @@ import {
   mergeAnalysisState,
 } from "../contract/analysis.ts";
 import type { ArmExecutorDeps, ArmOutcome, DispatchFrame } from "../contract/ops.ts";
-import { listAnalysisWindow, maxVisibleSeq } from "../persistence/canon-reads.ts";
+import { latestAuditableReply, listAnalysisWindow, maxVisibleSeq } from "../persistence/canon-reads.ts";
 import { selectRuleState, upsertRuleState } from "../persistence/rule-state.ts";
 import { renderArmTemplate } from "../substrate/macro-render.ts";
 import { AUTOMATION_SUGGESTION_TTL_MS } from "../substrate/suggestions.ts";
@@ -87,6 +90,7 @@ export function buildAnalysisSystemPrompt(routes: AnalysisRoutes, prose: ProseOv
     routes.steer !== undefined ? resolveProseText("automation.analysis.steer", prose) : "",
     routes.lore !== undefined ? resolveProseText("automation.analysis.lore", prose) : "",
     routes.suggest !== undefined ? resolveProseText("automation.analysis.suggest", prose) : "",
+    routes.rewrite !== undefined ? resolveProseText("automation.analysis.rewrite", prose) : "",
     routes.vars !== undefined ? resolveProseText("automation.analysis.vars", prose) : "",
     resolveProseText("automation.analysis.close", prose),
   ]
@@ -121,19 +125,25 @@ export function buildAnalysisUserPrompt(inputs: AnalysisPromptInputs, prose: Pro
     parts.push(`SETTLED transcript (distill lore from THIS section only):\n${inputs.settled.map(transcriptLine).join("\n")}`);
   }
   parts.push(`Recent play:\n${inputs.fresh.map(transcriptLine).join("\n")}`);
+  // C3's audited reply goes LAST — it is the thing the pass is asked about, and the recency of a prompt's
+  // final section is the cheapest steering there is. The label is the token the rewrite clause names.
+  if (inputs.audited !== null) {
+    parts.push(`AUDITED REPLY (audit THIS text, not the play above):\n${inputs.audited.content}`);
+  }
   return parts.join("\n\n");
 }
 
 // ── the pass ──────────────────────────────────────────────────────────────────────────────────────────
 
-/** The routes that are LIVE this pass: the authored routes, minus a lore route whose settled span is empty
- *  (nothing to distill ⇒ the field leaves the schema and the prompt for this pass — the model cannot emit
- *  an output the executor would drop). */
-function effectiveRoutes(action: RunAnalysisAction, loreActive: boolean): AnalysisRoutes {
+/** The routes that are LIVE this pass: the authored routes, minus the two whose INPUT is absent this beat — a
+ *  lore route with an empty settled span, and a rewrite route with no auditable reply. In both cases the field
+ *  leaves the schema AND the prompt, so the model cannot emit an output the executor would only drop. */
+function effectiveRoutes(action: RunAnalysisAction, live: { readonly lore: boolean; readonly rewrite: boolean }): AnalysisRoutes {
   return {
     ...(action.routes.steer !== undefined ? { steer: action.routes.steer } : {}),
-    ...(loreActive && action.routes.lore !== undefined ? { lore: action.routes.lore } : {}),
+    ...(live.lore && action.routes.lore !== undefined ? { lore: action.routes.lore } : {}),
     ...(action.routes.suggest !== undefined ? { suggest: action.routes.suggest } : {}),
+    ...(live.rewrite && action.routes.rewrite !== undefined ? { rewrite: action.routes.rewrite } : {}),
     ...(action.routes.vars !== undefined ? { vars: action.routes.vars } : {}),
   };
 }
@@ -142,7 +152,12 @@ function effectiveRoutes(action: RunAnalysisAction, loreActive: boolean): Analys
  *  raise/notify mechanics as the confirm-first arm stash — same store, same TTL, same replace-per-(chat,
  *  rule) slot, which is WHY validation admits at most one confirm-class route per arm (two would silently
  *  replace each other's cards). */
-function raiseAnalysisCard(deps: ArmExecutorDeps, frame: DispatchFrame, act: AnalysisConfirmAct, summary: string): void {
+function raiseAnalysisCard(
+  deps: ArmExecutorDeps,
+  frame: DispatchFrame,
+  card: { readonly act: AnalysisConfirmAct; readonly summary: string; readonly detail?: SuggestionCardDetail },
+): void {
+  const { act, summary, detail } = card;
   const id = deps.newSuggestionId();
   const expiresAt = frame.now + AUTOMATION_SUGGESTION_TTL_MS;
   const source = { kind: "rule", ruleId: frame.origin.ruleId } as const;
@@ -156,7 +171,18 @@ function raiseAnalysisCard(deps: ArmExecutorDeps, frame: DispatchFrame, act: Ana
     expiresAt,
     payload: { via: "analysis", act },
   });
-  deps.notify({ type: "suggestionRaised", chatId: frame.chatId, source, suggestionId: id, kind: "confirm", summary, expiresAt });
+  // The DETAIL rides the event only — the pending record's own executable half is `act`, and duplicating the
+  // display strings into the store would give a card two sources of truth about what it is offering.
+  deps.notify({
+    type: "suggestionRaised",
+    chatId: frame.chatId,
+    source,
+    suggestionId: id,
+    kind: "confirm",
+    summary,
+    expiresAt,
+    ...(detail === undefined ? {} : { detail }),
+  });
 }
 
 /** Quote a model line into a card summary (capped — the card is one line of host prose). */
@@ -177,6 +203,10 @@ interface PassResolution {
   readonly action: RunAnalysisAction;
   /** The settled span's bounds this pass covered (`null` = no lore read this pass). */
   readonly span: { readonly start: number; readonly end: number } | null;
+  /** C3 — the reply this pass audited (`null` = no rewrite route, or nothing auditable). Carried onto the
+   *  RESOLUTION rather than re-read at apply time on purpose: the card must pin the variant the MODEL saw,
+   *  not whatever is selected by the time the applier runs. */
+  readonly audited: AnalysisAuditTarget | null;
 }
 
 /** A route applier's verdict: `ok` (+ whether it raised a card), or a typed refusal that fails the pass. */
@@ -204,7 +234,10 @@ const ROUTE_APPLIERS: Record<AnalysisOutputClass, RouteApplier> = {
       return Promise.resolve(ROUTE_OK);
     }
     if (route.apply === "confirm" && guidance.trim().length > 0) {
-      raiseAnalysisCard(deps, frame, { kind: "steer", guidance: guidance.slice(0, ANALYSIS_GUIDANCE_MAX) }, `Adopt story guidance: “${quoted(guidance)}”?`);
+      raiseAnalysisCard(deps, frame, {
+        act: { kind: "steer", guidance: guidance.slice(0, ANALYSIS_GUIDANCE_MAX) },
+        summary: `Adopt story guidance: “${quoted(guidance)}”?`,
+      });
       return Promise.resolve({ ok: true, suggested: true });
     }
     return Promise.resolve(ROUTE_OK); // direct — the end-of-pass state write carries it.
@@ -231,12 +264,13 @@ const ROUTE_APPLIERS: Record<AnalysisOutputClass, RouteApplier> = {
       content: neutralizeMacros(entry.content),
     }));
     if (route.apply === "confirm") {
-      raiseAnalysisCard(
-        deps,
-        frame,
-        { kind: "lore", bookId: route.bookId, entries, spanEnd: pass.span.end },
-        entries.length === 1 ? `Save a lore entry for “${quoted(lore[0]?.key ?? "")}”?` : `Save ${entries.length} lore entries from the last stretch of play?`,
-      );
+      raiseAnalysisCard(deps, frame, {
+        act: { kind: "lore", bookId: route.bookId, entries, spanEnd: pass.span.end },
+        summary:
+          entries.length === 1
+            ? `Save a lore entry for “${quoted(lore[0]?.key ?? "")}”?`
+            : `Save ${entries.length} lore entries from the last stretch of play?`,
+      });
       // The watermark does NOT advance on a raise — a dismissed/expired card leaves the span uncovered and
       // the next pass re-distills it (the retryability contract, confirm-shaped).
       return { ok: true, suggested: true };
@@ -259,12 +293,46 @@ const ROUTE_APPLIERS: Record<AnalysisOutputClass, RouteApplier> = {
       return Promise.resolve(ROUTE_OK);
     }
     const text = suggestions[0]?.text ?? "";
-    raiseAnalysisCard(
-      deps,
-      frame,
-      { kind: "suggestTurn", steerText: neutralizeMacros(text), automationDepth: frame.origin.automationDepth },
-      `Ask for a turn: “${quoted(text)}”?`,
-    );
+    raiseAnalysisCard(deps, frame, {
+      act: { kind: "suggestTurn", steerText: neutralizeMacros(text), automationDepth: frame.origin.automationDepth },
+      summary: `Ask for a turn: “${quoted(text)}”?`,
+    });
+    return Promise.resolve({ ok: true, suggested: true });
+  },
+
+  // C3 — THE PROSE AUDIT. Confirm-class by nature: it offers a rewrite of SETTLED CANON, which is never a
+  // direct write. Three things happen here and nowhere else:
+  //   • the CLEAN verdict draws nothing — the common case, and the reason the verdict is a field rather than
+  //     an inference from an empty string (`contract/analysis.ts::analysisRewriteSchema`);
+  //   • the model's bytes are NEUTRALIZED at this boundary (law 7) before they can be stashed, so a
+  //     model-authored `{{getglobalvar::…}}` can never become live macro syntax in a message row;
+  //   • the act is PINNED to the audited (messageId, variantId) and HASHED over the exact bytes the audit
+  //     read. Both pins are re-checked inside the chat verb at confirm — a swipe refuses `superseded`, an
+  //     edit refuses `stale`, and neither touches canon (§3-S4 class 1's stale-accept guard).
+  suggestRewrite: (deps, frame, pass) => {
+    const rewrite = pass.payload.rewrite;
+    const audited = pass.audited;
+    if (pass.action.routes.rewrite === undefined || rewrite === undefined || audited === null) {
+      return Promise.resolve(ROUTE_OK);
+    }
+    const after = neutralizeMacros(rewrite.text).trim();
+    // A "flawed" verdict with no rewrite — or one that reproduces the reply verbatim — has nothing to offer,
+    // and a card whose confirm would be a no-op teaches a host to stop reading cards. Treated as clean.
+    if (rewrite.verdict !== "flawed" || after.length === 0 || after === audited.content) {
+      return Promise.resolve(ROUTE_OK);
+    }
+    const issue = rewrite.issue.trim();
+    raiseAnalysisCard(deps, frame, {
+      act: {
+        kind: "rewrite",
+        messageId: audited.messageId,
+        variantId: audited.variantId,
+        contentHash: sha256Hex(audited.content),
+        content: after,
+      },
+      summary: issue.length === 0 ? "Fix the prose of the last reply?" : `Fix the last reply — ${quoted(issue)}?`,
+      detail: { kind: "rewrite", before: audited.content, after },
+    });
     return Promise.resolve({ ok: true, suggested: true });
   },
 
@@ -289,7 +357,7 @@ const ROUTE_APPLIERS: Record<AnalysisOutputClass, RouteApplier> = {
 /** Fixed apply order: durable/lore first (its failure must abort BEFORE any card or var moves), then the
  *  card-raising routes, then vars; the ONE state write happens after every route succeeded. `setState` is
  *  ordered but a no-op (see the Record). */
-const ROUTE_ORDER: readonly AnalysisOutputClass[] = ["upsertLoreEntry", "steer", "suggest", "setVariable", "setState"];
+const ROUTE_ORDER: readonly AnalysisOutputClass[] = ["upsertLoreEntry", "steer", "suggest", "suggestRewrite", "setVariable", "setState"];
 
 /** The pass's read half: current state + the fresh tip + (lore route only) the settled span. */
 interface PassInputs {
@@ -297,25 +365,40 @@ interface PassInputs {
   readonly fresh: readonly AnalysisWindowRow[];
   readonly settled: readonly AnalysisWindowRow[] | null;
   readonly span: PassResolution["span"];
+  readonly audited: AnalysisAuditTarget | null;
+}
+
+/** C3's read: the FRESH tip's newest reply (§3-S5.5 — a prose audit is a steer-class read, so it takes the
+ *  volatile selected-lineage tip; auditing behind a protect tail would offer to fix a reply the host stopped
+ *  looking at three beats ago). `null` when the route is off, the room has no reply, or the reply is LONGER
+ *  than a rewrite may be — the last one matters: the model would have to return a corrected copy capped at
+ *  `ANALYSIS_REWRITE_MAX`, so auditing a longer reply could only ever produce a truncated "fix". */
+async function readAuditTarget(deps: ArmExecutorDeps, action: RunAnalysisAction, frame: DispatchFrame): Promise<AnalysisAuditTarget | null> {
+  if (action.routes.rewrite === undefined) {
+    return null;
+  }
+  const target = await latestAuditableReply(deps.db, frame.chatId);
+  return target !== null && target.content.length <= ANALYSIS_REWRITE_MAX ? target : null;
 }
 
 async function readPassInputs(deps: ArmExecutorDeps, action: RunAnalysisAction, frame: DispatchFrame): Promise<PassInputs> {
   const { state } = await selectRuleState(deps.db, frame.origin.ruleId);
   const fresh = await listAnalysisWindow(deps.db, frame.chatId, { limit: ANALYSIS_FRESH_WINDOW_MESSAGES });
+  const audited = await readAuditTarget(deps, action, frame);
   if (action.routes.lore === undefined) {
-    return { state, fresh, settled: null, span: null };
+    return { state, fresh, settled: null, span: null, audited };
   }
   const maxSeq = await maxVisibleSeq(deps.db, frame.chatId);
   const through = maxSeq === null ? null : maxSeq - ANALYSIS_PROTECT_TAIL;
   if (through === null || through <= state.settledThroughSeq) {
-    return { state, fresh, settled: null, span: null };
+    return { state, fresh, settled: null, span: null, audited };
   }
   const settled = await listAnalysisWindow(deps.db, frame.chatId, {
     afterSeq: state.settledThroughSeq,
     throughSeq: through,
     limit: ANALYSIS_SETTLED_SLICE_MAX,
   });
-  return { state, fresh, settled, span: settled.length > 0 ? { start: state.settledThroughSeq, end: through } : null };
+  return { state, fresh, settled, span: settled.length > 0 ? { start: state.settledThroughSeq, end: through } : null, audited };
 }
 
 /** Run the model pass (ONE bounded retry — `runStructuredTurn`) and validate through the SAME composed zod
@@ -391,7 +474,7 @@ export async function runRunAnalysis(deps: ArmExecutorDeps, action: RunAnalysisA
   // removes the lore field from schema AND prompt for this pass). The prompt clauses resolve through the
   // ROOM HOST's prose (the /autobg posture — PROSE-1 owner-decision 8, option (a)).
   const inputs = await readPassInputs(deps, action, frame);
-  const routes = effectiveRoutes(action, inputs.span !== null);
+  const routes = effectiveRoutes(action, { lore: inputs.span !== null, rewrite: inputs.audited !== null });
   const prose = await deps.ops.chat.resolveChatProse(frame.chatId);
   let payload: AnalysisPayload;
   try {
@@ -405,6 +488,7 @@ export async function runRunAnalysis(deps: ArmExecutorDeps, action: RunAnalysisA
           state: inputs.state,
           fresh: inputs.fresh,
           settled: inputs.settled,
+          audited: inputs.audited,
         },
         prose,
       ),
@@ -417,7 +501,7 @@ export async function runRunAnalysis(deps: ArmExecutorDeps, action: RunAnalysisA
   }
 
   // 3. Route the outputs; first failure aborts with no state write.
-  const pass: PassResolution = { payload, action, span: inputs.span };
+  const pass: PassResolution = { payload, action, span: inputs.span, audited: inputs.audited };
   const routed = await applyRoutes(deps, frame, pass, { i: 0, suggested: false, watermark: inputs.state.settledThroughSeq });
   if (!routed.ok) {
     return { ok: false, kind: "arm_error", detail: routed.detail };

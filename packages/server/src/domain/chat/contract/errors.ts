@@ -110,6 +110,16 @@ export const CHAT_OP_CODES = {
    *  step, or a card whose greetings shrank under a stale client). The verb resolves the TEXT from the card
    *  itself — it never accepts caller prose — so an unresolvable index is the only way this write can miss. */
   greetingAlternateNotFound: "greeting_alternate_not_found",
+  /** `applyProseRewrite`'s VARIANT pin missed: the slot's selected variant is no longer the one the audit
+   *  read — the host swiped between the ask and the yes. The rewrite was written against a different body, so
+   *  landing it would silently replace prose nobody audited. Refused; canon is untouched (the legacy
+   *  stale-accept guard, `legacy-main:.../crew/verbs/proposals.ts`). */
+  rewriteSuperseded: "rewrite_superseded",
+  /** `applyProseRewrite`'s CONTENT pin missed: the audited variant is still selected but its bytes changed
+   *  (a hand edit, a continue, a freeze) since the audit read them. Same posture, different cause — refused,
+   *  canon untouched. Two codes rather than one because they tell a host two different stories about their
+   *  own room, and "which thing moved" is exactly what makes a refusal actionable. */
+  rewriteStale: "rewrite_stale",
 } as const;
 
 /** The reason-code union (derived from the one tuple of values — never re-spelled). */
