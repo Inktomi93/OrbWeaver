@@ -528,6 +528,30 @@ Preview (host-only, crown)** — `features/chat/lib/chats-section.tsx:54-88`.
 
 *Provenance: `docs/reviews/stickler/2026-08-24-automation-platform-axes.md` §3 (written against the BUILT membrane, unlike the parked plugin set) + `plugin-automation-juice.md` rows 11/14/15.*
 
+**§7-C7b — THE PLUGIN UI PLANE (#679) — pointer only; the design is ONE-homed at
+[`docs/design/plugin-ui-plane.md`](plugin-ui-plane.md) (owner-ruled 2026-08-24, build-phase-ready).**
+The juice A2-F5 renderer gap ("a plugin cannot register a client ToolRenderer") is CLOSED BY DESIGN
+there. What a builder needs to know from here: plugin UI is a DECLARATIVE CONTRIBUTION TREE over
+sealed `@orb/ui` at the existing D70 contribution anchors, two tiers on one zod spec vocabulary
+(Tier S: activation-registered specs, server-guest action round-trips; Tier C: an optional `ui.js`
+in a client-side QuickJS-WASM Web Worker — the same engine family as `infra/plugin-host`), one new
+`ui.surface` capability, every surface inside a first-party plugin-labeled shell. Owner rulings
+folded there (six steers, verbatim in its §0): capability-first (walls protect the system and OTHER
+users only); ST extension-ability PARITY is the bar (its §5 register, 35 rows all classified);
+integrated-primary — the iframe arm is DEMOTED to the `ui.frame` hatch, which the full-parity
+ruling then COMMITTED as scheduled phase U7 (security-executor-gated, rides the card-frame
+substrate); "all the optional stuff" COMMITTED — no deferred class remains (phases U0–U8,
+stop-anywhere: U0 contracts · U1 Tier-S settings · U2 chat anchors · U3 tool cards · U4 Tier C +
+the one CSP delta · U5 slash/chrome/dialog/toast · U6 parity tail incl. the display-transform seam
+· U7 the frame hatch · U8 ecosystem: URL install, `databank.ingest`, card extension fields,
+dynamic palette rows); the five structural refusals are an ENABLEMENT PRICE SHEET (its §5a) —
+refused by default, owner-purchasable, other-user walls marked. Residual owner ask: TTS/STT
+(substrate, engine-level). Build-state receipts (dated 2026-08-24): user-scoped plugin management
+IS LANDED BRANCH-SIDE pending merge to main — D147, #675, commit `8340b7f87` ("plugins are
+USER-SCOPED — ownership is the authority"); the five seeded example plugins likewise —
+commit `79e89d255`, branch-side pending merge. Neither is on local `main` as of this fold; re-derive
+before building against them.
+
 **Stop-anywhere:** after A: silent, pins green. B1: chats offer choices. B2: rules as toggles
 with feedback. B3/B4: the room talks back and asks permission. B5: images in the room. B6/B7:
 reactions, then reactions that steer. B8/B9: dice and countdowns. B10: rooms reusable. C1–C3:
