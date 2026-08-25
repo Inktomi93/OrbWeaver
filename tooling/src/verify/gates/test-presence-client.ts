@@ -23,7 +23,7 @@ import type { Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
-import { blankTsCommentsInText, codeTextForScan } from "../lib/comment-spans.ts";
+import { blankTsCommentsAndStringsInText, codeTextForScan } from "../lib/comment-spans.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
 const UI_SRC = "/packages/ui/src/";
@@ -179,15 +179,18 @@ function clientTierRel(rel: string): string | undefined {
 // is genuinely covered. Missing mirror ENTIRELY is clause A's violation, so clause C stays silent there
 // rather than double-reporting. The action call sites also live in the shared `_ct-stories.tsx` story module
 // (Spine-Testing §7 — "CT only mounts from a non-test module"), so that sibling joins the corpus.
-// The mirror corpus is read off the REAL FS (it is a test file, judged by existence), so its comments are
-// blanked from TEXT. This is the PERMISSIVE direction of the comment-blindness class and the one that
-// matters here: a COMMENTED-OUT `revealContextPanel(` call in the mirror would satisfy clause C — which is
-// exactly the "shipped referenced by ZERO test" defect the clause was minted for, wearing a `//`.
+// The mirror corpus is read off the REAL FS (it is a test file, judged by existence), so its comments AND
+// its string prose are blanked from TEXT. This is the PERMISSIVE direction of the comment-blindness class
+// and the one that matters here: a COMMENTED-OUT `revealContextPanel(` call in the mirror would satisfy
+// clause C — the "shipped referenced by ZERO test" defect the clause was minted for, wearing a `//`. STRINGS
+// are the same channel wearing quotes (found lying 2026-08-24): a vitest description
+// `it("calls revealContextPanel( …")` satisfied the matcher, so a test that only NAMES the action in prose
+// blessed coverage. Template interpolations survive the blanking, so a real call inside `${…}` still counts.
 function readIfExists(path: string): string {
   if (!existsSync(path)) {
     return "";
   }
-  return blankTsCommentsInText(readFileSync(path, "utf8"));
+  return blankTsCommentsAndStringsInText(readFileSync(path, "utf8"));
 }
 
 function scanStoreActionPresence(root: string, clientRel: string, sf: SourceFile): Violation[] {
@@ -316,6 +319,22 @@ export const gate: GateDescriptor = {
       why: "COMMENT POSTURE: a COMMENTED-OUT action call in the mirror satisfied clause C to a file-text scan — which is the `shipped referenced by ZERO test file` defect the clause exists for, wearing a `//`. The mirror corpus is comment-blanked, so it still REDs",
     },
     {
+      // STRING POSTURE (found lying 2026-08-24), clause C, the PERMISSIVE direction again: the mirror's ONLY
+      // occurrence of the action name is inside a STRING LITERAL (a vitest description). Prose is not
+      // coverage — the un-fixed matcher read the comment-blanked text and let the string bless the action.
+      files: {
+        "packages/client/src/state/__g_gpresstrlit-store.ts":
+          'import { createGatedStore } from "./create-gated-store";\n' +
+          'const useX = createGatedStore<{ n: number }>("g-presstrlit", () => ({ n: 0 }));\n' +
+          'export function gPresStrLitAction(): void {\n  useX.setState({ n: 1 }, false, "x/set");\n}\n' +
+          "export function useGPresStrLit(): number {\n  return useX((s) => s.n);\n}\n",
+        "tests/client/state/__g_gpresstrlit-store.test.ts":
+          'import { useGPresStrLit } from "@orb/client/state";\nexport const label = "calls gPresStrLitAction( when the panel opens";\nexport const t = useGPresStrLit;\n',
+      },
+      expect: { messageIncludes: "gPresStrLitAction" },
+      why: "STRING POSTURE: an action name inside a string literal satisfied clause C to a comment-blanked text scan — the same `referenced by ZERO test` defect wearing quotes. Strings are blanked from the corpus, so it REDs",
+    },
+    {
       // #619 — THE FOUNDING SILENCE: a store mirrored as `.test.ts`. Clause C resolved `.ct.tsx` ONLY and
       // returned [] on a miss, so this shape reported CLEAN over an action referenced by zero test. 15 of
       // the tree's 34 stores were mirrored exactly this way.
@@ -394,6 +413,18 @@ export const gate: GateDescriptor = {
           'import { gPresClientOkAction, useGPresClientOk } from "@orb/client/state";\ngPresClientOkAction();\nexport const t = useGPresClientOk;\n',
       },
       why: "clause C: gPresClientOkAction( appears by name in the mirror — covered, passes",
+    },
+    {
+      // STRING POSTURE's declared limit: a REAL call inside a template INTERPOLATION is code, not prose —
+      // the `${…}` expression spans survive the string blanking, so this stays covered.
+      files: {
+        "packages/client/src/state/__g_gprestpl-store.ts":
+          'import { createGatedStore } from "./create-gated-store";\n' +
+          'const useX = createGatedStore<{ n: number }>("g-prestpl", () => ({ n: 0 }));\n' +
+          'export function gPresTplAction(): number {\n  useX.setState({ n: 1 }, false, "x/set");\n  return 1;\n}\n',
+        "tests/client/state/__g_gprestpl-store.test.ts": "export const t = `drove ${gPresTplAction()} write`;\ndeclare function gPresTplAction(): number;\n",
+      },
+      why: "STRING POSTURE limit: a real `gPresTplAction()` call interpolated inside a template literal is CODE — the blanking keeps interpolation spans, so clause C still counts it and passes",
     },
     {
       // clause C: a state/*.ts file that mints NO store (no factory call) is out of clause C's scope
