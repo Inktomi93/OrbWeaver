@@ -141,9 +141,9 @@ test("the skimmer renders all thirteen admin sections, in the door's declared or
   // Every section resolves its OWN read behind its OWN boundary, so wait on the full set rather than on one
   // heading — a partially-painted pane would otherwise pass the order assertion on a subsequence.
   await expect(page.locator('[id^="settings-anchor-admin-"]')).toHaveCount(ANCHOR_ORDER.length);
-
-  const anchorIds = await page.evaluate(() => [...document.querySelectorAll('[id^="settings-anchor-admin-"]')].map((el) => el.id));
-  expect(anchorIds).toStrictEqual(ANCHOR_ORDER);
+  await expect
+    .poll(async () => await page.evaluate(() => [...document.querySelectorAll('[id^="settings-anchor-admin-"]')].map((el) => el.id)))
+    .toStrictEqual(ANCHOR_ORDER);
 });
 
 // Single-column-of-SECTIONS (owner ruling — Discord grammar): every subcategory SECTION shares the same left

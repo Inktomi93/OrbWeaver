@@ -191,10 +191,10 @@ const SETTLE_JUMP_TOLERANCE_PX = 32;
 
 test("PENDING — the skeleton is SHAPE-MATCHED: settling does not collapse the panel", async ({ mount }) => {
   const probe = await mount(<EffectiveProfileShapeMatchStory />);
+  await expect.poll(async () => await probe.getByTestId("pending-panel").locator("section").first().boundingBox()).not.toBeNull();
   const pendingBox = await probe.getByTestId("pending-panel").locator("section").first().boundingBox();
+  await expect.poll(async () => await probe.getByTestId("settled-panel").locator("section").first().boundingBox()).not.toBeNull();
   const settledBox = await probe.getByTestId("settled-panel").locator("section").first().boundingBox();
-  expect(pendingBox).not.toBeNull();
-  expect(settledBox).not.toBeNull();
 
   const jump = Math.abs((pendingBox?.height ?? 0) - (settledBox?.height ?? 0));
   expect(jump).toBeLessThanOrEqual(SETTLE_JUMP_TOLERANCE_PX);

@@ -70,9 +70,9 @@ test("the skimmer renders all three workloads sections, in the door's declared o
   await stub(page);
   await mount(<WorkloadsPaneStory />);
   await page.getByRole("heading", { name: "Runs" }).waitFor();
-
-  const anchorIds = await page.evaluate(() => [...document.querySelectorAll('[id^="settings-anchor-workloads-"]')].map((el) => el.id));
-  expect(anchorIds).toStrictEqual(ANCHOR_ORDER);
+  await expect
+    .poll(async () => await page.evaluate(() => [...document.querySelectorAll('[id^="settings-anchor-workloads-"]')].map((el) => el.id)))
+    .toStrictEqual(ANCHOR_ORDER);
 });
 
 // Single-column-of-SECTIONS (owner ruling — Discord grammar): every subcategory SECTION shares the same left
@@ -329,7 +329,10 @@ test("POPULATED: both lanes, a job in flight, a poison row, a finished stats reb
   // CD3, measured on the PIXELS across the whole pane: exactly one button carries the accent FILL at rest.
   // Both CTAs used to, 111px apart in the same scroll column.
   const accentFill = await page.getByTestId("workloads-run-button").evaluate((el) => getComputedStyle(el).backgroundColor);
-  const scheduleFill = await schedules.getByTestId("schedule-create-button").evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(scheduleFill).not.toBe(accentFill);
-  expect(scheduleFill).toBe("rgba(0, 0, 0, 0)");
+  await expect
+    .poll(async () => await schedules.getByTestId("schedule-create-button").evaluate((el) => getComputedStyle(el).backgroundColor))
+    .not.toBe(accentFill);
+  await expect
+    .poll(async () => await schedules.getByTestId("schedule-create-button").evaluate((el) => getComputedStyle(el).backgroundColor))
+    .toBe("rgba(0, 0, 0, 0)");
 });

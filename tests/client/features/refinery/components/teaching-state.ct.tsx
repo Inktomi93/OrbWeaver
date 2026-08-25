@@ -71,10 +71,10 @@ test("the flow row stays INSIDE the narrowest real mount — no cell clipped off
   await mount(<TeachingStateStory width={PHONE_CONTENT_PX} />);
   const row = page.locator(STEPS_ROW);
   await expect(row).toBeVisible();
+  await expect.poll(async () => await page.locator('[data-testid="teaching-frame"]').boundingBox()).not.toBeNull();
   const frame = await page.locator('[data-testid="teaching-frame"]').boundingBox();
+  await expect.poll(async () => await row.boundingBox()).not.toBeNull();
   const box = await row.boundingBox();
-  expect(frame).not.toBeNull();
-  expect(box).not.toBeNull();
   expect(box?.x ?? 0, "the flow row's left edge must not sit outside the pane").toBeGreaterThanOrEqual((frame?.x ?? 0) - SUBPIXEL);
   expect((box?.x ?? 0) + (box?.width ?? 0), "…nor its right edge").toBeLessThanOrEqual((frame?.x ?? 0) + (frame?.width ?? 0) + SUBPIXEL);
 });

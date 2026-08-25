@@ -104,10 +104,9 @@ test("F-01 — EVERY row's name has real width, and it is the GLOSS that shorten
   await expandAllClusters(probe);
 
   const titles = probe.locator(TITLE);
-  const count = await titles.count();
   // EVERY registry def renders a row — pinned to the registry's own length, so a registry that stops
   // rendering rows (or a band that silently eats its members) cannot make the width check vacuously pass.
-  expect(count).toBe(TEMPLATE_DEFS.length);
+  await expect(titles).toHaveCount(TEMPLATE_DEFS.length);
 
   // Measured in ONE page evaluation: a per-row `await` loop is both slower and a lint violation, and the
   // whole point is a snapshot of the SAME layout pass across every row.

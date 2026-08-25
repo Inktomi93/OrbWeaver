@@ -63,9 +63,9 @@ test("the skimmer renders all eight contributed sections, in the door's declared
   await stub(page);
   await mount(<AppearancePaneStory />);
   await page.getByRole("heading", { name: "Message style" }).waitFor();
-
-  const anchorIds = await page.evaluate(() => [...document.querySelectorAll('[id^="settings-anchor-appearance-"]')].map((el) => el.id));
-  expect(anchorIds).toStrictEqual(ANCHOR_ORDER);
+  await expect
+    .poll(async () => await page.evaluate(() => [...document.querySelectorAll('[id^="settings-anchor-appearance-"]')].map((el) => el.id)))
+    .toStrictEqual(ANCHOR_ORDER);
 });
 
 // Single-column-of-SECTIONS (owner ruling — Discord grammar): every subcategory SECTION shares the same

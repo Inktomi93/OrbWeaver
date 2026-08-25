@@ -22,8 +22,7 @@ test("quiet under 80% of the cap, live at it, danger-toned past it", async ({ mo
   await component.unmount();
   const at = await mount(<CappedFieldCounter length={MAX * 0.8} max={MAX} />);
   await expect(at).toHaveText(`${String(MAX * 0.8)}/${String(MAX)}`);
-  const muted = await at.evaluate((el) => getComputedStyle(el).color);
-  expect(muted).not.toBe(resolvedTokenColor("color.destructive"));
+  await expect.poll(async () => await at.evaluate((el) => getComputedStyle(el).color)).not.toBe(resolvedTokenColor("color.destructive"));
 
   // PAST the cap — the only way to get here is text that ARRIVED over-cap (an import, an older blob), which
   // is exactly the state whose save is being refused. The number is part of that refusal.

@@ -150,17 +150,21 @@ test("item 10 / O-14 — the depth cell is WIDE ENOUGH FOR ITS OWN GHOST (it cli
   // The ghost is the ONE thing the empty field says, and the inline cell is a fixed `--width-number-inline`
   // box — so "fits" is a MEASURED relation between the placeholder's rendered text and the box, not a
   // judgement about the copy. The same constant rides the template drill's cell.
-  const overflow = await probe.getByRole("textbox", { name: "Inject at depth" }).evaluate((input: HTMLInputElement) => {
-    const style = getComputedStyle(input);
-    const context = document.createElement("canvas").getContext("2d");
-    if (context === null) {
-      throw new Error("expected a 2d context");
-    }
-    context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    const inner = input.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
-    return context.measureText(input.placeholder).width - inner;
-  });
-  expect(overflow).toBeLessThanOrEqual(0);
+  await expect
+    .poll(
+      async () =>
+        await probe.getByRole("textbox", { name: "Inject at depth" }).evaluate((input: HTMLInputElement) => {
+          const style = getComputedStyle(input);
+          const context = document.createElement("canvas").getContext("2d");
+          if (context === null) {
+            throw new Error("expected a 2d context");
+          }
+          context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+          const inner = input.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
+          return context.measureText(input.placeholder).width - inner;
+        }),
+    )
+    .toBeLessThanOrEqual(0);
 });
 
 test("the main-prompt GHOST fits its own box — the second-person address clause did not overflow it", async ({ mount }) => {

@@ -689,8 +689,7 @@ test("the longest group kicker survives the docked pane's real width — no elli
 
   const kicker = roster.getByText("Regex scripts", { exact: true });
   await expect(kicker).toBeVisible();
-  const overflow = await kicker.evaluate((node) => node.scrollWidth - node.clientWidth);
-  expect(overflow).toBe(0);
+  await expect.poll(async () => await kicker.evaluate((node) => node.scrollWidth - node.clientWidth)).toBe(0);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────

@@ -115,7 +115,19 @@ test("the CONTEXT band paints in the same band voice as the LIST band beside it"
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
   await expect(workspace.locator(CONTEXT_BAND)).toHaveText("Details");
-
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const band = document.querySelector('[data-slot="ct-config-context-band"] span');
+          if (band === null) {
+            return null;
+          }
+          const style = getComputedStyle(band);
+          return { transform: style.textTransform, size: style.fontSize, weight: style.fontWeight };
+        }),
+    )
+    .not.toBeNull();
   const painted = await page.evaluate(() => {
     const band = document.querySelector('[data-slot="ct-config-context-band"] span');
     if (band === null) {
@@ -124,8 +136,6 @@ test("the CONTEXT band paints in the same band voice as the LIST band beside it"
     const style = getComputedStyle(band);
     return { transform: style.textTransform, size: style.fontSize, weight: style.fontWeight };
   });
-
-  expect(painted).not.toBeNull();
   // The `kicker` voice — the treatment `ListPaneHeader` gives the LIST band (micro · caps · semibold).
   expect(painted?.transform).toBe("uppercase");
   expect(Number.parseFloat(painted?.size ?? "0")).toBeLessThan(12);

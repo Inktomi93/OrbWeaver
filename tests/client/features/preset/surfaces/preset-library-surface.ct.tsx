@@ -36,6 +36,8 @@ import {
   PresetLibraryWelcomeWideStory,
 } from "./_ct-stories.tsx";
 
+const NONEMPTY_ID = /.+/u;
+
 const BUILT_IN = "preset_00000000000000000000000000";
 const EDITED_ONE = "preset_ct_edited0001";
 const EDITED_TWO = "preset_ct_edited0002";
@@ -70,8 +72,8 @@ test("#378 interactive preset subtitles use the readable label step without losi
   await expect(subtitle).toBeVisible();
   await expect.poll(() => subtitle.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(11);
   await expect(subtitle).toHaveCSS("white-space", "nowrap");
+  await expect(subtitle).toHaveAttribute("id", NONEMPTY_ID);
   const subtitleId = await subtitle.getAttribute("id");
-  expect(subtitleId).not.toBeNull();
   await expect(row.locator('[data-slot="list-row-body"]')).toHaveAttribute("aria-describedby", subtitleId ?? "missing-subtitle-id");
 });
 
@@ -430,15 +432,19 @@ test("P1-1 the row carries NO standalone Duplicate control — the kebab's item 
   // count is the only assertion that tells removal from concealment.)
   await expect(page.getByRole("button", { name: "Duplicate " })).toHaveCount(0);
   // …and the cluster is two slots wide, with no spacer standing in for the third.
-  const slots = await component
-    .locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME })
-    .first()
-    .locator(ACTIONS)
-    .evaluate((el) => ({
-      controls: el.querySelectorAll("button").length,
-      spacers: el.querySelectorAll('[data-slot="library-row-cluster-spacer"]').length,
-    }));
-  expect(slots).toEqual({ controls: 2, spacers: 0 });
+  await expect
+    .poll(
+      async () =>
+        await component
+          .locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME })
+          .first()
+          .locator(ACTIONS)
+          .evaluate((el) => ({
+            controls: el.querySelectorAll("button").length,
+            spacers: el.querySelectorAll('[data-slot="library-row-cluster-spacer"]').length,
+          })),
+    )
+    .toEqual({ controls: 2, spacers: 0 });
 });
 
 test("P1-1 at the DOCKED 272px pane the trailing strip costs TWO slots and the name gets the third back", async ({ mount, page }) => {
@@ -730,8 +736,7 @@ test("#481 P3-5 the ACTIVE row's subtitle is the same shape as an inactive row's
   // …and its subtitle is exactly what the same row prints when it is not.
   await expect(subtitle).toHaveText("roleplay · edited 5m");
   // Rendered, not just derived: the cell is not clipping (the P3-5 symptom was `Active · roleplay · edite…`).
-  const clipped = await subtitle.evaluate((el) => el.scrollWidth > el.clientWidth);
-  expect(clipped).toBe(false);
+  await expect.poll(async () => await subtitle.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(false);
 });
 
 test("§12 enforcement: the pane-level 'Active for generation' Select is DELETED, not kept beside the toggle", async ({ mount, page }) => {

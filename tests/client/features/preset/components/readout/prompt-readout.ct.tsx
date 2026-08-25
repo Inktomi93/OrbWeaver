@@ -15,6 +15,7 @@ import { PromptReadoutDisclosureStory, PromptReadoutMeterStory } from "./_readou
 
 const SHOW = "Show assembled preview";
 const HIDE = "Hide assembled preview";
+const NONEMPTY_ID = /.+/u;
 
 test("opening the assembled preview scrolls it into view, not just below the fold", async ({ mount, page }) => {
   const story = await mount(<PromptReadoutDisclosureStory />);
@@ -36,8 +37,9 @@ test("opening the assembled preview scrolls it into view, not just below the fol
   // so the assertion has to wait for it — reading in the same tick as the click is what produced the
   // "still scrollTop 0" measurement. The region is the one the trigger already names through
   // `aria-controls`, so the test asks the same question a screen reader would.
-  const controls = await story.getByRole("button", { name: HIDE }).getAttribute("aria-controls");
-  expect(controls).not.toBeNull();
+  const hide = story.getByRole("button", { name: HIDE });
+  await expect(hide).toHaveAttribute("aria-controls", NONEMPTY_ID);
+  const controls = await hide.getAttribute("aria-controls");
   await expect
     .poll(
       async () =>
@@ -75,8 +77,8 @@ test("the assembled preview cues the main-prompt block's narrator arm — and on
 
   // Scoped to the disclosed region the trigger names — the readout's BUDGET BARS above it are buttons named
   // by the same sections, so a story-wide locator addresses two different surfaces.
+  await expect(hide).toHaveAttribute("aria-controls", NONEMPTY_ID);
   const controls = await hide.getAttribute("aria-controls");
-  expect(controls).not.toBeNull();
   const preview = page.locator(`[id="${controls ?? ""}"]`);
 
   // The preview's blocks are click-through buttons named by the section — `main` ships as "Main".

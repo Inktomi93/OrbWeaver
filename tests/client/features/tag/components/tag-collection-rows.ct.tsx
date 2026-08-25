@@ -285,10 +285,10 @@ test("the sort control SHARES its line with the hint instead of sitting alone", 
   const rows = await mount(<TagCollectionRowsStory />);
   const hint = rows.getByText("Manual order lets you drag rows.");
   const sort = rows.getByRole("combobox", { name: "Sort tags" });
+  await expect.poll(async () => await hint.boundingBox()).not.toBeNull();
   const hintBox = await hint.boundingBox();
+  await expect.poll(async () => await sort.boundingBox()).not.toBeNull();
   const sortBox = await sort.boundingBox();
-  expect(hintBox).not.toBeNull();
-  expect(sortBox).not.toBeNull();
   // Same line: their vertical spans overlap. And the hint leads, the control trails.
   expect(hintBox?.y ?? 0).toBeLessThan((sortBox?.y ?? 0) + (sortBox?.height ?? 0));
   expect(sortBox?.y ?? 0).toBeLessThan((hintBox?.y ?? 0) + (hintBox?.height ?? 0));
@@ -303,14 +303,12 @@ test("the WINDOWED roster paints a scroll cue while there is more below, and dro
   // RENDERED, not the class string: the bounded window ends mid-row, and with overlay scrollbars that
   // half-row was the only hint that scrolling was possible (side-eye 2026-08-03 P3).
   await expect(scroller).toHaveAttribute("data-more", "");
-  const masked = await scroller.evaluate((el: Element): string => globalThis.getComputedStyle(el).maskImage);
-  expect(masked).not.toBe("none");
+  await expect.poll(async () => await scroller.evaluate((el: Element): string => globalThis.getComputedStyle(el).maskImage)).not.toBe("none");
 
   await scroller.evaluate((el: Element): void => {
     el.scrollTop = el.scrollHeight;
   });
   // Poll to SETTLED: the scroll handler runs off the browser's own scroll event.
   await expect(scroller).not.toHaveAttribute("data-more", "");
-  const atEnd = await scroller.evaluate((el: Element): string => globalThis.getComputedStyle(el).maskImage);
-  expect(atEnd).toBe("none");
+  await expect.poll(async () => await scroller.evaluate((el: Element): string => globalThis.getComputedStyle(el).maskImage)).toBe("none");
 });

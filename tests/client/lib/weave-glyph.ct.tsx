@@ -12,8 +12,7 @@ const PRIMARY_CLASS = /text-primary/u;
 
 test("renders a labelled brand SVG at the requested size", async ({ mount }) => {
   const glyph = await mount(<WeaveGlyph size={48} />);
-  const tag = await glyph.evaluate((el) => el.tagName.toLowerCase());
-  expect(tag).toBe("svg");
+  await expect(glyph).toHaveJSProperty("tagName", "svg");
   await expect(glyph).toHaveAttribute("aria-label", "Orbweaver");
   await expect(glyph).toHaveAttribute("role", "img");
   await expect(glyph).toHaveAttribute("width", "48");
