@@ -29,12 +29,14 @@ import type {
   PluginBridge,
   PluginCapability,
   PluginSuggestedAct,
+  PluginSurfaceRegistrationMeta,
   PluginTransformRegistration,
   PluginWorldEntryUpsert,
 } from "@orb/contracts/plugin";
-import { HOST_FUNCTION_CAPABILITY, PluginCapabilityError, PluginSuggestedError } from "@orb/contracts/plugin";
+import { HOST_FUNCTION_CAPABILITY, PluginCapabilityError, PluginSuggestedError, pluginSurfaceRegistrationMetaSchema } from "@orb/contracts/plugin";
 import type { VarOp } from "@orb/kit/macro";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle } from "quickjs-emscripten-core";
+import { z } from "zod";
 import type { SafeFetchOptions } from "../network/egress.ts";
 import { safeFetch } from "../network/egress.ts";
 import {
@@ -112,6 +114,16 @@ export interface MembraneRuntime {
    *  the membrane never bypasses the automation-side delivery gates. `type` is validated to the closed Tier-1
    *  taxonomy at THIS boundary (a garbage type is refused at collection, never a dead subscription). */
   readonly collectEvent: (reg: { readonly type: ChatTriggerType | DomainTriggerType }, handler: QuickJSHandle) => void;
+  /** Collect a UI surface registration — the SYNC activation-time mirror of `collectTool` (plugin-ui-plane #679
+   *  U1, seam 4). `meta` is the ALREADY-VALIDATED serializable descriptor (`setUi` ran the zod schema — the host
+   *  trust boundary); `onAction` is the guest handler HANDLE the Sandbox keeps alive keyed by a minted ref (`null`
+   *  = a display-only surface). Unlike tools/transforms/events a surface needs NO external registrar: it is read
+   *  directly off the resident instance by `plugin.listSurfaces` and re-entered by `plugin.invokeUiAction`. */
+  readonly collectSurface: (meta: PluginSurfaceRegistrationMeta, onAction: QuickJSHandle | null) => void;
+  /** Append a WARN line to the instance's log ring (drained into the invocation outcome / runtime ring). The ONE
+   *  soft-diagnostic seam: `ui.register` uses it to record a refused surface WITHOUT throwing — an invalid surface
+   *  spec must not be activation-fatal (a plugin's tools/chips outlive its stale panel, plugin-ui-plane §4.9). */
+  readonly logWarn: (message: string) => void;
   /** The manifest-declared `net.fetch` allowlist (the SSRF wall). Threaded as plain-string DATA from
    *  the validated manifest (`netHosts`); NEVER `ANY_HOST`, NEVER guest-supplied. Empty ⇒ every fetch is
    *  refused (fail-closed): a `net.fetch` grant with no declared host reaches nothing. */
@@ -172,6 +184,81 @@ export function attachMembrane(ctx: QuickJSContext, surface: QuickJSHandle, runt
   setTransforms(ctx, surface, runtime);
   setEvents(ctx, surface, runtime);
   setNet(ctx, surface, runtime);
+  setUi(ctx, surface, runtime);
+}
+
+/** The DECLARATIVE UI plane (plugin-ui-plane #679 U1). Two host fns, both capability `ui.surface`:
+ *   - `register(def)` — SYNC, activation-time (the `tools.register` mirror): validate the serializable metadata
+ *     host-side (`pluginSurfaceRegistrationMetaSchema` — the trust boundary), keep the guest `onAction` HANDLE,
+ *     collect a surface registration. An INVALID def is logged + SKIPPED, NEVER thrown: a stale panel spec must
+ *     not kill the activation that also registered the plugin's tools/events (§4.9). This is the ONE membrane
+ *     collector that refuses softly rather than throwing.
+ *   - `setState(surfaceId, state)` — ASYNC, runtime: publish the whole replacement state through the bridge
+ *     (the domain writes the in-memory state row + emits the per-user freshness poke). JSON-safe data only. */
+function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
+  using ui = ctx.newObject();
+  using registerFn = ctx.newFunction("register", (defHandle?: QuickJSHandle) => {
+    requireCapability(runtime, "ui.register");
+    if (defHandle === undefined) {
+      throw new Error("plugin host: ui.register requires a definition object");
+    }
+    // The metadata handles are scope-owned (`using`). `onAction` is NOT: on the collect path its ownership
+    // TRANSFERS to the Sandbox (kept alive for the instance lifetime); on every other path it is hand-disposed
+    // here — a `using` would double-free the transferred handle (`Lifetime.dispose` throws on a second call).
+    using idH = ctx.getProp(defHandle, "id");
+    using anchorH = ctx.getProp(defHandle, "anchor");
+    using titleH = ctx.getProp(defHandle, "title");
+    using tierH = ctx.getProp(defHandle, "tier");
+    using specH = ctx.getProp(defHandle, "spec");
+    const onAction = ctx.getProp(defHandle, "onAction");
+    // `spec` absent ⇒ `ctx.dump` yields `undefined`, which the schema's optional `spec` accepts.
+    const meta = {
+      id: ctx.dump(idH) as unknown,
+      anchor: ctx.dump(anchorH) as unknown,
+      title: ctx.dump(titleH) as unknown,
+      tier: ctx.dump(tierH) as unknown,
+      spec: ctx.dump(specH) as unknown,
+    };
+    const parsed = pluginSurfaceRegistrationMetaSchema.safeParse(meta);
+    if (!parsed.success) {
+      // SOFT refusal: the surface is absent + a log line explains why; activation continues (§4.9).
+      // `prettifyError` carries the PATH (which field failed) — the diagnostic a plugin author needs to fix a
+      // stale spec, where a bare `issues[0].message` names none.
+      onAction.dispose();
+      runtime.logWarn(`ui.register refused a surface: ${z.prettifyError(parsed.error)}`);
+      return ctx.undefined;
+    }
+    if (ctx.typeof(onAction) === "function") {
+      runtime.collectSurface(parsed.data, onAction);
+    } else {
+      // No action handler — a display-only surface. Drop the non-function handle (an absent prop is `undefined`).
+      onAction.dispose();
+      runtime.collectSurface(parsed.data, null);
+    }
+    return ctx.undefined;
+  });
+  ctx.setProp(ui, "register", registerFn);
+
+  attachAsync(ctx, ui, {
+    name: "setState",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "ui.setState");
+      const surfaceId = args[0];
+      if (typeof surfaceId !== "string") {
+        throw new Error("plugin host: ui.setState requires a surfaceId string");
+      }
+      // A plain JSON object only — an array / scalar / null is an empty state (fail-safe: no throw). The domain
+      // op caps the serialized size; the arg-budget belt already bounded the inbound bytes.
+      const raw = args[1];
+      const state: Record<string, unknown> = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+      await runtime.bridge.ui.setState(surfaceId, state);
+      return null;
+    },
+  });
+
+  ctx.setProp(surface, "ui", ui);
 }
 
 function setGrants(ctx: QuickJSContext, surface: QuickJSHandle, grants: ReadonlySet<PluginCapability>): void {

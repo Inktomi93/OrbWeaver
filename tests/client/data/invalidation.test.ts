@@ -384,6 +384,9 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // bus half and the ladder half cannot drift apart.
   // Deliberately NOT the character/chat roots: a role grant changes what the viewer may DO, not what they own.
   identityChanged: ["sessionsMe", "userSettings", "persona"],
+  // READ-PENDING member (plugin-ui-plane #679 U1) — EMITTED live (`host.ui.setState`), but its client filter is
+  // `[]` until `plugin.getSurfaceState` lands with U1's read verbs; wire it to that read's key then.
+  pluginSurfaceStateChanged: [],
   // DEFERRED member — never emitted, but the map entry is live; it path-invalidates the WHOLE connection
   // router, so the capability read under it goes stale too.
   connectionsChanged: ["connection", "chatCapability"],

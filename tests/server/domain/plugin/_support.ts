@@ -31,6 +31,7 @@ import {
   createNotifyFloor,
   createPluginRateFloor,
   createPluginService,
+  createPluginSurfaceStateStore,
   createSnippetGate,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
@@ -83,7 +84,7 @@ function makeFakePort(): FakePort {
     createInstance: (input: CreateInstanceInput): Promise<CreateInstanceOutcome> => {
       created.push(input);
       const scripted = queue.shift();
-      const outcome: CreateInstanceOutcome = scripted ?? { ok: true, instance: { tools: [], transforms: [], events: [] } };
+      const outcome: CreateInstanceOutcome = scripted ?? { ok: true, instance: { tools: [], transforms: [], events: [], surfaces: [] } };
       if (outcome.ok) {
         logs.set(outcome.instance, []);
       }
@@ -131,7 +132,7 @@ export function makeSandboxPort(seams: HostSeams): PluginHostPort {
         sandbox.dispose();
         return { ok: false, error: outcome.error?.message ?? "activation failed", log: toLog(outcome.logs) };
       }
-      const instance: PluginInstance = { tools: [], transforms: [], events: [] };
+      const instance: PluginInstance = { tools: [], transforms: [], events: [], surfaces: [] };
       sandboxes.set(instance, sandbox);
       logs.set(instance, toLog(outcome.logs));
       return { ok: true, instance };
@@ -216,6 +217,10 @@ export function makePluginHarness(
     assets: { store, readBytes, reapOrphans },
     host: overrides.port ?? fakePort,
     ops: overrides.ops ?? makeInertOps(),
+    // The REAL surface-state store — the write op + the read verb + the deactivate sweep share ONE instance, so
+    // a `getSurfaceState`/deactivate test observes exactly what `ui.setState` wrote (a permissive fake would let
+    // a test prove state semantics the shared store does not have).
+    surfaceState: createPluginSurfaceStateStore(),
     // The snippet AUTHORITY seam — full authority by default (the harness caller is the owner); a test needing a
     // read-only or no-access chat overrides it. The composed-real int test drives the REAL loadPresentRole gate.
     resolveChatAuthority: overrides.resolveChatAuthority ?? (() => Promise.resolve({ canRead: true, canWrite: true })),
@@ -293,6 +298,7 @@ export function makeInertOps(): PluginHostOps {
     // non-host act does not EXECUTE, and the tests that care about the ask being stored inject a recorder.
     suggestions: { raise: () => undefined, voidForPlugin: () => undefined },
     quickReply: { surface: () => Promise.resolve() },
+    ui: { setState: () => Promise.resolve() },
     imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_inert00000000000000000" }) },
     variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
     registrar: {

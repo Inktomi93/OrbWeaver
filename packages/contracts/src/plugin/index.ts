@@ -31,6 +31,7 @@ export type {
   PluginEventSubscription,
   PluginHandlerRef,
   PluginInstance,
+  PluginSurfaceRegistration,
   PluginToolRegistration,
   PluginTransformRegistration,
 } from "./registrations.ts";
@@ -38,6 +39,7 @@ export type { PluginSuggestedAct, PluginSuggestedActKind } from "./suggestion.ts
 export { PLUGIN_SUGGESTED_ACT_KINDS, summarizePluginAct } from "./suggestion.ts";
 export type {
   PluginBadgeIntent,
+  PluginBadgeNode,
   PluginBoundNumber,
   PluginBoundString,
   PluginButtonNode,
@@ -61,6 +63,7 @@ export type {
   PluginStateBinding,
   PluginSurfaceAnchor,
   PluginSurfaceNode,
+  PluginSurfaceRegistrationMeta,
   PluginSurfaceSpec,
   PluginSurfaceTier,
   PluginTextFieldNode,
@@ -78,9 +81,12 @@ export {
   PLUGIN_SPEC_MAX_DEPTH,
   PLUGIN_SPEC_MAX_NODES,
   PLUGIN_SURFACE_ANCHORS,
+  PLUGIN_SURFACE_ID_RE,
   PLUGIN_SURFACE_TIERS,
+  PLUGIN_SURFACE_TITLE_MAX,
   PLUGIN_TEXT_MAX_BYTES,
   PLUGIN_TEXT_VOICES,
   pluginSurfaceNodeSchema,
+  pluginSurfaceRegistrationMetaSchema,
   pluginSurfaceSpecSchema,
 } from "./ui.ts";

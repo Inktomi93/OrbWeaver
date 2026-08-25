@@ -17,7 +17,14 @@
 
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import type { PluginCapability, PluginEventSubscription, PluginHandlerRef, PluginToolRegistration, PluginTransformRegistration } from "@orb/contracts/plugin";
+import type {
+  PluginCapability,
+  PluginEventSubscription,
+  PluginHandlerRef,
+  PluginSurfaceRegistration,
+  PluginToolRegistration,
+  PluginTransformRegistration,
+} from "@orb/contracts/plugin";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSWASMModule, VmCallResult } from "quickjs-emscripten-core";
 import {
   GUEST_MAX_STACK_BYTES,
@@ -142,6 +149,7 @@ interface ResidentState {
   readonly tools: PluginToolRegistration[];
   readonly transforms: PluginTransformRegistration[];
   readonly events: PluginEventSubscription[];
+  readonly surfaces: PluginSurfaceRegistration[];
   readonly handlers: Map<PluginHandlerRef, QuickJSHandle>;
   /** Host-call deferreds still UNSETTLED (a fire-and-forget guest promise still in flight). MUST be disposed
    *  before `ctx.dispose()` — an unsettled guest Promise left in the heap aborts `JS_FreeRuntime`. The
@@ -187,6 +195,7 @@ export class Sandbox implements Disposable {
       tools: [],
       transforms: [],
       events: [],
+      surfaces: [],
       handlers: new Map(),
       pending: new Set(),
     };
@@ -216,6 +225,18 @@ export class Sandbox implements Disposable {
               const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
               state.handlers.set(ref, handler);
               state.events.push({ type: reg.type, handler: ref });
+            },
+            collectSurface: (meta, onAction): void => {
+              if (onAction === null) {
+                state.surfaces.push({ ...meta });
+                return;
+              }
+              const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
+              state.handlers.set(ref, onAction);
+              state.surfaces.push({ ...meta, onAction: ref });
+            },
+            logWarn: (message): void => {
+              log.push("warn", message);
             },
           };
     installRealm(ctx, seams, log, membrane);
@@ -256,6 +277,14 @@ export class Sandbox implements Disposable {
    *  (disposed at teardown alongside tool/transform handlers). */
   get collectedEvents(): readonly PluginEventSubscription[] {
     return this.state.events;
+  }
+
+  /** The UI surfaces `main.js` registered at activation (plugin-ui-plane #679 U1) — read directly by
+   *  `plugin.listSurfaces`; each surface's `onAction` handle lives in `handlers` (disposed at teardown alongside
+   *  tool/transform/event handlers). No external registrar: a surface is instance-resident data, not a process
+   *  registry entry. */
+  get collectedSurfaces(): readonly PluginSurfaceRegistration[] {
+    return this.state.surfaces;
   }
 
   /** Admit an invocation chat (mints a fresh opaque handle token) or clear the scope (`null`). Called before

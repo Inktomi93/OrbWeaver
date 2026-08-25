@@ -57,3 +57,12 @@ export function collapseFilters(filters: readonly InvalidateFilter[]): readonly 
   }
   return kept;
 }
+
+/** The tRPC filter's dotted path — the readable key name the `[bus]` dev log keys off. Dev-only. Homed here
+ *  (not in `invalidation.ts`) for the SAME reason this file exists: the seam file is at its component-size cap,
+ *  and a filter-key helper is filter logic with one consumer, exactly what this file already collects. */
+export function filterKeyName(filter: InvalidateFilter): string {
+  const queryKey = (filter as { readonly queryKey?: readonly unknown[] }).queryKey;
+  const path = Array.isArray(queryKey) ? queryKey[0] : undefined;
+  return Array.isArray(path) ? path.join(".") : "?";
+}

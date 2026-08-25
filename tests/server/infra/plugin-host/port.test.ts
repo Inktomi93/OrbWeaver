@@ -261,6 +261,7 @@ function fakeBridge(): {
       suggested.acts.push(act);
       return Promise.resolve();
     },
+    ui: { setState: () => Promise.resolve() },
   };
   return { bridge, kv, store, notices, chips, writes, lore, pics, turns, quiets, egress, suggested };
 }
