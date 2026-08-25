@@ -10,7 +10,10 @@
 //   • reduced motion REMOVES every animation while every layer still paints (static but still distinct).
 // One mount per test (mount() is once-per-test; a state change uses update()).
 import { Waystone } from "@orb/ui/meter";
+import { ThemeScope } from "@orb/ui/theme-scope";
+import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { partVsSurface } from "../../../support/ct/part-vs-surface.ts";
 
 const ROTATE_RE = /rotate/u;
 const OKLCH_RE = /okl(ab|ch)\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)/u;
@@ -299,6 +302,35 @@ test("an unset clock is the honest empty stone: no hand, no arcs, no weather, a 
   await expect(component.locator("[data-slot=waystone-precip]")).toHaveCount(0);
   await expect(component.locator("[data-slot=waystone-clouds]")).toHaveCount(0);
 });
+
+// ── #693: THE 24h DIAL TRACK, MEASURED ON THE PANEL IT ACTUALLY RIDES ─────────────────────────────
+// The stone's dial track is drawn OUTSIDE the `--color-sidebar` sky disc, so what is behind it is the
+// context PANEL, not the stone's art — and on that pair `text-muted` (the token it wore, the same faint-ring
+// idiom #685 fixed on the arc meter) measured 1.0150:1 under a light palette: a dial with no dial. Composited
+// through the shared kernel because the replacement token carries ALPHA.
+const WAYSTONE_TRACK = '[data-slot="waystone-track"]';
+/** The #685 floor's shape: meaningfully stronger than the one ramp step `muted` could ever be. */
+const DIAL_TRACK_FLOOR = 1.3;
+
+// Both polarities' real bases, from the token sources rather than as literals (the Light seed's generated
+// `--color-background`, and the base `@theme` ramp's).
+for (const { label, base } of [
+  { label: "a near-white carried palette", base: SEED_THEME_VALUE_SETS.light.vars["--color-background"] },
+  { label: "the dark seed", base: TOKENS["color.background"].value },
+] as const) {
+  test(`#693 the dial TRACK reads as a graphic on the PANEL under ${label}`, async ({ mount }) => {
+    const component = await mount(
+      <ThemeScope tokens={{ background: base }}>
+        <div data-testid="panel" style={{ backgroundColor: "var(--color-sidebar)" }}>
+          <Waystone clock={{ hour: 9, minute: 0 }} weather="clear" />
+        </div>
+      </ThemeScope>,
+    );
+    await expect
+      .poll(() => component.getByTestId("panel").evaluate(partVsSurface, WAYSTONE_TRACK), { intervals: [20, 50, 100] })
+      .toBeGreaterThan(DIAL_TRACK_FLOOR);
+  });
+}
 
 test("the whole composite is aria-hidden decoration and carries ZERO text (the band's lines are the datum)", async ({ mount }) => {
   const component = await mount(<Waystone clock={{ hour: 9, minute: 0 }} weather="cloudy" />);

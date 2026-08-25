@@ -182,7 +182,9 @@ export function Waystone({ clock, weather = null, className }: WaystoneProps): R
       </defs>
 
       {/* LAYER 0 — the 24h dial: the neutral track, the six label arcs (the one we're IN lit), the bezel scale. */}
-      <circle cx={C} cy={C} r={RING_R} className={slots.track()} stroke="currentColor" strokeWidth={RING_W} fill="none" />
+      {/* The dial track carries its own slot so the #693 contrast pin has an anchor that resolves UNIQUELY
+          (a `circle:not([data-slot])` sweep would also match the clip/celestial circles in `<defs>`). */}
+      <circle cx={C} cy={C} r={RING_R} className={slots.track()} data-slot="waystone-track" stroke="currentColor" strokeWidth={RING_W} fill="none" />
       {litPhase === null ? null : <DialArcs litPhase={litPhase} />}
       <DialCardinals maskId={cardinalMaskId} />
       <circle cx={C} cy={C} r={DISC_R} fill="var(--color-sidebar)" />

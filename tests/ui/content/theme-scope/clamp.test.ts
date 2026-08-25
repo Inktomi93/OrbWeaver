@@ -138,6 +138,69 @@ test("the accent picker derives --color-primary-foreground off the picked accent
   expect(noAccent.vars["--color-primary-foreground"]).toBeUndefined();
 });
 
+// ── #692: THE AMBIENT ACCENT — a carried room's inherited fill, judged against the card it lands on ──
+// `--color-primary` is the one PICKED token no base derives, so a palette that carries a background and no
+// accent INHERITS the app theme's through the cascade. Hearth's over a near-white room's card measures
+// 2.5858:1 — the arc meter's VALUE arc under WCAG 1.4.11's 3:1 (kit's `accentFillLightness` owns the
+// algebra; these pin the clamp's POLICY: what it judges, what it emits, and what it must leave alone).
+const HEARTH_ACCENT = "oklch(0.72 0.175 52)";
+const NEAR_WHITE = "oklch(0.98 0.004 75)";
+const HEARTH_BASE = "oklch(0.158 0.006 60)";
+
+test("#692 an inherited accent that FAILS against the carried room's card is re-derived (hue/chroma kept)", () => {
+  const { vars } = clampThemeTokens({ background: NEAR_WHITE }, undefined, HEARTH_ACCENT);
+  // Relative colour off the AUTHOR's value: only L is spelled, `c h` are theirs, and the alpha slot is
+  // explicit (an omitted slot inherits the ORIGIN's — the fixed point that never passes, stickler F1).
+  expect(vars["--color-primary"]).toBe(`oklch(from ${HEARTH_ACCENT} 0.68 c h / 1)`);
+  expect(vars["--color-ring"]).toBe(vars["--color-primary"]);
+  // The label on the corrected fill derives off the SAME origin at the CORRECTED lightness — single-level,
+  // never nested off the emitted fill. 0.68 is still above the pivot, so the label stays near-black (0.22):
+  // the label must track the fill it lands on, not the fill the author picked.
+  expect(vars["--color-primary-foreground"]).toBe(`oklch(from ${HEARTH_ACCENT} 0.22 0 h / 1)`);
+});
+
+test("#692 BYTE-IDENTICAL PASS-THROUGH: an inherited accent that CLEARS emits nothing at all", () => {
+  // The cascade must stand exactly as it did — an ambient value is a JUDGING INPUT and can carry nothing
+  // into the DOM on its own. Hearth's accent in a Hearth-dark room (6.83:1) and the Light seed's own
+  // accent in a near-white room (5.07:1) are both no-ops.
+  for (const [background, ambientAccent] of [
+    [HEARTH_BASE, HEARTH_ACCENT],
+    [NEAR_WHITE, "oklch(0.55 0.16 50)"],
+  ] as const) {
+    const { vars } = clampThemeTokens({ background }, undefined, ambientAccent);
+    expect(vars["--color-primary"]).toBeUndefined();
+    expect(vars["--color-ring"]).toBeUndefined();
+    expect(vars["--color-primary-foreground"]).toBeUndefined();
+  }
+  // …and with NO carried background there is no derived card to judge against: pre-#692 behaviour stands.
+  expect(clampThemeTokens({}, undefined, HEARTH_ACCENT).vars["--color-primary"]).toBeUndefined();
+});
+
+test("#692 a PICKED accent is judged too, and a clearing pick stays byte-identical", () => {
+  // The picked arm is the same rule, not a second one: a pale accent on a light room is the same defect
+  // an inherited one is.
+  const pale = "oklch(0.92 0.05 200)";
+  const corrected = clampThemeTokens({ accent: pale, background: "oklch(0.96 0.004 75)" }).vars["--color-primary"];
+  expect(corrected).toBe(`oklch(from ${pale} 0.644 c h / 1)`);
+  // A pick that clears reaches the DOM UNTOUCHED — the no-op-where-the-pick-was-sensible guarantee.
+  const sensible = clampThemeTokens({ accent: "oklch(0.55 0.16 50)", background: NEAR_WHITE }).vars;
+  expect(sensible["--color-primary"]).toBe("oklch(0.55 0.16 50)");
+  expect(sensible["--color-primary-foreground"]).toContain("oklch(from oklch(0.55 0.16 50)");
+  // A HOSTILE inherited accent cannot enter through the ambient door either — it is not a schema field,
+  // so it is only ever an origin for a value this clamp itself spells; an unreadable one fails open.
+  expect(clampThemeTokens({ background: NEAR_WHITE }, undefined, "rebeccapurple").vars["--color-primary"]).toBeUndefined();
+});
+
+test("#692 the accent SOURCE rides the struct for the descendant chain, never the emit surface", () => {
+  const carried = clampThemeTokens({ background: NEAR_WHITE }, undefined, HEARTH_ACCENT);
+  // A nested room must judge the AUTHOR's pick against its own card, so what flows down is the source —
+  // and it is a value a static reader resolves, which the emitted relative-colour fill is not.
+  expect(carried.accentSource).toBe(HEARTH_ACCENT);
+  expect(clampThemeTokens({ accent: "oklch(0.4 0.1 20)" }, undefined, HEARTH_ACCENT).accentSource).toBe("oklch(0.4 0.1 20)");
+  expect(clampThemeTokens({}).accentSource).toBeUndefined();
+  expect("accentSource" in carried.vars).toBe(false);
+});
+
 test("the hover/selected accent SURFACE + its foreground derive off the base (light-theme P2 fix)", () => {
   // --color-accent joins the neutral ramp so a selected row tracks the theme; --color-accent-foreground
   // derives off the SAME shifted L (single-level off base, not a nested relative-color). (#16)

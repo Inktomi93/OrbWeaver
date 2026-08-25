@@ -8,7 +8,9 @@
 // documented pivot mid-band.
 
 import {
+  AA_LARGE_RATIO,
   AA_NORMAL_RATIO,
+  accentFillLightness,
   compositeSrgb,
   derivedForeground,
   derivedForegroundLightness,
@@ -301,6 +303,51 @@ describe("proseInkLightness (#204 §7a — the author-picked ink clamp decision)
     const ink = { l: 0.75, c: 0.05, h: 60 };
     expect(proseInkLightness(ink, 1, darkBase)).toBeNull();
     expect(proseInkLightness(ink, 0.35, darkBase)).toBe(THEME_DERIVATION.fgLMax);
+  });
+});
+
+describe("accentFillLightness (#692 — the accent judged against the card its graphics land on)", () => {
+  const darkBase = { l: 0.158, c: 0.006, h: 60 };
+  const lightBase = { l: 0.98, c: 0.004, h: 75 };
+  const hearthAccent = { l: 0.72, c: 0.175, h: 52 };
+  const lightSeedAccent = { l: 0.55, c: 0.16, h: 50 };
+  const cardOf = (base: { l: number; c: number; h: number }): { l: number; c: number; h: number } => rampSurface(base, rampDeltas(base).card);
+  const vsCard = (accent: { l: number; c: number; h: number }, base: { l: number; c: number; h: number }): number =>
+    wcagContrastRatio(oklchToSrgb(accent), oklchToSrgb(cardOf(base)));
+
+  test("THE DEFECT: Hearth's accent inherited into a near-white carried room fails 1.4.11, and the fix clears it", () => {
+    // The filed number, re-derived: 2.5858:1 — the arc meter's VALUE arc under a light carried palette.
+    expect(vsCard(hearthAccent, lightBase)).toBeCloseTo(2.5858, 3);
+    const l = accentFillLightness(hearthAccent, 1, lightBase);
+    expect(l).not.toBeNull();
+    // Hue and chroma are the author's; only L moved, and only as far as the floor needed (0.72 -> 0.68).
+    expect(vsCard({ l: l ?? 0, c: hearthAccent.c, h: hearthAccent.h }, lightBase)).toBeGreaterThanOrEqual(AA_LARGE_RATIO);
+    expect(l ?? 0).toBeLessThan(hearthAccent.l);
+    expect(l ?? 0).toBeGreaterThan(hearthAccent.l - 0.1);
+  });
+
+  test("BYTE-IDENTICAL PASS-THROUGH: an accent that already clears returns null on either polarity", () => {
+    // The shipped Light seed's own primary on a light base — 5.07:1, nothing to fix (there was never a
+    // seed to promote here; the defect is the cross-polarity INHERITANCE, not the light arm).
+    expect(vsCard(lightSeedAccent, lightBase)).toBeGreaterThan(AA_LARGE_RATIO);
+    expect(accentFillLightness(lightSeedAccent, 1, lightBase)).toBeNull();
+    // The dark arm does not move: Hearth's accent in a Hearth room is 6.83:1.
+    expect(accentFillLightness(hearthAccent, 1, darkBase)).toBeNull();
+  });
+
+  test("the direction is the PIVOT's — a light card darkens the accent, a dark card lightens it", () => {
+    const pale = { l: 0.92, c: 0.05, h: 200 };
+    expect(accentFillLightness(pale, 1, { l: 0.96, c: 0.004, h: 75 }) ?? 1).toBeLessThan(pale.l);
+    const murky = { l: 0.2, c: 0.05, h: 200 };
+    expect(accentFillLightness(murky, 1, darkBase) ?? 0).toBeGreaterThan(murky.l);
+  });
+
+  test("a translucent accent is composited over the card before judging — alpha can fail an opaque-passing pick", () => {
+    // Opaque it clears the dark room; at 0.2 over that card it does not, and the correction is a real move.
+    expect(accentFillLightness(hearthAccent, 1, darkBase)).toBeNull();
+    const corrected = accentFillLightness(hearthAccent, 0.2, darkBase);
+    expect(corrected).not.toBeNull();
+    expect(corrected ?? 0).toBeGreaterThan(hearthAccent.l);
   });
 });
 
