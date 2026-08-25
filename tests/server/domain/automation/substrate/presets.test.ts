@@ -98,8 +98,8 @@ test("the picker projection flattens the knob schema and carries no CEL", () => 
 });
 
 // ── #655: the SPEND signal ────────────────────────────────────────────────────────────────────────────
-// The picker had none, and most of the presets commit the host to a RECURRING model charge (eleven of the
-// eighteen as of #16's needle, C3's prose audit and C6's pair). These pin that the answer is DERIVED from the arms the builder actually
+// The picker had none, and most of the presets commit the host to a RECURRING model charge (sixteen of the
+// twenty-two once the three optional owner-picks land). These pin that the answer is DERIVED from the arms the builder actually
 // emits — the whole reason a hand-kept `spends: boolean` on the def was refused: a flag an author forgets to
 // flip is a lie on a money surface.
 
@@ -132,6 +132,11 @@ const SPENDING_PRESET_IDS = [
   // the one owner-GLOBAL row, and it is the row where the signal matters most: a library-wide rule bills on
   // events the host is not watching (an import run, a bulk edit), so the picker must say so before the add.
   "livingLibrary",
+  // §4 #17 fires a `generate_image` and §4 #18 a `trigger_turn` — both SPEND_ARM_TYPES. §4 #19's
+  // `set_chat_background` is a QUIET pick, deliberately NOT spend-classed (#16's ruling), so it is FREE and
+  // lands in the negative half below, not here.
+  "illustrateOnLoreReveal",
+  "reactToLoreActivation",
 ];
 
 test("#655: the spend signal names exactly the presets whose arms cost a model call", () => {
@@ -141,7 +146,9 @@ test("#655: the spend signal names exactly the presets whose arms cost a model c
   // useless as one that marked nothing. `asyncTableNudge` belongs here and the placement is the claim — its
   // only arm writes an inbox row, so an async table can be nudged forever without billing the host.
   expect(RULE_PRESET_IDS.filter((id) => !toRulePresetView(RULE_PRESETS[id]).spends).toSorted()).toEqual(
-    ["autoAddLore", "diceChips", "openerChips", "callAVote", "asyncTableNudge"].toSorted(),
+    // `autoSetSceneBackground` joins the free five: its only arm is the quiet `set_chat_background` pick,
+    // which is NOT spend-classed (#16's ruling — the pick is cheap), so an auto-backdrop bills nothing.
+    ["autoAddLore", "diceChips", "openerChips", "callAVote", "asyncTableNudge", "autoSetSceneBackground"].toSorted(),
   );
 });
 

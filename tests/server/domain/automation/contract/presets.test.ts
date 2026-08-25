@@ -134,9 +134,14 @@ test("the committed catalogue is exactly the A3 rows plus A4's four plus C1's pa
     "proseAudit",
     "asyncTableNudge",
     "spotlightBalance",
-    // C5 adds #20 (the living library) — the catalogue's LAST committed row and its only owner-GLOBAL one.
-    // With it the §4 catalogue is complete: 19 rows, no committed id left unbuilt.
+    // C5 adds #20 (the living library) — the last of the 19 committed rows and its only owner-GLOBAL one.
     "livingLibrary",
+    // §4 #17-#19 — the three OPTIONAL owner-picks (owner 2026-08-24: "everything optional gets included"),
+    // pure catalogue additions over already-built arms (generate_image / trigger_turn / set_chat_background).
+    // With them the §4 catalogue is complete: 22 rows, no committed id left unbuilt. Appended, never reordered.
+    "illustrateOnLoreReveal",
+    "reactToLoreActivation",
+    "autoSetSceneBackground",
   ]);
 });
 

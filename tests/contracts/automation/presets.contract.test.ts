@@ -19,7 +19,7 @@ import {
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("RULE_PRESET_IDS is the pinned 19-member catalogue (A3's seven + A4's four + C1's pacing analysis + C2's two lore-distillers + #16 the needle + C3's prose audit + C6's two + C5's owner-global living library), in §4 build order", () => {
+test("RULE_PRESET_IDS is the pinned 22-member catalogue (the 19 committed rows + the three OPTIONAL owner-picks: illustrate-on-lore-reveal, react-to-lore-activation, auto-set-scene-background), in §4 build order", () => {
   expect(RULE_PRESET_IDS).toEqual([
     "welcomeBackRecap",
     "autoAddLore",
@@ -46,9 +46,13 @@ test("RULE_PRESET_IDS is the pinned 19-member catalogue (A3's seven + A4's four 
     // spotlight-balance analysis. Appended, never re-ordered: the tuple is the catalogue's build order.
     "asyncTableNudge",
     "spotlightBalance",
-    // §4 #20 — C5's owner-GLOBAL living library, the catalogue's last committed row and its only global
-    // one. Appended 19th; the tuple IS the build order.
+    // §4 #20 — C5's owner-GLOBAL living library, the last of the 19 committed rows and its only global one.
     "livingLibrary",
+    // §4 #17-#19 — the three OPTIONAL owner-picks (owner 2026-08-24: "everything optional gets included"),
+    // pure catalogue additions over already-built arms. Appended, never re-ordered: the tuple IS build order.
+    "illustrateOnLoreReveal",
+    "reactToLoreActivation",
+    "autoSetSceneBackground",
   ]);
   expect(rulePresetIdSchema.options).toEqual(RULE_PRESET_IDS);
   // THE CATALOGUE IS COMPLETE — every committed §4 row is spellable, so there is no unbuilt id left to
@@ -111,6 +115,9 @@ const PRESET_SEEN: Record<RulePresetId, true> = {
   asyncTableNudge: true,
   spotlightBalance: true,
   livingLibrary: true,
+  illustrateOnLoreReveal: true,
+  reactToLoreActivation: true,
+  autoSetSceneBackground: true,
 };
 const KIND_SEEN: Record<RulePresetKnobKind, true> = { number: true, text: true, textList: true, choice: true, entityRef: true };
 const ENTITY_SEEN: Record<RulePresetEntityKind, true> = { worldInfoBook: true };
