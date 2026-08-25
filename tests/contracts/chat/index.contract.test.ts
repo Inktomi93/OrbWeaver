@@ -109,6 +109,7 @@ test("chatOpened + worldInfoActivated round-trip their id-only shapes (event-bus
     type: "worldInfoActivated",
     chatId: SAMPLE_CHAT_ID,
     entryIds: [mintTypeId(ID_PREFIX.worldEntry)],
+    automationDepth: 0,
   };
   expect(opened.type).toBe("chatOpened");
   expect(wiFired.entryIds).toHaveLength(1);

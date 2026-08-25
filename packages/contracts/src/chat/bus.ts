@@ -347,7 +347,14 @@ export type ChatBusEvent =
   | { type: "warning"; chatId: ChatId; code: ChatWarningCode }
   // ── World-info ACTIVATION (which entries FIRED during this turn's assembly — distinct from the
   //    attachment changes in WiBusEvent; ST WORLD_INFO_ACTIVATED — the "what lore fired" automation hook) ──
-  | { type: "worldInfoActivated"; chatId: ChatId; entryIds: WorldEntryId[] }
+  //    `automationDepth` is the cascade depth of the GENERATING turn (the same plain scalar `turnAborted`
+  //    carries, and for the same reason): the activation is emitted DURING assembly, BEFORE this turn's reply
+  //    slot commits, so its depth cannot be read back through `getTurnOrigin` — there is no message yet. It
+  //    rides HERE so the automation fact-resolver can bound the cascade: a turn-generating rule on this trigger
+  //    (the reactToLoreActivation family) re-runs assembly and can RE-activate the same lore, a self-chain the
+  //    depth cap must catch. 0 = a human-plane turn (the `TurnPrep.automationDepth` default). This is turn-path
+  //    DEPTH, not attribution — no caller id, no secret (the allowlist bans those, not a counter).
+  | { type: "worldInfoActivated"; chatId: ChatId; entryIds: WorldEntryId[]; automationDepth: number }
   | { type: "personaSwitched"; chatId: ChatId; from: PersonaId | null; to: PersonaId | null }
   // ── World-info attachment changes (chat-surface only; embedded from #world-info) ──
   | WiBusEvent

@@ -1495,11 +1495,15 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       await deps.emit({ type: "reasoningStreamDone", chatId: prep.chatId });
     }
     // Which WI entries fired this turn; empty pool means no emit (no lore fired is not an activation event).
+    // Threads THIS turn's own cascade depth so a `worldInfoActivated`-triggered rule whose reaction turn
+    // re-activates the same lore escalates toward the hard cap instead of self-chaining at a hardcoded 0
+    // (the fact-resolver reads it off the event — there is no committed reply slot yet to read depth back from).
     if (result.worldInfoEntryIds.length > 0) {
       await deps.emit({
         type: "worldInfoActivated",
         chatId: prep.chatId,
         entryIds: [...result.worldInfoEntryIds],
+        automationDepth: turnCascadeDepth(prep),
       });
     }
     const view = await commitGeneration({

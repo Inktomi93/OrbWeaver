@@ -444,7 +444,7 @@ function buildCanonEvent(type: CanonEventType, chatId: ChatId): ChatBusEvent {
     case "chatUpdated":
       return { type, chatId };
     case "worldInfoActivated":
-      return { type, chatId, entryIds: [WORLD_ENTRY_ID] };
+      return { type, chatId, entryIds: [WORLD_ENTRY_ID], automationDepth: 0 };
     case "personaSwitched":
       return { type, chatId, from: null, to: PERSONA_ID };
     case "wiBookAttached":

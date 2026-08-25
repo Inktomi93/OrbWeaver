@@ -669,3 +669,152 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
     expect(fires.some((x) => x.outcome === "depth_refused")).toBe(true);
   });
 });
+
+// W1 (#704) — the `worldInfoActivated` self-chain (containment; the F5/N1 mechanism on the WI-activation
+// trigger). A turn-generating rule on `worldInfoActivated` (the reactToLoreActivation family) steers a reaction
+// turn; that turn re-runs assembly and can RE-ACTIVATE the same lore, raising a fresh `worldInfoActivated`.
+// The activation is emitted mid-assembly, BEFORE the reply slot commits, so its depth cannot be read back
+// through `getTurnOrigin` — it rides the EVENT (the `turnAborted` mechanism), carrying the generating turn's
+// own cascade depth (`engine.ts turnCascadeDepth(prep)`). A pre-fix hardcode of `automationDepth: 0` in the
+// fact-resolver made every re-activation look human-plane, so the depth never escalated and the cap never bit —
+// the rule self-chained, bounded only by a per-preset `cooldownSeconds` belt. Driven through REAL arm executors
+// + a `requestTurn` op that simulates the engine's WI-activation emit (the actual seam), exactly like N1.
+describe("W1 world-info-activation cascade guard (self-chain closed, #704)", () => {
+  // `confirmFirst:false` ⇒ the arm triggers the turn immediately (not a confirm-first suggestion).
+  const triggerTurn: AutomationActionInput = { type: "trigger_turn", confirmFirst: false };
+
+  /** REAL arm executors whose `requestTurn` op simulates chat's engine: the reaction turn generates and
+   *  re-activates the same lore, emitting `worldInfoActivated` carrying THIS turn's own cascade depth
+   *  (`origin.automationDepth`, threaded through the arm to `req.automationDepth`). Every simulated activation
+   *  is captured so the test can feed it back into `handleEvent` (the re-fire path). */
+  function loreReactionOps(db: Awaited<ReturnType<typeof freshDb>>): { runArm: ArmDispatch; ops: AutomationOps; activations: ChatBusEvent[] } {
+    const activations: ChatBusEvent[] = [];
+    const ops: AutomationOps = {
+      tools: NO_TOOLS,
+      chat: {
+        // The resolver reads the WI-activation depth OFF THE EVENT — no committed slot exists mid-assembly, so
+        // these reads stay inert (never consulted for this trigger).
+        getMessageFact: () => Promise.resolve(null),
+        getTurnOrigin: () => Promise.resolve(null),
+        resolveViewerVisibility: () => Promise.resolve(null),
+        readVariables: () => Promise.resolve({}),
+        readChoicePicks: () => Promise.resolve({}),
+        resolveChatProse: () => Promise.resolve({}),
+        applyVariableOps: () => Promise.resolve(),
+        listBackgroundChoices: () => Promise.resolve([]),
+        setChatBackground: () => Promise.resolve(),
+        requestTurn: (req) => {
+          activations.push({
+            type: "worldInfoActivated",
+            chatId: req.chatId,
+            entryIds: [mintTypeId(ID_PREFIX.worldEntry)],
+            automationDepth: req.automationDepth,
+          });
+          return Promise.resolve({ costUsd: null, messageCount: 1 });
+        },
+      },
+      worldInfo: { upsertEntries: () => Promise.resolve({ inserted: 0, updated: 0, skippedHandEdited: 0 }) },
+      notifications: { emit: () => Promise.resolve() },
+      imagery: { generatePicture: () => Promise.resolve({ costUsd: null, imageCount: 0 }) },
+      summarizeQuiet: () => Promise.resolve({ text: "", costUsd: null }),
+    };
+    return {
+      runArm: createArmExecutors({
+        db,
+        ops,
+        prng: () => 0.42,
+        notify: () => undefined,
+        suggestions: createSuggestionStore(),
+        newSuggestionId: () => mintTypeId(ID_PREFIX.automationSuggestion),
+      }),
+      ops,
+      activations,
+    };
+  }
+
+  /** A lore-activation event carrying the generating turn's cascade `depth` (0 = a human-plane turn). */
+  function worldInfoActivated(chatId: ChatId, depth: number): ChatBusEvent {
+    return { type: "worldInfoActivated", chatId, entryIds: [mintTypeId(ID_PREFIX.worldEntry)], automationDepth: depth };
+  }
+
+  /** Feed each captured re-activation back into `handleEvent`, one at a time (recursion — the queue grows as
+   *  opted-in re-fires raise deeper activations). Bails at `ceiling` (an unbounded self-chain would never let
+   *  the cursor catch `activations.length`). Recursive, not a loop, to keep `noAwaitInLoops` green (the N1
+   *  `drainPosts` precedent). */
+  async function drainActivations(svc: AutomationService, activations: readonly ChatBusEvent[], cursor: number, ceiling: number): Promise<number> {
+    if (cursor >= activations.length || cursor >= ceiling) {
+      return cursor;
+    }
+    await svc.handleEvent(activations[cursor] as ChatBusEvent);
+    return drainActivations(svc, activations, cursor + 1, ceiling);
+  }
+
+  test("a non-opted `worldInfoActivated → trigger_turn` rule does NOT re-fire on its reaction turn's own re-activation (self-loop closed)", async () => {
+    const db = await freshDb();
+    const host = await seedUser(db, "user_host");
+    const chatId = await seedHostChat(db, host);
+    const { runArm, ops, activations } = loreReactionOps(db);
+    const svc = createAutomationService(makeAutomationHarness(db, { runArm, ops }));
+    const p = principal(host);
+    const rule = await svc.createRule({
+      principal: p,
+      chatId,
+      name: "react-to-lore",
+      trigger: { bus: "chat", type: "worldInfoActivated" },
+      predicateCel: null,
+      actions: [triggerTurn],
+      matchAutomationEvents: false,
+    });
+    await svc.setRuleEnabled({ principal: p, ruleId: rule.id, enabled: true });
+
+    // NORMAL PATH: a human turn's activation (depth 0) DOES fire the rule — it steers one reaction turn, which
+    // re-activates the lore at depth 1. The guard never over-suppresses the human plane.
+    await svc.handleEvent(worldInfoActivated(chatId, 0));
+    expect(activations).toHaveLength(1);
+
+    // The reaction turn's own re-activation (depth 1, automation-plane) — a non-opted rule is cascade-suppressed
+    // at the gate: no second reaction, no runaway. (Pre-fix, the depth-0 hardcode made this look human-plane and
+    // the rule re-fired forever.)
+    await svc.handleEvent(activations[0] as ChatBusEvent);
+
+    expect(activations).toHaveLength(1); // STILL one — the re-fire was suppressed
+    const fires = await svc.listFires({ principal: p, ruleId: rule.id });
+    expect(fires.map((x) => x.outcome)).toEqual(["fired"]); // exactly one fire (the human trigger)
+  });
+
+  test("an OPTED-IN rule re-fires on its reaction turns but is DEPTH-BOUNDED, not infinite (the cap terminates the chain)", async () => {
+    const db = await freshDb();
+    const host = await seedUser(db, "user_host");
+    const chatId = await seedHostChat(db, host);
+    const { runArm, ops, activations } = loreReactionOps(db);
+    const svc = createAutomationService(makeAutomationHarness(db, { runArm, ops }));
+    const p = principal(host);
+    // Opted into automation events ⇒ it INTENDS to react to automation-plane re-activations. It still must not
+    // loop forever — the cascade depth cap (AUTOMATION_DEPTH_HARD_CAP = 3) bounds the chain.
+    const rule = await svc.createRule({
+      principal: p,
+      chatId,
+      name: "cascading-react",
+      trigger: { bus: "chat", type: "worldInfoActivated" },
+      predicateCel: null,
+      actions: [triggerTurn],
+      matchAutomationEvents: true,
+    });
+    await svc.setRuleEnabled({ principal: p, ruleId: rule.id, enabled: true });
+
+    // Drain the cascade to a FIXED ceiling below the hourly budget: each re-fire raises a deeper activation; a
+    // real self-chain would never stop appending. `cursor` catching `activations.length` before the ceiling
+    // proves termination — NOT the wall-clock cooldown (there is none) and NOT the hourly budget (ceiling < 120).
+    const drainCeiling = 12;
+    await svc.handleEvent(worldInfoActivated(chatId, 0)); // human depth-0 seed → reaction @depth1
+    const cursor = await drainActivations(svc, activations, 0, drainCeiling);
+
+    // Human (0) → react @1 → react @2 → react @3 → the depth-3 activation is REFUSED (no reaction). The chain
+    // TERMINATES at exactly 3 reaction turns, and the queue drained fully (cursor caught up) — bounded by depth.
+    expect(activations).toHaveLength(3);
+    expect(cursor).toBe(activations.length); // fully drained without hitting the drain ceiling
+    const fires = await svc.listFires({ principal: p, ruleId: rule.id });
+    expect(fires.filter((x) => x.outcome === "fired")).toHaveLength(3);
+    expect(fires.some((x) => x.outcome === "depth_refused")).toBe(true);
+  });
+});
