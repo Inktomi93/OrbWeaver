@@ -65,6 +65,11 @@ const MARK = {
   // A host-authored automation rule's NAME bound to A's chat — leaks via a broken `automation.listRules`
   // host gate (the RuleView carries `name` verbatim).
   automationRule: "AlphaSecretRule",
+  // C5 — an owner-GLOBAL rule authored by A (`automation_rules.chat_id IS NULL`). Its NAME is the marker a
+  // stranger's `automation.listOwnerRules` would echo if `listRuleRowsForOwnerGlobal`'s `ownerId` predicate
+  // were ever dropped (the query is `isNull(chatId) AND ownerId = …` — drop half and every user's private
+  // global lane becomes one shared list). It ALSO rides the rule-scoped probes below as a foreign ruleId.
+  automationOwnerRule: "AlphaSecretOwnerRule",
   // ── rpg (W2): a game on A's chat, markers on every READABLE surface — a stranger's read probe would echo
   //    one back if the game-scoping regressed (rpg has NO ownerId; authority is chat-FK-derived, D18/D20).
   //    `rpgSteering` = the host-only `getConfigView.steeringNote`; `rpgWidget` = a game-tracker label
@@ -111,6 +116,12 @@ interface OwnerIds {
   messageId: MessageId;
   documentId: DocumentId;
   automationRuleId: AutomationRuleId;
+  // automation C5 — A's OWNER-GLOBAL rule id (`chat_id IS NULL`). The rule-scoped verbs are SHARED between
+  // the two lanes, so this id is the only way to reach `requireRuleAuthority`'s owner-global arm from the
+  // wire: for a chat rule the guard asks the roster, for this one it asks `rule.ownerId === principal.userId`
+  // and must collapse a stranger to the SAME leak-free RuleNotFoundError (never FORBIDDEN — a global rule is
+  // visible to exactly one person, so "not yours" and "no such rule" have to be indistinguishable).
+  automationOwnerRuleId: AutomationRuleId;
   // rpg (W2) — A's real game-scoped ids, fed to the rpg write probes so a dropped `gameId`/membership predicate
   // on a foreign id would touch A's row (the W1b IDOR class this domain already hid once).
   rpgQuestId: RpgQuestId;
@@ -187,6 +198,17 @@ const FAKE = {
   // A raw invite token that hashes to nothing — token-authenticated probes collapse to NOT_FOUND.
   inviteToken: "stranger-guess-token",
 } as const;
+
+// C5 — the owner-global rate belt's two DISTINCT numbers. `automation_owner_budgets` is keyed by ownerId
+// alone and its view is a bare `{maxFiresPerHour}`, so the marker-NAME detector is structurally toothless on
+// it: two different numbers are what make the cross-owner partition observable at all. A seeds its ceiling to
+// `OWNER_BUDGET_A`; the stranger's `setOwnerBudgets` probe writes `OWNER_BUDGET_STRANGER` into its OWN row
+// (legitimate — it can only ever name itself). Post-sweep, A must still read A's number and the stranger must
+// read the stranger's: either one reading the other's would be a partition failure the sweep's generic
+// verdict cannot see. Both are away from `AUTOMATION_OWNER_BUDGET_DEFAULTS`, so a verb that silently
+// projected the DDL default instead of the stored row would also fail these pins rather than pass them.
+const OWNER_BUDGET_A = 7;
+const OWNER_BUDGET_STRANGER = 99;
 
 // A minimal schema that PASSES `refinerySchemaDocumentSchema` (liftable subset + the score stage's
 // well-known `overallScore` 1-10 core). Deliberately valid: it seeds A's library row AND rides the
@@ -1013,6 +1035,47 @@ const PROBES: readonly Probe[] = [
   { path: "automation.setBudgets", call: (c, i) => c.automation.setBudgets({ chatId: i.chatId, maxFiresPerHour: 5 }) },
   { path: "automation.getBudgets", call: (c, i) => c.automation.getBudgets({ chatId: i.chatId }) },
 
+  // ── automation C5 — the OWNER-GLOBAL lane (cb8026bfc). These three take NO id, which is exactly why they
+  //    are PROBED rather than exempted as "self-scoped": their partition is a WHERE clause, not a parameter,
+  //    so the only thing separating two users' private global lanes is `ownerId = principal.userId` inside
+  //    the read. A dropped predicate leaks WITHOUT any foreign id being expressible — the failure mode an
+  //    id-shaped exemption reason would have declared out of existence. Derived from source, not assumed:
+  //      • listOwnerRules → `listRuleRowsForOwnerGlobal` = `isNull(chat_id) AND owner_id = principal.userId`
+  //        (persistence/rules.ts). Keep only the `isNull` half and every user's global rules become one
+  //        shared list — which is why A's global rule carries MARK.automationOwnerRule: the stranger's list
+  //        must come back marker-free (and the post-sweep pin asserts it comes back EMPTY).
+  //      • getOwnerBudgets → `selectOwnerBudgetView(db, principal.userId)` on `automation_owner_budgets`,
+  //        whose PK IS ownerId (persistence/budgets.ts). Its view is numbers only, so the marker detector is
+  //        TOOTHLESS here and this row alone proves little — the teeth are the two-number post-sweep pins.
+  //      • setOwnerBudgets → `upsertOwnerBudget(db, principal.userId, …)`. The stranger's call legitimately
+  //        BORNS THE STRANGER'S OWN row (it can name no other), so leak-freedom is not the question: the
+  //        question is whether A's row moved, and the post-sweep re-read is what answers it.
+  { path: "automation.listOwnerRules", call: (c) => c.automation.listOwnerRules() },
+  { path: "automation.getOwnerBudgets", call: (c) => c.automation.getOwnerBudgets() },
+  { path: "automation.setOwnerBudgets", call: (c) => c.automation.setOwnerBudgets({ maxFiresPerHour: OWNER_BUDGET_STRANGER }) },
+  // …and the OTHER half of C5's surface: the rule-lifecycle verbs are SHARED between the two lanes, so A's
+  // owner-global ruleId is a foreign id a stranger CAN aim — at `requireRuleAuthority`'s global arm
+  // (`rule.ownerId !== principal.userId` → RuleNotFoundError → NOT_FOUND, never the chat arm's FORBIDDEN).
+  // The guard runs FIRST in each of these verbs (before payload validation and before any write), so the
+  // update payload below is deliberately a VALID global-lane payload (domain bus + a `global`-scope variable
+  // arm): a chat-shaped payload would be refused by the arm matrix and make a broken guard read as a pass.
+  // The post-sweep re-read proves the writes never landed on A's row.
+  {
+    path: "automation.updateRule",
+    call: (c, i) =>
+      c.automation.updateRule({
+        ruleId: i.automationOwnerRuleId,
+        name: "hacked",
+        trigger: { bus: "domain", type: "character.updated" },
+        actions: [{ type: "set_variable", scope: "global", key: "x", op: "set", value: "1" }],
+      }),
+  },
+  { path: "automation.setRuleEnabled", call: (c, i) => c.automation.setRuleEnabled({ ruleId: i.automationOwnerRuleId, enabled: true }) },
+  { path: "automation.deleteRule", call: (c, i) => c.automation.deleteRule({ ruleId: i.automationOwnerRuleId }) },
+  { path: "automation.testRule", call: (c, i) => c.automation.testRule({ ruleId: i.automationOwnerRuleId }) },
+  { path: "automation.runRuleNow", call: (c, i) => c.automation.runRuleNow({ ruleId: i.automationOwnerRuleId }) },
+  { path: "automation.listFires", call: (c, i) => c.automation.listFires({ ruleId: i.automationOwnerRuleId }) },
+
   // ── plugin (D46/D147) — the FOUR management verbs. They used to sit in EXEMPT with an "admin-gated: the
   //    role gate precedes the pluginId ownership check" reason; that reason DIED when plugins went
   //    user-scoped (anyone installs for themselves, and there is no admin any-row branch), so the ownership
@@ -1532,6 +1595,21 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       actions: [{ type: "set_variable", scope: "chat", key: "probe", op: "set", value: "1" }],
     });
 
+    // ── C5: A's OWNER-GLOBAL lane — a rule with NO chat, plus A's owner-global rate ceiling. Both are the
+    //    front door (the lane's whole authority is "the author is the scope", so A can seed its own). The
+    //    rule's shape is what the owner-global ADMISSION MATRIX admits (substrate/validate.ts): the domain
+    //    bus only (a chat-bus global rule has no room whose events it could hear) and a `global`-scope
+    //    variable arm (a `chat`-scope one is refused) — a payload the matrix rejects would throw HERE, at the
+    //    seed, rather than quietly leaving the probes below with no row to aim at. Born disabled like every
+    //    rule, which is the baseline the stranger's setRuleEnabled probe must not move.
+    const automationOwnerRule = await owner.automation.createRule({
+      chatId: null,
+      name: MARK.automationOwnerRule,
+      trigger: { bus: "domain", type: "character.updated" },
+      actions: [{ type: "set_variable", scope: "global", key: "probe", op: "set", value: "1" }],
+    });
+    await owner.automation.setOwnerBudgets({ maxFiresPerHour: OWNER_BUDGET_A });
+
     // A workload owned by A — a USER-scope kind, `failed` so `retry` is meaningful. Its `error` carries A's
     // marker (a leaked `get`/`retry` result would surface it), so the probe has teeth (F3 owner-scoping).
     const workloadId = castId<WorkloadId>("workload_alpha");
@@ -1699,6 +1777,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       messageId,
       documentId,
       automationRuleId: automationRule.id,
+      automationOwnerRuleId: automationOwnerRule.id,
       rpgQuestId,
       rpgJournalId,
       rpgCheckpointId,
@@ -1741,6 +1820,20 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(rulesStill).toHaveLength(1); // the stranger's createRule enqueued no rule into A's chat
     expect(rulesStill[0]?.name).toBe(MARK.automationRule); // untouched by the stranger's automation.updateRule probe
     expect(rulesStill[0]?.enabled).toBe(false); // born disabled — untouched by the stranger's setRuleEnabled probe
+    // ── C5, the owner-GLOBAL lane. The sweep's marker detector covers the LIST leak; these pins cover what it
+    //    structurally cannot see — the numeric rate belt, and the write arm of `requireRuleAuthority`'s
+    //    owner-global branch. Both principals are read, because "the stranger sees nothing" and "A still sees
+    //    its own" are two different failures (a partition can break by widening OR by projecting a default).
+    const strangerOwnerRules = await otherCaller.automation.listOwnerRules();
+    expect(strangerOwnerRules).toEqual([]); // the stranger's global lane is its own and it is EMPTY — A's rule is not in it
+    const ownerRulesStill = await ownerCaller.automation.listOwnerRules();
+    expect(ownerRulesStill).toHaveLength(1); // survived the stranger's deleteRule probe on A's global ruleId
+    expect(ownerRulesStill[0]?.name).toBe(MARK.automationOwnerRule); // untouched by the stranger's updateRule probe
+    expect(ownerRulesStill[0]?.enabled).toBe(false); // born disabled — the stranger's setRuleEnabled never flipped A's consent
+    const strangerBudget = await otherCaller.automation.getOwnerBudgets();
+    expect(strangerBudget.maxFiresPerHour).toBe(OWNER_BUDGET_STRANGER); // the stranger reads back its OWN written ceiling…
+    const ownerBudgetStill = await ownerCaller.automation.getOwnerBudgets();
+    expect(ownerBudgetStill.maxFiresPerHour).toBe(OWNER_BUDGET_A); // …and A's is unmoved by that write (ownerId is the upsert's key)
     // rpg: A's game surfaces survived the stranger's write probes (updateConfig/patchSheet/upsert/delete/restore).
     const rpgConfigStill = await ownerCaller.rpg.getConfigView({ chatId: ids.chatId });
     expect(rpgConfigStill.steeringNote).toBe(MARK.rpgSteering); // untouched by the stranger's rpg.updateConfig probe
