@@ -46,6 +46,22 @@ export async function runAnalysisConfirm(deps: AnalysisConfirmDeps, pending: Pen
       });
       return;
     }
+    case "rewrite": {
+      // C3 — the CONFIRM-ONLY op (never on `ops`, so no arm can reach it). The two pins travel with the act
+      // and are re-checked INSIDE the chat verb against the room as it stands now: a swipe between ask and yes
+      // refuses `superseded`, an edit refuses `stale`, and neither touches canon. Nothing renders here — the
+      // bytes were neutralized at the stash (§2 law 7), and the write is a NEW VARIANT of the audited slot, so
+      // the audited text survives as a swipe and the rewrite is revertible with the control the room has.
+      await deps.applyProseRewrite({
+        authorUserId,
+        chatId,
+        messageId: act.messageId,
+        variantId: act.variantId,
+        expectedContentHash: act.contentHash,
+        content: act.content,
+      });
+      return;
+    }
     case "suggestTurn": {
       // The same seam trigger_turn rides — D17 consent + the cascade depth + the per-member turn rate all
       // live INSIDE requestTurn; the author frame holds (§3-S4's identity law).

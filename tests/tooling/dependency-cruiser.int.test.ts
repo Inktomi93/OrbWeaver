@@ -128,6 +128,18 @@ function writeAllFixtures(): void {
   fx(`${S}/domain/__dc_feat/verbs/c.ts`, `import "../memory/m.ts";\n`);
   fx(`${S}/domain/__dc_feat/engine/e.ts`, VAL);
   fx(`${S}/domain/__dc_feat/memory/x.ts`, `import "../engine/e.ts";\n`);
+  // domain-teaching-contribution-compose-only (interaction-direction-spec §3-S2; D117's
+  // workload-contributions precedent): the ratified root slot is a COMPOSITION surface — the only legal
+  // importer is the owning domain's own index.ts (which is what entry/compose reads through). A VERB
+  // importing the factory to call it inline is the hard-wired call site the seam exists to delete. The
+  // rule landed (2026-08-24, 171e4aa5e's S2 seam) without this fixture, so the anti-drift
+  // `test.each(ACTIVE_RULES)` case had nothing to fire it and the suite was RED. The slot file is not
+  // itself named `__dc*`; it lives UNDER `__dc_feat/`, so `cleanFixtures`'s dir prune still removes it.
+  fx(`${S}/domain/__dc_feat/teaching-contribution.ts`, "export const teachingContribution = () => 1;\n");
+  fx(
+    `${S}/domain/__dc_feat/verbs/__dc_teachcall.ts`,
+    `import { teachingContribution } from "../teaching-contribution.ts";\nexport const u = teachingContribution;\n`,
+  );
 
   fx(`${S}/infra/providers/backends/__dc_back/i.ts`, VAL);
   fx(`${S}/infra/providers/backends/__dc_back2/i.ts`, VAL);
@@ -266,7 +278,11 @@ beforeAll(() => {
   const violations = runCruise();
   firedRules = new Set(violations.map((v) => v.rule.name));
   fixtureFiles = new Set(violations.flatMap((v) => [v.from, v.to]).filter((p) => DC_FIXTURE_RE.test(p) || p === EMBEDDINGS));
-});
+  // 30s, matching the `integration-serial` project's `testTimeout` — vitest's hookTimeout is SEPARATE and
+  // stays at the 10s default, and ALL of this suite's work is in this hook. Measured 2026-08-24 at
+  // load-avg ~18: the single cruise took 9.5s and the hook timed out, which reads as a whole-file FAIL
+  // with no rule named — a false red on contention, not a config defect.
+}, 30_000);
 
 afterAll(() => {
   cleanFixtures();
