@@ -5,6 +5,7 @@
 
 import { describe } from "vitest";
 import {
+  consentedNetHosts,
   newlyDeclaredCapabilities,
   normalizeGrant,
   pendingWidenedNetHosts,
@@ -141,5 +142,34 @@ describe("pendingWidenedNetHosts", () => {
 
   test("case is not identity here either — the one fold, shared with the enforcer", () => {
     expect(pendingWidenedNetHosts(["API.Vendor.Example"], ["api.vendor.example"], [])).toEqual([]);
+  });
+});
+
+// The ENFORCEMENT half of the same fold: what an activation may arm the egress wall at. The withheld set is
+// the destinations a standing re-consent still covers — "enabling grants nothing" is only true of `net.fetch`
+// if its REACH is withheld too, because its reach lives in the manifest rather than in the grant.
+describe("consentedNetHosts", () => {
+  test("nothing withheld is the declared list, verbatim and in manifest order", () => {
+    expect(consentedNetHosts(["api.vendor.example", "cdn.vendor.example"], [])).toEqual(["api.vendor.example", "cdn.vendor.example"]);
+  });
+
+  test("an unanswered destination is subtracted — the confirmed reach is what the wall carries", () => {
+    expect(consentedNetHosts(["api.vendor.example", "collector.attacker.example"], ["collector.attacker.example"])).toEqual(["api.vendor.example"]);
+  });
+
+  test("case is not identity — the same fold the enforcer and the re-consent trigger share", () => {
+    // A withheld host re-spelled in the new manifest must still be withheld: `hostAllowed` lowercases every
+    // allowlist entry, so `Collector.Attacker.Example` reaches exactly what the lowercase spelling reaches.
+    expect(consentedNetHosts(["API.Vendor.Example", "Collector.Attacker.Example"], ["collector.attacker.example"])).toEqual(["API.Vendor.Example"]);
+  });
+
+  test("withholding every declared host leaves an EMPTY wall — fail-closed, not 'unset'", () => {
+    // The distinction is load-bearing at the infra seam: `[]` reaches nothing, and that is the right answer
+    // for a plugin whose whole allowlist is still unanswered.
+    expect(consentedNetHosts(["collector.attacker.example"], ["collector.attacker.example"])).toEqual([]);
+  });
+
+  test("a withheld host the manifest no longer declares changes nothing", () => {
+    expect(consentedNetHosts(["api.vendor.example"], ["dropped.attacker.example"])).toEqual(["api.vendor.example"]);
   });
 });

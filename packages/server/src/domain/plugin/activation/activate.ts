@@ -12,6 +12,7 @@ import type { PluginActivationScope, PluginInvokeHandler, PluginRegistrationHand
 import type { ActivateInput, ActivateOutcome, CrashPolicy, PluginContext, PluginRegistry } from "../contract/service.ts";
 import { setStatus } from "../persistence/plugins.ts";
 import { buildPluginBridge } from "../substrate/bridge.ts";
+import { consentedNetHosts } from "../substrate/grants.ts";
 import { parseBundle } from "../substrate/manifest.ts";
 
 /** Hand every collected registration to its registrar op, collecting the deregistration handles. Each carries
@@ -42,6 +43,15 @@ function register(ctx: PluginContext, instance: PluginInstance, invoke: PluginIn
   return handles;
 }
 
+/** The egress wall this activation arms: the re-validated manifest's declared allowlist MINUS the
+ *  destinations the caller says are still unanswered (`consentedNetHosts`). `undefined` in ⇒ `undefined` out
+ *  (the manifest declared no hosts; infra fails closed at `[]`), and the subtraction can only ever NARROW —
+ *  consent is about REACH, so a host a standing re-consent covers stays unreachable until it is answered,
+ *  including across the `setEnabled` toggle that grants nothing. */
+function consentedWall(declared: readonly string[] | undefined, withheld: readonly string[]): readonly string[] | undefined {
+  return declared === undefined ? undefined : consentedNetHosts(declared, withheld);
+}
+
 export function createActivate(ctx: PluginContext, registry: PluginRegistry, crashPolicy: CrashPolicy): (input: ActivateInput) => Promise<ActivateOutcome> {
   return async (input: ActivateInput): Promise<ActivateOutcome> => {
     const { bytes } = await ctx.assets.readBytes(input.caller, input.bundleAssetId);
@@ -60,7 +70,8 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
       displayName = bundle.manifest.name;
       // The `net.fetch` SSRF allowlist — forwarded from the RE-VALIDATED manifest (never guest-runtime-supplied)
       // so the infra host-fn pins `safeFetch` to it; absent ⇒ fail-closed `[]` (no host reachable) infra-side.
-      netHosts = bundle.manifest.netHosts;
+      // MINUS whatever the caller says is still UNANSWERED (see {@link consentedWall}).
+      netHosts = consentedWall(bundle.manifest.netHosts, input.withheldNetHosts);
       // The cascade opt-in — DERIVED from the re-validated manifest, fail-closed `false` when absent.
       matchAutomationEvents = bundle.manifest.matchAutomationEvents ?? false;
     } catch (err) {

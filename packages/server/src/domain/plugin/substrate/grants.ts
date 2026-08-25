@@ -77,6 +77,31 @@ export function widenedNetHosts(newlyDeclared: readonly string[], priorDeclared:
   });
 }
 
+/** The declared hosts an activation may actually ARM THE EGRESS WALL AT: everything the manifest declares
+ *  MINUS the destinations the owner has never answered for. Host identity is {@link foldNetHost}, the one fold
+ *  the enforcer and the re-consent trigger already share, so "the same host" means the same thing here as it
+ *  does in `hostAllowed`.
+ *
+ *  WHY THIS EXISTS (the hole it closes, 2026-08-24). `setEnabled` deliberately grants nothing and activates on
+ *  the STORED grant — and for capability NAMES that is airtight, because an unconfirmed capability was never
+ *  written into `granted_capabilities`. It was NOT airtight for `net.fetch`, whose reach is parameterized by
+ *  the manifest rather than by the grant: a v2 that keeps `net.fetch` and merely bolts a destination onto
+ *  `netHosts` lands `disabled` + `pending_reconsent` with the grant INTACT, and activation forwarded the NEW
+ *  manifest's list verbatim — so one toggle of a switch the surface leaves live armed `safeFetch` at a host
+ *  nobody confirmed, while the row still said "asked for more than you allowed". That is the exact P3-H
+ *  asymmetry `widenedNetHosts` was minted for, one tier further down: consent is about REACH, so REACH is what
+ *  an unanswered re-consent has to withhold. Withholding (rather than refusing the enable) keeps the two owner
+ *  decisions separate — "you may have these powers" and "run" — and keeps the partial-consent path from
+ *  collapsing into "grant everything or never run it again".
+ *
+ *  `unanswered` is the CALLER's fact, not this function's: each activation site knows precisely which
+ *  destinations are still unconfirmed at the moment it activates (see the three call sites), and the row's
+ *  persisted delta is a DISPLAY record that a covering acknowledgement deliberately outlives. */
+export function consentedNetHosts(declared: readonly string[], unanswered: readonly string[]): string[] {
+  const withheld = new Set(unanswered.map(foldNetHost));
+  return declared.filter((host) => !withheld.has(foldNetHost(host)));
+}
+
 /** The hosts an UNANSWERED re-consent covers — what the notice marks "New" — persisted on the row
  *  (`plugins.widened_net_hosts`) because the comparison that produces it is only possible at the instant of
  *  upgrade, before the prior manifest is overwritten.
