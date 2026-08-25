@@ -12,7 +12,8 @@
 // assertion pass.
 
 import type { RegexReplacer } from "@orb/kit/regex";
-import { applyReplace, createRegexApplyReplace, REGEX_APPLY_TIMEOUT_MS } from "@orb/server/kit/regex";
+import { matchEntryKeys } from "@orb/kit/world-info";
+import { applyReplace, createRegexApplyReplace, createRegexTest, REGEX_APPLY_TIMEOUT_MS, testRegex } from "@orb/server/kit/regex";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -38,6 +39,10 @@ const TIMED_OUT = /timed out/iu;
 const REPLACER_BOOM = /replacer boom/u;
 
 const noopReplacer: RegexReplacer = (match) => `[${String(match)}]`;
+
+// Benign key patterns for the `.test` watchdog's happy-path arms (hoisted — biome useTopLevelRegex).
+const DRAGON = /dragon/iu;
+const OK = /ok/u;
 
 describe("createRegexApplyReplace — ReDoS watchdog", () => {
   test(
@@ -109,6 +114,61 @@ describe("createRegexApplyReplace — factory budget override", () => {
     () => {
       const apply = createRegexApplyReplace(20);
       expect(() => apply(EVIL_SUBJECT, EVIL_REGEX, noopReplacer)).toThrow(TIMED_OUT);
+    },
+    TEST_DEADLINE_MS,
+  );
+});
+
+// #710 — the world-info regex-KEY `.test` watchdog. Same node:vm interrupt, `.test` instead of `.replace`:
+// a `use_regex` entry's user-authored key is `.test`ed against the chat-history haystack every turn, so a
+// catastrophic key that slips past the kit's pre-compile heuristic (the canonical `(a+)+$` — ONE
+// quantifier-stack, so the heuristic passes it) must be interrupted rather than hang the event loop.
+describe("createRegexTest — world-info key ReDoS watchdog", () => {
+  test(
+    "catastrophic backtracking is interrupted and THROWS within the budget (does not hang)",
+    () => {
+      expect(() => testRegex(EVIL_REGEX, EVIL_SUBJECT)).toThrow(TIMED_OUT);
+    },
+    TEST_DEADLINE_MS,
+  );
+
+  test("a benign key `.test` returns the correct boolean across the vm boundary", () => {
+    expect(testRegex(DRAGON, "two dragons appear")).toBe(true);
+    expect(testRegex(DRAGON, "no monsters here")).toBe(false);
+  });
+
+  test(
+    "the budget is PER-CALL: a runaway does not consume the next call's budget",
+    () => {
+      expect(() => testRegex(EVIL_REGEX, EVIL_SUBJECT)).toThrow(TIMED_OUT);
+      expect(testRegex(OK, "ok then")).toBe(true);
+    },
+    TEST_DEADLINE_MS,
+  );
+});
+
+// The END-TO-END fix: the kit matcher `matchEntryKeys` running a catastrophic user key under the REAL server
+// watchdog. On the pre-#710 source the matcher `.test`ed the key with a bare native `.test` and this build
+// HUNG the turn for every user on the process; with the injected `testRegex` seam the key is interrupted,
+// treated as a non-match, and reported — the turn survives. RED (hang → deadline) on old source, GREEN now.
+describe("matchEntryKeys under the injected watchdog (#710 end-to-end)", () => {
+  test(
+    "a catastrophic use_regex key is capped + reported, and a benign sibling key still fires",
+    () => {
+      const failures: { key: string; reason: string }[] = [];
+      const bounded = createRegexTest(50);
+      const hits = matchEntryKeys(
+        // 40 'a's + a non-matching tail: native `.test` of `(a+)+$` here is ~2^40 steps — it never returns.
+        ["(a+)+$", "dragon"],
+        `${"a".repeat(40)}! a dragon roars`,
+        { keyMode: "regex", testRegex: bounded, onKeyCompileFailure: (key, reason) => failures.push({ key, reason }) },
+      );
+      // The evil key did NOT fire (interrupted → non-match); the benign one did. The turn was never hung.
+      expect(hits).toEqual(["dragon"]);
+      expect(failures).toHaveLength(1);
+      const failure = failures[0];
+      expect(failure?.key).toBe("(a+)+$");
+      expect(TIMED_OUT.test(failure ? failure.reason : "")).toBe(true);
     },
     TEST_DEADLINE_MS,
   );

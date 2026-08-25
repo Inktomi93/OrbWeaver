@@ -32,7 +32,7 @@ import type { MatchEntryKeysOptions } from "@orb/kit/world-info";
 import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
-import type { ApplyRegexReplaceOp } from "../contract/context.ts";
+import type { ApplyRegexReplaceOp, TestRegexKeyOp } from "../contract/context.ts";
 import type { ResolvedPersonas } from "../contract/foreign.ts";
 import type { GuidedSteer } from "../contract/params.ts";
 import { BEFORE_HISTORY_DEPTH, renderInjection } from "./injections.ts";
@@ -127,6 +127,9 @@ interface WiConversionArgs {
   readonly regexScripts: readonly RegexScriptInput[];
   /** The injected node:vm ReDoS watchdog (D53) — the WORLD_INFO regex pass runs its `text.replace` under it. */
   readonly applyReplace: ApplyRegexReplaceOp;
+  /** The injected node:vm ReDoS watchdog for a `use_regex` entry's key `.test` (#710) — a catastrophic
+   *  user-authored key is interrupted instead of hanging the keyword scan. */
+  readonly testRegexKey: TestRegexKeyOp;
   readonly wiFormat: string;
   readonly recentMessages: readonly string[];
   readonly names: readonly string[];
@@ -197,15 +200,18 @@ function wiCandidate(entry: AssembleWorldEntry, content: string, args: WiConvers
 }
 
 /** The per-entry key-compile options: a V3 `use_regex` entry's keys compile as PATTERNS, and a bad pattern
- *  warns + falls back to a literal compare rather than failing the turn. */
-function keyMatchOptions(entry: AssembleWorldEntry): MatchEntryKeysOptions {
-  return { keyMode: entry.keyMode ?? "literal", onKeyCompileFailure: onWorldInfoKeyCompileFailure };
+ *  warns + falls back to a literal compare rather than failing the turn. `testRegex` is the injected node:vm
+ *  ReDoS watchdog so a catastrophic user-authored key `.test` is interrupted, not run unbounded (#710). */
+function keyMatchOptions(entry: AssembleWorldEntry, testRegex: TestRegexKeyOp): MatchEntryKeysOptions {
+  return { keyMode: entry.keyMode ?? "literal", onKeyCompileFailure: onWorldInfoKeyCompileFailure, testRegex };
 }
 
 /** Records a keyword entry's fired keys, noting which fired on the latest user text, into the trace. */
 function recordKeyHits(entry: AssembleWorldEntry, hits: readonly string[], env: WiConvEnv): void {
   const userHits =
-    env.haystacks.latestUser.length > 0 ? new Set(matchEntryKeys(entry.keys, env.haystacks.latestUser, keyMatchOptions(entry))) : new Set<string>();
+    env.haystacks.latestUser.length > 0
+      ? new Set(matchEntryKeys(entry.keys, env.haystacks.latestUser, keyMatchOptions(entry, env.args.testRegexKey)))
+      : new Set<string>();
   for (const key of hits) {
     env.matchedKeys.push({ key, matchedLatestUserMessage: userHits.has(key) });
   }
@@ -215,7 +221,7 @@ function recordKeyHits(entry: AssembleWorldEntry, hits: readonly string[], env: 
  *  once via macro → regex(WORLD_INFO) → wiFormat-wrap. */
 function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCandidate | null {
   if (entry.scope === "keyword") {
-    const hits = matchEntryKeys(entry.keys, env.haystacks.full, keyMatchOptions(entry));
+    const hits = matchEntryKeys(entry.keys, env.haystacks.full, keyMatchOptions(entry, env.args.testRegexKey));
     if (hits.length === 0) {
       return null;
     }
@@ -876,6 +882,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
       // preset scripts INTO the union, so this is a strict widening on every real turn.
       regexScripts: hostScripts,
       applyReplace: ctx.applyRegexReplace,
+      testRegexKey: ctx.testRegexKey,
       wiFormat,
       recentMessages: input.recentMessages,
       pendingUserText: pendingText,

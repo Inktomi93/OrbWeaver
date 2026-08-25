@@ -66,6 +66,12 @@ import type { ResolvedMediaRef, TurnKind, TurnRequest, TurnStreamChunk } from ".
  *  catastrophic-backtracking pattern throws instead of hanging the turn. */
 export type ApplyRegexReplaceOp = (text: string, regex: RegExp, replacer: RegexReplacer) => string;
 
+/** The node:vm ReDoS watchdog for a world-info regex-KEY `.test` (#710) — a user-authored `use_regex` key is
+ *  matched against the chat-history haystack every turn, so its `.test` runs under a per-call timeout and
+ *  throws on catastrophic backtracking instead of hanging the event loop. Injected as the kit matcher's
+ *  `testRegex` seam. */
+export type TestRegexKeyOp = (regex: RegExp, haystack: string) => boolean;
+
 /** Options for {@link EmitChatChanged}. `detail` means the changed chat's own row changed (lifecycle/create/
  *  delete); omitted on the message-commit path (the per-chat bus already drives that). `extraUserIds` adds
  *  channels beyond the present roster (a just-kicked/deleted member). */
@@ -1112,6 +1118,9 @@ export interface ChatContext {
    *  which only reaches subscribers of the open chat. */
   readonly emitChatChanged: EmitChatChanged;
   readonly applyRegexReplace: ApplyRegexReplaceOp;
+  /** The world-info regex-KEY ReDoS watchdog (#710) — the assembler `.test`s a `use_regex` entry's user-authored
+   *  key against the chat-history haystack under this per-call budget so a catastrophic key can't hang the turn. */
+  readonly testRegexKey: TestRegexKeyOp;
   /** D121-E: dereference the FOUR regex scope junctions (global / preset / cast / chat) into the host-tier
    *  sources. Injected from `domain/regex` at compose — chat owns the UNION (`substrate/regex-tier`), never
    *  the storage. Replaced the three embed-by-value carriers chat used to read off settings/preset/card
