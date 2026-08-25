@@ -192,7 +192,7 @@ export interface ChatDetail {
    *  not the resolved boolean: the resolution needs the HOST's `UserSettings.chat.offerChoices`, which this
    *  projection does not read (and must not, for a member viewer) — while the one surface that resolves it,
    *  the host's own toggle, already holds the host's settings because the viewer IS the host there. So the
-   *  wire carries the fact and `resolveOfferChoices` (@orb/contracts/chat) carries the rule, once. WRITE:
+   *  wire carries the fact and `resolveOfferChoices` (\@orb/contracts/chat) carries the rule, once. WRITE:
    *  `chat.setOfferChoices` (host-gated). Room-public on the read — a member may see why the model keeps
    *  offering choices. */
   readonly offerChoices: boolean | null;
