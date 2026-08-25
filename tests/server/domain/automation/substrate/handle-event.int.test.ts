@@ -562,7 +562,9 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
         // The F1 compose op: generate → (non-quiet) POST through `postNarratorMessage`, threading the firing
         // rule's automation origin so the posted image's slot is depth ≥ 1 (the N1 fix under test).
         generatePicture: async (req) => {
-          if (!req.quiet) {
+          // The non-quiet POST needs a room; a chat-less (owner-global) request cannot reach it — the
+          // automation admission matrix refuses a non-quiet global `generate_image` for exactly that reason.
+          if (!req.quiet && req.chatId !== null) {
             await postNarratorMessage(req.chatId, req.prompt ?? "", [asset], { initiator: "automation", automationDepth: req.automationDepth });
           }
           return { costUsd: null, imageCount: 1 };

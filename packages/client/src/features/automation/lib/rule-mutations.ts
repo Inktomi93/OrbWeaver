@@ -11,9 +11,16 @@
 // firing from a real turn moves `lastFiredAt`/the fire log with no local mutation) — the two paths cover
 // the local-action edge and the remote-fire edge respectively.
 //
-// `chatId` rides the vars of the ruleId-keyed verbs PURELY to address `listRules({chatId})` for
-// invalidation — the wire schema is `{ruleId, …}` and zod strips the extra key server-side (the
-// setChatInjection precedent, where the id addresses the list filter).
+// `chatId` rides the vars of the ruleId-keyed verbs PURELY to address the rule LIST for invalidation — the
+// wire schema is `{ruleId, …}` and zod strips the extra key server-side (the setChatInjection precedent,
+// where the id addresses the list filter).
+//
+// C5 — `chatId: null` ADDRESSES THE OWNER-GLOBAL LIST. The same five verbs drive both surfaces (the rule
+// guard answers for a rule's scope server-side, so there are no second procedures), and what differs is
+// purely WHICH cached list a settle repaints: `listRules({chatId})` for a room, `listOwnerRules()` for the
+// Automation pane. `ruleListFilter` is the one place that decides, so a new call site cannot invalidate the
+// wrong list — and the Automation pane's list is invalidation-only by necessity: the automation bus is
+// per-CHAT, so an owner-global rule's fire reaches no live feed (`domain/automation/substrate/rule-feed.ts`).
 
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
@@ -24,26 +31,39 @@ import { createEntityMutation } from "#data";
  *  enable/disable patch below stays honest against the wire shape. */
 type RuleList = inferOutput<Trpc["automation"]["listRules"]>;
 
-/** The ruleId-keyed verbs carry the target chat so their settle can invalidate `listRules({chatId})`. */
+/** The ruleId-keyed verbs carry the target SCOPE so their settle can invalidate the right rule list:
+ *  a `ChatId` for a room's rule, `null` for an owner-global one. */
 interface RuleActionVars {
   readonly ruleId: AutomationRuleId;
-  readonly chatId: ChatId;
+  readonly chatId: ChatId | null;
+}
+
+/** The cached rule LIST one scope's rules live in — the ONE scope→list mapping, read by every settle
+ *  invalidate and by the optimistic enable patch. */
+function ruleListFilter(trpc: Trpc, chatId: ChatId | null): ReturnType<Trpc["automation"]["listRules"]["queryFilter"]> {
+  return chatId === null ? trpc.automation.listOwnerRules.queryFilter() : trpc.automation.listRules.queryFilter({ chatId });
+}
+
+/** The same mapping for the KEY (the optimistic read/write target). Separate from the filter because a
+ *  filter matches a family and a key names one entry — `createEntityMutation` needs both. */
+function ruleListKey(trpc: Trpc, chatId: ChatId | null): readonly unknown[] {
+  return chatId === null ? trpc.automation.listOwnerRules.queryKey() : trpc.automation.listRules.queryKey({ chatId });
 }
 
 /** Enable/disable a rule (host-only; the consent act). OPTIMISTIC on the `listRules` cache so the switch
  *  paints before the round trip — a discrete-write control outside any autosave form — then reconciled by
  *  the settle invalidate (createEntityMutation's onSettled always repaints from the true server state). */
 export const useSetRuleEnabled = createEntityMutation<
-  inferInput<Trpc["automation"]["setRuleEnabled"]> & { readonly chatId: ChatId },
+  inferInput<Trpc["automation"]["setRuleEnabled"]> & { readonly chatId: ChatId | null },
   inferOutput<Trpc["automation"]["setRuleEnabled"]>,
   RuleList
 >({
   options: (trpc) => trpc.automation.setRuleEnabled.mutationOptions(),
   optimistic: {
-    readKey: (trpc, vars) => trpc.automation.listRules.queryKey({ chatId: vars.chatId }),
+    readKey: (trpc, vars) => ruleListKey(trpc, vars.chatId),
     update: (old, vars) => (old === undefined ? old : old.map((rule) => (rule.id === vars.ruleId ? { ...rule, enabled: vars.enabled } : rule))),
   },
-  invalidates: (trpc, vars) => [trpc.automation.listRules.queryFilter({ chatId: vars.chatId })],
+  invalidates: (trpc, vars) => [ruleListFilter(trpc, vars.chatId)],
   errorToast: "Couldn't change whether that rule is on.",
 });
 
@@ -51,7 +71,7 @@ export const useSetRuleEnabled = createEntityMutation<
  *  brief settle-refetch, and the row carries no in-flight state a member could act on meanwhile. */
 export const useDeleteRule = createEntityMutation<RuleActionVars, inferOutput<Trpc["automation"]["deleteRule"]>>({
   options: (trpc) => trpc.automation.deleteRule.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.automation.listRules.queryFilter({ chatId: vars.chatId })],
+  invalidates: (trpc, vars) => [ruleListFilter(trpc, vars.chatId)],
   errorToast: "Couldn't delete that rule.",
 });
 
@@ -69,7 +89,7 @@ export const useTestRule = createEntityMutation<RuleActionVars, inferOutput<Trpc
  *  (`lastFiredAt`/`lastError` moved). The caller reads the returned outcome to confirm what happened. */
 export const useRunRuleNow = createEntityMutation<RuleActionVars, inferOutput<Trpc["automation"]["runRuleNow"]>>({
   options: (trpc) => trpc.automation.runRuleNow.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.automation.listFires.queryFilter({ ruleId: vars.ruleId }), trpc.automation.listRules.queryFilter({ chatId: vars.chatId })],
+  invalidates: (trpc, vars) => [trpc.automation.listFires.queryFilter({ ruleId: vars.ruleId }), ruleListFilter(trpc, vars.chatId)],
   errorToast: "Couldn't run that rule.",
 });
 
@@ -111,10 +131,13 @@ function mintFailureToast(error: unknown): string {
  *  settle. A typed mint refusal (knob bounds / book attachment) rides `errorToast` so the host sees the
  *  reason instead of a card that quietly did nothing. */
 export const useCreateRuleFromPreset = createEntityMutation<
-  inferInput<Trpc["automation"]["createRuleFromPreset"]>,
+  // The `chatId` is RE-NARROWED off the inferred input, not re-declared: `brandedId<ChatId>().nullable()`
+  // infers its branded half through a zod `.transform`, and the intersection is what keeps the mint's own
+  // wire shape authoritative while giving `ruleListFilter` the scope type it needs.
+  inferInput<Trpc["automation"]["createRuleFromPreset"]> & { readonly chatId: ChatId | null },
   inferOutput<Trpc["automation"]["createRuleFromPreset"]>
 >({
   options: (trpc) => trpc.automation.createRuleFromPreset.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.automation.listRules.queryFilter({ chatId: vars.chatId })],
+  invalidates: (trpc, vars) => [ruleListFilter(trpc, vars.chatId)],
   errorToast: mintFailureToast,
 });

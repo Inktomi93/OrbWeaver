@@ -97,11 +97,17 @@ async function orchestratorPrompt(
     // A prompt override on a template mode — specific intent, used verbatim (no extraction, doc 02 §1 step 3).
     return { prompt: userPrompt, source: "user", costUsd: 0 };
   }
-  const chatId = p.chatId;
-  if (chatId === undefined) {
-    throw new ImageryNotConfiguredError(`imagery: mode "${p.mode}" requires a chatId for prompt extraction`);
-  }
-  return await resolvePrompt({ caller: p.caller, chatId, mode: p.mode, subjectCharacterId: p.subjectCharacterId });
+  // THE CHAT REQUIREMENT MOVED DOWN a frame (C5). It used to be an early guard right here, which refused
+  // EVERY template mode without a chat — including the CAPTION modes, which read the subject's avatar and
+  // never touch a chat at all, and which are therefore the only image modes an owner-global automation rule
+  // can use. `resolvePrompt` dispatches caption-vs-extraction, so the requirement belongs on the extraction
+  // branch (`extract-prompt.ts::extractText`), where it can name the mode that actually needs a room.
+  return await resolvePrompt({
+    caller: p.caller,
+    ...(p.chatId === undefined ? {} : { chatId: p.chatId }),
+    mode: p.mode,
+    subjectCharacterId: p.subjectCharacterId,
+  });
 }
 
 /** The B2 hit path (doc 03 §4.4): rebuild the picture from a prior generation's stored rows — zero provider

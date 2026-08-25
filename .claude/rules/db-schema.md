@@ -31,5 +31,13 @@ about eight GPU-hours.
 - **Never run `drizzle generate` on a shared or multi-lane tree** — like every whole-tree regenerator
   it recomputes from the WHOLE working tree and bakes a sibling's in-flight edits into your committed
   baseline.
+- **The baseline-squash mechanics** (C5 lane, 2026-08-24): `drizzle-kit generate` REFUSES without
+  `meta/_journal.json` — a squash is `rm` the sql + snapshot, write a journal with `"entries": []`,
+  then `generate --name baseline`. Diff the regenerated baseline against the old one and verify it
+  is EXACTLY your delta (no sibling churn) before committing.
+- **Two lanes with baseline regens cannot be unioned** — two independently regenerated
+  `0000_baseline.sql`s each miss the other's tables and the generated files don't hand-merge. The
+  orchestrator sequences: the first lane's baseline merges to main; the second regenerates ONLY on a
+  post-merge main merged into its own worktree.
 - **NEVER open the LIVE db with bare `sqlite3`** — it takes a WAL lock the running server does not
   expect. Read through the app's own path.

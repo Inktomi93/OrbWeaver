@@ -62,6 +62,7 @@ import {
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
 } from "#domain/plugin";
+import type { SessionsService } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import type { WorldInfoService } from "#domain/world-info";
@@ -110,6 +111,11 @@ export interface AutomationPluginComposeDeps {
    *  who the humans are. It re-gates on the acting admin, so the list is never obtained on nobody's authority. */
   readonly admin: Pick<AdminService, "listUsers">;
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
+  /** C5 — the owner-GLOBAL lane's standing-authority read, threaded from `domain/sessions` because the
+   *  `users` table belongs to sessions + admin alone (the no-direct-users-read chokepoint). A chat rule's
+   *  authority is its room's roster and needs none of this; a chat-less rule has no roster, so the account
+   *  itself is the only standing fact left to re-prove per fire. */
+  readonly sessions: Pick<SessionsService, "loadUserById">;
   readonly bindRoleClients: (ownerId: UserId) => Promise<RoleClientsWithSignal>;
   /** The author's default-preset generation params (the side-gen sampling ladder's middle rung — /autobg). */
   readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
@@ -158,7 +164,10 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       const caller = await resolveOwnerPrincipal(req.authorUserId);
       const picture = await imagery.generatePicture({
         caller,
-        chatId: req.chatId,
+        // C5 — an owner-GLOBAL rule's fire carries NO chat. Imagery's own param is optional and now behaves
+        // chat-lessly for the caption modes, so the null maps onto the absent field rather than inventing a
+        // room; the automation-side admission matrix is what guarantees only a caption mode gets here.
+        ...(req.chatId === null ? {} : { chatId: req.chatId }),
         mode: req.mode,
         n: req.n,
         useAvatarReference: req.useAvatarReference,
@@ -172,7 +181,10 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // `generate_image` rule's output is only ever reachable via the gallery. Post through chat's EXISTING
       // server-side image-post seam (`postNarratorMessage`), never a second posting path. `quiet:true` stays
       // store-only (gallery only).
-      if (!req.quiet && picture.images.length > 0) {
+      // The post path needs a room, and a chat-less request cannot reach it: the automation admission matrix
+      // refuses a non-quiet `generate_image` on an owner-global rule for exactly this reason, so `chatId`
+      // being null here is only ever the quiet lane.
+      if (!req.quiet && req.chatId !== null && picture.images.length > 0) {
         // N1 (F1 cascade belt): stamp the posted image's slot with `initiator:"automation"` + the firing rule's
         // cascade depth so its `messageCommitted` fact rides at depth ≥ 1.
         await chatCompose.rpgChatOps.postNarratorMessage(
@@ -333,6 +345,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     pluginSubscribers,
     transforms: automationTransforms,
     resolveAuthor: resolveOwnerPrincipal,
+    // C5 — FAIL-CLOSED at the wiring: an absent row answers `false`, never "assume enabled". `loadUserById`
+    // is sessions' own read, which is the whole reason this crosses as an op instead of a local select.
+    isAuthorEnabled: async (userId): Promise<boolean> => (await deps.sessions.loadUserById(userId))?.enabled === true,
     // S4 POSTURE 2, the plugin arm — declared by automation, BODIED by plugin. THE ENFORCEMENT SET FOLLOWS THE
     // ORIGIN: a confirmed plugin act re-enters through the PLUGIN's own bridge (`buildConfirmedActRunner`), so
     // it meets the attach gate, the per-plugin entry ceiling, `neutralizeMacros` and the hourly belts — NOT

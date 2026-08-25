@@ -164,6 +164,85 @@ for (const { label, width, height } of CONTRAST_WIDTHS) {
   });
 }
 
+// ── #684 P3: THE BAND DECLARES ITS OWN INK (the latent half of the #674 surface fix) ─────────────────
+// A surface without an ink is half a reading surface. The band paints `bg-card`, but a text node that sets
+// no colour INHERITS one — and the band is mounted inside the room's `ThemeScope`, so a carried palette can
+// hand it an ink derived against a background this box does not paint (the review's probe span measured
+// 1.1:1 across that boundary). Every band text sets its own ink today; the one node the band cannot style is
+// `ChatControl.detail`, an arbitrary `ReactNode` a SOURCE outside chat supplies.
+//
+// THE HOSTILE WRAPPER IS THE INSTRUMENT, not decoration: it sets the inherited `color` to the band's own
+// surface colour — the worst legal case of "the ink came from somewhere else". The BAND's own computed ink
+// is the defect proof (measured RED against the pre-fix source: the band element computed the hostile
+// inherited colour, i.e. it had no ink of its own and passed one down it never chose).
+//
+// THE PIXEL ROW BELOW IT IS A FENCE, DEMOTED HONESTLY, and the demotion is a finding: the only unstyled node
+// the band can host TODAY is a card's `detail`, and that sits inside `@orb/ui` Card, whose own base pairs
+// `bg-card` with `text-card-foreground` — so it passes pre-fix too. It is kept because the Card is the thing
+// that could change (a source-supplied detail rendered outside a card, a future S1 control with no card),
+// and because it is the reader's-eye version of the assertion above.
+const BAND_SURFACE_INK = "oklch(0.205 0.006 60)"; // color.card — what the band paints under itself
+
+test("#684 the band declares its OWN ink — a hostile inherited colour does not reach inside it", async ({ mount, page }) => {
+  await routeRoom(page);
+
+  const component = await mount(
+    <div style={{ color: BAND_SURFACE_INK }}>
+      <ChatControlsStory fixture="card-unstyled-detail" />
+    </div>,
+  );
+
+  // The room is live (the barrier — every locator below is vacuous on a blank mount).
+  await expect(component.getByText("The corridor forks.")).toBeVisible();
+  const band = component.locator(BAND);
+  await expect(band).toBeVisible();
+  // The hostile ink is what the band's PARENT hands down; the band must compute something else — its own
+  // card-foreground, the ink the `bg-card` contrast guarantee is stated for.
+  // Both sides resolved through a 1x1 canvas — the browser prints a computed `color` and a raw custom
+  // property in DIFFERENT oklch spellings ("oklch(0.955 …)" vs "oklch(95.5% …)"), so a string compare of the
+  // two is a false red. Painting makes the ENGINE do the conversion (the `pixel-contrast` helper's reason).
+  const inks = await band.evaluate((el) => {
+    const paint = (color: string): string => {
+      const canvas = el.ownerDocument.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const context = canvas.getContext("2d");
+      if (context === null) {
+        throw new Error("no 2d context");
+      }
+      context.fillStyle = color;
+      context.fillRect(0, 0, 1, 1);
+      return [...context.getImageData(0, 0, 1, 1).data.slice(0, 3)].join(",");
+    };
+    const style = getComputedStyle(el);
+    const parent = el.parentElement;
+    return {
+      band: paint(style.color),
+      inherited: parent === null ? "" : paint(getComputedStyle(parent).color),
+      cardForeground: paint(style.getPropertyValue("--color-card-foreground").trim()),
+    };
+  });
+  expect(inks.band, "the band's ink must not be the one it inherited").not.toBe(inks.inherited);
+  expect(inks.band, "the band's ink is the one its bg-card guarantee is stated for").toBe(inks.cardForeground);
+});
+
+test("#684 an UNSTYLED detail node inside the band paints legibly (the reader's-eye fence)", async ({ mount, page }) => {
+  await routeRoom(page);
+
+  const component = await mount(
+    <div style={{ color: BAND_SURFACE_INK }}>
+      <ChatControlsStory fixture="card-unstyled-detail" />
+    </div>,
+  );
+
+  await expect(component.getByText("The corridor forks.")).toBeVisible();
+  const detail = component.getByTestId("ct-unstyled-detail");
+  await expect(detail).toBeVisible();
+  // ONESHOT-OK: the visibility barrier settled this node; the framebuffer read is of a painted frame.
+  const receipt = await pixelContrast(page, detail);
+  expect(receipt.ratio, `unstyled band detail: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL);
+});
+
 test("#674 an ENABLED control names its mode's CONSEQUENCE on title — both chip modes", async ({ mount, page }) => {
   // `title` used to be set only when a control was DISABLED, so an operable chip said nothing on hover
   // about what the click costs — and `send` posts a turn with no confirm step. The disabled REASON still
@@ -220,11 +299,41 @@ test("chips are DISTINGUISHABLE by mode: a per-mode glyph, a mode-prefixed acces
   const sendChip = component.locator(`${CHIPS} button[data-mode="send"]`);
   const composeChip = component.locator(`${CHIPS} button[data-mode="compose"]`);
   // The SR/keyboard signal: distinct accessible names, the visible label kept as a substring (WCAG 2.5.3).
-  await expect(sendChip).toHaveAccessibleName("Send: Draw your blade");
-  await expect(composeChip).toHaveAccessibleName("Draft: Time skip");
+  await expect(sendChip).toHaveAccessibleName("Send Draw your blade");
+  await expect(composeChip).toHaveAccessibleName("Draft Time skip");
   // The sighted signal: each chip carries a leading glyph, and the two modes render different components.
   await expect(sendChip.locator("svg")).toHaveCount(1);
   await expect(composeChip.locator("svg")).toHaveCount(1);
+});
+
+// ── #684 P1: THE MODE IS A WORD, NOT ONLY A SILHOUETTE ────────────────────────────────────────────────
+// The follow-up finding on the row above: once the glyphs shipped, the two chips still differed ONLY by a
+// 16px silhouette in the sighted channel — a smaller distinction than the colour-alone rule already
+// forbids, gating an irreversible consequence (a send chip posts a turn, no confirm). This row asserts the
+// TEXT channel, and it is the defect proof rather than a fence: measured RED against the pre-fix source
+// (`git show HEAD:…` — the chips rendered their bare label, so `toHaveText` saw "Draw your blade").
+//
+// WHY NOT THE GREYSCALE ELEMENT SHOT the finding proposed as the receipt bar: a pixel diff of the two chips
+// under `Emulation.setEmulatedVisionDeficiency achromatopsia` passes PRE-FIX too — greyscale erases hue, and
+// the glyphs never carried hue, they carried shape. An un-failable pin is not a receipt. The property the
+// finding actually wants is "distinguishable through a channel that is not a 16px shape", and that is text.
+test("#684 a chip carries its MODE AS A WORD, in the visible label, not only as a glyph", async ({ mount, page }) => {
+  await routeRoom(page);
+
+  const component = await mount(<ChatControlsStory fixture="chips" />);
+
+  const sendChip = component.locator(`${CHIPS} button[data-mode="send"]`);
+  const composeChip = component.locator(`${CHIPS} button[data-mode="compose"]`);
+  // The RENDERED text of each chip — the sighted, greyscale-proof, icon-font-proof channel. Asserted as
+  // CONTAINMENT, not equality: the word and the label are two nodes in a flex row (the gap is layout, not a
+  // text space), and pinning the concatenation would be pinning JSX whitespace rather than the channel.
+  await expect(sendChip).toContainText("Send");
+  await expect(sendChip).toContainText("Draw your blade");
+  await expect(composeChip).toContainText("Draft");
+  await expect(composeChip).toContainText("Time skip");
+  // …and the visible words stay a SUBSTRING of the accessible name (WCAG 2.5.3 label-in-name): the name is
+  // the same word + the same label with no separator punctuation, which is why the colon was dropped.
+  await expect(sendChip).toHaveAccessibleName("Send Draw your blade");
 });
 
 test("send mode: a chip click fires chat.send with the chip's text and leaves the composer draft alone", async ({ mount, page }) => {
@@ -354,13 +463,47 @@ test("the chips row caps its display and discloses the remainder", async ({ moun
 
   const component = await mount(<ChatControlsStory fixture="chips-over-cap" />);
 
-  await expect(component.locator(CHIPS).getByRole("button")).toHaveCount(4);
-  await expect(component.getByText("+2 more")).toBeVisible();
+  // FOUR chips + the disclosure BUTTON (#684 P2 — the disclosure is itself a control now, so the row's
+  // button count is cap+1; the chips themselves are still capped, which is what law 5 asks).
+  await expect(component.locator(`${CHIPS} button[data-mode]`)).toHaveCount(4);
+  await expect(component.getByRole("button", { name: "+2 more" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Chip five" })).toHaveCount(0);
   // side-eye 2026-08-24 P3: the row WRAPS rather than clipping — at a phone width four long-label chips
   // overran the inline space and pushed "+2 more" off the (un-scrollable) right edge. A second line keeps
   // every capped chip and its disclosure reachable.
   await expect(component.locator(CHIPS)).toHaveCSS("flex-wrap", "wrap");
+});
+
+// ── #684 P2: EVERY CAPPED CHIP IS REACHABLE, BY KEYBOARD ─────────────────────────────────────────────
+// The finding's specimen: one rule surfaces three openers and another three vote options, so the member saw
+// ONE vote option and a dead `<p>` reading "+2 more" — the other two were not disclosed, they were gone.
+// This row is the defect proof (RED against the pre-fix source: the overflow was a `<p>`, so
+// `getByRole("button", { name: "+2 more" })` found nothing and `Chip five` never appeared), and it drives
+// the disclosure with the KEYBOARD, because "reachable without a pointer trick" is the actual property.
+test("#684 the chip disclosure is an EXPANDER: all N chips reachable by keyboard, and reversible", async ({ mount, page }) => {
+  await routeRoom(page);
+
+  const component = await mount(<ChatControlsStory fixture="chips-over-cap" />);
+
+  const disclosure = component.getByRole("button", { name: "+2 more" });
+  await expect(disclosure).toHaveAttribute("aria-expanded", "false");
+  await expect(component.getByRole("button", { name: "Chip six" })).toHaveCount(0);
+
+  // Focus it the way a keyboard member arrives at it, and operate it with the keyboard.
+  await disclosure.focus();
+  await expect(disclosure).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  // ALL SIX are now in the row — the two the cap hid are real, operable chips, not a count.
+  await expect(component.locator(`${CHIPS} button[data-mode]`)).toHaveCount(6);
+  await expect(component.getByRole("button", { name: "Chip five" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Chip six" })).toBeVisible();
+
+  // …and it goes back (the cap governs the RESTING row — expansion is the member's choice, not a one-way door).
+  const collapse = component.getByRole("button", { name: "Show fewer" });
+  await expect(collapse).toHaveAttribute("aria-expanded", "true");
+  await collapse.click();
+  await expect(component.locator(`${CHIPS} button[data-mode]`)).toHaveCount(4);
 });
 
 test("ONE visible card, its dismiss, and the pending count for the rest", async ({ mount, page }) => {

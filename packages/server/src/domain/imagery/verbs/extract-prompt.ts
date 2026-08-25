@@ -8,7 +8,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { PromptExtractionFailedError } from "../contract/errors.ts";
+import { ImageryNotConfiguredError, PromptExtractionFailedError } from "../contract/errors.ts";
 import type { ExtractionMode, ExtractPromptParams } from "../contract/params.ts";
 import type { ExtractedPrompt } from "../contract/results.ts";
 import type { CaptionAvatar, ImageryContext, ImageryService, ResolvePrompt } from "../contract/service.ts";
@@ -16,15 +16,30 @@ import { extractionFallbackFor, isMultimodalMode } from "../substrate/mode.ts";
 import { processReply } from "../substrate/process-reply.ts";
 
 /** The text-extraction branch: chat's quiet shaper reads recent canon under the mode's template, then normalize.
- *  The instruction is the caller's per-mode override ⊕ the shipped catalog default (⑫). */
+ *  The instruction is the caller's per-mode override ⊕ the shipped catalog default (⑫).
+ *
+ *  IT IS THE CHAT-BOUND HALF of this dispatch and says so out loud (C5): the prompt IS a reading of a room's
+ *  recent messages, so a caller with no chat has nothing to extract FROM. That refusal used to live one frame
+ *  up as an early guard in `generatePicture`, which meant the CAPTION modes — which read an avatar and touch
+ *  no chat at all — were refused by association. Moving it here is what lets the chat-less lane use a caption
+ *  mode while an extraction mode still refuses, typed, with a reason naming the mode. */
 async function extractText(
   ctx: ImageryContext,
-  args: { readonly caller: Principal; readonly chatId: ChatId; readonly mode: ExtractionMode; readonly subjectCharacterId: CharacterId | undefined },
+  args: {
+    readonly caller: Principal;
+    readonly chatId: ChatId | undefined;
+    readonly mode: ExtractionMode;
+    readonly subjectCharacterId: CharacterId | undefined;
+  },
 ): Promise<{ readonly prompt: string; readonly costUsd: number | null }> {
+  const chatId = args.chatId;
+  if (chatId === undefined) {
+    throw new ImageryNotConfiguredError(`imagery: mode "${args.mode}" builds its prompt from a chat's recent messages, and this request has no chat`);
+  }
   const instruction = await ctx.resolvePromptTemplate(args.caller, args.mode);
   const { text, costUsd } = await ctx.extractQuiet({
     caller: args.caller,
-    chatId: args.chatId,
+    chatId,
     instruction,
     ...(args.subjectCharacterId !== undefined ? { subjectCharacterId: args.subjectCharacterId } : {}),
   });

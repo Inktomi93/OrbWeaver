@@ -75,9 +75,27 @@ export const RULE_PRESET_IDS = [
   /** §4 #14 — spotlight balance: a C1 analysis pass that steers the narrator toward whoever the scene has
    *  been leaving out. Direct steer, like `storyPacing`; it never addresses or puppets a member. */
   "spotlightBalance",
+  /** §4 #20 — the living library (C5): the catalogue's ONE owner-GLOBAL row and the showcase of the
+   *  owner-global lane. A single global rule watches the domain bus for a character whose CONTENT changed
+   *  and quietly generates a fresh portrait of them — so an import lands with art and no room ever has to
+   *  be open. It is the only preset whose mint takes no chat. */
+  "livingLibrary",
 ] as const;
 export type RulePresetId = (typeof RULE_PRESET_IDS)[number];
 export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS);
+
+/** C5 — WHERE a preset's rules live: inside one room, or on the author's owner-GLOBAL lane
+ *  (`automation_rules.chat_id IS NULL`). It is the preset's own declaration, not a caller's choice: a
+ *  preset's rules are written against a scope (a global rule's arms may not touch a room), so the mint
+ *  DERIVES the chat from this rather than trusting a caller to pair them correctly.
+ *
+ *  IT IS ALSO THE PICKER'S PARTITION, which is why it rides the client-visible projection: the chat "Rules"
+ *  section offers only `chat` presets and the Automation settings pane only `global` ones. Without it the
+ *  in-room picker would offer a preset whose mint refuses, which is the affordance-that-does-nothing this
+ *  catalogue has already paid for once (#655). */
+export const RULE_PRESET_SCOPES = ["chat", "global"] as const;
+export type RulePresetScope = (typeof RULE_PRESET_SCOPES)[number];
+export const rulePresetScopeSchema = z.enum(RULE_PRESET_SCOPES);
 
 /** The knob editor kinds. A new kind fails every exhaustive descriptor dispatch (`tsc`). */
 export const RULE_PRESET_KNOB_KINDS = ["number", "text", "textList", "choice", "entityRef"] as const;
@@ -223,6 +241,9 @@ export type RulePresetKnobView = RulePresetKnobDescriptor & { readonly key: stri
  *  predicates are server logic; the client picks an id + knob values and the mint verb does the rest. */
 export interface RulePresetView {
   readonly id: RulePresetId;
+  /** C5 — the preset's own scope ({@link RulePresetScope}); the picker's partition between the in-room
+   *  Rules section and the owner-global Automation pane. */
+  readonly scope: RulePresetScope;
   readonly title: string;
   /** One plain sentence: what enabling this does to the room. */
   readonly summary: string;

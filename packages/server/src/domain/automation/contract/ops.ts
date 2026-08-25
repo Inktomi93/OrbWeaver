@@ -61,7 +61,12 @@ export interface TurnOriginRead {
  *  the author Principal); automation stays imagery-blind about the orchestration. */
 export interface AutomationImageRequest {
   readonly authorUserId: UserId;
-  readonly chatId: ChatId;
+  /** C5 — NULL on an owner-GLOBAL rule's fire. Imagery's own `GeneratePictureParams.chatId` was already
+   *  optional, so this widening is automation-internal at the TYPE; the BEHAVIOURAL half is imagery's
+   *  chat-less caption path (`domain/imagery/verbs/extract-prompt.ts`), which is why a global
+   *  `generate_image` is admitted only for a caption mode — a text-EXTRACTION mode reads a chat's recent
+   *  canon through the quiet shaper and has nothing to read here. */
+  readonly chatId: ChatId | null;
   /** The firing rule's cascade depth (`origin.automationDepth` = parentDepth + 1). When compose POSTS the
    *  non-quiet result into chat, it stamps this + `initiator:"automation"` onto the posted image's slot, so the
    *  resulting `messageCommitted` fact resolves at depth ≥ 1 and `runGates` cascade-suppresses a non-opted
@@ -118,7 +123,11 @@ export interface AutomationTurnRequest {
  *  re-checks before invoking. */
 export interface AutomationToolRequest {
   readonly authorUserId: UserId;
-  readonly chatId: ChatId;
+  /** C5 — NULL on an owner-GLOBAL rule's fire. `ToolExecutionContext` supports the non-chat consumer BY
+   *  CONTRACT (`domain/tool-use/contract/params.ts`: chatId/turnId/roster are all nullable, and a chat-scoped
+   *  tool running under a null roster is "an errors-as-data denial, never a crash"), so the arm needs no
+   *  special case: the registry answers for what a chat-less invocation can do. */
+  readonly chatId: ChatId | null;
   readonly name: string;
   readonly argsJson: string;
 }
@@ -267,6 +276,39 @@ export interface AutomationOps {
  *  seam (the constitution: only entry constructs a Principal) and injected; `null` when the user is gone. */
 export type ResolveAuthorPrincipal = (userId: UserId) => Promise<Principal | null>;
 
+/** The domain rows a CHAT-LESS `TriggerFact` can reference — one per domain-bus event. Homed HERE (the
+ *  domain's type home) rather than beside the read it drives, because TWO independent consumers ask about it:
+ *  the plugin fan-out's visibility gate and the owner-global rule gate, through the one mapping in
+ *  `substrate/fact-scope.ts`.
+ *
+ *  IT GREW TO FOUR WITH S7 AND THAT IS THE POINT. The visibility gate's chat-less arm was `character`/`asset`
+ *  with a fail-CLOSED default, which was correct while the trigger tuple had two domain members. Widening the
+ *  tuple to `persona.updated`/`world-info.updated` without widening this would have left both new facts
+ *  falling into that default forever: a plugin could DECLARE them, every cheap gate would pass, and delivery
+ *  would silently never happen — a dead wire that reads as coverage. Fail-closed is the right DEFAULT and the
+ *  wrong ANSWER. */
+export const DOMAIN_ROW_KINDS = ["character", "asset", "persona", "worldBook"] as const;
+export type DomainRowKind = (typeof DOMAIN_ROW_KINDS)[number];
+
+/** The domain row one chat-less fact references — the `(kind, id)` pair an ownership read takes
+ *  (`substrate/fact-scope.ts` resolves it; both gates consume it). */
+export interface FactSubject {
+  readonly kind: DomainRowKind;
+  readonly id: string;
+}
+
+/** C5 — is a rule AUTHOR still a live, ENABLED account? The owner-GLOBAL lane's standing-authority read
+ *  (`substrate/authority.ts::holdsOwnerAuthority` states what it substitutes for and why).
+ *
+ *  IT IS AN INJECTED OP AND NOT A LOCAL SELECT, and the reason is the identity spine rather than taste: the
+ *  `users` table is read and written by `domain/sessions` + `domain/admin` ONLY (the no-direct-users-read
+ *  chokepoint, `Spine-Identity-and-Auth.md`), so every other domain takes what it needs about a user through
+ *  the resolved Principal or an op wired at compose. A chat rule's authority needs no such read — its
+ *  answer comes from the roster — which is exactly why this arrived with the lane that has no roster.
+ *
+ *  Fail-CLOSED at the wiring: a vanished row answers `false`, never "assume enabled". */
+export type IsAuthorEnabled = (userId: UserId) => Promise<boolean>;
+
 /** The automation feedback-bus sink. Injected; wired at compose to `publishAutomationEvent` —
  *  fans the event to the chat's `automation.stream` subscribers (the transport-owned per-chat live bus). The
  *  `surface_quick_reply` arm's `quickReplySurfaced` is the one MEMBER-visible event; the rest are host-only. */
@@ -290,6 +332,11 @@ export interface EnabledRuleIndex {
  *  target text; every other arm omits it (the empty default). */
 export interface ArmTemplateRender {
   readonly env: AutomationCelEnv;
+  /** C5 — whether this render's frame HAS a room. REQUIRED rather than defaulted, deliberately: it decides
+   *  whether the three chat-keyed CEL roots are bound at all, and a field a caller can forget is a field
+   *  that silently binds an invented empty chat to an owner-global rule's template. `tsc` names every call
+   *  site instead. */
+  readonly chatScoped: boolean;
   readonly nowMs: number;
   readonly prng: () => number;
   readonly template: string;
@@ -339,13 +386,30 @@ export interface NotificationRecipientQuery {
 /** The per-rule dispatch frame handed to an arm executor: the resolved fact + the built CEL env (for
  *  `{{expr::…}}` + template render) + the write origin (`{ ruleId, childDepth }`) + the injected clock stamp. */
 export interface DispatchFrame {
-  readonly chatId: ChatId;
+  /** C5 — THE SCOPE DISCRIMINANT of the whole dispatch. A chat-scoped rule's own chat; NULL for an
+   *  owner-GLOBAL rule (`automation_rules.chat_id IS NULL`), which fires off the domain bus with no room.
+   *
+   *  IT IS ALSO WHAT DECIDES THE CEL BINDING SET, and that is the second belt behind the mint refusal: a
+   *  global frame's activation OMITS the three chat-keyed roots (`chat`/`vars`/`choice` — see
+   *  `substrate/macro-render.ts`), so a chat-keyed reference that somehow reached a stored global rule
+   *  ERRORS loudly (a `predicate_error` / an arm's typed refusal) instead of silently reading an invented
+   *  empty room. Mint refuses it; the runtime cannot fake it. */
+  readonly chatId: ChatId | null;
   readonly authorUserId: UserId;
   readonly fact: TriggerFact;
   readonly env: AutomationCelEnv;
   readonly origin: AutomationOrigin;
   readonly now: number;
 }
+
+/** A {@link DispatchFrame} PROVEN to have a room — the shape a CHAT-REQUIRED arm's internals are written
+ *  against (`engine/analysis-arm.ts` is the one with enough internals to need it).
+ *
+ *  IT EXISTS SO THE NARROWING HAPPENS ONCE, at the executor's front door, instead of at every read: an arm
+ *  whose whole engine reads chat canon would otherwise re-ask "is there a chat?" a dozen times and answer it
+ *  differently in one of them. The refusal that produces it is the second belt behind the mint's
+ *  `AUTOMATION_ARM_SCOPE` gate — `engine/arm-executors.ts::chatRequiredRefusal` states why both exist. */
+export type ChatScopedDispatchFrame = Omit<DispatchFrame, "chatId"> & { readonly chatId: ChatId };
 
 /** One arm's execution outcome. `ok` on success; else one of TWO non-ok kinds, and the difference between them
  *  is the whole of D146-d — both abort the rule's remaining arms, and they part company on what the rule PAYS:
@@ -543,6 +607,8 @@ export interface AuthorityDeps {
   readonly db: Db;
   readonly can: Can;
   readonly resolveAuthor: ResolveAuthorPrincipal;
+  /** C5 — the OWNER-GLOBAL arm's standing read (see {@link IsAuthorEnabled}). */
+  readonly isAuthorEnabled: IsAuthorEnabled;
 }
 
 /** What ONE dispatch batch did: whether any rule disabled itself (the caller reloads the enabled index)

@@ -35,10 +35,12 @@
 import type {
   AutomationActionInput,
   ChatTriggerType,
+  DomainTriggerType,
   RulePresetId,
   RulePresetKnobDescriptor,
   RulePresetKnobValue,
   RulePresetKnobValueOf,
+  RulePresetScope,
 } from "@orb/contracts/automation";
 import { ANALYSIS_SCORE_MAX, NEEDLE_TENSION_VAR_KEY } from "@orb/contracts/automation";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
@@ -49,11 +51,15 @@ import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 export type RulePresetKnobOverrides = Readonly<Record<string, RulePresetKnobValue>>;
 
 // ── the def shape ────────────────────────────────────────────────────────────────────────────────────
-/** One rule a preset mints. `triggerType` is chat-bus by construction — every committed A3 catalogue row
- *  rides the chat bus, and the owner-global (domain-bus) lane is C5's, which widens this field together with
- *  the engine's nullable-chat seam. `predicate` is the CEL source built from the knobs (`null` = always). */
+/** One rule a preset mints. `predicate` is the CEL source built from the knobs (`null` = always).
+ *
+ *  `triggerType` NAMES A MEMBER OF EITHER TUPLE and the BUS IS DERIVED from it (C5 widened this field with
+ *  the engine's nullable-chat seam, exactly as this header used to promise). Deriving beats carrying a
+ *  `{bus, type}` pair: the db pairs the two columns with a tuple-derived CHECK, so a def that spelled both
+ *  could spell them INCONSISTENTLY and only find out at the insert — `automationTriggerFor` reads the
+ *  contracts tuples that generate that CHECK, so the pair is right by construction. */
 export interface RulePresetRuleDef {
-  readonly triggerType: ChatTriggerType;
+  readonly triggerType: ChatTriggerType | DomainTriggerType;
   readonly predicate: string | null;
   /** AUTHORED arms (the schema's INPUT — a builder spells only what it chose; the mint parses). */
   readonly arms: readonly AutomationActionInput[];
@@ -75,6 +81,11 @@ type ResolvedRulePresetKnobs<TKnobs extends RulePresetKnobSchema> = {
 /** A preset definition, generic in its own knob schema so the builder's reads are compile-checked. */
 export interface RulePresetDef<TKnobs extends RulePresetKnobSchema = RulePresetKnobSchema> {
   readonly id: RulePresetId;
+  /** C5 — WHERE this preset's rules live. Absent ⇒ `"chat"`, which is every catalogue row but #20: the
+   *  default is the shape 18 of 19 presets have, and spelling it on all of them would only make the ONE
+   *  interesting value harder to see. The mint DERIVES the chat from this rather than trusting a caller to
+   *  pair a preset with a compatible scope. */
+  readonly scope?: RulePresetScope;
   readonly title: string;
   /** One plain sentence for the picker: what enabling this does to the room. */
   readonly summary: string;
@@ -92,8 +103,11 @@ export interface RulePresetDef<TKnobs extends RulePresetKnobSchema = RulePresetK
  *  to `RulePresetDef<RulePresetKnobSchema>` (its builder parameter is contravariant under
  *  `strictFunctionTypes`), so the registry holds this erased shape and `defineRulePreset` is the ONE erasure
  *  boundary. */
-export type ErasedRulePresetDef = Omit<RulePresetDef, "rules" | "confirmFirst"> & {
+export type ErasedRulePresetDef = Omit<RulePresetDef, "rules" | "confirmFirst" | "scope"> & {
   readonly confirmFirst: boolean;
+  /** RESOLVED at erasure (the def's optional `scope` defaulted) — every consumer reads a concrete scope, so
+   *  no caller re-applies the default and none can disagree about it. */
+  readonly scope: RulePresetScope;
   readonly rules: (knobs: Readonly<Record<string, unknown>>) => readonly RulePresetRuleDef[];
 };
 
@@ -103,6 +117,7 @@ export type ErasedRulePresetDef = Omit<RulePresetDef, "rules" | "confirmFirst"> 
 function defineRulePreset<const TKnobs extends RulePresetKnobSchema>(def: RulePresetDef<TKnobs>): ErasedRulePresetDef {
   return {
     id: def.id,
+    scope: def.scope ?? "chat",
     title: def.title,
     summary: def.summary,
     ruleCount: def.ruleCount,
@@ -1102,6 +1117,59 @@ const SPOTLIGHT_BALANCE = defineRulePreset({
   ],
 });
 
+/** §4 #20 — THE LIVING LIBRARY (class 1; the catalogue's ONE owner-GLOBAL row and the showcase of C5's
+ *  lane). A single chat-less rule watches the DOMAIN bus: a character whose CONTENT changed gets a fresh
+ *  portrait, generated quietly into the author's gallery. The owner's test for the whole lane is this preset
+ *  firing on a character import with no room open anywhere.
+ *
+ *  THE `contentChanged` GUARD IS THE PRESET, not a refinement of it. `character.updated` fires on every edit
+ *  including identity FLAGS — star, archive, trustHtml, theme — and the fact resolver used to drop the
+ *  source event's own discriminator (S7 carries it now). Without the guard this row is an edit-burst chore
+ *  that spends a model call every time someone stars a card, which is precisely the shape the catalogue's
+ *  fun pass killed. Law 1's `has()` guard rides it because a synthesized fact (a `testRule` dry run, a
+ *  host's "Run now") carries no `character` at all.
+ *
+ *  WHY `character_multimodal` AND NOT `character` — a corrected premise, recorded so it is not re-broken.
+ *  §4 row 20 named mode `character`, which CANNOT run chat-less: it is a text-EXTRACTION mode, and
+ *  `generatePicture` refuses it outright without a chat (`domain/imagery/verbs/generate-picture.ts` —
+ *  "requires a chatId for prompt extraction") because the prompt comes from chat's quiet shaper reading the
+ *  room's recent canon. `character_multimodal` CAPTIONS the subject's avatar instead
+ *  (`domain/imagery/verbs/extract-prompt.ts`) and touches no chat, which is what makes it the honest global
+ *  mode. A card with no avatar falls back to text extraction and therefore refuses typed — visible in the
+ *  fire log, never a silent nothing.
+ *
+ *  QUIET IS MANDATORY here and the admission matrix enforces it: a non-quiet generation POSTS the image into
+ *  a chat, and there is no chat. `reuse: "prefer"` is deliberate ON TOP of that: the reuse gate keys on the
+ *  card's CONTENT HASH, so a re-fire for a card that did not really change short-circuits before any provider
+ *  call — the second belt behind `contentChanged`, on the arm's own side. */
+const LIVING_LIBRARY = defineRulePreset({
+  id: "livingLibrary",
+  scope: "global",
+  title: "Living library",
+  summary: "When a character's card changes, quietly generate a fresh portrait of them — no room required.",
+  ruleCount: 1,
+  knobs: {},
+  rules: () => [
+    {
+      triggerType: "character.updated",
+      // Law 1 — `has()` before the read (a synthesized fact carries no `character`); the field itself is
+      // required inside the object, so no second guard is needed once the object is present.
+      predicate: "has(event.character) && event.character.contentChanged",
+      arms: [
+        {
+          type: "generate_image",
+          mode: "character_multimodal",
+          subjectCharacterId: undefined,
+          n: IMAGES_PER_FIRE,
+          useAvatarReference: false,
+          reuse: "prefer",
+          quiet: true,
+        },
+      ],
+    },
+  ],
+});
+
 /** THE REGISTRY — exhaustive over `RulePresetId` (a new id without a def, or a def without an id, fails
  *  `tsc`). This is the S3 enforcer the spec names. */
 export const RULE_PRESETS = {
@@ -1123,4 +1191,5 @@ export const RULE_PRESETS = {
   proseAudit: PROSE_AUDIT,
   asyncTableNudge: ASYNC_TABLE_NUDGE,
   spotlightBalance: SPOTLIGHT_BALANCE,
+  livingLibrary: LIVING_LIBRARY,
 } as const satisfies Record<RulePresetId, ErasedRulePresetDef>;

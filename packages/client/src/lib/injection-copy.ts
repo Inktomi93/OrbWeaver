@@ -67,11 +67,29 @@ export const CONTROL_MODE_CONSEQUENCE: Record<ChatControlMode, string> = {
   execute: "Runs now — nothing is sent",
 };
 
+/** The mode WORD — the chip's visible mode channel AND the prefix of its accessible name (side-eye
+ *  2026-08-24 #684 P1: the two dresses differed only by a 16px glyph, and a `send` chip posts a turn the
+ *  instant it is clicked. "Never by colour alone" generalises to "never by shape alone" — a 16px silhouette
+ *  is a weaker channel than colour, not a stronger one). It is COPY, so it is homed here beside
+ *  `CONTROL_MODE_CONSEQUENCE` rather than in the band: the same word is rendered and spoken, which is what
+ *  keeps the accessible name a superset of the visible label (WCAG 2.5.3 label-in-name / voice control).
+ *  Exhaustive over the mode axis — a new `CHAT_CONTROL_MODES` member fails `tsc` here (§5.5). */
+export const CONTROL_MODE_WORD: Record<ChatControlMode, string> = {
+  send: "Send",
+  compose: "Draft",
+  execute: "Run",
+};
+
 /** The undisclosed remainder, in the ONE grammar both stacks use: the cards' "+N pending" (only the newest
  *  card is shown — the attention budget) and the chips row's overflow past its display cap. */
 export function controlOverflowNotice(hidden: number, noun: "pending" | "more"): string {
   return `+${hidden} ${noun}`;
 }
+
+/** The chip disclosure's EXPANDED label (#684 P2). The collapsed one is `controlOverflowNotice` — the same
+ *  "+N more" grammar the cards use — but on a chip row it now labels a real expander rather than a dead
+ *  `<p>`, so it needs a way back. */
+export const CONTROL_CHIPS_COLLAPSE = "Show fewer";
 
 // The composer GUIDED-CLUSTER phase reasons (W-D — the four always-visible dual-mode icons). Each icon is
 // never hidden or swapped ([[no-separate-reduced-modes]]); a phase-unavailable icon renders aria-disabled

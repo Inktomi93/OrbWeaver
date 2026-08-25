@@ -269,7 +269,9 @@ interface RuleLoreEntry {
 
 export interface RuleLoreWriteArgs {
   readonly authorUserId: UserId;
-  readonly chatId: ChatId;
+  /** The writing rule's own scope, or NULL for an owner-GLOBAL rule (C5). It selects WHICH consent gate the
+   *  belt runs — room attachment, or book ownership. */
+  readonly chatId: ChatId | null;
   readonly ruleId: AutomationRuleId;
   readonly bookId: WorldBookId;
   readonly entries: readonly RuleLoreEntry[];

@@ -11,13 +11,15 @@ import {
   RULE_PRESET_ENTITY_REF_SCHEMAS,
   RULE_PRESET_IDS,
   RULE_PRESET_KNOB_KINDS,
+  RULE_PRESET_SCOPES,
   rulePresetIdSchema,
   rulePresetKnobValuesSchema,
+  rulePresetScopeSchema,
 } from "@orb/contracts/automation";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("RULE_PRESET_IDS is the pinned 18-member catalogue (A3's seven + A4's four + C1's pacing analysis + C2's two lore-distillers + #16 the needle + C3's prose audit + C6's two), in §4 build order", () => {
+test("RULE_PRESET_IDS is the pinned 19-member catalogue (A3's seven + A4's four + C1's pacing analysis + C2's two lore-distillers + #16 the needle + C3's prose audit + C6's two + C5's owner-global living library), in §4 build order", () => {
   expect(RULE_PRESET_IDS).toEqual([
     "welcomeBackRecap",
     "autoAddLore",
@@ -44,12 +46,16 @@ test("RULE_PRESET_IDS is the pinned 18-member catalogue (A3's seven + A4's four 
     // spotlight-balance analysis. Appended, never re-ordered: the tuple is the catalogue's build order.
     "asyncTableNudge",
     "spotlightBalance",
+    // §4 #20 — C5's owner-GLOBAL living library, the catalogue's last committed row and its only global
+    // one. Appended 19th; the tuple IS the build order.
+    "livingLibrary",
   ]);
   expect(rulePresetIdSchema.options).toEqual(RULE_PRESET_IDS);
-  // The one row still riding a later phase stays unspellable: #20 the owner-global living library
-  // (C5's lane — the global rules surface mints it). Every other catalogue row is BUILT: the ids that
-  // once proved unspellable (#16, #15, #2, #14) parse above.
-  expect(rulePresetIdSchema.safeParse("livingLibrary").success).toBe(false);
+  // THE CATALOGUE IS COMPLETE — every committed §4 row is spellable, so there is no unbuilt id left to
+  // prove unspellable and this assertion has no negative to make. The ids that once proved it (#16, #15,
+  // #2, #14, #20) all parse above. What replaces it is the SHAPE guard: an id the catalogue never
+  // committed is still refused, which is the property the negative was really pinning.
+  expect(rulePresetIdSchema.safeParse("notACatalogueRow").success).toBe(false);
 });
 
 test("#16: the needle's variable key is a CONTRACTS constant — the one name the preset writes and the meter reads", () => {
@@ -104,6 +110,7 @@ const PRESET_SEEN: Record<RulePresetId, true> = {
   proseAudit: true,
   asyncTableNudge: true,
   spotlightBalance: true,
+  livingLibrary: true,
 };
 const KIND_SEEN: Record<RulePresetKnobKind, true> = { number: true, text: true, textList: true, choice: true, entityRef: true };
 const ENTITY_SEEN: Record<RulePresetEntityKind, true> = { worldInfoBook: true };
@@ -133,6 +140,10 @@ test("the knob descriptor union is discriminated on kind — each arm carries it
 test("RulePresetView is the picker's whole read model — no CEL field exists to carry a predicate", () => {
   const view: RulePresetView = {
     id: "pacingNudge",
+    // C5 — the picker's PARTITION rides the view: the chat Rules section offers `chat` rows and the
+    // Automation settings pane offers `global` ones, off one server-derived field rather than two
+    // catalogues that could disagree.
+    scope: "chat",
     title: "Periodic pacing nudge",
     summary: "s",
     ruleCount: 1,
@@ -140,5 +151,13 @@ test("RulePresetView is the picker's whole read model — no CEL field exists to
     spends: true,
     knobs: [{ key: "everyN", kind: "number", label: "N", default: 8, min: 2, max: 200 }],
   };
-  expect(Object.keys(view).toSorted()).toEqual(["confirmFirst", "id", "knobs", "ruleCount", "spends", "summary", "title"]);
+  expect(Object.keys(view).toSorted()).toEqual(["confirmFirst", "id", "knobs", "ruleCount", "scope", "spends", "summary", "title"]);
+});
+
+test("C5: exactly ONE catalogue row is owner-global, and every other declares the chat scope", () => {
+  // The tuple is the catalogue's build order and #20 is its last committed row — the scope split is what
+  // the two pickers filter on, so a preset silently defaulting to the wrong lane would put an
+  // un-mintable card in front of a host (the affordance-that-cannot-work class, #655).
+  expect(rulePresetScopeSchema.options).toEqual([...RULE_PRESET_SCOPES]);
+  expect(RULE_PRESET_SCOPES).toEqual(["chat", "global"]);
 });

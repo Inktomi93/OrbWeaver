@@ -12,6 +12,22 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import type { AuthorityDeps } from "../contract/ops.ts";
 import { loadCallerRole } from "../persistence/canon-reads.ts";
 
+/** C5 — the OWNER-GLOBAL twin of {@link holdsChatHostAuthority}: may this author's chat-less rules still act?
+ *
+ *  It exists for the same reason the chat predicate does — the dispatch must RE-PROVE a standing authority
+ *  per fire, not trust the one that existed at mint. What it can prove is different, and that difference is
+ *  the design rather than a weakening: a global rule has no room, so there is no roster, no resource and
+ *  nothing for `can()` to decide over. What remains is the account itself, so this asks the one question that
+ *  still has an answer — is the author still a live, ENABLED user? A disabled or deleted author's global
+ *  rules stop firing, which is the exact analogue of an ex-host's chat rules stopping.
+ *
+ *  THE READ IS AN INJECTED OP, never a local `users` select: that table belongs to `domain/sessions` +
+ *  `domain/admin` alone (the no-direct-users-read chokepoint), so the fact crosses as a wired predicate.
+ *  Fail-CLOSED on every uncertainty, like its twin: no such user ⇒ false. */
+export function holdsOwnerAuthority(deps: Pick<AuthorityDeps, "isAuthorEnabled">, userId: UserId): Promise<boolean> {
+  return deps.isAuthorEnabled(userId);
+}
+
 /** Does `userId` hold HOST authority over `chatId` right now? */
 export async function holdsChatHostAuthority(deps: AuthorityDeps, chatId: ChatId, userId: UserId): Promise<boolean> {
   const [principal, role] = await Promise.all([deps.resolveAuthor(userId), loadCallerRole(deps.db, chatId, userId)]);
