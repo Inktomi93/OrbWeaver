@@ -12,6 +12,7 @@ import type { CallExpression, Node, PropertyAssignment, SourceFile, VariableDecl
 import { SyntaxKind } from "ts-morph";
 
 const SQLITE_TABLE = "sqliteTable";
+const SQLITE_CORE_MODULE = "drizzle-orm/sqlite-core";
 /** `t.chatId` / `table.ownerId` → `chatId` / `ownerId`; a non-column argument keeps its own text. */
 const RECEIVER_PREFIX_RE = /^[A-Za-z_$][\w$]*\./u;
 const SCHEMA_FILE_RE = /^packages\/db\/src\/schema\/(?<name>[^/]+)\.ts$/u;
@@ -129,16 +130,37 @@ function leadingColumnOf(call: CallExpression): string | undefined {
     const chain = callee.getExpression().getText();
     return chain.includes("index(") || chain.includes("uniqueIndex(") ? columnNames(call.getArguments())[0] : undefined;
   }
-  return callName(call) === "primaryKey" ? compositePrimaryKeyColumns(call)[0] : undefined;
+  return isImportedPrimaryKeyCall(call) ? compositePrimaryKeyColumns(call)[0] : undefined;
 }
 
-/** Imported builder calls may be direct (`primaryKey`) or namespace-qualified (`sqliteCore.primaryKey`). */
-function callName(call: CallExpression): string | undefined {
+/** Is this call the actual drizzle primary-key builder — direct (including an alias) or through the
+ * namespace imported from `drizzle-orm/sqlite-core`? A same-named property on any other object is not
+ * schema evidence. */
+function isImportedPrimaryKeyCall(call: CallExpression): boolean {
   const callee = call.getExpression();
   if (callee.isKind(SyntaxKind.Identifier)) {
-    return callee.getText();
+    const localName = callee.getText();
+    return call
+      .getSourceFile()
+      .getImportDeclarations()
+      .filter((decl) => decl.getModuleSpecifierValue() === SQLITE_CORE_MODULE)
+      .some((decl) =>
+        decl.getNamedImports().some((named) => named.getName() === "primaryKey" && (named.getAliasNode()?.getText() ?? named.getName()) === localName),
+      );
   }
-  return callee.isKind(SyntaxKind.PropertyAccessExpression) ? callee.getName() : undefined;
+  if (!callee.isKind(SyntaxKind.PropertyAccessExpression) || callee.getName() !== "primaryKey") {
+    return false;
+  }
+  const receiver = callee.getExpression();
+  if (!receiver.isKind(SyntaxKind.Identifier)) {
+    return false;
+  }
+  const namespaceName = receiver.getText();
+  return call
+    .getSourceFile()
+    .getImportDeclarations()
+    .filter((decl) => decl.getModuleSpecifierValue() === SQLITE_CORE_MODULE)
+    .some((decl) => decl.getNamespaceImport()?.getText() === namespaceName);
 }
 
 /** The `columns: [t.a, t.b]` of a composite `primaryKey({ … })` call, receiver-stripped; empty for any
@@ -167,5 +189,5 @@ export function hasPrimaryKey(table: SchemaTable): boolean {
   }
   return table.extra
     .getDescendantsOfKind(SyntaxKind.CallExpression)
-    .some((call) => callName(call) === "primaryKey" && compositePrimaryKeyColumns(call).length > 0);
+    .some((call) => isImportedPrimaryKeyCall(call) && compositePrimaryKeyColumns(call).length > 0);
 }

@@ -1269,7 +1269,7 @@ export interface ChatServiceDeps {
   readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   /** The same durable-first emit with its append verdict preserved. Roster handoff alone needs the verdict:
    * its marker cannot clear when the total bus classified and dropped an append. */
-  readonly emitChecked: (event: DurableChatBusEvent) => Promise<boolean>;
+  readonly emitChecked: (event: DurableChatBusEvent, coStatements?: readonly BatchStmt[]) => Promise<boolean>;
   /** Prepare the new room's first durable event for the creation batch, then fan that already-committed row
    * without a second append. Restricted to chatCreated because only birth proves seq=1 by construction. */
   readonly prepareCreationEvent: (event: Extract<DurableChatBusEvent, { readonly type: "chatCreated" }>) => {

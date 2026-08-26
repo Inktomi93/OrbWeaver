@@ -145,6 +145,22 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
     debugSpy.mockRestore();
   });
 
+  test("an atomic co-statement failure rolls the event back and leaves no ring cursor", async () => {
+    const chatId = await seedChat(db, "atomic-fault");
+    const bus = createChatBus(makeChatContext(db));
+    const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
+    // The duplicate chat PK fails after the event statement inside the same batch. If the append were a
+    // separate commit, this would leave a durable event behind even though the adjacent state did not land.
+    const failingCoStatement = batchStmt(db.insert(chats).values({ id: chatId }));
+
+    await expect(bus.emit({ type: "chatUpdated", chatId }, [failingCoStatement])).resolves.toBeNull();
+
+    expect(await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId))).toEqual([]);
+    expect(bus.readRing(chatId)).toEqual([]);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
+  });
+
   test("REGRESSION GUARD: a normal emit into a live chat still writes durably, returns what it logged, and fans the ring", async () => {
     const chatId = await seedChat(db, "a");
     const bus = createChatBus(makeChatContext(db));
