@@ -2,7 +2,7 @@
 // were generated, E5/E6 name semantic review targets, and E7 records the exact interactive-control census.
 
 type ReviewFamily = "E5" | "E6";
-const PENDING_GUARD_CLASSIFICATIONS = ["direct-pending", "derived-pending", "epoch", "missing", "other-guard"] as const;
+export const PENDING_GUARD_CLASSIFICATIONS = ["direct-pending", "derived-pending", "epoch", "missing", "other-guard"] as const;
 export type PendingGuardClassification = (typeof PENDING_GUARD_CLASSIFICATIONS)[number];
 
 export interface ReviewFocus {
