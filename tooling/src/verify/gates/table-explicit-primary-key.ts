@@ -76,6 +76,31 @@ export const gate: GateDescriptor = {
       expect: { count: 1 },
       why: "a junction with extras but no `primaryKey({ columns })` — an index is not a key, and this is exactly how a junction loses its uniqueness guarantee",
     },
+    {
+      at: "packages/db/src/schema/tag.ts",
+      files:
+        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+        "const fake = { primaryKey: (value: unknown) => value };\n" +
+        'export const characterTags = sqliteTable(\n  "character_tags",\n  {\n' +
+        '    characterId: text("character_id"),\n' +
+        '    tagId: text("tag_id"),\n' +
+        "  },\n" +
+        "  (t) => [fake.primaryKey({ columns: [t.characterId, t.tagId] })],\n);\n",
+      expect: { count: 1, messageIncludes: "no PRIMARY KEY" },
+      why: "a same-named property on an unrelated object is not drizzle's primaryKey builder and must not satisfy the gate",
+    },
+    {
+      at: "packages/db/src/schema/tag.ts",
+      files:
+        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+        'export const characterTags = sqliteTable(\n  "character_tags",\n  {\n' +
+        '    characterId: text("character_id"),\n' +
+        '    tagId: text("tag_id"),\n' +
+        "  },\n" +
+        "  (t) => [primaryKey({ columns: [t.characterId, t.tagId] })],\n);\n",
+      expect: { count: 1, messageIncludes: "no PRIMARY KEY" },
+      why: "an unresolved direct primaryKey name is not evidence; only the builder actually imported from drizzle is trusted",
+    },
   ],
   mustPass: [
     {
@@ -110,6 +135,17 @@ export const gate: GateDescriptor = {
         "  },\n" +
         "  (t) => [sqliteCore.primaryKey({ columns: [t.characterId, t.tagId] })],\n);\n",
       why: "the same composite-key contract through the sanctioned namespace import spelling",
+    },
+    {
+      at: "packages/db/src/schema/tag.ts",
+      files:
+        'import { primaryKey as sqlitePrimaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+        'export const characterTags = sqliteTable(\n  "character_tags",\n  {\n' +
+        '    characterId: text("character_id"),\n' +
+        '    tagId: text("tag_id"),\n' +
+        "  },\n" +
+        "  (t) => [sqlitePrimaryKey({ columns: [t.characterId, t.tagId] })],\n);\n",
+      why: "a named drizzle import keeps its identity when locally aliased",
     },
     {
       at: "packages/db/src/schema/settings.ts",
