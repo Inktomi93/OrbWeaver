@@ -55,6 +55,7 @@ import type { ChatContext, ChatUserMacroDefs, DemoChatSeeder, MemoryRecallRecord
 import { createDemoChatSeeder, createMemoryRecallRecorder, createResolveViewerVisibility, loadSeededChatDressing } from "#domain/chat";
 import type { LocalEngineReachability } from "#domain/connection";
 import { createConnectionService } from "#domain/connection";
+import type { CredentialsService } from "#domain/credentials";
 import { createCredentialsService } from "#domain/credentials";
 import type { DatabankIngest } from "#domain/databank";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
@@ -119,6 +120,7 @@ import { createDomainEventBus } from "./event-bus.ts";
 import { buildImagery } from "./imagery.ts";
 import { minter } from "./minter.ts";
 import { buildPortabilityRunner } from "./portability-runner.ts";
+import { mapProviderCredentialResolver } from "./provider-credential.ts";
 import { buildRefinery } from "./refinery.ts";
 import { buildRegex } from "./regex.ts";
 import { bindRoleClientsForUser } from "./role-clients.ts";
@@ -398,11 +400,13 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     audit,
     emitUserEvent: publishUserEvent,
   });
+  const resolveProviderCredential = mapProviderCredentialResolver(credentials.resolve);
+  const providerCredentials: CredentialsService = { ...credentials, resolve: resolveProviderCredential };
   const vllmAvailable = !deps.vllmDisabled;
   const connection = createConnectionService({
     db,
     now,
-    resolveCredential: (params): Promise<ResolvedCredential> => credentials.resolve(params),
+    resolveCredential: (params): Promise<ResolvedCredential> => resolveProviderCredential(params),
     fetchOrCatalog: diagnostics.fetchOrCatalog,
     fetchAgentSdkModels: diagnostics.fetchAgentSdkModels,
     // The gen engine self-reports its launched window at /v1/models; when vLLM is disabled there is no
@@ -717,7 +721,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     can,
     roleClients,
     connection,
-    credentials,
+    credentials: providerCredentials,
     character,
     persona,
     resolvePersonasForRoster,

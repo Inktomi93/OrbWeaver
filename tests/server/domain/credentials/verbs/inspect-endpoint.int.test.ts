@@ -4,6 +4,7 @@
 import type { ProviderMetadata } from "@orb/contracts/credentials";
 import { userCredentials } from "@orb/db";
 import { createCredentialsService } from "@orb/server/domain/credentials";
+import { createSecretBox } from "@orb/server/infra/crypto";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -89,6 +90,26 @@ describe("inspectEndpoint", () => {
       credentialId: cred.id,
     });
     expect(result.ok).toBe(false);
+    expect(h.inspected).toHaveLength(0);
+  });
+
+  test("wrong-key failure is a typed refusal and never invokes or serializes a keyless inspection", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCredentialsService(h.ctx);
+    const owner = await seedUser(db, { id: "user_wrong_key", role: "user" });
+    const cred = await svc.add({
+      principal: principal(owner),
+      provider: "custom_openai",
+      key: "sk-secret-inspect",
+      metadata: { kind: "custom_openai", baseUrl: "https://e.test/v1" },
+    });
+    const wrongKeyService = createCredentialsService({ ...h.ctx, box: createSecretBox(Buffer.alloc(32, 42)) });
+
+    await expect(wrongKeyService.inspectEndpoint({ principal: principal(owner), credentialId: cred.id })).rejects.toMatchObject({
+      code: "credential_decrypt_failed",
+      retryable: false,
+    });
     expect(h.inspected).toHaveLength(0);
   });
 });
