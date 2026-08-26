@@ -129,11 +129,6 @@ export function createAutomationWatcherEnv(args: {
   return {
     automation: args.automation,
     onChatEvent: (handler) => subscribeAllChatEvents((entry) => handler(entry.event)),
-    onDomainEvent: (handler) => {
-      args.eventBus.subscribe(handler);
-      // The domain bus has no per-subscriber unsubscribe (a boot-lifetime subscriber set); teardown is process
-      // exit. The returned unsub is a no-op — the watcher stops consuming when the process does.
-      return () => undefined;
-    },
+    onDomainEvent: (handler) => args.eventBus.subscribe(handler),
   };
 }
