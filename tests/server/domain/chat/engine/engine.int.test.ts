@@ -936,11 +936,16 @@ describe("createTurnEngine — error path (turnAborted then rethrow)", () => {
     const heldDelta = new Promise<void>((resolve) => {
       releaseDelta = resolve;
     });
+    let markProviderFailed: (() => void) | undefined;
+    const providerFailed = new Promise<void>((resolve) => {
+      markProviderFailed = resolve;
+    });
     // A partial stream then a mid-flight failure (the realistic error path).
     const throwing: ChatContext["runChatTurn"] = () =>
       (async function* (): AsyncGenerator<TurnStreamChunk> {
         await Promise.resolve();
         yield { kind: "text", text: "partial" };
+        markProviderFailed?.();
         throw new Error("model exploded");
       })();
     const h = harness(db, {
@@ -959,6 +964,13 @@ describe("createTurnEngine — error path (turnAborted then rethrow)", () => {
       settled = true;
     });
     await deltaStarted;
+    await providerFailed;
+    // Give the pipeline/catch ample scheduler progress without releasing the held durable append. On the old
+    // implementation this deterministically reaches turnAborted; the repaired engine remains parked on the
+    // delta drain. This is event-loop progression, not a wall-clock sleep or eventual assertion.
+    for (let turnIndex = 0; turnIndex < 10; turnIndex += 1) {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
 
     expect(settled).toBe(false);
     expect(types(h.events)).not.toContain("turnAborted");
