@@ -640,11 +640,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "247ee0a3a3ca5c65ca01b97fad23a474e8f85a0f7f05b5c061f95826fae7e414",
-      "verifiedCommit": "6b2052e28d98a93455084a658a1d946df54dc28b",
+      "verifiedSha256": "80fac97c245cdc4a76c622aad53eca596fbd568eb606c6eb1ae153b4dc3d36da",
+      "verifiedCommit": "04663a354a5f17acba271fcb7b58b40312eb7f52",
       "verifiedAt": "2026-08-25",
       "evidence": [
-        "docs/design/issue-712-gate-family.md read in full after commit 6b2052e28; every E1-E8 disposition was rechecked against issue #712, the live paired seams, and the generated 588-TSX / 67-control E7 census",
+        "docs/design/issue-712-gate-family.md read in full after commit 04663a354; every E1-E8 disposition and the explicit 34-control E7 review residual were rechecked against issue #712, the live paired seams, and the generated 588-TSX / 67-control census",
         "tooling/src/verify/gates/GATE-AUTHORING.md:49 fail-closed descriptor contract",
         "docs/architecture/core/Core-0-Architecture-and-Structure.md:314 durable-tool versus research-zone boundary"
       ],
