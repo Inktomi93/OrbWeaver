@@ -338,6 +338,40 @@ function errorPrefix(baseUrl: string): string {
 
 const REDIRECT_STATUS_MIN = 300;
 const REDIRECT_STATUS_MAX = 400;
+const ERROR_BODY_LIMIT = 65_536;
+
+async function readErrorBody(res: Response): Promise<string> {
+  if (res.body === null) {
+    return "";
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let out = "";
+  let bytesRead = 0;
+  try {
+    while (bytesRead < ERROR_BODY_LIMIT) {
+      const { done, value } = await reader.read();
+      if (done) {
+        out += decoder.decode();
+        break;
+      }
+      const remaining = ERROR_BODY_LIMIT - bytesRead;
+      const kept = value.subarray(0, remaining);
+      bytesRead += kept.byteLength;
+      out += decoder.decode(kept, { stream: true });
+      if (value.byteLength > remaining) {
+        await reader.cancel();
+        break;
+      }
+    }
+    if (bytesRead >= ERROR_BODY_LIMIT) {
+      await reader.cancel();
+    }
+    return out.slice(0, ERROR_BODY_LIMIT);
+  } finally {
+    reader.releaseLock();
+  }
+}
 
 // True when a `redirect:"manual"` fetch response is a redirect the endpoint asked us to chase: a 3xx status,
 // or the `opaqueredirect` sentinel (type "opaqueredirect", status 0). Never followed — see the fetch host-pin.
@@ -414,7 +448,7 @@ async function fetchAndReduce(args: {
       });
     }
     if (!res.ok || res.body === null) {
-      const text = await res.text().catch((): string => "");
+      const text = await readErrorBody(res).catch((): string => "");
       throw providerErrorFromHttp(
         Object.assign(new Error(text.length > 0 ? text : res.statusText), {
           statusCode: res.status,

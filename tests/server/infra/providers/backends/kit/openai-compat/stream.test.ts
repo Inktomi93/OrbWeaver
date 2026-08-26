@@ -7,6 +7,8 @@ import { mapChatCompletionToTurnResult, parseOpenAiSse, reduceChatCompletionStre
 import { describe } from "vitest";
 import { expect, test } from "../../../../../../support/fixtures.ts";
 
+const SSE_LIMIT_ERROR = /SSE.*limit/i;
+
 async function* streamOf(items: readonly ChatCompletionStreamChunk[]): AsyncGenerator<ChatCompletionStreamChunk> {
   await Promise.resolve(); // yields control once so this is a genuine async stream
   for (const item of items) {
@@ -228,6 +230,15 @@ describe("mapChatCompletionToTurnResult", () => {
 });
 
 describe("the raw SSE parser", () => {
+  test("rejects an unterminated SSE line beyond the hard buffer cap", async () => {
+    const oversized = `data: {"value":"${"x".repeat(1_048_576)}"}`;
+    await expect(async () => {
+      for await (const _item of parseOpenAiSse(sseBody(oversized))) {
+        // no-op: the parser must reject before yielding
+      }
+    }).rejects.toThrow(SSE_LIMIT_ERROR);
+  });
+
   test("yields JSON payloads, skips comments/events/blanks/bad-json, stops at [DONE]", async () => {
     const text = `${[": a keepalive comment", 'data: {"n":1}', "", "event: ping", "data: not-json-here", 'data: {"n":2}', "data: [DONE]", 'data: {"n":3}'].join(
       "\n",

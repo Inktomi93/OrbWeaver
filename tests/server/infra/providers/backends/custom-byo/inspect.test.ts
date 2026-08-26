@@ -160,6 +160,28 @@ describe("inspectCustomByoEndpoint", () => {
     expect(result.error).toContain("█");
   });
 
+  test("hard-caps the response preview reader and cancels the remaining upstream body", async () => {
+    let pulls = 0;
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller): void {
+        pulls += 1;
+        controller.enqueue(new TextEncoder().encode("x".repeat(3000)));
+        if (pulls === 4) {
+          controller.close();
+        }
+      },
+      cancel(): void {
+        cancelled = true;
+      },
+    });
+    vi.stubGlobal("fetch", (): Response => new Response(body, { status: 200 }));
+    const result = await inspectCustomByoEndpoint({ baseUrl: BASE_URL, apiKey: null, headers: null, model: "m", includeBody: null, excludeBody: null });
+    expect(result.response?.bodyPreview).toHaveLength(4000);
+    expect(cancelled).toBe(true);
+    expect(pulls).toBeLessThan(4);
+  });
+
   test("applies includeBody/excludeBody transforms to the probe body (PD-13)", async () => {
     let sentBody: unknown = null;
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {

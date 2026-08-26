@@ -32,6 +32,39 @@ const JSON_CONTENT_TYPE = "application/json";
 const CHAT_COMPLETIONS_PATH = "/chat/completions";
 const TRAILING_SLASH_RE = /\/$/;
 
+async function readBodyPreview(res: Response): Promise<string> {
+  if (res.body === null) {
+    return "";
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let out = "";
+  let bytesRead = 0;
+  try {
+    while (bytesRead < BODY_PREVIEW_LIMIT) {
+      const { done, value } = await reader.read();
+      if (done) {
+        out += decoder.decode();
+        break;
+      }
+      const remaining = BODY_PREVIEW_LIMIT - bytesRead;
+      const kept = value.subarray(0, remaining);
+      bytesRead += kept.byteLength;
+      out += decoder.decode(kept, { stream: true });
+      if (value.byteLength > remaining) {
+        await reader.cancel();
+        break;
+      }
+    }
+    if (bytesRead >= BODY_PREVIEW_LIMIT) {
+      await reader.cancel();
+    }
+    return out.slice(0, BODY_PREVIEW_LIMIT);
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 // The inspector's result is the cross-boundary `EndpointInspection` (the credentials/connection "Test
 // endpoint" path reads it through the providers diagnostic front door) — homed in `@orb/contracts/providers`,
 // not file-local here.
@@ -80,10 +113,10 @@ export async function inspectCustomByoEndpoint(args: {
       redirect: "manual",
       ...(args.signal !== undefined ? { signal: args.signal } : {}),
     });
-    const text = await res.text().catch((): string => "");
+    const text = await readBodyPreview(res).catch((): string => "");
     // Scrub secrets BEFORE display-eligibility: an echoing endpoint reflects the plaintext key back in the
     // body. The known literals we hold (the apiKey + any secret-valued custom header) are the primary belt.
-    const bodyPreview = redactSecretsFromText(text, secrets).slice(0, BODY_PREVIEW_LIMIT);
+    const bodyPreview = redactSecretsFromText(text, secrets);
     return {
       ok: res.ok,
       request,

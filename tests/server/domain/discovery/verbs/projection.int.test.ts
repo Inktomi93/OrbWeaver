@@ -40,6 +40,19 @@ function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {
 }
 
 describe("corpusProjection", () => {
+  test("an equal-size model-space tie chooses the lexical model and returns points in stable id order", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_tied_spaces");
+    for (const model of ["model-b", "model-a"]) {
+      for (const [i, embedding] of [vec(1, 0), vec(0, 1), vec(1, 1)].entries()) {
+        const id = await seedCharacter(db, { id: `${model}_${i}`, ownerId: owner, name: `${model}_${i}` });
+        await seedCharacterEmbedding(db, { characterId: id, embedding, contentHash: `${model}_${i}`, model });
+      }
+    }
+    const points = await svcFor(db).corpusProjection(owner);
+    expect(points.map((p) => p.name)).toEqual(["model-a_0", "model-a_1", "model-a_2"]);
+  });
+
   test("projects the owner's cards to 2D with name + genre, owner-scoped", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");

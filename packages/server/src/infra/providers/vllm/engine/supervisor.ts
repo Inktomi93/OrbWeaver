@@ -19,6 +19,7 @@ import { advanceAutoSleep, enginePortPid, fetchEngineMetrics, initialAutoSleepSt
 import { detectGpu } from "./gpu.ts";
 import { signalRecordedEngineProcess } from "./process-identity.ts";
 import { reapOrphanedFamily } from "./reaper.ts";
+import { invalidateAwakeCache } from "./wake-gate.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 type EngineLifecycleStatus = (typeof ENGINE_LIFECYCLE_STATUSES)[number];
@@ -551,6 +552,8 @@ export function startVllmEngines(opts: {
       const ok = await postSleepFn(engine);
       if (!ok) {
         log.warn({ engine }, "vllm-engines: auto-sleep POST /sleep failed (engine down or sleep-mode off?)");
+      } else {
+        invalidateAwakeCache(engine);
       }
     }
   }

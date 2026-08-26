@@ -26,6 +26,16 @@ export function createProjection(ctx: DiscoveryContext): Pick<DiscoveryService, 
 
 const MIN_PROJECTION_POINTS = 3;
 
+function compareText(a: string, b: string): number {
+  if (a < b) {
+    return -1;
+  }
+  if (a > b) {
+    return 1;
+  }
+  return 0;
+}
+
 function primarySpace(vectors: readonly CardVector[]): CardVector[] {
   const groups = new Map<string, CardVector[]>();
   for (const row of vectors) {
@@ -36,13 +46,15 @@ function primarySpace(vectors: readonly CardVector[]): CardVector[] {
       bucket.push(row);
     }
   }
+  let bestModel = "";
   let best: CardVector[] = [];
-  for (const group of groups.values()) {
-    if (group.length > best.length) {
+  for (const [model, group] of [...groups.entries()].sort(([a], [b]) => compareText(a, b))) {
+    if (group.length > best.length || (group.length === best.length && compareText(model, bestModel) < 0)) {
       best = group;
+      bestModel = model;
     }
   }
-  return best;
+  return [...best].sort((a, b) => compareText(a.characterId, b.characterId));
 }
 
 /** Fewer than MIN_PROJECTION_POINTS cards → [] (nothing to plot). */
