@@ -1,10 +1,7 @@
-// entry/boot/migrate — the boot migrate step. Covers: the migrations folder resolves from the @orb/db
-// package (not cwd) and exists; the baseline applies on a fresh db + passes the integrity gate (sentinel
-// tables across the dependency tiers exist); FK enforcement is left ON afterward; the step is idempotent
-// (a second run is a no-op, not an error). Real libSQL :memory: (the .int lane). The @orb/db FK-dance +
-// integrity-throw internals are covered by tests/db/client.int.test.ts; this pins the entry wiring.
+// Boot-migration integration: baseline apply/reset, WAL-complete backup/retention, integrity gate, and
+// launched refusal against real libSQL memory and file databases.
 
-import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
@@ -87,6 +84,65 @@ test("the pre-migration backup is taken on a boot that MIGRATES and skipped on a
     // Second boot: the baseline is already recorded, nothing is pending ⇒ no new copy of the db.
     await runBootMigrations({ db, databaseUrl: url });
     expect(readdirSync(dir).filter((name) => BACKUP_RE.test(name))).toEqual(afterMigrate);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the pre-migration backup restores a commit that remains in the live WAL", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-bootwal-${pid}-`));
+  const path = join(dir, "orb.db");
+  const url = `file:${path}`;
+  try {
+    const db = await createDb(url);
+    await runBootMigrations({ db, databaseUrl: url });
+    const priorBackups = new Set(readdirSync(dir).filter((name) => BACKUP_RE.test(name)));
+
+    await db.run(sql`CREATE TABLE backup_probe (value text not null)`);
+    await db.run(sql`PRAGMA wal_checkpoint(TRUNCATE)`);
+    await db.run(sql`INSERT INTO backup_probe (value) VALUES ('committed-in-wal')`);
+    await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
+    expect(await db.all(sql`SELECT value FROM backup_probe`)).toEqual([{ value: "committed-in-wal" }]);
+    expect(statSync(`${path}-wal`).size).toBeGreaterThan(0);
+
+    await runBootMigrations({ db, databaseUrl: url });
+
+    const created = readdirSync(dir).filter((name) => BACKUP_RE.test(name) && !priorBackups.has(name));
+    expect(created).toHaveLength(1);
+    const backupPath = join(dir, created[0] ?? "missing-backup");
+    expect(existsSync(`${backupPath}-wal`)).toBe(false);
+    expect(existsSync(`${backupPath}-shm`)).toBe(false);
+    const backupDb = await createDb(`file:${backupPath}`);
+    const integrity = await backupDb.get<Record<string, string>>(sql`PRAGMA integrity_check`);
+    expect(integrity?.["integrity_check"]).toBe("ok");
+    expect(await backupDb.all(sql`SELECT value FROM backup_probe`)).toEqual([{ value: "committed-in-wal" }]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("backup failure aborts before a regenerated-baseline reset", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-bootbackup-fail-${pid}-`));
+  const path = join(dir, "orb.db");
+  const url = `file:${path}`;
+  try {
+    const db = await createDb(url);
+    await runBootMigrations({ db, databaseUrl: url });
+    await db.run(sql`CREATE TABLE backup_failure_probe (value integer not null)`);
+    await db.run(sql`INSERT INTO backup_failure_probe (value) VALUES (1)`);
+    await db.run(sql`PRAGMA wal_checkpoint(TRUNCATE)`);
+    await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
+    expect(await db.all(sql`SELECT value FROM backup_failure_probe`)).toEqual([{ value: 1 }]);
+
+    const mainStamp = Math.round(statSync(path).mtimeMs);
+    const walStamp = Math.round(Math.max(statSync(path).mtimeMs, statSync(`${path}-wal`).mtimeMs));
+    for (const stamp of new Set([mainStamp, walStamp])) {
+      writeFileSync(`${path}.backup-${stamp}`, "occupied");
+    }
+
+    await expect(runBootMigrations({ db, databaseUrl: url })).rejects.toThrow();
+    expect(await db.all(sql`SELECT value FROM backup_failure_probe`)).toEqual([{ value: 1 }]);
+    expect((await checkBaseline(db, resolveMigrationsFolder())).status).toBe("regenerated");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
