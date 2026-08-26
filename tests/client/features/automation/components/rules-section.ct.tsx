@@ -18,7 +18,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcResponder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import { RulesInThisChatTabStory, RulesSectionStory, RulesSectionToastStory } from "../_ct-stories.tsx";
 
@@ -158,6 +158,8 @@ interface StubOverrides {
   readonly presets?: readonly unknown[];
   readonly books?: readonly unknown[];
   readonly mint?: TrpcResponder;
+  readonly setEnabled?: TrpcResponder;
+  readonly testRule?: TrpcResponder;
 }
 
 function stub(page: Page, overrides: StubOverrides = {}): Promise<TrpcRecorder> {
@@ -166,8 +168,8 @@ function stub(page: Page, overrides: StubOverrides = {}): Promise<TrpcRecorder> 
     "automation.listRules": () => overrides.rules ?? [RULE],
     "automation.listFires": () => overrides.fires ?? [],
     "automation.listRulePresets": () => overrides.presets ?? [PACING_PRESET],
-    "automation.setRuleEnabled": () => ({}),
-    "automation.testRule": () => ({ predicate: true, arms: [{ type: "generate_image", renderedPreview: "a moody scenario shot" }] }),
+    "automation.setRuleEnabled": overrides.setEnabled ?? (() => ({})),
+    "automation.testRule": overrides.testRule ?? (() => ({ predicate: true, arms: [{ type: "generate_image", renderedPreview: "a moody scenario shot" }] })),
     "automation.runRuleNow": () => ({ outcome: "fired" }),
     "automation.createRuleFromPreset": overrides.mint ?? ((): unknown => [RULE]),
     "automation.deleteRule": () => undefined,
@@ -191,6 +193,43 @@ test("renders the chat's rules and toggles one — setRuleEnabled fires with the
 
   await expect.poll(() => trpc.count("automation.setRuleEnabled")).toBe(1);
   await expect.poll(() => trpc.lastInput("automation.setRuleEnabled")).toMatchObject({ ruleId: "automationrule_ct1", enabled: true });
+});
+
+test("an enable write owns only its rule row, and a rejected write releases that row for retry", async ({ mount, page }) => {
+  const held = trpcHold();
+  const trpc = await stub(page, { rules: [RULE, FREE_RULE], setEnabled: held });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+
+  const first = page.getByRole("switch", { name: "Enable Illustrate the scene" });
+  const sibling = page.getByRole("switch", { name: "Enable Count the beats" });
+  await first.click();
+  await held.requested;
+
+  await expect(first).toBeDisabled();
+  await expect(sibling).toBeEnabled();
+  expect(trpc.count("automation.setRuleEnabled")).toBe(1);
+
+  held.release(trpcError());
+  await expect(first).toBeEnabled();
+  await first.click();
+  await expect.poll(() => trpc.count("automation.setRuleEnabled")).toBe(2);
+});
+
+test("the existing Test loading state owns only its rule row while the dry run is held", async ({ mount, page }) => {
+  const held = trpcHold();
+  const trpc = await stub(page, { rules: [RULE, FREE_RULE], testRule: held });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+
+  const first = page.getByRole("button", { name: "Test Illustrate the scene" });
+  const sibling = page.getByRole("button", { name: "Test Count the beats" });
+  await first.click();
+  await held.requested;
+
+  await expect(first).toBeDisabled();
+  await expect(sibling).toBeEnabled();
+  expect(trpc.count("automation.testRule")).toBe(1);
+  held.release({ predicate: true, arms: [] });
+  await expect(first).toBeEnabled();
 });
 
 test("Test runs the dry-run — testRule fires and the predicate verdict + arm preview render", async ({ mount, page }) => {

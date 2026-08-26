@@ -25,7 +25,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { PluginsSurfaceStory, SnippetConsoleStory } from "../_ct-stories.tsx";
 
 const DROPZONE_INPUT = '[data-slot="file-dropzone-input"]';
@@ -248,6 +248,33 @@ test("an installed plugin says whether it is on and what it is allowed to do", a
   await expect(page.getByText("On", { exact: true })).toBeVisible();
   // ONESHOT-OK: the "On" assertion above settled on the post-invalidate repaint, which the stub only serves AFTER `plugin.setEnabled` was called and recorded — the call is provably complete at this read.
   expect(recorder.lastInput("plugin.setEnabled")).toEqual({ pluginId: INSTALLED_ROW.id, enabled: true });
+});
+
+test("an enable write owns only its plugin row, and rejection releases that row for retry", async ({ mount, page }) => {
+  const held = trpcHold();
+  const siblingRow = { ...INSTALLED_ROW, id: "plugin_ct0000000000000000002", name: "Rain Teller", slug: "rain-teller" };
+  const recorder = await routeTrpc(page, {
+    "plugin.list": () => [INSTALLED_ROW, siblingRow],
+    "plugin.setEnabled": held,
+    "plugin.getLog": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  const first = page.getByRole("switch", { name: "Turn Weather Teller on" });
+  const sibling = page.getByRole("switch", { name: "Turn Rain Teller on" });
+  await first.click();
+  await held.requested;
+
+  await expect(first).toBeDisabled();
+  await expect(sibling).toBeEnabled();
+  expect(recorder.count("plugin.setEnabled")).toBe(1);
+
+  held.release(trpcError());
+  await expect(first).toBeEnabled();
+  await first.click();
+  await expect.poll(() => recorder.count("plugin.setEnabled")).toBe(2);
 });
 
 test("an upgrade that WIDENS reach says exactly what widened, and Allow closes the loop for real", async ({ mount, page }) => {
