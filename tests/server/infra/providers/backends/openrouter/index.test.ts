@@ -148,6 +148,46 @@ describe("createOpenRouterBackend — surface", () => {
     expect(backend.generateImage).toBeDefined();
     expect(backend.runAgentTurn).toBeUndefined();
   });
+
+  test("a catalog request abort reaches the held SDK request", async () => {
+    const held = Promise.withResolvers<unknown>();
+    let receivedSignal: AbortSignal | undefined;
+    let aborted = false;
+    const getClient = (): OrClient =>
+      ({
+        models: {
+          list: (_request?: undefined, options?: { signal?: AbortSignal }): Promise<unknown> => {
+            receivedSignal = options?.signal;
+            options?.signal?.addEventListener(
+              "abort",
+              () => {
+                aborted = true;
+                held.reject(options.signal?.reason);
+              },
+              { once: true },
+            );
+            return held.promise;
+          },
+        },
+      }) as unknown as OrClient;
+    const backend = createOpenRouterBackend({ now: () => FIXED_NOW, getClient });
+    const controller = new AbortController();
+    const request = backend.fetchCatalog?.({ signal: controller.signal });
+    if (request === undefined) {
+      throw new Error("openrouter backend must implement fetchCatalog");
+    }
+
+    controller.abort(new Error("catalog cancelled"));
+    await Promise.resolve();
+    const observedAbort = aborted;
+    if (!observedAbort) {
+      held.reject(new Error("held-request cleanup"));
+    }
+    await expect(request).rejects.toBeInstanceOf(Error);
+
+    expect(receivedSignal).toBe(controller.signal);
+    expect(observedAbort).toBe(true);
+  });
 });
 
 describe("createOpenRouterBackend — firewall + dispatch", () => {
