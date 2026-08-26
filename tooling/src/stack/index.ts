@@ -42,6 +42,8 @@ export {
   verifyDevStackIdentity,
   writeDevStackIdentity,
 } from "./lib/dev-process-identity.ts";
+export type { EngineAdoptionEvidence, EngineRole } from "./lib/engine-adoption.ts";
+export { engineAdoptionMismatch } from "./lib/engine-adoption.ts";
 export { classifyInstance, decideDown, decideUp } from "./lib/identity.ts";
 export { parseListenerPid, parseProcStartTicks } from "./lib/proc-parse.ts";
 export { decideSpawnLock, lockHolderText, mayRemovePidfile, parseLockHolder, parseProdRecord, serializeProdRecord } from "./lib/prod-record.ts";
