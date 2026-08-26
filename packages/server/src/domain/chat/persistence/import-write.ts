@@ -6,7 +6,7 @@
 // per-chat provenance while `chat_import_claims` is the scoped atomic dedup oracle. Each chat + claim commits
 // as ONE db.batch — db.transaction() is BANNED (the :memory: trap) — so a kill mid-import leaves zero rows.
 
-import type { BulkImportChatInput, BulkImportChatsResult, ImportedChatIdentity, MessageKind } from "@orb/contracts/chat";
+import type { BulkImportChatInput, BulkImportChatsResult, ChatMetadata, ImportedChatIdentity, MessageKind } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { characters, chatImportClaims, chatInjections, chatParticipants, chats, messageAssets, messages, messageVariants } from "@orb/db";
@@ -17,8 +17,10 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { BulkImportChats, ChatImportContext } from "../contract/import.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
+import { carriesAssetBackground, guardedChatId } from "./background-write.ts";
 
 /** The distinct inline `asset:<id>` refs in a message's content, across all its variants. */
 function assetRefsInMessage(message: BulkImportChatInput["messages"][number]): AssetId[] {
@@ -431,10 +433,11 @@ function injectionStmts(ctx: ChatImportContext, chatId: ChatId, ci: BulkImportCh
  *  landed as the SAME at-depth splice). */
 function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs): BatchStmt[] {
   const { db } = ctx;
+  const metadata = ci.metadata === undefined ? null : parseChatMetadata(ci.metadata);
   return [
     batchStmt(
       db.insert(chats).values({
-        id: chatId,
+        id: guardedChatId(db, chatId, metadata),
         title: ci.title,
         anchorPersonaId: ci.anchorPersonaId,
         importedFrom: ci.importedFrom,
@@ -446,7 +449,7 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
         // Absent ⇒ NULL, byte-identically the ST import. A supplied blob goes through the column's OWN
         // parser (the same fault-isolated read seam every consumer uses) so a caller can never land a
         // sub-blob shape the readers would heal away — one validation home, no second spelling here.
-        metadata: ci.metadata === undefined ? null : parseChatMetadata(ci.metadata),
+        metadata,
         // R6 orb-native extras. Each `?? <column default>` is the ST arm's behavior spelled out loud: an
         // interchange transcript declares none of these and lands exactly the row it landed before R6.
         // DELIBERATELY ABSENT: `runtimeVariables` (DERIVED — re-folded from the carried per-variant deltas),
@@ -615,12 +618,24 @@ async function recordSkippedImport(args: {
 /** Commit one fresh candidate, returning the exact winning claim when another invocation won the race.
  * Constraint errors elsewhere in the large room batch remain loud: only a now-visible scoped claim
  * classifies the failure as the expected concurrent loser. */
-async function commitImportCandidate(db: Db, stmts: readonly BatchStmt[], characterId: CharacterId, importHash: string): Promise<ExistingImport | null> {
+async function commitImportCandidate(args: {
+  readonly db: Db;
+  readonly stmts: readonly BatchStmt[];
+  readonly characterId: CharacterId;
+  readonly importHash: string;
+  readonly metadata: ChatMetadata | null;
+}): Promise<ExistingImport | null> {
+  const { db, stmts, characterId, importHash, metadata } = args;
   try {
     await commitChatBatch(db, stmts);
     return null;
   } catch (err) {
     const kind = isConstraintViolation(err)?.kind;
+    if (carriesAssetBackground(metadata) && kind === "not-null") {
+      const unavailable = new ChatOperationError(CHAT_OP_CODES.backgroundUnavailable, "the imported chat background asset is no longer available");
+      unavailable.cause = err;
+      throw unavailable;
+    }
     if (kind !== "unique" && kind !== "primary-key") {
       throw err;
     }
@@ -653,7 +668,8 @@ async function importOneChat(args: {
   state.existing[ci.importHash] = { chatId, anchorPersonaId: ci.anchorPersonaId };
   const { stmts, identity } = await planOneChat({ ctx, chatId, ci, ownerId, characterId });
   ctx.bumpStatsCanonVersion(stmts, ctx.db, ownerId);
-  const claimed = await commitImportCandidate(ctx.db, stmts, characterId, ci.importHash);
+  const metadata = ci.metadata === undefined ? null : parseChatMetadata(ci.metadata);
+  const claimed = await commitImportCandidate({ db: ctx.db, stmts, characterId, importHash: ci.importHash, metadata });
   if (claimed !== null) {
     state.existing[ci.importHash] = claimed;
     await recordSkippedImport({ ctx, state, existing: claimed, ownerId, ci });

@@ -65,7 +65,10 @@ async function applyEdit(
     // Inline narrow: exactOptionalPropertyTypes rejects `handle: string | undefined` against the required column.
     ...(input.handle !== undefined && input.handle !== current.handle ? { handle: input.handle } : {}),
   });
-  if (!written) {
+  if (written === "background-unavailable") {
+    throw new CharacterOperationError(CHARACTER_BACKGROUND_UNAVAILABLE, "The background asset is no longer available.");
+  }
+  if (written === "missing") {
     throw new CharacterNotFoundError(characterId);
   }
 

@@ -10,7 +10,18 @@ import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { auditLogs, characters, chatEvents, chatHandoffResumptions, chatParticipants, chats, messages, messageVariants, statsCanonVersions } from "@orb/db";
+import {
+  assets,
+  auditLogs,
+  characters,
+  chatEvents,
+  chatHandoffResumptions,
+  chatParticipants,
+  chats,
+  messages,
+  messageVariants,
+  statsCanonVersions,
+} from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -28,7 +39,7 @@ import { publishChatEvent, subscribeAllChatEvents } from "../../../../../package
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { FROZEN_AT, makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
+import { FROZEN_AT, makeChatContext, noClaim, seedAsset, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -241,7 +252,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const url = "https://cdn.example/bg.jpg";
-    const storedAssetId = mintTypeId(ID_PREFIX.asset);
+    const storedAssetId = await seedAsset(db, host, "external-background");
     const roster = createRoster(
       makeChatContext(db, {
         // The compose op fetches → magic-belts → stores the URL under the host; the stub returns the stored asset.
@@ -335,7 +346,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const assetId = mintTypeId(ID_PREFIX.asset);
+    const assetId = await seedAsset(db, host, "ownedbackground");
     const roster = createRoster(makeChatContext(db, { filterOwnedAssetIds: () => Promise.resolve([assetId]) }), { emit, claimChat: noClaim });
 
     const result = await roster.setChatBackground({
@@ -346,6 +357,25 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     expect(result.kind).toBe("asset");
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.metadata?.background?.assetId).toBe(assetId);
+  });
+
+  test("an asset removed after the ownership read cannot be persisted as a dangling JSON reference", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const assetId = await seedAsset(db, host, "removedbackground");
+    const roster = createRoster(makeChatContext(db, { filterOwnedAssetIds: () => Promise.resolve([assetId]) }), { emit, claimChat: noClaim });
+    await db.delete(assets).where(eq(assets.id, assetId));
+
+    const err = await roster
+      .setChatBackground({ principal: principal(host), chatId, background: bg({ kind: "asset", assetId, assetHash: "hash1", mime: "image/png" }) })
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("background_unavailable");
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.metadata?.background).toBeUndefined();
+    expect(emitted).toEqual([]);
   });
 
   test("a non-asset kind carrying a populated assetId persists CLEAN — asset fields emptied, no foreign GC-root smuggle", async () => {

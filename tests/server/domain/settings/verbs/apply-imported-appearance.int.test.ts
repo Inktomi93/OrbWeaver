@@ -8,7 +8,9 @@
 //   • a no-op input writes nothing at all (no row touch, no event).
 
 import { parseUserSettings } from "@orb/contracts/settings";
-import type { AssetId } from "@orb/kit/ids";
+import type { Db } from "@orb/db";
+import { assets } from "@orb/db";
+import type { AssetId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createApplyImportedAppearance, createSettingsContext } from "@orb/server/domain/settings";
 import { describe } from "vitest";
@@ -38,6 +40,12 @@ function entry(key: string, name: string): { entryId: string; assetId: AssetId; 
   return { entryId: `row-${key}`, assetId: assetIdFor(key), assetHash: `hash-${key}`, mime: "image/jpeg", name };
 }
 
+async function seedEntries(db: Db, ownerId: UserId, entries: readonly ReturnType<typeof entry>[]): Promise<void> {
+  await db
+    .insert(assets)
+    .values(entries.map((e) => ({ id: e.assetId, ownerId, kind: "background" as const, mime: e.mime, size: 1, hash: e.assetHash, uploadedAt: 1 })));
+}
+
 describe("applyImportedAppearance", () => {
   test("APPENDS background-library entries and dedups by assetId (a re-import adds nothing)", async () => {
     const db = await freshDb();
@@ -46,7 +54,9 @@ describe("applyImportedAppearance", () => {
     const owner = await seedUser(db, { id: "user_bg" });
     const p = principal(owner, "user");
 
-    const first = await apply(owner, { patch: {}, backgroundLibrary: [entry("aaa", "bedroom clean"), entry("bbb", "tavern day")] });
+    const firstEntries = [entry("aaa", "bedroom clean"), entry("bbb", "tavern day")];
+    await seedEntries(db, owner, [...firstEntries, entry("ccc", "royal")]);
+    const first = await apply(owner, { patch: {}, backgroundLibrary: firstEntries });
     expect(first.backgroundsAdded).toBe(2);
 
     // A re-run of the whole-profile import: the CAS is content-addressed, so the SAME asset ids come back.
@@ -66,6 +76,7 @@ describe("applyImportedAppearance", () => {
     const owner = await seedUser(db, { id: "user_own_bg" });
     const p = principal(owner, "user");
 
+    await seedEntries(db, owner, [entry("mine", "my upload"), entry("aaa", "bedroom clean")]);
     await h.svc.updateUserSettingsSection({ principal: p, input: { section: "appearance", patch: { backgroundLibrary: [entry("mine", "my upload")] } } });
     await createApplyImportedAppearance(ctx)(owner, { patch: {}, backgroundLibrary: [entry("aaa", "bedroom clean")] });
 
@@ -121,6 +132,7 @@ describe("applyImportedAppearance", () => {
     const ctx = createSettingsContext(h.deps);
     const owner = await seedUser(db, { id: "user_audit" });
 
+    await seedEntries(db, owner, [entry("aaa", "bg")]);
     await createApplyImportedAppearance(ctx)(owner, { patch: { showTimestamps: !DEFAULTS.showTimestamps }, backgroundLibrary: [entry("aaa", "bg")] });
 
     const audited = h.audits.find((a) => a.entry.action === "settings.importAppearance");
