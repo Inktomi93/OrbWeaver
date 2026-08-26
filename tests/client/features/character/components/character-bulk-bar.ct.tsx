@@ -47,11 +47,11 @@ test("bulk selection clears only after the durable archive succeeds and remains 
   await expect.poll(() => trpc.count("character.bulkArchive")).toBe(2);
 });
 
-type BulkAction = "archive" | "tag" | "delete";
+const BULK_ACTIONS = ["archive", "tag", "delete"] as const;
+type BulkAction = (typeof BULK_ACTIONS)[number];
 type Replacement = "overlap" | "disjoint";
 type Verdict = "success" | "rejection";
 
-const BULK_ACTIONS: readonly BulkAction[] = ["archive", "tag", "delete"];
 const REPLACEMENTS: readonly Replacement[] = ["overlap", "disjoint"];
 const VERDICTS: readonly Verdict[] = ["success", "rejection"];
 
