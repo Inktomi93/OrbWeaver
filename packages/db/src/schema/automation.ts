@@ -20,8 +20,9 @@
 // The `trigger_bus`/`trigger_type` pair derives the closed trigger taxonomy from
 // `@orb/contracts/automation` (the D34 promotion — db deps are kit + contracts only): a PAIRED CHECK
 // binds each bus to ITS tuple (the chat_participants kind-shape pattern), so a domain-trigger name on
-// the chat bus is unrepresentable. `outcome` derives AUTOMATION_FIRE_OUTCOMES the same way. CHECKs are
-// static DDL built from the tuples — never re-spelled (users.ts pattern).
+// the chat bus is unrepresentable. Public fire terminals derive from AUTOMATION_FIRE_OUTCOMES; storage adds
+// one internal `reserved` admission state that list projections never expose. CHECKs are static DDL built
+// from the tuples — never re-spelled (users.ts pattern).
 
 import type { ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
 import {
@@ -53,6 +54,8 @@ import { users } from "./users.ts";
 // Named numeric bounds/defaults (`noMagicNumbers`).
 const RULE_NAME_MAX_CHARS = 120;
 const RULE_MAX_FIRES_PER_HOUR_DEFAULT = 30;
+/** Storage admits one in-flight state beyond the public terminal vocabulary. */
+export const AUTOMATION_FIRE_STORAGE_OUTCOMES = [...AUTOMATION_FIRE_OUTCOMES, "reserved"] as const;
 // The chat budget + global-variable caps derive from @orb/contracts/automation (the ONE home — the
 // app-validation verb and this CHECK-DDL/column-default share the same bound, so they can't drift).
 // SQLite `length()` on TEXT counts CHARACTERS — the BLOB cast in the value CHECK below makes the
@@ -167,9 +170,9 @@ export const automationOwnerBudgets = sqliteTable("automation_owner_budgets", {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// automation_fires — the fire log: audit + budget counting + testRun provenance. Reaped by a retention
-// sweep (domain concern, not schema). `outcome` derives AUTOMATION_FIRE_OUTCOMES; `detail` carries the
-// per-arm results / the error / the rendered previews (test_run), parsed at the read seam.
+// automation_fires — the fire ledger: audit + atomic budget admission + testRun provenance. Public terminals
+// derive AUTOMATION_FIRE_OUTCOMES; `reserved` is storage-only and hidden at the read seam. `detail` carries
+// the per-arm results / the error / the rendered previews (test_run), parsed at that seam.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const automationFires = sqliteTable(
@@ -187,8 +190,8 @@ export const automationFires = sqliteTable(
       .references(() => chats.id, { onDelete: "cascade" }),
     // The trigger that fired — denormalized for the debug surface (the rule row may since be edited).
     triggerType: text("trigger_type").$type<ChatTriggerType | DomainTriggerType>().notNull(),
-    // The dispatch terminal — derives AUTOMATION_FIRE_OUTCOMES.
-    outcome: text("outcome", { enum: AUTOMATION_FIRE_OUTCOMES }).notNull(),
+    // Public dispatch terminal OR the internal in-flight budget reservation.
+    outcome: text("outcome", { enum: AUTOMATION_FIRE_STORAGE_OUTCOMES }).notNull(),
     // Per-arm results / the error / the rendered previews (test_run) — open JSON, read-seam parsed.
     detail: text("detail", { mode: "json" }).$type<Record<string, unknown>>(),
     // 0 = human-initiated; the cascade-depth ledger.
@@ -201,7 +204,7 @@ export const automationFires = sqliteTable(
     // The chat CASCADE parent — a chat delete would scan the whole fire log without it, and the
     // (ruleId, firedAt) index cannot serve a chatId-only predicate (`fk-columns-indexed` gate).
     index("automation_fires_chat_idx").on(t.chatId),
-    check("automation_fires_outcome_check", sql.raw(`outcome in (${checkList(AUTOMATION_FIRE_OUTCOMES)})`)),
+    check("automation_fires_outcome_check", sql.raw(`outcome in (${checkList(AUTOMATION_FIRE_STORAGE_OUTCOMES)})`)),
   ],
 );
 

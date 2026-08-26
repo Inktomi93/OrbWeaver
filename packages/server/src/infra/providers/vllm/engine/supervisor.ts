@@ -94,7 +94,13 @@ function decideFailed(t: TickInput): TickAction {
 }
 
 function decideHealthy(t: TickInput): TickAction {
-  if (t.status === "owned" || t.status === "starting") {
+  // `owned` is durable provenance for a detached launch; `spawnTriggered` is only the in-flight poll flag
+  // and is deliberately cleared once that launch becomes healthy. Requiring the transient flag here erased
+  // ownership on the very next tick and disabled later hung-engine recovery.
+  if (t.status === "owned") {
+    return { kind: "mark", status: "owned" };
+  }
+  if (t.status === "starting") {
     return t.spawnTriggered ? { kind: "mark", status: "owned" } : { kind: "adopt" };
   }
   return t.status === "adopted" ? { kind: "none" } : { kind: "adopt" };
@@ -106,7 +112,7 @@ function decideOccupied(t: TickInput): TickAction {
     return { kind: "none" };
   }
   if (t.unhealthyStreak + 1 >= HUNG_THRESHOLD) {
-    if (t.status === "owned" && t.spawnTriggered) {
+    if (t.status === "owned") {
       return { kind: "restart", reason: "hung (owned)" };
     }
     return { kind: "mark", status: "hung", detail: "port open, /health unresponsive" };
