@@ -6,7 +6,7 @@
 import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatEvents, chats } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
 import type { ChatEventId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
@@ -25,6 +25,20 @@ beforeEach(async () => {
 });
 
 describe("createChatBus.emit — durable-first + the replay ring", () => {
+  test("a prepared chatCreated joins room birth and publishes its already-committed cursor without re-appending", async () => {
+    const chatId = castId<ChatId>("chat_prepared_birth");
+    const bus = createChatBus(makeChatContext(db));
+    const prepared = bus.prepareCreation({ type: "chatCreated", chatId });
+
+    await db.batch(batchMany([batchStmt(db.insert(chats).values({ id: chatId })), prepared.statement]));
+    expect(bus.readRing(chatId)).toEqual([]);
+    expect((await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId))).map((row) => [row.seq, row.type])).toEqual([[1, "chatCreated"]]);
+
+    expect(prepared.publishCommitted()).toEqual({ seq: 1, event: { type: "chatCreated", chatId } });
+    expect(bus.readRing(chatId)).toEqual([{ seq: 1, event: { type: "chatCreated", chatId } }]);
+    expect(await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId))).toHaveLength(1);
+  });
+
   test("emit commits a chat_events row (durable) and assigns a monotonic per-chat seq", async () => {
     const chatId = await seedChat(db, "a");
     const bus = createChatBus(makeChatContext(db));

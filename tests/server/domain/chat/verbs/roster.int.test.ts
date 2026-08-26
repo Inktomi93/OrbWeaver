@@ -10,7 +10,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { characters, chatParticipants, chats, messages, messageVariants } from "@orb/db";
+import { auditLogs, characters, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -1249,20 +1249,21 @@ describe("audit wiring — the membership/config mutations write best-effort aud
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
 
-    expect(rows.map((r) => r.entry.action)).toEqual(["chat.nominateHostHandoff", "chat.acceptHostHandoff"]);
+    expect(rows.map((r) => r.entry.action)).toEqual(["chat.nominateHostHandoff"]);
     // The OFFER flags ride the nominate row: a no-offer nomination records give-nothing, in the log, at the
     // moment consent was (not) given — the one place a later dispute can read it.
     expect(rows.at(0)?.entry.metadata).toEqual({ nomineeUserId: member, offerCast: false, offerGmPreset: false });
     // The heal + copy FLAGS/COUNTS ride the accept row (F1/F2 + the copy) — an un-anchored, non-game room with
     // no offer heals nothing and copies nothing.
-    expect(rows.at(1)?.entry.metadata).toEqual({
+    const accepted = (await db.select().from(auditLogs).where(eq(auditLogs.action, "chat.acceptHostHandoff")))[0];
+    expect(accepted?.metadata).toEqual({
       previousHostUserId: host,
       healedAnchorPersona: false,
       healedGmPreset: false,
       copiedCards: 0,
       droppedSeats: 0,
     });
-    expect(rows.at(1)?.entry.actorUserId).toBe(member);
+    expect(accepted?.actorUserId).toBe(member);
   });
 
   test("setGroupConfig logs output/policy; setRoomOverrides logs FIELD LABELS only (never bodies)", async () => {

@@ -100,6 +100,18 @@ export const gate: GateDescriptor = {
       why: "the junction norm — a composite key declared in the extras callback",
     },
     {
+      at: "packages/db/src/schema/tag.ts",
+      files:
+        'import * as sqliteCore from "drizzle-orm/sqlite-core";\n' +
+        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+        'export const characterTags = sqliteTable(\n  "character_tags",\n  {\n' +
+        '    characterId: text("character_id"),\n' +
+        '    tagId: text("tag_id"),\n' +
+        "  },\n" +
+        "  (t) => [sqliteCore.primaryKey({ columns: [t.characterId, t.tagId] })],\n);\n",
+      why: "the same composite-key contract through the sanctioned namespace import spelling",
+    },
+    {
       at: "packages/db/src/schema/settings.ts",
       files:
         'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +

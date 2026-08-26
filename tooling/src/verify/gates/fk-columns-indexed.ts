@@ -140,6 +140,18 @@ export const gate: GateDescriptor = {
       why: "a composite whose LEADING column is the FK — SQLite uses it for the messageId-only predicate, so no redundant single-column twin is demanded",
     },
     {
+      at: "packages/db/src/schema/tag.ts",
+      files:
+        'import * as sqliteCore from "drizzle-orm/sqlite-core";\n' +
+        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+        'export const characterTags = sqliteTable(\n  "character_tags",\n  {\n' +
+        '    characterId: text("character_id").references(() => characters.id, { onDelete: "cascade" }),\n' +
+        '    tagId: text("tag_id"),\n' +
+        "  },\n" +
+        "  (t) => [sqliteCore.primaryKey({ columns: [t.characterId, t.tagId] })],\n);\n",
+      why: "a namespace-qualified composite key still indexes its leading FK; import spelling cannot create a false violation",
+    },
+    {
       at: "packages/db/src/schema/stats.ts",
       files:
         'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +

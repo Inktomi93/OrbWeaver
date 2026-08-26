@@ -17,6 +17,7 @@ import { createActiveTurns } from "../../../../packages/server/src/domain/chat/a
 import type { ChatContext, ChatServiceDeps } from "../../../../packages/server/src/domain/chat/context.ts";
 import type { TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results.ts";
 import type { ChatService } from "../../../../packages/server/src/domain/chat/index.ts";
+import { insertChatEventStatement } from "../../../../packages/server/src/domain/chat/persistence/events.ts";
 import { createChatService } from "../../../../packages/server/src/domain/chat/service.ts";
 import { freshDb } from "../../../support/db.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
@@ -96,6 +97,22 @@ function makeService(
       events.push(event);
       return Promise.resolve();
     },
+    emitChecked: (event) => {
+      events.push(event);
+      return Promise.resolve(true);
+    },
+    prepareCreationEvent: (event) => ({
+      statement: insertChatEventStatement(ctx.db, {
+        id: ctx.newEventId(),
+        chatId: event.chatId,
+        seq: 1,
+        event,
+        createdAt: ctx.now(),
+      }),
+      publishCommitted: (): void => {
+        events.push(event);
+      },
+    }),
     // The live-only lane joins the same buffer: this suite asserts WHAT was announced, not which door it
     // took (the lane split itself is pinned in chat-lifecycle.int / husk-lifecycle.suite).
     emitLive: (event): void => {
