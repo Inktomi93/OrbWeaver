@@ -4,7 +4,7 @@
 // `inject` reuses the shared `@orb/kit/injection` directive; role is the canonical `MessageRole`, never a
 // world-info-local re-spell.
 
-import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { ENTRY_KEY_MODES, ENTRY_POSITIONS, ENTRY_SCOPE_MODES } from "@orb/kit/world-info";
 import { z } from "zod";
@@ -169,6 +169,13 @@ export interface EntryView {
 export interface BookAttachmentView extends BookView {
   /** Only meaningful for character attachments. `null` for the other three scopes. */
   role: WorldBookRole | null;
+}
+
+/** The owner-scoped reverse index for one book's character/persona activation controls. Deliberately
+ *  excludes chats (membership-scoped in the room) and global (its own one-row query). */
+export interface BookAttachmentTargets {
+  readonly characters: readonly { readonly characterId: CharacterId; readonly role: WorldBookRole }[];
+  readonly personaIds: readonly PersonaId[];
 }
 
 // Entry-level variants are emitted by domain/world-info/verbs/entries/{create,update,remove} (PD-89 done).

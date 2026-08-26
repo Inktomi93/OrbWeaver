@@ -15,7 +15,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import { settingsAnchorId } from "#state";
@@ -56,6 +56,40 @@ function AdminUsersBody(): ReactElement {
   const [createOpen, setCreateOpen] = useState(false);
   const [sessionsFor, setSessionsFor] = useState<UserTarget | null>(null);
   const [resetFor, setResetFor] = useState<UserTarget | null>(null);
+  const rolePendingRef = useRef(new Set<UserId>());
+  const enabledPendingRef = useRef(new Set<UserId>());
+  const [rolePendingIds, setRolePendingIds] = useState<ReadonlySet<UserId>>(new Set<UserId>());
+  const [enabledPendingIds, setEnabledPendingIds] = useState<ReadonlySet<UserId>>(new Set<UserId>());
+
+  const changeRole = (userId: UserId, role: UserRole): void => {
+    if (rolePendingRef.current.has(userId)) {
+      return;
+    }
+    rolePendingRef.current.add(userId);
+    setRolePendingIds(new Set(rolePendingRef.current));
+    void setRole
+      .mutateAsync({ userId, role })
+      .catch(() => undefined)
+      .finally(() => {
+        rolePendingRef.current.delete(userId);
+        setRolePendingIds(new Set(rolePendingRef.current));
+      });
+  };
+
+  const changeEnabled = (userId: UserId, enabled: boolean): void => {
+    if (enabledPendingRef.current.has(userId)) {
+      return;
+    }
+    enabledPendingRef.current.add(userId);
+    setEnabledPendingIds(new Set(enabledPendingRef.current));
+    void setEnabled
+      .mutateAsync({ userId, enabled })
+      .catch(() => undefined)
+      .finally(() => {
+        enabledPendingRef.current.delete(userId);
+        setEnabledPendingIds(new Set(enabledPendingRef.current));
+      });
+  };
 
   return (
     <Section className="@container" divider={true} heading={ADMIN_USERS_SUBCATEGORY.label} id={settingsAnchorId("admin", ADMIN_USERS_SUBCATEGORY.id)}>
@@ -77,8 +111,10 @@ function AdminUsersBody(): ReactElement {
               user={user}
               isSelf={user.id === viewer.userId}
               viewerIsOwner={viewerIsOwner}
-              onSetRole={(role: UserRole): void => setRole.mutate({ userId: user.id, role })}
-              onSetEnabled={(enabled: boolean): void => setEnabled.mutate({ userId: user.id, enabled })}
+              rolePending={rolePendingIds.has(user.id)}
+              enabledPending={enabledPendingIds.has(user.id)}
+              onSetRole={(role: UserRole): void => changeRole(user.id, role)}
+              onSetEnabled={(enabled: boolean): void => changeEnabled(user.id, enabled)}
               onOpenSessions={(): void => setSessionsFor({ userId: user.id, handle: user.handle })}
               onResetPassword={(): void => setResetFor({ userId: user.id, handle: user.handle })}
             />

@@ -470,6 +470,10 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.worldInfo.listForCharacter({ characterId: i.characterId }),
   },
   {
+    path: "worldInfo.listAttachmentsForBook",
+    call: (c, i) => c.worldInfo.listAttachmentsForBook({ bookId: i.bookId }),
+  },
+  {
     path: "worldInfo.attachToPersona",
     call: (c, i) => c.worldInfo.attachToPersona({ personaId: i.personaId, bookId: i.bookId }),
   },

@@ -11,7 +11,7 @@ import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId 
 import { resolveEntryScope } from "@orb/kit/world-info";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
-import type { BookAttachmentView, BookUsage, BookView, BookWithUsage, EntryView, WorldBookRole } from "../contract/views.ts";
+import type { BookAttachmentTargets, BookAttachmentView, BookUsage, BookView, BookWithUsage, EntryView, WorldBookRole } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
 
@@ -134,6 +134,16 @@ export async function listCharacterBooks(db: Db, ownerId: UserId, characterId: C
     .where(and(eq(characterBooks.characterId, characterId), eq(worldBooks.ownerId, ownerId)))
     .orderBy(desc(characterBooks.role), desc(worldBooks.createdAt));
   return rows.map((r) => toAttachmentView(r.book, r.role));
+}
+
+/** The two owner-scoped target junctions for one already-owner-gated book. Chat attachments are excluded:
+ *  their membership-scoped names and controls live in the room, never the owner's library. */
+export async function listAttachmentTargetsForBook(db: Db, bookId: WorldBookId): Promise<BookAttachmentTargets> {
+  const [characters, personas] = await Promise.all([
+    db.select({ characterId: characterBooks.characterId, role: characterBooks.role }).from(characterBooks).where(eq(characterBooks.worldBookId, bookId)),
+    db.select({ personaId: personaBooks.personaId }).from(personaBooks).where(eq(personaBooks.worldBookId, bookId)),
+  ]);
+  return { characters, personaIds: personas.map((row) => row.personaId) };
 }
 
 export async function listGlobalBooks(db: Db, ownerId: UserId): Promise<BookAttachmentView[]> {

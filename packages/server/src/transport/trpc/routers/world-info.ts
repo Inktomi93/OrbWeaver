@@ -21,6 +21,10 @@ export const worldInfoRouter = t.router({
   /** The Configuration roster read — the same owned books plus entry count + attachment rollup. */
   listBooksWithUsage: authedProcedure.query(({ ctx }) => ctx.services.worldInfo.listBooksWithUsage({ principal: ctx.auth })),
 
+  listAttachmentsForBook: authedProcedure
+    .input(z.object({ bookId: brandedId<WorldBookId>() }))
+    .query(({ ctx, input }) => ctx.services.worldInfo.listAttachmentsForBook({ principal: ctx.auth, bookId: input.bookId })),
+
   getBook: authedProcedure
     .input(z.object({ bookId: brandedId<WorldBookId>() }))
     .query(({ ctx, input }) => ctx.services.worldInfo.getBook({ principal: ctx.auth, bookId: input.bookId })),

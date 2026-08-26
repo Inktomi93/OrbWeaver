@@ -11,6 +11,7 @@ export { createDetachFromCharacter } from "./detach-from-character.ts";
 export { createDetachFromChat } from "./detach-from-chat.ts";
 export { createDetachFromPersona } from "./detach-from-persona.ts";
 export { createDetachGlobal } from "./detach-global.ts";
+export { createListAttachmentsForBook } from "./list-attachments-for-book.ts";
 export { createListForCharacter } from "./list-for-character.ts";
 export { createListForChat } from "./list-for-chat.ts";
 export { createListForPersona } from "./list-for-persona.ts";
