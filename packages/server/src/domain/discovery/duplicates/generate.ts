@@ -25,13 +25,18 @@ import type { ComputeChatDuplicatesDeps, ComputeDuplicatesDeps } from "../contra
 import { readOwnedCharacterVectors, readOwnedChatLineage, readOwnedChatSegmentHashes } from "../persistence/embed-store-reads.ts";
 import { collapseByHash } from "../substrate/collapse.ts";
 import { forkRoots } from "../substrate/fork-roots.ts";
-import { computeGroupHubs } from "../substrate/hub-math.ts";
+import { computeGroupHubs, HUBNESS_DENSE_MAX } from "../substrate/hub-math.ts";
 import { pairsAboveThreshold } from "../substrate/pair-cosine.ts";
 
 /** The raw-cosine floor a card pair must clear to be recorded as a near-duplicate (a hub-deflated near-dup
  *  must still BE a near-dup, so the gate is on raw cosine; `cslsScore` only ranks). Re-exported from the
  *  front door for the workload runner's log + the tRPC default. */
 export const DEFAULT_DUP_THRESHOLD = 0.92;
+
+/** Maximum content-distinct representatives admitted in one owner/model cosine space. */
+export const MAX_DUPLICATE_VECTORS_PER_SPACE = HUBNESS_DENSE_MAX;
+/** Maximum derived character pairs admitted across one atomic recompute. */
+export const MAX_DUPLICATE_PAIRS_PER_RUN = 10_000;
 
 // The insert column count for duplicate_character_pairs (id, A, B, csls, sim, model, computedAt) — the
 // per-insert row-chunk budget (libSQL bound-variable cap).
@@ -84,9 +89,20 @@ export async function computeDuplicatePairs(db: Db, deps: ComputeDuplicatesDeps,
       (r) => r.contentHash,
       (r) => r.characterId,
     );
+    if (reps.length > MAX_DUPLICATE_VECTORS_PER_SPACE) {
+      throw new RangeError(
+        `character duplicate representative limit exceeded: ${reps.length} > ${MAX_DUPLICATE_VECTORS_PER_SPACE} for one owner/model space`,
+      );
+    }
     const repVecs = reps.map((r) => r.embedding);
-    const hubs = computeGroupHubs(repVecs);
-    for (const pair of pairsAboveThreshold(repVecs, hubs, threshold)) {
+    // This workload promises no n×n allocation at any admitted size. Hub math therefore uses its existing
+    // O(n)-row branch even below the general-purpose dense threshold.
+    const hubs = computeGroupHubs(repVecs, { denseMax: 0 });
+    const remainingPairs = MAX_DUPLICATE_PAIRS_PER_RUN - inserts.length;
+    for (const pair of pairsAboveThreshold(repVecs, hubs, threshold, {
+      maxVectors: MAX_DUPLICATE_VECTORS_PER_SPACE,
+      maxPairs: remainingPairs,
+    })) {
       const repA = reps[pair.i];
       const repB = reps[pair.j];
       if (repA === undefined || repB === undefined) {
