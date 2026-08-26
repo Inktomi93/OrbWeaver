@@ -10,6 +10,7 @@ export class PendingGameSeed {
   readonly title: string;
   readonly chatId: ChatId;
 
+  private finishInFlight: Promise<void> | null = null;
   private nextStep = 0;
   private readonly steps: readonly SeedStep[];
 
@@ -26,13 +27,22 @@ export class PendingGameSeed {
     }
   }
 
-  async finish(): Promise<void> {
-    await this.steps.slice(this.nextStep).reduce<Promise<void>>(
-      (chain, step) =>
-        chain.then(step).then(() => {
-          this.nextStep += 1;
-        }),
-      Promise.resolve(),
-    );
+  finish(): Promise<void> {
+    this.finishInFlight ??= this.advance();
+    return this.finishInFlight;
+  }
+
+  private async advance(): Promise<void> {
+    try {
+      await this.steps.slice(this.nextStep).reduce<Promise<void>>(
+        (chain, step) =>
+          chain.then(step).then(() => {
+            this.nextStep += 1;
+          }),
+        Promise.resolve(),
+      );
+    } finally {
+      this.finishInFlight = null;
+    }
   }
 }
