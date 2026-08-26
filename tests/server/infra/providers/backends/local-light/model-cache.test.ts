@@ -128,4 +128,25 @@ describe("createMemo", () => {
 
     expect(disposed).toEqual(["model:a"]);
   });
+
+  test("defers eviction disposal until an active lease releases the model", async () => {
+    const disposed: string[] = [];
+    const memo = createMemo(
+      async (id: string) => `model:${id}`,
+      (value) => disposed.push(value),
+    );
+    const held = Promise.withResolvers<void>();
+    const usingOldest = memo.withLease("a", async (value) => {
+      expect(value).toBe("model:a");
+      await held.promise;
+    });
+    await Promise.resolve();
+    await Promise.all(["b", "c", "d", "e"].map((id) => memo(id)));
+    await flush();
+    expect(disposed).toEqual([]);
+    held.resolve();
+    await usingOldest;
+    await flush();
+    expect(disposed).toEqual(["model:a"]);
+  });
 });

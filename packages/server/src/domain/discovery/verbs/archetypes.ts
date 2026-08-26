@@ -55,6 +55,30 @@ function groupByModel(rows: readonly CardVector[]): Map<string, CardVector[]> {
   return groups;
 }
 
+function compareText(a: string, b: string): number {
+  if (a < b) {
+    return -1;
+  }
+  if (a > b) {
+    return 1;
+  }
+  return 0;
+}
+
+function uniqueLabels(items: readonly Archetype[]): Archetype[] {
+  const used = new Set<string>();
+  return items.map((archetype) => {
+    let label = archetype.label;
+    let suffix = 2;
+    while (used.has(label)) {
+      label = `${archetype.label} (${suffix})`;
+      suffix += 1;
+    }
+    used.add(label);
+    return label === archetype.label ? archetype : { ...archetype, label };
+  });
+}
+
 function bump(m: Map<string, number>, key: string): void {
   m.set(key, (m.get(key) ?? 0) + 1);
 }
@@ -93,8 +117,9 @@ function archetypesForGroup(
   facetById: Map<CharacterId, CardFacet>,
   k: number,
 ): Archetype[] {
+  const orderedGroup = [...group].sort((a, b) => compareText(a.characterId, b.characterId));
   const { reps, repOf } = collapseByHash(
-    group,
+    orderedGroup,
     (r) => r.contentHash,
     (r) => r.characterId,
   );
@@ -107,8 +132,8 @@ function archetypesForGroup(
     ARCHETYPE_SEED,
   );
   const clusters = new Map<number, ClusterAcc>();
-  for (let i = 0; i < group.length; i += 1) {
-    const card = group[i];
+  for (let i = 0; i < orderedGroup.length; i += 1) {
+    const card = orderedGroup[i];
     const repIdx = repOf[i];
     if (card === undefined || repIdx === undefined) {
       continue;
@@ -121,7 +146,7 @@ function archetypesForGroup(
     }
     tallyCard(acc, card, displayById.get(card.characterId), facetById.get(card.characterId));
   }
-  const model = group[0]?.model ?? "";
+  const model = orderedGroup[0]?.model ?? "";
   return [...clusters.values()].map((acc) => {
     const genre = mode(acc.genre);
     const tone = mode(acc.tone);
@@ -151,8 +176,16 @@ async function archetypes(db: Db, ownerId: UserId, opts: ArchetypesOptions = {})
   const displayById = new Map(display.map((d) => [d.characterId, d]));
   const facetById = new Map(facets.map((f) => [f.characterId, f]));
   const out: Archetype[] = [];
-  for (const [, group] of groupByModel(vectors)) {
+  const groups = [...groupByModel(vectors).entries()].sort(([a], [b]) => compareText(a, b));
+  for (const [, group] of groups) {
     out.push(...archetypesForGroup(group, displayById, facetById, k));
   }
-  return out.sort((a, b) => b.size - a.size);
+  out.sort(
+    (a, b) =>
+      b.size - a.size ||
+      compareText(a.label, b.label) ||
+      compareText(a.model, b.model) ||
+      compareText(a.members[0]?.characterId ?? "", b.members[0]?.characterId ?? ""),
+  );
+  return uniqueLabels(out);
 }

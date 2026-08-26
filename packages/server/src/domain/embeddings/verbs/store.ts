@@ -65,14 +65,15 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams): Pr
   if (p.force !== true && (await existingCharacterHash(ctx.db, p.characterId, p.model)) === hash) {
     return { outcome: "noop", contentHash: hash };
   }
-  const vector = firstVector((await ctx.roleClients.embed(p.content)).vectors, p.lens, p.model);
-  assertSpace(p.model, p.dim, vector);
+  const embedded = await ctx.roleClients.embed(p.content);
+  const vector = firstVector(embedded.vectors, p.lens, embedded.model);
+  assertSpace(embedded.model, p.dim, vector);
   await upsertCharacterEmbedding(ctx.db, {
     id: ctx.newCharacterEmbeddingId(),
     characterId: p.characterId,
     embedding: vector,
     contentHash: hash,
-    model: p.model,
+    model: embedded.model,
     dim: p.dim,
     now: ctx.now(),
   });
@@ -113,8 +114,9 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
     p.lens === "image-captioned"
       ? ({ kind: "multimodal", input: { image: p.content, text: p.caption } } as const)
       : ({ kind: "image", input: p.content } as const);
-  const vector = firstVector((await ctx.roleClients.imageEmbed(req)).vectors, p.lens, p.model);
-  assertSpace(p.model, p.dim, vector);
+  const embedded = await ctx.roleClients.imageEmbed(req);
+  const vector = firstVector(embedded.vectors, p.lens, embedded.model);
+  assertSpace(embedded.model, p.dim, vector);
   await upsertImageEmbedding(ctx.db, {
     id: ctx.newImageEmbeddingId(),
     assetId: p.assetId,
@@ -123,7 +125,7 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
     captionMeta: p.lens === "image-captioned" ? (p.captionMeta ?? null) : null,
     embedding: vector,
     contentHash: hash,
-    model: p.model,
+    model: embedded.model,
     dim: p.dim,
     now: ctx.now(),
   });
@@ -144,8 +146,9 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
   if (existing === hash) {
     return { outcome: "noop", contentHash: hash };
   }
-  const vector = firstVector((await ctx.roleClients.embed(p.text)).vectors, p.lens, p.model);
-  assertSpace(p.model, p.dim, vector);
+  const embedded = await ctx.roleClients.embed(p.text);
+  const vector = firstVector(embedded.vectors, p.lens, embedded.model);
+  assertSpace(embedded.model, p.dim, vector);
   const digestId = await upsertChatDigest(ctx.db, {
     id: ctx.newChatDigestId(),
     chatId: p.chatId,
@@ -158,7 +161,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
     keywords: p.keywords,
     embedding: vector,
     contentHash: hash,
-    model: p.model,
+    model: embedded.model,
     dim: p.dim,
     now: ctx.now(),
   });
@@ -176,8 +179,9 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
   if ((await existingChunkHash(ctx.db, p.fkRefs.documentId, p.fkRefs.chunkIdx, p.model)) === hash) {
     return { outcome: "noop", contentHash: hash };
   }
-  const vector = firstVector((await ctx.roleClients.embed(p.content)).vectors, p.lens, p.model);
-  assertSpace(p.model, p.dim, vector);
+  const embedded = await ctx.roleClients.embed(p.content);
+  const vector = firstVector(embedded.vectors, p.lens, embedded.model);
+  assertSpace(embedded.model, p.dim, vector);
   await upsertDocumentChunk(ctx.db, {
     id: ctx.newDocumentChunkId(),
     documentId: p.fkRefs.documentId,
@@ -187,7 +191,7 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
     charEnd: p.fkRefs.charEnd,
     embedding: vector,
     contentHash: hash,
-    model: p.model,
+    model: embedded.model,
     dim: p.dim,
     now: ctx.now(),
   });

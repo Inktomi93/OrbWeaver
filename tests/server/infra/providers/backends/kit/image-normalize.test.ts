@@ -57,7 +57,15 @@ describe("createImageNormalizer", () => {
     });
     const out = await normalize(JPEG_BYTES);
     expect(out.bytes).toBe(JPEG_BYTES);
+    expect(out.mediaType).toBe("image/jpeg");
     expect(called).toBe(false);
+  });
+
+  test("unknown bytes are transcoded to PNG instead of being mislabeled", async () => {
+    const unknown = Uint8Array.from([1, 2, 3, 4]);
+    const normalize = createImageNormalizer(() => Promise.resolve(DECODED_PNG));
+    const out = await normalize(unknown);
+    expect(out).toEqual({ bytes: DECODED_PNG, mediaType: "image/png" });
   });
 });
 
