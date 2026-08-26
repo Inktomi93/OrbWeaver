@@ -15,6 +15,9 @@ import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
 import { buildCommittedMessageView, insertCanonMessageStatements } from "../persistence/canon-write.ts";
 import { loadMaxMessageSeq } from "../persistence/queries.ts";
+import { loadRoster } from "../persistence/roster.ts";
+import { hostUserIdOf } from "../substrate/roster-host.ts";
+import { userMessageDelta } from "../substrate/stats-delta.ts";
 
 /** The alt text stamped on each generated-image ref (one home — no scattered magic string). */
 const GENERATED_IMAGE_ALT = "generated image";
@@ -42,6 +45,10 @@ export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): 
     generateImage: async ({ principal, chatId, mode, prompt, n, size }: GenerateImageParams): Promise<MessageView> => {
       await requireParticipant(ctx, principal, chatId);
       await deps.claimChat(chatId);
+      const hostUserId = hostUserIdOf(await loadRoster(ctx.db, chatId));
+      if (hostUserId === null) {
+        throw new Error(`generateImage: chat ${chatId} has no host to own the committed message economics`);
+      }
       const picture = await ctx.generatePicture({
         caller: principal,
         chatId,
@@ -73,7 +80,9 @@ export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): 
           variant: { content: body },
         };
         try {
-          await ctx.db.batch(batchMany(insertCanonMessageStatements(ctx.db, params)));
+          const statements = insertCanonMessageStatements(ctx.db, params);
+          ctx.applyStatsDelta(statements, ctx.db, userMessageDelta({ ownerId: hostUserId, characterId: null, content: body, now: params.now }));
+          await ctx.db.batch(batchMany(statements));
           return buildCommittedMessageView(params);
         } catch (err) {
           // A broad UNIQUE classification also covers bad message/variant ids. Retry only when the canon head

@@ -1250,6 +1250,12 @@ CREATE TABLE `owner_stats` (
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict
 );
 --> statement-breakpoint
+CREATE TABLE `stats_canon_versions` (
+	`owner_id` text PRIMARY KEY NOT NULL,
+	`version` integer DEFAULT 0 NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict
+);
+--> statement-breakpoint
 CREATE TABLE `character_tags` (
 	`character_id` text NOT NULL,
 	`tag_id` text NOT NULL,

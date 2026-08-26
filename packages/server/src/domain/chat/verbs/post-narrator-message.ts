@@ -22,6 +22,7 @@ import { buildCommittedMessageView, insertCanonMessageStatements, insertMessageA
 import { loadMaxMessageSeq } from "../persistence/queries.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
+import { assistantTurnDelta } from "../substrate/stats-delta.ts";
 
 /** The alt text stamped on each embedded narrator-media ref (one home — no scattered magic string). */
 const NARRATOR_MEDIA_ALT = "illustration";
@@ -89,7 +90,10 @@ export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMe
       ...(origin !== undefined ? { initiator: origin.initiator, automationDepth: origin.automationDepth } : {}),
     };
     const assetRows = mediaRefs.map((assetId) => ({ id: ctx.newMessageAssetId(), messageId, assetId }));
-    await ctx.db.batch(batchMany([...insertCanonMessageStatements(ctx.db, params), ...insertMessageAssetStatements(ctx.db, { rows: assetRows, now })]));
+    const statements = insertCanonMessageStatements(ctx.db, params);
+    ctx.applyStatsDelta(statements, ctx.db, assistantTurnDelta({ ownerId: hostUserId, characterId: group.characterId, economics: { content: body }, now }));
+    statements.push(...insertMessageAssetStatements(ctx.db, { rows: assetRows, now }));
+    await ctx.db.batch(batchMany(statements));
 
     const view = buildCommittedMessageView(params);
     await deps.emit({ type: "messageCommitted", chatId, messageId, view });

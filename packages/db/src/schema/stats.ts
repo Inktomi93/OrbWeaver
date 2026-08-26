@@ -1,4 +1,5 @@
-// schema/stats — the four per-owner usage-economics rollups (producer: domain/stats). ECONOMICS ONLY
+// schema/stats — the four per-owner usage-economics rollups plus the canon-version fence that keeps a
+// concurrent rebuild from replacing a newer live delta (producer: domain/stats). ECONOMICS ONLY
 // (turn counts · words · tokens · cost · cache · timing) — ZERO vector columns (the
 // `stats-no-vector-tables` dep-cruiser rule; the type-enforced economics↔semantics line,
 // core/Knowledge-Cluster.md §7 invariant #7: discovery is semantics, stats is economics, they share no tables).
@@ -46,6 +47,18 @@ const PROVIDER_FALLBACK = "(unknown)";
 // Born-at-insert epoch-ms clock for `computedAt` (the live delta always supplies `delta.now`; this default
 // only covers a bare insert). SQL `unixepoch()`, never a JS clock (the determinism gate).
 const NOW_MS = sql`(unixepoch() * 1000)`;
+
+// stats_canon_versions — monotonic per-owner mutation fence for the two stats writers. Every live delta
+// increments this row in the SAME batch as canon + rollups; reconcile snapshots it around its streamed
+// scan/replace and retries only the owner whose canon moved. It is deliberately separate from owner_stats:
+// reconcile replaces that rollup, while this ownership token must survive the replacement unchanged.
+export const statsCanonVersions = sqliteTable("stats_canon_versions", {
+  ownerId: text("owner_id")
+    .$type<UserId>()
+    .primaryKey()
+    .references(() => users.id, { onDelete: "restrict" }),
+  version: integer("version").notNull().default(0),
+});
 
 // owner_stats — per-user GLOBAL totals (owner × —), one row per user. NATURAL PK on `ownerId`.
 // Always written by reconcile (even all-zeros) so `freshness` distinguishes computed-empty from never-run.
