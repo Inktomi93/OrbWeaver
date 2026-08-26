@@ -2,6 +2,7 @@
 // `@orb/contracts/world-info`; type-only (`noBarrelFile` bans a runtime barrel here).
 
 export type {
+  BookAttachmentTargets,
   BookAttachmentView,
   BookUsage,
   BookView,

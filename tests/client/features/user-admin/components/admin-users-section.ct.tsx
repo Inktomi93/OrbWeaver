@@ -8,7 +8,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { AdminUsersSectionStory } from "../_ct-stories.tsx";
 
 const OWNER_VIEWER = { userId: "user_owner", handle: "root", globalRole: "owner" };
@@ -121,6 +121,27 @@ test("as the owner, changing a member's role fires setRole", async ({ mount, pag
   await page.getByRole("option", { name: "Admin" }).click();
 
   await expect.poll(() => trpc.lastInput("admin.setRole"), { intervals: [20, 50, 100] }).toEqual({ userId: "user_kes", role: "admin" });
+});
+
+test("role writes lock only their target row while a sibling remains actionable", async ({ mount, page }) => {
+  const held = trpcHold();
+  const trpc = await stub(page, OWNER_VIEWER, {
+    "admin.setRole": (input: unknown) => ((input as { userId?: string }).userId === "user_kes" ? held : applyToUser(input, ({ role }) => ({ role }))),
+  });
+  const component = await mount(<AdminUsersSectionStory />);
+  const kes = component.getByRole("combobox", { name: "Role — kes" });
+  const mira = component.getByRole("combobox", { name: "Role — mira" });
+
+  await kes.click();
+  await page.getByRole("option", { name: "Admin" }).click();
+  await held.requested;
+  await expect(kes).toBeDisabled();
+  await expect(mira).toBeEnabled();
+
+  await mira.click();
+  await page.getByRole("option", { name: "User" }).click();
+  await expect.poll(() => trpc.count("admin.setRole")).toBe(2);
+  held.release(applyToUser({ userId: "user_kes", role: "admin" }, ({ role }) => ({ role })));
 });
 
 test("as a delegated admin, the role controls are DISABLED (requireOwner honesty)", async ({ mount, page }) => {

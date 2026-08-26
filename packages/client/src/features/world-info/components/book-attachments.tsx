@@ -1,8 +1,8 @@
 // The book activation panel — where the open book is switched ON. Drives three of the four attach
 // scopes (global/character/persona) from the book's side. Global is
-// a clean book-centric toggle; character/persona attachment is target-scoped in the API, so those rows
-// own their own membership query — the character list reveals on demand so a large cast doesn't fan out
-// a query per row until asked.
+// a clean book-centric toggle; character/persona writes are target-scoped, while the read is one
+// book-centric reverse index shared by both rosters. The character list still reveals on demand, but its
+// rows no longer fan out one membership request apiece.
 //
 // THE FOURTH SCOPE IS NOT MISSING, IT LIVES IN THE ROOM (#640). `worldInfo.attachToChat` is host-gated on a
 // MEMBERSHIP-scoped chat, so its affordance is the "This chat" tab's Lorebooks section
@@ -22,6 +22,7 @@
 // the whole set. The term rides to the verb, so the target arrives on the first page of the SEARCHED read
 // however deep she sits, and the picker answers the same question the library does with the same predicate.
 
+import type { BookAttachmentTargets } from "@orb/contracts/world-info";
 import type { WorldBookId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
@@ -57,11 +58,25 @@ export interface BookAttachmentsProps {
 
 /** The activation panel for one book (global toggle + character/persona attachment). */
 export function BookAttachments({ bookId }: BookAttachmentsProps): ReactElement {
+  const trpc = useTRPC();
+  const attachments = useQuery(trpc.worldInfo.listAttachmentsForBook.queryOptions({ bookId }));
   return (
     <Stack gap="section" padding="block">
       <GlobalSection bookId={bookId} />
-      <PersonasSection bookId={bookId} />
-      <CharactersSection bookId={bookId} />
+      <PersonasSection
+        bookId={bookId}
+        attachments={attachments.data}
+        queryPending={attachments.isPending}
+        queryError={attachments.isError}
+        onRetry={(): void => void attachments.refetch()}
+      />
+      <CharactersSection
+        bookId={bookId}
+        attachments={attachments.data}
+        queryPending={attachments.isPending}
+        queryError={attachments.isError}
+        onRetry={(): void => void attachments.refetch()}
+      />
     </Stack>
   );
 }
@@ -74,6 +89,7 @@ function GlobalSection({ bookId }: BookAttachmentsProps): ReactElement {
   const detach = useDetachWorldBookGlobal({ trpc, invalidation });
 
   const isGlobal = (globalQuery.data ?? []).some((b) => b.id === bookId);
+  const controlsDisabled = globalQuery.isPending || globalQuery.isError || attach.isPending || detach.isPending;
 
   // ONE GRAMMAR WITH ITS SIBLING ARM (side-eye 2026-08-03 P3). This pane and the regex pane sit in the SAME
   // slot of the SAME workspace and spoke two languages: sentence-case `Section` headings ("Everywhere") over
@@ -86,9 +102,15 @@ function GlobalSection({ bookId }: BookAttachmentsProps): ReactElement {
         <Text as="span" voice="label">
           Fires in every chat
         </Text>
+        {globalQuery.isError ? (
+          <Button intent="ghost" onClick={(): void => void globalQuery.refetch()} size="sm" type="button">
+            Retry
+          </Button>
+        ) : null}
         <Switch
           aria-label="Fires in every chat"
           checked={isGlobal}
+          disabled={controlsDisabled}
           onCheckedChange={(on): void => {
             if (on) {
               attach.mutate({ bookId });
@@ -103,7 +125,14 @@ function GlobalSection({ bookId }: BookAttachmentsProps): ReactElement {
   );
 }
 
-function PersonasSection({ bookId }: BookAttachmentsProps): ReactElement {
+interface AttachmentSectionProps extends BookAttachmentsProps {
+  readonly attachments: BookAttachmentTargets | undefined;
+  readonly queryPending: boolean;
+  readonly queryError: boolean;
+  readonly onRetry: () => void;
+}
+
+function PersonasSection({ bookId, attachments, queryPending, queryError, onRetry }: AttachmentSectionProps): ReactElement {
   const trpc = useTRPC();
   const personasQuery = useQuery(trpc.persona.list.queryOptions());
   const personas = personasQuery.data ?? [];
@@ -117,7 +146,16 @@ function PersonasSection({ bookId }: BookAttachmentsProps): ReactElement {
       ) : (
         <Stack gap="row">
           {personas.map((persona) => (
-            <PersonaAttachRow key={persona.id} bookId={bookId} personaId={persona.id} personaName={persona.name} />
+            <PersonaAttachRow
+              key={persona.id}
+              bookId={bookId}
+              personaId={persona.id}
+              personaName={persona.name}
+              attached={attachments?.personaIds.includes(persona.id) ?? false}
+              queryPending={queryPending}
+              queryError={queryError}
+              onRetry={onRetry}
+            />
           ))}
         </Stack>
       )}
@@ -125,7 +163,7 @@ function PersonasSection({ bookId }: BookAttachmentsProps): ReactElement {
   );
 }
 
-function CharactersSection({ bookId }: BookAttachmentsProps): ReactElement {
+function CharactersSection({ bookId, attachments, queryPending, queryError, onRetry }: AttachmentSectionProps): ReactElement {
   const trpc = useTRPC();
   const [open, setOpen] = useState(false);
   // The kicker's count is the ATTACHED set, not the picker's page — `listBooksWithUsage`'s per-book
@@ -141,7 +179,7 @@ function CharactersSection({ bookId }: BookAttachmentsProps): ReactElement {
           <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
           {open ? "Hide characters" : "Attach to a character"}
         </Button>
-        {open ? <CharacterPicker bookId={bookId} /> : null}
+        {open ? <CharacterPicker bookId={bookId} attachments={attachments} queryPending={queryPending} queryError={queryError} onRetry={onRetry} /> : null}
       </Stack>
     </Section>
   );
@@ -150,7 +188,7 @@ function CharactersSection({ bookId }: BookAttachmentsProps): ReactElement {
 /** The revealed character picker — the search box plus the roster it narrows. The read lives HERE rather
  *  than in the section above so it is mounted-with-the-reveal: nothing is asked for until the roster is,
  *  and a close-then-reopen re-reads instead of holding a page from before the last attach. */
-function CharacterPicker({ bookId }: { readonly bookId: WorldBookId }): ReactElement {
+function CharacterPicker(props: AttachmentSectionProps): ReactElement {
   const trpc = useTRPC();
   const [term, setTerm] = useState("");
   const needle = useDebouncedValue(term.trim(), SEARCH_DEBOUNCE_MS);
@@ -162,7 +200,11 @@ function CharacterPicker({ bookId }: { readonly bookId: WorldBookId }): ReactEle
           edit or clear the term that produced it. */}
       <Input aria-label="Search characters" onValueChange={setTerm} placeholder="Search characters" value={term} />
       <CharacterRoster
-        bookId={bookId}
+        bookId={props.bookId}
+        attachments={props.attachments}
+        queryPending={props.queryPending}
+        queryError={props.queryError}
+        onRetry={props.onRetry}
         characters={charactersQuery.data?.items ?? []}
         isPending={charactersQuery.isPending}
         needle={needle}
@@ -179,12 +221,20 @@ function CharacterRoster({
   isPending,
   needle,
   onClearSearch,
+  attachments,
+  queryPending,
+  queryError,
+  onRetry,
 }: {
   readonly bookId: WorldBookId;
   readonly characters: readonly CharacterListItem[];
   readonly isPending: boolean;
   readonly needle: string;
   readonly onClearSearch: () => void;
+  readonly attachments: AttachmentSectionProps["attachments"];
+  readonly queryPending: boolean;
+  readonly queryError: boolean;
+  readonly onRetry: () => void;
 }): ReactElement {
   if (isPending) {
     return <SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />;
@@ -210,7 +260,16 @@ function CharacterRoster({
   return (
     <Stack gap="row">
       {characters.map((character) => (
-        <CharacterAttachRow key={character.id} bookId={bookId} characterId={character.id} characterName={character.name} />
+        <CharacterAttachRow
+          key={character.id}
+          bookId={bookId}
+          characterId={character.id}
+          characterName={character.name}
+          role={attachments?.characters.find((attachment) => attachment.characterId === character.id)?.role}
+          queryPending={queryPending}
+          queryError={queryError}
+          onRetry={onRetry}
+        />
       ))}
     </Stack>
   );

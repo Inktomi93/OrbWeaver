@@ -15,7 +15,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 // The bus's OWN transport mutations (#649). `stream.attach` rides the BATCHED HTTP link, not the SSE leg
 // (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket` never answers
 // it and it was riding `routeTrpc`'s lenient null in every mount here. Imported from the bus's own fixture
@@ -112,6 +112,50 @@ test("Accept fires acceptInvite with the notification's inviteId, then dismisses
   // Acting on the invite clears its inbox row.
   await expect.poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   await expect.poll(async () => (trpc.lastInput("notifications.dismiss") as { notificationId?: unknown }).notificationId).toBe("ntf_ct_1");
+});
+
+test("each inbox row owns its pending action: double-click is singular while a sibling stays actionable", async ({ mount, page }) => {
+  const held = trpcHold();
+  const first = inviteRow();
+  const second = inviteRow({
+    id: "ntf_ct_2",
+    payload: {
+      type: "invite",
+      recipientUserId: "user_ct_invitee",
+      chatId: "chat_ct_second",
+      inviteId: "chatinvite_ct_2",
+      invitedByHandle: "mira",
+    },
+    seq: 2,
+  });
+  const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    "notifications.list": () => ({ items: [first, second], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 2 }),
+    "notifications.dismiss": () => null,
+    "invites.acceptInvite": (input: unknown) =>
+      (input as { inviteId?: string }).inviteId === "chatinvite_ct_1"
+        ? held
+        : { chat: { id: "chat_ct_second", participants: [] }, participant: { id: "participant_ct_second" } },
+  });
+  await routeInboxStream(page, []);
+
+  await mount(<NotificationBellStory />);
+  await page.getByRole("button", { name: "Notifications (2 unread)" }).click();
+  const nateRow = page.locator('[data-slot="inbox-row"]').filter({ hasText: "alex invited" });
+  const miraRow = page.locator('[data-slot="inbox-row"]').filter({ hasText: "mira invited" });
+  const nateAccept = nateRow.getByRole("button", { name: "Accept" });
+  const miraAccept = miraRow.getByRole("button", { name: "Accept" });
+
+  await nateAccept.dblclick();
+  await held.requested;
+  await expect(nateAccept).toBeDisabled();
+  await expect(miraAccept).toBeEnabled();
+  await expect.poll(() => trpc.count("invites.acceptInvite")).toBe(1);
+
+  await miraAccept.click();
+  await expect.poll(() => trpc.count("invites.acceptInvite")).toBe(2);
+  held.release({ chat: { id: "chat_ct_target", participants: [] }, participant: { id: "participant_ct_new" } });
 });
 
 test("Decline fires declineInvite + dismisses; the row leaves the inbox on refetch", async ({ mount, page }) => {

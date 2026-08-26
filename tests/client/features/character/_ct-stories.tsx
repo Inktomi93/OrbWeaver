@@ -295,7 +295,13 @@ export function CharacterFacetInspectorStory(): ReactElement {
  *  the Delete button clipped at. `trpc` is read inside the provider tree (the surface's own wiring). */
 function BulkBarInner(): ReactElement {
   const trpc = useTRPC();
-  return <CharacterBulkBar ids={["char_a", "char_b", "char_c"]} onClear={(): void => undefined} selectedCount={3} trpc={trpc} />;
+  const [selectedCount, setSelectedCount] = useState(3);
+  return (
+    <>
+      <output aria-label="Bulk selection count">{selectedCount}</output>
+      <CharacterBulkBar ids={["char_a", "char_b", "char_c"]} onClear={(): void => setSelectedCount(0)} selectedCount={selectedCount} trpc={trpc} />
+    </>
+  );
 }
 
 export function CharacterBulkBarStory(): ReactElement {

@@ -10,6 +10,7 @@
 // No data-testid inside the trigger: the bell is addressed by its role + accessible name.
 
 import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
+import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Bell, Icon } from "@orb/ui/icons";
@@ -19,7 +20,7 @@ import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
@@ -67,10 +68,6 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   const { items, unreadCount } = useInbox();
   useInboxStream({ invalidation });
   const markAllRead = useMarkAllNotificationsRead({ trpc, invalidation });
-  const dismiss = useDismissNotification({ trpc, invalidation });
-  const accept = useAcceptInvite({ trpc, invalidation });
-  const decline = useDeclineInvite({ trpc, invalidation });
-  const acceptHandoff = useAcceptHostHandoff({ trpc, invalidation });
   const [open, setOpen] = useState(false);
 
   // THE SHEET LENS HAS NO "OPEN" EVENT — its rows just ARE, so its "you looked" moment is the mount (the
@@ -98,51 +95,16 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
     }
   };
 
-  const onAccept = async (item: InboxItem): Promise<void> => {
-    if (item.payload.type !== "invite") {
-      return;
-    }
-    // A refusal surfaces via the mutation's errorToast; the row stays for a retry.
-    const result = await accept.mutateAsync({ inviteId: item.payload.inviteId }).catch(() => null);
-    if (result === null) {
-      return;
-    }
-    dismiss.mutate({ notificationId: item.id });
-    setOpen(false);
-    setActiveSection("chats");
-    selectChat(result.chat.id);
-  };
-
-  const onAcceptHandoff = async (item: InboxItem): Promise<void> => {
-    if (item.payload.type !== "handoff-nominated") {
-      return;
-    }
-    const chatId = item.payload.chatId;
-    // A stale/withdrawn nomination surfaces via the errorToast; the row stays until dismissed.
-    const ok = await acceptHandoff
-      .mutateAsync({ chatId })
-      .then(() => true)
-      .catch(() => false);
-    if (!ok) {
-      return;
-    }
-    dismiss.mutate({ notificationId: item.id });
+  const onAccepted = (chatId: ChatId): void => {
     setOpen(false);
     setActiveSection("chats");
     selectChat(chatId);
   };
 
-  const onDecline = async (item: InboxItem): Promise<void> => {
-    if (item.payload.type !== "invite") {
-      return;
-    }
-    const ok = await decline
-      .mutateAsync({ inviteId: item.payload.inviteId })
-      .then(() => true)
-      .catch(() => false);
-    if (ok) {
-      dismiss.mutate({ notificationId: item.id });
-    }
+  const onHandoffAccepted = (chatId: ChatId): void => {
+    setOpen(false);
+    setActiveSection("chats");
+    selectChat(chatId);
   };
 
   const bellLabel = unreadCount === 0 ? "Notifications" : `Notifications (${unreadCount} unread)`;
@@ -151,16 +113,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
       {items.length === 0 ? (
         <Text voice="quiet">No notifications.</Text>
       ) : (
-        items.map((item) => (
-          <InboxRow
-            key={item.id}
-            item={item}
-            onAccept={(): void => void onAccept(item)}
-            onAcceptHandoff={(): void => void onAcceptHandoff(item)}
-            onDecline={(): void => void onDecline(item)}
-            onDismiss={(): void => dismiss.mutate({ notificationId: item.id })}
-          />
-        ))
+        items.map((item) => <InboxRow key={item.id} item={item} onAccepted={onAccepted} onHandoffAccepted={onHandoffAccepted} />)
       )}
     </Stack>
   );
@@ -218,17 +171,76 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
 
 interface InboxRowProps {
   readonly item: InboxItem;
-  readonly onAccept: () => void;
-  readonly onAcceptHandoff: () => void;
-  readonly onDecline: () => void;
-  readonly onDismiss: () => void;
+  readonly onAccepted: (chatId: ChatId) => void;
+  readonly onHandoffAccepted: (chatId: ChatId) => void;
 }
 
 /** One inbox row: the delivery copy + its actions (invite → Accept/Decline; handoff-nominated →
  *  Accept/Dismiss; the rest → Dismiss). */
-function InboxRow({ item, onAccept, onAcceptHandoff, onDecline, onDismiss }: InboxRowProps): ReactElement {
+function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const dismiss = useDismissNotification({ trpc, invalidation });
+  const accept = useAcceptInvite({ trpc, invalidation });
+  const decline = useDeclineInvite({ trpc, invalidation });
+  const acceptHandoff = useAcceptHostHandoff({ trpc, invalidation });
+  const actionOwned = useRef(false);
   const isInvite = item.payload.type === "invite";
   const isHandoff = item.payload.type === "handoff-nominated";
+  const isPending = accept.isPending || decline.isPending || acceptHandoff.isPending || dismiss.isPending;
+
+  const ownAction = (work: () => Promise<void>): void => {
+    if (actionOwned.current) {
+      return;
+    }
+    actionOwned.current = true;
+    void work()
+      .catch(() => undefined)
+      .finally(() => {
+        actionOwned.current = false;
+      });
+  };
+
+  const acceptInvite = (): void => {
+    const payload = item.payload;
+    if (payload.type !== "invite") {
+      return;
+    }
+    ownAction(async () => {
+      const result = await accept.mutateAsync({ inviteId: payload.inviteId });
+      await dismiss.mutateAsync({ notificationId: item.id });
+      onAccepted(result.chat.id);
+    });
+  };
+
+  const declineInvite = (): void => {
+    const payload = item.payload;
+    if (payload.type !== "invite") {
+      return;
+    }
+    ownAction(async () => {
+      await decline.mutateAsync({ inviteId: payload.inviteId });
+      await dismiss.mutateAsync({ notificationId: item.id });
+    });
+  };
+
+  const acceptHostHandoff = (): void => {
+    const payload = item.payload;
+    if (payload.type !== "handoff-nominated") {
+      return;
+    }
+    ownAction(async () => {
+      await acceptHandoff.mutateAsync({ chatId: payload.chatId });
+      await dismiss.mutateAsync({ notificationId: item.id });
+      onHandoffAccepted(payload.chatId);
+    });
+  };
+
+  const dismissRow = (): void => {
+    ownAction(async () => {
+      await dismiss.mutateAsync({ notificationId: item.id });
+    });
+  };
   return (
     <Row gap="field" align="center" justify="between" data-slot="inbox-row">
       <Text as="span" size="label" weight={item.readAt === null ? "medium" : undefined}>
@@ -237,21 +249,21 @@ function InboxRow({ item, onAccept, onAcceptHandoff, onDecline, onDismiss }: Inb
       <Row gap="field" align="center">
         {isInvite ? (
           <>
-            <Button type="button" intent="secondary" size="sm" onClick={onAccept}>
+            <Button type="button" disabled={isPending} intent="secondary" size="sm" onClick={acceptInvite}>
               Accept
             </Button>
-            <Button type="button" intent="ghost" size="sm" onClick={onDecline}>
+            <Button type="button" disabled={isPending} intent="ghost" size="sm" onClick={declineInvite}>
               Decline
             </Button>
           </>
         ) : null}
         {isHandoff ? (
-          <Button type="button" intent="secondary" size="sm" onClick={onAcceptHandoff}>
+          <Button type="button" disabled={isPending} intent="secondary" size="sm" onClick={acceptHostHandoff}>
             Accept
           </Button>
         ) : null}
         {isInvite ? null : (
-          <Button type="button" intent="ghost" size="sm" onClick={onDismiss}>
+          <Button type="button" disabled={isPending} intent="ghost" size="sm" onClick={dismissRow}>
             Dismiss
           </Button>
         )}
