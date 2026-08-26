@@ -1148,11 +1148,12 @@ describe("OIDC back-channel logout route (A5)", () => {
     expect(rec.revokedExternalId).toBeNull();
   });
 
-  test("a sid-only token (sub null) validates → 200 but revokes nothing (we key sessions on sub)", async () => {
+  test("a sid-only token is explicitly refused while sessions have no issuer/sid binding", async () => {
     const sidOnly: Bcl = { clientId: CLIENT_ID, verify: () => Promise.resolve({ sub: null, sid: "sess-1" }) };
     const { deps, rec } = bclDeps({ verify: sidOnly });
     const res = await handlerFor(deps, "POST /api/auth/oidc/backchannel-logout")(makeCtx({ parseBody: { logout_token: "sid.only.jwt" } }));
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "unsupported_logout_token" });
     expect(rec.revokedExternalId).toBeNull(); // nothing to revoke — no sub
   });
 });

@@ -35,6 +35,7 @@ import {
   chatHistoryText,
   effortToResponsesReasoning,
   isAnthropicModel,
+  providerCredentialSecretValues,
   providerErrorFromHttp,
   runWithPreCommitRetry,
   turnAbortSignal,
@@ -445,7 +446,7 @@ async function drainOnce(args: {
     if (err instanceof ProviderError) {
       throw err;
     }
-    throw providerErrorFromHttp(err, errorPrefix(req.model));
+    throw providerErrorFromHttp(err, errorPrefix(req.model), providerCredentialSecretValues(req.credential));
   } finally {
     idle.dispose();
   }
@@ -481,7 +482,8 @@ export async function runResponsesTurn(client: OpenRouterResponsesClient, req: O
           markCommitted,
         });
       },
-      (err): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(req.model))),
+      (err): ProviderError =>
+        err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(req.model), providerCredentialSecretValues(req.credential)),
       retryOpts,
     );
 

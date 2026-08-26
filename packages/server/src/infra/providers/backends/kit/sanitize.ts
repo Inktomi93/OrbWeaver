@@ -10,6 +10,9 @@
 // was typed to that brand. Orbweaver's `ProviderError.message` is a plain `string` (contract/errors.ts),
 // so the brand carried no compile-time obligation here and is dropped — the function returns `string`.
 
+import type { ResolvedCredential } from "@orb/contracts/credentials";
+import { secretHeaderValues } from "./openai-compat/body.ts";
+
 const DEFAULT_SANITIZE_MAX_LEN = 500;
 
 /**
@@ -32,4 +35,16 @@ export function sanitizeApiError(raw: string, maxLen: number = DEFAULT_SANITIZE_
     cleaned = `${cleaned.slice(0, maxLen)}… [truncated]`;
   }
   return cleaned;
+}
+
+/** Known plaintext values an upstream can reflect into an error. This is intentionally credential-shape
+ *  driven: ordinary headers are diagnostics, while custom auth/token/key/secret headers are credentials. */
+export function providerCredentialSecretValues(credential: ResolvedCredential): string[] {
+  if (credential.source === "openrouter") {
+    return [credential.apiKey];
+  }
+  if (credential.source === "custom_openai") {
+    return [...(credential.apiKey === null ? [] : [credential.apiKey]), ...secretHeaderValues(credential.headers)];
+  }
+  return [];
 }

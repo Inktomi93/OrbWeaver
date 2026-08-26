@@ -365,12 +365,13 @@ async function fetchAndReduce(args: {
   readonly req: ChatCompletionsRequest;
   readonly baseUrl: string;
   readonly responseMap: CustomOpenAiResponseMap | null;
+  readonly secrets: readonly string[];
   readonly markCommitted: () => void;
 }): Promise<{
   readonly view: Awaited<ReturnType<typeof reduceChatCompletionStream>>;
   readonly reasoning: string;
 }> {
-  const { url, headers, body, req, baseUrl, responseMap, markCommitted } = args;
+  const { url, headers, body, req, baseUrl, responseMap, secrets, markCommitted } = args;
   const chatId = castId<ChatId>(req.chatId ?? "");
   const idle = turnAbortSignal(req.signal);
   let reasoning = "";
@@ -401,7 +402,7 @@ async function fetchAndReduce(args: {
         signal: idle.signal,
       });
     } catch (err) {
-      throw providerErrorFromHttp(err, errorPrefix(baseUrl));
+      throw providerErrorFromHttp(err, errorPrefix(baseUrl), secrets);
     }
     // A redirect is the endpoint asking us to re-send elsewhere — surface it as a hard, NON-retryable error
     // (never a follow, never a retry that would re-send the credentials). `redirect:"manual"` guarantees fetch
@@ -420,6 +421,7 @@ async function fetchAndReduce(args: {
           statusCode: res.status,
         }),
         errorPrefix(baseUrl),
+        secrets,
       );
     }
     const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
@@ -437,7 +439,7 @@ async function fetchAndReduce(args: {
       if (err instanceof ProviderError) {
         throw err;
       }
-      throw providerErrorFromHttp(err, errorPrefix(baseUrl));
+      throw providerErrorFromHttp(err, errorPrefix(baseUrl), secrets);
     }
     return { view, reasoning };
   } finally {
@@ -488,6 +490,7 @@ export async function runChatTurn(req: ChatRequest, deps: CustomByoRunnerDeps): 
   // captured body before recording — same seam the "Test endpoint" inspector uses on echoed responses.
   deps.captureWire?.({ chatId: req.chatId, api: req.api, backend: "custom-openai", model: req.model, body: scrubCapturedBody(body, cred) });
   const headers = buildHeaders(cred.apiKey, cred.headers);
+  const secrets = [...(cred.apiKey === null ? [] : [cred.apiKey]), ...secretHeaderValues(cred.headers)];
   const url = `${cred.baseUrl.replace(TRAILING_SLASH_RE, "")}${CHAT_COMPLETIONS_PATH}`;
 
   const { view, reasoning } = await runWithPreCommitRetry(
@@ -499,9 +502,10 @@ export async function runChatTurn(req: ChatRequest, deps: CustomByoRunnerDeps): 
         req,
         baseUrl: cred.baseUrl,
         responseMap: cred.responseMap,
+        secrets,
         markCommitted,
       }),
-    (err): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(cred.baseUrl))),
+    (err): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(cred.baseUrl), secrets)),
     {
       ...(req.signal !== undefined ? { signal: req.signal } : {}),
       now: deps.now,

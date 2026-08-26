@@ -704,7 +704,9 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
 
 /** A5 — POST /api/auth/oidc/backchannel-logout. Validates the IdP `logout_token` against the issuer JWKS
  *  (the full OIDC BCL §2.4 checklist lives in `infra/auth/backchannel`), then revokes every session row for
- *  the subject. Returns 200 on success, 400 on any validation failure (per spec), always no-store.
+ *  the subject. A verified sid-only token is refused until session rows persist issuer+sid — accepting one
+ *  without an actionable key would tell the IdP logout succeeded while leaving the session live. Returns
+ *  200 on success, 400 on validation or unsupported-token failure (per spec), always no-store.
  *  Idempotent — a re-delivered token re-revokes nothing (no Redis replay cache needed). */
 function registerBackchannelLogout(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps, bcl: NonNullable<OidcRoutesDeps["backchannelLogout"]>): void {
   app.post(OIDC_BACKCHANNEL_LOGOUT_ROUTE, async (c) => {
@@ -727,18 +729,23 @@ function registerBackchannelLogout(app: Hono, deps: AuthRoutesDeps, oidc: OidcRo
       // The verifier already emitted a securityEvent naming the exact violation.
       return c.json({ error: "invalid_request" }, BAD_REQUEST);
     }
-    if (subject.sub !== null) {
-      const { revoked, userIds } = await deps.sessions.revokeByExternalId(castId<ExternalId>(subject.sub));
-      // W7a — per USER here, not per session: the IdP has ended the HUMAN's login, and one subject can be
-      // bound to more than one row. Idempotent with the revoke itself — a re-delivered logout token names no
-      // users and evicts nothing.
-      for (const userId of userIds) {
-        deps.sockets.evictUser(userId);
-      }
-      securityEvent("oidc_backchannel_logout", { revoked }, "security: OIDC back-channel logout — revoked all sessions for the subject");
+    if (subject.sub === null) {
+      securityEvent(
+        "oidc_backchannel_sid_unsupported",
+        { hasSid: subject.sid !== null },
+        "security: OIDC back-channel logout — refused sid-only token because sessions have no issuer/sid binding",
+      );
+      return c.json({ error: "unsupported_logout_token" }, BAD_REQUEST);
     }
-    // sid-only (no sub): the token validated, but we key sessions on external_id==sub and store no per-session
-    // IdP sid, so there is nothing to action. Still a 200 (the token was well-formed and authentic).
+
+    const { revoked, userIds } = await deps.sessions.revokeByExternalId(castId<ExternalId>(subject.sub));
+    // W7a — per USER here, not per session: the IdP has ended the HUMAN's login, and one subject can be
+    // bound to more than one row. Idempotent with the revoke itself — a re-delivered logout token names no
+    // users and evicts nothing.
+    for (const userId of userIds) {
+      deps.sockets.evictUser(userId);
+    }
+    securityEvent("oidc_backchannel_logout", { revoked }, "security: OIDC back-channel logout — revoked all sessions for the subject");
     return c.body(null, OK);
   });
 }

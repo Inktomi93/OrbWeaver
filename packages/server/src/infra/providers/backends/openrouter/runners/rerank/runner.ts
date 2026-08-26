@@ -14,7 +14,7 @@ import type { CreateRerankRequestBody, CreateRerankResponse } from "@openrouter/
 import type { RerankQuery } from "@orb/contracts/role-clients";
 import type { RerankRequest, RerankResult } from "../../../../contract/index.ts";
 import { ProviderError } from "../../../../contract/index.ts";
-import { providerErrorFromHttp } from "../../../kit/index.ts";
+import { providerCredentialSecretValues, providerErrorFromHttp } from "../../../kit/index.ts";
 
 // The structural slice this runner needs off the client port.
 interface OrRerankClient {
@@ -64,7 +64,7 @@ export async function runRerank(client: OrRerankClient, req: RerankRequest): Pro
   try {
     response = await client.rerank.rerank({ requestBody }, req.signal !== undefined ? { signal: req.signal } : undefined);
   } catch (err) {
-    throw providerErrorFromHttp(err, errorPrefix(req.model));
+    throw providerErrorFromHttp(err, errorPrefix(req.model), providerCredentialSecretValues(req.credential));
   }
   if (typeof response === "string") {
     throw new ProviderError({

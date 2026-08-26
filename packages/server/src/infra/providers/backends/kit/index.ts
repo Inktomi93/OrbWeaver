@@ -88,7 +88,7 @@ export {
 export type { RetryOptions } from "./retry.ts";
 export { computeBackoffMs, runWithPreCommitRetry } from "./retry.ts";
 // ── Error sanitize/brand (never leak key material) ─────────────────────────────────────────────────
-export { sanitizeApiError } from "./sanitize.ts";
+export { providerCredentialSecretValues, sanitizeApiError } from "./sanitize.ts";
 // ── Lenient wire-shape parses + the consumed view surfaces + extractors ────────────────────────────
 export type {
   ChatCompletionChoice,
