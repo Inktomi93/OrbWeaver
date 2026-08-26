@@ -9,6 +9,7 @@ export type {
   ReviewFocus,
   ReviewMirrorEvidence,
 } from "./contract/types.ts";
+export { PENDING_GUARD_CLASSIFICATIONS } from "./contract/types.ts";
 export { assertReviewEvidence, reviewEvidenceGaps } from "./lib/evidence.ts";
 export { REVIEW_FOCUS, resolveReviewFocus } from "./lib/focus.ts";
 export { stripComments, stripperFor } from "./lib/strip.ts";
