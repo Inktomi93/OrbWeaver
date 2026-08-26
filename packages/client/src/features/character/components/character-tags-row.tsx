@@ -13,7 +13,7 @@ import { Icon, Plus, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
@@ -33,12 +33,32 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
   const addTag = useBulkAddCardTag({ trpc, invalidation });
   const removeTag = useBulkRemoveCardTag({ trpc, invalidation });
   const [open, setOpen] = useState(false);
+  const tagWriteInFlight = useRef(false);
+
+  const beginTagWrite = (): boolean => {
+    if (tagWriteInFlight.current) {
+      return false;
+    }
+    tagWriteInFlight.current = true;
+    return true;
+  };
 
   const applyTag = (name: string): void => {
-    addTag.mutate({ tagName: name, characterIds: [characterId] });
+    if (!beginTagWrite()) {
+      return;
+    }
+    addTag.mutate(
+      { tagName: name, characterIds: [characterId] },
+      {
+        onSettled: (): void => {
+          tagWriteInFlight.current = false;
+        },
+      },
+    );
   };
 
   const visible = tags.filter((tag) => !tag.isHiddenOnCard);
+  const tagWritePending = addTag.isPending || removeTag.isPending;
   return (
     <Row gap="field" align="center" className="flex-wrap" data-slot="character-tags">
       {visible.length === 0 ? (
@@ -55,14 +75,27 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
               size="icon"
               intent="ghost"
               aria-label={`Remove ${tag.name}`}
-              onClick={(): void => removeTag.mutate({ tagName: tag.name, characterIds: [characterId] })}
+              disabled={tagWritePending}
+              onClick={(): void => {
+                if (!beginTagWrite()) {
+                  return;
+                }
+                removeTag.mutate(
+                  { tagName: tag.name, characterIds: [characterId] },
+                  {
+                    onSettled: (): void => {
+                      tagWriteInFlight.current = false;
+                    },
+                  },
+                );
+              }}
             >
               <Icon icon={X} size="xs" />
             </Button>
           </Badge>
         ))
       )}
-      <Button type="button" size="sm" intent="ghost" onClick={(): void => setOpen(true)}>
+      <Button disabled={tagWritePending} type="button" size="sm" intent="ghost" onClick={(): void => setOpen(true)}>
         <Icon icon={Plus} size="sm" />
         Add tag
       </Button>
