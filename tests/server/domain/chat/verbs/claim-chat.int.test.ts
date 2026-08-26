@@ -9,23 +9,51 @@
 
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chats } from "@orb/db";
+import { chats, ownerStats, statsCanonVersions } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
+import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 /** One UTC day in ms — the gap that makes a claim land on a different `day` bucket than the creation. */
 const ONE_DAY = 86_400_000;
+const CONSTRAINT_RE = /UNIQUE|constraint/i;
 
 let db: Db;
 let deltas: StatsDelta[];
 let fanned: ChatId[];
+
+function holdNextBatch(sourceDb: Db): { readonly heldDb: Db; readonly reached: Promise<void>; readonly release: () => void } {
+  const reached = Promise.withResolvers<void>();
+  const released = Promise.withResolvers<void>();
+  let held = false;
+  const heldDb = new Proxy(sourceDb, {
+    get(target, prop, receiver): unknown {
+      const value: unknown = Reflect.get(target, prop, receiver);
+      if (prop !== "batch" || typeof value !== "function") {
+        return typeof value === "function" ? value.bind(target) : value;
+      }
+      const batch = value as (...args: unknown[]) => Promise<unknown>;
+      return async (...args: unknown[]): Promise<unknown> => {
+        if (!held) {
+          held = true;
+          reached.resolve();
+          await released.promise;
+        }
+        return await batch.apply(target, args);
+      };
+    },
+  }) as Db;
+  return { heldDb, reached: reached.promise, release: () => released.resolve() };
+}
 
 beforeEach(async () => {
   db = await freshDb();
@@ -97,9 +125,87 @@ describe("claimChat — the conditional stamp", () => {
     // fabricated attribution, so the replay is skipped rather than guessed at.
     expect(deltas).toStrictEqual([]);
   });
+
+  test("serializes concurrent same-room claimers so the replay and fan still fire exactly once", async () => {
+    const { host, chatId } = await seedHusk("concurrent");
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "seeded greeting" });
+    const held = holdNextBatch(db);
+    const claim = createClaimChat(
+      makeChatContext(held.heldDb, {
+        applyStatsDelta: (batch, deltaDb, delta) => applyStatsDelta(batch as BatchStmt[], deltaDb, delta),
+        emitChatChanged: (id): Promise<void> => {
+          fanned.push(id);
+          return Promise.resolve();
+        },
+      }),
+    );
+
+    const first = claim(chatId);
+    await held.reached;
+    const second = claim(chatId);
+    held.release();
+    await Promise.all([first, second]);
+
+    const [owner] = await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host));
+    expect(owner?.chats).toBe(1);
+    expect(owner?.assistantTurns).toBe(1);
+    expect(fanned).toStrictEqual([chatId]);
+  });
+
+  test("rolls back the visibility flip, replay, and version on a mid-batch failure, then permits a clean retry", async () => {
+    const { host, chatId } = await seedHusk("retry");
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "seeded greeting" });
+    let injectFailure = true;
+    const claim = createClaimChat(
+      makeChatContext(db, {
+        applyStatsDelta: (batch, deltaDb, delta) => {
+          const statements = batch as BatchStmt[];
+          applyStatsDelta(statements, deltaDb, delta);
+          if (injectFailure) {
+            injectFailure = false;
+            statements.push(deltaDb.insert(chats).values({ id: chatId }));
+          }
+        },
+        emitChatChanged: () => Promise.resolve(),
+      }),
+    );
+
+    await expect(claim(chatId)).rejects.toThrow(CONSTRAINT_RE);
+    expect(await startedAtOf(chatId)).toBeNull();
+    expect(await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host))).toStrictEqual([]);
+    expect(await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host))).toStrictEqual([]);
+
+    await claim(chatId);
+    expect(await startedAtOf(chatId)).toBe(FROZEN_AT);
+    expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host)))[0]?.chats).toBe(1);
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBeGreaterThan(0);
+  });
 });
 
 describe("claimChat — the creation-stats replay", () => {
+  test("keeps started_at hidden until its replay deltas and canon version can commit in the same batch", async () => {
+    const { host, chatId } = await seedHusk("atomic");
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "seeded greeting" });
+    const held = holdNextBatch(db);
+    const claiming = createClaimChat(
+      makeChatContext(held.heldDb, {
+        applyStatsDelta: (batch, deltaDb, delta) => applyStatsDelta(batch as BatchStmt[], deltaDb, delta),
+        emitChatChanged: () => Promise.resolve(),
+      }),
+    )(chatId);
+
+    await held.reached;
+    const visibleWhileReplayHeld = await startedAtOf(chatId);
+    await reconcileStats(db, { ownerId: host, now: () => FROZEN_AT + ONE_DAY });
+    held.release();
+    await claiming;
+
+    const [owner] = await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host));
+    expect(owner?.chats).toBe(1);
+    expect(owner?.assistantTurns).toBe(1);
+    expect(visibleWhileReplayHeld).toBeNull();
+  });
+
   test("buckets the chat-created delta on the ROW'S createdAt, not the claim instant (the rebuild buckets by created_at)", async () => {
     const bornAt = FROZEN_AT - 3 * ONE_DAY;
     const { chatId } = await seedHusk("late", { createdAt: bornAt });
