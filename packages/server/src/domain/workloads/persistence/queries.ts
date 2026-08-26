@@ -5,7 +5,9 @@
 // `scheduledAt` DEFERRAL gate (a future-dated "Run at" row is not even in the head window until its instant),
 // tolerates poison rows (unrecognized kind OR unparseable params → failed in place, never starves the queue)
 // and enforces DAG dependsOn ordering (a dep still active → skip; any non-success terminal or absent dep →
-// fail with `dependency_failed`).
+// fail with `dependency_failed`). Its scan is cursor-paged through the complete due queue — the page size
+// bounds each read, never admission — and reports each successful fail-in-place through an injected sink
+// after the UPDATE settles. The engine owns the canonical bus emission; persistence remains bus-free.
 //
 // The READ path is poison-VISIBLE where the dispatch path is poison-refusing: `toView` surfaces an
 // unparseable-params row as `{params: null, poison: true}` (a visibly-broken, cancel/retry-able row) instead
@@ -17,11 +19,11 @@ import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { CancelWorkloadResult } from "../contract/params.ts";
-import type { WorkloadBootReclaimRow, WorkloadRowAnyKind, WorkloadRunnableRow } from "../contract/workload-row.ts";
+import type { WorkloadBootReclaimRow, WorkloadQueueFailureSink, WorkloadRowAnyKind, WorkloadRunnableRow } from "../contract/workload-row.ts";
 
 // The terminal states `markTerminal` may stamp (an in-flight → terminal flip).
 const TERMINAL_STATUSES = ["succeeded", "failed", "cancelled", "worker_died"] as const satisfies readonly WorkloadStatus[];
@@ -65,7 +67,7 @@ async function resolveDependencyGate(db: Db, dependsOn: readonly WorkloadId[]): 
 // The in-flight states a heartbeat/terminal/reap UPDATE is guarded on (a queued row has no worker/heartbeat).
 const IN_FLIGHT_STATUSES = ["running", "cancelling"] as const satisfies readonly WorkloadStatus[];
 
-const QUEUE_HEAD_WINDOW = 10;
+const QUEUE_SCAN_PAGE_SIZE = 10;
 // The internal-caller backstop; the shared ceiling `WORKLOAD_LIST_MAX_LIMIT` (`@orb/contracts/workloads`) is
 // also the transport `.max()` trust boundary, so the wire refusal and this hard cap never drift.
 
@@ -85,6 +87,16 @@ interface WorkloadInsert {
 }
 
 type WorkloadSelectRow = typeof workloads.$inferSelect;
+
+interface QueueScanInput {
+  readonly db: Db;
+  readonly contributions: WorkloadContributions;
+  readonly now: number;
+  readonly lane: WorkloadLane;
+  readonly onFailure: WorkloadQueueFailureSink;
+}
+
+type QueueCursor = Pick<WorkloadSelectRow, "scheduledAt" | "createdAt" | "id">;
 
 /** `ownerId: null` filters to system/scheduler rows; `undefined` = no owner filter. */
 interface WorkloadListFilter {
@@ -163,7 +175,7 @@ export async function insertWorkload(db: Db, row: WorkloadInsert): Promise<void>
 
 /** The idempotent claim: `queued → running`. Returns `false` (0 rows) for the loser of a two-worker race. */
 // @owner-scope-write-ok: THE ENGINE PLANE (D20 un-principal) — the idempotent queued→running claim. The id is one the engine itself
-// polled/enumerated (`nextRunnableWorkload`), never caller input, and these writes must move ADMIN and system rows too, so an
+// polled/enumerated (`scanRunnableWorkloads`), never caller input, and these writes must move ADMIN and system rows too, so an
 // ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb
 // (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes.
 // Ends if a door writes a workload row without that check.
@@ -335,48 +347,84 @@ export async function listWorkloads(db: Db, contributions: WorkloadContributions
   });
 }
 
-/** The next runnable row IN ONE LANE, or `null`. Windows that lane's DUE queue head and returns the first
+/** The next runnable row IN ONE LANE, or `null`. Cursor-pages through that lane's complete DUE queue and returns the first
  *  dispatchable row: a poison row (unknown kind, or params that no longer parse — it has nothing runnable to
  *  run) is failed in place (never thrown, to avoid starving the queue on the same head row); a row whose
  *  `dependsOn` gate is `waiting` is skipped, `failed` is failed in place. The lane predicate is what keeps a
  *  20-minute sweep from head-blocking an interactive row — each lane's loop sees only its own queue.
  *
  *  `scheduledAt <= now` is the DEFERRAL gate — the "Run at" affordance the client ships, enforced at the one
- *  dispatch door. It is a WHERE, not a skip, so a deferred row never occupies a slot of the head window:
+ *  dispatch door. It is a WHERE, not a skip, so a deferred row never enters the due scan:
  *  a row scheduled for tomorrow cannot starve a row queued (and due) a minute from now. The column is NOT
  *  NULL (it defaults to the enqueue instant), so "no deferral" is `scheduledAt === createdAt`, never null. */
-export async function nextRunnableWorkload(db: Db, contributions: WorkloadContributions, now: number, lane: WorkloadLane): Promise<WorkloadRunnableRow | null> {
-  const head = await db
-    .select()
-    .from(workloads)
-    .where(and(eq(workloads.status, "queued"), eq(workloads.lane, lane), lte(workloads.scheduledAt, now)))
-    .orderBy(asc(workloads.scheduledAt), asc(workloads.createdAt))
-    .limit(QUEUE_HEAD_WINDOW);
-  for (const row of head) {
-    const view = toView(contributions, row);
-    if (view === null || view.poison) {
-      await failQueuedRow(db, row.id, `unrecognized or malformed workload kind: ${row.kind}`, now);
-      getLog().warn({ workloadId: row.id, kind: row.kind }, "workloads: failed poison queue row");
-      continue;
+async function evaluateQueuedRow(input: QueueScanInput, row: WorkloadSelectRow): Promise<WorkloadRunnableRow | null> {
+  const view = toView(input.contributions, row);
+  if (view === null || view.poison) {
+    const error: WorkloadError = {
+      kind: "runtime",
+      message: `unrecognized or malformed workload kind: ${row.kind}`,
+    };
+    if (await failQueuedRow(input.db, row.id, error.message, input.now)) {
+      input.onFailure({ workloadId: row.id, kind: row.kind, error });
     }
-    if (view.dependsOn !== null && view.dependsOn.length > 0) {
-      const gate = await resolveDependencyGate(db, view.dependsOn);
-      if (gate === "waiting") {
-        continue;
-      }
-      if (gate === "failed") {
-        const error: WorkloadError = {
-          kind: "dependency_failed",
-          message: DEPENDENCY_FAILED_MESSAGE,
-        };
-        await failQueuedRow(db, view.id, error.message, now);
-        getLog().warn({ workloadId: view.id, dependsOn: view.dependsOn }, "workloads: failed dependent — a dependency did not succeed (dependency_failed)");
-        continue;
-      }
-    }
+    getLog().warn({ workloadId: row.id, kind: row.kind }, "workloads: failed poison queue row");
+    return null;
+  }
+  if (view.dependsOn === null || view.dependsOn.length === 0) {
     return view;
   }
+  const gate = await resolveDependencyGate(input.db, view.dependsOn);
+  if (gate === "waiting") {
+    return null;
+  }
+  if (gate === "ready") {
+    return view;
+  }
+  const error: WorkloadError = {
+    kind: "dependency_failed",
+    message: DEPENDENCY_FAILED_MESSAGE,
+  };
+  if (await failQueuedRow(input.db, view.id, error.message, input.now)) {
+    input.onFailure({ workloadId: view.id, kind: view.kind, error });
+  }
+  getLog().warn({ workloadId: view.id, dependsOn: view.dependsOn }, "workloads: failed dependent — a dependency did not succeed (dependency_failed)");
   return null;
+}
+
+async function scanRunnablePage(input: QueueScanInput, cursor: QueueCursor | null): Promise<WorkloadRunnableRow | null> {
+  const afterCursor =
+    cursor === null
+      ? undefined
+      : or(
+          gt(workloads.scheduledAt, cursor.scheduledAt),
+          and(eq(workloads.scheduledAt, cursor.scheduledAt), gt(workloads.createdAt, cursor.createdAt)),
+          and(eq(workloads.scheduledAt, cursor.scheduledAt), eq(workloads.createdAt, cursor.createdAt), gt(workloads.id, cursor.id)),
+        );
+  const page = await input.db
+    .select()
+    .from(workloads)
+    .where(
+      and(
+        eq(workloads.status, "queued"),
+        eq(workloads.lane, input.lane),
+        lte(workloads.scheduledAt, input.now),
+        ...(afterCursor === undefined ? [] : [afterCursor]),
+      ),
+    )
+    .orderBy(asc(workloads.scheduledAt), asc(workloads.createdAt), asc(workloads.id))
+    .limit(QUEUE_SCAN_PAGE_SIZE);
+  for (const row of page) {
+    const runnable = await evaluateQueuedRow(input, row);
+    if (runnable !== null) {
+      return runnable;
+    }
+  }
+  const tail = page.at(-1);
+  return tail === undefined || page.length < QUEUE_SCAN_PAGE_SIZE ? null : scanRunnablePage(input, tail);
+}
+
+export function scanRunnableWorkloads(input: QueueScanInput): Promise<WorkloadRunnableRow | null> {
+  return scanRunnablePage(input, null);
 }
 
 /** EVERY in-flight row, projected for the BOOT reclaim (#529): id + kind + the respawn count + the lease

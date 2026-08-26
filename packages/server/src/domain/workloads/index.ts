@@ -35,6 +35,7 @@ export type {
 } from "./contract/service.ts";
 export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./contract/workload-row.ts";
 export { reclaimInFlightOnBoot } from "./engine/boot-reclaim.ts";
+export { nextRunnableWorkload } from "./engine/next-runnable.ts";
 export {
   emitWorkloadEvent,
   getRecentWorkloadEvents,
@@ -44,6 +45,6 @@ export {
 export { reapOrphanedWorkloads } from "./engine/reaper.ts";
 export { runWorkload } from "./engine/runner.ts";
 export { tickWorkloadSchedules } from "./engine/schedule-tick.ts";
-export { loadWorkload, nextRunnableWorkload } from "./persistence/queries.ts";
+export { loadWorkload } from "./persistence/queries.ts";
 export { createWorkloadService } from "./service.ts";
 export { createReservedWorkloadContributions } from "./substrate/reserved-contributions.ts";

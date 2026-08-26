@@ -1394,7 +1394,8 @@ CREATE TABLE `workloads` (
 	CONSTRAINT "workloads_lane_check" CHECK(lane in ('interactive', 'sweep'))
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `workloads_mode_active_singular` ON `workloads` (`kind`,`owner_id`,`admission_key`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'singular';--> statement-breakpoint
+CREATE UNIQUE INDEX `workloads_mode_active_singular_owned` ON `workloads` (`kind`,`owner_id`,`admission_key`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'singular' and owner_id is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX `workloads_mode_active_singular_system` ON `workloads` (`kind`,`admission_key`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'singular' and owner_id is null;--> statement-breakpoint
 CREATE UNIQUE INDEX `workloads_mode_active_bulk` ON `workloads` (`kind`,`admission_key`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'bulk';--> statement-breakpoint
 CREATE INDEX `workloads_owner_idx` ON `workloads` (`owner_id`);--> statement-breakpoint
 CREATE TABLE `character_books` (

@@ -5,6 +5,7 @@
 
 import { createWorkloadServiceContext } from "./context.ts";
 import type { WorkloadService, WorkloadServiceDeps } from "./contract/service.ts";
+import { emitWorkloadEvent } from "./engine/progress-bus.ts";
 import { createCancel } from "./verbs/cancel.ts";
 import { createCreateSchedule } from "./verbs/create-schedule.ts";
 import { createDeleteSchedule } from "./verbs/delete-schedule.ts";
@@ -17,7 +18,7 @@ import { createStart } from "./verbs/start.ts";
 import { createUpdateSchedule } from "./verbs/update-schedule.ts";
 
 export function createWorkloadService(deps: WorkloadServiceDeps): WorkloadService {
-  const ctx = createWorkloadServiceContext(deps);
+  const ctx = createWorkloadServiceContext({ ...deps, emitEvent: emitWorkloadEvent });
   return {
     ...createStart(ctx),
     ...createCancel(ctx),
