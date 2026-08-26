@@ -47,12 +47,8 @@ export function generateTestBaselineManifest(root: string): number {
   const out = join(root, "docs/test-baseline/manifest.json");
   let deletions: Record<string, DeletionEntry> = {};
   if (existsSync(out)) {
-    try {
-      const prev = JSON.parse(readFileSync(out, "utf-8")) as { deletions?: Record<string, DeletionEntry> };
-      deletions = prev.deletions ?? {};
-    } catch {
-      // unparseable prior manifest — start the ledger fresh rather than fail the regen.
-    }
+    const prev = JSON.parse(readFileSync(out, "utf-8")) as { deletions?: Record<string, DeletionEntry> };
+    deletions = prev.deletions ?? {};
   }
   // `testFiles` is a fresh disk listing, so a ledgered deletion drops out on its own (the glob can't find
   // it); a `deletions` entry survives the regen untouched — if its file is back on disk, the gate's stale
