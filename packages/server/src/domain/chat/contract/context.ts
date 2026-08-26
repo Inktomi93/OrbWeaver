@@ -360,12 +360,21 @@ export interface QuietGenerateDeps {
  *  rpg used to post EMPTY `content` here to mint a "state anchor" slot keying a hand-written snapshot; that
  *  row was durable canon no reader could see and it leaked onto every plane that consumes messages. Hand
  *  state is now a message-less `rpg_snapshots` row (`variantId IS NULL`), so every caller left posts real
- *  content and the leaking row class is unrepresentable at this boundary rather than filtered downstream. */
+ *  content and the leaking row class is unrepresentable at this boundary rather than filtered downstream.
+ *
+ *  `rpgRestoreStatement` is the ONE checkpoint-restore seam: after chat mints the marker ids, RPG may return
+ *  one unexecuted RPG-owned statement for this existing pure-write batch. The arm is optional and the returned
+ *  statement is appended last, so every ordinary caller is byte-identical; failure of either row class rolls
+ *  the marker and snapshot back together. */
+type PostNarratorMessageOptions =
+  | { readonly initiator: TurnInitiator; readonly automationDepth: number }
+  | { readonly rpgRestoreStatement: (ids: { readonly messageId: MessageId; readonly variantId: MessageVariantId }) => BatchStmt };
+
 export type PostNarratorMessage = (
   chatId: ChatId,
   content: string,
   media?: readonly AssetId[],
-  origin?: { readonly initiator: TurnInitiator; readonly automationDepth: number } | undefined,
+  options?: PostNarratorMessageOptions | undefined,
 ) => Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId }>;
 
 /** The chat-bus emit the narrator-post op needs (durable-first) — chat's own collaborator, wired at the root

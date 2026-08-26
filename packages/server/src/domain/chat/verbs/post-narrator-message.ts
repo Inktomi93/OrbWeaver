@@ -4,7 +4,9 @@
 // authoring identity, never a user id: `authorUserId` is only ever a principal that ACTED, the D19 rule; the
 // group char is minted lazily if the room has none). `media` ride the body as embedded `![alt](asset:<id>)`
 // refs (D51) with `message_assets` retaining rows (the asset-ref registry's GC anchor). Returns the new
-// message + its VARIANT id (the minting op hands it back so a caller needs no second read). STANDALONE,
+// message + its VARIANT id (the minting op hands it back so a caller needs no second read). Checkpoint restore
+// may contribute ONE RPG-owned statement after those ids are minted; it rides this same pure-write batch so
+// the visible restore marker and its hand snapshot have one commit. STANDALONE,
 // principal-free (rpg gates authority): the `createGenerateImage` persist/emit dance, the
 // `createExtractQuiet` compose-built shape.
 //
@@ -38,7 +40,7 @@ function buildBody(content: string, refs: string): string {
 }
 
 export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMessageDeps): PostNarratorMessage {
-  return async (chatId, content, media, origin) => {
+  return async (chatId, content, media, options) => {
     // A narrator post is a committed canon row, so it CLAIMS (R0 F4(a)) -- before the write, per the
     // ordering invariant. This op is principal-free by design (automation/plugins drive it), so there
     // is no authority guard to sequence after: the caller was authorized at ITS own boundary.
@@ -87,12 +89,17 @@ export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMe
       // Origin — absent for rpg posts (byte-identical DB defaults 'human'/0); the automation
       // `generate_image` non-quiet post threads its firing rule's initiator + cascade depth so the posted
       // image's `messageCommitted` fact resolves at depth ≥ 1 and a non-opted re-fire is cascade-suppressed.
-      ...(origin !== undefined ? { initiator: origin.initiator, automationDepth: origin.automationDepth } : {}),
+      ...(options !== undefined && "initiator" in options ? { initiator: options.initiator, automationDepth: options.automationDepth } : {}),
     };
     const assetRows = mediaRefs.map((assetId) => ({ id: ctx.newMessageAssetId(), messageId, assetId }));
     const statements = insertCanonMessageStatements(ctx.db, params);
     ctx.applyStatsDelta(statements, ctx.db, assistantTurnDelta({ ownerId: hostUserId, characterId: group.characterId, economics: { content: body }, now }));
     statements.push(...insertMessageAssetStatements(ctx.db, { rows: assetRows, now }));
+    // The only caller is RPG checkpoint restore. Build AFTER ids exist, append LAST: a chat-side failure keeps
+    // the RPG row absent, and an RPG-side failure rolls every preceding marker statement back.
+    if (options !== undefined && "rpgRestoreStatement" in options) {
+      statements.push(options.rpgRestoreStatement({ messageId, variantId: params.variantId }));
+    }
     await ctx.db.batch(batchMany(statements));
 
     const view = buildCommittedMessageView(params);
