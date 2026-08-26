@@ -1406,7 +1406,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "27a8d304992f15c3072f8f30ba57b13e911ff79206d12f96b4a354200726ee8a",
-      "verifiedCommit": "9a3c22c584866826929d11e0a8f58169115c0be5",
+      "verifiedCommit": "7207e6bfbc9c16e6b2afd4ee0cc2850e9ef1f209",
       "verifiedAt": "2026-08-25",
       "evidence": [
         "docs/reviews/stickler/2026-08-25-issue-712-gate-family.md:1-254 full read; all eight findings carry executable counterexamples and exact mechanism receipts",

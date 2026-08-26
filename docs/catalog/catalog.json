@@ -25271,6 +25271,60 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-08-25-issue-712-gate-family.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 254,
+      "bytes": 18553,
+      "sha256": "27a8d304992f15c3072f8f30ba57b13e911ff79206d12f96b4a354200726ee8a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-25"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-25-issue-712-gate-family.md",
+        "assignedSha256": "27a8d304992f15c3072f8f30ba57b13e911ff79206d12f96b4a354200726ee8a",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "27a8d304992f15c3072f8f30ba57b13e911ff79206d12f96b4a354200726ee8a",
+        "verifiedCommit": "7207e6bfbc9c16e6b2afd4ee0cc2850e9ef1f209",
+        "verifiedAt": "2026-08-25",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-25-issue-712-gate-family.md:1-254 full read; all eight findings carry executable counterexamples and exact mechanism receipts",
+          "repair commit 767fc44cc adds red-first controls for every confirmed finding and reports zero live-tree findings with nonzero scan denominators",
+          "focused conformance, card-frame, and review-mirror suites passed 29/29; contracts, server, and tooling type programs passed"
+        ],
+        "summary": "Fresh-context review and repair receipt for issue #712: eight relational gate and evidence false-cleans were reproduced, repaired, and pinned; E7 remains an explicit 34-row review-tier census rather than a universal static gate.",
+        "claims": [
+          {
+            "claim": "Every confirmed #712 counterexample is now bound to its canonical table, owner relation, route stream, plugin control-flow path, or exact UI control identity.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#712"
+              },
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/public-route-body-cap.ts:1"
+              },
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/plugin-dump-guard.ts:1"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md",
       "lane": "reviews",
       "issue": 7,
