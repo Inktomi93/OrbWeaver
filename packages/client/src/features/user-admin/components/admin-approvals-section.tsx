@@ -16,6 +16,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
@@ -72,6 +73,22 @@ function ApprovalRow({ user }: { readonly user: AdminUser }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setEnabled = useSetEnabled({ trpc, invalidation });
+  const approvalAdmission = useRef(false);
+
+  const approve = (): void => {
+    if (approvalAdmission.current) {
+      return;
+    }
+    approvalAdmission.current = true;
+    setEnabled.mutate(
+      { userId: user.id, enabled: true },
+      {
+        onSettled: (): void => {
+          approvalAdmission.current = false;
+        },
+      },
+    );
+  };
   return (
     <ListRow
       title={user.handle}
@@ -79,13 +96,7 @@ function ApprovalRow({ user }: { readonly user: AdminUser }): ReactElement {
       actions={
         <Row align="center" gap="row">
           <Badge intent="warning">Pending</Badge>
-          <Button
-            size="sm"
-            intent="primary"
-            data-testid={testId("adminApproveButton")}
-            disabled={setEnabled.isPending}
-            onClick={(): void => setEnabled.mutate({ userId: user.id, enabled: true })}
-          >
+          <Button size="sm" intent="primary" data-testid={testId("adminApproveButton")} disabled={setEnabled.isPending} onClick={approve}>
             Approve
           </Button>
         </Row>

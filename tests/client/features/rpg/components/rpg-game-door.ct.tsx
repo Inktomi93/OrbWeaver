@@ -14,14 +14,18 @@ function stubChat(page: Page, rpg: unknown, mutation: string, responder: TrpcRes
   });
 }
 
-test("a held create owns both profile choices, and rejection releases the opposite choice for retry", async ({ mount, page }) => {
+test("same-task opposite profile choices admit one create, and rejection releases retry", async ({ mount, page }) => {
   const held = trpcHold();
   const trpc = await stubChat(page, null, "rpg.createGame", held);
   await mount(<RpgGameDoorStory />);
 
   const freeform = page.getByRole("button", { name: "Freeform story" });
   const d20 = page.getByRole("button", { name: "D20 adventure" });
-  await freeform.click();
+  await freeform.evaluate((element) => {
+    const choices = element.parentElement?.querySelectorAll("button");
+    (element as HTMLElement).click();
+    (choices?.item(1) as HTMLElement | undefined)?.click();
+  });
   await held.requested;
 
   await expect(freeform).toBeDisabled();
@@ -35,13 +39,16 @@ test("a held create owns both profile choices, and rejection releases the opposi
   await expect.poll(() => trpc.count("rpg.createGame")).toBe(2);
 });
 
-test("a held re-engage owns its door, and rejection releases retry", async ({ mount, page }) => {
+test("a same-task repeat admits one re-engage write, and rejection releases retry", async ({ mount, page }) => {
   const held = trpcHold();
   const trpc = await stubChat(page, { gameId: "rpg_game_ct", engaged: false }, "rpg.updateConfig", held);
   await mount(<RpgGameDoorStory />);
 
   const engage = page.getByRole("button", { name: "Turn the overlay on" });
-  await engage.click();
+  await engage.evaluate((element) => {
+    (element as HTMLElement).click();
+    (element as HTMLElement).click();
+  });
   await held.requested;
 
   await expect(engage).toBeDisabled();
