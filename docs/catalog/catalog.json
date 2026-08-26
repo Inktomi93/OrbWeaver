@@ -25681,6 +25681,60 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-08-26-issue-753-async-ownership.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 262,
+      "bytes": 30480,
+      "sha256": "94ea566e7fb9d1f2ba5050ba066250d68fc0838fe1835a0e41dc3cf4cce6370f",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-26"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-26-issue-753-async-ownership.md",
+        "assignedSha256": "94ea566e7fb9d1f2ba5050ba066250d68fc0838fe1835a0e41dc3cf4cce6370f",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "94ea566e7fb9d1f2ba5050ba066250d68fc0838fe1835a0e41dc3cf4cce6370f",
+        "verifiedCommit": "1493486a7c61b0db449494d1c83008d4a3a62b5d",
+        "verifiedAt": "2026-08-26",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-26-issue-753-async-ownership.md:1-262 full read and exact-byte integration receipt",
+          "24 authored-source require-atomic-updates rows classified: 22 safe, one confirmed vLLM race, one OIDC decision",
+          "focused admission-lock CT 9/9 and preset autosave CT 6/6; supervisor suite 43/43 plus planted race reproduction"
+        ],
+        "summary": "Cold semantic ownership audit for issue #753, including the complete TS/TSX detector population, queue-versus-drop contracts, autosave primitive decision, and dependency verdict.",
+        "claims": [
+          {
+            "claim": "The complete authored-source population contains one confirmed vLLM queued-ownership race, one OIDC cache-contract decision, and 22 safe ownership protocols.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#753"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/infra/providers/vllm/engine/supervisor.ts:436"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/entry/lifecycle.ts:217"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md",
       "lane": "reviews",
       "issue": 7,
