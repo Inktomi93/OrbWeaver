@@ -36,6 +36,7 @@ import type {
   RpgTurnToolCallsView,
 } from "@orb/contracts/rpg";
 import type { Db, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type {
   CharacterHandle,
   CharacterId,
@@ -323,14 +324,15 @@ interface RpgPromoteToRosterInput {
  *  Non-exported: reachable only through `RpgPromoteToRoster`'s signature — no consumer names it (knip). */
 type RpgPromoteToRosterResult = { readonly ok: true; readonly characterId: CharacterId } | { readonly ok: false; readonly reason: string };
 
-/** Mint a fresh narrator message slot (chat's `postNarratorMessage`, §3.2). `restoreCheckpoint` posts a
- *  VISIBLE line (the restore notice); a between-turns hand-edit / resync clone-forward posts an EMPTY body —
- *  a silent STATE-ANCHOR slot that exists only to key the clone-forwarded snapshot. No flag: an empty-content
- *  slot is already dropped from the assembled prompt (the shape-stage empty-row filter) and hidden by the
- *  client message list, so a hand edit never mints a blank bubble that also pollutes the prompt, while the
- *  slot stays prompt-visibility-normal so the snapshot-resolution ladder still finds it. Returns the
- *  committed `{messageId, variantId}` the clone-forwarded snapshot keys to. */
-export type RpgPostNarratorMessage = (chatId: ChatId, content: string) => Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId }>;
+/** Commit checkpoint restore's visible narrator marker together with ONE RPG-owned companion statement.
+ * Chat mints the marker ids, hands them to the builder, and appends the returned statement to its existing
+ * pure-write narrator batch. The callback is required on this RPG-only shape because restore is its only
+ * caller; ordinary chat/automation narrator posts use chat's optional arm and remain unchanged. */
+export type RpgPostNarratorMessage = (
+  chatId: ChatId,
+  content: string,
+  buildSnapshotStatement: (ids: { readonly messageId: MessageId; readonly variantId: MessageVariantId }) => BatchStmt,
+) => Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId }>;
 
 /** The preset-ownership gate (fork-clones-the-game §3.2). Is `presetId` SAFE for `userId` to carry as their
  *  game's `gmPresetId` — i.e. readable BY them (owned OR the shared system default)? The fork clone calls it for
