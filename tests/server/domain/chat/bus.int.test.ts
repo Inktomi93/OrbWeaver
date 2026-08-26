@@ -5,9 +5,9 @@
 
 import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { chatEvents, chats } from "@orb/db";
+import { chatEvents, chatHandoffResumptions, chats } from "@orb/db";
 import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
-import type { ChatEventId, ChatId } from "@orb/kit/ids";
+import type { ChatEventId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
 import { asc, eq } from "drizzle-orm";
@@ -16,7 +16,7 @@ import { createChatBus } from "../../../../packages/server/src/domain/chat/bus.t
 import { appendChatEvent } from "../../../../packages/server/src/domain/chat/persistence/events.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { FROZEN_AT, makeChatContext, seedChat } from "./_support.ts";
+import { FROZEN_AT, makeChatContext, seedChat, seedUser } from "./_support.ts";
 
 let db: Db;
 
@@ -145,18 +145,27 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
     debugSpy.mockRestore();
   });
 
-  test("an atomic co-statement failure rolls the event back and leaves no ring cursor", async () => {
+  test("a claimed marker rolls back when the following append fails", async () => {
     const chatId = await seedChat(db, "atomic-fault");
-    const bus = createChatBus(makeChatContext(db));
+    const fixedEventId = castId<ChatEventId>("chat_event_fixed_claim");
+    const bus = createChatBus({ ...makeChatContext(db), newEventId: () => fixedEventId });
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
-    // The duplicate chat PK fails after the event statement inside the same batch. If the append were a
-    // separate commit, this would leave a durable event behind even though the adjacent state did not land.
-    const failingCoStatement = batchStmt(db.insert(chats).values({ id: chatId }));
+    await bus.emit({ type: "chatUpdated", chatId });
+    const acceptedByUserId = await seedUser(db, castId<Handle>("claim"));
+    await db.insert(chatHandoffResumptions).values({
+      chatId,
+      acceptedByUserId,
+      actorRekeys: [],
+      createdAt: FROZEN_AT,
+      updatedAt: FROZEN_AT,
+    });
+    const claim = batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)));
 
-    await expect(bus.emit({ type: "chatUpdated", chatId }, [failingCoStatement])).resolves.toBeNull();
+    await expect(bus.emitAfterClaim({ type: "chatUpdated", chatId }, claim)).resolves.toBeNull();
 
-    expect(await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId))).toEqual([]);
-    expect(bus.readRing(chatId)).toEqual([]);
+    expect(await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId))).toHaveLength(1);
+    expect(await db.select().from(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId))).toHaveLength(1);
+    expect(bus.readRing(chatId)).toHaveLength(1);
     expect(errorSpy).toHaveBeenCalledTimes(1);
     errorSpy.mockRestore();
   });
