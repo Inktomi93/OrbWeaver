@@ -11945,6 +11945,60 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/issue-743-rpg-portability-atomicity.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 127,
+      "bytes": 9674,
+      "sha256": "dfe3291b3e03e20860e34c2b214b9f71cd6d3c5e65b412ce815a6b09c93aa87a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "complete",
+          "updated": "2026-08-26"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/issue-743-rpg-portability-atomicity.md",
+        "assignedSha256": "dfe3291b3e03e20860e34c2b214b9f71cd6d3c5e65b412ce815a6b09c93aa87a",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "dfe3291b3e03e20860e34c2b214b9f71cd6d3c5e65b412ce815a6b09c93aa87a",
+        "verifiedCommit": "727e5d77f6bf0f9db808514b4e17cb4badc5bb68",
+        "verifiedAt": "2026-08-26",
+        "evidence": [
+          "docs/design/issue-743-rpg-portability-atomicity.md read in full before implementation and re-read against the integrated tree at 727e5d77f; implementation commit 379efa8ec",
+          "red-first concurrent-export and restore companion controls failed on the old source; the focused portability, checkpoint, restore, and narrator integration set then passed 19/19",
+          "the normal integration hook passed 14/16 static stages; its exact no-test-fabrication findings were repaired and the direct gate passed over 2,171 scanned test files before this receipt barrier"
+        ],
+        "summary": "Issue #743 implemented one bounded database snapshot for RPG export and one atomic chat-marker plus RPG-snapshot restore batch without a transaction framework.",
+        "claims": [
+          {
+            "claim": "RPG exports cannot mix source states, and a failed checkpoint restore exposes neither half of the marker and restored-snapshot pair.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#743"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/rpg/persistence/portability-write.ts:58"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/chat/verbs/post-narrator-message.ts:100"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/list-pane-projection-proposal.md",
       "lane": "design",
       "issue": 5,
