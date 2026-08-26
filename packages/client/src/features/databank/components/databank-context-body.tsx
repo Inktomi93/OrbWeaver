@@ -165,6 +165,7 @@ function EverywhereSection({ documentId, name }: { readonly documentId: Document
   const detach = useDetachDocumentGlobal({ trpc, invalidation });
 
   const isGlobal = globalIds.includes(documentId);
+  const isPending = attach.isPending || detach.isPending;
 
   return (
     <Section kicker="Everywhere">
@@ -173,6 +174,7 @@ function EverywhereSection({ documentId, name }: { readonly documentId: Document
         <Switch
           aria-label={isGlobal ? `Stop feeding ${name} to every chat` : `Feed ${name} to every chat`}
           checked={isGlobal}
+          disabled={isPending}
           onCheckedChange={(on): void => {
             if (on) {
               attach.mutate({ documentId });

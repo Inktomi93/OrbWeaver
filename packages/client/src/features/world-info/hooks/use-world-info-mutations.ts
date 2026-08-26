@@ -136,25 +136,25 @@ export const useDetachWorldBookGlobal = createEntityMutation<inferInput<Trpc["wo
  *  character's attachment list. */
 export const useAttachWorldBookToCharacter = createEntityMutation<inferInput<Trpc["worldInfo"]["attachToCharacter"]>, unknown>({
   options: (trpc) => trpc.worldInfo.attachToCharacter.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listForCharacter.pathFilter(), rosterRead(trpc)],
+  invalidates: (trpc) => [trpc.worldInfo.listForCharacter.pathFilter(), trpc.worldInfo.listAttachmentsForBook.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't attach the book to the character.",
 });
 
 export const useDetachWorldBookFromCharacter = createEntityMutation<inferInput<Trpc["worldInfo"]["detachFromCharacter"]>, unknown>({
   options: (trpc) => trpc.worldInfo.detachFromCharacter.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listForCharacter.pathFilter(), rosterRead(trpc)],
+  invalidates: (trpc) => [trpc.worldInfo.listForCharacter.pathFilter(), trpc.worldInfo.listAttachmentsForBook.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't detach the book from the character.",
 });
 
 /** Attach / detach a book to a persona. Refetches the persona's attachment list. */
 export const useAttachWorldBookToPersona = createEntityMutation<inferInput<Trpc["worldInfo"]["attachToPersona"]>, unknown>({
   options: (trpc) => trpc.worldInfo.attachToPersona.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listForPersona.pathFilter(), rosterRead(trpc)],
+  invalidates: (trpc) => [trpc.worldInfo.listForPersona.pathFilter(), trpc.worldInfo.listAttachmentsForBook.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't attach the book to the persona.",
 });
 
 export const useDetachWorldBookFromPersona = createEntityMutation<inferInput<Trpc["worldInfo"]["detachFromPersona"]>, unknown>({
   options: (trpc) => trpc.worldInfo.detachFromPersona.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listForPersona.pathFilter(), rosterRead(trpc)],
+  invalidates: (trpc) => [trpc.worldInfo.listForPersona.pathFilter(), trpc.worldInfo.listAttachmentsForBook.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't detach the book from the persona.",
 });

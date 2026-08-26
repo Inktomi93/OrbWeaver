@@ -32,6 +32,7 @@ import type {
   GetBookParams,
   GetEntryParams,
   ImportBookFileParams,
+  ListAttachmentsForBookParams,
   ListBooksParams,
   ListConstantCanonParams,
   ListEntriesParams,
@@ -47,7 +48,7 @@ import type {
   UpsertEntriesParams,
 } from "./params.ts";
 import type { BackfillResult, DetachResult, RemoveResult, ReorderResult } from "./results.ts";
-import type { BookAttachmentView, BookView, BookWithUsage, EntryView } from "./views.ts";
+import type { BookAttachmentTargets, BookAttachmentView, BookView, BookWithUsage, EntryView } from "./views.ts";
 
 /** DI bundle every world-info verb closes over. Chat-scope guards/emit are injected from chat itself. */
 export interface WorldInfoContext {
@@ -83,6 +84,8 @@ export interface WorldInfoService {
   /** The ROSTER read: the same owned books plus their entry count + four-scope attachment rollup. Separate
    *  from `listBooks` because the counts cost five GROUP BYs only the library roster asks for. */
   readonly listBooksWithUsage: (params: ListBooksParams) => Promise<BookWithUsage[]>;
+  /** One book-centric reverse read for the activation roster; prevents one target query per rendered row. */
+  readonly listAttachmentsForBook: (params: ListAttachmentsForBookParams) => Promise<BookAttachmentTargets>;
   readonly getBook: (params: GetBookParams) => Promise<BookView>;
   readonly createBook: (params: CreateBookParams) => Promise<BookView>;
   readonly updateBook: (params: UpdateBookParams) => Promise<BookView>;

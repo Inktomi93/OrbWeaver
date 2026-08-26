@@ -9,6 +9,7 @@
 //     bare counts is closed on the WIRE (chat's `resolveVisibleRooms`), not by hiding names in the client.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { DatabankContextStory, DatabankWorkspaceListModeStory, DatabankWorkspaceStory } from "../_ct-stories.tsx";
 import { ATTACHED_CHARACTER, ATTACHED_ROOM, READY_DOC, stubDatabank } from "../fixtures.ts";
 
@@ -121,6 +122,36 @@ test("the activation body owns the Everywhere write and states where the documen
 
   await toggle.click();
   await expect.poll(() => trpc.lastInput("databank.detachGlobal"), { intervals: [20, 50, 100] }).toEqual({ documentId: READY_DOC.id });
+});
+
+test("the Everywhere switch locks while its write is held, then remains actionable after a rejection", async ({ mount, page }) => {
+  const held = trpcHold();
+  let attempts = 0;
+  const trpc = await stubDatabank(page, {
+    "databank.listGlobal": () => [],
+    "databank.attachGlobal": () => {
+      attempts += 1;
+      if (attempts === 1) {
+        return held;
+      }
+      return attempts === 2 ? trpcError() : null;
+    },
+  });
+  const workspace = await mount(<DatabankWorkspaceStory />);
+  await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  const toggle = workspace.getByRole("switch", { name: "Feed The Crimson Court to every chat" });
+
+  await toggle.click();
+  await held.requested;
+  await expect(toggle).toBeDisabled();
+  held.release(null);
+  await expect(toggle).toBeEnabled();
+
+  await toggle.click();
+  await expect.poll(() => trpc.count("databank.attachGlobal")).toBe(2);
+  await expect(toggle).toBeEnabled();
+  await toggle.click();
+  await expect.poll(() => trpc.count("databank.attachGlobal")).toBe(3);
 });
 
 // THE ACTIVE-IN ROWS ARE DOORS (#276). The block shipped as two dead integers, and the pane's own header

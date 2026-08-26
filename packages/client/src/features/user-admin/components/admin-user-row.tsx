@@ -27,6 +27,8 @@ export interface AdminUserRowProps {
   readonly isSelf: boolean;
   /** Only the box owner may change roles. */
   readonly viewerIsOwner: boolean;
+  readonly rolePending: boolean;
+  readonly enabledPending: boolean;
   readonly onSetRole: (role: UserRole) => void;
   readonly onSetEnabled: (enabled: boolean) => void;
   readonly onOpenSessions: () => void;
@@ -52,7 +54,7 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
             {isOwnerRow ? null : (
               <Select
                 aria-label={`Role — ${user.handle}`}
-                disabled={!props.viewerIsOwner}
+                disabled={!props.viewerIsOwner || props.rolePending}
                 items={ROLE_ITEMS}
                 onValueChange={(value): void => {
                   if (value === "user" || value === "admin") {
@@ -66,7 +68,7 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
               <Switch
                 aria-label={`Enabled — ${user.handle}`}
                 checked={user.enabled}
-                disabled={props.isSelf}
+                disabled={props.isSelf || props.enabledPending}
                 onCheckedChange={(next): void => {
                   if (next) {
                     props.onSetEnabled(true);
