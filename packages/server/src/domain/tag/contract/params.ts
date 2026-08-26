@@ -47,8 +47,8 @@ export interface ListPendingSuggestionsParams extends TagActorParams {
 export interface PruneUnusedTagsParams extends TagActorParams {}
 
 export interface SetTagOrderParams extends TagActorParams {
-  /** The tags in their new manual order; position i becomes `sortOrder = i`. Owner-scoped (a foreign id is
-   *  silently skipped by the owner predicate). The router enforces `min(1)`; the verb guards the empty case. */
+  /** Every owned tag exactly once in its new manual order; position i becomes `sortOrder = i`. Duplicate,
+   *  foreign, or partial sets are refused before any write. */
   readonly orderedIds: readonly TagId[];
 }
 

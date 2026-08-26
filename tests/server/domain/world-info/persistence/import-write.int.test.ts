@@ -7,7 +7,7 @@
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, worldBooks, worldEntries } from "@orb/db";
-import { DomainNotFoundError } from "@orb/kit/errors";
+import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -173,6 +173,24 @@ describe("createBulkImportLorebook", () => {
     const owner = await seedUser(db, {});
     const op = createBulkImportLorebook(importCtx(db));
     await expect(op({ ownerId: owner.id, characterId: castId("character_missing"), book: book() })).rejects.toBeInstanceOf(DomainNotFoundError);
+  });
+});
+
+describe("createImportStandaloneLorebook", () => {
+  test("rejects duplicate entry titles within one request before replacing an existing book", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const op = createImportStandaloneLorebook(importCtx(db));
+    await op({ ownerId: owner.id, book: book() });
+    const originalEntry = book().entries.at(0);
+    if (originalEntry === undefined) {
+      throw new Error("book fixture must contain an entry");
+    }
+    const duplicate = book({ entries: [originalEntry, { ...originalEntry, content: "conflicting duplicate" }] });
+
+    await expect(op({ ownerId: owner.id, book: duplicate })).rejects.toBeInstanceOf(DomainOperationError);
+
+    expect((await db.select().from(worldEntries)).map((entry) => entry.content)).toEqual(["A realm of eternal dusk."]);
   });
 });
 

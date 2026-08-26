@@ -19,6 +19,7 @@ import { assets, characters, chats, userSettings } from "@orb/db";
 import type { AssetId, CharacterHandle, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
+import type { Cas } from "@orb/server/infra/storage";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
@@ -126,6 +127,44 @@ describe("collectGarbage", () => {
     await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
 
     const result = await svc.collectGarbage({});
+
+    expect(result.reclaimed).toBe(0);
+    expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(1);
+    expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(true);
+  });
+
+  test("a reference created after the sweep snapshot but before deletion keeps the candidate", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stored = await createAssetsService(h.ctx).store({ principal: principal(owner), bytes: pngBytes(31), kind: "avatar", mime: PNG });
+    const character = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("late-ref") });
+    await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
+    const reached = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const original = h.ctx.cas;
+    const cas: Cas = {
+      putBytes: original.putBytes.bind(original),
+      blobPath: original.blobPath.bind(original),
+      exists: original.exists.bind(original),
+      mtimeMs: async (ownerId, hash) => {
+        reached.resolve();
+        await release.promise;
+        return original.mtimeMs(ownerId, hash);
+      },
+      read: original.read.bind(original),
+      verify: original.verify.bind(original),
+      remove: original.remove.bind(original),
+      listHashes: original.listHashes.bind(original),
+      listOwners: original.listOwners.bind(original),
+    };
+    const collecting = createAssetsService({ ...h.ctx, cas }).collectGarbage({});
+    await reached.promise;
+    await setCharacterAvatar(db, character, stored.assetId);
+    release.resolve();
+
+    const result = await collecting;
 
     expect(result.reclaimed).toBe(0);
     expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(1);

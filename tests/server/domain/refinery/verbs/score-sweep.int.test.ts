@@ -33,7 +33,7 @@ test("the sweep scores every card in the library and stamps the score into canon
   const first = await seedOwnedCharacter(h, owner, "sw-card-a1");
   const second = await seedOwnedCharacter(h, owner, "sw-card-a2");
   const sweep = createScoreSweep(refineryWorkloadDepsOf(db, h));
-  // One batched call, one reply per card — the distill pairing (`items[i]` ↔ `replies[i]`).
+  // One reply per card; bounded submissions preserve the distill pairing (`items[i]` ↔ `replies[i]`).
   h.queueReply(scoreReply({ overallScore: 8.5 }));
   h.queueReply(scoreReply({ overallScore: 3 }));
   const sink = reporter();
@@ -53,6 +53,32 @@ test("the sweep scores every card in the library and stamps the score into canon
   // The other signals half is untouched: the stamp is a per-arm MERGE, never a whole-object overwrite.
   expect(rows.every((row) => row.refinery?.analysis === null)).toBe(true);
   expect(sink.messages.at(-1)).toBe("scored 2 of 2");
+});
+
+test("the initial model submission is bounded instead of flooding the whole library in one request", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_sw_bounded" });
+  const h = makeRefineryHarness(db);
+  for (let i = 0; i < 9; i += 1) {
+    await seedOwnedCharacter(h, owner, `sw-card-bounded-${i}`);
+    h.queueReply(scoreReply({ overallScore: i + 1 }));
+  }
+  const batchSizes: number[] = [];
+  const deps = refineryWorkloadDepsOf(db, h);
+  const summarize = deps.summarize;
+  const sweep = createScoreSweep({
+    ...deps,
+    summarize: (inputs, opts) => {
+      batchSizes.push(inputs.length);
+      return summarize(inputs, opts);
+    },
+  });
+
+  const result = await sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined });
+
+  expect(result.scored).toBe(9);
+  expect(batchSizes.length).toBeGreaterThan(1);
+  expect(Math.max(...batchSizes)).toBeLessThanOrEqual(8);
 });
 
 // THE OUTPUT CAP (live-e2e 2026-08-09, open fork 3). The sweep used to ask for the raw `refine_score`

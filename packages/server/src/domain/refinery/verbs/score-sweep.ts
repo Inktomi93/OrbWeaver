@@ -62,6 +62,9 @@ const SWEEP_SCORE_MODE = "quick";
 /** Caps the per-card RETRY fan-out (distill's `DISTILL_RETRY_CONCURRENCY` twin, same reasoning — see the
  *  header). The happy path pays nothing: a card whose batch reply parses first-try makes no extra call. */
 const SWEEP_RETRY_CONCURRENCY = 8;
+/** The role client accepts arrays but does not own workload admission. Keep each initial submission no
+ *  larger than the already-proven retry wave so a large library cannot become one provider request. */
+const SWEEP_SUBMISSION_SIZE = 8;
 
 /** One card's ASSEMBLED score prompt beside the target it belongs to — built once, and the bounded retry
  *  re-sends these exact bytes, so a retry can never drift from the batch call's prompt. */
@@ -192,19 +195,24 @@ function readyTargetsOf(targets: readonly RefineryScoreTarget[]): { target: Refi
  *  a time (`SWEEP_RETRY_CONCURRENCY`-bounded) — the poison card fails alone (counted `failed`), the rest score.
  *  This is the same isolation the memory backfill's `summarizeBatchIsolated` gives its digest batch. */
 async function fetchBatchReplies(deps: RefineryWorkloadDeps, items: readonly SweepItem[], sampleOpts: SummarizeOptions): Promise<{ text: string }[]> {
-  try {
-    const res = await deps.summarize(
-      items.map((item) => ({ systemPrompt: item.system, userPrompt: item.user })),
-      sampleOpts,
-    );
-    return res.items.map((item) => ({ text: item.text }));
-  } catch (err) {
-    getLog().warn(
-      { err, cards: items.length },
-      "refinery score sweep: batch fetch rejected — degrading to per-card retry (one card's infra error must not fail the whole sweep)",
-    );
-    return items.map(() => ({ text: "" }));
+  const replies: { text: string }[] = [];
+  for (let i = 0; i < items.length; i += SWEEP_SUBMISSION_SIZE) {
+    const chunk = items.slice(i, i + SWEEP_SUBMISSION_SIZE);
+    try {
+      const res = await deps.summarize(
+        chunk.map((item) => ({ systemPrompt: item.system, userPrompt: item.user })),
+        sampleOpts,
+      );
+      replies.push(...res.items.map((item) => ({ text: item.text })));
+    } catch (err) {
+      getLog().warn(
+        { err, cards: chunk.length },
+        "refinery score sweep: batch fetch rejected — degrading to per-card retry (one card's infra error must not fail the whole sweep)",
+      );
+      replies.push(...chunk.map(() => ({ text: "" })));
+    }
   }
+  return replies;
 }
 
 /** Parse every reply in bounded waves and stamp each card that produced a score. The FIRST attempt reuses
