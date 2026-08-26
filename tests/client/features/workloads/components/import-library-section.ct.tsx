@@ -13,7 +13,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { dropFiles } from "../../../../support/ct/drop-files.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { BackupSettingsStory } from "../_ct-stories.tsx";
+import { BackupSettingsStory, LibraryImportEpochStory } from "../_ct-stories.tsx";
 
 const DROPZONE_ROOT = '[data-slot="file-dropzone"]';
 const A_CARD = { name: "villain.png", mimeType: "image/png", buffer: Buffer.from("PNG") };
@@ -104,4 +104,113 @@ test("a CLEAN card import shows the success ✓ and a success toast", async ({ m
   await expect(page.locator(DROPZONE_ROOT)).toHaveAttribute("data-success", "");
   await expect(page.getByRole("img", { name: "Uploaded" })).toBeVisible();
   expect(errors.some((line) => line.includes("Import failed"))).toBe(false);
+});
+
+test("an older import completion cannot replace the newer batch outcome", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const held: import("@playwright/test").Route[] = [];
+  await page.route("**/api/import", (route) => {
+    held.push(route);
+  });
+
+  const story = await mount(<LibraryImportEpochStory />);
+  await story.getByRole("button", { name: "Import old batch" }).click();
+  await expect.poll(() => held.length).toBe(1);
+  await story.getByRole("button", { name: "Import new batch" }).click();
+  await expect.poll(() => held.length).toBe(2);
+
+  await held[1]?.fulfill({
+    status: 200,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ imported: [{ filename: "new.png", created: true }], failed: [] }),
+  });
+  await expect(story.getByTestId("import-outcome")).toHaveText("new.png");
+
+  await held[0]?.fulfill({
+    status: 200,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ imported: [{ filename: "old.png", created: true }], failed: [] }),
+  });
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+
+  await expect(story.getByTestId("import-outcome")).toHaveText("new.png");
+});
+
+test("reset revokes an in-flight import instead of letting its completion resurrect the report", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  let held: import("@playwright/test").Route | undefined;
+  await page.route("**/api/import", (route) => {
+    held = route;
+  });
+
+  const story = await mount(<LibraryImportEpochStory />);
+  await story.getByRole("button", { name: "Import old batch" }).click();
+  await expect.poll(() => held !== undefined).toBe(true);
+  await story.getByRole("button", { name: "Reset import" }).click();
+  await expect(story.getByTestId("import-outcome")).toHaveText("idle");
+
+  if (held === undefined) {
+    throw new Error("the import request never reached the held route");
+  }
+  await held.fulfill({
+    status: 200,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ imported: [{ filename: "old.png", created: true }], failed: [] }),
+  });
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+
+  await expect(story.getByTestId("import-outcome")).toHaveText("idle");
+});
+
+test("a stale workload terminal callback cannot replace a later card-import result", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  await page.route("**/api/import/bundle", (route) =>
+    route.fulfill({
+      status: 202,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ workloadId: "workload_old" }),
+    }),
+  );
+  let cardRoute: import("@playwright/test").Route | undefined;
+  await page.route("**/api/import", (route) => {
+    cardRoute = route;
+  });
+
+  const story = await mount(<LibraryImportEpochStory />);
+  await story.getByRole("button", { name: "Start old workload" }).click();
+  await expect(story.getByTestId("import-outcome")).toHaveText("running");
+  await story.getByRole("button", { name: "Capture current workload" }).click();
+  await expect(story.getByRole("button", { name: "Complete captured workload" })).toBeEnabled();
+
+  await story.getByRole("button", { name: "Import new batch" }).click();
+  await expect.poll(() => cardRoute !== undefined).toBe(true);
+  if (cardRoute === undefined) {
+    throw new Error("the card import never reached the held route");
+  }
+  await cardRoute.fulfill({
+    status: 200,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ imported: [{ filename: "new.png", created: true }], failed: [] }),
+  });
+  await expect(story.getByTestId("import-outcome")).toHaveText("new.png");
+
+  await story.getByRole("button", { name: "Complete captured workload" }).click();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+
+  await expect(story.getByTestId("import-outcome")).toHaveText("new.png");
 });
