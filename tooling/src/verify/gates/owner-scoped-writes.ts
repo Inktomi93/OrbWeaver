@@ -11,7 +11,7 @@ import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
-import { markedFunctions, markerKeyFor, ownerScopedTableBinding, predicatesOwnId, whereArgOf } from "../lib/tenancy-read.ts";
+import { markedFunctions, markerKeyFor, ownerScopedTableBinding, predicatesOwnId, predicatesTableColumn, whereArgOf } from "../lib/tenancy-read.ts";
 import { ownerScopedTableIdents } from "./table-scoping-class.ts";
 
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
@@ -101,7 +101,7 @@ export const gate: GateDescriptor = {
     // is every owner's rows. BY-ID is the read half's shape — whatever id the caller supplies gets written.
     // Any OTHER predicate (a partition column, a status guard on its own) is a different, unenforced question.
     const whereText = where?.getText() ?? "";
-    if (whereText.includes(OWNER_COL)) {
+    if (where !== undefined && predicatesTableColumn(where, ident, OWNER_COL)) {
       return; // arm 1 — the owner is IN THE WHERE (with or without a by-id predicate beside it)
     }
     if (where !== undefined && !predicatesOwnId(whereText, ident)) {
@@ -203,6 +203,24 @@ export const gate: GateDescriptor = {
       expect: { count: 1, token: "characterTable" },
       why: "an import alias is still the same owner-scoped table — renaming the local binding cannot bypass the write family",
     },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { characters } from "@orb/db";\nconst table = characters;\nexport async function renameCard(db: Db, id: string, name: string) {\n  return db.update(table).set({ name }).where(eq(table.id, id));\n}\n',
+      },
+      expect: { count: 1, token: "table" },
+      why: "a same-file immutable alias still resolves to the canonical owner-scoped table; a local rename cannot erase the table's tenancy class",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { characters } from "@orb/db";\nexport async function renameCard(db: Db, id: string, ownerId: string, name: string) {\n  return db.update(characters).set({ name }).where(and(eq(characters.id, id), eq(ownerId, ownerId)));\n}\n',
+      },
+      expect: { count: 1, token: "characters" },
+      why: "unrelated ownerId text is not a target-table owner predicate; a tautology over the caller value cannot scope the write",
+    },
   ],
   mustPass: [
     {
@@ -260,6 +278,14 @@ export const gate: GateDescriptor = {
           'import { characters as characterTable } from "@orb/db";\nexport async function renameOwned(db: Db, id: string, ownerId: string, name: string) {\n  return db.update(characterTable).set({ name }).where(and(eq(characterTable.id, id), eq(characterTable.ownerId, ownerId)));\n}\n',
       },
       why: "the alias resolver returns the local binding, so an owner predicate written through that alias remains a safe arm",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { characters } from "@orb/db";\nconst table = characters;\nexport async function renameOwned(db: Db, id: string, ownerId: string, name: string) {\n  return db.update(table).set({ name }).where(and(eq(table.id, id), eq(table.ownerId, ownerId)));\n}\n',
+      },
+      why: "the local canonical-table alias is safe when the WHERE structurally predicates that same binding's owner column",
     },
   ],
 };

@@ -63,7 +63,7 @@ test("missing or empty generation evidence is an instrument error, never a clean
   const valid = evidence();
   expect(reviewEvidenceGaps(valid)).toEqual([]);
   expect(reviewEvidenceGaps({ ...valid, pendingGuard: { ...valid.pendingGuard, reviewResiduals: 0 } })).toContain(
-    "E7 review-residual count does not equal missing plus unclassified-guard controls",
+    "E7 review-residual count does not equal missing plus unclassified and generation-guard controls",
   );
   const empty: ReviewMirrorEvidence = {
     ...valid,
@@ -88,12 +88,16 @@ test("the E7 census distinguishes direct, derived, epoch and genuinely missing g
       const save = () => mutation.mutate();
       const busy = mutation.isPending || other;
       const epochSave = () => { if (requestEpoch !== currentEpoch) return; mutation.mutate(); };
+      const requestIdSave = () => { const requestId = "request_fixture"; mutation.mutate({ requestId }); };
+      const visibleSave = () => mutation.mutate();
       const nestedOnly = () => { queueMicrotask(() => mutation.mutate()); };
       return <>
         <Button onClick={() => mutation.mutate()} />
         <Button onClick={save} disabled={busy} />
         <Switch onCheckedChange={() => mutation.mutateAsync()} disabled={mutation.isPending} />
         <Button onClick={epochSave} />
+        <Button onClick={requestIdSave} />
+        <Button onClick={visibleSave} disabled={isPendingLabelVisible} />
         <Button onClick={save} disabled={canSave} />
         <Button onClick={nestedOnly} />
       </>;
@@ -102,8 +106,8 @@ test("the E7 census distinguishes direct, derived, epoch and genuinely missing g
   );
   const census = censusPendingGuards(project, ROOT);
   expect(census.scannedTsx).toBe(1);
-  expect(census.directControls).toBe(5);
-  expect(census.reviewResiduals).toBe(2);
-  expect(census.totals).toEqual({ "direct-pending": 1, "derived-pending": 1, epoch: 1, missing: 1, "other-guard": 1 });
-  expect(census.rows.map((row) => row.line)).toEqual([7, 8, 9, 10, 11]);
+  expect(census.directControls).toBe(7);
+  expect(census.reviewResiduals).toBe(5);
+  expect(census.totals).toEqual({ "direct-pending": 1, "derived-pending": 1, epoch: 1, missing: 2, "other-guard": 2 });
+  expect(census.rows.map((row) => row.line)).toEqual([9, 10, 11, 12, 13, 14, 15]);
 });

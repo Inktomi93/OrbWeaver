@@ -5,9 +5,38 @@
 // they exist to enforce (`tooling/src/_shared/schema-read.ts` is the same call for what a `sqliteTable(...)` DECLARES). The
 // (a)-class table set they cross this with is derived by `gates/table-scoping-class.ts`.
 import type { CallExpression, Node, SourceFile } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
+import { SyntaxKind, VariableDeclarationKind } from "ts-morph";
 
 const LEADING_SLASH_RE = /^\/+/u;
+const MAX_ALIAS_DEPTH = 8;
+
+function constAliasInitializers(identifier: Node): readonly Node[] {
+  return (identifier.getSymbol()?.getDeclarations() ?? []).flatMap((declaration) => {
+    if (
+      declaration.getSourceFile() !== identifier.getSourceFile() ||
+      !declaration.isKind(SyntaxKind.VariableDeclaration) ||
+      declaration.getVariableStatement()?.getDeclarationKind() !== VariableDeclarationKind.Const
+    ) {
+      return [];
+    }
+    const initializer = declaration.getInitializer();
+    return initializer?.isKind(SyntaxKind.Identifier) === true ? [initializer] : [];
+  });
+}
+
+function resolvesOwnerTable(identifier: Node, ownerTableIdents: ReadonlySet<string>, seen: Set<number>, depth: number): boolean {
+  if (!identifier.isKind(SyntaxKind.Identifier) || depth > MAX_ALIAS_DEPTH || seen.has(identifier.getStart())) {
+    return false;
+  }
+  seen.add(identifier.getStart());
+  if (ownerTableIdents.has(identifier.getText()) || identifier.getDefinitions().some((definition) => ownerTableIdents.has(definition.getName()))) {
+    return true;
+  }
+  const importedOwner = (identifier.getSymbol()?.getDeclarations() ?? []).some(
+    (declaration) => declaration.isKind(SyntaxKind.ImportSpecifier) && ownerTableIdents.has(declaration.getNameNode().getText()),
+  );
+  return importedOwner || constAliasInitializers(identifier).some((initializer) => resolvesOwnerTable(initializer, ownerTableIdents, seen, depth + 1));
+}
 
 /** Absolute ts-morph path → the repo-relative jump-link path (conformance mini-projects are rooted at `/repo`). */
 function repoRel(path: string): string {
@@ -21,14 +50,18 @@ export function ownerScopedTableBinding(node: Node | undefined, ownerTableIdents
   if (node?.isKind(SyntaxKind.Identifier) !== true) {
     return;
   }
-  if (ownerTableIdents.has(node.getText()) || node.getDefinitions().some((definition) => ownerTableIdents.has(definition.getName()))) {
-    return node.getText();
-  }
-  const declarations = node.getSymbol()?.getDeclarations() ?? [];
-  const importedOwner = declarations.some(
-    (declaration) => declaration.isKind(SyntaxKind.ImportSpecifier) && ownerTableIdents.has(declaration.getNameNode().getText()),
+  return resolvesOwnerTable(node, ownerTableIdents, new Set(), 0) ? node.getText() : undefined;
+}
+
+/** Does this predicate name the exact local table binding's column? Text elsewhere in the expression is not
+ *  evidence: only a property access rooted at the write target can scope that target. */
+export function predicatesTableColumn(predicate: Node, tableIdent: string, column: string): boolean {
+  const properties = predicate.isKind(SyntaxKind.PropertyAccessExpression)
+    ? [predicate, ...predicate.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)]
+    : predicate.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression);
+  return properties.some(
+    (property) => property.getName() === column && property.getExpression().isKind(SyntaxKind.Identifier) && property.getExpression().getText() === tableIdent,
   );
-  return importedOwner ? node.getText() : undefined;
 }
 
 /** Walk a drizzle method chain UP from its table anchor (`.from(T)` for a read, `db.update(T)`/`db.delete(T)`
