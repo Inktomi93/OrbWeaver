@@ -1,3 +1,4 @@
+import { utf8ByteLength } from "./content.ts";
 import { applyArgDefaults, checkMacroArgs, macroArgDiagnostics } from "./metadata.ts";
 import type { MacroAST, MacroBlockNode, MacroCallNode, MacroContext, MacroEnv, MacroFlags, MacroHandler, MacroMetadata, MacroRegistry } from "./types.ts";
 import { MACRO_FLAG_DEFS } from "./types.ts";
@@ -208,7 +209,13 @@ export function evaluateMacros(ast: MacroAST, registry: MacroRegistry, ctx: Macr
     if (budget.tripped) {
       return;
     }
-    budget.output += chunk.length;
+    const chunkBytes = utf8ByteLength(chunk);
+    if (chunkBytes === null) {
+      budget.tripped = true;
+      ctx.onWarn?.("[Macro Engine] output contains an unpaired UTF-16 surrogate — truncated");
+      return;
+    }
+    budget.output += chunkBytes;
     if (budget.output > budget.maxOutput) {
       budget.tripped = true;
       ctx.onWarn?.(`[Macro Engine] output limit ${budget.maxOutput} bytes exceeded — truncated`);

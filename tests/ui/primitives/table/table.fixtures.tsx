@@ -56,6 +56,10 @@ export function PaginatedTableStory(): ReactElement {
   return <Table aria-label="People" columns={COLUMNS} data={MANY_PEOPLE} defaultPagination={{ pageIndex: 0, pageSize: 5 }} getRowId={(p): string => p.id} />;
 }
 
+export function InvalidPageSizeTableStory({ pageSize }: { pageSize: number }): ReactElement {
+  return <Table aria-label="People" columns={COLUMNS} data={MANY_PEOPLE} defaultPagination={{ pageIndex: 0, pageSize }} getRowId={(p): string => p.id} />;
+}
+
 /**
  * The real consumer shape the R7 acceptance test targets: `data` is a NEW array reference derived
  * (filter+map) during render, not a stable module-level constant, and the parent re-renders while
