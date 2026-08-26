@@ -10,11 +10,11 @@
 //      GROUP and always succeeds → "a live launcher holds it" → `up prod` no-ops FOREVER.
 //   2. NON-NUMERIC content → NaN → the old verdict was `retake`, but the file still existed, so the
 //      retry's `wx` failed again and the loop gave up. The lock was never removed.
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { SpawnLockOpts } from "../../../../tooling/src/stack/index.ts";
-import { acquireSpawnLock, handleHeldSpawnLock, releaseSpawnLock } from "../../../../tooling/src/stack/index.ts";
+import { acquireSpawnLock, handleHeldSpawnLock, pidIsAlive, releaseSpawnLock } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SELF_PID = 1234;
@@ -30,6 +30,15 @@ function opts(dir: string, isAlive: (pid: number) => boolean, lines: string[] = 
 
 const never = (): boolean => false;
 const always = (): boolean => true;
+
+test("pid liveness treats EPERM as live, ESRCH as absent, and surfaces every other probe failure", () => {
+  const throwing = (code: string): ((pid: number, signal: 0) => void) => () => {
+    throw Object.assign(new Error(code), { code });
+  };
+  expect(pidIsAlive(HOLDER_PID, throwing("EPERM"))).toBe(true);
+  expect(pidIsAlive(HOLDER_PID, throwing("ESRCH"))).toBe(false);
+  expect(() => pidIsAlive(HOLDER_PID, throwing("EIO"))).toThrow("EIO");
+});
 
 test("a free lock is taken, records the launcher's pid, and is released", () => {
   const dir = lockDir();
@@ -120,6 +129,18 @@ test("a lock file that VANISHES mid-read is simply retaken", () => {
     expect(handleHeldSpawnLock(o)).toBe(true);
     expect(existsSync(o.lockPath)).toBe(false);
     expect(acquireSpawnLock(o)).toBe(true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a non-ENOENT lock read/removal failure surfaces instead of impersonating a vanished lock", () => {
+  const dir = lockDir();
+  try {
+    const o = opts(dir, always);
+    mkdirSync(o.lockPath);
+    expect(() => handleHeldSpawnLock(o)).toThrow();
+    expect(() => releaseSpawnLock(o.lockPath)).toThrow();
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

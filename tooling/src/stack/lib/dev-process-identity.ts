@@ -15,6 +15,7 @@ export function devStackIdentityFilePath(repoRoot: string): string {
 }
 
 export function parseDevStackIdentity(text: string): DevStackIdentity | null {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): malformed identity JSON returns null and recordedDevStackVerdict refuses the existing file. Ends if null can authorize a signal.
   try {
     const value = JSON.parse(text) as Partial<DevStackIdentity>;
     if (
@@ -41,6 +42,7 @@ export function parseDevStackIdentity(text: string): DevStackIdentity | null {
 }
 
 export function readDevStackIdentity(repoRoot: string): DevStackIdentity | null {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable identity returns null and the existing-path check produces a manual-cleanup refusal. Ends if null can authorize a signal.
   try {
     const identity = parseDevStackIdentity(readFileSync(devStackIdentityFilePath(repoRoot), "utf8"));
     return identity?.repoRoot === path.resolve(repoRoot) ? identity : null;

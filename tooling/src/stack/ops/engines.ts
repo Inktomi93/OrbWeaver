@@ -50,7 +50,8 @@ import { spawnFullPriorityChild } from "../../_shared/proc.ts";
 import { runTool } from "../../_shared/run-tool.ts";
 import type { EngineRole } from "../contract/types.ts";
 import { engineAdoptionMismatch } from "../lib/engine-adoption.ts";
-import { acquireSpawnLock, releaseSpawnLock } from "../lib/spawn-lock.ts";
+import { probePortHealth } from "../lib/port-health.ts";
+import { acquireSpawnLock, pidIsAlive, releaseSpawnLock } from "../lib/spawn-lock.ts";
 
 const REPO_ROOT = process.cwd();
 const HEALTH_POLL_MAX = 180;
@@ -83,15 +84,6 @@ function shouldSkip(): boolean {
 
 /** One /health probe — also the pre-spawn adopt-in-place check (an answering port = an engine that is
  *  already serving; spawning another is the duplicate-fleet defect, 2026-08-03). */
-async function portHealthy(port: number): Promise<boolean> {
-  try {
-    const res = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
 function expectedModels(engine: EngineRole, launch: EngineLaunchConfig): readonly string[] {
   if (engine === "embed") {
     return [launch.embedModel];
@@ -103,6 +95,7 @@ function expectedModels(engine: EngineRole, launch: EngineLaunchConfig): readonl
 }
 
 async function adoptionMismatch(engine: EngineRole, port: number, launch: EngineLaunchConfig): Promise<string | null> {
+  // @orb-gate-ignore caught-failure-ownership(empty:error): the returned identity-probe failure is printed as a tool error and refuses adoption/spawn. Ends if this string can be treated as a successful identity verdict.
   try {
     const [modelsResponse, openapiResponse] = await Promise.all([
       fetch(`http://127.0.0.1:${port}/v1/models`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) }),
@@ -130,7 +123,7 @@ async function waitHealthy(engine: string, port: number, child: FullPriorityChil
       log(`ERROR — ${engine} exited before becoming healthy; see vllm-${engine}.log.`);
       return;
     }
-    if (await portHealthy(port)) {
+    if ((await probePortHealth(port)).kind === "healthy") {
       log(`${engine} up (:${port})`);
       return;
     }
@@ -197,14 +190,7 @@ function acquireBootLock(): boolean {
   return acquireSpawnLock({
     lockPath: BOOT_LOCK,
     selfPid: process.pid,
-    isAlive: (pid) => {
-      try {
-        process.kill(pid, 0);
-        return true;
-      } catch {
-        return false;
-      }
-    },
+    isAlive: pidIsAlive,
     log,
   });
 }
@@ -257,7 +243,8 @@ async function launchOneEngine(opts: {
   readonly baseEnv: NodeJS.ProcessEnv;
 }): Promise<EngineLaunchResult> {
   const { engine, port, launch, deployment, gpuCount, baseEnv } = opts;
-  if (await portHealthy(port)) {
+  const health = await probePortHealth(port);
+  if (health.kind === "healthy") {
     const mismatch = await adoptionMismatch(engine, port, launch);
     if (mismatch !== null) {
       log(`${engine}: ADOPTION REFUSED on :${port} — ${mismatch}; occupied listener left untouched.`);
@@ -265,6 +252,10 @@ async function launchOneEngine(opts: {
     }
     log(`${engine} already serving (:${port}) — adopted in place, no spawn.`);
     return { identityFailed: false };
+  }
+  if (health.kind === "unproven") {
+    log(`${engine}: ADOPTION REFUSED on :${port} — health probe failed (${health.reason}); occupied listener state is unproven and no duplicate will spawn.`);
+    return { identityFailed: true };
   }
   if (!(await headroomOk(engine, gpuCount))) {
     return { identityFailed: false };

@@ -18,10 +18,33 @@
 
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import process from "node:process";
 import { decideSpawnLock, lockHolderText, parseLockHolder } from "./prod-record.ts";
 
 // Two takes: one for the clean case, one after breaking a lock whose holder is gone or unreadable.
 const LOCK_TAKE_ATTEMPTS = 2;
+
+function errnoIs(error: unknown, code: string): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === code;
+}
+
+/** kill(2) liveness: ESRCH is absent, EPERM proves a live process we may not signal, everything else is an
+ * operator/tool failure rather than permission to break its lock. The signal door is injectable for proof. */
+export function pidIsAlive(pid: number, signal: (pid: number, signal: 0) => void = process.kill): boolean {
+  // @orb-gate-ignore caught-failure-ownership(default:error): kill-zero ESRCH proves absence and EPERM proves a live process; all other errors surface rather than permit lock theft. Ends if platform liveness semantics add another proved state.
+  try {
+    signal(pid, 0);
+    return true;
+  } catch (error) {
+    if (errnoIs(error, "ESRCH")) {
+      return false;
+    }
+    if (errnoIs(error, "EPERM")) {
+      return true;
+    }
+    throw error;
+  }
+}
 
 export interface SpawnLockOpts {
   readonly lockPath: string;
@@ -50,11 +73,15 @@ export function acquireSpawnLock(opts: SpawnLockOpts): boolean {
 
 /** The atomic take. `wx` fails if the file exists — that failure IS the mutual exclusion. */
 function takeSpawnLock(opts: SpawnLockOpts): boolean {
+  // @orb-gate-ignore caught-failure-ownership(default:error): EEXIST alone means another lock holder; every other exclusive-create failure is rethrown. Ends if exclusive create changes its collision code.
   try {
     writeFileSync(opts.lockPath, `${opts.selfPid}\n`, { flag: "wx" });
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (errnoIs(error, "EEXIST")) {
+      return false;
+    }
+    throw error;
   }
 }
 
@@ -62,10 +89,14 @@ function takeSpawnLock(opts: SpawnLockOpts): boolean {
  *  Exported for its own test: the stale arms must be proven to actually remove the file. */
 export function handleHeldSpawnLock(opts: SpawnLockOpts): boolean {
   let raw: string | null = null;
+  // @orb-gate-ignore caught-failure-ownership(empty:error): ENOENT alone is the racing-release state and the following exclusive create decides ownership; other reads throw. Ends if no retry follows.
   try {
     raw = readFileSync(opts.lockPath, "utf8");
-  } catch {
-    raw = null; // vanished between the failed create and the read — a racing release
+  } catch (error) {
+    if (!errnoIs(error, "ENOENT")) {
+      throw error;
+    }
+    raw = null;
   }
   const holder = parseLockHolder(raw);
   const alive = holder.kind === "pid" && opts.isAlive(holder.pid);
@@ -76,19 +107,25 @@ export function handleHeldSpawnLock(opts: SpawnLockOpts): boolean {
   }
   if (action === "break-stale") {
     opts.log(`breaking a stale spawn lock (${lockHolderText(holder)}).`);
+    // @orb-gate-ignore caught-failure-ownership(empty:error): ENOENT alone means another launcher won the unlink race; the next exclusive create decides ownership. Ends if no retry follows.
     try {
       unlinkSync(opts.lockPath);
-    } catch {
-      // lost the break race to another launcher — the retry's `wx` decides
+    } catch (error) {
+      if (!errnoIs(error, "ENOENT")) {
+        throw error;
+      }
     }
   }
   return true;
 }
 
 export function releaseSpawnLock(lockPath: string): void {
+  // @orb-gate-ignore caught-failure-ownership(empty:error): ENOENT is idempotent release; every other unlink failure is rethrown. Ends if release gains an ownership-transfer acknowledgement.
   try {
     unlinkSync(lockPath);
-  } catch {
-    // already gone
+  } catch (error) {
+    if (!errnoIs(error, "ENOENT")) {
+      throw error;
+    }
   }
 }

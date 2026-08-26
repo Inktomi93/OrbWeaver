@@ -43,11 +43,15 @@ export { SERVED_NAME };
 export function busyGpuOwners(): string[] {
   const owners: string[] = [];
   for (const [pattern, label] of GPU_OWNER_PATTERNS) {
+    // @orb-gate-ignore caught-failure-ownership(empty:error): pgrep status 1 alone means no match; every execution or permission failure is rethrown. Ends if pgrep changes its no-match status.
     try {
       execNicedSync("pgrep", ["-f", pattern]);
       owners.push(label);
-    } catch {
-      // pgrep exits non-zero on no match — that pattern holds nothing.
+    } catch (error) {
+      if (error instanceof Error && "status" in error && error.status === 1) {
+        continue;
+      }
+      throw error;
     }
   }
   return owners;
@@ -66,6 +70,7 @@ async function waitHealthy(baseUrl: string, exited: () => boolean, deadline: num
   if (Date.now() > deadline) {
     throw new Error("boot timeout");
   }
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): a failed health poll advances to the bounded retry whose timeout or process exit is the operator verdict. Ends if one poll becomes terminal.
   try {
     const res = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(HEALTH_PROBE_TIMEOUT_MS) });
     if (res.ok) {
@@ -128,6 +133,7 @@ async function bootAndProbe(v: Variant, cli: CliOptions, outDir: string, isLast:
   });
   const baseUrl = `http://${HOST}:${cli.port}`;
   const bootStart = Date.now();
+  // @orb-gate-ignore caught-failure-ownership(empty:e): the boot failure is warned and returned as an explicit failed variant row with error text. Ends if callers stop publishing that row.
   try {
     await waitHealthy(baseUrl, child.hasExited, bootStart + BOOT_TIMEOUT_MS);
     print(`  healthy in ${((Date.now() - bootStart) / MS_PER_SECOND).toFixed(0)}s`);

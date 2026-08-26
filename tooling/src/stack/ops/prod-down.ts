@@ -17,6 +17,10 @@ import { distVerdict, readFrom, removePidfile, safeSize, uptimeText } from "./pr
 
 refuseDirectInvocation(import.meta.url, "bash tooling/src/stack/stack.sh <verb>");
 
+function processIsGone(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ESRCH";
+}
+
 export async function doDown(): Promise<ExitCode> {
   const port = resolvePort(readEnvFile());
   const { record, classification } = await classify(port);
@@ -35,9 +39,13 @@ export async function doDown(): Promise<ExitCode> {
 
   const logSizeAtSignal = safeSize(record.logPath);
   log(`SIGTERM → pid ${record.pid}; watching the bounded drain (${DRAIN_WATCH_MS / MS_PER_SECOND}s max)…`);
+  // @orb-gate-ignore caught-failure-ownership(empty:error): ESRCH alone means the verified pid vanished before SIGTERM; every other signal error is rethrown. Ends if signal classification changes.
   try {
     process.kill(record.pid, "SIGTERM");
-  } catch {
+  } catch (error) {
+    if (!processIsGone(error)) {
+      throw error;
+    }
     log("the process vanished before the signal landed.");
   }
   const outcome = await watchDrain(record, logSizeAtSignal);
@@ -47,10 +55,13 @@ export async function doDown(): Promise<ExitCode> {
     log("shutdown: complete");
   } else {
     log(`the process did not report a clean shutdown within ${DRAIN_WATCH_MS / MS_PER_SECOND}s — escalating to SIGKILL on the process group.`);
+    // @orb-gate-ignore caught-failure-ownership(empty:error): ESRCH alone means the verified group vanished before SIGKILL; every other signal error is rethrown. Ends if signal classification changes.
     try {
       process.kill(-record.pgid, "SIGKILL");
-    } catch {
-      // already gone
+    } catch (error) {
+      if (!processIsGone(error)) {
+        throw error;
+      }
     }
   }
   await waitGone(record.pid);
@@ -81,6 +92,9 @@ async function waitGone(pid: number): Promise<void> {
   const deadline = Date.now() + DRAIN_WATCH_MS;
   while (Date.now() < deadline && processAlive(pid)) {
     await sleep(POLL_INTERVAL_MS);
+  }
+  if (processAlive(pid)) {
+    throw new Error(`pid ${pid} remained live after the shutdown deadline`);
   }
 }
 

@@ -67,6 +67,7 @@ function utilFractions(): EngineUtilFractions {
 }
 
 async function healthOk(engine: (typeof VLLM_ENGINES)[number]): Promise<boolean> {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): a failed engine identity probe returns false and the caller refuses control of that process. Ends if false can authorize a signal.
   try {
     const res = await fetch(`http://127.0.0.1:${engineLaunchEnvFloor()[portKey(engine)]}/health`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) });
     return res.ok;
@@ -102,9 +103,12 @@ async function reconcile(): Promise<number> {
 }
 
 /** The lifecycle label for an engine's probe triple + the hold marker. */
-function engineState(up: boolean, sleeping: boolean, held: boolean): string {
+function engineState(up: boolean, sleeping: boolean | null, held: boolean): string {
   if (!up) {
     return "down";
+  }
+  if (sleeping === null) {
+    return "sleep-state-unknown";
   }
   if (!sleeping) {
     return "healthy";

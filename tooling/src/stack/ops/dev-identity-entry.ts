@@ -14,6 +14,10 @@ const repoRoot = process.cwd();
 const CAPTURE_ATTEMPTS = 100;
 const CAPTURE_RETRY_MS = 20;
 
+function errnoIs(error: unknown, code: string): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === code;
+}
+
 function print(verdict: { readonly verdict: string; readonly pgid?: number; readonly reason?: string }): void {
   process.stdout.write(`RESULT dev-identity verdict=${verdict.verdict} pgid=${verdict.pgid ?? "none"} reason=${JSON.stringify(verdict.reason ?? "")}\n`);
 }
@@ -60,10 +64,13 @@ function clearAbsent(): number {
     print(verdict);
     return 1;
   }
+  // @orb-gate-ignore caught-failure-ownership(empty:error): ENOENT means the already-absent identity file needs no deletion; every other unlink failure surfaces and prevents a cleared verdict. Ends if another absence code is supported.
   try {
     unlinkSync(devStackIdentityFilePath(repoRoot));
-  } catch {
-    // Already absent.
+  } catch (error) {
+    if (!errnoIs(error, "ENOENT")) {
+      throw error;
+    }
   }
   print(verdict);
   return 0;
