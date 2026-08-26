@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/dev/sandbox.sh — one-shot launcher for the Claude Code sandbox (.devcontainer/) WITHOUT
 # VS Code: ensures the dev container is built + running (devcontainers CLI, idempotent), then opens
-# a NEW terminal window shelled into it with Claude already started in permissive mode. When Claude
+# a NEW terminal window shelled into it with Claude already started. When Claude
 # exits, the window drops to a zsh inside the container instead of closing (so `pnpm check` etc.
 # are one keystroke away). HOST-side script — never run inside the container ($DEVCONTAINER guard).
 #
@@ -9,6 +9,8 @@
 #   pnpm sandbox --here       same, but in THIS terminal (no new window; also the SSH fallback)
 #   pnpm sandbox --shell      open a plain zsh in the container instead of Claude
 #   pnpm sandbox --rebuild    force-rebuild the container first (after editing .devcontainer/*)
+#   pnpm sandbox --unsafe-bypass-permissions
+#                             explicitly disable Claude permission confirmations (unsafe)
 #
 # Extra args pass through to claude: `pnpm sandbox -- --resume`.
 set -euo pipefail
@@ -24,12 +26,14 @@ fi
 HERE=0
 SHELL_ONLY=0
 REBUILD=0
+UNSAFE_BYPASS=0
 CLAUDE_ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --here) HERE=1 ;;
     --shell) SHELL_ONLY=1 ;;
     --rebuild) REBUILD=1 ;;
+    --unsafe-bypass-permissions) UNSAFE_BYPASS=1 ;;
     --) shift; CLAUDE_ARGS+=("$@"); break ;;
     *) CLAUDE_ARGS+=("$1") ;;
   esac
@@ -45,12 +49,18 @@ fi
 echo "▶ ensuring the sandbox container is up (first build takes a few minutes)…"
 npx --yes @devcontainers/cli "${UP_ARGS[@]}"
 
-# 2. The command that runs INSIDE the container. Claude in permissive mode is the point of the
-#    sandbox (the firewall + container are the boundary); on exit, fall through to zsh.
+# 2. The command that runs INSIDE the container. Confirmations stay enabled by default because the
+#    host workspace is bind-mounted and the container can reach the host subnet. On exit, fall
+#    through to zsh.
 if [ "$SHELL_ONLY" = 1 ]; then
   INNER='exec zsh -l'
 else
-  INNER='claude --dangerously-skip-permissions'
+  INNER='claude'
+  if [ "$UNSAFE_BYPASS" = 1 ]; then
+    UNSAFE_WARNING='UNSAFE: Claude permission confirmations are disabled; the host workspace is bind-mounted.'
+    echo "$UNSAFE_WARNING" >&2
+    INNER="printf '%s\\n' $(printf '%q' "$UNSAFE_WARNING") >&2; claude --dangerously-skip-permissions"
+  fi
   for a in ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"}; do
     INNER="$INNER $(printf '%q' "$a")"
   done

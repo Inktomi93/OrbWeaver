@@ -20,14 +20,6 @@
         // Editor/formatter/TS settings live in the committed .vscode/settings.json,
         // which VS Code also reads inside the container — single source of truth.
         // Below: container-only settings (never applied to the host VS Code).
-        //
-        // Run the Claude Code EXTENSION in permissive/bypass mode by default. The
-        // extension defaults to "default" mode + a disabled dangerous-skip gate, so
-        // it prompts even though this is a sandbox. These two keys flip both. Safe
-        // here because the firewall + container isolation are the real boundary; the
-        // host keeps prompting (these are not in the committed .vscode/settings.json).
-        "claudeCode.allowDangerouslySkipPermissions": true,
-        "claudeCode.initialPermissionMode": "bypassPermissions",
         "terminal.integrated.defaultProfile.linux": "zsh",
         "terminal.integrated.profiles.linux": {
           "bash": {
@@ -88,9 +80,6 @@
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
   "onCreateCommand": "CI=1 pnpm install --frozen-lockfile || CI=1 pnpm install",
-  // Default the terminal CLI to bypass-permissions too (matches the extension settings
-  // above). Writes to the container-only .claude volume; merges, never clobbers creds.
-  "postCreateCommand": "node -e \"const fs=require('fs'),p=process.env.CLAUDE_CONFIG_DIR+'/settings.json';let s={};try{s=JSON.parse(fs.readFileSync(p,'utf8'))}catch(e){};s.permissions=Object.assign({},s.permissions,{defaultMode:'bypassPermissions'});fs.writeFileSync(p,JSON.stringify(s,null,2))\"",
   "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
   "waitFor": "postStartCommand"
 }

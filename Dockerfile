@@ -116,15 +116,28 @@ CMD ["node","packages/server/src/entry/index.ts"]
 # `-devel`: no compilers shipped).
 FROM nvidia/cuda:13.0.2-runtime-ubuntu24.04@sha256:6a0e31b59e70890446f2c17356d6efc0d54260090a8c63d6ca7c2ad049db95d2 AS gpu-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-# node 26 via NodeSource (ubuntu apt has no node 26). curl/ca-certificates stay (the fleet front door
-# health-probes with curl); iproute2 (`ss`) + procps (`ps`) are the supervisor's port-owner instruments.
-# apt cache mounts keep the layer lean without the rm-lists dance (nothing from a cache mount lands in
-# the layer).
+# node 26 via a verified NodeSource package (ubuntu apt has no node 26). curl/ca-certificates stay (the
+# fleet front door health-probes with curl); iproute2 (`ss`) + procps (`ps`) are the supervisor's
+# port-owner instruments. Keep both architecture hashes beside the version so one source revision
+# consumes the same audited artifact identity on amd64 and arm64.
+ARG NODEJS_VERSION=26.7.0-1nodesource1
+ARG NODEJS_RUNTIME_VERSION=26.7.0
+ARG NODEJS_AMD64_SHA256=3aeac1e8aa4b4dcd3aefec4425e6f683101b24ca349bfe2b491be41e10d0c721
+ARG NODEJS_ARM64_SHA256=1e62878536fc75982dd20b9d7d8760d4a6a7e72fbdc0461bffb22efcffad4a66
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg && \
-    curl -fsSL https://deb.nodesource.com/setup_26.x | bash - && \
-    apt-get install -y --no-install-recommends nodejs iproute2 procps
+    apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && \
+    arch="$(dpkg --print-architecture)" && \
+    case "$arch" in \
+      amd64) nodejs_sha256="${NODEJS_AMD64_SHA256}" ;; \
+      arm64) nodejs_sha256="${NODEJS_ARM64_SHA256}" ;; \
+      *) echo "unsupported NodeSource architecture: $arch" >&2; exit 1 ;; \
+    esac && \
+    curl -fsSL "https://deb.nodesource.com/node_26.x/pool/main/n/nodejs/nodejs_${NODEJS_VERSION}_${arch}.deb" -o /tmp/nodejs.deb && \
+    echo "${nodejs_sha256}  /tmp/nodejs.deb" | sha256sum --check --strict && \
+    apt-get install -y --no-install-recommends /tmp/nodejs.deb iproute2 procps && \
+    rm /tmp/nodejs.deb && \
+    test "$(node --version)" = "v${NODEJS_RUNTIME_VERSION}"
 # ubuntu24.04 ships a default `ubuntu` user squatting uid 1000 — drop it and mint `node` (uid/gid 1000,
 # matching the official node images so volumes are interchangeable across profiles).
 RUN userdel -r ubuntu 2>/dev/null || true; \
@@ -138,11 +151,12 @@ RUN userdel -r ubuntu 2>/dev/null || true; \
 # build container does not have — cu130 is the measured live backend.
 COPY --from=ghcr.io/astral-sh/uv:0.9.13@sha256:f07d1bf7b1fb4b983eed2b31320e25a2a76625bdf83d5ff0208fe105d4d8d2f5 /uv /usr/local/bin/uv
 ENV UV_PYTHON_INSTALL_DIR=/opt/uv/python
+ARG VLLM_VERSION=0.22.1
 RUN --mount=type=cache,target=/opt/uv/cache,sharing=locked \
     UV_CACHE_DIR=/opt/uv/cache uv venv --python 3.13 /opt/vllm-store/.cache/vllm/venv && \
-    UV_CACHE_DIR=/opt/uv/cache uv pip install --python /opt/vllm-store/.cache/vllm/venv/bin/python --torch-backend=cu130 "vllm>=0.22,<0.23" && \
-    echo "vllm>=0.22,<0.23 @ cu130" > /opt/vllm-store/.cache/vllm/venv/.orb-pin && \
-    /opt/vllm-store/.cache/vllm/venv/bin/vllm --version
+    UV_CACHE_DIR=/opt/uv/cache uv pip install --python /opt/vllm-store/.cache/vllm/venv/bin/python --torch-backend=cu130 "vllm==${VLLM_VERSION}" && \
+    echo "vllm==${VLLM_VERSION} @ cu130" > /opt/vllm-store/.cache/vllm/venv/.orb-pin && \
+    test "$(/opt/vllm-store/.cache/vllm/venv/bin/python -c 'import importlib.metadata as m; print(m.version("vllm"))')" = "${VLLM_VERSION}"
 # Optional model bake (Fork D sub-fork): BAKE_MODELS=true pre-pulls the three engine models into
 # /models at build. Default false → smaller image, first-boot pull into the mounted volume. A gated-repo
 # token rides ONLY a BuildKit secret (never ENV/ARG — it would persist in image history):
