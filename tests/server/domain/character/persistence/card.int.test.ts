@@ -17,6 +17,7 @@ import {
   writeCardInPlace,
 } from "../../../../../packages/server/src/domain/character/persistence/card.ts";
 import { buildGroupCard } from "../../../../../packages/server/src/domain/character/substrate/group-character.ts";
+import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -37,8 +38,8 @@ describe("persistence/card", () => {
   test("insertCharacter throws CharacterOperationError(handle_conflict) on a per-owner dup", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await insertCharacter(db, makeRow(owner, "character_1", castId<CharacterHandle>("dup")));
-    const dup = insertCharacter(db, makeRow(owner, "character_2", castId<CharacterHandle>("dup")));
+    await insertCharacter(db, makeRow(owner, "character_1", castId<CharacterHandle>("dup")), bumpStatsCanonVersion);
+    const dup = insertCharacter(db, makeRow(owner, "character_2", castId<CharacterHandle>("dup")), bumpStatsCanonVersion);
     await expect(dup).rejects.toBeInstanceOf(CharacterOperationError);
   });
 
@@ -47,7 +48,7 @@ describe("persistence/card", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const id = castId<CharacterId>("character_1");
-    await insertCharacter(db, makeRow(owner, "character_1", castId<CharacterHandle>("a")));
+    await insertCharacter(db, makeRow(owner, "character_1", castId<CharacterHandle>("a")), bumpStatsCanonVersion);
 
     expect(await writeCardInPlace(db, id, other, { name: "Hax" })).toBe(false);
     expect(await writeCardInPlace(db, id, owner, { name: "Ok" })).toBe(true);
@@ -60,16 +61,16 @@ describe("persistence/card", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const id = castId<CharacterId>("character_1");
-    await insertCharacter(db, makeRow(owner, "character_1", castId<CharacterHandle>("a")));
-    expect(await deleteOwnedCharacter(db, id, other)).toBe(false);
-    expect(await deleteOwnedCharacter(db, id, owner)).toBe(true);
+    await insertCharacter(db, makeRow(owner, "character_1", castId<CharacterHandle>("a")), bumpStatsCanonVersion);
+    expect(await deleteOwnedCharacter(db, id, other, bumpStatsCanonVersion)).toBe(false);
+    expect(await deleteOwnedCharacter(db, id, owner, bumpStatsCanonVersion)).toBe(true);
   });
 
   test("appendSnapshot writes a history row", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = castId<CharacterId>("character_1");
-    await insertCharacter(db, makeRow(owner, "character_1", castId<CharacterHandle>("a")));
+    await insertCharacter(db, makeRow(owner, "character_1", castId<CharacterHandle>("a")), bumpStatsCanonVersion);
     await appendSnapshot(db, {
       id: castId("character_snapshot_1"),
       characterId,
@@ -87,8 +88,8 @@ describe("persistence/card", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = castId<CharacterId>("character_a");
     const b = castId<CharacterId>("character_b");
-    await insertCharacter(db, makeRow(owner, "character_a", castId<CharacterHandle>("a")));
-    await insertCharacter(db, makeRow(owner, "character_b", castId<CharacterHandle>("b")));
+    await insertCharacter(db, makeRow(owner, "character_a", castId<CharacterHandle>("a")), bumpStatsCanonVersion);
+    await insertCharacter(db, makeRow(owner, "character_b", castId<CharacterHandle>("b")), bumpStatsCanonVersion);
     const flipped = await setArchivedBulk(db, owner, [a, b], { archived: true, updatedAt: FROZEN_AT_MS });
     expect(flipped).toHaveLength(2);
     const rows = await db.select().from(characters);

@@ -14,6 +14,7 @@ import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, chats } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, ChatInviteId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 
@@ -107,11 +108,11 @@ export function isBackingUserEnabled(kind: ParticipantKind, enabled: boolean): b
 }
 
 /** Bulk-insert participant rows (the initial host+character roster, or a host adding a character). */
-export async function insertParticipants(db: Db, rows: readonly ParticipantInsertRow[]): Promise<void> {
+export async function insertParticipants(db: Db, rows: readonly ParticipantInsertRow[], coStatements: readonly BatchStmt[] = []): Promise<void> {
   if (rows.length === 0) {
     return;
   }
-  await db.insert(chatParticipants).values([...rows]);
+  await db.batch(batchMany([db.insert(chatParticipants).values([...rows]), ...coStatements]));
 }
 
 /** The atomic human (re)join — the only human-membership write. Inserts a fresh `member` row, or on

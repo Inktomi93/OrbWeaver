@@ -10,7 +10,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { auditLogs, characters, chatEvents, chatHandoffResumptions, chatParticipants, chats, messages, messageVariants } from "@orb/db";
+import { auditLogs, characters, chatEvents, chatHandoffResumptions, chatParticipants, chats, messages, messageVariants, statsCanonVersions } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -23,6 +23,7 @@ import { createChatBus } from "../../../../../packages/server/src/domain/chat/bu
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { getToolRecurseLimit } from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
 import { createRoster, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/roster.ts";
+import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { publishChatEvent, subscribeAllChatEvents } from "../../../../../packages/server/src/transport/trpc/chat-events-bus.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -1167,7 +1168,14 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     await seedParticipant(db, { chatId, key: "ca", characterId: aria, role: "member" });
     await seedParticipant(db, { chatId, key: "cb", characterId: bella, role: "member" });
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(makeChatContext(db, { getCard: ownedCard(), emitNotification: recordingEmit(notes) }), { emit, claimChat: noClaim });
+    const roster = createRoster(
+      makeChatContext(db, {
+        getCard: ownedCard(),
+        emitNotification: recordingEmit(notes),
+        bumpStatsCanonVersion: (batch, opDb, ownerId) => bumpStatsCanonVersion(batch as BatchStmt[], opDb, ownerId),
+      }),
+      { emit, claimChat: noClaim },
+    );
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
     emitted.length = 0;
     notes.length = 0;
@@ -1185,6 +1193,10 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     expect(rows.find((r) => r.characterId === bella)?.leftSeq).toBeNull();
     const [chatRow] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(chatRow?.pendingHostUserId).toBeNull();
+    // The outgoing owner is fenced once for nomination's recency write and once for the ownership transfer;
+    // the incoming owner is fenced by the transfer itself.
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBe(2);
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, member)))[0]?.version).toBe(1);
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
   });
 

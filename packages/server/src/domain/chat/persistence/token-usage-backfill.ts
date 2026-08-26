@@ -4,8 +4,11 @@
 // writer changes the predicate and wins.
 
 import type { CompareAndSetImportedTokenUsage, ImportedTokenUsageCandidate, ListImportedTokenUsageCandidates } from "@orb/contracts/chat";
+import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messages, messageVariants } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, eq, gt, isNotNull, isNull } from "drizzle-orm";
@@ -69,7 +72,7 @@ export function createListImportedTokenUsageCandidates(db: Db): ListImportedToke
   };
 }
 
-export function createCompareAndSetImportedTokenUsage(db: Db): CompareAndSetImportedTokenUsage {
+export function createCompareAndSetImportedTokenUsage(db: Db, bumpCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>): CompareAndSetImportedTokenUsage {
   return async ({ candidate, resolution }): Promise<boolean> => {
     const legacyNumeric = candidate.tokensIn !== null || candidate.tokensOut !== null;
     const values = legacyNumeric
@@ -79,20 +82,27 @@ export function createCompareAndSetImportedTokenUsage(db: Db): CompareAndSetImpo
           tokensOut: resolution.tokensOut,
           tokenProvenance: resolution.tokenProvenance,
         };
-    const changed = await db
-      .update(messageVariants)
-      .set(values)
-      .where(
-        and(
-          eq(messageVariants.id, candidate.variantId),
-          eq(messageVariants.tokenProvenance, "unrecorded"),
-          eq(messageVariants.content, candidate.content),
-          candidate.metadata === null ? isNull(messageVariants.metadata) : eq(messageVariants.metadata, candidate.metadata),
-          candidate.tokensIn === null ? isNull(messageVariants.tokensIn) : eq(messageVariants.tokensIn, candidate.tokensIn),
-          candidate.tokensOut === null ? isNull(messageVariants.tokensOut) : eq(messageVariants.tokensOut, candidate.tokensOut),
-        ),
-      )
-      .returning({ id: messageVariants.id });
+    const statements: BatchStmt[] = [
+      db
+        .update(messageVariants)
+        .set(values)
+        .where(
+          and(
+            eq(messageVariants.id, candidate.variantId),
+            eq(messageVariants.tokenProvenance, "unrecorded"),
+            eq(messageVariants.content, candidate.content),
+            candidate.metadata === null ? isNull(messageVariants.metadata) : eq(messageVariants.metadata, candidate.metadata),
+            candidate.tokensIn === null ? isNull(messageVariants.tokensIn) : eq(messageVariants.tokensIn, candidate.tokensIn),
+            candidate.tokensOut === null ? isNull(messageVariants.tokensOut) : eq(messageVariants.tokensOut, candidate.tokensOut),
+          ),
+        )
+        .returning({ id: messageVariants.id }),
+    ];
+    // A losing CAS may conservatively advance the token. That costs at most a retry; separating the update
+    // from its fence would let a winning write escape the rebuild snapshot entirely.
+    bumpCanonVersion(statements, db, candidate.ownerId);
+    const results = await db.batch(batchMany(statements));
+    const changed = results[0] as readonly { readonly id: string }[];
     return changed.length === 1;
   };
 }

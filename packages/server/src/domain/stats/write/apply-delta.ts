@@ -13,7 +13,7 @@
 // character_stats has no ownerId (owner derives via characterId→characters.ownerId), so its conflict
 // target is the `characterId` unique index.
 
-import type { ApplyStatsDelta, StatsDelta } from "@orb/contracts/stats";
+import type { ApplyStatsDelta, BumpStatsCanonVersion, StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, dailyStats, modelStats, ownerStats, statsCanonVersions } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -30,25 +30,30 @@ const n = (v: number | undefined): number => v ?? 0;
 
 /** Push the four UPSERT-increment statements into the caller's batch array (appends; returns nothing — the
  *  caller commits the batch atomically with its canon write). */
-export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchStmt[], db: Db, delta: StatsDelta): void => {
-  const lastAt = delta.lastAt ?? null;
-  const firstAt = delta.firstAt ?? null;
-  const maxCtx = delta.maxContextTokens ?? null;
-
-  // The rebuild streams without holding a transaction. This monotonic owner token is the relation-bound
-  // retry fence: it commits in the caller's canon+rollup batch, cannot collide on a wall-clock timestamp,
-  // and survives reconcile's owner_stats replacement.
+// The rebuild streams without holding a transaction. This monotonic owner token is the relation-bound
+// retry fence: it commits in the caller's canon batch, cannot collide on a wall-clock timestamp, and
+// survives reconcile's owner_stats replacement. Some canon writes have no honest incremental rollup delta,
+// so the fence is a standalone op rather than a fake all-zero StatsDelta.
+export const bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db> = (batch, db, ownerId): void => {
   batch.push(
     batchStmt(
       db
         .insert(statsCanonVersions)
-        .values({ ownerId: delta.ownerId, version: 1 })
+        .values({ ownerId, version: 1 })
         .onConflictDoUpdate({
           target: statsCanonVersions.ownerId,
           set: { version: sql`${statsCanonVersions.version} + 1` },
         }),
     ),
   );
+};
+
+export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchStmt[], db: Db, delta: StatsDelta): void => {
+  const lastAt = delta.lastAt ?? null;
+  const firstAt = delta.firstAt ?? null;
+  const maxCtx = delta.maxContextTokens ?? null;
+
+  bumpStatsCanonVersion(batch, db, delta.ownerId);
 
   // character_stats (skipped for a null character): no ownerId, conflict on the characterId unique index.
   if (delta.characterId !== null) {

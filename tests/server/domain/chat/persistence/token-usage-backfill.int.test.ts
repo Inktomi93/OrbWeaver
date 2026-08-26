@@ -2,7 +2,7 @@
 // keyset ordered; the writer is a NULL-only/provenance compare-and-set so a later measured value wins.
 
 import type { Db } from "@orb/db";
-import { chats, messageVariants } from "@orb/db";
+import { chats, messageVariants, statsCanonVersions } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -12,6 +12,7 @@ import {
   createCompareAndSetImportedTokenUsage,
   createListImportedTokenUsageCandidates,
 } from "../../../../../packages/server/src/domain/chat/persistence/token-usage-backfill.ts";
+import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
@@ -112,7 +113,7 @@ describe("imported token-usage persistence", () => {
     ) {
       throw new Error("seeded candidate missing");
     }
-    const compareAndSet = createCompareAndSetImportedTokenUsage(db);
+    const compareAndSet = createCompareAndSetImportedTokenUsage(db, bumpStatsCanonVersion);
 
     expect(await compareAndSet({ candidate: exactCandidate, resolution: { tokensIn: null, tokensOut: 4, tokenProvenance: "measured" } })).toBe(true);
     expect(await compareAndSet({ candidate: exactCandidate, resolution: { tokensIn: null, tokensOut: 4, tokenProvenance: "measured" } })).toBe(false);
@@ -143,5 +144,6 @@ describe("imported token-usage persistence", () => {
       tokensOut: 42,
       tokenProvenance: "measured",
     });
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, owner)))[0]?.version).toBeGreaterThanOrEqual(2);
   });
 });

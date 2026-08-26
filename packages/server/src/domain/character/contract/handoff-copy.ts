@@ -24,7 +24,9 @@
 // SAME copies rather than minting a second set — which is the whole reason the mints are allowed to land
 // before the atomic swap at all.
 
+import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 
 /** Re-own ONE avatar blob into the recipient's library, returning the RECIPIENT's asset id (or `null` when
@@ -44,6 +46,7 @@ export type CopyAvatarToOwner = (args: { readonly fromOwnerId: UserId; readonly 
  *  bulk-write silence `createBulkImportPersonas` keeps). */
 export interface CharacterHandoffCopyContext {
   readonly db: Db;
+  readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>;
   readonly now: () => number;
   readonly newCharacterId: () => CharacterId;
   readonly copyAvatar: CopyAvatarToOwner;

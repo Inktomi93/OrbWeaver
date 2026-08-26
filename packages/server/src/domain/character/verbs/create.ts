@@ -89,17 +89,21 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
 
     const card = cardFromInput(input);
 
-    await insertCharacter(ctx.db, {
-      id: characterId,
-      handle: input.handle,
-      ownerId,
-      contentHash: cardContentHash(card),
-      tokenSize: cardTokenSize(card),
-      importedFrom,
-      importHash,
-      createdAt: at,
-      ...card,
-    });
+    await insertCharacter(
+      ctx.db,
+      {
+        id: characterId,
+        handle: input.handle,
+        ownerId,
+        contentHash: cardContentHash(card),
+        tokenSize: cardTokenSize(card),
+        importedFrom,
+        importHash,
+        createdAt: at,
+        ...card,
+      },
+      ctx.bumpStatsCanonVersion,
+    );
 
     // A brand-new card is all content → the indexer embeds it (contentChanged is always true for create).
     ctx.emit({ type: "character.updated", characterId, contentChanged: true });

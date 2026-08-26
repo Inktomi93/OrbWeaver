@@ -977,7 +977,10 @@ function createReattributeMessages(ctx: ChatContext, emit: EmitChatEvent): ChatS
         throw new ChatNotFoundError(chatId);
       }
     }
-    await ctx.db.batch(batchMany([reattributeMessagesStatement(ctx.db, chatId, messageIds, characterId)]));
+    const statements = [reattributeMessagesStatement(ctx.db, chatId, messageIds, characterId)];
+    const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
+    ctx.bumpStatsCanonVersion(statements, ctx.db, ownerId);
+    await ctx.db.batch(batchMany(statements));
     const views = await Promise.all(messageIds.map((id) => loadMessageView(ctx.db, id)));
     await Promise.all(views.flatMap((view) => (view !== undefined ? [emit({ type: "messageEdited", chatId, messageId: view.id, view })] : [])));
   };

@@ -102,6 +102,10 @@ export type StatsDelta = z.infer<typeof statsDeltaSchema>;
  *  generic, bound to concrete db types at the impl + injection sites. */
 export type ApplyStatsDelta<Batch, Db> = (batch: Batch, db: Db, delta: StatsDelta) => void;
 
+/** Append only the per-owner rebuild fence to an existing canon batch. Used when canon changes but no
+ *  exact incremental rollup delta exists; the next reconcile must still detect the mutation. */
+export type BumpStatsCanonVersion<Batch, Db> = (batch: Batch, db: Db, ownerId: UserId) => void;
+
 // The narrowed, already-aggregated economics results stats hands to a consumer (discovery's insights)
 // through an injected op — the raw `message_variants` economics row is unspellable outside stats, so a
 // consumer never re-sums a column itself.

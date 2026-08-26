@@ -123,16 +123,17 @@ async function buildMarker(
     // (never a blank marker), so a retry next turn is honest.
     throw new ChatOperationError("compaction_empty", `compaction produced an empty marker for chat ${env.chatId}`);
   }
-  await ctx.db.update(chats).set({ compactSummary: summary, compactedAtSeq: env.coveredThroughSeq, updatedAt: ctx.now() }).where(eq(chats.id, env.chatId));
+  const stmts: BatchStmt[] = [
+    ctx.db.update(chats).set({ compactSummary: summary, compactedAtSeq: env.coveredThroughSeq, updatedAt: ctx.now() }).where(eq(chats.id, env.chatId)),
+  ];
   // COST VISIBILITY: the quiet marker generation's spend lands on the owner's + daily stats (the cost-visibility
   // rule). A null/0 cost (a local vLLM turn, or a backend that reports none) is a benign no-op delta.
   if (result.costUsd !== null && result.costUsd > 0) {
-    const stmts: BatchStmt[] = [];
     ctx.applyStatsDelta(stmts, ctx.db, compactionCostDelta({ ownerId: env.ownerId, costUsd: result.costUsd, now: ctx.now() }));
-    if (stmts.length > 0) {
-      await ctx.db.batch(batchMany(stmts));
-    }
+  } else {
+    ctx.bumpStatsCanonVersion(stmts, ctx.db, env.ownerId);
   }
+  await ctx.db.batch(batchMany(stmts));
   return { summary, compactedAtSeq: env.coveredThroughSeq, updated: true };
 }
 
@@ -166,7 +167,9 @@ function makeRunCompaction(ctx: ChatContext, quietGenerate: QuietGenerate): (arg
     if (window.length === 0) {
       // The whole new span is prompt-hidden — nothing summarizable, but the coverage stamp still advances so the
       // hidden span isn't reconsidered forever (no generation spend on an empty transcript).
-      await ctx.db.update(chats).set({ compactedAtSeq: coveredThroughSeq, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+      const stmts: BatchStmt[] = [ctx.db.update(chats).set({ compactedAtSeq: coveredThroughSeq, updatedAt: ctx.now() }).where(eq(chats.id, chatId))];
+      ctx.bumpStatsCanonVersion(stmts, ctx.db, ownerId);
+      await ctx.db.batch(batchMany(stmts));
       return { summary: chat.compactSummary ?? "", compactedAtSeq: coveredThroughSeq, updated: false };
     }
     // §3.5 summary-plane projection: cards collapse to the stub (the summarizer never eats the blob) and

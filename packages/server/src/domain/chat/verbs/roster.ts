@@ -120,6 +120,12 @@ type RosterVerbs = Pick<
   | "acceptHostHandoff"
 >;
 
+async function commitStatsFencedChatUpdate(ctx: ChatContext, ownerId: UserId, statement: BatchStmt): Promise<void> {
+  const statements = [statement];
+  ctx.bumpStatsCanonVersion(statements, ctx.db, ownerId);
+  await ctx.db.batch(batchMany(statements));
+}
+
 /** The roster/group/override/membership-lifecycle verb bundle the composition root spreads into the full service. */
 export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
   const { emit, claimChat } = deps;
@@ -198,10 +204,14 @@ function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent, claimChat: 
         );
       }
     }
-    await ctx.db
-      .update(chats)
-      .set({ metadata: { ...chat.metadata, group: parsed }, updatedAt: ctx.now() })
-      .where(eq(chats.id, chatId));
+    await commitStatsFencedChatUpdate(
+      ctx,
+      principal.userId,
+      ctx.db
+        .update(chats)
+        .set({ metadata: { ...chat.metadata, group: parsed }, updatedAt: ctx.now() })
+        .where(eq(chats.id, chatId)),
+    );
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -230,10 +240,14 @@ function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent, claimChat
         `chat ${chatId}: room overrides accept only the three-field allowlist (scenario / mainPrompt / postHistory)`,
       );
     }
-    await ctx.db
-      .update(chats)
-      .set({ metadata: { ...chat.metadata, roomOverrides: parsed.data }, updatedAt: ctx.now() })
-      .where(eq(chats.id, chatId));
+    await commitStatsFencedChatUpdate(
+      ctx,
+      principal.userId,
+      ctx.db
+        .update(chats)
+        .set({ metadata: { ...chat.metadata, roomOverrides: parsed.data }, updatedAt: ctx.now() })
+        .where(eq(chats.id, chatId)),
+    );
     await emit({ type: "chatUpdated", chatId });
     // Field labels only, never the override bodies (card-body-like text must not leak into a log row).
     await ctx.audit(
@@ -268,7 +282,11 @@ function createSetChatDocumentVisibility(ctx: ChatContext, emit: EmitChatEvent, 
     // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
     // spread and the freshness excess-property check never fires on the new key.
     const nextMetadata = { ...chat.metadata, databankVisibility: parsed.data };
-    await ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+    await commitStatsFencedChatUpdate(
+      ctx,
+      principal.userId,
+      ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId)),
+    );
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -305,7 +323,11 @@ function createSetHostDisplayScripts(ctx: ChatContext, emit: EmitChatEvent, clai
     // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
     // spread and the freshness excess-property check never fires on the new key.
     const nextMetadata = { ...chat.metadata, hostDisplayScripts: enabled };
-    await ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+    await commitStatsFencedChatUpdate(
+      ctx,
+      principal.userId,
+      ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId)),
+    );
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       { actorUserId: principal.userId, action: "chat.setHostDisplayScripts", entityType: "chat", entityId: chatId, metadata: { enabled } },
@@ -335,7 +357,11 @@ function createSetOfferChoices(ctx: ChatContext, emit: EmitChatEvent, claimChat:
     // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
     // spread and the freshness excess-property check never fires on the new key.
     const nextMetadata = { ...chat.metadata, offerChoices: enabled };
-    await ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+    await commitStatsFencedChatUpdate(
+      ctx,
+      principal.userId,
+      ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId)),
+    );
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit({ actorUserId: principal.userId, action: "chat.setOfferChoices", entityType: "chat", entityId: chatId, metadata: { enabled } }, ctx.now());
     return enabled;
@@ -402,7 +428,11 @@ function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimCha
     // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
     // spread and the freshness excess-property check never fires on the new key (the databankVisibility precedent).
     const nextMetadata = { ...chat.metadata, background: source };
-    await ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+    await commitStatsFencedChatUpdate(
+      ctx,
+      principal.userId,
+      ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId)),
+    );
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -433,7 +463,11 @@ function createSetToolRecurseLimit(ctx: ChatContext, emit: EmitChatEvent, claimC
       );
     }
     const nextMetadata = { ...chat.metadata, toolRecurseLimit: parsed.data };
-    await ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+    await commitStatsFencedChatUpdate(
+      ctx,
+      principal.userId,
+      ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId)),
+    );
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -572,17 +606,23 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
     const joinSeq = await loadMaxMessageSeq(ctx.db, chatId);
     const participantId = ctx.newParticipantId();
     assertForcedCharacterMember({ kind: "character", role: "member" });
-    await insertParticipants(ctx.db, [
-      {
-        id: participantId,
-        chatId,
-        kind: "character",
-        characterId,
-        role: "member",
-        joinedAt: at,
-        joinSeq,
-      },
-    ]);
+    const versionStatements: BatchStmt[] = [];
+    ctx.bumpStatsCanonVersion(versionStatements, ctx.db, principal.userId);
+    await insertParticipants(
+      ctx.db,
+      [
+        {
+          id: participantId,
+          chatId,
+          kind: "character",
+          characterId,
+          role: "member",
+          joinedAt: at,
+          joinSeq,
+        },
+      ],
+      versionStatements,
+    );
     await emit({ type: "chatUpdated", chatId });
     // F6 — the in-window join greeting. AFTER the seat exists (the greeting is voiced BY a present member) and
     // after `chatUpdated`, so a client applying the commit already knows the speaker.
@@ -799,7 +839,7 @@ function createSelfLeave(ctx: ChatContext, emit: EmitChatEvent): ChatService["se
     const leftSeq = await loadMaxMessageSeq(ctx.db, chatId);
     await markUserLeft(ctx.db, chatId, principal.userId, leftSeq);
     if (role === "host") {
-      await ctx.db.update(chats).set({ archived: true, updatedAt: at }).where(eq(chats.id, chatId));
+      await commitStatsFencedChatUpdate(ctx, principal.userId, ctx.db.update(chats).set({ archived: true, updatedAt: at }).where(eq(chats.id, chatId)));
     }
     await emit({ type: "chatUpdated", chatId });
   };
@@ -838,9 +878,9 @@ function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatS
     // edit the host makes between nominate and accept rides into the copy and a nomination that is never
     // accepted transfers nothing.
     const parsedOffer = handoffOfferSchema.catch(NO_HANDOFF_OFFER).parse(offer ?? NO_HANDOFF_OFFER);
-    await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId }, [
-      setPendingHostStatement(ctx.db, { chatId, nomineeUserId: userId, offer: parsedOffer, now: ctx.now() }),
-    ]);
+    const statements: BatchStmt[] = [setPendingHostStatement(ctx.db, { chatId, nomineeUserId: userId, offer: parsedOffer, now: ctx.now() })];
+    ctx.bumpStatsCanonVersion(statements, ctx.db, principal.userId);
+    await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId }, statements);
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -878,6 +918,32 @@ async function completeHandoffResumption(ctx: ChatContext, emit: EmitChatEvent, 
   if ((await emit({ type: "chatUpdated", chatId: resume.chatId }, clearHandoffResumptionStatement(ctx.db, resume.chatId, resume.acceptedByUserId))) === false) {
     throw new Error(`chat ${resume.chatId}: host handoff completion event was not durably appended`);
   }
+}
+
+async function commitHandoffSwap(
+  ctx: ChatContext,
+  statements: BatchStmt[],
+  args: { readonly chatId: ChatId; readonly oldHostUserId: UserId | null; readonly newHost: Principal },
+): Promise<void> {
+  if (args.oldHostUserId !== null) {
+    ctx.bumpStatsCanonVersion(statements, ctx.db, args.oldHostUserId);
+  }
+  if (args.oldHostUserId !== args.newHost.userId) {
+    ctx.bumpStatsCanonVersion(statements, ctx.db, args.newHost.userId);
+  }
+  if (args.oldHostUserId !== null && args.oldHostUserId !== args.newHost.userId) {
+    await ctx.emitNotification(
+      {
+        type: "handoff-accepted",
+        recipientUserId: args.oldHostUserId,
+        chatId: args.chatId,
+        newHostHandle: args.newHost.handle,
+      },
+      statements,
+    );
+    return;
+  }
+  await ctx.db.batch(batchMany(statements));
 }
 
 /** `acceptHostHandoff` — step 2: the nominee accepts (a self-action). The caller must equal
@@ -970,19 +1036,7 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
         acceptedAt,
       ),
     ];
-    if (oldHostUserId !== null && oldHostUserId !== principal.userId) {
-      await ctx.emitNotification(
-        {
-          type: "handoff-accepted",
-          recipientUserId: oldHostUserId,
-          chatId,
-          newHostHandle: principal.handle,
-        },
-        swap,
-      );
-    } else {
-      await ctx.db.batch(batchMany(swap));
-    }
+    await commitHandoffSwap(ctx, swap, { chatId, oldHostUserId, newHost: principal });
     await completeHandoffResumption(ctx, emit, {
       chatId,
       acceptedByUserId: principal.userId,

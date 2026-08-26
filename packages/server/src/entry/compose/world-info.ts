@@ -21,6 +21,7 @@ import type { BulkImportChats } from "#domain/chat";
 import type { BulkImportPersonas } from "#domain/persona";
 import { createBulkImportPersonas } from "#domain/persona";
 import type { SessionsService } from "#domain/sessions";
+import { bumpStatsCanonVersion } from "#domain/stats";
 import type { WorldInfoService } from "#domain/world-info";
 import { createBulkImportLorebook, createLinkCarriedBooks, createWorldInfoService } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
@@ -98,6 +99,7 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
 
   const bulkImportChats = createBulkImportChats({
     db,
+    bumpStatsCanonVersion,
     now,
     newChatId: minter(ID_PREFIX.chat),
     newMessageId: minter(ID_PREFIX.message),

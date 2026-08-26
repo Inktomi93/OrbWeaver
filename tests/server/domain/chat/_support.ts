@@ -452,6 +452,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // The stats push default is a NO-OP (the contract's "default injection is a no-op" — the canon-mutator
     // verbs push on every write path now; a test that asserts stats overrides with a recorder).
     applyStatsDelta: () => undefined,
+    bumpStatsCanonVersion: () => undefined,
     summarize: notStubbed,
     summarizerContextTokens: () => 32_000,
     // The embed window the segment build measures each verbatim block against (#165). The production floor

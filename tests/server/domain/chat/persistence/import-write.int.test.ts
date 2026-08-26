@@ -6,7 +6,8 @@
 
 import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { chatImportClaims, chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
+import { chatImportClaims, chatInjections, chatParticipants, chats, messages, messageVariants, statsCanonVersions } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type {
   AssetId,
@@ -25,6 +26,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { ChatImportContext } from "../../../../../packages/server/src/domain/chat/contract/import.ts";
 import { createBulkImportChats } from "../../../../../packages/server/src/domain/chat/persistence/import-write.ts";
+import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter, seedPersona, seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -53,6 +55,7 @@ function importCtx(db: Db, ownerId: UserId, spy: MintSpy = { calls: [], byChat: 
   };
   return {
     db,
+    bumpStatsCanonVersion: (batch, opDb, versionOwnerId) => bumpStatsCanonVersion(batch as BatchStmt[], opDb, versionOwnerId),
     now: (): number => NOW,
     newChatId: (): ChatId => castId<ChatId>(`chat_${counter()}`),
     newMessageId: (): MessageId => castId<MessageId>(`message_${counter()}`),
@@ -191,6 +194,7 @@ describe("createBulkImportChats", () => {
     expect(result.chatsImported).toBe(1);
     expect(result.messagesImported).toBe(2);
     expect(result.realConversationWritten).toBe(true);
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, owner.id)))[0]?.version).toBe(1);
 
     const chatRows = await db.select().from(chats);
     expect(chatRows).toHaveLength(1);

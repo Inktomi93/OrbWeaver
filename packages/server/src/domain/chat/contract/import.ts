@@ -9,7 +9,9 @@
 // row shapes — D26 slot/variant, the founding roster, branch resolution); it learns nothing about ST.
 
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
+import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import type { MintSyntheticGroupCharacterOp } from "./context.ts";
 
@@ -17,6 +19,7 @@ import type { MintSyntheticGroupCharacterOp } from "./context.ts";
  *  minted by the INJECTED minters (determinism — no ambient `mintTypeId()` in the write). */
 export interface ChatImportContext {
   readonly db: Db;
+  readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>;
   /** The injected clock (epoch-ms) — the fallback when a chat/message carries no ST date. */
   readonly now: () => number;
   readonly newChatId: () => ChatId;
