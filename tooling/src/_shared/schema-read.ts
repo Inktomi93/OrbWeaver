@@ -129,7 +129,16 @@ function leadingColumnOf(call: CallExpression): string | undefined {
     const chain = callee.getExpression().getText();
     return chain.includes("index(") || chain.includes("uniqueIndex(") ? columnNames(call.getArguments())[0] : undefined;
   }
-  return callee.getText() === "primaryKey" ? compositePrimaryKeyColumns(call)[0] : undefined;
+  return callName(call) === "primaryKey" ? compositePrimaryKeyColumns(call)[0] : undefined;
+}
+
+/** Imported builder calls may be direct (`primaryKey`) or namespace-qualified (`sqliteCore.primaryKey`). */
+function callName(call: CallExpression): string | undefined {
+  const callee = call.getExpression();
+  if (callee.isKind(SyntaxKind.Identifier)) {
+    return callee.getText();
+  }
+  return callee.isKind(SyntaxKind.PropertyAccessExpression) ? callee.getName() : undefined;
 }
 
 /** The `columns: [t.a, t.b]` of a composite `primaryKey({ … })` call, receiver-stripped; empty for any
@@ -158,5 +167,5 @@ export function hasPrimaryKey(table: SchemaTable): boolean {
   }
   return table.extra
     .getDescendantsOfKind(SyntaxKind.CallExpression)
-    .some((call) => call.getExpression().getText() === "primaryKey" && compositePrimaryKeyColumns(call).length > 0);
+    .some((call) => callName(call) === "primaryKey" && compositePrimaryKeyColumns(call).length > 0);
 }

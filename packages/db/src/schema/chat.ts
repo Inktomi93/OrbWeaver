@@ -1,7 +1,7 @@
-// schema/chat — the chat cluster (producer: domain/chat; the biggest, most intricate slice). Ten tables:
+// schema/chat — the chat cluster (producer: domain/chat; the biggest, most intricate slice). Twelve tables:
 // chats · messages · message_variants · chat_participants · chat_invites · pending_turns · chat_events ·
-// chat_stream_events · chat_injections · chat_locks. Built WHOLE (no feature-phasing — ledger D16); the
-// authoritative spec is `core/Tier-1-DB.md`.
+// chat_stream_events · chat_injections · chat_locks · chat_import_claims · chat_handoff_resumptions. Built
+// WHOLE (no feature-phasing — ledger D16); the authoritative spec is `core/Tier-1-DB.md`.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
 //   • D18 — chats are MEMBERSHIP-scoped: there is NO `chats.ownerId`. Authority is the host participant
@@ -84,6 +84,7 @@ import type { VarOp } from "@orb/kit/macro";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
+import * as sqliteCore from "drizzle-orm/sqlite-core";
 import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { checkList } from "../kit/check-list.ts";
 import { assets } from "./assets.ts";
@@ -201,6 +202,58 @@ export const chats = sqliteTable(
     index("chats_anchor_persona_idx").on(t.anchorPersonaId),
     index("chats_pending_host_idx").on(t.pendingHostUserId),
   ],
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// chat_import_claims — the scoped, atomic idempotency claim for an imported conversation. `importHash`
+// alone cannot be unique on `chats`: identical source bytes may legitimately be imported for two different
+// primary characters. The composite PK is therefore the exact operation scope. The row is inserted in the
+// SAME batch as its chat; a concurrent loser rolls its whole candidate room back and resolves this claim.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const chatImportClaims = sqliteTable(
+  "chat_import_claims",
+  {
+    chatId: text("chat_id")
+      .$type<ChatId>()
+      .notNull()
+      .references(() => chats.id, { onDelete: "cascade" }),
+    characterId: text("character_id")
+      .$type<CharacterId>()
+      .notNull()
+      .references(() => characters.id, { onDelete: "cascade" }),
+    importHash: text("import_hash").notNull(),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    sqliteCore.primaryKey({ columns: [t.characterId, t.importHash], name: "chat_import_claims_scope_pk" }),
+    index("chat_import_claims_chat_idx").on(t.chatId),
+  ],
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// chat_handoff_resumptions — one durable post-swap completion marker per room. The role swap inserts this
+// row with the actor re-key payload; the accepted host may resume it after the nomination is already clear.
+// `actorRekeys` is deliberately `unknown` at the DB package boundary and parsed by chat's read seam: the
+// server-owned workflow shape must not become a second public contract merely to type a private JSON cell.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const chatHandoffResumptions = sqliteTable(
+  "chat_handoff_resumptions",
+  {
+    chatId: text("chat_id")
+      .$type<ChatId>()
+      .primaryKey()
+      .references(() => chats.id, { onDelete: "cascade" }),
+    acceptedByUserId: text("accepted_by_user_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    actorRekeys: text("actor_rekeys", { mode: "json" }).$type<unknown>().notNull(),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [index("chat_handoff_resumptions_accepted_by_idx").on(t.acceptedByUserId)],
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════

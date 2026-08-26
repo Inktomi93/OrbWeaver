@@ -28,10 +28,11 @@
 
 import type { ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "./context.ts";
-import { appendChatEvent } from "./persistence/events.ts";
+import { appendChatEvent, insertChatEventStatement } from "./persistence/events.ts";
 import { loadChatRow } from "./persistence/queries.ts";
 import { createMemberDeltaStamper } from "./substrate/member-visibility.ts";
 
@@ -57,6 +58,12 @@ interface ChatRingEntry {
 
 interface ChatBus {
   readonly emit: EmitChatEvent;
+  /** Prepare the first event for a room-creation batch, then publish the already-committed row without a
+   * second append. `chatCreated` is the only event whose sequence is known before its room exists. */
+  readonly prepareCreation: (event: Extract<DurableChatBusEvent, { readonly type: "chatCreated" }>) => {
+    readonly statement: BatchStmt;
+    readonly publishCommitted: () => ChatEmitted;
+  };
   /** Entries strictly after `afterSeq` (absent ⇒ the whole retained window), oldest-first. */
   readonly readRing: (chatId: ChatId, afterSeq?: number) => ChatRingEntry[];
 }
@@ -91,6 +98,30 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
   // token stream regardless of who is (or is not) subscribed at any moment.
   const stamper = createMemberDeltaStamper();
 
+  const publishCommitted = (seq: number, event: ChatBusEvent): ChatEmitted => {
+    const ring = rings.get(event.chatId) ?? [];
+    ring.push({ seq, event });
+    if (ring.length > RING_CAPACITY) {
+      ring.splice(0, ring.length - RING_CAPACITY);
+    }
+    rings.set(event.chatId, ring);
+    return { seq, event };
+  };
+
+  const prepareCreation: ChatBus["prepareCreation"] = (raw) => {
+    const event = stamper.stamp(raw);
+    return {
+      statement: insertChatEventStatement(deps.db, {
+        id: deps.newEventId(),
+        chatId: event.chatId,
+        seq: 1,
+        event,
+        createdAt: deps.now(),
+      }),
+      publishCommitted: (): ChatEmitted => publishCommitted(1, event),
+    };
+  };
+
   const emit: EmitChatEvent = async (raw) => {
     const chatId = raw.chatId;
     // Stamped BEFORE the durable write and used for every downstream copy: the log row, the ring, and the
@@ -113,13 +144,7 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
       return null;
     }
 
-    const ring = rings.get(chatId) ?? [];
-    ring.push({ seq, event });
-    if (ring.length > RING_CAPACITY) {
-      ring.splice(0, ring.length - RING_CAPACITY);
-    }
-    rings.set(chatId, ring);
-    return { seq, event };
+    return publishCommitted(seq, event);
   };
 
   const readRing = (chatId: ChatId, afterSeq?: number): ChatRingEntry[] => {
@@ -127,5 +152,5 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
     return afterSeq === undefined ? [...ring] : ring.filter((e) => e.seq > afterSeq);
   };
 
-  return { emit, readRing };
+  return { emit, prepareCreation, readRing };
 }

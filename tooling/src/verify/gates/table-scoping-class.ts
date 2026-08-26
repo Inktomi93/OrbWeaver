@@ -110,6 +110,14 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
     scope: "membership",
     why: "the durable chat-bus log — the replay ring is room-public to members (the contract's allowlist makes secrets unrepresentable).",
   },
+  chat_handoff_resumptions: {
+    scope: "membership",
+    why: "the accepted-host completion marker is room workflow state; its chatId anchors authority in the participant roster.",
+  },
+  chat_import_claims: {
+    scope: "membership",
+    why: "the import idempotency claim is born with and derives authority through its chat; characterId narrows operation identity rather than creating a second read surface.",
+  },
   chat_injections: { scope: "membership", why: "per-chat positional injections — room state, membership-gated." },
   chat_invites: { scope: "membership", why: "the membership chokepoint — issued by the host, redeemed by token; scope is the chat." },
   chat_locks: { scope: "membership", why: "the per-chat turn lock, PK = the chat's own id — a concurrency primitive co-located with the room it guards." },

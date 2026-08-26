@@ -35,6 +35,7 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { can } from "@orb/server/domain/admin";
+import { buildAuditStatement } from "@orb/server/foundation/observability";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/context.ts";
 import type { ClaimChatOp } from "../../../../packages/server/src/domain/chat/contract/context.ts";
@@ -397,6 +398,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     newChatTurnId: mint<ChatTurnId>("chat_turn"),
     hashToken: (token) => `h:${token}`,
     audit: () => Promise.resolve(),
+    auditStatement: (entry, at) => buildAuditStatement(db, entry, at),
     // PD user-bus lane: no-op default (the terminal path + LIST-level ops fan `chatsChanged` to members; a
     // test that asserts the fan overrides `emitChatChanged` with a recorder — see the fan emit-site tests).
     emitChatChanged: () => Promise.resolve(),
