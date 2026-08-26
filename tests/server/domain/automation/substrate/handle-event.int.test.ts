@@ -39,6 +39,14 @@ interface Fixture {
   readonly events: AutomationBusEvent[];
 }
 
+function deferred(): { readonly promise: Promise<void>; readonly resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 /** A dispatcher that records a set_variable arm's key, and throws on the `boom` sentinel value (isolation).
  *  These suites only fire `set_variable` rules, so it narrows via a cast (no discriminant guard). */
 function recordingDispatch(calls: string[]): ArmDispatch {
@@ -66,6 +74,7 @@ async function setup(overrides: HarnessOverrides = {}): Promise<Fixture> {
     runArm: overrides.runArm ?? recordingDispatch(calls),
     notify: overrides.notify ?? ((e): void => void events.push(e)),
     ...(overrides.ops !== undefined ? { ops: overrides.ops } : {}),
+    ...(overrides.tools !== undefined ? { tools: overrides.tools } : {}),
   });
   return { db, host, chatId, svc: createAutomationService(ctx), calls, events };
 }
@@ -76,6 +85,7 @@ interface RuleOpts {
   readonly actions?: readonly AutomationActionInput[];
   readonly matchAutomationEvents?: boolean;
   readonly cooldownSeconds?: number;
+  readonly maxFiresPerHour?: number;
 }
 
 /** Create + enable a rule; returns its id. */
@@ -90,6 +100,7 @@ async function armRule(f: Fixture, opts: RuleOpts): Promise<AutomationRuleId> {
     actions: opts.actions ?? [SET_VAR],
     matchAutomationEvents: opts.matchAutomationEvents ?? false,
     cooldownSeconds: opts.cooldownSeconds ?? 0,
+    maxFiresPerHour: opts.maxFiresPerHour ?? 30,
   });
   await f.svc.setRuleEnabled({ principal: p, ruleId: rule.id, enabled: true });
   return rule.id;
@@ -220,6 +231,105 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     const outcomes = (await f.svc.listFires({ principal: principal(f.host), ruleId })).map((x) => x.outcome);
     expect(outcomes).toContain("fired");
     expect(outcomes).toContain("budget_refused");
+  });
+
+  test("a held autonomous fire reserves cooldown before a concurrent event can reach the arm", async () => {
+    const entered = deferred();
+    const release = deferred();
+    let attempts = 0;
+    const f = await setup({
+      runArm: async (): Promise<{ readonly ok: true }> => {
+        attempts += 1;
+        if (attempts === 1) {
+          entered.resolve();
+          await release.promise;
+        }
+        return { ok: true };
+      },
+    });
+    const ruleId = await armRule(f, { name: "held cooldown", cooldownSeconds: 60 });
+
+    const first = f.svc.handleEvent(chatOpened(f.chatId));
+    await entered.promise;
+    await f.svc.handleEvent(chatOpened(f.chatId));
+    const attemptsWhileHeld = attempts;
+    release.resolve();
+    await first;
+
+    expect(attemptsWhileHeld).toBe(1);
+    expect(attempts).toBe(1);
+    const outcomes = (await f.svc.listFires({ principal: principal(f.host), ruleId })).map((row) => row.outcome);
+    expect(outcomes).toContain("fired");
+    expect(outcomes).toContain("budget_refused");
+  });
+
+  test("a held failure refuses overlap, releases its reservation, and permits a later retry", async () => {
+    const entered = deferred();
+    const release = deferred();
+    let attempts = 0;
+    const f = await setup({
+      runArm: async () => {
+        attempts += 1;
+        if (attempts === 1) {
+          entered.resolve();
+          await release.promise;
+          return { ok: false as const, kind: "arm_error" as const, detail: "held failure" };
+        }
+        return { ok: true as const };
+      },
+    });
+    const ruleId = await armRule(f, { name: "held failure", cooldownSeconds: 60 });
+
+    const first = f.svc.handleEvent(chatOpened(f.chatId));
+    await entered.promise;
+    await f.svc.handleEvent(chatOpened(f.chatId));
+    const attemptsWhileHeld = attempts;
+    release.resolve();
+    await first;
+    await f.svc.handleEvent(chatOpened(f.chatId));
+
+    expect(attemptsWhileHeld).toBe(1);
+    expect(attempts).toBe(2);
+    const outcomes = (await f.svc.listFires({ principal: principal(f.host), ruleId })).map((row) => row.outcome);
+    expect(outcomes).toContain("action_error");
+    expect(outcomes).toContain("budget_refused");
+    expect(outcomes).toContain("fired");
+  });
+
+  test("suggest-only and mid-dispatch pause terminals release their held reservation", async () => {
+    let suggestedCalls = 0;
+    const suggested = await setup({
+      runArm: (): Promise<{ readonly ok: true; readonly suggested: true }> => {
+        suggestedCalls += 1;
+        return Promise.resolve({ ok: true, suggested: true });
+      },
+    });
+    const suggestedRule = await armRule(suggested, { name: "suggest-only", maxFiresPerHour: 1 });
+    await suggested.svc.handleEvent(chatOpened(suggested.chatId));
+    await suggested.svc.handleEvent(chatOpened(suggested.chatId));
+    expect(suggestedCalls).toBe(2);
+    await expect(suggested.svc.listFires({ principal: principal(suggested.host), ruleId: suggestedRule })).resolves.toEqual([]);
+
+    let pausedCalls = 0;
+    const paused = await setup({
+      tools: {
+        isToolDrivableBy: (): boolean => true,
+        runTool: () => Promise.resolve({ ok: false, reason: "unavailable" }),
+      },
+      runArm: (): Promise<{ readonly ok: false; readonly kind: "paused" }> => {
+        pausedCalls += 1;
+        return Promise.resolve({ ok: false, kind: "paused" });
+      },
+    });
+    const pausedRule = await armRule(paused, {
+      name: "mid-dispatch pause",
+      actions: [{ type: "run_tool", name: "plugin_tool" }],
+      maxFiresPerHour: 1,
+    });
+    await paused.svc.handleEvent(chatOpened(paused.chatId));
+    await paused.svc.handleEvent(chatOpened(paused.chatId));
+    expect(pausedCalls).toBe(2);
+    await expect(paused.svc.listFires({ principal: principal(paused.host), ruleId: pausedRule })).resolves.toEqual([]);
   });
 
   test("hard-caps the cascade at depth 3 (depth_refused)", async () => {
