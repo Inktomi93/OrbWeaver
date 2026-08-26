@@ -33,6 +33,7 @@ async function seedCard(
     genre?: string;
     tone?: string;
     tags?: string[];
+    model?: string;
     avatarAssetId?: AssetId;
   },
 ): Promise<CharacterId> {
@@ -45,6 +46,7 @@ async function seedCard(
   await seedCharacterEmbedding(db, {
     characterId: id,
     embedding: args.embedding,
+    ...(args.model !== undefined ? { model: args.model } : {}),
     ...(args.contentHash !== undefined ? { contentHash: args.contentHash } : {}),
   });
   await seedSummary(db, id, {
@@ -60,6 +62,31 @@ function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {
 }
 
 describe("archetypes", () => {
+  test("labels are globally unique and stable across equal-size model spaces", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_unique_labels");
+    await Promise.all(
+      ["model-b", "model-a"].flatMap((model) =>
+        [0, 1].map((i) =>
+          seedCard(db, {
+            id: `${model}_${i}`,
+            ownerId: owner,
+            embedding: vec(1, i * 0.001),
+            contentHash: `${model}_${i}`,
+            genre: "fantasy",
+            tone: "dark",
+            model,
+          }),
+        ),
+      ),
+    );
+    const first = await svcFor(db).archetypes(owner, { k: 1 });
+    const second = await svcFor(db).archetypes(owner, { k: 1 });
+    expect(first.map((a) => a.label)).toEqual(["dark fantasy", "dark fantasy (2)"]);
+    expect(first.map((a) => a.model)).toEqual(["model-a", "model-b"]);
+    expect(second).toEqual(first);
+  });
+
   test("clusters card vectors and labels each from the dominant facets", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");

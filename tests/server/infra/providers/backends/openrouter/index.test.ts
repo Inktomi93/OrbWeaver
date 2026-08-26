@@ -300,6 +300,18 @@ describe("createOpenRouterBackend — summarize shaper", () => {
     expect(result?.items[0]?.text).toBe(args);
   });
 
+  test("STRUCTURED rejects a differently named call instead of treating it as the forced schema tool", async () => {
+    const { backend } = backendWith(() => toolCallReply("wrong_tool", '{"genre":"noir"}'));
+    await expect(
+      callStructured(backend, {
+        credential: CRED,
+        model: castId<ModelId>("anthropic/claude-haiku-4-5"),
+        inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
+        responseFormat: { name: "result", schema: wireSchema({ type: "object" }) },
+      }),
+    ).rejects.toMatchObject({ kind: "invalid" });
+  });
+
   // S3 — the structured role does NOT strip `<think>`: a literal `<think>…</think>` inside a JSON string value
   // (constrained output — e.g. journal content quoting the tag) is legitimate and must survive; stripping it
   // would corrupt the JSON / lose content. The prose (summarize) role still strips (pinned above).

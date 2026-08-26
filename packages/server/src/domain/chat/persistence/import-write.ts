@@ -16,7 +16,7 @@ import { tokenizeContent } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import type { BulkImportChats, ChatImportContext } from "../contract/import.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 
@@ -559,6 +559,7 @@ async function assertImportPreconditions(db: Db, ownerId: UserId, characterId: C
 
 interface ImportRunState {
   readonly existing: Record<string, ExistingImport>;
+  readonly identities: ImportedChatIdentity[];
   readonly written: ImportedChatIdentity[];
   readonly pendingParents: PendingParent[];
   readonly healStmts: BatchStmt[];
@@ -571,14 +572,40 @@ interface ImportRunState {
 }
 
 /** Record a deduplicated candidate and its optional attribution heal in one place. */
-function recordSkippedImport(args: {
+async function loadImportedIdentity(db: Db, chatId: ChatId): Promise<ImportedChatIdentity> {
+  const slots = await db.select({ id: messages.id }).from(messages).where(eq(messages.chatId, chatId)).orderBy(asc(messages.seq));
+  const messageIds = slots.map((slot) => slot.id);
+  if (messageIds.length === 0) {
+    return { chatId, messageIds: [], variantIds: [] };
+  }
+  const variants = await db
+    .select({ id: messageVariants.id, messageId: messageVariants.messageId })
+    .from(messageVariants)
+    .where(inArray(messageVariants.messageId, messageIds))
+    .orderBy(asc(messageVariants.idx));
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local regrouping of the variant rows just loaded
+  const variantsByMessage = new Map<MessageId, MessageVariantId[]>();
+  for (const variant of variants) {
+    const pool = variantsByMessage.get(variant.messageId) ?? [];
+    pool.push(variant.id);
+    variantsByMessage.set(variant.messageId, pool);
+  }
+  return {
+    chatId,
+    messageIds,
+    variantIds: messageIds.map((messageId) => variantsByMessage.get(messageId) ?? []),
+  };
+}
+
+async function recordSkippedImport(args: {
   readonly ctx: ChatImportContext;
   readonly state: ImportRunState;
   readonly existing: ExistingImport;
   readonly ownerId: UserId;
   readonly ci: BulkImportChatInput;
-}): void {
+}): Promise<void> {
   const { ctx, state, existing, ownerId, ci } = args;
+  state.identities.push(await loadImportedIdentity(ctx.db, existing.chatId));
   state.chatsSkipped += 1;
   state.chatsPersonaHealed += collectInto(state.healStmts, healPersonaAttribution(ctx, existing, ownerId, ci));
 }
@@ -614,7 +641,7 @@ async function importOneChat(args: {
   const { ctx, state, ownerId, characterId, ci } = args;
   const already = state.existing[ci.importHash];
   if (already !== undefined) {
-    recordSkippedImport({ ctx, state, existing: already, ownerId, ci });
+    await recordSkippedImport({ ctx, state, existing: already, ownerId, ci });
     return;
   }
 
@@ -626,7 +653,7 @@ async function importOneChat(args: {
   const claimed = await commitImportCandidate(ctx.db, stmts, characterId, ci.importHash);
   if (claimed !== null) {
     state.existing[ci.importHash] = claimed;
-    recordSkippedImport({ ctx, state, existing: claimed, ownerId, ci });
+    await recordSkippedImport({ ctx, state, existing: claimed, ownerId, ci });
     return;
   }
 
@@ -634,6 +661,7 @@ async function importOneChat(args: {
     state.pendingParents.push({ chatId, parentRef: ci.parentRef, forkedAt: ci.createdAt });
   }
   state.written.push(identity);
+  state.identities.push(identity);
   state.chatsImported += 1;
   state.messagesImported += identity.messageIds.length;
   state.variantsImported += identity.variantIds.reduce((total, pool) => total + pool.length, 0);
@@ -654,6 +682,7 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
 
     const state: ImportRunState = {
       existing,
+      identities: [],
       written: [],
       pendingParents: [],
       // The dedup-skip arm's accumulated heal commits once after the loop. Every statement is a NULL-guarded
@@ -676,6 +705,7 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
     }
     const branchesLinked = await resolveBranches(db, characterId, state.pendingParents);
     return {
+      identities: state.identities,
       written: state.written,
       chatsImported: state.chatsImported,
       chatsSkipped: state.chatsSkipped,

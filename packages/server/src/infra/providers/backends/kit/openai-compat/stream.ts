@@ -205,6 +205,7 @@ function mapToolCalls(calls: readonly ChatMessageToolCall[] | undefined): readon
 
 const SSE_DATA_PREFIX = "data:";
 const SSE_DONE = "[DONE]";
+const SSE_BUFFER_LIMIT = 1_048_576;
 
 function parseSseLine(line: string): { kind: "data"; value: unknown } | { kind: "done" | "skip" } {
   if (!line.startsWith(SSE_DATA_PREFIX)) {
@@ -219,6 +220,31 @@ function parseSseLine(line: string): { kind: "data"; value: unknown } | { kind: 
   } catch {
     return { kind: "skip" };
   }
+}
+
+function assertSseLineBound(line: string): void {
+  if (line.length > SSE_BUFFER_LIMIT) {
+    throw new Error(`OpenAI-compatible SSE line exceeded the ${SSE_BUFFER_LIMIT}-character limit`);
+  }
+}
+
+function decodeSseChunk(buffer: string, value: Uint8Array, decoder: TextDecoder): { buffer: string; lines: string[] } {
+  const lines: string[] = [];
+  let offset = 0;
+  let pending = buffer;
+  while (offset < value.byteLength) {
+    const take = Math.min(value.byteLength - offset, SSE_BUFFER_LIMIT - pending.length + 1);
+    pending += decoder.decode(value.subarray(offset, offset + take), { stream: true });
+    offset += take;
+    const complete = pending.split("\n");
+    pending = complete.pop() ?? "";
+    for (const line of complete) {
+      assertSseLineBound(line);
+      lines.push(line.trim());
+    }
+    assertSseLineBound(pending);
+  }
+  return { buffer: pending, lines };
 }
 
 export async function* parseOpenAiSse(body: ReadableStream<Uint8Array>): AsyncGenerator<unknown> {
@@ -236,11 +262,9 @@ export async function* parseOpenAiSse(body: ReadableStream<Uint8Array>): AsyncGe
         }
         break;
       }
-      buffer += decoder.decode(value, { stream: true });
-      let newlineIdx = buffer.indexOf("\n");
-      while (newlineIdx !== -1) {
-        const line = buffer.slice(0, newlineIdx).trim();
-        buffer = buffer.slice(newlineIdx + 1);
+      const decoded = decodeSseChunk(buffer, value, decoder);
+      buffer = decoded.buffer;
+      for (const line of decoded.lines) {
         const parsed = parseSseLine(line);
         if (parsed.kind === "done") {
           return;
@@ -248,7 +272,6 @@ export async function* parseOpenAiSse(body: ReadableStream<Uint8Array>): AsyncGe
         if (parsed.kind === "data") {
           yield parsed.value;
         }
-        newlineIdx = buffer.indexOf("\n");
       }
     }
   } finally {

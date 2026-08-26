@@ -5,6 +5,7 @@ export type { CharacterContext } from "./context.ts";
 export type { CharacterAvatarLink, CharacterAvatarLinkContext, LinkCharacterAvatars } from "./contract/avatar-link.ts";
 export {
   AssetNotFoundError,
+  CHARACTER_HANDLE_CONFLICT,
   CharacterNotFoundError,
   CharacterOperationError,
 } from "./contract/errors.ts";

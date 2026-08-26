@@ -11799,6 +11799,98 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/issue-723-rpg-recovery.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 153,
+      "bytes": 10743,
+      "sha256": "358bbee350f26bed4b64ef11cee3d849cc7f0f5c071ccd1710b8b39064a23d7d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "complete",
+          "updated": "2026-08-26"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/issue-723-rpg-recovery.md",
+        "assignedSha256": "358bbee350f26bed4b64ef11cee3d849cc7f0f5c071ccd1710b8b39064a23d7d",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "358bbee350f26bed4b64ef11cee3d849cc7f0f5c071ccd1710b8b39064a23d7d",
+        "verifiedCommit": "86e433aedccd1d21fab3b3dae1e81735f44c731a",
+        "verifiedAt": "2026-08-26",
+        "evidence": [
+          "docs/design/issue-723-rpg-recovery.md read in full before implementation and re-read against the integrated tree at 86e433aed; implementation commit 2912fb7f1",
+          "focused behavioral and DB verification: 11 files with 157 tests, composed RPG with 71 tests, and fresh-box bundle round trip with 2 tests all passed",
+          "TS7 graph and tests-dom typechecks plus scoped Biome and typed ESLint passed"
+        ],
+        "summary": "Issue #723 implemented design of record: atomic snapshot and journal flushes, canonical bundle identity replay, level-triggered engaged mirrors, marked promotion recovery, and deletion metadata gated by listener authorization history.",
+        "claims": [
+          {
+            "claim": "All five interruption and authority seams converge without a schema addition or broad transaction framework.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#723"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/issue-724-provider-embedding-boundaries.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 33,
+      "bytes": 4005,
+      "sha256": "f1d48ba316d9e09f2a86365e2bf00eb8abdb8a27b22f0d500497a1df2503ce2d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "complete",
+          "updated": "2026-08-26"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/issue-724-provider-embedding-boundaries.md",
+        "assignedSha256": "f1d48ba316d9e09f2a86365e2bf00eb8abdb8a27b22f0d500497a1df2503ce2d",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "f1d48ba316d9e09f2a86365e2bf00eb8abdb8a27b22f0d500497a1df2503ce2d",
+        "verifiedCommit": "620a180418e6af30be832d415e3d8d5a5e6703d2",
+        "verifiedAt": "2026-08-26",
+        "evidence": [
+          "docs/design/issue-724-provider-embedding-boundaries.md read in full before implementation and re-read in its integrated complete form at 620a18041; implementation commit 0fed0b3ee",
+          "focused behavioral verification: 13 files with 211 tests passed, including model provenance, ordering, bounded readers, MIME, lease, forced-tool, and awake-cache controls",
+          "TS7 package, graph, and tests-dom typechecks plus scoped Biome and typed ESLint passed"
+        ],
+        "summary": "Issue #724 implemented provider and embedding boundary hardening while preserving the already-correct credential redaction home.",
+        "claims": [
+          {
+            "claim": "Nine current provider and embedding defects are bounded and regression-pinned; deterministic k-means seeding and credential-safe diagnostics were correctly retained rather than duplicated.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#724"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/list-pane-projection-proposal.md",
       "lane": "design",
       "issue": 5,

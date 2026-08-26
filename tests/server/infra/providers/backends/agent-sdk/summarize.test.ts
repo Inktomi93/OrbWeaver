@@ -320,6 +320,13 @@ describe("agent-sdk summarize", () => {
     expect(fakeQuery).toHaveBeenCalledTimes(5);
   });
 
+  test.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, 33])("rejects an invalid or oversized worker count (%s) before spawning", async (value) => {
+    const fakeQuery = vi.fn(() => streamOf(textTurn("should not run")));
+    const summarize = backendOf(fakeQuery, () => value);
+    await expect(summarize(reqOf())).rejects.toMatchObject({ kind: "invalid" });
+    expect(fakeQuery).not.toHaveBeenCalled();
+  });
+
   test("whole-batch-on-first-error: one failed item rejects the entire batch (vLLM/OR convention)", async () => {
     const fakeQuery = vi.fn((args: { prompt: string }) => {
       // The second item's turn fails (a non-success result subtype).

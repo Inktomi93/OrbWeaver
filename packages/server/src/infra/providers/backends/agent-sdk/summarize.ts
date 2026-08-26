@@ -5,6 +5,7 @@
 
 import type { Options, SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { ContentBlockParam } from "@anthropic-ai/sdk/resources/messages";
+import { AGENT_SDK_CONCURRENCY_MAX } from "@orb/contracts/settings";
 import type { StructuredRequest, SummarizeRequest, SummarizeRequestItem, SummarizeResult, SummarizeResultItem } from "../../contract/index.ts";
 import { ProviderError } from "../../contract/index.ts";
 import type { NormalizeImageBytes } from "../kit/index.ts";
@@ -243,6 +244,14 @@ export async function summarize(req: SubBatchRequest, deps: AgentSdkDeps): Promi
     }
   };
   const concurrency = deps.summarizeConcurrency?.() ?? SUMMARIZE_CONCURRENCY_FALLBACK;
+  if (!Number.isSafeInteger(concurrency) || concurrency <= 0 || concurrency > AGENT_SDK_CONCURRENCY_MAX) {
+    throw new ProviderError({
+      kind: "invalid",
+      retryable: false,
+      message: `agent-sdk: summarize concurrency must be a finite positive integer at most ${AGENT_SDK_CONCURRENCY_MAX}`,
+      model: req.model,
+    });
+  }
   const workerCount = Math.min(concurrency, req.inputs.length);
   await Promise.all(Array.from({ length: workerCount }, () => worker()));
 

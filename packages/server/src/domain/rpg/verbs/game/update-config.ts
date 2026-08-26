@@ -128,7 +128,10 @@ export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateCon
 
     // #40 — an engaged flip re-writes the chat POINTER MIRROR (`ChatRpgPointer.engaged`) so the client's
     // sync takeover gate flips off the SAME `ChatDetail` read that gated it on (no rpg round-trip).
-    if (params.patch?.engaged !== undefined && params.patch.engaged !== game.config.engaged) {
+    // Replay an explicit mirror write even when the game row already equals the request. That equality is the
+    // exact state left by an interruption after `updateGame` but before `setPointer`; using it as a skip gate
+    // made the ordinary retry preserve the split forever. The chat write is an idempotent value mirror.
+    if (params.patch?.engaged !== undefined) {
       await ctx.setPointer(params.chatId, { gameId: game.id, engaged: params.patch.engaged });
     }
 

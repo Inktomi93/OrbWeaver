@@ -30,7 +30,7 @@ import { RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/r
 import type { StructuredOutputShape } from "@orb/contracts/settings";
 import { DEFAULT_STRUCTURED_OUTPUT_SHAPE } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import { characters, messages, messageVariants, presets } from "@orb/db";
+import { characters, chatParticipants, messages, messageVariants, presets } from "@orb/db";
 import type { ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { AgentModelHealError, ConnectionRoutingError } from "@orb/server/domain/connection";
@@ -41,7 +41,7 @@ import { logger, recentWireCaptures, recordWireCapture, resetWireCaptures } from
 import type { ChatRequest, ChatResult } from "@orb/server/infra/providers";
 import { createVllmChat, toVllmChatRequest } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { vi } from "vitest";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat/index.ts";
 import { resolveModelCapability } from "../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
@@ -49,7 +49,7 @@ import { subscribeRpgEvents } from "../../../../packages/server/src/domain/rpg/i
 import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games.ts";
 import { commitSnapshotForVariant, writeStagedSnapshot } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
-import { buildRpg } from "../../../../packages/server/src/entry/compose/rpg.ts";
+import { buildRpg, rpgPromotionProvenance } from "../../../../packages/server/src/entry/compose/rpg.ts";
 import { makeModelCapability, makeResolvedConnection, makeResolvedCredential } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
@@ -177,6 +177,75 @@ test("CHEAP turn — createGame + a real tool turn flush lands state + the point
   await collector.done;
   expect(events.some((e) => e.type === "gameChanged")).toBe(true);
   expect(events.some((e) => e.type === "snapshotPatched")).toBe(true);
+});
+
+async function provePlantedPromotionRecovery(args: {
+  readonly db: Db;
+  readonly services: ServicesResult["services"];
+  readonly key: string;
+  readonly seatBeforeRetry: boolean;
+}): Promise<{ readonly markedCards: number; readonly liveSeats: number; readonly characterActors: number; readonly castActors: number }> {
+  const { db, services, key, seatBeforeRetry } = args;
+  const { chatId, hostId } = await seedHostGameChat(db, key);
+  const principal = hostPrincipal(hostId);
+  await services.rpg.createGame({ principal, chatId, mode: "lite" });
+  await services.rpg.editSnapshot({ principal, chatId, patch: { presentCharacters: ["cast:vesna"] } });
+  await services.rpg.patchActor({
+    principal,
+    chatId,
+    targetRef: { kind: "cast", castKey: "vesna" },
+    ops: [{ op: "setIdentityText", field: "name", text: "Sister Vesna" }],
+  });
+
+  // Plant the exact production result after the card step. The second arm additionally plants the seat step;
+  // neither calls the RPG verb until the interrupted durable prefix exists in the fresh database.
+  const provenance = rpgPromotionProvenance(chatId, "cast:vesna");
+  const card = await services.character.create({
+    principal,
+    input: { handle: castId("sister-vesna"), name: "Sister Vesna", description: "" },
+    provenance,
+  });
+  if (seatBeforeRetry) {
+    await services.chat.addCharacterToChat({ principal, chatId, characterId: card.id });
+  }
+
+  await expect(services.rpg.promoteActor({ principal, chatId, targetRef: { kind: "cast", castKey: "vesna" } })).resolves.toEqual({ ok: true });
+
+  const markedCards = await db
+    .select({ id: characters.id })
+    .from(characters)
+    .where(and(eq(characters.ownerId, hostId), eq(characters.importHash, provenance.importHash)));
+  expect(markedCards).toEqual([{ id: card.id }]);
+  const seats = await db
+    .select({ characterId: chatParticipants.characterId })
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.characterId, card.id), isNull(chatParticipants.leftSeq)));
+  expect(seats).toEqual([{ characterId: card.id }]);
+  const view = await services.rpg.getTrackerView({ principal, chatId });
+  return {
+    markedCards: markedCards.length,
+    liveSeats: seats.length,
+    characterActors: view.actors.filter((actor) => actor.actorRef.kind === "character" && actor.actorRef.characterId === card.id).length,
+    castActors: view.actors.filter((actor) => actor.actorRef.kind === "cast" && actor.actorRef.castKey === "vesna").length,
+  };
+}
+
+test("#723 composed-real promotion retries from a planted card-only durable prefix", async ({ db, services }) => {
+  await expect(provePlantedPromotionRecovery({ db, services, key: "promote_card_only", seatBeforeRetry: false })).resolves.toEqual({
+    markedCards: 1,
+    liveSeats: 1,
+    characterActors: 1,
+    castActors: 0,
+  });
+});
+
+test("#723 composed-real promotion retries from a planted card-and-seat durable prefix", async ({ db, services }) => {
+  await expect(provePlantedPromotionRecovery({ db, services, key: "promote_card_seat", seatBeforeRetry: true })).resolves.toEqual({
+    markedCards: 1,
+    liveSeats: 1,
+    characterActors: 1,
+    castActors: 0,
+  });
 });
 
 /** A canned structured extraction (the model's structured output) — a location move + a journal beat. Emitted as
@@ -377,7 +446,11 @@ function buildCannedRpgWithText(args: {
     // would collide (boot-fatal). These tests exercise the state ROUNDS, not the tool handlers.
     toolUse: { register: () => undefined },
     // R4 promotion deps — these tests exercise state rounds, never the mint; loud if ever reached.
-    character: { create: () => Promise.reject(new Error("unused: promotion not exercised")), findByHandle: () => Promise.resolve(null) },
+    character: {
+      create: () => Promise.reject(new Error("unused: promotion not exercised")),
+      findByHandle: () => Promise.resolve(null),
+      findByImportHash: () => Promise.resolve(null),
+    },
     chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
     // D126 — the admin-tier structured-output shape, threaded exactly as the real root threads it (a thunk off
     // the resolved config). Unset ⇒ the shipped floor, so every existing pin still drives the default arm.
@@ -1335,7 +1408,11 @@ function buildRpgWithCapability(app: ServicesResult, db: Db, capability: ModelCa
     copyPresetToUser: () => Promise.resolve(null),
     toolUse: { register: () => undefined },
     // R4 promotion deps — these tests exercise state rounds, never the mint; loud if ever reached.
-    character: { create: () => Promise.reject(new Error("unused: promotion not exercised")), findByHandle: () => Promise.resolve(null) },
+    character: {
+      create: () => Promise.reject(new Error("unused: promotion not exercised")),
+      findByHandle: () => Promise.resolve(null),
+      findByImportHash: () => Promise.resolve(null),
+    },
     chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
     structuredOutputShape: () => DEFAULT_STRUCTURED_OUTPUT_SHAPE,
   });
@@ -1390,7 +1467,11 @@ function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unkno
     copyPresetToUser: () => Promise.resolve(null),
     toolUse: { register: () => undefined },
     // R4 promotion deps — these tests exercise state rounds, never the mint; loud if ever reached.
-    character: { create: () => Promise.reject(new Error("unused: promotion not exercised")), findByHandle: () => Promise.resolve(null) },
+    character: {
+      create: () => Promise.reject(new Error("unused: promotion not exercised")),
+      findByHandle: () => Promise.resolve(null),
+      findByImportHash: () => Promise.resolve(null),
+    },
     chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
     // D126 — the admin-tier structured-output shape, on its shipped floor (the real root reads it per call off
     // `getEffectiveConfig()`); the strict-arm pin below overrides it.
@@ -2792,7 +2873,11 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
     copyPresetToUser: () => Promise.resolve(null),
     toolUse: { register: () => undefined },
     // R4 promotion deps — these tests exercise state rounds, never the mint; loud if ever reached.
-    character: { create: () => Promise.reject(new Error("unused: promotion not exercised")), findByHandle: () => Promise.resolve(null) },
+    character: {
+      create: () => Promise.reject(new Error("unused: promotion not exercised")),
+      findByHandle: () => Promise.resolve(null),
+      findByImportHash: () => Promise.resolve(null),
+    },
     chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
     // D126 — the admin-tier structured-output shape, on its shipped floor (the real root reads it per call off
     // `getEffectiveConfig()`); the strict-arm pin below overrides it.
