@@ -10,7 +10,7 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
 import { AUTH_MODES } from "@orb/contracts/identity";
-import { LOG_LEVELS } from "@orb/contracts/settings";
+import { AGENT_SDK_CONCURRENCY_MAX, LOG_LEVELS } from "@orb/contracts/settings";
 import { z } from "zod";
 import type { BindPostureInput } from "./bind.ts";
 import { resolveBindPosture } from "./bind.ts";
@@ -343,7 +343,7 @@ const envSchema = z
     // surface when a preset is silent. Admin-layerable ⊕ AppSettings override; OpenAI presence_penalty range.
     VLLM_GEN_PRESENCE_PENALTY: z.coerce.number().default(VLLM_GEN_PRESENCE_PENALTY_DEFAULT),
     // The agent-sdk backend's max in-flight summarize calls (Phase B ⑩ item 1, Q6). Admin-layerable ⊕ override.
-    AGENT_SDK_SUMMARIZE_CONCURRENCY: z.coerce.number().int().positive().default(AGENT_SDK_SUMMARIZE_CONCURRENCY_DEFAULT),
+    AGENT_SDK_SUMMARIZE_CONCURRENCY: z.coerce.number().int().positive().max(AGENT_SDK_CONCURRENCY_MAX).default(AGENT_SDK_SUMMARIZE_CONCURRENCY_DEFAULT),
     VLLM_EMBED_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(VLLM_EMBED_REQUEST_TIMEOUT_MS_DEFAULT),
     VLLM_EMBED_DIM: z.coerce.number().int().positive().default(VLLM_EMBED_DIM_DEFAULT),
     VLLM_EMBED_CHUNK_SIZE: z.coerce.number().int().positive().default(VLLM_EMBED_CHUNK_DEFAULT),

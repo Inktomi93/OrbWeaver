@@ -99,6 +99,11 @@ const inFlight = new Map<VllmEngine, Promise<void>>();
 // ASSUMES(single-replica): same reasoning as `inFlight` — per-process, and the engines are host-local.
 const awakeUntil = new Map<VllmEngine, number>();
 
+/** A successful sleep transition invalidates the observation immediately; the next dispatch must probe. */
+export function invalidateAwakeCache(engine: VllmEngine): void {
+  awakeUntil.delete(engine);
+}
+
 /** Perform the wake once (single-flighted by the caller): reconcile → hold+VRAM gate → wake+wait. Throws a
  *  non-retryable ProviderError on a refusal (held / no headroom) or a wake timeout. */
 async function performWake(engine: VllmEngine, deps: WakeGateDeps): Promise<void> {

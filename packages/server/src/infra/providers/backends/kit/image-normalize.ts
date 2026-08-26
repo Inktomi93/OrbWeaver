@@ -3,7 +3,8 @@
 // as-is is (a) mislabeled (the runners assumed png regardless of format) and (b) an animated multi-frame
 // blob most hosted decoders reject or mis-read. This op decodes a GIF to a SINGLE first-frame PNG (via an
 // INJECTED sharp transform — the seam that keeps `infra/image` from leaking into a sealed backend) and
-// passes every other format through untouched. The GIF decode also strips ALL metadata (sharp drops
+// passes recognized static formats through with their sniffed MIME. GIF and unknown bytes are decoded to
+// PNG before they receive a wire label. The decode also strips ALL metadata (sharp drops
 // EXIF/GPS/XMP by default) — a privacy win for bytes that leave the box.
 //
 // The magic-sniff is the SYNC gate: `@orb/kit/image-sniff`'s pure signature table (GIF87a/GIF89a) decides
@@ -12,7 +13,8 @@
 import { sniffMime } from "@orb/kit/image-sniff";
 
 const PNG_MIME = "image/png";
-const GIF_MIME = "image/gif";
+const JPEG_MIME = "image/jpeg";
+const WEBP_MIME = "image/webp";
 
 /** Normalized outbound image bytes + the mime to LABEL them with on the wire. */
 export interface NormalizedImageBytes {
@@ -36,15 +38,15 @@ export interface ImageToPng {
   (bytes: Uint8Array): Promise<Uint8Array>;
 }
 
-/** Build the gif-normalizing wire op. A GIF is decoded to a first-frame PNG (metadata stripped) via the
- *  injected `toPng`; every other format passes through with the `image/png` label the hosted image wires
- *  already assume (the provider re-sniffs the actual bytes — the label is a formality, the decode is the
- *  fix). The sync sniff gates the async decode so non-gif bytes never touch sharp. */
+/** Build the image-normalizing wire op. Recognized static formats keep their bytes and exact MIME; GIF and
+ *  unknown bytes are decoded to PNG (metadata stripped) via the injected `toPng`. */
 export function createImageNormalizer(toPng: ImageToPng): NormalizeImageBytes {
   return async (bytes) => {
-    if (sniffMime(bytes) !== GIF_MIME) {
-      return { bytes, mediaType: PNG_MIME };
+    const mime = sniffMime(bytes);
+    if (mime === PNG_MIME || mime === JPEG_MIME || mime === WEBP_MIME) {
+      return { bytes, mediaType: mime };
     }
+    // GIF must be flattened; unknown bytes must be decoded before they can honestly carry an image label.
     return { bytes: await toPng(bytes), mediaType: PNG_MIME };
   };
 }

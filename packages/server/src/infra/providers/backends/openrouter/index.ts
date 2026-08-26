@@ -204,8 +204,14 @@ function structuredWireTool(format: ResponseFormat): WireTool {
  *  ONE result object and the second one's content would vanish. It is reported, not dropped in silence. */
 function structuredReply(view: ChatCompletionResult, toolName: string): { readonly text: string; readonly extra: readonly string[] } {
   const calls = view.choices?.[0]?.message?.toolCalls;
-  // The forced tool's own call, else the first one (some wires answer with a differently-named call).
-  const chosen = Math.max(calls?.findIndex((c) => c.function.name === toolName) ?? -1, 0);
+  const chosen = calls?.findIndex((c) => c.function.name === toolName) ?? -1;
+  if (calls !== undefined && calls.length > 0 && chosen < 0) {
+    throw new ProviderError({
+      kind: "invalid",
+      retryable: false,
+      message: `openrouter structured response called "${calls[0]?.function.name ?? "unnamed"}" instead of forced tool "${toolName}"`,
+    });
+  }
   const call = calls?.[chosen];
   const extra = (calls ?? []).filter((_c, i) => i !== chosen).map((c) => c.function.name);
   return { text: call === undefined ? extractChatReply(view) : call.function.arguments, extra };
