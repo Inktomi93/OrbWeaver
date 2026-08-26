@@ -2,13 +2,26 @@
 // character.updated; `null` CLEARS a nullable field while `undefined` (omitted) keeps it; an empty edit
 // neither writes nor emits; not-owned throws.
 
+import { utimes } from "node:fs/promises";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createAssetsService } from "@orb/server/domain/assets";
 import { AssetNotFoundError, CharacterNotFoundError, CharacterOperationError, createCharacterService } from "@orb/server/domain/character";
-import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
+import { describe, onTestFinished } from "vitest";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { principal as assetsPrincipal, makeHarness as makeAssetsHarness, pngBytes } from "../../assets/_support.ts";
 import { makeHarness, principal, seedAsset, seedUser } from "../_support.ts";
+
+const CHARACTER_UPDATE = /^update "characters"/i;
+const ASSET_DELETE = /^delete from "assets"/i;
+const TWO_HOURS_MS = 2 * 3_600_000;
+
+async function oldBlob(h: Awaited<ReturnType<typeof makeAssetsHarness>>, ownerId: Parameters<typeof assetsPrincipal>[0], hash: string): Promise<void> {
+  const seconds = (FROZEN_AT_MS - TWO_HOURS_MS) / 1000;
+  await utimes(h.ctx.cas.blobPath(ownerId, hash), seconds, seconds);
+}
 
 describe("update", () => {
   test("a content edit changes contentHash and emits character.updated", async () => {
@@ -244,6 +257,80 @@ describe("update", () => {
     expect(err).toBeInstanceOf(CharacterOperationError);
     expect((err as CharacterOperationError).code).toBe("background_unavailable");
     expect(h.events).toHaveLength(0);
+  });
+
+  test("GC-first: a held real card update loses with background_unavailable and never persists a dangling JSON ref", async () => {
+    const { db, hold } = await freshHeldDb();
+    const assetsHarness = await makeAssetsHarness(db);
+    onTestFinished(assetsHarness.cleanup);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const assetsSvc = createAssetsService(assetsHarness.ctx);
+    const stored = await assetsSvc.store({ principal: assetsPrincipal(owner), bytes: pngBytes(71), kind: "background", mime: "image/png" });
+    await oldBlob(assetsHarness, owner, stored.hash);
+    const characterSvc = createCharacterService(makeHarness(db).ctx);
+    const created = await characterSvc.create({
+      principal: principal(owner),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+    });
+    const updateHold = hold(CHARACTER_UPDATE);
+    const updating = characterSvc.update({
+      principal: principal(owner),
+      characterId: created.id,
+      input: {
+        backgroundOverride: {
+          kind: "asset",
+          seededId: "",
+          externalUrl: "",
+          assetId: stored.assetId,
+          assetHash: stored.hash,
+          mime: "image/png",
+          provenanceUrl: "",
+        },
+      },
+    });
+    await updateHold.reached;
+    expect((await assetsSvc.collectGarbage({})).reclaimed).toBe(1);
+    updateHold.release();
+
+    await expect(updating).rejects.toMatchObject({ code: "background_unavailable" });
+    expect((await characterSvc.get({ principal: principal(owner), characterId: created.id })).backgroundOverride).toBeNull();
+  });
+
+  test("writer-first: a real card update committed while GC DELETE is held keeps the asset and JSON ref", async () => {
+    const { db, hold } = await freshHeldDb();
+    const assetsHarness = await makeAssetsHarness(db);
+    onTestFinished(assetsHarness.cleanup);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const assetsSvc = createAssetsService(assetsHarness.ctx);
+    const stored = await assetsSvc.store({ principal: assetsPrincipal(owner), bytes: pngBytes(72), kind: "background", mime: "image/png" });
+    await oldBlob(assetsHarness, owner, stored.hash);
+    const characterSvc = createCharacterService(makeHarness(db).ctx);
+    const created = await characterSvc.create({
+      principal: principal(owner),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+    });
+    const deleteHold = hold(ASSET_DELETE);
+    const collecting = assetsSvc.collectGarbage({});
+    await deleteHold.reached;
+    await characterSvc.update({
+      principal: principal(owner),
+      characterId: created.id,
+      input: {
+        backgroundOverride: {
+          kind: "asset",
+          seededId: "",
+          externalUrl: "",
+          assetId: stored.assetId,
+          assetHash: stored.hash,
+          mime: "image/png",
+          provenanceUrl: "",
+        },
+      },
+    });
+    deleteHold.release();
+
+    expect((await collecting).reclaimed).toBe(0);
+    expect((await characterSvc.get({ principal: principal(owner), characterId: created.id })).backgroundOverride?.assetId).toBe(stored.assetId);
   });
 
   test("applies a handle rename (FINAL-Character §2 identity column) and audits only `handle`", async () => {

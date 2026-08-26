@@ -6,7 +6,7 @@
 
 import { cardContentHash } from "#kit/serde/card";
 import type { CharacterContext } from "../context.ts";
-import { CharacterNotFoundError } from "../contract/errors.ts";
+import { CHARACTER_BACKGROUND_UNAVAILABLE, CharacterNotFoundError, CharacterOperationError } from "../contract/errors.ts";
 import type { RestoreParams } from "../contract/params.ts";
 import type { CharacterService } from "../contract/service.ts";
 import { appendSnapshot, writeCardInPlace } from "../persistence/card.ts";
@@ -42,7 +42,10 @@ export function createRestore(ctx: CharacterContext): CharacterService["restore"
       tokenSize: cardTokenSize(blob),
       updatedAt: at,
     });
-    if (!written) {
+    if (written === "background-unavailable") {
+      throw new CharacterOperationError(CHARACTER_BACKGROUND_UNAVAILABLE, "The background asset is no longer available.");
+    }
+    if (written === "missing") {
       throw new CharacterNotFoundError(characterId);
     }
 

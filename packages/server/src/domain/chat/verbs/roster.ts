@@ -61,6 +61,7 @@ import type {
 } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
+import { ownedBackgroundAvailable } from "../persistence/background-write.ts";
 import { restampChatCharacterStatement } from "../persistence/canon-write.ts";
 import { clearHandoffResumptionStatement, insertHandoffResumptionStatement, loadHandoffResumption } from "../persistence/handoff-resume.ts";
 import {
@@ -124,6 +125,21 @@ async function commitStatsFencedChatUpdate(ctx: ChatContext, ownerId: UserId, st
   const statements = [statement];
   ctx.bumpStatsCanonVersion(statements, ctx.db, ownerId);
   await ctx.db.batch(batchMany(statements));
+}
+
+async function commitBackgroundUpdate(ctx: ChatContext, ownerId: UserId, chatId: ChatId, metadata: typeof chats.$inferInsert.metadata): Promise<void> {
+  const statement = ctx.db
+    .update(chats)
+    .set({ metadata, updatedAt: ctx.now() })
+    .where(and(eq(chats.id, chatId), ownedBackgroundAvailable(ctx.db, ownerId, metadata ?? null)))
+    .returning({ id: chats.id });
+  const statements: BatchStmt[] = [statement];
+  ctx.bumpStatsCanonVersion(statements, ctx.db, ownerId);
+  const results = await ctx.db.batch(batchMany(statements));
+  const updated = results[0] as readonly { readonly id: ChatId }[];
+  if (updated.length === 0) {
+    throw new ChatOperationError(CHAT_OP_CODES.backgroundUnavailable, `chat ${chatId}: the background asset is no longer available`);
+  }
 }
 
 /** The roster/group/override/membership-lifecycle verb bundle the composition root spreads into the full service. */
@@ -428,11 +444,7 @@ function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimCha
     // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
     // spread and the freshness excess-property check never fires on the new key (the databankVisibility precedent).
     const nextMetadata = { ...chat.metadata, background: source };
-    await commitStatsFencedChatUpdate(
-      ctx,
-      principal.userId,
-      ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId)),
-    );
+    await commitBackgroundUpdate(ctx, principal.userId, chatId, nextMetadata);
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {

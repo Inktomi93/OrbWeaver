@@ -28,7 +28,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
 import { stripHiddenSpans } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -40,6 +40,7 @@ import type { ForkChatParams } from "../contract/params.ts";
 import type { ForkResult } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
+import { carriesAssetBackground, guardedChatId } from "../persistence/background-write.ts";
 import { loadChatCastProducer } from "../persistence/cast.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import {
@@ -482,6 +483,19 @@ function forkMetadataWithoutGame(meta: ChatMetadata | null): ChatMetadata | null
   return rest;
 }
 
+async function commitForkBatch(ctx: ChatContext, chatId: ChatId, metadata: ChatMetadata | null, stmts: readonly BatchStmt[]): Promise<void> {
+  try {
+    await ctx.db.batch(batchMany(stmts));
+  } catch (err) {
+    if (carriesAssetBackground(metadata) && isConstraintViolation(err)?.kind === "not-null") {
+      const unavailable = new ChatOperationError(CHAT_OP_CODES.backgroundUnavailable, `chat ${chatId}: the background asset is no longer available`);
+      unavailable.cause = err;
+      throw unavailable;
+    }
+    throw err;
+  }
+}
+
 /** FORK CLONES THE GAME (fork-clones-the-game §3.2): AFTER the chat's atomic fork batch commits, ask rpg to
  *  re-key its whole vertical onto the fork through the id maps `buildCanonCopy` built (they encode the fork
  *  horizon — floor-clamped + throughSeq-truncated). rpg writes the fork's OWN pointer LAST (crash-safe). A
@@ -651,10 +665,11 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     ];
 
     const canonCopy = buildCanonCopy(ctx, { newChatId, slots, variants, posture: { stripHidden: forkerReadsHidden === false, stripReasoning } });
+    const forkMetadata = forkMetadataWithoutGame(source.metadata);
     const stmts: BatchStmt[] = [
       batchStmt(
         ctx.db.insert(chats).values({
-          id: newChatId,
+          id: guardedChatId(ctx.db, newChatId, forkMetadata),
           title: title ?? source.title,
           parentChatId: chatId,
           forkedAt: now,
@@ -672,7 +687,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
           // (valid) pointer LAST. So the copied-metadata strip stays correct AND the game clones — the two
           // reconcile: a plain-chat fork stays plain (forkGame → cloned:false), a game-chat fork gains a fresh
           // game + fresh pointer. Everything else in metadata carries.
-          metadata: forkMetadataWithoutGame(source.metadata),
+          metadata: forkMetadata,
           variableValues: variables,
           runtimeVariables: Object.keys(forkRuntimeCache).length > 0 ? forkRuntimeCache : null,
           standaloneVariableDeltas: forkStandaloneDeltas.length > 0 ? forkStandaloneDeltas : null,
@@ -695,7 +710,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       now,
     });
 
-    await ctx.db.batch(batchMany(stmts));
+    await commitForkBatch(ctx, chatId, forkMetadata, stmts);
 
     // FORK CLONES THE GAME (§3.2) — runs AFTER the atomic batch, BEFORE the read-back (so the returned
     // `ChatDetail` carries the fresh pointer). Degraded-not-broken on failure. See `forkGameOntoFork`.

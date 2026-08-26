@@ -154,6 +154,27 @@ describe("readModelLatencies + modelLatencyKey", () => {
     expect(stats?.avgTtftMs).toBe(200);
   });
 
+  test("qualifies model rows before the latest-100 all-model bound", async () => {
+    const bucketDb = await freshDb();
+    const owner = await seedUser(bucketDb, "user_model_bucket", "user");
+    const character = await seedCharacter(bucketDb, owner, { id: "character_model_bucket" });
+    const chat = await seedChat(bucketDb, character, { id: "chat_model_bucket" });
+    await seedMessage(bucketDb, {
+      chatId: chat,
+      seq: 1,
+      role: "assistant",
+      characterId: character,
+      variants: [{ content: "model-a", model: "model-a", provider: "provider-a", ttftMs: 111, genStartedAt: T0, genFinishedAt: T0 + 222 }],
+    });
+    for (let seq = 2; seq <= 101; seq += 1) {
+      await seedMessage(bucketDb, { chatId: chat, seq, role: "assistant", characterId: character, variants: [{ content: String(seq), model: null }] });
+    }
+
+    const map = await readModelLatencies(bucketDb, owner);
+
+    expect(map.get(modelLatencyKey("model-a", "provider-a"))?.avgTtftMs).toBe(111);
+  });
+
   test("modelLatencyKey joins model + provider", () => {
     expect(modelLatencyKey("gpt", "openrouter")).toBe("gpt openrouter");
   });

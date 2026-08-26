@@ -97,13 +97,6 @@ export async function readModelLatencies(db: Db, ownerId: string): Promise<Map<s
     JOIN characters c ON c.id = m.character_id
     JOIN message_variants v ON v.id = m.selected_variant_id
     WHERE c.owner_id = ${ownerId} AND m.role = 'assistant' AND v.model IS NOT NULL
-      AND m.id IN (
-        SELECT recent.id
-        FROM messages recent INDEXED BY messages_character_idx
-        WHERE recent.character_id = c.id AND recent.role = 'assistant'
-        ORDER BY recent.rowid DESC
-        LIMIT ${LATENCY_SAMPLE_LIMIT}
-      )
     ORDER BY m.rowid DESC
     LIMIT ${LATENCY_SAMPLE_LIMIT}
   `);
