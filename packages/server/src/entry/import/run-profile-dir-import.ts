@@ -32,7 +32,7 @@ import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
-import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
+import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { hostTimeZone } from "@orb/kit/time";
 import type { BulkImportChats } from "#domain/chat";
@@ -55,7 +55,7 @@ import type {
   ImportThemeNote,
   ImportUnresolvedPinnedPersona,
 } from "#domain/import";
-import { collectBundlesFromDir, createImportService, importFileHash } from "#domain/import";
+import { collectBundlesFromDir, createImportService, importFileHash, ProfileImportLimitError } from "#domain/import";
 import type { BulkImportPersonas } from "#domain/persona";
 import type { ImportPreset } from "#domain/preset";
 import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "#domain/regex";
@@ -142,6 +142,47 @@ export interface ProfileDirImportDeps {
   readonly stWallClockZone?: string;
   readonly dryRun: boolean;
   readonly signal: AbortSignal;
+}
+
+/** Apply the direct-tree byte belts at the read boundary. `stat` rejects before the allocation, while the
+ *  post-read check closes a file-growth race. Repeated reads of one path count only its largest observed
+ *  size toward the run-wide budget. */
+function withProfileReadLimits(fs: ImportFsPort): ImportFsPort {
+  const accountedByPath = new Map<string, number>();
+  let totalBytes = 0;
+  return {
+    ...fs,
+    readFile: async (path): Promise<Uint8Array> => {
+      const previousBytes = accountedByPath.get(path) ?? 0;
+      const declaredBytes = (await fs.stat(path)).size;
+      if (declaredBytes > IMPORT_TREE_MAX_FILE_BYTES) {
+        throw new ProfileImportLimitError(
+          "profile_file_too_large",
+          `profile file ${path} declares ${declaredBytes} bytes, over the ${IMPORT_TREE_MAX_FILE_BYTES} byte cap`,
+        );
+      }
+      const declaredIncrease = Math.max(0, declaredBytes - previousBytes);
+      if (totalBytes + declaredIncrease > IMPORT_TREE_MAX_TOTAL_BYTES) {
+        throw new ProfileImportLimitError("profile_total_too_large", `profile files exceed the ${IMPORT_TREE_MAX_TOTAL_BYTES} byte aggregate cap`);
+      }
+
+      const bytes = await fs.readFile(path);
+      if (bytes.length > IMPORT_TREE_MAX_FILE_BYTES) {
+        throw new ProfileImportLimitError(
+          "profile_file_too_large",
+          `profile file ${path} produced ${bytes.length} bytes, over the ${IMPORT_TREE_MAX_FILE_BYTES} byte cap`,
+        );
+      }
+      const observedBytes = Math.max(declaredBytes, bytes.length);
+      const observedIncrease = Math.max(0, observedBytes - previousBytes);
+      if (totalBytes + observedIncrease > IMPORT_TREE_MAX_TOTAL_BYTES) {
+        throw new ProfileImportLimitError("profile_total_too_large", `profile files exceed the ${IMPORT_TREE_MAX_TOTAL_BYTES} byte aggregate cap`);
+      }
+      accountedByPath.set(path, observedBytes);
+      totalBytes += observedIncrease;
+      return bytes;
+    },
+  };
 }
 
 /** The per-profile "not imported" records, merged across every user dir — the import report's raw material. */
@@ -261,7 +302,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
     unhandled: [],
     unhandledSettings: [],
   };
-  for (const ent of await fs.readdir(profileRoot)) {
+  for (const ent of (await fs.readdir(profileRoot)).toSorted((a, b) => a.name.localeCompare(b.name))) {
     if (signal.aborted) {
       break;
     }
@@ -827,7 +868,7 @@ function contextFor(deps: ProfileDirImportDeps, store: ImportAssetPort["store"])
  * (scanned + changed). `dryRun` collects + matches with ZERO writes.
  */
 export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<ImportReport> {
-  const collected = await collectProfileRoot(deps);
+  const collected = await collectProfileRoot({ ...deps, fs: withProfileReadLimits(deps.fs) });
   const scanned = tallyScanned(collected);
 
   if (deps.dryRun) {

@@ -2,8 +2,8 @@
 
 export { cardContentHash } from "#kit/serde/card";
 export type { ImportContext } from "./context.ts";
-export type { ImportCardErrorCode } from "./contract/errors.ts";
-export { ImportCardError } from "./contract/errors.ts";
+export type { ImportCardErrorCode, ProfileImportLimitErrorCode } from "./contract/errors.ts";
+export { ImportCardError, ProfileImportLimitError } from "./contract/errors.ts";
 export type { ImportCardInput, ImportCharacterInput } from "./contract/params.ts";
 export type { ImportCharacterResult, ImportChatFileOutcome, ImportedCharacterRef, ImportGroupsResult, ImportPresetsResult } from "./contract/results.ts";
 export type {

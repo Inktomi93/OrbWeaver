@@ -16,6 +16,7 @@ import { asc, eq } from "drizzle-orm";
 import { vi } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { fakeVector } from "../../embeddings/_support.ts";
 import type { DatabankHarness } from "../_support.ts";
 import { EMBED_DIM, EMBED_MODEL, makeDatabankHarness, principalFor, seedUser } from "../_support.ts";
 
@@ -142,6 +143,32 @@ test("re-ingesting with a bigger chunkSize prunes the stranded tail (store-then-
 
   const remaining = await db.select({ idx: documentChunks.chunkIdx }).from(documentChunks).where(eq(documentChunks.documentId, documentId));
   expect(remaining.map((r) => r.idx)).toEqual([0]);
+});
+
+test("an abort during the first chunk stops the rest of that document and does not prune its unfinished tail", async () => {
+  const db = await freshDb();
+  const { h, documentId, owner } = await seedDoc(db, "owner");
+  const controller = new AbortController();
+  h.roleClients.embed.mockImplementation((input) => {
+    controller.abort("cancelled by test");
+    return Promise.resolve({
+      vectors: (typeof input === "string" ? [input] : input).map(() => fakeVector()),
+      model: EMBED_MODEL,
+      usage: { promptTokens: null, totalTokens: null },
+    });
+  });
+  const prune = vi.spyOn(h.ctx, "pruneDocumentChunks");
+
+  const result = await h.ingest.reindex({
+    ownerId: owner,
+    scope: { kind: "document", documentId },
+    mode: "chunk-embed",
+    signal: controller.signal,
+  });
+
+  expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
+  expect(prune).not.toHaveBeenCalled();
+  expect(result).toMatchObject({ documents: 1, chunksUpserted: 1, chunksNoop: 0, chunksPruned: 0, failed: [] });
 });
 
 test("mode:'re-extract' refreshes canon + version for a document stamped by an OLDER extractor", async () => {

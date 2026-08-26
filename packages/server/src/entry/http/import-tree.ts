@@ -18,6 +18,7 @@ import { mkdir, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
+import { IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_FILES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { Hono, MiddlewareHandler } from "hono";
@@ -37,22 +38,15 @@ const ACCEPTED = 202;
 const TREE_ROUTE = "/api/import/tree";
 const UPLOAD_FIELD = "file";
 
-const BYTES_PER_KIB = 1024;
-const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
 // Total batch cap — the ceiling on the whole multipart body (formData buffers it in memory). Raised to
 // 1 GiB (owner, 2026-08-08) for whole-ST-profile folder imports: a real SillyTavern default-user tree
 // runs 500 MiB–1 GiB (character-card PNGs + chat logs dominate), and the 256 MiB memory-DoS ceiling is a
 // MULTI-USER concern — on a single-owner self-hosted box the owner's own upload is not a threat. NOTE the
 // .zip/bundle route is NOT an escape hatch here: it caps at 256 MiB COMPRESSED and only accepts an ORB
 // backup layout (no ST sniff), so the multipart tree route is the sole whole-ST-folder ingest.
-const TREE_MAX_TOTAL_MIB = 1024;
-const TREE_MAX_TOTAL_BYTES = TREE_MAX_TOTAL_MIB * BYTES_PER_MIB;
 // Per-file cap — the same per-blob bound the PD-94 asset store + the zip per-entry belt enforce (64 MiB).
-const TREE_MAX_FILE_MIB = 64;
-const TREE_MAX_FILE_BYTES = TREE_MAX_FILE_MIB * BYTES_PER_MIB;
 // File-count ceiling — the zip extractor's per-archive entry cap (50k); the collect.ts MAX_DIR_ENTRIES (100k)
 // is the loop-guard shape, this is the route-level DoS bound on a single upload.
-const TREE_MAX_FILES = 50_000;
 
 const DRIVE_LETTER = /^[a-zA-Z]:/;
 const TRAILING_SLASH = /\/$/;
@@ -182,13 +176,13 @@ async function collectParts(form: FormData): Promise<UploadPart[]> {
   if (files.length === 0) {
     throw new TreeRejected(BAD_REQUEST, `no "${UPLOAD_FIELD}" uploads`);
   }
-  if (files.length > TREE_MAX_FILES) {
-    throw new TreeRejected(PAYLOAD_TOO_LARGE, `too many files (over ${TREE_MAX_FILES})`);
+  if (files.length > IMPORT_TREE_MAX_FILES) {
+    throw new TreeRejected(PAYLOAD_TOO_LARGE, `too many files (over ${IMPORT_TREE_MAX_FILES})`);
   }
   const parts: UploadPart[] = [];
   for (const file of files) {
-    if (file.size > TREE_MAX_FILE_BYTES) {
-      throw new TreeRejected(PAYLOAD_TOO_LARGE, `"${file.name}" exceeds the ${TREE_MAX_FILE_MIB} MiB per-file cap`);
+    if (file.size > IMPORT_TREE_MAX_FILE_BYTES) {
+      throw new TreeRejected(PAYLOAD_TOO_LARGE, `"${file.name}" exceeds the ${IMPORT_TREE_MAX_FILE_BYTES} byte per-file cap`);
     }
     const relPath = sanitizeRelPath(file.name);
     parts.push({ relPath, bytes: new Uint8Array(await file.arrayBuffer()) });
@@ -294,7 +288,7 @@ interface TreeContext {
  *  batch, sniffs the layout, and starts the matching per-owner import workload, replying 202 with the id. */
 export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps): void {
   const orbDirs = orbOnlyDirNames(deps.registry);
-  app.post(TREE_ROUTE, authCsrfGuard, bodyCap(TREE_MAX_TOTAL_BYTES), async (c) => {
+  app.post(TREE_ROUTE, authCsrfGuard, bodyCap(IMPORT_TREE_MAX_TOTAL_BYTES), async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);

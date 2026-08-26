@@ -21,3 +21,13 @@ export class ImportCardError extends DomainOperationError {
     this.name = this.constructor.name;
   }
 }
+
+export type ProfileImportLimitErrorCode = "profile_file_too_large" | "profile_total_too_large";
+
+/** A direct profile-directory input breached its per-file or run-wide byte budget. */
+export class ProfileImportLimitError extends DomainOperationError {
+  constructor(code: ProfileImportLimitErrorCode, message: string) {
+    super(code, message);
+    this.name = this.constructor.name;
+  }
+}
