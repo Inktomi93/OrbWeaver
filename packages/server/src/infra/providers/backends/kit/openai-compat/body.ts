@@ -29,7 +29,7 @@ export interface OpenAiSamplingInput {
   readonly maxTokens?: number | undefined;
 }
 
-// Header-name patterns that mark a secret (hoisted per useTopLevelRegex — runs per redaction).
+// Header-name patterns that mark a secret during redaction.
 const SECRET_HEADER_RE = /authorization|api[-_]?key|token|secret/i;
 
 // Shape-based fallbacks for the inspector body-preview scrub (hoisted; run per inspection). These are

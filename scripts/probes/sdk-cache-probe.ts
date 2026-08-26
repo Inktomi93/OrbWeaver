@@ -85,7 +85,6 @@ const SNIPPET = 80;
 const COST_DECIMALS = 5;
 /** Deterministic timestamp for the seeded api_system frame (base + one step past the seed frames). */
 const APISYS_TS_MS = 1_704_067_260_000;
-/** Recall matchers — top-level per the useTopLevelRegex discipline. */
 const KALVEX_RE = /kalvex/iu;
 const MARLA_RE = /marla/iu;
 const AMBER_RE = /amber/iu;

@@ -146,7 +146,7 @@ const LARGE_UNUSED_LIBRARY = Array.from({ length: 206 }, (_, index) => ({
   avatarHash: null,
 }));
 
-/** The dead-end note shape the diet deleted. Module scope: a regex rebuilt per call is `useTopLevelRegex`. */
+/** The dead-end note shape the diet deleted. */
 const COMPUTED_YET_NOTE = /computed yet/;
 /** The dead cost column — `$0.00` on every row of a local-model instance. */
 const MONEY_CELL = /\$\d/;

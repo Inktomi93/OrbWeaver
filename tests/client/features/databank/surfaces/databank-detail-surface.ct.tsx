@@ -24,7 +24,7 @@ const INGEST_GLOSS_TAIL = "passages feed into your chats as they happen";
 /** The buttonless invitation the CONTENT welcome used to end on (the two-Add-doors trim). */
 const ADD_ANOTHER_INVITE = "or add another";
 
-/** The side-agnostic pointer, and the directional one it replaced (top-level — `useTopLevelRegex`). */
+/** The side-agnostic pointer and the directional one it replaced. */
 const FROM_THE_LIST = /from the list/u;
 const DIRECTIONAL_COPY = /on the left/u;
 

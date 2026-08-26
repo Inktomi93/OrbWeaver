@@ -36,7 +36,6 @@ export const ADD_CREDENTIAL_DEFAULTS: AddCredentialFormValues = {
   responseMap: "",
 };
 
-// Splits a request-body exclude list on commas or newlines (hoisted per useTopLevelRegex).
 const KEY_LIST_SEPARATOR_RE = /[\n,]/;
 
 /** Parse a JSON-object text field to a plain object, or `null` when blank or not an object (the validator

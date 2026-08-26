@@ -286,7 +286,6 @@ const PATH_PREFIXES: readonly string[] = [
   "@orb/",
 ];
 
-// Trailing-token trim components (top-level per biome's useTopLevelRegex — a per-call literal re-compiles).
 const TRIM_ANCHOR_RE = /#[^)\s]*$/u;
 const TRIM_LINEREF_RE = /:\d+$/u;
 const TRIM_PUNCT_RE = /[:.,;)]+$/u;

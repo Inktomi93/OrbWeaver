@@ -159,7 +159,6 @@ const STATELESS = testConnection("vllm", "chat-completions");
 const SMALL_CAP = 200;
 const TRACE_SCAN_LIMIT = 50;
 const OUTER_REQUEST_ID = "i7-compaction-trace-outer-request";
-/** Hoisted: useTopLevelRegex. */
 const COMPACTION_REQUEST_ID_RE = /^compaction-turn:/;
 
 describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)", () => {

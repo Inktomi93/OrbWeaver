@@ -1,5 +1,3 @@
-// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TS/JSX fixture
-// snippets (long identifier runs the entropy heuristic false-fires on), not secrets.
 // Gate: no-effect-on-shared-selection (UI-Architecture-and-Layout.md §5.1) — §5.1 sanctions three
 // render-only reader shapes for the shared selection stores; what it bans is subscribe-and-EFFECT — a
 // `useEffect`/`useLayoutEffect` in features/** (app-shell exempt) keyed on an identifier TAINTED by a

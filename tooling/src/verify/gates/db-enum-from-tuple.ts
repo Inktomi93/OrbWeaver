@@ -1,5 +1,3 @@
-// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are drizzle schema
-// fixture snippets (sqliteTable(...) calls), not secrets.
 // Gate: db-enum-from-tuple — a db enum column must derive from a CONTRACTS tuple (an imported
 // @orb/contracts / @orb/kit tuple, or a local `as const satisfies readonly <ContractsType>[]`), never
 // an inline array literal (`{ enum: ["a","b"] }`) — inline re-spelling drifts from the union's one home.

@@ -1404,7 +1404,6 @@ describe("createTurnEngine — abort signal (FLAG[abort-into-engine] resolved)",
 // exactly like production — that nesting is the exact condition a non-detached root would have lost.
 const TRACE_SCAN_LIMIT = 50;
 const OUTER_REQUEST_ID = "i7-trace-outer-request";
-/** Hoisted: useTopLevelRegex. */
 const EXPR_REQUEST_ID_RE = /^expr-turn:/;
 const RPG_ABORT_REQUEST_ID_RE = /^rpg-turn-abort:/;
 const MEMORY_REQUEST_ID_RE = /^memory-turn:/;

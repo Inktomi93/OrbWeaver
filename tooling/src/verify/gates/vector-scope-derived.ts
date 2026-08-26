@@ -1,4 +1,3 @@
-// biome-ignore-all lint/security/noSecrets: mustFlag/mustPass fixture source strings (vector-table write/import snippets) are documentation-with-teeth, not secrets.
 // Gate: vector-scope-derived (D20; Knowledge-Cluster.md invariants 1-2) — the no-cross-user-leak
 // chokepoints on the vector substrate: WRITE (inv 1) — every insert/update/delete on the five vector
 // tables lives in domain/embeddings/persistence/; COSINE (inv 2) — `vector_distance_cos` in code only

@@ -28,8 +28,8 @@
 // make the code the user is watching flicker, so the pre-pass stands down entirely inside a fence.
 
 // A fence OPENER or CLOSER line — up to 3 leading spaces then 3+ backticks or tildes. Odd parity means
-// the tail is currently inside an unterminated fence. Hoisted (useTopLevelRegex) and read only through
-// `String.match`, which zeroes `lastIndex` itself — a `/g` regex driven by `.test()` carries state
+// the tail is currently inside an unterminated fence. Read only through `String.match`, which zeroes
+// `lastIndex` itself — a `/g` regex driven by `.test()` carries state
 // between calls and would silently alternate true/false.
 const FENCE_LINE_RE = /^ {0,3}(?:`{3,}|~{3,})/gm;
 

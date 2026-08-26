@@ -31,7 +31,7 @@ const emit = (event: ChatBusEvent): Promise<void> => {
   return Promise.resolve();
 };
 
-/** The D124 refusal's message — hoisted (a regex literal in a test body is a `useTopLevelRegex` error). */
+/** The D124 refusal message. */
 const BLANK_POST_RE = /blank post/u;
 
 describe("postNarratorMessage", () => {

@@ -1,5 +1,3 @@
-// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TS fixture snippets
-// (verb-file exports), not secrets.
 // Gate: verb-naming (Core-0 §4/§7) — a verb file exports a callable runtime create<Pascal(base)>.
 // COMMENT POSTURE: comment-SAFE — exported AST declarations and callable initializers only.
 // domain/<f>/verbs/**/<verb>.ts must export `create<Pascal(verb)>(ctx, deps?)` (e.g. create.ts →

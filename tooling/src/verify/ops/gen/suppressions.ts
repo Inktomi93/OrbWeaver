@@ -1,5 +1,5 @@
 // One-shot generator for tooling/src/verify/gates/suppressions.baseline.json — the ratchet floor the
-// suppressions gate reads. Runs the SAME detector the gate uses over every packages/*/src source and
+// suppressions gate reads. Runs the SAME detector and governed typed-source predicate as the gate and
 // writes {repo-relative path → its budget} for files with ≥1 site. Re-run this ONLY on a sanctioned bulk
 // shift; day-to-day the count can only fall.
 //
@@ -11,24 +11,23 @@ import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { serializeRow, writeLedgerFile } from "@orb/tooling/_shared/ratchet-rows";
-import { BASELINE_REL, classWhy, ratifiedSiteCount, srcRel, suppressionSites } from "../../gates/suppressions.ts";
-import { getProject } from "../../lib/harness.ts";
+import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import { BASELINE_REL, classWhy, governedSourceRel, ratifiedSiteCount, suppressionSites } from "../../gates/suppressions.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline suppressions");
 
-/** The gate file is every ratified row's CITE: it is the home of `RATIFIED_RULES`, where each rule's
- *  ruling / documented-tool-FP reason is written once instead of 184 times. */
+/** The gate file is every ratified row's cite: each rule's reason is written once, not copied per row. */
 const RULE_TABLE_HOME = "tooling/src/verify/gates/suppressions.ts";
 
 /** The `baseline suppressions` verb — the SINGLE writer of its committed baseline (GATE-AUTHORING §4.8). */
 export function generateSuppressionsBaseline(root: string): number {
-  const project = getProject(root);
+  const project = getWorkspace({ root });
   const rows: Record<string, number | Readonly<Record<string, unknown>>> = {};
   let total = 0;
   let ratifiedTotal = 0;
 
   for (const sf of project.getSourceFiles().sort((a, b) => a.getFilePath().localeCompare(b.getFilePath()))) {
-    const rel = srcRel(root, sf.getFilePath());
+    const rel = governedSourceRel(root, sf.getFilePath());
     if (rel === undefined) {
       continue;
     }

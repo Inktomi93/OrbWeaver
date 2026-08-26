@@ -65,7 +65,7 @@ const ZEAL = {
 
 const THREE = [TAGS[0], TAGS[1], ZEAL];
 
-/** The SortableList handle's per-row accessible name ("Reorder <tag>") — hoisted (useTopLevelRegex). */
+/** The SortableList handle's per-row accessible name (`Reorder <tag>`). */
 const REORDER_HANDLE = /Reorder/u;
 
 test("SORT MODE: the roster leads with MOST-USED by default and switches to A–Z", async ({ mount, page }) => {

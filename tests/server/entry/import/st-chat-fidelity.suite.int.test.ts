@@ -1,6 +1,5 @@
 // biome-ignore-all lint/style/useNamingConvention: ST chat-JSONL wire field names (snake_case) appear
 // verbatim in these fixtures — they ARE the format.
-// biome-ignore-all lint/security/noSecrets: ST @-date tokens in the fixture filenames are not secrets.
 // The DB-mediated ST-transcript fidelity round trip — the four planes the 2026-08-08 import-fidelity audit
 // (§5.1/§5.5/§5.6 + the owner's "imported chat names are ugly" report) found landing wrong or not at all.
 // Every assertion here reads a COLUMN or a ROLLUP, never an import-side shape: the REAL `importChats` verb

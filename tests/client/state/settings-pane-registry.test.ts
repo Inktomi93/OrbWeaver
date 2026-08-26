@@ -103,7 +103,6 @@ describe("resolveSettingsSections", () => {
 // The pin that makes S1 (patch minimality) a proof instead of a convention. Injected defaults, so the arms
 // are exercised against a fixture rather than the live contract shape.
 
-// Hoisted throw matchers (biome useTopLevelRegex — a literal re-compiled per call).
 const OVERLAP_AB = /claimed by BOTH "a" and "b"/;
 const OVERLAP_ONE_TWO = /claimed by BOTH "one" and "two"/;
 const NESTED_CLAIM = /NESTS with/;

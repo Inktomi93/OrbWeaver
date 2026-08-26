@@ -1,5 +1,4 @@
 // biome-ignore-all lint/style/useNamingConvention: ST chat-JSONL wire field names (snake_case) are the format.
-// biome-ignore-all lint/security/noSecrets: ST @-date tokens in the fixtures are not secrets.
 // Unit test for domain/import/verbs/importChatFile — the ONE single-transcript path (F8: this body used to
 // live inline at `entry/compose/portability.ts`, outside every domain test mirror, so its refusal copy and
 // its handle derivation had no coverage at all).

@@ -105,7 +105,7 @@ function chatDetail(role: ParticipantRole, roomOverrides: Record<string, string>
 
 // A minimal AssemblyPreview ({ prompt, trace }) — proves the Preview tab renders the assembled halves +
 // the trace without asserting the assembler's own logic (that is the server's read.int.test's lane).
-/** The Preview tab's System source-row drill-in trigger (regex hoisted per biome `useTopLevelRegex`). */
+/** The Preview tab's System source-row drill-in trigger. */
 const RE_SYSTEM_ROW = /System/;
 
 const PREVIEW = {

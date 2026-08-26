@@ -170,8 +170,7 @@ async function findJsonlFiles(root: string): Promise<string[]> {
 
 // ---------------------------------------------------------------------------------------
 // Classification helpers (heuristic, NOT a shell parser — good enough for census purposes;
-// documented approximations are called out where they matter). All regexes live at module
-// scope per biome's useTopLevelRegex.
+// documented approximations are called out where they matter).
 // ---------------------------------------------------------------------------------------
 
 const RE_HARNESS = /\b(?:pnpm|turbo|npm)\s+(?:run\s+)?(check|verify(?::push)?|test(?::[\w-]+)?|lint(?::[\w-]+)?|typecheck(?::[\w-]+)?|e2e(?::[\w-]+)?)\b/i;

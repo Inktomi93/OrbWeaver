@@ -43,17 +43,18 @@ test("async policy: raw void cannot own a rejecting Promise while await/catch/su
   }
 }, 15_000);
 
-test("async/test policy: Biome does not pressure loop parallelism or runner-status evasion", () => {
+test("syntax policy: Biome does not pressure unsafe async, runner-status, or regex rewrites", () => {
   const repoRoot = process.cwd();
   const biome = JSON.parse(readFileSync(join(repoRoot, "biome.json"), "utf8")) as {
     readonly linter?: {
       readonly rules?: {
-        readonly performance?: { readonly noAwaitInLoops?: string };
+        readonly performance?: { readonly noAwaitInLoops?: string; readonly useTopLevelRegex?: string };
         readonly suspicious?: { readonly noFocusedTests?: string; readonly noSkippedTests?: string };
       };
     };
   };
   expect(biome.linter?.rules?.performance?.noAwaitInLoops).toBe("off");
+  expect(biome.linter?.rules?.performance?.useTopLevelRegex).toBe("off");
   expect(biome.linter?.rules?.suspicious?.noSkippedTests).toBe("off");
   expect(biome.linter?.rules?.suspicious?.noFocusedTests).toBe("error");
 });

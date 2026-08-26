@@ -60,4 +60,17 @@ Widening the shared TypeScript harness is limited to adding scripts and TSX pari
 
 ## Census receipt
 
-Pending implementation. Final counts will name the invocation, scanned TS/TSX files for each governed root, directive sites, rule classes, admitted sites, and baseline-debt sites. A count without those partitions is not a budget receipt.
+Detector-equivalent invocation: build `getWorkspace({root})`, retain only `governedSourceRel`, and classify each retained file with `suppressionSites` plus `ratifiedSiteCount`. This is the gate/generator code path, not a text grep.
+
+| governed partition | TS scanned | TS sites | TSX scanned | TSX sites |
+| - | - | - | - | - |
+| `packages/*/src` | 2,342 | 99 | 694 | 58 |
+| `tooling/src` | 576 | 65 | 0 | 0 |
+| `scripts` excluding st-goldens | 28 | 22 | 0 | 0 |
+| authored `scripts/probes/st-goldens` | 5 | 66 | 0 | 0 |
+
+The shared project loaded 5,821 files. The predicate governed 3,645 files and excluded 2,176 test files; 161 governed files carried 310 directive sites across 48 rule classes. The generated ledger admits 310 ratified sites and zero debt. The five authored st-goldens files carry 38 live `useNamingConvention` markers: the narrower override re-enables the rule, and every marker names an external wire/schema/key spelling. The captured runtime contributes zero scanned files.
+
+The preserved behavior-sensitive classes have 17 `noUnnecessaryConditions`, 7 `useNullishCoalescing`, 8 `noExcessiveCognitiveComplexity`, and 11 `useErrorCause` sites. Exact site comments and `RATIFIED_RULES` carry their reasons. The retired populations were 24 current `noSecrets` directives and 4 `useTopLevelRegex` directives; all were deleted. The issue's earlier 25-marker noSecrets count was stale against the implementation tree.
+
+Raw `rg` was used only to find candidate marker spellings and confirm the two retired rule populations reached zero. It did not supply any baseline count.

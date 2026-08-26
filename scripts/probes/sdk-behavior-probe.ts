@@ -563,7 +563,6 @@ const SO_CELL_TIMEOUT_MS = 60_000;
 const SO_THINKING_AXIS_CELLS = 2;
 /** Decimal places for the USD cost total (sub-cent granularity). */
 const COST_DECIMALS = 4;
-/** Matches the "sonnet" resolved model for the thinking axis (top-level per useTopLevelRegex). */
 const SONNET_RE = /sonnet/iu;
 
 /** One classified structured-output cell outcome. */

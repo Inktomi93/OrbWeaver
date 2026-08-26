@@ -27,7 +27,6 @@ const TEST_DEADLINE_MS = 2000;
 const EVIL_REGEX = /(a+)+$/u;
 const EVIL_SUBJECT = `${"a".repeat(60)}!`;
 
-// Hoisted regex literals (biome useTopLevelRegex) used as find patterns + error matchers.
 const SWAP_WORDS = /(\w+)\s(\w+)/gu;
 const ISO_DATE = /(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})/gu;
 const DIGIT = /\d/gu;
@@ -40,7 +39,7 @@ const REPLACER_BOOM = /replacer boom/u;
 
 const noopReplacer: RegexReplacer = (match) => `[${String(match)}]`;
 
-// Benign key patterns for the `.test` watchdog's happy-path arms (hoisted — biome useTopLevelRegex).
+// Benign key patterns for the `.test` watchdog's happy-path arms.
 const DRAGON = /dragon/iu;
 const OK = /ok/u;
 
