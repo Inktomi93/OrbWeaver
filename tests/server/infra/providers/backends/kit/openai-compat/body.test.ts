@@ -121,10 +121,13 @@ describe("redactSecretsFromText", () => {
     expect(redactSecretsFromText(clean, [])).toBe(clean);
   });
 
-  test("skips too-short literals (collision-prone) rather than shredding legitimate text", () => {
-    // A 3-char "secret" must not blast every "abc" out of an unrelated body.
+  test("scrubs even short configured secret literals — configured credential semantics outrank collision risk", () => {
+    // Custom auth headers are user-defined and can be short; once a value is configured as a secret, an
+    // upstream reflection must not survive merely because the value is collision-prone.
     const body = '{"content":"the alphabet abc appears here"}';
-    expect(redactSecretsFromText(body, ["abc"])).toBe(body);
+    const redacted = redactSecretsFromText(body, ["abc"]);
+    expect(redacted).not.toContain("abc");
+    expect(redacted).toContain("«redacted»");
   });
 
   test("regex-meta in a secret literal is escaped (matched literally, not as a pattern)", () => {

@@ -25,6 +25,14 @@ describe("getOpenRouterCredits", () => {
     await expect(getOpenRouterCredits(client)).rejects.toMatchObject({ name: "ProviderError" });
   });
 
+  test("a credential-reflecting failure is scrubbed before it becomes a ProviderError", async () => {
+    const secret = "sk-or-account-reflected-123456";
+    const client: CreditsClient = {
+      credits: { getCredits: () => Promise.reject(new Error(`401 rejected ${secret}`)) },
+    };
+    await expect(getOpenRouterCredits(client, undefined, [secret])).rejects.toMatchObject({ message: expect.not.stringContaining(secret) });
+  });
+
   test("threads the signal through as the SDK options arg", async () => {
     const controller = new AbortController();
     const getCredits = vi.fn(() => Promise.resolve({ data: { totalCredits: 0, totalUsage: 0 } }));

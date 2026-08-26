@@ -172,6 +172,16 @@ describe("probeOpenAiEndpoint", () => {
     expect(reason).toContain("upstream refused");
   });
 
+  test("SCRUBS a short custom credential value instead of treating length as secret semantics", async () => {
+    vi.stubGlobal("fetch", () => {
+      throw new Error("upstream reflected configured value abc");
+    });
+    const health = await probeOpenAiEndpoint({ baseUrl: "https://byo.example.com/v1", apiKey: null, headers: { "x-api-key": "abc" } }, clock);
+    const reason = "reason" in health ? health.reason : "";
+    expect(reason).not.toContain("abc");
+    expect(reason).toContain("«redacted»");
+  });
+
   test("reads the STATUS only — an over-cap body never reaches the health result", async () => {
     // fetchOpenAiModels drops an over-cap body via safeFetch's reader; the probe never opens the body at all,
     // so a hostile endpoint's bytes cannot ride a health check back to the user.

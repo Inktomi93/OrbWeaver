@@ -592,4 +592,27 @@ describe("createOpenRouterBackend — summarize observability (wire capture + pr
       message: expect.stringContaining("No endpoints found that can handle the requested parameters"),
     });
   });
+
+  test("a batch failure scrubs the request credential from message, upstream body, and retained cause", async () => {
+    const reflected = Object.assign(new Error(`Response validation failed for ${OR_KEY}`), {
+      statusCode: 401,
+      body: JSON.stringify({ error: { message: `echo ${OR_KEY}`, code: 401 } }),
+    });
+    const { backend } = backendWith(() => {
+      throw reflected;
+    });
+    let caught: unknown;
+    try {
+      await callSummarize(backend, { credential: CRED, model: haikuModel, inputs: [{ systemPrompt: "sys", userPrompt: "one" }] });
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(ProviderError);
+    const providerError = caught as ProviderError;
+    expect(providerError.message).not.toContain(OR_KEY);
+    expect(JSON.stringify(providerError.toLog())).not.toContain(OR_KEY);
+    expect(providerError.cause).not.toBe(reflected);
+    expect((providerError.cause as Error).message).not.toContain(OR_KEY);
+  });
 });

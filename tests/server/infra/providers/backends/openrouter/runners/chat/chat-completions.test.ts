@@ -8,13 +8,13 @@
 // type-guard narrows the stream); clock + jitter injected.
 
 import type { ModelCapability } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import type { OpenRouterChatRequest } from "@orb/server/infra/providers";
 import { placeHistoryCacheBreakpoint, runChatCompletionTurn } from "@orb/server/infra/providers/backends/openrouter";
 import { describe, vi } from "vitest";
+import { makeOpenRouterCredential } from "../../../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../../../support/fixtures.ts";
 
 const FIXED_NOW = 1000;
@@ -32,12 +32,7 @@ const CAPABILITY: ModelCapability = {
   context: { window: 200_000 },
 };
 
-// FABRICATION-OK: ResolvedCredential is brand-sealed (unique symbol) — only the domain mint factory can produce one; the standard test-side workaround.
-const CRED = {
-  source: "openrouter",
-  apiKey: "sk-or-secret",
-  credentialId: null,
-} as unknown as ResolvedCredential;
+const CRED = makeOpenRouterCredential({ apiKey: "sk-or-secret" });
 
 type ChatClient = Parameters<typeof runChatCompletionTurn>[0];
 
@@ -494,6 +489,20 @@ describe("runChatCompletionTurn — retry + error classification", () => {
       kind: "auth_failed",
       retryable: false,
     });
+  });
+
+  test("an upstream error reflecting the OpenRouter key is scrubbed before the error crosses the backend", async () => {
+    const client: ChatClient = {
+      chat: {
+        send: (): Promise<unknown> => Promise.reject(Object.assign(new Error(`bad key ${CRED.apiKey}`), { statusCode: 401 })),
+      },
+    };
+    const caught = await runChatCompletionTurn(client, makeRequest(), DEPS).catch((error: unknown): unknown => error);
+    expect(caught).toBeInstanceOf(Error);
+    const providerError = caught as Error;
+    expect(providerError.message).not.toContain(CRED.apiKey);
+    expect(providerError.cause).toBeInstanceOf(Error);
+    expect((providerError.cause as Error).message).not.toContain(CRED.apiKey);
   });
 
   test("mandatory-reasoning endpoint: an effort:none 400 strips reasoning and replays ONCE", async () => {

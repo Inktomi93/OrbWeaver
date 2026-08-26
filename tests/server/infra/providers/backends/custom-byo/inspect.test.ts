@@ -141,6 +141,24 @@ describe("inspectCustomByoEndpoint", () => {
     expect(result.error).toContain("ECONNREFUSED");
   });
 
+  test("scrubs reflected credential values from a thrown transport error before inspector display", async () => {
+    const customHeaderSecret = "custom-header-secret-reflected";
+    vi.stubGlobal("fetch", (): never => {
+      throw new Error(`transport rejected ${SECRET_KEY} and ${customHeaderSecret}`);
+    });
+    const result = await inspectCustomByoEndpoint({
+      baseUrl: BASE_URL,
+      apiKey: SECRET_KEY,
+      headers: { "x-api-key": customHeaderSecret },
+      model: "m",
+      includeBody: null,
+      excludeBody: null,
+    });
+    expect(result.error).not.toContain(SECRET_KEY);
+    expect(result.error).not.toContain(customHeaderSecret);
+    expect(result.error).toContain("«redacted»");
+  });
+
   test("applies includeBody/excludeBody transforms to the probe body (PD-13)", async () => {
     let sentBody: unknown = null;
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {

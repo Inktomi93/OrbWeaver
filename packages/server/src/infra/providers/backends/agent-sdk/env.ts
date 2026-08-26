@@ -8,10 +8,12 @@ import { existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { isUnsafeClaudeRuntimeEnvKey } from "@orb/contracts/preset";
 import { processEnvSnapshot } from "#foundation/env";
 import type { OrSkinTierModels } from "../../contract/index.ts";
 
-// Non-Claude-namespaced app secrets the child has no business seeing (the Claude/Anthropic namespace is stripped wholesale below).
+// Non-Claude-namespaced app secrets the child has no business seeing. These stay enumerated for the
+// entrypoint parity test even though the ambient baseline below is now allowlisted, not copied then denied.
 //
 // COUPLED SITE — the container's `*_FILE` secret shim, `docker/entrypoint.sh`. That shim EXPORTS each of
 // these into the server's process.env from a mounted file, and `processEnvSnapshot()` below is what this
@@ -27,9 +29,9 @@ const HOST_SECRET_ENV_KEYS = [
   "LOCAL_INITIAL_PASSWORD",
 ] as const;
 
-// The whole Claude/Anthropic namespace is stripped from the baseline so an ambient operator shell (e.g. a
-// Claude Code session) can't leak entrypoint identity/tool surface/routing into the spawn; everything we
-// need is re-added after the baseline.
+// The whole Claude/Anthropic namespace is excluded from the supported baseline so an ambient operator
+// shell can't leak entrypoint identity/tool surface/routing into the spawn; runtime-owned values are added
+// explicitly after the baseline.
 const CLAUDE_ENV_PREFIXES = ["CLAUDE", "ANTHROPIC"] as const;
 /** Extra ambient control knobs outside the CLAUDE/ANTHROPIC prefixes but still Claude behavior. */
 const CLAUDE_ENV_EXACT_KEYS = new Set<string>(["MAX_THINKING_TOKENS"]);
@@ -37,17 +39,44 @@ function isAmbientClaudeEnvKey(key: string): boolean {
   return CLAUDE_ENV_PREFIXES.some((p) => key.startsWith(p)) || CLAUDE_ENV_EXACT_KEYS.has(key);
 }
 
+// Ambient process state is untrusted at the subprocess boundary. These are the host conveniences the
+// bundled runtime actually needs; everything else (including NODE_OPTIONS, NODE_PATH, loader preloads and
+// language search paths) stays out unless it is an explicitly supported runner-owned knob.
+const SUPPORTED_HOST_ENV_KEYS = [
+  "HOME",
+  "PATH",
+  "USER",
+  "LOGNAME",
+  "SHELL",
+  "TMPDIR",
+  "TMP",
+  "TEMP",
+  "LANG",
+  "LC_ALL",
+  "LC_CTYPE",
+  "TZ",
+  "TERM",
+  "COLORTERM",
+  "HTTP_PROXY",
+  "HTTPS_PROXY",
+  "NO_PROXY",
+  "http_proxy",
+  "https_proxy",
+  "no_proxy",
+  "SSL_CERT_FILE",
+  "SSL_CERT_DIR",
+  "NODE_EXTRA_CA_CERTS",
+] as const;
+
 function hostEnvForClaudeChild(): Record<string, string | undefined> {
-  const base = processEnvSnapshot();
-  for (const key of HOST_SECRET_ENV_KEYS) {
-    delete base[key];
-  }
-  for (const key of Object.keys(base)) {
-    if (isAmbientClaudeEnvKey(key)) {
-      delete base[key];
+  const source = processEnvSnapshot();
+  const out: Record<string, string | undefined> = {};
+  for (const key of SUPPORTED_HOST_ENV_KEYS) {
+    if (!(HOST_SECRET_ENV_KEYS.includes(key) || isAmbientClaudeEnvKey(key))) {
+      out[key] = source[key];
     }
   }
-  return base;
+  return out;
 }
 
 /** Per-turn knobs written into the agent-sdk subprocess env. Boolean fields opt OUT with `=== false`,
@@ -130,6 +159,9 @@ function claudeUserEnv(userOverrides: Record<string, string | null> | undefined)
   }
   const out: Record<string, string | undefined> = {};
   for (const [k, v] of Object.entries(userOverrides)) {
+    if (isUnsafeClaudeRuntimeEnvKey(k)) {
+      throw new Error(`agent-sdk env: unsafe runtime environment key "${k}" is forbidden`);
+    }
     if (RESERVED_CLAUDE_ENV_KEYS.has(k)) {
       continue;
     }
