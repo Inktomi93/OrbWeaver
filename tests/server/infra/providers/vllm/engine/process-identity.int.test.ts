@@ -21,6 +21,9 @@ import {
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 const FILE_MODE_MODULUS = 0o1000;
+const MANUAL_CLEANUP_RE = /manual cleanup|relaunch/u;
+const OWNERSHIP_HEURISTIC_RE = /PGID\/cwd\/argv do not prove ownership/u;
+const RELAUNCH_GUIDANCE_RE = /relaunch|clean manually/u;
 
 const OBSERVED: ObservedEngineProcess = {
   pid: 4242,
@@ -124,7 +127,7 @@ test("a stale or foreign target is refused before the signal syscall", () => {
   expect(calls).toEqual([]);
 });
 
-test("orphan recovery signals only a stable survivor in the recorded group after the leader is absent", () => {
+test("orphan recovery refuses a stable same-group survivor after the durable leader is absent", () => {
   const survivor = { ...OBSERVED, pid: 5000, pgid: IDENTITY.pgid };
   const calls: Array<readonly [number, NodeJS.Signals]> = [];
   const readProcess = (pid: number): ObservedEngineProcess | null => {
@@ -134,13 +137,13 @@ test("orphan recovery signals only a stable survivor in the recorded group after
     return pid === survivor.pid ? survivor : null;
   };
   expect(signalOrphanedEngineGroup(IDENTITY, survivor.pid, "SIGKILL", { readProcess, kill: (target, signal) => calls.push([target, signal]) })).toEqual({
-    verdict: "signaled",
-    pgid: IDENTITY.pgid,
+    verdict: "refused",
+    reason: expect.stringMatching(MANUAL_CLEANUP_RE),
   });
-  expect(calls).toEqual([[-IDENTITY.pgid, "SIGKILL"]]);
+  expect(calls).toEqual([]);
 });
 
-test("leader reuse, foreign PGID, and changing survivor identity receive zero signals", () => {
+test("leader reuse and every absent-leader survivor shape receive zero signals", () => {
   const calls: number[] = [];
   const survivor = { ...OBSERVED, pid: 5000, pgid: IDENTITY.pgid };
   expect(
@@ -223,64 +226,35 @@ test("a launch identity captured from a disposable owned process can stop its ow
   }
 });
 
-test("a genuinely owned survivor is reaped only through its recorded process group", async () => {
+test("the reaper refuses an absent recorded leader and emits manual-cleanup guidance", async () => {
   const repoRoot = mkdtempSync(path.join(tmpdir(), "orb-owned-orphan-"));
-  const leaderScript = [
-    'const { spawn } = require("node:child_process")',
-    'const child = spawn(process.execPath, ["-e", "setInterval(() => undefined, 60_000)", "VLLM::EngineCore"], { stdio: "ignore" })',
-    "console.log(child.pid)",
-    "setInterval(() => undefined, 60_000)",
-  ].join(";");
-  const leader = spawn(process.execPath, ["-e", leaderScript], { cwd: repoRoot, detached: true, stdio: ["ignore", "pipe", "ignore"] });
-  await once(leader, "spawn");
-  const leaderPid = leader.pid;
-  expect(leaderPid).toBeGreaterThan(1);
-  if (leaderPid === undefined || leaderPid <= 1 || leader.stdout === null) {
-    throw new Error("owned-orphan test did not receive a safe leader");
-  }
-  const [chunk] = (await once(leader.stdout, "data")) as [Buffer];
-  const survivorPid = Number(chunk.toString("utf8").trim());
-  expect(survivorPid).toBeGreaterThan(1);
   try {
-    const identity = captureEngineLaunchIdentity("gen", 8703, repoRoot, leaderPid);
-    expect(identity).not.toBeNull();
-    if (identity === null) {
-      throw new Error("owned-orphan test could not capture leader identity");
-    }
+    const identity: EngineLaunchIdentity = { ...IDENTITY, repoRoot, cwd: repoRoot };
     writeEngineLaunchIdentities(repoRoot, [identity]);
-    const exited = once(leader, "exit");
-    leader.kill("SIGTERM");
-    await exited;
-    expect(() => process.kill(survivorPid, 0)).not.toThrow();
-    expect(await reapOrphanedFamily(repoRoot)).toEqual([leaderPid]);
+    const warnings: string[] = [];
+    expect(await reapOrphanedFamily(repoRoot, { readProcess: () => null, warn: (_fields, message) => warnings.push(message) })).toEqual([]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(OWNERSHIP_HEURISTIC_RE);
+    expect(warnings[0]).toMatch(RELAUNCH_GUIDANCE_RE);
   } finally {
-    try {
-      process.kill(-leaderPid, "SIGKILL");
-    } catch {
-      // The reaper should already have removed the owned disposable group.
-    }
     rmSync(repoRoot, { force: true, recursive: true });
   }
 });
 
-test("a disposable foreign same-cwd process with vllm serve in argv receives zero reaper signals", async () => {
+test("missing durable state never consults the process table", async () => {
   const repoRoot = mkdtempSync(path.join(tmpdir(), "orb-foreign-engine-"));
-  const child = spawn(process.execPath, ["-e", "setInterval(() => undefined, 60_000)", "vllm serve"], { cwd: repoRoot, detached: true, stdio: "ignore" });
-  await once(child, "spawn");
-  const pid = child.pid;
-  expect(pid).toBeGreaterThan(1);
-  if (pid === undefined || pid <= 1) {
-    throw new Error("foreign-process test did not receive a safe child pid");
-  }
   try {
-    expect(await reapOrphanedFamily(repoRoot)).toEqual([]);
-    expect(() => process.kill(pid, 0)).not.toThrow();
+    let reads = 0;
+    expect(
+      await reapOrphanedFamily(repoRoot, {
+        readProcess: () => {
+          reads += 1;
+          return OBSERVED;
+        },
+      }),
+    ).toEqual([]);
+    expect(reads).toBe(0);
   } finally {
-    try {
-      process.kill(-pid, "SIGKILL");
-    } catch {
-      // Test owns this disposable group; it may have exited independently.
-    }
     rmSync(repoRoot, { force: true, recursive: true });
   }
 });

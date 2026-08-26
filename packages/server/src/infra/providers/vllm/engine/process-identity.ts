@@ -56,17 +56,6 @@ type EngineSignalVerdict =
   | { readonly verdict: "signaled"; readonly pgid: number }
   | Extract<EngineOwnershipVerdict, { readonly verdict: "absent" | "refused" }>;
 
-function sameObservedProcess(left: ObservedEngineProcess, right: ObservedEngineProcess): boolean {
-  return (
-    left.pid === right.pid &&
-    left.pgid === right.pgid &&
-    left.startTicks === right.startTicks &&
-    left.executable === right.executable &&
-    left.cmdlineBase64 === right.cmdlineBase64 &&
-    left.cwd === right.cwd
-  );
-}
-
 const engineSchema = z.enum(VLLM_ENGINES);
 const positiveProcessId = z.number().int().gt(1);
 const base64Cmdline = z
@@ -277,20 +266,11 @@ export function signalEngineLaunchIdentity(
   }
 }
 
-function liveOrReusedLeaderVerdict(identity: EngineLaunchIdentity, leader: ObservedEngineProcess | null): EngineSignalVerdict | null {
-  if (leader === null) {
-    return null;
-  }
-  const verdict = verifyEngineLaunchIdentity(identity, leader, {
-    engine: identity.engine,
-    port: identity.port,
-    repoRoot: identity.repoRoot,
-    listenerPid: identity.pid,
-  });
-  return verdict.verdict === "owned" ? { verdict: "absent", reason: `recorded leader pid ${identity.pid} still owns the engine group` } : verdict;
-}
-
-/** Recover a recorded process group after its setsid leader died, re-verifying immediately before signal. */
+/**
+ * Legacy orphan-cleanup door, deliberately disabled. The durable record proves only its recorded leader;
+ * once that leader is gone, PGID/cwd/argv-shaped survivors carry no launch identity and may never authorize
+ * a negative-PGID signal. Keep the refusal here while callers migrate so stale code fails closed.
+ */
 export function signalOrphanedEngineGroup(
   identity: EngineLaunchIdentity,
   survivorPid: number,
@@ -304,27 +284,22 @@ export function signalOrphanedEngineGroup(
     return { verdict: "refused", reason: "orphan recovery requires a safe recorded group and a distinct survivor" };
   }
   const readProcess = opts.readProcess ?? readObservedEngineProcess;
-  const leaderVerdict = liveOrReusedLeaderVerdict(identity, readProcess(identity.pid));
-  if (leaderVerdict !== null) {
-    return leaderVerdict;
+  const leader = readProcess(identity.pid);
+  if (leader === null) {
+    return {
+      verdict: "refused",
+      reason: `recorded engine leader pid ${identity.pid} is absent; refusing ${signal} for survivor pid ${survivorPid}; manual cleanup or relaunch required`,
+    };
   }
-  const first = readProcess(survivorPid);
-  if (first === null || first.pgid !== identity.pgid || first.cwd !== identity.repoRoot) {
-    return { verdict: "refused", reason: `pid ${survivorPid} is not decisively related to recorded engine group ${identity.pgid}` };
-  }
-  const second = readProcess(survivorPid);
-  if (readProcess(identity.pid) !== null || second === null || !sameObservedProcess(first, second)) {
-    return { verdict: "refused", reason: "engine group identity changed during orphan recovery" };
-  }
-  try {
-    (opts.kill ?? process.kill)(-identity.pgid, signal);
-    return { verdict: "signaled", pgid: identity.pgid };
-  } catch (error) {
-    const code = error instanceof Error && "code" in error ? (error as Error & { readonly code?: unknown }).code : undefined;
-    return code === "ESRCH"
-      ? { verdict: "absent", reason: `owned engine group ${identity.pgid} exited before ${signal}` }
-      : { verdict: "refused", reason: `could not signal verified orphaned engine group ${identity.pgid}` };
-  }
+  const verdict = verifyEngineLaunchIdentity(identity, leader, {
+    engine: identity.engine,
+    port: identity.port,
+    repoRoot: identity.repoRoot,
+    listenerPid: identity.pid,
+  });
+  return verdict.verdict === "owned"
+    ? { verdict: "refused", reason: `recorded engine leader pid ${identity.pid} is still live; orphan cleanup is not applicable` }
+    : verdict;
 }
 
 /** Read the durable record and route through the same verifier. Missing/malformed state never reaches kill. */
