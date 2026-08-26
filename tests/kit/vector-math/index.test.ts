@@ -32,6 +32,10 @@ test("mean is the component-wise centroid; throws on empty input", () => {
   expect(() => mean([])).toThrow("empty");
 });
 
+test("mean rejects a dimension mismatch instead of padding the short vector with zeros", () => {
+  expect(() => mean([v(1, 2), v(3)])).toThrow("mean: vector dim mismatch (got 1, expected 2)");
+});
+
 test("pairwiseCosine builds a flat N×N row-major matrix, diagonal = 1", () => {
   const { sim, n } = pairwiseCosine([v(1, 0), v(0, 1), v(1, 0)]);
   expect(n).toBe(3);
@@ -48,6 +52,10 @@ test("pairwiseCosine on an empty list is an empty result", () => {
   expect(sim.length).toBe(0);
 });
 
+test("pairwiseCosine rejects a dimension mismatch consistently with cosineSim", () => {
+  expect(() => pairwiseCosine([v(1, 0), v(1, 0, 0)])).toThrow("pairwiseCosine: vector dim mismatch (got 3, expected 2)");
+});
+
 test("cosineToMany scores one target against each candidate", () => {
   const out = cosineToMany(v(1, 0), [v(2, 0), v(0, 9), v(1, 1)]);
   expect(out.length).toBe(3);
@@ -58,4 +66,8 @@ test("cosineToMany scores one target against each candidate", () => {
 
 test("cosineToMany with no candidates is empty", () => {
   expect(cosineToMany(v(1, 0), []).length).toBe(0);
+});
+
+test("cosineToMany rejects a dimension mismatch consistently with cosineSim", () => {
+  expect(() => cosineToMany(v(1, 0), [v(1, 0), v(1)])).toThrow("cosineToMany: vector dim mismatch (got 1, expected 2)");
 });

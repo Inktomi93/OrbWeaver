@@ -90,3 +90,9 @@ test("hasProseToken is REPEATABLE — the cached regex is global, and a stateful
   expect(spliceProseTokens(text, { note: "x" })).toBe("[Note from user: x]");
   expect(hasProseToken(text, "note")).toBe(true);
 });
+
+test("dynamic token names are treated literally rather than as regular-expression syntax", () => {
+  const text = "Value: {{ a+b }}; untouched: {{ aaab }}";
+  expect(hasProseToken(text, "a+b")).toBe(true);
+  expect(spliceProseTokens(text, { "a+b": "literal" })).toBe("Value: literal; untouched: {{ aaab }}");
+});

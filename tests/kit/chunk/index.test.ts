@@ -41,6 +41,10 @@ describe("chunkText — edge inputs (totality)", () => {
       expect(maxSpan(chunks)).toBeLessThanOrEqual(params.chunkSize);
     }
   });
+
+  test.each([0, -1, 0.5])("chunkSize %s is rejected before recursive splitting", (chunkSize) => {
+    expect(() => chunkText("a document that must split", P({ chunkSize, wholeFileThreshold: 0 }))).toThrow("chunkSize must be at least 1");
+  });
 });
 
 describe("chunkText — the normative properties over structured text", () => {

@@ -352,16 +352,16 @@ export function resolveProseFrom(slot: ProseSlotDef, override: ProseOverride | u
 }
 
 // The pre-substitution token regexes, memoized by token NAME (an assembler resolves the same handful of
-// frames per member per turn, so a per-call `new RegExp` would recompile them forever). Names are code
-// constants from the slot table — never host or user input — so there is nothing to escape. The
-// `useTopLevelRegex` lint's sanctioned shape: build once, cache, reuse.
+// frames per member per turn, so a per-call `new RegExp` would recompile them forever). The exported
+// splice/recognizer accept string-keyed records, so escape each name before interpolating it. The
+// `useTopLevelRegex` lint's sanctioned shape remains: build once, cache, reuse.
 const tokenReByName = new Map<string, RegExp>();
 function tokenRe(name: string): RegExp {
   const cached = tokenReByName.get(name);
   if (cached !== undefined) {
     return cached;
   }
-  const re = new RegExp(`\\{\\{\\s*${name}\\s*\\}\\}`, "gi");
+  const re = new RegExp(`\\{\\{\\s*${RegExp.escape(name)}\\s*\\}\\}`, "gi");
   tokenReByName.set(name, re);
   return re;
 }
