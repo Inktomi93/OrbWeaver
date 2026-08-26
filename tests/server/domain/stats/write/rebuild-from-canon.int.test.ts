@@ -3,9 +3,8 @@
 // a known canon graph, and that a re-run is idempotent (the atomic per-owner delete+replace, esoteric #11).
 
 import type { Db } from "@orb/db";
-import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import { characterStats, chats, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { utcDay } from "@orb/kit/stats-tally";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -18,13 +17,14 @@ import { seedCharacter, seedChat, seedMessage, seedPersona, seedUser, T0 } from 
 let db: Db;
 let ownerId: UserId;
 let characterId: CharacterId;
+let chatId: ChatId;
 
 beforeEach(async () => {
   db = await freshDb();
   ownerId = await seedUser(db);
   characterId = await seedCharacter(db, ownerId, { name: "Aria" });
   const personaId = await seedPersona(db, ownerId);
-  const chatId = await seedChat(db, characterId, { createdAt: T0, updatedAt: T0 + 1000 });
+  chatId = await seedChat(db, characterId, { createdAt: T0, updatedAt: T0 + 1000 });
   // A user turn (2 words, no economics).
   await seedMessage(db, {
     chatId,
@@ -131,7 +131,6 @@ describe("reconcileStats", () => {
     // scanned via ownerChatIds (the chat is in scope through its character participant), credits the HOST's
     // owner/day/model grains, and NEVER creates a character_stats row (foldMessage guards `cid !== null`).
     // This matches the LIVE `assistantTurnDelta({characterId:null})` twin — no drift.
-    const chatId = castId<ChatId>("chat_a"); // the beforeEach room (host owns `characterId`)
     await seedMessage(db, {
       chatId,
       seq: 3,
@@ -177,5 +176,48 @@ describe("reconcileStats", () => {
     const chars = await db.select().from(characterStats);
     expect(chars).toHaveLength(1); // replaced, not duplicated
     expect(owner?.computedAt).toBe(T0 + 2); // MAX(computedAt) — the advanced second run wins
+  });
+
+  test("a canon write held inside the scan is included instead of being overwritten by the stale rebuild", async () => {
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    let allCalls = 0;
+    const heldDb = new Proxy(db, {
+      get(target, prop): unknown {
+        const value = Reflect.get(target, prop, target);
+        if (prop === "all" && typeof value === "function") {
+          return async (...args: unknown[]): Promise<unknown> => {
+            allCalls++;
+            if (allCalls === 4) {
+              entered.resolve();
+              await release.promise;
+            }
+            return Reflect.apply(value, target, args);
+          };
+        }
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as Db;
+
+    const rebuilding = reconcileStats(heldDb, { ownerId, now: () => T0 + 3000 });
+    await entered.promise;
+    await seedMessage(db, {
+      chatId,
+      seq: 3,
+      role: "assistant",
+      characterId,
+      createdAt: T0 + 2000,
+      variants: [{ content: "arrived during rebuild", model: "gpt", provider: "openrouter" }],
+    });
+    await db
+      .update(chats)
+      .set({ updatedAt: T0 + 2000 })
+      .where(eq(chats.id, chatId));
+    release.resolve();
+    await rebuilding;
+
+    const owner = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
+    expect(owner?.assistantTurns).toBe(2);
+    expect(owner?.assistantWords).toBe(6);
   });
 });

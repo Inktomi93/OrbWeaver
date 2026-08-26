@@ -10,6 +10,7 @@ import type { Db } from "@orb/db";
 // from `persistence/`, which is the sanctioned home for exactly that (own-tables-only scopes `persistence/`
 // out; `search/persistence/nearest.ts` joins the same table for the same reason).
 import { characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, documentChunks, documents, imageEmbeddings, imageIndexSkips } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type {
   AssetId,
@@ -293,14 +294,23 @@ interface UpsertDigestInput {
   readonly model: string;
   readonly dim: number;
   readonly now: number;
+  /** The complete speaker projection for this digest. Replaced in the same atomic batch as the digest. */
+  readonly speakerCharacterIds: readonly CharacterId[];
 }
 
-/** Upsert a distilled digest by `(chatId, scopedCharacterId, tier, blockIdx, model)`. Returns the persisted
- *  row's id — on conflict the kept id differs from the freshly-minted `input.id`, so the caller writes the
- *  `chat_digest_speakers` join against this id, never the mint. `model` is in the conflict key (PD-104): a
- *  new space inserts additively rather than overwriting the old space in place. */
+/** Upsert a distilled digest by `(chatId, scopedCharacterId, tier, blockIdx, model)` and replace its speaker
+ *  projection in the SAME batch. Returns the persisted row's id — on conflict the kept id differs from the
+ *  freshly-minted `input.id`. `model` is in the conflict key (PD-104): a new space inserts additively rather
+ *  than overwriting the old space in place. */
 export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promise<ChatDigestId> {
-  const rows = await db
+  const key = and(
+    eq(chatDigests.chatId, input.chatId),
+    eq(chatDigests.scopedCharacterId, input.scopedCharacterId),
+    eq(chatDigests.tier, input.tier),
+    eq(chatDigests.blockIdx, input.blockIdx),
+    eq(chatDigests.model, input.model),
+  );
+  const upsert = db
     .insert(chatDigests)
     .values({
       id: input.id,
@@ -331,22 +341,27 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
       },
     })
     .returning({ id: chatDigests.id });
+  const digestId = db.select({ id: chatDigests.id }).from(chatDigests).where(key).limit(LIMIT_ONE);
+  const statements: BatchStmt[] = [batchStmt(upsert), batchStmt(db.delete(chatDigestSpeakers).where(inArray(chatDigestSpeakers.digestId, digestId)))];
+  for (const characterId of input.speakerCharacterIds) {
+    statements.push(
+      batchStmt(
+        db
+          .insert(chatDigestSpeakers)
+          .select(
+            db
+              .select({ digestId: chatDigests.id, characterId: sql<CharacterId>`${characterId}`.as("character_id") })
+              .from(chatDigests)
+              .where(key),
+          )
+          .onConflictDoNothing(),
+      ),
+    );
+  }
+  await db.batch(batchMany(statements));
+  const rows = await digestId;
   // INSERT-or-UPDATE always affects exactly the one row keyed by (chatId, scopedCharacterId, tier, blockIdx).
   return rows[0]?.id ?? input.id;
-}
-
-/** Replace a digest's `chat_digest_speakers` join: delete the existing rows, then insert the new speaker
- *  set. Runs only on the written path — a noop upsert leaves the join intact. */
-export async function replaceDigestSpeakers(db: Db, digestId: ChatDigestId, characterIds: readonly CharacterId[]): Promise<void> {
-  await db.delete(chatDigestSpeakers).where(eq(chatDigestSpeakers.digestId, digestId));
-  if (characterIds.length === 0) {
-    return;
-  }
-  // The composite PK (digest_id, character_id) dedupes a repeated speaker in one block at the DB.
-  await db
-    .insert(chatDigestSpeakers)
-    .values(characterIds.map((characterId) => ({ digestId, characterId })))
-    .onConflictDoNothing();
 }
 
 /** The stored `content_hash` for a document chunk `(documentId, chunkIdx, model)`, or `undefined` when no row
