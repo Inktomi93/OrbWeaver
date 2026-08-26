@@ -57,8 +57,6 @@ describe("pairsAboveThreshold", () => {
 
   test("refuses the first qualifying pair beyond the output bound", () => {
     const vecs = [v(1), v(1), v(1)]; // three qualifying pairs
-    expect(() => pairsAboveThreshold(vecs, [0, 0, 0], 0.9, { maxVectors: 3, maxPairs: 2 })).toThrow(
-      "pair scan output limit exceeded: more than 2 pairs",
-    );
+    expect(() => pairsAboveThreshold(vecs, [0, 0, 0], 0.9, { maxVectors: 3, maxPairs: 2 })).toThrow("pair scan output limit exceeded: more than 2 pairs");
   });
 });

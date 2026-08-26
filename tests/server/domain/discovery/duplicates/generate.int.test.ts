@@ -194,11 +194,7 @@ describe("computeDuplicatePairs", () => {
     // corpus must be refused rather than replacing the valid one-pair set with a prefix.
     const remaining = Array.from({ length: 141 }, (_, i) => i + 2);
     const ids = await Promise.all(remaining.map((i) => seedCharacter(db, { id: `character_bound_${i}`, ownerId: owner })));
-    await Promise.all(
-      ids.map((characterId, i) =>
-        seedCharacterEmbedding(db, { characterId, embedding: vec(1), contentHash: `bound-hash-${i + 2}` }),
-      ),
-    );
+    await Promise.all(ids.map((characterId, i) => seedCharacterEmbedding(db, { characterId, embedding: vec(1), contentHash: `bound-hash-${i + 2}` })));
 
     await expect(svc.computeDuplicatePairs()).rejects.toThrow("pair scan output limit exceeded: more than 10000 pairs");
     expect(await db.select().from(duplicateCharacterPairs)).toHaveLength(1);
