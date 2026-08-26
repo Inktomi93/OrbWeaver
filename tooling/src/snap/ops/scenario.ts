@@ -13,7 +13,7 @@ import type { Args, CaptureOutcome, ScenarioCheckpoint, ScenarioSpec, SessionCou
 import { HTTP_URL_RE, shouldProduceShot } from "../lib/out-names.ts";
 import { capture } from "./capture.ts";
 import { refuseFileMode, snapDestination } from "./guards.ts";
-import { writeManifestIfRequested } from "./manifest.ts";
+import { appliedAcrossContexts, writeManifestIfRequested } from "./manifest.ts";
 import { consoleFailureCounts, isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
 import { parseSnapArgs } from "./parse.ts";
 import { consoleForEvidence, pageErrorsForEvidence, printCaptureLog, printCheckpointScope, printPageReport, sessionForEvidence } from "./report.ts";
@@ -315,7 +315,15 @@ export async function snapScenario(opts: Args): Promise<number> {
       colorScheme: first.colorScheme,
       reducedMotion: first.reducedMotion || first.probe,
       appearance: first.appearance,
+      appearanceApplied: appliedAcrossContexts(
+        first.appearance !== null,
+        session.contexts.map((context) => context.settingsEvidence.appearanceApplied),
+      ),
       theme: first.theme,
+      themeApplied: appliedAcrossContexts(
+        first.theme !== null,
+        session.contexts.map((context) => context.settingsEvidence.themeApplied),
+      ),
     },
     failures: failureSummary,
     traces: artifacts.traces,

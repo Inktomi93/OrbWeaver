@@ -24,9 +24,13 @@ interface SnapManifest {
      *  null when the run drove the account's real state — so a manifest never leaves which arm it measured
      *  to be inferred from the command line. */
     readonly appearance: AppearancePatch | null;
+    /** Whether the requested appearance patch reached at least one real settings envelope in every context. */
+    readonly appearanceApplied: boolean | null;
     /** The ACTIVE-THEME arm this run asked for (--theme), null when it drove the account's own theme. A
      *  request that failed to resolve printed a THEME SHIM WARNING and rendered the account's theme. */
     readonly theme: ThemeRequest | null;
+    /** Whether the requested theme selection resolved and reached a settings envelope in every context. */
+    readonly themeApplied: boolean | null;
   };
   readonly failures: SnapFailureSummary;
   readonly traces: readonly string[];
@@ -72,6 +76,10 @@ async function writeManifest(name: string, manifest: SnapManifest): Promise<stri
 }
 
 type ManifestInput = Omit<SnapManifest, "schemaVersion">;
+
+export function appliedAcrossContexts(requested: boolean, values: readonly (boolean | null)[]): boolean | null {
+  return requested ? values.every((value) => value === true) : null;
+}
 
 export async function writeManifestIfRequested(opts: Args, name: string, input: ManifestInput): Promise<string | null> {
   return opts.json ? await writeManifest(name, { schemaVersion: 1, ...input }) : null;

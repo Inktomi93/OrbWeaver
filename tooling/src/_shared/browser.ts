@@ -7,7 +7,7 @@
 import process from "node:process";
 import type { Browser, BrowserContext, ConsoleMessage, Page } from "@playwright/test";
 import { chromium, devices } from "@playwright/test";
-import type { AppearancePatch } from "./appearance.ts";
+import type { AppearancePatch, SettingsShimEvidence } from "./appearance.ts";
 import { installSettingsShim } from "./appearance.ts";
 import type { Viewport } from "./argv.ts";
 import type { ThemeRequest } from "./theme.ts";
@@ -110,6 +110,7 @@ export interface ProbeContext {
   readonly pageErrors: string[];
   readonly requests: Map<string, CapturedRequest>;
   readonly harPath: string | null;
+  readonly settingsEvidence: SettingsShimEvidence;
 }
 
 export interface ProbeSession {
@@ -131,6 +132,11 @@ export interface ProbeSession {
   /** Every context opened (`contexts[0]` mirrors the flat `context`/`page`/`pages` fields above — the
    *  single-context default is byte-identical). `--contexts N` populates N of these. */
   readonly contexts: readonly ProbeContext[];
+}
+
+interface ProbeResourceOwner {
+  readonly browser: { readonly close: () => Promise<void> };
+  readonly contexts: readonly { readonly context: { readonly close: () => Promise<void> } }[];
 }
 
 interface PageCapture {
@@ -207,16 +213,21 @@ async function openRecordedContext(args: BuildContextArgs): Promise<{ readonly c
     ...(opts.recordVideoDir === undefined ? {} : { recordVideo: { dir: opts.recordVideoDir, size: opts.viewport } }),
     ...(harPath === null ? {} : { recordHar: { path: harPath, content: "omit" as const, mode: "full" as const } }),
   });
-  if (opts.trace === true) {
-    await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+  try {
+    if (opts.trace === true) {
+      await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+    }
+  } catch (error) {
+    await context.close().catch(() => undefined);
+    throw error;
   }
   return { context, harPath };
 }
 
-async function seedContext(context: BrowserContext, opts: ProbeLaunchOptions, sessionCookie: string | null): Promise<void> {
+async function seedContext(context: BrowserContext, opts: ProbeLaunchOptions, sessionCookie: string | null): Promise<SettingsShimEvidence> {
   // BEFORE the localStorage seeds and before any page exists: the shim must be live for the app's FIRST
   // settings read, which is what paints the boot veil and stamps <html data-reduced-motion>/[data-theme].
-  await installSettingsShim(context, { appearance: opts.appearance ?? null, theme: opts.theme ?? null });
+  const settingsEvidence = await installSettingsShim(context, { appearance: opts.appearance ?? null, theme: opts.theme ?? null });
 
   if (opts.localStorage.length > 0) {
     const seedScript = `(() => {
@@ -238,6 +249,7 @@ async function seedContext(context: BrowserContext, opts: ProbeLaunchOptions, se
       await context.addCookies([{ name: (pair ?? "").slice(0, eq), value: (pair ?? "").slice(eq + 1), domain: opts.cookieDomain, path: "/", secure: true }]);
     }
   }
+  return settingsEvidence;
 }
 
 /** One context's full setup: create it, seed localStorage + (optionally) a session cookie, open its
@@ -247,7 +259,13 @@ async function seedContext(context: BrowserContext, opts: ProbeLaunchOptions, se
 async function buildContext(args: BuildContextArgs): Promise<ProbeContext> {
   const { opts, sessionCookie } = args;
   const { context, harPath } = await openRecordedContext(args);
-  await seedContext(context, opts, sessionCookie);
+  let settingsEvidence: SettingsShimEvidence;
+  try {
+    settingsEvidence = await seedContext(context, opts, sessionCookie);
+  } catch (error) {
+    await context.close().catch(() => undefined);
+    throw error;
+  }
 
   const consoleLines: string[] = [];
   const consoleMessages: CapturedConsole[] = [];
@@ -264,17 +282,21 @@ async function buildContext(args: BuildContextArgs): Promise<ProbeContext> {
   const capture: PageCapture = { media, consoleLines, consoleMessages, pageErrors, requests };
   const pageCount = Math.max(1, opts.pages ?? 1);
   const pages: Page[] = [];
-  for (let i = 0; i < pageCount; i += 1) {
-    const page = await context.newPage();
-    await wirePage(page, capture);
-    pages.push(page);
+  try {
+    for (let i = 0; i < pageCount; i += 1) {
+      const page = await context.newPage();
+      await wirePage(page, capture);
+      pages.push(page);
+    }
+  } catch (error) {
+    await context.close().catch(() => undefined);
+    throw error;
   }
 
-  return { context, pages, consoleLines, consoleMessages, pageErrors, requests, harPath };
+  return { context, pages, consoleLines, consoleMessages, pageErrors, requests, harPath, settingsEvidence };
 }
 
 export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<ProbeSession> {
-  const browser = await chromium.launch({ headless: opts.headless });
   // A --mobile device descriptor carries its own viewport + userAgent + deviceScaleFactor + isMobile +
   // hasTouch — fold it into the context so touch/pointer:coarse/mobile-UA are REAL, not a bare viewport.
   // Look it up loudly: an unknown name must throw, never silently fall back to desktop.
@@ -287,12 +309,20 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
     deviceDescriptor = d;
   }
 
+  const browser = await chromium.launch({ headless: opts.headless });
+
   const contextCount = Math.max(1, opts.contexts ?? 1);
   const cookies = opts.contextCookies ?? [];
   const contexts: ProbeContext[] = [];
-  for (let i = 0; i < contextCount; i += 1) {
-    const built = await buildContext({ browser, opts, deviceDescriptor, sessionCookie: cookies[i] ?? null, contextIndex: i });
-    contexts.push(built);
+  try {
+    for (let i = 0; i < contextCount; i += 1) {
+      const built = await buildContext({ browser, opts, deviceDescriptor, sessionCookie: cookies[i] ?? null, contextIndex: i });
+      contexts.push(built);
+    }
+  } catch (error) {
+    await Promise.allSettled(contexts.map(({ context }) => context.close()));
+    await browser.close().catch(() => undefined);
+    throw error;
   }
   const first = contexts[0] as ProbeContext;
 
@@ -307,4 +337,22 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
     requests: first.requests,
     contexts,
   };
+}
+
+/** Close every owned context and the browser even when the probe body throws or returns early. */
+export async function closeProbeSession(session: ProbeResourceOwner): Promise<void> {
+  await Promise.allSettled(session.contexts.map(({ context }) => context.close()));
+  await session.browser.close();
+}
+
+/** Run one probe body under the session's ownership boundary; early returns and throws both close it. */
+export async function withProbeSession<TSession extends ProbeResourceOwner, TResult>(
+  session: TSession,
+  run: (session: TSession) => Promise<TResult>,
+): Promise<TResult> {
+  try {
+    return await run(session);
+  } finally {
+    await closeProbeSession(session);
+  }
 }

@@ -38,6 +38,7 @@ fetch("/api/trpc/persona.list,settings.getUserSettings?batch=1&input=%7B%7D")
     document.documentElement.setAttribute("data-app-ready", "");
   });
 </script></body></html>`;
+const NO_SETTINGS_HTML = "<!doctype html><html data-app-ready><body><main>no settings request</main></body></html>";
 
 let server: Server;
 let base = "";
@@ -57,7 +58,7 @@ beforeAll(async () => {
       return;
     }
     res.writeHead(200, { "content-type": "text/html" });
-    res.end(PAGE_HTML);
+    res.end(url.startsWith("/no-settings") ? NO_SETTINGS_HTML : PAGE_HTML);
   });
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", resolve);
@@ -77,7 +78,14 @@ afterAll(async () => {
  *  that has to answer the browser's request — every navigation then times out (measured while writing this).
  */
 async function runSnap(args: readonly string[]): Promise<{ readonly status: number | null; readonly stdout: string; readonly stderr: string }> {
-  const child = spawn(process.execPath, [SNAP_CLI, "/", "--base", base, "--no-shot", "--no-failure-evidence", ...args], {
+  return await runSnapAt("/", args);
+}
+
+async function runSnapAt(
+  route: string,
+  args: readonly string[],
+): Promise<{ readonly status: number | null; readonly stdout: string; readonly stderr: string }> {
+  const child = spawn(process.execPath, [SNAP_CLI, route, "--base", base, "--no-shot", "--no-failure-evidence", ...args], {
     cwd: ROOT,
     timeout: RUN_TIMEOUT_MS,
   });
@@ -131,12 +139,27 @@ test("the manifest records WHICH arm was measured, so a report cannot be read ag
   const shimmed = await runSnap(["--appearance-preset", "compact", "--json", "--out", MANIFEST_SHOT, "--eval", READ_STATE]);
   expect(shimmed.status, shimmed.stdout + shimmed.stderr).toBe(0);
 
-  const manifest = JSON.parse(readFileSync(MANIFEST_JSON, "utf8")) as { environment: { appearance: Record<string, unknown> | null; reducedMotion: boolean } };
+  const manifest = JSON.parse(readFileSync(MANIFEST_JSON, "utf8")) as {
+    environment: { appearance: Record<string, unknown> | null; appearanceApplied: boolean | null; reducedMotion: boolean };
+  };
   rmSync(MANIFEST_JSON, { force: true });
   rmSync(MANIFEST_SHOT, { force: true });
 
   // The app-setting arm is recorded as data; the OS media query stays its own separate field.
   expect(manifest.environment.appearance?.["density"]).toBe("compact");
+  expect(manifest.environment.appearanceApplied).toBe(true);
   expect(manifest.environment.reducedMotion).toBe(false);
   expect(shimmed.stdout).toContain('\\"density\\":\\"compact\\"');
+});
+
+test("the manifest distinguishes a requested appearance patch from one never applied", async () => {
+  const shimmed = await runSnapAt("/no-settings", ["--appearance", '{"density":"compact"}', "--json", "--out", MANIFEST_SHOT]);
+  expect(shimmed.status, shimmed.stdout + shimmed.stderr).toBe(0);
+  const manifest = JSON.parse(readFileSync(MANIFEST_JSON, "utf8")) as {
+    environment: { appearance: Record<string, unknown> | null; appearanceApplied: boolean | null };
+  };
+  rmSync(MANIFEST_JSON, { force: true });
+  rmSync(MANIFEST_SHOT, { force: true });
+  expect(manifest.environment.appearance).toEqual({ density: "compact" });
+  expect(manifest.environment.appearanceApplied).toBe(false);
 });
