@@ -40,6 +40,32 @@ while [ $# -gt 0 ]; do
   shift
 done
 
+refuse_raw_bypass() {
+  echo "Raw Claude permission bypass flags are refused. Use --unsafe-bypass-permissions before -- to accept the risk explicitly." >&2
+  exit 2
+}
+
+reject_raw_bypass_args() {
+  local previous=""
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --dangerously-skip-permissions|--dangerously-skip-permissions=*|--allow-dangerously-skip-permissions|--allow-dangerously-skip-permissions=*|--permission-mode=bypassPermissions)
+        refuse_raw_bypass
+        ;;
+      bypassPermissions)
+        if [ "$previous" = "--permission-mode" ]; then
+          refuse_raw_bypass
+        fi
+        ;;
+    esac
+    previous="$arg"
+  done
+}
+
+# Raw Claude flags must not bypass the launcher's named warning path, including args after `--`.
+reject_raw_bypass_args "${CLAUDE_ARGS[@]}"
+
 # 1. Ensure the container is up (idempotent: reuses a running one, starts a stopped one, builds on
 #    first run). --remove-existing-container only on --rebuild.
 UP_ARGS=(up --workspace-folder .)
@@ -55,7 +81,7 @@ npx --yes @devcontainers/cli "${UP_ARGS[@]}"
 if [ "$SHELL_ONLY" = 1 ]; then
   INNER='exec zsh -l'
 else
-  INNER='claude'
+  INNER='claude --permission-mode default'
   if [ "$UNSAFE_BYPASS" = 1 ]; then
     UNSAFE_WARNING='UNSAFE: Claude permission confirmations are disabled; the host workspace is bind-mounted.'
     echo "$UNSAFE_WARNING" >&2
