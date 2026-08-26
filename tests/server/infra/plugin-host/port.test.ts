@@ -222,6 +222,73 @@ describe("port.createInstance — process-wide resident admission", () => {
       hostA.dispose(retry.instance);
     }
   });
+
+  test("a failed activation retains admission until its non-cancellable host work actually settles", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const base = fakeBridge().bridge;
+    const anchors: PluginInstance[] = [];
+    for (let index = 0; index < PLUGIN_RESIDENT_RUNTIME_MAX - 1; index += 1) {
+      const anchor = await host.createInstance({ mainJs: "'ok'", grants: [], bridge: base, chat: noChat });
+      expect(anchor.ok).toBe(true);
+      if (anchor.ok) {
+        anchors.push(anchor.instance);
+      }
+    }
+
+    let releaseTransaction!: () => void;
+    let transactionStarted = false;
+    const transaction = new Promise<void>((resolve) => {
+      releaseTransaction = resolve;
+    });
+    const transactionalBridge: PluginBridge = {
+      ...base,
+      storage: {
+        ...base.storage,
+        set: () => {
+          transactionStarted = true;
+          return transaction;
+        },
+      },
+    };
+    let failureSettled = false;
+    const failing = host
+      .createInstance({
+        mainJs: "const h = orb.host(1); h.storage.set('key', 'value'); throw new Error('activation boom');",
+        grants: ["storage.kv"],
+        bridge: transactionalBridge,
+        chat: noChat,
+      })
+      .then((outcome) => {
+        failureSettled = true;
+        return outcome;
+      });
+
+    await settleTicks();
+    const settledBeforeRelease = failureSettled;
+    const earlyRetry = await host.createInstance({ mainJs: "'retry'", grants: [], bridge: base, chat: noChat });
+    if (earlyRetry.ok) {
+      host.dispose(earlyRetry.instance);
+    }
+
+    releaseTransaction();
+    await transaction;
+    const failed = await failing;
+    const postSettleRetry = await host.createInstance({ mainJs: "'retry'", grants: [], bridge: base, chat: noChat });
+    if (postSettleRetry.ok) {
+      host.dispose(postSettleRetry.instance);
+    }
+    for (const instance of anchors) {
+      host.dispose(instance);
+    }
+
+    expect(transactionStarted).toBe(true);
+    expect({ settledBeforeRelease, earlyRetryAdmitted: earlyRetry.ok, postSettleRetryAdmitted: postSettleRetry.ok }).toEqual({
+      settledBeforeRelease: false,
+      earlyRetryAdmitted: false,
+      postSettleRetryAdmitted: true,
+    });
+    expect(failed).toMatchObject({ ok: false, error: "activation boom" });
+  });
 });
 
 /** A fake op bridge with in-memory global-KV + a fixed chat var fold; counts variable / worldInfo / imagery
