@@ -1,10 +1,10 @@
 // domain/assets/persistence/maintenance — the DB reads/writes the maintenance verbs need beyond the core
 // `queries.ts` surface: per-owner index-row enumeration (GC/fsck/rebuild walk one owner's CAS against these),
 // the distinct owner list (fsck's dangling-row pass drives off the DB, not the tree — an owner whose blobs
-// all vanished has no CAS dir but still has rows), the single-row delete the drop-row-BEFORE-blob ordering
-// runs first, and the GATHER half of the avatar backfill. NO `cas.putBytes` / `db.insert(assets)` here
+// all vanished has no CAS dir but still has rows), and the GATHER half of the avatar backfill. NO
+// `cas.putBytes` / `db.insert(assets)` here
 // (those stay the single coherence writer in `queries.ts` — `assets-single-writer`), and NO write into
-// another domain's table: this file ENUMERATES / DELETES assets' OWN index rows and READS `characters` for
+// another domain's table: this file ENUMERATES assets' OWN index rows and READS `characters` for
 // the backfill candidates — the relink WRITE is character's (`linkCharacterAvatars`, injected).
 
 import type { Db } from "@orb/db";
@@ -38,18 +38,6 @@ export async function loadOwnerAssetRows(db: Db, ownerId: UserId): Promise<Asset
 export async function listAssetOwners(db: Db): Promise<UserId[]> {
   const rows = await db.selectDistinct({ ownerId: assets.ownerId }).from(assets);
   return rows.map((r) => r.ownerId);
-}
-
-/** Delete ONE index row by id. The FIRST step of the drop-row-BEFORE-blob deletion ordering: a crash after
- *  this (before `cas.remove`) leaves a benign orphan blob (reclaimed next sweep), NEVER a row pointing at a
- *  missing blob. The caller has already proven the asset is unreferenced. */
-// @owner-scope-write-ok: STRUCTURAL authority, not the caller's — the same verdict `injected-op-caller-param`
-// records for `ReapAssetsOp`. Both GC paths reach this through `purgeAsset` only after proving the id is
-// referenced by NOTHING in the asset-ref registry (`selectReferencedAmong` / `selectAllReferencedAssetIds`),
-// and the sweep is per-owner by construction (`loadOwnerAssetRows`). D20 un-principal: there is no caller.
-// Ends the day a reap stops consulting the reference registry first.
-export async function deleteAssetRow(db: Db, assetId: AssetId): Promise<void> {
-  await db.delete(assets).where(eq(assets.id, assetId));
 }
 
 /** The GATHER half of the avatar backfill: staged character rows the relink could re-pair — a recorded
