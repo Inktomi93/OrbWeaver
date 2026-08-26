@@ -11,6 +11,9 @@ import { percentiles } from "../substrate/percentiles.ts";
 // The "(unknown)" provider sentinel — coalesced at every key site so a null-provider variant matches the
 // model_stats bucket.
 const UNKNOWN_PROVIDER = "(unknown)";
+/** Recent selected generations are the operational latency distribution; bounding the read keeps dashboard
+ *  cost independent of an owner's lifetime message count. */
+const LATENCY_SAMPLE_LIMIT = 100;
 
 function assertNever(value: never): never {
   throw new Error(`readLatency: unhandled latency scope ${String(value)}`);
@@ -56,6 +59,15 @@ export async function readLatency(db: Db, ownerId: string, scope: LatencyScope):
     JOIN characters c ON c.id = m.character_id
     JOIN message_variants v ON v.id = m.selected_variant_id
     WHERE c.owner_id = ${ownerId} AND m.role = 'assistant' ${narrow}
+      AND m.id IN (
+        SELECT recent.id
+        FROM messages recent INDEXED BY messages_character_idx
+        WHERE recent.character_id = c.id AND recent.role = 'assistant'
+        ORDER BY recent.rowid DESC
+        LIMIT ${LATENCY_SAMPLE_LIMIT}
+      )
+    ORDER BY m.rowid DESC
+    LIMIT ${LATENCY_SAMPLE_LIMIT}
   `);
 
   const ttft: number[] = [];
@@ -92,6 +104,15 @@ export async function readModelLatencies(db: Db, ownerId: string): Promise<Map<s
     JOIN characters c ON c.id = m.character_id
     JOIN message_variants v ON v.id = m.selected_variant_id
     WHERE c.owner_id = ${ownerId} AND m.role = 'assistant' AND v.model IS NOT NULL
+      AND m.id IN (
+        SELECT recent.id
+        FROM messages recent INDEXED BY messages_character_idx
+        WHERE recent.character_id = c.id AND recent.role = 'assistant'
+        ORDER BY recent.rowid DESC
+        LIMIT ${LATENCY_SAMPLE_LIMIT}
+      )
+    ORDER BY m.rowid DESC
+    LIMIT ${LATENCY_SAMPLE_LIMIT}
   `);
   // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator map for latency buckets
   const buckets = new Map<string, { ttft: number[]; gen: number[] }>();

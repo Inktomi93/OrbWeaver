@@ -71,7 +71,7 @@ export async function recallMemory(ctx: ChatContext, args: RecallArgs): Promise<
   // The shared (group-char) bucket ∪ the speaker's own bucket; one read when the speaker IS the group char.
   const own = await loadDigestsForScope(ctx.db, scope.chatId, scope.scopedCharacterId);
   const shared = args.groupCharacterId === scope.scopedCharacterId ? [] : await loadDigestsForScope(ctx.db, scope.chatId, args.groupCharacterId);
-  const raw = [...shared, ...own];
+  const raw = [...shared, ...own].filter((digest) => digest.tier <= cfg.maxTier);
   for (const d of raw) {
     const key = rowKey(scope, d);
     verdicts.set(blockKeyStr(key), { key, verdict: "admitted" });
