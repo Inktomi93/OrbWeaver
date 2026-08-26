@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/useNamingConvention: module mocks must preserve the production export and environment-key names.
 import process from "node:process";
 import { vi } from "vitest";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -23,9 +24,9 @@ vi.mock("@orb/server/infra/providers/vllm/engine", () => ({
   engineIdentityFilePath: () => "/tmp/engines.pid",
   engineVramNeed: () => 1,
   fleetRunDir: () => "/tmp",
-  queryGpuVram: async () => {
+  queryGpuVram: () => {
     control.headroomReads += 1;
-    throw new Error("headroom must not run for an occupied-unproven port");
+    return Promise.reject(new Error("headroom must not run for an occupied-unproven port"));
   },
   reapOrphanedFamily: async () => [],
   resolveEngineLaunchConfig: () => ({

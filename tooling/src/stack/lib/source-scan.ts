@@ -17,7 +17,7 @@ function safeMtimeMs(path: string): number | null {
   try {
     return statSync(path).mtimeMs;
   } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return null;
     }
     throw error;
@@ -32,7 +32,7 @@ function walk(path: string, accept: (path: string) => boolean, into: SourceEntry
   try {
     entries = readdirSync(path, { withFileTypes: true });
   } catch (error) {
-    const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+    const code = error instanceof Error && "code" in error ? error.code : undefined;
     if (code !== "ENOTDIR" && code !== "ENOENT") {
       throw error;
     }

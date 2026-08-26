@@ -217,7 +217,7 @@ export function spawnFullPriorityChild(cmd: string, args: readonly string[], opt
       try {
         child.kill(signal);
       } catch (error) {
-        if (!errnoIs(error, "ESRCH") && child.exitCode === null && child.signalCode === null) {
+        if (!errnoIs(error, "ESRCH")) {
           throw error;
         }
       }

@@ -1,6 +1,7 @@
 // FullPriorityChild signal ownership: an already-exited/ESRCH child is idempotent teardown; every other
 // child.kill failure stays loud so invalid signals and permission failures cannot masquerade as success.
 import { EventEmitter } from "node:events";
+import process from "node:process";
 import { vi } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
 

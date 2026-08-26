@@ -6,5 +6,8 @@ test("health probe distinguishes absent, healthy, and occupied-unproven ports", 
   await expect(probePortHealth(1, async () => Promise.reject(refused))).resolves.toEqual({ kind: "absent" });
   await expect(probePortHealth(1, async () => new Response(null, { status: 200 }))).resolves.toEqual({ kind: "healthy" });
   await expect(probePortHealth(1, async () => Promise.reject(new Error("planted timeout")))).resolves.toEqual({ kind: "unproven", reason: "planted timeout" });
-  await expect(probePortHealth(1, async () => new Response(null, { status: 503 }))).resolves.toEqual({ kind: "unproven", reason: "health endpoint answered 503" });
+  await expect(probePortHealth(1, async () => new Response(null, { status: 503 }))).resolves.toEqual({
+    kind: "unproven",
+    reason: "health endpoint answered 503",
+  });
 });

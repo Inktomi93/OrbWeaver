@@ -63,7 +63,7 @@ export function definedClassTokens(): ReadonlySet<string> {
     try {
       rules = sheet.cssRules;
     } catch (error) {
-      if (typeof error === "object" && error !== null && "name" in error && error.name === "SecurityError") {
+      if (error instanceof Error && error.name === "SecurityError") {
         continue;
       }
       throw error;

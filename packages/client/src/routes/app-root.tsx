@@ -6,6 +6,7 @@
 // `sections={{…}}`/`modals={{…}}` god-map is RED. The notifications bell is no longer wired here — it's a
 // registered `topbar.trail` chrome widget (`notificationsChrome`, gated on multiHumanCapable at the door).
 
+import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useAuthConfig, useHuskReaper, useInvalidation, useOrbSocket, useRpgBus, useSessionRecovery, useUserBus } from "#data";

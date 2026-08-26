@@ -32,9 +32,11 @@ const never = (): boolean => false;
 const always = (): boolean => true;
 
 test("pid liveness treats EPERM as live, ESRCH as absent, and surfaces every other probe failure", () => {
-  const throwing = (code: string): ((pid: number, signal: 0) => void) => () => {
-    throw Object.assign(new Error(code), { code });
-  };
+  const throwing =
+    (code: string): ((pid: number, signal: 0) => void) =>
+    (): void => {
+      throw Object.assign(new Error(code), { code });
+    };
   expect(pidIsAlive(HOLDER_PID, throwing("EPERM"))).toBe(true);
   expect(pidIsAlive(HOLDER_PID, throwing("ESRCH"))).toBe(false);
   expect(() => pidIsAlive(HOLDER_PID, throwing("EIO"))).toThrow("EIO");

@@ -107,7 +107,7 @@ export function withViewTransition(update: () => void): void {
   for (const settled of [transition?.ready, transition?.finished, transition?.updateCallbackDone]) {
     // @orb-gate-ignore caught-failure-ownership(promise:settled): only AbortError is absorbed as the platform's skipped-transition outcome; every other rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement.
     settled?.catch((error: unknown) => {
-      if (!isSkippedTransition(error) && !surfacedFailures.has(error)) {
+      if (!(isSkippedTransition(error) || surfacedFailures.has(error))) {
         surfacedFailures.add(error);
         queueMicrotask(() => {
           throw error;

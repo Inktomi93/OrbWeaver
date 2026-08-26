@@ -10,7 +10,9 @@ vi.mock("node:fs", async (importOriginal) => {
     ...real,
     readFileSync: (path: Parameters<typeof real.readFileSync>[0], options?: Parameters<typeof real.readFileSync>[1]) => {
       if (String(path).includes(fileError.match)) {
-        if (fileError.value !== null) return fileError.value;
+        if (fileError.value !== null) {
+          return fileError.value;
+        }
         throw Object.assign(new Error(`planted ${fileError.code} file failure`), { code: fileError.code });
       }
       return (real.readFileSync as (...args: unknown[]) => unknown)(path, options);
@@ -18,9 +20,7 @@ vi.mock("node:fs", async (importOriginal) => {
   };
 });
 
-const { PIDFILE, TOKEN_PATH, observe, procStartTicks, processAlive, readEnvFile, readRecord } = await import(
-  "../../../../tooling/src/stack/ops/prod-state.ts"
-);
+const { PIDFILE, TOKEN_PATH, observe, procStartTicks, processAlive, readEnvFile, readRecord } = await import("../../../../tooling/src/stack/ops/prod-state.ts");
 
 test("only a vanished proc stat is absence; unreadable identity evidence fails loud", () => {
   fileError.match = "/proc/123/stat";
@@ -48,7 +48,10 @@ test("an unreadable debug token fails the composed observation instead of impers
   fileError.match = TOKEN_PATH();
   fileError.code = "EIO";
   fileError.value = null;
-  const fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ harness: false }) }).mockResolvedValueOnce({ status: 401 });
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ harness: false }) })
+    .mockResolvedValueOnce({ status: 401 });
   vi.stubGlobal("fetch", fetch);
   try {
     await expect(observe(8788)).rejects.toThrow("planted EIO file failure");

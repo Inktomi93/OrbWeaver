@@ -9,7 +9,6 @@ import {
   createCollectionSurface,
   createEntityMutation,
   QueryBoundary,
-  QueryErrorState,
   sessionFreshnessAgeMs,
   useCarriedAppearanceCast,
   useColorQuotedSpeech,
@@ -28,6 +27,7 @@ import {
 } from "@orb/client/data";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, renderMessageForDisplay, timeLib, toNotice } from "@orb/client/lib";
+import { AppRootSessionBoundary } from "@orb/client/routes/app-root-session-boundary";
 import {
   activeDurableLocalUserId,
   enterCreatedChat,
@@ -38,7 +38,6 @@ import {
   useOpenModal,
   useSelectedRefinerySessionId,
 } from "@orb/client/state";
-import { AppRootSessionBoundary } from "@orb/client/routes/app-root-session-boundary";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";

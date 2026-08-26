@@ -152,7 +152,7 @@ export function createCas(rootDir: string): Cas {
       return (await stat(blobPath(ownerId, hash))).mtimeMs;
     } catch (error) {
       if (errnoIs(error, "ENOENT")) {
-        return undefined;
+        return;
       }
       throw error;
     }

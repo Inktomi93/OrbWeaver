@@ -24,6 +24,7 @@ export async function runMotionAudit(opts: Args): Promise<number> {
     theme: opts.theme,
     localStorage: [],
   });
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one callback owns the ordered evidence barriers and their terminal instrument-error exits.
   return await withProbeSession(session, async () => {
     const { page } = session;
     const cdp = await session.context.newCDPSession(page);

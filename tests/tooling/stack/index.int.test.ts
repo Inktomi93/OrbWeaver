@@ -141,7 +141,10 @@ test("clear-absent surfaces an unlink failure instead of claiming a blocked iden
   const repoRoot = mkdtempSync(path.join(tmpdir(), "orb-dev-identity-clear-"));
   try {
     const preload = path.join(repoRoot, "fail-unlink.cjs");
-    writeFileSync(preload, "require('node:fs').unlinkSync = () => { const error = new Error('planted EIO unlink failure'); error.code = 'EIO'; throw error; };\n");
+    writeFileSync(
+      preload,
+      "require('node:fs').unlinkSync = () => { const error = new Error('planted EIO unlink failure'); error.code = 'EIO'; throw error; };\n",
+    );
     const probe = spawnSync(process.execPath, [DEV_IDENTITY_ENTRY, "clear-absent"], {
       cwd: repoRoot,
       encoding: "utf8",
