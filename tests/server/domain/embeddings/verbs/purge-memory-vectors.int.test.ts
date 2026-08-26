@@ -68,6 +68,7 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
       model: STALE_MODEL,
       dim: EMBED_DIM,
       now: NOW,
+      speakerCharacterIds: [],
     });
     await upsertChatDigest(db, {
       id: castId<ChatDigestId>("chat_digest_new"),
@@ -84,6 +85,7 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
       model: EMBED_MODEL,
       dim: EMBED_DIM,
       now: NOW,
+      speakerCharacterIds: [],
     });
     // The harness's roleClients.embedModel is EMBED_MODEL — the active space the purge scopes against.
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
@@ -129,6 +131,7 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
       model: EMBED_MODEL,
       dim: EMBED_DIM,
       now: NOW,
+      speakerCharacterIds: [],
     });
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
 

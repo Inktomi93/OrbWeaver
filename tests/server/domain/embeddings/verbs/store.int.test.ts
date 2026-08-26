@@ -9,7 +9,7 @@
 //     persisted only on the captioned lens.
 
 import { characterEmbeddings, chatDigestSpeakers, chatDigests, documentChunks, imageEmbeddings } from "@orb/db";
-import type { ChatDigestId, Handle } from "@orb/kit/ids";
+import type { CharacterId, ChatDigestId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
@@ -428,6 +428,45 @@ describe("store — the chat-block digest lens", () => {
     // re-digest with no speakers → join cleared.
     await svc.store({ ...base, speakerCharacterIds: [], contentHash: "h3" });
     expect(await speakerSet()).toEqual([]);
+  });
+
+  test("a speaker FK failure rolls back the digest upsert with the join replacement", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const scoped = await seedCharacter(db, owner, { id: "character_scope" });
+    const chatId = await seedChat(db);
+    const base = {
+      kind: "chat-block",
+      lens: "digest",
+      chatId,
+      scopedCharacterId: scoped,
+      isGroup: true,
+      tier: 0,
+      blockIdx: 0,
+      text: digestText,
+      topicAnchor: "[failure]",
+      keywords: ["failure"],
+      model: EMBED_MODEL,
+      dim: EMBED_DIM,
+    } as const;
+
+    await svc.store({ ...base, speakerCharacterIds: [scoped], contentHash: "before-failure" });
+
+    await expect(
+      svc.store({
+        ...base,
+        speakerCharacterIds: [castId<CharacterId>("character_missing")],
+        contentHash: "after-failure",
+      }),
+    ).rejects.toThrow();
+
+    const digests = await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));
+    expect(digests).toHaveLength(1);
+    expect(digests[0]?.contentHash).toBe("before-failure");
+    const speakers = await db.select().from(chatDigestSpeakers);
+    expect(speakers.map((speaker) => speaker.characterId)).toEqual([scoped]);
   });
 
   test("two scoped POVs for the same (chat, tier, block) coexist (the scope is part of the key)", async () => {

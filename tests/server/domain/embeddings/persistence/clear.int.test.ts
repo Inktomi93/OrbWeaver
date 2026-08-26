@@ -219,6 +219,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       model: OLD_MODEL,
       dim: EMBED_DIM,
       now: NOW,
+      speakerCharacterIds: [],
     });
     await upsertChatDigest(db, {
       id: castId<ChatDigestId>("chat_digest_new"),
@@ -235,6 +236,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       model: EMBED_MODEL,
       dim: EMBED_DIM,
       now: NOW,
+      speakerCharacterIds: [],
     });
     // document_chunks — the 5th producer (PD-139(c)): the same (documentId, chunkIdx) in two model spaces.
     await upsertDocumentChunk(db, {
