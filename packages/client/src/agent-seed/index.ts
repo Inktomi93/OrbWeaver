@@ -33,7 +33,8 @@ import { castId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
 import type { TRPCClient } from "@trpc/client";
 import type { OrbSeedHandle, SeedProfile } from "../lib/agent-bridge.ts";
-import { PendingGameSeed } from "./retry-attempt.ts";
+import type { SeedStep } from "./retry-attempt.ts";
+import { GameSeedFlights, PendingGameSeed } from "./retry-attempt.ts";
 
 /**
  * EDITSNAP-OK — the errors-as-data CHECK for this seeder's two hand-door calls.
@@ -315,11 +316,10 @@ function statProfileFor(profile: SeedProfile): RpgStatProfile {
   return profile === "d20" ? RPG_PROFILE_D20 : RPG_PROFILE_FREEFORM;
 }
 
-type SeedStep = () => Promise<void>;
-
 /** Build the `__orb.seed` handle. `client` is the SAME wire client the app renders through, so every seed
  *  write goes over the real HTTP verb surface as the auto-resolved host (dev single-user). */
 export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
+  const gameFlights = new GameSeedFlights();
   let pendingGame: PendingGameSeed | null = null;
 
   async function ensurePlayer(): Promise<CharacterId> {
@@ -343,104 +343,104 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
     return castId<CharacterId>(created.id);
   }
 
-  async function game(args: { profile: SeedProfile; title?: string }): Promise<{ readonly chatId: ChatId }> {
+  function game(args: { profile: SeedProfile; title?: string }): Promise<{ readonly chatId: ChatId }> {
     const { profile } = args;
     const title = args.title ?? `Seeded game — ${profile}`;
-    if (pendingGame !== null) {
-      const attempt = pendingGame;
-      attempt.assertMatches(profile, title);
+    return gameFlights.run(profile, title, async () => {
+      if (pendingGame !== null) {
+        const attempt = pendingGame;
+        attempt.assertMatches(profile, title);
+        await attempt.finish();
+        pendingGame = attempt.releaseOwnership(pendingGame);
+        return { chatId: attempt.chatId };
+      }
+      const characterId = await ensurePlayer();
+      // The human plays as the `user` actor (the panel's default "You" sheet/inventory subject) — the rich
+      // protagonist planes ride THIS ref so the panel populates on open without a subject switch; Aldric is the
+      // roster companion. patchSheet/editSnapshot both accept a `user` ref (host writes any actor).
+      const me = await client.sessions.me.query();
+      const playerRef = { kind: "user", userId: me.userId } as const;
+
+      // 1) The room. The caller (auto-resolved owner) becomes the host participant; the card joins the roster.
+      const started = await client.chat.startChat.mutate({ characterIds: [characterId], title });
+      const chatId = castId<ChatId>(started.chat.id);
+
+      const actorWrites: readonly { readonly targetRef: RpgActorRef; readonly ops: readonly RpgActorOp[] }[] = [
+        {
+          targetRef: playerRef,
+          ops: [...PLAYER_TRACKER_OPS, ...PLAYER_ITEM_OPS, ...PLAYER_WALLET_OPS, { op: "setStatus", status: "on edge" }],
+        },
+        // The cast's IDENTITY ops must land before its tracker ops on the same row read, so both halves are
+        // written in ONE call per actor (the ops apply in order against the true head).
+        ...CAST_IDENTITY_OPS.map((c) => ({
+          targetRef: { kind: "cast", castKey: c.castKey } as const,
+          ops: [...c.ops, ...(CAST_ACTOR_OPS.find((t) => t.castKey === c.castKey)?.ops ?? [])],
+        })),
+      ];
+
+      // Order is load-bearing: actor/quest writes each rewrite the current snapshot head, while journal
+      // inserts preserve the authored archive order.
+      const steps: readonly SeedStep[] = [
+        async (): Promise<void> => {
+          await client.rpg.createGame.mutate({ chatId, mode: "lite", profile: statProfileFor(profile) });
+        },
+        async (): Promise<void> => {
+          await client.rpg.updateConfig.mutate({ chatId, patch: { trackers: TRACKERS, relationshipHints: RELATIONSHIP_HINTS } });
+        },
+        async (): Promise<void> => {
+          await client.rpg.patchSheet.mutate({
+            chatId,
+            actorRef: playerRef,
+            patch: {
+              className: "Warden of House Vane",
+              flavor: "grim, dutiful, quicker with a blade than with words",
+              level: PLAYER_LEVEL,
+              ...(profile === "d20" ? { attributes: D20_ATTRIBUTES } : {}),
+            },
+          });
+        },
+        async (): Promise<void> => {
+          const sceneWrite = await client.rpg.editSnapshot.mutate({
+            chatId,
+            patch: {
+              location: SCENE.location,
+              calendarDate: SCENE.calendarDate,
+              clock: SCENE.clock,
+              weather: SCENE.weather,
+              recentEvents: SCENE.recentEvents,
+              presentCharacters: PRESENT_CHARACTERS,
+              plot: PLOT,
+              trackerValues: { alarm: { value: 15, items: null } },
+            },
+          });
+          assertHandWrote("editSnapshot", sceneWrite);
+        },
+        ...actorWrites.map(
+          (write): SeedStep =>
+            async () => {
+              const applied = await client.rpg.patchActor.mutate({ chatId, targetRef: write.targetRef, ops: [...write.ops] });
+              assertHandWrote("patchActor", applied);
+            },
+        ),
+        ...QUESTS.map(
+          (quest): SeedStep =>
+            async () => {
+              await client.rpg.upsertQuest.mutate({ chatId, ...quest });
+            },
+        ),
+        ...JOURNAL.map(
+          (entry): SeedStep =>
+            async () => {
+              await client.rpg.addJournalEntry.mutate({ chatId, ...entry });
+            },
+        ),
+      ];
+      const attempt = new PendingGameSeed(profile, title, chatId, steps);
+      pendingGame = attempt;
       await attempt.finish();
-      pendingGame = null;
-      return { chatId: attempt.chatId };
-    }
-
-    const characterId = await ensurePlayer();
-    // The human plays as the `user` actor (the panel's default "You" sheet/inventory subject) — the rich
-    // protagonist planes ride THIS ref so the panel populates on open without a subject switch; Aldric is the
-    // roster companion. patchSheet/editSnapshot both accept a `user` ref (host writes any actor).
-    const me = await client.sessions.me.query();
-    const playerRef = { kind: "user", userId: me.userId } as const;
-
-    // 1) The room. The caller (auto-resolved owner) becomes the host participant; the card joins the roster.
-    const started = await client.chat.startChat.mutate({ characterIds: [characterId], title });
-    const chatId = castId<ChatId>(started.chat.id);
-
-    const actorWrites: readonly { readonly targetRef: RpgActorRef; readonly ops: readonly RpgActorOp[] }[] = [
-      {
-        targetRef: playerRef,
-        ops: [...PLAYER_TRACKER_OPS, ...PLAYER_ITEM_OPS, ...PLAYER_WALLET_OPS, { op: "setStatus", status: "on edge" }],
-      },
-      // The cast's IDENTITY ops must land before its tracker ops on the same row read, so both halves are
-      // written in ONE call per actor (the ops apply in order against the true head).
-      ...CAST_IDENTITY_OPS.map((c) => ({
-        targetRef: { kind: "cast", castKey: c.castKey } as const,
-        ops: [...c.ops, ...(CAST_ACTOR_OPS.find((t) => t.castKey === c.castKey)?.ops ?? [])],
-      })),
-    ];
-
-    // Order is load-bearing: actor/quest writes each rewrite the current snapshot head, while journal
-    // inserts preserve the authored archive order.
-    const steps: readonly SeedStep[] = [
-      async (): Promise<void> => {
-        await client.rpg.createGame.mutate({ chatId, mode: "lite", profile: statProfileFor(profile) });
-      },
-      async (): Promise<void> => {
-        await client.rpg.updateConfig.mutate({ chatId, patch: { trackers: TRACKERS, relationshipHints: RELATIONSHIP_HINTS } });
-      },
-      async (): Promise<void> => {
-        await client.rpg.patchSheet.mutate({
-          chatId,
-          actorRef: playerRef,
-          patch: {
-            className: "Warden of House Vane",
-            flavor: "grim, dutiful, quicker with a blade than with words",
-            level: PLAYER_LEVEL,
-            ...(profile === "d20" ? { attributes: D20_ATTRIBUTES } : {}),
-          },
-        });
-      },
-      async (): Promise<void> => {
-        const sceneWrite = await client.rpg.editSnapshot.mutate({
-          chatId,
-          patch: {
-            location: SCENE.location,
-            calendarDate: SCENE.calendarDate,
-            clock: SCENE.clock,
-            weather: SCENE.weather,
-            recentEvents: SCENE.recentEvents,
-            presentCharacters: PRESENT_CHARACTERS,
-            plot: PLOT,
-            trackerValues: { alarm: { value: 15, items: null } },
-          },
-        });
-        assertHandWrote("editSnapshot", sceneWrite);
-      },
-      ...actorWrites.map(
-        (write): SeedStep =>
-          async () => {
-            const applied = await client.rpg.patchActor.mutate({ chatId, targetRef: write.targetRef, ops: [...write.ops] });
-            assertHandWrote("patchActor", applied);
-          },
-      ),
-      ...QUESTS.map(
-        (quest): SeedStep =>
-          async () => {
-            await client.rpg.upsertQuest.mutate({ chatId, ...quest });
-          },
-      ),
-      ...JOURNAL.map(
-        (entry): SeedStep =>
-          async () => {
-            await client.rpg.addJournalEntry.mutate({ chatId, ...entry });
-          },
-      ),
-    ];
-    const attempt = new PendingGameSeed(profile, title, chatId, steps);
-    pendingGame = attempt;
-    await attempt.finish();
-    pendingGame = null;
-
-    return { chatId };
+      pendingGame = attempt.releaseOwnership(pendingGame);
+      return { chatId };
+    });
   }
 
   return {

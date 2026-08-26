@@ -26,8 +26,8 @@ const UNFINISHED_D20_MSG = /unfinished d20 seed/;
  *  method the seeder touches, nothing else, each a `vi.fn()` so a test can assert exact call args (the
  *  same shape `agent-nav`'s `fakeTrpc` uses for the generated proxy). `existingHandle` controls whether
  *  `ensurePlayer` reuses a card or creates one.
- // biome-ignore lint/suspicious/noExplicitAny: the return is a minimal structural fake of the full TRPCClient proxy — the seeder only touches the branches built below.
  */
+// biome-ignore lint/suspicious/noExplicitAny: the return is a minimal structural fake of the full TRPCClient proxy — the seeder only touches the branches built below.
 function fakeClient(opts: { readonly existingHandle?: boolean; readonly editSnapshotOk?: boolean; readonly patchActorOk?: boolean } = {}): any {
   const editSnapshotOk = opts.editSnapshotOk ?? true;
   const patchActorOk = opts.patchActorOk ?? true;
@@ -231,6 +231,80 @@ test("richGame() defaults to the freeform profile and returns the seeded chatId"
   expect(result).toEqual({ chatId: CHAT_ID });
   const createGameArg = client.rpg.createGame.mutate.mock.calls[0][0];
   expect(createGameArg.profile.attributes).toEqual([]);
+});
+
+test("concurrent first seeds with matching arguments join one chat creation and one seed sequence", async () => {
+  const client = fakeClient({ existingHandle: true });
+  const me = Promise.withResolvers<{ readonly userId: UserId }>();
+  client.sessions.me.query = vi.fn(() => me.promise);
+  const seed = buildAgentSeed(client);
+
+  const first = seed.game({ profile: "d20" });
+  const second = seed.game({ profile: "d20" });
+  me.resolve({ userId: USER_ID });
+
+  await expect(Promise.all([first, second])).resolves.toEqual([{ chatId: CHAT_ID }, { chatId: CHAT_ID }]);
+  expect(client.chat.startChat.mutate).toHaveBeenCalledOnce();
+  expect(client.rpg.createGame.mutate).toHaveBeenCalledOnce();
+});
+
+test("concurrent first-seed failures reject every waiter and later resume the same chat exactly once", async () => {
+  const { client, applied } = retryClient("createGame");
+  const seed = buildAgentSeed(client);
+
+  const initial = await Promise.allSettled([seed.game({ profile: "d20" }), seed.game({ profile: "d20" })]);
+
+  expect(initial.map((result) => result.status)).toEqual(["rejected", "rejected"]);
+  expect(client.chat.startChat.mutate).toHaveBeenCalledOnce();
+  expect(client.rpg.createGame.mutate).toHaveBeenCalledOnce();
+
+  await expect(seed.game({ profile: "d20" })).resolves.toEqual({ chatId: CHAT_ID });
+  expect(client.chat.startChat.mutate).toHaveBeenCalledOnce();
+  expect(applied).toEqual(SEED_WRITE_STEPS.map((step) => `${CHAT_ID}:${step}`));
+});
+
+test("a different first-seed request is refused while the first prerequisite is still held", async () => {
+  const client = fakeClient({ existingHandle: true });
+  const characterPage = Promise.withResolvers<{
+    readonly items: readonly { readonly id: CharacterId; readonly handle: string }[];
+    readonly totalCount: number;
+  }>();
+  client.character.list.query = vi.fn(() => characterPage.promise);
+  const seed = buildAgentSeed(client);
+
+  const first = seed.game({ profile: "d20" });
+  const second = seed.game({ profile: "freeform" });
+  let secondOutcome: "pending" | "resolved" | "rejected" = "pending";
+  void second.then(
+    () => {
+      secondOutcome = "resolved";
+    },
+    () => {
+      secondOutcome = "rejected";
+    },
+  );
+
+  await Promise.resolve();
+  const outcomeBeforeRelease = secondOutcome;
+  characterPage.resolve({ items: [{ id: CHARACTER_ID, handle: "orb-seed-hero" }], totalCount: 1 });
+  const settled = await Promise.allSettled([first, second]);
+
+  expect(outcomeBeforeRelease).toBe("rejected");
+  expect(settled[0]).toEqual({ status: "fulfilled", value: { chatId: CHAT_ID } });
+  expect(settled[1]).toEqual({ status: "rejected", reason: expect.objectContaining({ message: expect.stringMatching(UNFINISHED_D20_MSG) }) });
+  expect(client.chat.startChat.mutate).toHaveBeenCalledOnce();
+});
+
+test("a prerequisite failure releases first-flight ownership before any chat exists", async () => {
+  const client = fakeClient({ existingHandle: true });
+  client.character.list.query.mockRejectedValueOnce(new Error("character lookup failed"));
+  const seed = buildAgentSeed(client);
+
+  await expect(seed.game({ profile: "d20" })).rejects.toThrow("character lookup failed");
+  await expect(seed.game({ profile: "freeform" })).resolves.toEqual({ chatId: CHAT_ID });
+
+  expect(client.chat.startChat.mutate).toHaveBeenCalledOnce();
+  expect(client.rpg.createGame.mutate).toHaveBeenCalledOnce();
 });
 
 test.each(SEED_WRITE_STEPS)("a partial failure at %s retries into the SAME complete game without duplicate canonical writes", async (failAt) => {
