@@ -17,7 +17,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
 import { SkeletonRows, useInvalidation, useTRPC } from "#data";
@@ -197,12 +197,47 @@ interface GalleryAddPickerProps {
 }
 
 function GalleryAddPicker({ open, onOpenChange, characterId, existingAssetIds }: GalleryAddPickerProps): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const add = useAddToGallery({ trpc, invalidation });
+  const [isOwned, setIsOwned] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const ownedRef = useRef(false);
+
+  const confirmAdd = async (assetIds: readonly MediaGridKey[]): Promise<void> => {
+    if (ownedRef.current) {
+      return;
+    }
+    ownedRef.current = true;
+    setIsOwned(true);
+    setFailure(null);
+    const writes = assetIds.map((assetId) => add.mutateAsync({ assetId: assetId as AssetId, subjectCharacterId: characterId }));
+    try {
+      const outcomes = await Promise.allSettled(writes);
+      if (outcomes.every((outcome) => outcome.status === "fulfilled")) {
+        onOpenChange(false);
+      } else {
+        setFailure("Couldn't add the selected images to the gallery.");
+      }
+    } finally {
+      ownedRef.current = false;
+      setIsOwned(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next): void => {
+        if (next || !ownedRef.current) {
+          onOpenChange(next);
+        }
+      }}
+    >
       <DialogPopup size="lg">
         <Stack gap="block">
           <DialogTitle>Add images to the gallery</DialogTitle>
-          <OwnedAssetPicker characterId={characterId} existingAssetIds={existingAssetIds} onDone={(): void => onOpenChange(false)} />
+          <OwnedAssetPicker existingAssetIds={existingAssetIds} failure={failure} isOwned={isOwned} onConfirm={confirmAdd} />
         </Stack>
       </DialogPopup>
     </Dialog>
@@ -210,37 +245,32 @@ function GalleryAddPicker({ open, onOpenChange, characterId, existingAssetIds }:
 }
 
 interface OwnedAssetPickerProps {
-  readonly characterId: CharacterId;
   readonly existingAssetIds: ReadonlySet<AssetId>;
-  readonly onDone: () => void;
+  readonly failure: string | null;
+  readonly isOwned: boolean;
+  readonly onConfirm: (assetIds: readonly MediaGridKey[]) => Promise<void>;
 }
 
-function OwnedAssetPicker({ characterId, existingAssetIds, onDone }: OwnedAssetPickerProps): ReactElement {
+function OwnedAssetPicker({ existingAssetIds, failure, isOwned, onConfirm }: OwnedAssetPickerProps): ReactElement {
   const trpc = useTRPC();
-  const invalidation = useInvalidation();
   const owned = useQuery(trpc.assets.listOwned.queryOptions({ limit: GALLERY_PAGE_LIMIT }));
-  const add = useAddToGallery({ trpc, invalidation });
   const [selected, setSelected] = useState<ReadonlySet<MediaGridKey>>(new Set());
-
-  const candidates = (owned.data ?? []).filter((a) => a.mime.startsWith("image/") && !existingAssetIds.has(a.assetId));
+  const candidates = (owned.data ?? []).filter((asset) => asset.mime.startsWith("image/") && !existingAssetIds.has(asset.assetId));
   const gridItems = candidates.map(toOwnedGridItem);
 
   const toggle = (id: MediaGridKey): void => {
-    setSelected((prev) => {
-      const nextSet = new Set(prev);
-      if (nextSet.has(id)) {
-        nextSet.delete(id);
-      } else {
-        nextSet.add(id);
-      }
-      return nextSet;
-    });
-  };
-  const confirmAdd = (): void => {
-    for (const assetId of selected) {
-      add.mutate({ assetId: assetId as AssetId, subjectCharacterId: characterId });
+    if (isOwned) {
+      return;
     }
-    onDone();
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
   let body: ReactElement;
@@ -255,11 +285,22 @@ function OwnedAssetPicker({ characterId, existingAssetIds, onDone }: OwnedAssetP
   return (
     <Stack gap="block">
       {body}
+      {failure === null ? null : (
+        <Text className="text-destructive" role="alert" voice="label">
+          {failure}
+        </Text>
+      )}
       <Row justify="between" align="center" gap="row">
         <Text voice="gloss">{selected.size} selected</Text>
         <Row gap="row">
-          <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-          <Button intent="primary" disabled={selected.size === 0} onClick={confirmAdd}>
+          <DialogClose
+            render={
+              <Button intent="ghost" disabled={isOwned}>
+                Cancel
+              </Button>
+            }
+          />
+          <Button intent="primary" disabled={selected.size === 0 || isOwned} onClick={(): void => void onConfirm([...selected])}>
             Add selected
           </Button>
         </Row>

@@ -30,8 +30,10 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { BookOpen, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
+import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useRef, useState } from "react";
 import { FormDialog } from "#components";
 import { SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useAttachBookToChat } from "../hooks/use-chat-book-mutations.ts";
@@ -50,33 +52,59 @@ export interface AddChatBookDialogProps {
 }
 
 export function AddChatBookDialog({ chatId, open, onOpenChange, attachedIds }: AddChatBookDialogProps): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const attach = useAttachBookToChat({ trpc, invalidation });
+  const ownedRef = useRef(false);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  const attachBook = async (bookId: WorldBookId): Promise<void> => {
+    if (ownedRef.current) {
+      return;
+    }
+    ownedRef.current = true;
+    setFailure(null);
+    try {
+      await attach.mutateAsync({ chatId, bookId });
+      onOpenChange(false);
+    } catch {
+      setFailure("Couldn't attach the lorebook to this chat.");
+    } finally {
+      ownedRef.current = false;
+    }
+  };
+
   return (
     <FormDialog
       description="Its entries can fire in this room's prompts for everyone here — and an automation rule in this room can write new entries into it. Attaching is what grants that write reach; you can take it back out here at any time."
-      onOpenChange={onOpenChange}
+      onOpenChange={(next): void => {
+        if (next || !ownedRef.current) {
+          onOpenChange(next);
+        }
+      }}
       open={open}
       title="Attach a lorebook to this chat"
     >
       {/* Non-suspending: the dialog frame paints at once and the candidate list fills in, so opening the
           picker never blanks the panel behind it through a shared suspense boundary. */}
-      <PickerBody attachedIds={attachedIds} chatId={chatId} onAttached={(): void => onOpenChange(false)} />
+      <PickerBody attachedIds={attachedIds} failure={failure} isOwned={attach.isPending} onAttach={attachBook} />
     </FormDialog>
   );
 }
 
 function PickerBody({
-  chatId,
   attachedIds,
-  onAttached,
+  failure,
+  isOwned,
+  onAttach,
 }: {
-  readonly chatId: ChatId;
   readonly attachedIds: readonly WorldBookId[];
-  readonly onAttached: () => void;
+  readonly failure: string | null;
+  readonly isOwned: boolean;
+  readonly onAttach: (bookId: WorldBookId) => Promise<void>;
 }): ReactElement {
   const trpc = useTRPC();
-  const invalidation = useInvalidation();
   const library = useQuery(trpc.worldInfo.listBooks.queryOptions());
-  const attach = useAttachBookToChat({ trpc, invalidation });
   const books = library.data ?? [];
   const candidates = attachableBooks(books, attachedIds);
 
@@ -110,11 +138,9 @@ function PickerBody({
           actions={
             <Button
               aria-label={`Attach ${book.name} to this chat`}
+              disabled={isOwned}
               intent="secondary"
-              onClick={(): void => {
-                attach.mutate({ chatId, bookId: book.id });
-                onAttached();
-              }}
+              onClick={(): void => void onAttach(book.id)}
               size="sm"
               type="button"
             >
@@ -126,6 +152,11 @@ function PickerBody({
           title={book.name}
         />
       ))}
+      {failure === null ? null : (
+        <Text className="text-destructive" role="alert" voice="label">
+          {failure}
+        </Text>
+      )}
     </Stack>
   );
 }
