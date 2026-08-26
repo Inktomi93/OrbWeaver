@@ -370,4 +370,7 @@ test("triggerFactSchema refuses a malformed / off-taxonomy fact at the trust edg
     triggerFactSchema.safeParse({ type: "t", bus: "chat", chatId: "c", turn: { intent: "send", api: "", source: "", model: "", speakerCharacterId: null } })
       .success,
   ).toBe(false); // turn.automationDepth required
+  expect(triggerFactSchema.safeParse({ type: "character.updated", bus: "chat", chatId: "c" }).success).toBe(false);
+  expect(triggerFactSchema.safeParse({ type: "messageCommitted", bus: "domain", chatId: null }).success).toBe(false);
+  expect(triggerFactSchema.safeParse({ type: "invented", bus: "chat", chatId: "c" }).success).toBe(false);
 });

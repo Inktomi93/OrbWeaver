@@ -131,6 +131,49 @@ describe("chatStream markStopping (ADDITIVE — the composer's Stop button)", ()
     unsub();
   });
 
+  test("a rejected stop recovers the prior live phase and preserves bytes received while stopping", () => {
+    const pendingChat = freshChatId();
+    const streamingChat = freshChatId();
+    const pendingSeen: TurnSlot[] = [];
+    const streamingSeen: TurnSlot[] = [];
+    const unsubPending = subscribeTurnSlot(pendingChat, (slot) => pendingSeen.push(slot));
+    const unsubStreaming = subscribeTurnSlot(streamingChat, (slot) => streamingSeen.push(slot));
+    begin(pendingChat);
+    begin(streamingChat);
+    chatStream.appendDelta(textDelta(streamingChat, "Hel"));
+
+    const pendingPhase = chatStream.markStopping(pendingChat);
+    const streamingPhase = chatStream.markStopping(streamingChat);
+    chatStream.appendDelta(textDelta(streamingChat, "lo"));
+    if (pendingPhase !== null) {
+      chatStream.recoverAfterStopFailure(pendingChat, pendingPhase);
+    }
+    if (streamingPhase !== null) {
+      chatStream.recoverAfterStopFailure(streamingChat, streamingPhase);
+    }
+
+    expect(pendingPhase).toBe("pending");
+    expect(streamingPhase).toBe("streaming");
+    expect(pendingSeen.at(-1)).toMatchObject({ phase: "pending" });
+    expect(streamingSeen.at(-1)).toMatchObject({ phase: "streaming", text: "Hello" });
+    unsubPending();
+    unsubStreaming();
+  });
+
+  test("a server terminal wins over rejected-stop recovery", () => {
+    const chatId = freshChatId();
+    const seen: TurnSlot[] = [];
+    const unsub = subscribeTurnSlot(chatId, (slot) => seen.push(slot));
+    begin(chatId);
+    const previous = chatStream.markStopping(chatId);
+    chatStream.abortTurn(chatId, "user");
+    if (previous !== null) {
+      chatStream.recoverAfterStopFailure(chatId, previous);
+    }
+    expect(seen.at(-1)).toMatchObject({ phase: "aborted", reason: "user" });
+    unsub();
+  });
+
   test("markStopping is idempotent — a second call from `stopping` is a no-op (the double-abort guard)", () => {
     const chatId = freshChatId();
     const seen: TurnSlot[] = [];

@@ -77,10 +77,16 @@ export function StatCell({ label, value, hint, onEditValue }: StatCellProps): Re
           size="title"
           onEdit={(next): void => {
             const trimmed = next.trim();
-            const n = Number.parseInt(trimmed, 10);
-            // Blank (or unparseable) CLEARS the attribute — the `SheetLevel` grammar, and the only door that
-            // un-references an attribute key so the host can still shrink the profile's vocabulary.
-            onEditValue(trimmed === "" || Number.isNaN(n) ? null : n);
+            if (trimmed === "") {
+              // Blank CLEARS the attribute — the `SheetLevel` grammar, and the only door that un-references
+              // an attribute key so the host can still shrink the profile's vocabulary.
+              onEditValue(null);
+              return;
+            }
+            const n = Number(trimmed);
+            if (Number.isInteger(n)) {
+              onEditValue(n);
+            }
           }}
           // `text-title` keeps the revealed input at the SAME type size as the big rest value — no
           // font-size jump inside the fixed cell (the no-layout-shift bar). The REST state hugs its

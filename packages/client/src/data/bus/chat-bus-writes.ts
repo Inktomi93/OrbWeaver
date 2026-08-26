@@ -19,6 +19,12 @@ export function useChatBusDeps(): ChatBusDeps {
 
 /** The Stop button's instant "stopping" feedback, fired before the abort round-trip starts (see
  *  chat-stream.ts's `markStopping` doc). Not a hook — called inside an event handler. */
-export function markTurnStopping(chatId: ChatId): void {
-  chatStream.markStopping(chatId);
+export function markTurnStopping(chatId: ChatId): "pending" | "streaming" | null {
+  return chatStream.markStopping(chatId);
+}
+
+/** Roll back only the client-owned stopping transition after chat.abort rejects. A server terminal that
+ *  already won leaves a non-stopping slot and therefore wins this race. */
+export function recoverTurnAfterStopFailure(chatId: ChatId, previousPhase: "pending" | "streaming"): void {
+  chatStream.recoverAfterStopFailure(chatId, previousPhase);
 }

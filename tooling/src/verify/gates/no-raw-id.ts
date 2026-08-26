@@ -11,6 +11,7 @@ import type { GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 const EXEMPT_SYMBOL = "triggerFactSchema";
+const EXEMPT_PAYLOAD_SYMBOL = "triggerFactPayloadSchema";
 const GATE_SELF = "tooling/src/verify/gates/no-raw-id.ts";
 /** Real-tree anchor (gate-hub #11): the id-brand home this gate's message prescribes. */
 const ANCHOR = "packages/kit/src/ids/index.ts";
@@ -56,8 +57,30 @@ export const gate: GateDescriptor = {
     // tool-schema-no-branded-transform lesson applies to guest-marshalled shapes), and branding a field whose
     // whole point is to cross the membrane as a plain scalar breaks the boundary. Keyed on the enclosing
     // declaration name so the gate stays LIVE for every other id field in the same file.
-    if (node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName() === EXEMPT_SYMBOL) {
+    const declarationName = node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName();
+    if (declarationName === EXEMPT_SYMBOL) {
       return;
+    }
+    if (declarationName === EXEMPT_PAYLOAD_SYMBOL) {
+      const finalDeclaration = node.getSourceFile().getVariableDeclaration(EXEMPT_SYMBOL);
+      const finalInitializer = finalDeclaration?.getInitializerIfKind(SyntaxKind.CallExpression);
+      const arms = finalInitializer?.getArguments()[1];
+      const payloadOwnsEveryArm =
+        finalInitializer?.getExpression().getText() === "z.discriminatedUnion" &&
+        Node.isArrayLiteralExpression(arms) &&
+        arms.getElements().length > 0 &&
+        arms.getElements().every((arm) => {
+          if (!Node.isCallExpression(arm)) {
+            return false;
+          }
+          const expression = arm.getExpression();
+          return (
+            Node.isPropertyAccessExpression(expression) && expression.getName() === "extend" && expression.getExpression().getText() === EXEMPT_PAYLOAD_SYMBOL
+          );
+        });
+      if (payloadOwnsEveryArm) {
+        return;
+      }
     }
 
     // Whitespace-NORMALIZED before the substring match: a prettier-wrapped chain spells the same schema
@@ -101,6 +124,17 @@ export const gate: GateDescriptor = {
       expect: { count: 1, messageIncludes: "stale exemption" },
       why: "THE STALE ARM: the anchor (the id-brand home) is loaded and no `triggerFactSchema` declaration exists any more — a symbol-keyed carve-out that names nothing must ratchet down before an unrelated future declaration inherits it",
     },
+    {
+      files: {
+        [ANCHOR]: "export const brandedId = null;\n",
+        "packages/contracts/src/automation/index.ts": `
+          import { z } from "zod";
+          const triggerFactPayloadSchema = z.object({ chatId: z.string().nullable() });
+          export const triggerFactSchema = z.object({ bus: z.literal("chat") });
+        `,
+      },
+      why: "a same-named payload does not earn the guest-marshalling exemption unless the exported TriggerFact union actually derives every arm from it",
+    },
   ],
   mustPass: [
     {
@@ -139,6 +173,20 @@ export const gate: GateDescriptor = {
           'import { z } from "zod";\nexport const triggerFactSchema = z.object({\n  chatId: z.string().nullable(),\n});\n',
       },
       why: "the carve-out STILL EARNED, judged against the real-tree anchor: the guest-marshalling schema exists, so its unbranded ids pass and the stale arm stays quiet",
+    },
+    {
+      files: {
+        [ANCHOR]: "export const brandedId = null;\n",
+        "packages/contracts/src/automation/index.ts": `
+          import { z } from "zod";
+          const triggerFactPayloadSchema = z.object({ chatId: z.string().nullable() });
+          export const triggerFactSchema = z.discriminatedUnion("bus", [
+            triggerFactPayloadSchema.extend({ bus: z.literal("chat") }),
+            triggerFactPayloadSchema.extend({ bus: z.literal("domain") }),
+          ]);
+        `,
+      },
+      why: "the shared guest payload earns the exemption only when every discriminated-union arm derives directly from that exact declaration",
     },
   ],
 };
