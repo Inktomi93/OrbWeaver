@@ -29,10 +29,11 @@
 import type { ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "./context.ts";
-import { appendChatEvent, insertChatEventStatement } from "./persistence/events.ts";
+import { appendChatEvent, appendChatEventStatement, insertChatEventStatement } from "./persistence/events.ts";
 import { loadChatRow } from "./persistence/queries.ts";
 import { createMemberDeltaStamper } from "./substrate/member-visibility.ts";
 
@@ -49,7 +50,7 @@ interface ChatEmitted {
  *  `DurableChatBusEvent`, not the whole union: the live-only lane (`LIVE_ONLY_CHAT_EVENT_TYPES`, contracts
  *  §3.4) has no `chat_events` form, so handing one to this emit is a COMPILE error rather than a row the db
  *  CHECK would reject at runtime. Its fan surface is `entry/compose/services::emitChatEventLive`. */
-type EmitChatEvent = (event: DurableChatBusEvent) => Promise<ChatEmitted | null>;
+type EmitChatEvent = (event: DurableChatBusEvent, coStatements?: readonly BatchStmt[]) => Promise<ChatEmitted | null>;
 
 interface ChatRingEntry {
   readonly seq: number;
@@ -122,7 +123,7 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
     };
   };
 
-  const emit: EmitChatEvent = async (raw) => {
+  const emit: EmitChatEvent = async (raw, coStatements = []) => {
     const chatId = raw.chatId;
     // Stamped BEFORE the durable write and used for every downstream copy: the log row, the ring, and the
     // composition root's live fan must all carry the identical member projection.
@@ -131,12 +132,18 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
     // delivered-but-unlogged event.
     let seq: number;
     try {
-      seq = await appendChatEvent(deps.db, {
-        id: deps.newEventId(),
-        chatId,
-        event,
-        createdAt: deps.now(),
-      });
+      const args = { id: deps.newEventId(), chatId, event, createdAt: deps.now() };
+      if (coStatements.length === 0) {
+        seq = await appendChatEvent(deps.db, args);
+      } else {
+        const append = appendChatEventStatement(deps.db, args);
+        const results = await deps.db.batch(batchMany([append, ...coStatements]));
+        const rows = results[0] as { seq: number }[];
+        seq = rows.at(0)?.seq ?? 0;
+        if (seq === 0) {
+          throw new Error(`chat ${chatId}: atomic event append returned no cursor`);
+        }
+      }
     } catch (err) {
       // FLAG[emit-is-total]: a failed durable write is classified + reported, never rethrown — the engine's
       // delta emits are fire-and-forget, so a rejection here kills the process.
