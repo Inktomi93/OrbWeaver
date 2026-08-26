@@ -259,9 +259,10 @@ export function Table<TData>({
   const sorted = sortEntries(entries, columns, sorting);
 
   // If `data` shrinks while the caller sits on a later page, clamp rather than render a blank page.
-  const pageSize = Number.isFinite(requestedPagination.pageSize) ? Math.max(1, Math.trunc(requestedPagination.pageSize)) : DEFAULT_PAGE_SIZE;
+  const pageSize = Number.isFinite(requestedPagination.pageSize) ? Math.max(1, Math.floor(requestedPagination.pageSize)) : DEFAULT_PAGE_SIZE;
   const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
-  const pageIndex = Math.min(Math.max(requestedPagination.pageIndex, 0), pageCount - 1);
+  const requestedPageIndex = Number.isFinite(requestedPagination.pageIndex) ? Math.max(0, Math.floor(requestedPagination.pageIndex)) : 0;
+  const pageIndex = Math.min(requestedPageIndex, pageCount - 1);
   const pageStart = pageIndex * pageSize;
   const pageEntries = sorted.slice(pageStart, pageStart + pageSize);
 

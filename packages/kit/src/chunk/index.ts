@@ -39,16 +39,16 @@ export interface TextChunk {
 
 const PERCENT = 100;
 
-/** Pure, deterministic, total over valid parameters. Throws when `chunkSize < 1` so recursive splitting
- *  always advances.
+/** Pure, deterministic, total over valid parameters. Throws unless `chunkSize` is a finite integer at
+ *  least 1 so recursive splitting always advances with integral offsets.
  *
  *  Properties (the property tests): (1) lossless partition — slicing the input by every chunk's `[start, end)`
  *  in `idx` order reproduces it; (2) bound — every `content` fits `chunkSize` plus the overlap chars
  *  (whole-file case exempt); (3) contiguity — `idx` is `0..n-1` and chunks abut (`chunks[i].end` equals
  *  `chunks[i+1].start`); (4) determinism; (5) totality. */
 export function chunkText(text: string, params: ChunkParams): TextChunk[] {
-  if (params.chunkSize < 1) {
-    throw new RangeError(`chunkText: chunkSize must be at least 1 (got ${params.chunkSize})`);
+  if (!Number.isInteger(params.chunkSize) || params.chunkSize < 1) {
+    throw new RangeError(`chunkText: chunkSize must be a finite integer at least 1 (got ${params.chunkSize})`);
   }
   if (text.length === 0) {
     return [];

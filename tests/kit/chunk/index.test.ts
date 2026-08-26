@@ -42,8 +42,16 @@ describe("chunkText — edge inputs (totality)", () => {
     }
   });
 
-  test.each([0, -1, 0.5])("chunkSize %s is rejected before recursive splitting", (chunkSize) => {
-    expect(() => chunkText("a document that must split", P({ chunkSize, wholeFileThreshold: 0 }))).toThrow("chunkSize must be at least 1");
+  test.each([
+    0,
+    -1,
+    0.5,
+    1.5,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+  ])("chunkSize %s is rejected before recursive splitting", (chunkSize) => {
+    expect(() => chunkText("a document that must split", P({ chunkSize, wholeFileThreshold: 0 }))).toThrow(RangeError);
   });
 });
 
