@@ -50,6 +50,27 @@ export function appendChatEventStatement(db: Db, args: ChatEventInsertArgs): Awa
     .returning({ seq: chatEvents.seq });
 }
 
+/** Append only when the immediately preceding statement claimed a row. This statement must be second in one
+ * SQLite batch: `changes()` is connection-local, so a zero-row claim makes this INSERT a converged no-op. */
+export function appendChatEventAfterClaimStatement(db: Db, args: ChatEventInsertArgs): AwaitableBatchStmt<{ seq: number }[]> {
+  return db
+    .insert(chatEvents)
+    .select(
+      db
+        .select({
+          id: sql<ChatEventId>`${args.id}`.as("id"),
+          chatId: sql<ChatId>`${args.chatId}`.as("chat_id"),
+          seq: sql<number>`(select coalesce(max(${chatEvents.seq}), 0) + 1 from ${chatEvents} where ${chatEvents.chatId} = ${args.chatId})`.as("seq"),
+          type: sql<ChatBusEvent["type"]>`${args.event.type}`.as("type"),
+          payload: sql<ChatBusEvent>`${JSON.stringify(args.event)}`.as("payload"),
+          createdAt: sql<number>`${args.createdAt}`.as("created_at"),
+        })
+        .from(sql`(select 1)`)
+        .where(sql`changes() > 0`),
+    )
+    .returning({ seq: chatEvents.seq });
+}
+
 /**
  * Append one room-public event to the durable `chat_events` log, returning the assigned per-chat `seq`
  * (the replay cursor). The `seq` is assigned by a same-statement correlated subquery
