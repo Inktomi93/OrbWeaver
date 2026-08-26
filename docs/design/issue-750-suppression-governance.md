@@ -69,7 +69,7 @@ Detector-equivalent invocation: build `getWorkspace({root})`, retain only `gover
 | `scripts` excluding st-goldens | 28 | 22 | 0 | 0 |
 | authored `scripts/probes/st-goldens` | 5 | 66 | 0 | 0 |
 
-The shared project loaded 5,821 files. The predicate governed 3,645 files and excluded 2,176 test files; 161 governed files carried 310 directive sites across 48 rule classes. The generated ledger admits 310 ratified sites and zero debt. The five authored st-goldens files carry 38 live `useNamingConvention` markers: the narrower override re-enables the rule, and every marker names an external wire/schema/key spelling. The captured runtime contributes zero scanned files.
+The shared project loaded 5,822 files. The predicate governed 3,645 files and excluded 2,177 test files; 161 governed files carried 310 directive sites across 48 rule classes. The generated ledger admits 310 ratified sites and zero debt. The five authored st-goldens files carry 38 live `useNamingConvention` markers: the narrower override re-enables the rule, and every marker names an external wire/schema/key spelling. The captured runtime contributes zero scanned files.
 
 The preserved behavior-sensitive classes have 17 `noUnnecessaryConditions`, 7 `useNullishCoalescing`, 8 `noExcessiveCognitiveComplexity`, and 11 `useErrorCause` sites. Exact site comments and `RATIFIED_RULES` carry their reasons. The retired populations were 24 current `noSecrets` directives and 4 `useTopLevelRegex` directives; all were deleted. The issue's earlier 25-marker noSecrets count was stale against the implementation tree.
 
