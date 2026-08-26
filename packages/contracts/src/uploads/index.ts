@@ -22,6 +22,8 @@ const ASSET_UPLOAD_MIB = 64;
 const DATABANK_UPLOAD_MIB = 20;
 const IMPORT_TOTAL_MIB = 256;
 const IMPORT_DECOMPRESSED_MIB = 10_240; // 10 GiB
+const IMPORT_TREE_TOTAL_MIB = 1024;
+const IMPORT_TREE_FILE_MIB = 64;
 
 // ── The single-asset family (a POSTed image/blob → /api/assets/upload) ─────────────────────────────────
 /** A single asset (avatar/gallery/background image, a card PNG). Also handed to the CAS store's `maxBytes`
@@ -43,6 +45,16 @@ export const IMPORT_MAX_TOTAL_BYTES = IMPORT_TOTAL_MIB * BYTES_PER_MIB;
  *  full-account all-blobs backup fits while an amplification/zip-bomb archive aborts. Moves with its
  *  rationale: this is a hostile-input belt, never a product limit or a client affordance. */
 export const IMPORT_MAX_DECOMPRESSED_BYTES = IMPORT_DECOMPRESSED_MIB * BYTES_PER_MIB;
+
+/** The direct profile-tree aggregate cap. Folder uploads legitimately exceed the compressed-bundle cap,
+ *  but collection still has one shared ceiling across every accepted profile input. */
+export const IMPORT_TREE_MAX_TOTAL_BYTES = IMPORT_TREE_TOTAL_MIB * BYTES_PER_MIB;
+
+/** The direct profile-tree per-file cap, shared by HTTP staging and the workload's collection reads. */
+export const IMPORT_TREE_MAX_FILE_BYTES = IMPORT_TREE_FILE_MIB * BYTES_PER_MIB;
+
+/** The direct profile-tree entry ceiling, aligned with the archive codec's house entry cap. */
+export const IMPORT_TREE_MAX_FILES = 50_000;
 
 /** The client-served deployment byte caps — the honest upper bounds the client pre-checks + dropzone hints
  *  derive from (a deployment fact, served on `/api/auth/config`). The image cap is the EFFECTIVE ceiling for

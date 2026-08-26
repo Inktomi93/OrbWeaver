@@ -407,7 +407,7 @@ export async function extractZip(source: ZipByteSource, options?: ExtractOptions
   const maxTotalBytes = options?.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES;
   const maxEntryBytes = options?.maxEntryBytes ?? DEFAULT_MAX_ENTRY_BYTES;
   const maxTotalDecompressedBytes = options?.maxTotalDecompressedBytes ?? DEFAULT_MAX_TOTAL_DECOMPRESSED_BYTES;
-  const maxEntries = options?.maxEntries ?? DEFAULT_MAX_ENTRIES;
+  const maxEntries = Math.min(options?.maxEntries ?? DEFAULT_MAX_ENTRIES, DEFAULT_MAX_ENTRIES);
   const stagingRoot = options?.stagingRoot ?? tmpdir();
 
   const buf = await bufferCapped(source, maxTotalBytes);
@@ -438,11 +438,17 @@ interface PackedCentral {
 }
 
 function writeU16(view: DataView, at: number, value: number): void {
-  view.setUint16(at, value & U16_MAX, true);
+  if (!Number.isInteger(value) || value < 0 || value > U16_MAX) {
+    throw new ZipRejectedError("unsupported", `value ${value} cannot be represented in a ZIP U16 field`);
+  }
+  view.setUint16(at, value, true);
 }
 
 function writeU32(view: DataView, at: number, value: number): void {
-  view.setUint32(at, value >>> 0, true);
+  if (!Number.isInteger(value) || value < 0 || value > U32_MAX) {
+    throw new ZipRejectedError("unsupported", `value ${value} cannot be represented in a ZIP U32 field`);
+  }
+  view.setUint32(at, value, true);
 }
 
 function localHeader(central: PackedCentral): Uint8Array {
@@ -496,11 +502,24 @@ function eocdRecord(count: number, cdOffset: number, cdSize: number): Uint8Array
 }
 
 function emitEntry(controller: ReadableStreamDefaultController<Uint8Array>, entry: ZipEntry, localOffset: number, centrals: PackedCentral[]): number {
+  assertSafeName(entry.path);
   const nameBytes = new TextEncoder().encode(entry.path);
+  if (nameBytes.length > U16_MAX) {
+    throw new ZipRejectedError("unsupported", `entry name is ${nameBytes.length} bytes, over the ZIP U16 limit of ${U16_MAX}`);
+  }
+  if (entry.bytes.length > DEFAULT_MAX_ENTRY_BYTES) {
+    throw new ZipRejectedError("too-large", `entry ${entry.path} is ${entry.bytes.length} bytes, over the ${DEFAULT_MAX_ENTRY_BYTES} per-entry cap`);
+  }
+  if (entry.bytes.length >= U32_MAX || localOffset >= U32_MAX) {
+    throw new ZipRejectedError("unsupported", "ZIP64 entry sizes and offsets are not supported");
+  }
   const crc = crc32(entry.bytes) >>> 0;
   const deflated = deflateRawSync(entry.bytes);
   const stored = deflated.length >= entry.bytes.length;
   const body = stored ? entry.bytes : deflated;
+  if (body.length >= U32_MAX) {
+    throw new ZipRejectedError("unsupported", "ZIP64 compressed entry sizes are not supported");
+  }
   const central: PackedCentral = {
     nameBytes,
     crc,
@@ -510,6 +529,9 @@ function emitEntry(controller: ReadableStreamDefaultController<Uint8Array>, entr
     localOffset,
   };
   const head = localHeader(central);
+  if (localOffset + head.length + body.length >= U32_MAX) {
+    throw new ZipRejectedError("unsupported", "ZIP64 archive offsets are not supported");
+  }
   controller.enqueue(head);
   controller.enqueue(body);
   centrals.push(central);
@@ -525,6 +547,9 @@ export function packZip(entries: AsyncIterable<ZipEntry>): ReadableStream<Uint8A
     async pull(controller: ReadableStreamDefaultController<Uint8Array>): Promise<void> {
       const next = await iterator.next();
       if (next.done !== true) {
+        if (centrals.length >= DEFAULT_MAX_ENTRIES) {
+          throw new ZipRejectedError("too-many-entries", `archive exceeds the cap of ${DEFAULT_MAX_ENTRIES} entries`);
+        }
         offset += emitEntry(controller, next.value, offset, centrals);
         return;
       }
@@ -532,8 +557,11 @@ export function packZip(entries: AsyncIterable<ZipEntry>): ReadableStream<Uint8A
       let cdSize = 0;
       for (const central of centrals) {
         const record = centralHeader(central);
-        controller.enqueue(record);
+        if (cdSize + record.length >= U32_MAX || cdOffset + cdSize + record.length >= U32_MAX) {
+          throw new ZipRejectedError("unsupported", "ZIP64 central-directory sizes and offsets are not supported");
+        }
         cdSize += record.length;
+        controller.enqueue(record);
       }
       controller.enqueue(eocdRecord(centrals.length, cdOffset, cdSize));
       controller.close();
