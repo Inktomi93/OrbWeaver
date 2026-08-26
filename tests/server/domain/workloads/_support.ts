@@ -226,6 +226,7 @@ export async function seedWorkloadRow(
     lane: overrides.lane ?? "sweep",
     params: overrides.params ?? {},
     ownerId: overrides.ownerId ?? null,
+    admissionSystem: (overrides.ownerId ?? null) === null,
     dependsOn: overrides.dependsOn ?? null,
     scheduledAt: overrides.scheduledAt ?? T0,
     createdAt: overrides.createdAt ?? T0,
