@@ -4,7 +4,7 @@
 // `isSubjectMismatch`) and a subject already bound to ANOTHER row (duplicate binding). No write escapes on a
 // refusal. The admin gate + audit around this live in the admin verb (tested separately).
 
-import type { Db } from "@orb/db";
+import type { Db, LibSqlWrap } from "@orb/db";
 import { users } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -46,6 +46,47 @@ async function externalIdOf(id: UserId): Promise<string | null> {
   return row?.externalId ?? null;
 }
 
+type LibSqlClient = Parameters<LibSqlWrap>[0];
+
+function sqlOf(statement: unknown): string {
+  if (typeof statement === "string") {
+    return statement;
+  }
+  if (statement !== null && typeof statement === "object" && "sql" in statement) {
+    return String((statement as { readonly sql?: string }).sql ?? "");
+  }
+  return "";
+}
+
+function holdSubjectReadsUntilBothComplete(targetDb: Db): { readonly bothRead: Promise<void>; readonly release: () => void } {
+  const bothRead = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  let reads = 0;
+  const client = (targetDb as Db & { readonly $client: LibSqlClient }).$client;
+  const execute = Reflect.get(client, "execute", client);
+  if (typeof execute !== "function") {
+    throw new Error("real libSQL client has no execute method");
+  }
+  Reflect.set(
+    client,
+    "execute",
+    async (...args: unknown[]): Promise<unknown> => {
+      const result = await (execute as (...values: unknown[]) => Promise<unknown>).apply(client, args);
+      const sql = sqlOf(args[0]);
+      if (sql.startsWith("select ") && sql.includes('where "users"."external_id" = ?')) {
+        reads += 1;
+        if (reads === 2) {
+          bothRead.resolve();
+        }
+        await release.promise;
+      }
+      return result;
+    },
+    client,
+  );
+  return { bothRead: bothRead.promise, release: release.resolve };
+}
+
 describe("sessions.linkExternalId — bind-once linking capability (B5)", () => {
   test("BINDS an unbound row: externalId is stamped, outcome `linked`", async () => {
     const id = await seedRow("user_a", castId<Handle>("alice"), null);
@@ -80,5 +121,24 @@ describe("sessions.linkExternalId — bind-once linking capability (B5)", () => 
     const result = await svc.linkExternalId(b, EXT_A);
     expect(result).toEqual({ outcome: "subject-taken" });
     expect(await externalIdOf(b)).toBeNull();
+  });
+
+  test("two concurrent unbound targets converge on one durable subject holder with a typed loser", async () => {
+    const a = await seedRow("user_a", castId<Handle>("alice"), null);
+    const b = await seedRow("user_b", castId<Handle>("bob"), null);
+    const barrier = holdSubjectReadsUntilBothComplete(db);
+
+    const resultsPromise = Promise.allSettled([svc.linkExternalId(a, EXT_A), svc.linkExternalId(b, EXT_A)]);
+    await barrier.bothRead;
+    barrier.release();
+    const results = await resultsPromise;
+
+    expect(results).toMatchObject([{ status: "fulfilled" }, { status: "fulfilled" }]);
+    expect(results.map((result) => (result.status === "fulfilled" ? result.value.outcome : "rejected")).sort()).toEqual(["linked", "subject-taken"]);
+    const holders = await db.select({ id: users.id }).from(users).where(eq(users.externalId, EXT_A));
+    expect(holders).toHaveLength(1);
+    expect(results.flatMap((result) => (result.status === "fulfilled" && result.value.outcome === "linked" ? [result.value.userId] : []))).toEqual([
+      holders[0]?.id,
+    ]);
   });
 });
