@@ -4,7 +4,7 @@
 // RETURNS the aborted outcome — an abort is an outcome, not an exception), and the pre-start belt refusals
 // (budget / consent / locked).
 
-import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
+import type { AssembleContext, ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
@@ -140,7 +140,7 @@ function harness(
   });
   const debitBudget = vi.fn(over.debit ?? ((): Promise<void> => Promise.resolve()));
   const engine = createTurnEngine(ctx, {
-    emit: (event: ChatBusEvent): Promise<void> => {
+    emit: (event: DurableChatBusEvent): Promise<void> => {
       events.push(event);
       return over.emit?.(event) ?? Promise.resolve();
     },
@@ -673,7 +673,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     const events: ChatBusEvent[] = [];
     const ctx = makeChatContext(db, { runChatTurn: OK_TURN });
     const engine = createTurnEngine(ctx, {
-      emit: (event: ChatBusEvent): Promise<void> => {
+      emit: (event: DurableChatBusEvent): Promise<void> => {
         events.push(event);
         return Promise.resolve();
       },
@@ -928,6 +928,14 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
 describe("createTurnEngine — error path (turnAborted then rethrow)", () => {
   test("a generation failure emits turnAborted(error) THEN rethrows; lock released", async () => {
     const chatId = await seedChat(db, "a");
+    let releaseDelta: (() => void) | undefined;
+    let markDeltaStarted: (() => void) | undefined;
+    const deltaStarted = new Promise<void>((resolve) => {
+      markDeltaStarted = resolve;
+    });
+    const heldDelta = new Promise<void>((resolve) => {
+      releaseDelta = resolve;
+    });
     // A partial stream then a mid-flight failure (the realistic error path).
     const throwing: ChatContext["runChatTurn"] = () =>
       (async function* (): AsyncGenerator<TurnStreamChunk> {
@@ -935,9 +943,28 @@ describe("createTurnEngine — error path (turnAborted then rethrow)", () => {
         yield { kind: "text", text: "partial" };
         throw new Error("model exploded");
       })();
-    const h = harness(db, { runChatTurn: throwing });
+    const h = harness(db, {
+      runChatTurn: throwing,
+      emit: (event): Promise<void> => {
+        if (event.type === "delta") {
+          markDeltaStarted?.();
+          return heldDelta;
+        }
+        return Promise.resolve();
+      },
+    });
 
-    await expect(h.engine.runTurn(prepOf(chatId))).rejects.toThrow("model exploded");
+    let settled = false;
+    const turn = h.engine.runTurn(prepOf(chatId)).finally(() => {
+      settled = true;
+    });
+    await deltaStarted;
+
+    expect(settled).toBe(false);
+    expect(types(h.events)).not.toContain("turnAborted");
+
+    releaseDelta?.();
+    await expect(turn).rejects.toThrow("model exploded");
 
     const aborted = h.events.find((e) => e.type === "turnAborted");
     expect(aborted).toBeDefined();
