@@ -53,13 +53,14 @@ export function runReviewMirror(options: RunReviewMirrorOptions = {}): RunReview
   const evidencePath = join(mirror.target, EVIDENCE_NAME);
   writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
   print(JSON.stringify({ target: mirror.target, sourceCommit: commit, mirror, pendingGuard: evidence.pendingGuard.totals }, null, 2));
+  print(`review residual: ${evidence.pendingGuard.reviewResiduals.toString()} E7 control(s) require human review or product migration`);
   print(`evidence: ${evidencePath}`);
   print(`next: review the mirror without source comments; use ${EVIDENCE_NAME} as the E5/E6/E7 scope receipt`);
   printResult("review-mirror", [
     ["tracked", mirror.tracked],
     ["code", mirror.mirroredCode],
     ["controls", evidence.pendingGuard.directControls],
-    ["missing", evidence.pendingGuard.totals.missing],
+    ["reviewResidual", evidence.pendingGuard.reviewResiduals],
   ]);
   return { code: EXIT.clean, evidencePath, evidence };
 }

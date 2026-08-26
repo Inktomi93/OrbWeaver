@@ -66,6 +66,7 @@ function localHandler(expression: Expression, source: SourceFile): FunctionNode 
       }
     }
   }
+  // biome-ignore lint/complexity/noUselessUndefined: tooling/tsconfig enables noImplicitReturns.
   return undefined;
 }
 
@@ -197,5 +198,11 @@ export function censusPendingGuards(project: Project, root: string): PendingGuar
   for (const row of rows) {
     totals[row.classification] += 1;
   }
-  return { scannedTsx: sources.length, directControls: rows.length, rows, totals };
+  return {
+    scannedTsx: sources.length,
+    directControls: rows.length,
+    reviewResiduals: totals.missing + totals["other-guard"],
+    rows,
+    totals,
+  };
 }
