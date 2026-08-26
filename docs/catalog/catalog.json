@@ -445,7 +445,7 @@
         "authority": "operational",
         "fullRead": true,
         "verifiedSha256": "b1096aac374baec26cb6fc2f8d9d75a228bbfd516ed7b0725af25d6b70f7369e",
-        "verifiedCommit": "91a9cba97ddb06c015f9a5fa7f4228649ca25a93",
+        "verifiedCommit": "92011ffcf420248267d7b6ff51d57e7f223d9690",
         "verifiedAt": "2026-08-26",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -472,7 +472,7 @@
           "delta re-verify 2026-08-25 (#712, commits b4abe5069 + a2113d4eb): three narrow active rows (untrusted-regex-safe-exec, public-route-body-cap, plugin-dump-guard) and count 229->232 were re-read against their descriptors, mustFlag/mustPass controls, and paired product migrations. E3 requires cap middleware to precede the body-reading handler; E4 binds the unsafe-return guard to the same QuickJS context and handle as the dump. Gate conformance passed 8/8 after both adversarial decoys landed; the authoritative anti-drift run proved all three new fixtures fired and no active gate was blind. Its only final failure was the pre-existing user-bus-coverage fixture, not a #712 gate.",
           "integration re-attestation 2026-08-25 (commit fac181a77): the merged route preserves both the OIDC back-channel body cap and the fail-closed sid-only rejection; all three new diagnostics now point to the #712 design, and the review-mirror contract derives its five-way pending classification from one tuple.",
           "delta re-attestation 2026-08-26 (#730, commit 4b727cf44): monotonic-tests now rejects pseudo-skip annotations while accepting genuine runner outcomes, and test-no-stubs distinguishes those runtime guards from skipped test declarations; suppressions records the retired noAwaitInLoops ceremony and the measured 159-row fully-ratified floor. The design and changed rows were read in full; focused gate conformance passed 8/8 and suppression/monotonic residuals passed 15/15 on the lane bytes.",
-          "delta re-attestation 2026-08-26 (#750, commit 91a9cba97): the suppressions row now matches the shared governed typed-source predicate, exact directive-token detector, foreign-runtime fence, derived classification, and both-ways controls. useTopLevelRegex was removed from Layer 1. The full document and descriptor were re-read; focused gate conformance passed 8/8, residual/config tests passed 19/19, and the standalone real gate scanned 3,645 governed files clean with 310 ratified sites."
+          "delta re-attestation 2026-08-26 (#750, commit 92011ffcf): the suppressions row now matches the shared governed typed-source predicate, exact directive-token detector, foreign-runtime fence, derived classification, and both-ways controls. useTopLevelRegex was removed from Layer 1. The full document and descriptor were re-read; focused gate conformance passed 8/8, residual/config tests passed 19/19, and the standalone real gate scanned 3,645 governed files clean with 310 ratified sites."
         ],
         "claims": [
           {
@@ -12023,10 +12023,10 @@
         "authority": "design",
         "fullRead": true,
         "verifiedSha256": "c595ae1097373b844a19a4ef40afb66d2271d389b074172403cf837cfa9d2c8b",
-        "verifiedCommit": "91a9cba97ddb06c015f9a5fa7f4228649ca25a93",
+        "verifiedCommit": "92011ffcf420248267d7b6ff51d57e7f223d9690",
         "verifiedAt": "2026-08-26",
         "evidence": [
-          "docs/design/issue-750-suppression-governance.md read in full after implementation commit 91a9cba97; scope, detector contract, policy disposition, rejected alternatives, proof plan, and detector-equivalent census rechecked against issue #750 and the live gate",
+          "docs/design/issue-750-suppression-governance.md read in full after rebased implementation commit 92011ffcf; scope, detector contract, policy disposition, rejected alternatives, proof plan, and detector-equivalent census rechecked against issue #750 and the live gate",
           "detector-equivalent census: 5,821 project files; 3,645 governed TS/TSX files; 161 files with 310 directive sites across 48 rule classes; generated ledger 0 debt and 310 ratified",
           "focused proof: pre-fix tooling/scripts plants were invisible; post-fix both plants red; gate conformance 8/8; suppression/config tests 19/19; scoped Biome, ESLint, tooling typecheck, and docs formatting green"
         ],
