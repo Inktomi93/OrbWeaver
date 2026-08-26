@@ -61,7 +61,7 @@ import type {
 } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
-import { ownedBackgroundAvailable } from "../persistence/background-write.ts";
+import { carriedBackgroundAvailable, ownedBackgroundAvailable } from "../persistence/background-write.ts";
 import { restampChatCharacterStatement } from "../persistence/canon-write.ts";
 import { clearHandoffResumptionStatement, insertHandoffResumptionStatement, loadHandoffResumption } from "../persistence/handoff-resume.ts";
 import {
@@ -127,17 +127,29 @@ async function commitStatsFencedChatUpdate(ctx: ChatContext, ownerId: UserId, st
   await ctx.db.batch(batchMany(statements));
 }
 
-async function commitBackgroundUpdate(ctx: ChatContext, ownerId: UserId, chatId: ChatId, metadata: typeof chats.$inferInsert.metadata): Promise<void> {
+async function commitMetadataUpdate(args: {
+  readonly ctx: ChatContext;
+  readonly ownerId: UserId;
+  readonly chatId: ChatId;
+  readonly metadata: typeof chats.$inferInsert.metadata;
+  readonly authority: "carried" | "owned";
+}): Promise<void> {
+  const { ctx, ownerId, chatId, metadata, authority } = args;
+  const available = authority === "owned" ? ownedBackgroundAvailable(ctx.db, ownerId, metadata ?? null) : carriedBackgroundAvailable(ctx.db, metadata ?? null);
   const statement = ctx.db
     .update(chats)
     .set({ metadata, updatedAt: ctx.now() })
-    .where(and(eq(chats.id, chatId), ownedBackgroundAvailable(ctx.db, ownerId, metadata ?? null)))
+    .where(and(eq(chats.id, chatId), available))
     .returning({ id: chats.id });
   const statements: BatchStmt[] = [statement];
   ctx.bumpStatsCanonVersion(statements, ctx.db, ownerId);
   const results = await ctx.db.batch(batchMany(statements));
   const updated = results[0] as readonly { readonly id: ChatId }[];
   if (updated.length === 0) {
+    const stillExists = await ctx.db.select({ id: chats.id }).from(chats).where(eq(chats.id, chatId)).limit(1);
+    if (stillExists.length === 0) {
+      throw new ChatNotFoundError(chatId);
+    }
     throw new ChatOperationError(CHAT_OP_CODES.backgroundUnavailable, `chat ${chatId}: the background asset is no longer available`);
   }
 }
@@ -220,14 +232,7 @@ function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent, claimChat: 
         );
       }
     }
-    await commitStatsFencedChatUpdate(
-      ctx,
-      principal.userId,
-      ctx.db
-        .update(chats)
-        .set({ metadata: { ...chat.metadata, group: parsed }, updatedAt: ctx.now() })
-        .where(eq(chats.id, chatId)),
-    );
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: { ...chat.metadata, group: parsed }, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -256,14 +261,7 @@ function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent, claimChat
         `chat ${chatId}: room overrides accept only the three-field allowlist (scenario / mainPrompt / postHistory)`,
       );
     }
-    await commitStatsFencedChatUpdate(
-      ctx,
-      principal.userId,
-      ctx.db
-        .update(chats)
-        .set({ metadata: { ...chat.metadata, roomOverrides: parsed.data }, updatedAt: ctx.now() })
-        .where(eq(chats.id, chatId)),
-    );
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: { ...chat.metadata, roomOverrides: parsed.data }, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     // Field labels only, never the override bodies (card-body-like text must not leak into a log row).
     await ctx.audit(
@@ -298,11 +296,7 @@ function createSetChatDocumentVisibility(ctx: ChatContext, emit: EmitChatEvent, 
     // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
     // spread and the freshness excess-property check never fires on the new key.
     const nextMetadata = { ...chat.metadata, databankVisibility: parsed.data };
-    await commitStatsFencedChatUpdate(
-      ctx,
-      principal.userId,
-      ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId)),
-    );
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -339,11 +333,7 @@ function createSetHostDisplayScripts(ctx: ChatContext, emit: EmitChatEvent, clai
     // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
     // spread and the freshness excess-property check never fires on the new key.
     const nextMetadata = { ...chat.metadata, hostDisplayScripts: enabled };
-    await commitStatsFencedChatUpdate(
-      ctx,
-      principal.userId,
-      ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId)),
-    );
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       { actorUserId: principal.userId, action: "chat.setHostDisplayScripts", entityType: "chat", entityId: chatId, metadata: { enabled } },
@@ -373,11 +363,7 @@ function createSetOfferChoices(ctx: ChatContext, emit: EmitChatEvent, claimChat:
     // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
     // spread and the freshness excess-property check never fires on the new key.
     const nextMetadata = { ...chat.metadata, offerChoices: enabled };
-    await commitStatsFencedChatUpdate(
-      ctx,
-      principal.userId,
-      ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId)),
-    );
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit({ actorUserId: principal.userId, action: "chat.setOfferChoices", entityType: "chat", entityId: chatId, metadata: { enabled } }, ctx.now());
     return enabled;
@@ -444,7 +430,7 @@ function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimCha
     // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
     // spread and the freshness excess-property check never fires on the new key (the databankVisibility precedent).
     const nextMetadata = { ...chat.metadata, background: source };
-    await commitBackgroundUpdate(ctx, principal.userId, chatId, nextMetadata);
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "owned" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -475,11 +461,7 @@ function createSetToolRecurseLimit(ctx: ChatContext, emit: EmitChatEvent, claimC
       );
     }
     const nextMetadata = { ...chat.metadata, toolRecurseLimit: parsed.data };
-    await commitStatsFencedChatUpdate(
-      ctx,
-      principal.userId,
-      ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId)),
-    );
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {

@@ -10,6 +10,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { parseChatMetadata } from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
 import { createSetRpgPointer } from "../../../../../packages/server/src/domain/chat/verbs/set-rpg-pointer.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -55,6 +56,29 @@ describe("setRpgPointer", () => {
   test("a racing-deleted chat is a no-op (no throw)", async () => {
     await createSetRpgPointer(makeChatContext(db))(castId("chat_ghost"), { engaged: true, gameId: mintTypeId(ID_PREFIX.rpgGame) });
     expect(true).toBe(true);
+  });
+
+  test("a stale carried background blocks the whole-metadata pointer write with a typed error", async () => {
+    const missingAssetId = mintTypeId(ID_PREFIX.asset);
+    const chatId = await seedChat(db, "stale-background", {
+      metadata: {
+        background: {
+          kind: "asset",
+          seededId: "",
+          externalUrl: "",
+          assetId: missingAssetId,
+          assetHash: "gone",
+          mime: "image/png",
+          provenanceUrl: "",
+        },
+      },
+    });
+
+    const err = await createSetRpgPointer(makeChatContext(db))(chatId, { engaged: true, gameId: mintTypeId(ID_PREFIX.rpgGame) }).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("background_unavailable");
+    expect((await readMetadata(chatId)).rpg).toBeUndefined();
   });
 
   test("NULL DETACHES — drops the rpg sub-blob so the chat is byte-identical to a never-a-game chat", async () => {
