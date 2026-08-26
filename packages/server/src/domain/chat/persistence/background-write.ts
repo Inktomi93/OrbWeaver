@@ -12,16 +12,24 @@ function backgroundAssetId(metadata: ChatMetadata | null): AssetId | undefined {
 }
 
 /** Keeps a carried JSON asset reference and the asset row in one SQLite write-serialization decision. */
-// @owner-scope-ok: fork/import already authorized the source room or import operation, and carried room
-// backgrounds intentionally remain valid across owners. This ends if carried backgrounds become
-// owner-only or move to a normalized FK-backed relation.
 export function guardedChatId(db: Db, chatId: ChatId, metadata: ChatMetadata | null): ChatId | ReturnType<typeof sql<ChatId>> {
   const assetId = backgroundAssetId(metadata);
   if (assetId === undefined) {
     return chatId;
   }
-  const available = db.select({ one: sql`1` }).from(assets).where(eq(assets.id, assetId));
-  return sql<ChatId>`(SELECT ${chatId} WHERE ${exists(available)})`;
+  return sql<ChatId>`(SELECT ${chatId} WHERE ${carriedBackgroundAvailable(db, metadata)})`;
+}
+
+/** Existing room metadata may carry a background across owners, but never across deletion of its asset. */
+// @owner-scope-ok: the authorized source room or import operation supplied this carried asset id, and
+// carried room backgrounds intentionally remain valid across owners. This ends if carried backgrounds
+// become owner-only or move to a normalized FK-backed relation.
+export function carriedBackgroundAvailable(db: Db, metadata: ChatMetadata | null): SQL {
+  const assetId = backgroundAssetId(metadata);
+  if (assetId === undefined) {
+    return sql`1`;
+  }
+  return exists(db.select({ one: sql`1` }).from(assets).where(eq(assets.id, assetId)));
 }
 
 /** Direct room customization additionally preserves the caller-owned asset authority gate. */

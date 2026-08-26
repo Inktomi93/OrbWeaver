@@ -8,7 +8,11 @@ import type { AssetId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { guardedChatId, ownedBackgroundAvailable } from "../../../../../packages/server/src/domain/chat/persistence/background-write.ts";
+import {
+  carriedBackgroundAvailable,
+  guardedChatId,
+  ownedBackgroundAvailable,
+} from "../../../../../packages/server/src/domain/chat/persistence/background-write.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedUser } from "../_support.ts";
@@ -41,6 +45,8 @@ describe("persistence/background-write", () => {
 
     expect(await db.all(sql`SELECT ${guardedChatId(db, chatId, metadata(assetId))} AS id`)).toEqual([{ id: chatId }]);
     expect(await db.all(sql`SELECT ${guardedChatId(db, chatId, metadata(castId<AssetId>("asset_missing")))} AS id`)).toEqual([{ id: null }]);
+    expect(await db.all(sql`SELECT ${carriedBackgroundAvailable(db, metadata(assetId))} AS available`)).toEqual([{ available: 1 }]);
+    expect(await db.all(sql`SELECT ${carriedBackgroundAvailable(db, metadata(castId<AssetId>("asset_missing")))} AS available`)).toEqual([{ available: 0 }]);
   });
 
   test("direct room customization admits only an asset owned by the caller", async () => {
