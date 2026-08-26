@@ -7,7 +7,16 @@
 // prove the flag stays true across the restart-backoff window — a monitor tick landing in that window must
 // NOT double-queue the spawn (which would double-charge the breaker and mislabel an owned engine 'adopted').
 
-import { breakerAllows, decideTick, engineBaseUrl, getEngineStatus, getVllmEngineController, startVllmEngines } from "@orb/server/infra/providers/vllm/engine";
+import {
+  __resetWakeGateCache,
+  breakerAllows,
+  decideTick,
+  engineBaseUrl,
+  ensureAwake,
+  getEngineStatus,
+  getVllmEngineController,
+  startVllmEngines,
+} from "@orb/server/infra/providers/vllm/engine";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
@@ -590,6 +599,51 @@ describe("startVllmEngines — auto-sleep idle timer", () => {
       await vi.advanceTimersByTimeAsync(0);
     }
   };
+
+  test("a successful auto-sleep invalidates the pre-dispatch awake observation", async () => {
+    __resetWakeGateCache();
+    io.healthy.add("embed");
+    io.healthy.add("rerank");
+    io.healthy.add("gen");
+    let probes = 0;
+    const wakeDeps = {
+      repoRoot: "/repo",
+      isSleeping: (): Promise<boolean> => {
+        probes += 1;
+        return Promise.resolve(false);
+      },
+      reap: (): Promise<number[]> => Promise.resolve([]),
+      queryGpu: (): Promise<[]> => Promise.resolve([]),
+      wakeAndAwait: (): Promise<boolean> => Promise.resolve(true),
+      held: (): boolean => false,
+      now: (): number => 1_000_000,
+    };
+    await ensureAwake("embed", wakeDeps);
+    let clock = 1_000_000;
+    const stop = startVllmEngines({
+      repoRoot: "/repo",
+      now: (): number => clock,
+      sleep: () => Promise.resolve(),
+      manages: true,
+      sleepMode: true,
+      autoSleepIdleMs: idleMs,
+      fetchMetrics: () => Promise.resolve({ running: 0, waiting: 0, successTotal: 5 }),
+      postSleep: () => Promise.resolve(true),
+      triggerSpawn: () => undefined,
+    });
+    try {
+      await settle();
+      await vi.advanceTimersByTimeAsync(21_000);
+      await settle();
+      clock += idleMs + 1;
+      await vi.advanceTimersByTimeAsync(21_000);
+      await settle();
+      await ensureAwake("embed", wakeDeps);
+      expect(probes).toBe(2);
+    } finally {
+      stop();
+    }
+  });
 
   test("a MANAGER sleeps an engine idle past the window; a busy engine (success bump) never sleeps", async () => {
     io.healthy.add("embed");

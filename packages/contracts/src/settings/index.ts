@@ -222,8 +222,9 @@ export type VllmConcurrency = z.infer<typeof vllmConcurrencySchema>;
 // The agent-sdk summarize concurrency (Q6): the max in-flight summarize calls the agent-sdk backend runs.
 // DISTINCT from vllmConcurrency.summarize (a vLLM engine policy, floor 32) — this caps the Claude-Agent-SDK
 // subprocess fan-out (floor 4, byte-identical to the former hardcoded SUMMARIZE_CONCURRENCY). Positive int.
+export const AGENT_SDK_CONCURRENCY_MAX = 32;
 export const agentSdkConcurrencySchema = z.object({
-  summarize: z.number().int().positive().optional(),
+  summarize: z.number().int().positive().max(AGENT_SDK_CONCURRENCY_MAX).optional(),
 });
 export type AgentSdkConcurrency = z.infer<typeof agentSdkConcurrencySchema>;
 

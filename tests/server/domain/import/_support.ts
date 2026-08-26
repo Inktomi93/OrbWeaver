@@ -226,16 +226,18 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
     bulkImportChats: (args) => {
       chatCalls.push(args);
       const realConversationWritten = args.chats.some((c) => c.isRealConversation);
+      const identities = args.chats.map((c, i) => ({
+        chatId: castId<ChatId>(`chat_stub_${i}`),
+        messageIds: c.messages.map((_m, mi) => castId<MessageId>(`msg_stub_${i}_${mi}`)),
+        variantIds: c.messages.map((m, mi) => m.variants.map((_v, vi) => castId<MessageVariantId>(`msgvar_stub_${i}_${mi}_${vi}`))),
+      }));
       return Promise.resolve({
         // One identity per chat, index-aligned to its messages/variants — the shape the REAL op returns, and
         // the shape the R6 bundle verb re-links its carried rpg planes through. A stub reporting
         // `chatsImported: N` beside `written: []` would describe an impossible write and would silently hide
         // the whole overlay/remap step from every test that used it.
-        written: args.chats.map((c, i) => ({
-          chatId: castId<ChatId>(`chat_stub_${i}`),
-          messageIds: c.messages.map((_m, mi) => castId<MessageId>(`msg_stub_${i}_${mi}`)),
-          variantIds: c.messages.map((m, mi) => m.variants.map((_v, vi) => castId<MessageVariantId>(`msgvar_stub_${i}_${mi}_${vi}`))),
-        })),
+        identities,
+        written: identities,
         chatsImported: args.chats.length,
         chatsSkipped: 0,
         messagesImported: args.chats.reduce((n, c) => n + c.messages.length, 0),

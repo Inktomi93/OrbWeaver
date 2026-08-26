@@ -191,19 +191,40 @@ async function loadWithCpuFallback<T>(device: DeviceType, build: (device: Device
 }
 
 /** @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value: T) => void): (id: string) => Promise<T> {
-  const entries = new Map<string, Promise<T>>();
-  return (id) => {
+interface MemoEntry<T> {
+  readonly promise: Promise<T>;
+  refs: number;
+  evictionPending: boolean;
+  disposed: boolean;
+}
+
+interface ModelMemo<T> {
+  (id: string): Promise<T>;
+  withLease: <R>(id: string, use: (value: T) => Promise<R>) => Promise<R>;
+}
+
+export function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value: T) => void): ModelMemo<T> {
+  const entries = new Map<string, MemoEntry<T>>();
+  const disposeEntry = (entry: MemoEntry<T>): void => {
+    if (entry.disposed || !entry.evictionPending || entry.refs > 0) {
+      return;
+    }
+    entry.disposed = true;
+    // @swallowed-ok(promise): disposal has no request result; a failure only costs RAM until exit. Ends if disposal gains a caller-visible result.
+    void entry.promise.then(dispose).catch(() => undefined);
+  };
+  const getEntry = (id: string): MemoEntry<T> => {
     const existing = entries.get(id);
     if (existing !== undefined) {
       return existing;
     }
     const created = load(id);
-    entries.set(id, created);
+    const entry: MemoEntry<T> = { promise: created, refs: 0, evictionPending: false, disposed: false };
+    entries.set(id, entry);
     // The memo caches the RESOLVED model, never a rejection: a load failure is recoverable, so a
     // rejected entry evicts itself once settled instead of poisoning the model for the process lifetime.
     void created.catch(() => {
-      if (entries.get(id) === created) {
+      if (entries.get(id) === entry) {
         entries.delete(id);
       }
     });
@@ -213,15 +234,25 @@ export function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value:
         const evicted = entries.get(oldest);
         entries.delete(oldest);
         if (evicted !== undefined) {
-          // @swallowed-ok(evicted): disposing a cache-evicted model in a process-lifetime memo — there is no
-          // request to attribute it to (the eviction is triggered by whoever happened to overflow the cap)
-          // and a dispose that fails only costs RAM until exit. Ends if dispose ever gains a real failure mode.
-          void evicted.then(dispose).catch(() => undefined);
+          evicted.evictionPending = true;
+          disposeEntry(evicted);
         }
       }
     }
-    return created;
+    return entry;
   };
+  const memo = ((id: string): Promise<T> => getEntry(id).promise) as ModelMemo<T>;
+  memo.withLease = async <R>(id: string, use: (value: T) => Promise<R>): Promise<R> => {
+    const entry = getEntry(id);
+    entry.refs += 1;
+    try {
+      return await use(await entry.promise);
+    } finally {
+      entry.refs -= 1;
+      disposeEntry(entry);
+    }
+  };
+  return memo;
 }
 
 export function createModelCache(config: ModelCacheConfig = {}): LocalLightModelCache {
@@ -293,12 +324,15 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
   );
 
   // @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
-  const embedJinaTexts = async (modelId: string, texts: readonly string[]): Promise<Float32Array[]> => {
-    const [{ Tensor: TensorCtor }, proc, model] = await Promise.all([transformers(), processor(modelId), jinaEmbedder(modelId)]);
-    const inputs = await proc([...texts], null, { padding: true, truncation: true });
-    const out = (await model(inputs)) as Record<string, unknown>;
-    return tensorRows(requireTensor(out, "text_embeddings", modelId, TensorCtor));
-  };
+  const embedJinaTexts = async (modelId: string, texts: readonly string[]): Promise<Float32Array[]> =>
+    processor.withLease(modelId, (proc) =>
+      jinaEmbedder.withLease(modelId, async (model) => {
+        const { Tensor: TensorCtor } = await transformers();
+        const inputs = await proc([...texts], null, { padding: true, truncation: true });
+        const out = (await model(inputs)) as Record<string, unknown>;
+        return tensorRows(requireTensor(out, "text_embeddings", modelId, TensorCtor));
+      }),
+    );
 
   return {
     embedTexts(modelId, texts): Promise<Float32Array[]> {
@@ -309,23 +343,30 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
       if (documents.length === 0) {
         return [];
       }
-      const [{ Tensor: TensorCtor }, tok, model] = await Promise.all([transformers(), tokenizer(modelId), reranker(modelId)]);
-      const queries = documents.map(() => query);
-      const inputs = tok(queries, { text_pair: [...documents], padding: true, truncation: true });
-      const out = (await model(inputs)) as Record<string, unknown>;
-      // Single-label logit, or the positive class of a 2-label head (last index); never normalized here.
-      return tensorRows(requireTensor(out, "logits", modelId, TensorCtor)).map((row) => row.at(-1) ?? 0);
+      return await tokenizer.withLease(modelId, (tok) =>
+        reranker.withLease(modelId, async (model) => {
+          const { Tensor: TensorCtor } = await transformers();
+          const queries = documents.map(() => query);
+          const inputs = tok(queries, { text_pair: [...documents], padding: true, truncation: true });
+          const out = (await model(inputs)) as Record<string, unknown>;
+          return tensorRows(requireTensor(out, "logits", modelId, TensorCtor)).map((row) => row.at(-1) ?? 0);
+        }),
+      );
     },
 
     async embedImages(modelId, images): Promise<Float32Array[]> {
       if (images.length === 0) {
         return [];
       }
-      const [{ RawImage, Tensor: TensorCtor }, proc, model] = await Promise.all([transformers(), processor(modelId), jinaEmbedder(modelId)]);
-      const raws = await Promise.all(images.map((image) => RawImage.read(toImageSource(image))));
-      const inputs = await proc(null, raws);
-      const out = (await model(inputs)) as Record<string, unknown>;
-      return tensorRows(requireTensor(out, "image_embeddings", modelId, TensorCtor));
+      return await processor.withLease(modelId, (proc) =>
+        jinaEmbedder.withLease(modelId, async (model) => {
+          const { RawImage, Tensor: TensorCtor } = await transformers();
+          const raws = await Promise.all(images.map((image) => RawImage.read(toImageSource(image))));
+          const inputs = await proc(null, raws);
+          const out = (await model(inputs)) as Record<string, unknown>;
+          return tensorRows(requireTensor(out, "image_embeddings", modelId, TensorCtor));
+        }),
+      );
     },
 
     embedClipTexts(modelId, texts): Promise<Float32Array[]> {
@@ -335,10 +376,11 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
     async removeBackground(modelId, image): Promise<Uint8Array> {
       // Single ImageInput → a single alpha-matted RawImage (the pipeline clones the input and applies the
       // segmentation mask as alpha). `toSharp()` gives us the PNG encoder without leaking a RawImage upward.
-      const segmenter = await bgRemover(modelId);
-      const matted = await segmenter(toImageSource(image));
-      const buf = await matted.toSharp().png().toBuffer();
-      return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+      return await bgRemover.withLease(modelId, async (segmenter) => {
+        const matted = await segmenter(toImageSource(image));
+        const buf = await matted.toSharp().png().toBuffer();
+        return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+      });
     },
   };
 }

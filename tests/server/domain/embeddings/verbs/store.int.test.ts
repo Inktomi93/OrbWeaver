@@ -34,6 +34,24 @@ const CARD_TEXT = "Alice — a curious traveler who maps forgotten roads.";
 const IMG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
 
 describe("store — card-text (character_embeddings)", () => {
+  test("stamps the model that actually produced the vector when the live role changed after params were built", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner-model-provenance") });
+    const characterId = await seedCharacter(db, owner);
+    h.roleClients.embed.mockResolvedValueOnce({
+      vectors: [fakeVector(EMBED_DIM)],
+      model: "actual-live-model",
+      usage: { promptTokens: null, totalTokens: null },
+    });
+
+    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: "stale-snapshot-model", dim: EMBED_DIM });
+
+    const row = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId)))[0];
+    expect(row?.model).toBe("actual-live-model");
+  });
+
   test("writes a row tagged with the declared (model, dim) space", async () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);

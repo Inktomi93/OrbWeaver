@@ -585,6 +585,27 @@ describe("createCustomByoBackend — error classification", () => {
     expect((providerError.cause as Error).message).not.toContain(customHeaderSecret);
   });
 
+  test("hard-caps a non-OK response body and cancels unread upstream bytes", async () => {
+    let pulls = 0;
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller): void {
+        pulls += 1;
+        controller.enqueue(new TextEncoder().encode("x".repeat(40_000)));
+        if (pulls === 4) {
+          controller.close();
+        }
+      },
+      cancel(): void {
+        cancelled = true;
+      },
+    });
+    vi.stubGlobal("fetch", (): Response => new Response(body, { status: 502 }));
+    await expect(runTurn(makeRequest())).rejects.toBeInstanceOf(ProviderError);
+    expect(cancelled).toBe(true);
+    expect(pulls).toBeLessThan(4);
+  });
+
   test("an in-band stream error is promoted to a classified ProviderError (not a silent empty reply)", async () => {
     vi.stubGlobal("fetch", (): Response => sseResponse(['data: {"error":{"message":"context too long","code":400}}', "data: [DONE]"]));
     await expect(runTurn(makeRequest())).rejects.toBeInstanceOf(ProviderError);

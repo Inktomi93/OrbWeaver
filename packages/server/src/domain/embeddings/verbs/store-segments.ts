@@ -42,13 +42,13 @@ async function gate(ctx: EmbeddingsContext, params: readonly SegmentStoreParams[
 
 /** The produced vector for one pending item, or the typed failure: the family filtered the input (`null`), the
  *  flood came back short, or the vector does not match the declared space. */
-function vectorFor(vectors: readonly (Float32Array | null)[], at: number, p: SegmentStoreParams): Float32Array {
+function vectorFor(vectors: readonly (Float32Array | null)[], at: number, p: SegmentStoreParams, model: string): Float32Array {
   const vector = vectors[at];
   if (vector === null || vector === undefined) {
-    throw new EmbedFailedError(p.lens, p.model);
+    throw new EmbedFailedError(p.lens, model);
   }
   if (vector.length !== p.dim) {
-    throw new SpaceMismatchError(p.model, p.dim, vector.length);
+    throw new SpaceMismatchError(model, p.dim, vector.length);
   }
   return vector;
 }
@@ -77,9 +77,9 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
         seqStart: p.seqStart,
         seqEnd: p.seqEnd,
         text: p.text,
-        embedding: vectorFor(embedded.vectors, i, p),
+        embedding: vectorFor(embedded.vectors, i, p, embedded.model),
         contentHash: p.contentHash,
-        model: p.model,
+        model: embedded.model,
         dim: p.dim,
         now: ctx.now(),
       });
