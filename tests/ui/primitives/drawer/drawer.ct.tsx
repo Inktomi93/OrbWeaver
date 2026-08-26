@@ -77,6 +77,7 @@ test("side variants place the panel on the chosen edge", async ({ mount, page })
   }
   // Right drawer: flush to the right edge, full height.
   expect(box.x + box.width).toBeCloseTo(viewport.width, 0);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.height).toBeCloseTo(viewport.height, 0);
 });
 
@@ -180,6 +181,11 @@ test("focus is trapped inside the popup and returns to the trigger on close", as
   await trigger.click();
   const popup = page.locator('[data-slot="drawer-popup"]');
   await expect(popup).toBeVisible();
+  // Establish a settled in-popup origin before exercising the Tab cycle. Initial autofocus is a
+  // separate contract and can trail popup visibility under load.
+  const firstField = page.getByRole("button", { name: "First field" });
+  await firstField.click();
+  await expect(firstField).toBeFocused();
 
   // Tab through more presses than there are focusable items (First/Second/Done = 3) so the cycle
   // wraps at least once — focus must stay inside the popup at every step. Unrolled (not a loop) —

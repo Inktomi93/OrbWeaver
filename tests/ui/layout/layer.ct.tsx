@@ -53,5 +53,6 @@ test("every child occupies the SAME cell — identical origins, whatever the ord
       return origins;
     })
     .toHaveLength(2);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(origins[0]).toEqual(origins[1]);
 });

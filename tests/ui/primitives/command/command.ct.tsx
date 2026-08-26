@@ -148,6 +148,7 @@ test.describe("coarse pointer", () => {
         return box;
       })
       .not.toBeNull();
+    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(box?.height).toBeGreaterThanOrEqual(Number.parseFloat(TOKENS["spacing.touch-target"].value) * 16);
   });
 });

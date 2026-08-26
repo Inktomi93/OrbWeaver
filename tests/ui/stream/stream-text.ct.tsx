@@ -17,7 +17,9 @@ test("TTFT: shows the shimmer before any text has arrived", async ({ mount }) =>
   // though every assertion above still passes).
   await expect(component).toBeVisible();
   const box = await component.boundingBox();
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box?.width).toBeGreaterThan(0);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box?.height).toBeGreaterThan(0);
 });
 

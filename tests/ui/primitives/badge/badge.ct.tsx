@@ -37,8 +37,7 @@ test("soft tone swaps the fill for a tinted background + intent-colored text + a
     </Badge>,
   );
   await expect(soft).toHaveCSS("color", resolvedTokenColor("color.info"));
-  const borderWidth = await soft.evaluate((el) => getComputedStyle(el).borderTopWidth);
-  expect(Number.parseFloat(borderWidth)).toBeGreaterThan(0);
+  await expect.poll(async () => Number.parseFloat(await soft.evaluate((el) => getComputedStyle(el).borderTopWidth))).toBeGreaterThan(0);
   // the 15% tint is NOT the opaque solid fill — compare the two rendered backgrounds directly.
   const softBg = await soft.evaluate((el) => getComputedStyle(el).backgroundColor);
   await soft.unmount();
@@ -59,8 +58,7 @@ test("ghost tone drops the fill entirely, keeping the hairline outline + muted t
   );
   await expect.poll(async () => await ghost.evaluate((el) => Number.parseFloat(getComputedStyle(el).backgroundColor.split(",")[3] ?? "1"))).toBe(0);
   await expect(ghost).toHaveCSS("color", resolvedTokenColor("color.muted-foreground"));
-  const borderWidth = await ghost.evaluate((el) => getComputedStyle(el).borderTopWidth);
-  expect(Number.parseFloat(borderWidth)).toBeGreaterThan(0);
+  await expect.poll(async () => Number.parseFloat(await ghost.evaluate((el) => getComputedStyle(el).borderTopWidth))).toBeGreaterThan(0);
 });
 
 // ── side-eye 2026-08-08 P1-1: the SOFT tone's text must clear AA-NORMAL on its own tinted pill ─────────
@@ -203,8 +201,9 @@ test("md size carries more horizontal padding than sm", async ({ mount }) => {
   const smallPad = await small.evaluate((el) => getComputedStyle(el).paddingLeft);
   await small.unmount();
   const medium = await mount(<Badge size="md">Tag</Badge>);
-  const mediumPad = await medium.evaluate((el) => getComputedStyle(el).paddingLeft);
-  expect(Number.parseFloat(mediumPad)).toBeGreaterThan(Number.parseFloat(smallPad));
+  await expect
+    .poll(async () => Number.parseFloat(await medium.evaluate((el) => getComputedStyle(el).paddingLeft)))
+    .toBeGreaterThan(Number.parseFloat(smallPad));
 });
 
 // ── side-eye F-6 (2026-08-03): the IN-FLOW chip must not perturb the line box it lives in ──────────────

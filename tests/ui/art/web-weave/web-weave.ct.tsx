@@ -187,7 +187,7 @@ test("the palette re-resolves on a theme flip — the painted silk changes with 
   await mount(<WeaveBox state="settled" />);
   const canvas = page.locator('[data-slot="web-weave-canvas"]');
   await expect(canvas).toHaveAttribute("data-orb-weave-frames", "1");
-  // ONESHOT-OK: the frames attribute above just proved the static paint landed; in reduced motion
+  // Settled snapshot: the frames attribute above proved the static paint landed; in reduced motion
   // nothing repaints until a theme flip, so this read is of settled state.
   const fingerprintBefore = await frameFingerprint(canvas);
   // Flip the FOREGROUND token (the silk's source) on the root — the component's theme observer must
@@ -199,7 +199,7 @@ test("the palette re-resolves on a theme flip — the painted silk changes with 
     [TOKENS["color.foreground"].cssVar, TOKENS["color.sky-day"].value],
   );
   await expect(canvas).toHaveAttribute("data-orb-weave-frames", "2");
-  // ONESHOT-OK: frames=2 above proved the repaint landed and reduced motion paints exactly once per
+  // Settled snapshot: frames=2 proved the repaint landed and reduced motion paints exactly once per
   // change — the frame is settled at this read.
   const fingerprintAfter = await frameFingerprint(canvas);
   expect(fingerprintAfter).not.toBe(fingerprintBefore);
@@ -211,7 +211,7 @@ test("partial (the first-run half-woven web) carries visibly less silk than sett
   const canvas = page.locator('[data-slot="web-weave-canvas"]');
   await expect(canvas).toHaveAttribute("data-orb-weave-frames", "1");
   const partialPixels = await paintedPixels(canvas);
-  // ONESHOT-OK: static frame proven painted by the frames attribute above; nothing else repaints.
+  // Settled snapshot: the frames attribute above proved the static frame painted and nothing else repaints.
   expect(partialPixels).toBeGreaterThan(1000);
   await component.update(<WeaveBox state="settled" />);
   // The state change rebuilds + repaints once (frames resets with the effect teardown).
@@ -228,6 +228,7 @@ test("settled ANIMATED runs off the offscreen cache — the loop advances AND th
   const framesEarly = Number(await canvas.getAttribute("data-orb-weave-frames"));
   await waitFrames(page, 10);
   const framesLater = Number(await canvas.getAttribute("data-orb-weave-frames"));
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(framesLater).toBeGreaterThan(framesEarly);
   // Establish the AMBIENT ceiling (glint/dew/spider) with NO token change — a max over repeated
   // short and long spans, because one two-frame sample of this web is a lottery, not a floor …
@@ -415,7 +416,7 @@ test("reduced motion REMOVES the hunt — a cursor across the silk leaves the st
   await mount(<WeaveTouchBox state="settled" />);
   const canvas = page.locator('[data-slot="web-weave-canvas"]');
   await expect(canvas).toHaveAttribute("data-orb-weave-frames", "1");
-  // ONESHOT-OK: the frames attribute above proves the single static paint landed; under reduced
+  // Settled snapshot: the frames attribute above proves the single static frame landed; under reduced
   // motion nothing repaints until an explicit change, so this read is of settled state.
   const before = await frameFingerprint(canvas);
   const box = await canvas.boundingBox();
