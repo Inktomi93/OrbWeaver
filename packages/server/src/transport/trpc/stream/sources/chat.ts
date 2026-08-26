@@ -94,6 +94,10 @@ export const chatRoomSource: RoomSourceDef<"chat"> = {
     // The attach probe: membership + the retained-window bounds in ONE member-gated read. `null` = the
     // withhold-not-throw NOT_FOUND (no chat yet / not a member) — synthesize nothing, replay nothing.
     const bounds = await memberBounds(service, principal, chatId);
+    // Starts at the attach verdict and rises on any later successful per-yield probe. `chatDeleted` cannot
+    // probe after deletion (the row is gone), so this listener-local history is the only distinction between
+    // an admitted-then-kicked member and a draft/nonexistent-room listener that was never authorized at all.
+    let authorizedOnce = bounds !== null;
     let maxSeq = cursor ?? 0;
     if (bounds !== null) {
       for await (const frame of attachSynthesesAndReplay({ service, principal, chatId, resumeSeq: cursor, bounds })) {
@@ -120,8 +124,9 @@ export const chatRoomSource: RoomSourceDef<"chat"> = {
       // withhold WITHOUT advancing the cursor (kicked / pre-start / clamped-below-floor / held-delta): a `seq`
       // gap is correct — a reconnect resumes from the last delivered frame and the durable replay re-applies
       // the identical verdict to the gap, so the room never stalls and never re-offers a withheld row.
-      const projected = await resolveLiveYield({ service, principal, chatId, event: entry.event });
-      if (projected === null) {
+      const verdict = await resolveLiveYield({ service, principal, chatId, event: entry.event, authorizedOnce });
+      authorizedOnce ||= verdict.authorized;
+      if (verdict.event === null) {
         continue;
       }
       if (entry.seq === null) {
@@ -130,10 +135,10 @@ export const chatRoomSource: RoomSourceDef<"chat"> = {
         // delivery from the frame's `seq`, `stream/socket.ts`) cannot move past a durable row this
         // subscriber never received. The client's seq guard admits it by TYPE (`NON_DURABLE_EXEMPT`) —
         // a non-advancing frame would otherwise be dropped as a stale re-delivery.
-        yield { channel: "chat", chatId, seq: maxSeq, event: projected };
+        yield { channel: "chat", chatId, seq: maxSeq, event: verdict.event };
         continue;
       }
-      yield { channel: "chat", chatId, seq: entry.seq, event: projected };
+      yield { channel: "chat", chatId, seq: entry.seq, event: verdict.event };
       maxSeq = entry.seq;
     }
   },
@@ -146,19 +151,20 @@ function isAttachSynthetic(event: ChatBusEvent): boolean {
   return event.type === "chatOpened" || event.type === "historyTruncated";
 }
 
-/** One live event → the bytes THIS subscriber may see, or `null` to withhold. Runs the per-yield membership
- *  gate (a kicked member stops within the kick tx), the D16 join-history clamp, and the §3.6 member projection
- *  (host: verbatim; member: at-commit `view` strip + the `delta`'s producer-stamped `memberText`) — the durable
- *  replay's identical verdict, applied live. The transport OWNS no policy and, since the mid-stream scrub state
- *  is the PRODUCER's (`domain/chat/bus`), it owns no per-pump state either: a pump that starts, resumes after a
- *  shed, or reconnects mid-slot reads the same stamped bytes as one that watched the whole slot.
+/** One live event → the bytes THIS subscriber may see plus whether this yield admitted them. Runs the per-yield
+ *  membership gate (a kicked member stops within the kick tx), the D16 join-history clamp, and the §3.6 member
+ *  projection (host: verbatim; member: at-commit `view` strip + the `delta`'s producer-stamped `memberText`) —
+ *  the durable replay's identical verdict, applied live. The transport OWNS no policy: its only per-pump state
+ *  is the monotonic authorization latch needed to decide a post-delete signal after the membership row is gone. A
+ *  pump that starts, resumes after a shed, or reconnects mid-slot still reads the producer-stamped bytes.
  *
  *  THE ONE GATE-FREE MEMBER: `chatDeleted` (owner fork F-A, design §4). It is fanned AFTER the row is gone —
  *  that ordering is what CLOSES the R1-4a false-emit, because only `DELETE … RETURNING` can prove a room
  *  actually died — and by then `memberBounds` can answer nothing but "no such chat / not a member", which
  *  would withhold the room's own death notice from EVERY subscriber and strand every open device on a chat
- *  that no longer exists. So it is delivered to every ATTACHED subscriber, and the attach was itself
- *  membership-gated. The widened audience is exactly one party — a member kicked while still attached — and
+ *  that no longer exists. So it is delivered to every subscriber THIS PUMP ADMITTED AT LEAST ONCE; the
+ *  listener-local `authorizedOnce` latch excludes a draft/nonexistent-room listener that never passed the
+ *  gate. The widened audience is exactly one party — a member kicked while still attached — and
  *  what they learn is ONE BIT, "the room died", with no bytes: an id-only signal for a chat whose id they
  *  already hold, symmetric with the NOT_FOUND their very next `getChat` returns anyway. This is NOT a clamp
  *  edit: `substrate/auth`/`member-visibility` are untouched, and `chatDeleted` carries no `view`/`slotSeq`
@@ -168,26 +174,27 @@ async function resolveLiveYield(args: {
   readonly principal: Principal;
   readonly chatId: ChatId;
   readonly event: ChatBusEvent;
-}): Promise<ChatBusEvent | null> {
-  const { service, principal, chatId, event } = args;
+  readonly authorizedOnce: boolean;
+}): Promise<{ readonly event: ChatBusEvent | null; readonly authorized: boolean }> {
+  const { service, principal, chatId, event, authorizedOnce } = args;
   if (event.type === "chatDeleted") {
-    return event;
+    return { event: authorizedOnce ? event : null, authorized: authorizedOnce };
   }
   const gate = await memberBounds(service, principal, chatId);
   if (gate === null || isBelowHistoryFloor(event, gate.historyFloorSeq)) {
-    return null;
+    return { event: null, authorized: gate !== null };
   }
   if (gate.viewerIsHost) {
-    return event;
+    return { event, authorized: true };
   }
   // Member: a `delta` forwards only its stamped member bytes (unstamped ⇒ withheld, fail-closed); any other
   // event at-commit-strips its `view`. P3 (§3.6): `gate.reasoningHostOnly` (the deception-active verdict
   // resolved at the same per-yield probe, for THIS room) withholds the reasoning channel for a member —
   // reasoning deltas + `reasoningStreamDone` drop to `null`, `view.reasoning` is nulled.
   if (event.type === "delta") {
-    return scrubDeltaEventForMember(event, gate.reasoningHostOnly);
+    return { event: scrubDeltaEventForMember(event, gate.reasoningHostOnly), authorized: true };
   }
-  return stripChatEventForMember(event, gate.reasoningHostOnly);
+  return { event: stripChatEventForMember(event, gate.reasoningHostOnly), authorized: true };
 }
 
 /** The attach-time syntheses + reconnect replay (member already admitted). `chatOpened` fires once at

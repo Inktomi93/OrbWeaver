@@ -785,6 +785,33 @@
       ]
     },
     {
+      "path": "docs/design/issue-723-rpg-recovery.md",
+      "assignedSha256": "358bbee350f26bed4b64ef11cee3d849cc7f0f5c071ccd1710b8b39064a23d7d",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "358bbee350f26bed4b64ef11cee3d849cc7f0f5c071ccd1710b8b39064a23d7d",
+      "verifiedCommit": "02d10e422ef567739785c3d1f8c3c3f56b0ec9c7",
+      "verifiedAt": "2026-08-26",
+      "evidence": [
+        "docs/design/issue-723-rpg-recovery.md read in full before implementation and re-read in its formatted committed form at 02d10e422; implementation commit 2912fb7f1",
+        "focused behavioral and DB verification: 11 files with 157 tests, composed RPG with 71 tests, and fresh-box bundle round trip with 2 tests all passed",
+        "TS7 graph and tests-dom typechecks plus scoped Biome and typed ESLint passed"
+      ],
+      "summary": "Issue #723 implemented design of record: atomic snapshot and journal flushes, canonical bundle identity replay, level-triggered engaged mirrors, marked promotion recovery, and deletion metadata gated by listener authorization history.",
+      "claims": [
+        {
+          "claim": "All five interruption and authority seams converge without a schema addition or broad transaction framework.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#723"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/list-pane-projection-proposal.md",
       "assignedSha256": "194774ea6ea9aeb592d2140a4a926bc456af609edd786f088bd068fc1be04cda",
       "disposition": "archive",

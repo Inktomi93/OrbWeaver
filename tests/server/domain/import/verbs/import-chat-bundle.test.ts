@@ -14,7 +14,7 @@
 // mapping + the refusal, which a fresh-box round trip cannot isolate.
 
 import type { BulkImportChatInput } from "@orb/contracts/chat";
-import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImportService } from "@orb/server/domain/import";
 import { createImportService } from "@orb/server/domain/import";
@@ -169,6 +169,57 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
 
     expect(outcome).toEqual({ ok: true, created: true });
     expect(h.chatCalls[0]?.characterId).toBe(ARIA);
+  });
+
+  test("#723 retry resolves deduplicated canon and completes an interrupted tag overlay", async () => {
+    const h = makeProfileHarness(OWNER);
+    const identity = {
+      chatId: castId<ChatId>("chat_bundle_recovery"),
+      messageIds: [castId<MessageId>("message_bundle_recovery_0"), castId<MessageId>("message_bundle_recovery_1")],
+      variantIds: [[castId<MessageVariantId>("message_variant_bundle_recovery_0")], [castId<MessageVariantId>("message_variant_bundle_recovery_1")]],
+    };
+    let imports = 0;
+    let interrupt = true;
+    const attached = new Set<string>();
+    const profile = {
+      ...h.profile,
+      bulkImportChats: (): ReturnType<ProfileHarness["profile"]["bulkImportChats"]> => {
+        imports += 1;
+        return Promise.resolve({
+          identities: [identity],
+          written: imports === 1 ? [identity] : [],
+          chatsImported: imports === 1 ? 1 : 0,
+          chatsSkipped: imports === 1 ? 0 : 1,
+          messagesImported: imports === 1 ? 2 : 0,
+          variantsImported: imports === 1 ? 2 : 0,
+          branchesLinked: 0,
+          realConversationWritten: imports === 1,
+          chatsPersonaHealed: 0,
+        });
+      },
+      attachChatTagByName: ({ tagName }: { readonly tagName: string }): Promise<boolean> => {
+        if (tagName === "second" && interrupt) {
+          interrupt = false;
+          return Promise.reject(new Error("injected overlay interruption"));
+        }
+        const before = attached.size;
+        attached.add(tagName);
+        return Promise.resolve(attached.size !== before);
+      },
+    };
+    const verb = createImportService({
+      ...h.ctx,
+      profile,
+      findByHandle: ({ handle }: { readonly handle: CharacterHandle }): Promise<CharacterId | null> => Promise.resolve(handle === "aria" ? ARIA : null),
+    }).importChatFile;
+    const bytes = bundle({ tagNames: ["first", "second"] });
+
+    await expect(verb({ filename: "aria/chat_recovery.orb.json", bytes })).rejects.toThrow("injected overlay interruption");
+    expect(attached).toEqual(new Set(["first"]));
+
+    await expect(verb({ filename: "aria/chat_recovery.orb.json", bytes })).resolves.toEqual({ ok: true, created: false });
+    expect(attached).toEqual(new Set(["first", "second"]));
+    expect(imports).toBe(2);
   });
 
   test("the ENVELOPE decides, not the extension: a foreign orb-native file under chats/ refuses BY NAME and writes nothing", async () => {

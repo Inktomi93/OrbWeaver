@@ -555,4 +555,37 @@ describe("the chat room — the LIVE-ONLY lane (durable-append-free fan)", () =>
     expect(dataOf(await pending)).toEqual({ type: "chatDeleted", chatId });
     await memberIt.return?.(undefined);
   });
+
+  test("#723 a never-authorized draft listener receives no deletion bit, then can be admitted normally", async () => {
+    const user = await seedUser(db, castId<Handle>("never_auth_user"));
+    const chatId = castId<ChatId>("chat_never_auth_room");
+    const read = createRead(makeChatContext(db), readDeps());
+    let markInitialChecked: (() => void) | undefined;
+    const initialChecked = new Promise<void>((resolve) => {
+      markInitialChecked = resolve;
+    });
+    const observed = {
+      ...read,
+      chatEventBounds: async (...args: Parameters<typeof read.chatEventBounds>): ReturnType<typeof read.chatEventBounds> => {
+        try {
+          return await read.chatEventBounds(...args);
+        } finally {
+          markInitialChecked?.();
+        }
+      },
+    };
+    const iterator = await openChatRoom(observed, user, chatId);
+    const pending = iterator.next();
+    await initialChecked;
+
+    // Buffered while the room does not exist: this listener has never passed membership, so deletion metadata
+    // must not become its first room frame.
+    publishChatEvent({ seq: null, event: { type: "chatDeleted", chatId } });
+    await seedChat(db, "never_auth_room", { id: chatId });
+    await seedParticipant(db, { chatId, key: "never_auth_host", userId: user, role: "host" });
+    publishChatEvent({ seq: null, event: { type: "roomEntityChanged", chatId, entity: "character" } });
+
+    expect(dataOf(await pending)).toEqual({ type: "roomEntityChanged", chatId, entity: "character" });
+    await iterator.return?.(undefined);
+  });
 });
