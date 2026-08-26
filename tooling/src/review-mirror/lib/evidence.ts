@@ -34,8 +34,11 @@ export function reviewEvidenceGaps(evidence: ReviewMirrorEvidence): readonly str
   if (evidence.pendingGuard.rows.length !== evidence.pendingGuard.directControls) {
     gaps.push("E7 receipt count does not equal its measured direct-control population");
   }
-  if (evidence.pendingGuard.reviewResiduals !== evidence.pendingGuard.totals.missing + evidence.pendingGuard.totals["other-guard"]) {
-    gaps.push("E7 review-residual count does not equal missing plus unclassified-guard controls");
+  if (
+    evidence.pendingGuard.reviewResiduals !==
+    evidence.pendingGuard.totals.missing + evidence.pendingGuard.totals["other-guard"] + evidence.pendingGuard.totals.epoch
+  ) {
+    gaps.push("E7 review-residual count does not equal missing plus unclassified and generation-guard controls");
   }
   return gaps;
 }

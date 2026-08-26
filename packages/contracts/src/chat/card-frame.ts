@@ -34,6 +34,26 @@ const MAX_TOKEN_NAME_CHARS = 64;
 const MAX_TOKEN_VALUE_CHARS = 64;
 const MAX_FONT_FAMILY_CHARS = 120;
 
+// `JSON.stringify` needs at most six UTF-8 bytes per UTF-16 code unit (a lone surrogate/control escape).
+// This is the largest wire body the strict schema can accept: all bounded strings at their maxima, every
+// theme-token slot populated, the longest accepted TypeID selectors, and the exact JSON punctuation.
+const JSON_MAX_BYTES_PER_CODE_UNIT = 6;
+const TYPE_ID_SUFFIX_CHARS = 26;
+const JSON_OBJECT_ENTRY_PUNCTUATION_BYTES = 5;
+const MAX_CHAT_ID_CHARS = ID_PREFIX.chat.length + 1 + TYPE_ID_SUFFIX_CHARS;
+const MAX_CHARACTER_ID_CHARS = ID_PREFIX.character.length + 1 + TYPE_ID_SUFFIX_CHARS;
+const MAX_STRING_CODE_UNITS =
+  MAX_CHAT_ID_CHARS +
+  MAX_CHARACTER_ID_CHARS +
+  MAX_HTML_CHARS +
+  MAX_CSS_CHARS +
+  MAX_FONT_FAMILY_CHARS +
+  MAX_THEME_TOKENS * (MAX_TOKEN_NAME_CHARS + MAX_TOKEN_VALUE_CHARS);
+const JSON_ENVELOPE_BYTES = '{"chatId":"","characterId":"","html":"","css":"","themeTokens":{},"fontFamily":""}'.length;
+const THEME_ENTRY_PUNCTUATION_BYTES = MAX_THEME_TOKENS * JSON_OBJECT_ENTRY_PUNCTUATION_BYTES + (MAX_THEME_TOKENS - 1);
+/** Byte cap for the raw mint POST. Derived from the accepted schema so transport cannot reject a valid mint. */
+export const CARD_FRAME_MINT_BODY_MAX_BYTES = MAX_STRING_CODE_UNITS * JSON_MAX_BYTES_PER_CODE_UNIT + JSON_ENVELOPE_BYTES + THEME_ENTRY_PUNCTUATION_BYTES;
+
 /** The mint request. `strictObject` — an unknown key is a REJECT, not a silent strip: this body decides
  *  which policy a security boundary is built with, so a typo'd selector must fail loudly rather than
  *  quietly resolving to the floor and leaving a card mysteriously image-less. */

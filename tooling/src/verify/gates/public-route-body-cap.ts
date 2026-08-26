@@ -2,7 +2,7 @@
 // a byte-cap proxy. GET and zero-body mutations are controls; bundle import's incremental `stageCapped` arm
 // is the non-buffering equivalent of Hono body-limit.
 import type { CallExpression, Node } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
+import { SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
@@ -10,9 +10,10 @@ const HTTP_DIR = "packages/server/src/entry/http/";
 const HTTP_ANCHOR = `${HTTP_DIR}index.ts`;
 const GATE_SELF = "tooling/src/verify/gates/public-route-body-cap.ts";
 const MUTATING_METHODS = new Set(["post", "put", "patch", "delete"]);
-const BODY_READ_METHODS = new Set(["json", "parseBody", "formData", "arrayBuffer", "text"]);
+const BODY_READ_METHODS = new Set(["json", "parseBody", "formData", "arrayBuffer", "blob", "text"]);
 const CAP_MIDDLEWARE = new Set(["bodyLimit", "bodyCap"]);
 const CAP_NAME_RE = /(?:^|_)MAX(?:_[A-Z0-9]+)*_BYTES$/u;
+const MAX_RESOLUTION_DEPTH = 8;
 let mutatingRoutes = 0;
 let bodyReadingRoutes = 0;
 
@@ -27,6 +28,34 @@ function routeMethod(node: Node): string | undefined {
   return callee.getName();
 }
 
+function isHonoRequest(node: Node): boolean {
+  return node.isKind(SyntaxKind.PropertyAccessExpression) && node.getName() === "req";
+}
+
+function isRawRequest(node: Node): boolean {
+  return node.isKind(SyntaxKind.PropertyAccessExpression) && node.getName() === "raw" && isHonoRequest(node.getExpression());
+}
+
+function isRawRequestBody(node: Node, depth = 0): boolean {
+  if (node.isKind(SyntaxKind.PropertyAccessExpression) && node.getName() === "body" && isRawRequest(node.getExpression())) {
+    return true;
+  }
+  if (!node.isKind(SyntaxKind.Identifier) || depth >= MAX_RESOLUTION_DEPTH) {
+    return false;
+  }
+  return (node.getSymbol()?.getDeclarations() ?? []).some((declaration) => {
+    if (
+      declaration.getSourceFile() !== node.getSourceFile() ||
+      !declaration.isKind(SyntaxKind.VariableDeclaration) ||
+      declaration.getVariableStatement()?.getDeclarationKind() !== VariableDeclarationKind.Const
+    ) {
+      return false;
+    }
+    const initializer = declaration.getInitializer();
+    return initializer !== undefined && isRawRequestBody(initializer, depth + 1);
+  });
+}
+
 function readsRequestBody(node: Node): boolean {
   const callRead = node.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
     const callee = call.getExpression();
@@ -34,7 +63,7 @@ function readsRequestBody(node: Node): boolean {
       return false;
     }
     const receiver = callee.getExpression();
-    return receiver.isKind(SyntaxKind.PropertyAccessExpression) && receiver.getName() === "req";
+    return isHonoRequest(receiver) || isRawRequest(receiver);
   });
   if (callRead) {
     return true;
@@ -43,31 +72,55 @@ function readsRequestBody(node: Node): boolean {
     if (property.getName() !== "body") {
       return false;
     }
-    const raw = property.getExpression();
-    return raw.isKind(SyntaxKind.PropertyAccessExpression) && raw.getName() === "raw" && raw.getExpression().getText().endsWith(".req");
+    return isRawRequestBody(property);
   });
 }
 
-function hasCapMiddleware(route: CallExpression): boolean {
-  const args = route.getArguments();
-  const bodyReaderIndex = args.findIndex(readsRequestBody);
-  return args.some((arg, index) => {
-    if (index === 0 || bodyReaderIndex === -1 || index >= bodyReaderIndex) {
-      return false;
-    }
-    if (!arg.isKind(SyntaxKind.CallExpression)) {
-      return false;
-    }
-    const callee = arg.getExpression();
+function resolvesCapMiddleware(node: Node): boolean {
+  if (node.isKind(SyntaxKind.CallExpression)) {
+    const callee = node.getExpression();
     return callee.isKind(SyntaxKind.Identifier) && CAP_MIDDLEWARE.has(callee.getText());
+  }
+  if (!node.isKind(SyntaxKind.Identifier)) {
+    return false;
+  }
+  return (node.getSymbol()?.getDeclarations() ?? []).some((declaration) => {
+    if (
+      declaration.getSourceFile() !== node.getSourceFile() ||
+      !declaration.isKind(SyntaxKind.VariableDeclaration) ||
+      declaration.getVariableStatement()?.getDeclarationKind() !== VariableDeclarationKind.Const
+    ) {
+      return false;
+    }
+    const initializer = declaration.getInitializer();
+    return initializer !== undefined && resolvesCapMiddleware(initializer);
   });
 }
 
-function hasCappedStream(route: CallExpression): boolean {
-  return route.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
+function hasCappedStream(handler: Node): boolean {
+  return handler.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
     const callee = call.getExpression();
+    const stream = call.getArguments()[0];
     const cap = call.getArguments()[2];
-    return callee.isKind(SyntaxKind.Identifier) && callee.getText() === "stageCapped" && cap !== undefined && CAP_NAME_RE.test(cap.getText());
+    return (
+      callee.isKind(SyntaxKind.Identifier) &&
+      callee.getText() === "stageCapped" &&
+      stream !== undefined &&
+      isRawRequestBody(stream) &&
+      cap !== undefined &&
+      CAP_NAME_RE.test(cap.getText())
+    );
+  });
+}
+
+function bodyReadersAreCapped(route: CallExpression): boolean {
+  const args = route.getArguments();
+  return args.every((handler, handlerIndex) => {
+    if (!readsRequestBody(handler)) {
+      return true;
+    }
+    const orderedMiddleware = args.some((candidate, candidateIndex) => candidateIndex > 0 && candidateIndex < handlerIndex && resolvesCapMiddleware(candidate));
+    return orderedMiddleware || hasCappedStream(handler);
   });
 }
 
@@ -95,7 +148,7 @@ export const gate: GateDescriptor = {
       return;
     }
     bodyReadingRoutes += 1;
-    if (!(hasCapMiddleware(node) || hasCappedStream(node))) {
+    if (!bodyReadersAreCapped(node)) {
       ctx.report(node, { token: method, offset: node.getText().indexOf(method) });
     }
   },
@@ -126,6 +179,18 @@ export const gate: GateDescriptor = {
       why: "middleware ordering is the protection — a cap registered after the body-reading handler is inert",
     },
     {
+      files: 'app.post("/api/x", async (c) => c.body(await c.req.raw.blob()));\n',
+      at: `${HTTP_DIR}__g_route.ts`,
+      expect: { count: 1, token: "post" },
+      why: "Request.blob buffers the request body just like arrayBuffer/text and must not escape the route cap census",
+    },
+    {
+      files: 'app.post("/api/x", async (c) => { stageCapped(unrelatedStream, path, IMPORT_MAX_TOTAL_BYTES); return c.json(await c.req.json()); });\n',
+      at: `${HTTP_DIR}__g_route.ts`,
+      expect: { count: 1, token: "post" },
+      why: "an ordered cap over unrelated bytes does not bound the body reader in that handler; cap and body stream must be the same value",
+    },
+    {
       files: "export const frontDoor = true;\n",
       at: HTTP_ANCHOR,
       expect: { count: 1, messageIncludes: "route census is blind" },
@@ -137,6 +202,11 @@ export const gate: GateDescriptor = {
       files: 'app.post("/api/x", bodyLimit({ maxSize: MAX_BODY_BYTES }), async (c) => c.json(await c.req.json()));\n',
       at: `${HTTP_DIR}__g_route.ts`,
       why: "a Hono body-limit middleware before the handler is the normal capped-body arm",
+    },
+    {
+      files: 'const cap = bodyLimit({ maxSize: MAX_BODY_BYTES });\napp.post("/api/x", cap, async (c) => c.json(await c.req.json()));\n',
+      at: `${HTTP_DIR}__g_route.ts`,
+      why: "real routes may name immutable body-limit middleware; resolving that binding must preserve the ordered-cap proof",
     },
     {
       files: 'app.post("/api/logout", async (c) => c.body(null, 200));\n',

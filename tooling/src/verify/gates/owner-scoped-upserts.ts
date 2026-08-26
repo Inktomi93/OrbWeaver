@@ -10,7 +10,7 @@ import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
-import { markedFunctions, markerKeyFor, ownerScopedTableBinding, upsertConfigOf } from "../lib/tenancy-read.ts";
+import { markedFunctions, markerKeyFor, ownerScopedTableBinding, predicatesTableColumn, upsertConfigOf } from "../lib/tenancy-read.ts";
 import { ownerScopedTableIdents } from "./table-scoping-class.ts";
 
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
@@ -93,10 +93,9 @@ function guardsOwner(config: Node | undefined, ident: string): boolean {
   if (config?.isKind(SyntaxKind.ObjectLiteralExpression) !== true) {
     return false;
   }
-  const ownerRe = new RegExp(String.raw`\b${ident}\.${OWNER_COL}\b`, "u");
   return GUARD_PROPS.some((name) => {
     const prop = config.getProperty(name);
-    return prop !== undefined && ownerRe.test(prop.getText());
+    return prop !== undefined && predicatesTableColumn(prop, ident, OWNER_COL);
   });
 }
 
@@ -233,6 +232,15 @@ export const gate: GateDescriptor = {
       expect: { count: 1, token: "kvTable" },
       why: "an import alias is still the same owner-scoped table — renaming the local binding cannot bypass the upsert half",
     },
+    {
+      files: {
+        "packages/db/src/schema/plugin.ts": 'export const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          'import { pluginKv } from "@orb/db";\nconst table = pluginKv;\nexport async function putKv(db: Db, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: [table.pluginId, table.key], set: { value: entry.value } });\n}\n',
+      },
+      expect: { count: 1, token: "table" },
+      why: "a same-file immutable alias retains the canonical table's owner-scoped identity at an upsert target",
+    },
   ],
   mustPass: [
     {
@@ -307,6 +315,14 @@ export const gate: GateDescriptor = {
           'import { pluginKv as kvTable } from "@orb/db";\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(kvTable).values(entry).onConflictDoUpdate({ target: [kvTable.pluginId, kvTable.key], setWhere: eq(kvTable.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
       },
       why: "the alias resolver returns the local binding, so a guarded conflict target written through that alias remains safe",
+    },
+    {
+      files: {
+        "packages/db/src/schema/plugin.ts": 'export const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          'import { pluginKv } from "@orb/db";\nconst table = pluginKv;\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: [table.pluginId, table.key], setWhere: eq(table.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
+      },
+      why: "a local canonical-table alias is safe when the conflict guard structurally uses that same binding's owner column",
     },
   ],
 };
