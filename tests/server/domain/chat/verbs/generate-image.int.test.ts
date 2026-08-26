@@ -7,12 +7,14 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { messages, messageVariants } from "@orb/db";
+import { messages, messageVariants, ownerStats, statsCanonVersions } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createGenerateImage } from "../../../../../packages/server/src/domain/chat/verbs/generate-image.ts";
+import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -100,6 +102,7 @@ describe("generateImage", () => {
 
     const calls: unknown[] = [];
     const ctx = makeChatContext(db, {
+      applyStatsDelta: (batch, deltaDb, delta) => applyStatsDelta(batch as BatchStmt[], deltaDb, delta),
       generatePicture: (p) => {
         calls.push(p);
         return Promise.resolve({
@@ -136,6 +139,8 @@ describe("generateImage", () => {
 
     expect(emitted).toHaveLength(1);
     expect(emitted[0]).toMatchObject({ type: "messageCommitted", chatId, messageId: view.id });
+    expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host)))[0]?.userTurns).toBe(1);
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBe(1);
   });
 
   test("maps each imagery warning onto a chat `warning` bus event (doc 03 §2.1)", async () => {

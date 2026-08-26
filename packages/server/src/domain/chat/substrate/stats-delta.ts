@@ -485,3 +485,32 @@ export function editMessageDelta(params: {
     now: params.now,
   };
 }
+
+/** The net reasoning-presence contribution of an in-place selected-variant edit. Rebuild counts a
+ *  generation only for a non-blank assistant reasoning body; text changes within the same presence arm are
+ *  a zero delta, but still pass through the live writer so the canon-version fence advances atomically. */
+export function editReasoningDelta(params: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId | null;
+  readonly role: string;
+  readonly createdAt: number;
+  readonly model: string | null;
+  readonly provider: string | null;
+  readonly oldReasoning: string | null;
+  readonly newReasoning: string | null;
+  readonly now: number;
+}): StatsDelta {
+  const assistant = params.role === "assistant";
+  const present = (value: string | null): number => Number(value !== null && value.trim().length > 0);
+  const diff = assistant ? present(params.newReasoning) - present(params.oldReasoning) : 0;
+  return {
+    ownerId: params.ownerId,
+    characterId: assistant ? params.characterId : null,
+    day: utcDay(params.createdAt),
+    model: assistant ? params.model : null,
+    provider: assistant ? params.provider : null,
+    reasoningGenerations: diff,
+    modelReasoningGenerations: diff,
+    now: params.now,
+  };
+}

@@ -102,7 +102,7 @@ import { resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
-import { canonMessageDelta, editMessageDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
+import { canonMessageDelta, editMessageDelta, editReasoningDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 
 /** The emit op the edit verbs close over. */
 type EmitChatEvent = (event: DurableChatBusEvent) => Promise<void>;
@@ -686,26 +686,39 @@ async function writeReasoning(
   emit: EmitChatEvent,
   args: {
     readonly chatId: ChatId;
-    readonly messageId: MessageId;
-    readonly variantId: MessageView["selectedVariantId"];
+    readonly slot: MessageView;
+    readonly ownerId: UserId;
     readonly reasoning: string | null;
     readonly event: "reasoningEdited" | "reasoningCleared";
     /** The gated caller's role — the §3.6 return belt's verdict axis (see the file header). */
     readonly viewer: { readonly role: string };
   },
 ): Promise<MessageView> {
-  await ctx.db.batch(
-    batchMany(
-      editReasoningStatements(ctx.db, {
-        messageId: args.messageId,
-        variantId: args.variantId,
-        reasoning: args.reasoning,
-        editedAt: ctx.now(),
-      }),
-    ),
+  const now = ctx.now();
+  const statements = editReasoningStatements(ctx.db, {
+    messageId: args.slot.id,
+    variantId: args.slot.selectedVariantId,
+    reasoning: args.reasoning,
+    editedAt: now,
+  });
+  ctx.applyStatsDelta(
+    statements,
+    ctx.db,
+    editReasoningDelta({
+      ownerId: args.ownerId,
+      characterId: args.slot.characterId,
+      role: args.slot.role,
+      createdAt: args.slot.createdAt,
+      model: args.slot.model,
+      provider: args.slot.provider,
+      oldReasoning: args.slot.reasoning,
+      newReasoning: args.reasoning,
+      now,
+    }),
   );
-  const view = await reloadSlot(ctx, args.chatId, args.messageId);
-  await emit({ type: args.event, chatId: args.chatId, messageId: args.messageId, view });
+  await ctx.db.batch(batchMany(statements));
+  const view = await reloadSlot(ctx, args.chatId, args.slot.id);
+  await emit({ type: args.event, chatId: args.chatId, messageId: args.slot.id, view });
   return await projectEditReturn(ctx, view, args.viewer);
 }
 
@@ -714,10 +727,11 @@ function createEditReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService
   return async ({ principal, chatId, messageId, reasoning }: EditReasoningParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
+    const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
     return await writeReasoning(ctx, emit, {
       chatId,
-      messageId,
-      variantId: slot.selectedVariantId,
+      slot,
+      ownerId,
       reasoning,
       event: "reasoningEdited",
       viewer: membership,
@@ -730,10 +744,11 @@ function createClearReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatServic
   return async ({ principal, chatId, messageId }: ClearReasoningParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
+    const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
     return await writeReasoning(ctx, emit, {
       chatId,
-      messageId,
-      variantId: slot.selectedVariantId,
+      slot,
+      ownerId,
       reasoning: null,
       event: "reasoningCleared",
       viewer: membership,
