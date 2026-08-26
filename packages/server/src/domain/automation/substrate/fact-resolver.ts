@@ -11,7 +11,8 @@
 // a new tuple member without a shape entry fails tsc). A non-taxonomy event (delta/warning/…) is not a key ⇒
 // `resolveTrigger` returns null (skip).
 
-import type { ChatTriggerType, DomainTriggerType, TriggerFact } from "@orb/contracts/automation";
+import type { AutomationTrigger, ChatTriggerType, DomainTriggerType, TriggerFact } from "@orb/contracts/automation";
+import { automationTriggerFor } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { ChatId, MessageId } from "@orb/kit/ids";
@@ -48,12 +49,6 @@ const FACT_SHAPE = {
 type TriggerType = keyof typeof FACT_SHAPE;
 type BusEvent = ChatBusEvent | DomainEvent;
 
-/** A DomainEvent (all four live members + the agents/rpg mirrors) rides the domain bus — its type is
- *  namespaced with a dot; every ChatBusEvent is a bare discriminant. */
-function busOf(event: BusEvent): TriggerFact["bus"] {
-  return event.type.includes(".") ? "domain" : "chat";
-}
-
 /** The event's `chatId` when it has one (every ChatBusEvent + the agents/rpg domain mirrors), else null. */
 function eventChatId(event: BusEvent): ChatId | null {
   return "chatId" in event ? event.chatId : null;
@@ -69,8 +64,8 @@ async function depthOf(ops: AutomationOps, chatId: ChatId | null, messageId: Mes
 }
 
 /** The scalar fact skeleton every branch extends. */
-function baseFact(event: BusEvent): Pick<TriggerFact, "type" | "bus" | "chatId"> {
-  return { type: event.type, bus: busOf(event), chatId: eventChatId(event) };
+function baseFact(event: BusEvent): AutomationTrigger & Pick<TriggerFact, "chatId"> {
+  return { ...automationTriggerFor(event.type as TriggerType), chatId: eventChatId(event) };
 }
 
 async function resolveMessage(ops: AutomationOps, event: BusEvent): Promise<ResolvedTrigger> {

@@ -20,6 +20,7 @@ export {
   applyChatBusEvent,
   createRoomRegistry,
   markTurnStopping,
+  recoverTurnAfterStopFailure,
   useBusRoom,
   useChatBus,
   useChatBusDeps,

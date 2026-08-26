@@ -192,13 +192,20 @@ test("indicator: the per-tab active bar sits on the strip's INWARD (bottom) edge
   await expect.poll(() => status.evaluate((el) => getComputedStyle(el).borderBottomColor)).toBe(transparent);
 });
 
-test("PHASE disabled: aria-disabled + reason on title, focusable-discoverable (not `disabled`)", async ({ mount }) => {
+test("PHASE disabled: the locked tab exposes its reason and cannot activate by pointer or keyboard", async ({ mount }) => {
   const component = await mount(<ContextTabStatesStory />);
   const map = component.getByRole("tab", { name: "Map" });
   await expect(map).toHaveAttribute("aria-disabled", "true");
   await expect(map).toHaveAttribute("title", "Maps unlock with the map arc (MA-3)");
-  // Discoverable, not removed from the a11y tree — the reason stays reachable (the OSRS locked-tab pattern).
   await expect(map).toBeVisible();
+  await expect(map).toBeDisabled();
+
+  await map.click({ force: true });
+  await expect(component.getByTestId("ctx-body-map")).toHaveCount(0);
+  await map.focus();
+  await map.press("Enter");
+  await expect(component.getByTestId("ctx-body-map")).toHaveCount(0);
+  await expect(component.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "true");
 });
 
 test("badge: a boolean dot + a count, never on the active tab", async ({ mount }) => {

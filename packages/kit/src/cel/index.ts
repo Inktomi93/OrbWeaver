@@ -103,6 +103,9 @@ export function isCelParseError(value: CelProgram | CelParseError): value is Cel
 /** Parse + validate a CEL source string. Enforces the ≤ 2 KiB cap, then compiles. Returns a reusable
  *  {@link CelProgram} or a {@link CelParseError} — NEVER throws (parse-time errors are values here). */
 export function parseCel(source: string): CelProgram | CelParseError {
+  if (!source.isWellFormed()) {
+    return { kind: "cel-parse-error", code: "invalid-utf16", message: "CEL source contains an unpaired UTF-16 surrogate" };
+  }
   if (utf8ByteLength(source) > CEL_MAX_SOURCE_BYTES) {
     return { kind: "cel-parse-error", code: "source-too-long", message: `CEL source exceeds the ${CEL_MAX_SOURCE_BYTES}-byte cap` };
   }

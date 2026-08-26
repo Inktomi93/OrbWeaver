@@ -38,10 +38,7 @@ export interface CredentialKeyRowProps {
  *  proxy with no ok/unreachable/unchecked classification and no throttle/breaker side-effects — the
  *  SID-01 honesty invariant `testHealth` itself carries). `fetchModels` stays the "Test endpoint" dialog's
  *  own read (a model LIST, not a health verdict), never this row's Test button. */
-interface TestResult {
-  readonly kind: "health";
-  readonly health: CredentialHealth;
-}
+type TestResult = { readonly kind: "health"; readonly health: CredentialHealth } | { readonly kind: "error" };
 
 /** A provider credential's row: label + status chips, a health probe, set-active, and a confirmed remove. */
 export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialKeyRowProps): ReactElement {
@@ -65,7 +62,7 @@ export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialK
     void testHealth
       .mutateAsync({ credentialId: credential.id })
       .then((health): void => setTestResult({ kind: "health", health }))
-      .catch((): void => setTestResult(null));
+      .catch((): void => setTestResult({ kind: "error" }));
   };
 
   const subtitle = credential.hasMetadata ? "Custom endpoint" : undefined;
@@ -91,12 +88,12 @@ export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialK
       actions={
         <Row gap="field" align="center">
           {testResult !== null ? (
-            <Text voice="gloss" className={testResultToneClass(testResult)}>
+            <Text voice="gloss" role={testResult.kind === "error" ? "alert" : undefined} className={testResultToneClass(testResult)}>
               {formatTestResult(testResult, isCustom)}
             </Text>
           ) : null}
           <Button intent="ghost" size="sm" disabled={testing} onClick={runTest}>
-            Test
+            {testResult?.kind === "error" ? "Retry" : "Test"}
           </Button>
           {isCustom ? (
             <Button intent="ghost" size="sm" onClick={(): void => setInspectOpen(true)}>
@@ -166,7 +163,7 @@ export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialK
 
 /** The Test-result text — the honest health status for every provider. */
 function formatTestResult(result: TestResult, isCustom: boolean): string {
-  return formatHealth(result.health, isCustom);
+  return result.kind === "error" ? "Test failed — try again" : formatHealth(result.health, isCustom);
 }
 
 function formatHealth(health: CredentialHealth, isCustom: boolean): string {
@@ -187,6 +184,9 @@ function formatHealth(health: CredentialHealth, isCustom: boolean): string {
 // The result's colour as a TOKEN CLASS, not a `tone` prop: a voice carries its own colour, so the outcome
 // tint rides className and wins over `gloss`'s muted default (density-pass-spec.md §2.3).
 function testResultToneClass(result: TestResult): string {
+  if (result.kind === "error") {
+    return "text-destructive";
+  }
   if (result.health.status === "ok") {
     return "text-success";
   }

@@ -1157,7 +1157,13 @@ function StoppingHarness(): ReactElement {
       <MessageThreadAnchor>
         <MessageListSurface chatId={CHAT_ID} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
       </MessageThreadAnchor>
-      <button type="button" data-testid="mark-stopping" onClick={(): void => chatStream.markStopping(CHAT_ID)}>
+      <button
+        type="button"
+        data-testid="mark-stopping"
+        onClick={(): void => {
+          chatStream.markStopping(CHAT_ID);
+        }}
+      >
         stop
       </button>
     </div>

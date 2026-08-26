@@ -95,8 +95,9 @@ function MaxCell({
         kind="numeric"
         {...(maxEditTitle === undefined ? {} : { editTitle: maxEditTitle })}
         onEdit={(next): void => {
-          const n = Number.parseInt(next, 10);
-          if (!Number.isNaN(n)) {
+          const trimmed = next.trim();
+          const n = Number(trimmed);
+          if (trimmed !== "" && Number.isInteger(n)) {
             onEditMax(n);
           }
         }}
@@ -138,8 +139,9 @@ function ValueCell({
         placeholder={UNSET_DATUM}
         kind="numeric"
         onEdit={(next): void => {
-          const n = Number.parseInt(next, 10);
-          if (!Number.isNaN(n)) {
+          const trimmed = next.trim();
+          const n = Number(trimmed);
+          if (trimmed !== "" && Number.isInteger(n)) {
             onEditValue(n);
           }
         }}
