@@ -909,6 +909,37 @@
       ]
     },
     {
+      "path": "docs/design/issue-750-suppression-governance.md",
+      "assignedSha256": "8680cdd84ec7008c96a8bd35f3c8c4bed1feaeb999c407a9af99348600e21661",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "8680cdd84ec7008c96a8bd35f3c8c4bed1feaeb999c407a9af99348600e21661",
+      "verifiedCommit": "e9c655f40a68766e4cf06c34f8b847ac3668beeb",
+      "verifiedAt": "2026-08-26",
+      "evidence": [
+        "docs/design/issue-750-suppression-governance.md read in full after implementation commit 92011ffcf and current-main census refresh e9c655f40; scope, detector contract, policy disposition, rejected alternatives, proof plan, and detector-equivalent census rechecked against issue #750 and the live gate",
+        "detector-equivalent census: 5,822 project files; 3,645 governed TS/TSX files; 161 files with 310 directive sites across 48 rule classes; generated ledger 0 debt and 310 ratified",
+        "focused proof: pre-fix tooling/scripts plants were invisible; post-fix both plants red; gate conformance 8/8; suppression/config tests 19/19; scoped Biome, ESLint, tooling typecheck, and docs formatting green"
+      ],
+      "summary": "Issue #750 design and implementation record: one governed typed-source predicate for package source, tooling, and scripts; exact directive detection; generated foreign-runtime fence; dead noSecrets/useTopLevelRegex cleanup; and a detector-equivalent zero-debt census.",
+      "claims": [
+        {
+          "claim": "The suppressions gate and generator share one governed source predicate and detector-equivalent census rather than budgeting raw text matches.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#750"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/suppressions.ts:235"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/list-pane-projection-proposal.md",
       "assignedSha256": "194774ea6ea9aeb592d2140a4a926bc456af609edd786f088bd068fc1be04cda",
       "disposition": "archive",

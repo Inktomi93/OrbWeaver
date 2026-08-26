@@ -3,9 +3,6 @@
 // Appearance pane resolving over `settings.getUserSettings` (routeTrpc), switching to a placeholder
 // category showing ITS distinct copy, and the fuzzy search-to-anchor (cmdk) jumping to a pane section.
 
-// biome-ignore-all lint/security/noSecrets: the CSS attribute selectors used inside page.evaluate
-// (`[role="…"]`, `[id$="…"]`, `[aria-current="…"]`) trip biome's entropy heuristic; none are secrets.
-
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { strToU8, zipSync } from "fflate";
@@ -33,8 +30,7 @@ const USER_SETTINGS_VIEW = {
  *  the category beside the section it jumps to. Top-level so the regex is compiled once (biome). */
 const PLUGINS_OPTION = /Plugins/u;
 
-/** The admin-only Distribute section's search option — the absence assertion's needle (top-level per
- *  `useTopLevelRegex`). */
+/** The admin-only Distribute section's search-option absence needle. */
 const DISTRIBUTE_OPTION = /Distribute/u;
 /** The Distribute section's own dropzone input, addressed by its ACCESSIBLE NAME — the pane now hosts TWO
  *  dropzones (install for yourself · distribute to everyone) and the shared `data-slot` selector resolves to

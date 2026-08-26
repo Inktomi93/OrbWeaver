@@ -26,7 +26,6 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, principal, ruleFixture, seedUser } from "../_support.ts";
 
-/** The typed refusal spellings the verbs throw (top-level — `useTopLevelRegex`). */
 const SUGGESTION_REFUSAL = /automation_suggestion/u;
 /** `DomainOperationError` carries its machine code on `.code` and its REASON as the message, so a refusal
  *  assertion matches the reason (the sentence a host is shown) rather than the code. */

@@ -147,12 +147,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "b54fc0e1a3eccea553deed6eaee5f862ff602c22693dacc4467e17ccdec89744",
+      "assignedSha256": "b1096aac374baec26cb6fc2f8d9d75a228bbfd516ed7b0725af25d6b70f7369e",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "b54fc0e1a3eccea553deed6eaee5f862ff602c22693dacc4467e17ccdec89744",
-      "verifiedCommit": "24c55baa944ae87db293e94c4e180b90c4f46136",
+      "verifiedSha256": "b1096aac374baec26cb6fc2f8d9d75a228bbfd516ed7b0725af25d6b70f7369e",
+      "verifiedCommit": "92011ffcf420248267d7b6ff51d57e7f223d9690",
       "verifiedAt": "2026-08-26",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -178,7 +178,8 @@
         "final union re-attestation 2026-08-25 (commit 0d416836d): the live contract-verb receiver relation, nested turn-bundle provenance, canonical bus/user-bus emitter doors, owner verifier result relation, namespace vector identity, warning accumulator identity, and supported Container composition were re-derived after the first normal hook exposed their coupled seams. Permanent old-source controls failed as expected, current focused suites passed 31/31, scoped CT passed 180/180, all type layers passed, and the authoritative structure front door completed 229/229 active gates clean.",
         "delta re-verify 2026-08-25 (#712, commits b4abe5069 + a2113d4eb): three narrow active rows (untrusted-regex-safe-exec, public-route-body-cap, plugin-dump-guard) and count 229->232 were re-read against their descriptors, mustFlag/mustPass controls, and paired product migrations. E3 requires cap middleware to precede the body-reading handler; E4 binds the unsafe-return guard to the same QuickJS context and handle as the dump. Gate conformance passed 8/8 after both adversarial decoys landed; the authoritative anti-drift run proved all three new fixtures fired and no active gate was blind. Its only final failure was the pre-existing user-bus-coverage fixture, not a #712 gate.",
         "integration re-attestation 2026-08-25 (commit fac181a77): the merged route preserves both the OIDC back-channel body cap and the fail-closed sid-only rejection; all three new diagnostics now point to the #712 design, and the review-mirror contract derives its five-way pending classification from one tuple.",
-        "delta re-attestation 2026-08-26 (#730, commit 4b727cf44): monotonic-tests now rejects pseudo-skip annotations while accepting genuine runner outcomes, and test-no-stubs distinguishes those runtime guards from skipped test declarations; suppressions records the retired noAwaitInLoops ceremony and the measured 159-row fully-ratified floor. The design and changed rows were read in full; focused gate conformance passed 8/8 and suppression/monotonic residuals passed 15/15 on the lane bytes."
+        "delta re-attestation 2026-08-26 (#730, commit 4b727cf44): monotonic-tests now rejects pseudo-skip annotations while accepting genuine runner outcomes, and test-no-stubs distinguishes those runtime guards from skipped test declarations; suppressions records the retired noAwaitInLoops ceremony and the measured 159-row fully-ratified floor. The design and changed rows were read in full; focused gate conformance passed 8/8 and suppression/monotonic residuals passed 15/15 on the lane bytes.",
+        "delta re-attestation 2026-08-26 (#750, commit 92011ffcf): the suppressions row now matches the shared governed typed-source predicate, exact directive-token detector, foreign-runtime fence, derived classification, and both-ways controls. useTopLevelRegex was removed from Layer 1. The full document and descriptor were re-read; focused gate conformance passed 8/8, residual/config tests passed 19/19, and the standalone real gate scanned 3,645 governed files clean with 310 ratified sites."
       ],
       "claims": [
         {

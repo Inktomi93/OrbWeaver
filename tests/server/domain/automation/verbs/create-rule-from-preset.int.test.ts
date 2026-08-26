@@ -47,7 +47,6 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage, seedParticipant } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, makeAutomationHarness, NO_TOOLS, principal, seedHostChat, seedUser } from "../_support.ts";
 
-/** The typed refusals these suites assert (hoisted — `useTopLevelRegex`). */
 const BAD_KNOB = /knob 'everyN'/;
 /** An UNCHOSEN book now refuses at the KNOB, in the host's own noun (#630 — the `entityRef` kind carries no
  *  default, so there is no `""` to fall through the arm schema's "Suffix should have 26 characters"). A

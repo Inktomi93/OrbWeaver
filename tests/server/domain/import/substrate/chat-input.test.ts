@@ -1,5 +1,4 @@
 // biome-ignore-all lint/style/useNamingConvention: ST chat-JSONL wire field names (snake_case) are the format.
-// biome-ignore-all lint/security/noSecrets: ST @-date tokens in the fixture filenames are not secrets.
 // Mirror test for domain/import/substrate/chat-input — the pure ST→canonical mapping. This file pins the two
 // TRANSLATIONS the mapper owns and nothing else writes: ST's author's-note placement vocabulary onto orb's
 // injection axis (the whole matrix, including the arms the real corpus has 1 of), and the imported room's

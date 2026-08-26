@@ -1,4 +1,3 @@
-// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TS fixture snippets
 // Gate: test-presence-client — the @orb/client + non-primitive @orb/ui reach test-presence lacks
 // (docs/architecture/core/Spine-Testing.md §5: a test is required only where an untested change
 // silently breaks behavior downstream, not blanket per-file coverage). Clause A: client

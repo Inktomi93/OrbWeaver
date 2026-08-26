@@ -29,7 +29,6 @@ const ATTACHED = {
 };
 const LOOSE = { ...ATTACHED, id: "regex_script_000000000000000b", name: "not yet on" };
 
-// Hoisted (useTopLevelRegex): a literal re-compiled per assertion is a needless per-run cost.
 const AUTHORED_IN_SETTINGS = /Settings → Regex/;
 
 const ATTACH_PROC = "regex.attachToCharacter";

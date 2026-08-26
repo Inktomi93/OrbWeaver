@@ -17,12 +17,13 @@
 
 import type { AssembleContext } from "@orb/contracts/chat";
 import { DEFAULT_FORMAT_STRINGS } from "@orb/contracts/preset";
+import type { MessageRole } from "@orb/kit/message-role";
 import { buildPrompt, resolveNudgeText, shapeTurn } from "../../../packages/server/src/domain/chat/substrate/assembly-access.ts";
 import type { ImpersonateFixture } from "./fixtures.ts";
 import { configFor } from "./fixtures.ts";
 
 export interface WireMessage {
-  readonly role: "system" | "user" | "assistant";
+  readonly role: MessageRole;
   readonly content: string;
   readonly name?: string;
 }

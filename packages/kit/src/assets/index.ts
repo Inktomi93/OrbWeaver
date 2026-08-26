@@ -3,8 +3,7 @@
 // no node deps. (The `/blob/<hash>` URL ladder + transform widths live in the assets domain, and
 // `AssetKind` lives in contracts — only the hash guard is a leaf primitive.)
 
-// A content hash is exactly the sha-256 hex digest: 64 lowercase hex chars. Hoisted to module scope
-// (one compile, and `useTopLevelRegex` forbids in-function literals).
+// A content hash is exactly the sha-256 hex digest: 64 lowercase hex chars.
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 
 /** True when `value` is a well-formed sha-256 hex digest (64 lowercase hex chars). This is the guard

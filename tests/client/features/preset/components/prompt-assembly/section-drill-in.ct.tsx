@@ -37,8 +37,7 @@ function labelBox(probe: Locator, text: string): Promise<{ readonly top: number;
 }
 
 // The zone select's two arms + the triggers dial's readings, matched on the trigger's TEXT (a Select
-// renders its arm's whole label, and these pins are about WHICH arm — not its full copy). Top-level per
-// `useTopLevelRegex`.
+// renders its arm's whole label, and these pins are about which arm, not its full copy).
 const RELATIVE_ZONE_RE = /Relative/;
 const IN_CHAT_ZONE_RE = /In Chat/;
 const EVERY_GENERATION_RE = /Every generation/;
@@ -46,8 +45,7 @@ const CONTINUE_TRIGGER_RE = /Continue/;
 /** Every option the Fires-on dial offers, in `GENERATION_TYPES` order — the all-selected arm's input. */
 const ALL_GENERATION_TYPES = ["Normal", "Continue", "Impersonate", "Swipe", "Regenerate", "Quiet"] as const;
 const SWIPE_TRIGGER_RE = /Swipe/;
-/** The main-prompt drill-in's mode-aware note — the two halves it has to say (C4). Top-level per
- *  `useTopLevelRegex`. */
+/** The main-prompt drill-in's mode-aware note — the two halves it has to say (C4). */
 const MODE_AWARE_DEFAULT_RE = /narrator round gets a narrator framing/;
 const OVERRIDE_COVERS_BOTH_RE = /replaces it on every turn, narrator and per-character alike/;
 

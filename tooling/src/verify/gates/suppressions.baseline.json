@@ -263,12 +263,6 @@
     "why": "ratified by rule: @typescript-eslint/no-unnecessary-condition×1 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
-  "packages/server/src/domain/character/seeder/cards.ts": {
-    "count": 2,
-    "ratified": 2,
-    "why": "ratified by rule: lint/security/noSecrets×2 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
-    "cite": ["tooling/src/verify/gates/suppressions.ts"]
-  },
   "packages/server/src/domain/character/substrate/card-merge.ts": {
     "count": 1,
     "ratified": 1,
@@ -645,6 +639,330 @@
     "count": 1,
     "ratified": 1,
     "why": "ratified by rule: react-you-might-not-need-an-effect/no-external-store-subscription×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/guard-replay.ts": {
+    "count": 2,
+    "ratified": 2,
+    "why": "ratified by rule: @ts-expect-error×1 (ruling), lint/style/noNonNullAssertion×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/impersonate/run.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/rpg-extraction/steer-probe.ts": {
+    "count": 6,
+    "ratified": 6,
+    "why": "ratified by rule: lint/style/noNonNullAssertion×6 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/sdk-behavior-probe.ts": {
+    "count": 2,
+    "ratified": 2,
+    "why": "ratified by rule: lint/correctness/useYield×1 (ruling), lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/sdk-cache-probe.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/sdk-dynamic-content-probe.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/sdk-hook-wire-probe.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/sdk-injection-cache-probe.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/sdk-session-probe.ts": {
+    "count": 3,
+    "ratified": 3,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling), lint/suspicious/noUnnecessaryConditions×1 (tool-fp), lint/suspicious/useAwait×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/st-goldens/build-fixtures.ts": {
+    "count": 11,
+    "ratified": 11,
+    "why": "ratified by rule: @ts-expect-error×1 (ruling), lint/style/useNamingConvention×10 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/st-goldens/capture-orbweaver.ts": {
+    "count": 14,
+    "ratified": 14,
+    "why": "ratified by rule: lint/style/useNamingConvention×14 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/st-goldens/compare-runner.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/useNamingConvention×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/st-goldens/generate-goldens.ts": {
+    "count": 39,
+    "ratified": 39,
+    "why": "ratified by rule: @ts-expect-error×3 (ruling), lint/nursery/noPlaywrightNetworkidle×1 (ruling), lint/nursery/noPlaywrightWaitForSelector×3 (ruling), lint/nursery/noPlaywrightWaitForTimeout×3 (ruling), lint/style/noProcessEnv×1 (ruling), lint/style/useNamingConvention×13 (ruling), lint/suspicious/noBitwiseOperators×7 (ruling), lint/suspicious/noExplicitAny×8 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/st-goldens/rig-paths.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "scripts/probes/transcript-census.ts": {
+    "count": 4,
+    "ratified": 4,
+    "why": "ratified by rule: lint/style/noNonNullAssertion×4 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/_shared/browser.ts": {
+    "count": 3,
+    "ratified": 3,
+    "why": "ratified by rule: lint/nursery/noPlaywrightWaitForTimeout×1 (ruling), lint/style/noProcessEnv×2 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/_shared/ffmpeg.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/_shared/proc.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/codemod/lib/diagnostics.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/codemod/lib/example.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/useNamingConvention×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/codemod/lib/files.ts": {
+    "count": 3,
+    "ratified": 3,
+    "why": "ratified by rule: lint/nursery/noConditionalExpect×3 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/codemod/lib/kit.ts": {
+    "count": 3,
+    "ratified": 3,
+    "why": "ratified by rule: lint/style/useNamingConvention×3 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/cpu-profile/ops/run.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/complexity/noExcessiveCognitiveComplexity×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/motion-audit/contract/types.ts": {
+    "count": 2,
+    "ratified": 2,
+    "why": "ratified by rule: lint/style/useNamingConvention×2 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/render-trace/lib/render.ts": {
+    "count": 2,
+    "ratified": 2,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling), lint/suspicious/noControlCharactersInRegex×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/render-trace/ops/fire.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/render-trace/ops/tail.ts": {
+    "count": 4,
+    "ratified": 4,
+    "why": "ratified by rule: lint/style/noProcessEnv×4 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/review-mirror/lib/strip.ts": {
+    "count": 2,
+    "ratified": 2,
+    "why": "ratified by rule: lint/complexity/noExcessiveCognitiveComplexity×2 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/review-mirror/ops/pending-guard.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/complexity/noUselessUndefined×1 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/seed/ops/multi-user.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/snap/ops/drive.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/nursery/noPlaywrightNetworkidle×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/snap/ops/fixture.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/snap/ops/stage.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/stack/ops/prod-state.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/stack/ops/served-probe.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/ui-audit/ops/report.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/useNamingConvention×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/ui-audit/ops/run.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/complexity/noExcessiveCognitiveComplexity×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/verify/gates/bus-onData-no-store-write.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/useFilenamingConvention×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/verify/gates/dangling-refs.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/complexity/noUselessReturn×1 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/verify/gates/no-hover-display-swap.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/suspicious/noTemplateCurlyInString×1 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/verify/gates/no-off-token-radius-shadow.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/suspicious/noTemplateCurlyInString×1 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/verify/gates/suppressions.ts": {
+    "count": 2,
+    "ratified": 2,
+    "why": "ratified by rule: lint/suspicious/noUnnecessaryConditions×2 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/verify/gates/ui-skin-fragment-purity.ts": {
+    "count": 3,
+    "ratified": 3,
+    "why": "ratified by rule: lint/suspicious/noTemplateCurlyInString×3 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/verify/gates/zod-modern-spellings.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/suspicious/noTemplateCurlyInString×1 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/verify/lib/gate-ignore.ts": {
+    "count": 4,
+    "ratified": 4,
+    "why": "ratified by rule: lint/suspicious/noExplicitAny×3 (ruling), lint/suspicious/noUnnecessaryConditions×1 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/verify/ops/db-baseline-parity.ts": {
+    "count": 2,
+    "ratified": 2,
+    "why": "ratified by rule: lint/performance/noNamespaceImport×1 (ruling), lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/verify/ops/run.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/verify/ops/scoped.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/verify/ops/structure.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/verify/ops/tests-execution-membership.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/wire-tap/ops/captures.ts": {
+    "count": 3,
+    "ratified": 3,
+    "why": "ratified by rule: lint/style/noProcessEnv×3 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/wire-tap/ops/sse.ts": {
+    "count": 5,
+    "ratified": 5,
+    "why": "ratified by rule: lint/style/noProcessEnv×3 (ruling), lint/style/useNamingConvention×2 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/wire-tap/ops/trpc.ts": {
+    "count": 2,
+    "ratified": 2,
+    "why": "ratified by rule: lint/style/noProcessEnv×2 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/workboard/lib/vocab.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   }
 }

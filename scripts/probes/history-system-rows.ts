@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import type { MessageRole } from "@orb/kit/message-role";
+
 /**
  * pnpm probe:history-system-rows [--endpoint <url>] [--model <id>] [--key <api-key>] [--verbose]
  *
@@ -63,7 +65,7 @@ const INSTRUCTION = `Ignore the topic of the conversation. Reply with exactly on
 
 /** One wire row as the openai-compat surface takes it. */
 interface WireMessage {
-  readonly role: "system" | "user" | "assistant";
+  readonly role: MessageRole;
   readonly content: string;
 }
 

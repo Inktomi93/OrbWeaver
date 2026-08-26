@@ -53,7 +53,6 @@ const AUTHORED_CARD_DEFAULTS = {
  *  asset/external arms stay empty — `canonicalBackgroundSource` enforces the same shape on every write. */
 const SEEDED_BACKGROUND_BASE = { externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" };
 
-// biome-ignore-start lint/security/noSecrets: authored card example-dialogue / greeting prose, not credentials (the long "<START>…" strings are high-entropy false positives).
 export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
   {
     tags: ["assistant", "default", "utility"],
@@ -572,4 +571,3 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
     },
   },
 ];
-// biome-ignore-end lint/security/noSecrets: end authored-card prose range.

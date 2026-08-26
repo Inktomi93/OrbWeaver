@@ -22,8 +22,7 @@ import { RpgTakeoverDockedStory, RpgTakeoverFloorStory, RpgTakeoverNotifyStory, 
 const GAME_ID = "rpg_game_ct_keystone";
 const PERSONA_ID = "persona_ct_keystone";
 
-/** "a `title` with any content at all" — hoisted (a regex literal in a test body is a per-call recompile,
- *  `useTopLevelRegex`) and used with `not.toHaveAttribute`, which also passes when the attribute is absent. */
+/** Any non-empty title, used with `not.toHaveAttribute`, which also passes when the attribute is absent. */
 const ANY_TITLE = /./;
 const SAFE_SANDBOX = /^(?!.*allow-scripts)(?!.*allow-same-origin).*$/u;
 const NONEMPTY_ID = /.+/u;
@@ -1950,8 +1949,7 @@ test("Status takeover: the born-state button fires populateFromCharacter for THI
   await expect.poll(() => trpc.count("rpg.populateFromCharacter"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });
 
-/** The disabled-reason the born-state button carries on a writer-less connection (hoisted — a regex literal
- *  inside a test body is a per-call recompile, `useTopLevelRegex`). */
+/** The disabled reason the born-state button carries on a writer-less connection. */
 const NO_WRITER_REASON = /can't write structured state/;
 
 test("Status takeover: a connection with no structured writer DISABLES the born-state button with the reason (never a hidden control)", async ({

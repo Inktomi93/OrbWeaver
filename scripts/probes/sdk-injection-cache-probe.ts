@@ -311,7 +311,8 @@ function verdict(scenario: string, pass: boolean, detail: string): void {
   console.log(`  ${pass ? "PASS" : "FAIL"} — ${detail}`);
 }
 
-type CacheClass = "prefix-cached" | "system-only" | "partial" | "cold";
+const CACHE_CLASSES = ["prefix-cached", "system-only", "partial", "cold"] as const;
+type CacheClass = (typeof CACHE_CLASSES)[number];
 /**
  * The layer-(b) classifier — TWO axes, because write alone cannot tell a cheap fork from an expensive one:
  *

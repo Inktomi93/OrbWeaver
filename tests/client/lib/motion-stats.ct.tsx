@@ -43,8 +43,7 @@ import type { Locator, Page } from "@playwright/test";
 import { loafOverBudget, loafTotals } from "../../../tooling/src/motion-audit/index.ts";
 import { MotionAnchoredPortalStory, MotionShiftFlaggerStory, MotionVirtualizedShiftStory } from "./_ct-stories.tsx";
 
-/** The score the flagger prints — `shift 0.1234`. Hoisted: a regex literal inside a test body is a
- *  biome `useTopLevelRegex` error. */
+/** The score the flagger prints — `shift 0.1234`. */
 const SCORE_RE = /shift 0\.\d{4}/u;
 
 /** The budget for browser-delivered evidence. Measured under a 1120-test / 24-worker CT run, the

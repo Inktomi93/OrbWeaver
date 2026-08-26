@@ -133,7 +133,6 @@ const SHAPE_TRACE_DATA = {
   rows: SHAPE_TRACE_ROWS,
 };
 
-// Regex literals hoisted to module scope (biome `useTopLevelRegex`).
 const RE_ESTIMATED = /estimated locally/i;
 const RE_WORLD_INFO = /World info/;
 const RE_HISTORY = /History/;

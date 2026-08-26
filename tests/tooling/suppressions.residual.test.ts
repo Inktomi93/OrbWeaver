@@ -13,6 +13,8 @@ import { expect, test } from "../support/tool-fixtures.ts";
 import { ctxFor } from "./_support.ts";
 
 const F = "packages/kit/src/widget.ts";
+const TOOLING_F = "tooling/src/widget.ts";
+const SCRIPT_F = "scripts/widget.tsx";
 const ONE_MARKER = "// biome-ignore lint/foo: reason\nexport const a = 1;\n";
 const TWO_MARKERS = "// biome-ignore lint/foo: reason\nexport const a = 1;\n// eslint-disable-next-line no-unused-vars\nexport const b = 2;\n";
 
@@ -32,6 +34,50 @@ test("a file ABSENT from the baseline has budget 0 (any suppression is RED)", ()
   const { root, project } = ctxFor({ [F]: ONE_MARKER });
   const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({}));
   expect(violations).toHaveLength(1);
+});
+
+test.each([TOOLING_F, SCRIPT_F])("new governed root: %s is budgeted and missing-baseline RED", (file) => {
+  const { root, project } = ctxFor({ [file]: ONE_MARKER });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({}));
+  expect(violations).toHaveLength(1);
+  expect(violations[0]?.file).toBe(file);
+});
+
+test.each([TOOLING_F, SCRIPT_F])("new governed root: %s stale baseline rows RED", (file) => {
+  const { root, project } = ctxFor({ [file]: "export const a = 1;\n" });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({ [file]: 1 }));
+  expect(violations).toHaveLength(1);
+  expect(violations[0]?.message).toContain("stale");
+});
+
+test("exact directive grammar counts biome-ignore-start/end as distinct suppression tokens", () => {
+  const source =
+    "// biome-ignore-start lint/suspicious/noUnnecessaryConditions: live guard\n" +
+    "export const a = 1;\n" +
+    "// biome-ignore-end lint/suspicious/noUnnecessaryConditions: end live guard\n";
+  const { root, project } = ctxFor({ [F]: source });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({}));
+  expect(violations.map((violation) => violation.message)).toEqual([
+    expect.stringContaining("`biome-ignore-start`"),
+    expect.stringContaining("`biome-ignore-end`"),
+  ]);
+});
+
+test("directive words in prose comments and fixture strings are not suppression markers", () => {
+  const source =
+    '// This fixture string mentions biome-ignore lint/foo: without issuing a directive.\nexport const a = "// eslint-disable-next-line no-alert";\n';
+  const { root, project } = ctxFor({ [TOOLING_F]: source });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({}));
+  expect(violations).toEqual([]);
+});
+
+test("authored st-goldens scripts are governed but the captured foreign runtime is excluded", () => {
+  const authored = "scripts/probes/st-goldens/generate-goldens.ts";
+  const captured = "scripts/probes/st-goldens/sillytavern-runtime/vendor.tsx";
+  const { root, project } = ctxFor({ [authored]: ONE_MARKER, [captured]: ONE_MARKER });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({}));
+  expect(violations).toHaveLength(1);
+  expect(violations[0]?.file).toBe(authored);
 });
 
 test("both-ways: a baseline entry ABOVE the file's live count is a STALE-RED", () => {

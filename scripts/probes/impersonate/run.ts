@@ -103,8 +103,9 @@ interface Sample {
 
 /** PERSONA = the line is the user's persona speaking in their own voice (no bleed). CHARACTER = it is the
  *  card character speaking / being narrated. MIXED = it starts as one and slides into the other. */
-type JudgeVerdict = "PERSONA" | "CHARACTER" | "MIXED" | "UNPARSED";
-const JUDGE_VERDICTS: readonly JudgeVerdict[] = ["PERSONA", "CHARACTER", "MIXED"];
+const JUDGE_VERDICTS = ["PERSONA", "CHARACTER", "MIXED"] as const;
+const ALL_JUDGE_VERDICTS = [...JUDGE_VERDICTS, "UNPARSED"] as const;
+type JudgeVerdict = (typeof ALL_JUDGE_VERDICTS)[number];
 
 function readSamples(): Sample[] {
   if (!fs.existsSync(OUT)) {

@@ -23,7 +23,6 @@ const modelsResponseSchema = z.object({
   data: z.array(z.object({ id: z.string() }).loose()).optional(),
 });
 
-/** Trailing-slash trimmer (hoisted — useTopLevelRegex). */
 const TRAILING_SLASH_RE = /\/$/;
 
 /** The exact host this probe pins to, from the owner's configured `baseUrl`.

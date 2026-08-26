@@ -24,7 +24,6 @@ const SYNC_CHIP = '[data-slot="role-row-sync"]';
 const APP_DEFAULT = '[data-slot="role-app-default"]';
 const AUTOSAVE_STATUS = '[data-slot="autosave-status"]';
 const COMMAND_ITEM = '[data-slot="command-item"]';
-/** The held write's route matcher (top-level per biome's useTopLevelRegex). */
 const SAVE_ROUTE = /updateUserSettingsSection/;
 
 const LIVE_MODEL = "anthropic/claude-sonnet-5";

@@ -3,8 +3,6 @@
 // (pass) · a declaration on a surface that DOES focus (stale, two-sided) · a malformed declaration.
 // COMMENT POSTURE: comment-SAFE for focus detection (call/JSX AST identity) and comments-INTENDED for the
 // marker, which is read from raw comment text. DECLARED LIMIT: app-shell/topbar surfaces do not transition.
-// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TSX surface fixture
-// snippets, not secrets.
 import type { CallExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";

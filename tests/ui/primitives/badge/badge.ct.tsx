@@ -108,7 +108,6 @@ const paintedColors = (el: Element): readonly (readonly number[])[] => {
     if (probe !== null) {
       probe.fillStyle = bg;
       // An opaque layer ends the walk — nothing below it can show through.
-      // biome-ignore lint/performance/useTopLevelRegex: serialized into the browser by `evaluate`
       const translucent = /\/\s*0?\.\d|,\s*0?\.\d+\)/u.test(probe.fillStyle);
       if (!translucent && probe.fillStyle !== transparent) {
         break;
