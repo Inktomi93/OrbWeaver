@@ -160,6 +160,22 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     expect(out).toBe(joinBlocks(facet("[s0]", "a"), facet("[s1]", "b")));
   });
 
+  test("maxTier excludes stored digests above the configured recall ceiling", async () => {
+    const chatId = await seedChat(db, "max-tier");
+    await seedDigest(db, { chatId, tier: 0, blockIdx: 0, text: "tier zero" });
+    await seedDigest(db, { chatId, tier: 1, blockIdx: 0, text: "tier one" });
+
+    const out = await recallMemory(makeChatContext(db), {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      config: { mode: "tiered", fanOut: 2, maxTier: 0 },
+    });
+
+    expect(out.text).toContain("tier zero");
+    expect(out.text).not.toContain("tier one");
+    expect(out.trace.candidates.every((candidate) => candidate.tier <= 0)).toBe(true);
+  });
+
   test("mixC threads the rerank-unavailable report into one shared recall episode", async () => {
     const chatId = await seedChat(db, "mixc-rerank-warning");
     await seedDigest(db, { chatId, tier: 0, blockIdx: 0, topicAnchor: "[s0]", keywords: ["a"] });

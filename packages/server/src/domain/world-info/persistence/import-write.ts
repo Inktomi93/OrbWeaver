@@ -19,7 +19,7 @@ import type { Db } from "@orb/db";
 import { characterBooks, characters, worldBooks, worldEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
-import { DomainNotFoundError } from "@orb/kit/errors";
+import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { DedupBook, DedupCandidateBook, DedupLoreEntry } from "../contract/book-dedup.ts";
@@ -66,6 +66,16 @@ function entryStmts(ctx: WorldInfoImportContext, worldBookId: WorldBookId, book:
       }),
     ),
   );
+}
+
+function assertUniqueEntryTitles(book: BulkImportLorebookInput): void {
+  const titles = new Set<string>();
+  for (const entry of book.entries) {
+    if (titles.has(entry.title)) {
+      throw new DomainOperationError("world_info_duplicate_entry_title", `lorebook import contains duplicate entry title: ${entry.title}`);
+    }
+    titles.add(entry.title);
+  }
 }
 
 /** The incoming embedded book projected onto the dedup shape. `metadata` is SCHEMA-PARSED here so its
@@ -144,6 +154,7 @@ async function loadOwnedBooksByNameForDedup(db: Db, ownerId: UserId, name: strin
 // character's owner does not own — then this re-import would edit a stranger's book in place.
 export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImportLorebook {
   return async ({ ownerId, characterId, book }): Promise<BulkImportLorebookResult> => {
+    assertUniqueEntryTitles(book);
     const { db } = ctx;
     await assertOwnedCharacter(db, ownerId, characterId);
     const at = ctx.now();
@@ -264,6 +275,7 @@ async function findBookByName(db: Db, ownerId: UserId, name: string): Promise<Wo
 // candidate. Ends if the dedup lookup stops carrying `eq(worldBooks.ownerId, …)`.
 export function createImportStandaloneLorebook(ctx: WorldInfoImportContext): ImportStandaloneLorebook {
   return async ({ ownerId, book }): Promise<BulkImportLorebookResult> => {
+    assertUniqueEntryTitles(book);
     const { db } = ctx;
     const at = ctx.now();
     const existingBookId = await findBookByName(db, ownerId, book.name);
