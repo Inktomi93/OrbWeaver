@@ -1117,6 +1117,11 @@ async function freezeGreetingVolatiles(
       : [freezeVariantContentStatement(ctx.db, { variantId: m.selectedVariantId, content: frozen, rawContent: m.content, macroFreezes: freezes })];
   });
   if (stmts.length > 0) {
+    const chatId = priorCanon[0]?.chatId;
+    const hostUserId = chatId === undefined ? null : hostUserIdOf(await loadRoster(ctx.db, chatId));
+    if (hostUserId !== null) {
+      ctx.bumpStatsCanonVersion(stmts, ctx.db, hostUserId);
+    }
     await ctx.db.batch(batchMany(stmts));
   }
 }
@@ -2293,7 +2298,12 @@ async function restoreContinue(
   }
   const content = direction === "undo" ? snap.preContinueContent : snap.preContinueContent + snap.lastContinuationContent;
   const reasoning = direction === "undo" ? snap.preContinueReasoning : combineReasoning(snap.preContinueReasoning, snap.lastContinuationReasoning);
-  await ctx.db.batch(batchMany([setVariantContentStatement(ctx.db, snap.variantId, content, reasoning)]));
+  const statements = [setVariantContentStatement(ctx.db, snap.variantId, content, reasoning)];
+  const hostUserId = hostUserIdOf(await loadRoster(ctx.db, chatId));
+  if (hostUserId !== null) {
+    ctx.bumpStatsCanonVersion(statements, ctx.db, hostUserId);
+  }
+  await ctx.db.batch(batchMany(statements));
   const view = await loadMessageView(ctx.db, messageId);
   if (view === undefined) {
     throw new ChatNotFoundError(chatId);

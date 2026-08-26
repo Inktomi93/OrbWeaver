@@ -2,9 +2,11 @@
 // provenance is null (app-authored), `character.updated` is emitted (the indexer re-embeds), and a per-owner
 // handle collision throws `CharacterOperationError("handle_conflict")`.
 
+import { statsCanonVersions } from "@orb/db";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { AssetNotFoundError, CharacterOperationError, createCharacterService } from "@orb/server/domain/character";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -31,6 +33,7 @@ describe("create", () => {
     expect(detail.avatarHash).toBeNull();
     expect(detail.synthetic).toBe(false);
     expect(detail.greetings).toEqual([]);
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, owner)))[0]?.version).toBe(1);
 
     expect(h.events).toEqual([{ type: "character.updated", characterId: detail.id, contentChanged: true }]);
     expect(h.audits.map((a) => a.entry.action)).toContain("character.create");

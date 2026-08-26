@@ -95,10 +95,12 @@ function lifecycle(ctx: ChatContext): ReturnType<typeof createChatLifecycle> {
  *  false-emit (the fan is now after `RETURNING`), and the TTL sweep has no SELECT left at all — so the
  *  window has to be opened at the write itself. Drizzle's write builders are LAZY thenables that mutate and
  *  return `this` from `.where()`/`.returning()`, so one proxy over the object `delete()` returns survives the
- *  whole chain and can run the claim before handing execution on. Fails LOUD if that ever stops holding: the
- *  hook simply never runs, the doomed room is deleted, and the "it survived" assertion reds. */
+ *  whole chain. The stats fence now commits a claimed-room delete through `db.batch`; that execution seam is
+ *  intercepted too, after the delete statement has been built but before the batch runs. Fails LOUD if either
+ *  seam stops holding: the hook never runs, the doomed room is deleted, and the survivor assertion reds. */
 function dbClaimingBeforeDelete(base: Db, hook: () => Promise<void>): Db {
   let fired = false;
+  let deleteBuilt = false;
   const wrapBuilder = (builder: object): object =>
     new Proxy(builder, {
       get(target, prop, receiver): unknown {
@@ -124,11 +126,24 @@ function dbClaimingBeforeDelete(base: Db, hook: () => Promise<void>): Db {
   return new Proxy(base, {
     get(target, prop, receiver): unknown {
       const value: unknown = Reflect.get(target, prop, receiver);
+      if (prop === "batch" && typeof value === "function") {
+        const batch = value as (...args: unknown[]) => Promise<unknown>;
+        return async (...args: unknown[]): Promise<unknown> => {
+          if (deleteBuilt && !fired) {
+            fired = true;
+            await hook();
+          }
+          return await batch.apply(target, args);
+        };
+      }
       if (prop !== "delete" || typeof value !== "function") {
         return value;
       }
       const del = value as (...args: unknown[]) => object;
-      return (...args: unknown[]): object => wrapBuilder(del.apply(target, args));
+      return (...args: unknown[]): object => {
+        deleteBuilt = true;
+        return wrapBuilder(del.apply(target, args));
+      };
     },
   }) as Db;
 }

@@ -17,7 +17,8 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chats, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
+import { chats, personaBooks, personas, statsCanonVersions, worldBooks, worldEntries } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, MessageId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -45,6 +46,7 @@ import {
 } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
 import { createRequestTurn, createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn.ts";
+import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { createToolUseService, createToolUseTeachingContributions } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -199,6 +201,7 @@ function harness(
     applyStatsDelta: (_b: unknown, _d: Db, delta: StatsDelta): void => {
       deltas.push(delta);
     },
+    bumpStatsCanonVersion: (batch, deltaDb, ownerId) => bumpStatsCanonVersion(batch as BatchStmt[], deltaDb, ownerId),
     getCard: ({ characterId }) => Promise.resolve(card(names[characterId] ?? "Unknown")),
     mintSyntheticGroupCharacter: () =>
       Promise.resolve({
@@ -390,6 +393,16 @@ describe("commitMessage — post-without-generate (D56)", () => {
     expect(stored.match(FROZEN_ROLL_RE)).not.toBeNull();
     expect(stored).toContain("{{user}}");
     expect(stored).not.toContain("{{roll");
+  });
+
+  test("the first-user turn fences a prior greeting content freeze", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
+    await seedMessage(db, chatId, 1, { role: "assistant", characterId: chars[0] as CharacterId, content: "A {{roll:d20}} appears" });
+    const h = harness(db, names);
+
+    await h.turn.commitMessage({ principal: principal(host), chatId, content: "hello" });
+
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBe(1);
   });
 
   test("an EXPLICIT foreign personaId is refused not_persona_owner — nothing committed (the trust boundary)", async () => {
@@ -2195,9 +2208,11 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
 
     const undone = await h.turn.undoContinue({ principal: principal(host), chatId, messageId });
     expect(undone.content).toBe("Once upon a time");
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBe(1);
 
     const reverted = await h.turn.revertContinue({ principal: principal(host), chatId, messageId });
     expect(reverted.content).toBe("Once upon a timeHi there");
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBe(2);
   });
 
   test("undoContinue on a never-continued variant is refused no_continuation", async () => {

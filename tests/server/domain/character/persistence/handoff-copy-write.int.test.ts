@@ -10,6 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { CopyAvatarToOwner } from "../../../../../packages/server/src/domain/character/index.ts";
 import { createCopyHandoffCards, handoffProvenance } from "../../../../../packages/server/src/domain/character/index.ts";
+import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -52,6 +53,7 @@ function copier(db: Db, copyAvatar: CopyAvatarToOwner = () => Promise.resolve(nu
   let n = 0;
   return createCopyHandoffCards({
     db,
+    bumpStatsCanonVersion,
     now: () => AT,
     newCharacterId: (): CharacterId => {
       n += 1;

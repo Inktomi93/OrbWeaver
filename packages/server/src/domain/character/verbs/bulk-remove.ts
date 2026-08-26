@@ -28,7 +28,7 @@ export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkR
           // Free the sprite bindings BEFORE the row delete (the FK cascade doesn't surface the freed ids —
           // expressions-design/01 §8). Optional op: absent falls back to the cascade + a later GC sweep.
           const spriteAssetIds = ctx.reapCharacterSprites !== undefined ? await ctx.reapCharacterSprites(characterId) : [];
-          const ok = await deleteOwnedCharacter(ctx.db, characterId, ownerId);
+          const ok = await deleteOwnedCharacter(ctx.db, characterId, ownerId, ctx.bumpStatsCanonVersion);
           return ok ? { row, spriteAssetIds } : null;
         }),
       )

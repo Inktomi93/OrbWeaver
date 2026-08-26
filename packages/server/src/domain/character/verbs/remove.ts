@@ -29,7 +29,7 @@ export function createRemove(ctx: CharacterContext): CharacterService["remove"] 
     // deploy without the expressions leaf falls back to the cascade + a later GC sweep.
     const spriteAssetIds = ctx.reapCharacterSprites !== undefined ? await ctx.reapCharacterSprites(characterId) : [];
 
-    const deleted = await deleteOwnedCharacter(ctx.db, characterId, ownerId);
+    const deleted = await deleteOwnedCharacter(ctx.db, characterId, ownerId, ctx.bumpStatsCanonVersion);
     if (!deleted) {
       throw new CharacterNotFoundError(characterId);
     }

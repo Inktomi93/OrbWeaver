@@ -44,6 +44,7 @@ import { beforeEach, describe } from "vitest";
 import { createCopyHandoffCards, handoffProvenance } from "../../../../../packages/server/src/domain/character/index.ts";
 import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster.ts";
 import { createHandoffRestampStatements } from "../../../../../packages/server/src/domain/embeddings/index.ts";
+import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { createCopyHandoffBooks } from "../../../../../packages/server/src/domain/world-info/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -116,6 +117,7 @@ function copyContext(overrides: NonNullable<Parameters<typeof makeChatContext>[1
     emitNotification: recordingEmit(notes),
     copyHandoffCards: createCopyHandoffCards({
       db,
+      bumpStatsCanonVersion,
       now: () => 1,
       newCharacterId: mint.newCharacterId,
       copyAvatar: () => Promise.resolve(null),

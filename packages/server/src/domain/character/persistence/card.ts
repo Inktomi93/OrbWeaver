@@ -5,9 +5,11 @@
 // the race guard for create/duplicate: a colliding handle surfaces as a constraint violation on INSERT,
 // classified into a typed `CharacterOperationError("handle_conflict")` (never a phantom pre-SELECT).
 
+import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterSnapshots, characters } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors.ts";
@@ -17,9 +19,11 @@ type CharacterEdits = Partial<CharacterInsert>;
 type SnapshotInsert = typeof characterSnapshots.$inferInsert;
 
 /** Insert a new character row. A per-owner handle collision → `CharacterOperationError("handle_conflict")`. */
-export async function insertCharacter(db: Db, values: CharacterInsert): Promise<void> {
+export async function insertCharacter(db: Db, values: CharacterInsert, bumpCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>): Promise<void> {
   try {
-    await db.insert(characters).values(values);
+    const statements: BatchStmt[] = [db.insert(characters).values(values)];
+    bumpCanonVersion(statements, db, values.ownerId);
+    await db.batch(batchMany(statements));
   } catch (err) {
     if (isConstraintViolation(err)?.kind === "unique") {
       const conflict = new CharacterOperationError(CHARACTER_HANDLE_CONFLICT, `a character with handle "${values.handle}" already exists`);
@@ -60,11 +64,21 @@ export async function appendSnapshot(db: Db, values: SnapshotInsert): Promise<vo
 
 /** Hard-delete an owned character (cascades snapshots / personas / downstream FKs). Returns `true` when a
  *  row was actually deleted (owned/found). The caller best-effort reaps the avatar asset afterwards. */
-export async function deleteOwnedCharacter(db: Db, characterId: CharacterId, ownerId: UserId): Promise<boolean> {
-  const deleted = await db
-    .delete(characters)
-    .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
-    .returning({ id: characters.id });
+export async function deleteOwnedCharacter(
+  db: Db,
+  characterId: CharacterId,
+  ownerId: UserId,
+  bumpCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>,
+): Promise<boolean> {
+  const statements: BatchStmt[] = [
+    db
+      .delete(characters)
+      .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
+      .returning({ id: characters.id }),
+  ];
+  bumpCanonVersion(statements, db, ownerId);
+  const results = await db.batch(batchMany(statements));
+  const deleted = results[0] as readonly { readonly id: CharacterId }[];
   return deleted.length > 0;
 }
 

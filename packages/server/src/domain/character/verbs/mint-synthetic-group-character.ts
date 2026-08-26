@@ -39,16 +39,20 @@ export function createMintSyntheticGroupCharacter(ctx: CharacterContext): Charac
     const characterId = ctx.newCharacterId();
     const card = buildGroupCard();
     try {
-      await insertCharacter(ctx.db, {
-        id: characterId,
-        handle,
-        ownerId,
-        synthetic: true,
-        contentHash: cardContentHash(card),
-        tokenSize: cardTokenSize(card),
-        createdAt: ctx.now(),
-        ...card,
-      });
+      await insertCharacter(
+        ctx.db,
+        {
+          id: characterId,
+          handle,
+          ownerId,
+          synthetic: true,
+          contentHash: cardContentHash(card),
+          tokenSize: cardTokenSize(card),
+          createdAt: ctx.now(),
+          ...card,
+        },
+        ctx.bumpStatsCanonVersion,
+      );
     } catch (err) {
       // Concurrent-mint race: another caller won the unique index — re-find the winner.
       if (err instanceof CharacterOperationError && err.code === CHARACTER_HANDLE_CONFLICT) {

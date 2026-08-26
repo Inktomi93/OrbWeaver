@@ -27,7 +27,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ChatRpgPointer, RpgActorRef, RpgStatProfile } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
 import type { MemorySummarizerConfig } from "@orb/contracts/settings";
-import type { ApplyStatsDelta } from "@orb/contracts/stats";
+import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -235,6 +235,7 @@ type FindSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readon
 
 /** Persists the turn-economics delta the chat-side builders produced. */
 type ApplyStatsDeltaOp = ApplyStatsDelta<unknown, Db>;
+type BumpStatsCanonVersionOp = BumpStatsCanonVersion<unknown, Db>;
 
 /** The memory summarizer + the smart-arbitrate side-LLM. The SIGNAL-BEARING variant of the isomorphic
  *  `RoleClients["summarize"]` (`RoleClientsWithSignal`): chat is the one caller that already owns a
@@ -1182,6 +1183,8 @@ export interface ChatContext {
    *  always same-origin-paintable (an external URL is CSP-blocked). Compose-built from infra + assets.store. */
   readonly materializeBackground: MaterializeBackgroundOp;
   readonly applyStatsDelta: ApplyStatsDeltaOp;
+  /** Version-only rebuild fence for canon writes that have no exact incremental rollup delta. */
+  readonly bumpStatsCanonVersion: BumpStatsCanonVersionOp;
   readonly summarize: SummarizeOp;
   /** The summarizer model's resolved context window (tokens) — the memory build's token-guard fits each
    *  summarizer call to the user's actual context. A THUNK, never a captured number, because
