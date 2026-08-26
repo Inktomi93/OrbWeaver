@@ -347,11 +347,11 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
     const { profile } = args;
     const title = args.title ?? `Seeded game — ${profile}`;
     if (pendingGame !== null) {
-      pendingGame.assertMatches(profile, title);
-      await pendingGame.finish();
-      const chatId = pendingGame.chatId;
+      const attempt = pendingGame;
+      attempt.assertMatches(profile, title);
+      await attempt.finish();
       pendingGame = null;
-      return { chatId };
+      return { chatId: attempt.chatId };
     }
 
     const characterId = await ensurePlayer();
