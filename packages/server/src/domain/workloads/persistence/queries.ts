@@ -166,6 +166,7 @@ export async function insertWorkload(db: Db, row: WorkloadInsert): Promise<void>
     lane: row.lane,
     params: row.params,
     ownerId: row.ownerId,
+    admissionSystem: row.ownerId === null,
     dependsOn: row.dependsOn,
     scheduledAt: row.scheduledAt,
     createdAt: row.createdAt,
