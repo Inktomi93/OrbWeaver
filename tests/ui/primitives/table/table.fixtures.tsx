@@ -60,6 +60,23 @@ export function InvalidPageSizeTableStory({ pageSize }: { pageSize: number }): R
   return <Table aria-label="People" columns={COLUMNS} data={MANY_PEOPLE} defaultPagination={{ pageIndex: 0, pageSize }} getRowId={(p): string => p.id} />;
 }
 
+export function HostilePaginationTableStory({ pageIndex, pageSize }: { pageIndex: number; pageSize: number }): ReactElement {
+  const [emittedPagination, setEmittedPagination] = useState("none");
+  return (
+    <div>
+      <output data-testid="emitted-pagination">{emittedPagination}</output>
+      <Table
+        aria-label="People"
+        columns={COLUMNS}
+        data={MANY_PEOPLE}
+        getRowId={(p): string => p.id}
+        onPaginationChange={(pagination): void => setEmittedPagination(`${pagination.pageIndex}:${pagination.pageSize}`)}
+        pagination={{ pageIndex, pageSize }}
+      />
+    </div>
+  );
+}
+
 /**
  * The real consumer shape the R7 acceptance test targets: `data` is a NEW array reference derived
  * (filter+map) during render, not a stable module-level constant, and the parent re-renders while

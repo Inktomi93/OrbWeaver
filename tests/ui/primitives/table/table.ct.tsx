@@ -5,7 +5,14 @@
 // freshly-derived-array footgun (ui-primitive-contract §13).
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { BasicTableStory, InvalidPageSizeTableStory, NullableSortStory, PaginatedTableStory, ShrinkingDataStory } from "./table.fixtures.tsx";
+import {
+  BasicTableStory,
+  HostilePaginationTableStory,
+  InvalidPageSizeTableStory,
+  NullableSortStory,
+  PaginatedTableStory,
+  ShrinkingDataStory,
+} from "./table.fixtures.tsx";
 
 test("renders columns and rows", async ({ mount, page }) => {
   await mount(<BasicTableStory />);
@@ -104,6 +111,35 @@ test("pagination clamps page sizes below one to one row per page", async ({ moun
   await expect(page.getByText("1–1 of 12")).toBeVisible();
   await expect(page.getByRole("row")).toHaveCount(2); // 1 header + 1 data row
 });
+
+for (const paginationCase of [
+  { label: "fractional", pageIndex: 0.5, pageSize: 0.5, pageLabel: "Page 1 of 12", rangeLabel: "1–1 of 12", emitted: "1:1" },
+  { label: "negative", pageIndex: -1, pageSize: -1, pageLabel: "Page 1 of 12", rangeLabel: "1–1 of 12", emitted: "1:1" },
+  {
+    label: "NaN and positive infinity",
+    pageIndex: Number.NaN,
+    pageSize: Number.POSITIVE_INFINITY,
+    pageLabel: "Page 1 of 2",
+    rangeLabel: "1–10 of 12",
+    emitted: "1:10",
+  },
+  {
+    label: "positive infinity and negative infinity",
+    pageIndex: Number.POSITIVE_INFINITY,
+    pageSize: Number.NEGATIVE_INFINITY,
+    pageLabel: "Page 1 of 2",
+    rangeLabel: "1–10 of 12",
+    emitted: "1:10",
+  },
+]) {
+  test(`pagination normalizes ${paginationCase.label} inputs before rendering and emitting`, async ({ mount, page }) => {
+    await mount(<HostilePaginationTableStory pageIndex={paginationCase.pageIndex} pageSize={paginationCase.pageSize} />);
+    await expect(page.getByText(paginationCase.pageLabel)).toBeVisible();
+    await expect(page.getByText(paginationCase.rangeLabel)).toBeVisible();
+    await page.getByRole("button", { name: "Next page" }).click();
+    await expect(page.getByTestId("emitted-pagination")).toHaveText(paginationCase.emitted);
+  });
+}
 
 test("row selection: select-all checks every row and goes indeterminate on a partial selection", async ({ mount, page }) => {
   await mount(<BasicTableStory selectable={true} />);
