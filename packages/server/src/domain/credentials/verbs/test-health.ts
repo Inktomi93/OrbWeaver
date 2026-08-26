@@ -31,8 +31,6 @@ import { beginProbe, recordStrike, resetStrikes } from "../substrate/health-thro
 import { mintOpenRouter } from "../substrate/mint.ts";
 import { parseCustomOpenAiEndpoint } from "../substrate/parse-metadata.ts";
 
-const DECRYPT_FAILED_REASON = "credential could not be decrypted (CREDENTIALS_KEY rotated?)";
-
 /** `localhost` never parses as an IP literal, so `isPrivateOrLoopback` (which matches CIDRs) misses it —
  *  the one alias worth special-casing; every other loopback/LAN spelling an endpoint would realistically
  *  carry (`127.0.0.1`, `192.168.x.x`, …) IS an IP literal and reaches the shared CIDR set. */
@@ -95,12 +93,8 @@ async function applyProbeOutcome(ctx: CredentialContext, args: ProbeContext, res
   return result; // `throttled` is domain-only; a probe op cannot produce it.
 }
 
-/** The openrouter probe path (decrypt-by-id → probe → side-effects); split out for complexity. */
-async function probeOpenRouterHealth(ctx: CredentialContext, args: ProbeContext): Promise<CredentialHealth> {
-  const apiKey = decryptSealed(ctx.box, args.sealed, aadFor(args.ownerId, "openrouter"));
-  if (apiKey === null) {
-    return { status: "unreachable", checkedAt: args.now, reason: DECRYPT_FAILED_REASON };
-  }
+/** The openrouter probe path (already-decrypted key → probe → side-effects); split out for complexity. */
+async function probeOpenRouterHealth(ctx: CredentialContext, args: ProbeContext, apiKey: string): Promise<CredentialHealth> {
   return applyProbeOutcome(ctx, args, await ctx.probe(mintOpenRouter(apiKey, args.credentialId)));
 }
 
@@ -109,14 +103,10 @@ async function probeOpenRouterHealth(ctx: CredentialContext, args: ProbeContext)
  *  endpoint metadata is `unchecked` and dials NOTHING (the parse seam is what keeps an `undefined` URL off
  *  the wire). A decrypt failure short-circuits BEFORE the dial: probing key-less would make an authenticated
  *  endpoint answer 401 and revoke a credential whose only problem is a rotated CREDENTIALS_KEY. */
-async function probeCustomEndpointHealth(ctx: CredentialContext, args: ProbeContext, metadata: unknown): Promise<CredentialHealth> {
+async function probeCustomEndpointHealth(ctx: CredentialContext, args: ProbeContext, metadata: unknown, apiKey: string): Promise<CredentialHealth> {
   const endpoint = parseCustomOpenAiEndpoint(metadata);
   if (endpoint === null) {
     return { status: "unchecked", checkedAt: args.now, reason: "this credential carries no usable custom-endpoint metadata (no baseUrl to probe)" };
-  }
-  const apiKey = decryptSealed(ctx.box, args.sealed, aadFor(args.ownerId, "custom_openai"));
-  if (apiKey === null) {
-    return { status: "unreachable", checkedAt: args.now, reason: DECRYPT_FAILED_REASON };
   }
   // A malformed baseUrl can't reach `ctx.probeEndpoint` (its own URL parse would fail identically), so
   // treating it as non-local here just falls through to the normal strike path — never silently swallowed.
@@ -152,6 +142,11 @@ export function createTestHealth(ctx: CredentialContext): CredentialsService["te
       return { status: "unchecked", checkedAt: now, reason: `no health probe exists for ${row.provider} credentials yet` };
     }
 
+    // Decrypt BEFORE claiming the throttle window: no provider request can happen on failure, and an
+    // operator who repairs the key must be able to retry immediately. Empty plaintext remains the valid
+    // keyless custom endpoint arm; OpenRouter rows are never intentionally empty in production.
+    const apiKey = decryptSealed(ctx.box, row, aadFor(ownerId, row.provider));
+
     const throttledAt = beginProbe(credentialId, now);
     if (throttledAt !== null) {
       return { status: "throttled", checkedAt: throttledAt };
@@ -167,6 +162,6 @@ export function createTestHealth(ctx: CredentialContext): CredentialsService["te
       // endpoint before calling `applyProbeOutcome` (it spreads over this default).
       localEndpoint: false,
     };
-    return row.provider === "custom_openai" ? probeCustomEndpointHealth(ctx, probeArgs, row.metadata) : probeOpenRouterHealth(ctx, probeArgs);
+    return row.provider === "custom_openai" ? probeCustomEndpointHealth(ctx, probeArgs, row.metadata, apiKey) : probeOpenRouterHealth(ctx, probeArgs, apiKey);
   };
 }

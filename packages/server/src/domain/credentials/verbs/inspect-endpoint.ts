@@ -39,7 +39,7 @@ export function createInspectEndpoint(ctx: CredentialContext): CredentialsServic
     const apiKey = decryptSealed(ctx.box, row, aadFor(ownerId, "custom_openai"));
     const credential = mintCustomOpenAi({
       baseUrl: endpoint.baseUrl,
-      apiKey: apiKey !== null && apiKey.length > 0 ? apiKey : null,
+      apiKey: apiKey.length > 0 ? apiKey : null,
       headers: endpoint.headers,
       credentialId,
       model: endpoint.model ?? undefined,
