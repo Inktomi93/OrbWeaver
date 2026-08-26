@@ -791,10 +791,10 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "358bbee350f26bed4b64ef11cee3d849cc7f0f5c071ccd1710b8b39064a23d7d",
-      "verifiedCommit": "02d10e422ef567739785c3d1f8c3c3f56b0ec9c7",
+      "verifiedCommit": "86e433aedccd1d21fab3b3dae1e81735f44c731a",
       "verifiedAt": "2026-08-26",
       "evidence": [
-        "docs/design/issue-723-rpg-recovery.md read in full before implementation and re-read in its formatted committed form at 02d10e422; implementation commit 2912fb7f1",
+        "docs/design/issue-723-rpg-recovery.md read in full before implementation and re-read against the integrated tree at 86e433aed; implementation commit 2912fb7f1",
         "focused behavioral and DB verification: 11 files with 157 tests, composed RPG with 71 tests, and fresh-box bundle round trip with 2 tests all passed",
         "TS7 graph and tests-dom typechecks plus scoped Biome and typed ESLint passed"
       ],
