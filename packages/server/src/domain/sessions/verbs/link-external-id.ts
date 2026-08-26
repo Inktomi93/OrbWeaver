@@ -14,8 +14,29 @@
 import type { ExternalId, UserId } from "@orb/kit/ids";
 import type { LinkExternalIdResult } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
-import { selectForProvisionByExternalId, selectForProvisionById, updateUser } from "../persistence/users.ts";
+import { claimExternalIdIfUnbound, selectForProvisionByExternalId, selectForProvisionById } from "../persistence/users.ts";
 import { isSubjectMismatch } from "../substrate/role-policy.ts";
+
+async function settleMissedClaim(ctx: SessionsContext, userId: UserId, externalId: ExternalId, failure?: unknown): Promise<LinkExternalIdResult> {
+  const target = await selectForProvisionById(ctx.db, userId);
+  if (target === undefined) {
+    return { outcome: "not-found" };
+  }
+  if (target.externalId === externalId) {
+    return { outcome: "already-linked", userId };
+  }
+  if (isSubjectMismatch(target.externalId, externalId)) {
+    return { outcome: "target-bound" };
+  }
+  const holder = await selectForProvisionByExternalId(ctx.db, externalId);
+  if (holder !== undefined && holder.id !== userId) {
+    return { outcome: "subject-taken" };
+  }
+  if (failure !== undefined) {
+    throw failure;
+  }
+  throw new Error("linkExternalId: conditional subject claim missed without a settled competing state");
+}
 
 export function createLinkExternalId(ctx: SessionsContext): Pick<SessionsService, "linkExternalId"> {
   async function linkExternalId(userId: UserId, externalId: ExternalId): Promise<LinkExternalIdResult> {
@@ -39,8 +60,15 @@ export function createLinkExternalId(ctx: SessionsContext): Pick<SessionsService
     if (holder !== undefined && holder.id !== userId) {
       return { outcome: "subject-taken" };
     }
-    await updateUser(ctx.db, userId, { externalId, updatedAt: ctx.now() });
-    return { outcome: "linked", userId };
+    let claimed: boolean;
+    try {
+      claimed = await claimExternalIdIfUnbound(ctx.db, userId, externalId, ctx.now());
+    } catch (failure) {
+      // The unique index is the atomic arbiter. Re-read durable state so its concurrent loser converges to
+      // the typed result; if state does not explain the failure, preserve the real database error.
+      return await settleMissedClaim(ctx, userId, externalId, failure);
+    }
+    return claimed ? { outcome: "linked", userId } : await settleMissedClaim(ctx, userId, externalId);
   }
   return { linkExternalId };
 }
