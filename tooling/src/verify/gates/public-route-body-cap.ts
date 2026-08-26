@@ -27,8 +27,8 @@ function routeMethod(node: Node): string | undefined {
   return callee.getName();
 }
 
-function readsRequestBody(route: CallExpression): boolean {
-  const callRead = route.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
+function readsRequestBody(node: Node): boolean {
+  const callRead = node.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
     const callee = call.getExpression();
     if (!(callee.isKind(SyntaxKind.PropertyAccessExpression) && BODY_READ_METHODS.has(callee.getName()))) {
       return false;
@@ -39,7 +39,7 @@ function readsRequestBody(route: CallExpression): boolean {
   if (callRead) {
     return true;
   }
-  return route.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression).some((property) => {
+  return node.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression).some((property) => {
     if (property.getName() !== "body") {
       return false;
     }
@@ -49,16 +49,18 @@ function readsRequestBody(route: CallExpression): boolean {
 }
 
 function hasCapMiddleware(route: CallExpression): boolean {
-  return route
-    .getArguments()
-    .slice(1)
-    .some((arg) => {
-      if (!arg.isKind(SyntaxKind.CallExpression)) {
-        return false;
-      }
-      const callee = arg.getExpression();
-      return callee.isKind(SyntaxKind.Identifier) && CAP_MIDDLEWARE.has(callee.getText());
-    });
+  const args = route.getArguments();
+  const bodyReaderIndex = args.findIndex(readsRequestBody);
+  return args.some((arg, index) => {
+    if (index === 0 || bodyReaderIndex === -1 || index >= bodyReaderIndex) {
+      return false;
+    }
+    if (!arg.isKind(SyntaxKind.CallExpression)) {
+      return false;
+    }
+    const callee = arg.getExpression();
+    return callee.isKind(SyntaxKind.Identifier) && CAP_MIDDLEWARE.has(callee.getText());
+  });
 }
 
 function hasCappedStream(route: CallExpression): boolean {
@@ -116,6 +118,12 @@ export const gate: GateDescriptor = {
       at: `${HTTP_DIR}__g_route.ts`,
       expect: { count: 1, token: "post" },
       why: "the founding shape: a public mutating route buffers/parses a body with no byte-cap middleware",
+    },
+    {
+      files: 'app.post("/api/x", async (c) => c.json(await c.req.json()), bodyLimit({ maxSize: MAX_BODY_BYTES }));\n',
+      at: `${HTTP_DIR}__g_route.ts`,
+      expect: { count: 1, token: "post" },
+      why: "middleware ordering is the protection — a cap registered after the body-reading handler is inert",
     },
     {
       files: "export const frontDoor = true;\n",

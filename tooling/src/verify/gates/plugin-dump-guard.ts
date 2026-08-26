@@ -37,9 +37,38 @@ function guardedHelperDump(node: CallExpression): boolean {
   if (fn?.getName() !== HELPER) {
     return false;
   }
-  return fn.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
-    const callee = call.getExpression();
-    return callee.isKind(SyntaxKind.Identifier) && callee.getText() === "handleSafeToDump" && call.getStart() < node.getStart();
+  const dumpCallee = node.getExpression();
+  if (!dumpCallee.isKind(SyntaxKind.PropertyAccessExpression)) {
+    return false;
+  }
+  const dumpHandle = node.getArguments()[0]?.getText();
+  if (dumpHandle === undefined) {
+    return false;
+  }
+  return fn.getDescendantsOfKind(SyntaxKind.IfStatement).some((statement) => {
+    if (statement.getStart() >= node.getStart()) {
+      return false;
+    }
+    const condition = statement.getExpression();
+    if (!condition.isKind(SyntaxKind.PrefixUnaryExpression) || condition.getOperatorToken() !== SyntaxKind.ExclamationToken) {
+      return false;
+    }
+    const guard = condition.getOperand();
+    if (!guard.isKind(SyntaxKind.CallExpression)) {
+      return false;
+    }
+    const guardCallee = guard.getExpression();
+    const [guardContext, guardHandle] = guard.getArguments();
+    const exitsOnUnsafe =
+      statement.getThenStatement().isKind(SyntaxKind.ReturnStatement) ||
+      statement.getThenStatement().getDescendantsOfKind(SyntaxKind.ReturnStatement).length > 0;
+    return (
+      exitsOnUnsafe &&
+      guardCallee.isKind(SyntaxKind.Identifier) &&
+      guardCallee.getText() === "handleSafeToDump" &&
+      guardContext?.getText() === dumpCallee.getExpression().getText() &&
+      guardHandle?.getText() === dumpHandle
+    );
   });
 }
 
@@ -88,6 +117,19 @@ export const gate: GateDescriptor = {
       at: `${PLUGIN_HOST_DIR}membrane.ts`,
       expect: { count: 1, token: "dump" },
       why: "presence is not ordering — a guard after the dump cannot prevent host-stack traversal",
+    },
+    {
+      files: "function tryDumpGuestValue(ctx: Ctx, handle: Handle) { handleSafeToDump(ctx, handle); return { ok: true, value: ctx.dump(handle) }; }\n",
+      at: `${PLUGIN_HOST_DIR}membrane.ts`,
+      expect: { count: 1, token: "dump" },
+      why: "calling the guard and ignoring its false result does not guard the materialization",
+    },
+    {
+      files:
+        "function tryDumpGuestValue(ctx: Ctx, handle: Handle, other: Handle) { if (!handleSafeToDump(ctx, other)) return { ok: false }; return { ok: true, value: ctx.dump(handle) }; }\n",
+      at: `${PLUGIN_HOST_DIR}membrane.ts`,
+      expect: { count: 1, token: "dump" },
+      why: "the guard and dump must judge the same handle through the same QuickJS context",
     },
   ],
   mustPass: [
