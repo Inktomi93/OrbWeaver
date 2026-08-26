@@ -7,7 +7,7 @@
 // `turn.ts` `persistUserMessage` (the D26 canon-write dance + the durable-first bus emit).
 
 import type { ChatWarningCode, DurableChatBusEvent, MessageView } from "@orb/contracts/chat";
-import { batchMany } from "@orb/db/kit";
+import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { ChatContext } from "../context.ts";
 import type { ClaimChatOp } from "../contract/context.ts";
 import type { GenerateImageParams } from "../contract/params.ts";
@@ -56,20 +56,35 @@ export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): 
       const trimmed = prompt?.trim() ?? "";
       const body = trimmed.length > 0 ? `${trimmed}\n\n${refs}` : refs;
 
-      const seq = await loadMaxMessageSeq(ctx.db, chatId);
-      const params = {
-        messageId: ctx.newMessageId(),
-        variantId: ctx.newMessageVariantId(),
-        chatId,
-        seq: seq + 1,
-        role: "user" as const,
-        authorUserId: principal.userId,
-        personaId: null,
-        now: ctx.now(),
-        variant: { content: body },
+      // The provider result is already paid-for and durable by here. A concurrent canon writer may have read
+      // the same head; on that one expected collision, discard only this attempted allocation, re-read the
+      // head, and mint fresh ids. Never call `generatePicture` again.
+      const append = async (): Promise<MessageView> => {
+        const seq = await loadMaxMessageSeq(ctx.db, chatId);
+        const params = {
+          messageId: ctx.newMessageId(),
+          variantId: ctx.newMessageVariantId(),
+          chatId,
+          seq: seq + 1,
+          role: "user" as const,
+          authorUserId: principal.userId,
+          personaId: null,
+          now: ctx.now(),
+          variant: { content: body },
+        };
+        try {
+          await ctx.db.batch(batchMany(insertCanonMessageStatements(ctx.db, params)));
+          return buildCommittedMessageView(params);
+        } catch (err) {
+          // A broad UNIQUE classification also covers bad message/variant ids. Retry only when the canon head
+          // actually reached this attempted seq, which proves another append won the allocation race.
+          if (isConstraintViolation(err)?.kind === "unique" && (await loadMaxMessageSeq(ctx.db, chatId)) >= params.seq) {
+            return append();
+          }
+          throw err;
+        }
       };
-      await ctx.db.batch(batchMany(insertCanonMessageStatements(ctx.db, params)));
-      const view = buildCommittedMessageView(params);
+      const view = await append();
       await deps.emit({ type: "messageCommitted", chatId, messageId: view.id, view });
       // Surface any imagery warning (e.g. an avatar reference / edit dropped for a non-edit model — doc 03 §2)
       // onto the one chat `warning` bus so the client can render a notice; the message itself still committed.

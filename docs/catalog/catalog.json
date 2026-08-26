@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 0,
+    "pending": 1,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -11693,6 +11693,37 @@
         ]
       },
       "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/issue-720-retry-safe-creation-handoff.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 144,
+      "bytes": 10614,
+      "sha256": "4fa101f931d631f9c5ca92203696875bb770868fc53bdddbaaff8ae54d855ce7",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "complete",
+          "updated": "2026-08-26"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/issue-720-retry-safe-creation-handoff.md",
+        "assignedSha256": "2d8b433adf39984112dea45b4c0096fb29a84efe1d282264089d1363a2288a9b",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/list-pane-projection-proposal.md",

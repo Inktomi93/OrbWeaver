@@ -1,7 +1,8 @@
 // domain/chat/verbs/start-chat — `startChat`: the lazy chat+roster creation + founding opening. The ONE
 // entry that mints a room: the caller becomes the `host` participant, the founding `characterIds` join as
 // server-forced `member`s, and the room opens per its resolved `OpeningPolicy`. The whole chat+roster
-// (+ any verbatim greeting) creation commits in ONE atomic `db.batch` (all-or-nothing).
+// (+ any verbatim greeting, optional RPG game/pointer, and durable `chatCreated`) creation commits in ONE
+// atomic `db.batch` (all-or-nothing).
 //
 // The roster references live `characters` rows by id, never copied cards; greeting text is read from the
 // live card only to seed the opening assistant message.
@@ -33,12 +34,14 @@
 // explicit host config write — `verbs/claim-chat.ts`).
 
 import type { DurableChatBusEvent, MessageView, OpeningPolicy, ParticipantView } from "@orb/contracts/chat";
+import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import type { ChatContext } from "../context.ts";
+import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { ChatContext, ChatServiceDeps } from "../context.ts";
+import type { ChatRpgGameBirthPlan } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
 import type { StartChatParams } from "../contract/params.ts";
 import type { StartChatResult, TurnOutcome } from "../contract/results.ts";
@@ -54,6 +57,7 @@ import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
  *  returned `ChatDetail` roster. */
 interface StartChatDeps {
   readonly emit: (event: DurableChatBusEvent) => Promise<void>;
+  readonly prepareCreationEvent: ChatServiceDeps["prepareCreationEvent"];
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
 }
 
@@ -72,8 +76,8 @@ function resolveOpeningPolicy(opening: Exclude<OpeningPolicy, "generate"> | unde
 
 /** Compose the creation `metadata` blob — just the resolved `opening` label now (group config + room
  *  overrides are post-create-only writes; `setGroupConfig`/`setRoomOverrides` own them). Absent ⇒ `null`. */
-function buildCreationMetadata(opening: OpeningPolicy | undefined): (typeof chats.$inferInsert)["metadata"] {
-  return opening === undefined ? null : { opening };
+function buildCreationMetadata(opening: OpeningPolicy | undefined, rpg: ChatRpgPointer | undefined): (typeof chats.$inferInsert)["metadata"] {
+  return opening === undefined && rpg === undefined ? null : { ...(opening !== undefined ? { opening } : {}), ...(rpg !== undefined ? { rpg } : {}) };
 }
 
 /** The founding characters whose greeting is seeded verbatim for `policy`. */
@@ -113,6 +117,28 @@ async function loadGreetings(
   return characterIds.map((characterId, i) => ({ characterId, text: cards[i]?.greetings[0]?.text ?? "" }));
 }
 
+/** One home for the persona precedence chain; keeping each async fallback sequential avoids reads whose
+ * result cannot be used once an earlier source resolves. */
+async function resolveFoundingAnchor(
+  ctx: ChatContext,
+  hostUserId: UserId,
+  characterIds: readonly CharacterId[],
+  anchorPersonaId: StartChatParams["anchorPersonaId"],
+): Promise<PersonaId | null> {
+  return (
+    anchorPersonaId ??
+    (await ctx.resolveConnectedPersona(hostUserId, characterIds)) ??
+    (await ctx.resolveCurrentPersona(hostUserId)) ??
+    (await ctx.resolveDefaultPersona(hostUserId))
+  );
+}
+
+/** RPG contributes statements to the chat-owned birth batch. An unwired RPG collaborator preserves the
+ * ordinary chat-only creation shape. */
+function planGameBirth(ctx: ChatContext, chatId: ChatId, startAsGame: StartChatParams["startAsGame"]): ChatRpgGameBirthPlan | null {
+  return startAsGame !== undefined && ctx.rpg !== null ? ctx.rpg.planGameBirth(chatId, startAsGame) : null;
+}
+
 /** `startChat` — mint the room: the caller as `host`, the founding characters as members, then seed the
  *  opening per the resolved `OpeningPolicy`. The chat row + roster (+ verbatim greeting canon) commit in
  *  one atomic batch. */
@@ -132,11 +158,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     const hostUserId = principal.userId;
     // Anchor seed chain: explicit anchor > the connected persona (solo-character founding with exactly
     // one connection) > the starter's current persona > the starter's default persona.
-    const anchor =
-      anchorPersonaId ??
-      (await ctx.resolveConnectedPersona(hostUserId, characterIds)) ??
-      (await ctx.resolveCurrentPersona(hostUserId)) ??
-      (await ctx.resolveDefaultPersona(hostUserId));
+    const anchor = await resolveFoundingAnchor(ctx, hostUserId, characterIds, anchorPersonaId);
     const policy = resolveOpeningPolicy(opening, characterIds.length);
 
     await requireFoundingCast(ctx, hostUserId, characterIds);
@@ -154,6 +176,8 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     // A founding room has no canon, so its greetings land at seq 1..N (`substrate/greeting-seed` — shared with
     // the roster verb's F6 in-window join greeting, which appends at the live canon head instead).
     const seed = buildGreetingSeed(ctx, { chatId, now, startSeq: 0, greetings });
+    const gameBirth = planGameBirth(ctx, chatId, startAsGame);
+    const creationEvent = deps.prepareCreationEvent({ type: "chatCreated", chatId });
 
     // One atomic creation batch: the chat row, the roster, and any verbatim greeting canon — all or none.
     const stmts: BatchStmt[] = [
@@ -164,7 +188,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
           anchorPersonaId: anchor,
           // Born ephemeral — hidden from listChats, reap-eligible past the TTL.
           temporary: temporary === true,
-          metadata: buildCreationMetadata(opening),
+          metadata: buildCreationMetadata(opening, gameBirth === null ? undefined : { gameId: gameBirth.gameId, engaged: true }),
           createdAt: now,
           updatedAt: now,
         }),
@@ -186,6 +210,8 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
           }),
         ),
       ),
+      ...(gameBirth?.statements ?? []),
+      creationEvent.statement,
     ];
     // NO STATS HERE (R0 §4.7): the chat-created counters, the per-character first-chat bumps and the seeded
     // greetings' contributions all fire at CLAIM (`verbs/claim-chat.ts`), replayed over exactly this canon.
@@ -193,15 +219,12 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     // would let a husk consume a character's one `newCharacter` bump, unrecoverably, even after the reap.
     await ctx.db.batch(batchMany(stmts));
 
-    // #40 DRAFT-TIME game birth: a `startAsGame` carry mints the lite game NOW — after the chat+roster
-    // committed (the caller is the just-minted host) and BEFORE any opening turn runs, so turn 1's gather
-    // already sees the game (rpg steering rides the very first beat). Chat threads the intent BLIND (the
-    // pointer foreign-schema precedent); a null `ctx.rpg` (rpg unwired) is the byte-identical no-op.
-    if (startAsGame !== undefined && ctx.rpg !== null) {
-      await ctx.rpg.startGame(chatId, startAsGame);
+    // Fan the already-durable creation cursor before the RPG's live-only invalidation: observers never see a
+    // game tick ahead of the room birth it belongs to. Neither callback opens a second persistence boundary.
+    creationEvent.publishCommitted();
+    if (gameBirth !== null && ctx.rpg !== null) {
+      ctx.rpg.gameBirthCommitted(chatId);
     }
-
-    await deps.emit({ type: "chatCreated", chatId });
     // Fan `chatsChanged` to the new room's present human members so each device refetches its list.
     await ctx.emitChatChanged(chatId, { detail: true });
     for (const view of seed.views) {
