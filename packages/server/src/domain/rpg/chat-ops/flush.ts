@@ -42,8 +42,7 @@ import type { ChatTurnId, MessageId, MessageVariantId, RpgSnapshotId } from "@or
 import type { RpgTurnContext } from "../../chat/index.ts";
 import type { StagedPatch, StagedTurnFlush } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow, RpgRunToolRound } from "../contract/service.ts";
-import { insertJournalEntry } from "../persistence/journal.ts";
-import { findMessageSeq, writeStagedSnapshot } from "../persistence/snapshots.ts";
+import { findMessageSeq, writeStagedSnapshotAndJournal } from "../persistence/snapshots.ts";
 import { recordTurnToolCalls } from "../persistence/turn-tool-calls.ts";
 import { currentSnapshotState, foldTurnWriteIntoHandHead, snapshotStateBeforeSlot } from "../snapshot-edit.ts";
 import { deriveTrackersReadOnly } from "../substrate/readonly-axis.ts";
@@ -187,13 +186,24 @@ function resolveStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTur
  *  The caller unions them with the accumulator's own and records the pair on the turn's tool calls. */
 async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFlush, turn: CompletedTurn): Promise<readonly string[]> {
   const snapshotId = ctx.ids.snapshot();
-  const written = await writeStagedSnapshot(ctx.db, flush.state, {
-    id: snapshotId,
+  // Parse and mint every journal row before the batch starts. A corrupt type therefore writes neither plane;
+  // once valid, the snapshot statement and every journal insert share one same-DB commit boundary.
+  const journal = flush.journal.map((entry) => ({
+    id: ctx.ids.journal(),
     gameId: game.id,
-    messageId: turn.messageId,
+    type: rpgJournalTypeSchema.parse(entry.type),
+    title: entry.title,
+    content: entry.content,
     variantId: turn.variantId,
-    now: ctx.now(),
-  });
+    sourceMessageId: turn.messageId,
+    createdAt: ctx.now(),
+  }));
+  const written = await writeStagedSnapshotAndJournal(
+    ctx.db,
+    flush.state,
+    { id: snapshotId, gameId: game.id, messageId: turn.messageId, variantId: turn.variantId, now: ctx.now() },
+    journal,
+  );
   if (!written.ok) {
     // The state was contract-invalid — drop the whole flush (no snapshot, no journal, no emits). SURFACE the
     // drop (the F1 backstop staying silent is the exact visibility violation this program kills): the model
@@ -202,27 +212,10 @@ async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFl
     ctx.onFlushDropped({ chatId: game.chatId, gameId: game.id, variantId: turn.variantId, reason: written.reason });
     return [];
   }
-  await Promise.all(
-    flush.journal.map((entry) =>
-      insertJournalEntry(ctx.db, {
-        id: ctx.ids.journal(),
-        gameId: game.id,
-        // The staged type is a plain string (the accumulator is type-blind); re-validate ∈ the journal-type
-        // vocabulary at the write boundary — a corrupt type is a loud parse error, never a silent bad row.
-        type: rpgJournalTypeSchema.parse(entry.type),
-        title: entry.title,
-        content: entry.content,
-        variantId: turn.variantId, // the committed variant — the model entry's lineage stamp (§2.5)
-        sourceMessageId: turn.messageId,
-        createdAt: ctx.now(),
-      }),
-    ),
-  );
-
   // HAND-EDIT-VS-FLUSH: a hand row may now OUTRANK the row we just wrote (the host edited the panel during
   // the round's 0.8-2.9s flight). Fold this turn's state into it, locks-honored, BEFORE the emits — so the
   // event names the row the panel will actually resolve. A durable write, hence its place here.
-  const fold = await foldIntoShadowingHandRow(ctx, game, turn, { patches: flush.patches, snapshotId });
+  const fold = await foldIntoShadowingHandRow(ctx, game, turn, { patches: flush.patches, snapshotId: written.row.id });
 
   // The tool/extraction flush wrote a clone-forward snapshot → the whole panel re-resolves (§4.9). A journal
   // flush additionally scopes the paged Journal. Emit AFTER the durable writes commit.
@@ -304,11 +297,9 @@ async function flushWritableTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGam
   // extraction already satisfies. Staging is cleared here for the same reason `onTurnAborted` clears it: a dead
   // turn's writes must never leak into the next turn's bucket.
   //
-  // The other direction — rolling back a flush that ALREADY landed its snapshot — is refused deliberately. rpg
-  // has no transaction spanning the snapshot row and its journal inserts, so an "undo" could only produce a
-  // snapshot with a truncated journal: a state strictly worse than either endpoint. Once `writeFlush` starts it
-  // runs to completion; a landed row is keyed to a variant that is COMMITTED and on screen (D124's turn-row
-  // arm), so it is not orphaned by the cancel.
+  // The other direction — rolling back a flush that ALREADY committed — is refused deliberately. Snapshot and
+  // journal now share one batch, so there is no partial beat to undo; once that commit returns, its variant is
+  // COMMITTED and on screen (D124's turn-row arm), and a later cancel may not erase it.
   if (isCancelled(turn.signal)) {
     const staged = ctx.staging.take(turn.turnId) !== undefined;
     ctx.onStateRoundCancelled({ chatId: game.chatId, gameId: game.id, turnId: turn.turnId, discardedStagedWrites: staged });

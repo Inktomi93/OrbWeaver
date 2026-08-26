@@ -310,6 +310,7 @@ function fakes(): Fakes {
     }
     return Promise.resolve({
       // The stub writes nothing, so it reports no written rows — the real op returns one identity per chat.
+      identities: [],
       written: [],
       chatsImported: imported,
       chatsSkipped: args.chats.length - imported,

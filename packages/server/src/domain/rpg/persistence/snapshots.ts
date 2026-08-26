@@ -1,5 +1,5 @@
-// domain/rpg/persistence/snapshots — the per-swipe tracker lifecycle (rpg-design/05 §2.4-2.5). QUERIES ONLY;
-// the swipe-safety CONTRACT lives here as pointer walks over the D26 variant model:
+// domain/rpg/persistence/snapshots — the per-swipe tracker lifecycle (rpg-design/05 §2.4-2.5). Queries and the
+// snapshot write doors live together so the swipe-safety contract has one home:
 //   • parse-on-read — every JSON column re-validated through its `@orb/contracts/rpg` schema; a corrupt row
 //     is a typed `RpgStateCorruptError`, never a silent default (the constitution's no-swallow rule).
 //   • resolveSnapshotForTurn — the HEAD ladder (the ladder head → committed → any). `resolveSnapshotHead` is
@@ -8,7 +8,8 @@
 //   • resolveSnapshotBeforeSlot — the state as of the slot BEFORE a turn: its WRITE base always (VER-1a — a
 //     reroll's new variant never inherits its own slot's rejected variant) AND its READ base on a REGEN
 //     (VER-1b — the reminder/delta a reroll is generated against must not describe the abandoned variant).
-//   • writeStagedSnapshot — the TURN arm: a new variant's snapshot inherits ALL fields from its resolution
+//   • writeStagedSnapshot / writeStagedSnapshotAndJournal — the TURN arm: a new variant's snapshot inherits
+//     ALL fields from its resolution
 //     base, born committed=0. `writeHandSnapshot`/`writeResyncedSnapshot`/`writeRestoredSnapshot` — the HAND
 //     arm, born committed=1. `fieldLocks` carry forward from the base unchanged (tools never author locks —
 //     only `editSnapshot` does, W1b).
@@ -46,13 +47,14 @@ import {
   rpgWeatherSchema,
 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
-import { messages, rpgSnapshots } from "@orb/db";
+import { messages, rpgJournal, rpgSnapshots } from "@orb/db";
+import { batchMany, batchStmt } from "@orb/db/kit";
 import type { ChatId, MessageId, MessageVariantId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
-import { and, count, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { RpgStateCorruptError } from "../contract/errors.ts";
 import type { HandSnapshotTarget, SnapshotGameRef, TurnSnapshotTarget } from "../contract/params.ts";
-import type { NewRpgSnapshot, ResolvedSnapshotHead, RpgSnapshotRow, WriteStagedSnapshotResult } from "../contract/service.ts";
+import type { NewRpgJournal, NewRpgSnapshot, ResolvedSnapshotHead, RpgSnapshotRow, WriteStagedSnapshotResult } from "../contract/service.ts";
 import { snapshotRowToState } from "../contract/service.ts";
 
 const LIMIT_ONE = 1;
@@ -509,18 +511,35 @@ function snapshotInsertFrom(
  *  Returns `{ok:false, reason}` when the state is contract-INVALID — the caller DROPS the delta (errors-as-data,
  *  mirroring the extraction's non-conforming empty-delta path), never commits a poisoned row, AND LOGS the
  *  reason (the drop is observable, never silent). */
-export async function writeStagedSnapshot(db: Db, state: RpgSnapshotState, target: TurnSnapshotTarget): Promise<WriteStagedSnapshotResult> {
+export function writeStagedSnapshot(db: Db, state: RpgSnapshotState, target: TurnSnapshotTarget): Promise<WriteStagedSnapshotResult> {
+  return writeStagedSnapshotAndJournal(db, state, target, []);
+}
+
+/** Commit one turn snapshot and all journal rows produced by that same staged delta in ONE pure-write batch.
+ * Validation happens before the batch; one UPSERT handles both fresh and existing variants, so every batched
+ * statement is a write and `@orb/db/kit`'s DEFERRED-batch invariant holds. A failure anywhere rolls the whole
+ * beat back; the post-commit read returns the canonical row identity. */
+export async function writeStagedSnapshotAndJournal(
+  db: Db,
+  state: RpgSnapshotState,
+  target: TurnSnapshotTarget,
+  journal: readonly NewRpgJournal[],
+): Promise<WriteStagedSnapshotResult> {
   const parsed = rpgSnapshotStateSchema.safeParse(state);
   if (!parsed.success) {
     // The full field-path + reason (e.g. `actorState.0.pools.0.max: expected >= 1`) — the drop's WHY.
     return { ok: false, reason: parsed.error.message };
   }
-  const existing = await findSnapshotByVariant(db, target.variantId);
-  if (existing !== undefined) {
-    const next = snapshotInsertFrom(state, { fieldLocks: state.fieldLocks, committed: existing.committed, arm: turnArmKeys(target) }, target);
-    const rows = await db
-      .update(rpgSnapshots)
-      .set({
+  const next = snapshotInsertFrom(state, { fieldLocks: state.fieldLocks, committed: UNCOMMITTED, arm: turnArmKeys(target) }, target);
+  // One write statement covers fresh turn and continuation. The conflict arm preserves the existing row's id
+  // and committed bit while replacing only mutable state, eliminating the pre-read/update-zero race.
+  const snapshotStatement = db
+    .insert(rpgSnapshots)
+    .values(next)
+    .onConflictDoUpdate({
+      target: rpgSnapshots.variantId,
+      targetWhere: isNotNull(rpgSnapshots.variantId),
+      set: {
         clock: next.clock,
         calendarDate: next.calendarDate,
         location: next.location,
@@ -533,16 +552,14 @@ export async function writeStagedSnapshot(db: Db, state: RpgSnapshotState, targe
         plot: next.plot,
         fieldLocks: next.fieldLocks,
         createdAt: next.createdAt,
-      })
-      .where(eq(rpgSnapshots.variantId, target.variantId))
-      .returning();
-    const row = rows[0];
-    if (row === undefined) {
-      throw new Error("writeStagedSnapshot: existing variant disappeared during replacement");
-    }
-    return { ok: true, row: parseSnapshotRow(row) };
+      },
+    });
+
+  await db.batch(batchMany([batchStmt(snapshotStatement), ...journal.map((entry) => batchStmt(db.insert(rpgJournal).values(entry)))]));
+  const row = await findSnapshotByVariant(db, target.variantId);
+  if (row === undefined) {
+    throw new Error("writeStagedSnapshotAndJournal: committed snapshot not found by variant");
   }
-  const row = await insertSnapshot(db, snapshotInsertFrom(state, { fieldLocks: state.fieldLocks, committed: UNCOMMITTED, arm: turnArmKeys(target) }, target));
   return { ok: true, row };
 }
 

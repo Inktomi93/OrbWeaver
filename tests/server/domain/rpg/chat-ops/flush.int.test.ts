@@ -15,6 +15,7 @@
 import type { RpgRecordedToolCall } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId, Handle, MessageVariantId, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { sql } from "drizzle-orm";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import type { RpgRosterActor } from "../../../../../packages/server/src/domain/rpg/index.ts";
 import { rpgToolDefinitions } from "../../../../../packages/server/src/domain/rpg/index.ts";
@@ -138,6 +139,27 @@ test("the post-commit round's JOURNAL entries flush stamped with the committed v
     { type: "journalChanged", chatId },
     { type: "stateRoundSettled", chatId, turnId: TURN },
   ]);
+});
+
+test("#723 a journal insert interruption rolls back the snapshot, then retry commits the complete flush", async () => {
+  const db = await freshDb();
+  const toolRoundDelta = {
+    statePatch: { location: "the interrupted tower" },
+    journal: [{ type: "location", label: "", title: "Interrupted", content: "The whole beat must commit together." }],
+  };
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta });
+  await pinExtractionMode(h, chatId, "cheap");
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await db.run(sql.raw("CREATE TRIGGER fail_rpg_journal BEFORE INSERT ON rpg_journal BEGIN SELECT RAISE(ABORT, 'injected journal interruption'); END"));
+
+  await expect(h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection())).rejects.toThrow();
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+  expect(await listJournalByVariant(db, variantId)).toEqual([]);
+
+  await db.run(sql.raw("DROP TRIGGER fail_rpg_journal"));
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
+  expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the interrupted tower");
+  expect(await listJournalByVariant(db, variantId)).toHaveLength(1);
 });
 
 test("a turn that staged nothing writes NO snapshot (byte-identical non-writing turn)", async () => {

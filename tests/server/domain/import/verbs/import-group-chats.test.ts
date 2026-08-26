@@ -87,6 +87,7 @@ function ctxWith(written: Written, opts: { readonly throws?: boolean } = {}): Im
         }
         written.calls.push({ characterId, chats });
         return Promise.resolve({
+          identities: [],
           written: [],
           chatsImported: chats.length,
           chatsSkipped: 0,

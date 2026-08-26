@@ -72,7 +72,8 @@ import type { WireReady } from "@orb/kit/json-schema";
 import { projectJsonSchema, scrubWireSchema } from "@orb/kit/json-schema";
 import { eq } from "drizzle-orm";
 import { can } from "#domain/admin";
-import type { CharacterService } from "#domain/character";
+import type { CharacterImportProvenance, CharacterService } from "#domain/character";
+import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "#domain/character";
 import type { ChatService, RpgCardCorpus, RpgTurnTranscriptMessage } from "#domain/chat";
 import { parseChatMetadata } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
@@ -111,6 +112,7 @@ import {
 import type { ToolUseService } from "#domain/tool-use";
 import { logger } from "#foundation/observability";
 import type { ChatResult, ProviderExecutor } from "#infra/providers";
+import { sha256Hex } from "#kit/content-hash";
 import type { ChatComposeResult } from "./chat.ts";
 import { minter } from "./minter.ts";
 
@@ -184,11 +186,10 @@ export interface RpgComposeDeps {
    *  off preset's own `createCopyPresetToUser` factory (preset owns the table; rpg writes no preset row), and
    *  BOTH owners stay explicit params end to end — the injected-op caller-gate class. */
   readonly copyPresetToUser: RpgCopyPresetToUser;
-  /** R4 PROMOTION's durable half. The character front door mints the card (`create`) and resolves whether a
-   *  handle is already taken in the owner's library (`findByHandle` — the per-owner handle index is UNIQUE, so
-   *  the mint would otherwise throw a raw constraint error at the host instead of a sentence). rpg reads no
-   *  character table; this is the ONLY legal reach. */
-  readonly character: Pick<CharacterService, "create" | "findByHandle">;
+  /** R4 PROMOTION's durable half. The character front door mints the card (`create`), resolves its stable
+   *  promotion marker (`findByImportHash`) on retry, and finds a free owner handle (`findByHandle` — the
+   *  per-owner handle index is UNIQUE). rpg reads no character table; this is the ONLY legal reach. */
+  readonly character: Pick<CharacterService, "create" | "findByHandle" | "findByImportHash">;
   /** R4 PROMOTION's other durable half — the chat participant-insert chokepoint (host-gated inside the verb,
    *  idempotent on a present seat). rpg reads no participant table; this is the ONLY legal reach. */
   readonly chat: Pick<ChatService, "addCharacterToChat">;
@@ -231,18 +232,88 @@ async function freePromotionHandle(deps: RpgComposeDeps, ownerId: UserId, handle
   return index === -1 ? null : (suffixed[index] ?? null);
 }
 
+type PromotionMarkerMatch = Awaited<ReturnType<RpgComposeDeps["character"]["findByImportHash"]>>;
+type PromotionResult = Awaited<ReturnType<RpgContext["promoteToRoster"]>>;
+
+async function resolveOrCreatePromotionCard(
+  deps: RpgComposeDeps,
+  args: {
+    readonly input: Parameters<RpgContext["promoteToRoster"]>[0];
+    readonly principal: Principal;
+    readonly provenance: CharacterImportProvenance;
+    readonly existing: PromotionMarkerMatch;
+  },
+): Promise<PromotionResult> {
+  const { input, principal, provenance, existing } = args;
+  if (existing !== null) {
+    return { ok: true, characterId: existing.characterId };
+  }
+  const free = await freePromotionHandle(deps, input.hostUserId, input.handle);
+  // Close the read/free-handle window: another identical invocation may have committed its marked card while
+  // this one probed the handle namespace. Prefer that winner before considering a new insert.
+  const winner = await deps.character.findByImportHash({ ownerId: input.hostUserId, importHash: provenance.importHash });
+  if (winner !== null) {
+    return { ok: true, characterId: winner.characterId };
+  }
+  if (free === null) {
+    return {
+      ok: false,
+      reason: `your character library already carries "${input.handle}" and every variant this promotion tried — rename the character first`,
+    };
+  }
+  try {
+    const created = await deps.character.create({
+      principal,
+      input: { handle: free, name: input.name, description: input.description },
+      provenance,
+    });
+    return { ok: true, characterId: created.id };
+  } catch (err) {
+    if (!(err instanceof CharacterOperationError) || err.code !== CHARACTER_HANDLE_CONFLICT) {
+      throw err;
+    }
+    // Identical retries choose the same lowest free handle. The unique loser accepts only the card carrying
+    // this promotion's provenance; an unrelated constraint failure remains loud.
+    const recovered = await deps.character.findByImportHash({ ownerId: input.hostUserId, importHash: provenance.importHash });
+    if (recovered === null) {
+      throw err;
+    }
+    return { ok: true, characterId: recovered.characterId };
+  }
+}
+
 function buildPromoteToRoster(deps: RpgComposeDeps): RpgContext["promoteToRoster"] {
-  return async ({ chatId, hostUserId, name, handle, description }) => {
-    const free = await freePromotionHandle(deps, hostUserId, handle);
-    if (free === null) {
+  return async (input) => {
+    const { chatId, hostUserId, sourceActorKey, roster, name } = input;
+    const provenance = rpgPromotionProvenance(chatId, sourceActorKey);
+    const existing = await deps.character.findByImportHash({ ownerId: hostUserId, importHash: provenance.importHash });
+    const sameNameCollision = roster.some(
+      (actor) =>
+        actor.name.trim().toLowerCase() === name.toLowerCase() &&
+        !(existing !== null && actor.actorRef.kind === "character" && actor.actorRef.characterId === existing.characterId),
+    );
+    if (sameNameCollision) {
       // PROSE-OK: a host toast (`reason` → the UI), never a model prompt — the §Scope test #prose-slot states
-      return { ok: false, reason: `your character library already carries "${handle}" and every variant this promotion tried — rename the character first` };
+      return {
+        ok: false,
+        reason: `"${name}" is already on this chat's roster — rename this character first, or the story could only ever address one of them`,
+      };
     }
     const principal = await deps.resolveHostPrincipal(hostUserId);
-    const created = await deps.character.create({ principal, input: { handle: free, name, description } });
-    await deps.chat.addCharacterToChat({ principal, chatId, characterId: created.id });
-    return { ok: true, characterId: created.id };
+    const card = await resolveOrCreatePromotionCard(deps, { input, principal, provenance, existing });
+    if (!card.ok) {
+      return card;
+    }
+    await deps.chat.addCharacterToChat({ principal, chatId, characterId: card.characterId });
+    return card;
   };
+}
+
+/** Existing-column recovery marker for one promotion. The hash obeys character provenance's SHA-256 contract;
+ * the source string is operational provenance, not a user-visible card field. */
+export function rpgPromotionProvenance(chatId: ChatId, sourceActorKey: string): CharacterImportProvenance {
+  const importedFrom = `rpg-promotion:v1:${chatId}:${sourceActorKey}`;
+  return { importedFrom, importHash: sha256Hex(importedFrom) };
 }
 
 /** The rpg compose product: the verb surface (transport consumes it) + the `ChatRpgOps` chat receives by
