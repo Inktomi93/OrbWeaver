@@ -12,14 +12,16 @@ import {
   clearHold,
   decideWake,
   holdMarkerPath,
+  getIsSleeping,
   initialAutoSleepState,
   isEngineIdle,
   isHeld,
   parseEngineCapacity,
   parseEngineMetrics,
+  postWakeAndAwait,
   writeHold,
 } from "@orb/server/infra/providers/vllm/engine";
-import { afterEach, beforeEach, describe } from "vitest";
+import { afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 /** Narrow a wake decision to its refusal arm or fail the test — avoids conditional-expect. */
@@ -31,6 +33,18 @@ function refused(d: WakeDecision): Extract<WakeDecision, { ok: false }> {
 }
 
 const GIB = 1_073_741_824;
+
+afterEach(() => vi.unstubAllGlobals());
+
+test("an unreadable sleep-state probe cannot be reported as a successful wake", async () => {
+  vi.stubGlobal("fetch", vi.fn(async (input: string | URL) => {
+    if (String(input).includes("/wake_up")) return new Response(null, { status: 200 });
+    throw new Error("planted sleep-state probe failure");
+  }));
+  await expect(getIsSleeping("gen")).resolves.toBeNull();
+  let now = 0;
+  await expect(postWakeAndAwait("gen", { now: () => now, sleep: async (ms) => { now += ms; } })).resolves.toBe(false);
+});
 
 const UTIL: EngineUtilFractions = {
   embedGpuUtil: 0.14,

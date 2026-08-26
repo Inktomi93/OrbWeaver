@@ -1,11 +1,14 @@
 // Per-user content-addressed blob store (CAS): a sealed filesystem adapter keyed by sha-256, sharded as
 // <root>/<owner>/<ab>/<cd>/<hash> (no cross-user dedup, ownership gated above this adapter). Writes are
-// crash-atomic: temp file under rootDir → fsync fd → rename → fsync dir, so a crash can't leave a corrupt blob.
+// crash-atomic on platforms that support directory fsync: temp file under rootDir → fsync fd → rename →
+// fsync dir. Windows does not consistently permit opening directories, so EISDIR/EPERM there is the one
+// explicit durability downgrade; every other file, stat, directory-read, sync, and close failure propagates.
 
 import { randomBytes } from "node:crypto";
 import type { Dirent } from "node:fs";
 import { mkdir, open, readdir, readFile, rename, rm, stat, utimes } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import process from "node:process";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
 import { sha256Hex } from "#kit/content-hash";
@@ -39,6 +42,10 @@ const TMP_DIRNAME = ".tmp";
 const TMP_SUFFIX_BYTES = 16;
 const MS_PER_SECOND = 1000;
 
+function errnoIs(error: unknown, code: string): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === code;
+}
+
 function sha256(bytes: Uint8Array): string {
   return sha256Hex(bytes);
 }
@@ -53,8 +60,11 @@ function assertOwnerSegment(ownerId: string): void {
 async function safeReaddir(dir: string): Promise<Dirent[]> {
   try {
     return await readdir(dir, { withFileTypes: true });
-  } catch {
-    return [];
+  } catch (error) {
+    if (errnoIs(error, "ENOENT")) {
+      return [];
+    }
+    throw error;
   }
 }
 
@@ -92,15 +102,17 @@ async function* walkOwners(rootDir: string): AsyncGenerator<string> {
   }
 }
 
-// Best-effort: on Windows open() may EISDIR/EPERM — swallow, since the file fsync already happened.
+// Windows does not consistently support opening directories for fsync. That platform-only limitation is
+// explicit; supported-platform open/sync/close failures invalidate the crash-durable write verdict.
 async function fsyncDir(dir: string): Promise<void> {
   try {
-    // `await using` INSIDE the try: the close rides scope exit and — like the open and the sync — its failure
-    // lands in this same catch, which is the best-effort posture the two hand-written swallows expressed.
     await using handle = await open(dir, "r");
     await handle.sync();
-  } catch {
-    // best-effort (open / sync / close alike — a dir fsync is durability polish, never a write failure)
+  } catch (error) {
+    if (process.platform === "win32" && (errnoIs(error, "EISDIR") || errnoIs(error, "EPERM"))) {
+      return;
+    }
+    throw error;
   }
 }
 
@@ -127,19 +139,23 @@ export function createCas(rootDir: string): Cas {
     try {
       await stat(blobPath(ownerId, hash));
       return true;
-    } catch {
-      return false;
+    } catch (error) {
+      if (errnoIs(error, "ENOENT")) {
+        return false;
+      }
+      throw error;
     }
   }
 
   async function mtimeMs(ownerId: UserId, hash: string): Promise<number | undefined> {
-    let result: number | undefined;
     try {
-      result = (await stat(blobPath(ownerId, hash))).mtimeMs;
-    } catch {
-      // absent/unreadable blob — nothing to protect
+      return (await stat(blobPath(ownerId, hash))).mtimeMs;
+    } catch (error) {
+      if (errnoIs(error, "ENOENT")) {
+        return undefined;
+      }
+      throw error;
     }
-    return result;
   }
 
   function read(ownerId: UserId, hash: string): Promise<Uint8Array> {
