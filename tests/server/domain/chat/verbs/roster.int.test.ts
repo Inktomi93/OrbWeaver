@@ -4,28 +4,30 @@
 // verbs are reached through the grouped-file BUNDLE (`createRoster(ctx, { emit, claimChat: noClaim })`).
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatBusEvent, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatBusEvent, DurableChatBusEvent, RoomOverrides } from "@orb/contracts/chat";
 import { roomOverridesSchema } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { auditLogs, characters, chatParticipants, chats, messages, messageVariants } from "@orb/db";
+import { auditLogs, characters, chatEvents, chatHandoffResumptions, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, ChatParticipantId, DocumentId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatEventId, ChatId, ChatParticipantId, DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus.ts";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { getToolRecurseLimit } from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
 import { createRoster, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/roster.ts";
+import { publishChatEvent, subscribeAllChatEvents } from "../../../../../packages/server/src/transport/trpc/chat-events-bus.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
+import { FROZEN_AT, makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -46,9 +48,11 @@ function recordingEmit(notes: NotificationEvent[]): (event: NotificationEvent, c
   };
 }
 
-const emit = (event: ChatBusEvent): Promise<void> => {
+const emit = async (event: ChatBusEvent, coStatements?: readonly BatchStmt[]): Promise<void> => {
   emitted.push(event);
-  return Promise.resolve();
+  if (coStatements !== undefined && coStatements.length > 0) {
+    await db.batch(batchMany(coStatements));
+  }
 };
 
 function principal(userId: UserId): Principal {
@@ -970,6 +974,53 @@ describe("nominateHostHandoff — host nominates a present member (step 1)", () 
 });
 
 describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
+  test("completion atomically appends once and clears its marker even when a real live listener throws", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const chatId = await seedChat(db, "atomic-handoff");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    let eventNumber = 0;
+    const bus = createChatBus({
+      db,
+      now: () => FROZEN_AT,
+      newEventId: () => {
+        eventNumber += 1;
+        return castId<ChatEventId>(`chat_event_handoff_${eventNumber}`);
+      },
+    });
+    const emitAtomic = bus.emit as (event: DurableChatBusEvent, coStatements?: readonly BatchStmt[]) => ReturnType<typeof bus.emit>;
+    const emitThroughRealBus = async (event: DurableChatBusEvent, coStatements?: readonly BatchStmt[]): Promise<boolean> => {
+      const logged = await emitAtomic(event, coStatements);
+      if (logged === null) {
+        return false;
+      }
+      publishChatEvent(logged);
+      return true;
+    };
+    const notes: NotificationEvent[] = [];
+    const roster = createRoster(makeChatContext(db, { emitNotification: recordingEmit(notes) }), {
+      emit: emitThroughRealBus,
+      claimChat: noClaim,
+    });
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
+    const before = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId));
+    const unsubscribe = subscribeAllChatEvents(() => {
+      throw new Error("listener exploded after durable handoff append");
+    });
+
+    try {
+      await expect(roster.acceptHostHandoff({ principal: principal(member), chatId })).resolves.toBeUndefined();
+    } finally {
+      unsubscribe();
+    }
+
+    const after = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId));
+    expect(after).toHaveLength(before.length + 1);
+    expect(after.at(-1)?.type).toBe("chatUpdated");
+    expect(await db.select().from(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId))).toHaveLength(0);
+  });
+
   test("the nominee accepts: roles swap, the nomination clears, the old host is notified", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const member = await seedUser(db, castId<Handle>("member"));

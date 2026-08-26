@@ -7,7 +7,7 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatEvents } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import { batchStmt } from "@orb/db/kit";
 import type { ChatEventId, ChatId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
@@ -34,16 +34,10 @@ export function insertChatEventStatement(db: Db, args: ChatEventInsertArgs & { r
   );
 }
 
-/**
- * Append one room-public event to the durable `chat_events` log, returning the assigned per-chat `seq`
- * (the replay cursor). The `seq` is assigned by a same-statement correlated subquery
- * (`coalesce(max(seq),0)+1`) — monotonic per chat under SQLite's serialized writes
- * (`UNIQUE(chatId, seq)`; the project's single-replica assumption). `id`/`createdAt` are CALLER-STAMPED
- * (the bus's injected minter + clock — determinism, testing §3). The caller (bus.ts) AWAITS this before
- * the in-memory ring push — durable-first, so a crash can never leave a delivered-but-unlogged event.
- */
-export async function appendChatEvent(db: Db, args: ChatEventInsertArgs): Promise<number> {
-  const rows = await db
+/** An unexecuted append with its assigned cursor returned. This is the co-statement door for a caller whose
+ * adjacent durable state must commit in the same SQLite batch as the event. */
+export function appendChatEventStatement(db: Db, args: ChatEventInsertArgs): AwaitableBatchStmt<{ seq: number }[]> {
+  return db
     .insert(chatEvents)
     .values({
       id: args.id,
@@ -54,5 +48,17 @@ export async function appendChatEvent(db: Db, args: ChatEventInsertArgs): Promis
       createdAt: args.createdAt,
     })
     .returning({ seq: chatEvents.seq });
+}
+
+/**
+ * Append one room-public event to the durable `chat_events` log, returning the assigned per-chat `seq`
+ * (the replay cursor). The `seq` is assigned by a same-statement correlated subquery
+ * (`coalesce(max(seq),0)+1`) — monotonic per chat under SQLite's serialized writes
+ * (`UNIQUE(chatId, seq)`; the project's single-replica assumption). `id`/`createdAt` are CALLER-STAMPED
+ * (the bus's injected minter + clock — determinism, testing §3). The caller (bus.ts) AWAITS this before
+ * the in-memory ring push — durable-first, so a crash can never leave a delivered-but-unlogged event.
+ */
+export async function appendChatEvent(db: Db, args: ChatEventInsertArgs): Promise<number> {
+  const rows = await appendChatEventStatement(db, args);
   return rows.at(0)?.seq ?? 0;
 }
