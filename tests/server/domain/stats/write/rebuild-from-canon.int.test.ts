@@ -3,11 +3,17 @@
 // a known canon graph, and that a re-run is idempotent (the atomic per-owner delete+replace, esoteric #11).
 
 import type { Db } from "@orb/db";
-import { characterStats, chats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { utcDay } from "@orb/kit/stats-tally";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { insertCanonMessageStatements } from "../../../../../packages/server/src/domain/chat/persistence/canon-write.ts";
+import { assistantTurnDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
+import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -18,6 +24,35 @@ let db: Db;
 let ownerId: UserId;
 let characterId: CharacterId;
 let chatId: ChatId;
+
+function holdOwnerScan(sourceDb: Db): { heldDb: Db; entered: Promise<void>; release: () => void; snapshotCalls: () => number } {
+  const entered = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  let allCalls = 0;
+  let snapshotCalls = 0;
+  const heldDb = new Proxy(sourceDb, {
+    get(target, prop): unknown {
+      const value = Reflect.get(target, prop, target);
+      if (prop !== "all" || typeof value !== "function") {
+        return typeof value === "function" ? value.bind(target) : value;
+      }
+      return async (...args: unknown[]): Promise<unknown> => {
+        allCalls++;
+        if (allCalls === 4) {
+          entered.resolve();
+          await release.promise;
+        }
+        const result: unknown = await Reflect.apply(value, target, args);
+        const first = Array.isArray(result) ? result[0] : undefined;
+        if (typeof first === "object" && first !== null && Object.hasOwn(first, "canonVersion")) {
+          snapshotCalls++;
+        }
+        return result;
+      };
+    },
+  }) as Db;
+  return { heldDb, entered: entered.promise, release: () => release.resolve(), snapshotCalls: () => snapshotCalls };
+}
 
 beforeEach(async () => {
   db = await freshDb();
@@ -179,45 +214,60 @@ describe("reconcileStats", () => {
   });
 
   test("a canon write held inside the scan is included instead of being overwritten by the stale rebuild", async () => {
-    const entered = Promise.withResolvers<void>();
-    const release = Promise.withResolvers<void>();
-    let allCalls = 0;
-    const heldDb = new Proxy(db, {
-      get(target, prop): unknown {
-        const value = Reflect.get(target, prop, target);
-        if (prop === "all" && typeof value === "function") {
-          return async (...args: unknown[]): Promise<unknown> => {
-            allCalls++;
-            if (allCalls === 4) {
-              entered.resolve();
-              await release.promise;
-            }
-            return Reflect.apply(value, target, args);
-          };
-        }
-        return typeof value === "function" ? value.bind(target) : value;
-      },
-    }) as Db;
+    const held = holdOwnerScan(db);
 
-    const rebuilding = reconcileStats(heldDb, { ownerId, now: () => T0 + 3000 });
-    await entered.promise;
-    await seedMessage(db, {
+    const rebuilding = reconcileStats(held.heldDb, { ownerId, now: () => T0 + 3000 });
+    await held.entered;
+    const content = "arrived during rebuild";
+    const now = T0 + 2000;
+    const statements: BatchStmt[] = insertCanonMessageStatements(db, {
+      messageId: mintTypeId(ID_PREFIX.message),
+      variantId: mintTypeId(ID_PREFIX.messageVariant),
       chatId,
       seq: 3,
       role: "assistant",
       characterId,
-      createdAt: T0 + 2000,
-      variants: [{ content: "arrived during rebuild", model: "gpt", provider: "openrouter" }],
+      now,
+      variant: { content, model: "gpt", provider: "openrouter" },
     });
-    await db
-      .update(chats)
-      .set({ updatedAt: T0 + 2000 })
-      .where(eq(chats.id, chatId));
-    release.resolve();
+    applyStatsDelta(statements, db, assistantTurnDelta({ ownerId, characterId, economics: { content, model: "gpt", provider: "openrouter" }, now }));
+    await db.batch(batchMany(statements));
+    held.release();
     await rebuilding;
 
     const owner = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
     expect(owner?.assistantTurns).toBe(2);
     expect(owner?.assistantWords).toBe(6);
+    expect(held.snapshotCalls()).toBe(4);
+  });
+
+  test("an unrelated owner's canon write does not restart the held owner rebuild", async () => {
+    const otherOwnerId = await seedUser(db, "user_other", "user");
+    const otherCharacterId = await seedCharacter(db, otherOwnerId, { id: "character_other", name: "Bryn" });
+    const otherChatId = await seedChat(db, otherCharacterId, { id: "chat_other", createdAt: T0, updatedAt: T0 });
+    const held = holdOwnerScan(db);
+
+    const rebuilding = reconcileStats(held.heldDb, { ownerId, now: () => T0 + 3000 });
+    await held.entered;
+    const content = "other owner arrived";
+    const now = T0 + 2000;
+    const statements: BatchStmt[] = insertCanonMessageStatements(db, {
+      messageId: mintTypeId(ID_PREFIX.message),
+      variantId: mintTypeId(ID_PREFIX.messageVariant),
+      chatId: otherChatId,
+      seq: 1,
+      role: "assistant",
+      characterId: otherCharacterId,
+      now,
+      variant: { content },
+    });
+    applyStatsDelta(statements, db, assistantTurnDelta({ ownerId: otherOwnerId, characterId: otherCharacterId, economics: { content }, now }));
+    await db.batch(batchMany(statements));
+    held.release();
+    await rebuilding;
+
+    const owner = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
+    expect(owner?.assistantTurns).toBe(1);
+    expect(held.snapshotCalls()).toBe(2);
   });
 });

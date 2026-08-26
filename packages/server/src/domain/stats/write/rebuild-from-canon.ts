@@ -9,7 +9,7 @@ import type { Db } from "@orb/db";
 import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { utcDay, wordCount } from "@orb/kit/stats-tally";
 import type { SQL } from "drizzle-orm";
@@ -350,18 +350,15 @@ function ownerChatIds(ownerId: string): SQL {
   `;
 }
 
-/** Owner-scoped canon version: the exact sorted chat-id/updated-at projection plus the owned-character
- *  count. Every stats-affecting live canon mutator restamps its chat in the same batch; comparing again
- *  after the rollup replace closes the scan/write window without holding a transaction across the streaming
- *  reads. A write after the second snapshot is safe: its live stats delta runs after the rebuild rather than
- *  being overwritten by it. */
+/** Owner-scoped canon version plus the owned-character count. Every stats-affecting live canon mutator
+ *  increments `stats_canon_versions` through `applyStatsDelta` in the same batch as canon + rollups;
+ *  comparing again after the rollup replace closes the scan/write window without holding a transaction
+ *  across the streaming reads. A write after the second snapshot is safe: its live stats delta runs after
+ *  the rebuild rather than being overwritten by it. */
 async function ownerCanonSnapshot(db: Db, ownerId: string): Promise<string> {
-  const rows = await db.all<{ chatId: ChatId | null; updatedAt: number | null; characterCount: number }>(sql`
-    SELECT NULL AS chatId, NULL AS updatedAt,
+  const rows = await db.all<{ canonVersion: number; characterCount: number }>(sql`
+    SELECT COALESCE((SELECT version FROM stats_canon_versions WHERE owner_id = ${ownerId}), 0) AS canonVersion,
            (SELECT COUNT(*) FROM characters WHERE owner_id = ${ownerId}) AS characterCount
-    UNION ALL
-    SELECT ch.id AS chatId, ch.updated_at AS updatedAt, 0 AS characterCount
-    FROM chats ch WHERE ch.id IN (${ownerChatIds(ownerId)}) ORDER BY chatId ASC
   `);
   return JSON.stringify(rows);
 }

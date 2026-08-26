@@ -6,7 +6,7 @@
 
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import { characterStats, dailyStats, modelStats, ownerStats, statsCanonVersions } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -61,6 +61,8 @@ describe("applyStatsDelta", () => {
 
     const day = (await db.select().from(dailyStats).where(eq(dailyStats.ownerId, ownerId)))[0];
     expect(day?.tokensIn).toBe(14);
+    const version = (await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, ownerId)))[0];
+    expect(version?.version).toBe(2);
   });
 
   test("extrema merge by MIN/MAX, not addition", async () => {
