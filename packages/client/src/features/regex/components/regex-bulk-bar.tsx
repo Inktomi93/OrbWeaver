@@ -34,7 +34,7 @@ import { MenuItem } from "@orb/ui/menu";
 import { SelectionBar } from "@orb/ui/selection-bar";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
@@ -75,6 +75,8 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
   const scriptIds = ids.map((id) => castId<RegexScriptId>(id));
   const count = ids.length;
   const [placementOpen, setPlacementOpen] = useState(false);
+  const enabledWriteInFlight = useRef(false);
+  const [isPending, setIsPending] = useState(false);
 
   const report =
     (verb: string) =>
@@ -87,24 +89,50 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
     onClear();
   };
 
+  const admitEnabledWrite = (): boolean => {
+    if (enabledWriteInFlight.current) {
+      return false;
+    }
+    enabledWriteInFlight.current = true;
+    setIsPending(true);
+    return true;
+  };
+
+  const enabledWriteOptions = (enabled: boolean): NonNullable<Parameters<typeof setEnabled.mutate>[1]> => ({
+    onSuccess: (outcome: RegexBulkOutcome): void => {
+      report(enabled ? "switched on" : "switched off")(outcome);
+      onClear();
+    },
+    onSettled: (): void => {
+      enabledWriteInFlight.current = false;
+      setIsPending(false);
+    },
+  });
+
   return (
     <>
       <SelectionBar count={count} onClear={onClear}>
         <Button
+          disabled={isPending}
           intent="secondary"
           onClick={(): void => {
-            setEnabled.mutate({ scriptIds, enabled: true }, { onSuccess: report("switched on") });
-            onClear();
+            if (!admitEnabledWrite()) {
+              return;
+            }
+            setEnabled.mutate({ scriptIds, enabled: true }, enabledWriteOptions(true));
           }}
           size="sm"
         >
           Enable
         </Button>
         <Button
+          disabled={isPending}
           intent="secondary"
           onClick={(): void => {
-            setEnabled.mutate({ scriptIds, enabled: false }, { onSuccess: report("switched off") });
-            onClear();
+            if (!admitEnabledWrite()) {
+              return;
+            }
+            setEnabled.mutate({ scriptIds, enabled: false }, enabledWriteOptions(false));
           }}
           size="sm"
         >
