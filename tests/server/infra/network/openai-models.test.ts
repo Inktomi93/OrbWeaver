@@ -35,6 +35,20 @@ describe("fetchOpenAiModels", () => {
     expect(await fetchOpenAiModels({ baseUrl: "https://api.example.com", apiKey: null, headers: null })).toEqual([]);
   });
 
+  test.each(["a", "red", "act"])("invalid JSON cannot echo short credential %j into logs", async (secret) => {
+    vi.stubGlobal("fetch", () => new Response(secret, { status: 200 }));
+    const info = vi.fn();
+    const log = (await import("@orb/server/foundation/observability")).getLog();
+    const prior = log.info;
+    log.info = info;
+    try {
+      expect(await fetchOpenAiModels({ baseUrl: "https://api.example.com", apiKey: secret, headers: { "x-key": secret } })).toEqual([]);
+      expect(String(info.mock.calls[0]?.[0]?.err ?? "")).not.toContain(secret);
+    } finally {
+      log.info = prior;
+    }
+  });
+
   test("drops an over-cap /models body — proves it now rides safeFetch's size cap, not a raw fetch", async () => {
     // safeFetch caps the body at MODELS_MAX_BYTES (2 MB). A raw fetch had NO cap, so this uniquely proves
     // the routing: a body past the cap makes bytes() throw → caught → [] (never buffered whole / parsed).
@@ -168,7 +182,7 @@ describe("probeOpenAiEndpoint", () => {
     const reason = "reason" in health ? health.reason : "";
     expect(reason).not.toContain(key);
     expect(reason).not.toContain(headerSecret);
-    expect(reason).toContain("«redacted»"); // proves it was scrubbed, not merely absent
+    expect(reason).toContain("█"); // proves it was scrubbed, not merely absent
     expect(reason).toContain("upstream refused");
   });
 
@@ -179,7 +193,7 @@ describe("probeOpenAiEndpoint", () => {
     const health = await probeOpenAiEndpoint({ baseUrl: "https://byo.example.com/v1", apiKey: null, headers: { "x-api-key": "abc" } }, clock);
     const reason = "reason" in health ? health.reason : "";
     expect(reason).not.toContain("abc");
-    expect(reason).toContain("«redacted»");
+    expect(reason).toContain("█");
   });
 
   test("reads the STATUS only — an over-cap body never reaches the health result", async () => {

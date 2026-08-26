@@ -29,7 +29,7 @@ export async function probeOpenRouterCredential(client: OrProbeClient, now: () =
     await client.credits.getCredits();
     return { status: "ok", checkedAt };
   } catch (err) {
-    const reason = sanitizeApiError(redactSecretsFromText(errorMessage(err), secrets));
+    const reason = redactSecretsFromText(sanitizeApiError(errorMessage(err)), secrets);
     if (AUTH_FAILURE_RE.test(reason)) {
       return { status: "revoked", checkedAt, reason };
     }

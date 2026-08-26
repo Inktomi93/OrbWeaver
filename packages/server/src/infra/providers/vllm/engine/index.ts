@@ -69,11 +69,12 @@ export {
   readObservedEngineProcess,
   serializeEngineIdentityFile,
   signalEngineLaunchIdentity,
+  signalOrphanedEngineGroup,
   signalRecordedEngineProcess,
   verifyEngineLaunchIdentity,
   writeEngineLaunchIdentities,
 } from "./process-identity.ts";
-export { findOrphanedFamily, liveListenerPids, makeCwdMarker, parsePsRows, reapOrphanedFamily, reapTargets } from "./reaper.ts";
+export { ownedOrphanCandidates, parseEngineFamilyProcessRows, reapOrphanedFamily } from "./reaper.ts";
 export type { EngineDeploymentEnv, EngineDeploymentFacts, EngineSpawnSpec } from "./spawn-engine.ts";
 export { buildEngineSpawnSpec, resolveEngineDeploymentFacts, resolveStoreRoot } from "./spawn-engine.ts";
 export {
