@@ -47,7 +47,6 @@ async function dispatchStep(page: PageHandle, idx: number, step: Exclude<Step, {
     await markStep(page, idx, `${step.kind} ${step.selector} dy=${step.dy}×${n}`);
     await loc.hover();
     for (let i = 0; i < n; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: a wheel BURST is a sequential tape of ticks by design — parallel wheel events would collapse into one.
       await page.mouse.wheel(0, step.dy);
       if (n > 1) {
         await settle(page, WHEEL_TICK_PAUSE_MS);
@@ -90,7 +89,6 @@ export async function runSteps(page: PageHandle, steps: readonly Step[]): Promis
   let idx = 0;
   for (const step of steps) {
     if (step.kind === "pause") {
-      // biome-ignore lint/performance/noAwaitInLoops: steps execute sequentially BY DESIGN — a scripted tape, not parallel work.
       await settle(page, step.ms);
       continue;
     }

@@ -42,7 +42,6 @@ export function createUninstallForAllUsers(
     // Serial for the same reason the install fan-out is: one sqlite file, and each iteration deactivates a
     // resident instance, deletes a row and reaps a CAS asset.
     for (const recipient of recipients) {
-      // biome-ignore lint/performance/noAwaitInLoops: serial by design — see the comment above the loop.
       const row = await getByOwnerSlug(ctx.db, recipient.userId, slug);
       if (row === undefined) {
         continue;

@@ -202,7 +202,6 @@ async function captureScenarioCheckpoints(
     const consoleStart = session.consoleMessages.length;
     const pageErrorStart = session.pageErrors.length;
     if (keepLivePage) {
-      // biome-ignore lint/performance/noAwaitInLoops: each checkpoint owns a distinct evidence window.
       await resetScenarioEvidence(session.page);
     }
     outcomes.push(await capture(session.page, checkpoint, { ...plan, pageIndex: 0, totalPages: 1, navigatePage: !keepLivePage }, session));

@@ -13,6 +13,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { FormDialog, FormSubmitButton } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import { notify } from "#lib";
 import { useCreateUser } from "../hooks/use-admin-mutations.ts";
 import { useCreateUserForm } from "../hooks/use-create-user-form.ts";
 import type { CreateUserFormValues } from "../lib/admin-model.ts";
@@ -85,7 +86,7 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
         disabled={createUser.isPending}
         label={createUser.isPending ? "Creating…" : "Create user"}
         onSubmit={(): void => {
-          void form.handleSubmit();
+          form.handleSubmit().catch(() => notify.error("Couldn't create the user."));
         }}
         testKey="adminCreateUserSubmit"
       />

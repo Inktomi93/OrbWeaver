@@ -87,7 +87,6 @@ async function* libraryEntries(registry: PortabilityRegistry, kinds: ReadonlySet
     if (kinds !== null && !kinds.has(entity.kind)) {
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: the export is intentionally sequential — one entity's owner-scoped rows stream at a time (bounded memory).
     for await (const file of entity.exportAll(ownerId)) {
       yield { path: `${entity.dir}${file.filename}`, bytes: file.bytes };
     }

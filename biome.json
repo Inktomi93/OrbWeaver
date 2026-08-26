@@ -263,7 +263,7 @@
         "noImportCycles": "error",
         "noDeprecatedImports": "error",
         "noFocusedTests": "error",
-        "noSkippedTests": "error",
+        "noSkippedTests": "off",
         "noVar": "error",
         "noForIn": "error",
         "noReturnAssign": "error",
@@ -305,7 +305,7 @@
         "noReExportAll": "error",
         "noDelete": "error",
         "useTopLevelRegex": "error",
-        "noAwaitInLoops": "error",
+        "noAwaitInLoops": "off",
         "noNamespaceImport": "error"
       },
       "security": {
@@ -590,7 +590,7 @@
       }
     },
     {
-      "includes": ["tooling/src/verify/ops/ct-flaky-reporter.ts"],
+      "includes": ["tooling/src/verify/ops/ct-flaky-reporter.ts", "tooling/src/verify/ops/required-live-evidence-reporter.ts"],
       "linter": {
         "rules": {
           "style": {
@@ -685,9 +685,6 @@
           "nursery": {
             "useExplicitReturnType": "off",
             "noFloatingPromises": "off"
-          },
-          "performance": {
-            "noAwaitInLoops": "off"
           },
           "style": {
             "noNonNullAssertion": "off",

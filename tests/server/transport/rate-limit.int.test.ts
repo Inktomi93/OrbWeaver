@@ -101,7 +101,6 @@ describe("rate-limit: createMemberBudget (PD-14)", () => {
     const budget = createMemberBudget(db, { windowMs: () => WINDOW_MS, now: () => T0 });
 
     for (let i = 0; i < 5; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential debits — the test asserts the cumulative no-op, not throughput.
       await budget.debit(memberA, null);
     }
 

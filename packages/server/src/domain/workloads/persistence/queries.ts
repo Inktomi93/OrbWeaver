@@ -355,7 +355,6 @@ export async function nextRunnableWorkload(db: Db, contributions: WorkloadContri
   for (const row of head) {
     const view = toView(contributions, row);
     if (view === null || view.poison) {
-      // biome-ignore lint/performance/noAwaitInLoops: poison rows are rare; each must be failed sequentially before the next valid head row is returned.
       await failQueuedRow(db, row.id, `unrecognized or malformed workload kind: ${row.kind}`, now);
       getLog().warn({ workloadId: row.id, kind: row.kind }, "workloads: failed poison queue row");
       continue;

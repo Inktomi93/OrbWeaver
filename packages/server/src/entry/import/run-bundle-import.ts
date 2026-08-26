@@ -94,7 +94,6 @@ async function importEntity(
     }
     const path = `${entity.dir}${staged.filename}`;
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential BY DESIGN — read THIS entry's bytes off the staging disk on demand (never hold the whole decompressed bundle in memory), then one idempotent import with resumable per-file isolation.
       const bytes = await staged.read();
       const result = await entity.importFile(ownerId, { filename: staged.filename, bytes });
       outcomes.push({
@@ -138,7 +137,6 @@ async function importInDepOrder(
     if (entity === undefined || files === undefined || files.length === 0) {
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: kinds import sequentially — the dependency order is the whole point (personas before chats, etc.).
     outcomes.push(...(await importEntity(entity, files, ownerId, signal)));
   }
   return outcomes;

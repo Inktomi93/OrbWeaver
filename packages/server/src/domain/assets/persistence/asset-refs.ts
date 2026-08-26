@@ -157,7 +157,6 @@ export async function selectAllReferencedAssetIds(db: Db): Promise<Set<AssetId>>
   // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for GC live-set
   const live = new Set<AssetId>();
   for (const ref of ASSET_REFS) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential DISTINCT reads over the fixed tiny registry — a maintenance-time sweep, not a hot path.
     const rows = await db.selectDistinct({ id: ref.column }).from(ref.table).where(isNotNull(ref.column));
     for (const row of rows) {
       const id = row.id as AssetId | null;

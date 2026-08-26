@@ -63,7 +63,6 @@ export async function runSteps(run: StepRun, steps: readonly Step[]): Promise<nu
   let failures = 0;
   for (const step of steps) {
     if (step.kind === "pause") {
-      // biome-ignore lint/performance/noAwaitInLoops: steps execute sequentially BY DESIGN — this is a scripted interaction tape, not parallel work.
       await settle(run.session.page, step.ms);
       continue;
     }

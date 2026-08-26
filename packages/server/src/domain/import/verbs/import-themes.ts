@@ -47,7 +47,6 @@ export function createImportThemes(ctx: ImportContext): Pick<ImportService, "imp
     const notes: ImportThemeNote[] = [];
     for (const t of input.themes) {
       const bytes = buildThemeBackup({ themes: [{ name: t.parsed.name, override: t.parsed.override, css: null }] });
-      // biome-ignore lint/performance/noAwaitInLoops: themes are written sequentially during the one-time bulk import — each is one idempotent write, isolated per theme.
       const outcome = await importTheme(ctx.ownerId, bytes);
       if (!outcome.ok) {
         skippedThemes.push({ file: t.sourceFile, reason: outcome.error ?? "the settings domain refused the theme" });

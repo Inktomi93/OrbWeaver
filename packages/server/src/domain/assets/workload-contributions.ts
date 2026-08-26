@@ -30,7 +30,6 @@ async function gatherStagedCards(
   const byOwner = new Map<UserId, { characterId: CharacterId; bytes: Uint8Array; importHash: string }[]>();
   for (const row of rows) {
     const importHash = row.importHash;
-    // biome-ignore lint/performance/noAwaitInLoops: per-character CAS probe during a maintenance-time gather — not a hot path.
     if (importHash === null || !(await deps.cas.exists(row.ownerId, importHash))) {
       continue;
     }
@@ -58,7 +57,6 @@ export function createAssetsWorkloadContributions(deps: AssetsWorkloadDeps): Ass
         let scanned = 0;
         let changed = 0;
         for (const [owner, cards] of byOwner) {
-          // biome-ignore lint/performance/noAwaitInLoops: sequential per-owner fan-out (the verb is per-owner) — maintenance-time, not a hot path.
           const result = await deps.assets.backfillAvatars({ ownerId: owner, cards, dryRun });
           scanned += result.scanned;
           changed += result.linked;

@@ -205,7 +205,6 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     // Fan `chatsChanged` to the new room's present human members so each device refetches its list.
     await ctx.emitChatChanged(chatId, { detail: true });
     for (const view of seed.views) {
-      // biome-ignore lint/performance/noAwaitInLoops: the durable chat-bus ring assigns a monotonic seq per emit — the seeded greetings must log in canon (seq 1..N) order, so the writes are intentionally sequential.
       await deps.emit({ type: "messageCommitted", chatId, messageId: view.id, view });
     }
 

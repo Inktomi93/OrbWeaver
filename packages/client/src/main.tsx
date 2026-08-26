@@ -53,12 +53,16 @@ import "./styles/globals.css";
 // are module-scope consts that already exist, and nothing about the handle wants to wait for the first
 // render (only `installAppReadySignal` below does, and for its own reason).
 if (import.meta.env.DEV) {
-  void import("./lib/long-task-tracer.ts").then(({ installLongTaskTracer }) => {
-    installLongTaskTracer();
-  });
-  void import("./agent-handles/index.ts").then(({ installAgentHandles }) => {
-    installAgentHandles(queryClient, trpcClient, trpcProxy);
-  });
+  import("./lib/long-task-tracer.ts")
+    .then(({ installLongTaskTracer }) => {
+      installLongTaskTracer();
+    })
+    .catch((error: unknown) => globalThis.reportError(error));
+  import("./agent-handles/index.ts")
+    .then(({ installAgentHandles }) => {
+      installAgentHandles(queryClient, trpcClient, trpcProxy);
+    })
+    .catch((error: unknown) => globalThis.reportError(error));
 }
 // A redeploy rotates hashed chunk names; an old tab that lazy-imports a chunk with a stale hash
 // white-screens. Soft-reload once — the sessionStorage guard stops a reload loop.

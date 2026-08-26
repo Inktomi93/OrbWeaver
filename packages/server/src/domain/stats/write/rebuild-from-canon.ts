@@ -305,7 +305,6 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
   let totalModels = 0;
   for (const ownerId of owners) {
     opts.signal?.throwIfAborted();
-    // biome-ignore lint/performance/noAwaitInLoops: per-owner rebuilds are atomic + sequential by design — each per-owner replace must commit before the next to keep peak memory + the batch bounded.
     const built = await computeOwner(db, ownerId, now);
     totalChars += built.charCount;
     totalDays += built.dayCount;
@@ -485,7 +484,6 @@ function foldMessage(r: MessageRow, a: Accums): void {
 async function scanMessages(db: Db, ownerId: string, a: Accums): Promise<void> {
   let lastId = "";
   for (;;) {
-    // biome-ignore lint/performance/noAwaitInLoops: keyset pagination is inherently sequential — each page's last id seeds the next WHERE.
     const rows = await db.all<MessageRow>(sql`
       SELECT m.id AS mid, m.character_id AS cid, m.role AS role, m.created_at AS createdAt,
              ch.created_at AS chatCreatedAt, v.content AS content,
@@ -589,7 +587,6 @@ function foldSwipe(r: SwipeRow, a: Accums): void {
 async function scanSwipes(db: Db, ownerId: string, a: Accums): Promise<void> {
   let lastId = "";
   for (;;) {
-    // biome-ignore lint/performance/noAwaitInLoops: keyset pagination is inherently sequential.
     const rows = await db.all<SwipeRow>(sql`
       SELECT mv.id AS svid, m.character_id AS cid, m.created_at AS msgCreatedAt, mv.content AS content,
              mv.tokens_in AS ti, mv.tokens_out AS tout, mv.token_provenance AS tokenProvenance,

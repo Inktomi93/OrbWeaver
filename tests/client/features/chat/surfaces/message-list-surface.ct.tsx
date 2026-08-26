@@ -1039,9 +1039,7 @@ function walkThread(count: number): ReturnType<typeof makeMessageView>[] {
 async function tabsToReachEnd(page: Page, cap: number): Promise<number> {
   await page.getByTestId("walk-start").focus();
   for (let pressed = 1; pressed <= cap; pressed += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: a Tab WALK is sequential by definition — each press's landing decides whether the next one happens; there is no parallel form of this measurement.
     await page.keyboard.press("Tab");
-    // biome-ignore lint/performance/noAwaitInLoops: same walk — the landing has to be read before the next press.
     const arrived = await page.getByTestId("walk-end").evaluate((el) => el === document.activeElement);
     if (arrived) {
       return pressed;
@@ -1153,12 +1151,10 @@ test("#488 a message-footer CONTRIBUTED disclosure is a Tab stop inside the ente
   const row = component.locator('[data-slot="message-list-row"]').last();
   await row.focus();
   for (let pressed = 0; pressed < TAB_WALK_CAP; pressed += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: a Tab walk is sequential — each landing decides whether the next press happens.
     const landed = await trigger.evaluate((el) => el === document.activeElement);
     if (landed) {
       break;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: same walk.
     await page.keyboard.press("Tab");
   }
   await expect(trigger).toBeFocused();

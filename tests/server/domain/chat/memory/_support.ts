@@ -30,7 +30,6 @@ export const GROUP_CHAR = castId<CharacterId>("character_group");
  *  build/digests (both closed over module-level `db`/`aria`; hoisted to take both as params). */
 export async function seedTurns(db: Db, chatId: ChatId, characterId: CharacterId, n: number): Promise<void> {
   for (let seq = 1; seq <= n; seq += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts in a test.
     await seedMessage(db, chatId, seq, { characterId, content: `turn ${seq}` });
   }
 }
@@ -185,7 +184,6 @@ export function fakeEmbeddingsStore(db: Db): {
     segmentBatchSizes.push(batch.length);
     for (const params of batch) {
       segments.push(params);
-      // biome-ignore lint/performance/noAwaitInLoops: the fake mirrors the real op's sequential row writes.
       await seedSegment(db, {
         chatId: params.chatId,
         blockIdx: params.blockIdx,

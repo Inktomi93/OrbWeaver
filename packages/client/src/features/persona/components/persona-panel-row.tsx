@@ -140,7 +140,7 @@ export function PersonaPanelRow({
           accept="image/*"
           onFilesSelected={([file]): void => {
             if (file !== undefined) {
-              void onAvatarFile(file);
+              onAvatarFile(file).catch(() => notify.error("Couldn't upload the avatar."));
             }
           }}
         >
@@ -339,7 +339,7 @@ function PersonaRowMenu({
       )}
       <MenuItem
         onClick={(): void => {
-          void onExport();
+          onExport().catch(() => notify.error("Couldn't export the persona."));
         }}
       >
         <Icon icon={Download} size="sm" />

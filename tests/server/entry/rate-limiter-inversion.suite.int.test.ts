@@ -68,7 +68,6 @@ async function consumeUntilThrottled(enforce: (d: RateLimitDecision) => Promise<
   let allowed = 0;
   for (let i = 0; i < n; i += 1) {
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: the fixed-window count is inherently sequential (each consume reads the prior increment).
       await enforce(decision);
       allowed += 1;
     } catch {

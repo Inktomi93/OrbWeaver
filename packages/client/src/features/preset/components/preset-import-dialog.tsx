@@ -103,11 +103,13 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
       return;
     }
     setError(null);
-    void onImportOrb(parsed.fileText).then((failure) => {
-      // A rejected file keeps the dialog open with the SERVER'S reason — the strict parse lives there, and
-      // re-deriving a client-side verdict would be the second parser this door exists to avoid.
-      setError(failure);
-    });
+    onImportOrb(parsed.fileText)
+      .then((failure) => {
+        // A rejected file keeps the dialog open with the SERVER'S reason — the strict parse lives there,
+        // and re-deriving a client-side verdict would be the second parser this door exists to avoid.
+        setError(failure);
+      })
+      .catch(() => setError("Import failed — try the file again."));
   };
 
   return (

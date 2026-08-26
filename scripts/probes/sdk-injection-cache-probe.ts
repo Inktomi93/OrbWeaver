@@ -797,7 +797,6 @@ async function runHookArm(): Promise<void> {
   for (let i = 0; i < HOOK_TURNS; i++) {
     const { text, sigil: hookSigil } = hookContext(i + 1);
     const b = buildShaped(CANON, HOOK_TAIL_QUESTION, null);
-    // biome-ignore lint/performance/noAwaitInLoops: the 3 hook turns are sequential BY DESIGN — each resumes the prior lineage; serial order keeps the disposition/leak attribution unambiguous.
     const before = await storedTranscript(cache, chatId);
     const decision = await cache.ensureSeededSession(chatId, b.seed);
     dispositions.push(decision.disposition);
@@ -986,7 +985,6 @@ async function runFollowup(): Promise<void> {
   for (const cell of aCells) {
     console.log(`── ${cell.id} ──`);
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: cells are sequential BY DESIGN — quota-metered live turns; serial order keeps cache-metric attribution unambiguous.
       await runACell(cell);
     } catch (error) {
       verdict(cell.id, false, `threw: ${error instanceof Error ? error.message : String(error)}`);
@@ -1029,7 +1027,6 @@ async function runMatrix(): Promise<void> {
   for (const cell of mCells) {
     console.log(`── ${cell.id} ──`);
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: cells are sequential BY DESIGN — quota-metered live turns; serial order keeps cache-metric attribution unambiguous.
       await runMatrixCell(cell);
     } catch (error) {
       verdict(cell.id, false, `threw: ${error instanceof Error ? error.message : String(error)}`);
@@ -1038,7 +1035,6 @@ async function runMatrix(): Promise<void> {
   for (const g of gCells) {
     console.log(`── ${g.id} ──`);
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: same sequential-by-design discipline as the matrix cells.
       await runGrowCell(g);
     } catch (error) {
       verdict(g.id, false, `threw: ${error instanceof Error ? error.message : String(error)}`);

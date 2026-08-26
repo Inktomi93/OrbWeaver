@@ -24,7 +24,6 @@ export async function selectOwnedReferencedAssetIds(db: Db, ownerId: UserId): Pr
   // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for owned asset collection
   const ids = new Set<AssetId>();
   for (const ref of ASSET_REFS) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential DISTINCT reads over the fixed tiny registry — an export-time collection, not a hot path (mirrors `selectAllReferencedAssetIds`).
     const rows = await db
       .selectDistinct({ id: ref.column })
       .from(ref.table)

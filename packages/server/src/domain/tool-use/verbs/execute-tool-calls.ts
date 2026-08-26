@@ -58,7 +58,6 @@ export function createExecuteToolCalls(
       if (entry === undefined) {
         outcome = errorOutcome(`unknown tool: ${call.name}`);
       } else {
-        // biome-ignore lint/performance/noAwaitInLoops: sequential by design — a call may depend on the previous call's staged effects.
         outcome = await runCall(ctx, entry, call, exec);
       }
       records.push({

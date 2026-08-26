@@ -307,7 +307,6 @@ test("EXPORT: the chat transcript download 404s for a seated MEMBER and 200s for
     // The member's own session cookie on the real download route. `exportChat` returns null for a non-host
     // caller and the registrar maps that to a BODILESS 404 — no transcript bytes, no existence oracle.
     for (const format of ["jsonl", "txt"]) {
-      // biome-ignore lint/performance/noAwaitInLoops: two sequential format probes against one live stack — parallelism buys nothing and muddies attribution.
       const refused = await fetch(`${origin}/api/export/chat/${chatId}?format=${format}`, { headers: member.headers });
       expect(refused.status, `member export (${format})`).toBe(NOT_FOUND);
       expect(await refused.text()).toBe("");
@@ -343,7 +342,6 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
   // host's). Idempotent across crashed runs.
   const owned = await member.query<readonly PersonaRow[]>("persona.list", {});
   for (const stale of owned.filter((p) => p.name === MEMBER_PERSONA_NAME)) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential cleanup of a normally-empty residue set.
     await member.mutation("persona.remove", { personaId: stale.id });
   }
   const persona = await member.mutation<PersonaRow>("persona.create", {
@@ -407,7 +405,6 @@ async function pollForReply(host: ActorClient, chatId: ChatId): Promise<Messages
   const deadline = Date.now() + REPLY_POLL_TIMEOUT_MS;
   let reply: MessagesPage["messages"][number] | undefined;
   while (reply === undefined && Date.now() < deadline) {
-    // biome-ignore lint/performance/noAwaitInLoops: a poll loop IS sequential by definition.
     const page = await host.query<MessagesPage>("chat.listMessages", { chatId });
     reply = [...page.messages].reverse().find((m) => m.role === "assistant" && m.content.includes(FIXTURE_COVER_MARKER));
     if (reply === undefined) {
@@ -435,7 +432,6 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
   const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
   const owned = await member.query<readonly PersonaRow[]>("persona.list", {});
   for (const stale of owned.filter((p) => p.name === MEMBER_PERSONA_NAME)) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential cleanup of a normally-empty residue set.
     await member.mutation("persona.remove", { personaId: stale.id });
   }
   const persona = await member.mutation<PersonaRow>("persona.create", {

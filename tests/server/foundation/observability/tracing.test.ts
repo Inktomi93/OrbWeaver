@@ -3,8 +3,17 @@
 // TC39 private-field brand check). Also asserts an instrumented `execute` opens a `db.execute` child span
 // that lands in the request's trace.
 
-import { getTraceByRequestId, initTracing, recordThrownRequest, withRequestSpan, wrapLibSqlClient } from "@orb/server/foundation/observability";
-import { describe } from "vitest";
+import {
+  getTraceByRequestId,
+  initTracing,
+  logger,
+  recordThrownRequest,
+  span,
+  superviseDetached,
+  withRequestSpan,
+  wrapLibSqlClient,
+} from "@orb/server/foundation/observability";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const PROBE_VALUE = 7;
@@ -84,5 +93,37 @@ describe("recordThrownRequest (the thrown-request trace-ring gap, PD-118)", () =
     // A throw ABOVE the observability middleware (e.g. the auth seam) has no request-root span; the helper
     // must not throw — there is simply nothing to correct.
     expect(() => recordThrownRequest(new Error("no-active-span"))).not.toThrow();
+  });
+});
+
+describe("superviseDetached", () => {
+  test("starts the operation factory inside a detached root and owns a rejection visibly", async () => {
+    initTracing();
+    const requestId = "supervised-detach-rejection";
+    const err = new Error("detached-boom");
+    const logged = Promise.withResolvers<void>();
+    const spy = vi.spyOn(logger, "error").mockImplementationOnce(() => {
+      logged.resolve();
+    });
+
+    try {
+      superviseDetached(requestId, "detached.probe", { operationKind: "probe" }, () => span("detached.probe.child", () => Promise.reject(err)));
+      await logged.promise;
+
+      expect(spy).toHaveBeenCalledOnce();
+      const [fields, message] = spy.mock.calls[0] as [Record<string, unknown>, string];
+      expect(fields).toMatchObject({ err, operationKind: "probe", requestId, spanName: "detached.probe" });
+      expect(message).toBe("detached operation failed");
+
+      const trace = getTraceByRequestId(requestId);
+      if (trace === undefined) {
+        throw new Error("expected a recorded trace for the supervised operation");
+      }
+      expect(trace.rootName).toBe("detached.probe");
+      expect(trace.status).toBe("error");
+      expect(trace.spans.find((entry) => entry.name === "detached.probe.child")?.status).toBe("error");
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

@@ -113,7 +113,7 @@ function ProseFormBody({ sectionId }: { readonly sectionId: string }): ReactElem
   // autosave driver has nothing to fire; re-stamping `baseVersion` to the current slot version is what
   // dismisses the stale chip, and it must not touch any other slot's stored override.
   const keepMine = (id: ProseSlotId, text: string): void => {
-    void update.mutateAsync({ section: "prose", patch: { [id]: proseSlotPatch(id, text) } });
+    update.mutate({ section: "prose", patch: { [id]: proseSlotPatch(id, text) } });
   };
 
   return (

@@ -18,6 +18,7 @@
 //      ≤ 32 concurrent host calls per INSTANCE (the reentrancy footgun, 03 §3) — counted over
 //      STARTED-AND-UNSETTLED host work, which is what makes the cap a bound on work rather than on promises.
 
+import { randomUUID } from "node:crypto";
 import type { ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
 import { CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES } from "@orb/contracts/automation";
 import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
@@ -43,6 +44,7 @@ import {
 import type { VarOp } from "@orb/kit/macro";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle } from "quickjs-emscripten-core";
 import { z } from "zod";
+import { superviseDetached } from "#foundation/observability";
 import type { SafeFetchOptions } from "../network/egress.ts";
 import { safeFetch } from "../network/egress.ts";
 import {
@@ -1071,11 +1073,13 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
         clearTimeout(timer);
       });
 
-    void deferred.settled.then(() => {
-      if (ctx.alive) {
-        ctx.runtime.executePendingJobs();
-      }
-    });
+    superviseDetached(`plugin-host:${name}:${randomUUID()}`, "plugin.host.pending-jobs", { hostFunction: name }, () =>
+      deferred.settled.then(() => {
+        if (ctx.alive) {
+          ctx.runtime.executePendingJobs();
+        }
+      }),
+    );
     return deferred.handle;
   });
   ctx.setProp(target, name, fn);

@@ -29,7 +29,6 @@ async function drainStream(stream: ReadableStream<Uint8Array>): Promise<Uint8Arr
   const chunks: Uint8Array[] = [];
   let total = 0;
   for (;;) {
-    // biome-ignore lint/performance/noAwaitInLoops: draining a stream is one awaited read per chunk.
     const { done, value } = await reader.read();
     if (done) {
       break;
@@ -60,7 +59,6 @@ interface Extracted {
 async function collect(staged: StagedArchive): Promise<Extracted[]> {
   const out: Extracted[] = [];
   for (const entry of staged.entries) {
-    // biome-ignore lint/performance/noAwaitInLoops: the test reads each staged entry off disk in turn (the prod driver does the same, one at a time — never the whole bundle in memory).
     out.push({ path: entry.path, bytes: await entry.read() });
   }
   return out;

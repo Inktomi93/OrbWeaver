@@ -57,8 +57,6 @@ export function useCreateTagMember(): () => void {
   const invalidation = useInvalidation();
   const create = useCreateTag({ trpc, invalidation });
   return (): void => {
-    void create.mutateAsync({ input: { name: NEW_TAG_NAME } }).then((created) => {
-      selectCollectionMember(TAG_COLLECTION_ID, created.id);
-    });
+    create.mutate({ input: { name: NEW_TAG_NAME } }, { onSuccess: (created): void => selectCollectionMember(TAG_COLLECTION_ID, created.id) });
   };
 }

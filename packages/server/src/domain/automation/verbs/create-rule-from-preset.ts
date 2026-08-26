@@ -25,7 +25,7 @@
 import { automationTriggerFor } from "@orb/contracts/automation";
 import { RuleValidationError } from "../contract/errors.ts";
 import type { CreateRuleFromPresetParams } from "../contract/params.ts";
-import type { ErasedRulePresetDef, RulePresetRuleDef } from "../contract/presets.ts";
+import type { ErasedRulePresetDef } from "../contract/presets.ts";
 import { RULE_PRESETS } from "../contract/presets.ts";
 import type { RuleView } from "../contract/results.ts";
 import type { AutomationService } from "../contract/service.ts";
@@ -63,13 +63,9 @@ export function createCreateRuleFromPreset(createRule: AutomationService["create
     const knobs = resolveRulePresetKnobs(preset.knobs, params.knobs ?? {});
     const rules = preset.rules(knobs);
 
-    // Sequential (recursion, not a loop — the `noAwaitInLoops` discipline): `position = max+1` is read per
-    // call, so a parallel mint would race the whole set onto one position and lose the preset's order.
-    const mint = async (index: number, acc: readonly RuleView[]): Promise<RuleView[]> => {
-      const def: RulePresetRuleDef | undefined = rules[index];
-      if (def === undefined) {
-        return [...acc];
-      }
+    // `position = max+1` is read per call, so each rule must commit before the next one is minted.
+    const created: RuleView[] = [];
+    for (const [index, def] of rules.entries()) {
       const view = await createRule({
         principal: params.principal,
         chatId,
@@ -83,8 +79,8 @@ export function createCreateRuleFromPreset(createRule: AutomationService["create
         cooldownSeconds: def.cooldownSeconds ?? 0,
         ...(def.maxFiresPerHour !== undefined ? { maxFiresPerHour: def.maxFiresPerHour } : {}),
       });
-      return mint(index + 1, [...acc, view]);
-    };
-    return await mint(0, []);
+      created.push(view);
+    }
+    return created;
   };
 }

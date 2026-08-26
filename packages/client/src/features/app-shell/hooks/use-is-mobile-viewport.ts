@@ -116,7 +116,7 @@ export function useShellContentPrimacyObserver(sentinelRef: RefObject<HTMLElemen
       }
     };
     document.fonts.addEventListener("loadingdone", onFontsLoaded);
-    void document.fonts.ready.then(onFontsLoaded);
+    document.fonts.ready.then(onFontsLoaded, () => undefined);
     return (): void => {
       mounted = false;
       document.fonts.removeEventListener("loadingdone", onFontsLoaded);

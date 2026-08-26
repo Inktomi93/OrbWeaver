@@ -9,6 +9,7 @@
 // mirror. That also keeps this file stable as kinds re-home.
 
 import type { WorkloadProgress } from "@orb/contracts/workloads";
+import type { Db } from "@orb/db";
 import { describe, vi } from "vitest";
 import type { WorkloadContribution } from "../../../../../packages/server/src/domain/workloads/contract/contribution.ts";
 import type { WorkloadRunnerDeps } from "../../../../../packages/server/src/domain/workloads/contract/service.ts";
@@ -31,6 +32,28 @@ const KIND = "reconcile-world-state";
 type RunBody = WorkloadContribution<typeof KIND>["run"];
 
 const sig = (): AbortSignal => new AbortController().signal;
+
+/** Fail one numbered UPDATE while delegating every other query to the real DB. The runner's first UPDATE is
+ * the claim, the second is the report heartbeat, and the third is terminalization. */
+function failUpdate(db: Db, failAt: number, error: Error, onUpdate: (ordinal: number) => void): Db {
+  let ordinal = 0;
+  return new Proxy(db, {
+    get: (target, property, receiver): unknown => {
+      const value = Reflect.get(target, property, receiver) as unknown;
+      if (property !== "update" || typeof value !== "function") {
+        return value;
+      }
+      return (table: unknown): unknown => {
+        ordinal += 1;
+        onUpdate(ordinal);
+        if (ordinal === failAt) {
+          return { set: () => ({ where: () => Promise.reject(error) }) };
+        }
+        return Reflect.apply(value as (...args: readonly unknown[]) => unknown, target, [table]);
+      };
+    },
+  }) as Db;
+}
 
 describe("runWorkload", () => {
   test("claims, runs, stores the result, and emits started + succeeded", async () => {
@@ -107,6 +130,50 @@ describe("runWorkload", () => {
     await runWorkload(makeRunnerDeps(db, contributionsWith(KIND, run)), row, sig());
     expect(await loadWorkloadStatus(db, id)).toBe("worker_died");
     expect(getRecentWorkloadEvents(id).map((e) => e.type)).not.toContain("succeeded");
+  });
+
+  test("a failed lease write aborts and OWNS the contribution before terminalizing failed", async () => {
+    const db = await freshDb();
+    const id = await seedWorkloadRow(db, { id: "wl_lease_fail", kind: KIND, status: "queued" });
+    const release = Promise.withResolvers<void>();
+    const aborted = Promise.withResolvers<void>();
+    const order: string[] = [];
+    const run = vi.fn<RunBody>(async (_ctx, _params, report, signal) => {
+      report({ message: "starts the lease write" });
+      await new Promise<void>((resolve) => {
+        const onAbort = (): void => {
+          order.push("contribution-aborted");
+          aborted.resolve();
+          resolve();
+        };
+        if (signal.aborted) {
+          onAbort();
+        } else {
+          signal.addEventListener("abort", onAbort, { once: true });
+        }
+      });
+      await release.promise;
+      order.push("contribution-settled");
+      return { deferred: true } as const;
+    });
+    const failedDb = failUpdate(db, 2, new Error("lease write failed"), (ordinal) => {
+      if (ordinal === 3) {
+        order.push("terminal-write");
+      }
+    });
+    const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
+    const running = runWorkload(makeRunnerDeps(failedDb, contributionsWith(KIND, run)), row, sig());
+    try {
+      await aborted.promise;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(order).not.toContain("terminal-write");
+    } finally {
+      release.resolve();
+    }
+    await running;
+    expect(order.indexOf("contribution-settled")).toBeLessThan(order.indexOf("terminal-write"));
+    expect(await loadWorkloadStatus(db, id)).toBe("failed");
+    expect((await loadWorkload(db, CONTRIBUTIONS, id))?.error).toContain("lease write failed");
   });
 });
 

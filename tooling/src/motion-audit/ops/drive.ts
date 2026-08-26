@@ -58,7 +58,6 @@ export async function driveReach(page: Page, reach: readonly ReachAction[]): Pro
     if (action.kind === "click") {
       try {
         const loc = page.locator(action.selector).first();
-        // biome-ignore lint/performance/noAwaitInLoops: the reach queue is SEQUENTIAL by contract — each action may produce the surface the next one targets.
         await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
         await loc.click({ timeout: STEP_TIMEOUT_MS });
       } catch (e) {

@@ -32,7 +32,6 @@ async function checkOwnerRows(
   for (const row of rows) {
     signal?.throwIfAborted();
     scannedRows++;
-    // biome-ignore lint/performance/noAwaitInLoops: per-row integrity probe — a read-only maintenance scan, sequenced deliberately (not a hot path).
     if (!(await cas.exists(ownerId, row.hash))) {
       danglingRows++;
       continue;
@@ -54,7 +53,6 @@ export function createFsck(ctx: AssetsContext): AssetsService["fsck"] {
     let orphanBlobs = 0;
 
     for (const ownerId of await listAssetOwners(ctx.db)) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential per-owner row scan — read-only maintenance, not a hot path.
       const t = await checkOwnerRows(ctx.db, ctx.cas, ownerId, signal);
       scannedRows += t.scannedRows;
       danglingRows += t.danglingRows;

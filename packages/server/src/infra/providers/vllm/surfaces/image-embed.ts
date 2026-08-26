@@ -102,7 +102,6 @@ export function createVllmImageEmbed(deps: VllmImageEmbedDeps): (req: ImageEmbed
         if (messages === null) {
           continue;
         }
-        // biome-ignore lint/performance/noAwaitInLoops: the worker pulls conversations serially; concurrency is the worker COUNT.
         const response = await embedOne(deps.client, {
           model: req.model,
           messages,

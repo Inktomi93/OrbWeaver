@@ -14,9 +14,15 @@ const lifecycle = createLifecycle();
 // idempotent + flips healthz to 503 first).
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.on(signal, () => {
-    void lifecycle.shutdown().then(() => {
-      process.exit(0);
-    });
+    lifecycle
+      .shutdown()
+      .then(() => {
+        process.exit(0);
+      })
+      .catch((err: unknown) => {
+        getLog().error({ err, signal }, "entry: shutdown failed — exiting non-zero");
+        process.exit(EXIT_BOOT_FAILURE);
+      });
   });
 }
 

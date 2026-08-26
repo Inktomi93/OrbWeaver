@@ -237,7 +237,6 @@ export async function driveActions(page: Page, actions: readonly SnapAction[]): 
   const failures: DriveFailures = { navFailures: 0, stepFailures: 0, evalResults: [] };
   for (const entry of actions) {
     if (entry.type === "nav") {
-      // biome-ignore lint/performance/noAwaitInLoops: the drive queue is SEQUENTIAL by contract — argv order, and each action (any arm) may produce the surface the next one observes. This one suppression covers every await in the loop body.
       failures.navFailures += await driveNav(page, entry.action);
     } else if (entry.type === "eval") {
       failures.evalResults.push(...(await captureEvals(page, [entry.action.expr])));

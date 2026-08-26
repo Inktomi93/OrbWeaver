@@ -379,7 +379,6 @@ test("#206: every icon control exposes plain-language names and tooltips on hove
   for (const { name, tooltip } of expectedTooltips) {
     const control = component.getByRole("button", { name, exact: true });
     const popup = page.getByRole("tooltip", { name: tooltip, exact: true });
-    // biome-ignore lint/performance/noAwaitInLoops: each tooltip must release shared hover/focus state before the next control.
     await control.hover();
     await expect(popup, `${name} must explain itself on hover`).toBeVisible();
     await page.mouse.move(0, 0);

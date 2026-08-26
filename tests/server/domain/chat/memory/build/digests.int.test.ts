@@ -310,7 +310,6 @@ describe("memory/build/digests", () => {
 
     // The host HIDES the trailing span (seq 3-4) — block 1's rows leave the ingest set entirely.
     for (const seq of [3, 4]) {
-      // biome-ignore lint/performance/noAwaitInLoops: two ordered updates in a test seed.
       await db
         .update(messages)
         .set({ excludedFromPrompt: true })
@@ -686,7 +685,6 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
     // 4 tier-0 blocks (blockSize 2) voiced by alternating speakers → the tier-1 unions [aria, bram] (first-seen).
     const voices = [aria, aria, bram, bram, aria, aria, bram, bram];
     for (const [i, characterId] of voices.entries()) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
       await seedMessage(db, chatId, i + 1, { characterId, content: `t${i + 1}` });
     }
     const sum = fakeSummarize();

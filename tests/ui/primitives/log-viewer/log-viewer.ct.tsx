@@ -323,3 +323,18 @@ test("the copy affordance writes the visible lines to the clipboard", async ({ m
   // FABRICATION-OK: in-page globalThis scaffolding (see above).
   await expect.poll(async () => await page.evaluate(() => (globalThis as unknown as { __copied: string | null }).__copied)).toBe("alpha\nbeta");
 });
+
+test("a clipboard rejection is surfaced in the toolbar", async ({ mount, page }) => {
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: (): Promise<void> => Promise.reject(new Error("clipboard denied")),
+      },
+    });
+  });
+
+  const component = await mount(<LogViewer lines={["alpha"]} />);
+  await component.getByRole("button", { name: "Copy log" }).click();
+  await expect(component.getByRole("alert")).toHaveText("Couldn't copy log.");
+});

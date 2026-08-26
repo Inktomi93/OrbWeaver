@@ -27,7 +27,7 @@ export function useStartChatWithCharacter(): (characterId: CharacterId) => void 
   return (characterId): void => {
     clearChatListCharacterFilter();
     setActiveSection("chats");
-    void startChat({ characterIds: [characterId] });
+    startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.
   };
 }
 

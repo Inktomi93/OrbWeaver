@@ -146,7 +146,6 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
     throw new Error(`@orb/db: PRAGMA foreign_keys did not stick (read back ${String(value)}); refusing to boot — the FK-dense schema requires enforcement ON.`);
   }
   for (const pragma of TUNING_PRAGMAS) {
-    // biome-ignore lint/performance/noAwaitInLoops: PRAGMAs must apply sequentially in order — journal_mode = WAL first, the rest assume it; Promise.all would race the mode switch.
     await client.execute(`PRAGMA ${pragma}`);
   }
   // WAL is file-only; a `:memory:`/non-file db reports `memory` and that's correct, so only assert on files.

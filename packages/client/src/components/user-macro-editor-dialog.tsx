@@ -28,6 +28,7 @@ import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
+import { notify } from "#lib";
 import { FormDialog } from "./form-dialog.tsx";
 
 /** The minimal form value shape the dialog binds — any editor form carrying a `userMacros` array. */
@@ -182,7 +183,7 @@ function ArgList({ form, index }: { readonly form: UserMacroEditorForm; readonly
                   intent="ghost"
                   size="sm"
                   onClick={(): void => {
-                    void form.removeFieldValue(argsName, j);
+                    form.removeFieldValue(argsName, j).catch(() => notify.error("Couldn't update the macro."));
                   }}
                 >
                   Remove
@@ -372,7 +373,7 @@ function InputOptionList({
                 intent="ghost"
                 size="sm"
                 onClick={(): void => {
-                  void form.removeFieldValue(optionsName, k);
+                  form.removeFieldValue(optionsName, k).catch(() => notify.error("Couldn't update the macro."));
                 }}
               >
                 Remove

@@ -21,7 +21,6 @@ const ERROR_FALLBACK = "Content failed to render.";
 async function driveScript(component: MountResult, chunkCount: number): Promise<void> {
   await component.getByTestId("begin").click();
   for (let i = 0; i < chunkCount; i += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: each click must land before the next (the store's appendDelta order is the scripted sequence) — not a parallelizable batch.
     await component.getByTestId("next-chunk").click();
   }
 }

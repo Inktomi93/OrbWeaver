@@ -69,7 +69,6 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
     // The row writes stay SEQUENTIAL — they are db upserts, and the engine is already done by here.
     for (const [i, item] of pending.entries()) {
       const p = item.params;
-      // biome-ignore lint/performance/noAwaitInLoops: the embed already happened in ONE flood above; these are db upserts, kept sequential so the writes don't race.
       await upsertChatSegment(ctx.db, {
         id: ctx.newChatSegmentId(),
         chatId: p.chatId,

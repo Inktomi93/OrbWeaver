@@ -20,7 +20,6 @@ import { makeResolvedCredential } from "../../../../../support/factories/resolve
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 const RUN = process.env["ORB_LOCAL_LIGHT_E2E"] === "1";
-const suite = RUN ? describe : describe.skip;
 
 const CRED = makeResolvedCredential("local-light");
 const MODEL = DEFAULT_IMAGE_EMBED_MODEL as ModelId;
@@ -58,7 +57,7 @@ async function swatch(r: number, g: number, b: number): Promise<ImageInput> {
   return new Uint8Array(buf);
 }
 
-suite("local-light imageEmbed (real jina-clip-v2 ONNX inference)", () => {
+describe.skipIf(!RUN)("local-light imageEmbed (real jina-clip-v2 ONNX inference)", () => {
   test(
     "embeds images to the joint 1024-dim space; the same image is self-similar",
     async () => {

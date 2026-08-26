@@ -328,7 +328,6 @@ describe("read — listChats orders by the clock its rows DISPLAY (#150)", () =>
     const stamps = [9000, 2000, 7000, 4000, 6000];
     const rooms: ChatId[] = [];
     for (const [index, at] of stamps.entries()) {
-      // biome-ignore lint/performance/noAwaitInLoops: a keyset walk is sequential by definition, and these rooms are seeded in a fixed order so the page seams are deterministic.
       const room = await seedRoom(`keyset${String(index)}`, me);
       await seedMessage(db, room, 1, { role: "user", authorUserId: me, content: `line ${String(index)}`, createdAt: at });
       rooms.push(room);
@@ -340,7 +339,6 @@ describe("read — listChats orders by the clock its rows DISPLAY (#150)", () =>
     let cursor: ChatListCursor | undefined;
     let pages = 0;
     do {
-      // biome-ignore lint/performance/noAwaitInLoops: page N+1's cursor IS page N's answer.
       const page = await listChats({ principal: principal(me), limit: 2, ...(cursor === undefined ? {} : { cursor }) });
       walked.push(...page.items.map((c) => c.id));
       shown.push(...page.items.map((c) => c.lastMessageAt ?? c.updatedAt));
@@ -359,7 +357,6 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
   async function seedSameStampRooms(me: UserId, count: number, stamp: number, prefix = "page"): Promise<readonly ChatId[]> {
     const ids: ChatId[] = [];
     for (let i = 0; i < count; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: these rows share one `updatedAt` on purpose, so INSERT ORDER is all that separates them — parallelising would randomise the very keyset under test.
       const chatId = await seedChat(db, `${prefix}${i}`, { title: `Room ${i}`, updatedAt: stamp });
       await seedParticipant(db, { chatId, key: `${prefix}${i}_h`, userId: me, role: "host" });
       ids.push(chatId);
@@ -376,7 +373,6 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
     let cursor: ChatListCursor | undefined;
     let pages = 0;
     do {
-      // biome-ignore lint/performance/noAwaitInLoops: a KEYSET walk is sequential by definition — page N+1's cursor IS page N's answer, which is the property this test exists to prove.
       const page = await listChats({ principal: principal(me), limit: 3, ...(cursor === undefined ? {} : { cursor }) });
       walked.push(...page.items.map((c) => c.id));
       cursor = page.nextCursor ?? undefined;
@@ -407,7 +403,6 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
     const walked: ChatId[] = [];
     let cursor: ChatListCursor | undefined;
     do {
-      // biome-ignore lint/performance/noAwaitInLoops: page N+1's cursor is page N's answer; the tied seam is the subject.
       const page = await listChats({
         principal: principal(me),
         beforeRecencyAt: 10_000,

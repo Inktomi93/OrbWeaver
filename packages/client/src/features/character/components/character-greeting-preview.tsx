@@ -18,7 +18,7 @@ import { useState } from "react";
 import { GreetingStudio } from "#components";
 import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
 import type { AppFormInstance } from "#forms";
-import { cn } from "#lib";
+import { cn, notify } from "#lib";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
@@ -213,7 +213,7 @@ function GreetingActions({
             onClick={(): void => {
               // The D78 store-subscription driver persists structural array ops (removeFieldValue routes
               // through setFieldValue) — no call-site flush (autosave-form-doctrine.md §3, G-A).
-              void form.removeFieldValue("greetings", index);
+              form.removeFieldValue("greetings", index).catch(() => notify.error("Couldn't remove the greeting."));
               onActiveIndexChange(Math.max(0, index - 1));
               // This Remove button unmounts when the new active greeting is the solo first message, dropping
               // focus to <body> (no SR announcement on a destructive act — side-eye #6). Move focus to the

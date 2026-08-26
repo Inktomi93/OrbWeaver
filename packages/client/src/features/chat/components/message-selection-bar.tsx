@@ -61,14 +61,7 @@ export function MessageSelectionBar({ chatId }: MessageSelectionBarProps): React
     if (messageIds.length === 0) {
       return;
     }
-    void (async (): Promise<void> => {
-      try {
-        await remove.mutateAsync({ chatId, messageIds });
-        exitSelectionMode(); // leave select mode once the delete lands.
-      } catch {
-        // The mutation's own `errorToast` already surfaced it; stay in select mode for retry.
-      }
-    })();
+    remove.mutate({ chatId, messageIds }, { onSuccess: exitSelectionMode });
   };
 
   return (

@@ -1420,6 +1420,11 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     const speakerAssembleContext = applyCompactionOverlay(await resolveSpeakerMemory(ctx, deps, prep), compactionOverlay);
     // The engine measures the wall-clock window around the role call and stamps it on the variant.
     const genStartedAt = ctx.now();
+    // `runTurnPipeline`'s delta callback is synchronous, but chat emission is a durable-first Promise. Own an
+    // ordered tail for this turn: every delta waits for the previous append, and the drain is awaited below
+    // before any commit/terminal event. A rejection remains on the tail and fails the turn — a missing durable
+    // delta followed by terminal success would be a corrupt replay history, not a recoverable background fault.
+    let deltaTail = Promise.resolve();
     // Held as a named value, not inlined into the call: the prose-less RECOVERY pass re-runs THIS turn from
     // exactly these arguments with two overrides (`recover-narrative.ts`), and a second hand-built literal
     // would be a second definition of the turn, free to drift.
@@ -1467,7 +1472,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
         signal: prep.signal,
       },
       onDelta: (delta): void => {
-        void deps.emit({ type: "delta", chatId: prep.chatId, slotSeq, delta });
+        deltaTail = deltaTail.then(() => deps.emit({ type: "delta", chatId: prep.chatId, slotSeq, delta }));
       },
     } satisfies Parameters<typeof runTurnPipeline>[0];
     const firstPass = await runTurnPipeline(pipelineArgs);
@@ -1484,6 +1489,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       first: firstPass,
       onRecoveryOutcome: (recovered): void => captureTurnOutcome(prep, recovered, ctx.now()),
     });
+    await deltaTail;
     const genFinishedAt = ctx.now();
     await emitCapabilityDropWarnings(deps.emit, prep.chatId, result);
     // VER-1b — refuse a prose-less generation BEFORE any canon write (see `assertGeneratedContent`). Placed
@@ -1544,7 +1550,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     await deps.emit({ type: "turnCompleted", chatId: prep.chatId, intent, messageId: view.id });
     // Fans chatsChanged to every present human member's live channel (chat-list recency); fired once here for
     // the whole turn, not also on messageCommitted above (would triple-invalidate list keys).
-    void ctx.emitChatChanged(prep.chatId);
+    await ctx.emitChatChanged(prep.chatId);
 
     // Fire-and-forget memory trigger, must not block the reply; skipped entirely when the host disabled
     // memory. Reads the same resolved host config recall does, so its tuning is honored too.

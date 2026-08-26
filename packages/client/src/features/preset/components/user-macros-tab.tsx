@@ -18,7 +18,7 @@ import { useState } from "react";
 import type { UserMacrosFormValues } from "#components";
 import { EntryListEditor, UserMacroEditorDialog } from "#components";
 import type { AppFormInstance } from "#forms";
-import { withUserMacros } from "#lib";
+import { notify, withUserMacros } from "#lib";
 import { MacroBrowser } from "./macro-browser.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
@@ -58,7 +58,7 @@ export function UserMacrosTab({ form, presetId }: UserMacrosTabProps): ReactElem
             onAdd={onAdd}
             onEdit={setEditIndex}
             onRemove={(index): void => {
-              void form.removeFieldValue("userMacros", index);
+              form.removeFieldValue("userMacros", index).catch(() => notify.error("Couldn't remove the macro."));
             }}
             renderEditor={(index): ReactElement => (
               // The shared dialog binds only `userMacros[*]`, which PromptConfig carries; TanStack form

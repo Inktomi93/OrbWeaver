@@ -130,7 +130,6 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
     let pulls = 0;
     const seqs: number[] = [];
     for (; pulls < 4000 && !sawTerminal; pulls++) {
-      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
       const frame = frameOf((await iterator.next()).value);
       if (frame.channel === "control" && frame.type === "roomLagged") {
         sawLag = true;
@@ -201,7 +200,6 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
     const seqs: number[] = [];
     let pulls = 0;
     for (; pulls < 6000 && seqs.at(-1) !== total; pulls++) {
-      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
       const frame = frameOf((await iterator.next()).value);
       if (isChatFrame(frame) && frame.event.type !== "chatOpened") {
         seqs.push(frame.seq);
@@ -269,7 +267,6 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     const first = (await caller(ctx).stream.connect({ socketId })) as AsyncIterable<unknown>;
     const it1 = first[Symbol.asyncIterator]();
     for (let i = 0; i < 7; i++) {
-      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
       const frame = frameOf((await it1.next()).value);
       if (isChatFrame(frame) && frame.seq > 3) {
         continue; // rows 4,5 died in the dying socket's buffer: yielded by the server, never received
@@ -304,7 +301,6 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     // The barrier lifts into a rewound pump: `attached` ack, chatOpened(3), then rows 4, 5, 6.
     receive(frameOf((await parked).value));
     for (let i = 0; i < 4; i++) {
-      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
       receive(frameOf((await it2.next()).value));
     }
     await it2.return?.(undefined);
@@ -357,7 +353,6 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     const first = (await caller(ctx).stream.connect({ socketId })) as AsyncIterable<unknown>;
     const it1 = first[Symbol.asyncIterator]();
     for (let i = 0; i < 7; i++) {
-      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
       const frame = frameOf((await it1.next()).value);
       if (isChatFrame(frame) && frame.seq > 3) {
         continue;
@@ -382,7 +377,6 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     await caller(ctx).stream.attach({ socketId, ref: room, sinceSeq: guard.highWater(chatId) ?? 0 });
     receive(frameOf((await parked).value));
     for (let i = 0; i < 4; i++) {
-      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
       receive(frameOf((await it2.next()).value));
     }
     expect(applied).toEqual([1, 2, 3, 4, 5, 6]);

@@ -33,7 +33,7 @@ import { EntryListEditor, UserMacroEditorDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm } from "#forms";
-import { withUserMacros } from "#lib";
+import { notify, withUserMacros } from "#lib";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 
 // The autosave macro-list form. Module scope (stable identity — the D54 §13.1 factory pattern); keyed by the
@@ -104,7 +104,7 @@ function GameMacrosBody({
             onAdd={onAdd}
             onEdit={setEditIndex}
             onRemove={(index): void => {
-              void form.removeFieldValue("userMacros", index);
+              form.removeFieldValue("userMacros", index).catch(() => notify.error("Couldn't remove the macro."));
             }}
             renderEditor={(index): ReactElement => (
               <UserMacroEditorDialog

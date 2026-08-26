@@ -327,7 +327,6 @@ async function judgeAll(samples: readonly Sample[]): Promise<void> {
     if (fx === undefined || s.judge?.model === JUDGE_STAMP) {
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: sequential BY DESIGN — each verdict is persisted before the next call, so an interrupted judge pass resumes instead of re-buying every judgment.
     s.judge = { verdict: await judgeSample(s.raw, fx, key), model: JUDGE_STAMP };
     rewriteSamples(samples);
     console.log(`  judge ${s.arm}/${s.fixture}#${s.sample} → ${s.judge.verdict}`);
@@ -351,7 +350,6 @@ async function runArm(args: {
       if (collected.some((s) => s.arm === arm && s.fixture === fx.id && s.sample === i && s.model === model && (s.layer ?? "off") === LAYER)) {
         continue;
       }
-      // biome-ignore lint/performance/noAwaitInLoops: sequential BY DESIGN — one generation at a time keeps the local engine off its queue and persists each sample before the next is bought.
       const { text, finishReason } = await generate(arm, model, built, key);
       const cleaned = applyProductionClean(text, built.castNames, built.personaName);
       const sample: Sample = {
@@ -405,7 +403,6 @@ async function main(): Promise<void> {
   const arms = (ENV["IMP_ARMS"] ?? "local").split(",").map((s) => s.trim()) as ArmName[];
   const key = arms.includes("hosted") ? openRouterKey() : "";
   for (const arm of arms) {
-    // biome-ignore lint/performance/noAwaitInLoops: two arms at most, and they must not interleave — the local engine and the hosted endpoint are reported as separate measurements.
     const model = arm === "local" ? await localModel() : HOSTED_MODEL;
     await runArm({ arm, model, fixtures, samples, key });
   }

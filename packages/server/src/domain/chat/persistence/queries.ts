@@ -559,7 +559,6 @@ export async function loadAncestorChain(db: Db, chatId: ChatId, maxDepth = 64): 
   let current: ChatId | undefined = chatId;
   while (current !== undefined && !visited.has(current) && chain.length < maxDepth) {
     visited.add(current);
-    // biome-ignore lint/performance/noAwaitInLoops: the lineage is a linked list — each ancestor's id is the prior row's parentChatId, so the walk is inherently sequential.
     const row = await loadChatRow(db, current);
     if (row === undefined) {
       break;

@@ -15,7 +15,6 @@ import { makeResolvedCredential } from "../../../../../support/factories/resolve
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 const RUN = process.env["ORB_LOCAL_LIGHT_E2E"] === "1";
-const suite = RUN ? describe : describe.skip;
 
 const CRED = makeResolvedCredential("local-light");
 const MODEL = DEFAULT_RERANK_MODEL as ModelId;
@@ -34,7 +33,7 @@ function rerankFn(): (req: RerankRequest) => Promise<RerankResult> {
   return fn;
 }
 
-suite("local-light rerank (real cross-encoder ONNX inference)", () => {
+describe.skipIf(!RUN)("local-light rerank (real cross-encoder ONNX inference)", () => {
   test(
     "ranks the on-topic document first and keeps caller ids",
     async () => {

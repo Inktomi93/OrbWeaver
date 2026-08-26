@@ -89,11 +89,18 @@ export function useCardFrameSrc(request: CardFrameRequest | undefined): string |
     let live = true;
     const pending = minted.get(body) ?? mintCardFrame(body);
     minted.set(body, pending);
-    void pending.then((url) => {
-      if (live) {
-        setResolved({ body, url });
-      }
-    });
+    pending.then(
+      (url) => {
+        if (live) {
+          setResolved({ body, url });
+        }
+      },
+      () => {
+        if (live) {
+          setResolved({ body, url: undefined });
+        }
+      },
+    );
     return (): void => {
       live = false;
     };

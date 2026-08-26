@@ -124,7 +124,6 @@ export async function capturePages(session: ProbeSession, opts: Args, plan: Shot
   const outcomes: CaptureOutcome[] = [];
   for (let index = 0; index < opts.pages; index += 1) {
     const page = session.pages[index] as Page;
-    // biome-ignore lint/performance/noAwaitInLoops: pages are driven sequentially so later tabs observe earlier-tab actions.
     outcomes.push(await capture(page, opts, { ...plan, pageIndex: index, totalPages: opts.pages }, session));
   }
   return outcomes;

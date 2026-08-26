@@ -181,7 +181,6 @@ describe("D146-d: a deactivated contributor PAUSES the rule and changes nothing"
     gate.installed = new Set();
 
     for (let i = 0; i <= CONSECUTIVE_ERROR_DISABLE_AT; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: the count IS the point — these must be sequential dispatches, not a batch.
       await fixture.svc.handleEvent({ type: "chatOpened", chatId: fixture.chatId });
     }
 

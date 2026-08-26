@@ -271,7 +271,6 @@ describe("Sandbox — handle discipline", () => {
     const sandbox = await Sandbox.create(makeSeams());
     try {
       for (let i = 0; i < 10_000; i++) {
-        // biome-ignore lint/performance/noAwaitInLoops: invocations MUST be sequential (one shared context) — the loop IS the leak-discipline probe.
         const outcome = await sandbox.evalGuest("1 + 1");
         if (!outcome.ok) {
           throw new Error(`invocation ${i} failed`);

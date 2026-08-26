@@ -67,7 +67,6 @@ describe("loadAncestorChain — the depth cap", () => {
     let parent: ChatId | null = null;
     const ids: ChatId[] = [];
     for (let i = 0; i < depth; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential — each node's parent is the prior node's id (a linked list).
       const id = await seedChat(db, `depth_${i}`, parent === null ? {} : { parentChatId: parent });
       ids.push(id);
       parent = id;

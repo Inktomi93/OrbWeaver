@@ -265,7 +265,6 @@ async function buildContext(args: BuildContextArgs): Promise<ProbeContext> {
   const pageCount = Math.max(1, opts.pages ?? 1);
   const pages: Page[] = [];
   for (let i = 0; i < pageCount; i += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: pages open + wire SEQUENTIALLY — a shared-context tab must have its listeners attached (and emulateMedia applied) before the next opens; N is tiny (typically 2).
     const page = await context.newPage();
     await wirePage(page, capture);
     pages.push(page);
@@ -292,7 +291,6 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
   const cookies = opts.contextCookies ?? [];
   const contexts: ProbeContext[] = [];
   for (let i = 0; i < contextCount; i += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: contexts open SEQUENTIALLY — same discipline as the per-context page loop; N is tiny (typically ≤4).
     const built = await buildContext({ browser, opts, deviceDescriptor, sessionCookie: cookies[i] ?? null, contextIndex: i });
     contexts.push(built);
   }

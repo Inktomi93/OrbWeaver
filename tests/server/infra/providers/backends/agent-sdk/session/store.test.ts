@@ -101,7 +101,6 @@ function lineageKey(n: number): Key {
 }
 async function fillToCap(store: InMemorySessionStore): Promise<void> {
   for (let n = 0; n < LINEAGE_CAP; n += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential setup — LRU order depends on append order.
     await store.append(lineageKey(n), [{ type: "user", uuid: `u-${n}`, message: { role: "user", content: `l${n}` } }]);
   }
 }
@@ -144,7 +143,6 @@ describe("InMemorySessionStore — LRU lineage bound", () => {
     await store.append({ projectKey: "p", sessionId: victim, subpath: "sub-1" }, [{ type: "user", uuid: "s", message: { role: "user", content: "sub" } }]);
     // Fill the REST of the cap, then push one past — the two-key victim lineage is the oldest and drops whole.
     for (let n = 0; n < LINEAGE_CAP; n += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential setup.
       await store.append(lineageKey(n), [{ type: "user", uuid: `u-${n}`, message: { role: "user", content: `l${n}` } }]);
     }
     expect(await store.load({ projectKey: "p", sessionId: victim })).toBeNull();
@@ -458,7 +456,6 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
     // Poison every salt 0..3 with a NON-matching transcript so the walk exhausts the ceiling.
     for (let salt = 0; salt < 4; salt += 1) {
       const id = seedSessionId(CHAT_ID, seed, salt);
-      // biome-ignore lint/performance/noAwaitInLoops: sequential test setup, not a hot path.
       await appendOnly.append({ projectKey: "x", sessionId: id }, [{ type: "user", uuid: `poison-${salt}`, message: { role: "user", content: "mismatch" } }]);
     }
     const decision = await cache.ensureSeededSession(CHAT_ID, seed);

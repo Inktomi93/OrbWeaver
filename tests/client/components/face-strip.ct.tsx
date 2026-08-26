@@ -329,7 +329,6 @@ test("the fold holds at EVERY pane width: one un-scrolled row, nothing clipped, 
   for (const width of SWEEP_WIDTHS) {
     // The measuring host IS the mount root (a descendant query would never reach it — the same trap the
     // `role="list"` assertion above documents).
-    // biome-ignore lint/performance/noAwaitInLoops: a width SWEEP is sequential by definition — each width must settle its fold before the next is applied; a parallel batch would race the ResizeObserver, not sweep.
     await component.evaluate((host, next) => {
       (host as HTMLElement).style.width = `${next}px`;
     }, width);

@@ -89,7 +89,7 @@
     "ct:scoped": "rm -rf playwright/.cache && nice -n 19 playwright test -c playwright-ct.config.ts",
     "e2e": "nice -n 19 playwright test -c playwright.config.ts",
     "e2e:smoke": "nice -n 19 playwright test -c playwright.config.ts --grep @smoke",
-    "e2e:live": "E2E_LIVE=1 nice -n 19 playwright test -c playwright.config.ts start-chat-with-character.spec.ts",
+    "e2e:live": "E2E_LIVE=1 E2E_REQUIRE_EVIDENCE=1 nice -n 19 playwright test -c playwright.config.ts start-chat-with-character.spec.ts",
     "cpd": "jscpd -c jscpd.json",
     "cpd:report": "jscpd -c jscpd.json --reporters html --output reports/cpd",
     "test:mutation": "nice -n 19 stryker run stryker.config.json",
