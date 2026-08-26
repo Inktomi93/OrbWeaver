@@ -636,15 +636,15 @@
     },
     {
       "path": "docs/design/issue-712-gate-family.md",
-      "assignedSha256": "18e55457b3e0e514f1605de5779b82bed2b033527433554ee2a0a5e0a46c2374",
+      "assignedSha256": "247ee0a3a3ca5c65ca01b97fad23a474e8f85a0f7f05b5c061f95826fae7e414",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "18e55457b3e0e514f1605de5779b82bed2b033527433554ee2a0a5e0a46c2374",
-      "verifiedCommit": "d929feb014bf4ba8becd41655d12b67bfd8d87fa",
+      "verifiedSha256": "247ee0a3a3ca5c65ca01b97fad23a474e8f85a0f7f05b5c061f95826fae7e414",
+      "verifiedCommit": "6b2052e28d98a93455084a658a1d946df54dc28b",
       "verifiedAt": "2026-08-25",
       "evidence": [
-        "docs/design/issue-712-gate-family.md read in full after commit d929feb01; every E1-E8 disposition was rechecked against issue #712 and the live paired seams",
+        "docs/design/issue-712-gate-family.md read in full after commit 6b2052e28; every E1-E8 disposition was rechecked against issue #712, the live paired seams, and the generated 588-TSX / 67-control E7 census",
         "tooling/src/verify/gates/GATE-AUTHORING.md:49 fail-closed descriptor contract",
         "docs/architecture/core/Core-0-Architecture-and-Structure.md:314 durable-tool versus research-zone boundary"
       ],

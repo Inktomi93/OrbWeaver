@@ -425,9 +425,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 363,
-      "bytes": 176826,
-      "sha256": "1502033c880688040c860f0b42b59c3d09ed70f5cc33e344039488f09433f7f7",
+      "lines": 370,
+      "bytes": 178572,
+      "sha256": "4ae4e0dfaa4e6cd8c8635335b2853f1fb6a5015899163657532ec837e3a80925",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -440,12 +440,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "397a1bc1138182b058791c8dceb2771674c805b1907345f5b79041b478fe9e09",
+        "assignedSha256": "4ae4e0dfaa4e6cd8c8635335b2853f1fb6a5015899163657532ec837e3a80925",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "1502033c880688040c860f0b42b59c3d09ed70f5cc33e344039488f09433f7f7",
-        "verifiedCommit": "0d416836d30acc31d94c53c06903773ede90c1bf",
+        "verifiedSha256": "4ae4e0dfaa4e6cd8c8635335b2853f1fb6a5015899163657532ec837e3a80925",
+        "verifiedCommit": "b4abe5069017ccb019c7ce544126c2b5f5614273",
         "verifiedAt": "2026-08-25",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -468,7 +468,8 @@
           "delta re-verify 2026-08-24 (#626, lane cb-plate-gate, merged 1d628e149): the over-art plate law written down for the first time (UI-Theming §12.1 bullet) + its gate row (§12.6) and the Layer-3 ACTIVE row, count 225->226. Gate lands status:active with a 5-row SHRINK-ONLY ratchet (arm B, chosen because 5 live lanes run check:structure in their floors); population machine-surveyed by a real CSS rule parser: 9 rules under html[data-blur-*] carrying a background-color, keyed by (selector SUBJECT, tint token) so #623's portal-sibling companion pairs with its descendant-selector base. 3 keys compliant, 5 failing (2 MEASURED at 3.30:1 and 3.69:1, 3 STRUCTURAL and explicitly PENDING MEASUREMENT with the provenance phrase pinned so nobody mistakes a flag for a measurement). Both ratification receipts: real-tree planted probe reds then rm'd clean, and an 11-test committed pin.",
           "delta re-verify 2026-08-25 (#713-716 review reconciliation, commit 6f1a32b33): full document re-read against the implemented descriptors; rows now state the exact AST identities, relationships, executable evidence, fail-loud belts/homes, comment scopes, and declared limits. The integrated union passed the authoritative structure front door at 229/229 active gates over 5,727 files (run 912062-2026-08-25T22:22:50.369Z).",
           "delta re-verify 2026-08-25 (post-Stickler repair union, commit 1c30c9582): fourteen changed registry rows were re-read against the repaired descriptors and planted controls. They now state predicate polarity, principal/egress binding, canonical receiver/symbol identity, callable reachability, cross-file evaluate closure analysis, transformed CT taint, and exact two-sided ONESHOT grammar. The strengthened CT gate scanned 423 files and drove the measured 619-finding corpus to zero across three disjoint migration lanes.",
-          "final union re-attestation 2026-08-25 (commit 0d416836d): the live contract-verb receiver relation, nested turn-bundle provenance, canonical bus/user-bus emitter doors, owner verifier result relation, namespace vector identity, warning accumulator identity, and supported Container composition were re-derived after the first normal hook exposed their coupled seams. Permanent old-source controls failed as expected, current focused suites passed 31/31, scoped CT passed 180/180, all type layers passed, and the authoritative structure front door completed 229/229 active gates clean."
+          "final union re-attestation 2026-08-25 (commit 0d416836d): the live contract-verb receiver relation, nested turn-bundle provenance, canonical bus/user-bus emitter doors, owner verifier result relation, namespace vector identity, warning accumulator identity, and supported Container composition were re-derived after the first normal hook exposed their coupled seams. Permanent old-source controls failed as expected, current focused suites passed 31/31, scoped CT passed 180/180, all type layers passed, and the authoritative structure front door completed 229/229 active gates clean.",
+          "delta re-verify 2026-08-25 (#712, commit b4abe5069): three narrow active rows (untrusted-regex-safe-exec, public-route-body-cap, plugin-dump-guard) and count 229->232 were re-read against their descriptors, mustFlag/mustPass controls, and paired product migrations. Gate conformance passed 8/8; the authoritative anti-drift run proved all three new fixtures fired and no active gate was blind. Its only final failure was the pre-existing user-bus-coverage fixture, not a #712 gate."
         ],
         "claims": [
           {
@@ -11574,8 +11575,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 56,
-      "bytes": 7510,
-      "sha256": "18e55457b3e0e514f1605de5779b82bed2b033527433554ee2a0a5e0a46c2374",
+      "bytes": 7639,
+      "sha256": "247ee0a3a3ca5c65ca01b97fad23a474e8f85a0f7f05b5c061f95826fae7e414",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11588,15 +11589,15 @@
       },
       "receipt": {
         "path": "docs/design/issue-712-gate-family.md",
-        "assignedSha256": "18e55457b3e0e514f1605de5779b82bed2b033527433554ee2a0a5e0a46c2374",
+        "assignedSha256": "247ee0a3a3ca5c65ca01b97fad23a474e8f85a0f7f05b5c061f95826fae7e414",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "18e55457b3e0e514f1605de5779b82bed2b033527433554ee2a0a5e0a46c2374",
-        "verifiedCommit": "d929feb014bf4ba8becd41655d12b67bfd8d87fa",
+        "verifiedSha256": "247ee0a3a3ca5c65ca01b97fad23a474e8f85a0f7f05b5c061f95826fae7e414",
+        "verifiedCommit": "6b2052e28d98a93455084a658a1d946df54dc28b",
         "verifiedAt": "2026-08-25",
         "evidence": [
-          "docs/design/issue-712-gate-family.md read in full after commit d929feb01; every E1-E8 disposition was rechecked against issue #712 and the live paired seams",
+          "docs/design/issue-712-gate-family.md read in full after commit 6b2052e28; every E1-E8 disposition was rechecked against issue #712, the live paired seams, and the generated 588-TSX / 67-control E7 census",
           "tooling/src/verify/gates/GATE-AUTHORING.md:49 fail-closed descriptor contract",
           "docs/architecture/core/Core-0-Architecture-and-Structure.md:314 durable-tool versus research-zone boundary"
         ],
