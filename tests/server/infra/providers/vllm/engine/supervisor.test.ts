@@ -18,10 +18,13 @@ import { expect, test } from "../../../../../support/fixtures.ts";
 const io = vi.hoisted(() => {
   // Engines currently answering /health OK. A trigger marks the trio healthy; a simulated crash removes one.
   const healthy = new Set<string>();
+  // Configured ports that accept TCP but never answer /health — the production probe classifies the timeout
+  // as occupied, which is the hung transition the lifecycle tests must reach through the real shell.
+  const occupied = new Set<string>();
   const triggers: number[] = []; // one entry per triggerSpawn call (detached fleet boots)
   // detectGpu's nvidia-smi probe outcome. Default false = a GPU is "present"; the manager-scoped-GPU
   // describe flips it true to drive a GPU-less box (and resets it in its afterEach).
-  return { healthy, triggers, gpuAbsent: false };
+  return { healthy, occupied, triggers, gpuAbsent: false };
 });
 
 // Partial mocks (spread the real module — foundation/config etc. still need readFileSync/the rest).
@@ -119,9 +122,10 @@ describe("decideTick", () => {
         status: "owned",
       });
     });
-    test("owned but child gone → adopt (someone else's healthy engine)", () => {
+    test("owned after its detached launch settles → keep durable ownership", () => {
       expect(decideTick({ ...base, status: "owned", probe: "healthy", spawnTriggered: false })).toEqual({
-        kind: "adopt",
+        kind: "mark",
+        status: "owned",
       });
     });
     test("already adopted → none (steady state)", () => {
@@ -167,6 +171,12 @@ describe("decideTick", () => {
         unhealthyStreak: 2, // +1 this tick = 3 = HUNG_THRESHOLD
       });
       expect(action).toEqual({ kind: "restart", reason: "hung (owned)" });
+    });
+    test("streak crosses the hung threshold after the detached spawn flag clears → restart", () => {
+      expect(decideTick({ ...base, status: "owned", probe: "occupied", spawnTriggered: false, unhealthyStreak: 2 })).toEqual({
+        kind: "restart",
+        reason: "hung (owned)",
+      });
     });
     test("hung but not ours → mark hung (never kill a process we don't own)", () => {
       expect(decideTick({ ...base, status: "foreign", probe: "occupied", unhealthyStreak: 2 })).toEqual({
@@ -287,6 +297,7 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
 
   beforeEach(() => {
     io.healthy.clear();
+    io.occupied.clear();
     io.triggers.length = 0;
     vi.useFakeTimers();
     // /health: healthy iff the engine is in the healthy set (a trigger boots the fleet; a crash removes one).
@@ -294,6 +305,11 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
     vi.stubGlobal("fetch", (input: unknown): Promise<{ ok: boolean; json: () => Promise<unknown> }> => {
       const url = String(input);
       const engine = urlEngine(url);
+      if (engine !== undefined && io.occupied.has(engine)) {
+        const timeout = new Error("health timed out");
+        timeout.name = "TimeoutError";
+        return Promise.reject(timeout);
+      }
       if (engine !== undefined && io.healthy.has(engine)) {
         // biome-ignore lint/style/useNamingConvention: is_sleeping mirrors the vLLM /is_sleeping wire body.
         const body = url.includes("/is_sleeping") ? { is_sleeping: false } : {};
@@ -323,6 +339,76 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
     io.healthy.add("rerank");
     io.healthy.add("gen");
   };
+
+  test("a manager-owned healthy engine that becomes hung is identity-verified, killed, and restarted once", async () => {
+    const signals: NodeJS.Signals[] = [];
+    const stop = startVllmEngines({
+      repoRoot: "/repo",
+      now: (): number => fixedNow,
+      sleep: () => Promise.resolve(),
+      triggerSpawn,
+      portOwnerPid: () => Promise.resolve(7331),
+      signalEngineProcess: (engine, _listenerPid, signal) => {
+        signals.push(signal);
+        io.occupied.delete(engine);
+        return { verdict: "signaled", pgid: 7331 };
+      },
+    });
+    try {
+      await settle();
+      expect(getEngineStatus("embed")?.status).toBe("owned");
+      const triggersAfterBoot = io.triggers.length;
+
+      io.healthy.delete("embed");
+      io.occupied.add("embed");
+      for (let tick = 0; tick < 3; tick += 1) {
+        // biome-ignore lint/performance/noAwaitInLoops: each monitor tick advances the production streak.
+        await vi.advanceTimersByTimeAsync(monitorIntervalMs);
+        // biome-ignore lint/performance/noAwaitInLoops: settle the work queued by that exact tick.
+        await settle();
+      }
+
+      expect(signals).toEqual(["SIGKILL"]);
+      expect(io.triggers).toHaveLength(triggersAfterBoot + 1);
+      expect(getEngineStatus("embed")?.status).toBe("owned");
+    } finally {
+      stop();
+    }
+  });
+
+  test("a hung port whose durable launch identity is foreign is never killed or spawned over", async () => {
+    const signals: NodeJS.Signals[] = [];
+    const stop = startVllmEngines({
+      repoRoot: "/repo",
+      now: (): number => fixedNow,
+      sleep: () => Promise.resolve(),
+      triggerSpawn,
+      portOwnerPid: () => Promise.resolve(7331),
+      signalEngineProcess: (_engine, _listenerPid, signal) => {
+        signals.push(signal);
+        return { verdict: "refused", reason: "configured port is owned by a foreign process" };
+      },
+    });
+    try {
+      await settle();
+      const triggersAfterBoot = io.triggers.length;
+
+      io.healthy.delete("embed");
+      io.occupied.add("embed");
+      for (let tick = 0; tick < 3; tick += 1) {
+        // biome-ignore lint/performance/noAwaitInLoops: each monitor tick advances the production streak.
+        await vi.advanceTimersByTimeAsync(monitorIntervalMs);
+        // biome-ignore lint/performance/noAwaitInLoops: settle the work queued by that exact tick.
+        await settle();
+      }
+
+      expect(signals).toEqual(["SIGKILL"]);
+      expect(io.triggers).toHaveLength(triggersAfterBoot);
+      expect(getEngineStatus("embed")?.status).toBe("foreign");
+    } finally {
+      stop();
+    }
+  });
 
   test("a monitor tick inside the restart backoff does NOT double-queue the respawn", async () => {
     // Injected sleep: park the restart backoff (>=5s) on a manual resolver so a monitor tick can land in
