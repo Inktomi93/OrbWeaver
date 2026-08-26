@@ -326,12 +326,11 @@ test("resolveSelection: a DELETED path lints clean — dropped from the tool fil
 test("resolveSelection: a tests/ file flags the graph-only trees (types:graph runs at changed scope)", () => {
   const sel = resolveSelection({ kind: "file", paths: ["tests/tooling/verify/ops/run.int.test.ts"] });
   expect(sel.touchesGraphOnlyTrees).toBe(true);
-  // …and a packages/ src file NOT import-pulled into the DOM-less graph does NOT (attachment-url-context
-  // is a client-only feature hook — its whole closure stays in packages/client/src, never crossing into a
-  // tests/ or scripts/ root, so the graph program never sees it via import-pull).
+  // …and a packages/ src file NOT import-pulled into the DOM-less graph does NOT (`app.tsx` is the client
+  // browser root, so the graph program never sees it via a tests/scripts import pull).
   const pkg = resolveSelection({
     kind: "file",
-    paths: ["packages/client/src/features/chat/hooks/attachment-url-context.tsx"],
+    paths: ["packages/client/src/app.tsx"],
   });
   expect(pkg.touchesGraphOnlyTrees).toBe(false);
 });
@@ -352,7 +351,7 @@ test("resolveSelection: an import-pulled src file DOES flag the graph (the TS258
 test("types:graph scopedArgv: deferred (whole-only) unless the selection touches the graph program", () => {
   const pkgSel = resolveSelection({
     kind: "file",
-    paths: ["packages/client/src/features/chat/hooks/attachment-url-context.tsx"],
+    paths: ["packages/client/src/app.tsx"],
   });
   expect(stage("types:graph").scopedArgv?.(pkgSel)).toBe("whole-only");
   const testSel = resolveSelection({ kind: "file", paths: ["tests/tooling/x.int.test.ts"] });
