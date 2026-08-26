@@ -4,8 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import type { LocalStorageSeed } from "@orb/tooling/_shared/browser";
+import { launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { afterAll } from "vitest";
+import { chromiumPidsOwnedBy } from "../../support/chromium-processes.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 // 3-up: tests/tooling/_shared → repo root (re-derived at the P2 relocation — the depth-derived-root class).
@@ -71,6 +74,73 @@ afterAll(() => {
     rmSync(join(REPORT_TRACES, `${RUN_ID}_${suffix}.har`), { force: true });
     rmSync(join(REPORT_SNAPS, `${RUN_ID}_${suffix}.png`), { force: true });
   }
+});
+
+test("a real Chromium process is disconnected after a driven body throws", async () => {
+  const session = await launchProbeSession({
+    headless: true,
+    viewport: { width: 320, height: 240 },
+    colorScheme: null,
+    reducedMotion: false,
+    localStorage: [],
+  });
+
+  await expect(withProbeSession(session, () => Promise.reject(new Error("planted live drive failure")))).rejects.toThrow("planted live drive failure");
+  expect(session.browser.isConnected()).toBe(false);
+});
+
+test("a context-initialization failure leaves no owned Chromium process behind", async () => {
+  const before = chromiumPidsOwnedBy(ROOT);
+  const initFailure = new Error("planted init-script setup failure");
+  const localStorage = new Proxy<LocalStorageSeed[]>([], {
+    get(target, property, receiver) {
+      if (property === "length") {
+        throw initFailure;
+      }
+      return Reflect.get(target, property, receiver);
+    },
+  });
+  const failure = await launchProbeSession({
+    headless: true,
+    viewport: { width: 320, height: 240 },
+    colorScheme: null,
+    reducedMotion: false,
+    localStorage,
+  }).catch((error: unknown) => error);
+  expect(failure).toBe(initFailure);
+  const survivors = [...chromiumPidsOwnedBy(ROOT)].filter((pid) => !before.has(pid));
+  expect(survivors).toEqual([]);
+});
+
+test("a snap capture failure leaves no owned Chromium process behind", () => {
+  const before = chromiumPidsOwnedBy(ROOT);
+  const result = runSnap([
+    "--file",
+    fixture("capture-failure", "<main>capture failure</main>"),
+    "--out",
+    "/proc/orbweaver-planted-unwritable-shot.png",
+    "--no-failure-evidence",
+  ]);
+  expect(result.status).not.toBe(0);
+  const survivors = [...chromiumPidsOwnedBy(ROOT)].filter((pid) => !before.has(pid));
+  expect(survivors).toEqual([]);
+});
+
+test("a scenario capture failure leaves no owned Chromium process behind", () => {
+  const before = chromiumPidsOwnedBy(ROOT);
+  const page = fixture("scenario-capture-failure", "<main>scenario capture failure</main>");
+  const scenarioPath = join(TEMP, "scenario-capture-failure.json");
+  writeFileSync(
+    scenarioPath,
+    JSON.stringify({
+      name: "planted scenario failure",
+      checkpoints: [{ name: "unwritable", args: ["--file", page, "--out", "/proc/orbweaver-planted-unwritable-scenario.png"] }],
+    }),
+  );
+  const result = runSnap(["--scenario", scenarioPath, "--no-failure-evidence"]);
+  expect(result.status).not.toBe(0);
+  const survivors = [...chromiumPidsOwnedBy(ROOT)].filter((pid) => !before.has(pid));
+  expect(survivors).toEqual([]);
 });
 
 test("snap excludes React Activity-style hidden DOM unless the operator opts in", () => {

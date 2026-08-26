@@ -46,6 +46,7 @@ test("the route is still positional, and exactly one of them", () => {
 
 test("viewport and duration argv reject malformed values instead of retaining defaults", () => {
   expect(parsePerfArgs(["/", "--viewport", "1280x800x2"]).errors).toContain("--viewport requires WIDTHxHEIGHT positive integers");
+  expect(parsePerfArgs(["/", "--viewport", "1e3x800"]).errors).toContain("--viewport requires WIDTHxHEIGHT positive integers");
   for (const raw of ["-1", "0", "Infinity", "nope"]) {
     expect(parsePerfArgs(["/", "--settle", raw]).errors).toContain("--settle requires a positive finite duration in milliseconds");
     expect(parsePerfArgs(["/", "--pause", raw]).errors).toContain("--pause requires a positive finite duration in milliseconds");

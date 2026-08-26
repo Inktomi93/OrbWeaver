@@ -9,6 +9,8 @@ import { writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
+import process from "node:process";
+import { chromiumPidsOwnedBy } from "../../support/chromium-processes.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const CLI_TIMEOUT_MS = 90_000;
@@ -289,6 +291,7 @@ const SHELL_HTML = `<!doctype html>
 // This case deliberately BURNS the readiness wait (the app never announces itself), so it costs the full
 // selector budget on top of the browser spawn — an explicit budget, not a blanket file raise.
 test("an app origin whose app never mounted is an INSTRUMENT ERROR, never a clean audit", { timeout: 30_000 }, async ({ runCli }) => {
+  const before = chromiumPidsOwnedBy(process.cwd());
   const server = await serveOnce(SHELL_HTML);
   try {
     const res = await runCli("ui-audit", ["/", "--base", server.base], { timeoutMs: CLI_TIMEOUT_MS });
@@ -298,6 +301,8 @@ test("an app origin whose app never mounted is an INSTRUMENT ERROR, never a clea
   } finally {
     server.close();
   }
+  const survivors = [...chromiumPidsOwnedBy(process.cwd())].filter((pid) => !before.has(pid));
+  expect(survivors).toEqual([]);
 });
 
 test("the SAME page over the SAME origin with the readiness flag audits normally — the fence is not a blanket refusal", async ({ runCli }) => {
