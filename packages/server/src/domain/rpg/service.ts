@@ -14,7 +14,7 @@ import { createAddJournalEntry, createDeleteJournalEntry, createEditJournalEntry
 import { createPatchActor } from "./verbs/patch-actor.ts";
 import { createPatchSheet } from "./verbs/patch-sheet.ts";
 import { createPromoteActor } from "./verbs/promote-actor.ts";
-import { createDeleteQuest, createUpsertQuest } from "./verbs/quest/index.ts";
+import { createDeleteQuest, createEditQuestObjective, createUpsertQuest } from "./verbs/quest/index.ts";
 import {
   createGetConfigView,
   createGetGame,
@@ -39,6 +39,7 @@ export function createRpgService(deps: RpgContextDeps): RpgService {
     ...createDismissActor(ctx),
     ...createPromoteActor(ctx),
     ...createUpsertQuest(ctx),
+    ...createEditQuestObjective(ctx),
     ...createDeleteQuest(ctx),
     ...createAddJournalEntry(ctx),
     ...createEditJournalEntry(ctx),

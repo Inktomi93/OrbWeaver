@@ -9,6 +9,7 @@ import {
   RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT,
   rpgCreateGameInputSchema,
   rpgDismissActorInputSchema,
+  rpgEditQuestObjectiveInputSchema,
   rpgListJournalInputSchema,
   rpgListTurnToolCallsInputSchema,
   rpgPatchActorInputSchema,
@@ -51,14 +52,30 @@ test("patchSheet: actorRef is the DERIVED discriminated union — a malformed re
   expect(rpgPatchSheetInputSchema.safeParse(bogus).success).toBe(false);
 });
 
-test("upsertQuest: status is enum-gated; questId + objectives are optional (a fresh quest omits them)", () => {
+test("upsertQuest: create may seed objectives, but an update cannot send a stale objectives image", () => {
   expect(rpgUpsertQuestInputSchema.safeParse({ chatId: CHAT_ID, name: "Rescue" }).success).toBe(true);
   expect(rpgUpsertQuestInputSchema.safeParse({ chatId: CHAT_ID, name: "Rescue", status: "completed" }).success).toBe(true);
   expect(rpgUpsertQuestInputSchema.safeParse({ chatId: CHAT_ID, name: "Rescue", status: "abandoned" }).success).toBe(false);
   // an authoring objective omits its id (the verb mints it); an empty name is refused.
   const authored = { chatId: CHAT_ID, name: "Rescue", objectives: [{ text: "reach the tower" }] };
   expect(rpgUpsertQuestInputSchema.safeParse(authored).success).toBe(true);
+  expect(
+    rpgUpsertQuestInputSchema.safeParse({ chatId: CHAT_ID, questId: "quest_alpha", name: "Rescue", objectives: [{ id: "o1", text: "stale" }] }).success,
+  ).toBe(false);
   expect(rpgUpsertQuestInputSchema.safeParse({ chatId: CHAT_ID, name: "" }).success).toBe(false);
+});
+
+test("editQuestObjective accepts only add/setCompleted/delete operations, never a list image", () => {
+  expect(
+    rpgEditQuestObjectiveInputSchema.safeParse({
+      chatId: CHAT_ID,
+      questId: "quest_alpha",
+      op: { kind: "setCompleted", objectiveId: "o1", completed: true },
+    }).success,
+  ).toBe(true);
+  expect(rpgEditQuestObjectiveInputSchema.safeParse({ chatId: CHAT_ID, questId: "quest_alpha", objectives: [{ id: "o1", text: "stale" }] }).success).toBe(
+    false,
+  );
 });
 
 test("listJournal: the paging knobs are optional and bounded (1 ≤ limit ≤ max, offset ≥ 0)", () => {

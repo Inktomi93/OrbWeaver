@@ -20,7 +20,7 @@ import { useStore } from "zustand/react";
 import { createStore } from "zustand/vanilla";
 import { STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
 import type { DurableLocalPersistApi } from "./durable-local.ts";
-import { durableLocalKey, registerDurableLocalStore } from "./durable-local.ts";
+import { durableLocalKey, durableLocalWritesAllowed, registerDurableLocalStore } from "./durable-local.ts";
 
 // Stable no-draft ref: a fresh {} per render would infinite-loop useSyncExternalStore under Object.is.
 const EMPTY: Readonly<Record<string, never>> = Object.freeze({});
@@ -125,7 +125,14 @@ export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TI
       { name: storageKey, enabled: STORE_DEVTOOLS_ENABLED },
     ),
   );
-  registerDurableLocalStore({ prefix: STORAGE_KEY_PREFIX, name: config.name, api: store as unknown as DurableLocalPersistApi });
+  registerDurableLocalStore({
+    prefix: STORAGE_KEY_PREFIX,
+    name: config.name,
+    api: store as unknown as DurableLocalPersistApi,
+    reset: (): void => {
+      store.setState(store.getInitialState(), true);
+    },
+  });
 
   const rawEnvelope = (id: string): DraftEnvelope<TInput> | undefined => store.getState().drafts[id];
 
@@ -145,12 +152,18 @@ export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TI
   };
 
   const clearDraft = (id: string): void => {
+    if (!durableLocalWritesAllowed()) {
+      return;
+    }
     const drafts = { ...store.getState().drafts };
     delete drafts[id];
     store.setState({ drafts }, true, "draft/clear");
   };
 
   const readDraft = (id: string, baselineHash?: string): Readonly<Partial<TInput>> | undefined => {
+    if (!durableLocalWritesAllowed()) {
+      return;
+    }
     const envelope = rawEnvelope(id);
     if (envelope === undefined) {
       return;
@@ -167,6 +180,9 @@ export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TI
   };
 
   const setDraft = (id: string, patch: Partial<TInput>, baselineHash?: string): void => {
+    if (!durableLocalWritesAllowed()) {
+      return;
+    }
     const drafts = store.getState().drafts;
     const prev = drafts[id];
     const envelope: DraftEnvelope<TInput> = {
@@ -178,8 +194,9 @@ export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TI
   };
 
   return {
-    useDraft: (id): Readonly<Partial<TInput>> => useStore(store, (s) => (isCurrentEnvelope(s.drafts[id]) ? s.drafts[id].values : empty)),
-    useHasDraft: (id): boolean => useStore(store, (s) => isCurrentEnvelope(s.drafts[id])),
+    useDraft: (id): Readonly<Partial<TInput>> =>
+      useStore(store, (s) => (durableLocalWritesAllowed() && isCurrentEnvelope(s.drafts[id]) ? s.drafts[id].values : empty)),
+    useHasDraft: (id): boolean => useStore(store, (s) => durableLocalWritesAllowed() && isCurrentEnvelope(s.drafts[id])),
     readDraft,
     setField: (id, key, value): void => {
       const patch: Partial<TInput> = {};
@@ -188,6 +205,6 @@ export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TI
     },
     setDraft,
     clearDraft,
-    hasDraft: (id): boolean => isCurrentEnvelope(rawEnvelope(id)),
+    hasDraft: (id): boolean => durableLocalWritesAllowed() && isCurrentEnvelope(rawEnvelope(id)),
   };
 }

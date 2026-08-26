@@ -265,6 +265,9 @@ export function PresetForkChoiceStory(): ReactElement {
   return (
     <CtDataProviders>
       <output>{`selected=${selectedId ?? "none"}`}</output>
+      <button type="button" onClick={(): void => selectPreset(PRESET_A)}>
+        select Preset A directly
+      </button>
       <div style={{ display: "flex", height: 720, width: 1040 }}>
         <div style={{ width: 320 }}>
           <PresetLibrarySurface />
