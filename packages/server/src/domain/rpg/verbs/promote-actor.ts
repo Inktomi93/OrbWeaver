@@ -6,13 +6,13 @@
 //
 // TWO HALVES, IN THIS ORDER, AND THE ORDER IS THE DESIGN:
 //   1. the DURABLE half (`ctx.promoteToRoster`, an injected compose op over the character + chat front doors —
-//      rpg owns neither table): mint the card, seat it on the roster, hand back the `CharacterId`;
+//      rpg owns neither table): resolve-or-mint the marked card, ensure its roster seat, hand back the `CharacterId`;
 //   2. the SNAPSHOT half (`writeHandState` + `rekeyActor`): move the actor's row, presence and hand PINS from
 //      `cast:<slug>` onto `character:<id>` against the TRUE head, clone-forwarding like every hand door.
-// Every REFUSAL that can be decided is decided BEFORE (1) — an untracked target, an actor with no identity, a
-// name the roster already carries — so the reachable failure surface after the durable write is a concurrent
-// dismissal of the same actor, and that refusal SAYS the card was minted rather than reporting a clean no-op.
-// Inverting the order is not available: the re-key's target key IS the id (1) mints.
+// Every REFUSAL that can be decided is decided before a NEW card write — an untracked target, an actor with no
+// identity, or a name the roster already carries. Step (1) carries a stable promotion marker and each half is
+// idempotent, so an interruption after card or seat creation resumes those same rows and reaches the re-key.
+// Inverting the order is not available: the re-key's target key IS the id (1) resolves or mints.
 //
 // THE NAME COLLISION IS A REFUSAL, NOT A SUFFIX. The model addresses actors by NAME, and `buildRosterRefIndex`
 // is a lowercased name→ref Map — two roster actors sharing a name means one of them silently shadows the other
@@ -58,12 +58,6 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
     }
     const name = identity.name.trim();
     const roster = await ctx.resolveRoster(game.chatId);
-    if (roster.some((r) => r.name.trim().toLowerCase() === name.toLowerCase())) {
-      return {
-        ok: false,
-        reason: `"${name}" is already on this chat's roster — rename this character first, or the story could only ever address one of them`,
-      };
-    }
 
     const minted = await ctx.promoteToRoster({
       chatId: game.chatId,
@@ -71,6 +65,8 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
       // the card must be minted under them (`resolveRpgRoster` reads roster cards under the host's ownership —
       // a card owned by anyone else resolves to no actor at all).
       hostUserId: params.principal.userId,
+      sourceActorKey: fromKey,
+      roster,
       name,
       handle: castId<CharacterHandle>(rpgCastSlug(name)),
       description: rpgPromotedCardDescription(identity),

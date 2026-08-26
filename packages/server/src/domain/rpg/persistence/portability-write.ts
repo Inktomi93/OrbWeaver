@@ -15,7 +15,7 @@
 
 import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { RpgSnapshotId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
 import type {
@@ -119,6 +119,10 @@ export function createExportRpgGame(ctx: Pick<RpgPortabilityContext, "db">): Exp
 
 export function createImportRpgGame(ctx: RpgPortabilityContext): ImportRpgGame {
   return async ({ chatId, hostUserId, game }): Promise<void> => {
+    const existing = await ctx.db.select({ id: rpgGames.id }).from(rpgGames).where(eq(rpgGames.chatId, chatId)).limit(LIMIT_ONE);
+    if (existing[0] !== undefined) {
+      return;
+    }
     const gameId = ctx.ids.game();
     const at = ctx.now();
     // Snapshot ids are minted UP FRONT so the checkpoint rows can name them by the position the payload
@@ -211,6 +215,19 @@ export function createImportRpgGame(ctx: RpgPortabilityContext): ImportRpgGame {
             ];
       }),
     ];
-    await ctx.db.batch(batchMany(stmts));
+    try {
+      await ctx.db.batch(batchMany(stmts));
+    } catch (err) {
+      const kind = isConstraintViolation(err)?.kind;
+      if (kind !== "unique" && kind !== "primary-key") {
+        throw err;
+      }
+      // A concurrent replay can lose only the one-game-per-chat arbiter. Re-read before classifying so a
+      // constraint failure in any child table remains loud.
+      const winner = await ctx.db.select({ id: rpgGames.id }).from(rpgGames).where(eq(rpgGames.chatId, chatId)).limit(LIMIT_ONE);
+      if (winner[0] === undefined) {
+        throw err;
+      }
+    }
   };
 }
