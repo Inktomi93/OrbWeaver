@@ -48,6 +48,8 @@ import { EXIT } from "../../_shared/exit-contract.ts";
 import type { FullPriorityChild } from "../../_shared/proc.ts";
 import { spawnFullPriorityChild } from "../../_shared/proc.ts";
 import { runTool } from "../../_shared/run-tool.ts";
+import type { EngineRole } from "../lib/engine-adoption.ts";
+import { engineAdoptionMismatch } from "../lib/engine-adoption.ts";
 import { acquireSpawnLock, releaseSpawnLock } from "../lib/spawn-lock.ts";
 
 const REPO_ROOT = process.cwd();
@@ -87,6 +89,36 @@ async function portHealthy(port: number): Promise<boolean> {
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+function expectedModels(engine: EngineRole, launch: EngineLaunchConfig): readonly string[] {
+  if (engine === "embed") {
+    return [launch.embedModel];
+  }
+  if (engine === "rerank") {
+    return [launch.rerankModel];
+  }
+  return [launch.genModel.split("/").pop() ?? launch.genModel, launch.genModel];
+}
+
+async function adoptionMismatch(engine: EngineRole, port: number, launch: EngineLaunchConfig): Promise<string | null> {
+  try {
+    const [modelsResponse, openapiResponse] = await Promise.all([
+      fetch(`http://127.0.0.1:${port}/v1/models`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) }),
+      fetch(`http://127.0.0.1:${port}/openapi.json`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) }),
+    ]);
+    if (!(modelsResponse.ok && openapiResponse.ok)) {
+      return `identity endpoints failed (/v1/models=${modelsResponse.status}, /openapi.json=${openapiResponse.status})`;
+    }
+    const models = (await modelsResponse.json()) as { data?: readonly { id?: string }[] };
+    const openapi = (await openapiResponse.json()) as { paths?: Record<string, unknown> };
+    return engineAdoptionMismatch(engine, expectedModels(engine, launch), {
+      modelIds: (models.data ?? []).flatMap((model) => (typeof model.id === "string" ? [model.id] : [])),
+      paths: Object.keys(openapi.paths ?? {}),
+    });
+  } catch (error) {
+    return `identity probe failed (${error instanceof Error ? error.message : String(error)})`;
   }
 }
 
@@ -226,6 +258,11 @@ async function launchOneEngine(opts: {
 }): Promise<EngineLaunchResult> {
   const { engine, port, launch, deployment, gpuCount, baseEnv } = opts;
   if (await portHealthy(port)) {
+    const mismatch = await adoptionMismatch(engine, port, launch);
+    if (mismatch !== null) {
+      log(`${engine}: ADOPTION REFUSED on :${port} — ${mismatch}; occupied listener left untouched.`);
+      return { identityFailed: true };
+    }
     log(`${engine} already serving (:${port}) — adopted in place, no spawn.`);
     return { identityFailed: false };
   }

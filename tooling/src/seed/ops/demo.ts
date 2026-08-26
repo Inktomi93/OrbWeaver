@@ -34,11 +34,11 @@ import {
   worldBooks,
   worldEntries,
 } from "@orb/db";
-import type { CharacterId, Handle } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
-import { runBootMigrations, seedDefaultCharacters, seedDefaultPersona, seedDefaultPreset, seedOwner, seedThemes } from "@orb/server/entry/boot";
+import { readSeedAvatar, runBootMigrations, seedDefaultCharacters, seedDefaultPersona, seedDefaultPreset, seedOwner, seedThemes } from "@orb/server/entry/boot";
 import { createServices } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 import { detectGpu } from "@orb/server/infra/providers";
@@ -68,6 +68,19 @@ import { parseDemoArgs } from "../lib/transcript.ts";
 refuseDirectInvocation(import.meta.url, "pnpm seed:demo (node tooling/src/seed/cli.ts <demo|chat|multi-user>)");
 
 const FIRST_SEAT_TALKATIVENESS = 0.8;
+
+async function validateRequiredDemoAssets(): Promise<void> {
+  const handles = [...DEFAULT_CHARACTER_CARDS.map((card) => card.input.handle), castId<CharacterHandle>("persona-you")];
+  const missing: string[] = [];
+  for (const handle of handles) {
+    if ((await readSeedAvatar(handle)) === null) {
+      missing.push(handle);
+    }
+  }
+  if (missing.length > 0) {
+    throw new Error(`seed demo: required bundled avatars missing: ${missing.join(", ")}`);
+  }
+}
 const LOOM_ENTRY_PRIORITY = 100;
 
 /** Resolve a `file:` DATABASE_URL to an absolute on-disk path (cwd-relative like the server), else null.
@@ -223,6 +236,8 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
 export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedResult> {
   const { db, now, sessionSecret, log } = deps;
 
+  await Promise.resolve(deps.validateRequiredAssets?.());
+
   const handles = ownerHandles();
   const bootSessions = createSessionsService({ db, now, sessionSecret });
   const ownerIds = await seedOwner({ db, sessions: bootSessions, ownerHandles: handles, now });
@@ -274,6 +289,13 @@ export async function runDemoSeed(argv: readonly string[]): Promise<ExitCode> {
   if (env.NODE_ENV === "production" && !args.force) {
     warn("[seed:demo] REFUSING: NODE_ENV=production. This is dev tooling — re-run with --force only if you truly mean it.");
     return EXIT.violations;
+  }
+
+  try {
+    await validateRequiredDemoAssets();
+  } catch (error) {
+    warn(error instanceof Error ? error.message : String(error));
+    return EXIT.toolError;
   }
 
   const filePath = dbFilePath(env.DATABASE_URL);

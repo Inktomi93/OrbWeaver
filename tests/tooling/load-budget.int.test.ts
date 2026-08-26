@@ -5,11 +5,13 @@
 // the two non-kill paths are untouched (solo behavior unchanged); and the pure factor is unit-checked with
 // injected loadavg/core values so the "quiet box → factor 1 → solo budgets unchanged" contract is nailed.
 import { expect, test } from "../support/tool-fixtures.ts";
-import { computeLoadFactor, isLoadKill, LOAD_KILL_MARKER, runNodeWithBudget, scaledBudget, spawnNodeWithBudget } from "./_load-budget.ts";
+import { computeLoadFactor, isLoadKill, LOAD_KILL_MARKER, runNodeWithBudget, runPnpmWithBudget, scaledBudget, spawnNodeWithBudget } from "./_load-budget.ts";
 
 // A child that outlives any budget we hand it — the planted SLOW case. Kept well above the 300ms budget so
 // the kill is unambiguous, and it writes nothing, so a returned value could only be a missed kill.
 const SLEEP_5S = "setTimeout(() => {}, 5000);";
+const FATAL_EXIT_RE = /exit 2.*fatal/su;
+const VERSION_RE = /^\d+\./u;
 const KILL_BUDGET_MS = 300;
 
 test("the pure load factor is 1 on a quiet box (solo budgets unchanged) and scales + caps under load", () => {
@@ -48,10 +50,20 @@ test("a fast child returns its stdout untouched — the non-kill path is unchang
   expect(out).toBe("ok");
 });
 
+test("the workspace runner enters through pnpm and preserves its successful output", ({ repoRoot }) => {
+  expect(runPnpmWithBudget(["--version"], { cwd: repoRoot }, 30_000, "pnpm entry probe")).toMatch(VERSION_RE);
+});
+
 test("a child that exits NON-ZERO without being killed still returns stdout (the gate-fired shape)", ({ repoRoot }) => {
   // report.ts exits 1 when a gate fires; the caller must still receive the report on stdout, NOT a throw.
   const out = runNodeWithBudget(["-e", "process.stdout.write('report-body'); process.exit(1);"], { cwd: repoRoot }, 30_000, "exit-1 case");
   expect(out).toBe("report-body");
+});
+
+test("a fatal child exit is preserved instead of returning its partial report", ({ repoRoot }) => {
+  expect(() =>
+    runNodeWithBudget(["-e", "process.stdout.write('partial'); process.stderr.write('fatal'); process.exit(2);"], { cwd: repoRoot }, 30_000, "exit-2 case"),
+  ).toThrow(FATAL_EXIT_RE);
 });
 
 test("spawnNodeWithBudget: a planted slow child throws a legible kill; a normal exit returns its status", ({ repoRoot }) => {

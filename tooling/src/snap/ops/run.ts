@@ -8,7 +8,7 @@ import { pageOut, shouldProduceShot } from "../lib/out-names.ts";
 import { capturePages } from "./capture.ts";
 import { runBaselineOrDiff } from "./diff.ts";
 import { snapDestination } from "./guards.ts";
-import { writeManifestIfRequested } from "./manifest.ts";
+import { appliedAcrossContexts, writeManifestIfRequested } from "./manifest.ts";
 import { isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
 import {
   cropOutcome,
@@ -86,7 +86,15 @@ export async function snap(opts: Args): Promise<number> {
       colorScheme: opts.colorScheme,
       reducedMotion: opts.reducedMotion || opts.probe,
       appearance: opts.appearance,
+      appearanceApplied: appliedAcrossContexts(
+        opts.appearance !== null,
+        session.contexts.map((context) => context.settingsEvidence.appearanceApplied),
+      ),
       theme: opts.theme,
+      themeApplied: appliedAcrossContexts(
+        opts.theme !== null,
+        session.contexts.map((context) => context.settingsEvidence.themeApplied),
+      ),
     },
     failures: failureSummary,
     traces: artifacts.traces,

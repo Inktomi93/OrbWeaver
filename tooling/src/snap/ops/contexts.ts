@@ -11,7 +11,7 @@ import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "../contract/type
 import { contextOut, shouldProduceShot } from "../lib/out-names.ts";
 import { capture } from "./capture.ts";
 import { defaultFixtureUsers, fixtureRefusalLine, fixtureStatus, loginFixtureUser, resolveFixtureUsers } from "./fixture.ts";
-import { writeManifestIfRequested } from "./manifest.ts";
+import { appliedAcrossContexts, writeManifestIfRequested } from "./manifest.ts";
 import { partitionFailedRequests } from "./noise.ts";
 import {
   consoleForEvidence,
@@ -160,7 +160,15 @@ export async function snapContexts(opts: Args, users: readonly FixtureUser[], ta
       colorScheme: opts.colorScheme,
       reducedMotion: opts.reducedMotion || opts.probe,
       appearance: opts.appearance,
+      appearanceApplied: appliedAcrossContexts(
+        opts.appearance !== null,
+        session.contexts.map((context) => context.settingsEvidence.appearanceApplied),
+      ),
       theme: opts.theme,
+      themeApplied: appliedAcrossContexts(
+        opts.theme !== null,
+        session.contexts.map((context) => context.settingsEvidence.themeApplied),
+      ),
     },
     failures: failureSummary,
     traces: artifacts.traces,

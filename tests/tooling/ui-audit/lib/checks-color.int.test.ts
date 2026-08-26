@@ -87,6 +87,16 @@ describe("design-audit contrast — #624: the exemption must not swallow the USA
   });
 });
 
+test("inactive controls are exempt before image and gradient text-over-art verdicts", () => {
+  expect(checkContrast(sample({ inactive: "native", backdrop: { kind: "image-indeterminate" } }))).toBeNull();
+  const gradient = sample({
+    inactive: "native",
+    backdrop: { kind: "gradient", stops: [PAGE_BG, { r: 255, g: 255, b: 255 }] },
+  });
+  expect(checkContrast(gradient)?.rule).toBe("inactive-control-legibility");
+  expect(checkContrast(gradient)?.severity).toBe("P3");
+});
+
 describe("design-audit contrast — #624: ONE classifier, shared with snap", () => {
   test("every inactive spelling is contrast-exempt, and only aria remains operable", () => {
     expect(isContrastExempt("native")).toBe(true);

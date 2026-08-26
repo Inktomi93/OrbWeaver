@@ -235,11 +235,12 @@ export function applySettingsToBody(body: unknown, index: number, patch: Setting
   return { body: patched.value, applied: patched.applied };
 }
 
-async function fulfilPatched(route: Route, patch: SettingsPatch, index: number): Promise<void> {
+async function fulfilPatched(route: Route, patch: SettingsPatch, index: number): Promise<boolean> {
   const response = await route.fetch();
   const body = (await response.json()) as unknown;
   const patched = applySettingsToBody(body, index, patch);
   await route.fulfill({ response, json: patched.body });
+  return patched.applied;
 }
 
 /** The theme library, asked of the app's OWN API on the context's cookie jar — the same origin the
@@ -298,6 +299,23 @@ export interface SettingsShim {
   readonly theme: ThemeRequest | null;
 }
 
+export interface SettingsShimEvidence {
+  appearanceApplied: boolean | null;
+  themeApplied: boolean | null;
+}
+
+function recordAppliedEvidence(evidence: SettingsShimEvidence, applied: boolean, appearanceRequested: boolean, themeResolved: boolean): void {
+  if (!applied) {
+    return;
+  }
+  if (appearanceRequested) {
+    evidence.appearanceApplied = true;
+  }
+  if (themeResolved) {
+    evidence.themeApplied = true;
+  }
+}
+
 /**
  * Install the shim on a browser CONTEXT (before its first navigation, so the app's very first settings read
  * is already shimmed).
@@ -307,9 +325,13 @@ export interface SettingsShim {
  * An UNRESOLVABLE `--theme` is the one case that is loud (stderr) rather than silent, because unlike a
  * network blip it means the run measured a different arm than the operator typed.
  */
-export async function installSettingsShim(context: BrowserContext, shim: SettingsShim): Promise<void> {
+export async function installSettingsShim(context: BrowserContext, shim: SettingsShim): Promise<SettingsShimEvidence> {
+  const evidence: SettingsShimEvidence = {
+    appearanceApplied: shim.appearance === null ? null : false,
+    themeApplied: shim.theme === null ? null : false,
+  };
   if (shim.appearance === null && shim.theme === null) {
-    return;
+    return evidence;
   }
   const resolveThemeId = shim.theme === null ? null : themeResolver(shim.theme);
   await context.route(TRPC_ROUTE_GLOB, async (route: Route) => {
@@ -326,9 +348,11 @@ export async function installSettingsShim(context: BrowserContext, shim: Setting
         ...(shim.appearance === null ? {} : { appearance: shim.appearance }),
         ...(themeOutcome === null ? {} : themeConfigPatch(themeOutcome.id)),
       };
-      await fulfilPatched(route, patch, index);
+      const applied = await fulfilPatched(route, patch, index);
+      recordAppliedEvidence(evidence, applied, shim.appearance !== null, themeOutcome !== null);
     } catch {
       await route.fallback().catch(() => undefined);
     }
   });
+  return evidence;
 }

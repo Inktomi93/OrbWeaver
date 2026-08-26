@@ -71,6 +71,10 @@ export function checkContrast(input: ContrastInput): Finding | null {
     return null;
   }
 
+  if (isContrastExempt(input.inactive ?? "none")) {
+    return inactiveBackdropFinding(input, seenColor, dimNote);
+  }
+
   if (input.backdrop.kind === "image-indeterminate") {
     return indeterminateFinding(
       input.selector,
@@ -113,6 +117,19 @@ export function checkContrast(input: ContrastInput): Finding | null {
   });
 }
 
+function inactiveBackdropFinding(input: ContrastInput, seenColor: (backdrop: Rgb) => Rgb, dimNote: string): Finding | null {
+  const inactive = input.inactive ?? "none";
+  if (input.backdrop.kind === "image-indeterminate" || input.backdrop.kind === "unresolved") {
+    return null;
+  }
+  const backdrops = input.backdrop.kind === "flat" ? [input.backdrop.color] : input.backdrop.stops;
+  if (backdrops.some((stop) => (stop.a ?? 1) < OPAQUE_STOP_MIN_ALPHA)) {
+    return null;
+  }
+  const worst = Math.min(...backdrops.map((backdrop) => contrastRatio(seenColor(backdrop), backdrop)));
+  return inactiveAdvisory(input.selector, worst, inactive, dimNote);
+}
+
 interface FlatVerdict {
   readonly input: ContrastInput;
   readonly ratio: number;
@@ -122,7 +139,7 @@ interface FlatVerdict {
   readonly dimmedMessage: string;
 }
 
-/** The flat-background verdict, with the #624 inactive-control exemption applied BEFORE the P1 claim. */
+/** The flat-background verdict; inactive controls were handled before every backdrop-specific verdict. */
 function flatBackdropFinding(v: FlatVerdict): Finding | null {
   if (v.ratio >= v.minRatio) {
     return null;
@@ -131,10 +148,6 @@ function flatBackdropFinding(v: FlatVerdict): Finding | null {
   // that. This checker did not, so on the SAME element snap said `SKIPPED inactive control (WCAG contrast
   // exemption)` while design-audit filed a P1 at 2.64:1 — making every disabled control in the app a
   // standing false positive, which is how a reader learns to discount the tool's P1s wholesale.
-  const inactive = v.input.inactive ?? "none";
-  if (isContrastExempt(inactive)) {
-    return inactiveAdvisory(v.input.selector, v.ratio, inactive, v.dimNote);
-  }
   return {
     rule: "contrast",
     severity: "P1",
