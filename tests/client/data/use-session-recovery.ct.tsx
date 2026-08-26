@@ -9,7 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
-import { SessionRecoveryReauthStory, SessionRecoveryStory, SessionSwapStory } from "./_ct-stories.tsx";
+import { SessionRecoveryBindFailureStory, SessionRecoveryReauthStory, SessionRecoveryStory, SessionSwapStory } from "./_ct-stories.tsx";
 
 const VIEWER = { userId: "usr_ct_owner", handle: castId<Handle>("owner"), globalRole: "owner" };
 
@@ -32,6 +32,16 @@ test("mounts without suspending or navigating when the identity read is still in
   await mount(<SessionRecoveryStory />);
 
   await expect(page.getByTestId("durable-local-user")).toBeVisible();
+});
+
+test("surfaces a durable-local bind failure and retries to the ready workspace", async ({ mount, page }) => {
+  await routeTrpc(page, { "sessions.me": (): unknown => VIEWER });
+
+  await mount(<SessionRecoveryBindFailureStory />);
+
+  await expect(page.getByRole("status")).toHaveText("Couldn't load your workspace.");
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(page.getByTestId("session-bind-state")).toHaveText("ready");
 });
 
 // ── THE NO-401 IDENTITY SWAP ───────────────────────────────────────────────────────────────────────
