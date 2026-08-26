@@ -1177,6 +1177,10 @@ const PROBES: readonly Probe[] = [
   // write: a stranger passing a foreign chatId must never get as far as the mint.
   { path: "rpg.promoteActor", call: (c, i) => c.rpg.promoteActor({ chatId: i.chatId, targetRef: { kind: "cast", castKey: "mira" } }) },
   { path: "rpg.upsertQuest", call: (c, i) => c.rpg.upsertQuest({ chatId: i.chatId, questId: i.rpgQuestId, name: "hacked" }) },
+  {
+    path: "rpg.editQuestObjective",
+    call: (c, i) => c.rpg.editQuestObjective({ chatId: i.chatId, questId: i.rpgQuestId, op: { kind: "add", text: "hacked" } }),
+  },
   { path: "rpg.deleteQuest", call: (c, i) => c.rpg.deleteQuest({ chatId: i.chatId, questId: i.rpgQuestId }) },
   { path: "rpg.addJournalEntry", call: (c, i) => c.rpg.addJournalEntry({ chatId: i.chatId, type: "note", title: "hacked", content: "hacked" }) },
   {
@@ -1895,6 +1899,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     const rpgTrackerStill = await ownerCaller.rpg.getTrackerView({ chatId: ids.chatId });
     expect(rpgTrackerStill.gameTrackers.map((t) => t.def.label)).toContain(MARK.rpgWidget); // the tracker def survived the stranger's updateConfig probe
     expect(rpgTrackerStill.quests.map((q) => q.name)).toContain(MARK.rpgQuest); // quest survived deleteQuest
+    expect(rpgTrackerStill.quests.find((q) => q.id === ids.rpgQuestId)?.objectives).toEqual([]); // stranger's editQuestObjective added nothing
     const rpgJournalStill = await ownerCaller.rpg.listJournal({ chatId: ids.chatId });
     expect(rpgJournalStill.map((j) => j.title)).toContain(MARK.rpgJournal); // entry survived deleteJournalEntry
     const rpgCheckpointsStill = await ownerCaller.rpg.listCheckpoints({ chatId: ids.chatId });
