@@ -4,6 +4,8 @@
 
 import type { Db } from "@orb/db";
 import { auditLogs } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchStmt } from "@orb/db/kit";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { getLog } from "./logger.ts";
@@ -41,21 +43,31 @@ export function resetAuditFailureCount(): void {
   lastFailureAt = null;
 }
 
+function auditRow(entry: AuditEntry, createdAt: number): typeof auditLogs.$inferInsert {
+  return {
+    id: mintTypeId(ID_PREFIX.auditLog),
+    action: entry.action,
+    actorUserId: entry.actorUserId,
+    entityType: entry.entityType ?? null,
+    entityId: entry.entityId ?? null,
+    metadata: entry.metadata ?? null,
+    createdAt,
+  };
+}
+
+/** Build one unexecuted audit insert for a primary workflow that must commit its forensic row atomically.
+ *  Ordinary callers keep using {@link logAudit}; this narrow seam does not weaken its best-effort contract. */
+export function buildAuditStatement(db: Db, entry: AuditEntry, createdAt: number): BatchStmt {
+  return batchStmt(db.insert(auditLogs).values(auditRow(entry, createdAt)));
+}
+
 /**
  * Best-effort audit write. The audit channel must never break the primary channel: log + count + drop.
  * `db` and `createdAt` are injected — no ambient `Date.now()` here.
  */
 export async function logAudit(db: Db, entry: AuditEntry, createdAt: number): Promise<void> {
   try {
-    await db.insert(auditLogs).values({
-      id: mintTypeId(ID_PREFIX.auditLog),
-      action: entry.action,
-      actorUserId: entry.actorUserId,
-      entityType: entry.entityType ?? null,
-      entityId: entry.entityId ?? null,
-      metadata: entry.metadata ?? null,
-      createdAt,
-    });
+    await db.insert(auditLogs).values(auditRow(entry, createdAt));
   } catch (err) {
     auditFailureCount += 1;
     if (firstFailureAt === null) {

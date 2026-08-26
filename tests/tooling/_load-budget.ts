@@ -63,13 +63,22 @@ export interface ChildBudgetOpts {
 
 /** Run `node <args>` under a load-scaled child `timeout`. THREE outcomes, kept distinct on purpose:
  *  - the child finishes → its stdout is returned;
- *  - the child exits non-zero WITHOUT being killed (e.g. report.ts exits 1 when a gate fires) → its stdout
- *    is still returned, exactly as a bare `execFileSync` catch would surface it (the caller reads the report);
+ *  - the child exits 1 (a gate verdict) → its stdout is returned so the caller can read the report;
+ *  - the child exits 2/3 (tool failure/misuse) → the fatal status and stderr are thrown, never flattened;
  *  - the child is KILLED by the timeout (contention) → a `loadKillError` is THROWN, so the kill is legible.
- *  The timeout kill is the ONLY throwing path, so a real violation never masquerades as a load kill. */
-export function runNodeWithBudget(args: readonly string[], opts: ChildBudgetOpts, budgetMs: number, label: string): string {
+ *  Fatal exits throw ordinary errors while timeout kills alone carry LOAD_KILL_MARKER. */
+interface CommandBudget {
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly opts: ChildBudgetOpts;
+  readonly budgetMs: number;
+  readonly label: string;
+}
+
+function runCommandWithBudget(run: CommandBudget): string {
+  const { command, args, opts, budgetMs, label } = run;
   try {
-    return execFileSync("node", [...args], {
+    return execFileSync(command, [...args], {
       cwd: opts.cwd,
       env: opts.env,
       encoding: "utf8",
@@ -84,11 +93,25 @@ export function runNodeWithBudget(args: readonly string[], opts: ChildBudgetOpts
     if (e.signal === "SIGTERM") {
       throw loadKillError(label, budgetMs);
     }
-    if (typeof e.stdout === "string") {
+    const status = (e as { status?: number | null }).status;
+    if (status === 1 && typeof e.stdout === "string") {
       return e.stdout;
+    }
+    if (typeof status === "number") {
+      const stderr = (e as { stderr?: string }).stderr ?? "";
+      throw new Error(`${label} child exit ${status}${stderr === "" ? "" : `: ${stderr}`}`, { cause: err });
     }
     throw err;
   }
+}
+
+export function runNodeWithBudget(args: readonly string[], opts: ChildBudgetOpts, budgetMs: number, label: string): string {
+  return runCommandWithBudget({ command: "node", args, opts, budgetMs, label });
+}
+
+/** Workspace entrypoint variant: preserves pnpm's heap/dependency contract while retaining exit honesty. */
+export function runPnpmWithBudget(args: readonly string[], opts: ChildBudgetOpts, budgetMs: number, label: string): string {
+  return runCommandWithBudget({ command: "pnpm", args, opts, budgetMs, label });
 }
 
 export interface SpawnBudgetResult {

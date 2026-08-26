@@ -15,12 +15,14 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chatInjections, chatParticipants, chats, messages, personas } from "@orb/db";
+import { chatEvents, chatInjections, chatParticipants, chats, messages, personas } from "@orb/db";
+import { batchStmt } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatEventId, ChatId, Handle, PersonaId, RpgGameId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { insertChatEventStatement } from "../../../../../packages/server/src/domain/chat/persistence/events.ts";
 import { listMemberChats } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -77,20 +79,95 @@ function cardWith(name: string, greeting: string): CharacterCard {
   };
 }
 
-function makeDeps(): Parameters<typeof createStartChat>[1] {
-  return { emit, loadParticipantViews };
+function makeDeps(overrides: Partial<Parameters<typeof createStartChat>[1]> = {}): Parameters<typeof createStartChat>[1] {
+  let eventNumber = 0;
+  return {
+    emit,
+    prepareCreationEvent: (event): ReturnType<Parameters<typeof createStartChat>[1]["prepareCreationEvent"]> => {
+      eventNumber += 1;
+      return {
+        statement: insertChatEventStatement(db, {
+          id: castId<ChatEventId>(`chat_event_start_${eventNumber}`),
+          chatId: event.chatId,
+          seq: 1,
+          event,
+          createdAt: FROZEN_AT,
+        }),
+        publishCommitted: (): void => {
+          emitted.push(event);
+        },
+      };
+    },
+    loadParticipantViews,
+    ...overrides,
+  };
 }
 
 describe("startChat — #40 draft-time game birth (startAsGame)", () => {
-  test("a startAsGame carry calls the injected rpg.startGame for the minted chat, threading the profile blind", async () => {
+  test("a creation-event failure rolls the room back instead of exposing an unannounced birth", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
-    const started: { chatId: ChatId; profile: unknown }[] = [];
-    // FABRICATION-OK: minimal ChatRpgOps stub — startChat reaches ONLY `startGame` on this path.
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "Hello.")) });
+    const deps = makeDeps({
+      prepareCreationEvent: (event) => ({
+        statement: batchStmt(
+          db.insert(chatEvents).values({
+            id: castId<ChatEventId>("chat_event_invalid_birth"),
+            chatId: event.chatId,
+            seq: 1,
+            type: "not-a-chat-event" as never,
+            payload: event,
+            createdAt: FROZEN_AT,
+          }),
+        ),
+        publishCommitted: (): void => {
+          emitted.push(event);
+        },
+      }),
+    });
+    const { startChat } = createStartChat(ctx, deps);
+
+    await expect(startChat({ principal: principal(host), characterIds: [aria], startAsGame: {} })).rejects.toThrow();
+    expect(await db.select().from(chats)).toHaveLength(0);
+    expect(await db.select().from(chatEvents)).toHaveLength(0);
+    expect(emitted).toEqual([]);
+  });
+
+  test("a game-birth failure leaves no room/roster/greeting half behind", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    // FABRICATION-OK: minimal ChatRpgOps fault injector; startChat reaches only birth planning and its post-commit callback.
     const rpg = {
-      startGame: (chatId: ChatId, params: { profile?: unknown }): Promise<void> => {
-        started.push({ chatId, profile: params.profile });
-        return Promise.resolve();
+      planGameBirth: (chatId: ChatId) => ({
+        gameId: castId<RpgGameId>("rpg_game_00000000000000000000000001"),
+        // Duplicate the room id late in the one batch: the exact table is immaterial to this injected fault;
+        // the assertion is that every earlier creation statement rolls back with it.
+        statements: [batchStmt(db.insert(chats).values({ id: chatId }))],
+      }),
+      gameBirthCommitted: (): void => undefined,
+    } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "Hello.")), rpg });
+    const { startChat } = createStartChat(ctx, makeDeps());
+
+    await expect(startChat({ principal: principal(host), characterIds: [aria], startAsGame: {} })).rejects.toThrow();
+    expect(await db.select().from(chats)).toHaveLength(0);
+    expect(await db.select().from(chatParticipants)).toHaveLength(0);
+    expect(await db.select().from(messages)).toHaveLength(0);
+  });
+
+  test("a startAsGame carry folds the injected RPG plan into the minted chat and reports its commit", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    const planned: { chatId: ChatId; profile: unknown }[] = [];
+    const committed: ChatId[] = [];
+    // FABRICATION-OK: minimal ChatRpgOps stub — startChat reaches only the birth-plan pair on this path.
+    const rpg = {
+      planGameBirth: (chatId: ChatId, params: { profile?: unknown }) => {
+        planned.push({ chatId, profile: params.profile });
+        return { gameId: castId<RpgGameId>("rpg_game_00000000000000000000000002"), statements: [] };
+      },
+      gameBirthCommitted: (chatId: ChatId): void => {
+        committed.push(chatId);
       },
     } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "Hello.")), rpg });
@@ -98,18 +175,24 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
     const result = await startChat({ principal: principal(host), characterIds: [aria], startAsGame: {} });
     // The op fired exactly once for the minted chat (BEFORE the verb returned — turn 1 is in-game); an
     // omitted profile rides through as undefined (freeform default is rpg's own).
-    expect(started).toEqual([{ chatId: result.chat.id, profile: undefined }]);
+    expect(planned).toEqual([{ chatId: result.chat.id, profile: undefined }]);
+    expect(committed).toEqual([result.chat.id]);
+    expect(result.chat.rpg).toEqual({ gameId: castId<RpgGameId>("rpg_game_00000000000000000000000002"), engaged: true });
+    expect((await db.select().from(chatEvents).where(eq(chatEvents.chatId, result.chat.id))).map((row) => row.type)).toEqual(["chatCreated"]);
   });
 
   test("no startAsGame carry ⇒ the rpg op never fires (byte-identical plain creation)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const started: string[] = [];
-    // FABRICATION-OK: minimal ChatRpgOps stub — asserting the ABSENCE of the call.
+    // FABRICATION-OK: minimal ChatRpgOps stub — asserting the ABSENCE of either birth-plan call.
     const rpg = {
-      startGame: (chatId: ChatId): Promise<void> => {
+      planGameBirth: (chatId: ChatId) => {
         started.push(chatId);
-        return Promise.resolve();
+        return { gameId: castId<RpgGameId>("rpg_game_00000000000000000000000003"), statements: [] };
+      },
+      gameBirthCommitted: (chatId: ChatId): void => {
+        started.push(chatId);
       },
     } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "Hello.")), rpg });

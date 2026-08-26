@@ -200,6 +200,16 @@ export interface ServedVerdict {
   readonly message: string;
 }
 
+// ── Managed-engine adoption ─────────────────────────────────────────────────────────────────────────
+
+const ENGINE_ROLES = ["embed", "rerank", "gen"] as const;
+export type EngineRole = (typeof ENGINE_ROLES)[number];
+
+export interface EngineAdoptionEvidence {
+  readonly modelIds: readonly string[];
+  readonly paths: readonly string[];
+}
+
 // ── The /api/_debug arming probe ─────────────────────────────────────────────────────────────────────
 
 /** What an UNAUTHENTICATED `GET /api/_debug/info` tells us about the live instance's debug posture.

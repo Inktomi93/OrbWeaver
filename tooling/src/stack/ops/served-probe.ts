@@ -90,11 +90,14 @@ export async function probeServedTransform(roots: readonly string[] = WATCHED_SO
 
 /** The `served-probe` verb stack.sh's `status` calls. Prints ONE machine line (`SERVED state=… file=…`)
  *  followed by the human reason, and answers with the exit contract: a STALE transform is a violation
- *  (exit 1) so the shell can degrade its own verdict; every other state is clean, because "I could not
- *  measure" must never masquerade as a failure any more than as a pass. */
-export async function runServedProbe(): Promise<ExitCode> {
-  const verdict = await probeServedTransform();
+ *  (exit 1) so the shell can degrade its own verdict; an unreachable/unverifiable measurement is a tool
+ *  error (exit 2), because missing evidence must never masquerade as a healthy stack. */
+export async function runServedProbe(roots?: readonly string[]): Promise<ExitCode> {
+  const verdict = await probeServedTransform(roots);
   print(`SERVED state=${verdict.state} file=${verdict.file ?? "none"}`);
   print(verdict.message);
-  return verdict.state === "stale" ? EXIT.violations : EXIT.clean;
+  if (verdict.state === "fresh") {
+    return EXIT.clean;
+  }
+  return verdict.state === "stale" ? EXIT.violations : EXIT.toolError;
 }

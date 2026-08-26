@@ -362,9 +362,7 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
       io.healthy.delete("embed");
       io.occupied.add("embed");
       for (let tick = 0; tick < 3; tick += 1) {
-        // biome-ignore lint/performance/noAwaitInLoops: each monitor tick advances the production streak.
         await vi.advanceTimersByTimeAsync(monitorIntervalMs);
-        // biome-ignore lint/performance/noAwaitInLoops: settle the work queued by that exact tick.
         await settle();
       }
 
@@ -396,9 +394,7 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
       io.healthy.delete("embed");
       io.occupied.add("embed");
       for (let tick = 0; tick < 3; tick += 1) {
-        // biome-ignore lint/performance/noAwaitInLoops: each monitor tick advances the production streak.
         await vi.advanceTimersByTimeAsync(monitorIntervalMs);
-        // biome-ignore lint/performance/noAwaitInLoops: settle the work queued by that exact tick.
         await settle();
       }
 
@@ -503,7 +499,6 @@ describe("startVllmEngines — admin restart proves durable process ownership", 
 
   const settle = async (): Promise<void> => {
     for (let i = 0; i < 8; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: draining the async chain is inherently sequential.
       await vi.advanceTimersByTimeAsync(0);
     }
   };

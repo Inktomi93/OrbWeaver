@@ -76,8 +76,8 @@ export interface StartChatParams extends ChatActorParams {
   readonly injections?: readonly ChatInjectionInput[] | undefined;
   /** Born ephemeral: hidden from listChats, swept by reapTemporaryChats once expired. */
   readonly temporary?: boolean | undefined;
-  /** #40 DRAFT-TIME game start: mint a lite game for the new chat BEFORE the opening turn (turn 1 is
-   *  already in-game). Threaded BLIND to the injected `ChatRpgOps.startGame` (the pointer precedent);
+  /** #40 DRAFT-TIME game start: mint a lite game atomically with the new chat (turn 1 is already in-game).
+   *  Threaded BLIND to the injected `ChatRpgOps.planGameBirth` (the pointer precedent);
    *  `profile` is rpg's contract shape (omit = freeform). */
   readonly startAsGame?: { readonly profile?: RpgStatProfile | undefined } | undefined;
 }

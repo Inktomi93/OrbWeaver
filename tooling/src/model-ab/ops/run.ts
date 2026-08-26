@@ -1,5 +1,6 @@
-// Argv → variants → (list | probe-only | boot-and-probe) → summary. The whole run's exit codes:
-// 0 clean · 1 the GPUs are held (a REFUSAL, not a tool break) · 2 the vllm binary is missing.
+// Argv → variants → (list | probe-only | boot-and-probe) → summary. Per-probe evidence is always written,
+// but the aggregate exit is honest: 0 all selected probes passed · 1 refusal/failed/empty selection ·
+// 2 missing apparatus · 3 malformed selection.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
@@ -48,9 +49,23 @@ export function loadVariants(filter?: string): Variant[] {
   return spec.variants.filter((v) => names.includes(v.name));
 }
 
+function resultExit(results: readonly { readonly ok: boolean }[], outDir: string): ExitCode {
+  const failures = results.filter((result) => !result.ok).length;
+  if (failures > 0) {
+    warn(`${failures}/${results.length} selected probes failed; evidence preserved in ${outDir}`);
+    return EXIT.violations;
+  }
+  return EXIT.clean;
+}
+
 export async function runModelAb(argv: readonly string[]): Promise<ExitCode> {
   const cli = parseCli(argv);
   const variants = loadVariants(cli.variants);
+
+  if (cli.variants !== undefined && variants.length === 0) {
+    warn(`no variants matched --variants ${cli.variants}`);
+    return EXIT.misuse;
+  }
 
   if (cli.list) {
     for (const v of variants) {
@@ -72,7 +87,7 @@ export async function runModelAb(argv: readonly string[]): Promise<ExitCode> {
       print(`  ${r.ok ? "ok " : "ERR"} ${r.probe} (${r.ms}ms)${r.error === undefined ? "" : ` — ${r.error}`}`);
     });
     writeSummary([{ name: "live", results }], outDir, stamp);
-    return EXIT.clean;
+    return resultExit(results, outDir);
   }
 
   if (vllmBinMissing(cli.vllmBin)) {
@@ -92,6 +107,16 @@ export async function runModelAb(argv: readonly string[]): Promise<ExitCode> {
     return false;
   });
 
-  writeSummary(await runVariants(runnable, cli, outDir), outDir, stamp);
-  return EXIT.clean;
+  if (runnable.length === 0) {
+    warn("no selected variants are runnable; no comparison was measured");
+    writeSummary([], outDir, stamp);
+    return EXIT.violations;
+  }
+
+  const runs = await runVariants(runnable, cli, outDir);
+  writeSummary(runs, outDir, stamp);
+  return resultExit(
+    runs.flatMap((run) => run.results),
+    outDir,
+  );
 }

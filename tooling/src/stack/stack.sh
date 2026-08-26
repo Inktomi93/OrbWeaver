@@ -421,7 +421,7 @@ served_probe() {
   # let it read as a wedged one either (exit 2 is the tool-error class).
   if [ "$rc" != 0 ] && [ "$rc" != 1 ]; then
     echo "unverifiable|none|the served-module probe itself failed (exit $rc) — freshness NOT measured"
-    return 0
+    return "$rc"
   fi
   state="$(printf '%s\n' "$out" | /usr/bin/grep -a -m1 '^SERVED ' | sed -n 's/.*state=\([a-z-]*\).*/\1/p')"
   file="$(printf '%s\n' "$out" | /usr/bin/grep -a -m1 '^SERVED ' | sed -n 's/.*file=\([^ ]*\).*/\1/p')"
@@ -441,7 +441,8 @@ do_status() {
   local served="unverifiable" served_file="none" served_reason="vite is not bound — freshness NOT measured"
   if [ -n "$vpid" ]; then
     local probe rest
-    probe="$(served_probe)"
+    local probe_rc=0
+    probe="$(served_probe)" || probe_rc=$?
     served="${probe%%|*}"
     rest="${probe#*|}"
     served_file="${rest%%|*}"
@@ -456,13 +457,16 @@ do_status() {
     # DEGRADED is `up` with a lie in it: the ports answer, so every pre-#524 signal reads healthy, but the
     # code being served is not the code on disk. It is the ONE state that exits non-zero — `down`/`partial`
     # stay exit 0 exactly as before, so no existing caller changes meaning.
-    if [ "$served" = "stale" ]; then state="degraded"; else state="up"; fi
+    if [ "$served" = "fresh" ]; then state="up"; else state="degraded"; fi
   elif [ -n "$bpid" ] || [ -n "$vpid" ]; then
     state="partial"
   fi
   echo ""
   echo "RESULT stack status=$state server-pid=${bpid:-0} healthz=$health vite-pid=${vpid:-0} served=$served pidfile=${pgid:-none}"
-  [ "$state" = "degraded" ] && return 1
+  if [ "$state" = "degraded" ]; then
+    [ "${probe_rc:-0}" -gt 1 ] && return "$probe_rc"
+    return 1
+  fi
   return 0
 }
 
