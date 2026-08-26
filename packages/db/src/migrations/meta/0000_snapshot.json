@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8bb06234-94cd-4ecb-8cbd-5c9f0557600e",
+  "id": "a8411166-5fe4-4492-bae7-a541fc538b30",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -8992,6 +8992,14 @@
           "notNull": false,
           "autoincrement": false
         },
+        "admission_system": {
+          "name": "admission_system",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
         "depends_on": {
           "name": "depends_on",
           "type": "text",
@@ -9044,13 +9052,13 @@
           "name": "workloads_mode_active_singular_owned",
           "columns": ["kind", "owner_id", "admission_key"],
           "isUnique": true,
-          "where": "status in ('queued', 'running', 'cancelling') and mode = 'singular' and owner_id is not null"
+          "where": "status in ('queued', 'running', 'cancelling') and mode = 'singular' and admission_system = 0"
         },
         "workloads_mode_active_singular_system": {
           "name": "workloads_mode_active_singular_system",
           "columns": ["kind", "admission_key"],
           "isUnique": true,
-          "where": "status in ('queued', 'running', 'cancelling') and mode = 'singular' and owner_id is null"
+          "where": "status in ('queued', 'running', 'cancelling') and mode = 'singular' and admission_system = 1"
         },
         "workloads_mode_active_bulk": {
           "name": "workloads_mode_active_bulk",

@@ -9,11 +9,12 @@
 // column enum === the contracts tuple (workloads.int.test.ts).
 //
 // The load-bearing concurrency guard is THREE PARTIAL UNIQUE INDEXes, partitioned by run `mode` and the
-// singular row's nullable ownership arm:
+// singular row's IMMUTABLE admission-origin arm:
 //   • `workloads_mode_active_singular_owned` — unique on (kind, owner_id, admission_key) WHERE active,
-//     mode='singular', and owner_id IS NOT NULL: one owned singular slot per concurrency unit.
+//     mode='singular', and admission_system=0: one owned singular slot per concurrency unit. A later FK
+//     SET NULL does not move the retained audit row into the system partition.
 //   • `workloads_mode_active_singular_system` — unique on (kind, admission_key) WHERE active,
-//     mode='singular', and owner_id IS NULL: one system/scheduler singular slot per concurrency unit.
+//     mode='singular', and admission_system=1: one originally-system/scheduler singular slot per unit.
 //   • `workloads_mode_active_bulk` — unique on (kind, admission_key) WHERE status IN (active) AND mode='bulk':
 //     the global single-active lock (at most one bulk pass per (kind, admission_key) deployment-wide) — a
 //     shared owner-triggered rebuild can't run twice at once.
@@ -27,12 +28,13 @@
 // tuple to CHECK against (the type-side guarantee is the contribution's `admissionKey` signature). NOT NULL
 // and never empty — SQLite treats NULLs as DISTINCT in a unique index, so a nullable key would silently
 // dissolve the lock for every kind that declares none.
-// The three predicates are DISJOINT (every row is exactly one mode and one owner-nullability arm), so any row is
+// The three predicates are DISJOINT (every row is exactly one mode and one admission-origin arm), so any row is
 // covered by EXACTLY ONE index. All `WHERE status` lists DERIVE from `ACTIVE_WORKLOAD_STATUSES` (sql.raw over
 // the tuple — the same no-respell discipline as users.ts's role CHECK); the named tuple is the mirror of the
-// predicate and cannot drift (removing `cancelling` wedges the kind forever after a mid-cancel crash). NOTE: a
-// The split singular indexes are required because SQLite treats NULLs as DISTINCT inside a unique index;
-// keeping owner_id inside one index would silently admit duplicate scheduler/system rows.
+// predicate and cannot drift (removing `cancelling` wedges the kind forever after a mid-cancel crash).
+// `admission_system` is stamped once at enqueue and never updated: unlike `owner_id`, it survives user-delete
+// SET NULL. The split indexes are still required because SQLite treats NULLs as DISTINCT inside a unique index;
+// originally-system rows therefore need the owner-free system key.
 //
 // EXECUTION vs ADMISSION: the three indexes above are ADMISSION (who may hold a slot). The `lane` column is
 // EXECUTION — which worker poll loop dispatches the row, so a 20-minute `import-st` sweep never head-blocks
@@ -114,6 +116,12 @@ export const workloads = sqliteTable(
     ownerId: text("owner_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
+    // Immutable ADMISSION identity, distinct from the mutable audit/authorization FK above. True means the
+    // row was admitted without an owner; false means it was admitted into an owner's slot. User deletion
+    // SET NULLs owner_id but leaves this fact false, so a retained active audit row never migrates into and
+    // collides with the system singleton partition. System is the safe default for direct scheduler writes;
+    // the production enqueue door explicitly stamps false whenever owner_id is non-null.
+    admissionSystem: integer("admission_system", { mode: "boolean" }).notNull().default(true),
     // The DAG edges: PERSISTED and ENFORCED AT DISPATCH (`nextRunnableWorkload`'s dependency gate — a dep
     // still active skips the row, a non-success terminal or an absent dep fails it with `dependency_failed`),
     // but deliberately NOT FK-ENFORCED: a plain JSON array of workload ids, so an absent dep is a runtime
@@ -150,13 +158,13 @@ export const workloads = sqliteTable(
     // bulk index). Terminal rows are NOT covered.
     uniqueIndex("workloads_mode_active_singular_owned")
       .on(table.kind, table.ownerId, table.admissionKey)
-      .where(sql.raw(`status in (${ACTIVE_STATUS_LIST}) and mode = 'singular' and owner_id is not null`)),
-    // SYSTEM SINGULAR lock: SQLite unique indexes do not collide NULL values, so the null-owner arm omits
-    // owner_id from its key and narrows the predicate to owner_id IS NULL. This is the durable admission
-    // boundary for scheduler/system singular rows under real concurrent connections.
+      .where(sql.raw(`status in (${ACTIVE_STATUS_LIST}) and mode = 'singular' and admission_system = 0`)),
+    // SYSTEM SINGULAR lock: SQLite unique indexes do not collide NULL values, so the originally-system arm
+    // omits owner_id from its key. This remains the durable singleton boundary under concurrent connections,
+    // while formerly-owned SET-NULL audit rows stay in the disjoint owned predicate.
     uniqueIndex("workloads_mode_active_singular_system")
       .on(table.kind, table.admissionKey)
-      .where(sql.raw(`status in (${ACTIVE_STATUS_LIST}) and mode = 'singular' and owner_id is null`)),
+      .where(sql.raw(`status in (${ACTIVE_STATUS_LIST}) and mode = 'singular' and admission_system = 1`)),
     // BULK lock: the global single-active lock (at most one bulk pass per (kind, admission_key)
     // deployment-wide). An owner-triggered shared rebuild/create can't run twice at once; an `index` bulk over
     // text + one over image still run concurrently (distinct key). Keyless kinds carry `none` → per-(kind).
