@@ -18,6 +18,7 @@ import {
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
   PLUGIN_MEMORY_LIMIT_BYTES,
+  PLUGIN_RESIDENT_RUNTIME_MAX,
   Sandbox,
 } from "@orb/server/infra/plugin-host";
 import { describe } from "vitest";
@@ -36,6 +37,10 @@ const INVOCATION_ENDED_RE = /invocation ended/u;
 const ARGS_CAP_RE = /arguments exceed/u;
 /** The resident-handler args channel's JSON-only refusal (a non-JSON payload never reaches the guest). */
 const ARGS_JSON_RE = /args must be a JSON document/u;
+const RESIDENT_CAPACITY_RE = /resident runtime capacity/u;
+const HOST_FN_EXCEEDED_RE = /exceeded/u;
+const HOST_OPERATION_ABORTED_RE = /abort/u;
+const UNKNOWN_OR_DISPOSED_RE = /unknown\/disposed/u;
 
 /** The concurrency-belt witness guest (a resident tool): (1) await a HUNG getVariables — returns control to the
  *  event loop mid-invocation, opening the race window; (2) requestTurn — forwards ITS invocation's
@@ -148,6 +153,76 @@ function makeSeams(): HostSeams {
 function makeHost(): ReturnType<typeof createPluginHost> {
   return createPluginHost(makeSeams());
 }
+
+describe("port.createInstance — process-wide resident admission", () => {
+  test("held activations consume admission, exhaustion refuses softly, and dispose releases for retry", { timeout: LONG }, async () => {
+    const hostA = makeHost();
+    const hostB = makeHost();
+    const base = fakeBridge().bridge;
+    const releases: (() => void)[] = [];
+    const heldBridge: PluginBridge = {
+      ...base,
+      chat: {
+        ...base.chat,
+        getVariables: () =>
+          new Promise<Record<string, string>>((resolve) => {
+            releases.push(() => resolve({ held: "released" }));
+          }),
+      },
+    };
+    const mainJs = `(async () => {
+      const h = orb.host(1);
+      await h.chat.getVariables(h.chat.current());
+      return "activated";
+    })()`;
+    const input = {
+      mainJs,
+      grants: ["chat.read"] as const,
+      bridge: heldBridge,
+      chat: { chatId: CHAT, canWrite: true, automationDepth: 0 },
+      budgets: { cpuDeadlineMs: 1000, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES, settleGraceMs: 20_000 },
+    };
+
+    const held = Array.from({ length: PLUGIN_RESIDENT_RUNTIME_MAX }, (_, index) => (index % 2 === 0 ? hostA : hostB).createInstance(input));
+    await settleTicks();
+    expect(releases).toHaveLength(PLUGIN_RESIDENT_RUNTIME_MAX);
+
+    let overflowSettled = false;
+    const overflowPromise = hostB.createInstance(input).then((outcome) => {
+      overflowSettled = true;
+      return outcome;
+    });
+    await settleTicks();
+
+    try {
+      expect(overflowSettled).toBe(true);
+      const overflow = await overflowPromise;
+      expect(overflow.ok).toBe(false);
+      if (overflow.ok) {
+        throw new Error("test: over-cap activation unexpectedly succeeded");
+      }
+      expect(overflow.error).toMatch(RESIDENT_CAPACITY_RE);
+      expect(overflow.log).toEqual([]);
+    } finally {
+      for (const release of releases) {
+        release();
+      }
+    }
+
+    const admitted = await Promise.all(held);
+    const instances = admitted.flatMap((outcome) => (outcome.ok ? [outcome.instance] : []));
+    expect(instances).toHaveLength(PLUGIN_RESIDENT_RUNTIME_MAX);
+    for (const [index, instance] of instances.entries()) {
+      (index % 2 === 0 ? hostA : hostB).dispose(instance);
+    }
+
+    const retry = await hostA.createInstance({ ...input, mainJs: "'ok'" });
+    expect(retry.ok).toBe(true);
+    if (retry.ok) {
+      hostA.dispose(retry.instance);
+    }
+  });
+});
 
 /** A fake op bridge with in-memory global-KV + a fixed chat var fold; counts variable / worldInfo / imagery
  *  writes for assertions (each is a host-gated bridge call the membrane only reaches after its canWrite gate). */
@@ -1118,6 +1193,103 @@ describe("membrane — teardown drains in-flight host calls (guest-reachable hos
       release({ tension: "1" });
       await gate;
     });
+  });
+});
+
+describe("membrane — host-operation liveness cancellation", () => {
+  function cancellableQuietBridge(delayMs: number): {
+    readonly bridge: PluginBridge;
+    readonly witness: { started: number; aborted: number; sideEffects: number };
+  } {
+    const base = fakeBridge().bridge;
+    const witness = { started: 0, aborted: 0, sideEffects: 0 };
+    return {
+      bridge: {
+        ...base,
+        llm: {
+          quiet: (_prompt, liveness) =>
+            new Promise<{ readonly text: string }>((resolve, reject) => {
+              witness.started += 1;
+              const timer = setTimeout(() => {
+                witness.sideEffects += 1;
+                resolve({ text: "late" });
+              }, delayMs);
+              timer.unref();
+              liveness.onAbort(() => {
+                clearTimeout(timer);
+                witness.aborted += 1;
+                reject(new Error("plugin host operation aborted"));
+              });
+            }),
+        },
+      },
+      witness,
+    };
+  }
+
+  async function residentQuietTool(
+    host: ReturnType<typeof createPluginHost>,
+    bridge: PluginBridge,
+    fireAndForget: boolean,
+  ): Promise<{
+    readonly instance: PluginInstance;
+    readonly ref: PluginHandlerRef;
+  }> {
+    const call = fireAndForget ? "h.llm.quiet('work'); return 'started';" : "await h.llm.quiet('work'); return 'done';";
+    const outcome = await host.createInstance({
+      mainJs: `const h = orb.host(1); h.tools.register({ name: "quiet", description: "d", parameters: {}, handler: async () => { ${call} } });`,
+      grants: ["tools.register", "llm.quiet"],
+      bridge,
+      chat: noChat,
+      budgets: { cpuDeadlineMs: 100, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES, settleGraceMs: HOST_FN_DEADLINE_MS + 1000 },
+    });
+    if (!outcome.ok) {
+      throw new Error(`activation failed: ${outcome.error}`);
+    }
+    const ref = outcome.instance.tools[0]?.handler;
+    if (ref === undefined) {
+      throw new Error("test: quiet handler missing");
+    }
+    return { instance: outcome.instance, ref };
+  }
+
+  test("a host-function timeout aborts cooperative work and prevents its late side effect", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { bridge, witness } = cancellableQuietBridge(HOST_FN_DEADLINE_MS + 100);
+    const { instance, ref } = await residentQuietTool(host, bridge, false);
+    try {
+      await expect(host.invoke(instance, ref, "{}", noChat)).rejects.toThrow(HOST_FN_EXCEEDED_RE);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      expect(witness).toEqual({ started: 1, aborted: 1, sideEffects: 0 });
+    } finally {
+      host.dispose(instance);
+    }
+  });
+
+  test("disposing a resident aborts cooperative fire-and-forget work and prevents its late side effect", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { bridge, witness } = cancellableQuietBridge(100);
+    const { instance, ref } = await residentQuietTool(host, bridge, true);
+    expect(await host.invoke(instance, ref, "{}", noChat)).toBe("started");
+    expect(witness.started).toBe(1);
+    host.dispose(instance);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(witness).toEqual({ started: 1, aborted: 1, sideEffects: 0 });
+  });
+
+  test("disposing during an awaited host operation cancels it, joins the invoke tail, and leaves no late side effect", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { bridge, witness } = cancellableQuietBridge(1000);
+    const { instance, ref } = await residentQuietTool(host, bridge, false);
+    const invoked = host.invoke(instance, ref, "{}", noChat);
+    await settleTicks();
+    expect(witness.started).toBe(1);
+
+    host.dispose(instance);
+    await expect(invoked).rejects.toThrow(HOST_OPERATION_ABORTED_RE);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(witness).toEqual({ started: 1, aborted: 1, sideEffects: 0 });
+    await expect(host.invoke(instance, ref, "{}", noChat)).rejects.toThrow(UNKNOWN_OR_DISPOSED_RE);
   });
 });
 

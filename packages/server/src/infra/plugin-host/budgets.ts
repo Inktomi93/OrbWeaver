@@ -21,6 +21,12 @@ export const SNIPPET_WALL_MS = 5000;
  *  rejected `isolated-vm` precisely because V8 cannot unwind OOM). */
 export const PLUGIN_MEMORY_LIMIT_BYTES = 33_554_432;
 
+/** Process-wide resident QuickJS contexts. Each context carries its own 32 MiB hard ceiling, so leaving the
+ *  registry unbounded converts installed-plugin count directly into unbounded process memory. Admission is
+ *  reserved before activation starts (not after the instance enters the resident map), and released only after
+ *  activation failure or teardown. Explicit refusal is safer than evicting a live plugin behind its registrars. */
+export const PLUGIN_RESIDENT_RUNTIME_MAX = 16;
+
 /** Explicit guest stack ceiling (bytes) — MANDATORY, not cosmetic. FINDING: QuickJS-ng's DEFAULT
  *  stack-overflow detection does NOT reliably catch deep recursion — a recursive guest blows the real
  *  WASM/native stack, which surfaces as a HOST-side `RangeError` (escaping the sandbox) AND leaves the
@@ -67,9 +73,10 @@ export const PLUGIN_QUIET_PROMPT_MAX_CHARS = 8192;
 
 /** Concurrent STARTED-AND-UNSETTLED host-fn implementations per INSTANCE; call N+1 rejects (the bridge
  *  back-pressure). Counted over real host work, NOT over un-timed-out guest promises: `HOST_FN_DEADLINE_MS`
- *  bounds a host call without CANCELLING it, so charging the slot to the deadline race let a guest start 32
- *  fresh installer-funded calls every 5 s while the previous ones were still executing (P2-G). The scope is the
- *  INSTANCE, not the invocation, because the work outlives the invocation — the accounting lives in
+ *  signals cooperative cancellation, but some transactional domain writes cannot safely stop mid-flight; so
+ *  charging the slot to the deadline race would let a guest start 32 fresh installer-funded calls every 5 s
+ *  while previous writes were still executing (P2-G). The scope is the INSTANCE, not the invocation, because
+ *  non-cancellable work can outlive it — the accounting lives in
  *  `membrane.ts`'s `attachAsync`/`InFlightCounter`. Design 03 §3 spells this row "32 per invocation"; that
  *  spelling assumed its own `PluginInvocationEnded` clause disposed the outstanding host work, which nothing on
  *  this tree can do. */

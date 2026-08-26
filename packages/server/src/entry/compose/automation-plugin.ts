@@ -525,10 +525,10 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // NOT a new `SIDE_GEN_KINDS` member: this IS a quiet generation, and minting a parallel posture would add
     // a coupled tuple site to say the same thing.
     llm: {
-      quiet: async ({ installerUserId, prompt }) => {
+      quiet: async ({ installerUserId, prompt, signal }) => {
         const rc = await bindRoleClients(installerUserId);
         const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.quiet_generate, await deps.resolveUserPresetParams(installerUserId));
-        const res = await rc.summarize([{ systemPrompt: PLUGIN_QUIET_SYSTEM, userPrompt: prompt }], toSummarizeOptions(posture));
+        const res = await rc.summarize([{ systemPrompt: PLUGIN_QUIET_SYSTEM, userPrompt: prompt }], { ...toSummarizeOptions(posture), signal });
         return { text: (res.items[0]?.text ?? "").trim() };
       },
     },

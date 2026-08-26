@@ -17,8 +17,17 @@
 // fetch through the SSRF-guarded `safeFetch` pinned to `netHosts`. quick_reply, notifications, and
 // storage.kv are COMPOSED — the bridge closes the pluginId/installer over those ops domain-side.
 
+import { randomUUID } from "node:crypto";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginLogLevel } from "@orb/contracts/plugin";
-import { EVENT_QUEUE_DEPTH, PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES, PLUGIN_MEMORY_LIMIT_BYTES, SNIPPET_WALL_MS } from "./budgets.ts";
+import { superviseDetached } from "#foundation/observability";
+import {
+  EVENT_QUEUE_DEPTH,
+  PLUGIN_LOG_RING_CHARS,
+  PLUGIN_LOG_RING_LINES,
+  PLUGIN_MEMORY_LIMIT_BYTES,
+  PLUGIN_RESIDENT_RUNTIME_MAX,
+  SNIPPET_WALL_MS,
+} from "./budgets.ts";
 import { getPluginQuickJS } from "./module.ts";
 import type { HostSeams } from "./realm.ts";
 import { Sandbox } from "./sandbox.ts";
@@ -105,6 +114,8 @@ function toLog(lines: readonly string[], at: number): PluginLogLineOut[] {
 // contained error the registrar's run() already catches as `threw` (errors-as-data to the model).
 interface Resident {
   readonly sandbox: Sandbox;
+  /** Release the process-wide resident admission exactly once, after this sandbox is torn down. */
+  readonly releaseAdmission: () => void;
   /** The RUNTIME log ring — the activation drain PLUS every later invocation's drain, oldest-first, bounded by
    *  `PLUGIN_LOG_RING_LINES` / `PLUGIN_LOG_RING_CHARS` and evicted from the FRONT. It is what `readLog` (and so
    *  `getPluginLog`) answers with, so a host can see what a plugin DID rather than only its activation banner.
@@ -122,6 +133,28 @@ interface Resident {
   /** Invokes currently pending (queued OR running) on this instance. The `EVENT_QUEUE_DEPTH` overflow gate reads
    *  it BEFORE chaining; each invoke decrements it in the same `.finally` that advances the tail. */
   queueDepth: number;
+  /** Set before deactivation aborts current work. Already-queued invokes see it and refuse before touching the
+   *  shared realm; the final queue tail owns deferred teardown + admission release. */
+  disposing: boolean;
+}
+
+/** Process-wide admission, shared even if a test or future composition accidentally constructs more than one
+ *  host facade. The reservation is taken BEFORE the first await in createInstance, so simultaneous activations
+ *  cannot all observe spare capacity and oversubscribe before entering their facade-local runtime maps. */
+let processResidentRuntimes = 0;
+function acquireResidentAdmission(): (() => void) | null {
+  if (processResidentRuntimes >= PLUGIN_RESIDENT_RUNTIME_MAX) {
+    return null;
+  }
+  processResidentRuntimes += 1;
+  let released = false;
+  return (): void => {
+    if (released) {
+      return;
+    }
+    released = true;
+    processResidentRuntimes -= 1;
+  };
 }
 
 /** Append one invocation's drained log lines to a resident's runtime ring, then evict from the FRONT until both
@@ -171,35 +204,51 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
 
   return {
     createInstance: async (input): Promise<CreateInstanceOutcomeOut> => {
-      // Keep the WASM-module load failure surface here rather than mid-eval.
-      await getPluginQuickJS();
-      const grants = new Set(input.grants);
-      const sandbox = await Sandbox.create(hostSeams, {
-        membrane: { grants, bridge: input.bridge, netHosts: input.netHosts ?? [] },
-        ...(input.budgets !== undefined ? { limits: input.budgets } : {}),
-      });
-      // The activation run's chat scope (the membrane resolves `current()` against it); `null` for an installed
-      // plugin's registration-only `main.js`.
-      sandbox.setInvocationChat(input.chat);
-      const at = seams.nowEpochMs();
-      const outcome = await sandbox.evalGuest(input.mainJs);
-      if (!outcome.ok) {
-        sandbox.dispose();
-        return { ok: false, error: outcome.error?.message ?? "activation failed", log: toLog(outcome.logs, at) };
+      const releaseAdmission = acquireResidentAdmission();
+      if (releaseAdmission === null) {
+        return {
+          ok: false,
+          error: `plugin host: resident runtime capacity (${PLUGIN_RESIDENT_RUNTIME_MAX}) exhausted — activation refused`,
+          log: [],
+        };
       }
-      // The collected tool + transform + event registrations — the domain hands each to its runtime
-      // registrar (tools → tool-use registry; transforms → the shared prompt-transform registry, band-assigned
-      // domain-side; events → the automation plugin-subscriber fan-out).
-      const instance: PluginInstance = {
-        tools: [...sandbox.collectedTools],
-        transforms: [...sandbox.collectedTransforms],
-        events: [...sandbox.collectedEvents],
-        surfaces: [...sandbox.collectedSurfaces],
-      };
-      const resident: Resident = { sandbox, log: [], chars: 0, tail: Promise.resolve(), queueDepth: 0 };
-      retainLog(resident, outcome.logs, at);
-      runtimes.set(instance, resident);
-      return { ok: true, instance };
+      let sandbox: Sandbox | undefined;
+      try {
+        // Keep the WASM-module load failure surface here rather than mid-eval.
+        await getPluginQuickJS();
+        const grants = new Set(input.grants);
+        sandbox = await Sandbox.create(hostSeams, {
+          membrane: { grants, bridge: input.bridge, netHosts: input.netHosts ?? [] },
+          ...(input.budgets !== undefined ? { limits: input.budgets } : {}),
+        });
+        // The activation run's chat scope (the membrane resolves `current()` against it); `null` for an installed
+        // plugin's registration-only `main.js`.
+        sandbox.setInvocationChat(input.chat);
+        const at = seams.nowEpochMs();
+        const outcome = await sandbox.evalGuest(input.mainJs);
+        if (!outcome.ok) {
+          sandbox.dispose();
+          releaseAdmission();
+          return { ok: false, error: outcome.error?.message ?? "activation failed", log: toLog(outcome.logs, at) };
+        }
+        // The collected tool + transform + event registrations — the domain hands each to its runtime
+        // registrar (tools → tool-use registry; transforms → the shared prompt-transform registry, band-assigned
+        // domain-side; events → the automation plugin-subscriber fan-out).
+        const instance: PluginInstance = {
+          tools: [...sandbox.collectedTools],
+          transforms: [...sandbox.collectedTransforms],
+          events: [...sandbox.collectedEvents],
+          surfaces: [...sandbox.collectedSurfaces],
+        };
+        const resident: Resident = { sandbox, releaseAdmission, log: [], chars: 0, tail: Promise.resolve(), queueDepth: 0, disposing: false };
+        retainLog(resident, outcome.logs, at);
+        runtimes.set(instance, resident);
+        return { ok: true, instance };
+      } catch (error) {
+        sandbox?.dispose();
+        releaseAdmission();
+        throw error;
+      }
     },
 
     invoke: async (instance, handler, argsJson, chat): Promise<string> => {
@@ -219,6 +268,9 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
       // FULFILLED or REJECTED (the tail catches its own rejection below, so a prior failure never poisons the
       // chain). The result promise this call returns is the run's own settle, NOT the shared tail.
       const run = resident.tail.then(async (): Promise<string> => {
+        if (resident.disposing) {
+          throw new Error("plugin host: invocation refused because the instance is disposing");
+        }
         resident.sandbox.setInvocationChat(chat ?? null);
         const outcome = await resident.sandbox.invokeHandler(handler, argsJson);
         // RETAIN this invocation's drained lines (both arms — a crashing handler's last words are the ones an
@@ -280,8 +332,30 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
     readLog: (instance): readonly PluginLogLineOut[] => [...(runtimes.get(instance)?.log ?? [])],
 
     dispose: (instance): void => {
-      runtimes.get(instance)?.sandbox.dispose();
+      const resident = runtimes.get(instance);
+      if (resident === undefined) {
+        return;
+      }
+      resident.disposing = true;
       runtimes.delete(instance);
+      resident.sandbox.cancelHostOperations();
+      const finish = (): void => {
+        try {
+          resident.sandbox.dispose();
+        } finally {
+          resident.releaseAdmission();
+        }
+      };
+      if (resident.queueDepth === 0 && resident.sandbox.pendingHostOperations === 0) {
+        finish();
+        return;
+      }
+      // Do not tear QuickJS down underneath an active `resolvePromise`: cancellation lets the running invoke
+      // reject through the normal guest-promise path, queued invokes refuse on `disposing`, then the final tail
+      // releases the context and admission. The detached join is supervised so cleanup failure is observable.
+      superviseDetached(`plugin-host:dispose:${randomUUID()}`, "plugin.host.dispose", {}, () =>
+        resident.tail.then(() => resident.sandbox.settleHostOperations()).then(finish, finish),
+      );
     },
   };
 }
