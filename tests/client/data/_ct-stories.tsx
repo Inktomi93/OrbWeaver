@@ -381,6 +381,7 @@ export function TagCreateOptimisticStory(): ReactElement {
 
 interface OverlapTagVars {
   readonly label: "older" | "newer";
+  readonly name: string;
 }
 
 let rejectOlderOverlap: (() => void) | undefined;
@@ -395,8 +396,8 @@ const useCreateTagOverlap = createEntityMutation<OverlapTagVars, TagView, TagVie
         });
       }
       return Promise.resolve({
-        id: castId("tag_newer"),
-        name: "newer",
+        id: castId(`tag_pending_${vars.name}`),
+        name: vars.name,
         color: null,
         color2: null,
         source: null,
@@ -408,24 +409,27 @@ const useCreateTagOverlap = createEntityMutation<OverlapTagVars, TagView, TagVie
   }),
   optimistic: {
     readKey: (trpc) => trpc.tag.listTags.queryKey(),
-    update: (old, vars) => [
-      ...(old ?? []),
-      {
-        id: castId(`tag_pending_${vars.label}`),
-        name: vars.label,
-        color: null,
-        color2: null,
-        source: null,
-        folderType: "NONE",
-        sortOrder: null,
-        isHiddenOnCard: false,
-      },
-    ],
+    update: (old, vars) =>
+      vars.label === "newer"
+        ? old
+        : [
+            ...(old ?? []),
+            {
+              id: castId(`tag_pending_${vars.name}`),
+              name: vars.name,
+              color: null,
+              color2: null,
+              source: null,
+              folderType: "NONE",
+              sortOrder: null,
+              isHiddenOnCard: false,
+            },
+          ],
   },
   busDriven: true,
 });
 
-function TagCreateOverlapInner(): ReactElement {
+function TagCreateOverlapInner({ sameValue }: { readonly sameValue: boolean }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const queryClient = useQueryClient();
@@ -433,20 +437,18 @@ function TagCreateOverlapInner(): ReactElement {
   const mutation = useCreateTagOverlap({ trpc, invalidation });
   const [settledFailure, setSettledFailure] = useState<string | null>(null);
   const create = (label: OverlapTagVars["label"]): void => {
+    const vars = { label, name: sameValue ? "desired" : label };
     if (label === "older") {
-      void mutation.mutateAsync({ label }).catch((error: unknown) => {
+      void mutation.mutateAsync(vars).catch((error: unknown) => {
         setSettledFailure(error instanceof Error ? error.message : String(error));
       });
       return;
     }
-    mutation.mutate(
-      { label },
-      {
-        onSuccess: (created): void => {
-          queryClient.setQueryData<TagView[]>(trpc.tag.listTags.queryKey(), [created]);
-        },
+    mutation.mutate(vars, {
+      onSuccess: (created): void => {
+        queryClient.setQueryData<TagView[]>(trpc.tag.listTags.queryKey(), [created]);
       },
-    );
+    });
   };
 
   return (
@@ -474,7 +476,17 @@ export function TagCreateOverlapStory(): ReactElement {
   return (
     <CtDataProviders>
       <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
-        <TagCreateOverlapInner />
+        <TagCreateOverlapInner sameValue={false} />
+      </QueryBoundary>
+    </CtDataProviders>
+  );
+}
+
+export function TagCreateSameValueOverlapStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
+        <TagCreateOverlapInner sameValue={true} />
       </QueryBoundary>
     </CtDataProviders>
   );
