@@ -10,7 +10,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
-import { chromiumDescendantPids } from "../../support/chromium-processes.ts";
+import { livingChromiumIdentities, watchChromiumDescendants } from "../../support/chromium-processes.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const CLI_TIMEOUT_MS = 90_000;
@@ -291,7 +291,7 @@ const SHELL_HTML = `<!doctype html>
 // This case deliberately BURNS the readiness wait (the app never announces itself), so it costs the full
 // selector budget on top of the browser spawn — an explicit budget, not a blanket file raise.
 test("an app origin whose app never mounted is an INSTRUMENT ERROR, never a clean audit", { timeout: 30_000 }, async ({ runCli }) => {
-  const before = chromiumDescendantPids(process.pid);
+  const witness = watchChromiumDescendants(process.pid);
   const server = await serveOnce(SHELL_HTML);
   try {
     const res = await runCli("ui-audit", ["/", "--base", server.base], { timeoutMs: CLI_TIMEOUT_MS });
@@ -301,7 +301,9 @@ test("an app origin whose app never mounted is an INSTRUMENT ERROR, never a clea
   } finally {
     server.close();
   }
-  const survivors = [...chromiumDescendantPids(process.pid)].filter((pid) => !before.has(pid));
+  const observed = witness.stop();
+  expect(observed.length).toBeGreaterThan(0);
+  const survivors = livingChromiumIdentities(observed);
   expect(survivors).toEqual([]);
 });
 
