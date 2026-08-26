@@ -11741,6 +11741,64 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/issue-721-runtime-bounds.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 270,
+      "bytes": 18239,
+      "sha256": "13de58374f6f446975ba071add8c71d1c9388684be04597b8b5be550a3c41714",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "complete",
+          "updated": "2026-08-26"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/issue-721-runtime-bounds.md",
+        "assignedSha256": "13de58374f6f446975ba071add8c71d1c9388684be04597b8b5be550a3c41714",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "13de58374f6f446975ba071add8c71d1c9388684be04597b8b5be550a3c41714",
+        "verifiedCommit": "c129d5a41af35a9cfa45832fa729b8ef134784aa",
+        "verifiedAt": "2026-08-26",
+        "evidence": [
+          "docs/design/issue-721-runtime-bounds.md read in full before implementation and re-read against the integrated union tree at c129d5a41",
+          "focused behavioral verification: vLLM ownership 51/51, bounded discovery 39/39, atomic automation admission 84/84, and DB schema/baseline/boot/backup/reset 37/37",
+          "normal integration hook at the union merge: DB baseline, Drizzle, package types, graph types, lint, and dependency cruise green; exact structure and Knip findings were repaired before this receipt barrier"
+        ],
+        "summary": "Issue #721 implemented design of record: sticky verified vLLM ownership, bounded streaming character-duplicate work, and storage-only atomic automation reservations under one post-#720 union baseline.",
+        "claims": [
+          {
+            "claim": "Managed runtime recovery retains launch ownership, character duplicate recomputation is explicitly bounded, and concurrent automation dispatches reserve shared budgets before effects.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#721"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/infra/providers/vllm/engine/supervisor.ts:96"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/discovery/duplicates/generate.ts:35"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/automation/persistence/fires.ts:98"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/list-pane-projection-proposal.md",
       "lane": "design",
       "issue": 5,
