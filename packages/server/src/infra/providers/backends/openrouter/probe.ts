@@ -5,7 +5,7 @@
 import type { GetCreditsResponse } from "@openrouter/sdk/models/operations";
 import { errorMessage } from "@orb/kit/error-message";
 import type { CredentialHealth } from "../../contract/index.ts";
-import { sanitizeApiError } from "../kit/index.ts";
+import { redactSecretsFromText, sanitizeApiError } from "../kit/index.ts";
 
 // An auth-class failure (bad/revoked key) vs a reachability failure — the SDK doesn't surface a typed
 // status here, so we match the message (hoisted per useTopLevelRegex).
@@ -23,13 +23,13 @@ interface OrProbeClient {
  * clock (the domain may layer its own throttle state on top). The reason is sanitized — never raw upstream
  * markup/secrets.
  */
-export async function probeOpenRouterCredential(client: OrProbeClient, now: () => number): Promise<CredentialHealth> {
+export async function probeOpenRouterCredential(client: OrProbeClient, now: () => number, secrets: readonly string[] = []): Promise<CredentialHealth> {
   const checkedAt = now();
   try {
     await client.credits.getCredits();
     return { status: "ok", checkedAt };
   } catch (err) {
-    const reason = sanitizeApiError(errorMessage(err));
+    const reason = sanitizeApiError(redactSecretsFromText(errorMessage(err), secrets));
     if (AUTH_FAILURE_RE.test(reason)) {
       return { status: "revoked", checkedAt, reason };
     }

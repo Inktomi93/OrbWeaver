@@ -15,6 +15,7 @@ import type { NotificationsService } from "@orb/server/domain/notifications";
 import type { PersonaService } from "@orb/server/domain/persona";
 import type { SettingsService } from "@orb/server/domain/settings";
 import { logger } from "@orb/server/foundation/observability";
+import { providerErrorFromHttp } from "@orb/server/infra/providers/backends/kit";
 import type { Context, PresenceRegistry, Services } from "@orb/server/transport/trpc";
 import { appRouter, classifyDomainError } from "@orb/server/transport/trpc";
 import type { Mock } from "vitest";
@@ -371,5 +372,33 @@ describe("errorFormatter — `stack` never reaches the wire (PROD-LEAK belt)", (
       },
     });
     expect(shaped.data).toMatchObject({ code: "BAD_REQUEST", httpStatus: 400, path: "persona.list", reason: "bad_input" });
+  });
+
+  test("a provider-reflected credential is absent from the tRPC/UI wire shape and retained cause graph", () => {
+    const secret = "sk-or-reflected-through-trpc-123456";
+    const providerError = providerErrorFromHttp(
+      Object.assign(new Error(`upstream rejected ${secret}`), { statusCode: 401, body: `{"error":"${secret}"}` }),
+      "openrouter chat",
+      [secret],
+    );
+    // The formatter only reads `error` for the optional domain reason; the actual client-visible provider
+    // bytes are the `shape` produced by tRPC's getErrorShape immediately before this callback.
+    const error = mappedError(new DomainOperationError("bad_input", providerError.message));
+    const shaped = errorFormatter({
+      error,
+      type: "mutation",
+      path: "chat.send",
+      input: undefined,
+      ctx: undefined,
+      shape: {
+        message: error.message,
+        code: -32_603,
+        data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500, path: "chat.send", stack: LEAKING_STACK },
+      },
+    });
+
+    expect(JSON.stringify(shaped)).not.toContain(secret);
+    expect(providerError.message).not.toContain(secret);
+    expect((providerError.cause as Error).message).not.toContain(secret);
   });
 });

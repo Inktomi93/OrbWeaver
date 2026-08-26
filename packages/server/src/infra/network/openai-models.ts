@@ -108,17 +108,12 @@ const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const AUTH_FAILURE_STATUSES: readonly number[] = [HTTP_UNAUTHORIZED, HTTP_FORBIDDEN];
 const REDACTED = "«redacted»";
-// Mirrors backends/kit's MIN_SCRUBBABLE_SECRET_LEN: a literal that short is not a credential, and
-// blind-replacing it would eat legitimate text out of the diagnostic.
-const MIN_SCRUBBABLE_SECRET_LEN = 8;
 
 /** Strip the credential literals we hold out of a transport error before it becomes a user-visible reason
- *  (the credential-echo class: a proxy/undici error can quote what it was handed). Conservative by design —
- *  this file carries no header-name heuristic, so EVERY custom header value is treated as secret. */
+ *  (the credential-echo class: a proxy/undici error can quote what it was handed). This file carries no
+ *  header-name heuristic, so EVERY non-empty custom header value is treated as secret, regardless of length. */
 function scrubCredentials(text: string, args: FetchOpenAiModelsArgs): string {
-  const literals = [...new Set([args.apiKey ?? "", ...Object.values(args.headers ?? {})])]
-    .filter((s) => s.length >= MIN_SCRUBBABLE_SECRET_LEN)
-    .sort((a, b) => b.length - a.length); // longest first: a secret contained in another is masked by the longer one
+  const literals = [...new Set([args.apiKey ?? "", ...Object.values(args.headers ?? {})])].filter((s) => s.length > 0).sort((a, b) => b.length - a.length); // longest first: a secret contained in another is masked by the longer one
   let scrubbed = text;
   for (const secret of literals) {
     scrubbed = scrubbed.replaceAll(secret, REDACTED);

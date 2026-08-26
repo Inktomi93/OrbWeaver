@@ -385,6 +385,13 @@ test("userIntentSchema rejects an out-of-bounds knob (the shared numeric bounds 
   expect(userIntentSchema.safeParse({ temperature: OUT_OF_RANGE_TEMPERATURE }).success).toBe(false);
 });
 
+test("userIntentSchema rejects Agent SDK loader/search injection before preset persistence", () => {
+  for (const key of ["NODE_OPTIONS", "node_path", "LD_PRELOAD", "DYLD_INSERT_LIBRARIES", "BASH_ENV", "PYTHONPATH", "RUBYOPT", "PERL5OPT"]) {
+    const parsed = userIntentSchema.safeParse({ advanced: { claudeEnv: { [key]: "attacker-controlled" } } });
+    expect(parsed.success, `${key} must be rejected at the write schema`).toBe(false);
+  }
+});
+
 // --- D68 slots: minP + verbosity on UserIntent (no consumer until W2) ---------
 
 test("userIntentSchema accepts minP within [0,1] (D68-A slot)", () => {

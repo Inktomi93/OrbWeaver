@@ -41,9 +41,6 @@ const REDACTED = "«redacted»";
 // Single bounded class, no nesting → ReDoS-safe.
 const BEARER_TOKEN_RE = /Bearer\s+[\w.\-+/=]+/gi;
 const SK_KEY_RE = /sk-[A-Za-z0-9_-]{16,}/g;
-// A secret literal shorter than this is too collision-prone to blind-replace across arbitrary text (it
-// would redact legitimate content). Real provider keys are far longer; a 1–7 char "key" isn't one.
-const MIN_SCRUBBABLE_SECRET_LEN = 8;
 
 /**
  * Build the OpenAI sampler slice in WIRE (snake_case) form. Each field is emitted ONLY when set on the
@@ -195,13 +192,13 @@ export function secretHeaderValues(headers: Readonly<Record<string, string>> | n
  * PRIMARY guarantee: every known secret LITERAL in `secrets` is replaced by value — an endpoint cannot leak
  * a secret we scrubbed by its exact value, regardless of surrounding framing. DEFENSE-IN-DEPTH: `Bearer …`
  * and `sk-…`-shaped substrings are also masked in case the token is re-encoded/reshaped on the way back.
- * Literals shorter than {@link MIN_SCRUBBABLE_SECRET_LEN} are skipped (too collision-prone to blind-replace
- * — they'd redact legitimate content, and a string that short is not a real credential).
+ * Empty values are skipped; every non-empty configured credential is scrubbed even when short. A custom
+ * auth header defines the value's secret semantics — collision-driven over-redaction is safer than leakage.
  */
 export function redactSecretsFromText(text: string, secrets: readonly string[]): string {
   let scrubbed = text;
   // Longest-first so a secret that is a substring of another is handled by the longer replacement first.
-  const literals = [...new Set(secrets)].filter((s) => s.length >= MIN_SCRUBBABLE_SECRET_LEN).sort((a, b) => b.length - a.length);
+  const literals = [...new Set(secrets)].filter((s) => s.length > 0).sort((a, b) => b.length - a.length);
   for (const secret of literals) {
     scrubbed = scrubbed.replace(new RegExp(RegExp.escape(secret), "g"), REDACTED);
   }

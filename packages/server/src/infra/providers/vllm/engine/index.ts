@@ -55,6 +55,24 @@ export {
 export { fetchEngineMaxModelLen } from "./gen-window.ts";
 export { countGpus, detectGpu } from "./gpu.ts";
 export { sniffMime, toDataUri } from "./image.ts";
+export type {
+  EngineIdentityFile,
+  EngineLaunchIdentity,
+  ObservedEngineProcess,
+} from "./process-identity.ts";
+export {
+  captureEngineLaunchIdentity,
+  engineIdentityFilePath,
+  parseEngineIdentityFile,
+  parseProcIdentityStat,
+  readEngineIdentityFile,
+  readObservedEngineProcess,
+  serializeEngineIdentityFile,
+  signalEngineLaunchIdentity,
+  signalRecordedEngineProcess,
+  verifyEngineLaunchIdentity,
+  writeEngineLaunchIdentities,
+} from "./process-identity.ts";
 export { findOrphanedFamily, liveListenerPids, makeCwdMarker, parsePsRows, reapOrphanedFamily, reapTargets } from "./reaper.ts";
 export type { EngineDeploymentEnv, EngineDeploymentFacts, EngineSpawnSpec } from "./spawn-engine.ts";
 export { buildEngineSpawnSpec, resolveEngineDeploymentFacts, resolveStoreRoot } from "./spawn-engine.ts";

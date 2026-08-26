@@ -21,22 +21,26 @@
  * profile at once (concurrent boots gave embed a NEGATIVE KV budget → death). Each finishes before the next;
  * a /health timeout is non-fatal (later engines still get their turn).
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { engineDeploymentEnv, engineLaunchEnvFloor, env, processEnvSnapshot } from "@orb/server/foundation/env";
-import type { EngineLaunchConfig, EngineSpawnSpec, EngineUtilFractions } from "@orb/server/infra/providers/vllm/engine";
+import type { EngineLaunchConfig, EngineLaunchIdentity, EngineSpawnSpec, EngineUtilFractions } from "@orb/server/infra/providers/vllm/engine";
 import {
   buildEngineSpawnSpec,
+  captureEngineLaunchIdentity,
   countGpus,
   decideWakeBudget,
+  engineIdentityFilePath,
   engineVramNeed,
   fleetRunDir,
   queryGpuVram,
   reapOrphanedFamily,
   resolveEngineLaunchConfig,
+  signalEngineLaunchIdentity,
   VLLM_ENGINES,
+  writeEngineLaunchIdentities,
 } from "@orb/server/infra/providers/vllm/engine";
 import { print } from "../../_shared/artifacts.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
@@ -55,9 +59,8 @@ const MS_PER_SECOND = 1000;
 // kill-trap) — the detached fleet model (A.4). Each engine is its own setsid group leader, so they survive
 // the launcher's death; the bit-us-twice class is unmakeable. Default (no flag) = the old foreground owner.
 const DETACH = process.argv.includes("--detach");
-const PIDFILE = path.join(fleetRunDir(REPO_ROOT), "engines.pgid");
+const PIDFILE = engineIdentityFilePath(REPO_ROOT);
 const BOOT_LOCK = path.join(fleetRunDir(REPO_ROOT), "engines.boot.lock");
-const PIDFILE_ROW_RE = /\s+/u;
 
 function log(msg: string): void {
   print(`engines: ${msg}`);
@@ -146,37 +149,6 @@ async function headroomOk(engine: (typeof VLLM_ENGINES)[number], gpuCount: numbe
   return true;
 }
 
-/** Write the detached pidfile: one `engine pgid startTime` row per booted engine. The bash stop verb reads
- *  the pgids to group-kill the family; start-time makes the pid pgid-reuse-safe (bash re-reads /proc/stat).
- *  MERGE semantics (2026-08-03 duplicate-fleet audit): an adopt that booted only SOME engines (others
- *  already healthy and adopted in place) must not clobber the healthy engines' rows — read the existing
- *  file and overlay by engine name. A no-op adopt (zero booted) leaves the pidfile untouched: the old
- *  unconditional write let a second adopter blank the live fleet's pidfile, orphaning `engines:stop`. */
-function writePidfile(rows: readonly (readonly [string, number])[]): void {
-  if (rows.length === 0) {
-    log("no engines booted by this adopt — pidfile untouched.");
-    return;
-  }
-  mkdirSync(fleetRunDir(REPO_ROOT), { recursive: true });
-  const merged = new Map<string, number>();
-  try {
-    for (const line of readFileSync(PIDFILE, "utf8").split("\n")) {
-      const [engine, pgid] = line.trim().split(PIDFILE_ROW_RE);
-      if (engine !== undefined && engine.length > 0 && pgid !== undefined) {
-        merged.set(engine, Number(pgid));
-      }
-    }
-  } catch {
-    // no existing pidfile — fresh fleet
-  }
-  for (const [engine, pgid] of rows) {
-    merged.set(engine, pgid);
-  }
-  const lines = [...merged.entries()].map(([engine, pgid]) => `${engine} ${pgid}`).join("\n");
-  writeFileSync(PIDFILE, `${lines}\n`);
-  log(`wrote pidfile ${PIDFILE} (${merged.size} engines, ${rows.length} booted by this adopt)`);
-}
-
 /** The adopt-window boot lock (2026-08-03 duplicate-fleet audit): two adopters racing the same boot
  *  window each passed the VRAM headroom gate (mid-boot VRAM is ambiguous — the first adopter's engines
  *  hadn't claimed their budgets yet) and spawned a SECOND fleet — two vllm processes per port, the losers
@@ -210,21 +182,96 @@ function releaseBootLock(): void {
   releaseSpawnLock(BOOT_LOCK);
 }
 
-/** The foreground hold: own the children until a signal, then group-kill them and RESOLVE (never
+/** The foreground hold: own the verified launch identities until a signal, then group-kill them and RESOLVE (never
  *  `process.exit` — the exit-honesty runner owns termination, and a hard exit here would skip the
  *  teardown the operator's Ctrl-C is asking for). */
-function holdUntilSignal(children: readonly FullPriorityChild[]): Promise<void> {
+function holdUntilSignal(identities: readonly EngineLaunchIdentity[]): Promise<void> {
   return new Promise<void>((resolve) => {
     const stop = (): void => {
       log("stopping…");
-      for (const c of children) {
-        c.killGroup("SIGTERM");
+      for (const identity of identities) {
+        const result = signalEngineLaunchIdentity(identity, "SIGTERM", {
+          engine: identity.engine,
+          port: identity.port,
+          repoRoot: REPO_ROOT,
+          listenerPid: null,
+        });
+        log(`${identity.engine}: ${result.verdict}${"reason" in result ? ` — ${result.reason}` : ` pgid=${result.pgid}`}`);
       }
       resolve();
     };
     process.on("SIGINT", stop);
     process.on("SIGTERM", stop);
   });
+}
+
+interface FleetLaunchResult {
+  readonly children: FullPriorityChild[];
+  readonly launched: EngineLaunchIdentity[];
+  readonly identityFailures: number;
+}
+
+interface EngineLaunchResult {
+  readonly child?: FullPriorityChild | undefined;
+  readonly identity?: EngineLaunchIdentity | undefined;
+  readonly identityFailed: boolean;
+}
+
+async function launchOneEngine(opts: {
+  readonly engine: (typeof VLLM_ENGINES)[number];
+  readonly port: number;
+  readonly launch: EngineLaunchConfig;
+  readonly deployment: ReturnType<typeof engineDeploymentEnv>;
+  readonly gpuCount: number;
+  readonly baseEnv: NodeJS.ProcessEnv;
+}): Promise<EngineLaunchResult> {
+  const { engine, port, launch, deployment, gpuCount, baseEnv } = opts;
+  if (await portHealthy(port)) {
+    log(`${engine} already serving (:${port}) — adopted in place, no spawn.`);
+    return { identityFailed: false };
+  }
+  if (!(await headroomOk(engine, gpuCount))) {
+    return { identityFailed: false };
+  }
+  log(`starting ${engine} :${port}`);
+  const spec = buildEngineSpawnSpec(engine, launch, { repoRoot: REPO_ROOT, gpuCount, deployment, baseEnv });
+  const child = spawnEngine(engine, spec);
+  await waitHealthy(engine, port, child);
+  if (child.hasExited() || child.pid === undefined) {
+    return { child, identityFailed: false };
+  }
+  const identity = captureEngineLaunchIdentity(engine, port, REPO_ROOT, child.pid);
+  if (identity === null) {
+    log(`ERROR — ${engine} pid ${child.pid} did not resolve to a safe setsid launch identity; refusing to record or signal it.`);
+    return { child, identityFailed: true };
+  }
+  return { child, identity, identityFailed: false };
+}
+
+async function launchFleet(launch: EngineLaunchConfig, deployment: ReturnType<typeof engineDeploymentEnv>, gpuCount: number): Promise<FleetLaunchResult> {
+  const children: FullPriorityChild[] = [];
+  const launched: EngineLaunchIdentity[] = [];
+  let identityFailures = 0;
+  const portOf: Record<(typeof VLLM_ENGINES)[number], number> = {
+    embed: launch.ports.embed,
+    rerank: launch.ports.rerank,
+    gen: launch.ports.gen,
+  };
+  const baseEnv = processEnvSnapshot();
+  await VLLM_ENGINES.reduce<Promise<void>>(async (prior, engine) => {
+    await prior;
+    const result = await launchOneEngine({ engine, port: portOf[engine], launch, deployment, gpuCount, baseEnv });
+    if (result.child !== undefined) {
+      children.push(result.child);
+    }
+    if (result.identity !== undefined) {
+      launched.push(result.identity);
+    }
+    if (result.identityFailed) {
+      identityFailures += 1;
+    }
+  }, Promise.resolve());
+  return { children, launched, identityFailures };
 }
 
 async function main(): Promise<ExitCode> {
@@ -239,8 +286,6 @@ async function main(): Promise<ExitCode> {
   const deployment = engineDeploymentEnv();
   const gpuCount = countGpus();
   const ports = launch.ports;
-  const children: FullPriorityChild[] = [];
-  const booted: [string, number][] = [];
 
   // Reconcile-before-spawn: reap any orphaned engine-family process (a dead APIServer's core still holding
   // VRAM) so the headroom pre-check names a REAL foreign tenant, never our own corpse.
@@ -249,37 +294,23 @@ async function main(): Promise<ExitCode> {
     log(`reaped orphaned engine-family process(es) before boot: ${reaped.join(", ")}`);
   }
 
-  // Foreground mode (default) owns the children + group-kills them on a signal (the pre-fleet behavior for
-  // dev-server adoption; the hold is installed AFTER the boot loop, below). --detach records the pidfile
-  // and exits, leaving the engines warm (fleet model).
-  const portOf: Record<string, number> = { embed: ports.embed, rerank: ports.rerank, gen: ports.gen };
-  const baseEnv = processEnvSnapshot();
-  for (const engine of VLLM_ENGINES) {
-    const port = portOf[engine] as number;
-    // Adopt-in-place: a port already answering /health is an ALREADY-SERVING engine (a prior adopt's
-    // fleet). Spawning "our own" copy here is how the duplicate fleet happened — the dupe loads its
-    // model into VRAM, loses the port bind, and idles forever. Its pidfile row survives via merge.
-    // biome-ignore lint/performance/noAwaitInLoops: sequential boot — vLLM's memory profiler cannot run two at once.
-    if (await portHealthy(port)) {
-      log(`${engine} already serving (:${port}) — adopted in place, no spawn.`);
-      continue;
-    }
-    if (!(await headroomOk(engine, gpuCount))) {
-      continue; // no breaker charge for a held GPU — a foreign tenant is not a crash loop.
-    }
-    log(`starting ${engine} :${portOf[engine]}`);
-    const spec = buildEngineSpawnSpec(engine, launch, { repoRoot: REPO_ROOT, gpuCount, deployment, baseEnv });
-    const child = spawnEngine(engine, spec);
-    children.push(child);
-    if (child.pid !== undefined) {
-      booted.push([engine, child.pid]); // setsid ⇒ pid == the engine's process-group leader (pgid)
-    }
-    await waitHealthy(engine, portOf[engine] as number, child);
+  // Foreground mode owns the verified identities until a signal; --detach writes the same identities and
+  // exits, leaving the engines warm. The launch loop remains sequential because vLLM profiles shared VRAM.
+  const { children, launched, identityFailures } = await launchFleet(launch, deployment, gpuCount);
+  log(`booted ${launched.length}/${VLLM_ENGINES.length} with verified launch identities — embed:${ports.embed} rerank:${ports.rerank} gen:${ports.gen}`);
+
+  if (identityFailures > 0) {
+    releaseBootLock();
+    return EXIT.toolError;
   }
-  log(`booted ${booted.length}/${VLLM_ENGINES.length} — embed:${ports.embed} rerank:${ports.rerank} gen:${ports.gen}`);
+  writeEngineLaunchIdentities(REPO_ROOT, launched);
+  if (launched.length > 0) {
+    log(`wrote atomic launch identities to ${PIDFILE}`);
+  } else {
+    log("no engines booted by this adopt — launch identity file untouched.");
+  }
 
   if (DETACH) {
-    writePidfile(booted);
     releaseBootLock();
     // Un-ref the child handles or the "exited" launcher lives exactly as long as the fleet: the
     // 2026-08-03 audit found two launcher+tsx+esbuild clusters idling for 8h, event-loops held by
@@ -292,7 +323,7 @@ async function main(): Promise<ExitCode> {
   }
   releaseBootLock();
   log("owning them in the foreground; the dev server (`pnpm stack up`) will ADOPT. Ctrl-C to stop.");
-  await holdUntilSignal(children);
+  await holdUntilSignal(launched);
   return EXIT.clean;
 }
 

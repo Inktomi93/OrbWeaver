@@ -23,7 +23,7 @@
 
 import type { EndpointInspection } from "@orb/contracts/providers";
 import { errorMessage } from "@orb/kit/error-message";
-import { applyIncludeExclude, redactHeaders, redactSecretsFromText, secretHeaderValues } from "../kit/index.ts";
+import { applyIncludeExclude, redactHeaders, redactSecretsFromText, sanitizeApiError, secretHeaderValues } from "../kit/index.ts";
 
 const PING_CONTENT = "ping";
 const PING_MAX_TOKENS = 1;
@@ -69,6 +69,7 @@ export async function inspectCustomByoEndpoint(args: {
     headers: redactHeaders(headers),
     body: JSON.stringify(body, null, 2),
   };
+  const secrets = [...(args.apiKey !== null ? [args.apiKey] : []), ...secretHeaderValues(args.headers)];
 
   try {
     const res = await fetch(url, {
@@ -82,7 +83,6 @@ export async function inspectCustomByoEndpoint(args: {
     const text = await res.text().catch((): string => "");
     // Scrub secrets BEFORE display-eligibility: an echoing endpoint reflects the plaintext key back in the
     // body. The known literals we hold (the apiKey + any secret-valued custom header) are the primary belt.
-    const secrets = [...(args.apiKey !== null ? [args.apiKey] : []), ...secretHeaderValues(args.headers)];
     const bodyPreview = redactSecretsFromText(text, secrets).slice(0, BODY_PREVIEW_LIMIT);
     return {
       ok: res.ok,
@@ -94,6 +94,6 @@ export async function inspectCustomByoEndpoint(args: {
       },
     };
   } catch (err) {
-    return { ok: false, request, response: null, error: errorMessage(err) };
+    return { ok: false, request, response: null, error: sanitizeApiError(redactSecretsFromText(errorMessage(err), secrets)) };
   }
 }

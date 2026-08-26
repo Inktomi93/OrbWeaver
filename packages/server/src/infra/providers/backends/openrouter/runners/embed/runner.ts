@@ -7,7 +7,7 @@
 import type { CreateEmbeddingsRequestBody, CreateEmbeddingsResponse } from "@openrouter/sdk/models/operations";
 import type { EmbedRequest, EmbedResult } from "../../../../contract/index.ts";
 import { ProviderError } from "../../../../contract/index.ts";
-import { providerErrorFromHttp } from "../../../kit/index.ts";
+import { providerCredentialSecretValues, providerErrorFromHttp } from "../../../kit/index.ts";
 
 const BASE64 = "base64";
 
@@ -58,7 +58,7 @@ export async function runEmbed(client: OrEmbedClient, req: EmbedRequest): Promis
   try {
     response = await client.embeddings.generate({ requestBody }, req.signal !== undefined ? { signal: req.signal } : undefined);
   } catch (err) {
-    throw providerErrorFromHttp(err, errorPrefix(req.model));
+    throw providerErrorFromHttp(err, errorPrefix(req.model), providerCredentialSecretValues(req.credential));
   }
   if (typeof response === "string") {
     throw new ProviderError({

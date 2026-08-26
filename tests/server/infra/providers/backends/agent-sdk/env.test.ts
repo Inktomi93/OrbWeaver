@@ -15,6 +15,7 @@ const FAKE_SUB_TOKEN = "oauth-sub-token-SECRET";
 const OPENROUTER_BASE = "https://openrouter.ai/api";
 const KEY_REQUIRED_RE = /OpenRouter API key is required/u;
 const ANTH_KEY_REQUIRED_RE = /Anthropic API key is required/u;
+const UNSAFE_RUNTIME_ENV_RE = /unsafe runtime environment key/u;
 // The derived tier→slug map the caller (connection) now supplies — the firewall carries NO hardcoded map.
 const TIER_MODELS = {
   opus: "anthropic/claude-opus-4.8",
@@ -122,13 +123,14 @@ describe("the preset escape hatch cannot breach the firewall (reserved-keys filt
 });
 
 describe("host baseline strips the ambient Claude/Anthropic control surface (uncontrolled-behavior leak)", () => {
-  test("ambient CLAUDE_*/ANTHROPIC_*/CLAUDECODE are stripped; a non-Claude var survives", () => {
+  test("ambient CLAUDE_*/ANTHROPIC_*/CLAUDECODE and unsupported variables are stripped; PATH survives", () => {
     // Simulate the operator's own Claude Code session / a deploy shell exporting control knobs.
     vi.stubEnv("CLAUDE_CODE_SOME_AMBIENT_KNOB", "ambient-value");
     vi.stubEnv("ANTHROPIC_MODEL", "some-ambient-model");
     vi.stubEnv("CLAUDECODE", "1");
-    // A non-Claude ambient var the child needs / should keep.
+    // An arbitrary variable is not a supported child dependency; PATH is.
     vi.stubEnv("SOME_UNRELATED_PATH_VAR", "/opt/keep-me");
+    vi.stubEnv("PATH", "/usr/bin:/bin");
 
     const env = buildClaudeSdkEnv();
 
@@ -136,8 +138,51 @@ describe("host baseline strips the ambient Claude/Anthropic control surface (unc
     expect(env["CLAUDE_CODE_SOME_AMBIENT_KNOB"]).toBeUndefined();
     expect(env["ANTHROPIC_MODEL"]).toBeUndefined();
     expect(env["CLAUDECODE"]).toBeUndefined();
-    // A non-Claude ambient var passes through — the child needs PATH/HOME/etc. to spawn.
-    expect(env["SOME_UNRELATED_PATH_VAR"]).toBe("/opt/keep-me");
+    expect(env["SOME_UNRELATED_PATH_VAR"]).toBeUndefined();
+    expect(env["PATH"]).toBe("/usr/bin:/bin");
+  });
+
+  test("inherits only the supported host baseline — preload/search/runtime injection variables never reach the child", () => {
+    for (const [key, value] of [
+      ["NODE_OPTIONS", "--require=/tmp/owned.cjs"],
+      ["NODE_PATH", "/tmp/attacker-modules"],
+      ["LD_PRELOAD", "/tmp/owned.so"],
+      ["LD_LIBRARY_PATH", "/tmp/attacker-libs"],
+      ["DYLD_INSERT_LIBRARIES", "/tmp/owned.dylib"],
+      ["BASH_ENV", "/tmp/owned.sh"],
+      ["PYTHONPATH", "/tmp/attacker-python"],
+    ] as const) {
+      vi.stubEnv(key, value);
+    }
+    vi.stubEnv("PATH", "/usr/bin:/bin");
+    vi.stubEnv("LANG", "C.UTF-8");
+
+    const env = buildClaudeSdkEnv();
+
+    expect(env["PATH"]).toBe("/usr/bin:/bin");
+    expect(env["LANG"]).toBe("C.UTF-8");
+    for (const key of ["NODE_OPTIONS", "NODE_PATH", "LD_PRELOAD", "LD_LIBRARY_PATH", "DYLD_INSERT_LIBRARIES", "BASH_ENV", "PYTHONPATH"]) {
+      expect(env[key], `${key} must not survive the explicit host-env allowlist`).toBeUndefined();
+    }
+  });
+});
+
+describe("preset env validation rejects runtime preload/search injection", () => {
+  test("every dangerous loader/search key is rejected instead of silently persisted", () => {
+    for (const key of [
+      "NODE_OPTIONS",
+      "NODE_PATH",
+      "LD_PRELOAD",
+      "LD_LIBRARY_PATH",
+      "DYLD_INSERT_LIBRARIES",
+      "BASH_ENV",
+      "ENV",
+      "PYTHONPATH",
+      "RUBYOPT",
+      "PERL5OPT",
+    ]) {
+      expect(() => buildClaudeSdkEnv({ userEnv: { [key]: "attacker-controlled" } }), key).toThrow(UNSAFE_RUNTIME_ENV_RE);
+    }
   });
 });
 

@@ -23,7 +23,7 @@ import type {
 } from "../../../../contract/index.ts";
 import { ProviderError } from "../../../../contract/index.ts";
 import type { NormalizeImageBytes } from "../../../kit/index.ts";
-import { providerErrorFromHttp } from "../../../kit/index.ts";
+import { providerCredentialSecretValues, providerErrorFromHttp } from "../../../kit/index.ts";
 
 const BASE64 = "base64";
 const DATA_URL_PREFIX = "data:";
@@ -112,7 +112,7 @@ export async function runImageEmbed(client: OrImageEmbedClient, req: ImageEmbedR
   try {
     response = await client.embeddings.generate({ requestBody }, req.signal !== undefined ? { signal: req.signal } : undefined);
   } catch (err) {
-    throw providerErrorFromHttp(err, embedErrorPrefix(req.model));
+    throw providerErrorFromHttp(err, embedErrorPrefix(req.model), providerCredentialSecretValues(req.credential));
   }
   if (typeof response === "string" || response.data.length === 0) {
     throw new ProviderError({
@@ -223,7 +223,7 @@ export async function runGenerateImage(client: OrImageGenClient, req: ImageGener
   try {
     result = await client.chat.send({ chatRequest }, req.signal !== undefined ? { signal: req.signal } : undefined);
   } catch (err) {
-    throw providerErrorFromHttp(err, genErrorPrefix(req.model));
+    throw providerErrorFromHttp(err, genErrorPrefix(req.model), providerCredentialSecretValues(req.credential));
   }
   if (Symbol.asyncIterator in result) {
     throw new ProviderError({

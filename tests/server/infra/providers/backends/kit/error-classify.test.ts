@@ -77,6 +77,18 @@ describe("extractHttpErrorDiagnostic", () => {
   test("a non-object error → empty diagnostic", () => {
     expect(extractHttpErrorDiagnostic("just a string")).toEqual({});
   });
+
+  test("scrubs configured credential literals from both the upstream body and cause", () => {
+    const secret = "team-secret-reflected-by-provider";
+    const err = {
+      body: `upstream echoed ${secret}`,
+      cause: new Error(`validation failed near ${secret}`),
+    };
+    const diag = extractHttpErrorDiagnostic(err, [secret]);
+    expect(JSON.stringify(diag)).not.toContain(secret);
+    expect(diag.body).toContain("«redacted»");
+    expect(diag.cause).toContain("«redacted»");
+  });
 });
 
 describe("providerErrorFromHttp", () => {
@@ -124,5 +136,22 @@ describe("providerErrorFromHttp", () => {
     const err = Object.assign(new Error("forbidden"), { statusCode: 403, body: JSON.stringify({ error: { code: 403, message: "no access" } }) });
     const pe = providerErrorFromHttp(err, "openrouter.chat");
     expect(pe.kind).toBe("auth_failed");
+  });
+
+  test("scrubs reflected credentials before ProviderError construction and replaces the raw cause", () => {
+    const secret = "sk-or-reflected-secret-123456";
+    const raw = Object.assign(new Error(`provider rejected ${secret}`), {
+      statusCode: 401,
+      body: `{"error":"${secret}"}`,
+      cause: new Error(`wire parser saw ${secret}`),
+    });
+
+    const pe = providerErrorFromHttp(raw, "openrouter.chat", [secret]);
+
+    expect(pe.message).not.toContain(secret);
+    expect(JSON.stringify(pe.toLog())).not.toContain(secret);
+    expect(pe.cause).not.toBe(raw);
+    expect(pe.cause).toBeInstanceOf(Error);
+    expect((pe.cause as Error).message).not.toContain(secret);
   });
 });

@@ -39,4 +39,19 @@ describe("probeOpenRouterCredential", () => {
     } as unknown as ProbeClient;
     expect((await probeOpenRouterCredential(client, () => FIXED_NOW)).status).toBe("unreachable");
   });
+
+  test("a provider-reflected credential is scrubbed from the UI-visible health reason", async () => {
+    const secret = "sk-or-probe-reflected-123456";
+    const client: ProbeClient = {
+      credits: { getCredits: (): Promise<never> => Promise.reject(new Error(`401 invalid api key ${secret}`)) },
+    };
+    const health = await probeOpenRouterCredential(client, () => FIXED_NOW, [secret]);
+
+    expect(health.status).toBe("revoked");
+    if (health.status !== "revoked") {
+      throw new Error(`expected revoked health, got ${health.status}`);
+    }
+    expect(health.reason).not.toContain(secret);
+    expect(health.reason).toContain("«redacted»");
+  });
 });
