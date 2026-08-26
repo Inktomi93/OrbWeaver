@@ -2730,13 +2730,11 @@ function bgAlpha(locator: Locator): Promise<number> {
     const bg = getComputedStyle(el).backgroundColor;
     // This arrow body is serialized into a page.evaluate() browser closure — it can't reference a
     // module-level const (evaluate ships only the function's own source, no outer-scope capture).
-    // biome-ignore lint/performance/useTopLevelRegex: literals must live right here, see above.
     const slashMatch = bg.match(/\/\s*([\d.]+)\s*\)$/u);
     if (slashMatch !== null) {
       return Number(slashMatch[1]);
     }
     if (bg.startsWith("rgba(") || bg.startsWith("hsla(")) {
-      // biome-ignore lint/performance/useTopLevelRegex: same closure constraint as above.
       const commaMatch = bg.match(/,\s*([\d.]+)\s*\)$/u);
       return commaMatch !== null ? Number(commaMatch[1]) : 1;
     }
@@ -4314,7 +4312,7 @@ test("#231 CONTROL: a device with NO hint is not scaled or themed by the pending
 // too, by construction — no new number is invented anywhere.
 const OVER_ART_BLUR: readonly BlurSurface[] = ["panels"];
 
-// Hoisted (useTopLevelRegex): the two alpha spellings a computed fill can carry.
+// The two alpha spellings a computed fill can carry.
 const SLASH_ALPHA = /\/\s*([\d.]+)\s*\)/u;
 const RGBA_ALPHA = /^rgba?\([^)]*,\s*([\d.]+)\s*\)$/u;
 

@@ -8,7 +8,7 @@ import type { CredentialHealth } from "../../contract/index.ts";
 import { redactSecretsFromText, sanitizeApiError } from "../kit/index.ts";
 
 // An auth-class failure (bad/revoked key) vs a reachability failure — the SDK doesn't surface a typed
-// status here, so we match the message (hoisted per useTopLevelRegex).
+// status here, so we match the message.
 const AUTH_FAILURE_RE = /\b401\b|\b403\b|unauthor|forbidden|invalid[\s_-]?api[\s_-]?key/i;
 
 interface OrProbeClient {

@@ -19,7 +19,7 @@ const HEADER_PICK_CHARACTER_ID = mintTypeId(ID_PREFIX.character);
 /** A session for the arm where CONTENT shows the pipeline rather than the landing picker. */
 const OPEN_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 
-// The affordance names + the copy pins, hoisted (biome `useTopLevelRegex`).
+// The affordance names and copy pins.
 const START_A_NEW_SESSION = /^Start a new session$/;
 /** The pane the phone does not have — the sentence that used to send a user there. */
 const MAIN_PANE = /in the main pane/;

@@ -19,8 +19,7 @@ import { expect, test } from "../../support/fixtures.ts";
 
 type Row = ForgeDesignEnvelope["fields"][number];
 
-/** An open `additionalProperties` MAP (as opposed to `false`) — the construct the 2026-08-09 live probe
- *  measured hosted grammars collapsing to "no keys permitted". Hoisted for `useTopLevelRegex`. */
+/** An open `additionalProperties` map made hosted grammars collapse to "no keys permitted". */
 const OPEN_KEY_MAP_RE = /"additionalProperties":\{/;
 
 function row(over: Partial<Row> & Pick<Row, "path">): Row {

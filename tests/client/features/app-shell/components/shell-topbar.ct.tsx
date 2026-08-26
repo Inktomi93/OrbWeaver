@@ -36,8 +36,7 @@ test("chats still has its list toggle — the capability is per-section, not a g
 
 const PHONE_WIDTHS = [320, 375] as const;
 
-// Hoisted (biome `useTopLevelRegex`). PANEL_WORD is the NEGATIVE assertion — the desktop frame noun must
-// not appear anywhere in the phone arm's lead control; DESKTOP_LIST_TOGGLE is its positive twin.
+// PANEL_WORD is the negative assertion: the desktop-frame noun must not appear in the phone lead control.
 const PANEL_WORD = /panel/u;
 const DESKTOP_LIST_TOGGLE = /list panel$/u;
 

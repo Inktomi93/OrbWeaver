@@ -5,8 +5,6 @@
 // feature's `anchors/` dir — §4's realized shape is anchor-wraps-surface. Per-FEATURE match, not per-surface-to-specific-anchor tracing.
 // COMMENT POSTURE: comment-SAFE — structural/container evidence is exact JSX tag identity. DECLARED LIMIT:
 // composed-child-only surfaces need no container; any anchor container is the feature-level wrapper proof.
-// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TSX surface fixture
-// snippets, not secrets.
 import type { JsxOpeningElement, JsxSelfClosingElement, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";

@@ -1048,7 +1048,6 @@ test("FACEFILT: no chats means NO strip at all — the picker tile never becomes
 
 const PHONE_WIDTHS = [320, 375] as const;
 
-// Hoisted (a regex literal in a test body is a per-call recompile — biome `useTopLevelRegex`).
 const PINNED_ROW_RE = /A pinned thread/u;
 const STAR_TOGGLE_RE = /^(?:Star|Unstar) /u;
 const UNSTAR_TOGGLE_RE = /^Unstar /u;

@@ -212,7 +212,7 @@ interface ApplyInput {
   readonly accepts: readonly { readonly field: string; readonly greetingIndex?: number }[];
 }
 
-// The affordance names, hoisted (biome `useTopLevelRegex`). The review verbs are ANCHORED because
+// The review verbs are anchored because
 // "Keep description" and "Keep (empties field) description" are different consent acts.
 const KEEP_DESCRIPTION = /^Keep description$/;
 const DISCARD_PERSONALITY = /^Discard personality$/;

@@ -11,9 +11,7 @@
 //
 // Called AFTER macro substitution + DISPLAY regex, BEFORE react-markdown.
 
-// Paired `*…*` / `**…**` / `_…_` / `__…__` markers (lazy inner, multiline). Hoisted to module scope —
-// `useTopLevelRegex` forbids in-function literals; `matchAll` clones the regex so its `lastIndex` is
-// never shared across calls.
+// `matchAll` clones these global regexes, so their `lastIndex` is never shared across calls.
 const PAIR_FINDER = /([*_]{1,2})([\s\S]*?)\1/gm;
 // (start-marker)(unicode whitespace+) OR (unicode whitespace+)(end-marker) — every Unicode space the
 // emphasis run might pad with, so `* x *` → `*x*` regardless of which space the model used.

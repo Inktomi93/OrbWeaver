@@ -12,8 +12,7 @@ import { ImagineExtractStory, ImagineFreeStory } from "../_ct-stories.tsx";
  *  Prompt LABEL row where it read as a caption rather than as the LLM call it is (#623 P1). */
 const READ_THE_CHAT = { name: "Read the chat first" };
 
-// Hoisted (useTopLevelRegex): the pre-spend cost cue, and the elapsed counter's shape (the digit is the
-// point — a fixed "Generating…" is exactly the dead surface #623 filed).
+// The pre-spend cost cue and elapsed-counter shape; the changing digit proves the surface is live.
 const SPENDS_A_CALL = /Spends a small text call now/u;
 const GENERATING_ELAPSED = /Generating the image… \d+s/u;
 

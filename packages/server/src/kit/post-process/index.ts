@@ -6,7 +6,7 @@
 import type { AssemblePostProcessFlag, PromptConfig, ReceivePostProcessFlag } from "@orb/contracts/preset";
 import { ASSEMBLE_POST_PROCESS_ORDER, RECEIVE_POST_PROCESS_ORDER } from "@orb/contracts/preset";
 
-// Hoisted regex literals (biome `useTopLevelRegex`) — these run on every reply, so they compile ONCE.
+// These patterns run on every reply.
 const THREE_PLUS_NEWLINES = /\n{3,}/gu;
 const TRAILING_WHITESPACE = /\s+$/u;
 // A sentence that ends cleanly: terminal punctuation + any immediate closing quote/paren/asterisk.

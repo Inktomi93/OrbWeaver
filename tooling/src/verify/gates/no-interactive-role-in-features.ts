@@ -1,5 +1,3 @@
-// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are JSX role-attribute
-// fixture snippets (role="checkbox" etc.), not secrets.
 // Gate: no-interactive-role-in-features (UI-Gates-and-Lessons.md §8) — closes the layout-kit
 // interactive-role escape hatch: `<Row>`/`<Stack>`/etc. extend ComponentProps<"div"> and spread
 // {...props}, so a feature can forge an interactive element via `<Row role="button" tabIndex={0}

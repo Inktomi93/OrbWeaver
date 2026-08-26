@@ -35,7 +35,6 @@ const LIBRARY_SCRIPT = {
   substituteRegex: 0,
 };
 
-// Regex literals hoisted to module scope (biome `useTopLevelRegex`).
 const RE_CANT_HOLD = /The built-in default can't hold regex scripts/;
 const RE_COULDNT_LOAD = /Couldn't load/;
 /** The retired bare token (P2-2) — anchored at the start of a subtitle so it cannot match a word inside a

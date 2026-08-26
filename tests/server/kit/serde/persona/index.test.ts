@@ -1,5 +1,3 @@
-// biome-ignore-all lint/security/noSecrets: the camelCase serde fn names in the describe/test titles trip
-// the high-entropy heuristic — they are identifiers, not secrets.
 // Mirror test for @orb/server/kit/serde/persona — the ONE orb-native persona-backup serde core. Pins BOTH
 // directions: build emits every portable field present + drops `avatarAssetId` + stamps the uniform
 // envelope; parse applies the `create`-parity defaults (title null, starred false, metadata null), narrows

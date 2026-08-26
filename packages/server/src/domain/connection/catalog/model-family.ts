@@ -17,7 +17,7 @@ export const MODEL_FAMILIES = ["anthropic", "openai", "google", "meta", "deepsee
 // resolver re-derives the same union from MODEL_FAMILIES for its caps Record key.
 type ModelFamily = (typeof MODEL_FAMILIES)[number];
 
-// Top-level regexes (biome useTopLevelRegex — compile ONCE). The anthropic anchor is load-bearing (header).
+// The anthropic anchor is load-bearing: prefixed and bare Claude ids belong to one family.
 const ANTHROPIC_RE = /^(anthropic\/)?claude[-/]/i;
 const OPENAI_RE = /^(openai\/)?(gpt-|o[13]|chatgpt|davinci)/i;
 const GOOGLE_RE = /^(google\/)?gemini/i;

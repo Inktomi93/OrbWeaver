@@ -1,4 +1,3 @@
-// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are JSX fixture snippets, not secrets.
 // Gate: list-row-adoption (client-architecture-lockdown.md §14/§16 G6) — a LIST-region surface file (one
 // importing LibrarySurfaceShell/LibraryListLayout/createCollectionSurface) whose `.map()` callback OR
 // renderItem/renderRow prop returns interactive JSX (onClick/role/href) must root that JSX in

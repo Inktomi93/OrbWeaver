@@ -11,7 +11,6 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 
 const ERROR_FALLBACK = "Content failed to render.";
-// Hoisted (useTopLevelRegex): the code-block control button accessible names.
 const COPY_CODE_BTN = /copy code/iu;
 const DOWNLOAD_BTN = /download/iu;
 

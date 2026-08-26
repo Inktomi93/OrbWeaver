@@ -1,6 +1,5 @@
 // biome-ignore-all lint/style/useNamingConvention: ST chat-JSONL wire field names (snake_case) appear
 // verbatim in these fixtures — they ARE the format.
-// biome-ignore-all lint/security/noSecrets: ST @-date tokens + epoch-ms literals in the fixtures are not secrets.
 // Mirror test for @orb/server/kit/serde/chat — the ONE chat-JSONL serde core (W0a). Pins BOTH directions:
 // the parser esoterica (filename-date-wins, empty-swipe drop + active-index remap, the 4-bucket classifier,
 // branch ref, null-on-unparseable-header), the builder esoterica (human UTC date, the >1-variant swipe gate,

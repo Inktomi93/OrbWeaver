@@ -14,7 +14,7 @@ import { ProviderError } from "../../contract/index.ts";
 import { redactSecretsFromText } from "./openai-compat/body.ts";
 import { sanitizeApiError } from "./sanitize.ts";
 
-// Transport-name patterns (hoisted per useTopLevelRegex — classifiers run on the hot error path).
+// Transport-name patterns on the hot error-classification path.
 const TRANSIENT_TRANSPORT_RE = /timeout|connection|network|overload/i;
 const ABORT_NAME_RE = /abort/i;
 
