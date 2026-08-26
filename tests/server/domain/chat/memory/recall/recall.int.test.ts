@@ -552,25 +552,84 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
     expect(out).not.toContain("[shared-prejoin]"); // the shared bucket is witness-filtered too — not a free pass
   });
 
-  test("witness filter FAILS OPEN: a digest whose segment span is missing is KEPT (never erase real memory)", async () => {
-    const chatId = await seedChat(db, "failopen");
+  test("witness filter fails closed when a post-join digest has no segment span evidence", async () => {
+    const chatId = await seedChat(db, "spanless");
     await seedDigest(db, {
       chatId,
       scopedCharacterId: GROUP_CHAR,
       tier: 0,
-      blockIdx: 0,
-      topicAnchor: "[b0]",
+      blockIdx: 1,
+      topicAnchor: "[post-join-unknown-span]",
       keywords: [],
     });
-    // NO seedSegment → the span resolver cannot find block 0's seq-span.
+    // NO seedSegment → the span resolver cannot prove where block 1 sits relative to the join floor.
     const ctx = makeChatContext(db);
-    const out = await recallText(ctx, {
+    const { text, trace } = await recallMemory(ctx, {
       scope: sharedScope(chatId),
       groupCharacterId: GROUP_CHAR,
-      witnessing: [{ joinSeq: 1000, leftSeq: null }], // WOULD exclude it if the span resolved
+      witnessing: [{ joinSeq: 9, leftSeq: null }],
       config: { mode: "mixA" },
     });
-    expect(out).toContain("[b0]"); // fail-open — a missing segment must not hide a real digest
+    expect(text).not.toContain("[post-join-unknown-span]");
+    expect(trace.candidates).toContainEqual(expect.objectContaining({ blockIdx: 1, verdict: "unwitnessed" }));
+  });
+
+  test("witness filter fails closed when a higher-tier digest's FIRST covered block span is missing", async () => {
+    const chatId = await seedChat(db, "missing-first-span");
+    for (let b = 0; b < 4; b += 1) {
+      await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: b, topicAnchor: `[t0.${b}]`, keywords: [] });
+      if (b > 0) {
+        await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+      }
+    }
+    await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 1, blockIdx: 0, topicAnchor: "[T1.0]", keywords: [] });
+
+    const out = await recallText(makeChatContext(db), {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      witnessing: [{ joinSeq: 1, leftSeq: null }],
+      config: { mode: "tiered", fanOut: 2 },
+    });
+    expect(out).not.toContain("[T1.0]");
+    expect(out).toContain("[t0.2]");
+  });
+
+  test("witness filter fails closed when a higher-tier digest's LAST covered block span is missing", async () => {
+    const chatId = await seedChat(db, "missing-last-span");
+    for (let b = 0; b < 4; b += 1) {
+      await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: b, topicAnchor: `[t0.${b}]`, keywords: [] });
+      if (b !== 1) {
+        await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+      }
+    }
+    await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 1, blockIdx: 0, topicAnchor: "[T1.0]", keywords: [] });
+
+    const out = await recallText(makeChatContext(db), {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      witnessing: [{ joinSeq: 1, leftSeq: null }],
+      config: { mode: "tiered", fanOut: 2 },
+    });
+    expect(out).not.toContain("[T1.0]");
+    expect(out).toContain("[t0.0]");
+  });
+
+  test("witness filter preserves a higher-tier digest when both covered endpoint spans prove it was witnessed", async () => {
+    const chatId = await seedChat(db, "known-endpoint-spans");
+    for (let b = 0; b < 4; b += 1) {
+      await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: b, topicAnchor: `[t0.${b}]`, keywords: [] });
+      await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+    }
+    await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 1, blockIdx: 0, topicAnchor: "[T1.0]", keywords: [] });
+
+    const out = await recallText(makeChatContext(db), {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      witnessing: [{ joinSeq: 1, leftSeq: null }],
+      config: { mode: "tiered", fanOut: 2 },
+    });
+    expect(out).toContain("[T1.0]");
+    expect(out).toContain("[t0.2]");
   });
 
   test("witness filter resolves a HIGHER-TIER digest's span via its tier-0 range (a distant arc never seen is dropped)", async () => {

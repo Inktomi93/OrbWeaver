@@ -7,7 +7,7 @@
 // retention sweep (`pruneDbBackups`).
 
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Client } from "@libsql/client";
@@ -162,19 +162,20 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
 }
 
 /**
- * Copy the db file aside BEFORE migrating (NON-OPTIONAL — `assertReferentialIntegrity` is the only
- * post-migration FK gate, so a corrupting migration must be restorable). No-op for `:memory:` / a
- * not-yet-created db. The backup is suffixed with the db's last-write time (fs metadata, not a wall
- * clock) so it names the exact state it captures. Returns the backup path, or undefined if none.
+ * Snapshot the live db BEFORE migrating (NON-OPTIONAL — `assertReferentialIntegrity` is the only
+ * post-migration FK gate, so a corrupting migration must be restorable). `VACUUM INTO` runs through the
+ * app connection: unlike copying the main file, its consistent snapshot includes committed WAL pages.
+ * No-op for `:memory:` / a not-yet-created db. Returns the backup path, or undefined if none.
  */
-export function backupBeforeMigrate(url: string): string | undefined {
+export async function backupBeforeMigrate(db: Db, url: string): Promise<string | undefined> {
   const path = localPath(url);
   if (path === undefined || !existsSync(path)) {
     return;
   }
-  const stamp = Math.round(statSync(path).mtimeMs);
+  const walPath = `${path}-wal`;
+  const stamp = Math.round(Math.max(statSync(path).mtimeMs, existsSync(walPath) ? statSync(walPath).mtimeMs : 0));
   const backupPath = `${path}.backup-${stamp}`;
-  copyFileSync(path, backupPath);
+  await clientOf(db).execute({ sql: "VACUUM INTO ?", args: [backupPath] });
   return backupPath;
 }
 
