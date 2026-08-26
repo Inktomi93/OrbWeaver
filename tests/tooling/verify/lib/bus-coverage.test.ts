@@ -25,6 +25,7 @@ const CHAT_SPEC: BusCoverageSpec = {
   deferred: {},
   missingPrefix: "missing: ",
   stalePrefix: "stale: ",
+  emitScope: /\/packages\/server\/src\/(?:domain|transport|entry\/compose)\//u,
 };
 
 function findings(files: Record<string, string>): ReturnType<typeof reconcileBusCoverage> {
@@ -93,6 +94,48 @@ test("an event object bound to a local and passed to the user publisher counts",
         'import { publishUserEvent } from "../../../transport/trpc/index.ts";\nconst event = ready ? { type: "alpha" } : { type: "alpha", detail: true };\npublishUserEvent(ownerId, event);\n',
     }),
   ).toEqual([]);
+});
+
+test("the canonical transport publisher's local event counts", () => {
+  expect(
+    findings({
+      [HOME]: "export const USER_BUS_EVENT_TYPES = { alpha: true } as const;\n",
+      "packages/server/src/transport/trpc/user-events-bus.ts":
+        'function publishUserEvent(_ownerId: string, _event: object) {}\nconst event = { type: "alpha" };\npublishUserEvent(ownerId, event);\n',
+    }),
+  ).toEqual([]);
+});
+
+test("the plugin surface-state injected emitter counts only at its canonical home", () => {
+  expect(
+    findings({
+      [HOME]: "export const USER_BUS_EVENT_TYPES = { alpha: true } as const;\n",
+      "packages/server/src/domain/plugin/substrate/surface-state.ts": 'function create(emit: Emit) { emit(ownerId, { type: "alpha" }); }\n',
+    }),
+  ).toEqual([]);
+  expect(
+    findings({
+      [HOME]: "export const USER_BUS_EVENT_TYPES = { alpha: true } as const;\n",
+      [EMIT]: 'function create(emit: Emit) { emit(ownerId, { type: "alpha" }); }\n',
+    }),
+  ).toHaveLength(1);
+});
+
+test("the room-reach injected emitter counts only at its canonical home", () => {
+  const files = {
+    [CHAT_HOME]: "export const CHAT_BUS_EVENT_TYPES = { alpha: true } as const;\n",
+    "packages/server/src/entry/compose/room-reach.ts": 'function fanTo(emitRoomEvent: Emit) { emitRoomEvent({ type: "alpha" }); }\n',
+  };
+  expect(reconcileBusCoverage(ctxFor(files).project, CHAT_SPEC)).toEqual([]);
+  expect(
+    reconcileBusCoverage(
+      ctxFor({
+        [CHAT_HOME]: files[CHAT_HOME],
+        "packages/server/src/entry/compose/other.ts": files["packages/server/src/entry/compose/room-reach.ts"],
+      }).project,
+      CHAT_SPEC,
+    ),
+  ).toHaveLength(1);
 });
 
 test("a chat stream synthesis counts only when it is yielded on the chat channel", () => {

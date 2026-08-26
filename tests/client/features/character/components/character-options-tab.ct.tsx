@@ -35,11 +35,17 @@ test("F9 the theme rows are label-left/control-right in the context panel — no
   const swatch = page.getByLabel("Accent");
 
   const labelBox = await accentLabel.boundingBox();
-  const readSwatchBoxAtAssertion = async (): Promise<typeof swatchBox> => await swatch.boundingBox();
   const swatchBox = await swatch.boundingBox();
   if (labelBox === null || swatchBox === null) {
     throw new Error("theme row label/swatch did not render a box");
   }
+  const readSwatchBoxAtAssertion = async (): Promise<NonNullable<Awaited<ReturnType<typeof swatch.boundingBox>>>> => {
+    const box = await swatch.boundingBox();
+    if (box === null) {
+      throw new Error("theme row swatch lost its rendered box");
+    }
+    return box;
+  };
   // Side by side (the swatch starts right of the label's right edge), not stacked.
   await expect.poll(async () => (await readSwatchBoxAtAssertion()).x).toBeGreaterThan(labelBox.x + labelBox.width);
   // …and on the same line: the two boxes overlap vertically.

@@ -74,6 +74,22 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
+        "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
+        "packages/server/src/transport/trpc/user-events-bus.ts":
+          'function publishUserEvent(_ownerId: string, _event: object) {}\nexport function publishChanged(ownerId: string) {\n  const event = { type: "emitted" };\n  publishUserEvent(ownerId, event);\n}\n',
+      },
+      why: "the canonical transport publisher carries locally-bound event objects to the per-user bus",
+    },
+    {
+      files: {
+        "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
+        "packages/server/src/domain/plugin/substrate/surface-state.ts":
+          'export function createPublisher(emit: (ownerId: string, event: object) => void) {\n  return (ownerId: string) => emit(ownerId, { type: "emitted" });\n}\n',
+      },
+      why: "the plugin surface-state domain's injected `emit` parameter is its canonical user-bus producer door",
+    },
+    {
+      files: {
         "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { connectionsChanged: "connectionsChanged" } as const;\n',
         "packages/server/src/domain/settings/x.ts": 'export const q = "somethingElse";\n',
       },

@@ -2944,10 +2944,14 @@ test("HUD-1 §7.3: with no ambient set the band COMPRESSES to one row — a smal
     throw new Error("expected the band's pool orbs to be laid out");
   }
   await expect
-    .poll(async () => (await component.locator('[data-slot="rpg-takeover-header"] [data-slot="ring-gauge"]').first().boundingBox()).x)
+    .poll(
+      async () => (await component.locator('[data-slot="rpg-takeover-header"] [data-slot="ring-gauge"]').first().boundingBox())?.x ?? Number.NEGATIVE_INFINITY,
+    )
     .toBeGreaterThan(stoneBox.x + stoneBox.width);
   await expect
-    .poll(async () => (await component.locator('[data-slot="rpg-takeover-header"] [data-slot="ring-gauge"]').first().boundingBox()).y)
+    .poll(
+      async () => (await component.locator('[data-slot="rpg-takeover-header"] [data-slot="ring-gauge"]').first().boundingBox())?.y ?? Number.POSITIVE_INFINITY,
+    )
     .toBeLessThan(stoneBox.y + stoneBox.height);
   expect(orbBox.y + orbBox.height).toBeLessThanOrEqual(headerBox.y + headerBox.height + 1);
 });

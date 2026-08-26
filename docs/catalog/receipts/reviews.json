@@ -1336,6 +1336,70 @@
       "summary": "Provenance: the preset-catalogue ideation corpus (three fable generations, two fun-honesty passes, a completed two-lens law/cost round — 16 findings, twelve survivors changed) behind the spec §4 catalogue and its graveyard."
     },
     {
+      "path": "docs/reviews/stickler/2026-08-25-correctness-investigation-three-findings.md",
+      "assignedSha256": "81d110f09ae8d5146fa3b5f035bebb3c8915bee803aa5ced66f475dd269c4d15",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "81d110f09ae8d5146fa3b5f035bebb3c8915bee803aa5ced66f475dd269c4d15",
+      "verifiedCommit": "5e00b582d6ab78d0cdaeebc5e90350cf4280acaf",
+      "verifiedAt": "2026-08-25",
+      "evidence": [
+        "cb-correctinvest investigation lane (2026-08-24/25, commit 5e00b582d): confirms three handed-down findings against the tree. #700 client card never retires on suggestion take/dismiss. #701 lying test-presence-client gate clause, FIXED same session (commit 4ef58f4888d). #702 image-edit resolve-step swallow."
+      ],
+      "summary": "cb-correctinvest confirms three handed-down findings: #700 P1 suggestion card never retires (no bus event, no invalidation), #701 lying test-presence-client gate clause fixed in-session, #702 P2 image-edit resolve-step error swallow.",
+      "claims": [
+        {
+          "claim": "All three handed-down findings are CONFIRMED against the tree; #701 (the lying gate) was fixed in-session.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/automation/components/suggestion-card-mount.tsx:80"
+            },
+            {
+              "kind": "issue",
+              "target": "#700"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-25-gate-hardening-final-review.md",
+      "assignedSha256": "ead32f53a8f1a0085ea287a822bf2962c2336a56b515084c1c61c4d8368386ec",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "1ae5d77f6f874c33226ff22ff7184ca1df4bc9875145d70091cbf2569a78df7d",
+      "verifiedCommit": "5cecf7154e00b3da1747420ede6450ce473a0a58",
+      "verifiedAt": "2026-08-25",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-25-gate-hardening-final-review.md:1-206 full read against target 59fed45ee; all 15 findings carry planted repros and exact mechanism receipts",
+        "focused verification: 158 tests passed; adversarial probe suite reproduced 15 confirmed false-clean groups before remediation",
+        "post-review repair union: six P1 and nine P2 gate mechanisms received red-first controls; the CT taint law exposed 619 live findings partitioned and migrated to zero"
+      ],
+      "summary": "Fresh-context final review of the first gate-hardening union; it confirmed 15 semantic false-cleans, closed the candidate surface, and supplied the finite repair set consumed by the follow-up union.",
+      "claims": [
+        {
+          "claim": "The reviewed gate union still contained 15 independently reproduced false-cleans: six P1 relation/ownership failures and nine P2 structural or escape-hatch failures.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts:223"
+            },
+            {
+              "kind": "issue",
+              "target": "#713"
+            },
+            {
+              "kind": "issue",
+              "target": "#714"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md",
       "assignedSha256": "463afe42551db64b0aa62d84018b1ada8174db0cf239445f0af68879a0bb1516",
       "disposition": "current",
@@ -1485,35 +1549,6 @@
         "full read 1-323 at re-attest (2026-08-22); typecheck:graph exit 0 proves every scripts/*.ts compiles (tsconfig includes scripts); pnpm ast blind to scripts/ so liveness used scoped literal search"
       ],
       "summary": "Research-zone assessment: three tool candidates ranked with effort, rpg-extraction identified as the delete shortlist, three classification challenges to scripts/README."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-08-25-correctness-investigation-three-findings.md",
-      "assignedSha256": "81d110f09ae8d5146fa3b5f035bebb3c8915bee803aa5ced66f475dd269c4d15",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "81d110f09ae8d5146fa3b5f035bebb3c8915bee803aa5ced66f475dd269c4d15",
-      "verifiedCommit": "5e00b582d6ab78d0cdaeebc5e90350cf4280acaf",
-      "verifiedAt": "2026-08-25",
-      "evidence": [
-        "cb-correctinvest investigation lane (2026-08-24/25, commit 5e00b582d): confirms three handed-down findings against the tree. #700 client card never retires on suggestion take/dismiss. #701 lying test-presence-client gate clause, FIXED same session (commit 4ef58f4888d). #702 image-edit resolve-step swallow."
-      ],
-      "summary": "cb-correctinvest confirms three handed-down findings: #700 P1 suggestion card never retires (no bus event, no invalidation), #701 lying test-presence-client gate clause fixed in-session, #702 P2 image-edit resolve-step error swallow.",
-      "claims": [
-        {
-          "claim": "All three handed-down findings are CONFIRMED against the tree; #701 (the lying gate) was fixed in-session.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/automation/components/suggestion-card-mount.tsx:80"
-            },
-            {
-              "kind": "issue",
-              "target": "#700"
-            }
-          ]
-        }
-      ]
     }
   ]
 }

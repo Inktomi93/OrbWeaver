@@ -7,7 +7,7 @@
 // component with one anatomy and one set of verbs (New + Import still on that surface's own band). One
 // home, three mounts — the alternative (a pointer sentence) leaves the nav item lying about its contents.
 
-import { Section, Stack } from "@orb/ui/layout";
+import { Container, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -35,14 +35,14 @@ export function PersonaSettingsSurface(): ReactElement {
   useFocusOnMount(surfaceRef);
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
+    <Container ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
         fallback={<Text voice="gloss">Loading your persona settings…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your persona settings" onRetry={retry} />}
       >
         <PersonaSettingsForm />
       </QueryBoundary>
-    </Stack>
+    </Container>
   );
 }
 
@@ -54,7 +54,7 @@ function PersonaSettingsForm(): ReactElement {
 
   return (
     <Stack gap="section">
-      <Section container={true} heading={PERSONA_SUBCATEGORY_LABEL} id={settingsAnchorId("personas", PERSONA_SUBCATEGORY_IDS.personas)}>
+      <Section heading={PERSONA_SUBCATEGORY_LABEL} id={settingsAnchorId("personas", PERSONA_SUBCATEGORY_IDS.personas)}>
         <SettingSwitchRow
           label="Notify me when my persona changes in a chat"
           checked={data.config.persona.showNotifications}

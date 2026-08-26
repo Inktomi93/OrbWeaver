@@ -426,8 +426,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 363,
-      "bytes": 175664,
-      "sha256": "268129e74ec7585bb585b91f5d14ca3a8ba186db0cb0e3c2f73f6d2fcc6f9005",
+      "bytes": 176826,
+      "sha256": "1502033c880688040c860f0b42b59c3d09ed70f5cc33e344039488f09433f7f7",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -444,8 +444,8 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "268129e74ec7585bb585b91f5d14ca3a8ba186db0cb0e3c2f73f6d2fcc6f9005",
-        "verifiedCommit": "6f1a32b33db471b46af0747f1fd9e486f04649f8",
+        "verifiedSha256": "1502033c880688040c860f0b42b59c3d09ed70f5cc33e344039488f09433f7f7",
+        "verifiedCommit": "1c30c958267d8cf418e1d5a00b117016c1dadd19",
         "verifiedAt": "2026-08-25",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -466,7 +466,8 @@
           "delta re-verify 2026-08-24 (#607, lane cb-tooling-honesty, merged 67c708a4d): ONE new ACTIVE row (tsconfig-entry-liveness) + the count line 222->223. Double-ratified: gate-conformance 2/2 (7 mustFlag + 3 mustPass) AND the permanent pin tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts 11/11 (dead-row RED both directions, absent/unparseable/zero-row loud, both exempt arms, real tsconfig set GREEN); structure single-pass ran 223/223 COMPLETE with enforcement-registry-parity GREEN at the bumped count; the gate's first real target was a genuine dead row (preset-editor-bridge.int.test.ts, deleted at 7af80d242, removed from tsconfig.json exclude + tsconfig.tests-dom.json include at landing).",
           "delta re-verify 2026-08-24 (#614, lane cb-tooling-honesty, merged 35c5c7e05): TWO new ACTIVE rows (eslint-grant-liveness, depcruise-grant-liveness) + count 223->225, plus the table-tail blank line that had put both rows OUTSIDE the table removed (the formatter escaped their leading pipe and enforcement-registry-parity reported them missing — both instruments were correct; the blank line was the cause). Rows re-read against the landed descriptors; structure single-pass ran 225/225 COMPLETE with parity GREEN at the bumped count; both gates double-ratified (conformance 13 arms; pins 22/22, liveness family 44/44) with the measured near-miss pinned as a permanent control (an accumulate-only cycle fence would have turned 8 live depcruise rows into false REDs on load-bearing import law).",
           "delta re-verify 2026-08-24 (#626, lane cb-plate-gate, merged 1d628e149): the over-art plate law written down for the first time (UI-Theming §12.1 bullet) + its gate row (§12.6) and the Layer-3 ACTIVE row, count 225->226. Gate lands status:active with a 5-row SHRINK-ONLY ratchet (arm B, chosen because 5 live lanes run check:structure in their floors); population machine-surveyed by a real CSS rule parser: 9 rules under html[data-blur-*] carrying a background-color, keyed by (selector SUBJECT, tint token) so #623's portal-sibling companion pairs with its descendant-selector base. 3 keys compliant, 5 failing (2 MEASURED at 3.30:1 and 3.69:1, 3 STRUCTURAL and explicitly PENDING MEASUREMENT with the provenance phrase pinned so nobody mistakes a flag for a measurement). Both ratification receipts: real-tree planted probe reds then rm'd clean, and an 11-test committed pin.",
-          "delta re-verify 2026-08-25 (#713-716 review reconciliation, commit 6f1a32b33): full document re-read against the implemented descriptors; rows now state the exact AST identities, relationships, executable evidence, fail-loud belts/homes, comment scopes, and declared limits. The integrated union passed the authoritative structure front door at 229/229 active gates over 5,727 files (run 912062-2026-08-25T22:22:50.369Z)."
+          "delta re-verify 2026-08-25 (#713-716 review reconciliation, commit 6f1a32b33): full document re-read against the implemented descriptors; rows now state the exact AST identities, relationships, executable evidence, fail-loud belts/homes, comment scopes, and declared limits. The integrated union passed the authoritative structure front door at 229/229 active gates over 5,727 files (run 912062-2026-08-25T22:22:50.369Z).",
+          "delta re-verify 2026-08-25 (post-Stickler repair union, commit 1c30c9582): fourteen changed registry rows were re-read against the repaired descriptors and planted controls. They now state predicate polarity, principal/egress binding, canonical receiver/symbol identity, callable reachability, cross-file evaluate closure analysis, transformed CT taint, and exact two-sided ONESHOT grammar. The strengthened CT gate scanned 423 files and drove the measured 619-finding corpus to zero across three disjoint migration lanes."
         ],
         "claims": [
           {
@@ -25082,6 +25083,60 @@
               {
                 "kind": "issue",
                 "target": "#700"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-25-gate-hardening-final-review.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 206,
+      "bytes": 21198,
+      "sha256": "1ae5d77f6f874c33226ff22ff7184ca1df4bc9875145d70091cbf2569a78df7d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-25"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-25-gate-hardening-final-review.md",
+        "assignedSha256": "ead32f53a8f1a0085ea287a822bf2962c2336a56b515084c1c61c4d8368386ec",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "1ae5d77f6f874c33226ff22ff7184ca1df4bc9875145d70091cbf2569a78df7d",
+        "verifiedCommit": "5cecf7154e00b3da1747420ede6450ce473a0a58",
+        "verifiedAt": "2026-08-25",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-25-gate-hardening-final-review.md:1-206 full read against target 59fed45ee; all 15 findings carry planted repros and exact mechanism receipts",
+          "focused verification: 158 tests passed; adversarial probe suite reproduced 15 confirmed false-clean groups before remediation",
+          "post-review repair union: six P1 and nine P2 gate mechanisms received red-first controls; the CT taint law exposed 619 live findings partitioned and migrated to zero"
+        ],
+        "summary": "Fresh-context final review of the first gate-hardening union; it confirmed 15 semantic false-cleans, closed the candidate surface, and supplied the finite repair set consumed by the follow-up union.",
+        "claims": [
+          {
+            "claim": "The reviewed gate union still contained 15 independently reproduced false-cleans: six P1 relation/ownership failures and nine P2 structural or escape-hatch failures.",
+            "evidence": [
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts:223"
+              },
+              {
+                "kind": "issue",
+                "target": "#713"
+              },
+              {
+                "kind": "issue",
+                "target": "#714"
               }
             ]
           }
