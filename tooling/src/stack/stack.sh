@@ -229,11 +229,13 @@ fi
 export AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD DEV_SEED
 
 port_pid() { ss -tlnp 2>/dev/null | grep ":$1 " | grep -oP 'pid=\K[0-9]+' | head -1; }
-own_pgid() { [ -f "$PIDFILE" ] && cat "$PIDFILE" 2>/dev/null || true; }
-group_alive() {
-  local pgid="$1"
-  [ -n "$pgid" ] && ps -eo pgid= | grep -qw "$pgid"
+own_pgid() {
+  if [ -f "$PIDFILE" ]; then
+    sed -n 's/^[[:space:]]*"pgid":[[:space:]]*\([0-9][0-9]*\),*$/\1/p' "$PIDFILE" | head -1
+  fi
 }
+dev_identity() { node "$REPO/tooling/src/stack/ops/dev-identity-entry.ts" "$@"; }
+group_alive() { dev_identity probe >/dev/null 2>&1; }
 healthz_ok() { curl -sf -m 2 "$HEALTHZ" >/dev/null 2>&1; }
 # `localhost`, NOT 127.0.0.1 — vite v8 binds [::1] only; the IPv4 loopback never answers.
 vite_ok() { curl -sf -m 2 "http://localhost:$VITE_PORT/" >/dev/null 2>&1; }
@@ -329,46 +331,44 @@ run_leader() {
 do_stop() {
   local pgid
   pgid="$(own_pgid)"
-  if [ -z "$pgid" ] || ! group_alive "$pgid"; then
-    rm -f "$PIDFILE"
+  if [ -z "$pgid" ]; then
+    if [ -f "$PIDFILE" ]; then
+      echo "stack: refusing malformed dev-stack identity $PIDFILE — manual cleanup required"
+      return 1
+    fi
     echo "stack: nothing to stop (no live pidfile group)"
     echo ""
     echo "RESULT stack status=stopped pgid=none"
     return 0
   fi
-  kill -TERM -- "-$pgid" 2>/dev/null
+  if ! dev_identity signal SIGTERM; then
+    echo "stack: refusing to stop unverified group $pgid — manual cleanup required"
+    return 1
+  fi
   for _ in $(seq 1 30); do
     group_alive "$pgid" || break
     sleep 0.5
   done
   if group_alive "$pgid"; then
     echo "stack: group $pgid ignored TERM, escalating to KILL"
-    kill -KILL -- "-$pgid" 2>/dev/null
+    if ! dev_identity signal SIGKILL; then
+      echo "stack: refusing KILL after identity changed — manual cleanup required"
+      return 1
+    fi
     sleep 1
   fi
-  rm -f "$PIDFILE"
+  if ! dev_identity clear-absent >/dev/null; then
+    echo "stack: group $pgid still has verified survivors after KILL — manual cleanup required"
+    return 1
+  fi
   echo "stack: stopped (pgid $pgid)"
   echo ""
   echo "RESULT stack status=stopped pgid=$pgid"
 }
 
 # ── FORCE teardown (--force only) ────────────────────────────────────────────
-# Ignores ownership + pidfile: kills whatever HOLDS our ports and the full
-# DETACHED vLLM fleet (which survives the manager's death), then verifies release.
-# Kills only orbweaver's OWN procs (:8788 server, :5173 vite, the .cache/vllm/venv
-# fleet, the pidfile group) — never a broad node/python sweep, never the qemu VM.
-# Kills by EXPLICIT PID (not a group that could contain the invoking shell) except
-# the pidfile group, which by construction is the setsid leader tree (not us).
-
-# vLLM fleet cmdline signatures — the detached procs the manager-kill misses.
-FLEET_PATTERNS='tooling/src/stack/ops/engines\.ts|\.cache/vllm/venv|VLLM::EngineCore|EngineCore|Worker_TP'
-
-fleet_pids() {
-  # Drop the grep we just spawned (its own cmdline carries the pattern) via a
-  # negative match on the ps/grep pipeline itself, then emit pids.
-  ps -eo pid=,cmd= | /usr/bin/grep -aE "$FLEET_PATTERNS" | /usr/bin/grep -av 'pid=,cmd=' \
-    | awk '$0 !~ /grep -aE/ {print $1}'
-}
+# Force means verified escalation, never guessed ownership. The manager and detached engines each route
+# through their durable identity verifier; foreign port holders are left untouched and block the restart.
 
 gpu_idle() { # true when every GPU's used VRAM is below the idle floor (~1GiB)
   local used
@@ -380,61 +380,31 @@ gpu_idle() { # true when every GPU's used VRAM is below the idle floor (~1GiB)
 }
 
 force_teardown() {
-  local pgid bpid vpid pid p
-  echo "force-restart: TEARDOWN — ignoring ownership + pidfile"
+  local pid p
+  echo "force-restart: TEARDOWN — verified ownership only"
+  do_stop || return 1
+  node "$REPO/tooling/src/stack/ops/engines-ctl.ts" stop || return 1
 
-  # 1) Port holders (server :8788, vite :5173) by holder PID, regardless of owner.
-  bpid="$(port_pid "$BACKEND_PORT")"
-  vpid="$(port_pid "$VITE_PORT")"
-  for pid in "$bpid" "$vpid"; do
-    if [ -n "$pid" ]; then
-      echo "force-restart: killing port holder pid $pid"
-      kill -KILL "$pid" 2>/dev/null
-    fi
-  done
-
-  # 2) The stack process group, if a pidfile group is still alive (setsid leader
-  #    tree — never the invoking shell).
-  pgid="$(own_pgid)"
-  if group_alive "$pgid"; then
-    echo "force-restart: killing stack group pgid $pgid"
-    kill -KILL -- "-$pgid" 2>/dev/null
-  fi
-
-  # 3) The FULL detached vLLM fleet (survives manager death) — SIGKILL by cmdline.
-  local fp
-  fp="$(fleet_pids)"
-  if [ -n "$fp" ]; then
-    echo "force-restart: SIGKILL vLLM fleet pids: $fp"
-    # shellcheck disable=SC2086 # word-split intentional: kill a list of pids
-    kill -KILL $fp 2>/dev/null
-  fi
-
-  # 4) Drop the stale pidfile.
-  rm -f "$PIDFILE"
-
-  # 5) POLL until ports free AND VRAM idle — SIGKILL releases sockets/VRAM with a
-  #    few-second LAG, so verify, don't assume.
+  # POLL until ports free AND VRAM idle — release may lag after a verified signal.
   local free
   for _ in $(seq 1 30); do
     free=1
     for p in "$BACKEND_PORT" "$VITE_PORT" "${FLEET_PORTS[@]}"; do
       [ -n "$(port_pid "$p")" ] && free=""
     done
-    [ -n "$(fleet_pids)" ] && free=""
     if [ -n "$free" ] && gpu_idle; then
       echo "force-restart: teardown complete — ports free, GPU idle"
       return 0
     fi
     sleep 1
   done
-  echo "force-restart: WARNING — after 30s teardown poll, some resource not fully released:"
+  echo "force-restart: REFUSED — after 30s a foreign or unreleased resource remains:" >&2
   for p in "$BACKEND_PORT" "$VITE_PORT" "${FLEET_PORTS[@]}"; do
     pid="$(port_pid "$p")"
     [ -n "$pid" ] && echo "force-restart:   :$p still held by pid $pid"
   done
   gpu_idle || echo "force-restart:   GPU VRAM still above idle floor"
-  return 0 # proceed to start regardless — a lagging release usually clears during boot
+  return 1
 }
 
 # The SERVED-MODULE probe (#524) — the one question a pid + a healthz cannot answer: is vite serving the
@@ -531,7 +501,10 @@ do_start() {
   # dev.sh + vite; one number kills the whole tree.
   (cd "$REPO" && exec setsid bash "$SELF" _leader) >>"$LOG" 2>&1 &
   local leader=$!
-  echo "$leader" >"$PIDFILE"
+  if ! dev_identity capture "$leader"; then
+    echo "stack: leader $leader could not be durably identified — refusing unmanaged boot; manual cleanup required"
+    return 1
+  fi
   echo "stack: booting (pgid $leader, log $LOG)…"
 
   # Readiness = vite answering (the leader gates server-healthz BEFORE vite, so
@@ -547,9 +520,12 @@ do_start() {
       return 0
     fi
     if ! group_alive "$leader"; then
+      if ! dev_identity clear-absent >/dev/null; then
+        echo "stack: launch identity became ambiguous during boot — refusing cleanup; manual inspection required"
+        return 1
+      fi
       echo "stack: process group died during boot — leader log:"
       tail -20 "$LOG"
-      rm -f "$PIDFILE"
       echo ""
       echo "RESULT stack status=boot-failed log=$LOG"
       return 1
@@ -578,7 +554,7 @@ do_force_restart() {
   # normal start/restart are untouched. Non-off postures reach engines.sh as before.
   if [ "${ENGINES_POSTURE:-}" = off ]; then export VLLM_DISABLED=true; fi
   echo "force-restart: caller posture — ENGINES_POSTURE=${ENGINES_POSTURE:-—} VLLM_DISABLED=${VLLM_DISABLED:-—} (wins over any pin)"
-  force_teardown
+  force_teardown || return 1
   do_start
   local rc=$?
   # Confirm what ACTUALLY took by reading the live backend's /proc environ — the

@@ -184,6 +184,19 @@ describe("preset env validation rejects runtime preload/search injection", () =>
       expect(() => buildClaudeSdkEnv({ userEnv: { [key]: "attacker-controlled" } }), key).toThrow(UNSAFE_RUNTIME_ENV_RE);
     }
   });
+
+  test("preset proxy and CA overrides cannot route a credential, while operator ambient values survive", () => {
+    vi.stubEnv("HTTPS_PROXY", "https://operator-proxy.example");
+    vi.stubEnv("ALL_PROXY", "socks5://operator-proxy.example");
+    vi.stubEnv("NODE_EXTRA_CA_CERTS", "/etc/orbweaver/operator-ca.pem");
+    const ambient = buildClaudeSdkEnv();
+    expect(ambient["HTTPS_PROXY"]).toBe("https://operator-proxy.example");
+    expect(ambient["ALL_PROXY"]).toBe("socks5://operator-proxy.example");
+    expect(ambient["NODE_EXTRA_CA_CERTS"]).toBe("/etc/orbweaver/operator-ca.pem");
+    for (const key of ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS"]) {
+      expect(() => buildClaudeAnthEnv(ANTH_KEY, { userEnv: { [key]: "attacker-controlled" } }), key).toThrow(UNSAFE_RUNTIME_ENV_RE);
+    }
+  });
 });
 
 describe("mode-1 (Max sub) firewall", () => {

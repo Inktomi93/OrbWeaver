@@ -183,13 +183,13 @@ export function extractHttpErrorDiagnostic(error: unknown, secrets: readonly str
   const out: { body?: string; cause?: string } = {};
   const body = error["body"];
   if (typeof body === "string" && body.length > 0) {
-    out.body = sanitizeApiError(redactSecretsFromText(body, secrets));
+    out.body = redactSecretsFromText(sanitizeApiError(body), secrets);
   }
   const cause = error["cause"];
   if (cause !== undefined && cause !== null) {
     const causeMsg = errorMessage(cause);
     if (causeMsg.length > 0) {
-      out.cause = sanitizeApiError(redactSecretsFromText(causeMsg, secrets));
+      out.cause = redactSecretsFromText(sanitizeApiError(causeMsg), secrets);
     }
   }
   return out;
@@ -203,7 +203,7 @@ export function extractHttpErrorDiagnostic(error: unknown, secrets: readonly str
  */
 export function providerErrorFromHttp(error: unknown, prefix: string, secrets: readonly string[] = []): ProviderError {
   const { kind, retryable, status } = classifyHttpError(error);
-  const safe = sanitizeApiError(redactSecretsFromText(errorMessage(error), secrets));
+  const safe = redactSecretsFromText(sanitizeApiError(errorMessage(error)), secrets);
   // Credential-bearing HTTP boundaries must never retain the raw thrown object: SDK/fetch errors can
   // carry reflected bodies, headers and nested causes as enumerable fields that a later logger serializes.
   // Keep the classified status and sanitized message, but replace that opaque graph with a safe cause.
