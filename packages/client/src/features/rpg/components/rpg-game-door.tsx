@@ -45,7 +45,7 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
           </Text>
         </Row>
         <Text>The RPG overlay is off — your sheets, scene, and quests are kept. Turn it on to pick up where you left off.</Text>
-        <Button intent="primary" size="sm" onClick={(): void => updateConfig.mutate({ chatId, patch: { engaged: true } })}>
+        <Button disabled={updateConfig.isPending} intent="primary" size="sm" onClick={(): void => updateConfig.mutate({ chatId, patch: { engaged: true } })}>
           <Icon icon={Play} size="xs" /> Turn the overlay on
         </Button>
       </Stack>
@@ -63,10 +63,15 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
       </Row>
       <Text>An overlay for your roleplay — tracked state, quests, and a scene the story keeps current.</Text>
       <Row gap="field" className="flex-wrap">
-        <Button intent="primary" size="sm" onClick={(): void => createGame.mutate({ chatId, mode: "lite" })}>
+        <Button disabled={createGame.isPending} intent="primary" size="sm" onClick={(): void => createGame.mutate({ chatId, mode: "lite" })}>
           <Icon icon={WandSparkles} size="xs" /> Freeform story
         </Button>
-        <Button intent="secondary" size="sm" onClick={(): void => createGame.mutate({ chatId, mode: "lite", profile: RPG_PROFILE_D20 })}>
+        <Button
+          disabled={createGame.isPending}
+          intent="secondary"
+          size="sm"
+          onClick={(): void => createGame.mutate({ chatId, mode: "lite", profile: RPG_PROFILE_D20 })}
+        >
           <Icon icon={Swords} size="xs" /> D20 adventure
         </Button>
       </Row>

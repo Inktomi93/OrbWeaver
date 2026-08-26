@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { Project } from "ts-morph";
-import { REVIEW_FOCUS, resolveReviewFocus } from "../../../tooling/src/review-mirror/index.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
+import { REVIEW_FOCUS, resolveReviewFocus } from "../../../../tooling/src/review-mirror/index.ts";
+import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("every review-focus row resolves against the real checkout", ({ repoRoot }) => {
   const project = new Project({ skipAddingFilesFromTsConfig: true });
