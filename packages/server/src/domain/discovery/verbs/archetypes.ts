@@ -117,7 +117,7 @@ function archetypesForGroup(
   facetById: Map<CharacterId, CardFacet>,
   k: number,
 ): Archetype[] {
-  const orderedGroup = [...group].sort((a, b) => compareText(a.characterId, b.characterId));
+  const orderedGroup = group.toSorted((a, b) => compareText(a.characterId, b.characterId));
   const { reps, repOf } = collapseByHash(
     orderedGroup,
     (r) => r.contentHash,
