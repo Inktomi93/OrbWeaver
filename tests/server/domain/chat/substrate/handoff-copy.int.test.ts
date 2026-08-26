@@ -181,13 +181,19 @@ describe("the accepted offer — the room moves onto the copies", () => {
       },
     } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
     let eventAttempts = 0;
-    const resumableEmit = (event: ChatBusEvent): Promise<boolean> => {
+    const resumableEmit = async (event: ChatBusEvent, claimStatement?: BatchStmt): Promise<boolean> => {
       eventAttempts += 1;
       if (eventAttempts === 1) {
-        return Promise.resolve(false);
+        return false;
+      }
+      if (claimStatement !== undefined) {
+        const [claim] = await db.batch(batchMany([claimStatement]));
+        if (claim.rowsAffected === 0) {
+          return true;
+        }
       }
       emitted.push(event);
-      return Promise.resolve(true);
+      return true;
     };
     const roster = createRoster(copyContext({ rpg }), { claimChat: (): Promise<void> => Promise.resolve(), emit: resumableEmit });
 
