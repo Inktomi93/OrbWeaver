@@ -8,16 +8,17 @@
 // chat, which the importer owns by construction). Ends if either op ever gains a caller that has not
 // already resolved chat authority.
 //
-// The write commits as ONE `db.batch` — `db.transaction()` is BANNED (the :memory: trap), the same rule
-// chat's import-write follows. A kill mid-restore therefore leaves the chat with no game rather than half a
-// campaign, which is the honest partial: a gameless chat is a legal state, a game missing its snapshots is
-// not.
+// BOTH halves use ONE `db.batch`. The export's batch is SELECT-only, so libSQL's deferred transaction fixes
+// one database snapshot and never hits the forbidden read→write upgrade; the import's batch is pure-write.
+// `db.transaction()` remains BANNED (the :memory: connection-replacement trap). A concurrent campaign write
+// therefore cannot make export pair checkpoint rows with a different snapshot set, and a kill mid-import
+// leaves the chat with no game rather than half a campaign.
 
 import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { RpgSnapshotId } from "@orb/kit/ids";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import type {
   ExportRpgGame,
   ImportRpgGame,
@@ -56,17 +57,26 @@ function composeState(row: typeof rpgSnapshots.$inferSelect): RpgPortableSnapsho
 
 export function createExportRpgGame(ctx: Pick<RpgPortabilityContext, "db">): ExportRpgGame {
   return async ({ chatId }): Promise<RpgPortableGame | null> => {
-    const [game] = await ctx.db.select().from(rpgGames).where(eq(rpgGames.chatId, chatId)).limit(LIMIT_ONE);
+    // Every statement must be prepared before the batch runs, so child rows resolve the game's id through the
+    // same chat-scoped subquery. Six ordered SELECTs then ride ONE deferred, read-only transaction: the first
+    // SELECT fixes the SQLite snapshot and no statement upgrades it to a writer.
+    const gameIdForChat = ctx.db.select({ id: rpgGames.id }).from(rpgGames).where(eq(rpgGames.chatId, chatId));
+    const [gameRows, sheetRows, snapshotRows, journalRows, toolCallRows, checkpointRows] = await ctx.db.batch([
+      ctx.db.select().from(rpgGames).where(eq(rpgGames.chatId, chatId)).limit(LIMIT_ONE),
+      ctx.db.select().from(rpgSheets).where(inArray(rpgSheets.gameId, gameIdForChat)).orderBy(asc(rpgSheets.createdAt), asc(rpgSheets.id)),
+      ctx.db.select().from(rpgSnapshots).where(inArray(rpgSnapshots.gameId, gameIdForChat)).orderBy(asc(rpgSnapshots.createdAt), asc(rpgSnapshots.id)),
+      ctx.db.select().from(rpgJournal).where(inArray(rpgJournal.gameId, gameIdForChat)).orderBy(asc(rpgJournal.createdAt), asc(rpgJournal.id)),
+      ctx.db
+        .select()
+        .from(rpgTurnToolCalls)
+        .where(inArray(rpgTurnToolCalls.gameId, gameIdForChat))
+        .orderBy(asc(rpgTurnToolCalls.createdAt), asc(rpgTurnToolCalls.id)),
+      ctx.db.select().from(rpgCheckpoints).where(inArray(rpgCheckpoints.gameId, gameIdForChat)).orderBy(asc(rpgCheckpoints.createdAt), asc(rpgCheckpoints.id)),
+    ]);
+    const game = gameRows[0];
     if (game === undefined) {
       return null;
     }
-    const [sheetRows, snapshotRows, journalRows, toolCallRows, checkpointRows] = await Promise.all([
-      ctx.db.select().from(rpgSheets).where(eq(rpgSheets.gameId, game.id)).orderBy(asc(rpgSheets.createdAt), asc(rpgSheets.id)),
-      ctx.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, game.id)).orderBy(asc(rpgSnapshots.createdAt), asc(rpgSnapshots.id)),
-      ctx.db.select().from(rpgJournal).where(eq(rpgJournal.gameId, game.id)).orderBy(asc(rpgJournal.createdAt), asc(rpgJournal.id)),
-      ctx.db.select().from(rpgTurnToolCalls).where(eq(rpgTurnToolCalls.gameId, game.id)).orderBy(asc(rpgTurnToolCalls.createdAt), asc(rpgTurnToolCalls.id)),
-      ctx.db.select().from(rpgCheckpoints).where(eq(rpgCheckpoints.gameId, game.id)).orderBy(asc(rpgCheckpoints.createdAt), asc(rpgCheckpoints.id)),
-    ]);
     // The checkpoint's target rides as a POSITION in the snapshot array this same read just ordered — the
     // only way a checkpoint can name its snapshot when neither row's id survives the trip.
     // @orb-gate-ignore persistence-no-in-memory-state: query-local index over the row set this query just returned

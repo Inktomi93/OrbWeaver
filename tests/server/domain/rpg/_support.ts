@@ -10,6 +10,7 @@ import type { RpgActorEntry, RpgBusEvent, RpgExtraction, RpgExtractionMode, RpgG
 import { RPG_PROFILE_FREEFORM, RPG_RECENT_BEATS_KEEP_DEFAULT } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
+import { batchMany } from "@orb/db/kit";
 import type {
   CharacterHandle,
   CharacterId,
@@ -397,7 +398,7 @@ export function makeRpgService(
   };
 
   let narratorSeq = 1000;
-  const postNarratorMessage: RpgPostNarratorMessage = async (chatId, content) => {
+  const postNarratorMessage: RpgPostNarratorMessage = async (chatId, content, buildSnapshotStatement) => {
     // MIRRORS the real op's D124 write-boundary refusal: a content-less canon row is not a message. A verb
     // that reaches here with "" is the exact defect this reshape made unspellable, so the fake must not
     // quietly accept what production throws on.
@@ -407,6 +408,9 @@ export function makeRpgService(
     fakes.narratorPosts.push({ chatId, content });
     // Mint a REAL message + variant so the forward-write FKs resolve (the narrator slot the snapshot keys to).
     const { messageId, variantId } = await seedMessage(db, chatId, narratorSeq++, { role: "assistant", content });
+    // This fake pins the injected-op contract only; the restore integration test uses chat's REAL narrator op
+    // for rollback proof. Execute the companion so ordinary verb tests still observe the restored row.
+    await db.batch(batchMany([buildSnapshotStatement({ messageId, variantId })]));
     return { messageId, variantId };
   };
   const resolveRoster: RpgResolveRoster = () => Promise.resolve(fakes.roster);
