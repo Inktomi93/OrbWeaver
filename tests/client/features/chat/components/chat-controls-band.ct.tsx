@@ -151,7 +151,7 @@ for (const { label, width, height } of CONTRAST_WIDTHS) {
       const chip = component.locator(`${CHIPS} button[data-mode="${mode}"]`);
       // biome-ignore lint/performance/noAwaitInLoops: a framebuffer read is a SEQUENTIAL browser operation — two concurrent screenshots of the same page interleave and one of them samples the other's frame.
       await expect(chip).toBeVisible();
-      // ONESHOT-OK: the visibility barrier above settled this chip's box; the framebuffer read is of a
+      // Settled snapshot: the visibility barrier above settled this chip's box; the framebuffer read is of a
       // painted, settled frame, not of mutable async state.
       const receipt = await pixelContrast(page, chip);
       expect(receipt.ratio, `${mode} chip @ ${label}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL);
@@ -238,7 +238,7 @@ test("#684 an UNSTYLED detail node inside the band paints legibly (the reader's-
   await expect(component.getByText("The corridor forks.")).toBeVisible();
   const detail = component.getByTestId("ct-unstyled-detail");
   await expect(detail).toBeVisible();
-  // ONESHOT-OK: the visibility barrier settled this node; the framebuffer read is of a painted frame.
+  // Settled snapshot: the visibility barrier settled this node; the framebuffer read is of a painted frame.
   const receipt = await pixelContrast(page, detail);
   expect(receipt.ratio, `unstyled band detail: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL);
 });
@@ -271,7 +271,7 @@ test("#674 the chip's mode glyph renders at the house 16px step, not lucide's in
     await expect(glyph).toBeVisible();
     // The RENDERED box, not the attribute alone: a `size` prop that a stylesheet then overrode would pass
     // an attribute check and still paint 24px.
-    // ONESHOT-OK: the visibility barrier settled this node; an SVG's intrinsic box does not move after paint.
+    // Settled snapshot: the visibility barrier settled this node; an SVG's intrinsic box does not move after paint.
     const box = await glyph.boundingBox();
     expect(box?.width, `${mode} glyph width`).toBe(HOUSE_GLYPH_PX);
     expect(box?.height, `${mode} glyph height`).toBe(HOUSE_GLYPH_PX);
@@ -343,9 +343,9 @@ test("send mode: a chip click fires chat.send with the chip's text and leaves th
   await component.getByRole("button", { name: "Draw your blade" }).click();
 
   await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
-  // ONESHOT-OK: the poll above already settled the recorder for this proc — the call is recorded, so its
+  // Settled snapshot: the poll above already settled the recorder for this proc — the call is recorded, so its
   // input is a fixed value, not mutable async state.
-  expect((trpc.lastInput("chat.send") as { readonly content?: string }).content).toBe("I draw my blade.");
+  await expect.poll(async () => (trpc.lastInput("chat.send") as { readonly content?: string }).content).toBe("I draw my blade.");
   await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("");
 });
 
@@ -358,10 +358,10 @@ test("compose mode: a chip click seeds THIS room's composer draft and fires NO s
   const composer = component.getByRole("textbox", { name: "Message" });
   await expect(composer).toHaveValue("Some hours later,");
   await expect(composer).toBeFocused();
-  // ONESHOT-OK: a NEGATIVE about a synchronous click path that has already produced its full effect (the
+  // Settled snapshot: a NEGATIVE about a synchronous click path that has already produced its full effect (the
   // draft landed and focus moved, both asserted web-first above) — there is no later moment at which a send
   // this click did not make could appear.
-  expect(trpc.count("chat.send")).toBe(0);
+  await expect.poll(async () => trpc.count("chat.send")).toBe(0);
 });
 
 test("BUSY IS PER MODE: a turn in flight disables the send chip with its reason; compose stays live", async ({ mount, page }) => {

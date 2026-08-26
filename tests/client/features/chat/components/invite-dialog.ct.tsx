@@ -53,10 +53,14 @@ test("share-link mode mints and shows the raw /join link ONCE with the copy affo
 
   await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // An untargeted mint: no invitedHandle on the wire.
+  const readInputAtAssertion = async (): Promise<typeof input> =>
+    trpc.lastInput("invites.createInvite") as {
+      input?: { invitedHandle?: unknown };
+    };
   const input = trpc.lastInput("invites.createInvite") as {
     input?: { invitedHandle?: unknown };
   };
-  expect(input.input?.invitedHandle).toBeUndefined();
+  await expect.poll(async () => (await readInputAtAssertion()).input?.invitedHandle).toBeUndefined();
 
   // The raw link renders ONCE, composed from the returned token, with the you-won't-see-this copy.
   const result = page.getByTestId("invite-link-result");
@@ -79,11 +83,15 @@ test("handle mode sends the targeted invite with the limits on the wire", async 
   await dialog.getByRole("button", { name: "Send invite" }).click();
 
   await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  const readInputAtAssertion = async (): Promise<typeof input> =>
+    trpc.lastInput("invites.createInvite") as {
+      input?: { invitedHandle?: unknown; maxUses?: unknown };
+    };
   const input = trpc.lastInput("invites.createInvite") as {
     input?: { invitedHandle?: unknown; maxUses?: unknown };
   };
-  expect(input.input?.invitedHandle).toBe("frodo");
-  expect(input.input?.maxUses).toBe(3);
+  await expect.poll(async () => (await readInputAtAssertion()).input?.invitedHandle).toBe("frodo");
+  await expect.poll(async () => (await readInputAtAssertion()).input?.maxUses).toBe(3);
 });
 
 test("an unknown handle renders the coded refusal INLINE — never a silent share link", async ({ mount, page }) => {
@@ -137,6 +145,7 @@ test("the outstanding list renders per-invite status/uses and revokes a pending 
   await expect(revokes).toHaveCount(1);
   await revokes.click();
   await expect.poll(() => trpc.count("invites.revokeInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("invites.revokeInvite") as { inviteId?: unknown };
   const input = trpc.lastInput("invites.revokeInvite") as { inviteId?: unknown };
-  expect(input.inviteId).toBe("chatinvite_ct_a");
+  await expect.poll(async () => (await readInputAtAssertion()).inviteId).toBe("chatinvite_ct_a");
 });

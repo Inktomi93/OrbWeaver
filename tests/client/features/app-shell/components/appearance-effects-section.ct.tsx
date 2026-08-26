@@ -61,6 +61,20 @@ test("the Frosted glass explanation holds a deliberate prose measure on a wide s
   const gloss = page.getByText(FROSTED_GLASS_GLOSS_RE);
   await expect(gloss).toBeVisible();
 
+  const readMeasureAtAssertion = async (): Promise<typeof measure> =>
+    await gloss.evaluate((element) => {
+      const style = getComputedStyle(element);
+      const probe = document.createElement("span");
+      probe.style.position = "absolute";
+      probe.style.visibility = "hidden";
+      probe.style.display = "block";
+      probe.style.font = style.font;
+      probe.style.width = "1ch";
+      document.body.append(probe);
+      const ch = probe.getBoundingClientRect().width;
+      probe.remove();
+      return { chars: element.getBoundingClientRect().width / ch, lines: element.getClientRects().length };
+    });
   const measure = await gloss.evaluate((element) => {
     const style = getComputedStyle(element);
     const probe = document.createElement("span");
@@ -75,8 +89,8 @@ test("the Frosted glass explanation holds a deliberate prose measure on a wide s
     return { chars: element.getBoundingClientRect().width / ch, lines: element.getClientRects().length };
   });
 
-  expect(measure.chars).toBeGreaterThanOrEqual(65);
-  expect(measure.chars).toBeLessThanOrEqual(75);
+  await expect.poll(async () => (await readMeasureAtAssertion()).chars).toBeGreaterThanOrEqual(65);
+  await expect.poll(async () => (await readMeasureAtAssertion()).chars).toBeLessThanOrEqual(75);
 });
 
 test("the Frosted glass explanation stays contained on mobile without moving the switch rail", async ({ mount, page }) => {
@@ -87,6 +101,22 @@ test("the Frosted glass explanation stays contained on mobile without moving the
   await expect(gloss).toContainText("Messages carry glass poorly (scrolling prose over blur), so they stay off unless you opt in.");
   await expect(section).toHaveCount(1);
 
+  const readGeometryAtAssertion = async (): Promise<typeof geometry> =>
+    await page.evaluate(() => {
+      const sectionElement = document.querySelector("#settings-anchor-appearance-effects");
+      const glossElement = Array.from(document.querySelectorAll("p")).find((element) => element.textContent?.startsWith("Backdrop blur +"));
+      const switchElements = Array.from(document.querySelectorAll<HTMLElement>('[role="switch"]'));
+      if (!(sectionElement instanceof HTMLElement && glossElement instanceof HTMLElement) || switchElements.length === 0) {
+        throw new Error("missing Effects geometry target");
+      }
+      const sectionBox = sectionElement.getBoundingClientRect();
+      const glossBox = glossElement.getBoundingClientRect();
+      const switchRights = switchElements.map((element) => element.getBoundingClientRect().right);
+      return {
+        contained: glossBox.left >= sectionBox.left && glossBox.right <= sectionBox.right,
+        switchRailSpread: Math.max(...switchRights) - Math.min(...switchRights),
+      };
+    });
   const geometry = await page.evaluate(() => {
     const sectionElement = document.querySelector("#settings-anchor-appearance-effects");
     const glossElement = Array.from(document.querySelectorAll("p")).find((element) => element.textContent?.startsWith("Backdrop blur +"));
@@ -102,6 +132,6 @@ test("the Frosted glass explanation stays contained on mobile without moving the
       switchRailSpread: Math.max(...switchRights) - Math.min(...switchRights),
     };
   });
-  expect(geometry.contained).toBe(true);
-  expect(geometry.switchRailSpread).toBeLessThanOrEqual(1);
+  await expect.poll(async () => (await readGeometryAtAssertion()).contained).toBe(true);
+  await expect.poll(async () => (await readGeometryAtAssertion()).switchRailSpread).toBeLessThanOrEqual(1);
 });

@@ -132,9 +132,9 @@ test("compose mode: clicking a chip seeds THIS room's composer draft and fires N
   const composer = component.getByRole("textbox", { name: "Message" });
   await expect(composer).toHaveValue("Some hours later,");
   await expect(composer).toBeFocused();
-  // ONESHOT-OK: a negative about a synchronous click path whose full effect (the seeded draft + focus) has
+  // Settled snapshot: a negative about a synchronous click path whose full effect (the seeded draft + focus) has
   // already landed and is asserted web-first above — there is no later moment a send could appear.
-  expect(trpc.count("chat.send")).toBe(0);
+  await expect.poll(async () => trpc.count("chat.send")).toBe(0);
 });
 
 // ── MOBILE: the chips stay IN-COLUMN at a phone width on a COARSE pointer (§3-S1 "in-column on mobile") ──

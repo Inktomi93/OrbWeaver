@@ -500,6 +500,28 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     const textarea = component.getByRole("textbox", { name: "Message", exact: true });
     await component.getByRole("button", { name: "Send message", exact: true }).focus();
     await page.keyboard.press("Tab");
+    const readFocusedAtAssertion = async (): Promise<typeof focused> =>
+      await textarea.evaluate((element) => {
+        const carrier = element.closest('[data-slot="composer"]');
+        if (carrier === null) {
+          throw new Error("Composer carrier missing");
+        }
+        const transitions = (node: Element): readonly { readonly property: string; readonly durationMs: number }[] => {
+          const style = getComputedStyle(node);
+          const properties = style.transitionProperty.split(",").map((value) => value.trim());
+          const durations = style.transitionDuration.split(",").map((value) => {
+            const trimmed = value.trim();
+            return trimmed.endsWith("ms") ? Number.parseFloat(trimmed) : Number.parseFloat(trimmed) * 1000;
+          });
+          return properties.map((property, index) => ({ property, durationMs: durations[index % durations.length] ?? 0 }));
+        };
+        return {
+          active: element.ownerDocument.activeElement === element,
+          carrierShadow: getComputedStyle(carrier).boxShadow,
+          carrierTransitions: transitions(carrier),
+          textareaTransitions: transitions(element),
+        };
+      });
     const focused = await textarea.evaluate((element) => {
       const carrier = element.closest('[data-slot="composer"]');
       if (carrier === null) {
@@ -521,7 +543,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
         textareaTransitions: transitions(element),
       };
     });
-    expect(focused.active).toBe(true);
+    await expect.poll(async () => (await readFocusedAtAssertion()).active).toBe(true);
     expect(focused.carrierShadow, "the focus-within ring/glow must paint on the keyboard focus frame").not.toBe("none");
     for (const transition of [...focused.carrierTransitions, ...focused.textareaTransitions]) {
       const animatesPaint = transition.durationMs > 0 && PAINT_TRANSITIONS.has(transition.property);
@@ -1293,9 +1315,9 @@ for (const width of [430, 390, 320]) {
       await expect(room.getByRole("button", { name: "Send message" })).toBeVisible();
       // The pointer class is the arm's condition — a fine-pointer layout no phone produces would size the
       // controls differently and make every number below meaningless.
-      // ONESHOT-OK: a media-query match on a CONTEXT flag fixed before the page opened (`hasTouch`), so
+      // Settled snapshot: a media-query match on a CONTEXT flag fixed before the page opened (`hasTouch`), so
       // nothing async can change it (the #511 cast-strip suite reads it the same way).
-      expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
 
       const bar = await measureActionBar(page);
       // No row was bought by shrinking a target below the coarse floor.
@@ -1323,14 +1345,16 @@ test.describe("#531 the desktop composer keeps its four-track row", () => {
     await routeTrpc(page, PHONE_ROOM_STUB);
     const room = await mount(<ChatRoomPhoneStory paneHeight={822} />);
     await expect(room.getByRole("group", { name: "Attach and send", exact: true })).toBeVisible();
-    // ONESHOT-OK: the same context-fixed media match as the coarse arms — no `hasTouch`, decided before the
+    // Settled snapshot: the same context-fixed media match as the coarse arms — no `hasTouch`, decided before the
     // page opened, and it is the discriminator for this whole describe.
-    expect(await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
+    await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
 
     const bar = await measureActionBar(page);
     expect(bar.rows).toBe(1);
+    const readTemplateAtAssertion = async (): Promise<typeof template> =>
+      await page.locator('[data-slot="composer-guided-cluster"]').evaluate((element) => getComputedStyle(element).gridTemplateColumns);
     const template = await page.locator('[data-slot="composer-guided-cluster"]').evaluate((element) => getComputedStyle(element).gridTemplateColumns);
-    expect(template.split(" ").filter(Boolean).length).toBe(4);
+    await expect.poll(async () => (await readTemplateAtAssertion()).split(" ").filter(Boolean).length).toBe(4);
   });
 });
 

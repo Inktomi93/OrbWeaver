@@ -86,10 +86,11 @@ test("Auto (arbitrate) is a real row: it fires the generate with NO speaker (the
   await page.getByRole("menuitem", { name: AUTO }).click();
 
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
-  // ONESHOT-OK: the poll settled the recorder at exactly 1 call. `null`/omitted ⇒ arbitration picks the speaker,
+  // Settled snapshot: the poll settled the recorder at exactly 1 call. `null`/omitted ⇒ arbitration picks the speaker,
   // so the field must be ABSENT from the wire, not a null placeholder.
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("chat.generate") as { speakerCharacterId?: unknown };
   const input = trpc.lastInput("chat.generate") as { speakerCharacterId?: unknown };
-  expect(input.speakerCharacterId).toBeUndefined();
+  await expect.poll(async () => (await readInputAtAssertion()).speakerCharacterId).toBeUndefined();
 });
 
 // #539 — RESPONSE IS THE ONE SPEAK-AS DOOR, so its group-room tooltip has to SAY there is a speaker choice.
@@ -120,8 +121,9 @@ test("a SOLO-cast room keeps the DIRECT Response button — one click fires, no 
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
   // The fork's other arm: no popup opened, so nothing to pick — the click IS the fire.
   await expect(page.getByRole("menuitem", { name: AUTO })).toHaveCount(0);
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("chat.generate") as { speakerCharacterId?: unknown };
   const input = trpc.lastInput("chat.generate") as { speakerCharacterId?: unknown };
-  expect(input.speakerCharacterId).toBeUndefined();
+  await expect.poll(async () => (await readInputAtAssertion()).speakerCharacterId).toBeUndefined();
 });
 
 // ── 2. The charge asymmetry ───────────────────────────────────────────────────────────────────────────────

@@ -341,13 +341,14 @@ for (const { label, viewport } of FLANK_ARMS) {
     const scroller = page.locator('[data-slot="message-list-scroll"]');
     await expect(scroller).toBeVisible();
     await expect(component.getByText("Couldn't load this conversation.")).toHaveCount(0);
+    const readBoxAtAssertion = async (): Promise<typeof box> => await scroller.boundingBox();
     const box = await scroller.boundingBox();
     // WIDTH — the silent defect. A zero-width transcript is an empty room with no error to report it.
-    expect(box?.width).toBeGreaterThan(0);
+    await expect.poll(async () => (await readBoxAtAssertion())?.width).toBeGreaterThan(0);
     // HEIGHT — the loud one, pinned as the guard's OWN predicate (it throws above 3× the viewport)
     // rather than as a magic number.
-    expect(box?.height).toBeGreaterThan(0);
-    expect(box?.height).toBeLessThan(viewport.height * UNBOUNDED_VIEWPORT_MULTIPLE);
+    await expect.poll(async () => (await readBoxAtAssertion())?.height).toBeGreaterThan(0);
+    await expect.poll(async () => (await readBoxAtAssertion())?.height).toBeLessThan(viewport.height * UNBOUNDED_VIEWPORT_MULTIPLE);
     // …and the rows are ON SCREEN, which is the reader's own version of both assertions above.
     await expect(component.getByText("Beat 79 —", { exact: false })).toBeInViewport();
   });
@@ -359,6 +360,7 @@ test("#680 desktop: the flank wrapper is HEIGHT-neutral — a silent flank and n
 
   const silent = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} silent={true} />);
   await expect(page.locator('[data-slot="message-list-scroll"]')).toBeVisible();
+  const readWithWrapperAtAssertion = async (): Promise<typeof withWrapper> => await page.locator('[data-slot="message-list-scroll"]').boundingBox();
   const withWrapper = await page.locator('[data-slot="message-list-scroll"]').boundingBox();
 
   await silent.unmount();
@@ -367,9 +369,9 @@ test("#680 desktop: the flank wrapper is HEIGHT-neutral — a silent flank and n
   const bare = await page.locator('[data-slot="message-list-scroll"]').boundingBox();
 
   // Both axes, because the lane that shipped #680 pinned only one of them.
-  expect(withWrapper?.height).toBeGreaterThan(0);
-  expect(withWrapper?.height).toBe(bare?.height);
-  expect(withWrapper?.width).toBe(bare?.width);
+  await expect.poll(async () => (await readWithWrapperAtAssertion())?.height).toBeGreaterThan(0);
+  await expect.poll(async () => (await readWithWrapperAtAssertion())?.height).toBe(bare?.height);
+  await expect.poll(async () => (await readWithWrapperAtAssertion())?.width).toBe(bare?.width);
 });
 
 // ── #685: THE FLANK COLUMN IS TOP-ANCHORED, AT BOTH ARMS ──────────────────────────────────────────────
@@ -457,6 +459,7 @@ test("a MOUNTED BUT SILENT thread-flank contribution costs the room nothing — 
   await expect(flank).toHaveCount(1);
   await expect(flank).toBeHidden();
   // The TRANSCRIPT's own scroll box is the thing a reader sees narrow when a flank takes its share.
+  const readSilentThreadAtAssertion = async (): Promise<typeof silentThread> => await page.locator('[data-slot="message-list-scroll"]').boundingBox();
   const silentThread = await page.locator('[data-slot="message-list-scroll"]').boundingBox();
 
   // …and the same room with the contribution NOT MOUNTED AT ALL gives the transcript the identical width.
@@ -468,8 +471,8 @@ test("a MOUNTED BUT SILENT thread-flank contribution costs the room nothing — 
 
   // Both boxes must EXIST before their equality means anything — two `undefined`s compare equal, which is
   // how a width pin goes vacuous when a selector drifts.
-  expect(silentThread?.width).toBeGreaterThan(0);
-  expect(silentThread?.width).toBe(absentThread?.width);
+  await expect.poll(async () => (await readSilentThreadAtAssertion())?.width).toBeGreaterThan(0);
+  await expect.poll(async () => (await readSilentThreadAtAssertion())?.width).toBe(absentThread?.width);
 });
 
 // THE RULING (2026-07-15) — the thread-flank anchor is the SEAM's responsibility, not the
@@ -747,8 +750,9 @@ test("stepping fires setSeededGreeting with the stepped INDEX, and never any tex
   // THE WIRE CARRIES NO TEXT — the whole point of the index shape. The server resolves the alternate from
   // the card, so this host-gated door can never become a second free-text content write. A client that
   // "helpfully" started sending the resolved string would pass every visual assertion and fail this one.
+  const readSentAtAssertion = async (): Promise<typeof sent> => trpc.lastInput("chat.setSeededGreeting") as Record<string, unknown>;
   const sent = trpc.lastInput("chat.setSeededGreeting") as Record<string, unknown>;
-  expect(Object.keys(sent).toSorted()).toEqual(["chatId", "greetingIndex", "messageId"]);
+  await expect.poll(async () => Object.keys(await readSentAtAssertion()).toSorted()).toEqual(["chatId", "greetingIndex", "messageId"]);
 });
 
 test("the row re-renders the SERVER's bytes when the edit lands on the bus (never an optimistic local swap)", async ({ mount, page }) => {

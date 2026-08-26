@@ -291,6 +291,33 @@ test("#242 both open: the reading line holds the REAL-CHARACTER floor and stays 
   await mount(<ChatRoomTrackStory paneWidth={BOTH_OPEN_PANE_WIDTH} />);
   await expect(page.locator(CONTENT_COLUMN).first()).toBeVisible();
 
+  const readLineAtAssertion = async (): Promise<typeof line> =>
+    await page.evaluate(
+      (sample): { readonly textWidth: number; readonly sampleWidth: number; readonly maxMeasure: number } => {
+        const bubble = document.querySelector('[data-slot="message-bubble"]');
+        if (!(bubble instanceof HTMLElement)) {
+          throw new Error("no bubble mounted");
+        }
+        // The sample is the room's OWN prose, in the room's own prose font, laid out on one line — so the
+        // floor is "65 of these characters fit", never a synthetic average.
+        const probe = document.createElement("span");
+        probe.style.position = "absolute";
+        probe.style.visibility = "hidden";
+        probe.style.whiteSpace = "pre";
+        probe.textContent = sample;
+        bubble.append(probe);
+        const sampleWidth = probe.getBoundingClientRect().width;
+        probe.textContent = "";
+        probe.style.whiteSpace = "";
+        probe.style.width = "var(--reading-measure)";
+        const maxMeasure = probe.getBoundingClientRect().width;
+        probe.remove();
+        const style = getComputedStyle(bubble);
+        const textWidth = bubble.getBoundingClientRect().width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
+        return { textWidth, sampleWidth, maxMeasure };
+      },
+      LONG_PROSE.slice(0, REAL_CHARACTER_FLOOR),
+    );
   const line = await page.evaluate(
     (sample): { readonly textWidth: number; readonly sampleWidth: number; readonly maxMeasure: number } => {
       const bubble = document.querySelector('[data-slot="message-bubble"]');
@@ -319,10 +346,10 @@ test("#242 both open: the reading line holds the REAL-CHARACTER floor and stays 
   );
 
   // IN BAND, both ends: at or above the real-character floor…
-  expect(line.sampleWidth).toBeGreaterThan(0);
-  expect(line.textWidth).toBeGreaterThanOrEqual(line.sampleWidth - AXIS_TOLERANCE_PX);
+  await expect.poll(async () => (await readLineAtAssertion()).sampleWidth).toBeGreaterThan(0);
+  await expect.poll(async () => (await readLineAtAssertion()).textWidth).toBeGreaterThanOrEqual(line.sampleWidth - AXIS_TOLERANCE_PX);
   // …and still under the 75ch cap (the band is 65-75; a floor with no ceiling is how #97 happened).
-  expect(line.textWidth).toBeLessThanOrEqual(line.maxMeasure);
+  await expect.poll(async () => (await readLineAtAssertion()).textWidth).toBeLessThanOrEqual(line.maxMeasure);
   // Non-vacuity: the PRE-#242 pane is the same measurement, short. Without this the assertion above would
   // pass on any pane wide enough by accident, and the shell change it exists to fence would be invisible.
   await page.evaluate((width) => {
@@ -381,6 +408,24 @@ test("an immersive skin's art does not eat the reading line below the min measur
     )
     .toBeGreaterThan(ECHO_ART_PANE_MIN_PX);
 
+  const readLineAtAssertion = async (): Promise<typeof line> =>
+    await page.evaluate((): { readonly textWidth: number; readonly floorPx: number } => {
+      const bubble = document.querySelector('[data-slot="message-bubble"]');
+      if (!(bubble instanceof HTMLElement)) {
+        throw new Error("no bubble mounted");
+      }
+      const probe = document.createElement("div");
+      probe.style.position = "absolute";
+      probe.style.visibility = "hidden";
+      probe.style.width = "var(--reading-measure-min)";
+      bubble.append(probe);
+      const floorPx = probe.getBoundingClientRect().width;
+      probe.remove();
+      const style = getComputedStyle(bubble);
+      // The reading line is the bubble's CONTENT box: its own width minus the art pane it reserves as padding.
+      const textWidth = bubble.getBoundingClientRect().width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
+      return { textWidth, floorPx };
+    });
   const line = await page.evaluate((): { readonly textWidth: number; readonly floorPx: number } => {
     const bubble = document.querySelector('[data-slot="message-bubble"]');
     if (!(bubble instanceof HTMLElement)) {
@@ -399,8 +444,8 @@ test("an immersive skin's art does not eat the reading line below the min measur
     return { textWidth, floorPx };
   });
 
-  expect(line.floorPx).toBeGreaterThan(0);
-  expect(line.textWidth).toBeGreaterThanOrEqual(line.floorPx - AXIS_TOLERANCE_PX);
+  await expect.poll(async () => (await readLineAtAssertion()).floorPx).toBeGreaterThan(0);
+  await expect.poll(async () => (await readLineAtAssertion()).textWidth).toBeGreaterThanOrEqual(line.floorPx - AXIS_TOLERANCE_PX);
 });
 
 // ── #245: ENTERING EDIT MUST NOT RESHAPE THE ROW (owner-reported, 2026-08-18) ───────────────────────

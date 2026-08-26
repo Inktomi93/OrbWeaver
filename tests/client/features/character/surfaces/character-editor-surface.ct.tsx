@@ -359,15 +359,16 @@ test("F2 the portrait trigger's box IS the portrait — no overflow past its own
   const component = await mount(<CharacterEditorSurfaceStory />);
 
   const trigger = component.getByRole("button", { name: "Replace portrait" });
+  const readTriggerBoxAtAssertion = async (): Promise<typeof triggerBox> => await trigger.boundingBox();
   const triggerBox = await trigger.boundingBox();
   const avatarBox = await trigger.locator('[data-slot="avatar-root"]').boundingBox();
 
   // Under `size="icon"` the button stayed 34×34 while the avatar painted 64×64 over the Name label: the
   // image escaped its own click target by ~15px on every side, and the real hit area was the invisible box.
-  expect(triggerBox?.width).toBeCloseTo(avatarBox?.width ?? 0, 0);
-  expect(triggerBox?.height).toBeCloseTo(avatarBox?.height ?? 0, 0);
-  expect(triggerBox?.x).toBeCloseTo(avatarBox?.x ?? 0, 0);
-  expect(triggerBox?.y).toBeCloseTo(avatarBox?.y ?? 0, 0);
+  await expect.poll(async () => (await readTriggerBoxAtAssertion())?.width).toBeCloseTo(avatarBox?.width ?? 0, 0);
+  await expect.poll(async () => (await readTriggerBoxAtAssertion())?.height).toBeCloseTo(avatarBox?.height ?? 0, 0);
+  await expect.poll(async () => (await readTriggerBoxAtAssertion())?.x).toBeCloseTo(avatarBox?.x ?? 0, 0);
+  await expect.poll(async () => (await readTriggerBoxAtAssertion())?.y).toBeCloseTo(avatarBox?.y ?? 0, 0);
 });
 
 // F3 — twelve `intent="info"` pills were the loudest thing on the editor (density-pass-spec §3.2 CD3:
@@ -705,6 +706,17 @@ test.describe("P2-5 suggestion chips at a coarse pointer", () => {
 
     // ROW FILL is the finding, stated directly: group the chips by their top edge and measure how much of
     // the block's width each row actually spends. The review measured a ~55% median over 8 rows.
+    const readFillAtAssertion = async (): Promise<typeof fill> =>
+      await block.evaluate((el: Element) => {
+        const chips = [...el.querySelectorAll('[data-slot="badge"]')].map((node) => node.getBoundingClientRect());
+        const rows = new Map<number, number>();
+        for (const box of chips) {
+          rows.set(Math.round(box.top), (rows.get(Math.round(box.top)) ?? 0) + box.width);
+        }
+        const width = el.getBoundingClientRect().width;
+        const spent = [...rows.values()].map((sum) => sum / width).toSorted((a, b) => a - b);
+        return { rows: rows.size, median: spent[Math.floor(spent.length / 2)] ?? 0, height: el.getBoundingClientRect().height };
+      });
     const fill = await block.evaluate((el: Element) => {
       const chips = [...el.querySelectorAll('[data-slot="badge"]')].map((node) => node.getBoundingClientRect());
       const rows = new Map<number, number>();
@@ -718,9 +730,9 @@ test.describe("P2-5 suggestion chips at a coarse pointer", () => {
     // MEASURED on this fixture (12 suggestions, 430px, coarse): median row fill 0.71 over 6 rows, block
     // height 380px — against 0.55 over 8 rows and 588px before. Both fences sit BELOW the measurement, so
     // they fence the CLASS of defect (a rail that cannot pack) rather than a pixel that a token retune moves.
-    expect(fill.median).toBeGreaterThan(0.65);
+    await expect.poll(async () => (await readFillAtAssertion()).median).toBeGreaterThan(0.65);
     // …and the block stops owning two thirds of the phone.
-    expect(fill.height).toBeLessThan(450);
+    await expect.poll(async () => (await readFillAtAssertion()).height).toBeLessThan(450);
   });
 });
 

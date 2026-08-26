@@ -127,6 +127,18 @@ test("#102-F8/F14 an also-open room title outranks its own gloss, and the rooms 
 
   // The ramp relation, not a px literal: the room name is a step ABOVE the subtitle beside it (it was the
   // same 15px/13px pair every dense pane runs, on the one list that IS home's content).
+  const readStepsAtAssertion = async (): Promise<typeof steps> =>
+    await list
+      .locator('[data-slot="list-row-title"]')
+      .first()
+      .evaluate((el) => {
+        const row = el.closest('[data-slot="list-row-root"]');
+        const gloss = row?.querySelector('[data-slot="list-row-subtitle"]');
+        return {
+          title: Number.parseFloat(globalThis.getComputedStyle(el).fontSize),
+          gloss: gloss === null || gloss === undefined ? 0 : Number.parseFloat(globalThis.getComputedStyle(gloss).fontSize),
+        };
+      });
   const steps = await list
     .locator('[data-slot="list-row-title"]')
     .first()
@@ -138,8 +150,20 @@ test("#102-F8/F14 an also-open room title outranks its own gloss, and the rooms 
         gloss: gloss === null || gloss === undefined ? 0 : Number.parseFloat(globalThis.getComputedStyle(gloss).fontSize),
       };
     });
-  expect(steps.title).toBeGreaterThan(steps.gloss);
+  await expect.poll(async () => (await readStepsAtAssertion()).title).toBeGreaterThan(steps.gloss);
   // …and it is the TITLE step the tier map resolves for a promoted row, not the row default the pane runs.
+  const readPromotedAtAssertion = async (): Promise<typeof promoted> =>
+    await list
+      .locator('[data-slot="list-row-title"]')
+      .first()
+      .evaluate((el) => {
+        const probe = el.ownerDocument.createElement("span");
+        probe.style.fontSize = "var(--text-title)";
+        el.ownerDocument.body.append(probe);
+        const titleStep = globalThis.getComputedStyle(probe).fontSize;
+        probe.remove();
+        return { resolved: globalThis.getComputedStyle(el).fontSize, titleStep };
+      });
   const promoted = await list
     .locator('[data-slot="list-row-title"]')
     .first()
@@ -151,7 +175,7 @@ test("#102-F8/F14 an also-open room title outranks its own gloss, and the rooms 
       probe.remove();
       return { resolved: globalThis.getComputedStyle(el).fontSize, titleStep };
     });
-  expect(promoted.resolved).toBe(promoted.titleStep);
+  await expect.poll(async () => (await readPromotedAtAssertion()).resolved).toBe(promoted.titleStep);
 
   // F14: the mock rules each room off the one above it. The FIRST row carries no rule (the band's own
   // hairline is its edge); every later one does.
@@ -174,6 +198,22 @@ test("#102/P2-5 CD3: the hero's focal is an elevated island + a ::before glow �
   const home = await mount(<ChatRecentsTileStory />);
   const hero = home.locator('[data-home-hearth="chat_recent"]');
 
+  const readPaintAtAssertion = async (): Promise<typeof paint> =>
+    await hero.evaluate((el) => {
+      const own = globalThis.getComputedStyle(el);
+      const halo = globalThis.getComputedStyle(el, "::before");
+      const probe = el.ownerDocument.createElement("span");
+      probe.style.color = "var(--color-speaker)";
+      el.ownerDocument.body.append(probe);
+      const speaker = globalThis.getComputedStyle(probe).color;
+      probe.remove();
+      /** One edge, as the accent-border checker reads it: its width and its resolved colour. */
+      const edges = (["Top", "Right", "Bottom", "Left"] as const).map((side) => ({
+        width: Number.parseFloat(own[`border${side}Width` as "borderTopWidth"]),
+        color: own[`border${side}Color` as "borderTopColor"],
+      }));
+      return { edges, ownShadow: own.boxShadow, haloShadow: halo.boxShadow, background: own.backgroundColor, speaker };
+    });
   const paint = await hero.evaluate((el) => {
     const own = globalThis.getComputedStyle(el);
     const halo = globalThis.getComputedStyle(el, "::before");
@@ -196,12 +236,12 @@ test("#102/P2-5 CD3: the hero's focal is an elevated island + a ::before glow �
     expect(edge.color).not.toBe(paint.speaker);
   }
   // The rationed halo is on the pseudo-element…
-  expect(paint.haloShadow).not.toBe("none");
+  await expect.poll(async () => (await readPaintAtAssertion()).haloShadow).not.toBe("none");
   // …and the ELEVATED island's own shadow is the other sanctioned carrier (`Card elevated` — the finding
   // was that the card did not read as the page's focal at all once the illegal stripe was gone).
-  expect(paint.ownShadow).not.toBe("none");
+  await expect.poll(async () => (await readPaintAtAssertion()).ownShadow).not.toBe("none");
   // …and the island is NOT accent-filled: a focal made of fill is the thing CD3's ≤10% ceiling exists for.
-  expect(paint.background).not.toBe(paint.speaker);
+  await expect.poll(async () => (await readPaintAtAssertion()).background).not.toBe(paint.speaker);
 });
 
 test("#102 RAMP: the hero title is the HEADLINE step — strictly larger than an also-open row's title", async ({ mount, page }) => {
@@ -272,6 +312,20 @@ test("P3-17 the hero's Resume label is not painted as a link", async ({ mount, p
   const home = await mount(<ChatRecentsTileStory />);
   const label = home.locator('[data-home-hearth="chat_recent"]').getByText("Resume");
 
+  const readInkAtAssertion = async (): Promise<typeof ink> =>
+    await label.evaluate((el) => {
+      const probe = el.ownerDocument.createElement("span");
+      probe.style.color = "var(--color-primary)";
+      el.ownerDocument.body.append(probe);
+      const primary = globalThis.getComputedStyle(probe).color;
+      probe.remove();
+      const muted = el.ownerDocument.createElement("span");
+      muted.style.color = "var(--color-muted-foreground)";
+      el.ownerDocument.body.append(muted);
+      const mutedInk = globalThis.getComputedStyle(muted).color;
+      muted.remove();
+      return { own: globalThis.getComputedStyle(el).color, primary, mutedInk };
+    });
   const ink = await label.evaluate((el) => {
     const probe = el.ownerDocument.createElement("span");
     probe.style.color = "var(--color-primary)";
@@ -286,8 +340,8 @@ test("P3-17 the hero's Resume label is not painted as a link", async ({ mount, p
     return { own: globalThis.getComputedStyle(el).color, primary, mutedInk };
   });
 
-  expect(ink.own).not.toBe(ink.primary);
-  expect(ink.own).toBe(ink.mutedInk);
+  await expect.poll(async () => (await readInkAtAssertion()).own).not.toBe(ink.primary);
+  await expect.poll(async () => (await readInkAtAssertion()).own).toBe(ink.mutedInk);
 });
 
 // ── RED-FIRST (#102 review F12/F15/P1-1): the credit line's register, size and NAME LENGTH ──────────
@@ -302,6 +356,16 @@ test("#102-F12 the hero credit line is caps micro-caps at the label step, with S
   // room's cast at credit length, not the character library's index.
   await expect(credit).toBeVisible();
 
+  const readTypeAtAssertion = async (): Promise<typeof type> =>
+    await credit.evaluate((el) => {
+      const style = globalThis.getComputedStyle(el);
+      const probe = el.ownerDocument.createElement("span");
+      probe.style.fontSize = "var(--text-label)";
+      el.ownerDocument.body.append(probe);
+      const labelStep = globalThis.getComputedStyle(probe).fontSize;
+      probe.remove();
+      return { size: style.fontSize, transform: style.textTransform, family: style.fontFamily, labelStep };
+    });
   const type = await credit.evaluate((el) => {
     const style = globalThis.getComputedStyle(el);
     const probe = el.ownerDocument.createElement("span");
@@ -312,11 +376,11 @@ test("#102-F12 the hero credit line is caps micro-caps at the label step, with S
     return { size: style.fontSize, transform: style.textTransform, family: style.fontFamily, labelStep };
   });
   // F12: the mock's UPPERCASE micro-caps register, in the mono face.
-  expect(type.transform).toBe("uppercase");
-  expect(type.family.toLowerCase()).toContain("mono");
+  await expect.poll(async () => (await readTypeAtAssertion()).transform).toBe("uppercase");
+  await expect.poll(async () => (await readTypeAtAssertion()).family.toLowerCase()).toContain("mono");
   // F15: and NOT below the readable floor — this line lives inside the hero's own button.
-  expect(type.size).toBe(type.labelStep);
-  expect(Number.parseFloat(type.size)).toBeGreaterThanOrEqual(11);
+  await expect.poll(async () => (await readTypeAtAssertion()).size).toBe(type.labelStep);
+  await expect.poll(async () => Number.parseFloat((await readTypeAtAssertion()).size)).toBeGreaterThanOrEqual(11);
 });
 
 // The #102-RULED "the hero cast strip is SQUARE portrait art" pin was DELETED on the 2026-08-17 rail sweep
@@ -468,6 +532,18 @@ test("#205 the bleed starts where the prose stops — NO ink over art, at either
 
   // Every ink inside the island, measured against the band's own start edge. This is the whole legibility
   // argument: no plate is invoked because no text sits on art, and that is only true if it is TRUE.
+  const readOverlapAtAssertion = async (): Promise<typeof overlap> =>
+    await home.locator('[data-home-hearth="chat_long"]').evaluate((island) => {
+      const band = island.querySelector('[data-slot="art-bleed"]')?.getBoundingClientRect();
+      const inks = [...island.querySelectorAll("span,p")]
+        .map((el) => ({ text: (el.textContent ?? "").trim().slice(0, 24), right: el.getBoundingClientRect().right }))
+        .filter((ink) => ink.text.length > 0);
+      return {
+        bandLeft: band?.left ?? 0,
+        bandWidth: band?.width ?? 0,
+        worst: inks.reduce((max, ink) => (ink.right > max.right ? ink : max), { text: "", right: 0 }),
+      };
+    });
   const overlap = await home.locator('[data-home-hearth="chat_long"]').evaluate((island) => {
     const band = island.querySelector('[data-slot="art-bleed"]')?.getBoundingClientRect();
     const inks = [...island.querySelectorAll("span,p")]
@@ -480,7 +556,7 @@ test("#205 the bleed starts where the prose stops — NO ink over art, at either
     };
   });
   // The band is REAL at a desktop width (a zero-width band would make the assertion below vacuous).
-  expect(overlap.bandWidth).toBeGreaterThan(0);
+  await expect.poll(async () => (await readOverlapAtAssertion()).bandWidth).toBeGreaterThan(0);
   // Sub-pixel tolerance only: the trailing "Resume →" hint ends AT the measure, which is the band's start.
   expect(overlap.worst.right, `"${overlap.worst.text}" runs into the art band`).toBeLessThanOrEqual(overlap.bandLeft + 1);
 });

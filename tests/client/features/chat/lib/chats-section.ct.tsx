@@ -390,12 +390,17 @@ test("capable HOST: Members lists the humans (host chip) and the invite dialog m
   await dialog.getByRole("button", { name: "Send invite" }).click();
 
   await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  const readInputAtAssertion = async (): Promise<typeof input> =>
+    trpc.lastInput("invites.createInvite") as {
+      chatId?: unknown;
+      input?: { invitedHandle?: unknown };
+    };
   const input = trpc.lastInput("invites.createInvite") as {
     chatId?: unknown;
     input?: { invitedHandle?: unknown };
   };
-  expect(input.chatId).toBe("chat_ct_keystone");
-  expect(input.input?.invitedHandle).toBe("frodo");
+  await expect.poll(async () => (await readInputAtAssertion()).chatId).toBe("chat_ct_keystone");
+  await expect.poll(async () => (await readInputAtAssertion()).input?.invitedHandle).toBe("frodo");
 });
 
 test("capable MEMBER: Members shows who's here but NO invite/kick controls (host-only mirror)", async ({ mount, page }) => {
@@ -524,10 +529,11 @@ test("host adds an injection (setChatInjection fires with no id ⇒ create)", as
   await component.getByRole("button", { name: "Add injection" }).click();
 
   await expect.poll(() => trpc.count("chat.setChatInjection"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("chat.setChatInjection") as { id?: unknown; position?: unknown };
   const input = trpc.lastInput("chat.setChatInjection") as { id?: unknown; position?: unknown };
   // A create carries NO id (the server mints it) and the default position.
-  expect(input.id).toBeUndefined();
-  expect(input.position).toBe("in_chat");
+  await expect.poll(async () => (await readInputAtAssertion()).id).toBeUndefined();
+  await expect.poll(async () => (await readInputAtAssertion()).position).toBe("in_chat");
 });
 
 test("host removes an injection (deleteChatInjection fires with the row id)", async ({ mount, page }) => {
@@ -555,8 +561,9 @@ test("host removes an injection (deleteChatInjection fires with the row id)", as
   await component.getByRole("button", { name: "Remove injection" }).click();
 
   await expect.poll(() => trpc.count("chat.deleteChatInjection"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("chat.deleteChatInjection") as { injectionId?: unknown };
   const input = trpc.lastInput("chat.deleteChatInjection") as { injectionId?: unknown };
-  expect(input.injectionId).toBe("chat_injection_a");
+  await expect.poll(async () => (await readInputAtAssertion()).injectionId).toBe("chat_injection_a");
 });
 
 test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omitted)", async ({ mount, page }) => {
@@ -577,12 +584,16 @@ test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omit
   await component.getByLabel("Scenario", { exact: true }).fill("A rainy dock.");
 
   await expect.poll(() => trpc.count("chat.setRoomOverrides"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  const readInputAtAssertion = async (): Promise<typeof input> =>
+    trpc.lastInput("chat.setRoomOverrides") as {
+      overrides?: { scenario?: string; mainPrompt?: string };
+    };
   const input = trpc.lastInput("chat.setRoomOverrides") as {
     overrides?: { scenario?: string; mainPrompt?: string };
   };
-  expect(input.overrides?.scenario).toBe("A rainy dock.");
+  await expect.poll(async () => (await readInputAtAssertion()).overrides?.scenario).toBe("A rainy dock.");
   // Empty fields are omitted (inherit), not sent as "".
-  expect(input.overrides).not.toHaveProperty("mainPrompt");
+  await expect.poll(async () => (await readInputAtAssertion()).overrides).not.toHaveProperty("mainPrompt");
 });
 
 // RETIRED (owner ruling 2026-08-01): the author's-note override was a SECOND home for what the Injections

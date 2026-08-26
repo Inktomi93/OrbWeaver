@@ -62,6 +62,13 @@ test("full-row tap target — the trigger fills its row; the card's top edge hit
   const trigger = component.getByRole("button", { name: "Post-history" });
   await expect(trigger).toBeVisible();
 
+  const readProbeAtAssertion = async (): Promise<typeof probe> =>
+    await trigger.evaluate((btn) => {
+      const card = btn.closest('[data-slot="card-root"]') as HTMLElement;
+      const rect = card.getBoundingClientRect();
+      const topEdgeHit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + 2);
+      return { inTrigger: btn.contains(topEdgeHit), triggerHeight: btn.getBoundingClientRect().height, cardHeight: rect.height };
+    });
   const probe = await trigger.evaluate((btn) => {
     const card = btn.closest('[data-slot="card-root"]') as HTMLElement;
     const rect = card.getBoundingClientRect();
@@ -69,6 +76,6 @@ test("full-row tap target — the trigger fills its row; the card's top edge hit
     return { inTrigger: btn.contains(topEdgeHit), triggerHeight: btn.getBoundingClientRect().height, cardHeight: rect.height };
   });
 
-  expect(probe.inTrigger).toBe(true);
+  await expect.poll(async () => (await readProbeAtAssertion()).inTrigger).toBe(true);
   expect(Math.abs(probe.triggerHeight - probe.cardHeight)).toBeLessThanOrEqual(2);
 });

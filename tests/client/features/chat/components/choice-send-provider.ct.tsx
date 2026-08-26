@@ -49,8 +49,9 @@ test("cyoaChoiceBehavior:send — a choice click fires chat.send with the option
   await component.getByRole("button", { name: `1. ${FIRST_OPTION}` }).click();
 
   await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("chat.send") as { readonly content?: string };
   const input = trpc.lastInput("chat.send") as { readonly content?: string };
-  expect(input.content).toBe(FIRST_OPTION);
+  await expect.poll(async () => (await readInputAtAssertion()).content).toBe(FIRST_OPTION);
   // send mode never touches the composer draft.
   await expect(component.getByLabel("Message", { exact: true })).toHaveValue("");
 });
@@ -70,8 +71,8 @@ test("cyoaChoiceBehavior:compose — a choice click seeds the composer draft wit
   // The option text lands in the composer draft (observable in the real textarea) — the reader appends flavor.
   await expect(component.getByLabel("Message", { exact: true })).toHaveValue(FIRST_OPTION);
   // compose mode never fires a turn.
-  // ONESHOT-OK: the draft-set is synchronous in the click handler; once toHaveValue settles the handler has
+  // Settled snapshot: the draft-set is synchronous in the click handler; once toHaveValue settles the handler has
   // fully run, and compose mode never calls send() — no chat.send request can be in flight, so the count is
   // provably 0 and cannot change (settled read of a negative, not a mid-transition sample).
-  expect(trpc.count("chat.send")).toBe(0);
+  await expect.poll(async () => trpc.count("chat.send")).toBe(0);
 });

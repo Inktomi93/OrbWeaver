@@ -215,5 +215,5 @@ test("#239: the room title carries its full value as a title attribute", async (
   const heading = cmp.locator('[data-slot="text"]', { hasText: longTitle }).first();
   await expect(heading).toHaveAttribute("title", longTitle);
   // The tooltip is the SAME string the eye sees — a re-worded one would be a second, disagreeing home.
-  expect((await heading.textContent())?.trim()).toBe(longTitle);
+  await expect.poll(async () => (await heading.textContent())?.trim()).toBe(longTitle);
 });

@@ -41,6 +41,22 @@ test("reading vars drive the message bubble's computed line-height / letter-spac
 
   // Read the bubble's resolved properties + the tokens/vars its globals.css rules compose from, all live
   // off the real element — so the expected values are reconstructed from source, not guessed.
+  const readBAtAssertion = async (): Promise<typeof b> =>
+    await bubble.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      const rootFontPx = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const secondP = el.querySelectorAll("p")[1];
+      return {
+        fontSizePx: Number.parseFloat(cs.fontSize),
+        lineHeightPx: Number.parseFloat(cs.lineHeight),
+        letterSpacingPx: Number.parseFloat(cs.letterSpacing),
+        textAlign: cs.textAlign,
+        rootFontPx,
+        textBodyRem: Number.parseFloat(cs.getPropertyValue("--text-body")),
+        bodyScaleVar: Number.parseFloat(cs.getPropertyValue("--reading-body-scale")),
+        paragraphMarginTopPx: secondP === undefined ? Number.NaN : Number.parseFloat(getComputedStyle(secondP).marginTop),
+      };
+    });
   const b = await bubble.evaluate((el) => {
     const cs = getComputedStyle(el);
     const rootFontPx = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
@@ -60,8 +76,8 @@ test("reading vars drive the message bubble's computed line-height / letter-spac
   // body-scale → `font-size: calc(var(--text-body) * var(--reading-body-scale))`. Rebuilt from the token
   // (--text-body, rem) × root font-size × the stamped scale var — proves the scale is IN the calc (a rule
   // that dropped it would land on text-body alone and fail at BODY_SCALE ≠ 1).
-  expect(b.bodyScaleVar).toBeCloseTo(BODY_SCALE, 5);
-  expect(b.fontSizePx).toBeCloseTo(b.textBodyRem * b.rootFontPx * BODY_SCALE, 1);
+  await expect.poll(async () => (await readBAtAssertion()).bodyScaleVar).toBeCloseTo(BODY_SCALE, 5);
+  await expect.poll(async () => (await readBAtAssertion()).fontSizePx).toBeCloseTo(b.textBodyRem * b.rootFontPx * BODY_SCALE, 1);
 
   // line-height → `line-height: var(--reading-line-height)` (unitless; Chrome resolves the computed value
   // to px = factor × font-size). The ratio recovers the stamped factor independent of font-size.
@@ -77,13 +93,23 @@ test("reading vars drive the message bubble's computed line-height / letter-spac
 
   // justify → `html[data-justify-body-text] [data-slot="message-bubble"] { text-align: justify }`. The
   // hook sets the presence attr on <html>; the bubble's computed text-align flips.
-  expect(b.textAlign).toBe("justify");
+  await expect.poll(async () => (await readBAtAssertion()).textAlign).toBe("justify");
 });
 
 test("reading name-scale drives the attribution's computed font-size", async ({ mount }) => {
   const cmp = await mount(fixture());
   const attribution = cmp.getByTestId("reading-attribution");
 
+  const readAAtAssertion = async (): Promise<typeof a> =>
+    await attribution.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return {
+        fontSizePx: Number.parseFloat(cs.fontSize),
+        rootFontPx: Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+        textLabelRem: Number.parseFloat(cs.getPropertyValue("--text-label")),
+        nameScaleVar: Number.parseFloat(cs.getPropertyValue("--reading-name-scale")),
+      };
+    });
   const a = await attribution.evaluate((el) => {
     const cs = getComputedStyle(el);
     return {
@@ -95,6 +121,6 @@ test("reading name-scale drives the attribution's computed font-size", async ({ 
   });
 
   // name-scale → `[data-slot="message-attribution"] { font-size: calc(var(--text-label) * var(--reading-name-scale)) }`.
-  expect(a.nameScaleVar).toBeCloseTo(NAME_SCALE, 5);
-  expect(a.fontSizePx).toBeCloseTo(a.textLabelRem * a.rootFontPx * NAME_SCALE, 1);
+  await expect.poll(async () => (await readAAtAssertion()).nameScaleVar).toBeCloseTo(NAME_SCALE, 5);
+  await expect.poll(async () => (await readAAtAssertion()).fontSizePx).toBeCloseTo(a.textLabelRem * a.rootFontPx * NAME_SCALE, 1);
 });

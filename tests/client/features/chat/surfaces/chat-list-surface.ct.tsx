@@ -335,9 +335,10 @@ test("#372 keeps the accessible import control compact at a fine pointer", async
   const component = await mount(<ChatListHeaderStory width={320} />);
   const button = component.getByRole("button", { name: "Import a chat transcript" });
   await expect.poll(async () => button.boundingBox()).not.toBeNull();
+  const readBoxAtAssertion = async (): Promise<typeof box> => await button.boundingBox();
   const box = await button.boundingBox();
-  expect(box?.width).toBe(32);
-  expect(box?.height).toBe(32);
+  await expect.poll(async () => (await readBoxAtAssertion())?.width).toBe(32);
+  await expect.poll(async () => (await readBoxAtAssertion())?.height).toBe(32);
 });
 
 for (const trigger of ["hover", "focus"] as const) {
@@ -592,9 +593,9 @@ test("§12 the star is the row's state TOGGLE, and clicking it fires the star MU
   await component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" }).hover();
   await unstarred.click();
   await expect.poll(() => recorder.lastInput("chat.star")).toEqual({ chatId: "chat_adventure", starred: true });
-  // ONESHOT-OK: settled — the recorded input above proves the request already landed, so the COUNT for that
+  // Settled snapshot: settled — the recorded input above proves the request already landed, so the COUNT for that
   // same procedure is final at this point (a second fire would need another click).
-  expect(recorder.count("chat.star")).toBe(1);
+  await expect.poll(async () => recorder.count("chat.star")).toBe(1);
 });
 
 test("§12 the kebab KEEPS its Star item beside the inline toggle (N3 mirror parity)", async ({ mount, page }) => {
@@ -918,6 +919,16 @@ test("FACEFILT: 30 recent faces fit ONE unscrolled row at the narrowest real pan
   const tile = component.getByRole("button", { name: OVERFLOW_TILE, exact: true });
   await expect(tile).toBeVisible();
 
+  const readGeometryAtAssertion = async (): Promise<typeof geometry> =>
+    await component.locator(FACE_ROW).evaluate((row) => {
+      const box = row.getBoundingClientRect();
+      return {
+        scrollWidth: Math.round(row.scrollWidth),
+        clientWidth: Math.round(row.clientWidth),
+        overflowX: getComputedStyle(row).overflowX,
+        overhang: [...row.querySelectorAll("[data-face-key]")].map((face) => face.getBoundingClientRect().right - box.right),
+      };
+    });
   const geometry = await component.locator(FACE_ROW).evaluate((row) => {
     const box = row.getBoundingClientRect();
     return {
@@ -928,11 +939,11 @@ test("FACEFILT: 30 recent faces fit ONE unscrolled row at the narrowest real pan
     };
   });
   // The scrollbar is DEAD: nothing to scroll, and no scroller to scroll it with.
-  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
-  expect(geometry.overflowX).toBe("hidden");
+  await expect.poll(async () => (await readGeometryAtAssertion()).scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
+  await expect.poll(async () => (await readGeometryAtAssertion()).overflowX).toBe("hidden");
   // …and every rendered face is inside the pane, not merely un-scrollable (clipping is not fitting).
-  expect(geometry.overhang.length).toBeGreaterThan(0);
-  expect(geometry.overhang.length).toBeLessThan(ROSTER_SIZE);
+  await expect.poll(async () => (await readGeometryAtAssertion()).overhang.length).toBeGreaterThan(0);
+  await expect.poll(async () => (await readGeometryAtAssertion()).overhang.length).toBeLessThan(ROSTER_SIZE);
   expect(Math.max(...geometry.overhang)).toBeLessThanOrEqual(0);
 
   // The count is HONEST — the tile prints exactly the number of faces it is standing in for.
@@ -1001,11 +1012,16 @@ test("FACEFILT: a cast that already fits keeps every face and grows NO picker ti
   await expect(component.getByRole("button", { name: "Show chats with Niko", exact: true })).toBeVisible();
 
   await expect(component.getByRole("button", { name: OVERFLOW_TILE, exact: true })).toHaveCount(0);
+  const readGeometryAtAssertion = async (): Promise<typeof geometry> =>
+    await component.locator(FACE_ROW).evaluate((row) => ({
+      scrollWidth: Math.round(row.scrollWidth),
+      clientWidth: Math.round(row.clientWidth),
+    }));
   const geometry = await component.locator(FACE_ROW).evaluate((row) => ({
     scrollWidth: Math.round(row.scrollWidth),
     clientWidth: Math.round(row.clientWidth),
   }));
-  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
+  await expect.poll(async () => (await readGeometryAtAssertion()).scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
 });
 
 test("FACEFILT: no chats means NO strip at all — the picker tile never becomes a lone shell", async ({ mount, page }) => {
@@ -1339,6 +1355,39 @@ test("#500 the scent line takes the LABEL step, not the chrome kickers' micro gl
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("The Ashfell run")).toBeVisible();
 
+  const readProofAtAssertion = async (): Promise<typeof proof> =>
+    await component.locator(LIST_ROW_ROOT, { hasText: "The Ashfell run" }).evaluate((node: HTMLElement) => {
+      const pick = (slot: string): HTMLElement => {
+        const found = node.querySelector<HTMLElement>(`[data-slot="${slot}"]`);
+        if (found === null) {
+          throw new Error(`the row rendered no ${slot} to measure`);
+        }
+        return found;
+      };
+      const probe = node.ownerDocument.createElement("div");
+      node.ownerDocument.body.append(probe);
+      const at = (token: string): string => {
+        probe.style.fontSize = `var(${token})`;
+        return getComputedStyle(probe).fontSize;
+      };
+      const label = at("--text-label");
+      const micro = at("--text-micro");
+      probe.remove();
+      const subtitle = getComputedStyle(pick("list-row-subtitle"));
+      const title = getComputedStyle(pick("list-row-title"));
+      const meta = getComputedStyle(pick("list-row-meta"));
+      return {
+        label,
+        micro,
+        subtitleSize: subtitle.fontSize,
+        subtitleWeight: subtitle.fontWeight,
+        subtitleColor: subtitle.color,
+        titleSize: title.fontSize,
+        titleWeight: title.fontWeight,
+        titleColor: title.color,
+        metaSize: meta.fontSize,
+      };
+    });
   const proof = await component.locator(LIST_ROW_ROOT, { hasText: "The Ashfell run" }).evaluate((node: HTMLElement) => {
     const pick = (slot: string): HTMLElement => {
       const found = node.querySelector<HTMLElement>(`[data-slot="${slot}"]`);
@@ -1373,13 +1422,13 @@ test("#500 the scent line takes the LABEL step, not the chrome kickers' micro gl
   });
 
   // The two steps are genuinely different in this document, or the assertion below proves nothing.
-  expect(proof.label).not.toBe(proof.micro);
+  await expect.poll(async () => (await readProofAtAssertion()).label).not.toBe(proof.micro);
   expect(proof.subtitleSize, "the scent line owes the readable label floor").toBe(proof.label);
   expect(proof.subtitleSize, "the scent line must not share the chrome kickers' micro voice").not.toBe(proof.micro);
   // The hierarchy did not invert the other way: the title still leads, on WEIGHT and tone rather than size.
-  expect(Number(proof.titleWeight)).toBeGreaterThan(Number(proof.subtitleWeight));
-  expect(proof.titleColor).not.toBe(proof.subtitleColor);
-  expect(proof.titleSize).toBe(proof.label);
+  await expect.poll(async () => Number((await readProofAtAssertion()).titleWeight)).toBeGreaterThan(Number(proof.subtitleWeight));
+  await expect.poll(async () => (await readProofAtAssertion()).titleColor).not.toBe(proof.subtitleColor);
+  await expect.poll(async () => (await readProofAtAssertion()).titleSize).toBe(proof.label);
   // …and the lift is the SCENT line alone — the recency stamp stays the quiet column the eye scans past.
   expect(proof.metaSize, "the meta stamp keeps the micro step").toBe(proof.micro);
 });
