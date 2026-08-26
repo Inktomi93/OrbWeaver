@@ -282,11 +282,11 @@ export interface RpgRosterActor {
 }
 export type RpgResolveRoster = (chatId: ChatId) => Promise<readonly RpgRosterActor[]>;
 
-/** R4 — PROMOTION's durable half: mint a character CARD from a promoted NPC and seat it on the chat's roster,
- *  returning the new `CharacterId` the actor row is re-keyed onto. The one rpg write that reaches outside the
- *  game, and therefore the one that MUST be an injected op: rpg owns no card table and no participant table
- *  (§2 one-directional flow), so the impl is wired at compose over the character + chat front doors (the
- *  `resolvePresetOwned` precedent) and rpg stays table-blind.
+/** R4 — PROMOTION's durable half: resolve-or-mint a marked character CARD from a promoted NPC and ensure its
+ *  chat roster seat, returning the stable `CharacterId` the actor row is re-keyed onto. The one rpg write that
+ *  reaches outside the game, and therefore the one that MUST be an injected op: rpg owns no card table and no
+ *  participant table (§2 one-directional flow), so the impl is wired at compose over the character + chat
+ *  front doors (the `resolvePresetOwned` precedent) and rpg stays table-blind.
  *
  *  `hostUserId` is the ROOM HOST the verb already resolved by ROLE (D19), threaded EXPLICITLY end-to-end (the
  *  injected-op caller-gate class: an op that dropped the caller and re-derived an owner would mint a card into
@@ -295,9 +295,8 @@ export type RpgResolveRoster = (chatId: ChatId) => Promise<readonly RpgRosterAct
  *  resolvable (`resolveRpgRoster` reads character cards under the room host's ownership) and the stats
  *  attribution consistent.
  *
- *  `handle` is the DESIRED per-owner handle; the impl uniquifies it (the per-owner handle index) and refuses as
- *  DATA if it cannot — nothing durable is written on a refusal, because the verb's snapshot write has not run
- *  yet when this is called. */
+ *  `sourceActorKey` + `chatId` form the existing-column recovery marker. `handle` is the DESIRED per-owner
+ *  handle; the impl uniquifies it (the per-owner handle index) and refuses as DATA if it cannot. */
 export type RpgPromoteToRoster = (input: RpgPromoteToRosterInput) => Promise<RpgPromoteToRosterResult>;
 
 /** What the promotion's durable half is handed: the room + the host it acts as, and the CARD CONTENT derived
@@ -306,6 +305,10 @@ export type RpgPromoteToRoster = (input: RpgPromoteToRosterInput) => Promise<Rpg
 interface RpgPromoteToRosterInput {
   readonly chatId: ChatId;
   readonly hostUserId: UserId;
+  /** Stable source identity for interruption recovery (`actorRefKey` before the re-key). */
+  readonly sourceActorKey: string;
+  /** The pre-write room roster used for the model-addressability name-collision refusal. */
+  readonly roster: readonly RpgRosterActor[];
   /** The NPC's display name → the card's `name` (and the roster name every model `targetRef` resolves by). */
   readonly name: string;
   /** The desired per-owner card handle (the cast slug); the impl uniquifies against the owner's library. */

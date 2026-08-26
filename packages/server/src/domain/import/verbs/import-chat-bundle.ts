@@ -312,13 +312,11 @@ async function writeBundle(args: {
   if (result.realConversationWritten) {
     await profile.enqueueBackfill({ ownerId: ctx.ownerId });
   }
-  const identity = result.written[0];
+  const identity = result.identities[0];
   if (identity === undefined) {
-    // Nothing was written for this file. On the real op that is the `importHash` idempotent skip — the chat
-    // (and its overlays) landed on a previous run, so re-running them would duplicate labels at best.
-    // `created` still comes off the write op's own tally, exactly as the jsonl arm reads it, so the two arms
-    // report the same thing about the same outcome.
-    return { ok: true, created: result.chatsImported > 0 };
+    // One input must resolve one canonical identity. Treat a lying injected op as a failed import instead of
+    // silently declaring success while leaving every carried overlay dark.
+    return { ok: false, error: "chat import resolved no canonical identity for the bundle" };
   }
   await restoreOverlays({ profile, ownerId: ctx.ownerId, bundle, identity, cast });
   return { ok: true, created: result.chatsImported > 0 };

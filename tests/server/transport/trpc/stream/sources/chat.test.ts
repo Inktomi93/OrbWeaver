@@ -153,6 +153,30 @@ describe("the chat room — durable-first resume", () => {
     expect(seqOf(second)).toBe(4);
     expect(replayChatEvents).not.toHaveBeenCalled();
   });
+
+  test("a listener never admitted to the room receives no chatDeleted existence metadata", async () => {
+    // Attach probe rejects. `chatDeleted` must not bypass that listener's complete lack of authorization;
+    // the next ordinary event is admitted so the assertion is deterministic without a timeout race.
+    const verdicts = [false, true];
+    let call = 0;
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(() => {
+      const allowed = verdicts[call] ?? true;
+      call += 1;
+      return allowed ? Promise.resolve(BOUNDS) : Promise.reject(new ChatNotFoundError(CHAT));
+    });
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { replayChatEvents: vi.fn(async () => []), chatEventBounds } },
+    });
+    const iterator = await openChatRoom(ctx);
+    const pending = iterator.next();
+
+    publishChatEvent({ seq: null, event: { type: "chatDeleted", chatId: CHAT } });
+    publishChatEvent({ seq: 1, event: event() });
+
+    expect(dataOf(await pending)).toEqual(event());
+    await iterator.return?.(undefined);
+  });
 });
 
 // The subscription-side syntheses (PD-134 chatOpened + PD-135 historyTruncated): synthesized per pump, never

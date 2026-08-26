@@ -233,13 +233,14 @@ describe("createBulkImportChats", () => {
     const op = createBulkImportChats(importCtx(db, owner.id));
     const file = chatInput("Aria.jsonl");
 
-    await op({ ownerId: owner.id, characterId: character.id, chats: [file] });
+    const first = await op({ ownerId: owner.id, characterId: character.id, chats: [file] });
     const again = await op({ ownerId: owner.id, characterId: character.id, chats: [file] });
 
     expect(again.chatsImported).toBe(0);
     expect(again.chatsSkipped).toBe(1);
     expect(await db.select().from(chats)).toHaveLength(1);
     expect(again.chatsPersonaHealed).toBe(0);
+    expect(again.identities).toEqual(first.identities);
   });
 
   // ── the dedup-skip arm's HEAL (owner ruling 2026-08-17, #163) ─────────────────────────────────────────

@@ -266,6 +266,8 @@ export interface RpgFakes {
   /** Every `copyPresetToUser` call, in order (the caller-gate proof: BOTH owners arrive explicitly). */
   readonly presetCopies: { fromOwnerId: string; toUserId: string; presetId: PresetId }[];
   readonly pointers: { chatId: ChatId; gameId: string; engaged: boolean }[];
+  /** Deterministic interruption plant: each positive count makes the next non-null pointer write throw. */
+  pointerFailuresRemaining: number;
   /** The chatIds a `setPointer(chatId, null)` DETACHED (the §3.3 dangling-pointer heal — assert the null write). */
   readonly detaches: string[];
   /** Every narrator post a verb made. D124 killed the blank "state anchor" post, and the fake enforces the
@@ -301,6 +303,8 @@ export interface RpgFakes {
    *  (the injected-op caller-gate assertion — never a re-derived owner), and the card content the verb DERIVED
    *  off the actor's identity row. A test asserts the standing guides actually reached the card. */
   readonly promoteMints: { chatId: ChatId; hostUserId: string; name: string; handle: CharacterHandle; description: string; characterId: CharacterId | null }[];
+  /** Stable fake recovery identity per chat + source actor key, mirroring the composed provenance lookup. */
+  readonly promotionCharacters: Map<string, CharacterId>;
   /** The rpg-bus events a verb/flush emitted (the `emitBus` recorder — assert-the-mutation-fired for §4.9). */
   readonly busEvents: RpgBusEvent[];
   /** The write-boundary DROPS the flush surfaced (the `onFlushDropped` recorder — assert the drop was OBSERVED,
@@ -371,6 +375,7 @@ export function makeRpgService(
     presetCopies: [],
     presetUserMacros: over.presetUserMacros ?? [],
     pointers: [],
+    pointerFailuresRemaining: 0,
     detaches: [],
     narratorPosts: [],
     toolRoundCalls: [],
@@ -383,6 +388,7 @@ export function makeRpgService(
     populateCalls: [],
     cardCorpusReads: [],
     promoteMints: [],
+    promotionCharacters: new Map(),
     busEvents: [],
     flushDrops: [],
     barrierTimeouts: [],
@@ -476,6 +482,10 @@ export function makeRpgService(
       if (pointer === null) {
         fakes.detaches.push(chatId);
       } else {
+        if (fakes.pointerFailuresRemaining > 0) {
+          fakes.pointerFailuresRemaining -= 1;
+          return Promise.reject(new Error("injected pointer mirror interruption"));
+        }
         fakes.pointers.push({ chatId, gameId: pointer.gameId, engaged: pointer.engaged });
       }
       return Promise.resolve();
@@ -485,15 +495,36 @@ export function makeRpgService(
     // character/chat front doors; the fake mints a stable id and SEATS her on `fakes.roster`, because the seat
     // is not decoration: the tracker view projects a `character:` actor only when the roster carries it, so a
     // fake that skipped it would let a promotion "pass" while the panel showed nobody.
-    promoteToRoster: ({ chatId, hostUserId, name, handle, description }) => {
+    promoteToRoster: ({ chatId, hostUserId, sourceActorKey, roster, name, handle, description }) => {
       if (fakes.promoteRefusal !== undefined) {
         fakes.promoteMints.push({ chatId, hostUserId, name, handle, description, characterId: null });
         return Promise.resolve({ ok: false, reason: fakes.promoteRefusal });
+      }
+      const promotionKey = `${chatId}:${sourceActorKey}`;
+      const existing = fakes.promotionCharacters.get(promotionKey);
+      if (
+        roster.some(
+          (actor) =>
+            actor.name.trim().toLowerCase() === name.toLowerCase() &&
+            !(existing !== undefined && actor.actorRef.kind === "character" && actor.actorRef.characterId === existing),
+        )
+      ) {
+        return Promise.resolve({
+          ok: false,
+          reason: `"${name}" is already on this chat's roster — rename this character first, or the story could only ever address one of them`,
+        });
+      }
+      if (existing !== undefined) {
+        if (!fakes.roster.some((actor) => actor.actorRef.kind === "character" && actor.actorRef.characterId === existing)) {
+          fakes.roster.push({ actorRef: { kind: "character", characterId: existing }, name });
+        }
+        return Promise.resolve({ ok: true, characterId: existing });
       }
       // A REAL TypeID, not a readable stand-in: the re-keyed ref crosses the snapshot write boundary, which
       // validates the id shape — a `character_vesna` fake would make every promotion test fail there for a
       // reason that has nothing to do with promotion. The minted id is RECORDED so a test can assert the ref.
       const characterId = mintTypeId(ID_PREFIX.character);
+      fakes.promotionCharacters.set(promotionKey, characterId);
       fakes.promoteMints.push({ chatId, hostUserId, name, handle, description, characterId });
       fakes.roster.push({ actorRef: { kind: "character", characterId }, name });
       return Promise.resolve({ ok: true, characterId });

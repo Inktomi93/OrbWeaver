@@ -14,6 +14,7 @@
 import type { Db } from "@orb/db";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { sql } from "drizzle-orm";
 import { beforeEach } from "vitest";
 import type { RpgGameRow } from "../../../../../packages/server/src/domain/rpg/contract/service.ts";
 import { findGameByChat } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
@@ -181,6 +182,25 @@ test("a durable-half refusal (an exhausted card handle) leaves the actor exactly
   expect(after?.actorState?.[0]?.actorRef).toEqual(VESNA);
   expect(after?.actorState?.[0]?.identity?.name).toBe("Sister Vesna");
   expect(after?.presentCharacters).toEqual(["cast:vesna"]);
+});
+
+test("#723 retry after the card and seat land reuses them, then completes the actor re-key", async () => {
+  const { chatId, game, service, fakes } = await seedGame();
+  await seedVesna(service, chatId);
+  await db.run(
+    sql.raw("CREATE TRIGGER fail_promotion_rekey BEFORE INSERT ON rpg_snapshots BEGIN SELECT RAISE(ABORT, 'injected actor rekey interruption'); END"),
+  );
+
+  await expect(service.promoteActor({ principal: HOST, chatId, targetRef: VESNA })).rejects.toThrow();
+  expect(fakes.promoteMints).toHaveLength(1);
+  expect(fakes.roster.filter((actor) => actor.name === "Sister Vesna")).toHaveLength(1);
+  expect((await resolveSnapshotForTurn(db, { id: game.id, chatId }))?.actorState?.[0]?.actorRef).toEqual(VESNA);
+
+  await db.run(sql.raw("DROP TRIGGER fail_promotion_rekey"));
+  await expect(service.promoteActor({ principal: HOST, chatId, targetRef: VESNA })).resolves.toEqual({ ok: true });
+  expect(fakes.promoteMints).toHaveLength(1);
+  expect(fakes.roster.filter((actor) => actor.name === "Sister Vesna")).toHaveLength(1);
+  expect((await resolveSnapshotForTurn(db, { id: game.id, chatId }))?.actorState?.[0]?.actorRef.kind).toBe("character");
 });
 
 test("a promoted character is a normal roster actor afterwards: hand ops reach her, identity ops correctly refuse", async () => {
