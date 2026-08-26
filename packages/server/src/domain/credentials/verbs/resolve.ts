@@ -22,7 +22,7 @@ function assertNever(value: never): never {
 
 /** The user's active OpenRouter key, or the typed no-credential floor (active-but-revoked falls through). */
 async function resolveOpenRouter(ctx: CredentialContext, ownerId: UserId): Promise<OpenRouterCredential> {
-  const active = ctx.box.enabled ? await loadActiveCredential(ctx.db, ownerId, "openrouter") : undefined;
+  const active = await loadActiveCredential(ctx.db, ownerId, "openrouter");
   if (active === undefined || active.revokedAt !== null) {
     throw new DomainNoCredentialError("openrouter");
   }
@@ -32,7 +32,7 @@ async function resolveOpenRouter(ctx: CredentialContext, ownerId: UserId): Promi
 
 /** The user's active custom_openai endpoint (the active row IS the endpoint selection). */
 async function resolveCustomOpenAi(ctx: CredentialContext, ownerId: UserId): Promise<CustomOpenAiCredential> {
-  const active = ctx.box.enabled ? await loadActiveCredential(ctx.db, ownerId, "custom_openai") : undefined;
+  const active = await loadActiveCredential(ctx.db, ownerId, "custom_openai");
   if (active === undefined || active.revokedAt !== null) {
     throw new DomainNoCredentialError("custom_openai");
   }
