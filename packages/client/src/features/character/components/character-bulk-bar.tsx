@@ -11,7 +11,7 @@ import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { SelectionBar } from "@orb/ui/selection-bar";
 import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ConfirmDialog, TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
@@ -21,19 +21,12 @@ export interface CharacterBulkBarProps {
   readonly ids: readonly string[];
   readonly selectedCount: number;
   readonly onClear: () => void;
+  readonly onRemoveSubmitted: (ids: readonly string[]) => void;
   readonly trpc: Trpc;
 }
 
-function sameSelection(current: readonly string[], submitted: readonly string[]): boolean {
-  if (current.length !== submitted.length) {
-    return false;
-  }
-  const submittedIds = new Set(submitted);
-  return current.every((id) => submittedIds.has(id));
-}
-
 /** The selection bar + its tag-picker Dialog. */
-export function CharacterBulkBar({ ids, selectedCount, onClear, trpc }: CharacterBulkBarProps): ReactElement {
+export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitted, trpc }: CharacterBulkBarProps): ReactElement {
   const invalidation = useInvalidation();
   const bulkTag = useBulkAddCardTag({ trpc, invalidation });
   const bulkArchive = useBulkArchiveCharacters({ trpc, invalidation });
@@ -41,32 +34,19 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, trpc }: Characte
   const [tagOpen, setTagOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const characterIds = ids.map((id) => castId<CharacterId>(id));
-  const liveIds = useRef(ids);
   const isPending = bulkTag.isPending || bulkArchive.isPending || bulkRemove.isPending;
-
-  useEffect(() => {
-    liveIds.current = ids;
-  }, [ids]);
-
-  const clearSubmittedSelection = (submitted: readonly CharacterId[]): void => {
-    // A held write may settle after the user cleared this selection and began another one. The completion
-    // owns only its submitted snapshot; a different live set must survive for the user's next action.
-    if (sameSelection(liveIds.current, submitted)) {
-      onClear();
-    }
-  };
 
   const applyTag = (name: string): void => {
     void bulkTag
       .mutateAsync({ tagName: name, characterIds })
-      .then(() => clearSubmittedSelection(characterIds))
+      .then(() => onRemoveSubmitted(characterIds))
       .catch(() => undefined);
   };
 
   const confirmDelete = (): void => {
     void bulkRemove
       .mutateAsync({ characterIds })
-      .then(() => clearSubmittedSelection(characterIds))
+      .then(() => onRemoveSubmitted(characterIds))
       .catch(() => undefined);
   };
 
@@ -84,7 +64,7 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, trpc }: Characte
           onClick={(): void => {
             void bulkArchive
               .mutateAsync({ characterIds, archived: true })
-              .then(() => clearSubmittedSelection(characterIds))
+              .then(() => onRemoveSubmitted(characterIds))
               .catch(() => undefined);
           }}
           size="sm"

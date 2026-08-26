@@ -4,6 +4,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { CharacterBulkBarStory } from "../_ct-stories.tsx";
 
@@ -46,51 +47,75 @@ test("bulk selection clears only after the durable archive succeeds and remains 
   await expect.poll(() => trpc.count("character.bulkArchive")).toBe(2);
 });
 
-async function replaceSelectionWhileHeld(component: Locator): Promise<void> {
-  await component.getByTestId("replace-selection-clear").click();
-  await component.getByRole("button", { name: "Select newer character" }).click();
-  await expect(component.getByRole("status", { name: "Bulk selected IDs" })).toHaveText("char_d");
+type BulkAction = "archive" | "tag" | "delete";
+type Replacement = "overlap" | "disjoint";
+type Verdict = "success" | "rejection";
+
+const BULK_ACTIONS: readonly BulkAction[] = ["archive", "tag", "delete"];
+const REPLACEMENTS: readonly Replacement[] = ["overlap", "disjoint"];
+const VERDICTS: readonly Verdict[] = ["success", "rejection"];
+
+const PROCEDURE_BY_ACTION: Readonly<Record<BulkAction, string>> = {
+  archive: "character.bulkArchive",
+  tag: "character.bulkAddCardTag",
+  delete: "character.bulkRemove",
+};
+
+const SUCCESS_BY_ACTION: Readonly<Record<BulkAction, unknown>> = {
+  archive: { archived: 3 },
+  tag: { tagged: 3 },
+  delete: { removed: 3 },
+};
+
+const LABEL_BY_ACTION: Readonly<Record<BulkAction, string>> = {
+  archive: "Archive",
+  tag: "Tag",
+  delete: "Delete",
+};
+
+async function submitBulkAction(component: Locator, action: BulkAction): Promise<void> {
+  await component.getByRole("button", { name: LABEL_BY_ACTION[action], exact: true }).click();
+  if (action === "tag") {
+    const page = component.page();
+    await page.getByRole("combobox", { name: "Tag name" }).fill("adventure");
+    await page.getByRole("button", { name: 'Create "adventure"' }).click();
+  } else if (action === "delete") {
+    await component.page().getByRole("alertdialog").getByRole("button", { name: "Delete", exact: true }).click();
+  }
 }
 
-test("a held Archive completion preserves a newer selection", async ({ mount, page }) => {
-  const held = trpcHold();
-  await routeTrpc(page, { "character.bulkArchive": held });
-  const component = await mount(<CharacterBulkBarStory />);
+async function replaceSelectionWhileHeld(component: Locator, replacement: Replacement): Promise<void> {
+  await component.getByTestId("replace-selection-clear").click();
+  await component.getByRole("button", { name: replacement === "overlap" ? "Select overlapping newer characters" : "Select newer character" }).click();
+  await expect(component.getByRole("status", { name: "Bulk selected IDs" })).toHaveText(replacement === "overlap" ? "char_a,char_d" : "char_d");
+}
 
-  await component.getByRole("button", { name: "Archive", exact: true }).click();
-  await held.requested;
-  await replaceSelectionWhileHeld(component);
-  held.release({ archived: 3 });
+function expectedSelection(replacement: Replacement, verdict: Verdict): string {
+  if (verdict === "success" || replacement === "disjoint") {
+    return "char_d";
+  }
+  return "char_a,char_d";
+}
 
-  await expect(component.getByRole("status", { name: "Bulk selected IDs" })).toHaveText("char_d");
-});
+for (const action of BULK_ACTIONS) {
+  for (const replacement of REPLACEMENTS) {
+    for (const verdict of VERDICTS) {
+      test(`${LABEL_BY_ACTION[action]} ${replacement} ${verdict}: the completion retires only IDs owned by the submitted snapshot`, async ({ mount, page }) => {
+        const held = trpcHold();
+        const routes: TrpcRoutes = { [PROCEDURE_BY_ACTION[action]]: held };
+        if (action === "tag") {
+          routes["tag.listTagsWithUsage"] = [];
+        }
+        await routeTrpc(page, routes);
+        const component = await mount(<CharacterBulkBarStory />);
 
-test("a held Tag completion preserves a newer selection", async ({ mount, page }) => {
-  const held = trpcHold();
-  await routeTrpc(page, { "tag.listTagsWithUsage": [], "character.bulkAddCardTag": held });
-  const component = await mount(<CharacterBulkBarStory />);
+        await submitBulkAction(component, action);
+        await held.requested;
+        await replaceSelectionWhileHeld(component, replacement);
+        held.release(verdict === "success" ? SUCCESS_BY_ACTION[action] : trpcError());
 
-  await component.getByRole("button", { name: "Tag", exact: true }).click();
-  await expect(page.getByText("No tags yet — the name you type becomes your first one.")).toBeVisible();
-  await page.getByRole("combobox", { name: "Tag name" }).fill("adventure");
-  await page.getByRole("button", { name: 'Create "adventure"' }).click();
-  await held.requested;
-  await replaceSelectionWhileHeld(component);
-  held.release({ tagged: 3 });
-
-  await expect(component.getByRole("status", { name: "Bulk selected IDs" })).toHaveText("char_d");
-});
-
-test("a held Delete completion preserves a newer selection", async ({ mount, page }) => {
-  const held = trpcHold();
-  await routeTrpc(page, { "character.bulkRemove": held });
-  const component = await mount(<CharacterBulkBarStory />);
-
-  await component.getByRole("button", { name: "Delete", exact: true }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Delete", exact: true }).click();
-  await held.requested;
-  await replaceSelectionWhileHeld(component);
-  held.release({ removed: 3 });
-
-  await expect(component.getByRole("status", { name: "Bulk selected IDs" })).toHaveText("char_d");
-});
+        await expect(component.getByRole("status", { name: "Bulk selected IDs" })).toHaveText(expectedSelection(replacement, verdict));
+      });
+    }
+  }
+}

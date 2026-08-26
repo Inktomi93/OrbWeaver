@@ -42,36 +42,39 @@ export function CharacterAttachRow({ bookId, characterId, characterName, role, q
   const detach = useDetachWorldBookFromCharacter({ trpc, invalidation });
 
   const attached = role !== undefined;
-  const controlsDisabled = queryPending || queryError || attach.isPending || detach.isPending;
+  const attachmentKnown = !(queryPending || queryError);
+  const controlsDisabled = attach.isPending || detach.isPending;
 
   return (
     <ListRow
       title={characterName}
       {...(attached ? { subtitle: role } : {})}
       actions={
-        <>
-          {attached ? (
-            <Select
+        attachmentKnown ? (
+          <>
+            {attached ? (
+              <Select
+                disabled={controlsDisabled}
+                items={ROLE_ITEMS}
+                value={role}
+                onValueChange={(nextRole): void => attach.mutate({ characterId, bookId, role: nextRole as WorldBookRole })}
+                aria-label={`Role for ${characterName}`}
+              />
+            ) : null}
+            <Switch
+              aria-label={`Attach to ${characterName}`}
+              checked={attached}
               disabled={controlsDisabled}
-              items={ROLE_ITEMS}
-              value={role}
-              onValueChange={(nextRole): void => attach.mutate({ characterId, bookId, role: nextRole as WorldBookRole })}
-              aria-label={`Role for ${characterName}`}
+              onCheckedChange={(on): void => {
+                if (on) {
+                  attach.mutate({ characterId, bookId, role: "auxiliary" });
+                } else {
+                  detach.mutate({ characterId, bookId });
+                }
+              }}
             />
-          ) : null}
-          <Switch
-            aria-label={`Attach to ${characterName}`}
-            checked={attached}
-            disabled={controlsDisabled}
-            onCheckedChange={(on): void => {
-              if (on) {
-                attach.mutate({ characterId, bookId, role: "auxiliary" });
-              } else {
-                detach.mutate({ characterId, bookId });
-              }
-            }}
-          />
-        </>
+          </>
+        ) : null
       }
     />
   );
@@ -93,24 +96,27 @@ export function PersonaAttachRow({ bookId, personaId, personaName, attached, que
   const attach = useAttachWorldBookToPersona({ trpc, invalidation });
   const detach = useDetachWorldBookFromPersona({ trpc, invalidation });
 
-  const controlsDisabled = queryPending || queryError || attach.isPending || detach.isPending;
+  const attachmentKnown = !(queryPending || queryError);
+  const controlsDisabled = attach.isPending || detach.isPending;
 
   return (
     <ListRow
       title={personaName}
       actions={
-        <Switch
-          aria-label={`Attach to ${personaName}`}
-          checked={attached}
-          disabled={controlsDisabled}
-          onCheckedChange={(on): void => {
-            if (on) {
-              attach.mutate({ personaId, bookId });
-            } else {
-              detach.mutate({ personaId, bookId });
-            }
-          }}
-        />
+        attachmentKnown ? (
+          <Switch
+            aria-label={`Attach to ${personaName}`}
+            checked={attached}
+            disabled={controlsDisabled}
+            onCheckedChange={(on): void => {
+              if (on) {
+                attach.mutate({ personaId, bookId });
+              } else {
+                detach.mutate({ personaId, bookId });
+              }
+            }}
+          />
+        ) : null
       }
     />
   );

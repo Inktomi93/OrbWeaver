@@ -311,7 +311,13 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
           />
         </Stack>
         {bulkMode && selectedCount > 0 ? (
-          <CharacterBulkBar ids={[...collection.selection.selected]} onClear={collection.selection.clear} selectedCount={selectedCount} trpc={trpc} />
+          <CharacterBulkBar
+            ids={[...collection.selection.selected]}
+            onClear={collection.selection.clear}
+            onRemoveSubmitted={collection.selection.remove}
+            selectedCount={selectedCount}
+            trpc={trpc}
+          />
         ) : null}
       </Stack>
     </Surface>
