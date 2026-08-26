@@ -29,7 +29,6 @@ import {
   existingChunkHash,
   existingDigestHash,
   existingImageHash,
-  replaceDigestSpeakers,
   upsertCharacterEmbedding,
   upsertChatDigest,
   upsertDocumentChunk,
@@ -149,7 +148,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
   const embedded = await ctx.roleClients.embed(p.text);
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
-  const digestId = await upsertChatDigest(ctx.db, {
+  await upsertChatDigest(ctx.db, {
     id: ctx.newChatDigestId(),
     chatId: p.chatId,
     scopedCharacterId: p.scopedCharacterId,
@@ -164,10 +163,9 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
     model: embedded.model,
     dim: p.dim,
     now: ctx.now(),
+    speakerCharacterIds: p.speakerCharacterIds,
   });
-  // The "which characters this digest contains" join, written against the persisted id (on conflict the
-  // kept id differs from the mint). Only on the written path.
-  await replaceDigestSpeakers(ctx.db, digestId, p.speakerCharacterIds);
+  // The persistence seam commits the digest and its complete speaker projection as one atomic batch.
   return { outcome: "written", contentHash: hash };
 }
 
