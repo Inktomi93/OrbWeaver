@@ -38,6 +38,8 @@ import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/c
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { MacroSourceRef } from "@orb/kit/macro";
 import type { SQL } from "drizzle-orm";
@@ -72,6 +74,7 @@ import { requireHost, requireParticipant } from "../guard.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadChatInjections, loadRuntimeVariables, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries.ts";
 import { loadRoster } from "../persistence/roster.ts";
+import { hostUserIdOf } from "../substrate/roster-host.ts";
 import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
 import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
 import { resolveChoiceVariables } from "../substrate/variables.ts";
@@ -118,6 +121,16 @@ type ChatLifecycleVerbs = Pick<
   | "deleteChatInjection"
 >;
 
+/** Commit a rebuild-consumed chat-row mutation with the current host owner's retry token. */
+async function commitFencedChatWrite(ctx: ChatContext, chatId: ChatId, statement: BatchStmt): Promise<void> {
+  const statements = [statement];
+  const hostUserId = hostUserIdOf(await loadRoster(ctx.db, chatId));
+  if (hostUserId !== null) {
+    ctx.bumpStatsCanonVersion(statements, ctx.db, hostUserId);
+  }
+  await ctx.db.batch(batchMany(statements));
+}
+
 /** Map a persisted `chat_injections` row → the `ChatInjectionView` wire shape (`order` omitted when null). */
 function toInjectionView(row: typeof chatInjections.$inferSelect): ChatInjectionView {
   return {
@@ -143,10 +156,14 @@ async function hostRowUpdate(
 ): Promise<void> {
   await requireHost(ctx, args.principal, args.chatId);
   await claimChat(args.chatId);
-  await ctx.db
-    .update(chats)
-    .set({ ...args.patch, updatedAt: ctx.now() })
-    .where(eq(chats.id, args.chatId));
+  await commitFencedChatWrite(
+    ctx,
+    args.chatId,
+    ctx.db
+      .update(chats)
+      .set({ ...args.patch, updatedAt: ctx.now() })
+      .where(eq(chats.id, args.chatId)),
+  );
   await emit({ type: "chatUpdated", chatId: args.chatId });
   // Fan `chatsChanged` to every present human member's device (the per-chat event above only reaches
   // subscribers of the open chat).
@@ -194,7 +211,7 @@ function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitChatEvent, claim
       }
     }
     await claimChat(chatId);
-    await ctx.db.update(chats).set({ anchorPersonaId: personaId, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+    await commitFencedChatWrite(ctx, chatId, ctx.db.update(chats).set({ anchorPersonaId: personaId, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
     await emit({ type: "chatUpdated", chatId });
   };
 }
@@ -226,7 +243,10 @@ function createDelete(ctx: ChatContext, emitLive: EmitChatEventLive, abortTurns:
       ),
     ];
     abortTurns(chatId);
-    const removed = await ctx.db.delete(chats).where(eq(chats.id, chatId)).returning({ id: chats.id });
+    const statements: BatchStmt[] = [ctx.db.delete(chats).where(eq(chats.id, chatId)).returning({ id: chats.id })];
+    ctx.bumpStatsCanonVersion(statements, ctx.db, principal.userId);
+    const results = await ctx.db.batch(batchMany(statements));
+    const removed = results[0] as readonly { readonly id: ChatId }[];
     if (removed.length > 0) {
       emitLive({ type: "chatDeleted", chatId });
     }
@@ -358,16 +378,21 @@ function createReapTemporaryChats(ctx: ChatContext, emitLive: EmitChatEventLive)
   return async ({ principal }: ReapTemporaryChatsParams): Promise<ReapResult> => {
     const ttlHours = await ctx.resolveTempChatTtlHours(principal.userId);
     const cutoff = ctx.now() - ttlHours * MS_PER_HOUR;
-    const removed = await ctx.db
-      .delete(chats)
-      .where(
-        and(
-          lt(chats.createdAt, cutoff),
-          or(eq(chats.temporary, true), and(isNull(chats.startedAt), hasNoOtherHuman(ctx, principal.userId))),
-          callerHostsChat(ctx, principal.userId),
-        ),
-      )
-      .returning({ id: chats.id });
+    const statements: BatchStmt[] = [
+      ctx.db
+        .delete(chats)
+        .where(
+          and(
+            lt(chats.createdAt, cutoff),
+            or(eq(chats.temporary, true), and(isNull(chats.startedAt), hasNoOtherHuman(ctx, principal.userId))),
+            callerHostsChat(ctx, principal.userId),
+          ),
+        )
+        .returning({ id: chats.id }),
+    ];
+    ctx.bumpStatsCanonVersion(statements, ctx.db, principal.userId);
+    const results = await ctx.db.batch(batchMany(statements));
+    const removed = results[0] as readonly { readonly id: ChatId }[];
     for (const { id } of removed) {
       emitLive({ type: "chatDeleted", chatId: id });
     }
@@ -391,7 +416,7 @@ function createSetVariables(ctx: ChatContext, emit: EmitChatEvent, claimChat: Cl
   return async ({ principal, chatId, values }: SetVariablesParams): Promise<void> => {
     await requireParticipant(ctx, principal, chatId);
     await claimChat(chatId);
-    await ctx.db.update(chats).set({ variableValues: values, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+    await commitFencedChatWrite(ctx, chatId, ctx.db.update(chats).set({ variableValues: values, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
     await emit({ type: "chatUpdated", chatId });
   };
 }
@@ -406,7 +431,7 @@ function createSetUserMacroValues(ctx: ChatContext, emit: EmitChatEvent, claimCh
     await requireParticipant(ctx, principal, chatId);
     await claimChat(chatId);
     const parsed = userMacroValuesSchema.parse(values);
-    await ctx.db.update(chats).set({ userMacroValues: parsed, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+    await commitFencedChatWrite(ctx, chatId, ctx.db.update(chats).set({ userMacroValues: parsed, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
     await emit({ type: "chatUpdated", chatId });
   };
 }
@@ -482,7 +507,7 @@ function createClearVariables(ctx: ChatContext, emit: EmitChatEvent, claimChat: 
   return async ({ principal, chatId }: ClearVariablesParams): Promise<void> => {
     await requireParticipant(ctx, principal, chatId);
     await claimChat(chatId);
-    await ctx.db.update(chats).set({ variableValues: null, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+    await commitFencedChatWrite(ctx, chatId, ctx.db.update(chats).set({ variableValues: null, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
     await emit({ type: "chatUpdated", chatId });
   };
 }

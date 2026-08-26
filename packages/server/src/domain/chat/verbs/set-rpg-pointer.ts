@@ -15,11 +15,15 @@
 
 import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import { chats } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type { ChatId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
 import type { SetRpgPointer } from "../contract/context.ts";
 import { loadChatRow } from "../persistence/queries.ts";
+import { loadRoster } from "../persistence/roster.ts";
+import { hostUserIdOf } from "../substrate/roster-host.ts";
 
 export function createSetRpgPointer(ctx: ChatContext): SetRpgPointer {
   return async (chatId: ChatId, pointer: ChatRpgPointer | null): Promise<void> => {
@@ -37,6 +41,11 @@ export function createSetRpgPointer(ctx: ChatContext): SetRpgPointer {
     } else {
       nextMetadata = { ...chat.metadata, rpg: pointer };
     }
-    await ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+    const hostUserId = hostUserIdOf(await loadRoster(ctx.db, chatId));
+    const statements: BatchStmt[] = [ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId))];
+    if (hostUserId !== null) {
+      ctx.bumpStatsCanonVersion(statements, ctx.db, hostUserId);
+    }
+    await ctx.db.batch(batchMany(statements));
   };
 }

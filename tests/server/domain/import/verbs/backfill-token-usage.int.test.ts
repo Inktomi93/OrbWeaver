@@ -14,6 +14,7 @@ import {
 } from "../../../../../packages/server/src/domain/chat/persistence/token-usage-backfill.ts";
 import { createBackfillTokenUsage } from "../../../../../packages/server/src/domain/import/verbs/backfill-token-usage.ts";
 import { readOverview } from "../../../../../packages/server/src/domain/stats/persistence/rollups.ts";
+import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -45,7 +46,7 @@ describe("createBackfillTokenUsage", () => {
     const reconcileImportStats = vi.fn(async () => undefined);
     const deps = {
       listTokenUsageCandidates: createListImportedTokenUsageCandidates(db),
-      compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db),
+      compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db, bumpStatsCanonVersion),
       reconcileImportStats,
     };
     const backfillTokenUsage = createBackfillTokenUsage(deps);
@@ -125,7 +126,7 @@ describe("createBackfillTokenUsage", () => {
 
     const result = await createBackfillTokenUsage({
       listTokenUsageCandidates: createListImportedTokenUsageCandidates(db),
-      compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db),
+      compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db, bumpStatsCanonVersion),
       reconcileImportStats: ({ ownerId: owner }) => reconcileStats(db, { ownerId: owner, now: clock.now }).then(() => undefined),
     })({ ownerId, dryRun: false, report: vi.fn(), signal: new AbortController().signal });
 

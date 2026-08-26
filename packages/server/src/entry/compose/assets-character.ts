@@ -37,6 +37,7 @@ import { createCharacterService, createDefaultCharacterSeeder, createLinkCharact
 import type { PersonaService } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import type { SettingsService } from "#domain/settings";
+import { bumpStatsCanonVersion } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import { createCopyCharacterBooks } from "#domain/world-info";
 import { env } from "#foundation/env";
@@ -260,6 +261,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
 
   const character = createCharacterService({
     db,
+    bumpStatsCanonVersion,
     now,
     newCharacterId: minter(ID_PREFIX.character),
     newSnapshotId: minter(ID_PREFIX.characterSnapshot),

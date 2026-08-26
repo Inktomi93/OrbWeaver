@@ -82,7 +82,7 @@ import type { ResolveRegexSources } from "#domain/regex";
 import type { SearchService } from "#domain/search";
 import { createTokenHasher } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
-import { applyStatsDelta } from "#domain/stats";
+import { applyStatsDelta, bumpStatsCanonVersion } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { createCopyHandoffBooks } from "#domain/world-info";
 import { env } from "#foundation/env";
@@ -898,6 +898,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // unreachable without a stored offer, so an offer-less handoff never calls any of them.
     copyHandoffCards: createCopyHandoffCards({
       db: input.db,
+      bumpStatsCanonVersion,
       now: input.now,
       newCharacterId: minter(ID_PREFIX.character),
       // The avatar RE-OWN: `assets` is per-owner with an `(owner_id, hash)` dedup (D21), so the copy cannot
@@ -1042,6 +1043,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // The chat op type erases the batch to `unknown`; this wrapper restores the concrete type.
     applyStatsDelta: (batch, opDb, delta) => {
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
+    },
+    bumpStatsCanonVersion: (batch, opDb, ownerId) => {
+      bumpStatsCanonVersion(batch as BatchStmt[], opDb, ownerId);
     },
     summarize: input.roleClients.summarize,
     // A thunk over the live getter — never the value: reading it here would bake the boot resolution.

@@ -50,20 +50,24 @@ export function createDuplicate(ctx: CharacterContext): CharacterService["duplic
     const newId = ctx.newCharacterId();
     const at = ctx.now();
 
-    await insertCharacter(ctx.db, {
-      id: newId,
-      handle,
-      ownerId,
-      contentHash: cardContentHash(card),
-      tokenSize: cardTokenSize(card),
-      forbidExternalMedia: source.forbidExternalMedia,
-      trustHtml: source.trustHtml,
-      interactiveHtml: source.interactiveHtml,
-      themeOverride: source.themeOverride,
-      backgroundOverride: source.backgroundOverride,
-      createdAt: at,
-      ...card,
-    });
+    await insertCharacter(
+      ctx.db,
+      {
+        id: newId,
+        handle,
+        ownerId,
+        contentHash: cardContentHash(card),
+        tokenSize: cardTokenSize(card),
+        forbidExternalMedia: source.forbidExternalMedia,
+        trustHtml: source.trustHtml,
+        interactiveHtml: source.interactiveHtml,
+        themeOverride: source.themeOverride,
+        backgroundOverride: source.backgroundOverride,
+        createdAt: at,
+        ...card,
+      },
+      ctx.bumpStatsCanonVersion,
+    );
 
     // PD-141: carry the source's attached world-info book REFERENCES onto the duplicate (fresh
     // character_books rows pointing at the SAME books; world-info owns the junction write, D28). Sequential

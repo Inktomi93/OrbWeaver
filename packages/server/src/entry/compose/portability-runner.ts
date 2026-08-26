@@ -30,7 +30,7 @@ import type { ExportRegexScripts, ImportCardScripts, ImportGlobalScripts, Import
 import type { ImportRpgGame } from "#domain/rpg";
 import type { SettingsContext } from "#domain/settings";
 import { createApplyImportedAppearance, createImportTheme } from "#domain/settings";
-import { reconcileStats } from "#domain/stats";
+import { bumpStatsCanonVersion, reconcileStats } from "#domain/stats";
 import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import { WORKLOAD_NOT_ADMISSIBLE } from "#domain/workloads";
@@ -194,7 +194,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     stagingRoot,
     stProfileDir: deps.stProfileDir ?? DEFAULT_ST_PROFILE_DIR,
     listTokenUsageCandidates: createListImportedTokenUsageCandidates(db),
-    compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db),
+    compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db, bumpStatsCanonVersion),
     // W8 / F5 — THE THREE BULK RUNS, EACH UNDER QUIET MODE. Every per-entity import verb announces itself
     // (`character/verbs/create.ts` fires `charactersChanged` per CARD; the persona/preset/tag/theme/regex/
     // world-info import verbs each fire their own), so an ST library fanned hundreds of events and the

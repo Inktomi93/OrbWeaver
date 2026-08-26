@@ -27,5 +27,5 @@ export type {
 } from "./contract/views.ts";
 export { createStatsService } from "./service.ts";
 export { createStatsWorkloadContributions } from "./workload-contributions.ts";
-export { applyStatsDelta } from "./write/apply-delta.ts";
+export { applyStatsDelta, bumpStatsCanonVersion } from "./write/apply-delta.ts";
 export { reconcileStats } from "./write/rebuild-from-canon.ts";
