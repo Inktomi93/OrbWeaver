@@ -27,6 +27,10 @@ interface VtGlobals {
   readonly document?: VtDocument;
 }
 
+function isSkippedTransition(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "name" in error && error.name === "AbortError";
+}
+
 /**
  * "This user has asked for no motion" — the OS preference OR the app's own `data-reduced-motion` pref,
  * which the shell stamps on `.shell-grid` (a setting beyond the OS one). ONE home for the pair, because a
@@ -99,7 +103,16 @@ export function withViewTransition(update: () => void): void {
       run();
     }
   });
+  const surfacedFailures = new Set<unknown>();
   for (const settled of [transition?.ready, transition?.finished, transition?.updateCallbackDone]) {
-    settled?.catch(() => undefined); // skipped-transition AbortError — benign, never an uncaught rejection
+    // @orb-gate-ignore caught-failure-ownership(promise:settled): only AbortError is absorbed as the platform's skipped-transition outcome; every other rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement.
+    settled?.catch((error: unknown) => {
+      if (!isSkippedTransition(error) && !surfacedFailures.has(error)) {
+        surfacedFailures.add(error);
+        queueMicrotask(() => {
+          throw error;
+        });
+      }
+    });
   }
 }
