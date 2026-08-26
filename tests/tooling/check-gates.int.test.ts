@@ -484,9 +484,10 @@ function writeFixtures(): void {
   // bus-coverage joins UNFIXTURABLE_GATES; the STALE mechanism stays proven by the `user-bus-coverage` twin
   // below (its DEFERRED `connectionsChanged`). Keep in sync with the DEFERRED map in bus-coverage.ts.
   // user-bus-coverage: the STALE arm — the DEFERRED `connectionsChanged` member (no per-user connection
-  // store yet) gains an emit-site literal in domain scope → "stale allowlist". Keep in sync with the
-  // DEFERRED map in user-bus-coverage.ts (if a real per-user connection emit lands, retarget this fixture).
-  fx(`${D}/chat/__g_userbus.ts`, 'export const staleUserBusEmit = "connectionsChanged";\n');
+  // store yet) gains a canonical injected emitter call → "stale allowlist". An arbitrary matching literal
+  // is deliberately a decoy, not producer evidence; tests/tooling/verify/lib/bus-coverage.test.ts locks both
+  // sides. Keep in sync with the DEFERRED map in user-bus-coverage.ts.
+  fx(`${D}/chat/__g_userbus.ts`, 'ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });\n');
   // rpg-bus-coverage: NO fixture — as of W1c-b its DEFERRED map is EMPTY (every RpgBusEvent member gained a real
   // emit site in domain/rpg/**). With no deferred member, neither STALE (needs a deferred member) nor MISSING (a
   // `__g_` file can't add a REAL member to the single-home union) is fixturable, so it joins UNFIXTURABLE_GATES
