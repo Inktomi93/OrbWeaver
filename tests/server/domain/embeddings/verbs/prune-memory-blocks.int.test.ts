@@ -54,6 +54,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         model: EMBED_MODEL,
         dim: EMBED_DIM,
         now: NOW,
+        speakerCharacterIds: [],
       });
     }
 
@@ -87,6 +88,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
       model: EMBED_MODEL,
       dim: EMBED_DIM,
       now: NOW,
+      speakerCharacterIds: [],
     });
 
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
@@ -120,6 +122,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         model: EMBED_MODEL,
         dim: EMBED_DIM,
         now: NOW,
+        speakerCharacterIds: [],
       });
     }
 
@@ -152,6 +155,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
       model: EMBED_MODEL,
       dim: EMBED_DIM,
       now: NOW,
+      speakerCharacterIds: [],
     });
     await db.insert(chatDigestSpeakers).values({ digestId, characterId: scopedCharacterId });
 

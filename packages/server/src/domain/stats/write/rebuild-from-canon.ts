@@ -304,8 +304,16 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
   let totalDays = 0;
   let totalModels = 0;
   for (const ownerId of owners) {
-    opts.signal?.throwIfAborted();
-    const built = await computeOwner(db, ownerId, now);
+    let built: { charCount: number; dayCount: number; modelCount: number };
+    for (;;) {
+      opts.signal?.throwIfAborted();
+      const before = await ownerCanonSnapshot(db, ownerId);
+      built = await computeOwner(db, ownerId, now);
+      const after = await ownerCanonSnapshot(db, ownerId);
+      if (before === after) {
+        break;
+      }
+    }
     totalChars += built.charCount;
     totalDays += built.dayCount;
     totalModels += built.modelCount;
@@ -340,6 +348,22 @@ function ownerChatIds(ownerId: string): SQL {
     JOIN chats ch ON ch.id = cp.chat_id
     WHERE c.owner_id = ${ownerId} AND cp.kind = 'character' AND ch.started_at IS NOT NULL
   `;
+}
+
+/** Owner-scoped canon version: the exact sorted chat-id/updated-at projection plus the owned-character
+ *  count. Every stats-affecting live canon mutator restamps its chat in the same batch; comparing again
+ *  after the rollup replace closes the scan/write window without holding a transaction across the streaming
+ *  reads. A write after the second snapshot is safe: its live stats delta runs after the rebuild rather than
+ *  being overwritten by it. */
+async function ownerCanonSnapshot(db: Db, ownerId: string): Promise<string> {
+  const rows = await db.all<{ chatId: string | null; updatedAt: number | null; characterCount: number }>(sql`
+    SELECT NULL AS chatId, NULL AS updatedAt,
+           (SELECT COUNT(*) FROM characters WHERE owner_id = ${ownerId}) AS characterCount
+    UNION ALL
+    SELECT ch.id AS chatId, ch.updated_at AS updatedAt, 0 AS characterCount
+    FROM chats ch WHERE ch.id IN (${ownerChatIds(ownerId)}) ORDER BY chatId ASC
+  `);
+  return JSON.stringify(rows);
 }
 
 interface MessageRow {
