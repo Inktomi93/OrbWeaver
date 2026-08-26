@@ -28,7 +28,8 @@ import type { Db } from "@orb/db";
 import { assets, characters, refineryRuns, refinerySchemas, refinerySessions } from "@orb/db";
 import type { RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { liftJsonSchema } from "@orb/kit/json-schema";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, notExists, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import { addSpanEvent } from "#foundation/observability";
 import type { RefinerySessionView } from "../contract/results.ts";
@@ -298,6 +299,67 @@ function fixedRunViewOf(row: RefineryRunRow, base: RunViewBase): RefineryRun | n
 // ── the custom-schema library (R3/SF0) — DIRECTLY owner-scoped rows (the schema table's own header) ─────
 
 type RefinerySchemaRow = typeof refinerySchemas.$inferSelect;
+const otherSchema = alias(refinerySchemas, "other_schema");
+
+/** Admit a custom schema only while no same-owner case-folded name exists. The decision and insert are one
+ *  SQLite statement, so concurrent creators cannot both pass an earlier library snapshot. */
+export async function insertOwnedSchemaIfNameFree(db: Db, row: RefinerySchemaRow): Promise<RefinerySchemaRow | undefined> {
+  const inserted = await db
+    .insert(refinerySchemas)
+    .select(
+      db
+        .select({
+          id: sql<RefinerySchemaId>`${row.id}`.as("id"),
+          ownerId: sql<UserId>`${row.ownerId}`.as("owner_id"),
+          name: sql<string>`${row.name}`.as("name"),
+          description: sql<string>`${row.description}`.as("description"),
+          stage: sql<RefinerySchemaStage>`${row.stage}`.as("stage"),
+          schema: sql<Record<string, unknown>>`${JSON.stringify(row.schema)}`.as("schema"),
+          version: sql<number>`${row.version}`.as("version"),
+          createdAt: sql<number>`${row.createdAt}`.as("created_at"),
+          updatedAt: sql<number>`${row.updatedAt}`.as("updated_at"),
+        })
+        .from(sql`(select 1)`)
+        .where(
+          notExists(
+            db
+              .select({ id: refinerySchemas.id })
+              .from(refinerySchemas)
+              .where(and(eq(refinerySchemas.ownerId, row.ownerId), sql`lower(${refinerySchemas.name}) = lower(${row.name})`)),
+          ),
+        ),
+    )
+    .returning();
+  return inserted[0];
+}
+
+/** Patch one owned schema only while no sibling has the requested case-folded name. */
+export async function updateOwnedSchemaIfNameFree(db: Db, row: RefinerySchemaRow): Promise<RefinerySchemaRow | undefined> {
+  const updated = await db
+    .update(refinerySchemas)
+    .set({
+      name: row.name,
+      description: row.description,
+      stage: row.stage,
+      schema: row.schema,
+      version: row.version,
+      updatedAt: row.updatedAt,
+    })
+    .where(
+      and(
+        eq(refinerySchemas.id, row.id),
+        eq(refinerySchemas.ownerId, row.ownerId),
+        notExists(
+          db
+            .select({ id: otherSchema.id })
+            .from(otherSchema)
+            .where(and(eq(otherSchema.ownerId, row.ownerId), ne(otherSchema.id, row.id), sql`lower(${otherSchema.name}) = lower(${row.name})`)),
+        ),
+      ),
+    )
+    .returning();
+  return updated[0];
+}
 
 /** One OWNED schema row, or undefined when absent OR foreign (collapsed — leak-free NOT_FOUND at the
  *  caller). Direct owner predicate: schemas are library tooling, not per-character work product. */

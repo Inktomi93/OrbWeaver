@@ -34,6 +34,65 @@ export async function freshDb(): Promise<Db> {
   return db;
 }
 
+interface StatementGate {
+  readonly pattern: RegExp;
+  remaining: number;
+  readonly reached: PromiseWithResolvers<void>;
+  readonly released: PromiseWithResolvers<void>;
+}
+
+export interface HeldStatement {
+  /** Resolves only after every expected statement reached the real libSQL client wrapper. */
+  readonly reached: Promise<void>;
+  /** Let the held statements enter the real driver. */
+  readonly release: () => void;
+}
+
+export interface HeldDb {
+  readonly db: Db;
+  /** Hold the next `arrivals` statements whose SQL matches `pattern`. Only one hold may be armed at once. */
+  readonly hold: (pattern: RegExp, arrivals?: number) => HeldStatement;
+}
+
+/**
+ * A real freshDb whose libSQL wrapper can hold one statement class before it enters the driver. Tests use
+ * this to make read-then-write races deterministic: both requests finish their reads, the matching writes
+ * park here, then the test releases them together. The database, schema, and statements are all real.
+ */
+export async function freshHeldDb(): Promise<HeldDb> {
+  let active: StatementGate | undefined;
+  const wrap: LibSqlWrap = (client) => holdingClient(client, () => active);
+  const db = await createDb(":memory:", wrap);
+  await pushLiveSchema(db);
+  return {
+    db,
+    hold: (pattern: RegExp, arrivals = 1): HeldStatement => {
+      if (active !== undefined) {
+        throw new Error("a DB statement hold is already armed");
+      }
+      if (arrivals < 1) {
+        throw new Error("a DB statement hold needs at least one arrival");
+      }
+      const gate: StatementGate = {
+        pattern,
+        remaining: arrivals,
+        reached: Promise.withResolvers<void>(),
+        released: Promise.withResolvers<void>(),
+      };
+      active = gate;
+      return {
+        reached: gate.reached.promise,
+        release: (): void => {
+          if (active === gate) {
+            active = undefined;
+          }
+          gate.released.resolve();
+        },
+      };
+    },
+  };
+}
+
 export interface DbQueryCounter {
   /** Statements issued since the last reset. `db.batch([...])` counts each statement. */
   readonly count: () => number;
@@ -108,6 +167,39 @@ function countingClient<T extends object>(client: T, log: string[]): T {
           log.push(sqlOf(args[0]));
         }
         return (value as (...a: unknown[]) => unknown).apply(target, args);
+      };
+    },
+  });
+}
+
+/** Proxy shape mirrors {@link countingClient}: bind all private-field methods to the target and intercept
+ * only `execute`. A held invocation has not entered SQLite yet, so unrelated statements can establish the
+ * exact mid-race state before release. */
+function holdingClient<T extends object>(client: T, current: () => StatementGate | undefined): T {
+  return new Proxy(client, {
+    get(target, prop): unknown {
+      const value = Reflect.get(target, prop, target);
+      if (typeof value !== "function" || typeof prop !== "string") {
+        return value;
+      }
+      if (prop !== "execute") {
+        return value.bind(target);
+      }
+      return (...args: unknown[]): unknown => {
+        const gate = current();
+        if (gate === undefined) {
+          return (value as (...a: unknown[]) => unknown).apply(target, args);
+        }
+        gate.pattern.lastIndex = 0;
+        if (!gate.pattern.test(sqlOf(args[0]))) {
+          return (value as (...a: unknown[]) => unknown).apply(target, args);
+        }
+        gate.pattern.lastIndex = 0;
+        gate.remaining -= 1;
+        if (gate.remaining === 0) {
+          gate.reached.resolve();
+        }
+        return gate.released.promise.then(() => (value as (...a: unknown[]) => unknown).apply(target, args));
       };
     },
   });

@@ -1,12 +1,13 @@
 // .int tests for `updateSchema`: version bumps on CONTENT change only (the P1-B provenance pin), the
 // merged document re-runs the whole belt, and foreign ids collapse leak-free.
 
-import { DomainNotFoundError } from "@orb/kit/errors";
-import { freshDb } from "../../../../support/db.ts";
+import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedUser, validScoreSchema } from "../_support.ts";
 
 const SCORE_CORE_REFUSAL = /overallScore/u;
+const REFINERY_SCHEMA_UPDATE = /update "refinery_schemas"/iu;
 
 test("update bumps version on CONTENT change only; foreign owner collapses to NOT_FOUND", async () => {
   const db = await freshDb();
@@ -42,4 +43,31 @@ test("update bumps version on CONTENT change only; foreign owner collapses to NO
     { userId: owner, event: { type: "refineryChanged" } },
     { userId: owner, event: { type: "refineryChanged" } },
   ]);
+});
+
+test("two held renames to one folded name admit one update and type the loser", async () => {
+  const { db, hold } = await freshHeldDb();
+  const owner = await seedUser(db, { id: "user_usch_race" });
+  const h = makeRefineryHarness(db);
+  const a = await h.svc.createSchema({ principal: principal(owner), name: "SchemaA", description: "a", stage: "score", schema: validScoreSchema() });
+  const b = await h.svc.createSchema({ principal: principal(owner), name: "SchemaB", description: "b", stage: "score", schema: validScoreSchema() });
+  const updates = hold(REFINERY_SCHEMA_UPDATE, 2);
+  const renames = [
+    h.svc.updateSchema({ principal: principal(owner), schemaId: a.id, patch: { name: "SharedName" } }),
+    h.svc.updateSchema({ principal: principal(owner), schemaId: b.id, patch: { name: "sharedname" } }),
+  ];
+
+  await updates.reached;
+  updates.release();
+  const settled = await Promise.allSettled(renames);
+
+  expect(settled.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+  const rejected = settled.find((result) => result.status === "rejected");
+  expect(rejected?.reason).toBeInstanceOf(DomainOperationError);
+  if (!(rejected?.reason instanceof DomainOperationError)) {
+    throw new Error("expected the concurrent schema-name loser to be typed");
+  }
+  expect(rejected.reason.code).toBe("refinery_schema_name_taken");
+  const rows = await h.svc.listSchemas({ principal: principal(owner) });
+  expect(rows.filter((row) => row.name.toLowerCase() === "sharedname")).toHaveLength(1);
 });
