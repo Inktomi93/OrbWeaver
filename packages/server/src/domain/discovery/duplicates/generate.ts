@@ -90,9 +90,7 @@ export async function computeDuplicatePairs(db: Db, deps: ComputeDuplicatesDeps,
       (r) => r.characterId,
     );
     if (reps.length > MAX_DUPLICATE_VECTORS_PER_SPACE) {
-      throw new RangeError(
-        `character duplicate representative limit exceeded: ${reps.length} > ${MAX_DUPLICATE_VECTORS_PER_SPACE} for one owner/model space`,
-      );
+      throw new RangeError(`character duplicate representative limit exceeded: ${reps.length} > ${MAX_DUPLICATE_VECTORS_PER_SPACE} for one owner/model space`);
     }
     const repVecs = reps.map((r) => r.embedding);
     // This workload promises no n×n allocation at any admitted size. Hub math therefore uses its existing
