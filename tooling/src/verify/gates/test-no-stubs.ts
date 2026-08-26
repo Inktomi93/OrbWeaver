@@ -15,6 +15,16 @@ function callHasAssertion(call: CallExpression): boolean {
   });
 }
 
+function isTestDeclaration(call: CallExpression): boolean {
+  const name = call.getExpression().getText();
+  if (!TEST_CALL_NAMES.has(name)) {
+    return false;
+  }
+  // Playwright's in-body `test.skip(condition, reason)` is a runner-status guard, not a nested test
+  // declaration. A skipped test declaration still has a callback argument and remains subject to this gate.
+  return !name.endsWith(".skip") || call.getArguments().some((arg) => arg.isKind(SyntaxKind.ArrowFunction) || arg.isKind(SyntaxKind.FunctionExpression));
+}
+
 const STUB_MESSAGE =
   "stub test contains no assertions (expect/expectTypeOf) — tests must assert behavior, not just satisfy presence rules (Spine-Testing.md §5).";
 
@@ -31,7 +41,7 @@ export const gate: GateDescriptor = {
     if (!node.isKind(SyntaxKind.CallExpression)) {
       return;
     }
-    if (!TEST_CALL_NAMES.has(node.getExpression().getText()) || callHasAssertion(node)) {
+    if (!isTestDeclaration(node) || callHasAssertion(node)) {
       return;
     }
     const arg0 = node.getArguments()[0];
@@ -50,6 +60,11 @@ export const gate: GateDescriptor = {
       files: 'test("asserts", () => {\n  expect(1).toBe(1);\n});\n',
       at: "tests/tooling/y.test.ts",
       why: "a test with a real expect() assertion — asserts behavior, passes",
+    },
+    {
+      files: 'test("conditionally available", () => {\n  test.skip(!backendAvailable, "backend unavailable");\n  expect(result).toBe("ok");\n});\n',
+      at: "tests/e2e/conditional.spec.ts",
+      why: "an in-body runner-status guard is not itself a nested test declaration",
     },
   ],
 };

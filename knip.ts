@@ -82,6 +82,7 @@ const config: KnipConfig = {
         "src/stack/ops/prod-entry.ts",
         "src/stack/ops/engines.ts",
         "src/stack/ops/engines-ctl.ts",
+        "src/verify/ops/required-live-evidence-reporter.ts",
       ],
       project: ["src/**/*.ts"],
     },

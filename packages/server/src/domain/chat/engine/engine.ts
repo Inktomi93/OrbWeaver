@@ -1399,6 +1399,10 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     targetMessageId: persist.mode === "new-slot" ? null : persist.targetMessageId,
   });
 
+  // `runTurnPipeline` invokes onDelta synchronously while durable chat emission is asynchronous. Keep the
+  // tail outside the try so BOTH success and failure terminals must drain it; otherwise a partial stream that
+  // throws can publish turnAborted before its already-observed delta reaches the durable bus.
+  let deltaTail: Promise<void> = Promise.resolve();
   try {
     // PRE-TURN managed-compaction arm (the wedge-state fix): a chat whose context ALREADY overflows the window
     // makes the model fail, and the post-turn arm never runs on a failed turn — so compact BEFORE dispatch when
@@ -1424,7 +1428,6 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     // ordered tail for this turn: every delta waits for the previous append, and the drain is awaited below
     // before any commit/terminal event. A rejection remains on the tail and fails the turn — a missing durable
     // delta followed by terminal success would be a corrupt replay history, not a recoverable background fault.
-    let deltaTail = Promise.resolve();
     // Held as a named value, not inlined into the call: the prose-less RECOVERY pass re-runs THIS turn from
     // exactly these arguments with two overrides (`recover-narrative.ts`), and a second hand-built literal
     // would be a second definition of the turn, free to drift.
@@ -1632,6 +1635,15 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
 
     return committedOutcome([view]);
   } catch (err) {
+    try {
+      await deltaTail;
+    } catch (deltaErr) {
+      // If the delta append itself caused this catch, `err` already owns the failure. If generation failed
+      // independently, preserve that primary error but keep the secondary durable-bus failure visible.
+      if (deltaErr !== err) {
+        getLog().warn({ err: deltaErr, chatId: prep.chatId }, "chat: delta drain also failed while aborting turn");
+      }
+    }
     // An abort is a lifecycle OUTCOME, not an exception (owner ruling, lock-the-extensible-shape): the
     // return-based `abortedOutcome` shape was designed (result.ts) and the plumbing above (round → verb
     // `TurnOutcome.aborted/abortReason`) already propagates it. The `turnAborted` bus emission STAYS on
