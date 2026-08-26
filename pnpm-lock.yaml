@@ -368,9 +368,6 @@ importers:
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.61.1
-      '@stryker-mutator/api':
-        specifier: 'catalog:'
-        version: 10.0.0
       '@stryker-mutator/core':
         specifier: 'catalog:'
         version: 10.0.0(patch_hash=5ede38add427b8afc78e0a5996ba245780dd61a1cf665ed284d57023506de33e)(@types/node@26.1.1)
@@ -849,6 +846,9 @@ importers:
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.61.1
+      '@stryker-mutator/api':
+        specifier: 'catalog:'
+        version: 10.0.0
       '@trpc/client':
         specifier: 'catalog:'
         version: 11.18.0(@trpc/server@11.18.0(typescript@6.0.3))(typescript@6.0.3)

@@ -1,4 +1,4 @@
-// Self-test for the ARID ignorer (scripts/mutation/arid-ignorer.ts) — the Stryker ignore-plugin that
+// Self-test for the ARID ignorer (tooling/src/mutation-arid/) — the Stryker ignore-plugin that
 // drops string-literal mutants whose only destination is an observability sink.
 //
 // A SUPPRESSOR IS BITE-PROVED IN BOTH DIRECTIONS OR IT IS A LIABILITY. A mutant-ignorer that is too eager
@@ -18,8 +18,8 @@
 // real run, the REAL RUN is right and these fixtures have drifted from babel.
 
 import { describe } from "vitest";
-import { shouldIgnoreArid } from "../../scripts/mutation/arid-ignorer.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
+import { shouldIgnoreArid } from "../../../../tooling/src/mutation-arid/index.ts";
+import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Mirrors the (unexported, by no-inline-types) `AridNode` in the plugin — the babel subset it reads. */
 interface Node {
@@ -35,6 +35,12 @@ interface Node {
   key?: Node;
   value?: Node | string | number | boolean;
   properties?: Node[];
+  test?: Node | null;
+  consequent?: Node[];
+  body?: Node[];
+  declarations?: Node[];
+  id?: Node;
+  typeAnnotation?: Node;
 }
 interface Path {
   node: Node;
@@ -156,5 +162,69 @@ describe("arid ignorer — the near-misses it MUST NOT ignore", () => {
 
   test("a string with no parent path is never ignored", () => {
     expect(shouldIgnoreArid({ node: str("orphan") })).toBeUndefined();
+  });
+});
+
+// --- family (2): compile-time-unreachable `never`-typed arms -------------------------------------
+//
+// Measured motivation (pnpm mutation:probe, 2026-08-26, domain/admin/guard.ts): 6 of its 8 planted
+// survivors sat in the two `default:` exhaustiveness arms — 25% of that file's denominator, and not one
+// of them is killable, because tsc has already proved the arm cannot execute. The exhaustive-dispatch
+// discipline puts one in every dispatch site, so this is dead weight under EVERY score, not one file's.
+
+/** `const _exhaustive: never = x;` — the house marker for an arm tsc proved unreachable. */
+function neverDecl(): Node {
+  return {
+    type: "VariableDeclaration",
+    declarations: [
+      {
+        type: "VariableDeclarator",
+        id: { type: "Identifier", name: "_exhaustive", typeAnnotation: { type: "TSTypeAnnotation", typeAnnotation: { type: "TSNeverKeyword" } } },
+      },
+    ],
+  };
+}
+
+/** A plain `const x = 1;` — a reachable arm's declaration, which must NOT be ignored. */
+function plainDecl(): Node {
+  return { type: "VariableDeclaration", declarations: [{ type: "VariableDeclarator", id: id("x") }] };
+}
+
+function switchCase(caseTest: Node | null, statements: Node[]): Node {
+  return { type: "SwitchCase", test: caseTest, consequent: statements };
+}
+
+function block(body: Node[]): Node {
+  return { type: "BlockStatement", body };
+}
+
+describe("arid family (2) — unreachable arms", () => {
+  test("a `default:` arm declaring a never-typed const is ignored WHOLE", () => {
+    // Matching the SwitchCase (not a leaf) is deliberate: Stryker ignores the entire subtree under a
+    // match, and every mutant inside an unreachable arm is equally unkillable.
+    const arm = switchCase(null, [block([neverDecl()])]);
+    expect(shouldIgnoreArid({ node: arm, parentPath: { node: { type: "SwitchStatement" } } })).toMatch(/compile-time unreachable/u);
+  });
+
+  test("the un-blocked `default:` form is ignored too", () => {
+    expect(shouldIgnoreArid({ node: switchCase(null, [neverDecl()]), parentPath: { node: { type: "SwitchStatement" } } })).toMatch(/compile-time unreachable/u);
+  });
+
+  test("a bare block declaring a never-typed const is ignored (the non-switch fallthrough form)", () => {
+    expect(shouldIgnoreArid({ node: block([neverDecl()]), parentPath: { node: { type: "IfStatement" } } })).toMatch(/compile-time unreachable/u);
+  });
+
+  // THE OTHER DIRECTION. These are the ways this rule could over-reach and silently delete real mutants
+  // from the denominator — which would inflate the score and make the ratchet lie in the dangerous way.
+  test("a REACHABLE `case x:` arm is never ignored, even if it declares a never-typed const", () => {
+    expect(shouldIgnoreArid({ node: switchCase(id("someCase"), [block([neverDecl()])]), parentPath: { node: { type: "SwitchStatement" } } })).toBeUndefined();
+  });
+
+  test("a `default:` arm with no never-declaration is never ignored — it is ordinary reachable code", () => {
+    expect(shouldIgnoreArid({ node: switchCase(null, [block([plainDecl()])]), parentPath: { node: { type: "SwitchStatement" } } })).toBeUndefined();
+  });
+
+  test("an ordinary block is never ignored", () => {
+    expect(shouldIgnoreArid({ node: block([plainDecl()]), parentPath: { node: { type: "IfStatement" } } })).toBeUndefined();
   });
 });

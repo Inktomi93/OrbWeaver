@@ -26,34 +26,26 @@
 // call: Stryker's IgnorerBookkeeper ignores the whole SUBTREE under the node that matched, so matching the
 // call would silently swallow every operator/conditional mutant among its arguments too.
 //
-// Self-test: tests/tooling/mutation-arid-ignorer.test.ts — both arms (ignored AND not-ignored) are pinned.
+// TWO FAMILIES ARE ARID, for different reasons:
+//   (1) OBSERVABILITY — a string whose only destination is a trace/log sink. A test pinning a debug label
+//       byte-for-byte would be the tautology Spine-Testing.md bans, so no honest test kills it.
+//   (2) COMPILE-TIME-UNREACHABLE ARMS — a `default:` case (or block) that declares a `never`-typed const.
+//       Nothing can kill those mutants, because tsc has already proved the arm cannot execute; the
+//       exhaustive-dispatch discipline (Spine-TypeScript-and-Patterns §"String-union dispatch") puts one
+//       in EVERY dispatch site in the codebase, so leaving them in pins dead weight under every score
+//       computed over a dispatching file. Measured 2026-08-26 by `pnpm mutation:probe` on
+//       domain/admin/guard.ts: 6 of its 8 planted survivors were exactly this, 25% of that file's
+//       denominator, permanently unkillable.
+//
+// Family (2) matches the ARM node, not the leaf: Stryker's IgnorerBookkeeper ignores the whole subtree
+// under a match, and here that is the point — every mutant inside an unreachable arm is unkillable. This
+// is the deliberate opposite of family (1), where matching the enclosing call would swallow real mutants.
+//
+// Self-test: tests/tooling/mutation-arid/lib/predicate.test.ts — every arm, both directions.
 
 import { declareValuePlugin, PluginKind } from "@stryker-mutator/api/plugin";
 
-/** The babel AST subset this predicate reads. Local + unexported on purpose: `@stryker-mutator/api`
- *  declares `NodePath` as an EMPTY interface (the real type is babel's, which is not a dependency here),
- *  so the shape has to be named locally. Method parameters are bivariant, which is what lets the class
- *  below still satisfy `Ignorer`. */
-interface AridNode {
-  readonly type: string;
-  readonly name?: string;
-  readonly callee?: AridNode;
-  readonly arguments?: readonly AridNode[];
-  readonly object?: AridNode;
-  readonly property?: AridNode;
-  readonly computed?: boolean;
-  readonly left?: AridNode;
-  readonly right?: AridNode;
-  readonly key?: AridNode;
-  /** A node on `ObjectProperty` (the position this predicate reads); a primitive on a literal node. */
-  readonly value?: AridNode | string | number | boolean;
-  readonly properties?: readonly AridNode[];
-}
-
-interface AridPath {
-  readonly node: AridNode;
-  readonly parentPath?: AridPath | null;
-}
+import type { AridNode, AridPath } from "../contract/types.ts";
 
 const STRING_NODES = ["StringLiteral", "TemplateLiteral"] as const;
 const CALL_NODE = "CallExpression";
@@ -157,9 +149,54 @@ function aridTracePayload(parentPath: AridPath, node: AridNode): string {
   return object.type === OBJECT_NODE && carriesTrace(object) ? MESSAGE_TRACE_PAYLOAD : "";
 }
 
+// --- family (2): compile-time-unreachable arms ---
+const SWITCH_CASE_NODE = "SwitchCase";
+const BLOCK_NODE = "BlockStatement";
+const VARIABLE_DECLARATION_NODE = "VariableDeclaration";
+const NEVER_KEYWORD = "TSNeverKeyword";
+
+const MESSAGE_UNREACHABLE_ARM = "Exhaustiveness: a `never`-typed arm is compile-time unreachable — no test can execute it.";
+
+/** Does this statement declare a `never`-typed binding (`const _exhaustive: never = x`)? That declaration
+ *  is the house marker for an arm tsc has proved unreachable — it only compiles when every real member is
+ *  handled above it, which is exactly why nothing can run it. */
+function declaresNever(statement: AridNode | undefined): boolean {
+  if (statement?.type !== VARIABLE_DECLARATION_NODE) {
+    return false;
+  }
+  return statement.declarations?.some((declarator) => declarator.id?.typeAnnotation?.typeAnnotation?.type === NEVER_KEYWORD) === true;
+}
+
+/** Statements directly inside an arm — unwrapping the single-block form (`default: { … }`). */
+function armStatements(statements: readonly AridNode[] | undefined): readonly AridNode[] {
+  if (statements?.length === 1 && statements[0]?.type === BLOCK_NODE) {
+    return statements[0].body ?? [];
+  }
+  return statements ?? [];
+}
+
+/** R6: the node IS an unreachable arm — a `default:` case, or a block, that declares a `never` binding. */
+function aridUnreachableArm(node: AridNode): string {
+  if (node.type === SWITCH_CASE_NODE) {
+    // `test` is absent/null on `default:` only; a `case x:` arm is reachable and stays in the denominator.
+    const isDefaultArm = node.test === undefined || node.test === null;
+    return isDefaultArm && armStatements(node.consequent).some(declaresNever) ? MESSAGE_UNREACHABLE_ARM : "";
+  }
+  if (node.type === BLOCK_NODE) {
+    return (node.body ?? []).some(declaresNever) ? MESSAGE_UNREACHABLE_ARM : "";
+  }
+  return "";
+}
+
 class AridIgnorer {
   shouldIgnore(path: AridPath): string | undefined {
     const node = path.node;
+    // Family (2) first: it matches the ARM itself, which has no string-node shape and may sit at the
+    // program root (a switch case's parentPath is the SwitchStatement, but a block need not have one).
+    const unreachable = aridUnreachableArm(node);
+    if (unreachable !== "") {
+      return unreachable;
+    }
     const parentPath = path.parentPath;
     if (!parentPath) {
       return;

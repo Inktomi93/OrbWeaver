@@ -20,6 +20,7 @@
     "@orb/server": "workspace:*",
     "@orb/ui": "workspace:*",
     "@playwright/test": "catalog:",
+    "@stryker-mutator/api": "catalog:",
     "@trpc/client": "catalog:",
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
