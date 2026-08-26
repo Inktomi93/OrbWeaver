@@ -63,24 +63,26 @@ export function BookAttachments({ bookId }: BookAttachmentsProps): ReactElement 
   return (
     <Stack gap="section" padding="block">
       <GlobalSection bookId={bookId} />
-      <PersonasSection
-        bookId={bookId}
-        attachments={attachments.data}
-        queryPending={attachments.isPending}
-        queryError={attachments.isError}
-        onRetry={(): void => void attachments.refetch()}
-      />
-      <CharactersSection
-        bookId={bookId}
-        attachments={attachments.data}
-        queryPending={attachments.isPending}
-        queryError={attachments.isError}
-        onRetry={(): void => void attachments.refetch()}
-      />
+      {attachments.isPending ? (
+        <Text role="status" voice="gloss">
+          Loading attachment status…
+        </Text>
+      ) : null}
+      {attachments.isError ? (
+        <Row align="center" gap="field" role="alert">
+          <Text className="text-destructive" voice="gloss">
+            Couldn&apos;t load attachment status.
+          </Text>
+          <Button aria-label="Retry attachment status" intent="secondary" onClick={(): void => void attachments.refetch()} size="sm" type="button">
+            Retry
+          </Button>
+        </Row>
+      ) : null}
+      <PersonasSection bookId={bookId} attachments={attachments.data} queryPending={attachments.isPending} queryError={attachments.isError} />
+      <CharactersSection bookId={bookId} attachments={attachments.data} queryPending={attachments.isPending} queryError={attachments.isError} />
     </Stack>
   );
 }
-
 function GlobalSection({ bookId }: BookAttachmentsProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -129,10 +131,9 @@ interface AttachmentSectionProps extends BookAttachmentsProps {
   readonly attachments: BookAttachmentTargets | undefined;
   readonly queryPending: boolean;
   readonly queryError: boolean;
-  readonly onRetry: () => void;
 }
 
-function PersonasSection({ bookId, attachments, queryPending, queryError, onRetry }: AttachmentSectionProps): ReactElement {
+function PersonasSection({ bookId, attachments, queryPending, queryError }: AttachmentSectionProps): ReactElement {
   const trpc = useTRPC();
   const personasQuery = useQuery(trpc.persona.list.queryOptions());
   const personas = personasQuery.data ?? [];
@@ -140,10 +141,22 @@ function PersonasSection({ bookId, attachments, queryPending, queryError, onRetr
   // The regex arm's roster grammar: an ALL-CAPS kicker band carrying the count, because "Attached by
   // personas · 0" is a complete statement where a bare heading over an empty box asks whether it failed.
   return (
-    <Section kicker={`Attached by personas · ${personas.length}`}>
-      {personas.length === 0 ? (
+    <Section kicker={personasQuery.isPending || personasQuery.isError ? "Attached by personas" : `Attached by personas · ${personas.length}`}>
+      {personasQuery.isPending ? <SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" /> : null}
+      {personasQuery.isError ? (
+        <Row align="center" gap="field" role="alert">
+          <Text className="text-destructive" voice="gloss">
+            Couldn&apos;t load personas.
+          </Text>
+          <Button aria-label="Retry personas" intent="secondary" onClick={(): void => void personasQuery.refetch()} size="sm" type="button">
+            Retry
+          </Button>
+        </Row>
+      ) : null}
+      {personasQuery.isSuccess && personas.length === 0 ? (
         <Text voice="gloss">No personas yet. Create one from the rail-foot Account &amp; personas panel.</Text>
-      ) : (
+      ) : null}
+      {personasQuery.isSuccess && personas.length > 0 ? (
         <Stack gap="row">
           {personas.map((persona) => (
             <PersonaAttachRow
@@ -154,16 +167,15 @@ function PersonasSection({ bookId, attachments, queryPending, queryError, onRetr
               attached={attachments?.personaIds.includes(persona.id) ?? false}
               queryPending={queryPending}
               queryError={queryError}
-              onRetry={onRetry}
             />
           ))}
         </Stack>
-      )}
+      ) : null}
     </Section>
   );
 }
 
-function CharactersSection({ bookId, attachments, queryPending, queryError, onRetry }: AttachmentSectionProps): ReactElement {
+function CharactersSection({ bookId, attachments, queryPending, queryError }: AttachmentSectionProps): ReactElement {
   const trpc = useTRPC();
   const [open, setOpen] = useState(false);
   // The kicker's count is the ATTACHED set, not the picker's page — `listBooksWithUsage`'s per-book
@@ -173,13 +185,13 @@ function CharactersSection({ bookId, attachments, queryPending, queryError, onRe
   const attachedCount = usageQuery.data?.find((book) => book.id === bookId)?.usage.characters ?? 0;
 
   return (
-    <Section kicker={`Attached by characters · ${attachedCount}`}>
+    <Section kicker={usageQuery.isPending || usageQuery.isError ? "Attached by characters" : `Attached by characters · ${attachedCount}`}>
       <Stack gap="row">
         <Button intent="ghost" size="sm" aria-expanded={open} onClick={(): void => setOpen((prev) => !prev)}>
           <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
           {open ? "Hide characters" : "Attach to a character"}
         </Button>
-        {open ? <CharacterPicker bookId={bookId} attachments={attachments} queryPending={queryPending} queryError={queryError} onRetry={onRetry} /> : null}
+        {open ? <CharacterPicker bookId={bookId} attachments={attachments} queryPending={queryPending} queryError={queryError} /> : null}
       </Stack>
     </Section>
   );
@@ -204,7 +216,6 @@ function CharacterPicker(props: AttachmentSectionProps): ReactElement {
         attachments={props.attachments}
         queryPending={props.queryPending}
         queryError={props.queryError}
-        onRetry={props.onRetry}
         characters={charactersQuery.data?.items ?? []}
         isPending={charactersQuery.isPending}
         needle={needle}
@@ -224,7 +235,6 @@ function CharacterRoster({
   attachments,
   queryPending,
   queryError,
-  onRetry,
 }: {
   readonly bookId: WorldBookId;
   readonly characters: readonly CharacterListItem[];
@@ -234,7 +244,6 @@ function CharacterRoster({
   readonly attachments: AttachmentSectionProps["attachments"];
   readonly queryPending: boolean;
   readonly queryError: boolean;
-  readonly onRetry: () => void;
 }): ReactElement {
   if (isPending) {
     return <SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />;
@@ -268,7 +277,6 @@ function CharacterRoster({
           role={attachments?.characters.find((attachment) => attachment.characterId === character.id)?.role}
           queryPending={queryPending}
           queryError={queryError}
-          onRetry={onRetry}
         />
       ))}
     </Stack>

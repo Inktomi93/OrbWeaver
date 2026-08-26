@@ -171,6 +171,11 @@ function EverywhereSection({ documentId, name }: { readonly documentId: Document
     <Section kicker="Everywhere">
       <Row align="center" gap="row" justify="between">
         <Text voice="gloss">Feed this document to every chat, on top of any per-chat or per-character attachments.</Text>
+        {isPending ? (
+          <Text role="status" voice="gloss">
+            {isGlobal ? `Stopping ${name} everywhere…` : `Feeding ${name} everywhere…`}
+          </Text>
+        ) : null}
         <Switch
           aria-label={isGlobal ? `Stop feeding ${name} to every chat` : `Feed ${name} to every chat`}
           checked={isGlobal}

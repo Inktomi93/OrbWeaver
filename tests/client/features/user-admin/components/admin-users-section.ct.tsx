@@ -13,6 +13,7 @@ import { AdminUsersSectionStory } from "../_ct-stories.tsx";
 
 const OWNER_VIEWER = { userId: "user_owner", handle: "root", globalRole: "owner" };
 const ADMIN_VIEWER = { userId: "user_mira", handle: "mira", globalRole: "admin" };
+const USER_OPTION_RE = /^User$/u;
 
 const USERS = [
   {
@@ -139,7 +140,10 @@ test("role writes lock only their target row while a sibling remains actionable"
   await expect(mira).toBeEnabled();
 
   await mira.click();
-  await page.getByRole("option", { name: "User" }).click();
+  const userOption = page.locator('[role="listbox"] [role="option"][aria-selected="false"]:not([aria-disabled="true"])').filter({ hasText: USER_OPTION_RE });
+  await expect(userOption).toHaveCount(1);
+  await userOption.focus();
+  await userOption.press("Enter");
   await expect.poll(() => trpc.count("admin.setRole")).toBe(2);
   held.release(applyToUser({ userId: "user_kes", role: "admin" }, ({ role }) => ({ role })));
 });

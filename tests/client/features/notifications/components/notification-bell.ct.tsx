@@ -105,7 +105,7 @@ test("Accept fires acceptInvite with the notification's inviteId, then dismisses
 
   await mount(<NotificationBellStory />);
   await page.getByRole("button", { name: "Notifications (1 unread)" }).click();
-  await page.getByRole("button", { name: "Accept" }).click();
+  await page.getByRole("button", { name: "Accept invitation from nate" }).click();
 
   await expect.poll(() => trpc.count("invites.acceptInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   await expect.poll(async () => (trpc.lastInput("invites.acceptInvite") as { inviteId?: unknown }).inviteId).toBe("chatinvite_ct_1");
@@ -144,12 +144,14 @@ test("each inbox row owns its pending action: double-click is singular while a s
   await page.getByRole("button", { name: "Notifications (2 unread)" }).click();
   const nateRow = page.locator('[data-slot="inbox-row"]').filter({ hasText: "nate invited" });
   const miraRow = page.locator('[data-slot="inbox-row"]').filter({ hasText: "mira invited" });
-  const nateAccept = nateRow.getByRole("button", { name: "Accept" });
-  const miraAccept = miraRow.getByRole("button", { name: "Accept" });
+  const nateAccept = nateRow.getByRole("button", { name: "Accept invitation from nate" });
+  const miraAccept = miraRow.getByRole("button", { name: "Accept invitation from mira" });
 
   await nateAccept.dblclick();
   await held.requested;
   await expect(nateAccept).toBeDisabled();
+  await expect(nateRow.getByRole("status")).toHaveText("Updating invitation from nate…");
+  await expect(miraRow.getByRole("status")).toHaveCount(0);
   await expect(miraAccept).toBeEnabled();
   await expect.poll(() => trpc.count("invites.acceptInvite")).toBe(1);
 
@@ -177,7 +179,7 @@ test("Decline fires declineInvite + dismisses; the row leaves the inbox on refet
 
   await mount(<NotificationBellStory />);
   await page.getByRole("button", { name: "Notifications (1 unread)" }).click();
-  await page.getByRole("button", { name: "Decline" }).click();
+  await page.getByRole("button", { name: "Decline invitation from nate" }).click();
 
   // The invalidate refetched the (now empty) inbox — the row is gone without a reload; this DOM
   // consequence is downstream of both the decline call and the dismiss, so await it directly.
