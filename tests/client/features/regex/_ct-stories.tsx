@@ -5,13 +5,15 @@
 // the CT bundler registers stories per directory, so a cross-directory story import double-declares.
 
 import { RegexScriptPicker } from "@orb/client/components";
-import { QueryBoundary } from "@orb/client/data";
+import { QueryBoundary, useTRPC } from "@orb/client/data";
 import { __resetCollectionGroupOpen, clearCollectionSelection, exitRegexBulkMode } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { CollectionGroup } from "../../../../packages/client/src/features/config/components/collection-group.tsx";
+import { RegexBulkBar } from "../../../../packages/client/src/features/regex/components/regex-bulk-bar.tsx";
 import { RegexContextBody } from "../../../../packages/client/src/features/regex/components/regex-context-body.tsx";
 import { regexCollection } from "../../../../packages/client/src/features/regex/lib/regex-collection.tsx";
 import { RegexMemberSurface } from "../../../../packages/client/src/features/regex/surfaces/regex-member-surface.tsx";
@@ -56,6 +58,28 @@ export function RegexLibraryGroupStory(): ReactElement {
       </button>
       <div style={{ overflow: "auto", width: 330 }}>
         <CollectionGroup collection={regexCollection} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+function RegexBulkBarHarness(): ReactElement {
+  const trpc = useTRPC();
+  const [selectedIds, setSelectedIds] = useState<readonly string[]>(["regex_script_stripooc00000", "regex_script_narrate000000"]);
+  return (
+    <>
+      <output aria-label="Bulk selection count">{selectedIds.length}</output>
+      <RegexBulkBar ids={selectedIds} onClear={(): void => setSelectedIds([])} trpc={trpc} />
+    </>
+  );
+}
+
+/** The regex bulk bar mounted directly so same-task held-mutation CTs exercise only its action ownership. */
+export function RegexBulkBarStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 330 }}>
+        <RegexBulkBarHarness />
       </div>
     </CtDataProviders>
   );
