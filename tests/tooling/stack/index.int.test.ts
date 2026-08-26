@@ -18,7 +18,7 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -133,6 +133,22 @@ test("foreign fleet-shaped argv receives zero signals from the strict dev identi
     } catch {
       // Test owns this disposable group; it may have exited independently.
     }
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("clear-absent surfaces an unlink failure instead of claiming a blocked identity path was cleared", () => {
+  const repoRoot = mkdtempSync(path.join(tmpdir(), "orb-dev-identity-clear-"));
+  try {
+    const preload = path.join(repoRoot, "fail-unlink.cjs");
+    writeFileSync(preload, "require('node:fs').unlinkSync = () => { const error = new Error('planted EIO unlink failure'); error.code = 'EIO'; throw error; };\n");
+    const probe = spawnSync(process.execPath, [DEV_IDENTITY_ENTRY, "clear-absent"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: { ...process.env, NODE_OPTIONS: `--require=${preload}` },
+    });
+    expect(probe.status).not.toBe(0);
+  } finally {
     rmSync(repoRoot, { recursive: true, force: true });
   }
 });

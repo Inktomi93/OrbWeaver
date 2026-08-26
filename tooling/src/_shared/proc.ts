@@ -8,16 +8,23 @@ import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { closeSync, existsSync, openSync } from "node:fs";
 import process from "node:process";
 
+function errnoIs(error: unknown, code: string): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === code;
+}
+
 /** Signal a child's whole process GROUP. Both child doors share it: signalling only the direct child
  *  orphans the real tree (pnpm→node→server, setsid→vllm→EngineCore). */
 function killPidGroup(pid: number | undefined, signal: NodeJS.Signals): void {
   if (typeof pid !== "number") {
     return;
   }
+  // @orb-gate-ignore caught-failure-ownership(empty:error): ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed.
   try {
     process.kill(-pid, signal);
-  } catch {
-    /* group already gone */
+  } catch (error) {
+    if (!errnoIs(error, "ESRCH")) {
+      throw error;
+    }
   }
 }
 
@@ -203,10 +210,16 @@ export function spawnFullPriorityChild(cmd: string, args: readonly string[], opt
     hasExited: (): boolean => child.exitCode !== null || child.signalCode !== null,
     unref: (): void => child.unref(),
     kill: (signal): void => {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        return;
+      }
+      // @orb-gate-ignore caught-failure-ownership(empty:error): ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative.
       try {
         child.kill(signal);
-      } catch {
-        /* already gone */
+      } catch (error) {
+        if (!errnoIs(error, "ESRCH") && child.exitCode === null && child.signalCode === null) {
+          throw error;
+        }
       }
     },
     killGroup: (signal): void => killPidGroup(child.pid, signal),

@@ -20,6 +20,10 @@ const PROBE_TIMEOUT_MS = 2000;
 export const POLL_INTERVAL_MS = 500;
 export const MS_PER_SECOND = 1000;
 
+function errnoIs(error: unknown, code: string): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === code;
+}
+
 // biome-ignore lint/style/noProcessEnv: a launcher's whole job is reading the ambient env it will pass on.
 export const AMBIENT = process.env;
 
@@ -44,10 +48,14 @@ export function result(line: string): void {
 // ── env + port resolution (must MATCH foundation/env, which loads .env with override:true) ───────────
 
 export function readEnvFile(): Readonly<Record<string, string | undefined>> {
+  // @orb-gate-ignore caught-failure-ownership(default:error): ENOENT alone means no env file; unreadable or malformed configuration now throws. Ends if the env file ceases to be optional.
   try {
     return parseEnv(readFileSync(join(REPO_ROOT, ".env"), "utf8"));
-  } catch {
-    return {};
+  } catch (error) {
+    if (errnoIs(error, "ENOENT")) {
+      return {};
+    }
+    throw error;
   }
 }
 
@@ -62,6 +70,7 @@ export function resolvePort(fileEnv: Readonly<Record<string, string | undefined>
 // ── probes ───────────────────────────────────────────────────────────────────────────────────────────
 
 async function probeHealthz(port: number): Promise<{ healthy: boolean; harness: boolean | null }> {
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): health fetch failure is the explicit unhealthy observation consumed by identity classification. Ends if unhealthy can authorize ownership.
   try {
     const res = await fetch(`http://127.0.0.1:${port}/healthz`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
     if (!res.ok) {
@@ -77,16 +86,21 @@ async function probeHealthz(port: number): Promise<{ healthy: boolean; harness: 
 /** Read the operator debug token WITHOUT minting one — the minting path mints on miss, which a probe must
  *  never do. Returns null when no token is on disk (debug not armed). */
 function readDebugToken(): string | null {
+  // @orb-gate-ignore caught-failure-ownership(default:error): ENOENT alone means debug is not armed; unreadable token errors now throw. Ends if token absence stops being valid posture.
   try {
     const token = readFileSync(TOKEN_PATH(), "utf8").trim();
     return token.length > 0 ? token : null;
-  } catch {
-    return null;
+  } catch (error) {
+    if (errnoIs(error, "ENOENT")) {
+      return null;
+    }
+    throw error;
   }
 }
 
 /** Credential-free posture classification — never presents the token (see probeDebug #1). */
 async function probeDebugPosture(port: number): Promise<DebugPosture> {
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): credential-free debug probe failure returns unknown posture, which prevents token-bearing identity claims. Ends if unknown can authorize control.
   try {
     const res = await fetch(`http://127.0.0.1:${port}/api/_debug/info`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
     return classifyDebugPosture(res.status);
@@ -101,19 +115,15 @@ async function probeDebugPid(port: number): Promise<number | null> {
   if (token === null) {
     return null;
   }
-  try {
-    const res = await fetch(`http://127.0.0.1:${port}/api/_debug/info`, {
-      headers: { "x-debug-token": token },
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-    });
-    if (!res.ok) {
-      return null;
-    }
-    const body = (await res.json()) as { pid?: unknown };
-    return typeof body.pid === "number" ? body.pid : null;
-  } catch {
+  const res = await fetch(`http://127.0.0.1:${port}/api/_debug/info`, {
+    headers: { "x-debug-token": token },
+    signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+  });
+  if (!res.ok) {
     return null;
   }
+  const body = (await res.json()) as { pid?: unknown };
+  return typeof body.pid === "number" ? body.pid : null;
 }
 
 /** TWO questions, TWO requests, because they are different questions:
@@ -140,19 +150,30 @@ function listenerPid(port: number): number | null {
 }
 
 export function procStartTicks(pid: number): string | null {
+  // @orb-gate-ignore caught-failure-ownership(default:error): ENOENT proc stat means the pid vanished; other read errors now throw. Ends if proc identity gains another absence code.
   try {
     return parseProcStartTicks(readFileSync(`/proc/${pid}/stat`, "utf8"));
-  } catch {
-    return null;
+  } catch (error) {
+    if (errnoIs(error, "ENOENT")) {
+      return null;
+    }
+    throw error;
   }
 }
 
 export function processAlive(pid: number): boolean {
+  // @orb-gate-ignore caught-failure-ownership(default:error): ESRCH means absent and EPERM means live; every other kill-zero error throws. Ends if platform liveness semantics change.
   try {
     process.kill(pid, 0);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (errnoIs(error, "ESRCH")) {
+      return false;
+    }
+    if (errnoIs(error, "EPERM")) {
+      return true;
+    }
+    throw error;
   }
 }
 
@@ -171,10 +192,14 @@ export async function observe(port: number): Promise<ObservedInstance & { readon
 }
 
 export function readRecord(): ProdRecord | null {
+  // @orb-gate-ignore caught-failure-ownership(default:error): ENOENT alone means no pidfile; unreadable records now throw and malformed content remains an explicit null refusal. Ends if no-record stops being valid.
   try {
     return parseProdRecord(readFileSync(PIDFILE(), "utf8"));
-  } catch {
-    return null;
+  } catch (error) {
+    if (errnoIs(error, "ENOENT")) {
+      return null;
+    }
+    throw error;
   }
 }
 

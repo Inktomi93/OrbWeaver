@@ -22,6 +22,10 @@ const SECONDS_PER_MINUTE = 60;
 const MS_PER_SECOND = 1000;
 export const DEFAULT_LOG_LINES = 40;
 
+function hasErrorCode(error: unknown, code: string): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === code;
+}
+
 // The trees whose source can make the built bundle stale. The SERVER is deliberately absent: node runs its
 // .ts directly, so no server edit ever needs a client rebuild.
 const CLIENT_SOURCE_DIRS = [
@@ -36,10 +40,14 @@ const CLIENT_SOURCE_DIRS = [
 const CLIENT_SOURCE_FILES = ["packages/client/index.html", "packages/client/vite.config.ts"];
 
 function safeMtimeMs(path: string): number | null {
+  // @orb-gate-ignore caught-failure-ownership(default:error): ENOENT means the measured path is absent; every unreadable/unmeasurable stat failure propagates so null cannot fabricate a fresh build. Ends if another absence code is supported.
   try {
     return statSync(path).mtimeMs;
-  } catch {
-    return null;
+  } catch (error) {
+    if (hasErrorCode(error, "ENOENT")) {
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -69,13 +77,16 @@ export function buildClient(): boolean {
  *  token lives, never what it is (a credential echoed into a terminal is a credential leaked). */
 export function debugToken(): string {
   const path = TOKEN_PATH();
+  // @orb-gate-ignore caught-failure-ownership(empty:error): ENOENT alone permits minting a first debug token; every existing-token read failure is rethrown. Ends if token rotation becomes explicit.
   try {
     const existing = readFileSync(path, "utf8").trim();
     if (existing.length > 0) {
       return existing;
     }
-  } catch {
-    // no token yet — mint below
+  } catch (error) {
+    if (!hasErrorCode(error, "ENOENT")) {
+      throw error;
+    }
   }
   const minted = randomBytes(TOKEN_BYTES).toString("hex");
   mkdirSync(runDir(), { recursive: true });
@@ -99,10 +110,13 @@ export function uptimeText(startedAt: string): string {
 }
 
 export function removePidfile(): void {
+  // @orb-gate-ignore caught-failure-ownership(empty:error): ENOENT alone is idempotent pidfile cleanup; every other unlink failure is rethrown. Ends if cleanup gains a separate operator result.
   try {
     unlinkSync(PIDFILE());
-  } catch {
-    // already gone
+  } catch (error) {
+    if (!hasErrorCode(error, "ENOENT")) {
+      throw error;
+    }
   }
 }
 
@@ -111,6 +125,7 @@ export function safeSize(path: string): number {
 }
 
 export function readFrom(path: string, offset: number): string {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable optional log tail returns empty and status still reports the log path. Ends if log content becomes a control verdict.
   try {
     return readFileSync(path, "utf8").slice(offset);
   } catch {
@@ -119,6 +134,7 @@ export function readFrom(path: string, offset: number): string {
 }
 
 export function tailLog(lines: number): string {
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): an unreadable optional log renders the explicit no-log sentinel to the operator. Ends if missing logs become a clean shutdown claim.
   try {
     return `${readFileSync(LOG_PATH(), "utf8").split("\n").slice(-lines).join("\n")}\n`;
   } catch {
