@@ -14,8 +14,17 @@ export function readJoinToken(): string | null {
 
 /** Scrub the token from the address bar (history included) — call as soon as the token is captured. */
 export function clearJoinParam(): void {
-  const params = new URLSearchParams(globalThis.location.search);
-  params.delete("join");
-  const search = params.size === 0 ? "" : `?${params.toString()}`;
+  const rawSearch = globalThis.location.search;
+  const fields = rawSearch.slice(1).split("&");
+  const remainingFields = fields.filter((field) => {
+    const equalsIndex = field.indexOf("=");
+    const rawKey = equalsIndex === -1 ? field : field.slice(0, equalsIndex);
+    try {
+      return decodeURIComponent(rawKey.replaceAll("+", " ")) !== "join";
+    } catch {
+      return rawKey !== "join";
+    }
+  });
+  const search = rawSearch === "" || remainingFields.length === 0 ? "" : `?${remainingFields.join("&")}`;
   globalThis.history.replaceState(null, "", `${globalThis.location.pathname}${search}${globalThis.location.hash}`);
 }
