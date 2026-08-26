@@ -20,8 +20,16 @@ export function guardedChatId(db: Db, chatId: ChatId, metadata: ChatMetadata | n
   if (assetId === undefined) {
     return chatId;
   }
-  const available = db.select({ one: sql`1` }).from(assets).where(eq(assets.id, assetId));
-  return sql<ChatId>`(SELECT ${chatId} WHERE ${exists(available)})`;
+  return sql<ChatId>`(SELECT ${chatId} WHERE ${carriedBackgroundAvailable(db, metadata)})`;
+}
+
+/** Existing room metadata may carry a background across owners, but never across deletion of its asset. */
+export function carriedBackgroundAvailable(db: Db, metadata: ChatMetadata | null): SQL {
+  const assetId = backgroundAssetId(metadata);
+  if (assetId === undefined) {
+    return sql`1`;
+  }
+  return exists(db.select({ one: sql`1` }).from(assets).where(eq(assets.id, assetId)));
 }
 
 /** Direct room customization additionally preserves the caller-owned asset authority gate. */
