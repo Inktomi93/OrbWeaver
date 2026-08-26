@@ -24,7 +24,7 @@ import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { createEdit } from "../../../../../packages/server/src/domain/chat/verbs/edit.ts";
-import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -603,6 +603,7 @@ function recordingStatsCtx(database: Db, sink: StatsDelta[]): ReturnType<typeof 
       sink.push(delta as StatsDelta);
       applyStatsDelta(batch as BatchStmt[], deltaDb, delta);
     },
+    bumpStatsCanonVersion: (batch, deltaDb, ownerId) => bumpStatsCanonVersion(batch as BatchStmt[], deltaDb, ownerId),
   });
 }
 
@@ -861,7 +862,7 @@ describe("duplicateMessage / reattributeMessages", () => {
     const { host, chatId, charA } = await seedRoom();
     const charB = await seedCharacter(db, host, "borg");
     const a = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
+    const edit = createEdit(recordingStatsCtx(db, []), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributeMessages({
       principal: principal(host),
@@ -872,6 +873,7 @@ describe("duplicateMessage / reattributeMessages", () => {
 
     const [row] = await db.select().from(messages).where(eq(messages.id, a.messageId));
     expect(row?.characterId).toBe(charB);
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBe(1);
     expect(emitted.at(-1)?.type).toBe("messageEdited");
   });
 });

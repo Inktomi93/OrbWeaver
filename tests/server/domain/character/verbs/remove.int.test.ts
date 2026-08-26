@@ -2,9 +2,11 @@
 // (FK is SET NULL, so the asset isn't FK-deleted), no character.updated emit fires (delete cascades the
 // embedding), and not-owned throws.
 
+import { statsCanonVersions } from "@orb/db";
 import type { AssetId, CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CharacterNotFoundError, createCharacterService } from "@orb/server/domain/character";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -28,6 +30,7 @@ describe("remove", () => {
     await expect(svc.get({ principal: principal(owner), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
     expect(h.reaps).toEqual([[avatar]]);
     expect(h.events).toEqual([]);
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, owner)))[0]?.version).toBe(2);
   });
 
   test("folds the freed expression-sprite assetIds into the avatar reap (expressions-design/01 §8)", async () => {

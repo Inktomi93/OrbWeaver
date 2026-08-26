@@ -3,17 +3,17 @@
 // a known canon graph, and that a re-run is idempotent (the atomic per-owner delete+replace, esoteric #11).
 
 import type { Db } from "@orb/db";
-import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import { characterStats, chatParticipants, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatParticipantId, MessageId, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { utcDay } from "@orb/kit/stats-tally";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { insertCanonMessageStatements } from "../../../../../packages/server/src/domain/chat/persistence/canon-write.ts";
+import { insertCanonMessageStatements, reattributeMessagesStatement } from "../../../../../packages/server/src/domain/chat/persistence/canon-write.ts";
 import { assistantTurnDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
-import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -24,6 +24,7 @@ let db: Db;
 let ownerId: UserId;
 let characterId: CharacterId;
 let chatId: ChatId;
+let assistantMessageId: MessageId;
 
 function holdOwnerScan(sourceDb: Db): { heldDb: Db; entered: Promise<void>; release: () => void; snapshotCalls: () => number } {
   const entered = Promise.withResolvers<void>();
@@ -70,7 +71,7 @@ beforeEach(async () => {
     variants: [{ content: "hello world" }],
   });
   // An assistant turn (3 words) — selected variant + one swipe (2 words), both model gpt/openrouter.
-  await seedMessage(db, {
+  assistantMessageId = await seedMessage(db, {
     chatId,
     seq: 2,
     role: "assistant",
@@ -238,6 +239,34 @@ describe("reconcileStats", () => {
     const owner = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
     expect(owner?.assistantTurns).toBe(2);
     expect(owner?.assistantWords).toBe(6);
+    expect(held.snapshotCalls()).toBe(4);
+  });
+
+  test("a version-only attribution write held inside the scan restarts the rebuild", async () => {
+    const nextCharacterId = await seedCharacter(db, ownerId, { id: "character_next", name: "Bryn" });
+    await db.insert(chatParticipants).values({
+      id: castId<ChatParticipantId>("chat_participant_next"),
+      chatId,
+      kind: "character",
+      characterId: nextCharacterId,
+      role: "member",
+      joinSeq: 0,
+    });
+    const held = holdOwnerScan(db);
+
+    const rebuilding = reconcileStats(held.heldDb, { ownerId, now: () => T0 + 3000 });
+    await held.entered;
+    const statements: BatchStmt[] = [reattributeMessagesStatement(db, chatId, [assistantMessageId], nextCharacterId)];
+    bumpStatsCanonVersion(statements, db, ownerId);
+    await db.batch(batchMany(statements));
+    held.release();
+    await rebuilding;
+
+    const previous = (await db.select().from(characterStats).where(eq(characterStats.characterId, characterId)))[0];
+    const next = (await db.select().from(characterStats).where(eq(characterStats.characterId, nextCharacterId)))[0];
+    expect(previous).toBeUndefined();
+    expect(next?.assistantTurns).toBe(1);
+    expect(next?.swipes).toBe(1);
     expect(held.snapshotCalls()).toBe(4);
   });
 

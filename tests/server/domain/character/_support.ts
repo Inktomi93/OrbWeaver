@@ -13,10 +13,12 @@ import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, characterStats, characterSummaries, characters } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, CharacterStatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterContext } from "../../../../packages/server/src/domain/character/context.ts";
 import type { AttachCardTagOp, DetachCardTagOp } from "../../../../packages/server/src/domain/character/contract/service.ts";
+import { bumpStatsCanonVersion } from "../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { createCopyCharacterBooks } from "../../../../packages/server/src/domain/world-info/index.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
@@ -94,6 +96,7 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
 
   const ctx: CharacterContext = {
     db,
+    bumpStatsCanonVersion: (batch, opDb, ownerId) => bumpStatsCanonVersion(batch as BatchStmt[], opDb, ownerId),
     now: (): number => clock.now(),
     newCharacterId: (): CharacterId => castId<CharacterId>(ids.next("character")),
     newSnapshotId: (): CharacterSnapshotId => castId<CharacterSnapshotId>(ids.next("character_snapshot")),

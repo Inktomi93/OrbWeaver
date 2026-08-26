@@ -91,43 +91,47 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
       plan.map(async ({ source, handle, newId }): Promise<HandoffCardCopy> => {
         const card = cardOf(source);
         const avatarAssetId = source.avatarAssetId === null ? null : await ctx.copyAvatar({ fromOwnerId, toOwnerId, assetId: source.avatarAssetId });
-        await insertCharacter(db, {
-          ...card,
-          avatarAssetId,
-          id: newId,
-          handle,
-          ownerId: toOwnerId,
-          contentHash: cardContentHash(card),
-          tokenSize: cardTokenSize(card),
-          // The render/theme policies are properties of the CARD, not of its owner — a card the old host
-          // marked `forbidExternalMedia` must not silently relax because it changed hands (`duplicate`
-          // carries them for the same reason).
-          forbidExternalMedia: source.forbidExternalMedia,
-          trustHtml: source.trustHtml,
-          // …but `interactiveHtml` is DROPPED, and this reverses the leg-1 comment that used to sit here.
-          // RULING, #111 leg-3 security pass (2026-08-16), which that comment explicitly deferred to: the
-          // top rung is NOT the weaker consent. `trustHtml` widens what markup renders and the renderer
-          // still SANITIZES it (no script/iframe/style/`on*` — `@orb/ui/markdown` policy.ts); `interactive`
-          // is the ladder's only rung that EXECUTES model-authored code, and it carries a WebRTC beacon no
-          // CSP directive can close (`@orb/kit/card-frame` residual R1). A consent that big does not cross
-          // an OWNER BOUNDARY silently: the nominee gets a trusted-but-static copy and re-opts-in on a card
-          // they now own and can read. Same precedent as the refinery signals below — some things simply do
-          // not travel with a handoff. Nothing in the room breaks: those seats keep rendering, one rung
-          // lower, until the new host decides. NOT the same call as `duplicate`, which is same-owner.
-          interactiveHtml: null,
-          themeOverride: source.themeOverride,
-          backgroundOverride: source.backgroundOverride,
-          // The provenance stamp IS the idempotency key (`duplicate` deliberately clears provenance; a
-          // handoff copy deliberately carries it). `importHash` stays null — there were no import bytes.
-          importedFrom: handoffProvenance(chatId, source.id),
-          // RULING (security pass §3.D, refinery R1): the refinery signals do NOT cross the owner
-          // boundary — they are the OLD host's private quality judgement (the analysis may echo their
-          // session `guidance`), derived data the new owner regenerates in one run. Every other
-          // cross-boundary path already clears them (serde nulls `refinery` on the card wire; only
-          // same-owner `duplicate` carries them), so the spread above must not be the one exception.
-          refinery: null,
-          createdAt: at,
-        });
+        await insertCharacter(
+          db,
+          {
+            ...card,
+            avatarAssetId,
+            id: newId,
+            handle,
+            ownerId: toOwnerId,
+            contentHash: cardContentHash(card),
+            tokenSize: cardTokenSize(card),
+            // The render/theme policies are properties of the CARD, not of its owner — a card the old host
+            // marked `forbidExternalMedia` must not silently relax because it changed hands (`duplicate`
+            // carries them for the same reason).
+            forbidExternalMedia: source.forbidExternalMedia,
+            trustHtml: source.trustHtml,
+            // …but `interactiveHtml` is DROPPED, and this reverses the leg-1 comment that used to sit here.
+            // RULING, #111 leg-3 security pass (2026-08-16), which that comment explicitly deferred to: the
+            // top rung is NOT the weaker consent. `trustHtml` widens what markup renders and the renderer
+            // still SANITIZES it (no script/iframe/style/`on*` — `@orb/ui/markdown` policy.ts); `interactive`
+            // is the ladder's only rung that EXECUTES model-authored code, and it carries a WebRTC beacon no
+            // CSP directive can close (`@orb/kit/card-frame` residual R1). A consent that big does not cross
+            // an OWNER BOUNDARY silently: the nominee gets a trusted-but-static copy and re-opts-in on a card
+            // they now own and can read. Same precedent as the refinery signals below — some things simply do
+            // not travel with a handoff. Nothing in the room breaks: those seats keep rendering, one rung
+            // lower, until the new host decides. NOT the same call as `duplicate`, which is same-owner.
+            interactiveHtml: null,
+            themeOverride: source.themeOverride,
+            backgroundOverride: source.backgroundOverride,
+            // The provenance stamp IS the idempotency key (`duplicate` deliberately clears provenance; a
+            // handoff copy deliberately carries it). `importHash` stays null — there were no import bytes.
+            importedFrom: handoffProvenance(chatId, source.id),
+            // RULING (security pass §3.D, refinery R1): the refinery signals do NOT cross the owner
+            // boundary — they are the OLD host's private quality judgement (the analysis may echo their
+            // session `guidance`), derived data the new owner regenerates in one run. Every other
+            // cross-boundary path already clears them (serde nulls `refinery` on the card wire; only
+            // same-owner `duplicate` carries them), so the spread above must not be the one exception.
+            refinery: null,
+            createdAt: at,
+          },
+          ctx.bumpStatsCanonVersion,
+        );
         return { sourceCharacterId: source.id, characterId: newId, minted: true };
       }),
     );

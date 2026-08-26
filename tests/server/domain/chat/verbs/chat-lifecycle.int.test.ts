@@ -7,7 +7,8 @@ import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/c
 import type { Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, UserMacroSpec } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { chatEvents, chatInjections, chats } from "@orb/db";
+import { chatEvents, chatInjections, chats, statsCanonVersions } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
@@ -22,6 +23,7 @@ import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/s
 import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { loadStoredUserMacroValues } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle.ts";
+import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { scenario } from "../../../../support/chat/scenario.ts";
 import { tape } from "../../../../support/chat/tape.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -78,11 +80,15 @@ async function seedRoom(): Promise<{
 describe("chat-row flags (host-only)", () => {
   test("updateTitle writes the row + emits chatUpdated; a member is refused", async () => {
     const { host, member, chatId } = await seedRoom();
-    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
+    const life = createChatLifecycle(
+      makeChatContext(db, { bumpStatsCanonVersion: (batch, opDb, ownerId) => bumpStatsCanonVersion(batch as BatchStmt[], opDb, ownerId) }),
+      lifecycleDeps(),
+    );
 
     await life.updateTitle({ principal: principal(host), chatId, title: "Renamed" });
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.title).toBe("Renamed");
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBe(1);
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
 
     const err = await life.updateTitle({ principal: principal(member), chatId, title: "no" }).catch((e: unknown) => e);
@@ -106,6 +112,7 @@ describe("chat-row flags (host-only)", () => {
     const audits: AuditEntry[] = [];
     const life = createChatLifecycle(
       makeChatContext(db, {
+        bumpStatsCanonVersion: (batch, opDb, ownerId) => bumpStatsCanonVersion(batch as BatchStmt[], opDb, ownerId),
         audit: (entry): Promise<void> => {
           audits.push(entry);
           return Promise.resolve();
@@ -117,6 +124,7 @@ describe("chat-row flags (host-only)", () => {
     await life.delete({ principal: principal(host), chatId });
     const rows = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(rows).toHaveLength(0);
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBe(1);
     // R1-4a: the announcement rides the LIVE-ONLY lane and NOTHING durable is appended — a `chatDeleted`
     // row would be cascaded away by this very delete, so writing one was always pure log pollution.
     expect(fannedLive).toEqual([{ type: "chatDeleted", chatId }]);

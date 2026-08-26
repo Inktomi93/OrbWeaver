@@ -358,7 +358,8 @@ function commitChatBatch(db: Db, stmts: readonly BatchStmt[]): Promise<unknown> 
 }
 
 /** Resolve `parentRef` (a parent filename) → the parent chat's id, across all of this character's chats. */
-async function resolveBranches(db: Db, characterId: CharacterId, pending: readonly PendingParent[]): Promise<number> {
+async function resolveBranches(ctx: ChatImportContext, ownerId: UserId, characterId: CharacterId, pending: readonly PendingParent[]): Promise<number> {
+  const { db } = ctx;
   if (pending.length === 0) {
     return 0;
   }
@@ -383,6 +384,7 @@ async function resolveBranches(db: Db, characterId: CharacterId, pending: readon
     }
   }
   if (linkStmts.length > 0) {
+    ctx.bumpStatsCanonVersion(linkStmts, db, ownerId);
     await db.batch(batchMany(linkStmts));
   }
   return linkStmts.length;
@@ -650,6 +652,7 @@ async function importOneChat(args: {
   // it would heal is the one this very run writes WITH whatever persona the mapper resolved.
   state.existing[ci.importHash] = { chatId, anchorPersonaId: ci.anchorPersonaId };
   const { stmts, identity } = await planOneChat({ ctx, chatId, ci, ownerId, characterId });
+  ctx.bumpStatsCanonVersion(stmts, ctx.db, ownerId);
   const claimed = await commitImportCandidate(ctx.db, stmts, characterId, ci.importHash);
   if (claimed !== null) {
     state.existing[ci.importHash] = claimed;
@@ -703,7 +706,7 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
     if (state.healStmts.length > 0) {
       await commitChatBatch(db, state.healStmts);
     }
-    const branchesLinked = await resolveBranches(db, characterId, state.pendingParents);
+    const branchesLinked = await resolveBranches(ctx, ownerId, characterId, state.pendingParents);
     return {
       identities: state.identities,
       written: state.written,

@@ -5,9 +5,11 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
+import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
@@ -83,6 +85,7 @@ type GenerateGreetingTextOp = (args: { readonly caller: Principal; readonly prom
 /** DI bundle every character verb closes over. */
 export interface CharacterContext {
   readonly db: Db;
+  readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>;
   readonly now: () => number;
   readonly newCharacterId: () => CharacterId;
   readonly newSnapshotId: () => CharacterSnapshotId;
