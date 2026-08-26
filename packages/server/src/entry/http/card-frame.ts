@@ -47,7 +47,14 @@
 import { Buffer } from "node:buffer";
 import { randomBytes } from "node:crypto";
 import type { ParticipantView } from "@orb/contracts/chat";
-import { allowsInteractiveCards, CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameUrl, rendersTrustedHtml } from "@orb/contracts/chat";
+import {
+  allowsInteractiveCards,
+  CARD_FRAME_MINT_BODY_MAX_BYTES,
+  CARD_FRAME_ROUTE,
+  cardFrameMintRequestSchema,
+  cardFrameUrl,
+  rendersTrustedHtml,
+} from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
 import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR } from "@orb/kit/card-frame";
@@ -74,11 +81,6 @@ const TTL_MS = TTL_MINUTES * MS_PER_MINUTE;
  *  magnitude: a count-only cap would let 256 max-size cards pin ~20 MiB, a byte-only cap would let a flood
  *  of tiny cards pin an unbounded map. Oldest-first eviction; a victim of eviction re-mints. */
 const BYTES_PER_MIB = 1_048_576;
-const BYTES_PER_KIB = 1024;
-const CARD_FRAME_BODY_KIB = 96;
-// The schema's largest valid document is ~80 KiB. Leave encoding/headroom without letting an anonymous POST
-// force Hono to buffer an arbitrary request before the schema can reject it.
-const CARD_FRAME_BODY_MAX_BYTES = CARD_FRAME_BODY_KIB * BYTES_PER_KIB;
 const MAX_TOTAL_MIB = 8;
 const MAX_ENTRIES = 256;
 const MAX_TOTAL_BYTES = MAX_TOTAL_MIB * BYTES_PER_MIB;
@@ -247,7 +249,7 @@ function createStore(now: () => number): {
 export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps): void {
   const store = createStore(deps.now);
 
-  app.post(CARD_FRAME_ROUTE, bodyLimit({ maxSize: CARD_FRAME_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
+  app.post(CARD_FRAME_ROUTE, bodyLimit({ maxSize: CARD_FRAME_MINT_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);

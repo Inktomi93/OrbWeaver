@@ -11,7 +11,12 @@ const COMPOSE_ANCHOR = `${COMPOSE_DIR}chat.ts`;
 const GATE_SELF = "tooling/src/verify/gates/untrusted-regex-safe-exec.ts";
 const PROPERTY = "testRegexKey";
 const FACTORY = "createRegexTest";
-let seen = 0;
+let canonicalSeen = 0;
+
+function isCanonicalComposeSource(path: string): boolean {
+  const normalized = path.replaceAll("\\", "/");
+  return normalized.endsWith(COMPOSE_ANCHOR) || normalized.endsWith(`${COMPOSE_DIR}__g_chat.ts`);
+}
 
 function importsFactory(sf: SourceFile): boolean {
   return sf
@@ -33,13 +38,16 @@ export const gate: GateDescriptor = {
   scanRoot: (path) => path.includes(COMPOSE_DIR),
   kinds: [SyntaxKind.PropertyAssignment],
   begin: () => {
-    seen = 0;
+    canonicalSeen = 0;
   },
   visit: (node, sf, ctx) => {
+    if (!isCanonicalComposeSource(sf.getFilePath())) {
+      return;
+    }
     if (!node.isKind(SyntaxKind.PropertyAssignment) || node.getName() !== PROPERTY) {
       return;
     }
-    seen += 1;
+    canonicalSeen += 1;
     const initializer = node.getInitializer();
     const safe =
       initializer?.isKind(SyntaxKind.CallExpression) === true &&
@@ -51,7 +59,7 @@ export const gate: GateDescriptor = {
     }
   },
   finalize: (ctx) => {
-    if (ctx.scope.kind === "project" && fileLoaded(ctx, COMPOSE_ANCHOR) && seen === 0) {
+    if (ctx.scope.kind === "project" && fileLoaded(ctx, COMPOSE_ANCHOR) && canonicalSeen === 0) {
       ctx.report({
         file: GATE_SELF,
         line: 1,
@@ -72,6 +80,14 @@ export const gate: GateDescriptor = {
       at: COMPOSE_ANCHOR,
       expect: { count: 1, messageIncludes: "no execution boundary" },
       why: "fail loud when the canonical property disappears; zero measured seams is not a clean result",
+    },
+    {
+      files: {
+        [COMPOSE_ANCHOR]: "export const unrelated = 1;\n",
+        [`${COMPOSE_DIR}other.ts`]: 'import { createRegexTest } from "#kit/regex";\nexport const other = { testRegexKey: createRegexTest() };\n',
+      },
+      expect: { count: 1, messageIncludes: "no execution boundary" },
+      why: "a safe property in another compose file cannot launder disappearance of the canonical chat execution seam",
     },
   ],
   mustPass: [

@@ -24,8 +24,15 @@ const HANDLER_PROPS = new Map([
   ["Button", "onClick"],
   ["Switch", "onCheckedChange"],
 ]);
-const EPOCH_RE = /(?:epoch|sequence|requestId|requestToken|generation)/iu;
 const MAX_RESOLUTION_DEPTH = 8;
+const GENERATION_COMPARISON_TOKENS = new Set([
+  SyntaxKind.EqualsEqualsEqualsToken,
+  SyntaxKind.ExclamationEqualsEqualsToken,
+  SyntaxKind.LessThanToken,
+  SyntaxKind.LessThanEqualsToken,
+  SyntaxKind.GreaterThanToken,
+  SyntaxKind.GreaterThanEqualsToken,
+]);
 type FunctionNode = ArrowFunction | FunctionDeclaration | FunctionExpression | MethodDeclaration;
 
 function jsxElements(source: SourceFile): readonly JsxOpeningLikeElement[] {
@@ -110,45 +117,92 @@ function handlerName(handler: FunctionNode): string {
   return functionName(handler) ?? `<inline:${handler.getStartLineNumber().toString()}>`;
 }
 
+function hasPendingIdentity(expression: Expression): boolean {
+  if (Node.isIdentifier(expression) && expression.getText() === "isPending") {
+    return true;
+  }
+  if (Node.isPropertyAccessExpression(expression) && expression.getName() === "isPending") {
+    return true;
+  }
+  return expression
+    .getDescendants()
+    .some((node) => (Node.isIdentifier(node) && node.getText() === "isPending") || (Node.isPropertyAccessExpression(node) && node.getName() === "isPending"));
+}
+
+function pendingThroughIdentifier(identifier: MorphNode, source: SourceFile, depth: number, seen: Set<string>): boolean {
+  if (!Node.isIdentifier(identifier)) {
+    return false;
+  }
+  const key = `${source.getFilePath()}:${identifier.getText()}:${identifier.getStart().toString()}`;
+  if (seen.has(key)) {
+    return false;
+  }
+  seen.add(key);
+  return identifier.getDefinitions().some((definition) => {
+    const declaration = definition.getDeclarationNode();
+    if (!Node.isVariableDeclaration(declaration) || declaration.getSourceFile() !== source) {
+      return false;
+    }
+    const initializer = declaration.getInitializer();
+    return initializer !== undefined && pendingThroughLocals(initializer, depth + 1, seen);
+  });
+}
+
 function pendingThroughLocals(expression: Expression, depth: number, seen: Set<string>): boolean {
-  if (expression.getText().includes("isPending")) {
+  if (hasPendingIdentity(expression)) {
     return true;
   }
   if (depth >= MAX_RESOLUTION_DEPTH) {
     return false;
   }
   const identifiers = Node.isIdentifier(expression) ? [expression] : expression.getDescendantsOfKind(SyntaxKind.Identifier);
-  for (const identifier of identifiers) {
-    const key = `${identifier.getSourceFile().getFilePath()}:${identifier.getText()}:${identifier.getStart().toString()}`;
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    for (const definition of identifier.getDefinitions()) {
-      const declaration = definition.getDeclarationNode();
-      if (!Node.isVariableDeclaration(declaration)) {
-        continue;
-      }
-      const initializer = declaration.getInitializer();
-      if (initializer !== undefined && pendingThroughLocals(initializer, depth + 1, seen)) {
-        return true;
-      }
-    }
+  return identifiers.some((identifier) => pendingThroughIdentifier(identifier, expression.getSourceFile(), depth, seen));
+}
+
+function exits(node: MorphNode): boolean {
+  if (Node.isReturnStatement(node) || Node.isThrowStatement(node)) {
+    return true;
+  }
+  if (Node.isBlock(node)) {
+    return node.getStatements().some(exits);
+  }
+  if (Node.isIfStatement(node)) {
+    const alternate = node.getElseStatement();
+    return alternate !== undefined && exits(node.getThenStatement()) && exits(alternate);
   }
   return false;
 }
 
+function generationAdmissionGuard(handler: FunctionNode): boolean {
+  return handler.getDescendantsOfKind(SyntaxKind.IfStatement).some((statement) => {
+    if (ownerFunction(statement) !== handler || !exits(statement.getThenStatement())) {
+      return false;
+    }
+    const condition = statement.getExpression();
+    if (!Node.isBinaryExpression(condition)) {
+      return false;
+    }
+    if (!GENERATION_COMPARISON_TOKENS.has(condition.getOperatorToken().getKind())) {
+      return false;
+    }
+    const left = condition.getLeft();
+    const right = condition.getRight();
+    const identity = (node: MorphNode): boolean => Node.isIdentifier(node) || Node.isPropertyAccessExpression(node);
+    return identity(left) && identity(right) && left.getText() !== right.getText();
+  });
+}
+
 function classification(disabled: Expression | undefined, handler: FunctionNode): PendingGuardClassification {
   if (disabled === undefined) {
-    return EPOCH_RE.test(handler.getText()) ? "epoch" : "missing";
+    return generationAdmissionGuard(handler) ? "epoch" : "missing";
   }
-  if (disabled.getText().includes("isPending")) {
+  if (hasPendingIdentity(disabled)) {
     return "direct-pending";
   }
   if (pendingThroughLocals(disabled, 0, new Set())) {
     return "derived-pending";
   }
-  return EPOCH_RE.test(`${disabled.getText()}\n${handler.getText()}`) ? "epoch" : "other-guard";
+  return generationAdmissionGuard(handler) ? "epoch" : "other-guard";
 }
 
 function receipt(source: SourceFile, root: string, element: JsxOpeningLikeElement): PendingGuardReceipt | undefined {
@@ -201,7 +255,7 @@ export function censusPendingGuards(project: Project, root: string): PendingGuar
   return {
     scannedTsx: sources.length,
     directControls: rows.length,
-    reviewResiduals: totals.missing + totals["other-guard"],
+    reviewResiduals: totals.missing + totals["other-guard"] + totals.epoch,
     rows,
     totals,
   };

@@ -32,6 +32,20 @@ function isMembraneSource(path: string): boolean {
   return normalized.endsWith(MEMBRANE) || normalized.endsWith(`${PLUGIN_HOST_DIR}__g_membrane.ts`);
 }
 
+function alwaysExits(node: Node): boolean {
+  if (node.isKind(SyntaxKind.ReturnStatement) || node.isKind(SyntaxKind.ThrowStatement)) {
+    return true;
+  }
+  if (node.isKind(SyntaxKind.Block)) {
+    return node.getStatements().some(alwaysExits);
+  }
+  if (node.isKind(SyntaxKind.IfStatement)) {
+    const alternate = node.getElseStatement();
+    return alternate !== undefined && alwaysExits(node.getThenStatement()) && alwaysExits(alternate);
+  }
+  return false;
+}
+
 function guardedHelperDump(node: CallExpression): boolean {
   const fn = node.getFirstAncestorByKind(SyntaxKind.FunctionDeclaration);
   if (fn?.getName() !== HELPER) {
@@ -45,8 +59,16 @@ function guardedHelperDump(node: CallExpression): boolean {
   if (dumpHandle === undefined) {
     return false;
   }
-  return fn.getDescendantsOfKind(SyntaxKind.IfStatement).some((statement) => {
-    if (statement.getStart() >= node.getStart()) {
+  const body = fn.getBody();
+  if (body?.isKind(SyntaxKind.Block) !== true) {
+    return false;
+  }
+  const dumpStatement = body.getStatements().find((statement) => statement.getStart() <= node.getStart() && statement.getEnd() >= node.getEnd());
+  if (dumpStatement === undefined) {
+    return false;
+  }
+  return body.getStatements().some((statement) => {
+    if (!statement.isKind(SyntaxKind.IfStatement) || statement.getStart() >= dumpStatement.getStart()) {
       return false;
     }
     const condition = statement.getExpression();
@@ -59,9 +81,7 @@ function guardedHelperDump(node: CallExpression): boolean {
     }
     const guardCallee = guard.getExpression();
     const [guardContext, guardHandle] = guard.getArguments();
-    const exitsOnUnsafe =
-      statement.getThenStatement().isKind(SyntaxKind.ReturnStatement) ||
-      statement.getThenStatement().getDescendantsOfKind(SyntaxKind.ReturnStatement).length > 0;
+    const exitsOnUnsafe = alwaysExits(statement.getThenStatement());
     return (
       exitsOnUnsafe &&
       guardCallee.isKind(SyntaxKind.Identifier) &&
@@ -131,6 +151,13 @@ export const gate: GateDescriptor = {
       expect: { count: 1, token: "dump" },
       why: "the guard and dump must judge the same handle through the same QuickJS context",
     },
+    {
+      files:
+        "function tryDumpGuestValue(ctx: Ctx, handle: Handle, debug: boolean) { if (!handleSafeToDump(ctx, handle)) { if (debug) return { ok: false }; } return { ok: true, value: ctx.dump(handle) }; }\n",
+      at: `${PLUGIN_HOST_DIR}membrane.ts`,
+      expect: { count: 1, token: "dump" },
+      why: "a nested conditional return exits only one unsafe path; every false-guard path must terminate before the exact dump",
+    },
   ],
   mustPass: [
     {
@@ -138,6 +165,12 @@ export const gate: GateDescriptor = {
         "function tryDumpGuestValue(ctx: Ctx, handle: Handle) { if (!handleSafeToDump(ctx, handle)) return { ok: false }; return { ok: true, value: ctx.dump(handle) }; }\n",
       at: `${PLUGIN_HOST_DIR}membrane.ts`,
       why: "the one raw dump sits behind the canonical iterative guard in the same helper",
+    },
+    {
+      files:
+        "function tryDumpGuestValue(ctx: Ctx, handle: Handle, debug: boolean) { if (!handleSafeToDump(ctx, handle)) { if (debug) note(); return { ok: false }; } return { ok: true, value: ctx.dump(handle) }; }\n",
+      at: `${PLUGIN_HOST_DIR}membrane.ts`,
+      why: "nested diagnostics are legal when the unsafe branch still exits unconditionally before materialization",
     },
     {
       files: "export function hostResult(ctx: Ctx, handle: Handle) { return ctx.dump(handle); }\n",
