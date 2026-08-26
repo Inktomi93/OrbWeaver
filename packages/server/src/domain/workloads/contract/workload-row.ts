@@ -8,6 +8,7 @@
 // the DISPATCH path takes the narrower `WorkloadRunnableRow`, so a poison row can never reach a run body.
 
 import type {
+  WorkloadError,
   WorkloadKind,
   WorkloadLane,
   WorkloadMode,
@@ -59,6 +60,17 @@ export type WorkloadRunnableRow = { [K in WorkloadKind]: WorkloadRow<K> }[Worklo
 /** Any row a READ surface may return. A row whose kind isn't in this build narrows to nothing at all (it
  *  cannot even be spelled) and stays filtered; a known kind with unparseable params surfaces as poison. */
 export type WorkloadRowAnyKind = WorkloadRunnableRow | WorkloadPoisonRow;
+
+/** A queued row terminalized while the persistence scan searched for runnable work. The engine emits the
+ * canonical event only after the scan's guarded UPDATE has settled, keeping persistence bus-free. */
+interface WorkloadQueueFailure {
+  readonly workloadId: WorkloadId;
+  readonly kind: WorkloadKind;
+  readonly error: WorkloadError;
+}
+
+/** Called synchronously after a queued-row failure UPDATE settles; the engine supplies the bus publisher. */
+export type WorkloadQueueFailureSink = (failure: WorkloadQueueFailure) => void;
 
 /** What the BOOT reclaim (#529) needs about one orphaned in-flight row, and nothing else. Deliberately NOT
  *  a `WorkloadRowAnyKind`: the reclaim decides disposition from the kind's declared resume policy + the

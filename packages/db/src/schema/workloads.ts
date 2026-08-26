@@ -8,12 +8,12 @@
 // CHECK built from the same tuple (SQL-side) — never a re-spelled union. A `.int` test-mirror pins the
 // column enum === the contracts tuple (workloads.int.test.ts).
 //
-// The load-bearing concurrency guard is a PAIR of PARTIAL UNIQUE INDEXes, split by the run's `mode` column
-// (singular vs bulk), each keyed on (kind, admission_key, …):
-//   • `workloads_mode_active_singular` — unique on (kind, owner_id, admission_key) WHERE status IN (active)
-//     AND mode='singular': at most one active {queued,running,cancelling} SINGULAR row per
-//     (kind, owner, admission_key), so two different users each run their OWN index concurrently, but one
-//     user can't start a 2nd of the SAME (kind, admission_key).
+// The load-bearing concurrency guard is THREE PARTIAL UNIQUE INDEXes, partitioned by run `mode` and the
+// singular row's nullable ownership arm:
+//   • `workloads_mode_active_singular_owned` — unique on (kind, owner_id, admission_key) WHERE active,
+//     mode='singular', and owner_id IS NOT NULL: one owned singular slot per concurrency unit.
+//   • `workloads_mode_active_singular_system` — unique on (kind, admission_key) WHERE active,
+//     mode='singular', and owner_id IS NULL: one system/scheduler singular slot per concurrency unit.
 //   • `workloads_mode_active_bulk` — unique on (kind, admission_key) WHERE status IN (active) AND mode='bulk':
 //     the global single-active lock (at most one bulk pass per (kind, admission_key) deployment-wide) — a
 //     shared owner-triggered rebuild can't run twice at once.
@@ -27,15 +27,14 @@
 // tuple to CHECK against (the type-side guarantee is the contribution's `admissionKey` signature). NOT NULL
 // and never empty — SQLite treats NULLs as DISTINCT in a unique index, so a nullable key would silently
 // dissolve the lock for every kind that declares none.
-// The two WHERE `mode = …` predicates are DISJOINT (every row is exactly one mode), so any row is
-// covered by EXACTLY ONE index. Both `WHERE status` lists DERIVE from `ACTIVE_WORKLOAD_STATUSES` (sql.raw over
+// The three predicates are DISJOINT (every row is exactly one mode and one owner-nullability arm), so any row is
+// covered by EXACTLY ONE index. All `WHERE status` lists DERIVE from `ACTIVE_WORKLOAD_STATUSES` (sql.raw over
 // the tuple — the same no-respell discipline as users.ts's role CHECK); the named tuple is the mirror of the
 // predicate and cannot drift (removing `cancelling` wedges the kind forever after a mid-cancel crash). NOTE: a
-// singular row with a NULL owner (a rare system/scheduler trigger) does NOT self-lock — SQLite treats NULLs as
-// distinct in a unique index; singular runs are user-triggered (non-null owner) in practice, and runners are
-// idempotent.
+// The split singular indexes are required because SQLite treats NULLs as DISTINCT inside a unique index;
+// keeping owner_id inside one index would silently admit duplicate scheduler/system rows.
 //
-// EXECUTION vs ADMISSION: the two indexes above are ADMISSION (who may hold a slot). The `lane` column is
+// EXECUTION vs ADMISSION: the three indexes above are ADMISSION (who may hold a slot). The `lane` column is
 // EXECUTION — which worker poll loop dispatches the row, so a 20-minute `import-st` sweep never head-blocks
 // a user's `databank-ingest`. It is stamped at enqueue from the OWNING domain's `WorkloadContribution.lane`
 // (a column, not a claim-time derive, so the assignment survives a restart) and never participates in a lock.
@@ -149,9 +148,15 @@ export const workloads = sqliteTable(
     // (index{text} + index{image}; two databank documents). Rows of a kind that declares no key all carry
     // `none`, so this stays per-(kind, owner) for them. Partitioned by the `mode` column (disjoint from the
     // bulk index). Terminal rows are NOT covered.
-    uniqueIndex("workloads_mode_active_singular")
+    uniqueIndex("workloads_mode_active_singular_owned")
       .on(table.kind, table.ownerId, table.admissionKey)
-      .where(sql.raw(`status in (${ACTIVE_STATUS_LIST}) and mode = 'singular'`)),
+      .where(sql.raw(`status in (${ACTIVE_STATUS_LIST}) and mode = 'singular' and owner_id is not null`)),
+    // SYSTEM SINGULAR lock: SQLite unique indexes do not collide NULL values, so the null-owner arm omits
+    // owner_id from its key and narrows the predicate to owner_id IS NULL. This is the durable admission
+    // boundary for scheduler/system singular rows under real concurrent connections.
+    uniqueIndex("workloads_mode_active_singular_system")
+      .on(table.kind, table.admissionKey)
+      .where(sql.raw(`status in (${ACTIVE_STATUS_LIST}) and mode = 'singular' and owner_id is null`)),
     // BULK lock: the global single-active lock (at most one bulk pass per (kind, admission_key)
     // deployment-wide). An owner-triggered shared rebuild/create can't run twice at once; an `index` bulk over
     // text + one over image still run concurrently (distinct key). Keyless kinds carry `none` → per-(kind).

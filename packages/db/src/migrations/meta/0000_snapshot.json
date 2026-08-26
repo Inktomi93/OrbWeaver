@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4f98a248-33d3-4e7e-b274-4f2748f5576a",
+  "id": "8bb06234-94cd-4ecb-8cbd-5c9f0557600e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -9040,11 +9040,17 @@
         }
       },
       "indexes": {
-        "workloads_mode_active_singular": {
-          "name": "workloads_mode_active_singular",
+        "workloads_mode_active_singular_owned": {
+          "name": "workloads_mode_active_singular_owned",
           "columns": ["kind", "owner_id", "admission_key"],
           "isUnique": true,
-          "where": "status in ('queued', 'running', 'cancelling') and mode = 'singular'"
+          "where": "status in ('queued', 'running', 'cancelling') and mode = 'singular' and owner_id is not null"
+        },
+        "workloads_mode_active_singular_system": {
+          "name": "workloads_mode_active_singular_system",
+          "columns": ["kind", "admission_key"],
+          "isUnique": true,
+          "where": "status in ('queued', 'running', 'cancelling') and mode = 'singular' and owner_id is null"
         },
         "workloads_mode_active_bulk": {
           "name": "workloads_mode_active_bulk",
