@@ -150,6 +150,7 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
           <Switch
             aria-label={`Enable ${rule.name}`}
             checked={rule.enabled}
+            disabled={setEnabled.isPending}
             onCheckedChange={(next): void => setEnabled.mutate({ ruleId: rule.id, enabled: next, chatId })}
           />
           {/* The ONE in-cluster action, and the only free one: a dry run executes nothing. `secondary` (an

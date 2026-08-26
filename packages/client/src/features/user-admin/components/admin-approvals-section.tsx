@@ -14,12 +14,16 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { settingsAnchorId } from "#state";
 import { useSetEnabled } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_APPROVALS_SUBCATEGORY } from "../lib/admin-approvals-nav.ts";
+
+type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
 /** The Approvals section body — mounted at the admin pane's sections anchor. */
 export function AdminApprovalsSection(): ReactElement {
@@ -35,9 +39,7 @@ export function AdminApprovalsSection(): ReactElement {
 
 function AdminApprovalsBody(): ReactElement {
   const trpc = useTRPC();
-  const invalidation = useInvalidation();
   const { data: users } = useSuspenseQuery(trpc.admin.listUsers.queryOptions());
-  const setEnabled = useSetEnabled({ trpc, invalidation });
 
   // The pending set: disabled, non-owner accounts. The owner is never disabled (server-enforced), so it can
   // never appear here. A human OR an agent row can be disabled; approving re-enables whichever it is.
@@ -57,28 +59,37 @@ function AdminApprovalsBody(): ReactElement {
         ) : (
           <Stack gap="field">
             {pending.map((user) => (
-              <ListRow
-                key={user.id}
-                title={user.handle}
-                subtitle={`Requested ${timeLib.formatRelative(user.createdAt)}`}
-                actions={
-                  <Row align="center" gap="row">
-                    <Badge intent="warning">Pending</Badge>
-                    <Button
-                      size="sm"
-                      intent="primary"
-                      data-testid={testId("adminApproveButton")}
-                      onClick={(): void => setEnabled.mutate({ userId: user.id, enabled: true })}
-                    >
-                      Approve
-                    </Button>
-                  </Row>
-                }
-              />
+              <ApprovalRow key={user.id} user={user} />
             ))}
           </Stack>
         )}
       </Stack>
     </Section>
+  );
+}
+
+function ApprovalRow({ user }: { readonly user: AdminUser }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const setEnabled = useSetEnabled({ trpc, invalidation });
+  return (
+    <ListRow
+      title={user.handle}
+      subtitle={`Requested ${timeLib.formatRelative(user.createdAt)}`}
+      actions={
+        <Row align="center" gap="row">
+          <Badge intent="warning">Pending</Badge>
+          <Button
+            size="sm"
+            intent="primary"
+            data-testid={testId("adminApproveButton")}
+            disabled={setEnabled.isPending}
+            onClick={(): void => setEnabled.mutate({ userId: user.id, enabled: true })}
+          >
+            Approve
+          </Button>
+        </Row>
+      }
+    />
   );
 }

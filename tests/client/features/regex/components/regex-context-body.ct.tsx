@@ -13,7 +13,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { RegexContextStory } from "../_ct-stories.tsx";
 
 const SCRIPT_ID = "regex_script_000000000000000a";
@@ -89,6 +89,29 @@ test("an unattached script shows all three rosters at zero, never a blank pane",
   await expect(page.getByRole("heading", { name: "Attached by rooms · 0" })).toBeVisible();
   // The global switch is still the pane's own scope — the rosters sit BESIDE it, they do not replace it.
   await expect(page.getByRole("switch", { name: "strip ooc runs in every chat" })).toBeVisible();
+});
+
+test("the global-scope write owns the switch until settle, and rejection releases retry", async ({ mount, page }) => {
+  const held = trpcHold();
+  const trpc = await routeTrpc(page, {
+    "regex.listScripts": () => [SCRIPT],
+    "regex.listGlobal": () => [],
+    "regex.listScriptUsage": () => EMPTY_USAGE,
+    "regex.attachGlobal": held,
+  });
+  await mount(<RegexContextStory />);
+
+  const scope = page.getByRole("switch", { name: "strip ooc runs in every chat" });
+  await scope.click();
+  await held.requested;
+
+  await expect(scope).toBeDisabled();
+  await expect.poll(() => trpc.count("regex.attachGlobal")).toBe(1);
+
+  held.release(trpcError());
+  await expect(scope).toBeEnabled();
+  await scope.click();
+  await expect.poll(() => trpc.count("regex.attachGlobal")).toBe(2);
 });
 
 // ── THE ROOM ROSTER (owner pick 2026-08-09 — REGROSTER's parked naming question) ──────────────────────

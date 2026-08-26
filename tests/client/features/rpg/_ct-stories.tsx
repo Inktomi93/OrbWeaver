@@ -10,7 +10,7 @@
 // `makeRpgContextTabs` is injected the cross-domain read channel `{ trpc, queryClient }` at the door — the
 // story mirrors that door assembly with the CT's own singletons.
 
-import { useGatedQuery, useInvalidation, useTRPC } from "@orb/client/data";
+import { QueryBoundary, useGatedQuery, useInvalidation, useTRPC } from "@orb/client/data";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
 import type { ChatContextState, ContextRegionDef, ContextTabDef, NotifyInput } from "@orb/client/lib";
 import { bindNotify, createContributorRegistry, toNotice } from "@orb/client/lib";
@@ -26,6 +26,7 @@ import { useEffect, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { ConditionChips } from "../../../../packages/client/src/features/rpg/components/rpg-actor-trackers.tsx";
 import { RpgFreshnessIndicator } from "../../../../packages/client/src/features/rpg/components/rpg-freshness-indicator.tsx";
+import { RpgGameDoor } from "../../../../packages/client/src/features/rpg/components/rpg-game-door.tsx";
 import { PackBody } from "../../../../packages/client/src/features/rpg/components/rpg-pack-rows.tsx";
 import { RpgCardLightbox } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards.tsx";
 import { useUpdateConfig } from "../../../../packages/client/src/features/rpg/hooks/use-rpg-mutations.ts";
@@ -141,6 +142,19 @@ export function RpgTakeoverStory({ width = 320, height = 640 }: { readonly width
   return (
     <CtDataProviders>
       <RpgTakeoverHarness width={width} height={height} />
+    </CtDataProviders>
+  );
+}
+
+/** The pre-game / overlay-off door over its real `chat.getChat` read and direct mutations. */
+export function RpgGameDoorStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 384 }}>
+        <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
+          <RpgGameDoor chatId={CHAT_ID} />
+        </QueryBoundary>
+      </div>
     </CtDataProviders>
   );
 }
