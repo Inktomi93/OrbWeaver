@@ -1,9 +1,9 @@
 // verb: setTagOrder — persists manual order (position → sortOrder); empty input is a no-op.
 
-import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createTagService } from "@orb/server/domain/tag";
+import { createTagService, TagNotFoundError } from "@orb/server/domain/tag";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -54,7 +54,7 @@ describe("setTagOrder", () => {
     const foreign = await seedTag(db, stranger, { id: "tag_foreign", name: "foreign" });
 
     for (const unowned of [foreign, castId<TagId>("tag_missing")]) {
-      await expect(svc.setTagOrder({ principal: principal(owner), orderedIds: [a, unowned] })).rejects.toBeInstanceOf(DomainNotFoundError);
+      await expect(svc.setTagOrder({ principal: principal(owner), orderedIds: [a, unowned] })).rejects.toBeInstanceOf(TagNotFoundError);
     }
     expect((await svc.listTags({ principal: principal(owner) })).map((tag) => tag.id)).toEqual([a, b]);
   });
