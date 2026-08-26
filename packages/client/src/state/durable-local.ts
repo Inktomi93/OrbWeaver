@@ -64,12 +64,18 @@ interface RegisteredStore {
   readonly prefix: string;
   readonly name: string;
   readonly api: DurableLocalPersistApi;
+  /** Drop the previous user's in-memory projection before a new namespace is allowed to hydrate. */
+  readonly reset: () => void;
 }
 
 const registry: RegisteredStore[] = [];
 
 /** The identity every durable-local key is currently scoped to, or null for the pre-adoption legacy world. */
 let activeUserId: UserId | null = readBootHint();
+/** The session-verified identity whose hydration currently owns the in-memory stores. */
+let readyUserId: UserId | null = null;
+let desiredUserId: UserId | null = null;
+let bindTail: Promise<void> = Promise.resolve();
 
 /** The recorded boot hint, or null (no browser storage, never bound, or a non-string value). */
 function readBootHint(): UserId | null {
@@ -123,23 +129,18 @@ function adoptLegacyBlob(entry: RegisteredStore, targetKey: string, storage: Dur
   storage.removeItem(legacyKey(entry.prefix, entry.name));
 }
 
-/**
- * Bind every durable-local store to `userId`. Idempotent, and the common path is free:
- *   • ALREADY BOUND to this user — nothing happens (no rehydrate, no flash);
- *   • LEGACY (no identity bound yet) — each store's blob is ADOPTED onto the user key and the legacy key is
- *     deleted. The in-memory state already came from that blob, so no rehydrate is needed;
- *   • A DIFFERENT user — re-key and `rehydrate()`, which drops the previous identity's view state and loads
- *     this one's (or the store's defaults). This is the identity boundary: nothing crosses it.
- * Call once, from the composition route, as soon as the viewer identity resolves.
- */
-export function bindDurableLocalToUser(userId: UserId): void {
-  if (activeUserId === userId) {
-    return;
-  }
-  const adopting = activeUserId === null;
-  activeUserId = userId;
-  writeBootHint(userId);
+function resetRegisteredStores(): void {
   for (const entry of registry) {
+    entry.reset();
+  }
+}
+
+async function rebindRegisteredStores(adopting: boolean): Promise<void> {
+  const rehydrates: Promise<void>[] = [];
+  for (const entry of registry) {
+    if (!adopting) {
+      entry.reset();
+    }
     const persist = entry.api.persist;
     if (persist === undefined) {
       continue; // storage-less store — it persists nothing, so there is no key to move (see the type's note)
@@ -150,9 +151,60 @@ export function bindDurableLocalToUser(userId: UserId): void {
     }
     persist.setOptions({ name: key });
     if (!adopting) {
-      void persist.rehydrate();
+      rehydrates.push(Promise.resolve(persist.rehydrate()));
     }
   }
+  await Promise.all(rehydrates);
+}
+
+async function bindQueuedUser(userId: UserId): Promise<void> {
+  if (desiredUserId !== userId) {
+    return; // superseded before this queued bind began
+  }
+  if (activeUserId === userId && readyUserId === userId) {
+    return;
+  }
+
+  const adopting = activeUserId === null;
+  readyUserId = null;
+  activeUserId = userId;
+  writeBootHint(userId);
+  await rebindRegisteredStores(adopting);
+  if (desiredUserId !== userId) {
+    // A later identity arrived while this storage read was held. Its bytes never become readable: erase
+    // them before the queued owner gets its turn, and keep writes gated throughout.
+    resetRegisteredStores();
+    return;
+  }
+  readyUserId = userId;
+}
+
+/**
+ * Bind every durable-local store to `userId`. Idempotent, and the common path is free:
+ *   • ALREADY BOUND to this user — nothing happens (no rehydrate, no flash);
+ *   • LEGACY (no identity bound yet) — each store's blob is ADOPTED onto the user key and the legacy key is
+ *     deleted. The in-memory state already came from that blob, so no rehydrate is needed;
+ *   • A DIFFERENT user — re-key and `rehydrate()`, which drops the previous identity's view state and loads
+ *     this one's (or the store's defaults). This is the identity boundary: nothing crosses it.
+ * Call once, from the composition route, as soon as the viewer identity resolves.
+ */
+export function bindDurableLocalToUser(userId: UserId): Promise<void> {
+  desiredUserId = userId;
+  const run = bindTail.then(() => bindQueuedUser(userId));
+  bindTail = run.catch(() => undefined);
+  return run;
+}
+
+/** Whether the verified identity owns every in-memory durable store. */
+export function durableLocalReadyFor(userId: UserId): boolean {
+  return readyUserId === userId;
+}
+
+/** Shared write gate used by both persistence doors during an identity transition. */
+export function durableLocalWritesAllowed(): boolean {
+  // Before the first identity is requested this is the legacy/adoption world: stores may hydrate and tests
+  // may seed it. The instant a bind is requested, writes close until that exact user's hydration owns state.
+  return (activeUserId === null && desiredUserId === null) || (readyUserId !== null && readyUserId === activeUserId);
 }
 
 /** The bound identity — the lens a test (or the dev bridge) asserts the namespace through. */
@@ -164,4 +216,7 @@ export function activeDurableLocalUserId(): UserId | null {
 export function __resetDurableLocal(): void {
   registry.length = 0;
   activeUserId = null;
+  readyUserId = null;
+  desiredUserId = null;
+  bindTail = Promise.resolve();
 }

@@ -651,6 +651,47 @@ export function BoundaryStatusStory(): ReactElement {
   );
 }
 
+const completionDraftStore = createEntityDraftStore<BoundaryValues>({ name: "boundary-completion-owner" });
+const CompletionBoundary = createAutosaveEntityForm<BoundaryValues>({
+  defaultValues: { text: "" },
+  draft: completionDraftStore,
+  debounceMs: 60_000,
+});
+
+export function BoundaryCompletionOwnershipStory(): ReactElement {
+  const pending = useRef<Array<() => void>>([]);
+  const [calls, setCalls] = useState(0);
+  const save = (_values: BoundaryValues): Promise<void> =>
+    new Promise<void>((resolve) => {
+      pending.current.push(resolve);
+      setCalls((count) => count + 1);
+    });
+  const draft = completionDraftStore.useDraft("completion-owner");
+  return (
+    <div>
+      <CompletionBoundary entityId="completion-owner" serverValues={{ text: "server" }} save={save}>
+        {(session): ReactElement => (
+          <div>
+            <session.form.AppField name="text">{(field): ReactElement => <field.TextField label="Completion text" />}</session.form.AppField>
+            <button type="button" onClick={(): void => void session.form.handleSubmit()}>
+              submit now
+            </button>
+            <output data-testid="completion-state">{session.saveState}</output>
+          </div>
+        )}
+      </CompletionBoundary>
+      <button type="button" onClick={(): void => pending.current[0]?.()}>
+        resolve first
+      </button>
+      <button type="button" onClick={(): void => pending.current[1]?.()}>
+        resolve second
+      </button>
+      <output data-testid="completion-calls">{calls}</output>
+      <output data-testid="completion-draft">{draft.text ?? ""}</output>
+    </div>
+  );
+}
+
 // ---- CT-6 clean echo: serverValues change while clean re-baselines; while dirty keeps edits ---------
 // LONG debounce: the CT-6 dirty case needs a local edit to STAY unsaved (hasUnsavedEdits() true) when the
 // echo fires, so the echo is correctly kept out. A 50ms debounce would autosave the edit → clean → the

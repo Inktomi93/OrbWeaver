@@ -11,6 +11,7 @@ import {
   BoundaryArrayOpsStory,
   BoundaryBrickHealStory,
   BoundaryCleanEchoStory,
+  BoundaryCompletionOwnershipStory,
   BoundaryEchoDuringDebounceStory,
   BoundaryIdentitySwitchStory,
   BoundaryReadOnlyStory,
@@ -19,6 +20,31 @@ import {
   BoundaryStatusStory,
   BoundaryUnmountFlushStory,
 } from "./_ct-stories.tsx";
+
+test("an older completion cannot clear or re-baseline a newer unsaved edit", async ({ mount, page }) => {
+  await mount(<BoundaryCompletionOwnershipStory />);
+  const input = page.getByLabel("Completion text");
+
+  await input.fill("older submitted");
+  await page.getByRole("button", { name: "submit now" }).click();
+  await input.fill("newer submitted");
+  await page.getByRole("button", { name: "submit now" }).click();
+  await expect(page.getByTestId("completion-calls")).toHaveText("2");
+
+  await page.getByRole("button", { name: "resolve second" }).click();
+  await expect(page.getByTestId("completion-state")).toHaveText("saved");
+  await input.fill("latest unsaved");
+  await expect(page.getByTestId("completion-draft")).toHaveText("latest unsaved");
+
+  await page.getByRole("button", { name: "resolve first" }).click();
+  await expect(input).toHaveValue("latest unsaved");
+  await expect(page.getByTestId("completion-draft")).toHaveText("latest unsaved");
+
+  // Returning to the newer confirmed value is clean only if the older completion did not steal the
+  // baseline. The old implementation re-baselined to "older submitted" and stayed Saving here.
+  await input.fill("newer submitted");
+  await expect(page.getByTestId("completion-state")).toHaveText("saved");
+});
 
 // CT-1 — identity switch renders the NEW entity (the F1 P0: the preset editor showed A under B). The
 // boundary keys its Session by entityId, so flipping entityId is a full teardown/remount seeded from B's

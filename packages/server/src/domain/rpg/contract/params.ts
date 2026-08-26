@@ -293,14 +293,29 @@ export interface PromoteActorParams {
 /** `upsertQuest` — the hand arm of the quest plane (host). Writes the `quests` array on the current resolved
  *  snapshot (clone-forward + `fieldLocks` — swipe-consistent, §2.5). `questId` present ⇒ update; absent ⇒
  *  create (mints a fresh id). */
-export interface UpsertQuestParams {
+interface UpsertQuestBaseParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
-  readonly questId?: RpgQuestId | undefined;
   readonly name: string;
   readonly status?: RpgQuestStatus | undefined;
   readonly description?: string | undefined;
-  readonly objectives?: readonly { readonly id?: string | undefined; readonly text: string; readonly completed?: boolean | undefined }[] | undefined;
+}
+
+export type UpsertQuestParams =
+  | (UpsertQuestBaseParams & {
+      readonly questId?: undefined;
+      readonly objectives?: readonly { readonly text: string; readonly completed?: boolean | undefined }[] | undefined;
+    })
+  | (UpsertQuestBaseParams & { readonly questId: RpgQuestId });
+
+export interface EditQuestObjectiveParams {
+  readonly principal: Principal;
+  readonly chatId: ChatId;
+  readonly questId: RpgQuestId;
+  readonly op:
+    | { readonly kind: "add"; readonly text: string }
+    | { readonly kind: "setCompleted"; readonly objectiveId: string; readonly completed: boolean }
+    | { readonly kind: "delete"; readonly objectiveId: string };
 }
 
 /** `deleteQuest` — remove a quest from the current resolved snapshot's array (host). */

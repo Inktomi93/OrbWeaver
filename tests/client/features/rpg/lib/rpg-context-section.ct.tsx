@@ -362,6 +362,7 @@ function stubTakeover(
     "rpg.populateFromCharacter": () => opts.populateVerdict ?? { ok: true, populated: true },
     "rpg.updateConfig": () => undefined,
     "rpg.upsertQuest": () => undefined,
+    "rpg.editQuestObjective": () => undefined,
     "rpg.deleteQuest": () => undefined,
     // The Journal tab's own reads + the RV-6 hand-authoring verbs (all host-gated server-side).
     "rpg.listJournal": () => JOURNAL_ENTRIES,
@@ -797,6 +798,26 @@ test("the host quest DELETE fires deleteQuest behind a confirm — the mutation 
   await component.getByRole("button", { name: "Delete quest: Keep the bone key" }).click();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   await expect.poll(() => trpc.count("rpg.deleteQuest"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+});
+
+test("quest objective gestures send objective-ID operations, never a stale whole-list image", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Quests" }).click();
+
+  await component.getByRole("checkbox", { name: "Hold the door" }).click();
+  await component.getByRole("button", { name: "Add objective to Keep the bone key" }).click();
+  const add = component.getByRole("textbox", { name: "Add objective to Keep the bone key" });
+  await add.fill("Open the reliquary");
+  await add.press("Enter");
+  await component.getByRole("button", { name: "Remove objective: Hold the door" }).click();
+
+  await expect.poll(() => trpc.count("rpg.editQuestObjective")).toBe(3);
+  expect(trpc.inputs("rpg.editQuestObjective")).toEqual([
+    { chatId: "chat_ct_keystone", questId: "q1", op: { kind: "setCompleted", objectiveId: "o1", completed: false } },
+    { chatId: "chat_ct_keystone", questId: "q1", op: { kind: "add", text: "Open the reliquary" } },
+    { chatId: "chat_ct_keystone", questId: "q1", op: { kind: "delete", objectiveId: "o1" } },
+  ]);
 });
 
 // RV-6 — hand journal authoring. The three verbs are host-gated (`resolveHost`), so the host arm is the

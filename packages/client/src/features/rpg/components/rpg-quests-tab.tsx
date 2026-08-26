@@ -30,7 +30,7 @@ import type { ReactElement } from "react";
 import { AddRow, ConfirmDialog, TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
-import { useDeleteQuest, useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations.ts";
+import { useDeleteQuest, useEditQuestObjective, useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations.ts";
 import { buildPlotEdit } from "../lib/plot-edit.ts";
 import { RpgActRail } from "./rpg-act-rail.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
@@ -234,6 +234,7 @@ function NewQuest({ onCreate }: { readonly onCreate: (name: string) => void }): 
 function buildQuestEdit(
   chatId: RpgPanelState["chatId"],
   upsertQuest: ReturnType<typeof useUpsertQuest>,
+  editObjective: ReturnType<typeof useEditQuestObjective>,
   deleteQuest: ReturnType<typeof useDeleteQuest>,
 ): QuestEdit {
   return {
@@ -248,28 +249,13 @@ function buildQuestEdit(
       upsertQuest.mutate({ chatId, questId: quest.id, name: quest.name, description: next.trim() });
     },
     onToggleObjective: (quest, objectiveId, next): void => {
-      upsertQuest.mutate({
-        chatId,
-        questId: quest.id,
-        name: quest.name,
-        objectives: quest.objectives.map((o) => ({ id: o.id, text: o.text, completed: o.id === objectiveId ? next : o.completed })),
-      });
+      editObjective.mutate({ chatId, questId: quest.id, op: { kind: "setCompleted", objectiveId, completed: next } });
     },
     onAddObjective: (quest, text): void => {
-      upsertQuest.mutate({
-        chatId,
-        questId: quest.id,
-        name: quest.name,
-        objectives: [...quest.objectives.map((o) => ({ id: o.id, text: o.text, completed: o.completed })), { text, completed: false }],
-      });
+      editObjective.mutate({ chatId, questId: quest.id, op: { kind: "add", text } });
     },
     onRemoveObjective: (quest, objectiveId): void => {
-      upsertQuest.mutate({
-        chatId,
-        questId: quest.id,
-        name: quest.name,
-        objectives: quest.objectives.filter((o) => o.id !== objectiveId).map((o) => ({ id: o.id, text: o.text, completed: o.completed })),
-      });
+      editObjective.mutate({ chatId, questId: quest.id, op: { kind: "delete", objectiveId } });
     },
     onDeleteQuest: (quest): void => {
       deleteQuest.mutate({ chatId, questId: quest.id });
@@ -283,6 +269,7 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const upsertQuest = useUpsertQuest({ trpc, invalidation });
+  const editObjective = useEditQuestObjective({ trpc, invalidation });
   const deleteQuest = useDeleteQuest({ trpc, invalidation });
   const editSnapshot = useEditSnapshot({ trpc, invalidation });
 
@@ -292,7 +279,7 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
   const onCreate = (name: string): void => upsertQuest.mutate({ chatId, name });
 
   const plotEdit = canEditShared && tracker.plot !== null ? buildPlotEdit(state, editSnapshot) : undefined;
-  const edit = canEditShared ? buildQuestEdit(chatId, upsertQuest, deleteQuest) : undefined;
+  const edit = canEditShared ? buildQuestEdit(chatId, upsertQuest, editObjective, deleteQuest) : undefined;
   // P5 — the plot spine (campaign scale) leads the tab; absent until the story authors a plot.
   const rail = tracker.plot === null ? null : <RpgActRail plot={tracker.plot} {...(plotEdit === undefined ? {} : { edit: plotEdit })} />;
 

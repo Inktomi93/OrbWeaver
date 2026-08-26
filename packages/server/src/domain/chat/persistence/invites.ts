@@ -5,9 +5,10 @@
 
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, pendingTurns } from "@orb/db";
+import { batchMany } from "@orb/db/kit";
 import type { ChatId, ChatInviteId, ChatParticipantId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, asc, count, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
-import { upsertMemberOnJoin } from "./participant.ts";
+import { insertMemberAfterInviteClaimStatement } from "./participant.ts";
 import { loadMaxMessageSeq } from "./queries.ts";
 
 /** Lookup an invite by its peppered token hash. The validity gate is the verb's + {@link redeemInviteAtomic}. */
@@ -57,7 +58,19 @@ export async function redeemInviteAtomic(
     readonly now: number;
   },
 ): Promise<{ inviteId: ChatInviteId; chatId: ChatId; participant: typeof chatParticipants.$inferSelect } | undefined> {
-  const claimed = await db
+  const candidate = await findInviteByTokenHash(db, params.tokenHash);
+  if (candidate === undefined) {
+    return;
+  }
+  const joinSeq = await loadMaxMessageSeq(db, candidate.chatId);
+  const eligible = and(
+    eq(chatInvites.tokenHash, params.tokenHash),
+    eq(chatInvites.status, "pending"),
+    or(isNull(chatInvites.maxUses), lt(chatInvites.uses, chatInvites.maxUses)),
+    or(isNull(chatInvites.expiresAt), gt(chatInvites.expiresAt, params.now)),
+    or(isNull(chatInvites.invitedUserId), eq(chatInvites.invitedUserId, params.userId)),
+  );
+  const claimedStatement = db
     .update(chatInvites)
     .set({
       uses: sql`${chatInvites.uses} + 1`,
@@ -65,32 +78,25 @@ export async function redeemInviteAtomic(
     })
     .where(
       and(
-        eq(chatInvites.tokenHash, params.tokenHash),
-        eq(chatInvites.status, "pending"),
-        or(isNull(chatInvites.maxUses), lt(chatInvites.uses, chatInvites.maxUses)),
-        or(isNull(chatInvites.expiresAt), gt(chatInvites.expiresAt, params.now)),
-        // Targeting: an untargeted invite redeems for anyone; a targeted one ONLY for its invitedUserId.
-        or(isNull(chatInvites.invitedUserId), eq(chatInvites.invitedUserId, params.userId)),
-        // Idempotent re-redeem: a caller already present in this invite's chat burns no use, flips no status.
+        eligible,
         sql`not exists (select 1 from ${chatParticipants} where ${chatParticipants.chatId} = ${chatInvites.chatId} and ${chatParticipants.userId} = ${params.userId} and ${chatParticipants.leftSeq} is null)`,
       ),
     )
     .returning({ id: chatInvites.id, chatId: chatInvites.chatId });
-  const invite = claimed.at(0);
-  if (invite === undefined) {
-    return;
-  }
-  const joinSeq = await loadMaxMessageSeq(db, invite.chatId);
-  const participant = await upsertMemberOnJoin(db, {
+  const seatedStatement = insertMemberAfterInviteClaimStatement(db, {
     participantId: params.participantId,
-    chatId: invite.chatId,
+    inviteId: candidate.id,
     userId: params.userId,
     activePersonaId: params.activePersonaId,
     joinSeq,
     now: params.now,
   });
-  if (participant === undefined) {
-    // Already a present member (idempotent no-op) — surface as not-redeemable, not a phantom membership.
+  const results = await db.batch(batchMany([claimedStatement, seatedStatement]));
+  const claimed = results[0] as { id: ChatInviteId; chatId: ChatId }[];
+  const seated = results[1] as (typeof chatParticipants.$inferSelect)[];
+  const invite = claimed.at(0);
+  const participant = seated.at(0);
+  if (invite === undefined || participant === undefined) {
     return;
   }
   return { inviteId: invite.id, chatId: invite.chatId, participant };
@@ -111,7 +117,19 @@ export async function acceptInviteByIdAtomic(
     readonly now: number;
   },
 ): Promise<{ inviteId: ChatInviteId; chatId: ChatId; participant: typeof chatParticipants.$inferSelect } | undefined> {
-  const claimed = await db
+  const candidate = await findInviteById(db, params.inviteId);
+  if (candidate === undefined) {
+    return;
+  }
+  const joinSeq = await loadMaxMessageSeq(db, candidate.chatId);
+  const eligible = and(
+    eq(chatInvites.id, params.inviteId),
+    eq(chatInvites.status, "pending"),
+    or(isNull(chatInvites.maxUses), lt(chatInvites.uses, chatInvites.maxUses)),
+    or(isNull(chatInvites.expiresAt), gt(chatInvites.expiresAt, params.now)),
+    eq(chatInvites.invitedUserId, params.userId),
+  );
+  const claimedStatement = db
     .update(chatInvites)
     .set({
       uses: sql`${chatInvites.uses} + 1`,
@@ -119,31 +137,25 @@ export async function acceptInviteByIdAtomic(
     })
     .where(
       and(
-        eq(chatInvites.id, params.inviteId),
-        eq(chatInvites.status, "pending"),
-        or(isNull(chatInvites.maxUses), lt(chatInvites.uses, chatInvites.maxUses)),
-        or(isNull(chatInvites.expiresAt), gt(chatInvites.expiresAt, params.now)),
-        eq(chatInvites.invitedUserId, params.userId),
-        // Idempotent re-accept: a caller who is already a present member burns no use, flips no status.
+        eligible,
         sql`not exists (select 1 from ${chatParticipants} where ${chatParticipants.chatId} = ${chatInvites.chatId} and ${chatParticipants.userId} = ${params.userId} and ${chatParticipants.leftSeq} is null)`,
       ),
     )
     .returning({ id: chatInvites.id, chatId: chatInvites.chatId });
-  const invite = claimed.at(0);
-  if (invite === undefined) {
-    return;
-  }
-  const joinSeq = await loadMaxMessageSeq(db, invite.chatId);
-  const participant = await upsertMemberOnJoin(db, {
+  const seatedStatement = insertMemberAfterInviteClaimStatement(db, {
     participantId: params.participantId,
-    chatId: invite.chatId,
+    inviteId: candidate.id,
     userId: params.userId,
     activePersonaId: params.activePersonaId,
     joinSeq,
     now: params.now,
   });
-  if (participant === undefined) {
-    // Already a present member (idempotent no-op) — surface as not-seatable, not a phantom membership.
+  const results = await db.batch(batchMany([claimedStatement, seatedStatement]));
+  const claimed = results[0] as { id: ChatInviteId; chatId: ChatId }[];
+  const seated = results[1] as (typeof chatParticipants.$inferSelect)[];
+  const invite = claimed.at(0);
+  const participant = seated.at(0);
+  if (invite === undefined || participant === undefined) {
     return;
   }
   return { inviteId: invite.id, chatId: invite.chatId, participant };

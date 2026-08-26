@@ -22,6 +22,8 @@ interface DrillSelectionState<P extends string, S extends string> {
 export interface PrimaryDrillStore<P extends string> {
   /** Reactive: the drilled primary id (`null` = the overview home). A single-field primitive selector. */
   readonly usePrimaryId: () => P | null;
+  /** Imperative owner check for async completions that must not publish into a later selection session. */
+  readonly getPrimaryId: () => P | null;
   /** Drill into `id` (a LIST-row / result click) — CONTENT swaps to it; any sub-drill is cleared. */
   readonly select: (id: P) => void;
   /** Clear the drill (back to the overview/welcome home) — both primary and secondary, AND release any
@@ -68,6 +70,7 @@ export function createDrillSelectionStore<P extends string, S extends string>(
   };
   return {
     usePrimaryId: (): P | null => useSelectionStore((s) => s.primaryId),
+    getPrimaryId: (): P | null => useSelectionStore.getState().primaryId,
     select: (id: P): void => useSelectionStore.setState({ primaryId: id, secondaryId: null }, false, `${name}/select`),
     clear: clearSelection,
     selectFromList: (id: P): void => {

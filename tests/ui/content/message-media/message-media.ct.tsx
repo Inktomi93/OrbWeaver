@@ -16,6 +16,24 @@ test("external image is gated: a placeholder renders and no external <img> loads
   await expect(cmp).toHaveAttribute("src", EXTERNAL);
 });
 
+test("external consent belongs to the exact URL and does not follow a rerender to another host", async ({ mount, page }) => {
+  const a = "https://media-a.test/a.png";
+  const b = "https://media-b.test/b.png";
+  let bRequests = 0;
+  await page.route(a, () => undefined);
+  await page.route(b, () => {
+    bRequests += 1;
+  });
+  const cmp = await mount(<MessageMedia src={{ kind: "external", url: a }} media="image" alt="a" />);
+  await cmp.click();
+  await expect(cmp).toHaveAttribute("src", a);
+
+  await cmp.update(<MessageMedia src={{ kind: "external", url: b }} media="image" alt="b" />);
+  await expect(cmp).toHaveAttribute("data-slot", "message-media-placeholder");
+  await expect(cmp).toContainText("media-b.test");
+  expect(bRequests).toBe(0);
+});
+
 test("asset image renders directly (own origin, no gate)", async ({ mount, page }) => {
   // Same rationale: keep the asset request pending so onError can't swap in the broken fallback.
   await page.route("**/blob/abc.png", () => undefined);
@@ -156,4 +174,14 @@ test("a data: URI is blocked for an external source (no click-to-load, no <img>)
 test("a dead image shows the graceful fallback, not the native broken glyph", async ({ mount }) => {
   const cmp = await mount(<MessageMedia src={{ kind: "asset", url: "/definitely-missing-asset-404.png" }} media="image" alt="a" />);
   await expect(cmp).toHaveAttribute("data-slot", "message-media-broken");
+});
+
+test("a broken result belongs to the exact URL and does not poison the next media", async ({ mount, page }) => {
+  const healthy = "/blob/healthy-after-broken.png";
+  await page.route(`**${healthy}`, () => undefined);
+  const cmp = await mount(<MessageMedia src={{ kind: "asset", url: "/missing-before-swap.png" }} media="image" alt="missing" />);
+  await expect(cmp).toHaveAttribute("data-slot", "message-media-broken");
+  await cmp.update(<MessageMedia src={{ kind: "asset", url: healthy }} media="image" alt="healthy" />);
+  await expect(cmp).toHaveAttribute("data-slot", "message-media");
+  await expect(cmp).toHaveAttribute("src", healthy);
 });

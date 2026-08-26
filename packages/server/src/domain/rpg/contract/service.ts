@@ -64,6 +64,7 @@ import type {
   DetachDanglingPointerParams,
   DismissActorParams,
   EditJournalEntryParams,
+  EditQuestObjectiveParams,
   EditSnapshotParams,
   ListCheckpointsParams,
   ListJournalParams,
@@ -827,6 +828,7 @@ export interface RpgService {
   readonly promoteActor: (params: PromoteActorParams) => Promise<HandDoorResult>;
   /** Host. Snapshot-plane quest write (clone-forward + `quests.<id>` lock). Returns the quest id. */
   readonly upsertQuest: (params: UpsertQuestParams) => Promise<RpgQuestId>;
+  readonly editQuestObjective: (params: EditQuestObjectiveParams) => Promise<void>;
   readonly deleteQuest: (params: DeleteQuestParams) => Promise<void>;
   /** Host. Hand journal entry — stamps `variantId: NULL` (every-lineage). Returns the entry id. */
   readonly addJournalEntry: (params: AddJournalEntryParams) => Promise<RpgJournalId>;
