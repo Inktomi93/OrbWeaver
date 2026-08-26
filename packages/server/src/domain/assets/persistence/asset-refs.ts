@@ -15,6 +15,7 @@
 import type { Db } from "@orb/db";
 import {
   adminDistributedPlugins,
+  assets,
   characters,
   chats,
   documents,
@@ -25,9 +26,9 @@ import {
   plugins,
   userSettings,
 } from "@orb/db";
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { isNotNull, sql } from "drizzle-orm";
+import { and, eq, exists, isNotNull, not, or, sql } from "drizzle-orm";
 import type { AssetRef } from "../contract/maintenance.ts";
 
 /** RETAINING references — a non-null value here keeps its asset (and blob) LIVE; the safe default for an
@@ -194,4 +195,54 @@ export async function selectReferencedAmong(db: Db, candidateIds: readonly Asset
     }
   }
   return referenced;
+}
+
+/** Delete one asset row only while every retaining relation is absent. The liveness predicate lives in the
+ * same SQL statement as the destructive write, so a concurrent writer cannot land a reference between an
+ * application-side preflight and the delete. The returned verdict owns whether callers may remove CAS bytes. */
+export async function deleteAssetRowIfUnreferenced(db: Db, ownerId: UserId, assetId: AssetId): Promise<boolean> {
+  const fkReferences = ASSET_REFS.map((ref) => exists(db.select({ one: sql`1` }).from(ref.table).where(eq(ref.column, assetId))));
+  const settingsReference = exists(
+    db
+      .select({ one: sql`1` })
+      .from(userSettings)
+      .where(
+        or(
+          eq(sql<string | null>`json_extract(${userSettings.config}, '$.appearance.backgroundAssetId')`, assetId),
+          sql`EXISTS (
+            SELECT 1
+            FROM json_tree(${userSettings.config}, '$.appearance.backgroundLibrary') AS library
+            WHERE library.key = 'assetId' AND library.atom = ${assetId}
+          )`,
+        ),
+      ),
+  );
+  const cardReference = exists(
+    db
+      .select({ one: sql`1` })
+      .from(characters)
+      .where(
+        and(
+          eq(sql<string | null>`json_extract(${characters.backgroundOverride}, '$.kind')`, "asset"),
+          eq(sql<string | null>`json_extract(${characters.backgroundOverride}, '$.assetId')`, assetId),
+        ),
+      ),
+  );
+  const chatReference = exists(
+    db
+      .select({ one: sql`1` })
+      .from(chats)
+      .where(
+        and(
+          eq(sql<string | null>`json_extract(${chats.metadata}, '$.background.kind')`, "asset"),
+          eq(sql<string | null>`json_extract(${chats.metadata}, '$.background.assetId')`, assetId),
+        ),
+      ),
+  );
+  const anyReference = or(...fkReferences, settingsReference, cardReference, chatReference) ?? sql`0`;
+  const deleted = await db
+    .delete(assets)
+    .where(and(eq(assets.id, assetId), eq(assets.ownerId, ownerId), not(anyReference)))
+    .returning({ id: assets.id });
+  return deleted.length === 1;
 }
