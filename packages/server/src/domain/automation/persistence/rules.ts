@@ -8,6 +8,7 @@ import type { AutomationAction, AutomationTrigger } from "@orb/contracts/automat
 import { automationActionsSchema } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
+import type { AwaitableBatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
@@ -218,8 +219,16 @@ export function loadEnabledTurnStartedRules(db: Db): Promise<RuleRow[]> {
 // loaded off `loadEnabledChatRules`/`loadEnabledDomainRules`, never caller input, and the write is the
 // engine's own bookkeeping (the clean-fire stamp). There is no principal in scope to scope it to. Ends if a
 // user-facing door ever calls this.
+export function stampRuleFiredStatement(db: Db, ruleId: AutomationRuleId, now: number): AwaitableBatchStmt<{ id: AutomationRuleId }[]> {
+  return db
+    .update(automationRules)
+    .set({ lastFiredAt: now, consecutiveErrors: 0, lastError: null, updatedAt: now })
+    .where(eq(automationRules.id, ruleId))
+    .returning({ id: automationRules.id });
+}
+
 export async function stampRuleFired(db: Db, ruleId: AutomationRuleId, now: number): Promise<void> {
-  await db.update(automationRules).set({ lastFiredAt: now, consecutiveErrors: 0, lastError: null, updatedAt: now }).where(eq(automationRules.id, ruleId));
+  await stampRuleFiredStatement(db, ruleId, now);
 }
 
 /** Record a rule error (predicate_error/action_error/authority_refused): increment `consecutive_errors` +
