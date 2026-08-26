@@ -48,11 +48,14 @@ function recordingEmit(notes: NotificationEvent[]): (event: NotificationEvent, c
   };
 }
 
-const emit = async (event: ChatBusEvent, coStatements?: readonly BatchStmt[]): Promise<void> => {
-  emitted.push(event);
-  if (coStatements !== undefined && coStatements.length > 0) {
-    await db.batch(batchMany(coStatements));
+const emit = async (event: ChatBusEvent, claimStatement?: BatchStmt): Promise<void> => {
+  if (claimStatement !== undefined) {
+    const [claim] = await db.batch(batchMany([claimStatement]));
+    if (claim.rowsAffected === 0) {
+      return;
+    }
   }
+  emitted.push(event);
 };
 
 function principal(userId: UserId): Principal {
@@ -989,9 +992,11 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
         return castId<ChatEventId>(`chat_event_handoff_${eventNumber}`);
       },
     });
-    const emitAtomic = bus.emit as (event: DurableChatBusEvent, coStatements?: readonly BatchStmt[]) => ReturnType<typeof bus.emit>;
-    const emitThroughRealBus = async (event: DurableChatBusEvent, coStatements?: readonly BatchStmt[]): Promise<boolean> => {
-      const logged = await emitAtomic(event, coStatements);
+    const emitThroughRealBus = async (event: DurableChatBusEvent, claimStatement?: BatchStmt): Promise<boolean> => {
+      const logged = claimStatement === undefined ? await bus.emit(event) : await bus.emitAfterClaim(event, claimStatement);
+      if (logged === false) {
+        return true;
+      }
       if (logged === null) {
         return false;
       }
@@ -1019,6 +1024,59 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     expect(after).toHaveLength(before.length + 1);
     expect(after.at(-1)?.type).toBe("chatUpdated");
     expect(await db.select().from(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId))).toHaveLength(0);
+  });
+
+  test("two retries that loaded one completion marker append exactly one durable event", async () => {
+    const member = await seedUser(db, castId<Handle>("member"));
+    const chatId = await seedChat(db, "claim-first-handoff");
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "host" });
+    const sourceCharacterId = mintTypeId(ID_PREFIX.character);
+    const characterId = mintTypeId(ID_PREFIX.character);
+    await db.insert(chatHandoffResumptions).values({
+      chatId,
+      acceptedByUserId: member,
+      actorRekeys: [{ sourceCharacterId, characterId }],
+      createdAt: FROZEN_AT,
+      updatedAt: FROZEN_AT,
+    });
+
+    let arrivals = 0;
+    let release!: () => void;
+    const bothLoaded = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // FABRICATION-OK: minimal RPG handoff fixture — only handoffRekeyActors is reached by this retry barrier.
+    const rpg = {
+      handoffRekeyActors: async (): Promise<void> => {
+        arrivals += 1;
+        if (arrivals === 2) {
+          release();
+        }
+        await bothLoaded;
+      },
+    } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
+    let eventNumber = 0;
+    const bus = createChatBus({
+      db,
+      now: () => FROZEN_AT,
+      newEventId: () => {
+        eventNumber += 1;
+        return castId<ChatEventId>(`chat_event_claim_first_${eventNumber}`);
+      },
+    });
+    const emitAtomic = async (event: DurableChatBusEvent, claimStatement?: BatchStmt): Promise<boolean> => {
+      const logged = claimStatement === undefined ? await bus.emit(event) : await bus.emitAfterClaim(event, claimStatement);
+      return logged !== null;
+    };
+    const roster = createRoster(makeChatContext(db, { rpg }), { emit: emitAtomic, claimChat: noClaim });
+
+    await Promise.all([roster.acceptHostHandoff({ principal: principal(member), chatId }), roster.acceptHostHandoff({ principal: principal(member), chatId })]);
+
+    expect(arrivals).toBe(2);
+    expect(await db.select().from(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId))).toHaveLength(0);
+    const events = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId));
+    expect(events).toHaveLength(1);
+    expect(events[0]?.payload).toEqual({ type: "chatUpdated", chatId });
   });
 
   test("the nominee accepts: roles swap, the nomination clears, the old host is notified", async () => {
