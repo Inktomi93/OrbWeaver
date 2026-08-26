@@ -68,6 +68,7 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
   keyword_cooccurrence: { scope: "ownerId", why: "D23 parentless per-user aggregate (×keyword-pair)." },
   model_stats: { scope: "ownerId", why: "D23 parentless per-user aggregate (×model)." },
   owner_stats: { scope: "ownerId", why: "D23 parentless per-user aggregate." },
+  stats_canon_versions: { scope: "ownerId", why: "D23 parentless per-user aggregate — monotonic rebuild ownership token." },
   personas: { scope: "ownerId", why: "D23 true producer — personas are single-owned." },
   plugin_kv: {
     scope: "ownerId",

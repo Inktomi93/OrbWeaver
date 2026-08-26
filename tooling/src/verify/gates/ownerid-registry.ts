@@ -42,6 +42,7 @@ export const OWNERID_ALLOWLIST: ExemptionTable = {
   },
   // PARENTLESS PER-USER AGGREGATES (D23 KEEP)
   owner_stats: { why: "D23 parentless per-user aggregate" },
+  stats_canon_versions: { why: "D23 parentless per-user aggregate — monotonic rebuild ownership token" },
   automation_owner_budgets: {
     why: "D23 parentless per-user aggregate + D46 — C5's owner-GLOBAL fire-rate ceiling. It is the SIBLING of automation_budgets (chatId PK) and it exists BECAUSE that key cannot express a chat-less rule's scope: a NULL-scope row is unrepresentable on a chat-keyed PK, and a synthetic sentinel chat id would be the D24 soft-ref class. The owner IS the scope here — the row has no parent to derive one from — so the stamp is the identity, not a redundant denormalization (interaction-direction-spec §3-S3)",
   },

@@ -144,6 +144,10 @@ const NON_PORTABLE_CANON: ExemptionTable<NonPortableRow> = {
   },
   modelStats: { classification: "DERIVED", why: "same rollup plane as `dailyStats`. Ends never." },
   ownerStats: { classification: "DERIVED", why: "same rollup plane as `dailyStats`. Ends never." },
+  statsCanonVersions: {
+    classification: "DERIVED",
+    why: "monotonic coordination token for rebuilding the stats rollup plane; restore rebuilds the rollups and starts a fresh token. Ends never.",
+  },
   keywordCooccurrence: { classification: "DERIVED", why: "a discovery analytics index over library canon; rebuilt by reindex. Ends never." },
   themeClusters: { classification: "DERIVED", why: "discovery clustering over embeddings, themselves derived. Ends never." },
 };

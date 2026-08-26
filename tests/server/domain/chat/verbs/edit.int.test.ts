@@ -12,7 +12,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { characterStats, chatDigests, chats, dailyStats, messages, messageVariants, modelStats, ownerStats, rpgSnapshots } from "@orb/db";
+import { characterStats, chatDigests, chats, dailyStats, messages, messageVariants, modelStats, ownerStats, rpgSnapshots, statsCanonVersions } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -410,7 +410,9 @@ describe("setMessageHidden / editReasoning / clearReasoning", () => {
       role: "assistant",
       characterId: charA,
     });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
+    await reconcileStats(db, { ownerId: host, now: () => FROZEN_AT });
+    const deltas: StatsDelta[] = [];
+    const edit = createEdit(recordingStatsCtx(db, deltas), { emit, resolveForeignInputs, claimChat: noClaim });
 
     const edited = await edit.editReasoning({
       principal: principal(host),
@@ -420,12 +422,16 @@ describe("setMessageHidden / editReasoning / clearReasoning", () => {
     });
     expect(edited.reasoning).toBe("because");
     expect(emitted.at(-1)?.type).toBe("reasoningEdited");
+    expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host)))[0]?.reasoningGenerations).toBe(1);
 
     const cleared = await edit.clearReasoning({ principal: principal(host), chatId, messageId });
     expect(cleared.reasoning).toBeNull();
     expect(emitted.at(-1)?.type).toBe("reasoningCleared");
     const [v] = await db.select().from(messageVariants).where(eq(messageVariants.id, variantId));
     expect(v?.reasoning).toBeNull();
+    expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host)))[0]?.reasoningGenerations).toBe(0);
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBe(2);
+    expect(deltas.map((delta) => delta.reasoningGenerations)).toEqual([1, -1]);
   });
 });
 

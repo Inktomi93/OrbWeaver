@@ -6,12 +6,14 @@
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { messageAssets, messages, messageVariants } from "@orb/db";
+import { messageAssets, messages, messageVariants, ownerStats, statsCanonVersions } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
+import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, noClaim, seedAsset, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
@@ -39,7 +41,10 @@ describe("postNarratorMessage", () => {
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     const groupChar = await seedCharacter(db, host, "narrator");
 
-    const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
+    const ctx = makeChatContext(db, {
+      mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }),
+      applyStatsDelta: (batch, deltaDb, delta) => applyStatsDelta(batch as BatchStmt[], deltaDb, delta),
+    });
     const postNarratorMessage = createPostNarratorMessage(ctx, { emit, claimChat: noClaim });
 
     const { messageId, variantId } = await postNarratorMessage(chatId, "The bell tolls over the drowned city.");
@@ -63,6 +68,8 @@ describe("postNarratorMessage", () => {
 
     expect(emitted).toHaveLength(1);
     expect(emitted[0]).toMatchObject({ type: "messageCommitted", chatId, messageId });
+    expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host)))[0]?.assistantTurns).toBe(1);
+    expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBe(1);
   });
 
   test("embeds media as asset refs (D51) with message_assets retaining rows", async () => {

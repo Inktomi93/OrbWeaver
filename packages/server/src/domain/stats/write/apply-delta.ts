@@ -15,7 +15,7 @@
 
 import type { ApplyStatsDelta, StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import { characterStats, dailyStats, modelStats, ownerStats, statsCanonVersions } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchStmt } from "@orb/db/kit";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -34,6 +34,21 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
   const lastAt = delta.lastAt ?? null;
   const firstAt = delta.firstAt ?? null;
   const maxCtx = delta.maxContextTokens ?? null;
+
+  // The rebuild streams without holding a transaction. This monotonic owner token is the relation-bound
+  // retry fence: it commits in the caller's canon+rollup batch, cannot collide on a wall-clock timestamp,
+  // and survives reconcile's owner_stats replacement.
+  batch.push(
+    batchStmt(
+      db
+        .insert(statsCanonVersions)
+        .values({ ownerId: delta.ownerId, version: 1 })
+        .onConflictDoUpdate({
+          target: statsCanonVersions.ownerId,
+          set: { version: sql`${statsCanonVersions.version} + 1` },
+        }),
+    ),
+  );
 
   // character_stats (skipped for a null character): no ownerId, conflict on the characterId unique index.
   if (delta.characterId !== null) {
