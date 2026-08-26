@@ -1,9 +1,9 @@
-import { existsSync } from "node:fs";
 import { createServer } from "node:http";
 import process from "node:process";
 import { snapContexts } from "../../../../tooling/src/snap/ops/contexts.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
-import { chromiumDescendantPids } from "../../../support/chromium-processes.ts";
+import type { ChromiumIdentity } from "../../../support/chromium-processes.ts";
+import { livingChromiumIdentities, terminateChromiumIdentities, watchChromiumDescendants } from "../../../support/chromium-processes.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const FIXTURE_USER = { handle: "owner", password: "password" };
@@ -26,10 +26,10 @@ test("a strict-console getter failure after capture closes the owned Chromium se
     throw new Error("test server did not bind a TCP port");
   }
   const base = `http://127.0.0.1:${address.port}`;
-  const before = chromiumDescendantPids(process.pid);
+  const witness = watchChromiumDescendants(process.pid);
   const primary = new Error("strict-console getter failed after capture");
-  let liveAtGetter: number[] = [];
-  let survivors: number[] = [];
+  let liveAtGetter: readonly ChromiumIdentity[] = [];
+  let survivors: readonly ChromiumIdentity[] = [];
 
   try {
     const opts = parseSnapArgs(["/", "--no-shot", "--no-failure-evidence"]);
@@ -37,27 +37,22 @@ test("a strict-console getter failure after capture closes the owned Chromium se
     Object.defineProperty(opts, "strictConsole", {
       configurable: true,
       get() {
-        liveAtGetter = [...chromiumDescendantPids(process.pid)].filter((pid) => !before.has(pid));
+        witness.sample();
+        liveAtGetter = witness.stop();
         throw primary;
       },
     });
 
     const failure = await snapContexts(opts, [FIXTURE_USER], { serverUrl: base, baseUrl: base, serverPort: address.port }).catch((error: unknown) => error);
-    survivors = liveAtGetter.filter((pid) => existsSync(`/proc/${pid}`));
+    survivors = livingChromiumIdentities(liveAtGetter);
 
     expect(pageRequests).toBeGreaterThan(0);
     expect(liveAtGetter.length).toBeGreaterThan(0);
     expect(failure).toBe(primary);
     expect(survivors).toEqual([]);
   } finally {
-    // This only fires in the planted RED run. Kill the exact Chromium descendants the broken owner leaked.
-    for (const pid of survivors) {
-      try {
-        process.kill(pid, "SIGTERM");
-      } catch {
-        // The process may exit while the assertion failure unwinds.
-      }
-    }
+    // This only fires in the planted RED run and signals exact PID+starttime identities, never reused PIDs.
+    terminateChromiumIdentities(survivors);
     await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error))));
   }
 });

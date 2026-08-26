@@ -1,7 +1,16 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, readlinkSync } from "node:fs";
+import { basename } from "node:path";
+import process from "node:process";
 
 const PROC_PID_RE = /^[0-9]+$/;
 const PROC_PPID_RE = /^PPid:\s+([0-9]+)$/m;
+const DEFAULT_SAMPLE_MS = 10;
+
+export interface ChromiumIdentity {
+  readonly pid: number;
+  readonly startTime: string;
+  readonly processGroup: number;
+}
 
 function processParents(): ReadonlyMap<number, number> {
   const parents = new Map<number, number>();
@@ -36,25 +45,97 @@ function descendantPids(rootPid: number, parents: ReadonlyMap<number, number>): 
   return descendants;
 }
 
-function chromiumPids(pids: ReadonlySet<number>, rootPid: number): Set<number> {
-  const chromium = new Set<number>();
-  for (const pid of pids) {
+// /proc/<pid>/stat fields after the closing command parenthesis start at field 3 (state). Process group
+// is field 5 and starttime is field 22. starttime makes a PID an identity instead of a reusable number.
+function processIdentity(pid: number): ChromiumIdentity | null {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+    const fields = stat.slice(stat.lastIndexOf(") ") + 2).split(" ");
+    const processGroup = Number(fields[2]);
+    const startTime = fields[19];
+    if (!Number.isSafeInteger(processGroup) || startTime === undefined) {
+      return null;
+    }
+    return { pid, processGroup, startTime };
+  } catch {
+    return null;
+  }
+}
+
+/** Chromium identities that are descendants NOW. Call while the launcher is still alive. */
+export function chromiumDescendantIdentities(rootPid: number): ChromiumIdentity[] {
+  const descendants = descendantPids(rootPid, processParents());
+  const identities: ChromiumIdentity[] = [];
+  for (const pid of descendants) {
     if (pid === rootPid) {
       continue;
     }
     try {
-      const command = readFileSync(`/proc/${pid}/cmdline`, "utf8");
-      if (command.includes("headless_shell") || command.includes("chromium")) {
-        chromium.add(pid);
+      const executable = basename(readlinkSync(`/proc/${pid}/exe`));
+      if (executable.includes("headless_shell") || executable.includes("chrome") || executable.includes("chromium")) {
+        const identity = processIdentity(pid);
+        if (identity !== null) {
+          identities.push(identity);
+        }
       }
     } catch {
-      // Same process-exit race as the parent census.
+      // Same process-exit race as the ancestry census.
     }
   }
-  return chromium;
+  return identities;
 }
 
-/** Chromium descendants of one test runner, including children reached through CLI/Playwright drivers. */
-export function chromiumDescendantPids(rootPid: number): Set<number> {
-  return chromiumPids(descendantPids(rootPid, processParents()), rootPid);
+/** Exact captured identities still alive, independent of their current parent and immune to PID reuse. */
+export function livingChromiumIdentities(identities: readonly ChromiumIdentity[]): ChromiumIdentity[] {
+  return identities.filter((identity) => processIdentity(identity.pid)?.startTime === identity.startTime);
+}
+
+export interface ChromiumWitness {
+  readonly sample: () => void;
+  readonly stop: () => readonly ChromiumIdentity[];
+}
+
+/** Poll descendants during an async CLI/launcher run; stopping returns every distinct identity observed. */
+export function watchChromiumDescendants(rootPid: number, sampleMs = DEFAULT_SAMPLE_MS): ChromiumWitness {
+  const observed = new Map<string, ChromiumIdentity>();
+  const sample = (): void => {
+    for (const identity of chromiumDescendantIdentities(rootPid)) {
+      observed.set(`${identity.pid}:${identity.startTime}`, identity);
+    }
+  };
+  sample();
+  const timer = setInterval(sample, sampleMs);
+  timer.unref();
+  return {
+    sample,
+    stop(): readonly ChromiumIdentity[] {
+      clearInterval(timer);
+      sample();
+      return [...observed.values()];
+    },
+  };
+}
+
+/** Cleanup for planted leak controls: signal only captured, still-matching Chromium groups/identities. */
+export function terminateChromiumIdentities(identities: readonly ChromiumIdentity[]): void {
+  const living = livingChromiumIdentities(identities);
+  const ownGroup = processIdentity(process.pid)?.processGroup;
+  const groups = new Set(living.map((identity) => identity.processGroup));
+  for (const group of groups) {
+    if (group <= 1 || group === ownGroup) {
+      continue;
+    }
+    try {
+      process.kill(-group, "SIGTERM");
+    } catch {
+      // The exact captured group may finish while the planted-red assertion unwinds.
+    }
+  }
+  for (const identity of living) {
+    try {
+      process.kill(identity.pid, "SIGTERM");
+    } catch {
+      // Same race for a Chromium process outside a distinct group.
+    }
+  }
 }
