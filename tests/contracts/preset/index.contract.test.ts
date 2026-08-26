@@ -385,8 +385,24 @@ test("userIntentSchema rejects an out-of-bounds knob (the shared numeric bounds 
   expect(userIntentSchema.safeParse({ temperature: OUT_OF_RANGE_TEMPERATURE }).success).toBe(false);
 });
 
-test("userIntentSchema rejects Agent SDK loader/search injection before preset persistence", () => {
-  for (const key of ["NODE_OPTIONS", "node_path", "LD_PRELOAD", "DYLD_INSERT_LIBRARIES", "BASH_ENV", "PYTHONPATH", "RUBYOPT", "PERL5OPT"]) {
+test("userIntentSchema rejects Agent SDK loader/search and credential-routing injection before preset persistence", () => {
+  for (const key of [
+    "NODE_OPTIONS",
+    "node_path",
+    "LD_PRELOAD",
+    "DYLD_INSERT_LIBRARIES",
+    "BASH_ENV",
+    "PYTHONPATH",
+    "RUBYOPT",
+    "PERL5OPT",
+    "HTTP_PROXY",
+    "https_proxy",
+    "ALL_PROXY",
+    "NO_PROXY",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "NODE_EXTRA_CA_CERTS",
+  ]) {
     const parsed = userIntentSchema.safeParse({ advanced: { claudeEnv: { [key]: "attacker-controlled" } } });
     expect(parsed.success, `${key} must be rejected at the write schema`).toBe(false);
   }

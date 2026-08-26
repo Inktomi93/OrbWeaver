@@ -71,9 +71,9 @@ describe("redactHeaders", () => {
         "x-title": "orbweaver",
       }),
     ).toEqual({
-      Authorization: "«redacted»",
-      "x-api-key": "«redacted»",
-      "x-session-token": "«redacted»",
+      Authorization: "█",
+      "x-api-key": "█",
+      "x-session-token": "█",
       "content-type": "application/json",
       "x-title": "orbweaver",
     });
@@ -106,14 +106,14 @@ describe("redactSecretsFromText", () => {
     const out = redactSecretsFromText(body, [key]);
     expect(out).not.toContain(key);
     // The bearer frame around it is masked too (defense-in-depth), and the bare literal echo is gone.
-    expect(out).toContain("«redacted»");
+    expect(out).toContain("█");
   });
 
   test("masks a Bearer token and an sk- key even when no exact literal is supplied (defense-in-depth)", () => {
     const out = redactSecretsFromText('{"h":"Bearer some-reshaped-token","k":"sk-abcdefghijklmnop01"}', []);
     expect(out).not.toContain("some-reshaped-token");
     expect(out).not.toContain("sk-abcdefghijklmnop01");
-    expect(out).toContain("Bearer «redacted»");
+    expect(out).toContain("Bearer █");
   });
 
   test("does NOT over-redact legitimate content (no secrets present)", () => {
@@ -127,7 +127,22 @@ describe("redactSecretsFromText", () => {
     const body = '{"content":"the alphabet abc appears here"}';
     const redacted = redactSecretsFromText(body, ["abc"]);
     expect(redacted).not.toContain("abc");
-    expect(redacted).toContain("«redacted»");
+    expect(redacted).toContain("█");
+  });
+
+  test.each([
+    [["a"], "a redacted marker cannot contain the one-character secret"],
+    [["red"], "the historical marker contained red"],
+    [["act"], "the historical marker contained act"],
+    [["red", "act", "a"], "overlapping marker fragments"],
+    [["token", "tok", "token", ""], "contained, duplicate, and empty values"],
+    [["█", "■", "◆", "●", "¤", "§", "¶", "※"], "every proposed marker"],
+  ])("the replacement is collision-safe for %j", (secrets) => {
+    const out = redactSecretsFromText(`before ${secrets.filter(Boolean).join("/")} after`, secrets);
+    for (const secret of new Set(secrets.filter(Boolean))) {
+      expect(out).not.toContain(secret);
+    }
+    expect(redactSecretsFromText("nonsecret diagnostic", [""])).toBe("nonsecret diagnostic");
   });
 
   test("regex-meta in a secret literal is escaped (matched literally, not as a pattern)", () => {

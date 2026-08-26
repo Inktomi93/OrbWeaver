@@ -36,7 +36,7 @@ describe("inspectCustomByoEndpoint", () => {
     expect(capturedAuth).toBe(`Bearer ${SECRET_KEY}`);
     // …but the surfaced request masks it (the key never leaves the server in the result).
     expect(result.request.headers["authorization"]).not.toContain(SECRET_KEY);
-    expect(result.request.headers["x-team"]).toBe("alpha");
+    expect(result.request.headers["x-team"]).not.toBe("alpha");
     expect(result.request.url).toBe(EXPECTED_URL);
     expect(result.ok).toBe(true);
     expect(result.response?.status).toBe(200);
@@ -70,8 +70,9 @@ describe("inspectCustomByoEndpoint", () => {
     expect(preview).not.toContain(`Bearer ${echoKey}`);
     // …nor does the secret-valued custom auth header the endpoint echoed back.
     expect(preview).not.toContain(customToken);
+    expect(preview).not.toContain("alpha");
     // The sentinel is present (proving we scrubbed, not just failed to echo), and non-secret content survives.
-    expect(preview).toContain("«redacted»");
+    expect(preview).toContain("█");
     expect(preview).toContain("your request, reflected");
   });
 
@@ -156,7 +157,7 @@ describe("inspectCustomByoEndpoint", () => {
     });
     expect(result.error).not.toContain(SECRET_KEY);
     expect(result.error).not.toContain(customHeaderSecret);
-    expect(result.error).toContain("«redacted»");
+    expect(result.error).toContain("█");
   });
 
   test("applies includeBody/excludeBody transforms to the probe body (PD-13)", async () => {
@@ -182,5 +183,27 @@ describe("inspectCustomByoEndpoint", () => {
     const preview: unknown = JSON.parse(result.request.body);
     expect(preview).toMatchObject({ extraKnob: "high" });
     expect(preview).not.toHaveProperty("stream");
+  });
+
+  test.each(["a", "red", "act"])("scrubs short credential %j from retained request JSON, form, headers, and response", async (secret) => {
+    vi.stubGlobal("fetch", (): Response => new Response(`echo=${secret}`, { status: 200, statusText: `status-${secret}` }));
+    const result = await inspectCustomByoEndpoint({
+      baseUrl: `https://byo.example.com/${secret}`,
+      apiKey: secret,
+      headers: { "x-api-key": secret, "x-note": `form=${secret}` },
+      model: `model-${secret}`,
+      includeBody: { nested: { credential: secret }, form: `token=${secret}` },
+      excludeBody: null,
+    });
+    const retainedValues = [
+      result.request.url,
+      ...Object.values(result.request.headers),
+      result.request.body,
+      result.response?.statusText ?? "",
+      result.response?.bodyPreview ?? "",
+      result.error ?? "",
+    ];
+    expect(retainedValues.every((value) => !value.includes(secret))).toBe(true);
+    expect(result.request.body).toContain("model-");
   });
 });

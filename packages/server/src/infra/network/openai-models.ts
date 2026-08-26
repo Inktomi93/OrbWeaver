@@ -2,6 +2,7 @@ import type { CredentialHealth } from "@orb/contracts/credentials";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import { getLog } from "#foundation/observability";
+import { redactKnownSecrets } from "#kit/secret-redaction";
 import { safeFetch } from "./egress.ts";
 
 // `/models` probe against a USER-CONFIGURED OpenAI-compatible endpoint (configured-endpoint consumer
@@ -96,7 +97,7 @@ export async function fetchOpenAiModels(args: FetchOpenAiModelsArgs): Promise<st
     const parsed = modelsResponseSchema.safeParse(JSON.parse(text));
     return parsed.success ? (parsed.data.data ?? []).map((m) => m.id) : [];
   } catch (err) {
-    getLog().info({ err: String(err) }, "network: custom_openai /models fetch failed");
+    getLog().info({ err: scrubCredentials(String(err), args) }, "network: custom_openai /models fetch failed");
     return [];
   }
 }
@@ -107,18 +108,12 @@ export async function fetchOpenAiModels(args: FetchOpenAiModelsArgs): Promise<st
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const AUTH_FAILURE_STATUSES: readonly number[] = [HTTP_UNAUTHORIZED, HTTP_FORBIDDEN];
-const REDACTED = "«redacted»";
 
 /** Strip the credential literals we hold out of a transport error before it becomes a user-visible reason
  *  (the credential-echo class: a proxy/undici error can quote what it was handed). This file carries no
  *  header-name heuristic, so EVERY non-empty custom header value is treated as secret, regardless of length. */
 function scrubCredentials(text: string, args: FetchOpenAiModelsArgs): string {
-  const literals = [...new Set([args.apiKey ?? "", ...Object.values(args.headers ?? {})])].filter((s) => s.length > 0).sort((a, b) => b.length - a.length); // longest first: a secret contained in another is masked by the longer one
-  let scrubbed = text;
-  for (const secret of literals) {
-    scrubbed = scrubbed.replaceAll(secret, REDACTED);
-  }
-  return scrubbed;
+  return redactKnownSecrets(text, [args.apiKey ?? "", ...Object.values(args.headers ?? {})]);
 }
 
 /** undici collapses every transport failure into the bare message "fetch failed" and hangs the actual

@@ -53,6 +53,10 @@ const UNSAFE_CLAUDE_RUNTIME_ENV_KEYS: ReadonlySet<string> = new Set([
   "DYLD_INSERT_LIBRARIES",
   "DYLD_LIBRARY_PATH",
   "ENV",
+  "HTTP_PROXY",
+  "HTTPS_PROXY",
+  "ALL_PROXY",
+  "NO_PROXY",
   "GCONV_PATH",
   "LD_LIBRARY_PATH",
   "LD_PRELOAD",
@@ -64,6 +68,9 @@ const UNSAFE_CLAUDE_RUNTIME_ENV_KEYS: ReadonlySet<string> = new Set([
   "PYTHONPATH",
   "RUBYLIB",
   "RUBYOPT",
+  "SSL_CERT_FILE",
+  "SSL_CERT_DIR",
+  "NODE_EXTRA_CA_CERTS",
 ]);
 
 export function isUnsafeClaudeRuntimeEnvKey(key: string): boolean {

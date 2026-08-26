@@ -7,6 +7,8 @@ export type {
   DebugConflict,
   DebugEnvKey,
   DebugPosture,
+  DevStackIdentity,
+  DevStackIdentityVerdict,
   DistState,
   DistVerdict,
   DrainOutcome,
@@ -14,6 +16,7 @@ export type {
   InstanceVerdict,
   LockHolder,
   ObservedInstance,
+  ObservedStackProcess,
   ProdRecord,
   ProdSpawnPlan,
   ProdSpawnPlanOpts,
@@ -30,6 +33,15 @@ export type {
 export { DEBUG_ENV_KEYS, STACK_MODES, STACK_VERBS } from "./contract/types.ts";
 export { formatDispatch, parseStackArgv, STACK_USAGE } from "./lib/argv.ts";
 export { debugConflictMessage, resolveDebugArming, stripDebugEnv } from "./lib/debug-env.ts";
+export {
+  captureDevStackIdentity,
+  devStackIdentityFilePath,
+  parseDevStackIdentity,
+  recordedDevStackVerdict,
+  signalDevStackIdentity,
+  verifyDevStackIdentity,
+  writeDevStackIdentity,
+} from "./lib/dev-process-identity.ts";
 export { classifyInstance, decideDown, decideUp } from "./lib/identity.ts";
 export { parseListenerPid, parseProcStartTicks } from "./lib/proc-parse.ts";
 export { decideSpawnLock, lockHolderText, mayRemovePidfile, parseLockHolder, parseProdRecord, serializeProdRecord } from "./lib/prod-record.ts";

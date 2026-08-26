@@ -10,8 +10,10 @@ import {
   engineIdentityFilePath,
   parseEngineIdentityFile,
   readEngineIdentityFile,
+  reapOrphanedFamily,
   serializeEngineIdentityFile,
   signalEngineLaunchIdentity,
+  signalOrphanedEngineGroup,
   signalRecordedEngineProcess,
   verifyEngineLaunchIdentity,
   writeEngineLaunchIdentities,
@@ -122,6 +124,47 @@ test("a stale or foreign target is refused before the signal syscall", () => {
   expect(calls).toEqual([]);
 });
 
+test("orphan recovery signals only a stable survivor in the recorded group after the leader is absent", () => {
+  const survivor = { ...OBSERVED, pid: 5000, pgid: IDENTITY.pgid };
+  const calls: Array<readonly [number, NodeJS.Signals]> = [];
+  const readProcess = (pid: number): ObservedEngineProcess | null => {
+    if (pid === IDENTITY.pid) {
+      return null;
+    }
+    return pid === survivor.pid ? survivor : null;
+  };
+  expect(signalOrphanedEngineGroup(IDENTITY, survivor.pid, "SIGKILL", { readProcess, kill: (target, signal) => calls.push([target, signal]) })).toEqual({
+    verdict: "signaled",
+    pgid: IDENTITY.pgid,
+  });
+  expect(calls).toEqual([[-IDENTITY.pgid, "SIGKILL"]]);
+});
+
+test("leader reuse, foreign PGID, and changing survivor identity receive zero signals", () => {
+  const calls: number[] = [];
+  const survivor = { ...OBSERVED, pid: 5000, pgid: IDENTITY.pgid };
+  expect(
+    signalOrphanedEngineGroup(IDENTITY, survivor.pid, "SIGKILL", {
+      readProcess: (pid) => (pid === IDENTITY.pid ? { ...OBSERVED, startTicks: "reused" } : survivor),
+      kill: (target) => calls.push(target),
+    }).verdict,
+  ).toBe("refused");
+  expect(
+    signalOrphanedEngineGroup(IDENTITY, survivor.pid, "SIGKILL", {
+      readProcess: (pid) => (pid === IDENTITY.pid ? null : { ...survivor, pgid: 7331 }),
+      kill: (target) => calls.push(target),
+    }).verdict,
+  ).toBe("refused");
+  let reads = 0;
+  expect(
+    signalOrphanedEngineGroup(IDENTITY, survivor.pid, "SIGKILL", {
+      readProcess: (pid) => (pid === IDENTITY.pid ? null : { ...survivor, startTicks: String(100 + reads++) }),
+      kill: (target) => calls.push(target),
+    }).verdict,
+  ).toBe("refused");
+  expect(calls).toEqual([]);
+});
+
 test("launch identities merge by engine through one atomic owner-only record", () => {
   const repoRoot = mkdtempSync(path.join(tmpdir(), "orb-engine-identity-"));
   try {
@@ -175,6 +218,68 @@ test("a launch identity captured from a disposable owned process can stop its ow
       } catch {
         // The owned child can exit between the state read and cleanup signal.
       }
+    }
+    rmSync(repoRoot, { force: true, recursive: true });
+  }
+});
+
+test("a genuinely owned survivor is reaped only through its recorded process group", async () => {
+  const repoRoot = mkdtempSync(path.join(tmpdir(), "orb-owned-orphan-"));
+  const leaderScript = [
+    'const { spawn } = require("node:child_process")',
+    'const child = spawn(process.execPath, ["-e", "setInterval(() => undefined, 60_000)", "VLLM::EngineCore"], { stdio: "ignore" })',
+    "console.log(child.pid)",
+    "setInterval(() => undefined, 60_000)",
+  ].join(";");
+  const leader = spawn(process.execPath, ["-e", leaderScript], { cwd: repoRoot, detached: true, stdio: ["ignore", "pipe", "ignore"] });
+  await once(leader, "spawn");
+  const leaderPid = leader.pid;
+  expect(leaderPid).toBeGreaterThan(1);
+  if (leaderPid === undefined || leaderPid <= 1 || leader.stdout === null) {
+    throw new Error("owned-orphan test did not receive a safe leader");
+  }
+  const [chunk] = (await once(leader.stdout, "data")) as [Buffer];
+  const survivorPid = Number(chunk.toString("utf8").trim());
+  expect(survivorPid).toBeGreaterThan(1);
+  try {
+    const identity = captureEngineLaunchIdentity("gen", 8703, repoRoot, leaderPid);
+    expect(identity).not.toBeNull();
+    if (identity === null) {
+      throw new Error("owned-orphan test could not capture leader identity");
+    }
+    writeEngineLaunchIdentities(repoRoot, [identity]);
+    const exited = once(leader, "exit");
+    leader.kill("SIGTERM");
+    await exited;
+    expect(() => process.kill(survivorPid, 0)).not.toThrow();
+    expect(await reapOrphanedFamily(repoRoot)).toEqual([leaderPid]);
+  } finally {
+    try {
+      process.kill(-leaderPid, "SIGKILL");
+    } catch {
+      // The reaper should already have removed the owned disposable group.
+    }
+    rmSync(repoRoot, { force: true, recursive: true });
+  }
+});
+
+test("a disposable foreign same-cwd process with vllm serve in argv receives zero reaper signals", async () => {
+  const repoRoot = mkdtempSync(path.join(tmpdir(), "orb-foreign-engine-"));
+  const child = spawn(process.execPath, ["-e", "setInterval(() => undefined, 60_000)", "vllm serve"], { cwd: repoRoot, detached: true, stdio: "ignore" });
+  await once(child, "spawn");
+  const pid = child.pid;
+  expect(pid).toBeGreaterThan(1);
+  if (pid === undefined || pid <= 1) {
+    throw new Error("foreign-process test did not receive a safe child pid");
+  }
+  try {
+    expect(await reapOrphanedFamily(repoRoot)).toEqual([]);
+    expect(() => process.kill(pid, 0)).not.toThrow();
+  } finally {
+    try {
+      process.kill(-pid, "SIGKILL");
+    } catch {
+      // Test owns this disposable group; it may have exited independently.
     }
     rmSync(repoRoot, { force: true, recursive: true });
   }

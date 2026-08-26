@@ -23,7 +23,7 @@
 
 import type { EndpointInspection } from "@orb/contracts/providers";
 import { errorMessage } from "@orb/kit/error-message";
-import { applyIncludeExclude, redactHeaders, redactSecretsFromText, sanitizeApiError, secretHeaderValues } from "../kit/index.ts";
+import { applyIncludeExclude, redactHeaders, redactSecretsFromText, sanitizeApiError } from "../kit/index.ts";
 
 const PING_CONTENT = "ping";
 const PING_MAX_TOKENS = 1;
@@ -64,12 +64,12 @@ export async function inspectCustomByoEndpoint(args: {
     ...(args.headers ?? {}),
   };
   const url = `${args.baseUrl.replace(TRAILING_SLASH_RE, "")}${CHAT_COMPLETIONS_PATH}`;
+  const secrets = [...(args.apiKey !== null ? [args.apiKey] : []), ...Object.values(args.headers ?? {})];
   const request = {
-    url,
-    headers: redactHeaders(headers),
-    body: JSON.stringify(body, null, 2),
+    url: redactSecretsFromText(url, secrets),
+    headers: redactHeaders(headers, secrets),
+    body: redactSecretsFromText(JSON.stringify(body, null, 2), secrets),
   };
-  const secrets = [...(args.apiKey !== null ? [args.apiKey] : []), ...secretHeaderValues(args.headers)];
 
   try {
     const res = await fetch(url, {
@@ -89,11 +89,11 @@ export async function inspectCustomByoEndpoint(args: {
       request,
       response: {
         status: res.status,
-        statusText: res.statusText,
+        statusText: redactSecretsFromText(res.statusText, secrets),
         bodyPreview,
       },
     };
   } catch (err) {
-    return { ok: false, request, response: null, error: sanitizeApiError(redactSecretsFromText(errorMessage(err), secrets)) };
+    return { ok: false, request, response: null, error: redactSecretsFromText(sanitizeApiError(errorMessage(err)), secrets) };
   }
 }
