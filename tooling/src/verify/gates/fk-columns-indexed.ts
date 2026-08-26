@@ -114,6 +114,31 @@ export const gate: GateDescriptor = {
       expect: { count: 1, messageIncludes: "does not LEAD any index" },
       why: "a junction whose composite PK covers the FIRST FK only — the second junction leg still needs its own index (the `chat_tags_tag_idx` shape)",
     },
+    {
+      at: "packages/db/src/schema/tag.ts",
+      files:
+        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+        "const fake = { primaryKey: (value: unknown) => value };\n" +
+        'export const characterTags = sqliteTable(\n  "character_tags",\n  {\n' +
+        '    characterId: text("character_id").references(() => characters.id, { onDelete: "cascade" }),\n' +
+        '    tagId: text("tag_id"),\n' +
+        "  },\n" +
+        "  (t) => [fake.primaryKey({ columns: [t.characterId, t.tagId] })],\n);\n",
+      expect: { count: 1, messageIncludes: "does not LEAD any index" },
+      why: "an impostor primaryKey property must not make an unindexed FK look indexed",
+    },
+    {
+      at: "packages/db/src/schema/tag.ts",
+      files:
+        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+        'export const characterTags = sqliteTable(\n  "character_tags",\n  {\n' +
+        '    characterId: text("character_id").references(() => characters.id, { onDelete: "cascade" }),\n' +
+        '    tagId: text("tag_id"),\n' +
+        "  },\n" +
+        "  (t) => [primaryKey({ columns: [t.characterId, t.tagId] })],\n);\n",
+      expect: { count: 1, messageIncludes: "does not LEAD any index" },
+      why: "an unresolved direct primaryKey name fails closed instead of manufacturing index evidence",
+    },
   ],
   mustPass: [
     {
@@ -150,6 +175,17 @@ export const gate: GateDescriptor = {
         "  },\n" +
         "  (t) => [sqliteCore.primaryKey({ columns: [t.characterId, t.tagId] })],\n);\n",
       why: "a namespace-qualified composite key still indexes its leading FK; import spelling cannot create a false violation",
+    },
+    {
+      at: "packages/db/src/schema/tag.ts",
+      files:
+        'import { primaryKey as sqlitePrimaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+        'export const characterTags = sqliteTable(\n  "character_tags",\n  {\n' +
+        '    characterId: text("character_id").references(() => characters.id, { onDelete: "cascade" }),\n' +
+        '    tagId: text("tag_id"),\n' +
+        "  },\n" +
+        "  (t) => [sqlitePrimaryKey({ columns: [t.characterId, t.tagId] })],\n);\n",
+      why: "the imported builder identity survives a local alias and still covers the leading FK",
     },
     {
       at: "packages/db/src/schema/stats.ts",

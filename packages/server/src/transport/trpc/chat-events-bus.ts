@@ -18,6 +18,7 @@
 
 import type { ChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
+import { getLog } from "#foundation/observability";
 import { defineBusChannel } from "./bus-channel.ts";
 
 const channelFor = (chatId: ChatId): string => `chat:${chatId}`;
@@ -58,7 +59,15 @@ export function publishChatEvent(entry: ChatLivePublish): void {
 /** Subscribe to the all-chats firehose (the buddy observer's chat source); returns the unsubscribe.
  *  Callback-style — the observer is a long-lived process supervisor, not a per-request SSE generator. */
 export function subscribeAllChatEvents(listener: (entry: ChatLiveEvent) => void): () => void {
-  return bus.subscribeAll(listener);
+  return bus.subscribeAll((entry) => {
+    try {
+      listener(entry);
+    } catch (err) {
+      // The event is already durable. A callback-style observer cannot roll back that truth or make its
+      // producer report failure; isolate and report the observer fault at the subscription boundary.
+      getLog().error({ err, chatId: entry.event.chatId, type: entry.event.type }, "chat live firehose listener failed after durable publish");
+    }
+  });
 }
 
 /** The room's live event stream, scoped to one `chatId` and torn down on `signal` abort. `on()` begins

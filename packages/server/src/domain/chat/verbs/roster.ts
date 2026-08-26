@@ -30,6 +30,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import { backgroundMaterializeMessage, canonicalBackgroundSource, themeBackgroundSchema } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
@@ -61,7 +62,7 @@ import type {
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
 import { restampChatCharacterStatement } from "../persistence/canon-write.ts";
-import { clearHandoffResumption, insertHandoffResumptionStatement, loadHandoffResumption } from "../persistence/handoff-resume.ts";
+import { clearHandoffResumptionStatement, insertHandoffResumptionStatement, loadHandoffResumption } from "../persistence/handoff-resume.ts";
 import {
   acceptHostHandoffSwapStatements,
   assertForcedCharacterMember,
@@ -83,7 +84,7 @@ import { canonMessageDelta } from "../substrate/stats-delta.ts";
 
 /** The emit op the mutating roster verbs close over. Production returns `false` only when the total bus
  * classified and dropped its durable append; direct verb tests historically return no value. */
-type EmitChatEvent = (event: DurableChatBusEvent) => Promise<unknown>;
+type EmitChatEvent = (event: DurableChatBusEvent, coStatements?: readonly BatchStmt[]) => Promise<unknown>;
 
 /** The extra collaborators the roster bundle needs beyond `ChatContext`. */
 interface RosterDeps {
@@ -868,16 +869,17 @@ function anchorSurvivesHandoff(ctx: ChatContext, newOwnerUserId: UserId, anchorP
   return ctx.verifyPersonaOwned({ ownerId: newOwnerUserId, personaId: anchorPersonaId });
 }
 
-/** Finish the only non-statement-shaped handoff tail. The marker is deleted LAST; any throw leaves the exact
- *  accepted-host/actor payload durable for a retry after the nomination has already cleared. */
+/** Finish the only non-statement-shaped handoff tail. Actor re-keying runs first and is retry-safe; the
+ * durable completion event and accepted-host-scoped marker clear then commit in one batch. */
 async function completeHandoffResumption(ctx: ChatContext, emit: EmitChatEvent, resume: HandoffResumption): Promise<void> {
   if (resume.actorRekeys.length > 0) {
     await ctx.rpg?.handoffRekeyActors(resume.chatId, resume.actorRekeys);
   }
-  if ((await emit({ type: "chatUpdated", chatId: resume.chatId })) === false) {
+  if (
+    (await emit({ type: "chatUpdated", chatId: resume.chatId }, [clearHandoffResumptionStatement(ctx.db, resume.chatId, resume.acceptedByUserId)])) === false
+  ) {
     throw new Error(`chat ${resume.chatId}: host handoff completion event was not durably appended`);
   }
-  await clearHandoffResumption(ctx.db, resume.chatId, resume.acceptedByUserId);
 }
 
 /** `acceptHostHandoff` — step 2: the nominee accepts (a self-action). The caller must equal

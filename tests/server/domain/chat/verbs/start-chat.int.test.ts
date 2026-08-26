@@ -25,6 +25,7 @@ import { beforeEach, describe } from "vitest";
 import { insertChatEventStatement } from "../../../../../packages/server/src/domain/chat/persistence/events.ts";
 import { listMemberChats } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat.ts";
+import { publishChatEvent, subscribeAllChatEvents } from "../../../../../packages/server/src/transport/trpc/chat-events-bus.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -253,6 +254,38 @@ describe("startChat — canon-mutator stats push (stats.md)", () => {
 });
 
 describe("startChat — lazy room creation + opening", () => {
+  test("a throwing live listener cannot turn a committed room birth into a failed start", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
+    const base = makeDeps();
+    const unsubscribe = subscribeAllChatEvents(() => {
+      throw new Error("listener exploded after durable birth");
+    });
+    const deps = makeDeps({
+      prepareCreationEvent: (event) => {
+        const prepared = base.prepareCreationEvent(event);
+        return {
+          statement: prepared.statement,
+          publishCommitted: (): void => {
+            prepared.publishCommitted();
+            // Exercise the real callback-style chat firehose, whose listener throws synchronously.
+            publishChatEvent({ seq: 1, event });
+          },
+        };
+      },
+    });
+
+    try {
+      const result = await createStartChat(ctx, deps).startChat({ principal: principal(host), characterIds: [aria], opening: "none" });
+      expect(result.chat.id).toBeDefined();
+      expect(await db.select().from(chats)).toHaveLength(1);
+      expect(await db.select().from(chatEvents)).toHaveLength(1);
+    } finally {
+      unsubscribe();
+    }
+  });
+
   test("first-message (solo): seeds the primary greeting VERBATIM; caller is host; D28 live roster", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");

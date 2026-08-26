@@ -51,3 +51,10 @@ export async function loadHandoffResumption(db: Db, chatId: ChatId): Promise<Han
 export async function clearHandoffResumption(db: Db, chatId: ChatId, acceptedByUserId: UserId): Promise<void> {
   await db.delete(chatHandoffResumptions).where(and(eq(chatHandoffResumptions.chatId, chatId), eq(chatHandoffResumptions.acceptedByUserId, acceptedByUserId)));
 }
+
+/** Accepted-host-scoped marker clear, unexecuted so completion can commit it with the durable event. */
+export function clearHandoffResumptionStatement(db: Db, chatId: ChatId, acceptedByUserId: UserId): BatchStmt {
+  return batchStmt(
+    db.delete(chatHandoffResumptions).where(and(eq(chatHandoffResumptions.chatId, chatId), eq(chatHandoffResumptions.acceptedByUserId, acceptedByUserId))),
+  );
+}
