@@ -38,6 +38,8 @@ import { useEffect, useState } from "react";
 // The shell's own CONTEXT-panel consumer, by its internal path: a story is the one place allowed to reach a
 // feature's internals to mount the REAL production host (the app-shell stories do the same).
 import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
+import { CharacterHistoryTab } from "../../../../packages/client/src/features/character/components/character-history-tab.tsx";
+import { CharacterTagsRow } from "../../../../packages/client/src/features/character/components/character-tags-row.tsx";
 import { CtAppDataProviders, CtCharacterContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
@@ -235,6 +237,39 @@ export function CharacterOptionsTabStory(): ReactElement {
         <CharacterOptionsTab characterId={castId<CharacterId>("char_ct_1")} />
       </div>
     </CtDataProviders>
+  );
+}
+
+/** The two immediate-write clusters #746 owns, mounted directly so held-mutation CTs do not inherit the
+ *  editor surface's unrelated autosave and attachment reads. */
+export function CharacterHistoryTabStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 463 }}>
+        <CharacterHistoryTab characterId={castId<CharacterId>("char_ct_1")} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+export function CharacterTagsRowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CharacterTagsRowHarness />
+    </CtDataProviders>
+  );
+}
+
+function CharacterTagsRowHarness(): ReactElement {
+  const trpc = useTRPC();
+  return (
+    <div style={{ width: 463 }}>
+      <CharacterTagsRow
+        characterId={castId<CharacterId>("char_ct_1")}
+        tags={[{ id: castId<TagId>("tag_ct_1"), name: "rpg", isHiddenOnCard: false }]}
+        trpc={trpc}
+      />
+    </div>
   );
 }
 

@@ -15,6 +15,7 @@ import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, usePromptMacroSuggestions, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
@@ -80,12 +81,28 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const duplicate = useDuplicatePersona({ trpc, invalidation });
+  const duplicateInFlight = useRef(false);
   // MACU-2 — the builtin catalog UNION the active preset's user macros. A persona description is rendered
   // through the PER-TURN macro registry at assembly (`renderMacros`, the registry `buildTurnUserMacros`
   // composes), so a user macro genuinely resolves here; offering only three builtins was a taste list
   // standing in for the vocabulary.
   const macroSuggestions = usePromptMacroSuggestions();
   const baseMetadata: PersonaMetadata | null = persona.metadata;
+
+  const duplicatePersona = (): void => {
+    if (duplicateInFlight.current) {
+      return;
+    }
+    duplicateInFlight.current = true;
+    duplicate.mutate(
+      { personaId: persona.id },
+      {
+        onSettled: (): void => {
+          duplicateInFlight.current = false;
+        },
+      },
+    );
+  };
 
   return (
     <Stack gap="row">
@@ -154,7 +171,7 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
           <Icon icon={Trash2} size="sm" />
           Delete
         </Button>
-        <Button intent="ghost" size="sm" onClick={(): void => duplicate.mutate({ personaId: persona.id })}>
+        <Button disabled={duplicate.isPending} intent="ghost" size="sm" onClick={duplicatePersona}>
           <Icon icon={Copy} size="sm" />
           Duplicate
         </Button>
