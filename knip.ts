@@ -97,8 +97,8 @@ const config: KnipConfig = {
     "packages/server": {
       // Entry auto-detected from package.json exports (`./*` → src/*/index.ts, covers src/entry/index.ts).
       project: ["src/**/*.ts!"],
-      // nvidia-smi/ps/ss are system binaries the vllm engine shells.
-      ignoreBinaries: ["nvidia-smi", "ps", "ss"],
+      // nvidia-smi/ss are system binaries the vllm engine shells.
+      ignoreBinaries: ["nvidia-smi", "ss"],
     },
     "packages/client": {
       // main.tsx is auto-detected as an entry from index.html's <script type="module"> tag.

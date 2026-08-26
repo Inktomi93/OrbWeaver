@@ -1,7 +1,7 @@
 // Durable ownership for the detached dev-stack process group. The JSON record carries the complete Linux
 // process identity; every TERM/KILL re-reads it and refuses stale, reused, corrupt, or unsafe targets.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { readObservedEngineProcess } from "@orb/server/infra/providers/vllm/engine";
@@ -60,25 +60,10 @@ function sameProcess(left: ObservedStackProcess, right: ObservedStackProcess): b
   );
 }
 
-function defaultGroupProcesses(pgid: number): ObservedStackProcess[] {
-  const processes: ObservedStackProcess[] = [];
-  for (const name of readdirSync("/proc")) {
-    if (!NUMERIC_RE.test(name)) {
-      continue;
-    }
-    const observed = readObservedEngineProcess(Number(name));
-    if (observed?.pgid === pgid) {
-      processes.push(observed);
-    }
-  }
-  return processes;
-}
-
 export function verifyDevStackIdentity(
   identity: DevStackIdentity,
   opts: {
     readonly readProcess?: (pid: number) => ObservedStackProcess | null;
-    readonly groupProcesses?: (pgid: number) => readonly ObservedStackProcess[];
   } = {},
 ): DevStackIdentityVerdict {
   if (identity.pid <= 1 || identity.pgid <= 1 || identity.pid !== identity.pgid || identity.repoRoot !== path.resolve(identity.repoRoot)) {
@@ -86,17 +71,15 @@ export function verifyDevStackIdentity(
   }
   const readProcess = opts.readProcess ?? readObservedEngineProcess;
   const leader = readProcess(identity.pid);
-  if (leader !== null) {
-    return sameProcess(identity, leader)
-      ? { verdict: "owned", pgid: identity.pgid, witness: leader }
-      : { verdict: "refused", reason: `recorded leader pid ${identity.pid} was reused or changed identity` };
+  if (leader === null) {
+    return {
+      verdict: "refused",
+      reason: `recorded dev-stack leader pid ${identity.pid} is absent; survivor ownership is unknowable, so manual cleanup or relaunch is required`,
+    };
   }
-  const survivors = (opts.groupProcesses ?? defaultGroupProcesses)(identity.pgid).filter(
-    (candidate) => candidate.pid !== identity.pid && candidate.cwd === identity.repoRoot,
-  );
-  return survivors[0] === undefined
-    ? { verdict: "absent", reason: `recorded dev-stack group ${identity.pgid} is gone` }
-    : { verdict: "owned", pgid: identity.pgid, witness: survivors[0] };
+  return sameProcess(identity, leader)
+    ? { verdict: "owned", pgid: identity.pgid, witness: leader }
+    : { verdict: "refused", reason: `recorded leader pid ${identity.pid} was reused or changed identity` };
 }
 
 export function captureDevStackIdentity(repoRoot: string, pid: number): DevStackIdentity | null {
@@ -126,7 +109,6 @@ export function signalDevStackIdentity(
   signal: NodeJS.Signals,
   opts: {
     readonly readProcess?: (pid: number) => ObservedStackProcess | null;
-    readonly groupProcesses?: (pgid: number) => readonly ObservedStackProcess[];
     readonly kill?: (target: number, signal: NodeJS.Signals) => void;
   } = {},
 ): DevStackIdentityVerdict | { readonly verdict: "signaled"; readonly pgid: number } {
@@ -134,9 +116,8 @@ export function signalDevStackIdentity(
   if (first.verdict !== "owned") {
     return first;
   }
-  const witness = (opts.readProcess ?? readObservedEngineProcess)(first.witness.pid);
   const leader = (opts.readProcess ?? readObservedEngineProcess)(identity.pid);
-  if (witness === null || !sameProcess(first.witness, witness) || (first.witness.pid !== identity.pid && leader !== null)) {
+  if (leader === null || !sameProcess(first.witness, leader)) {
     return { verdict: "refused", reason: "dev-stack identity changed immediately before signal" };
   }
   try {
