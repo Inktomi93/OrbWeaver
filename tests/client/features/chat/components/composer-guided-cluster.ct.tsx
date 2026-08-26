@@ -56,9 +56,10 @@ test("Response on an EMPTY committed composer fires a PLAIN generate (no steer o
 
   await component.getByRole("button", { name: RESPONSE }).click();
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("chat.generate") as { guided?: unknown; afterAssistant?: boolean };
   const input = trpc.lastInput("chat.generate") as { guided?: unknown; afterAssistant?: boolean };
-  expect(input.guided).toBeUndefined(); // empty composer ⇒ no steer object
-  expect(input.afterAssistant).toBe(true); // still nudged on an assistant tail
+  await expect.poll(async () => (await readInputAtAssertion()).guided).toBeUndefined(); // empty composer ⇒ no steer object
+  await expect.poll(async () => (await readInputAtAssertion()).afterAssistant).toBe(true); // still nudged on an assistant tail
 });
 
 test("Response fires chat.generate with the typed steer + afterAssistant on an assistant tail", async ({ mount, page }) => {
@@ -70,9 +71,10 @@ test("Response fires chat.generate with the typed steer + afterAssistant on an a
   await component.getByRole("button", { name: RESPONSE_GUIDED }).click();
 
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("chat.generate") as { guided?: { input?: string }; afterAssistant?: boolean };
   const input = trpc.lastInput("chat.generate") as { guided?: { input?: string }; afterAssistant?: boolean };
-  expect(input.guided?.input).toBe("make her angrier");
-  expect(input.afterAssistant).toBe(true);
+  await expect.poll(async () => (await readInputAtAssertion()).guided?.input).toBe("make her angrier");
+  await expect.poll(async () => (await readInputAtAssertion()).afterAssistant).toBe(true);
   // Response CONSUMES the steer — the composer clears.
   await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("");
 });
@@ -117,9 +119,9 @@ test("Draft your line on a COMMITTED chat STREAMS into the composer PROGRESSIVEL
   await expect(box).toHaveValue("I step into the tavern, cloak dripping.");
   // NO user turn was persisted — nothing committed on the committed path (no startChat, and the stream writes
   // no canon). The composer-fill assertions above prove the whole stream completed.
-  // ONESHOT-OK: the full-fill assertion above proves the stream COMPLETED; on a committed chat `fireImpersonate`
+  // Settled snapshot: the full-fill assertion above proves the stream COMPLETED; on a committed chat `fireImpersonate`
   // never calls `commitDraft`, so `chat.startChat` is provably never invoked (stable at 0).
-  expect(trpc.count("chat.startChat")).toBe(0);
+  await expect.poll(async () => trpc.count("chat.startChat")).toBe(0);
 });
 
 // ── The impersonate stream is a ONE-SHOT drive, not a live feed ──────────────────────────────────────────
@@ -135,9 +137,9 @@ test("Draft your line on a COMMITTED chat STREAMS into the composer PROGRESSIVEL
  *  several times inside the window), plus the stub's own connect counter still reading 1. */
 async function expectNoReconnect(page: Page, sse: { count: () => number }, watchMs = ZOMBIE_WATCH_MS): Promise<void> {
   await expect(page.waitForRequest(isImpersonateStreamRequest, { timeout: watchMs })).rejects.toThrow(WAIT_TIMEOUT);
-  // ONESHOT-OK: the wait above TIMED OUT, so no stream request reached the page inside the window — the
+  // Settled snapshot: the wait above TIMED OUT, so no stream request reached the page inside the window — the
   // recorder (fed by the route handler, which only runs on such a request) is provably settled at read.
-  expect(sse.count()).toBe(1);
+  await expect.poll(async () => sse.count()).toBe(1);
 }
 
 test("a COMPLETED impersonate stream is unsubscribed — no zombie reconnect", async ({ mount, page }) => {
@@ -274,9 +276,10 @@ test("Regenerate lives in the ✨ menu and fires a PLAIN reroll of the tail assi
   await page.getByRole("menuitem", { name: "Regenerate" }).click();
 
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
-  // ONESHOT-OK: the poll settled the recorder at exactly 1 call. A PLAIN reroll carries no steer object.
+  // Settled snapshot: the poll settled the recorder at exactly 1 call. A PLAIN reroll carries no steer object.
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("chat.swipe") as { guided?: unknown };
   const input = trpc.lastInput("chat.swipe") as { guided?: unknown };
-  expect(input.guided).toBeUndefined();
+  await expect.poll(async () => (await readInputAtAssertion()).guided).toBeUndefined();
 });
 
 test("Regenerate in the ✨ menu is disabled-with-reason when there's no assistant reply to reroll", async ({ mount, page }) => {
@@ -475,13 +478,15 @@ test("Corrections fires the toggle KINDS on the wire — no composed fragment by
   await page.getByRole("button", { name: "Rewrite" }).click();
 
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
-  // ONESHOT-OK: the poll settled the recorder at exactly 1 call.
+  // Settled snapshot: the poll settled the recorder at exactly 1 call.
+  const readInputAtAssertion = async (): Promise<typeof input> =>
+    trpc.lastInput("chat.swipe") as { guided?: { action?: string; input?: string; rewriteToggles?: readonly string[] } };
   const input = trpc.lastInput("chat.swipe") as { guided?: { action?: string; input?: string; rewriteToggles?: readonly string[] } };
-  expect(input.guided?.action).toBe("rewrite");
-  expect(input.guided?.rewriteToggles).toStrictEqual(["concise", "past-tense"]);
-  expect(input.guided?.input).toBe("keep the plot beats");
+  await expect.poll(async () => (await readInputAtAssertion()).guided?.action).toBe("rewrite");
+  await expect.poll(async () => (await readInputAtAssertion()).guided?.rewriteToggles).toStrictEqual(["concise", "past-tense"]);
+  await expect.poll(async () => (await readInputAtAssertion()).guided?.input).toBe("keep the plot beats");
   // The fragment bytes stayed on the server side of the boundary.
-  expect(JSON.stringify(input)).not.toContain("cut filler");
+  await expect.poll(async () => JSON.stringify(await readInputAtAssertion())).not.toContain("cut filler");
 });
 
 test("Corrections with ONLY toggles (no typed instruction) still fires — the kinds are the whole steer", async ({ mount, page }) => {
@@ -500,8 +505,10 @@ test("Corrections with ONLY toggles (no typed instruction) still fires — the k
   await page.getByRole("button", { name: "Rewrite" }).click();
 
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
-  // ONESHOT-OK: the poll settled the recorder at exactly 1 call.
+  // Settled snapshot: the poll settled the recorder at exactly 1 call.
+  const readInputAtAssertion = async (): Promise<typeof input> =>
+    trpc.lastInput("chat.swipe") as { guided?: { input?: string; rewriteToggles?: readonly string[] } };
   const input = trpc.lastInput("chat.swipe") as { guided?: { input?: string; rewriteToggles?: readonly string[] } };
-  expect(input.guided?.rewriteToggles).toStrictEqual(["literary"]);
-  expect(input.guided?.input).toBeUndefined();
+  await expect.poll(async () => (await readInputAtAssertion()).guided?.rewriteToggles).toStrictEqual(["literary"]);
+  await expect.poll(async () => (await readInputAtAssertion()).guided?.input).toBeUndefined();
 });

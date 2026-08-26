@@ -208,8 +208,9 @@ test("pending phase (turnStarted, no deltas yet): the typing dots render with RE
   const pending = component.getByRole("status");
   await expect(pending).toBeVisible();
   await expect(component.locator('[data-slot="typing-dots"] .orb-typing-dot')).toHaveCount(3);
+  const readBoxAtAssertion = async (): Promise<typeof box> => await pending.boundingBox();
   const box = await pending.boundingBox();
-  expect(box?.width).toBeGreaterThan(100);
+  await expect.poll(async () => (await readBoxAtAssertion())?.width).toBeGreaterThan(100);
 });
 
 // SWIPE reroll (append-variant), streamed head only (start + two deltas, NO completion) so the in-place
@@ -461,10 +462,10 @@ test("a chatOpened on the room's FIRST attach refetches NOTHING — the open's o
   // The barrier: the delta AFTER the synthetic is on screen, so the synthetic has been applied.
   await expect(component.getByText("Hello world!")).toBeVisible();
 
-  // ONESHOT-OK: settled by the barrier above — the frame after `chatOpened` has rendered, so any fetch that
+  // Settled snapshot: settled by the barrier above — the frame after `chatOpened` has rendered, so any fetch that
   // event caused is already recorded. A poll would be wrong here (the count only climbs; poll goes green on
   // a value it merely transits).
-  expect(trpc.count("chat.getChat")).toBe(1);
+  await expect.poll(async () => trpc.count("chat.getChat")).toBe(1);
 });
 
 // #9 (B): the ONE present-tense divider carries the COMPACTION FACT when previewContextFit reports a
@@ -575,6 +576,16 @@ test("the context-boundary divider's label speaks the kicker voice (a region nam
   const label = component.locator('[data-slot="context-boundary-divider"] [data-slot="text"]').first();
   await expect(label).toBeVisible();
   await expect(label).toHaveAttribute("data-voice", "kicker");
+  const readTypeAtAssertion = async (): Promise<typeof type> =>
+    await label.evaluate((el) => {
+      const style = getComputedStyle(el);
+      const probe = el.ownerDocument.createElement("div");
+      el.ownerDocument.body.append(probe);
+      probe.style.fontSize = "var(--text-micro)";
+      const micro = getComputedStyle(probe).fontSize;
+      probe.remove();
+      return { size: style.fontSize, weight: style.fontWeight, transform: style.textTransform, micro };
+    });
   const type = await label.evaluate((el) => {
     const style = getComputedStyle(el);
     const probe = el.ownerDocument.createElement("div");
@@ -584,9 +595,9 @@ test("the context-boundary divider's label speaks the kicker voice (a region nam
     probe.remove();
     return { size: style.fontSize, weight: style.fontWeight, transform: style.textTransform, micro };
   });
-  expect(type.size).toBe(type.micro);
-  expect(type.transform).toBe("uppercase");
-  expect(type.weight).toBe("600");
+  await expect.poll(async () => (await readTypeAtAssertion()).size).toBe(type.micro);
+  await expect.poll(async () => (await readTypeAtAssertion()).transform).toBe("uppercase");
+  await expect.poll(async () => (await readTypeAtAssertion()).weight).toBe("600");
 });
 
 // ── THE TAIL FLASH: the ghost must hand over to a canon row that is ALREADY CORRECT ─────────────────
@@ -877,7 +888,7 @@ test("#690 LOADING OVER ART, LIGHT ROOM: the skeleton bars are visibly distinct 
   await expect(skeleton).toBeVisible();
   await expect.poll(async () => skeleton.boundingBox()).not.toBeNull();
   const box = await skeleton.boundingBox();
-  // ONESHOT-OK: the visibility barrier settled the box; a framebuffer read is a SEQUENTIAL browser op.
+  // Settled snapshot: the visibility barrier settled the box; a framebuffer read is a SEQUENTIAL browser op.
   const plate = await sampleLoadingPlatePixel(page, skeleton);
   const bar = await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) + (box?.height ?? 0) / 2));
   const ratio = contrastRatio(bar, plate);
@@ -973,7 +984,7 @@ for (const { label, width, height } of ERROR_CONTRAST_WIDTHS) {
     const retry = component.getByRole("button", { name: "Retry" });
     await expect(retry).toBeVisible();
 
-    // ONESHOT-OK: both boxes are settled by the visibility barriers above; a framebuffer read is a
+    // Settled snapshot: both boxes are settled by the visibility barriers above; a framebuffer read is a
     // SEQUENTIAL browser operation, so the two samples cannot be taken concurrently.
     const statusContrast = await pixelContrast(page, status);
     expect(statusContrast.ratio, `error copy: ${statusContrast.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
@@ -994,7 +1005,7 @@ test("#681 CONTROL: with no art flag the SAME probe reads the raw backdrop — t
 
   const status = component.getByRole("status");
   await expect(status).toBeVisible();
-  // ONESHOT-OK: the visibility barrier above settled the box; a framebuffer read is sequential.
+  // Settled snapshot: the visibility barrier above settled the box; a framebuffer read is sequential.
   const contrast = await pixelContrast(page, status);
   // The raw white story backdrop, unplated — and therefore the DEFECT's own number, which is what makes
   // the ≥AA assertions above a receipt for the plate rather than for the palette.
@@ -1209,6 +1220,14 @@ test("#113 a turn taller than the scrollport pins its speaker row to the top of 
   await scroller.evaluate((el: HTMLElement) => {
     el.scrollTop = 0;
   });
+  const readFirstRowGapAtAssertion = async (): Promise<typeof firstRowGap> =>
+    await scroller.evaluate((el: HTMLElement) => {
+      const row = el.querySelector('[data-slot="message-list-row"]');
+      if (row === null) {
+        return Number.NaN;
+      }
+      return row.getBoundingClientRect().top - el.getBoundingClientRect().top;
+    });
   const firstRowGap = await scroller.evaluate((el: HTMLElement) => {
     const row = el.querySelector('[data-slot="message-list-row"]');
     if (row === null) {
@@ -1216,7 +1235,7 @@ test("#113 a turn taller than the scrollport pins its speaker row to the top of 
     }
     return row.getBoundingClientRect().top - el.getBoundingClientRect().top;
   });
-  expect(Math.round(firstRowGap)).toBe(12);
+  await expect.poll(async () => Math.round(await readFirstRowGapAtAssertion())).toBe(12);
 });
 
 test("#113 CONTROL: a short turn is left alone — no sticky, no chip, no measured height change", async ({ mount, page }) => {

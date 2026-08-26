@@ -156,14 +156,19 @@ test("#229: over a wallpaper the strip takes the derived plate + blur; without o
   const overArt = await mount(<ChatCastBarStory overArt={true} />);
   const artStrip = overArt.getByTestId("chat-cast-bar");
   await expect(artStrip).toBeVisible();
+  const readArtPaintAtAssertion = async (): Promise<typeof artPaint> =>
+    await artStrip.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { backdrop: s.backdropFilter, bg: s.backgroundColor, plate: s.getPropertyValue("--color-reading-plate").trim() };
+    });
   const artPaint = await artStrip.evaluate((el) => {
     const s = getComputedStyle(el);
     return { backdrop: s.backdropFilter, bg: s.backgroundColor, plate: s.getPropertyValue("--color-reading-plate").trim() };
   });
   // The fill is the ROW'S OWN plate token — the polarity-derived backing, never a hand-picked smoke.
-  expect(artPaint.plate).not.toBe("");
-  expect(artPaint.bg).not.toBe("rgba(0, 0, 0, 0)");
-  expect(artPaint.backdrop).toContain("blur");
+  await expect.poll(async () => (await readArtPaintAtAssertion()).plate).not.toBe("");
+  await expect.poll(async () => (await readArtPaintAtAssertion()).bg).not.toBe("rgba(0, 0, 0, 0)");
+  await expect.poll(async () => (await readArtPaintAtAssertion()).backdrop).toContain("blur");
 });
 
 // ── #511: THE PHONE STRIP IS AN AVATAR STACK, AND THE TAX STOPS SCALING WITH NARROWNESS ───────────
@@ -282,9 +287,9 @@ for (const width of [430, 390, 320]) {
       await routeTrpc(page, PHONE_ROOM_STUB);
       const room = await mount(<ChatRoomPhoneStory paneHeight={822} />);
       // The pointer class is the arm's whole condition — read it before trusting a single measurement.
-      // ONESHOT-OK: a media-query match on a CONTEXT flag fixed before the page opened (`hasTouch`), so
+      // Settled snapshot: a media-query match on a CONTEXT flag fixed before the page opened (`hasTouch`), so
       // nothing async can change it (the face-strip / touch-target-floor suites read it the same way).
-      expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       await expect(room.getByTestId("chat-cast-bar")).toBeVisible();
       await expect(room.locator('[data-slot="cast-chip"]')).toHaveCount(4);
 
@@ -320,9 +325,9 @@ test.describe("#511 the desktop strip keeps its names", () => {
     await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CAST_CHARACTER_ROUTE, "chat.getChat": () => ({ participants: CROWDED_ROSTER }) });
     const component = await mount(<ChatCastBarStory />);
     await expect(component.getByTestId("chat-cast-bar")).toBeVisible();
-    // ONESHOT-OK: the same context-fixed media match as the coarse arm — no `hasTouch`, decided before
+    // Settled snapshot: the same context-fixed media match as the coarse arm — no `hasTouch`, decided before
     // the page opened, and it is the discriminator for this whole describe.
-    expect(await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
+    await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
 
     await expect(component.getByText("Aria of the Ninth Gate")).toBeVisible();
     const measured = await measureStrip(page);

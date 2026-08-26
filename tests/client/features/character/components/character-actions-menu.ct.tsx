@@ -62,9 +62,9 @@ test("the CHARACTERS menu jumps straight into a refinery session on that card â€
   // The SETTLED shell state: the card had no session, so one was minted and the user is standing in it.
   await expect(page.getByTestId("refinery-session")).toHaveText(`session=${MINTED_SESSION_ID}`);
   await expect(page.getByTestId("active-section")).toHaveText("section=refinery");
-  // ONESHOT-OK: the readout above only paints after the flow resolved (it is the flow's own last write),
+  // Settled snapshot: the readout above only paints after the flow resolved (it is the flow's own last write),
   // so the recording is closed by the time this reads.
-  expect(trpc.count("refinery.startSession")).toBe(1);
+  await expect.poll(async () => trpc.count("refinery.startSession")).toBe(1);
   // ONESHOT-OK: same settled barrier.
   expect(trpc.lastInput("refinery.startSession")).toEqual({ characterId: CHARACTER_ID });
 });

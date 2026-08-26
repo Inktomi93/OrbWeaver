@@ -512,7 +512,7 @@ test("F8: the section names speak the INSTRUMENT tier's kicker voice, not the fo
   // Polled: type resolution settles with the stylesheet, and a one-shot read samples whatever the first
   // frame had (the DEF-14 class).
   await expect.poll(() => style().then((s) => s.size), { intervals: [20, 50, 100, 200] }).toBe(micro);
-  // ONESHOT-OK: the poll above just proved this element's type resolution has SETTLED, and nothing in this
+  // Settled snapshot: the poll above just proved this element's type resolution has SETTLED, and nothing in this
   // test mutates it afterwards — these are the same read, sampled once it is provably stable.
   const settled = await style();
   expect(settled.size).not.toBe(title);

@@ -118,8 +118,9 @@ test("multiple speaker markers each get their own ThemeScope, in document order"
   // `component` IS the `[data-slot="message-content-spans"]` root itself (the mount point), so its
   // own text — not a re-query for the same selector as a descendant — is what's load-bearing here:
   // Alice's span text must precede Bob's in the rendered DOM.
+  const readTextAtAssertion = async (): Promise<typeof text> => await component.innerText();
   const text = await component.innerText();
-  expect(text.indexOf("Hi!")).toBeLessThan(text.indexOf("Hey Alice."));
+  await expect.poll(async () => (await readTextAtAssertion()).indexOf("Hi!")).toBeLessThan(text.indexOf("Hey Alice."));
 });
 
 test("a preamble before the first marker renders as an un-themed narrator span", async ({ mount }) => {
@@ -140,8 +141,9 @@ test("GUARDRAIL: <speaker> coloring SURVIVES the untrusted render tier (non-regr
   // ThemeScope wrappers + routed text are still there.
   const component = await mount(<MessageContentSpansStory trust="untrusted" content="<speaker>Alice</speaker>Hi!<speaker>Bob</speaker>Hey Alice." />);
   await expect(component.locator(THEME_SCOPE)).toHaveCount(2);
+  const readTextAtAssertion = async (): Promise<typeof text> => await component.innerText();
   const text = await component.innerText();
-  expect(text.indexOf("Hi!")).toBeLessThan(text.indexOf("Hey Alice."));
+  await expect.poll(async () => (await readTextAtAssertion()).indexOf("Hi!")).toBeLessThan(text.indexOf("Hey Alice."));
 });
 
 test("GUARDRAIL: an external image is GATED (click-to-load, no auto-fetch) when allowExternal=false", async ({ mount }) => {

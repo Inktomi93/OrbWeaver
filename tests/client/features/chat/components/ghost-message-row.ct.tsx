@@ -449,6 +449,14 @@ test("#116: the aria-live semantics are UNCHANGED — the name enters the announ
   // regression. Wait for streamed prose, then sample. (Caught as an intermittent red while #288 moved the
   // header into the bubble — the extra child shifted the commit enough to lose the race sometimes.)
   await expect(component.getByText("The lantern gutters", { exact: false })).toBeVisible();
+  const readAriaAtAssertion = async (): Promise<typeof aria> =>
+    await ghost.evaluate((el: HTMLElement) => ({
+      role: el.getAttribute("role"),
+      label: el.getAttribute("aria-label"),
+      live: el.getAttribute("aria-live"),
+      atomic: el.getAttribute("aria-atomic"),
+      liveDescendants: [...el.querySelectorAll("[aria-live],[role=status],[role=alert],[aria-atomic]")].map((n) => n.outerHTML.slice(0, 120)),
+    }));
   const aria = await ghost.evaluate((el: HTMLElement) => ({
     role: el.getAttribute("role"),
     label: el.getAttribute("aria-label"),
@@ -456,13 +464,13 @@ test("#116: the aria-live semantics are UNCHANGED — the name enters the announ
     atomic: el.getAttribute("aria-atomic"),
     liveDescendants: [...el.querySelectorAll("[aria-live],[role=status],[role=alert],[aria-atomic]")].map((n) => n.outerHTML.slice(0, 120)),
   }));
-  expect(aria.role).toBeNull();
-  expect(aria.label).toBeNull();
-  expect(aria.live).toBeNull();
-  expect(aria.atomic).toBeNull();
+  await expect.poll(async () => (await readAriaAtAssertion()).role).toBeNull();
+  await expect.poll(async () => (await readAriaAtAssertion()).label).toBeNull();
+  await expect.poll(async () => (await readAriaAtAssertion()).live).toBeNull();
+  await expect.poll(async () => (await readAriaAtAssertion()).atomic).toBeNull();
   // The ONE live-region descendant a streaming ghost is allowed is the pending typing indicator, and it is
   // gone by the first token — so mid-stream there is nothing announcing on its own.
-  expect(aria.liveDescendants).toEqual([]);
+  await expect.poll(async () => (await readAriaAtAssertion()).liveDescendants).toEqual([]);
   // …and the speaker's name appears exactly once in the row's text, not once in chrome + once in a label.
   await expect.poll(async () => ghost.evaluate((el: HTMLElement) => (el.textContent ?? "").split("Marguerite").length - 1)).toBe(1);
 });

@@ -164,12 +164,14 @@ test("PROSE GEOMETRY — an over-cap value scrolls inside a capped box, and the 
 
   // THE BOX IS CAPPED AND SCROLLS. Its own content is taller than it renders — which is the point: the text
   // is all still there, reachable by scrolling the FIELD rather than by scrolling the page past it.
+  const readBoxAtAssertion = async (): Promise<typeof box> =>
+    await arbiter.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }));
   const box = await arbiter.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }));
-  expect(box.content).toBeGreaterThan(box.client);
+  await expect.poll(async () => (await readBoxAtAssertion()).content).toBeGreaterThan(box.client);
   // …and the cap is a real ceiling, not merely "shorter than the content": the box fits the viewport with
   // room left for the footer it must not push away.
   const viewportHeight = page.viewportSize()?.height ?? 0;
-  expect(box.client).toBeLessThan(viewportHeight / 2);
+  await expect.poll(async () => (await readBoxAtAssertion()).client).toBeLessThan(viewportHeight / 2);
 
   // …AND THE ROW STRETCH GOES WITH IT (P2). These cards are grid items, so the tallest one sets its row's
   // height and its sibling gets the difference as empty card — a 2255px card dragged a neighbour to ~1850px

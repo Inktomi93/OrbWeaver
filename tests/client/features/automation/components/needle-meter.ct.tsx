@@ -59,7 +59,7 @@ test("#685 the dial is a DISPLAY-sized graphic, and the card is sized for it rat
 
   const dial = component.locator('[data-slot="meter-track"]');
   await expect(dial).toBeVisible();
-  // ONESHOT-OK: the visibility barrier settled this node; an SVG's intrinsic box does not move after paint.
+  // Settled snapshot: the visibility barrier settled this node; an SVG's intrinsic box does not move after paint.
   const dialBox = await dial.boundingBox();
   expect(dialBox?.width, "dial width").toBe(DIAL_PX);
   expect(dialBox?.height, "dial height").toBe(DIAL_PX);

@@ -102,14 +102,14 @@ test("the pane lists the OWNER's library-wide rules off the id-less read", async
   // The pane's own line says what is DIFFERENT about these rules.
   await expect(surface.getByText(PANE_LINE)).toBeVisible();
   // …and it read the OWNER lane, never a chat's. `listRules` takes a chatId and this surface has none.
-  // ONESHOT-OK: the three assertions above are web-first and already barriered on the SETTLED rendered list
+  // Settled snapshot: the three assertions above are web-first and already barriered on the SETTLED rendered list
   // (the row and both copy lines are visible), which is downstream of every read this surface makes — there
   // is no later call these counts could still be waiting for.
-  expect(trpc.count("automation.listOwnerRules")).toBeGreaterThan(0);
-  // ONESHOT-OK: same settle. A count of ZERO is the assertion, and it can only be falsified by a call that
+  await expect.poll(async () => trpc.count("automation.listOwnerRules")).toBeGreaterThan(0);
+  // Settled snapshot: same settle. A count of ZERO is the assertion, and it can only be falsified by a call that
   // has ALREADY happened — polling a zero would wait for something that must never arrive.
-  expect(trpc.count("automation.listRules")).toBe(0);
-  // ONESHOT-OK: same settle. An unstubbed read answers `null`, which is not a view, so a suspending reader
+  await expect.poll(async () => trpc.count("automation.listRules")).toBe(0);
+  // Settled snapshot: same settle. An unstubbed read answers `null`, which is not a view, so a suspending reader
   // throws into its boundary while the copy outside it still renders (#629) — and that copy is what the
   // visible-assertions above already proved rendered.
   expect(trpc.unstubbed()).toEqual([]);

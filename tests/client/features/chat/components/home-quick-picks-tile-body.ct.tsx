@@ -154,6 +154,16 @@ test("P2-9 the cell's name is a step above its gloss, and both wrap instead of c
   const name = cell.getByText("Morgatha, the Undying Dark");
   const gloss = cell.getByText(LONG_GLOSS);
 
+  const readTypeAtAssertion = async (): Promise<typeof type> =>
+    await name.evaluate((el) => {
+      const style = globalThis.getComputedStyle(el);
+      const probe = el.ownerDocument.createElement("span");
+      probe.style.fontSize = "var(--text-title)";
+      el.ownerDocument.body.append(probe);
+      const titleStep = globalThis.getComputedStyle(probe).fontSize;
+      probe.remove();
+      return { size: style.fontSize, titleStep, whiteSpace: style.whiteSpace, clamp: style.webkitLineClamp };
+    });
   const type = await name.evaluate((el) => {
     const style = globalThis.getComputedStyle(el);
     const probe = el.ownerDocument.createElement("span");
@@ -166,12 +176,12 @@ test("P2-9 the cell's name is a step above its gloss, and both wrap instead of c
   const glossSize = await gloss.evaluate((el) => globalThis.getComputedStyle(el).fontSize);
 
   // The `promoted` voice resolves the TITLE step — the relation, read off the token, not a hardcoded 16.
-  expect(type.size).toBe(type.titleStep);
-  expect(Number.parseFloat(type.size)).toBeGreaterThan(Number.parseFloat(glossSize));
+  await expect.poll(async () => (await readTypeAtAssertion()).size).toBe(type.titleStep);
+  await expect.poll(async () => Number.parseFloat((await readTypeAtAssertion()).size)).toBeGreaterThan(Number.parseFloat(glossSize));
   // …and the name WRAPS (the Button base is `whitespace-nowrap`; a nowrap line in a clamp box overflows
   // with no ellipsis at all, which is why this was `truncate` before).
-  expect(type.whiteSpace).toBe("normal");
-  expect(type.clamp).toBe("2");
+  await expect.poll(async () => (await readTypeAtAssertion()).whiteSpace).toBe("normal");
+  await expect.poll(async () => (await readTypeAtAssertion()).clamp).toBe("2");
   // The gloss gets the same two-line budget — the room exists, and a 20-character cut taught nothing.
   await expect(gloss).toHaveCSS("-webkit-line-clamp", "2");
 });

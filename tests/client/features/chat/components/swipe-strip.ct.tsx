@@ -70,12 +70,17 @@ test("the n/m counter speaks the datum voice — mono, tabular figures (the digi
 
   const counter = component.getByText("2 / 2");
   await expect(counter).toBeVisible();
+  const readTypeAtAssertion = async (): Promise<typeof type> =>
+    await counter.evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { family: style.fontFamily, numeric: style.fontVariantNumeric };
+    });
   const type = await counter.evaluate((el) => {
     const style = getComputedStyle(el);
     return { family: style.fontFamily, numeric: style.fontVariantNumeric };
   });
-  expect(type.family).toContain("Mono");
-  expect(type.numeric).toContain("tabular-nums");
+  await expect.poll(async () => (await readTypeAtAssertion()).family).toContain("Mono");
+  await expect.poll(async () => (await readTypeAtAssertion()).numeric).toContain("tabular-nums");
 });
 
 test("a SINGLE variant renders no pager at all — no counter, no dead back-step (gate stays off, variantCount === 1)", async ({ mount }) => {

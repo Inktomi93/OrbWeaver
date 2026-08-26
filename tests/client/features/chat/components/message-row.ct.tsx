@@ -148,9 +148,10 @@ test("bubble: a two-word reply is content-sized — bubble width well under the 
   const component = await mount(
     <MessageRowStory chatStyle="bubble" messageRole="assistant" content="Hi there" characterId={ALICE_ID} participants={[alice()]} />,
   );
+  const readBubbleBoxAtAssertion = async (): Promise<typeof bubbleBox> => await component.locator(BUBBLE).boundingBox();
   const bubbleBox = await component.locator(BUBBLE).boundingBox();
   const trackBox = await component.locator(ROW).boundingBox();
-  expect(bubbleBox?.width).toBeGreaterThan(0);
+  await expect.poll(async () => (await readBubbleBoxAtAssertion())?.width).toBeGreaterThan(0);
   expect(bubbleBox?.width ?? 0).toBeLessThan((trackBox?.width ?? 0) * 0.6);
   // …and the header it now contains is what sets that width — the bubble hugs the WIDER of its two
   // children, so a two-word reply is header-wide rather than stretched. (Without this the assertion
@@ -427,9 +428,10 @@ test("avatarShape=rounded / avatarAspect=portrait / avatarRing=accent thread thr
   // RENDERED geometry, not just class presence — a collapse-to-0 regression (avatar/variants.ts'
   // header documents this avatar bit ONCE already: a bare icon-left avatar's `h-full` resolved against
   // an undefined parent height and collapsed to ~0px) would pass every assertion above silently.
+  const readBoxAtAssertion = async (): Promise<typeof box> => await root.boundingBox();
   const box = await root.boundingBox();
-  expect(box?.width).toBeGreaterThan(0);
-  expect(box?.height).toBeGreaterThan(0);
+  await expect.poll(async () => (await readBoxAtAssertion())?.width).toBeGreaterThan(0);
+  await expect.poll(async () => (await readBoxAtAssertion())?.height).toBeGreaterThan(0);
 });
 
 // ── Macro DISPLAY pass (the `{{char}}`/`{{user}}` bug) ─────────────────────────────────────────────
@@ -551,9 +553,10 @@ test("hush: the left stripe resolves to --immersive-stripe-width and the charact
   await expect
     .poll(async () => bubble.evaluate((el) => Number.parseFloat(getComputedStyle(el).borderLeftWidth)))
     .toBe(remTokenPx(TOKENS["immersive.stripe-width"].value));
+  const readBorderColorAtAssertion = async (): Promise<typeof borderColor> => await bubble.evaluate((el) => getComputedStyle(el).borderLeftColor);
   const borderColor = await bubble.evaluate((el) => getComputedStyle(el).borderLeftColor);
   const speakerColor = await cssVar(bubble, "--color-speaker");
-  expect(parseOklch(borderColor)).toEqual(parseOklch(speakerColor));
+  await expect.poll(async () => parseOklch(await readBorderColorAtAssertion())).toEqual(parseOklch(speakerColor));
 });
 
 test("tide: a blank-line-separated body renders N stacked, non-overlapping bubbles (a train, not one bubble)", async ({ mount }) => {
@@ -701,13 +704,14 @@ test("bubble: a no-avatar character's chip top-aligns with the name row + paints
   const avatar = component.locator(AVATAR);
   // Placement: the gutter avatar pins to the TOP of the message group (aligned with the speaker name),
   // never vertically centered against a tall multi-line bubble (the items-center footgun).
+  const readAvatarBoxAtAssertion = async (): Promise<typeof avatarBox> => await avatar.boundingBox();
   const avatarBox = await avatar.boundingBox();
   const nameBox = await component.locator(NAME_ROW).boundingBox();
   expect(Math.abs((avatarBox?.y ?? 0) - (nameBox?.y ?? 0))).toBeLessThan(2);
   // The fallback fills a real box (never collapsed to 0), with the entity's deterministic hue — and
   // NOT the pre-fix constant `alt=""` bucket every imageless speaker used to share.
-  expect(avatarBox?.width).toBeGreaterThan(0);
-  expect(avatarBox?.height).toBeGreaterThan(0);
+  await expect.poll(async () => (await readAvatarBoxAtAssertion())?.width).toBeGreaterThan(0);
+  await expect.poll(async () => (await readAvatarBoxAtAssertion())?.height).toBeGreaterThan(0);
   const fallback = avatar.locator(FALLBACK);
   await expect(fallback).toHaveAttribute("data-hue", String(ALICE_HUE_BUCKET));
   await expectInBand(fallback);
@@ -1033,6 +1037,15 @@ test("a local weights path credits its DISPLAY NAME on hover — never the host'
   await expect(credit).toHaveAttribute("title", LOCAL_WEIGHTS_DISPLAY_RE);
   await expect(credit).toHaveText(LOCAL_WEIGHTS_DISPLAY_RE);
   // …but nothing of it is VISIBLE at rest: the only text node is the sr-only sentence.
+  const readVisibleTextAtAssertion = async (): Promise<typeof visibleText> =>
+    await credit.evaluate((el) => {
+      const sr = el.querySelector(".sr-only");
+      const clone = el.cloneNode(true) as HTMLElement;
+      for (const node of clone.querySelectorAll(".sr-only")) {
+        node.remove();
+      }
+      return { sr: (sr?.textContent ?? "").trim(), visible: (clone.textContent ?? "").trim() };
+    });
   const visibleText = await credit.evaluate((el) => {
     const sr = el.querySelector(".sr-only");
     const clone = el.cloneNode(true) as HTMLElement;
@@ -1041,8 +1054,8 @@ test("a local weights path credits its DISPLAY NAME on hover — never the host'
     }
     return { sr: (sr?.textContent ?? "").trim(), visible: (clone.textContent ?? "").trim() };
   });
-  expect(visibleText.visible).toBe("");
-  expect(visibleText.sr).toMatch(LOCAL_WEIGHTS_DISPLAY_RE);
+  await expect.poll(async () => (await readVisibleTextAtAssertion()).visible).toBe("");
+  await expect.poll(async () => (await readVisibleTextAtAssertion()).sr).toMatch(LOCAL_WEIGHTS_DISPLAY_RE);
   // Never the host's directory tree, on the line OR on the tooltip.
   await expect(credit).not.toContainText("/media/");
   await expect(credit).not.toHaveAttribute("title", LOCAL_WEIGHTS_DIR_RE);
@@ -1110,8 +1123,9 @@ test("action cluster is hidden-at-rest (opacity 0, in-flow, inert) and never sta
   // real box (so its footprint is stable, not a surprise on reveal), it's just invisible AND inert.
   await expect(actions).toHaveCSS("opacity", "0");
   await expect(actions).toHaveCSS("pointer-events", "none");
+  const readActionsBoxAtAssertion = async (): Promise<typeof actionsBox> => await actions.boundingBox();
   const actionsBox = await actions.boundingBox();
-  expect(actionsBox?.width).toBeGreaterThan(0); // in flow, occupying real space at rest
+  await expect.poll(async () => (await readActionsBoxAtAssertion())?.width).toBeGreaterThan(0); // in flow, occupying real space at rest
   // The name row doesn't overflow its own box — the icon+⋯ cluster leaves room for the name (no
   // sibling-starve). scrollWidth ≤ clientWidth ⇒ nothing clipped/pushed past the edge.
   await expect.poll(async () => nameRow.evaluate((el) => el.scrollWidth > el.clientWidth + 1)).toBe(false);
@@ -1172,8 +1186,9 @@ for (const style of ["flat", "hush"] as const) {
     );
     const bubble = component.locator(BUBBLE).first();
     const inkVar = await cssVar(bubble, "--color-prose-body");
+    const readRenderedAtAssertion = async (): Promise<typeof rendered> => await bubble.evaluate((el) => getComputedStyle(el).color);
     const rendered = await bubble.evaluate((el) => getComputedStyle(el).color);
-    expect(parseOklch(rendered)).toEqual(parseOklch(inkVar));
+    await expect.poll(async () => parseOklch(await readRenderedAtAssertion())).toEqual(parseOklch(inkVar));
   });
 }
 
@@ -1185,8 +1200,9 @@ test("#204 the name chip's ink rides the palette's foreground token over art (pa
   );
   const nameRow = component.locator(NAME_ROW);
   const inkVar = await cssVar(nameRow, "--color-foreground");
+  const readRenderedAtAssertion = async (): Promise<typeof rendered> => await nameRow.evaluate((el) => getComputedStyle(el).color);
   const rendered = await nameRow.evaluate((el) => getComputedStyle(el).color);
-  expect(parseOklch(rendered)).toEqual(parseOklch(inkVar));
+  await expect.poll(async () => parseOklch(await readRenderedAtAssertion())).toEqual(parseOklch(inkVar));
 });
 
 test("#204 over art, metadata gloss steps up to the FULL foreground (the muted band cannot be floored on a translucent plate)", async ({ mount }) => {
@@ -1207,7 +1223,9 @@ test("#204 over art, metadata gloss steps up to the FULL foreground (the muted b
     </div>,
   );
   const stamp = overArt.locator(TIMESTAMP);
-  expect(parseOklch(await stamp.evaluate((el) => getComputedStyle(el).color))).toEqual(parseOklch(await cssVar(stamp, "--color-foreground")));
+  await expect
+    .poll(async () => parseOklch(await stamp.evaluate((el) => getComputedStyle(el).color)))
+    .toEqual(parseOklch(await cssVar(stamp, "--color-foreground")));
   await overArt.unmount();
   const plain = await mount(
     <MessageRowStory
@@ -1219,7 +1237,9 @@ test("#204 over art, metadata gloss steps up to the FULL foreground (the muted b
     />,
   );
   const plainStamp = plain.locator(TIMESTAMP);
-  expect(parseOklch(await plainStamp.evaluate((el) => getComputedStyle(el).color))).toEqual(parseOklch(await cssVar(plainStamp, "--color-muted-foreground")));
+  await expect
+    .poll(async () => parseOklch(await plainStamp.evaluate((el) => getComputedStyle(el).color)))
+    .toEqual(parseOklch(await cssVar(plainStamp, "--color-muted-foreground")));
 });
 
 test("#204/#241 the sticky band's ink is the base's derived foreground — the palette its fill now derives from", async ({ mount }) => {
@@ -1228,8 +1248,9 @@ test("#204/#241 the sticky band's ink is the base's derived foreground — the p
   );
   const nameRow = component.locator(NAME_ROW);
   const inkVar = await cssVar(nameRow, "--color-foreground");
+  const readRenderedAtAssertion = async (): Promise<typeof rendered> => await nameRow.evaluate((el) => getComputedStyle(el).color);
   const rendered = await nameRow.evaluate((el) => getComputedStyle(el).color);
-  expect(parseOklch(rendered)).toEqual(parseOklch(inkVar));
+  await expect.poll(async () => parseOklch(await readRenderedAtAssertion())).toEqual(parseOklch(inkVar));
 });
 
 // ── #241 (owner-ruled off #223): THE BAND IS THE PLATE, AT ALPHA 1 ─────────────────────────────────
@@ -1469,6 +1490,16 @@ test("at a phone-width column the avatar gutter shrinks and the reading measure 
   // MEASURE THE GUTTER, not the column: in bubble style the column hugs its text (the `w-fit` pin two
   // screens up), so a column-share assertion would measure the FIXTURE's sentence rather than the row's
   // composition. The gutter is what this change moves.
+  const readMeasuredAtAssertion = async (): Promise<typeof measured> =>
+    await narrow.locator(CONTENT_COLUMN).evaluate((el: HTMLElement) => {
+      const row = el.closest('[data-slot="message-row-body"]') as HTMLElement;
+      const avatar = row.querySelector('[data-slot="avatar-root"]') as HTMLElement | null;
+      return {
+        gap: Number.parseFloat(getComputedStyle(row).columnGap),
+        row: (row.closest('[data-slot="message-row"]') as HTMLElement).getBoundingClientRect().width,
+        avatar: avatar === null ? 0 : avatar.getBoundingClientRect().width,
+      };
+    });
   const measured = await narrow.locator(CONTENT_COLUMN).evaluate((el: HTMLElement) => {
     const row = el.closest('[data-slot="message-row-body"]') as HTMLElement;
     const avatar = row.querySelector('[data-slot="avatar-root"]') as HTMLElement | null;
@@ -1479,9 +1510,9 @@ test("at a phone-width column the avatar gutter shrinks and the reading measure 
     };
   });
   // The portrait still renders (a phone does not lose the character) …
-  expect(measured.avatar).toBeGreaterThan(0);
+  await expect.poll(async () => (await readMeasuredAtAssertion()).avatar).toBeGreaterThan(0);
   // … at the stepped-down size, and the gutter costs well under a tenth of the row (it was 76 of 320).
-  expect(measured.avatar).toBeLessThanOrEqual(24);
+  await expect.poll(async () => (await readMeasuredAtAssertion()).avatar).toBeLessThanOrEqual(24);
   expect((measured.avatar + measured.gap) / measured.row).toBeLessThan(0.12);
 });
 
@@ -1527,12 +1558,17 @@ for (const chatStyle of THEME_CHAT_STYLES) {
     // so the class was inert, `snap` reported it as dead CSS on every drive, and the chip stuck at
     // `z-index: auto` over the prose it exists to sit above. Asserted as the resolved TOKEN, so this
     // cannot go green on any spelling that fails to resolve.
+    const readRaisedAtAssertion = async (): Promise<typeof raised> =>
+      await stuck.locator(NAME_ROW).evaluate((el: HTMLElement) => ({
+        z: getComputedStyle(el).zIndex,
+        token: getComputedStyle(document.documentElement).getPropertyValue("--z-raised").trim(),
+      }));
     const raised = await stuck.locator(NAME_ROW).evaluate((el: HTMLElement) => ({
       z: getComputedStyle(el).zIndex,
       token: getComputedStyle(document.documentElement).getPropertyValue("--z-raised").trim(),
     }));
-    expect(raised.token).not.toBe("");
-    expect(raised.z).toBe(raised.token);
+    await expect.poll(async () => (await readRaisedAtAssertion()).token).not.toBe("");
+    await expect.poll(async () => (await readRaisedAtAssertion()).z).toBe(raised.token);
     // The chip is unconditional here (not wallpaper-gated) — it backs the row's own prose scrolling under it.
     await expect.poll(async () => await stuck.locator(NAME_ROW).evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor)).not.toBe(TRANSPARENT);
     // LAYOUT-NEUTRAL: `py-row` is cancelled by `-my-row`, so the virtualizer's measured extent cannot move
@@ -1941,13 +1977,18 @@ for (const style of HEADER_INSIDE_STYLES) {
     );
     const nameRow = component.locator(NAME_ROW);
     // The second plate is GONE: no fill, no blur, no chip radius on the header itself …
+    const readOwnAtAssertion = async (): Promise<typeof own> =>
+      await nameRow.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { bg: cs.backgroundColor, backdrop: cs.backdropFilter, radius: cs.borderTopLeftRadius };
+      });
     const own = await nameRow.evaluate((el) => {
       const cs = getComputedStyle(el);
       return { bg: cs.backgroundColor, backdrop: cs.backdropFilter, radius: cs.borderTopLeftRadius };
     });
-    expect(own.bg).toBe(TRANSPARENT);
-    expect(own.backdrop).toBe("none");
-    expect(Number.parseFloat(own.radius)).toBe(0);
+    await expect.poll(async () => (await readOwnAtAssertion()).bg).toBe(TRANSPARENT);
+    await expect.poll(async () => (await readOwnAtAssertion()).backdrop).toBe("none");
+    await expect.poll(async () => Number.parseFloat((await readOwnAtAssertion()).radius)).toBe(0);
     // … while the legibility GUARANTEE #167 minted is intact, one box out: the container the header now
     // lives in paints a real backing over the wallpaper.
     await expect
@@ -1969,7 +2010,9 @@ test("#288 tide keeps the sibling header + its chip — a train has no single co
   );
   await expect(component.locator(`${CONTENT_COLUMN} > ${NAME_ROW}`)).toHaveCount(1);
   const nameRow = component.locator(NAME_ROW);
-  expect(parseOklch(await nameRow.evaluate((el) => getComputedStyle(el).backgroundColor))).toEqual(parseOklch(await cssVar(nameRow, "--color-reading-plate")));
+  await expect
+    .poll(async () => parseOklch(await nameRow.evaluate((el) => getComputedStyle(el).backgroundColor)))
+    .toEqual(parseOklch(await cssVar(nameRow, "--color-reading-plate")));
 });
 
 // THE DARK CONTROL. The owner's dark rooms read fine today and are sacred, so the claim being pinned is
@@ -1989,7 +2032,9 @@ for (const theme of ["light", "mocha"] as const) {
     // The header paints nothing itself, so what is behind it IS the bubble fill — no second tone, on
     // either polarity. (`--color-ai-bubble` differs per seed; the assertion is the token, not a literal.)
     await expect.poll(async () => await nameRow.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(TRANSPARENT);
-    expect(parseOklch(await bubble.evaluate((el) => getComputedStyle(el).backgroundColor))).toEqual(parseOklch(await cssVar(bubble, "--color-ai-bubble")));
+    await expect
+      .poll(async () => parseOklch(await bubble.evaluate((el) => getComputedStyle(el).backgroundColor)))
+      .toEqual(parseOklch(await cssVar(bubble, "--color-ai-bubble")));
   });
 }
 

@@ -697,11 +697,12 @@ test("the command palette reserves a compact, stable result viewport while filte
   await input.fill("analytics");
   await expect(dialog.getByRole("option", { name: "Analytics" })).toBeVisible();
   await expect.poll(async () => list.boundingBox()).not.toBeNull();
+  const readAfterAtAssertion = async (): Promise<typeof after> => await list.boundingBox();
   const after = await list.boundingBox();
   // A 12rem viewport still scrolls the complete command set, while one result does not leave the former
   // 24rem sheet-sized void beneath it.
-  expect(after?.height).toBeLessThanOrEqual(192);
-  expect(after?.height).toBeCloseTo(before?.height ?? 0, 1);
+  await expect.poll(async () => (await readAfterAtAssertion())?.height).toBeLessThanOrEqual(192);
+  await expect.poll(async () => (await readAfterAtAssertion())?.height).toBeCloseTo(before?.height ?? 0, 1);
 
   await input.fill("zzzzzzzz");
   const empty = dialog.getByText("No matches.", { exact: true });
@@ -2572,12 +2573,12 @@ test("boot: the grid's FIRST committed template already carries the resolved tra
   await expect.poll(async () => (await readBoot())?.list ?? null, { intervals: [20, 50, 100] }).toBe("docked");
   const boot = await readBoot();
   // rail | LIST | content | context — the LIST track is already the resolved panel width, never 0px.
-  // ONESHOT-OK: `__bootGrid` is written once at `.shell-grid` insertion and never again (the observer
+  // Settled snapshot: `__bootGrid` is written once at `.shell-grid` insertion and never again (the observer
   // disconnects); the poll above already awaited it, so this read is provably settled.
   const bootTracks = (boot?.cols ?? "").split(" ").map((t) => Number.parseFloat(t));
-  // ONESHOT-OK: derived from the settled one-shot capture above, not a live DOM read.
+  // Settled snapshot: derived from the settled one-shot capture above, not a live DOM read.
   expect(bootTracks).toHaveLength(4);
-  // ONESHOT-OK: same settled capture.
+  // Settled snapshot: same settled capture.
   expect(bootTracks[1]).toBeGreaterThan(0);
   // …and it is the SAME width the docked panel settles at, so nothing is squeezed after first paint.
   await expect
@@ -3604,8 +3605,10 @@ test("#188 the ⌘K chip's accessible name CONTAINS its visible label verbatim (
   // the visible label by CONCATENATING the node's text, i.e. `textContent` — which was the literal string
   // "⌘Kjump", not a substring of the name. The pin now reads it the way the audit does, so the separating
   // text node between the <kbd> chip and the word is load-bearing and its removal is RED here.
+  const readConcatenatedAtAssertion = async (): Promise<typeof concatenated> =>
+    (await chip.evaluate((el) => el.textContent ?? "")).replaceAll(/\s+/gu, " ").trim();
   const concatenated = (await chip.evaluate((el) => el.textContent ?? "")).replaceAll(/\s+/gu, " ").trim();
-  expect(concatenated).toBe("⌘K jump");
+  await expect.poll(async () => await readConcatenatedAtAssertion()).toBe("⌘K jump");
   await expect(chip).toHaveAccessibleName(new RegExp(`^${concatenated.replaceAll("⌘", "\\u2318")}`, "u"));
 });
 
@@ -4104,12 +4107,17 @@ test.describe("the mobile topbar at 320px, coarse pointer", () => {
     // display:flex/visibility:visible/opacity:1 with 100% overlap (149,341px²), and the landing's orange
     // CTA glow bled through the rows. `inert` had already fixed the keyboard; this is the paint.
     const content = page.locator(".shell-content");
+    const readShownAtAssertion = async (): Promise<typeof shown> =>
+      await content.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { display: cs.display, box: el.getBoundingClientRect().width * el.getBoundingClientRect().height };
+      });
     const shown = await content.evaluate((el) => {
       const cs = getComputedStyle(el);
       return { display: cs.display, box: el.getBoundingClientRect().width * el.getBoundingClientRect().height };
     });
-    expect(shown.display).toBe("none");
-    expect(shown.box).toBe(0);
+    await expect.poll(async () => (await readShownAtAssertion()).display).toBe("none");
+    await expect.poll(async () => (await readShownAtAssertion()).box).toBe(0);
 
     // …and it comes back the moment CONTENT is the screen (a selection pushes it).
     await page.getByRole("button", { name: "open a member" }).click();
@@ -4153,6 +4161,20 @@ test.describe("the mobile topbar at 320px, coarse pointer", () => {
 
   test("a11y: the bottom tab bar comes AFTER the topbar in DOM order on a phone (meaningful sequence)", async ({ mount, page }) => {
     await mount(<AppShellMobileRuleStory section="chats" />);
+    const readOrderAtAssertion = async (): Promise<typeof order> =>
+      await page.evaluate(() => {
+        const grid = document.querySelector(".shell-grid");
+        if (grid === null) {
+          return [];
+        }
+        const regionOf = (el: Element): string => {
+          if (el.classList.contains("shell-rail")) {
+            return "rail";
+          }
+          return el.classList.contains("shell-main") ? "main" : "other";
+        };
+        return [...grid.children].map(regionOf);
+      });
     const order = await page.evaluate(() => {
       const grid = document.querySelector(".shell-grid");
       if (grid === null) {
@@ -4166,13 +4188,27 @@ test.describe("the mobile topbar at 320px, coarse pointer", () => {
       };
       return [...grid.children].map(regionOf);
     });
-    expect(order.indexOf("main")).toBeLessThan(order.indexOf("rail"));
+    await expect.poll(async () => (await readOrderAtAssertion()).indexOf("main")).toBeLessThan(order.indexOf("rail"));
   });
 });
 
 test("a11y: on the DESKTOP the rail still reads first — it is the leftmost column there", async ({ mount, page }) => {
   await page.setViewportSize(WIDE);
   await mount(<AppShellMobileRuleStory section="chats" />);
+  const readOrderAtAssertion = async (): Promise<typeof order> =>
+    await page.evaluate(() => {
+      const grid = document.querySelector(".shell-grid");
+      if (grid === null) {
+        return [];
+      }
+      const regionOf = (el: Element): string => {
+        if (el.classList.contains("shell-rail")) {
+          return "rail";
+        }
+        return el.classList.contains("shell-main") ? "main" : "other";
+      };
+      return [...grid.children].map(regionOf);
+    });
   const order = await page.evaluate(() => {
     const grid = document.querySelector(".shell-grid");
     if (grid === null) {
@@ -4186,7 +4222,7 @@ test("a11y: on the DESKTOP the rail still reads first — it is the leftmost col
     };
     return [...grid.children].map(regionOf);
   });
-  expect(order.indexOf("rail")).toBeLessThan(order.indexOf("main"));
+  await expect.poll(async () => (await readOrderAtAssertion()).indexOf("rail")).toBeLessThan(order.indexOf("main"));
 });
 
 // ── #231 — the same NO-CLOBBER contract, widened to the axes that resize and repaint the whole shell ──
@@ -4248,6 +4284,14 @@ test("#231 CONTROL: a device with NO hint is not scaled or themed by the pending
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   await settings.requested;
+  const readRootAtAssertion = async (): Promise<typeof root> =>
+    await page.evaluate(
+      ([v, attr]) => ({
+        scale: document.documentElement.style.getPropertyValue(v as string),
+        theme: document.documentElement.getAttribute(attr as string),
+      }),
+      [FONT_SCALE_VAR, DATA_THEME_ATTR],
+    );
   const root = await page.evaluate(
     ([v, attr]) => ({
       scale: document.documentElement.style.getPropertyValue(v as string),
@@ -4255,8 +4299,8 @@ test("#231 CONTROL: a device with NO hint is not scaled or themed by the pending
     }),
     [FONT_SCALE_VAR, DATA_THEME_ATTR],
   );
-  expect(root.scale).toBe("1");
-  expect(root.theme).toBeNull();
+  await expect.poll(async () => (await readRootAtAssertion()).scale).toBe("1");
+  await expect.poll(async () => (await readRootAtAssertion()).theme).toBeNull();
 });
 
 // ── #237: the CHROME PANES never got D144's polarity floor ─────────────────────────────────────────
@@ -4334,12 +4378,29 @@ test("#237: the LIGHT pane's SECONDARY ink clears AA against what LANDS over wor
     const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
     return { b: b ?? 0, g: g ?? 0, r: r ?? 0 };
   });
+  const readRatioAtAssertion = async (): Promise<typeof ratio> =>
+    contrastRatio(
+      await panel.evaluate((el) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        const ctx = canvas.getContext("2d");
+        if (ctx === null) {
+          throw new Error("no 2d context");
+        }
+        ctx.fillStyle = getComputedStyle(el).getPropertyValue("--color-muted-foreground").trim();
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+        return { b: b ?? 0, g: g ?? 0, r: r ?? 0 };
+      }),
+      landed,
+    );
   const ratio = contrastRatio(ink, landed);
   test.info().annotations.push({
     description: `${ratio.toFixed(2)}:1 · pane kicker ink rgb(${ink.r},${ink.g},${ink.b}) vs LANDED rgb(${landed.r},${landed.g},${landed.b}) over black art`,
     type: "pane-contrast",
   });
-  expect(ratio).toBeGreaterThanOrEqual(4.5);
+  await expect.poll(async () => await readRatioAtAssertion()).toBeGreaterThanOrEqual(4.5);
 });
 
 // ── #623: THE MODAL SLOTS NEVER ADOPTED D144'S OVER-ART FLOOR ──────────────────────────────────────

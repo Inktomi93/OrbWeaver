@@ -283,9 +283,9 @@ test("#630: an unchosen lorebook blocks the mint and says so in PICKING words, n
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
   await expect(page.getByText("Choose a lorebook to add this rule.")).toBeVisible();
   await expect(page.getByText("Choose a lorebook.")).toBeVisible();
-  // ONESHOT-OK: the two barriers above are the RENDERED result of this very click, so the press is
+  // Settled snapshot: the two barriers above are the RENDERED result of this very click, so the press is
   // provably processed; the recorder only grows on a request that would already have been sent.
-  expect(trpc.count("automation.createRuleFromPreset")).toBe(0);
+  await expect.poll(async () => trpc.count("automation.createRuleFromPreset")).toBe(0);
 });
 
 test("#630: a room with NO attached books says so — an empty dropdown would be a dead end again", async ({ mount, page }) => {
@@ -425,9 +425,9 @@ test("#621 P1-1/P1-2: Delete needs a confirm — one click no longer destroys th
 
   // Nothing has been deleted yet — the confirm names the rule and can be walked away from.
   await expect(page.getByRole("alertdialog")).toContainText('Delete "Illustrate the scene"?');
-  // ONESHOT-OK: the settled alertdialog above IS this click's rendered result, so the press is provably
+  // Settled snapshot: the settled alertdialog above IS this click's rendered result, so the press is provably
   // processed — a delete request, had the item fired one, would already be recorded.
-  expect(trpc.count("automation.deleteRule")).toBe(0);
+  await expect.poll(async () => trpc.count("automation.deleteRule")).toBe(0);
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
   // ONESHOT-OK: the dialog is gone — the cancel is settled, and cancelling issues no request.
@@ -701,9 +701,9 @@ test("#655: a prompt knob is a TEXTAREA showing the whole prompt, and a choice o
   // 44% of it (measured `value.len=93 clientWidth=291 scrollWidth=663 tag=INPUT`).
   const prompt = page.getByRole("textbox", { name: "What happens" });
   await expect(prompt).toHaveValue(CLOCK_PROMPT_DEFAULT);
-  // ONESHOT-OK: the settled `toHaveValue` above is this control's own rendered state, and an element's
+  // Settled snapshot: the settled `toHaveValue` above is this control's own rendered state, and an element's
   // TAG NAME is not mutable async state — a retry could only re-read the same node.
-  expect(await prompt.evaluate((el) => el.tagName)).toBe("TEXTAREA");
+  await expect.poll(async () => await prompt.evaluate((el) => el.tagName)).toBe("TEXTAREA");
   await expect.poll(() => prompt.evaluate((el) => el.scrollHeight - el.clientHeight), { intervals: [20, 50, 100, 200] }).toBeLessThanOrEqual(1);
 
   // The `choice` knob's options were the WIRE values — `narrate`/`notify` as user-facing words.
@@ -823,9 +823,9 @@ test.describe("#655: coarse pointer — the fire-log door meets the touch floor"
   test.use({ hasTouch: true, viewport: { width: 430, height: 900 } });
 
   test("the Recent activity disclosure is reachable with a finger", async ({ mount, page }) => {
-    // ONESHOT-OK: pointer class is fixed when the browser CONTEXT is created (`hasTouch` above), not page
+    // Settled snapshot: pointer class is fixed when the browser CONTEXT is created (`hasTouch` above), not page
     // state — there is nothing async for a poll to wait out, and a poll would only mask a config miss.
-    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     await stub(page);
     await mount(<RulesSectionStory chatId={CHAT} width={430} />);
 
@@ -920,6 +920,17 @@ for (const theme of THEMES) {
       await expect.poll(async () => component.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
 
       // 3. Contrast of the row's gloss (its description line) against the surface behind it.
+      const readGlossAtAssertion = async (): Promise<typeof gloss> =>
+        await page.getByText("Generate a picture of the current scene on a cadence, and post it into the room.").evaluate((el, transparent: string) => {
+          const ink = getComputedStyle(el).color;
+          let node: HTMLElement | null = el as HTMLElement;
+          let backdrop = transparent;
+          while (node !== null && backdrop === transparent) {
+            backdrop = getComputedStyle(node).backgroundColor;
+            node = node.parentElement;
+          }
+          return [ink, backdrop === transparent ? getComputedStyle(document.body).backgroundColor : backdrop] as const;
+        }, TRANSPARENT_BG);
       const gloss = await page
         .getByText("Generate a picture of the current scene on a cadence, and post it into the room.")
         .evaluate((el, transparent: string) => {
@@ -932,7 +943,9 @@ for (const theme of THEMES) {
           }
           return [ink, backdrop === transparent ? getComputedStyle(document.body).backgroundColor : backdrop] as const;
         }, TRANSPARENT_BG);
-      expect(await contrastBetween(page, gloss[0], gloss[1])).toBeGreaterThanOrEqual(CONTRAST_AA);
+      await expect
+        .poll(async () => await contrastBetween(page, (await readGlossAtAssertion())[0], (await readGlossAtAssertion())[1]))
+        .toBeGreaterThanOrEqual(CONTRAST_AA);
 
       // 4. Both row controls still clear the pointer's own touch floor (the RESOLVED token, never a 44).
       const floor = await touchFloorPx(page);

@@ -99,6 +99,19 @@ test("settings fields use the horizontal row grammar and selects are not full-wi
   const combo = page.getByRole("combobox", { name: "Chat display" });
   await expect(combo).toBeVisible();
 
+  const readGeoAtAssertion = async (): Promise<typeof geo> =>
+    await combo.evaluate((trigger) => {
+      const root = "data-slot";
+      const field = trigger.closest(`[${root}='field-root']`);
+      const col = trigger.closest(`[${root}='field-control-col']`);
+      const controlColToken = getComputedStyle(document.documentElement).getPropertyValue("--width-control-col");
+      return {
+        orientation: field?.getAttribute("data-orientation") ?? null,
+        colWidth: Math.round(col?.getBoundingClientRect().width ?? -1),
+        fieldWidth: Math.round(field?.getBoundingClientRect().width ?? -1),
+        tokenPx: Number.parseFloat(controlColToken) * 16,
+      };
+    });
   const geo = await combo.evaluate((trigger) => {
     const root = "data-slot";
     const field = trigger.closest(`[${root}='field-root']`);
@@ -112,9 +125,9 @@ test("settings fields use the horizontal row grammar and selects are not full-wi
     };
   });
 
-  expect(geo.orientation).toBe("horizontal");
+  await expect.poll(async () => (await readGeoAtAssertion()).orientation).toBe("horizontal");
   expect(Math.abs(geo.colWidth - geo.tokenPx)).toBeLessThanOrEqual(2);
-  expect(geo.colWidth).toBeLessThan(geo.fieldWidth);
+  await expect.poll(async () => (await readGeoAtAssertion()).colWidth).toBeLessThan(geo.fieldWidth);
 });
 
 // In-flow squeeze guard (Wave-1 remedy · §4b axis 1): at a NARROW width the fixed ~200px control column
@@ -125,6 +138,18 @@ test("at a narrow width the horizontal field stacks — the control column can't
   const combo = page.getByRole("combobox", { name: "Chat display" });
   await expect(combo).toBeVisible();
 
+  const readGeoAtAssertion = async (): Promise<typeof geo> =>
+    await combo.evaluate((trigger) => {
+      const slot = "data-slot";
+      const field = trigger.closest(`[${slot}='field-root']`);
+      const block = field?.querySelector(`[${slot}='field-label-block']`);
+      const label = field?.querySelector(`[${slot}='field-label']`);
+      return {
+        fieldW: Math.round(field?.getBoundingClientRect().width ?? -1),
+        blockW: Math.round(block?.getBoundingClientRect().width ?? -1),
+        labelWantsW: (label as HTMLElement | null)?.scrollWidth ?? -1,
+      };
+    });
   const geo = await combo.evaluate((trigger) => {
     const slot = "data-slot";
     const field = trigger.closest(`[${slot}='field-root']`);
@@ -137,6 +162,6 @@ test("at a narrow width the horizontal field stacks — the control column can't
     };
   });
 
-  expect(geo.blockW).toBeGreaterThan(geo.fieldW * 0.9);
-  expect(geo.blockW).toBeGreaterThanOrEqual(geo.labelWantsW - 1);
+  await expect.poll(async () => (await readGeoAtAssertion()).blockW).toBeGreaterThan(geo.fieldW * 0.9);
+  await expect.poll(async () => (await readGeoAtAssertion()).blockW).toBeGreaterThanOrEqual(geo.labelWantsW - 1);
 });
