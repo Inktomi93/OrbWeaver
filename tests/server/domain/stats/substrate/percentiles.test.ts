@@ -19,4 +19,9 @@ describe("percentiles", () => {
   test("single element → avg=p50=p90=that element", () => {
     expect(percentiles([7])).toEqual({ avg: 7, p50: 7, p90: 7 });
   });
+
+  test("nearest-rank uses ceil(p*n)-1 at even sample sizes", () => {
+    expect(percentiles([10, 20])).toEqual({ avg: 15, p50: 10, p90: 20 });
+    expect(percentiles([10, 20, 30, 40]).p50).toBe(20);
+  });
 });

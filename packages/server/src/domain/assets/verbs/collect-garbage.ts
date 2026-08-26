@@ -14,7 +14,7 @@ import { castId } from "@orb/kit/ids";
 import type { Cas, VariantCache } from "#infra/storage";
 import type { AssetsContext } from "../context.ts";
 import type { AssetsService } from "../contract/service.ts";
-import { selectAllReferencedAssetIds } from "../persistence/asset-refs.ts";
+import { selectAllReferencedAssetIds, selectReferencedAmong } from "../persistence/asset-refs.ts";
 import { loadOwnerAssetRows } from "../persistence/maintenance.ts";
 import { purgeAsset } from "../substrate/purge-asset.ts";
 
@@ -54,10 +54,14 @@ async function sweepOwner(input: SweepInput): Promise<{ scanned: number; reclaim
     if (mtime !== undefined && input.now - mtime < input.graceMs) {
       continue; // within grace — a possibly-just-stored, not-yet-linked blob.
     }
-    reclaimed++;
     if (input.dryRun) {
+      reclaimed++;
       continue;
     }
+    if (assetId !== undefined && (await selectReferencedAmong(input.db, [assetId])).has(assetId)) {
+      continue; // a relation appeared after the sweep snapshot — liveness wins at the destructive edge.
+    }
+    reclaimed++;
     await purgeAsset({
       db: input.db,
       cas: input.cas,
