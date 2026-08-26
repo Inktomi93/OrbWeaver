@@ -7,8 +7,12 @@
 // ordered, and the import mints snapshot ids up front so that index resolves back. Export and import own
 // opposite halves of one convention — this is where they are proven to agree.
 
-import type { Db } from "@orb/db";
-import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pid } from "node:process";
+import type { Db, LibSqlWrap } from "@orb/db";
+import { createDb, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls, runMigrations } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, RpgCheckpointId, RpgGameId, RpgSheetId, RpgTurnToolCallsId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RpgPortabilityContext } from "@orb/server/domain/rpg";
@@ -21,9 +25,81 @@ import { FROZEN_AT, seedChat, seedMessage, seedUser } from "../../chat/_support.
 import { seedGame, snapshotId } from "../_support.ts";
 
 let db: Db;
+const MIGRATIONS_DIR = "packages/db/src/migrations";
 beforeEach(async () => {
   db = await freshDb();
 });
+
+function sqlOf(arg: unknown): string {
+  if (typeof arg === "string") {
+    return arg;
+  }
+  return arg !== null && typeof arg === "object" && "sql" in arg ? String((arg as { readonly sql?: string }).sql ?? "") : "";
+}
+
+async function runInterleavedBatch(
+  execute: (statement: unknown) => Promise<unknown>,
+  statements: readonly unknown[],
+  mutate: () => Promise<void>,
+): Promise<unknown[]> {
+  await execute("BEGIN DEFERRED");
+  const results: unknown[] = [];
+  try {
+    for (const statement of statements) {
+      results.push(await execute(statement));
+      if (sqlOf(statement).includes('from "rpg_snapshots"')) {
+        await mutate();
+      }
+    }
+    await execute("COMMIT");
+    return results;
+  } catch (err) {
+    await execute("ROLLBACK");
+    throw err;
+  }
+}
+
+/** A real-client interposer that schedules one writer after the exporter has read `rpg_snapshots` but before
+ * it reads `rpg_checkpoints`. The old independent-query path observes the two different states. The batch arm
+ * executes the supplied statements inside an explicit deferred transaction only to expose that same seam to
+ * the writer; SQLite's real snapshot isolation decides what each later SELECT sees. */
+function interleaveAfterSnapshots(mutate: () => Promise<void>): LibSqlWrap {
+  return (client) => {
+    let mutation: Promise<void> | undefined;
+    const once = (): Promise<void> => {
+      mutation ??= mutate();
+      return mutation;
+    };
+    const snapshotRead = Promise.withResolvers<void>();
+    return new Proxy(client, {
+      get(target, prop): unknown {
+        const value = Reflect.get(target, prop, target);
+        if (typeof value !== "function" || typeof prop !== "string") {
+          return value;
+        }
+        if (prop === "execute") {
+          return async (...args: unknown[]): Promise<unknown> => {
+            const sql = sqlOf(args[0]);
+            if (sql.includes('from "rpg_checkpoints"')) {
+              await snapshotRead.promise;
+              await once();
+            }
+            const result = await (value as (...a: unknown[]) => Promise<unknown>).apply(target, args);
+            if (sql.includes('from "rpg_snapshots"')) {
+              snapshotRead.resolve();
+            }
+            return result;
+          };
+        }
+        if (prop === "batch") {
+          const execute = (statement: unknown): Promise<unknown> => (target.execute as unknown as (stmt: unknown) => Promise<unknown>).call(target, statement);
+          return (statements: readonly unknown[]): Promise<unknown[]> => runInterleavedBatch(execute, statements, once);
+        }
+        return value.bind(target);
+      },
+    });
+  };
+}
 
 /** The DI bundle both factories close over — COUNTER-minted ids so an assertion can name what was written. */
 function portabilityCtx(database: Db): RpgPortabilityContext {
@@ -113,6 +189,50 @@ describe("createExportRpgGame", () => {
     const game = await createExportRpgGame({ db })({ chatId });
     expect(game?.checkpoints[0]?.snapshotIndex).toBe(0);
     expect(game?.checkpoints[0]?.label).toBe("before the bridge");
+  });
+
+  test("one concurrent database snapshot cannot mix a checkpoint with the wrong snapshot set", async () => {
+    const dir = mkdtempSync(join(tmpdir(), `orb-rpg-export-snapshot-${pid}-`));
+    const path = join(dir, "export.db");
+    try {
+      const writer = await createDb(`file:${path}`);
+      await runMigrations(writer, MIGRATIONS_DIR);
+      const { chatId, gameId } = await seedSourceCampaign(writer);
+      const nextSnapshotId = snapshotId("concurrent");
+      let mutationApplied = false;
+      const reader = await createDb(
+        `file:${path}`,
+        interleaveAfterSnapshots(async () => {
+          await writer.insert(rpgSnapshots).values({
+            id: nextSnapshotId,
+            gameId,
+            messageId: null,
+            variantId: null,
+            asOfMessageId: null,
+            location: "after the concurrent write",
+            committed: 1,
+            createdAt: FROZEN_AT + 1,
+          });
+          await writer.update(rpgCheckpoints).set({ snapshotId: nextSnapshotId }).where(eq(rpgCheckpoints.gameId, gameId));
+          mutationApplied = true;
+        }),
+      );
+
+      const exported = await createExportRpgGame({ db: reader })({ chatId });
+      expect(mutationApplied).toBe(true); // planted control: this green cannot come from a writer that never ran
+      expect(exported).not.toBeNull();
+      // Both the pre-write and post-write database states carry one checkpoint. Zero is possible only when the
+      // export mixed the old snapshot set with the new checkpoint target and silently dropped the mismatch.
+      expect(exported?.checkpoints).toHaveLength(1);
+      const target = exported?.checkpoints[0];
+      expect(target).toBeDefined();
+      expect(exported?.snapshots[target?.snapshotIndex ?? -1]).toBeDefined();
+    } finally {
+      for (const suffix of ["", "-wal", "-shm"]) {
+        rmSync(`${path}${suffix}`, { force: true });
+      }
+      rmSync(dir, { force: true, recursive: true });
+    }
   });
 
   test("gmUserId / gmPresetId do NOT ride — a cross-box seat and a preset id are dangling refs, not state", async () => {
