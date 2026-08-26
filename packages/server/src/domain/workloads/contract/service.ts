@@ -2,6 +2,7 @@
 // the two explicit DI bundles, and the injected-op type aliases; `context.ts` is the builder for these types.
 // workloads sideways-imports NO sibling runtime — every cross-feature capability is an injected op wired at entry/.
 
+import type { WorkloadEvent } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { IsAdmin, RequireOwner } from "#domain/admin";
@@ -32,10 +33,12 @@ export interface WorkloadServiceContext {
   /** MODE authz seam: `requireOwner` gates a BULK run (owner-only); `isAdmin` chooses the read scope. */
   readonly requireOwner: RequireOwner;
   readonly isAdmin: IsAdmin;
+  /** The domain-owned lifecycle publisher; service.ts wires the engine bus so verbs never bypass it. */
+  readonly emitEvent: (event: WorkloadEvent) => void;
 }
 
-/** What `createWorkloadService` receives from the entry root (identical to the context — no transform). */
-export type WorkloadServiceDeps = WorkloadServiceContext;
+/** What entry supplies; the domain service adds its own event publisher at its composition root. */
+export type WorkloadServiceDeps = Omit<WorkloadServiceContext, "emitEvent">;
 
 /**
  * The base runner deps the entry root wires + the worker holds. Lease/heartbeat cadences are tunable and

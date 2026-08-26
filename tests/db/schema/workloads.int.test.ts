@@ -1,7 +1,9 @@
 // .int test for schema/workloads: the test-mirror (db enum === contracts tuple, D34), a JSON round-trip,
 // the nullable ownerId FK, and the load-bearing single-active partial unique indexes (the MODE model: a BULK
-// run locks GLOBAL on `workloads_mode_active_bulk` (kind, admission_key); a SINGULAR run locks PER-OWNER on
-// `workloads_mode_active_singular` (kind, owner_id, admission_key) so two users each run their own instance
+// run locks GLOBAL on `workloads_mode_active_bulk` (kind, admission_key); an owned SINGULAR run locks on
+// `workloads_mode_active_singular_owned` (kind, owner_id, admission_key), while the null-owner arm locks on
+// `workloads_mode_active_singular_system` (kind, admission_key), so SQLite NULL-distinctness cannot dissolve
+// scheduler/system admission. Two users still each run their own instance
 // — the WHERE status list derives from ACTIVE_WORKLOAD_STATUSES; the partition is the `mode` column). The
 // ADMISSION KEY is the owning domain's declared concurrency unit (`WorkloadContribution.admissionKey`); this
 // file drives it at the SQL level with the two shapes that exist — an axis member (`index`'s embed source)
@@ -230,6 +232,31 @@ test("a second ACTIVE SINGULAR row + SAME owner + SAME admission key collides (i
       admissionKey: "text",
       mode: "singular",
       ownerId: owner,
+    });
+  } catch (err) {
+    caught = err;
+  }
+  expect(isConstraintViolation(caught)?.kind).toBe("unique");
+});
+
+test("a second ACTIVE null-owner SINGULAR row + SAME admission key collides", async () => {
+  const db = await freshDb();
+  await db.insert(workloads).values({
+    id: castId<WorkloadId>("workload_system_a"),
+    kind: "reconcile-stats",
+    admissionKey: "none",
+    mode: "singular",
+    ownerId: null,
+  });
+
+  let caught: unknown;
+  try {
+    await db.insert(workloads).values({
+      id: castId<WorkloadId>("workload_system_b"),
+      kind: "reconcile-stats",
+      admissionKey: "none",
+      mode: "singular",
+      ownerId: null,
     });
   } catch (err) {
     caught = err;

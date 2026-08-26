@@ -90,3 +90,29 @@ describe("drainHttpServer — the bounded drain (DRAIN-UNBOUNDED)", () => {
     expect(warn).not.toHaveBeenCalled();
   });
 });
+
+describe("workload worker shutdown ownership", () => {
+  test("aborts the worker, then holds shutdown until the owned loop settles", async () => {
+    const lifecycleModule = await import("../../../packages/server/src/entry/lifecycle.ts");
+    const drainWorkloadsWorker = Reflect.get(lifecycleModule, "drainWorkloadsWorker");
+    expect(drainWorkloadsWorker).toBeTypeOf("function");
+    const workerSettled = Promise.withResolvers<void>();
+    const abort = vi.fn();
+    let drainSettled = false;
+
+    const drain = Reflect.apply(drainWorkloadsWorker as (...args: never[]) => Promise<void>, undefined, [{ abort, settled: workerSettled.promise }]).then(
+      () => {
+        drainSettled = true;
+      },
+    );
+    await vi.waitFor(() => {
+      expect(abort).toHaveBeenCalledTimes(1);
+    });
+    await Promise.resolve();
+    expect(drainSettled).toBe(false);
+
+    workerSettled.resolve();
+    await drain;
+    expect(drainSettled).toBe(true);
+  });
+});

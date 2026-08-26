@@ -92,6 +92,21 @@ interface DrainLog {
   readonly warn: (fields: Record<string, unknown>, msg: string) => void;
 }
 
+/** The worker resources shutdown owns: signal it first, then join the loop before touching the DB. */
+interface OwnedWorkloadsWorker {
+  readonly abort: () => void;
+  readonly settled: Promise<void>;
+}
+
+/** Abort and JOIN the workload worker. Exported so the held-worker ordering is behaviorally pinned without
+ * booting the whole composition root; lifecycle calls this immediately before DB pre-close.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
+export async function drainWorkloadsWorker(worker: OwnedWorkloadsWorker): Promise<void> {
+  worker.abort();
+  await worker.settled;
+}
+
 /** Stop accepting, then drain — WITH A DEADLINE.
  *
  *  `server.close()` alone waits for every open connection to end, and an SSE stream never does: one browser
@@ -228,7 +243,7 @@ export function createLifecycle(): Lifecycle {
   let stopScheduler: (() => void) | null = null;
   let stopScheduleScheduler: (() => void) | null = null;
   let stopOidcGc: (() => void) | null = null;
-  let stopWorker: AbortController | null = null;
+  let stopWorker: OwnedWorkloadsWorker | null = null;
   let stopBuddyObserver: (() => void) | null = null;
   let stopAutomationWatcher: (() => void) | null = null;
   let drainVllm: (() => void) | null = null;
@@ -410,10 +425,10 @@ export function createLifecycle(): Lifecycle {
       start: (params) => built.services.workloads.start(params),
       scheduleInterval,
     });
-    // The workloads worker's claim→run poll loop, fire-and-forget; errors logged (it self-recovers).
+    // The workloads worker's claim→run poll loop. Boot does not await it, but shutdown OWNS its settlement:
+    // abort first, join the loop, then begin DB pre-close so an unwinding run cannot write into housekeeping.
     const workerAbort = new AbortController();
-    stopWorker = workerAbort;
-    void startWorkloadsWorker({
+    const workerSettled = startWorkloadsWorker({
       runnerDeps: {
         db,
         contributions: built.workloadContributions,
@@ -431,6 +446,7 @@ export function createLifecycle(): Lifecycle {
     }).catch((err: unknown) => {
       log.error({ err: err instanceof Error ? err.message : String(err) }, "workloads worker loop exited");
     });
+    stopWorker = { abort: (): void => workerAbort.abort(), settled: workerSettled };
 
     // The automation watcher (A5, D46) — evaluates enabled rules against the chat firehose + the domain-event
     // bus. The per-viewer `chatOpened` trigger rides the transport-attach synthesis (D81), not the bus, so it
@@ -608,8 +624,9 @@ export function createLifecycle(): Lifecycle {
       stopOidcGc = null;
     }
     if (stopWorker !== null) {
-      stopWorker.abort();
+      const worker = stopWorker;
       stopWorker = null;
+      await drainWorkloadsWorker(worker);
     }
     if (stopBuddyObserver !== null) {
       stopBuddyObserver();
