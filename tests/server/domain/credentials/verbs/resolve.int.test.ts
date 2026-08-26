@@ -55,6 +55,30 @@ describe("resolve", () => {
     expect(resolved).toMatchObject({ source: "openrouter", apiKey: "sk-or-secret" });
   });
 
+  test("stored hosted credentials with a missing runtime key fail as decrypt-unavailable, never absent or keyless", async () => {
+    const db = await freshDb();
+    const harness = makeHarness(db);
+    const enabledService = createCredentialsService(harness.ctx);
+    const owner = await seedUser(db, { id: "user_missing_runtime_key", role: "user" });
+    await enabledService.add({ principal: principal(owner), provider: "openrouter", key: "sk-or-stored" });
+    await enabledService.add({
+      principal: principal(owner),
+      provider: "custom_openai",
+      key: "",
+      metadata: { kind: "custom_openai", baseUrl: "http://127.0.0.1:8000/v1" },
+    });
+
+    const disabledService = createCredentialsService({ ...harness.ctx, box: createSecretBox(null) });
+
+    await expect(disabledService.resolve({ principal: principal(owner), source: "openrouter" })).rejects.toBeInstanceOf(CredentialsDecryptError);
+    await expect(disabledService.resolve({ principal: principal(owner), source: "custom_openai" })).rejects.toBeInstanceOf(CredentialsDecryptError);
+
+    const recoveredOpenRouter = await enabledService.resolve({ principal: principal(owner), source: "openrouter" });
+    const recoveredCustomOpenAi = await enabledService.resolve({ principal: principal(owner), source: "custom_openai" });
+    expect(recoveredOpenRouter).toMatchObject({ source: "openrouter", apiKey: "sk-or-stored" });
+    expect(recoveredCustomOpenAi).toMatchObject({ source: "custom_openai", apiKey: null });
+  });
+
   test("AAD binding: a row LIFTED to another owner fails with the typed decrypt/config error", async () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);

@@ -21,6 +21,14 @@ describe("probeKeyDecrypt", () => {
     expect(result).toBe(true);
   });
 
+  test("returns true when the box is disabled and no credentials exist yet", async () => {
+    const db = await freshDb();
+    const harness = makeHarness(db);
+    const svc = createCredentialsService({ ...harness.ctx, box: createSecretBox(null) });
+    const result = await svc.probeKeyDecrypt();
+    expect(result).toBe(true);
+  });
+
   test("returns true when the first credential decrypts successfully with the current key", async () => {
     const db = await freshDb();
     const harness = makeHarness(db);
@@ -29,6 +37,20 @@ describe("probeKeyDecrypt", () => {
     await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-probe-ok" });
     const result = await svc.probeKeyDecrypt();
     expect(result).toBe(true);
+  });
+
+  test("returns false when stored ciphertext exists but the runtime key is missing", async () => {
+    const db = await freshDb();
+    const harness = makeHarness(db);
+    const enabledService = createCredentialsService(harness.ctx);
+    const owner = await seedUser(db, { id: "user_probe_missing_key", role: "user" });
+    await enabledService.add({ principal: principal(owner), provider: "openrouter", key: "sk-probe-missing-key" });
+
+    const disabledService = createCredentialsService({ ...harness.ctx, box: createSecretBox(null) });
+    const result = await disabledService.probeKeyDecrypt();
+
+    expect(result).toBe(false);
+    expect(await enabledService.probeKeyDecrypt()).toBe(true);
   });
 
   test("returns false when the first credential was encrypted with a DIFFERENT key (simulated rotation)", async () => {
