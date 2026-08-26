@@ -4,13 +4,11 @@
 // description-only edit does not (prose is not provenance). Leak-free NOT_FOUND on foreign/absent ids.
 
 import { refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
-import { refinerySchemas } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import { and, eq } from "drizzle-orm";
 import type { RefineryContext } from "../context.ts";
 import type { RefineryService } from "../contract/service.ts";
-import { loadOwnedSchemaRow, schemaSummaryOf } from "../persistence/queries.ts";
-import { assertSchemaNameFree } from "../substrate/schema-library.ts";
+import { loadOwnedSchemaRow, schemaSummaryOf, updateOwnedSchemaIfNameFree } from "../persistence/queries.ts";
+import { schemaNameTakenError } from "../substrate/schema-library.ts";
 
 export function createUpdateSchema(ctx: RefineryContext): RefineryService["updateSchema"] {
   return async ({ principal, schemaId, patch }) => {
@@ -25,9 +23,6 @@ export function createUpdateSchema(ctx: RefineryContext): RefineryService["updat
       stage: patch.stage ?? row.stage,
       schema: patch.schema ?? row.schema,
     });
-    if (patch.name !== undefined && patch.name !== row.name) {
-      await assertSchemaNameFree(ctx, ownerId, doc.name, schemaId);
-    }
     const contentChanged = patch.schema !== undefined || patch.stage !== undefined || (patch.name !== undefined && patch.name !== row.name);
     const version = contentChanged ? row.version + 1 : row.version;
     const updated = {
@@ -39,12 +34,15 @@ export function createUpdateSchema(ctx: RefineryContext): RefineryService["updat
       version,
       updatedAt: ctx.now(),
     };
-    await ctx.db
-      .update(refinerySchemas)
-      .set({ name: updated.name, description: updated.description, stage: updated.stage, schema: updated.schema, version, updatedAt: updated.updatedAt })
-      // The owner rides the WHERE (owner-scoped-writes arm 1).
-      .where(and(eq(refinerySchemas.id, schemaId), eq(refinerySchemas.ownerId, ownerId)));
+    const persisted = await updateOwnedSchemaIfNameFree(ctx.db, updated);
+    if (persisted === undefined) {
+      const stillOwned = await loadOwnedSchemaRow(ctx.db, ownerId, schemaId);
+      if (stillOwned === undefined) {
+        throw new DomainNotFoundError("refinery schema", schemaId);
+      }
+      throw schemaNameTakenError(doc.name);
+    }
     ctx.emitUserEvent(ownerId, { type: "refineryChanged" });
-    return schemaSummaryOf(updated);
+    return schemaSummaryOf(persisted);
   };
 }

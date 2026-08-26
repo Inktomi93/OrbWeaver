@@ -8,7 +8,7 @@ import { characters as charactersTable, characterTags, chatTags, personaTags, pr
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, fetchOwned } from "@orb/db/kit";
 import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, notExists, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
 type TagRow = typeof tags.$inferSelect;
@@ -342,8 +342,8 @@ export async function listOwnedTagFilterVocabulary(db: Db, ownerId: UserId): Pro
     .sort((a, b) => b.characters - a.characters || a.name.localeCompare(b.name));
 }
 
-/** Delete every owned tag with zero junction usage; returns the removed count. Reuses the rollup so a
- *  pending-suggestion junction row counts as usage (a staged suggestion is a live reference — not pruned). */
+/** Delete every owned tag with zero junction usage; returns the removed count. The rollup supplies
+ *  candidates; the DELETE rechecks all five junctions so an attachment created after that snapshot wins. */
 export async function pruneZeroUsageTags(db: Db, ownerId: UserId): Promise<number> {
   const withUsage = await listOwnedTagsWithUsage(db, ownerId);
   const zero = withUsage.filter((t) => t.usage.total === 0).map((t) => t.id);
@@ -352,7 +352,17 @@ export async function pruneZeroUsageTags(db: Db, ownerId: UserId): Promise<numbe
   }
   const deleted = await db
     .delete(tags)
-    .where(and(eq(tags.ownerId, ownerId), inArray(tags.id, zero)))
+    .where(
+      and(
+        eq(tags.ownerId, ownerId),
+        inArray(tags.id, zero),
+        notExists(db.select({ tagId: characterTags.tagId }).from(characterTags).where(eq(characterTags.tagId, tags.id))),
+        notExists(db.select({ tagId: chatTags.tagId }).from(chatTags).where(eq(chatTags.tagId, tags.id))),
+        notExists(db.select({ tagId: worldBookTags.tagId }).from(worldBookTags).where(eq(worldBookTags.tagId, tags.id))),
+        notExists(db.select({ tagId: personaTags.tagId }).from(personaTags).where(eq(personaTags.tagId, tags.id))),
+        notExists(db.select({ tagId: presetTags.tagId }).from(presetTags).where(eq(presetTags.tagId, tags.id))),
+      ),
+    )
     .returning({ id: tags.id });
   return deleted.length;
 }

@@ -4,23 +4,18 @@
 // fall back to.
 
 import { personas } from "@orb/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, exists, ne } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import type { PersonaContext } from "../context.ts";
 import { LastPersonaError, PersonaNotFoundError } from "../contract/errors.ts";
 import type { RemovePersonaParams } from "../contract/params.ts";
 import type { PersonaService } from "../contract/service.ts";
 
-/** One more row than "last" — the guard only needs to know whether a SECOND persona exists. */
-const LAST_PERSONA_PROBE = 2;
+const otherPersona = alias(personas, "other_persona");
 
 export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
   return async ({ principal, personaId }: RemovePersonaParams) => {
     const ownerId = principal.userId;
-    const owned = await ctx.db.select({ id: personas.id }).from(personas).where(eq(personas.ownerId, ownerId)).limit(LAST_PERSONA_PROBE);
-    if (owned.length === 1 && owned[0]?.id === personaId) {
-      throw new LastPersonaError(personaId);
-    }
-
     // PRE-WRITE reach capture (entity→room bridge §3.6 residual): the delete below NULLs every seat's
     // activePersonaId + every chat's anchorPersonaId, so a post-write reach resolves ∅. Snapshot the rooms this
     // persona is live in NOW, fan the captured set AFTER the row is gone (fanReach() past the NotFound guard).
@@ -28,9 +23,28 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
 
     const deleted = await ctx.db
       .delete(personas)
-      .where(and(eq(personas.id, personaId), eq(personas.ownerId, ownerId)))
+      .where(
+        and(
+          eq(personas.id, personaId),
+          eq(personas.ownerId, ownerId),
+          exists(
+            ctx.db
+              .select({ id: otherPersona.id })
+              .from(otherPersona)
+              .where(and(eq(otherPersona.ownerId, ownerId), ne(otherPersona.id, personaId))),
+          ),
+        ),
+      )
       .returning({ id: personas.id });
     if (deleted.length === 0) {
+      const stillOwned = await ctx.db
+        .select({ id: personas.id })
+        .from(personas)
+        .where(and(eq(personas.id, personaId), eq(personas.ownerId, ownerId)))
+        .limit(1);
+      if (stillOwned.length > 0) {
+        throw new LastPersonaError(personaId);
+      }
       throw new PersonaNotFoundError(personaId);
     }
 

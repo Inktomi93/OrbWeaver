@@ -3,9 +3,11 @@ import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPresetService, ensureSystemDefaultPreset, PresetNotFoundError, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeHarness, seedPreset, seedUser } from "../_support.ts";
+
+const PRESET_INSERT = /insert into "presets"/iu;
 
 describe("update (owned)", () => {
   test("patches name/kind on the owner's row; audits preset.update", async () => {
@@ -129,6 +131,26 @@ describe("update (copy-on-write of the system default)", () => {
       { forkedFrom: SYSTEM_DEFAULT_PRESET_ID, converged: true, intent: "converge" },
       { forkedFrom: SYSTEM_DEFAULT_PRESET_ID, converged: true, intent: "converge" },
     ]);
+  });
+
+  test("two first converge COWs held after lookup return one shared fork id", async () => {
+    const { db, hold } = await freshHeldDb();
+    const h = makeHarness(db);
+    const svc = createPresetService(h.ctx);
+    const owner = await seedUser(db);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    const inserts = hold(PRESET_INSERT, 2);
+
+    const updates = [
+      svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, name: "Tab A" }),
+      svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, name: "Tab B" }),
+    ];
+    await inserts.reached;
+    inserts.release();
+    const [a, b] = await Promise.all(updates);
+
+    expect(b.id).toBe(a.id);
+    expect((await svc.list({ userId: owner })).filter((row) => row.forkedFrom === SYSTEM_DEFAULT_PRESET_ID).map((row) => row.id)).toEqual([a.id]);
   });
 
   test("convergence is per-OWNER — another user's fork of the same default is never touched", async () => {

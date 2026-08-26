@@ -4,17 +4,15 @@
 // LIFTABLE BY INVARIANT. S5 name hygiene via the shared substrate.
 
 import { refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
-import { refinerySchemas } from "@orb/db";
 import type { RefineryContext } from "../context.ts";
 import type { RefineryService } from "../contract/service.ts";
-import { schemaSummaryOf } from "../persistence/queries.ts";
-import { assertSchemaNameFree } from "../substrate/schema-library.ts";
+import { insertOwnedSchemaIfNameFree, schemaSummaryOf } from "../persistence/queries.ts";
+import { schemaNameTakenError } from "../substrate/schema-library.ts";
 
 export function createCreateSchema(ctx: RefineryContext): RefineryService["createSchema"] {
   return async ({ principal, name, description, stage, schema }) => {
     const ownerId = principal.userId;
     const doc = refinerySchemaDocumentSchema.parse({ name, description, stage, schema });
-    await assertSchemaNameFree(ctx, ownerId, doc.name);
     const at = ctx.now();
     const row = {
       id: ctx.newRefinerySchemaId(),
@@ -27,10 +25,13 @@ export function createCreateSchema(ctx: RefineryContext): RefineryService["creat
       createdAt: at,
       updatedAt: at,
     };
-    await ctx.db.insert(refinerySchemas).values(row);
+    const inserted = await insertOwnedSchemaIfNameFree(ctx.db, row);
+    if (inserted === undefined) {
+      throw schemaNameTakenError(doc.name);
+    }
     // No session id: the schema library is the domain's OTHER noun and the member is coarse (contracts
     // `user-bus` — the client path-invalidates the refinery root either way).
     ctx.emitUserEvent(ownerId, { type: "refineryChanged" });
-    return schemaSummaryOf(row);
+    return schemaSummaryOf(inserted);
   };
 }
