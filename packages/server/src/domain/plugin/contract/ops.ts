@@ -195,7 +195,7 @@ export interface PluginHostOps {
    *  generation (the `summarizeQuiet` convention — the caller treats "" as "no answer"). Cost never crosses
    *  the realm boundary; cost VISIBILITY rides the stats domain off the generation itself. */
   readonly llm: {
-    readonly quiet: (req: { readonly installerUserId: UserId; readonly prompt: string }) => Promise<{ readonly text: string }>;
+    readonly quiet: (req: { readonly installerUserId: UserId; readonly prompt: string; readonly signal: AbortSignal }) => Promise<{ readonly text: string }>;
   };
   /** The installing user's per-user global KV — fetchOwned under the installer, so cross-user reads are
    *  structurally impossible. `capability: global_vars`. */

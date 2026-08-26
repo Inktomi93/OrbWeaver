@@ -198,10 +198,16 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // instance, so a claim that awaited first would let a burst straight through the gap. `async` so the
     // refusal reaches the guest as a REJECTED promise, matching every other membrane refusal.
     llm: {
-      quiet: async (prompt): Promise<{ readonly text: string }> => {
+      quiet: async (prompt, liveness): Promise<{ readonly text: string }> => {
         const id = requirePluginId("llm.quiet");
         belts.quietLlm.admit(id);
-        return await ops.llm.quiet({ installerUserId, prompt });
+        const controller = new AbortController();
+        const unsubscribe = liveness.onAbort(() => controller.abort());
+        try {
+          return await ops.llm.quiet({ installerUserId, prompt, signal: controller.signal });
+        } finally {
+          unsubscribe();
+        }
       },
     },
     // POSTURE 2 — stash the act as an ask instead of performing it. The membrane calls this on exactly the

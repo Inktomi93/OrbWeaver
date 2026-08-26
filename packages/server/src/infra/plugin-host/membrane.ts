@@ -29,6 +29,7 @@ import type {
   InvocationChat,
   PluginBridge,
   PluginCapability,
+  PluginInvocationLiveness,
   PluginSuggestedAct,
   PluginSurfaceRegistrationMeta,
   PluginTransformRegistration,
@@ -66,9 +67,9 @@ export type { InvocationChat, PluginBridge } from "@orb/contracts/plugin";
  *  reading under which "≤32 concurrent host calls" is a bound on WORK rather than on promises.
  *
  *  WHY NOT PER-INVOCATION (the P2-G repair, measured 2026-08-24). Two facts make an invocation-scoped counter a
- *  lie: (1) the host-fn deadline (`attachAsync`) BOUNDS a call without CANCELLING it — the losing impl keeps
- *  running host-side, so releasing its slot when the RACE settles admitted 32 fresh installer-funded calls
- *  (`imagery.generatePicture` = GPU/$, `chat.requestTurn`) every `HOST_FN_DEADLINE_MS`, unbounded; and (2) a
+ *  lie: (1) not every domain write can cooperatively cancel — the deadline signals every call, but an impl that
+ *  ignores it keeps running host-side, so releasing its slot when the RACE settles would admit 32 fresh
+ *  installer-funded calls every `HOST_FN_DEADLINE_MS`, unbounded; and (2) a
  *  reset at invocation start let stragglers from an ENDED invocation decrement a counter the NEXT invocation had
  *  already zeroed, drifting it NEGATIVE (measured: 36 of 40 burst calls admitted against a cap of 32). So the
  *  slot is acquired when the impl starts and released when the IMPL settles, once, and no reset exists.
@@ -78,6 +79,13 @@ export type { InvocationChat, PluginBridge } from "@orb/contracts/plugin";
  *  guest-reachable), and it is the direction to fail in — the alternative it replaces failed OPEN. */
 export interface InFlightCounter {
   count: number;
+  /** Cooperative cancellations for host work that is still running. The Sandbox aborts the set on teardown;
+   *  each operation removes its own controller only when the implementation actually settles. Optional only
+   *  for direct membrane unit fixtures; every live Sandbox supplies it. */
+  readonly controllers?: Set<AbortController>;
+  /** Started host implementations as non-rejecting settlement barriers. Teardown joins these before releasing
+   *  process admission, so a non-cancellable write remains owned even when it ignores the abort signal. */
+  readonly settlements?: Set<Promise<void>>;
 }
 
 /** What the Sandbox exposes to the membrane: the granted capability set, the op bridge, the live
@@ -160,13 +168,31 @@ function requireCapability(runtime: MembraneRuntime, ref: HostFunctionRef): void
   }
 }
 
+/** Adapt the infra-owned AbortSignal to the isomorphic contracts seam. Already-aborted subscriptions fire
+ *  synchronously so a provider call cannot slip through between the liveness check and listener install. */
+function invocationLiveness(signal: AbortSignal): PluginInvocationLiveness {
+  return {
+    get aborted(): boolean {
+      return signal.aborted;
+    },
+    onAbort: (listener): (() => void) => {
+      if (signal.aborted) {
+        listener();
+        return (): void => undefined;
+      }
+      signal.addEventListener("abort", listener, { once: true });
+      return (): void => signal.removeEventListener("abort", listener);
+    },
+  };
+}
+
 /** One async host-fn spec — bundled so `attachAsync` stays ≤ 4 params (the per-instance counter threads with
  *  the name + impl). */
 interface AsyncFnSpec {
   readonly name: string;
   readonly inFlight: InFlightCounter;
   readonly pending: Set<QuickJSDeferredPromise>;
-  readonly impl: (args: readonly unknown[]) => Promise<unknown>;
+  readonly impl: (args: readonly unknown[], signal: AbortSignal) => Promise<unknown>;
 }
 
 /** Attach every gated namespace onto the surface handle (mutates `surface`; the caller owns disposal of
@@ -746,7 +772,7 @@ function setLlm(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
     name: "quiet",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "llm.quiet");
       const prompt = args[0];
       if (typeof prompt !== "string") {
@@ -755,7 +781,7 @@ function setLlm(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
       if (prompt.length > PLUGIN_QUIET_PROMPT_MAX_CHARS) {
         throw new Error(`plugin host: llm.quiet prompt exceeds the ${PLUGIN_QUIET_PROMPT_MAX_CHARS}-character cap`);
       }
-      const { text } = await runtime.bridge.llm.quiet(prompt);
+      const { text } = await runtime.bridge.llm.quiet(prompt, invocationLiveness(signal));
       return text;
     },
   });
@@ -886,7 +912,7 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
     name: "fetch",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "net.fetch");
       const url = args[0];
       if (typeof url !== "string") {
@@ -898,7 +924,7 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
       // `safeFetch` bounds each REQUEST and the manifest bounds the DESTINATIONS; this is the only thing that
       // bounds the RATE (the D46 review's tracked finding — see `PluginBridge.admitEgress`).
       runtime.bridge.admitEgress();
-      const res = await safeFetch(url, buildNetOptions(runtime.netHosts, args[1]));
+      const res = await safeFetch(url, buildNetOptions(runtime.netHosts, args[1], signal));
       const body = NET_TEXT_DECODER.decode(await res.bytes());
       return { status: res.status, body };
     },
@@ -913,7 +939,7 @@ const NET_TEXT_DECODER = new TextDecoder();
  *  GET/POST, a string→string header map, and a string body are honored — any other shape is DROPPED (fail-safe:
  *  an unrecognized method defaults to GET, never an arbitrary verb). `allowedHosts` is the manifest wall; the
  *  guest cannot widen it. Optional fields stay ABSENT (exactOptionalPropertyTypes), not `undefined`. */
-function buildNetOptions(netHosts: readonly string[], rawInit: unknown): SafeFetchOptions {
+function buildNetOptions(netHosts: readonly string[], rawInit: unknown, signal: AbortSignal): SafeFetchOptions {
   const init = (typeof rawInit === "object" && rawInit !== null ? rawInit : {}) as {
     method?: unknown;
     headers?: unknown;
@@ -926,6 +952,7 @@ function buildNetOptions(netHosts: readonly string[], rawInit: unknown): SafeFet
     allowedHosts: netHosts,
     maxBytes: PLUGIN_NET_MAX_BYTES,
     deadlineMs: HOST_FN_DEADLINE_MS,
+    signal,
     ...(method !== undefined ? { method } : {}),
     ...(headers !== undefined ? { headers } : {}),
     ...(body !== undefined ? { body } : {}),
@@ -1001,10 +1028,10 @@ function chargeValue(value: unknown, pending: unknown[]): number {
  *   - the RACE settles when the guest's promise resolves/rejects (impl result, or the deadline). That is what
  *     deregisters `pending` (the guest promise is no longer a teardown hazard) and clears the timer.
  *   - the IMPL settles when the actual host work finishes. That — and ONLY that — releases the in-flight slot.
- *  The deadline does not abort the impl (nothing here can: the bridge ops are domain calls, and half of them
- *  are writes that must not be torn in two), so charging the slot to the race meant the cap counted
- *  not-yet-timed-out PROMISES. `imagery.generatePicture` outlives the 5 s bound by design; under the old
- *  accounting a guest could therefore hold unbounded concurrent GPU spend while the cap read "32". Note what
+ *  The deadline ABORTS a per-call controller; `net.fetch` and `llm.quiet` carry it to their real I/O doors.
+ *  Domain writes that cannot safely cancel may ignore it, so charging the slot to the race would still count
+ *  not-yet-timed-out PROMISES rather than real work. The slot therefore remains charged until the impl settles,
+ *  and teardown joins those settlements before releasing resident admission. Note what
  *  this does NOT claim to be: a spend CEILING (the D46 2026-07-24 amendment retired the plugin spend tier
  *  deliberately). It is a concurrency bound, and it is now true. */
 function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSpec): void {
@@ -1049,20 +1076,29 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     // WASM module. Deregistered in the `.finally` once the host call settles (or is dropped by the alive guard).
     pending.add(deferred);
 
+    const controller = new AbortController();
+    inFlight.controllers?.add(controller);
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_resolve, reject) => {
-      timer = setTimeout(() => reject(new Error(`${name} exceeded ${HOST_FN_DEADLINE_MS}ms host bound`)), HOST_FN_DEADLINE_MS);
+      timer = setTimeout(() => {
+        reject(new Error(`${name} exceeded ${HOST_FN_DEADLINE_MS}ms host bound`));
+        controller.abort();
+      }, HOST_FN_DEADLINE_MS);
       timer.unref();
     });
 
-    // The slot is charged to the IMPL, not to the race (see the header): a deadline that bounds without
-    // cancelling must not hand the slot back while the host work it bounds is still running. Exactly one
+    // The slot is charged to the IMPL, not to the race (see the header): cooperative abort is not proof that a
+    // non-cancellable write stopped, so the slot stays held while the host work is still running. Exactly one
     // release per acquisition, on either settle arm — the counter can therefore never drift negative.
-    const running = impl(args);
+    const running = impl(args, controller.signal);
+    let settlement: Promise<void>;
     const releaseSlot = (): void => {
       inFlight.count -= 1;
+      inFlight.controllers?.delete(controller);
+      inFlight.settlements?.delete(settlement);
     };
-    void running.then(releaseSlot, releaseSlot);
+    settlement = running.then(releaseSlot, releaseSlot);
+    inFlight.settlements?.add(settlement);
 
     void Promise.race([running, timeout])
       .then(

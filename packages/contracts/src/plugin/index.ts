@@ -10,7 +10,7 @@
  *  BAD_REQUEST rather than an unbounded log fetch (the #45 class). */
 export const PLUGIN_LOG_LIST_MAX_LIMIT = 500;
 
-export type { InvocationChat, PluginBridge } from "./bridge.ts";
+export type { InvocationChat, PluginBridge, PluginInvocationLiveness } from "./bridge.ts";
 export { HostVersionError, PluginCapabilityError, PluginSuggestedError } from "./errors.ts";
 export type {
   ChatHandle,
