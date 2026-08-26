@@ -195,14 +195,17 @@ test("renders the chat's rules and toggles one — setRuleEnabled fires with the
   await expect.poll(() => trpc.lastInput("automation.setRuleEnabled")).toMatchObject({ ruleId: "automationrule_ct1", enabled: true });
 });
 
-test("an enable write owns only its rule row, and a rejected write releases that row for retry", async ({ mount, page }) => {
+test("a same-task repeat admits one enable write, owns only its rule row, and rejection releases retry", async ({ mount, page }) => {
   const held = trpcHold();
   const trpc = await stub(page, { rules: [RULE, FREE_RULE], setEnabled: held });
   await mount(<RulesSectionStory chatId={CHAT} />);
 
   const first = page.getByRole("switch", { name: "Enable Illustrate the scene" });
   const sibling = page.getByRole("switch", { name: "Enable Count the beats" });
-  await first.click();
+  await first.evaluate((element) => {
+    (element as HTMLElement).click();
+    (element as HTMLElement).click();
+  });
   await held.requested;
 
   await expect(first).toBeDisabled();

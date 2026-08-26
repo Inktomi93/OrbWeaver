@@ -250,7 +250,7 @@ test("an installed plugin says whether it is on and what it is allowed to do", a
   expect(recorder.lastInput("plugin.setEnabled")).toEqual({ pluginId: INSTALLED_ROW.id, enabled: true });
 });
 
-test("an enable write owns only its plugin row, and rejection releases that row for retry", async ({ mount, page }) => {
+test("a same-task repeat admits one enable write, owns only its plugin row, and rejection releases retry", async ({ mount, page }) => {
   const held = trpcHold();
   const siblingRow = { ...INSTALLED_ROW, id: "plugin_ct0000000000000000002", name: "Rain Teller", slug: "rain-teller" };
   const recorder = await routeTrpc(page, {
@@ -264,7 +264,10 @@ test("an enable write owns only its plugin row, and rejection releases that row 
 
   const first = page.getByRole("switch", { name: "Turn Weather Teller on" });
   const sibling = page.getByRole("switch", { name: "Turn Rain Teller on" });
-  await first.click();
+  await first.evaluate((element) => {
+    (element as HTMLElement).click();
+    (element as HTMLElement).click();
+  });
   await held.requested;
 
   await expect(first).toBeDisabled();

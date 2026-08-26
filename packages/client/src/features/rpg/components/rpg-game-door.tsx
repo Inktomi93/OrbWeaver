@@ -17,6 +17,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { useCreateGame, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 
@@ -32,6 +33,35 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
   const createGame = useCreateGame({ trpc, invalidation });
   const updateConfig = useUpdateConfig({ trpc, invalidation });
   const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const createAdmission = useRef(false);
+  const engageAdmission = useRef(false);
+
+  const create = (profile?: typeof RPG_PROFILE_D20): void => {
+    if (createAdmission.current) {
+      return;
+    }
+    createAdmission.current = true;
+    createGame.mutate(profile === undefined ? { chatId, mode: "lite" } : { chatId, mode: "lite", profile }, {
+      onSettled: (): void => {
+        createAdmission.current = false;
+      },
+    });
+  };
+
+  const engage = (): void => {
+    if (engageAdmission.current) {
+      return;
+    }
+    engageAdmission.current = true;
+    updateConfig.mutate(
+      { chatId, patch: { engaged: true } },
+      {
+        onSettled: (): void => {
+          engageAdmission.current = false;
+        },
+      },
+    );
+  };
 
   const pointer = chat.rpg ?? null;
   if (pointer !== null && !isRpgEngaged(pointer)) {
@@ -45,7 +75,7 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
           </Text>
         </Row>
         <Text>The RPG overlay is off — your sheets, scene, and quests are kept. Turn it on to pick up where you left off.</Text>
-        <Button disabled={updateConfig.isPending} intent="primary" size="sm" onClick={(): void => updateConfig.mutate({ chatId, patch: { engaged: true } })}>
+        <Button disabled={updateConfig.isPending} intent="primary" size="sm" onClick={engage}>
           <Icon icon={Play} size="xs" /> Turn the overlay on
         </Button>
       </Stack>
@@ -63,15 +93,10 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
       </Row>
       <Text>An overlay for your roleplay — tracked state, quests, and a scene the story keeps current.</Text>
       <Row gap="field" className="flex-wrap">
-        <Button disabled={createGame.isPending} intent="primary" size="sm" onClick={(): void => createGame.mutate({ chatId, mode: "lite" })}>
+        <Button disabled={createGame.isPending} intent="primary" size="sm" onClick={(): void => create()}>
           <Icon icon={WandSparkles} size="xs" /> Freeform story
         </Button>
-        <Button
-          disabled={createGame.isPending}
-          intent="secondary"
-          size="sm"
-          onClick={(): void => createGame.mutate({ chatId, mode: "lite", profile: RPG_PROFILE_D20 })}
-        >
+        <Button disabled={createGame.isPending} intent="secondary" size="sm" onClick={(): void => create(RPG_PROFILE_D20)}>
           <Icon icon={Swords} size="xs" /> D20 adventure
         </Button>
       </Row>

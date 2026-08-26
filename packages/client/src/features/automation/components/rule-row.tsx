@@ -33,7 +33,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
@@ -118,7 +118,23 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
   const runNow = useRunRuleNow({ trpc, invalidation });
   const deleteRule = useDeleteRule({ trpc, invalidation });
   const [testResult, setTestResult] = useState<TestRunResult | null>(null);
+  const enableAdmission = useRef(false);
   const spends = hasSpendArm(rule.actions);
+
+  const onEnabledChange = (next: boolean): void => {
+    if (enableAdmission.current) {
+      return;
+    }
+    enableAdmission.current = true;
+    setEnabled.mutate(
+      { ruleId: rule.id, enabled: next, chatId },
+      {
+        onSettled: (): void => {
+          enableAdmission.current = false;
+        },
+      },
+    );
+  };
 
   const onTest = (): void => {
     testRule.mutateAsync({ ruleId: rule.id, chatId }).then(setTestResult, () => undefined);
@@ -147,12 +163,7 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
           </Text>
         </Stack>
         <Row className="shrink-0" gap="field" align="center">
-          <Switch
-            aria-label={`Enable ${rule.name}`}
-            checked={rule.enabled}
-            disabled={setEnabled.isPending}
-            onCheckedChange={(next): void => setEnabled.mutate({ ruleId: rule.id, enabled: next, chatId })}
-          />
+          <Switch aria-label={`Enable ${rule.name}`} checked={rule.enabled} disabled={setEnabled.isPending} onCheckedChange={onEnabledChange} />
           {/* The ONE in-cluster action, and the only free one: a dry run executes nothing. `secondary` (an
               edge + foreground ink) is what separates it from the ghost overflow trigger beside it. */}
           <Button intent="secondary" size="sm" aria-label={`Test ${rule.name}`} loading={testRule.isPending} onClick={onTest}>
