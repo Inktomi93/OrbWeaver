@@ -143,6 +143,55 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
     });
     expect(second).toBeUndefined();
     expect((await findInviteByTokenHash(db, hash))?.status).toBe("accepted");
+    expect(await countPresentMembers(db, chatId)).toBe(1);
+  });
+
+  test("two concurrent claims by the same user consume exactly one use and mint exactly one seat", async () => {
+    const joiner = await seedUser(db, castId<Handle>("joiner"));
+    const chatId = await seedChat(db, "same-user-race");
+    const hash = await seedInvite(db, chatId, "same-user-race", { maxUses: 5 });
+
+    const settled = await Promise.allSettled([
+      redeemInviteAtomic(db, {
+        tokenHash: hash,
+        userId: joiner,
+        participantId: castId<ChatParticipantId>("chat_participant_race_a"),
+        activePersonaId: null,
+        now: FROZEN_AT,
+      }),
+      redeemInviteAtomic(db, {
+        tokenHash: hash,
+        userId: joiner,
+        participantId: castId<ChatParticipantId>("chat_participant_race_b"),
+        activePersonaId: null,
+        now: FROZEN_AT,
+      }),
+    ]);
+
+    expect(settled.every((result) => result.status === "fulfilled")).toBe(true);
+    expect((await findInviteByTokenHash(db, hash))?.uses).toBe(1);
+    expect(await countPresentMembers(db, chatId)).toBe(1);
+  });
+
+  test("a seat constraint failure rolls the invite use back", async () => {
+    const joiner = await seedUser(db, castId<Handle>("joiner"));
+    const occupant = await seedUser(db, castId<Handle>("occupant"));
+    const occupiedChatId = await seedChat(db, "occupied");
+    await seedParticipant(db, { chatId: occupiedChatId, key: "collision", userId: occupant, role: "member" });
+    const chatId = await seedChat(db, "claim");
+    const hash = await seedInvite(db, chatId, "seat-failure", { maxUses: 5 });
+
+    await expect(
+      redeemInviteAtomic(db, {
+        tokenHash: hash,
+        userId: joiner,
+        participantId: castId<ChatParticipantId>("chat_participant_collision"),
+        activePersonaId: null,
+        now: FROZEN_AT,
+      }),
+    ).rejects.toThrow();
+    expect((await findInviteByTokenHash(db, hash))?.uses).toBe(0);
+    expect(await countPresentMembers(db, chatId)).toBe(0);
   });
 
   test("redeem refuses an expired invite", async () => {
@@ -157,6 +206,8 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       now: FROZEN_AT,
     });
     expect(result).toBeUndefined();
+    expect((await findInviteByTokenHash(db, hash))?.uses).toBe(0);
+    expect(await countPresentMembers(db, chatId)).toBe(0);
   });
 
   test("redeem of an ALREADY-present member is a no-op (undefined), without consuming a use", async () => {
@@ -173,6 +224,8 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       now: FROZEN_AT,
     });
     expect(result).toBeUndefined();
+    expect((await findInviteByTokenHash(db, hash))?.uses).toBe(0);
+    expect(await countPresentMembers(db, chatId)).toBe(1);
   });
 });
 

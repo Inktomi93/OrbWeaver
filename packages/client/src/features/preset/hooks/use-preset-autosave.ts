@@ -35,7 +35,7 @@ import type { PresetId } from "@orb/kit/ids";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { retargetPresetSectionDrill, selectPreset } from "#state";
+import { getSelectedPresetId, retargetPresetSectionDrill, selectPreset } from "#state";
 import { mergeOnSubmit } from "../lib/preset-editor-model.ts";
 import { findConvergenceFork, suggestForkName } from "../lib/preset-fork-choice.ts";
 import { useSetDefaultPreset, useUpdatePreset } from "./use-preset-mutations.ts";
@@ -57,6 +57,11 @@ interface PresetForkChoicePrompt {
   readonly forkName: string;
   /** The pre-filled name for a new fork. */
   readonly suggestedName: string;
+}
+
+interface PresetChoiceSave {
+  readonly config: PromptConfig;
+  readonly ownerPresetId: PresetId;
 }
 
 export interface PresetAutosaveHandle {
@@ -88,8 +93,11 @@ export function usePresetAutosave({ presetId, server, activePresetId }: PresetAu
   const [forkChoice, setForkChoice] = useState<PresetForkChoicePrompt | null>(null);
 
   /** Point every later save at `to`, and move the editor + the active-for-generation pick with it. */
-  const retarget = (from: PresetId, to: PresetId): void => {
+  const retarget = (from: PresetId, to: PresetId, ownerPresetId: PresetId): void => {
     forkRef.current = { from, to };
+    if (getSelectedPresetId() !== ownerPresetId) {
+      return;
+    }
     if (activePresetId === null || activePresetId === from) {
       setDefault.mutate({ section: "seeds", patch: { defaultPresetId: to } });
     }
@@ -111,7 +119,7 @@ export function usePresetAutosave({ presetId, server, activePresetId }: PresetAu
   };
 
   /** Ask, then write where the owner said. `sourceName` is the built-in's; `existing` is the convergence fork. */
-  const saveWithChoice = async (targetId: PresetId, sourceName: string, existing: (typeof presets)[number], config: PromptConfig): Promise<void> => {
+  const saveWithChoice = async (targetId: PresetId, sourceName: string, existing: (typeof presets)[number], choice: PresetChoiceSave): Promise<void> => {
     // Park the chain — NOTHING is written until the owner answers (dismissal answers "keep editing").
     const asked = Promise.withResolvers<string | null>();
     answerRef.current = asked.resolve;
@@ -127,15 +135,16 @@ export function usePresetAutosave({ presetId, server, activePresetId }: PresetAu
     const chosenName = await asked.promise;
     if (chosenName === null) {
       // Keep editing: the edit lands DIRECTLY on the existing fork — no copy-on-write, so nothing is minted.
-      await update.mutateAsync({ id: existing.id, config });
-      retarget(targetId, existing.id);
+      await update.mutateAsync({ id: existing.id, config: choice.config });
+      retarget(targetId, existing.id, choice.ownerPresetId);
       return;
     }
-    const minted = await update.mutateAsync({ id: targetId, config, fork: { mode: "new", name: chosenName } });
-    retarget(targetId, minted.id);
+    const minted = await update.mutateAsync({ id: targetId, config: choice.config, fork: { mode: "new", name: chosenName } });
+    retarget(targetId, minted.id, choice.ownerPresetId);
   };
 
   const save = (values: PromptConfig): Promise<void> => {
+    const ownerPresetId = presetId;
     const run = chainRef.current.then(async (): Promise<void> => {
       const fork = forkRef.current;
       const targetId = fork !== null && fork.from === presetId ? fork.to : presetId;
@@ -144,7 +153,7 @@ export function usePresetAutosave({ presetId, server, activePresetId }: PresetAu
       const source = presets.find((p) => p.id === targetId);
       const existing = source?.isSystemDefault === true ? findConvergenceFork(presets, targetId) : null;
       if (source !== undefined && existing !== null) {
-        await saveWithChoice(targetId, source.name, existing, config);
+        await saveWithChoice(targetId, source.name, existing, { config, ownerPresetId });
         return;
       }
 
@@ -152,7 +161,7 @@ export function usePresetAutosave({ presetId, server, activePresetId }: PresetAu
       if (row.id === targetId) {
         return; // a plain patch of an owned row
       }
-      retarget(targetId, row.id);
+      retarget(targetId, row.id, ownerPresetId);
     });
     // The queue must survive a rejected save (else every later save inherits the rejection); the caller still
     // gets the rejecting promise so the session's own error/retry lifecycle runs.

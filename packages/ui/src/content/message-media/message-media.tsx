@@ -49,11 +49,14 @@ function hostOf(url: string): string {
 export function MessageMedia({ src, media, alt, dims, allowExternal = false, className, onActivate }: MessageMediaProps): ReactElement {
   const isExternal = src.kind === "external";
   const blockedDataUri = isExternal && isDataUri(src.url);
-  const [loadRequested, setLoadRequested] = useState(false);
-  const [broken, setBroken] = useState(false);
+  const mediaIdentity = `${src.kind}:${media}:${src.url}`;
+  const [loadRequestedFor, setLoadRequestedFor] = useState<string | null>(null);
+  const [brokenFor, setBrokenFor] = useState<string | null>(null);
+  const loadRequested = loadRequestedFor === mediaIdentity;
+  const broken = brokenFor === mediaIdentity;
   const gated = isExternal && !blockedDataUri && !allowExternal && !loadRequested;
-  const requestLoad = (): void => setLoadRequested(true);
-  const onMediaError = (): void => setBroken(true);
+  const requestLoad = (): void => setLoadRequestedFor(mediaIdentity);
+  const onMediaError = (): void => setBrokenFor(mediaIdentity);
 
   const aspectStyle: CSSProperties = {
     aspectRatio: dims === undefined ? PLACEHOLDER_ASPECT : `${dims.w} / ${dims.h}`,

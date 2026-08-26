@@ -160,7 +160,15 @@ export { __resetDeploymentBootHint, rememberMultiHumanCapable, useMultiHumanCapa
 // startAsGame — for a room that had no server row. The room has a row from the creation click, so every one
 // of those is now the COMMITTED verb it always shadowed.
 export type { DurableLocalPersistApi, DurableLocalStorage } from "./durable-local.ts";
-export { __resetDurableLocal, activeDurableLocalUserId, bindDurableLocalToUser, durableLocalKey, registerDurableLocalStore } from "./durable-local.ts";
+export {
+  __resetDurableLocal,
+  activeDurableLocalUserId,
+  bindDurableLocalToUser,
+  durableLocalKey,
+  durableLocalReadyFor,
+  durableLocalWritesAllowed,
+  registerDurableLocalStore,
+} from "./durable-local.ts";
 export type { DormantDoorway, HomeTileContribution, HomeTileRegion } from "./home-tile-contracts.ts";
 export { HOME_TILE_REGIONS } from "./home-tile-contracts.ts";
 export type { ImageSubject, ImagineSeed } from "./imagery-store.ts";
@@ -225,6 +233,7 @@ export {
   __dismissPresetSectionForTest,
   __resetPresetSection,
   __resetPresetSelection,
+  getSelectedPresetId,
   presetSectionSelection,
   selectPreset,
   selectPresetFromList,

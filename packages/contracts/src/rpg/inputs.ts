@@ -202,14 +202,36 @@ export const rpgPromoteActorInputSchema = z.object({
  *  `status` rides the DERIVED quest-status enum. `objectives` are the authoring shape (`id` optional — a new
  *  objective omits it, the verb mints; `completed` optional) — the snapshot-resident `rpgQuestObjectiveSchema`
  *  requires `id`, so this authoring variant carries the optional-id, never a re-spell of the resident union. */
-export const rpgUpsertQuestInputSchema = z.object({
+const questFields = {
   chatId: chatIdField,
-  questId: brandedId<RpgQuestId>().optional(),
   name: z.string().min(1),
   status: rpgQuestStatusSchema.optional(),
   description: z.string().optional(),
-  objectives: z.array(z.object({ id: z.string().min(1).optional(), text: z.string().min(1), completed: z.boolean().optional() })).optional(),
-});
+};
+
+export const rpgUpsertQuestInputSchema = z.union([
+  z
+    .object({
+      ...questFields,
+      questId: z.never().optional(),
+      objectives: z.array(z.object({ text: z.string().min(1), completed: z.boolean().optional() }).strict()).optional(),
+    })
+    .strict(),
+  z.object({ ...questFields, questId: brandedId<RpgQuestId>() }).strict(),
+]);
+
+/** Objective edits are operations against the server's current quest, never a client-authored list image. */
+export const rpgEditQuestObjectiveInputSchema = z
+  .object({
+    chatId: chatIdField,
+    questId: brandedId<RpgQuestId>(),
+    op: z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("add"), text: z.string().min(1) }).strict(),
+      z.object({ kind: z.literal("setCompleted"), objectiveId: z.string().min(1), completed: z.boolean() }).strict(),
+      z.object({ kind: z.literal("delete"), objectiveId: z.string().min(1) }).strict(),
+    ]),
+  })
+  .strict();
 
 /** `deleteQuest` — remove a quest from the current resolved snapshot's array (host). */
 export const rpgDeleteQuestInputSchema = z.object({
