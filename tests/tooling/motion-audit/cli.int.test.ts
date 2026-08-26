@@ -27,15 +27,20 @@ const ANIMATION = `<style>
 </style>`;
 
 /** A minimal __orb bridge whose motion() answers with the given snapshot. */
-function page(motionJson: string, opts: { animated?: boolean } = {}): string {
+function page(motionJson: string, opts: { animated?: boolean; resetThrows?: boolean; settleThrows?: boolean; missingReset?: boolean; missingSettle?: boolean } = {}): string {
   const animated = opts.animated ?? true;
+  const resetEvidence = opts.missingReset === true ? "" : `resetEvidence: ${opts.resetThrows === true ? '() => { throw new Error("planted reset failure"); }' : "() => {}"},`;
+  const motionFlaggersSettled =
+    opts.missingSettle === true
+      ? ""
+      : `motionFlaggersSettled: ${opts.settleThrows === true ? '() => { throw new Error("planted settle failure"); }' : "() => true"},`;
   return `<!doctype html>
 <html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title>${animated ? ANIMATION : ""}<script>
 globalThis.__orb = {
   motion: () => (${motionJson}),
   animations: () => [],
-  resetEvidence: () => {},
-  motionFlaggersSettled: () => true,
+  ${resetEvidence}
+  ${motionFlaggersSettled}
   setMotionAuditDropTrackingPaused: () => {},
 };
 </script></head><body><main>fixture${animated ? '<div id="spin"></div>' : ""}</main></body></html>`;
@@ -93,6 +98,49 @@ test("a measured window that composited NO frame is an INSTRUMENT ERROR, never 0
   expect(res.stdout).toContain("frame population");
   expect(res.stdout).not.toContain("verdict=PASS");
   await expect(res).toExitWith(2);
+});
+
+test(
+  "a failed pre-measurement reset is an INSTRUMENT ERROR, never a verdict over stale reach evidence",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "reset-fails.html"), page(CLEAN, { resetThrows: true }));
+    const res = await runCli("motion-audit", args(scratch, "reset-fails.html", ["--selector", "main"]), { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).toContain("INSTRUMENT ERROR");
+    expect(res.stdout).toContain("pre-measurement evidence reset");
+    expect(res.stdout).not.toContain("verdict=PASS");
+    await expect(res).toExitWith(2);
+  },
+  SLOW_TEST_MS,
+);
+
+test("a failed post-reach reset is an INSTRUMENT ERROR, never a verdict over reach evidence", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "reach-reset-fails.html"), page(CLEAN, { resetThrows: true }));
+  const res = await runCli("motion-audit", args(scratch, "reach-reset-fails.html", ["--click", "main"]), { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  expect(res.stdout).toContain("post-reach evidence reset");
+  expect(res.stdout).not.toContain("verdict=PASS");
+  await expect(res).toExitWith(2);
+});
+
+test("a failed motion-flagger settle barrier is an INSTRUMENT ERROR", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "flagger-settle-fails.html"), page(CLEAN, { settleThrows: true }));
+  const res = await runCli("motion-audit", args(scratch, "flagger-settle-fails.html"), { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  expect(res.stdout).toContain("motion flagger settle barrier");
+  expect(res.stdout).not.toContain("verdict=PASS");
+  await expect(res).toExitWith(2);
+});
+
+test("missing reset and settle methods are INSTRUMENT ERROR instead of optional-chain clean", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "missing-reset.html"), page(CLEAN, { missingReset: true }));
+  const reach = await runCli("motion-audit", args(scratch, "missing-reset.html", ["--click", "main"]), { timeoutMs: CLI_TIMEOUT_MS });
+  expect(reach.stdout).toContain("post-reach evidence reset");
+  await expect(reach).toExitWith(2);
+
+  await writeFile(join(scratch, "missing-settle.html"), page(CLEAN, { missingSettle: true }));
+  const settleResult = await runCli("motion-audit", args(scratch, "missing-settle.html"), { timeoutMs: CLI_TIMEOUT_MS });
+  expect(settleResult.stdout).toContain("motion flagger settle barrier");
+  await expect(settleResult).toExitWith(2);
 });
 
 test(

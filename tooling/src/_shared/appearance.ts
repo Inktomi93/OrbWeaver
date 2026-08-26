@@ -70,6 +70,7 @@ interface PresetFile {
 /** Null when the committed file is missing or unparseable — the caller turns that into an ARG ERROR naming
  *  the path, never a silent "no such preset" that blames the caller for a broken file. */
 function readPresetFile(): PresetFile | null {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): appearance JSON parse returns null so the caller emits its option-specific refusal; no theme is applied. Ends if parse failure stops being a refusal.
   try {
     return JSON.parse(readFileSync(PRESETS_PATH, "utf8")) as PresetFile;
   } catch {
@@ -177,6 +178,7 @@ export function mergeAppearancePatches(base: AppearancePatch | null, next: Appea
  */
 export function trpcProcedureIndex(rawUrl: string, procedure: string = SETTINGS_PROCEDURE): number | null {
   let pathname: string;
+  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable optional appearance snapshot is represented as absent and the caller rebuilds from the live page. Ends if this snapshot becomes authoritative.
   try {
     pathname = new URL(rawUrl).pathname;
   } catch {
@@ -247,6 +249,7 @@ async function fulfilPatched(route: Route, patch: SettingsPatch, index: number):
  *  intercepted request went to, so a `--base`/stage port never has to be re-derived here. `listThemes` takes
  *  no input, so the batch URL carries an empty input map. */
 function themeListUrl(requestUrl: string): string | null {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable optional theme catalog entry is represented as absent and the caller reports the missing theme. Ends if absence stops reaching the operator.
   try {
     return `${new URL(requestUrl).origin}${TRPC_PATH_PREFIX}${LIST_THEMES_PROCEDURE}?batch=1&input=${encodeURIComponent("{}")}`;
   } catch {
@@ -267,6 +270,7 @@ function themeResolver(request: ThemeRequest): (route: Route, context: BrowserCo
       return null;
     }
     let entries: readonly ThemeEntry[] | null = null;
+    // @orb-gate-ignore caught-failure-ownership(default:e): the list-themes command emits the read failure through warn before returning no catalog. Ends if the warning stops carrying the failure.
     try {
       const response = await context.request.get(url);
       entries = response.ok() ? readThemeList((await response.json()) as unknown) : null;
@@ -320,10 +324,10 @@ function recordAppliedEvidence(evidence: SettingsShimEvidence, applied: boolean,
  * Install the shim on a browser CONTEXT (before its first navigation, so the app's very first settings read
  * is already shimmed).
  *
- * Never fails the run: a request that can't be fetched/parsed (a mid-navigation abort, a non-JSON error page)
- * falls through to the real response — the alternative is a probe that dies on an unrelated network hiccup.
- * An UNRESOLVABLE `--theme` is the one case that is loud (stderr) rather than silent, because unlike a
- * network blip it means the run measured a different arm than the operator typed.
+ * A primary fetch/parse/patch failure falls through to the real response, so an unrelated interception
+ * hiccup does not fabricate settings. The FALLBACK itself is the final response owner: if it rejects there
+ * is no real response to continue with, so that rejection propagates and the probe fails honestly. An
+ * UNRESOLVABLE `--theme` is loud (stderr) because the run measured a different arm than the operator typed.
  */
 export async function installSettingsShim(context: BrowserContext, shim: SettingsShim): Promise<SettingsShimEvidence> {
   const evidence: SettingsShimEvidence = {
@@ -340,6 +344,7 @@ export async function installSettingsShim(context: BrowserContext, shim: Setting
       await route.fallback();
       return;
     }
+    // @orb-gate-ignore caught-failure-ownership(empty:catch): the primary route failure is owned by the awaited fallback route, whose own rejection propagates to the command. Ends if fallback becomes fire-and-forget.
     try {
       // No --theme, or a resolution that FAILED (the warning already said so) → no theme key at all, never
       // a fabricated selection. A resolved `none` IS a selection: `selectedThemeId: null`.
@@ -351,7 +356,7 @@ export async function installSettingsShim(context: BrowserContext, shim: Setting
       const applied = await fulfilPatched(route, patch, index);
       recordAppliedEvidence(evidence, applied, shim.appearance !== null, themeOutcome !== null);
     } catch {
-      await route.fallback().catch(() => undefined);
+      await route.fallback();
     }
   });
   return evidence;

@@ -7,6 +7,7 @@
 // element it lands on, and that CLI misuse is refused instead of silently doing nothing.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import type { BrowserContext, Route } from "@playwright/test";
 import {
   appearancePresetNames,
   applyAppearanceFlag,
@@ -18,6 +19,7 @@ import {
   parseAppearancePatch,
   trpcProcedureIndex,
 } from "@orb/tooling/_shared/appearance";
+import { installSettingsShim } from "../../../tooling/src/_shared/appearance.ts";
 import { parseSnapArgs } from "../../../tooling/src/snap/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -153,4 +155,24 @@ test("snap refuses a bad appearance flag before a browser boots (misuse posture)
 
 test("no appearance flag = the account's real state (the shim is not installed at all)", () => {
   expect(parseSnapArgs(["/"]).appearance).toBeNull();
+});
+
+test("a failed real-response fallback rejects the appearance shim instead of reporting a usable route", async () => {
+  let handler: ((route: Route) => Promise<void>) | undefined;
+  const context = {
+    route: async (_glob: string, registered: (route: Route) => Promise<void>) => {
+      handler = registered;
+    },
+  } as unknown as BrowserContext;
+  await installSettingsShim(context, { appearance: { reducedMotion: false }, theme: null });
+
+  const fallbackFailure = new Error("planted fallback failure");
+  const route = {
+    request: () => ({ url: () => "http://localhost/api/trpc/settings.getUserSettings?batch=1" }),
+    fetch: async () => Promise.reject(new Error("planted primary failure")),
+    fallback: async () => Promise.reject(fallbackFailure),
+  } as unknown as Route;
+
+  expect(handler).toBeDefined();
+  await expect(handler?.(route) ?? Promise.resolve()).rejects.toBe(fallbackFailure);
 });
