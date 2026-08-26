@@ -12,7 +12,7 @@ beforeEach(async () => {
 });
 
 describe("editQuestObjective", () => {
-  test("independent objective operations derive from the current head and preserve each other's changes", async () => {
+  test("concurrent objective operations derive in order and preserve each other's changes", async () => {
     const { chatId, gameId, h } = await seedLiteGame(db);
     const host = principal(castId<Handle>("host"));
     const questId = await h.service.upsertQuest({
@@ -32,8 +32,24 @@ describe("editQuestObjective", () => {
       throw new Error("seeded objectives were not resolved");
     }
 
-    await h.service.editQuestObjective({ principal: host, chatId, questId, op: { kind: "setCompleted", objectiveId: first, completed: true } });
-    await h.service.editQuestObjective({ principal: host, chatId, questId, op: { kind: "delete", objectiveId: second } });
+    const bothAuthorized = Promise.withResolvers<void>();
+    const getMembership = h.ctx.getMembership;
+    let authorizationCount = 0;
+    Object.defineProperty(h.ctx, "getMembership", {
+      value: async (...args: Parameters<typeof getMembership>) => {
+        authorizationCount += 1;
+        if (authorizationCount === 2) {
+          bothAuthorized.resolve();
+        }
+        await bothAuthorized.promise;
+        return getMembership(...args);
+      },
+    });
+
+    await Promise.all([
+      h.service.editQuestObjective({ principal: host, chatId, questId, op: { kind: "setCompleted", objectiveId: first, completed: true } }),
+      h.service.editQuestObjective({ principal: host, chatId, questId, op: { kind: "delete", objectiveId: second } }),
+    ]);
     await h.service.editQuestObjective({ principal: host, chatId, questId, op: { kind: "add", text: "Turn the wheel" } });
 
     const quest = (await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.quests?.[0];
