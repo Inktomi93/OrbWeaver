@@ -144,6 +144,7 @@ test("the Everywhere switch locks while its write is held, then remains actionab
   await toggle.click();
   await held.requested;
   await expect(toggle).toBeDisabled();
+  await expect(workspace.getByRole("status").filter({ hasText: "Feeding The Crimson Court everywhere…" })).toBeVisible();
   held.release(null);
   await expect(toggle).toBeEnabled();
 

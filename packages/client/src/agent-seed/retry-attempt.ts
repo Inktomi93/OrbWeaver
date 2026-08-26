@@ -1,7 +1,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { SeedProfile } from "../lib/agent-bridge.ts";
 
-export type SeedStep = () => Promise<void>;
+type SeedStep = () => Promise<void>;
 
 /** Advances only after a write resolves, so a deterministic failure-before-commit resumes at that exact
  * door instead of minting another room and orphaning the partial one. */

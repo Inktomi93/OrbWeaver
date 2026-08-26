@@ -188,6 +188,12 @@ function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): React
   const isInvite = item.payload.type === "invite";
   const isHandoff = item.payload.type === "handoff-nominated";
   const isPending = accept.isPending || decline.isPending || acceptHandoff.isPending || dismiss.isPending;
+  let pendingCopy = "Dismissing notification…";
+  if (isInvite) {
+    pendingCopy = `Updating invitation from ${item.payload.invitedByHandle}…`;
+  } else if (isHandoff) {
+    pendingCopy = "Updating host handoff…";
+  }
 
   const ownAction = (work: () => Promise<void>): void => {
     if (actionOwned.current) {
@@ -249,10 +255,24 @@ function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): React
       <Row gap="field" align="center">
         {isInvite ? (
           <>
-            <Button type="button" disabled={isPending} intent="secondary" size="sm" onClick={acceptInvite}>
+            <Button
+              aria-label={`Accept invitation from ${item.payload.invitedByHandle}`}
+              type="button"
+              disabled={isPending}
+              intent="secondary"
+              size="sm"
+              onClick={acceptInvite}
+            >
               Accept
             </Button>
-            <Button type="button" disabled={isPending} intent="ghost" size="sm" onClick={declineInvite}>
+            <Button
+              aria-label={`Decline invitation from ${item.payload.invitedByHandle}`}
+              type="button"
+              disabled={isPending}
+              intent="ghost"
+              size="sm"
+              onClick={declineInvite}
+            >
               Decline
             </Button>
           </>
@@ -267,6 +287,11 @@ function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): React
             Dismiss
           </Button>
         )}
+        {isPending ? (
+          <Text role="status" voice="gloss">
+            {pendingCopy}
+          </Text>
+        ) : null}
       </Row>
     </Row>
   );

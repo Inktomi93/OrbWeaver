@@ -33,7 +33,6 @@ import { castId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
 import type { TRPCClient } from "@trpc/client";
 import type { OrbSeedHandle, SeedProfile } from "../lib/agent-bridge.ts";
-import type { SeedStep } from "./retry-attempt.ts";
 import { PendingGameSeed } from "./retry-attempt.ts";
 
 /**
@@ -315,6 +314,8 @@ const CAST_ACTOR_OPS: readonly { readonly castKey: string; readonly ops: readonl
 function statProfileFor(profile: SeedProfile): RpgStatProfile {
   return profile === "d20" ? RPG_PROFILE_D20 : RPG_PROFILE_FREEFORM;
 }
+
+type SeedStep = () => Promise<void>;
 
 /** Build the `__orb.seed` handle. `client` is the SAME wire client the app renders through, so every seed
  *  write goes over the real HTTP verb surface as the auto-resolved host (dev single-user). */
