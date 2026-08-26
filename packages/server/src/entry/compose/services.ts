@@ -470,12 +470,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // assembly, a genuine cycle) and threaded into persona's write, expressions' classify emit, and
   // buildChatService.
   const chatBus = createChatBus({ db, now, newEventId: minter(ID_PREFIX.chatEvent) });
-  const emitChatEventChecked: ChatComposeInput["emitChatEventChecked"] = async (event, coStatements) => {
-    const logged = await chatBus.emit(event, coStatements);
-    // `null` ⇒ the durable append was dropped + reported (bus.ts FLAG[emit-is-total], e.g. the chat was
+  const emitChatEventChecked: ChatComposeInput["emitChatEventChecked"] = async (event, claimStatement) => {
+    const logged = claimStatement === undefined ? await chatBus.emit(event) : await chatBus.emitAfterClaim(event, claimStatement);
+    // `false` ⇒ another retry owned the claim: converged success with nothing to fan. `null` ⇒ the durable
+    // append was dropped + reported (bus.ts FLAG[emit-is-total], e.g. the chat was
     // deleted mid-turn). Durable-first means an un-logged event is never fanned — it has no replay cursor.
     // The fan carries `logged.event`, not the caller's — the bus stamped the §3.6 member projection onto it,
     // and the live path must deliver byte-for-byte what the durable replay will.
+    if (logged === false) {
+      return true;
+    }
     if (logged !== null) {
       publishChatEvent(logged);
       return true;
