@@ -29,7 +29,7 @@
 
 import { chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import { batchMany, batchStmt } from "@orb/db/kit";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
@@ -119,22 +119,24 @@ async function pushClaimStatsDeltas(
   }
 }
 
-/** Build the injected claim op. The stamp is a CONDITIONAL update (`WHERE started_at IS NULL`) so the claim
- *  instant is the first real activity and a concurrent second claimer is a no-op — the `RETURNING` row count
- *  IS the transition test, which is why the stats replay and the list fan can never fire twice.
+/** Build the injected claim op. The stamp is a CONDITIONAL update (`WHERE started_at IS NULL`) in the SAME
+ *  atomic batch as its replay deltas + canon-version bumps: `reconcileStats` can therefore never observe a
+ *  claimed source row before the live projection is current. The composition-owned in-flight map serializes
+ *  concurrent same-room callers; the `RETURNING` row count remains the transition test for the list fan.
  *
  *  A chatId that no longer exists stamps nothing and is a silent no-op: every caller is a verb that already
  *  gated on membership, so a vanished row means the room was deleted concurrently, not that the caller lied. */
 export function createClaimChat(ctx: ChatContext): ClaimChatOp {
-  return async (chatId: ChatId): Promise<void> => {
+  const active = new Map<ChatId, Promise<void>>();
+
+  const claimOnce = async (chatId: ChatId): Promise<void> => {
     const now = ctx.now();
-    const stamped = await ctx.db
-      .update(chats)
-      .set({ startedAt: now })
+    const [candidate] = await ctx.db
+      .select({ createdAt: chats.createdAt })
+      .from(chats)
       .where(and(eq(chats.id, chatId), isNull(chats.startedAt)))
-      .returning({ id: chats.id, createdAt: chats.createdAt });
-    const row = stamped.at(0);
-    if (row === undefined) {
+      .limit(1);
+    if (candidate === undefined) {
       return;
     }
     const roster = await loadRoster(ctx.db, chatId);
@@ -143,20 +145,48 @@ export function createClaimChat(ctx: ChatContext): ClaimChatOp {
     const hostUserId = hostUserIdOf(roster);
     // A hostless room (an archived orphan / a racing delete) has nobody to attribute economics to, so the
     // replay is skipped — but the visibility flip still lands: the row is claimed either way.
+    const statements: BatchStmt[] = [
+      batchStmt(
+        ctx.db
+          .update(chats)
+          .set({ startedAt: now })
+          .where(and(eq(chats.id, chatId), isNull(chats.startedAt)))
+          .returning({ id: chats.id }),
+      ),
+    ];
     if (hostUserId !== null) {
       const characterIds = roster.flatMap((r) => {
         const actor = classifyParticipant(r);
         return actor?.kind === "character" ? [actor.characterId] : [];
       });
-      const stmts: BatchStmt[] = [];
-      await pushClaimStatsDeltas(ctx, stmts, { chatId, ownerId: hostUserId, characterIds, createdAt: row.createdAt, now });
-      if (stmts.length > 0) {
-        await ctx.db.batch(batchMany(stmts));
-      }
+      await pushClaimStatsDeltas(ctx, statements, { chatId, ownerId: hostUserId, characterIds, createdAt: candidate.createdAt, now });
+    }
+    const results = await ctx.db.batch(batchMany(statements));
+    const stamped = results[0] as readonly { readonly id: ChatId }[];
+    if (stamped.length === 0) {
+      return;
     }
     // The hidden→visible flip IS a list change on every member device (§4.5). The per-chat `emit` is NOT
     // fanned here: the claiming verb already emits its own room event, and a room the viewer could not see
     // has no subscribers to tell.
     await ctx.emitChatChanged(chatId, { detail: true });
   };
+
+  const claim: ClaimChatOp = async (chatId) => {
+    const incumbent = active.get(chatId);
+    if (incumbent !== undefined) {
+      await incumbent.catch(() => claim(chatId));
+      return;
+    }
+    const current = claimOnce(chatId);
+    active.set(chatId, current);
+    try {
+      await current;
+    } finally {
+      if (active.get(chatId) === current) {
+        active.delete(chatId);
+      }
+    }
+  };
+  return claim;
 }
