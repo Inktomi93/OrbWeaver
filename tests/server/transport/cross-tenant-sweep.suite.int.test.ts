@@ -159,15 +159,19 @@ function trpcCode(e: unknown): string | null {
  * so there is no branching `expect`). A probe is a LEAK (verdict `ok:false`) if it:
  *   • throws a NON-`NOT_FOUND` error (a `FORBIDDEN` existence-oracle, a 500, a non-tRPC throw), OR
  *   • resolves with any of owner A's marker NAMES in the serialized result.
- * A `NOT_FOUND` throw or a benign marker-free resolve (a no-op mutation / empty list) is leak-free.
+ * A `NOT_FOUND` throw or a benign marker-free resolve (a no-op mutation / empty list) is leak-free unless
+ * the probe explicitly requires the authority contract to reject. Those probes must not silently resolve.
  */
-async function leakVerdict(path: string, thunk: () => Promise<unknown>): Promise<string | null> {
+async function leakVerdict(path: string, thunk: () => Promise<unknown>, requireNotFound = false): Promise<string | null> {
   let value: unknown;
   try {
     value = await thunk();
   } catch (e) {
     const code = trpcCode(e);
     return code === "NOT_FOUND" ? null : `${path}: a stranger's rejection must be leak-free NOT_FOUND, got ${code ?? `non-tRPC ${String(e)}`}`;
+  }
+  if (requireNotFound) {
+    return `${path}: a stranger must be rejected with leak-free NOT_FOUND, but the call resolved`;
   }
   const leaked = MARKERS.find((m) => (JSON.stringify(value) ?? "").includes(m));
   return leaked === undefined ? null : `${path}: a stranger's result leaked owner A's data ("${leaked}")`;
@@ -191,6 +195,7 @@ async function drainAsyncIterable(source: Promise<AsyncIterable<unknown>>): Prom
 interface Probe {
   readonly path: string;
   readonly call: (stranger: AppCaller, ids: OwnerIds) => Promise<unknown>;
+  readonly requireNotFound?: boolean;
 }
 
 // Synthesized secondary ids — `brandedId` is `z.string().min(1)` (no prefix check), and the OWNER/MEMBER
@@ -1180,6 +1185,7 @@ const PROBES: readonly Probe[] = [
   {
     path: "rpg.editQuestObjective",
     call: (c, i) => c.rpg.editQuestObjective({ chatId: i.chatId, questId: i.rpgQuestId, op: { kind: "add", text: "hacked" } }),
+    requireNotFound: true,
   },
   { path: "rpg.deleteQuest", call: (c, i) => c.rpg.deleteQuest({ chatId: i.chatId, questId: i.rpgQuestId }) },
   { path: "rpg.addJournalEntry", call: (c, i) => c.rpg.addJournalEntry({ chatId: i.chatId, type: "note", title: "hacked", content: "hacked" }) },
@@ -1859,7 +1865,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // collected then asserted ONCE (no branching expect) so EVERY leak surfaces in a single readable diff.
     const leaks: string[] = [];
     for (const probe of PROBES) {
-      const verdict = await leakVerdict(probe.path, () => probe.call(otherCaller, ids));
+      const verdict = await leakVerdict(probe.path, () => probe.call(otherCaller, ids), probe.requireNotFound);
       if (verdict !== null) {
         leaks.push(verdict);
       }
