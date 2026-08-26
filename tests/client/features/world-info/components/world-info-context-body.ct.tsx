@@ -11,7 +11,7 @@
 // library, not the page that happened to arrive first).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { WorldInfoContextStory } from "../_ct-stories.tsx";
 
 const BOOK_ID = "world_book_reorder001";
@@ -38,6 +38,7 @@ function searchedLibrary(input: unknown): { items: typeof LIBRARY; nextCursor: n
 test("the open book's arm switches the everywhere scope on", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
+    "worldInfo.listAttachmentsForBook": () => ({ characters: [], personaIds: [] }),
     "worldInfo.listGlobal": () => [],
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
@@ -53,7 +54,7 @@ test("the open book's arm switches the everywhere scope on", async ({ mount, pag
 });
 
 test("a book deleted under the pane says so instead of showing an empty panel", async ({ mount, page }) => {
-  await routeTrpc(page, { "worldInfo.listBooksWithUsage": () => [] });
+  await routeTrpc(page, { "worldInfo.listBooksWithUsage": () => [], "worldInfo.listAttachmentsForBook": () => ({ characters: [], personaIds: [] }) });
 
   const context = await mount(<WorldInfoContextStory />);
   await expect(context.getByText("Book not found")).toBeVisible();
@@ -63,7 +64,7 @@ test("the character picker narrows through the SERVER — the typed term reaches
   const trpc = await routeTrpc(page, {
     "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
     "worldInfo.listGlobal": () => [],
-    "worldInfo.listForCharacter": () => [],
+    "worldInfo.listAttachmentsForBook": () => ({ characters: [], personaIds: [] }),
     "persona.list": () => [],
     "character.list": searchedLibrary,
   });
@@ -78,6 +79,8 @@ test("the character picker narrows through the SERVER — the typed term reaches
   // The read is BOUNDED and says so on the wire — the paged-list law's half that no pixel shows. Polled,
   // not sampled: a recorder read is mutable async state even behind a settled render (ct-no-oneshot).
   await expect.poll(() => trpc.lastInput("character.list"), { intervals: [20, 50, 100] }).toEqual({ limit: 100 });
+  await expect.poll(() => trpc.count("worldInfo.listAttachmentsForBook")).toBe(1);
+  await expect.poll(() => trpc.count("worldInfo.listForCharacter")).toBe(0);
 
   await context.getByRole("textbox", { name: "Search characters" }).fill("bram");
 
@@ -92,7 +95,7 @@ test("a search that matches nothing says so about the TERM, and offers the way b
   await routeTrpc(page, {
     "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
     "worldInfo.listGlobal": () => [],
-    "worldInfo.listForCharacter": () => [],
+    "worldInfo.listAttachmentsForBook": () => ({ characters: [], personaIds: [] }),
     "persona.list": () => [],
     "character.list": searchedLibrary,
   });
@@ -108,4 +111,28 @@ test("a search that matches nothing says so about the TERM, and offers the way b
 
   await context.getByRole("button", { name: "Clear search" }).click();
   await expect(context.getByRole("switch", { name: "Attach to Astrid" })).toBeVisible();
+});
+
+test("attachment controls lock on the one shared reverse read and expose an explicit retry after error", async ({ mount, page }) => {
+  const held = trpcHold();
+  const trpc = await routeTrpc(page, {
+    "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
+    "worldInfo.listGlobal": () => [],
+    "worldInfo.listAttachmentsForBook": () => held,
+    "persona.list": () => [],
+    "character.list": searchedLibrary,
+  });
+  const context = await mount(<WorldInfoContextStory />);
+  await context.getByRole("button", { name: "Attach to a character" }).click();
+  await held.requested;
+  const toggle = context.getByRole("switch", { name: "Attach to Astrid" });
+  await expect(toggle).toBeDisabled();
+  held.release(trpcError());
+
+  const retry = context.getByRole("button", { name: "Retry" }).first();
+  await expect(retry).toBeVisible();
+  await expect(toggle).toBeDisabled();
+  // The held marker replays its settled failure on retry; this still proves the explicit retry door fires.
+  await retry.click();
+  await expect.poll(() => trpc.count("worldInfo.listAttachmentsForBook")).toBe(2);
 });

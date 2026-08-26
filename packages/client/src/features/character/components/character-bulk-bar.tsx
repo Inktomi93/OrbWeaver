@@ -33,15 +33,20 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, trpc }: Characte
   const [tagOpen, setTagOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const characterIds = ids.map((id) => castId<CharacterId>(id));
+  const isPending = bulkTag.isPending || bulkArchive.isPending || bulkRemove.isPending;
 
   const applyTag = (name: string): void => {
-    bulkTag.mutate({ tagName: name, characterIds });
-    onClear();
+    void bulkTag
+      .mutateAsync({ tagName: name, characterIds })
+      .then(onClear)
+      .catch(() => undefined);
   };
 
   const confirmDelete = (): void => {
-    bulkRemove.mutate({ characterIds });
-    onClear();
+    void bulkRemove
+      .mutateAsync({ characterIds })
+      .then(onClear)
+      .catch(() => undefined);
   };
 
   return (
@@ -49,20 +54,23 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, trpc }: Characte
       {/* `size="sm"` (the SelectionBar usage default) so count + the three actions + clear fit a narrow LIST
           panel without clipping the trailing Delete (the ~337px panel regression). */}
       <SelectionBar count={selectedCount} onClear={onClear}>
-        <Button intent="secondary" onClick={(): void => setTagOpen(true)} size="sm">
+        <Button disabled={isPending} intent="secondary" onClick={(): void => setTagOpen(true)} size="sm">
           Tag
         </Button>
         <Button
           intent="secondary"
+          disabled={isPending}
           onClick={(): void => {
-            bulkArchive.mutate({ characterIds, archived: true });
-            onClear();
+            void bulkArchive
+              .mutateAsync({ characterIds, archived: true })
+              .then(onClear)
+              .catch(() => undefined);
           }}
           size="sm"
         >
           Archive
         </Button>
-        <Button intent="destructive" onClick={(): void => setDeleteOpen(true)} size="sm">
+        <Button disabled={isPending} intent="destructive" onClick={(): void => setDeleteOpen(true)} size="sm">
           Delete
         </Button>
       </SelectionBar>

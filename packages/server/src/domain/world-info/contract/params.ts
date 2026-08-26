@@ -99,6 +99,10 @@ export interface ListForCharacterParams extends WorldInfoActorParams {
   readonly characterId: CharacterId;
 }
 
+export interface ListAttachmentsForBookParams extends WorldInfoActorParams {
+  readonly bookId: WorldBookId;
+}
+
 export interface AttachGlobalParams extends WorldInfoActorParams {
   readonly bookId: WorldBookId;
 }
