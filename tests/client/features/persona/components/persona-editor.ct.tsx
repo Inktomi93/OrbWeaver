@@ -12,7 +12,7 @@
 // satisfiable by the builtin catalog alone).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { PersonaEditorMacroStory } from "../_ct-stories.tsx";
 
 const USER_MACRO_ROW = "{{sceneTone}}";
@@ -72,4 +72,38 @@ test("with the BUILT-IN preset active there is no plane to read — the builtin 
   await expect(page.getByRole("option", { name: "{{persona}}" })).toBeVisible();
   await expect(page.getByRole("option", { name: USER_MACRO_ROW })).toHaveCount(0);
   await expect.poll(() => trpc.count("preset.get")).toBe(0);
+});
+
+test("Duplicate admits one durable intent and rejection restores retry", async ({ mount, page }) => {
+  const first = trpcHold();
+  const retry = trpcHold();
+  let attempts = 0;
+  const trpc = await routeTrpc(page, {
+    ...PERSONA_EDITOR_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: null } } }),
+    "persona.update": () => null,
+    "persona.duplicate": () => (attempts++ === 0 ? first : retry),
+  });
+  const component = await mount(<PersonaEditorMacroStory />);
+  const duplicate = component.getByRole("button", { name: "Duplicate" });
+
+  await duplicate.evaluate((button) => {
+    if (!(button instanceof HTMLButtonElement)) {
+      throw new Error("Duplicate did not resolve to a button");
+    }
+    button.click();
+    button.click();
+  });
+  await first.requested;
+  await expect(duplicate).toBeDisabled();
+  expect(trpc.count("persona.duplicate")).toBe(1);
+
+  first.release(trpcError());
+  await expect(duplicate).toBeEnabled();
+  await duplicate.click();
+  await retry.requested;
+  await expect(duplicate).toBeDisabled();
+  expect(trpc.count("persona.duplicate")).toBe(2);
+  retry.release(null);
+  await expect(duplicate).toBeEnabled();
 });

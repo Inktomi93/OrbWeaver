@@ -11,6 +11,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
@@ -32,13 +33,29 @@ export function CharacterHistoryTab({ characterId }: CharacterHistoryTabProps): 
   const snapshotsQuery = useQuery(trpc.character.listSnapshots.queryOptions({ characterId }));
   const snapshot = useSnapshotCharacter({ trpc, invalidation });
   const restore = useRestoreCharacter({ trpc, invalidation });
+  const snapshotInFlight = useRef(false);
+
+  const takeSnapshot = (): void => {
+    if (snapshotInFlight.current) {
+      return;
+    }
+    snapshotInFlight.current = true;
+    snapshot.mutate(
+      { characterId },
+      {
+        onSettled: (): void => {
+          snapshotInFlight.current = false;
+        },
+      },
+    );
+  };
 
   // Reverse-chron (newest first) — the browse-log reading order, independent of the read's own ordering.
   const rows = (snapshotsQuery.data ?? []).toSorted((a, b) => b.createdAt - a.createdAt);
 
   return (
     <Stack gap="block">
-      <Button intent="secondary" onClick={(): void => snapshot.mutate({ characterId })}>
+      <Button disabled={snapshot.isPending} intent="secondary" onClick={takeSnapshot}>
         Snapshot now
       </Button>
 
