@@ -157,6 +157,22 @@ function acquireResidentAdmission(): (() => void) | null {
   };
 }
 
+/** Retire a sandbox that failed after it began activation. Guest failure ends the eval, not necessarily the
+ *  host work it started: a fire-and-forget transactional write may ignore cancellation and remain in progress.
+ *  Keep process admission owned until every actual host implementation settles, then tear down and release. */
+async function retireFailedActivation(sandbox: Sandbox, releaseAdmission: () => void): Promise<void> {
+  sandbox.cancelHostOperations();
+  try {
+    await sandbox.settleHostOperations();
+  } finally {
+    try {
+      sandbox.dispose();
+    } finally {
+      releaseAdmission();
+    }
+  }
+}
+
 /** Append one invocation's drained log lines to a resident's runtime ring, then evict from the FRONT until both
  *  bounds hold again. Oldest-first eviction is the honest choice for "what did it just do?": the newest line is
  *  always present, and an activation banner is the first thing a busy plugin loses. Termination: every iteration
@@ -227,8 +243,9 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
         const at = seams.nowEpochMs();
         const outcome = await sandbox.evalGuest(input.mainJs);
         if (!outcome.ok) {
-          sandbox.dispose();
-          releaseAdmission();
+          const failedSandbox = sandbox;
+          sandbox = undefined;
+          await retireFailedActivation(failedSandbox, releaseAdmission);
           return { ok: false, error: outcome.error?.message ?? "activation failed", log: toLog(outcome.logs, at) };
         }
         // The collected tool + transform + event registrations — the domain hands each to its runtime
@@ -245,8 +262,11 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
         runtimes.set(instance, resident);
         return { ok: true, instance };
       } catch (error) {
-        sandbox?.dispose();
-        releaseAdmission();
+        if (sandbox === undefined) {
+          releaseAdmission();
+        } else {
+          await retireFailedActivation(sandbox, releaseAdmission);
+        }
         throw error;
       }
     },
