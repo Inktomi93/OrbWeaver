@@ -202,10 +202,11 @@ interface BuildContextArgs {
   readonly deviceDescriptor: (typeof devices)[string] | null;
   readonly sessionCookie: string | null;
   readonly contextIndex: number;
+  readonly ownedContexts: { readonly context: BrowserContext }[];
 }
 
 async function openRecordedContext(args: BuildContextArgs): Promise<{ readonly context: BrowserContext; readonly harPath: string | null }> {
-  const { browser, opts, deviceDescriptor, contextIndex } = args;
+  const { browser, opts, deviceDescriptor, contextIndex, ownedContexts } = args;
   const sizing = deviceDescriptor ?? { viewport: opts.viewport };
   const harPath = opts.harPathPrefix === undefined ? null : `${opts.harPathPrefix}${(opts.contexts ?? 1) > 1 ? `-u${contextIndex}` : ""}.har`;
   const context = await browser.newContext({
@@ -213,13 +214,11 @@ async function openRecordedContext(args: BuildContextArgs): Promise<{ readonly c
     ...(opts.recordVideoDir === undefined ? {} : { recordVideo: { dir: opts.recordVideoDir, size: opts.viewport } }),
     ...(harPath === null ? {} : { recordHar: { path: harPath, content: "omit" as const, mode: "full" as const } }),
   });
-  try {
-    if (opts.trace === true) {
-      await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
-    }
-  } catch (error) {
-    await context.close().catch(() => undefined);
-    throw error;
+  // Register ownership immediately: tracing, init scripts, cookies, page creation, and media setup can
+  // all throw before a complete ProbeContext exists, but the browser context is already live.
+  ownedContexts.push({ context });
+  if (opts.trace === true) {
+    await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   }
   return { context, harPath };
 }
@@ -259,13 +258,7 @@ async function seedContext(context: BrowserContext, opts: ProbeLaunchOptions, se
 async function buildContext(args: BuildContextArgs): Promise<ProbeContext> {
   const { opts, sessionCookie } = args;
   const { context, harPath } = await openRecordedContext(args);
-  let settingsEvidence: SettingsShimEvidence;
-  try {
-    settingsEvidence = await seedContext(context, opts, sessionCookie);
-  } catch (error) {
-    await context.close().catch(() => undefined);
-    throw error;
-  }
+  const settingsEvidence = await seedContext(context, opts, sessionCookie);
 
   const consoleLines: string[] = [];
   const consoleMessages: CapturedConsole[] = [];
@@ -282,15 +275,10 @@ async function buildContext(args: BuildContextArgs): Promise<ProbeContext> {
   const capture: PageCapture = { media, consoleLines, consoleMessages, pageErrors, requests };
   const pageCount = Math.max(1, opts.pages ?? 1);
   const pages: Page[] = [];
-  try {
-    for (let i = 0; i < pageCount; i += 1) {
-      const page = await context.newPage();
-      await wirePage(page, capture);
-      pages.push(page);
-    }
-  } catch (error) {
-    await context.close().catch(() => undefined);
-    throw error;
+  for (let i = 0; i < pageCount; i += 1) {
+    const page = await context.newPage();
+    await wirePage(page, capture);
+    pages.push(page);
   }
 
   return { context, pages, consoleLines, consoleMessages, pageErrors, requests, harPath, settingsEvidence };
@@ -314,15 +302,14 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
   const contextCount = Math.max(1, opts.contexts ?? 1);
   const cookies = opts.contextCookies ?? [];
   const contexts: ProbeContext[] = [];
+  const ownedContexts: { readonly context: BrowserContext }[] = [];
   try {
     for (let i = 0; i < contextCount; i += 1) {
-      const built = await buildContext({ browser, opts, deviceDescriptor, sessionCookie: cookies[i] ?? null, contextIndex: i });
+      const built = await buildContext({ browser, opts, deviceDescriptor, sessionCookie: cookies[i] ?? null, contextIndex: i, ownedContexts });
       contexts.push(built);
     }
   } catch (error) {
-    await Promise.allSettled(contexts.map(({ context }) => context.close()));
-    await browser.close().catch(() => undefined);
-    throw error;
+    await closeProbeSessionAfterError({ browser, contexts: ownedContexts }, error);
   }
   const first = contexts[0] as ProbeContext;
 
@@ -341,8 +328,37 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
 
 /** Close every owned context and the browser even when the probe body throws or returns early. */
 export async function closeProbeSession(session: ProbeResourceOwner): Promise<void> {
-  await Promise.allSettled(session.contexts.map(({ context }) => context.close()));
-  await session.browser.close();
+  const contextResults = await Promise.allSettled(session.contexts.map(({ context }) => context.close()));
+  const failures = contextResults.flatMap((result) => (result.status === "rejected" ? [result.reason] : []));
+  try {
+    await session.browser.close();
+  } catch (error) {
+    failures.push(error);
+  }
+  if (failures.length === 1) {
+    throw failures[0];
+  }
+  if (failures.length > 1) {
+    throw new AggregateError(failures, "multiple browser probe resources failed to close");
+  }
+}
+
+function cleanupFailures(error: unknown): unknown[] {
+  return error instanceof AggregateError ? error.errors : [error];
+}
+
+function probeFailureWithCleanup(primary: unknown, cleanup: unknown): AggregateError {
+  return new AggregateError([primary, ...cleanupFailures(cleanup)], "browser probe failed and cleanup also failed", { cause: primary });
+}
+
+/** Close after a primary failure without letting teardown erase it; both failures remain inspectable. */
+export async function closeProbeSessionAfterError(session: ProbeResourceOwner, primary: unknown): Promise<never> {
+  try {
+    await closeProbeSession(session);
+  } catch (cleanup) {
+    throw probeFailureWithCleanup(primary, cleanup);
+  }
+  throw primary;
 }
 
 /** Run one probe body under the session's ownership boundary; early returns and throws both close it. */
@@ -350,9 +366,12 @@ export async function withProbeSession<TSession extends ProbeResourceOwner, TRes
   session: TSession,
   run: (session: TSession) => Promise<TResult>,
 ): Promise<TResult> {
+  let result: TResult;
   try {
-    return await run(session);
-  } finally {
-    await closeProbeSession(session);
+    result = await run(session);
+  } catch (error) {
+    return await closeProbeSessionAfterError(session, error);
   }
+  await closeProbeSession(session);
+  return result;
 }

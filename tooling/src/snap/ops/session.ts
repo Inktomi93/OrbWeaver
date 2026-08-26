@@ -5,7 +5,7 @@ import { unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { artifactDir } from "../../_shared/artifacts.ts";
 import type { LocalStorageSeed, ProbeLaunchOptions, ProbeSession } from "../../_shared/browser.ts";
-import { launchProbeSession } from "../../_shared/browser.ts";
+import { closeProbeSession, closeProbeSessionAfterError, launchProbeSession } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
 
@@ -61,9 +61,13 @@ interface FailureArtifacts {
 }
 
 export async function finishSession(session: ProbeSession, failed: boolean, name: string, enabled: boolean): Promise<FailureArtifacts> {
-  const traces = enabled ? await finishFailureTraces(session, failed, name) : [];
-  await Promise.all(session.contexts.map(({ context }) => context.close()));
-  await session.browser.close();
+  let traces: string[];
+  try {
+    traces = enabled ? await finishFailureTraces(session, failed, name) : [];
+  } catch (error) {
+    return await closeProbeSessionAfterError(session, error);
+  }
+  await closeProbeSession(session);
   const recordedHars = session.contexts.flatMap(({ harPath }) => (harPath === null ? [] : [harPath]));
   if (failed) {
     return { traces, hars: recordedHars };
@@ -90,7 +94,11 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
     ...extras,
   });
   if (opts.probe) {
-    await Promise.all(session.contexts.map(({ context }) => context.addInitScript({ content: PROBE_CSS_SCRIPT })));
+    try {
+      await Promise.all(session.contexts.map(({ context }) => context.addInitScript({ content: PROBE_CSS_SCRIPT })));
+    } catch (error) {
+      return await closeProbeSessionAfterError(session, error);
+    }
   }
   return session;
 }
