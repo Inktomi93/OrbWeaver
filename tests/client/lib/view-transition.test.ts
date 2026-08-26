@@ -57,4 +57,32 @@ describe("withViewTransition", () => {
     expect(start).not.toHaveBeenCalled();
     expect(update).toHaveBeenCalledOnce();
   });
+
+  test("absorbs only skipped-transition AbortError and surfaces update failures", async () => {
+    const queued: Array<() => void> = [];
+    const failure = new Error("update callback failed");
+    const abort = Object.assign(new Error("transition skipped"), { name: "AbortError" });
+    vi.stubGlobal("queueMicrotask", (callback: () => void) => queued.push(callback));
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    vi.stubGlobal("document", {
+      querySelector: () => null,
+      startViewTransition: (update: () => void) => {
+        update();
+        return { ready: Promise.reject(abort), finished: Promise.reject(failure), updateCallbackDone: Promise.reject(failure) };
+      },
+    });
+
+    withViewTransition(() => undefined);
+    await Promise.resolve();
+
+    const surfaced = queued.flatMap((callback) => {
+      try {
+        callback();
+        return [];
+      } catch (error) {
+        return [error];
+      }
+    });
+    expect(surfaced).toEqual([failure]);
+  });
 });

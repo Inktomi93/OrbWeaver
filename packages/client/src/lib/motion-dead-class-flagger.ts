@@ -39,7 +39,8 @@ function markMotionFlaggersSettled(): void {
 /** Every class token any loaded stylesheet DEFINES a rule for. Walks nested rules (Tailwind v4 emits
  * variants as nesting) and tolerates cross-origin sheets. The per-selector tokenizer is `@orb/kit`'s
  * (`dead-css`), shared with `pnpm snap --dead-css` so both scans mean the same thing by "dead". */
-function definedClassTokens(): ReadonlySet<string> {
+/** @public Test-anchored CSSOM boundary: only cross-origin SecurityError is an unreadable-sheet skip. */
+export function definedClassTokens(): ReadonlySet<string> {
   const defined = new Set<string>();
   const walk = (rules: CSSRuleList): void => {
     for (const rule of rules) {
@@ -57,11 +58,17 @@ function definedClassTokens(): ReadonlySet<string> {
     }
   };
   for (const sheet of document.styleSheets) {
+    let rules: CSSRuleList;
+    // @orb-gate-ignore caught-failure-ownership(empty:error): CSSOM SecurityError is the browser's cross-origin unreadable-sheet verdict; every tokenizer/walk failure rethrows. Ends if same-origin sheets can raise this name.
     try {
-      walk(sheet.cssRules);
-    } catch {
-      // Cross-origin sheet — unreadable by spec, not a finding.
+      rules = sheet.cssRules;
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "name" in error && error.name === "SecurityError") {
+        continue;
+      }
+      throw error;
     }
+    walk(rules);
   }
   return defined;
 }
