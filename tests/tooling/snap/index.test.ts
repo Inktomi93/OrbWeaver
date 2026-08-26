@@ -158,6 +158,7 @@ test("snap rejects missing and malformed flag values", () => {
       '--crop expects WxH or WxH+X+Y, got "100x"',
     ]),
   );
+  expect(parseSnapArgs(["--viewport", "1e3x768"]).errors).toContain('--viewport expects positive WxH, got "1e3x768"');
 });
 
 // #686: --fill splits on the FIRST '=' — its value is a JS literal that routinely contains '=' itself

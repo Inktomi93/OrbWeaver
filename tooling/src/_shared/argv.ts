@@ -12,6 +12,8 @@ export interface Viewport {
   readonly height: number;
 }
 
+const VIEWPORT_RE = /^([0-9]+)x([0-9]+)$/;
+
 /**
  * Split on the LAST `=` — for `--fill "sel=value"` / `--key "sel=KeyName"`: SELECTORS
  * contain `=` (`[data-testid=x] input`), values rarely do. First-`=` splitting silently
@@ -40,12 +42,13 @@ export function splitFirstEq(raw: string): EqSplit | null {
 
 /** Parse `--viewport "WxH"` (e.g. "1920x1080"). Null on anything malformed or non-positive. */
 export function parseViewport(raw: string): Viewport | null {
-  const parts = raw.split("x");
-  if (parts.length !== 2) {
+  const match = VIEWPORT_RE.exec(raw);
+  if (match?.[1] === undefined || match[2] === undefined) {
     return null;
   }
-  const [w, h] = parts.map(Number);
-  if (w !== undefined && h !== undefined && Number.isInteger(w) && Number.isInteger(h) && w > 0 && h > 0) {
+  const w = Number(match[1]);
+  const h = Number(match[2]);
+  if (Number.isSafeInteger(w) && Number.isSafeInteger(h) && w > 0 && h > 0) {
     return { width: w, height: h };
   }
   return null;

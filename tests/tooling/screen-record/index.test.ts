@@ -31,3 +31,10 @@ test("an unknown or value-less flag is CLI misuse (EXIT.misuse), never a silentl
   expect(parseRecordArgs(["--click", "--pause", "700"]).errors).toEqual(["--click requires a value"]);
   expect(parseRecordArgs(["/a", "/b"]).errors).toEqual(["expected at most one route, got 2"]);
 });
+
+test("viewport accepts exact ASCII decimal dimensions only", () => {
+  expect(parseRecordArgs(["--viewport", "1024x768"]).errors).toEqual([]);
+  for (const raw of ["1e3x768", "+1024x768", " 1024x768", "1024x768 ", "1024.0x768", "1024x768x2"]) {
+    expect(parseRecordArgs(["--viewport", raw]).errors).toContain("--viewport requires WIDTHxHEIGHT positive integers");
+  }
+});

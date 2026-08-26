@@ -1235,6 +1235,7 @@ test("design-audit refuses an unknown flag instead of ignoring it", () => {
   expect(parseAuditArgs(["/one", "/two"]).errors).toContain("expected at most one route, got 2");
   expect(parseAuditArgs(["--goto"]).errors).toContain("--goto requires a value");
   expect(parseAuditArgs(["--viewport", "wide"]).errors).toContain('--viewport expects positive WxH, got "wide"');
+  expect(parseAuditArgs(["--viewport", "1e3x768"]).errors).toContain('--viewport expects positive WxH, got "1e3x768"');
   expect(parseAuditArgs(["--fail-on", "P9"]).errors).toContain('--fail-on expects P0|P1|P2|P3, got "P9"');
 });
 

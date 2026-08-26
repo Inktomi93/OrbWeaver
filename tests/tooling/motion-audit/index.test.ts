@@ -347,6 +347,7 @@ test("a bare run still has an empty reach queue — entry motion stays the defau
 
 test("viewport and measurement-window argv reject malformed values", () => {
   expect(parseMotionArgs(["/", "--viewport", "1280x800x2"]).errors).toContain("--viewport requires WIDTHxHEIGHT positive integers");
+  expect(parseMotionArgs(["/", "--viewport", "1e3x800"]).errors).toContain("--viewport requires WIDTHxHEIGHT positive integers");
   for (const raw of ["-1", "0", "Infinity", "nope"]) {
     expect(parseMotionArgs(["/", "--window", raw]).errors).toContain("--window requires a positive finite duration in milliseconds");
   }

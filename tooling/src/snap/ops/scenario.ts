@@ -7,6 +7,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import { artifactDir, artifactFilePath, print, printResult, routeSlug } from "../../_shared/artifacts.ts";
 import type { CapturedRequest, ProbeSession } from "../../_shared/browser.ts";
+import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import type { Args, CaptureOutcome, ScenarioCheckpoint, ScenarioSpec, SessionCounts, ShotPlan, SnapFailureSummary } from "../contract/types.ts";
@@ -298,65 +299,69 @@ export async function snapScenario(opts: Args): Promise<number> {
   }
   const first = checkpoints[0] as Args;
   const session = await launchSnapSession(first, spec.name);
-  const { outcomes, plans, evidenceRanges } = await captureScenarioCheckpoints(session, checkpoints);
-  const evidenceConsole = consoleForEvidence(session.consoleMessages, outcomes);
-  const evidencePageErrors = pageErrorsForEvidence(session.pageErrors, outcomes);
-  const { failed: failedRequests, viteChurn } = partitionFailedRequests(session.requests.values());
-  const failureSummary = scenarioFailureSummary(outcomes, session, failedRequests, opts.strictConsole);
-  const red = hasSnapFailure(failureSummary);
-  const artifacts = await finishSession(session, red, spec.name, opts.failureEvidence);
-  printScenarioReports({ spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests, viteChurn });
-  const manifestPath = await writeManifestIfRequested(opts, spec.name, {
-    status: red ? "fail" : "pass",
-    target: { url: scenarioPath, name: spec.name },
-    environment: {
-      viewport: first.viewport,
-      device: first.device,
-      colorScheme: first.colorScheme,
-      reducedMotion: first.reducedMotion || first.probe,
-      appearance: first.appearance,
-      appearanceApplied: appliedAcrossContexts(
-        first.appearance !== null,
-        session.contexts.map((context) => context.settingsEvidence.appearanceApplied),
-      ),
-      theme: first.theme,
-      themeApplied: appliedAcrossContexts(
-        first.theme !== null,
-        session.contexts.map((context) => context.settingsEvidence.themeApplied),
-      ),
-    },
-    failures: failureSummary,
-    traces: artifacts.traces,
-    hars: artifacts.hars,
-    console: session.consoleMessages,
-    pageErrors: session.pageErrors,
-    ...(opts.checkpoint ? { evidence: { scope: "checkpoint" as const, console: evidenceConsole, pageErrors: evidencePageErrors } } : {}),
-    failedRequests,
-    ...(viteChurn.length === 0 ? {} : { viteDepChurn: viteChurn }),
-    captures: outcomes,
-    scenario: {
-      checkpoints: evidenceRanges.map((range, index) => ({
-        name: spec.checkpoints[index]?.name ?? String(index),
-        screenshot: (plans[index] as ShotPlan).produceShot ? (plans[index] as ShotPlan).out : null,
-        console: session.consoleMessages.slice(range.consoleStart, range.consoleEnd),
-        pageErrors: session.pageErrors.slice(range.pageErrorStart, range.pageErrorEnd),
-      })),
-    },
-  });
-  printResult("snap-scenario", [
-    ["name", spec.name],
-    ["checkpoints", outcomes.length],
-    ["assertion-fails", failureSummary.assertions],
-    ["console-errors", failureSummary.consoleErrors],
-    ["console-warnings", evidenceConsole.filter((entry) => entry.type === "warning").length],
-    [
-      "boot-console-warnings",
-      session.consoleMessages.filter((entry) => entry.type === "warning").length - evidenceConsole.filter((entry) => entry.type === "warning").length,
-    ],
-    ["trace", artifacts.traces[0] ?? "none"],
-    ["har", artifacts.hars[0] ?? "none"],
-    ["json", manifestPath ?? "none"],
-    ["vite-dep-churn", viteChurn.length],
-  ]);
-  return red ? 1 : 0;
+  try {
+    const { outcomes, plans, evidenceRanges } = await captureScenarioCheckpoints(session, checkpoints);
+    const evidenceConsole = consoleForEvidence(session.consoleMessages, outcomes);
+    const evidencePageErrors = pageErrorsForEvidence(session.pageErrors, outcomes);
+    const { failed: failedRequests, viteChurn } = partitionFailedRequests(session.requests.values());
+    const failureSummary = scenarioFailureSummary(outcomes, session, failedRequests, opts.strictConsole);
+    const red = hasSnapFailure(failureSummary);
+    const artifacts = await finishSession(session, red, spec.name, opts.failureEvidence);
+    printScenarioReports({ spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests, viteChurn });
+    const manifestPath = await writeManifestIfRequested(opts, spec.name, {
+      status: red ? "fail" : "pass",
+      target: { url: scenarioPath, name: spec.name },
+      environment: {
+        viewport: first.viewport,
+        device: first.device,
+        colorScheme: first.colorScheme,
+        reducedMotion: first.reducedMotion || first.probe,
+        appearance: first.appearance,
+        appearanceApplied: appliedAcrossContexts(
+          first.appearance !== null,
+          session.contexts.map((context) => context.settingsEvidence.appearanceApplied),
+        ),
+        theme: first.theme,
+        themeApplied: appliedAcrossContexts(
+          first.theme !== null,
+          session.contexts.map((context) => context.settingsEvidence.themeApplied),
+        ),
+      },
+      failures: failureSummary,
+      traces: artifacts.traces,
+      hars: artifacts.hars,
+      console: session.consoleMessages,
+      pageErrors: session.pageErrors,
+      ...(opts.checkpoint ? { evidence: { scope: "checkpoint" as const, console: evidenceConsole, pageErrors: evidencePageErrors } } : {}),
+      failedRequests,
+      ...(viteChurn.length === 0 ? {} : { viteDepChurn: viteChurn }),
+      captures: outcomes,
+      scenario: {
+        checkpoints: evidenceRanges.map((range, index) => ({
+          name: spec.checkpoints[index]?.name ?? String(index),
+          screenshot: (plans[index] as ShotPlan).produceShot ? (plans[index] as ShotPlan).out : null,
+          console: session.consoleMessages.slice(range.consoleStart, range.consoleEnd),
+          pageErrors: session.pageErrors.slice(range.pageErrorStart, range.pageErrorEnd),
+        })),
+      },
+    });
+    printResult("snap-scenario", [
+      ["name", spec.name],
+      ["checkpoints", outcomes.length],
+      ["assertion-fails", failureSummary.assertions],
+      ["console-errors", failureSummary.consoleErrors],
+      ["console-warnings", evidenceConsole.filter((entry) => entry.type === "warning").length],
+      [
+        "boot-console-warnings",
+        session.consoleMessages.filter((entry) => entry.type === "warning").length - evidenceConsole.filter((entry) => entry.type === "warning").length,
+      ],
+      ["trace", artifacts.traces[0] ?? "none"],
+      ["har", artifacts.hars[0] ?? "none"],
+      ["json", manifestPath ?? "none"],
+      ["vite-dep-churn", viteChurn.length],
+    ]);
+    return red ? 1 : 0;
+  } catch (error) {
+    return await closeProbeSessionAfterError(session, error);
+  }
 }
