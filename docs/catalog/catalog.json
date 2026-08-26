@@ -426,8 +426,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 370,
-      "bytes": 178572,
-      "sha256": "4ae4e0dfaa4e6cd8c8635335b2853f1fb6a5015899163657532ec837e3a80925",
+      "bytes": 178666,
+      "sha256": "b54fc0e1a3eccea553deed6eaee5f862ff602c22693dacc4467e17ccdec89744",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -440,13 +440,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "4ae4e0dfaa4e6cd8c8635335b2853f1fb6a5015899163657532ec837e3a80925",
+        "assignedSha256": "b54fc0e1a3eccea553deed6eaee5f862ff602c22693dacc4467e17ccdec89744",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "4ae4e0dfaa4e6cd8c8635335b2853f1fb6a5015899163657532ec837e3a80925",
-        "verifiedCommit": "fac181a77244584239ee8e11aea688759068871a",
-        "verifiedAt": "2026-08-25",
+        "verifiedSha256": "b54fc0e1a3eccea553deed6eaee5f862ff602c22693dacc4467e17ccdec89744",
+        "verifiedCommit": "24c55baa944ae87db293e94c4e180b90c4f46136",
+        "verifiedAt": "2026-08-26",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -470,7 +470,8 @@
           "delta re-verify 2026-08-25 (post-Stickler repair union, commit 1c30c9582): fourteen changed registry rows were re-read against the repaired descriptors and planted controls. They now state predicate polarity, principal/egress binding, canonical receiver/symbol identity, callable reachability, cross-file evaluate closure analysis, transformed CT taint, and exact two-sided ONESHOT grammar. The strengthened CT gate scanned 423 files and drove the measured 619-finding corpus to zero across three disjoint migration lanes.",
           "final union re-attestation 2026-08-25 (commit 0d416836d): the live contract-verb receiver relation, nested turn-bundle provenance, canonical bus/user-bus emitter doors, owner verifier result relation, namespace vector identity, warning accumulator identity, and supported Container composition were re-derived after the first normal hook exposed their coupled seams. Permanent old-source controls failed as expected, current focused suites passed 31/31, scoped CT passed 180/180, all type layers passed, and the authoritative structure front door completed 229/229 active gates clean.",
           "delta re-verify 2026-08-25 (#712, commits b4abe5069 + a2113d4eb): three narrow active rows (untrusted-regex-safe-exec, public-route-body-cap, plugin-dump-guard) and count 229->232 were re-read against their descriptors, mustFlag/mustPass controls, and paired product migrations. E3 requires cap middleware to precede the body-reading handler; E4 binds the unsafe-return guard to the same QuickJS context and handle as the dump. Gate conformance passed 8/8 after both adversarial decoys landed; the authoritative anti-drift run proved all three new fixtures fired and no active gate was blind. Its only final failure was the pre-existing user-bus-coverage fixture, not a #712 gate.",
-          "integration re-attestation 2026-08-25 (commit fac181a77): the merged route preserves both the OIDC back-channel body cap and the fail-closed sid-only rejection; all three new diagnostics now point to the #712 design, and the review-mirror contract derives its five-way pending classification from one tuple."
+          "integration re-attestation 2026-08-25 (commit fac181a77): the merged route preserves both the OIDC back-channel body cap and the fail-closed sid-only rejection; all three new diagnostics now point to the #712 design, and the review-mirror contract derives its five-way pending classification from one tuple.",
+          "delta re-attestation 2026-08-26 (#730, commit 4b727cf44): monotonic-tests now rejects pseudo-skip annotations while accepting genuine runner outcomes, and test-no-stubs distinguishes those runtime guards from skipped test declarations; suppressions records the retired noAwaitInLoops ceremony and the measured 159-row fully-ratified floor. The design and changed rows were read in full; focused gate conformance passed 8/8 and suppression/monotonic residuals passed 15/15 on the lane bytes."
         ],
         "claims": [
           {
@@ -10546,6 +10547,78 @@
               {
                 "kind": "issue",
                 "target": "#52"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/async-test-policy.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 207,
+      "bytes": 13418,
+      "sha256": "15ccf34a1ec2837c9841750889da7a2f142dc73efbef5570db86c06f10823791",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "complete",
+          "updated": "2026-08-26"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/async-test-policy.md",
+        "assignedSha256": "15ccf34a1ec2837c9841750889da7a2f142dc73efbef5570db86c06f10823791",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "15ccf34a1ec2837c9841750889da7a2f142dc73efbef5570db86c06f10823791",
+        "verifiedCommit": "24c55baa944ae87db293e94c4e180b90c4f46136",
+        "verifiedAt": "2026-08-26",
+        "evidence": [
+          "docs/design/async-test-policy.md:1-281 (full read; implemented design and measured migration census)",
+          "GitHub issue #730 (policy outcome and lifecycle authority)",
+          "focused verification at lane commit 10875820f: chat 72/72, workload runner 11/11, affected server 111/111, LogViewer CT 16/16, gate conformance 8/8, suppression/monotonic residuals 15/15, TS7 and typed ESLint green",
+          "cold integration recheck at commit 24c55baa9: a partial-stream provider failure with a held durable delta cannot settle or emit turnAborted before the delta drain; engine integration passed 72/72 and TS7 graph passed. The permanent held-delta control was transplanted onto old source 4ec7f9b75 and failed exactly because runTurn had already settled before release."
+        ],
+        "summary": "Implemented #730 design of record: sequential work remains sequential, detached promises cross one supervised boundary, and unavailable versus required live evidence is represented truthfully.",
+        "claims": [
+          {
+            "claim": "Promise ownership is explicit: raw void no longer exempts floating promises, and genuinely detached server work crosses the named supervised boundary.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "eslint.config.js:341"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/foundation/observability/tracing.ts:347"
+              },
+              {
+                "kind": "issue",
+                "target": "#730"
+              }
+            ]
+          },
+          {
+            "claim": "The required live-test front door fails instead of reporting a clean run when every collected Playwright outcome is skipped.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "playwright.config.ts:33"
+              },
+              {
+                "kind": "code",
+                "target": "tooling/src/verify/ops/required-live-evidence-reporter.ts:31"
+              },
+              {
+                "kind": "issue",
+                "target": "#730"
               }
             ]
           }

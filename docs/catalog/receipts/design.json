@@ -35,6 +35,59 @@
       ]
     },
     {
+      "path": "docs/design/async-test-policy.md",
+      "assignedSha256": "15ccf34a1ec2837c9841750889da7a2f142dc73efbef5570db86c06f10823791",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "15ccf34a1ec2837c9841750889da7a2f142dc73efbef5570db86c06f10823791",
+      "verifiedCommit": "24c55baa944ae87db293e94c4e180b90c4f46136",
+      "verifiedAt": "2026-08-26",
+      "evidence": [
+        "docs/design/async-test-policy.md:1-281 (full read; implemented design and measured migration census)",
+        "GitHub issue #730 (policy outcome and lifecycle authority)",
+        "focused verification at lane commit 10875820f: chat 72/72, workload runner 11/11, affected server 111/111, LogViewer CT 16/16, gate conformance 8/8, suppression/monotonic residuals 15/15, TS7 and typed ESLint green",
+        "cold integration recheck at commit 24c55baa9: a partial-stream provider failure with a held durable delta cannot settle or emit turnAborted before the delta drain; engine integration passed 72/72 and TS7 graph passed. The permanent held-delta control was transplanted onto old source 4ec7f9b75 and failed exactly because runTurn had already settled before release."
+      ],
+      "summary": "Implemented #730 design of record: sequential work remains sequential, detached promises cross one supervised boundary, and unavailable versus required live evidence is represented truthfully.",
+      "claims": [
+        {
+          "claim": "Promise ownership is explicit: raw void no longer exempts floating promises, and genuinely detached server work crosses the named supervised boundary.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "eslint.config.js:341"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/foundation/observability/tracing.ts:347"
+            },
+            {
+              "kind": "issue",
+              "target": "#730"
+            }
+          ]
+        },
+        {
+          "claim": "The required live-test front door fails instead of reporting a clean run when every collected Playwright outcome is skipped.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "playwright.config.ts:33"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/ops/required-live-evidence-reporter.ts:31"
+            },
+            {
+              "kind": "issue",
+              "target": "#730"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/boot-loader-smoothness-options.md",
       "assignedSha256": "8efb0c6db36cea700bb553e241ae3ec1a090d6a645a6edb8b90ab0e3613371b9",
       "disposition": "current",

@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import process from "node:process";
-import { defineConfig, devices } from "@playwright/test";
 import type { ReporterDescription } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 import { DEV_TARGET_ALLOWED, MODE_PROJECTS, SINGLE_USER } from "./tests/e2e/support/modes.ts";
 
 // E2E — full-stack `.spec.ts` under tests/e2e (NOT a src mirror; spans the whole app). Browser lane =
