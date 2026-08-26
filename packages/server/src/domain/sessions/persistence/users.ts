@@ -107,6 +107,18 @@ export async function updateUser(db: Db, id: UserId, patch: UserPatch): Promise<
   await db.update(users).set(patch).where(eq(users.id, id));
 }
 
+/** Atomically claim an unbound row for one stable SSO subject. The target predicate prevents a concurrent
+ *  rebind; `users_external_id_unique` arbitrates claims by different rows. A false return means the target
+ *  disappeared or another writer bound it before this statement acquired the write lock. */
+export async function claimExternalIdIfUnbound(db: Db, id: UserId, externalId: ExternalId, updatedAt: number): Promise<boolean> {
+  const claimed = await db
+    .update(users)
+    .set({ externalId, updatedAt })
+    .where(and(eq(users.id, id), isNull(users.externalId)))
+    .returning({ id: users.id });
+  return claimed.length === 1;
+}
+
 /** B4 first-run: the owner row's password state — whether the singleton `role='owner'` row already carries
  *  a local password. `undefined` when there is no owner row (pre-seed). Drives the `localFirstRun` config
  *  flag: `hasPassword === false` ⇒ a fresh local box awaiting its in-app owner-password setup. */
