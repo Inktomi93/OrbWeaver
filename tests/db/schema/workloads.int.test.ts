@@ -1,9 +1,9 @@
 // .int test for schema/workloads: the test-mirror (db enum === contracts tuple, D34), a JSON round-trip,
 // the nullable ownerId FK, and the load-bearing single-active partial unique indexes (the MODE model: a BULK
 // run locks GLOBAL on `workloads_mode_active_bulk` (kind, admission_key); an owned SINGULAR run locks on
-// `workloads_mode_active_singular_owned` (kind, owner_id, admission_key), while the null-owner arm locks on
-// `workloads_mode_active_singular_system` (kind, admission_key), so SQLite NULL-distinctness cannot dissolve
-// scheduler/system admission. Two users still each run their own instance
+// `workloads_mode_active_singular_owned` (kind, owner_id, admission_key), while the immutable system-origin
+// arm locks on `workloads_mode_active_singular_system` (kind, admission_key). User-delete SET NULL therefore
+// cannot move an owned audit row into the system partition. Two users still each run their own instance
 // — the WHERE status list derives from ACTIVE_WORKLOAD_STATUSES; the partition is the `mode` column). The
 // ADMISSION KEY is the owning domain's declared concurrency unit (`WorkloadContribution.admissionKey`); this
 // file drives it at the SQL level with the two shapes that exist — an axis member (`index`'s embed source)
@@ -151,6 +151,7 @@ test("workloads insert→select round-trips (defaults status=queued + mode=singu
   expect(rows[0]?.params).toEqual({ characterId: "character_x" });
   expect(rows[0]?.result).toBeNull();
   expect(rows[0]?.ownerId).toBeNull(); // nullable — a system/scheduler row has no owner
+  expect(rows[0]?.admissionSystem).toBe(true); // immutable origin defaults to the system arm
   expect(rows[0]?.dependsOn).toBeNull();
 });
 
@@ -164,6 +165,7 @@ test("workloads.ownerId FKs users and survives a null owner", async () => {
     id: castId<WorkloadId>("workload_owned"),
     kind: "reconcile-stats",
     ownerId,
+    admissionSystem: false,
   });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_system"),
@@ -175,6 +177,7 @@ test("workloads.ownerId FKs users and survives a null owner", async () => {
     .from(workloads)
     .where(eq(workloads.id, castId<WorkloadId>("workload_owned")));
   expect(owned[0]?.ownerId).toBe(ownerId);
+  expect(owned[0]?.admissionSystem).toBe(false);
 });
 
 test("a bad ownerId FK is rejected (the FK is enforced)", async () => {
@@ -185,6 +188,7 @@ test("a bad ownerId FK is rejected (the FK is enforced)", async () => {
       id: castId<WorkloadId>("workload_badfk"),
       kind: "csls",
       ownerId: castId<UserId>("user_does_not_exist"),
+      admissionSystem: false,
     });
   } catch (err) {
     caught = err;
@@ -196,6 +200,43 @@ test("a bad ownerId FK is rejected (the FK is enforced)", async () => {
 
 // ── The single-active partial unique indexes (the cross-replica lock, per MODE) ────────────────────────
 // A BULK run locks GLOBAL — two active bulk rows of one kind collide regardless of owner (here both null).
+test("deleting an owner retains their active audit row beside an active system singular row", async () => {
+  const db = await freshDb();
+  const ownerId = castId<UserId>("user_delete_with_active_workload");
+  await db.insert(users).values({ id: ownerId, handle: castId<Handle>("delete-active"), role: "user" });
+  await db.insert(workloads).values({
+    id: castId<WorkloadId>("workload_active_system"),
+    kind: "reconcile-stats",
+    mode: "singular",
+    admissionKey: "none",
+    ownerId: null,
+  });
+  await db.insert(workloads).values({
+    id: castId<WorkloadId>("workload_active_owned"),
+    kind: "reconcile-stats",
+    mode: "singular",
+    admissionKey: "none",
+    ownerId,
+    admissionSystem: false,
+  });
+  await db.insert(workloads).values({
+    id: castId<WorkloadId>("workload_terminal_owned_history"),
+    kind: "reconcile-stats",
+    status: "succeeded",
+    mode: "singular",
+    admissionKey: "none",
+    ownerId,
+    admissionSystem: false,
+  });
+
+  await db.delete(users).where(eq(users.id, ownerId));
+
+  const retained = await db.select().from(workloads).where(eq(workloads.kind, "reconcile-stats"));
+  expect(retained).toHaveLength(3);
+  expect(retained.map((row) => row.ownerId)).toEqual([null, null, null]);
+  expect(retained.map((row) => row.admissionSystem).sort()).toEqual([false, false, true]);
+});
+
 test("a second ACTIVE BULK row of a kind collides globally (reconcile-stats, queued vs queued)", async () => {
   const db = await freshDb();
   await db.insert(workloads).values({ id: castId<WorkloadId>("workload_q1"), kind: "reconcile-stats", mode: "bulk" });
@@ -222,6 +263,7 @@ test("a second ACTIVE SINGULAR row + SAME owner + SAME admission key collides (i
     admissionKey: "text",
     mode: "singular",
     ownerId: owner,
+    admissionSystem: false,
   });
 
   let caught: unknown;
@@ -232,6 +274,7 @@ test("a second ACTIVE SINGULAR row + SAME owner + SAME admission key collides (i
       admissionKey: "text",
       mode: "singular",
       ownerId: owner,
+      admissionSystem: false,
     });
   } catch (err) {
     caught = err;
@@ -276,6 +319,7 @@ test("one owner runs index{text} + index{image} concurrently (per-(kind, owner, 
     admissionKey: "text",
     mode: "singular",
     ownerId: owner,
+    admissionSystem: false,
   });
   // The same owner's concurrent image reindex is ALLOWED — a different admission key, a different singular slot.
   await db.insert(workloads).values({
@@ -284,6 +328,7 @@ test("one owner runs index{text} + index{image} concurrently (per-(kind, owner, 
     admissionKey: "image",
     mode: "singular",
     ownerId: owner,
+    admissionSystem: false,
   });
   const all = await db.select().from(workloads).where(eq(workloads.kind, "index"));
   expect(all).toHaveLength(2);
@@ -300,6 +345,7 @@ test("a second ACTIVE index{all} collides (same admission key single-active), bu
     admissionKey: "all",
     mode: "singular",
     ownerId: owner,
+    admissionSystem: false,
   });
   let caught: unknown;
   try {
@@ -309,6 +355,7 @@ test("a second ACTIVE index{all} collides (same admission key single-active), bu
       admissionKey: "all",
       mode: "singular",
       ownerId: owner,
+      admissionSystem: false,
     });
   } catch (err) {
     caught = err;
@@ -324,19 +371,34 @@ test("one owner ingests two DIFFERENT documents concurrently, and the SAME docum
   const db = await freshDb();
   const owner = castId<UserId>("user_a");
   await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
-  await db
-    .insert(workloads)
-    .values({ id: castId<WorkloadId>("workload_doc_a"), kind: "databank-ingest", admissionKey: "document_a", mode: "singular", ownerId: owner });
-  await db
-    .insert(workloads)
-    .values({ id: castId<WorkloadId>("workload_doc_b"), kind: "databank-ingest", admissionKey: "document_b", mode: "singular", ownerId: owner });
+  await db.insert(workloads).values({
+    id: castId<WorkloadId>("workload_doc_a"),
+    kind: "databank-ingest",
+    admissionKey: "document_a",
+    mode: "singular",
+    ownerId: owner,
+    admissionSystem: false,
+  });
+  await db.insert(workloads).values({
+    id: castId<WorkloadId>("workload_doc_b"),
+    kind: "databank-ingest",
+    admissionKey: "document_b",
+    mode: "singular",
+    ownerId: owner,
+    admissionSystem: false,
+  });
   expect(await db.select().from(workloads).where(eq(workloads.kind, "databank-ingest"))).toHaveLength(2);
 
   let caught: unknown;
   try {
-    await db
-      .insert(workloads)
-      .values({ id: castId<WorkloadId>("workload_doc_a2"), kind: "databank-ingest", admissionKey: "document_a", mode: "singular", ownerId: owner });
+    await db.insert(workloads).values({
+      id: castId<WorkloadId>("workload_doc_a2"),
+      kind: "databank-ingest",
+      admissionKey: "document_a",
+      mode: "singular",
+      ownerId: owner,
+      admissionSystem: false,
+    });
   } catch (err) {
     caught = err;
   }
@@ -356,6 +418,7 @@ test("two DIFFERENT owners each run their own active SINGULAR index{text} (per-o
     admissionKey: "text",
     mode: "singular",
     ownerId: a,
+    admissionSystem: false,
   });
   // B's concurrent index{text} is ALLOWED — a different owner, a different singular slot.
   await db.insert(workloads).values({
@@ -364,6 +427,7 @@ test("two DIFFERENT owners each run their own active SINGULAR index{text} (per-o
     admissionKey: "text",
     mode: "singular",
     ownerId: b,
+    admissionSystem: false,
   });
   const all = await db.select().from(workloads).where(eq(workloads.kind, "index"));
   expect(all).toHaveLength(2);
@@ -381,6 +445,7 @@ test("a SINGULAR row and a BULK row of one (kind, admissionKey) coexist (disjoin
     admissionKey: "text",
     mode: "singular",
     ownerId: owner,
+    admissionSystem: false,
   });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_bulk"),
