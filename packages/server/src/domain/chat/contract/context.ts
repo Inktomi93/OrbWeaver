@@ -344,9 +344,9 @@ export interface QuietGenerateDeps {
  *  through chat's canon-write path, authored by the synthetic group character (never a user id — the
  *  D19/D16-inv-9 attribution-honesty rule; minted lazily if the room has none). `content` is a plain STRING;
  *  `media` ride the body as embedded `![alt](asset:<id>)` refs (D51 — never stored blocks) with `message_assets`
- *  retaining rows. Returns the new message AND its variant id — rpg's checkpoint-restore couples a restored
- *  snapshot to the new narrator message's VARIANT (`rpg_snapshots.variantId` UNIQUE), so the minting op returns
- *  it (no second read). A STANDALONE compose-built op, NOT a `ChatService` verb: it takes no principal (rpg
+ *  retaining rows. Returns the new message AND its variant id for ordinary callers. Checkpoint restore keeps
+ *  its companion snapshot message-less (`variantId IS NULL`) and stamps `asOfMessageId` with this marker's
+ *  message id instead. A STANDALONE compose-built op, NOT a `ChatService` verb: it takes no principal (rpg
  *  gates authority from its host-authority verbs before calling), the `ExtractQuiet` precedent.
  *
  *  `origin` (automation-design/03 §4 — the F1/N1 cascade belt) is OPTIONAL and ADDITIVE: absent (every rpg
