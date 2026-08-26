@@ -32,7 +32,7 @@
 
 import type { RpgFieldLocks, RpgSnapshotState } from "@orb/contracts/rpg";
 import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
-import type { MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
+import type { MessageId, MessageVariantId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
 import type { StagedPatch } from "./contract/params.ts";
 import type { HandEditLocks, HandEditResult, HandStateHead, HandStateWrite, RpgContext, RpgGameRow, TurnWriteFoldOutcome } from "./contract/service.ts";
 import { snapshotRowToState } from "./contract/service.ts";
@@ -42,6 +42,33 @@ import { applyLockedPatch, applyLockedPatchTracked, rebasePatchOntoHead } from "
 
 /** The `committed` column's draft value — an UNcommitted TURN row is the only in-place-editable head. */
 const UNCOMMITTED = 0;
+
+/** Per-game ownership for the hand READ-MODIFY-WRITE critical section. Resolving a head and later inserting
+ *  its derived clone are one operation: without this chain, two same-game calls can resolve the same old head
+ *  and last-write-wins silently drops one gesture. Different games keep independent tails. A rejected task is
+ *  absorbed only by the ownership tail (the caller still receives its rejection), so failure releases the
+ *  next waiter instead of wedging the game. ASSUMES(single-replica), matching D130's in-process hand/flush
+ *  reconciliation posture.
+ *
+ * @public Test-anchored module surface; focused controls pin ordering, key isolation, and rejection recovery.
+ */
+const handWriteChains = new Map<RpgGameId, Promise<void>>();
+
+export function serializeHandWrite<T>(gameId: RpgGameId, run: () => Promise<T>): Promise<T> {
+  const previous = handWriteChains.get(gameId) ?? Promise.resolve();
+  const next = previous.then(run, run);
+  const settled = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  const tail = settled.finally(() => {
+    if (handWriteChains.get(gameId) === tail) {
+      handWriteChains.delete(gameId);
+    }
+  });
+  handWriteChains.set(gameId, tail);
+  return next;
+}
 
 /** The current resolved snapshot head, plus the ONE question the write tail asks of it: may this row be
  *  edited IN PLACE? `inPlace` is non-null ONLY for an UNCOMMITTED TURN row that is the ladder's own TURN RUNG
@@ -141,7 +168,13 @@ export function applyHandEdit(ctx: RpgContext, game: RpgGameRow, patch: Record<s
  *  a removal gesture can release exactly the pins its element carried (`dismissActor`, the `deleteQuest`
  *  symmetric-lock precedent), and it may REFUSE as data (an op naming a datum the head does not carry) before
  *  anything durable happens — no row, no slot, no locks. */
-export async function writeHandState(ctx: RpgContext, game: RpgGameRow, derive: (head: HandStateHead) => HandStateWrite): Promise<HandEditResult> {
+export function writeHandState(ctx: RpgContext, game: RpgGameRow, derive: (head: HandStateHead) => HandStateWrite): Promise<HandEditResult> {
+  return serializeHandWrite(game.id, () => writeOwnedHandState(ctx, game, derive));
+}
+
+/** The owned body of {@link writeHandState}. Ownership spans head resolution through the durable write: moving
+ *  either side outside the callback reopens the same-head race this boundary exists to close. */
+async function writeOwnedHandState(ctx: RpgContext, game: RpgGameRow, derive: (head: HandStateHead) => HandStateWrite): Promise<HandEditResult> {
   const head = await resolveHead(ctx, game);
   const derived = derive({ state: head.state, locks: head.locks });
   if (!derived.ok) {
@@ -215,10 +248,9 @@ export async function writeHandState(ctx: RpgContext, game: RpgGameRow, derive: 
  *  resurrection bug wearing the fix's clothes, and shouting about it would be noise about the normal case.
  *
  *  IT RIDES `writeHandState`, WHICH IS WHY IT IS SAFE UNDER A SECOND EDIT. The fold derives INSIDE its own head
- *  resolve, so a hand edit that landed between the arm check and this write is the base it replays onto (never
- *  a stale image), and one that lands after produces a strictly later rung that outranks the fold. The residual
- *  is the same single-continuation window the hand door has always had (ASSUMES(single-replica), as everywhere
- *  in this loop) — this adds no new one. */
+ *  resolve, and the per-game owner spans that resolve through its write. A hand edit already queued ahead is
+ *  therefore the base it replays onto; one queued behind derives from the fold's result. The in-process chain
+ *  closes the old same-head continuation window under the standing single-replica assumption. */
 export async function foldTurnWriteIntoHandHead(
   ctx: RpgContext,
   game: RpgGameRow,
