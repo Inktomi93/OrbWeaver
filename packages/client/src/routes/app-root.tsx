@@ -6,7 +6,6 @@
 // `sections={{…}}`/`modals={{…}}` god-map is RED. The notifications bell is no longer wired here — it's a
 // registered `topbar.trail` chrome widget (`notificationsChrome`, gated on multiHumanCapable at the door).
 
-import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useAuthConfig, useHuskReaper, useInvalidation, useOrbSocket, useRpgBus, useSessionRecovery, useUserBus } from "#data";
@@ -14,6 +13,7 @@ import { AppShell } from "#features/app-shell";
 import { clearJoinParam, JoinInviteDialog, readJoinToken } from "#features/chat";
 import { FirstRunPersonaDialog } from "#features/persona";
 import { useActiveChatId, useActiveSection, useSelectedCharacterId } from "#state";
+import { AppRootSessionBoundary } from "./app-root-session-boundary/index.ts";
 
 export function AppRoot(): ReactElement {
   // Single-user renders none of the three multi-human surfaces (bell, the cast bar's humans row —
@@ -45,13 +45,13 @@ export function AppRoot(): ReactElement {
   // rebind, the recovery ladder's host, and the visibility probe. Mounted HERE for the same reason the bus
   // hooks are — a feature could unmount and take the whole belt with it — and AFTER the socket so a
   // resume's forced re-announce has a bound transport to announce on.
-  const durableReady = useSessionRecovery();
+  const sessionRecovery = useSessionRecovery();
 
-  if (!durableReady) {
-    return <AriaAnnouncer message="Loading your workspace." />;
-  }
-
-  return <HydratedAppRoot multiHumanCapable={multiHumanCapable} joinToken={joinToken} setJoinToken={setJoinToken} />;
+  return (
+    <AppRootSessionBoundary recovery={sessionRecovery}>
+      <HydratedAppRoot multiHumanCapable={multiHumanCapable} joinToken={joinToken} setJoinToken={setJoinToken} />
+    </AppRootSessionBoundary>
+  );
 }
 
 interface HydratedAppRootProps {

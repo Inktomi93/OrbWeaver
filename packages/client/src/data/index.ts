@@ -82,6 +82,7 @@ export { useOnlineStatus } from "./use-online-status.ts";
 export type { UseOpenRefineryResult } from "./use-open-refinery.ts";
 export { useOpenRefinery } from "./use-open-refinery.ts";
 export { usePromptMacroSuggestions } from "./use-prompt-macro-suggestions.ts";
+export type { SessionRecoveryState } from "./use-session-recovery.ts";
 export { useSessionRecovery } from "./use-session-recovery.ts";
 export { useSettingsViewerView } from "./use-settings-viewer-view.ts";
 export type { UseStartChatResult } from "./use-start-chat.ts";

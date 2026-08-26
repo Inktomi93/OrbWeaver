@@ -17,7 +17,9 @@
 // no-op with zero rehydrate and zero flash. Only a genuine identity CHANGE pays a rehydrate.
 //
 // LEGACY ADOPTION runs exactly once per browser: with no hint recorded, stores mint on the OLD un-namespaced
-// key, and the first bind MOVES each blob to the user key and deletes the original. The move goes through
+// key, and the first bind MOVES each blob to the user key and deletes the original. Every target is then
+// rehydrated before readiness: a prior partial attempt or reload may already have moved one blob, so the
+// current in-memory legacy projection is not evidence that every target still matches it. The move goes through
 // each store's own persist storage (never a raw `localStorage` write) so an injected test storage adopts
 // identically, and so a store that opted into a different storage backend is never bypassed.
 //
@@ -28,6 +30,8 @@ import type { UserId } from "@orb/kit/ids";
 
 /** Where the last-bound identity is recorded, so a cold boot mints on the right namespace (see the header). */
 const ACTIVE_USER_KEY = "orb:active-user";
+/** A first-user legacy move may span failures, identity switches, and reloads; keep its owner durable. */
+const PENDING_ADOPTION_KEY = "orb:pending-legacy-adoption";
 
 /** The un-namespaced era's key shape, kept only to be adopted away from. */
 function legacyKey(prefix: string, name: string): string {
@@ -75,6 +79,7 @@ let activeUserId: UserId | null = readBootHint();
 /** The session-verified identity whose hydration currently owns the in-memory stores. */
 let readyUserId: UserId | null = null;
 let desiredUserId: UserId | null = null;
+let adoptionUserId: UserId | null = readAdoptionHint();
 let bindTail: Promise<void> = Promise.resolve();
 
 /** The recorded boot hint, or null (no browser storage, never bound, or a non-string value). */
@@ -83,6 +88,7 @@ function readBootHint(): UserId | null {
   if (storage === undefined) {
     return null;
   }
+  // @orb-gate-ignore caught-failure-ownership(default:catch): refused browser storage has no durable bytes to isolate; null selects the storage-less legacy namespace. Ends if the boot hint becomes authoritative.
   try {
     return storage.getItem(ACTIVE_USER_KEY) as UserId | null;
   } catch {
@@ -94,10 +100,40 @@ function readBootHint(): UserId | null {
 
 function writeBootHint(userId: UserId): void {
   const storage = (globalThis as { localStorage?: Storage }).localStorage;
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): refused storage costs only the no-flash boot hint; the verified bind still owns isolation. Ends if the hint becomes authoritative.
   try {
     storage?.setItem(ACTIVE_USER_KEY, userId);
   } catch {
-    // Same posture as the read: a browser refusing storage costs the no-flash optimization, nothing more.
+    /* ownership marker above */
+  }
+}
+
+function readAdoptionHint(): UserId | null {
+  const storage = (globalThis as { localStorage?: Storage }).localStorage;
+  // @orb-gate-ignore caught-failure-ownership(default:catch): refused storage cannot hold legacy blobs or the pending pointer; module memory retains the owner for this page. Ends if storage refusal can coexist with readable durable blobs.
+  try {
+    return storage?.getItem(PENDING_ADOPTION_KEY) as UserId | null;
+  } catch {
+    return null;
+  }
+}
+
+function writeAdoptionHint(userId: UserId): void {
+  const storage = (globalThis as { localStorage?: Storage }).localStorage;
+  // This write is the ownership handoff for every still-legacy blob. If browser storage exists but refuses
+  // the pointer, abort before moving a single byte; otherwise a reload could let another identity claim the
+  // remaining unscoped blobs. A missing storage object is the storage-less zustand arm and has no durable
+  // browser bytes to outlive this module instance.
+  storage?.setItem(PENDING_ADOPTION_KEY, userId);
+}
+
+function clearAdoptionHint(): void {
+  const storage = (globalThis as { localStorage?: Storage }).localStorage;
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): a stale pending pointer only causes one safe target rehydrate on a later bind. Ends if adoption stops being idempotent.
+  try {
+    storage?.removeItem(PENDING_ADOPTION_KEY);
+  } catch {
+    /* ownership marker above */
   }
 }
 
@@ -137,10 +173,8 @@ function resetRegisteredStores(): void {
 
 async function rebindRegisteredStores(adopting: boolean): Promise<void> {
   const rehydrates: Promise<void>[] = [];
+  resetRegisteredStores();
   for (const entry of registry) {
-    if (!adopting) {
-      entry.reset();
-    }
     const persist = entry.api.persist;
     if (persist === undefined) {
       continue; // storage-less store — it persists nothing, so there is no key to move (see the type's note)
@@ -150,9 +184,7 @@ async function rebindRegisteredStores(adopting: boolean): Promise<void> {
       adoptLegacyBlob(entry, key, persist.getOptions().storage);
     }
     persist.setOptions({ name: key });
-    if (!adopting) {
-      rehydrates.push(Promise.resolve(persist.rehydrate()));
-    }
+    rehydrates.push(Promise.resolve(persist.rehydrate()));
   }
   await Promise.all(rehydrates);
 }
@@ -165,10 +197,13 @@ async function bindQueuedUser(userId: UserId): Promise<void> {
     return;
   }
 
-  const adopting = activeUserId === null;
+  const adopting = activeUserId === null || adoptionUserId === userId;
+  if (activeUserId === null) {
+    adoptionUserId = userId;
+    writeAdoptionHint(userId);
+  }
   readyUserId = null;
   activeUserId = userId;
-  writeBootHint(userId);
   await rebindRegisteredStores(adopting);
   if (desiredUserId !== userId) {
     // A later identity arrived while this storage read was held. Its bytes never become readable: erase
@@ -177,13 +212,18 @@ async function bindQueuedUser(userId: UserId): Promise<void> {
     return;
   }
   readyUserId = userId;
+  writeBootHint(userId);
+  if (adoptionUserId === userId) {
+    adoptionUserId = null;
+    clearAdoptionHint();
+  }
 }
 
 /**
  * Bind every durable-local store to `userId`. Idempotent, and the common path is free:
  *   • ALREADY BOUND to this user — nothing happens (no rehydrate, no flash);
  *   • LEGACY (no identity bound yet) — each store's blob is ADOPTED onto the user key and the legacy key is
- *     deleted. The in-memory state already came from that blob, so no rehydrate is needed;
+ *     deleted, then every target is rehydrated before readiness (including targets moved by a prior attempt);
  *   • A DIFFERENT user — re-key and `rehydrate()`, which drops the previous identity's view state and loads
  *     this one's (or the store's defaults). This is the identity boundary: nothing crosses it.
  * Call once, from the composition route, as soon as the viewer identity resolves.
@@ -191,6 +231,7 @@ async function bindQueuedUser(userId: UserId): Promise<void> {
 export function bindDurableLocalToUser(userId: UserId): Promise<void> {
   desiredUserId = userId;
   const run = bindTail.then(() => bindQueuedUser(userId));
+  // @orb-gate-ignore caught-failure-ownership(promise:run): bindTail recovers only the serialization queue; the original run is returned and rejects to AppRoot's visible retry boundary. Ends if callers receive bindTail instead of run.
   bindTail = run.catch(() => undefined);
   return run;
 }
@@ -218,5 +259,6 @@ export function __resetDurableLocal(): void {
   activeUserId = null;
   readyUserId = null;
   desiredUserId = null;
+  adoptionUserId = null;
   bindTail = Promise.resolve();
 }

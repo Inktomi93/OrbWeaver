@@ -9,6 +9,7 @@ import {
   createCollectionSurface,
   createEntityMutation,
   QueryBoundary,
+  QueryErrorState,
   sessionFreshnessAgeMs,
   useCarriedAppearanceCast,
   useColorQuotedSpeech,
@@ -31,11 +32,13 @@ import {
   activeDurableLocalUserId,
   enterCreatedChat,
   goToLanding,
+  registerDurableLocalStore,
   useActiveChatId,
   useActiveSection,
   useOpenModal,
   useSelectedRefinerySessionId,
 } from "@orb/client/state";
+import { AppRootSessionBoundary } from "@orb/client/routes/app-root-session-boundary";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
@@ -845,6 +848,44 @@ export function SessionRecoveryStory(): ReactElement {
   return (
     <CtDataProviders>
       <SessionRecoveryProbe />
+    </CtDataProviders>
+  );
+}
+
+function SessionRecoveryBindFailureProbe(): ReactElement {
+  useState(() => {
+    let failNext = true;
+    const failOnce = (): void => {
+      if (failNext) {
+        failNext = false;
+        throw new Error("planted durable-local bind failure");
+      }
+    };
+    registerDurableLocalStore({
+      prefix: "ct:",
+      name: "bind-failure",
+      api: {
+        persist: {
+          getOptions: () => ({ storage: { getItem: failOnce, setItem: () => undefined, removeItem: () => undefined } }),
+          rehydrate: failOnce,
+          setOptions: () => undefined,
+        },
+      },
+      reset: () => undefined,
+    });
+  });
+  const recovery = useSessionRecovery();
+  return (
+    <AppRootSessionBoundary recovery={recovery}>
+      <output data-testid="session-bind-state">{recovery.status}</output>
+    </AppRootSessionBoundary>
+  );
+}
+
+export function SessionRecoveryBindFailureStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SessionRecoveryBindFailureProbe />
     </CtDataProviders>
   );
 }
