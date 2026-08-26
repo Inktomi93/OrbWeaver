@@ -210,7 +210,7 @@ export function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value:
       return;
     }
     entry.disposed = true;
-    // @swallowed-ok(evicted): disposal has no request result; a failure only costs RAM until exit.
+    // @swallowed-ok(promise): disposal has no request result; a failure only costs RAM until exit. Ends if disposal gains a caller-visible result.
     void entry.promise.then(dispose).catch(() => undefined);
   };
   const getEntry = (id: string): MemoEntry<T> => {

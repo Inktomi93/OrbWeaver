@@ -812,6 +812,33 @@
       ]
     },
     {
+      "path": "docs/design/issue-724-provider-embedding-boundaries.md",
+      "assignedSha256": "f1d48ba316d9e09f2a86365e2bf00eb8abdb8a27b22f0d500497a1df2503ce2d",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "f1d48ba316d9e09f2a86365e2bf00eb8abdb8a27b22f0d500497a1df2503ce2d",
+      "verifiedCommit": "620a180418e6af30be832d415e3d8d5a5e6703d2",
+      "verifiedAt": "2026-08-26",
+      "evidence": [
+        "docs/design/issue-724-provider-embedding-boundaries.md read in full before implementation and re-read in its integrated complete form at 620a18041; implementation commit 0fed0b3ee",
+        "focused behavioral verification: 13 files with 211 tests passed, including model provenance, ordering, bounded readers, MIME, lease, forced-tool, and awake-cache controls",
+        "TS7 package, graph, and tests-dom typechecks plus scoped Biome and typed ESLint passed"
+      ],
+      "summary": "Issue #724 implemented provider and embedding boundary hardening while preserving the already-correct credential redaction home.",
+      "claims": [
+        {
+          "claim": "Nine current provider and embedding defects are bounded and regression-pinned; deterministic k-means seeding and credential-safe diagnostics were correctly retained rather than duplicated.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#724"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/list-pane-projection-proposal.md",
       "assignedSha256": "194774ea6ea9aeb592d2140a4a926bc456af609edd786f088bd068fc1be04cda",
       "disposition": "archive",

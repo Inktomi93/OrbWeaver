@@ -54,7 +54,7 @@ function primarySpace(vectors: readonly CardVector[]): CardVector[] {
       bestModel = model;
     }
   }
-  return [...best].sort((a, b) => compareText(a.characterId, b.characterId));
+  return best.toSorted((a, b) => compareText(a.characterId, b.characterId));
 }
 
 /** Fewer than MIN_PROJECTION_POINTS cards → [] (nothing to plot). */
