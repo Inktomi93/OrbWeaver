@@ -185,9 +185,39 @@ test.describe("coarse pointer containment", () => {
         const rect = element.getBoundingClientRect();
         return { left: rect.left, right: rect.right, viewport: window.innerWidth, scrollWidth: element.scrollWidth, clientWidth: element.clientWidth };
       });
-      expect(bounds.left).toBeGreaterThanOrEqual(0);
-      expect(bounds.right).toBeLessThanOrEqual(bounds.viewport);
-      expect(bounds.scrollWidth).toBeLessThanOrEqual(bounds.clientWidth);
+      await expect
+        .poll(
+          async () =>
+            (
+              await popup.evaluate((element) => {
+                const rect = element.getBoundingClientRect();
+                return { left: rect.left, right: rect.right, viewport: window.innerWidth, scrollWidth: element.scrollWidth, clientWidth: element.clientWidth };
+              })
+            ).left,
+        )
+        .toBeGreaterThanOrEqual(0);
+      await expect
+        .poll(
+          async () =>
+            (
+              await popup.evaluate((element) => {
+                const rect = element.getBoundingClientRect();
+                return { left: rect.left, right: rect.right, viewport: window.innerWidth, scrollWidth: element.scrollWidth, clientWidth: element.clientWidth };
+              })
+            ).right,
+        )
+        .toBeLessThanOrEqual(bounds.viewport);
+      await expect
+        .poll(
+          async () =>
+            (
+              await popup.evaluate((element) => {
+                const rect = element.getBoundingClientRect();
+                return { left: rect.left, right: rect.right, viewport: window.innerWidth, scrollWidth: element.scrollWidth, clientWidth: element.clientWidth };
+              })
+            ).scrollWidth,
+        )
+        .toBeLessThanOrEqual(bounds.clientWidth);
     });
 
     test(`the mode and keyword hint buttons plus keyword switch are separate touch-size controls at ${width}px`, async ({ mount, page }) => {

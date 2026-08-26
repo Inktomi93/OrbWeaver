@@ -154,7 +154,9 @@ test("#153 UNCAPTIONED (the favorites-strip posture) is untouched: no name in th
   const boxes = await component.evaluate((root) => [...root.querySelectorAll("button")].map((el) => Math.round(el.getBoundingClientRect().width)));
   const controlMd = await component.evaluate((root) => Number.parseFloat(getComputedStyle(root).getPropertyValue("--spacing-control-md")) * 16);
   expect(new Set(boxes).size).toBe(1);
-  expect(boxes[0]).toBe(Math.round(controlMd));
+  await expect
+    .poll(async () => (await component.evaluate((root) => [...root.querySelectorAll("button")].map((el) => Math.round(el.getBoundingClientRect().width))))[0])
+    .toBe(Math.round(controlMd));
 });
 
 // side-eye P2b: a bare row of portraits reads as decoration. The kicker is the mock's group label — the
@@ -180,7 +182,18 @@ test("a kicker prints the strip's OWN name in micro-caps above the faces (and is
     const at = (el: Element | null): number => (el === null ? -1 : nodes.indexOf(el));
     return { kicker: at(root.querySelector("p, span")), list: at(root.querySelector("ul")) };
   });
-  expect(order.kicker).toBeLessThan(order.list);
+  await expect
+    .poll(
+      async () =>
+        (
+          await labelled.evaluate((root) => {
+            const nodes = [...root.querySelectorAll("*")];
+            const at = (el: Element | null): number => (el === null ? -1 : nodes.indexOf(el));
+            return { kicker: at(root.querySelector("p, span")), list: at(root.querySelector("ul")) };
+          })
+        ).kicker,
+    )
+    .toBeLessThan(order.list);
 });
 
 // The FACE-VERB ambiguity (home side-eye): a clickable character face LAUNCHES a chat everywhere else in
@@ -232,15 +245,14 @@ test("an empty set renders NOTHING — never an empty shell", async ({ mount, pa
 test("the face's hit box is the avatar token square — content-sized, not a collapsed control", async ({ mount }) => {
   const component = await mount(<FaceStrip items={[AZARAEL]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
   const button = component.getByRole("button", { name: "Open Azarael", exact: true });
-  const box = await button.boundingBox();
   // `size="media"` is content-sized, so the button IS its avatar child — never smaller than it (the F2 defect).
-  expect(box?.width).toBeGreaterThanOrEqual(AVATAR_MD_PX);
-  expect(box?.height).toBeGreaterThanOrEqual(AVATAR_MD_PX);
+  await expect.poll(async () => (await button.boundingBox())?.width).toBeGreaterThanOrEqual(AVATAR_MD_PX);
+  await expect.poll(async () => (await button.boundingBox())?.height).toBeGreaterThanOrEqual(AVATAR_MD_PX);
   // …and the MIN box is the control token, not the portrait: the face is a control, so it rides the same
   // per-pointer floor as its sibling icon buttons (side-eye P1-3), with the 32px avatar centered inside it.
   const controlMd = await button.evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
-  expect(box?.width).toBeGreaterThanOrEqual(controlMd);
-  expect(box?.height).toBeGreaterThanOrEqual(controlMd);
+  await expect.poll(async () => (await button.boundingBox())?.width).toBeGreaterThanOrEqual(controlMd);
+  await expect.poll(async () => (await button.boundingBox())?.height).toBeGreaterThanOrEqual(controlMd);
 });
 
 // ── The FOLD (FACEFILT) ────────────────────────────────────────────────────────────────────────────
@@ -362,16 +374,48 @@ test("a face picked from the OVERFLOW picker is hoisted into the visible row —
 
   const face = component.getByRole("button", { name: `Show chats with ${foldedName}`, exact: true });
   await expect(face).toHaveAttribute("aria-current", "true");
-  const placement = await component.locator(FACE_ROW).evaluate((row) => {
-    const box = row.getBoundingClientRect();
-    const current = row.querySelector('[aria-current="true"]')?.getBoundingClientRect();
-    return current === undefined
-      ? null
-      : { fits: Math.round(row.scrollWidth) <= Math.round(row.clientWidth), left: current.left - box.left, right: current.right - box.right };
-  });
-  expect(placement?.left).toBeGreaterThanOrEqual(0);
-  expect(placement?.right).toBeLessThanOrEqual(0);
-  expect(placement?.fits).toBe(true);
+  await expect
+    .poll(
+      async () =>
+        (
+          await component.locator(FACE_ROW).evaluate((row) => {
+            const box = row.getBoundingClientRect();
+            const current = row.querySelector('[aria-current="true"]')?.getBoundingClientRect();
+            return current === undefined
+              ? null
+              : { fits: Math.round(row.scrollWidth) <= Math.round(row.clientWidth), left: current.left - box.left, right: current.right - box.right };
+          })
+        )?.left,
+    )
+    .toBeGreaterThanOrEqual(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await component.locator(FACE_ROW).evaluate((row) => {
+            const box = row.getBoundingClientRect();
+            const current = row.querySelector('[aria-current="true"]')?.getBoundingClientRect();
+            return current === undefined
+              ? null
+              : { fits: Math.round(row.scrollWidth) <= Math.round(row.clientWidth), left: current.left - box.left, right: current.right - box.right };
+          })
+        )?.right,
+    )
+    .toBeLessThanOrEqual(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await component.locator(FACE_ROW).evaluate((row) => {
+            const box = row.getBoundingClientRect();
+            const current = row.querySelector('[aria-current="true"]')?.getBoundingClientRect();
+            return current === undefined
+              ? null
+              : { fits: Math.round(row.scrollWidth) <= Math.round(row.clientWidth), left: current.left - box.left, right: current.right - box.right };
+          })
+        )?.fits,
+    )
+    .toBe(true);
 });
 
 test("a strip with NO overflow prop is untouched — it still scrolls, and grows no tile (the favorites-strip posture)", async ({ mount }) => {
@@ -387,8 +431,7 @@ test.describe("coarse pointer — the face meets the touch floor", () => {
   test.use({ hasTouch: true });
 
   test("a face is at least the 44px WCAG floor, and in practice the 48px coarse control box", async ({ mount, page }) => {
-    // ONESHOT-OK: a media-query match on a context flag set BEFORE the page opened — nothing async can
-    // change it (the touch-target-floor suite's own R6 probe reads it the same way).
+    // ONESHOT-OK: a media-query match on a context flag set BEFORE the page opened — nothing async can change it (the touch-target-floor suite's own R6 probe reads it the same way).
     expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const component = await mount(<FaceStrip items={[AZARAEL]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
     const button = component.getByRole("button", { name: "Open Azarael", exact: true });

@@ -168,8 +168,7 @@ test("the derived nav lists every contributed section, in door order", async ({ 
   const nav = page.getByRole("navigation", { name: "Settings sections" });
   await Promise.all(NAV_LABELS.map((label) => expect(nav.getByText(label, { exact: true })).toBeVisible()));
   // The nav DERIVES from the registry, so its order is the door's — assert the sequence, not just presence.
-  const rendered = await nav.getByRole("button").allInnerTexts();
-  expect(rendered.filter((text) => NAV_LABELS.includes(text))).toStrictEqual(NAV_LABELS);
+  await expect.poll(async () => (await nav.getByRole("button").allInnerTexts()).filter((text) => NAV_LABELS.includes(text))).toStrictEqual(NAV_LABELS);
 });
 
 // §7.2 across the PANE MERGE (§10 Q2): the System pane's search leaves travelled into user-admin's nav

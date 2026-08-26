@@ -193,9 +193,7 @@ test("unchecking a permission installs the NARROWED subset, not what the bundle 
   // SETTLED: the row is in the list and the confirm step is gone.
   await expect(page.getByRole("switch", { name: "Turn Weather Teller on" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Install" })).toHaveCount(0);
-
-  const input = recorder.lastInput("plugin.install") as { grant: string[] } | undefined;
-  expect(input?.grant).toEqual(["chat.read", "net.fetch"]);
+  await expect.poll(async () => (recorder.lastInput("plugin.install") as { grant: string[] } | undefined)?.grant).toEqual(["chat.read", "net.fetch"]);
 });
 
 test("a bundle that is not a plugin is refused with a reason, before anything is uploaded", async ({ mount, page }) => {
@@ -210,8 +208,7 @@ test("a bundle that is not a plugin is refused with a reason, before anything is
 
   await expect(page.getByRole("alert")).toContainText("manifest.json");
   // Nothing was sent: a refusal a person can read costs no round trip.
-  // ONESHOT-OK: the preceding `toContainText` settled on the refusal, and the refusal is raised BEFORE any
-  // network call by construction (the bundle read is local) — there is no in-flight install to race.
+  // ONESHOT-OK: the preceding `toContainText` settled on the refusal, and the refusal is raised BEFORE any network call by construction (the bundle read is local) — there is no in-flight install to race.
   expect(recorder.count("plugin.install")).toBe(0);
 });
 
@@ -249,8 +246,7 @@ test("an installed plugin says whether it is on and what it is allowed to do", a
   await page.getByRole("switch", { name: "Turn Weather Teller on" }).click();
   // SETTLED: the invalidate repainted the row from the server's new truth.
   await expect(page.getByText("On", { exact: true })).toBeVisible();
-  // ONESHOT-OK: the "On" assertion above settled on the post-invalidate repaint, which the stub only serves
-  // AFTER `plugin.setEnabled` was called and recorded — the call is provably complete at this read.
+  // ONESHOT-OK: the "On" assertion above settled on the post-invalidate repaint, which the stub only serves AFTER `plugin.setEnabled` was called and recorded — the call is provably complete at this read.
   expect(recorder.lastInput("plugin.setEnabled")).toEqual({ pluginId: INSTALLED_ROW.id, enabled: true });
 });
 
@@ -466,9 +462,7 @@ test("a PARTIAL re-consent records exactly the narrower subset, and the notice k
   // The row the owner just allowed now reads as granted — from the server's truth, after the reset.
   await expect(notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY })).toBeChecked();
 
-  // ONESHOT-OK: the settle assertions above prove the call completed before this read.
-  // The recorded input is the NARROWER subset — prior grant plus the one row ticked, and NOT `turn.trigger`.
-  // The host echo is unchanged by the narrowing: it is about what was RENDERED, not what was ticked.
+  // ONESHOT-OK: the settle assertions above prove the call completed before this read. The recorded input is the NARROWER subset — prior grant plus the one row ticked, and NOT `turn.trigger`. The host echo is unchanged by the narrowing: it is about what was RENDERED, not what was ticked.
   expect(recorder.lastInput("plugin.setGrant")).toEqual({
     pluginId: INSTALLED_ROW.id,
     grant: ["chat.read", "net.fetch", "worldinfo.write"],
@@ -489,8 +483,7 @@ test("the snippet console shows what a run logged, and shows a contained failure
   await expect(output).toContainText("3 messages");
   // The contained `error` is DATA, not a throw — a REPL that swallowed it would look like a hang.
   await expect(output).toContainText("TypeError: host.nope is not a function");
-  // ONESHOT-OK: the output region above settled on this run's OWN response, so the call it counts has
-  // already returned; nothing else in the story can call the proc.
+  // ONESHOT-OK: the output region above settled on this run's OWN response, so the call it counts has already returned; nothing else in the story can call the proc.
   expect(recorder.count("plugin.runSnippet")).toBe(1);
 });
 
@@ -515,8 +508,7 @@ test("a fresh console's shipped starter is code that can actually run — no top
   // real run, not the parse-error path this issue exists to catch.
   const output = page.getByRole("status", { name: "Snippet output" });
   await expect(output).toContainText("5 messages");
-  // ONESHOT-OK: the toContainText barrier above only passes once the stubbed runSnippet response has
-  // RENDERED, so the recorder's last input is settled — no later call can race this read.
+  // ONESHOT-OK: the toContainText barrier above only passes once the stubbed runSnippet response has RENDERED, so the recorder's last input is settled — no later call can race this read.
   expect(recorder.lastInput("plugin.runSnippet")).toEqual({ chatId: CHAT, code: starter });
 });
 

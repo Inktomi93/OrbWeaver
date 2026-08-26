@@ -166,20 +166,52 @@ test("P3-16 the empty bank's CTAs are the shelf's own control register, not a ba
   await stubDatabank(page, {}, []);
   const home = await mount(<DatabankHomeTileStory />);
   const tile = home.locator(TILE);
-
-  const shape = await tile.getByRole("button", { name: "Add your first document" }).evaluate((el) => {
-    const style = globalThis.getComputedStyle(el);
-    return {
-      border: Number.parseFloat(style.borderTopWidth),
-      padding: Number.parseFloat(style.paddingLeft),
-      height: Math.round(el.getBoundingClientRect().height),
-    };
-  });
-
   // A real bordered control with real inline padding — the `px-0` text link had neither.
-  expect(shape.border).toBeGreaterThan(0);
-  expect(shape.padding).toBeGreaterThan(0);
-  expect(shape.height).toBeGreaterThan(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await tile.getByRole("button", { name: "Add your first document" }).evaluate((el) => {
+            const style = globalThis.getComputedStyle(el);
+            return {
+              border: Number.parseFloat(style.borderTopWidth),
+              padding: Number.parseFloat(style.paddingLeft),
+              height: Math.round(el.getBoundingClientRect().height),
+            };
+          })
+        ).border,
+    )
+    .toBeGreaterThan(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await tile.getByRole("button", { name: "Add your first document" }).evaluate((el) => {
+            const style = globalThis.getComputedStyle(el);
+            return {
+              border: Number.parseFloat(style.borderTopWidth),
+              padding: Number.parseFloat(style.paddingLeft),
+              height: Math.round(el.getBoundingClientRect().height),
+            };
+          })
+        ).padding,
+    )
+    .toBeGreaterThan(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await tile.getByRole("button", { name: "Add your first document" }).evaluate((el) => {
+            const style = globalThis.getComputedStyle(el);
+            return {
+              border: Number.parseFloat(style.borderTopWidth),
+              padding: Number.parseFloat(style.paddingLeft),
+              height: Math.round(el.getBoundingClientRect().height),
+            };
+          })
+        ).height,
+    )
+    .toBeGreaterThan(0);
 });
 
 // ── RED-FIRST (#102 review F2/F8): the empty rail slot is a RAIL block, not a centred island ────────
@@ -213,7 +245,21 @@ test("#102-F2 an EMPTY bank keeps the RAIL register: flush-left, no centred isla
     probe.remove();
     return { resolved: globalThis.getComputedStyle(el).fontSize, labelStep };
   });
-  expect(steps.resolved).toBe(steps.labelStep);
+  await expect
+    .poll(
+      async () =>
+        (
+          await tile.getByText("No documents yet").evaluate((el) => {
+            const probe = el.ownerDocument.createElement("span");
+            probe.style.fontSize = "var(--text-label)";
+            el.ownerDocument.body.append(probe);
+            const labelStep = globalThis.getComputedStyle(probe).fontSize;
+            probe.remove();
+            return { resolved: globalThis.getComputedStyle(el).fontSize, labelStep };
+          })
+        ).resolved,
+    )
+    .toBe(steps.labelStep);
 });
 
 // ── RED-FIRST (rail sweep, the IA finding): Databank is IN the rail, like every other section ────────

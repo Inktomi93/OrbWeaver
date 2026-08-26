@@ -323,9 +323,7 @@ test("picking a character that already has an OPEN session RESUMES the newest on
   await expect(page.getByTestId("refinery-hero-value")).toHaveText("8.2");
 
   // THE DEFECT, on the wire: nothing was created.
-  // ONESHOT-OK: the settled pane above IS the barrier. The pick is synchronous — it either mutates or
-  // selects before the surface re-renders — and the pane cannot paint until `getSession` has resolved, so
-  // by the time the hero value settled every call this interaction produces is already recorded.
+  // ONESHOT-OK: the settled pane above IS the barrier. The pick is synchronous — it either mutates or selects before the surface re-renders — and the pane cannot paint until `getSession` has resolved, so by the time the hero value settled every call this interaction produces is already recorded.
   expect(trpc.count("refinery.startSession")).toBe(0);
   // …and it resumed the NEWEST open session — not the older one on the same card, and not the session the
   // scripted mint above would have handed back.
@@ -351,8 +349,7 @@ test("picking a character whose only session is FINISHED mints a fresh one and o
   await expect(page.getByTestId(testId("refineryContent"))).toBeVisible();
   await expect(page.getByTestId("refinery-hero-value")).toHaveText("8.2");
 
-  // ONESHOT-OK: the pane above cannot paint until the mint resolved AND `getSession` answered for what it
-  // returned, so the recording is closed at this point (the sibling resume test states the same barrier).
+  // ONESHOT-OK: the pane above cannot paint until the mint resolved AND `getSession` answered for what it returned, so the recording is closed at this point (the sibling resume test states the same barrier).
   expect(trpc.count("refinery.startSession")).toBe(1);
   // ONESHOT-OK: same settled barrier.
   expect(trpc.lastInput("refinery.startSession")).toEqual({ characterId: CHARACTER_ID });

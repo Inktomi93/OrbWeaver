@@ -610,8 +610,7 @@ test("RV-11: the Scene cast card shows the standing guides, omits the unwritten 
   await field.fill("shaven-headed, a fresh scar");
   await field.blur();
   await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // ONESHOT-OK: the poll above already settled the recorder — the call IS recorded, so reading its payload
-  // is a read of SETTLED state, not a race. (Polling the payload would just re-read the same frozen object.)
+  // ONESHOT-OK: the poll above already settled the recorder — the call IS recorded, so reading its payload is a read of SETTLED state, not a race. (Polling the payload would just re-read the same frozen object.)
   expect(trpc.lastInput("rpg.patchActor")).toMatchObject({
     targetRef: { kind: "cast", castKey: "sera" },
     ops: [{ op: "setIdentityText", field: "appearance", text: "shaven-headed, a fresh scar" }],
@@ -655,16 +654,28 @@ test("editing a cast NPC's tracker sends ONE op naming only that datum (her othe
   await trust.blur();
 
   await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  const input = trpc.lastInput("rpg.patchActor") as { readonly targetRef: Record<string, unknown>; readonly ops: readonly Record<string, unknown>[] };
-
   // The call addresses HER, by ref — no image, no roster half, nothing to be partial about.
-  expect(input.targetRef).toEqual({ kind: "cast", castKey: "sera" });
-  expect(input.ops).toEqual([{ op: "setTracker", key: "trust", value: { value: 5 } }]);
+  await expect
+    .poll(
+      async () =>
+        (trpc.lastInput("rpg.patchActor") as { readonly targetRef: Record<string, unknown>; readonly ops: readonly Record<string, unknown>[] }).targetRef,
+    )
+    .toEqual({ kind: "cast", castKey: "sera" });
+  await expect
+    .poll(
+      async () => (trpc.lastInput("rpg.patchActor") as { readonly targetRef: Record<string, unknown>; readonly ops: readonly Record<string, unknown>[] }).ops,
+    )
+    .toEqual([{ op: "setTracker", key: "trust", value: { value: 5 } }]);
   // The planes the empty mint used to clear are not on the wire AT ALL — the server keeps them by construction.
-  const wire = JSON.stringify(input);
-  for (const plane of ["inventory", "wallet", "status", "conditions"]) {
-    expect(wire).not.toContain(plane);
-  }
+  await Promise.all(
+    ["inventory", "wallet", "status", "conditions"].map(async (plane) =>
+      expect
+        .poll(async () =>
+          JSON.stringify(trpc.lastInput("rpg.patchActor") as { readonly targetRef: Record<string, unknown>; readonly ops: readonly Record<string, unknown>[] }),
+        )
+        .not.toContain(plane),
+    ),
+  );
 });
 
 // ── R2: the KNOWN-CHARACTERS disclosure — the offstage NPC made visible, editable and dismissable ────────
@@ -757,9 +768,7 @@ test("R4: an offstage cast actor can be PROMOTED to the roster — two-step, nam
   await section.getByRole("button", { name: "Confirm promoting Sister Vesna" }).click();
 
   await expect.poll(() => trpc.count("rpg.promoteActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // ONESHOT-OK: settled by the poll above (see the `patchActor` payload read for the same reasoning).
-  // The panel names the ACTOR and nothing else — the card's name/handle are the SERVER's derivation off the
-  // actor's own identity row, never a client-authored image (the R1 lesson applied to the promotion door).
+  // ONESHOT-OK: settled by the poll above (see the `patchActor` payload read for the same reasoning). The panel names the ACTOR and nothing else — the card's name/handle are the SERVER's derivation off the actor's own identity row, never a client-authored image (the R1 lesson applied to the promotion door).
   expect(trpc.lastInput("rpg.promoteActor")).toEqual({ chatId: "chat_ct_keystone", targetRef: { kind: "cast", castKey: "vesna" } });
 });
 
@@ -1612,9 +1621,12 @@ test("RV-5: the pack adds an item and edits its LOCATION in place — the patchA
   await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBe(2);
   // The panel names the OP, not the lock path: the pin (`…inventory`, whose Release lives on the section
   // kicker) is DERIVED server-side per op (R1), so a client can no longer claim a path it didn't edit.
-  const input = trpc.lastInput("rpg.patchActor") as { readonly ops: readonly Record<string, unknown>[]; readonly autoLock?: boolean };
-  expect(input.ops).toEqual([{ op: "patchItem", id: "item_ct_key", patch: { location: "sewn into the lining" } }]);
-  expect(input.autoLock).toBeUndefined();
+  await expect
+    .poll(async () => (trpc.lastInput("rpg.patchActor") as { readonly ops: readonly Record<string, unknown>[]; readonly autoLock?: boolean }).ops)
+    .toEqual([{ op: "patchItem", id: "item_ct_key", patch: { location: "sewn into the lining" } }]);
+  await expect
+    .poll(async () => (trpc.lastInput("rpg.patchActor") as { readonly ops: readonly Record<string, unknown>[]; readonly autoLock?: boolean }).autoLock)
+    .toBeUndefined();
 });
 
 // R4c — the journal `label` was write-only rot: model-writable, stored, returned on the view, rendered NOWHERE
@@ -1772,8 +1784,7 @@ test("#78: a hand-pinned ITEM carries its own pin and ONE click releases it — 
   await pin.click();
 
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // ONESHOT-OK: settled by the poll. Releasing the ITEM hands back EVERY pin it carries — a per-field residue
-  // would leave a pin the panel no longer renders and the host can never reach.
+  // ONESHOT-OK: settled by the poll. Releasing the ITEM hands back EVERY pin it carries — a per-field residue would leave a pin the panel no longer renders and the host can never reach.
   expect(trpc.lastInput("rpg.editSnapshot")).toMatchObject({ patch: {}, releaseLocks: [`${MARA_PACK_BASE}.name`, `${MARA_PACK_BASE}.quantity`] });
 });
 
@@ -2566,13 +2577,39 @@ test("#102 variant A: the game kicker binds DOWNWARD — 4px above its own cells
 
   // CD1/CD2 (density-pass-spec §3.2): a read-only grouping's name is a caps label + a hairline rule and
   // NOTHING ELSE — the kicker adds no box to the panel.
-  const box = await gameKicker.evaluate((el) => {
-    const style = getComputedStyle(el);
-    return { border: style.borderTopWidth + style.borderBottomWidth, radius: style.borderRadius, background: style.backgroundColor };
-  });
-  expect(box.border).toBe("0px0px");
-  expect(box.radius).toBe("0px");
-  expect(box.background).toBe("rgba(0, 0, 0, 0)");
+  await expect
+    .poll(
+      async () =>
+        (
+          await gameKicker.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return { border: style.borderTopWidth + style.borderBottomWidth, radius: style.borderRadius, background: style.backgroundColor };
+          })
+        ).border,
+    )
+    .toBe("0px0px");
+  await expect
+    .poll(
+      async () =>
+        (
+          await gameKicker.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return { border: style.borderTopWidth + style.borderBottomWidth, radius: style.borderRadius, background: style.backgroundColor };
+          })
+        ).radius,
+    )
+    .toBe("0px");
+  await expect
+    .poll(
+      async () =>
+        (
+          await gameKicker.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return { border: style.borderTopWidth + style.borderBottomWidth, radius: style.borderRadius, background: style.backgroundColor };
+          })
+        ).background,
+    )
+    .toBe("rgba(0, 0, 0, 0)");
 });
 
 test("#102: the HUD's NON-VIEWPORT SPEND is pinned — measured as the pane minus its own panel, gaps included", async ({ mount, page }) => {
@@ -2812,20 +2849,65 @@ test("#102: in the WRAPPED rail the active cell drops its edge bar — a bar bet
     cells.first().evaluate((el) => Math.round(el.getBoundingClientRect().y)),
   ]);
   expect(activeY).toBe(firstY);
-
-  const marker = await active.evaluate((el) => {
-    const style = getComputedStyle(el);
-    return { color: style.borderBottomColor, width: style.borderBottomWidth, fill: style.backgroundColor, ink: style.color };
-  });
   const transparent = "rgba(0, 0, 0, 0)";
-  expect(marker.color).toBe(transparent);
+  await expect
+    .poll(
+      async () =>
+        (
+          await active.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return { color: style.borderBottomColor, width: style.borderBottomWidth, fill: style.backgroundColor, ink: style.color };
+          })
+        ).color,
+    )
+    .toBe(transparent);
   // The 2px box survives, so no cell changes height when the rail folds…
-  expect(marker.width).toBe("2px");
+  await expect
+    .poll(
+      async () =>
+        (
+          await active.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return { color: style.borderBottomColor, width: style.borderBottomWidth, fill: style.backgroundColor, ink: style.color };
+          })
+        ).width,
+    )
+    .toBe("2px");
   // …and the cell is still unmistakably the selected one, by fill and by ink.
-  expect(marker.fill).not.toBe(transparent);
+  await expect
+    .poll(
+      async () =>
+        (
+          await active.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return { color: style.borderBottomColor, width: style.borderBottomWidth, fill: style.backgroundColor, ink: style.color };
+          })
+        ).fill,
+    )
+    .not.toBe(transparent);
   const resting = await game.getByRole("button", { name: "Scene" }).evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(marker.fill).not.toBe(resting);
-  expect(marker.ink).not.toBe(await game.getByRole("button", { name: "Scene" }).evaluate((el) => getComputedStyle(el).color));
+  await expect
+    .poll(
+      async () =>
+        (
+          await active.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return { color: style.borderBottomColor, width: style.borderBottomWidth, fill: style.backgroundColor, ink: style.color };
+          })
+        ).fill,
+    )
+    .not.toBe(resting);
+  await expect
+    .poll(
+      async () =>
+        (
+          await active.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return { color: style.borderBottomColor, width: style.borderBottomWidth, fill: style.backgroundColor, ink: style.color };
+          })
+        ).ink,
+    )
+    .not.toBe(await game.getByRole("button", { name: "Scene" }).evaluate((el) => getComputedStyle(el).color));
 });
 
 // ── HUD-1 H3, THE WAYSTONE COMPACT + THE VERTICAL BUDGET (F6 defect 4's second half) ─────────────────
@@ -2861,8 +2943,12 @@ test("HUD-1 §7.3: with no ambient set the band COMPRESSES to one row — a smal
   if (orbBox === null) {
     throw new Error("expected the band's pool orbs to be laid out");
   }
-  expect(orbBox.x).toBeGreaterThan(stoneBox.x + stoneBox.width);
-  expect(orbBox.y).toBeLessThan(stoneBox.y + stoneBox.height);
+  await expect
+    .poll(async () => (await component.locator('[data-slot="rpg-takeover-header"] [data-slot="ring-gauge"]').first().boundingBox()).x)
+    .toBeGreaterThan(stoneBox.x + stoneBox.width);
+  await expect
+    .poll(async () => (await component.locator('[data-slot="rpg-takeover-header"] [data-slot="ring-gauge"]').first().boundingBox()).y)
+    .toBeLessThan(stoneBox.y + stoneBox.height);
   expect(orbBox.y + orbBox.height).toBeLessThanOrEqual(headerBox.y + headerBox.height + 1);
 });
 
@@ -3208,14 +3294,158 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
     };
   });
   // The box is EXACTLY its token — resolved from the live document, never a hardcoded px.
-  expect(measured.token).toBeGreaterThan(0);
-  expect(measured.width).toBeCloseTo(measured.token, 1);
-  expect(measured.height).toBeCloseTo(measured.token, 1);
+  await expect
+    .poll(
+      async () =>
+        (
+          await del.evaluate((el) => {
+            const probe = document.createElement("div");
+            probe.style.width = "var(--spacing-glyph-sm)";
+            el.ownerDocument.body.append(probe);
+            const token = probe.getBoundingClientRect().width;
+            probe.remove();
+            const box = el.getBoundingClientRect();
+            const row = (el.parentElement as HTMLElement).getBoundingClientRect();
+            const after = getComputedStyle(el, "::after");
+            return {
+              token,
+              width: box.width,
+              height: box.height,
+              overflowsRow: box.right > row.right + 1,
+              hit: Number.parseFloat(after.width),
+              shrink: getComputedStyle(el).flexShrink,
+            };
+          })
+        ).token,
+    )
+    .toBeGreaterThan(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await del.evaluate((el) => {
+            const probe = document.createElement("div");
+            probe.style.width = "var(--spacing-glyph-sm)";
+            el.ownerDocument.body.append(probe);
+            const token = probe.getBoundingClientRect().width;
+            probe.remove();
+            const box = el.getBoundingClientRect();
+            const row = (el.parentElement as HTMLElement).getBoundingClientRect();
+            const after = getComputedStyle(el, "::after");
+            return {
+              token,
+              width: box.width,
+              height: box.height,
+              overflowsRow: box.right > row.right + 1,
+              hit: Number.parseFloat(after.width),
+              shrink: getComputedStyle(el).flexShrink,
+            };
+          })
+        ).width,
+    )
+    .toBeCloseTo(measured.token, 1);
+  await expect
+    .poll(
+      async () =>
+        (
+          await del.evaluate((el) => {
+            const probe = document.createElement("div");
+            probe.style.width = "var(--spacing-glyph-sm)";
+            el.ownerDocument.body.append(probe);
+            const token = probe.getBoundingClientRect().width;
+            probe.remove();
+            const box = el.getBoundingClientRect();
+            const row = (el.parentElement as HTMLElement).getBoundingClientRect();
+            const after = getComputedStyle(el, "::after");
+            return {
+              token,
+              width: box.width,
+              height: box.height,
+              overflowsRow: box.right > row.right + 1,
+              hit: Number.parseFloat(after.width),
+              shrink: getComputedStyle(el).flexShrink,
+            };
+          })
+        ).height,
+    )
+    .toBeCloseTo(measured.token, 1);
   // …and it did not collapse or get squeezed out of the 272px row (the `shrink-0` the arm now owns).
-  expect(measured.shrink).toBe("0");
-  expect(measured.overflowsRow).toBe(false);
+  await expect
+    .poll(
+      async () =>
+        (
+          await del.evaluate((el) => {
+            const probe = document.createElement("div");
+            probe.style.width = "var(--spacing-glyph-sm)";
+            el.ownerDocument.body.append(probe);
+            const token = probe.getBoundingClientRect().width;
+            probe.remove();
+            const box = el.getBoundingClientRect();
+            const row = (el.parentElement as HTMLElement).getBoundingClientRect();
+            const after = getComputedStyle(el, "::after");
+            return {
+              token,
+              width: box.width,
+              height: box.height,
+              overflowsRow: box.right > row.right + 1,
+              hit: Number.parseFloat(after.width),
+              shrink: getComputedStyle(el).flexShrink,
+            };
+          })
+        ).shrink,
+    )
+    .toBe("0");
+  await expect
+    .poll(
+      async () =>
+        (
+          await del.evaluate((el) => {
+            const probe = document.createElement("div");
+            probe.style.width = "var(--spacing-glyph-sm)";
+            el.ownerDocument.body.append(probe);
+            const token = probe.getBoundingClientRect().width;
+            probe.remove();
+            const box = el.getBoundingClientRect();
+            const row = (el.parentElement as HTMLElement).getBoundingClientRect();
+            const after = getComputedStyle(el, "::after");
+            return {
+              token,
+              width: box.width,
+              height: box.height,
+              overflowsRow: box.right > row.right + 1,
+              hit: Number.parseFloat(after.width),
+              shrink: getComputedStyle(el).flexShrink,
+            };
+          })
+        ).overflowsRow,
+    )
+    .toBe(false);
   // The hit area still exceeds the visible box (the ::after the arm carries), even on this fine-pointer run.
-  expect(measured.hit).toBeGreaterThan(measured.height);
+  await expect
+    .poll(
+      async () =>
+        (
+          await del.evaluate((el) => {
+            const probe = document.createElement("div");
+            probe.style.width = "var(--spacing-glyph-sm)";
+            el.ownerDocument.body.append(probe);
+            const token = probe.getBoundingClientRect().width;
+            probe.remove();
+            const box = el.getBoundingClientRect();
+            const row = (el.parentElement as HTMLElement).getBoundingClientRect();
+            const after = getComputedStyle(el, "::after");
+            return {
+              token,
+              width: box.width,
+              height: box.height,
+              overflowsRow: box.right > row.right + 1,
+              hit: Number.parseFloat(after.width),
+              shrink: getComputedStyle(el).flexShrink,
+            };
+          })
+        ).hit,
+    )
+    .toBeGreaterThan(measured.height);
 });
 
 /** The default config's ONE tracker def re-shaped to a `meter` — the arm that renders the colour SWATCH
@@ -3246,9 +3476,51 @@ test("GLYPHFIX: at the 272px floor the tracker-def row's SWATCH and its three gl
     probe.remove();
     return { token, width: el.getBoundingClientRect().width, shrink: getComputedStyle(el).flexShrink };
   });
-  expect(measured.token).toBeGreaterThan(0);
-  expect(measured.width).toBeCloseTo(measured.token, 1);
-  expect(measured.shrink).toBe("0");
+  await expect
+    .poll(
+      async () =>
+        (
+          await swatch.evaluate((el) => {
+            const probe = document.createElement("div");
+            probe.style.width = "var(--spacing-block)";
+            el.ownerDocument.body.append(probe);
+            const token = probe.getBoundingClientRect().width;
+            probe.remove();
+            return { token, width: el.getBoundingClientRect().width, shrink: getComputedStyle(el).flexShrink };
+          })
+        ).token,
+    )
+    .toBeGreaterThan(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await swatch.evaluate((el) => {
+            const probe = document.createElement("div");
+            probe.style.width = "var(--spacing-block)";
+            el.ownerDocument.body.append(probe);
+            const token = probe.getBoundingClientRect().width;
+            probe.remove();
+            return { token, width: el.getBoundingClientRect().width, shrink: getComputedStyle(el).flexShrink };
+          })
+        ).width,
+    )
+    .toBeCloseTo(measured.token, 1);
+  await expect
+    .poll(
+      async () =>
+        (
+          await swatch.evaluate((el) => {
+            const probe = document.createElement("div");
+            probe.style.width = "var(--spacing-block)";
+            el.ownerDocument.body.append(probe);
+            const token = probe.getBoundingClientRect().width;
+            probe.remove();
+            return { token, width: el.getBoundingClientRect().width, shrink: getComputedStyle(el).flexShrink };
+          })
+        ).shrink,
+    )
+    .toBe("0");
 
   // The three glyph-md toggles on the same row: square, at --spacing-glyph-md, inside the row's box.
   const toggles = await Promise.all(
@@ -3307,19 +3579,27 @@ test.describe("coarse HUD budget", () => {
       const band = component.locator('[data-slot="rpg-hud-band"]');
       await expect(band).toBeVisible();
 
-      const measured = await band.evaluate((el: HTMLElement) => {
-        const paneEl = el.closest(".shell-panel") as HTMLElement;
-        const panel = paneEl.querySelector('[data-slot="tabs-panel"]:not([hidden])') as HTMLElement | null;
-        const rails = Array.from(paneEl.querySelectorAll<HTMLElement>('[data-slot="rpg-hud-rail"]'));
-        const gameCells = rails[0]?.querySelector<HTMLElement>('[role="toolbar"]') ?? null;
-        return {
-          pane: paneEl.getBoundingClientRect().height,
-          band: el.getBoundingClientRect().height,
-          panel: panel === null ? 0 : panel.getBoundingClientRect().height,
-          gameRail: rails[0] === undefined ? 0 : rails[0].getBoundingClientRect().height,
-          gameCells: gameCells === null ? 0 : gameCells.getBoundingClientRect().height,
-        };
-      });
+      const measureBand = (): Promise<{
+        readonly pane: number;
+        readonly band: number;
+        readonly panel: number;
+        readonly gameRail: number;
+        readonly gameCells: number;
+      }> =>
+        band.evaluate((el: HTMLElement) => {
+          const paneEl = el.closest(".shell-panel") as HTMLElement;
+          const panel = paneEl.querySelector('[data-slot="tabs-panel"]:not([hidden])') as HTMLElement | null;
+          const rails = Array.from(paneEl.querySelectorAll<HTMLElement>('[data-slot="rpg-hud-rail"]'));
+          const gameCells = rails[0]?.querySelector<HTMLElement>('[role="toolbar"]') ?? null;
+          return {
+            pane: paneEl.getBoundingClientRect().height,
+            band: el.getBoundingClientRect().height,
+            panel: panel?.getBoundingClientRect().height ?? 0,
+            gameRail: rails[0]?.getBoundingClientRect().height ?? 0,
+            gameCells: gameCells?.getBoundingClientRect().height ?? 0,
+          };
+        });
+      const measured = await measureBand();
 
       // MEASURED before: 18/464 ≈ 0.04. The floor is a FRACTION of the pane, set below the value the
       // composition affords rather than at it — this fences the collapse, it does not pin the pixel.
@@ -3332,7 +3612,7 @@ test.describe("coarse HUD budget", () => {
       // NAME into a fence written against a 55px second cell row would let a real wrap regression hide
       // inside the allowance. Both are pinned: the cells stay one row, and the block's non-cell chrome
       // stays under a cell row (measured 70.25 total against 50.25 of cells).
-      expect(measured.gameCells).toBeLessThan(70);
+      await expect.poll(async () => (await measureBand()).gameCells).toBeLessThan(70);
       expect(measured.gameRail - measured.gameCells).toBeLessThan(measured.gameCells);
     });
 
@@ -3412,10 +3692,15 @@ test.describe("coarse game rail cells", () => {
             ),
         )
         .toHaveLength(6);
-      const widths = await rail.evaluate((el: HTMLElement) =>
-        Array.from(el.querySelectorAll<HTMLElement>('[data-slot="tabs-tab"]')).map((node) => node.getBoundingClientRect().width),
-      );
-      expect(widths.filter((w) => w < 44)).toEqual([]);
+      await expect
+        .poll(async () =>
+          (
+            await rail.evaluate((el: HTMLElement) =>
+              Array.from(el.querySelectorAll<HTMLElement>('[data-slot="tabs-tab"]')).map((node) => node.getBoundingClientRect().width),
+            )
+          ).filter((w) => w < 44),
+        )
+        .toEqual([]);
     });
 
     test(`@${pane.width}: the rail reads as a solid frame — no dead strip after the last cell`, async ({ mount, page }) => {
@@ -3482,27 +3767,36 @@ test.describe("coarse game rail focus ring", () => {
 
     // 1) REACHABILITY — the half the reviewer could not measure.
     expect(await tabInto(page, '[data-slot="rpg-hud-rail"] [role="toolbar"]')).toBe(true);
-
-    const measured = await rail.evaluate((el: HTMLElement) => {
-      const list = el.querySelector('[role="toolbar"]') as HTMLElement;
-      const cell = document.activeElement as HTMLElement;
-      const listBox = list.getBoundingClientRect();
-      const cellBox = cell.getBoundingClientRect();
-      return {
-        overflowY: getComputedStyle(list).overflowY,
-        headroomTop: cellBox.top - listBox.top,
-        headroomBottom: listBox.bottom - cellBox.bottom,
-        boxShadow: getComputedStyle(cell).boxShadow,
-      };
-    });
-
+    const measureRail = (): Promise<{
+      readonly overflowY: string;
+      readonly headroomTop: number;
+      readonly headroomBottom: number;
+      readonly boxShadow: string;
+    }> =>
+      rail.evaluate((el: HTMLElement) => {
+        const list = el.querySelector('[role="toolbar"]') as HTMLElement;
+        const cell = document.activeElement as HTMLElement;
+        const listBox = list.getBoundingClientRect();
+        const cellBox = cell.getBoundingClientRect();
+        return {
+          overflowY: getComputedStyle(list).overflowY,
+          headroomTop: cellBox.top - listBox.top,
+          headroomBottom: listBox.bottom - cellBox.bottom,
+          boxShadow: getComputedStyle(cell).boxShadow,
+        };
+      });
     // 2) The clip CONDITION — the box really does clip its overflow, and the cell has no headroom in it.
-    expect(measured.overflowY).not.toBe("visible");
-    expect(Math.min(measured.headroomTop, measured.headroomBottom)).toBeLessThan(4);
+    await expect.poll(async () => (await measureRail()).overflowY).not.toBe("visible");
+    await expect
+      .poll(async () => {
+        const measured = await measureRail();
+        return Math.min(measured.headroomTop, measured.headroomBottom);
+      })
+      .toBeLessThan(4);
     // 3) …so the ring MUST paint inward. A non-inset `ring-offset-2` ring would be drawn 4px outside the
     //    cell, i.e. entirely inside the clipped region, and a keyboard user would see nothing.
-    expect(measured.boxShadow).not.toBe("none");
-    expect(measured.boxShadow).toContain("inset");
+    await expect.poll(async () => (await measureRail()).boxShadow).not.toBe("none");
+    await expect.poll(async () => (await measureRail()).boxShadow).toContain("inset");
   });
 });
 

@@ -28,7 +28,7 @@ test("opening the assembled preview scrolls it into view, not just below the fol
   // The precondition the defect needs: the readout already overflows, and we are at the top of it.
   const before = await scroller.evaluate((el) => ({ top: el.scrollTop, overflow: el.scrollHeight - el.clientHeight }));
   expect(before.overflow, "the story must actually overflow, or this proves nothing").toBeGreaterThan(0);
-  expect(before.top).toBe(0);
+  await expect.poll(async () => (await scroller.evaluate((el) => ({ top: el.scrollTop, overflow: el.scrollHeight - el.clientHeight }))).top).toBe(0);
 
   await trigger.click();
   await expect(story.getByRole("button", { name: HIDE })).toBeVisible();

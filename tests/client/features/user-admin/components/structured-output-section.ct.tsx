@@ -57,7 +57,17 @@ test("mounts on the resolved shape, names the deployment default, stamps its anc
     const el = document.querySelector('[data-slot="select-value"]');
     return el === null ? null : { scrollW: el.scrollWidth, clientW: el.clientWidth };
   });
-  expect(fit?.scrollW).toBeLessThanOrEqual(fit?.clientW ?? 0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const el = document.querySelector('[data-slot="select-value"]');
+            return el === null ? null : { scrollW: el.scrollWidth, clientW: el.clientWidth };
+          })
+        )?.scrollW,
+    )
+    .toBeLessThanOrEqual(fit?.clientW ?? 0);
 });
 
 test("the section TEACHES the wall it exists for, VISIBLY — not behind a hover tooltip", async ({ mount, page }) => {

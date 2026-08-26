@@ -452,8 +452,7 @@ test("RESET pin — reset-to-starter shows the starter config and never writes t
   // dirty pre-reset form. With the old frozen-seed bug (or a non-discard teardown) that flush writes the
   // pre-reset "balanced" back over the starter — a NEW `preset.update` past the snapshot. Wait it out; none.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 700)));
-  // ONESHOT-OK: settled — the preceding 700ms real-timer wait is the negative-assertion window itself
-  // (proving NO late `preset.update` fires); there is no later state to race against.
+  // ONESHOT-OK: settled — the preceding 700ms real-timer wait is the negative-assertion window itself (proving NO late `preset.update` fires); there is no later state to race against.
   expect(trpc.count("preset.update")).toBe(updatesBeforeReset);
 });
 
@@ -539,7 +538,6 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
 
   // Let any late debounce / teardown flush land, then assert the mint stayed at exactly one.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 900)));
-  // ONESHOT-OK: settled — the preceding 900ms real-timer wait is the negative-assertion window itself.
   expect(updatesAgainst(trpc, BUILT_IN).length).toBe(1);
   expect(updatesAgainst(trpc, FORK).length).toBeGreaterThanOrEqual(1);
 });
@@ -629,8 +627,7 @@ test("FORK-CHOICE — with a fork already in the library, a built-in edit is INT
 
   // THE PIN: the save is PARKED. A dialog that appears after the write already landed is theatre.
   await page.evaluate((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)), SETTLE_MS);
-  // ONESHOT-OK: settled — the preceding wait is the negative-assertion window itself (the debounce + a full
-  // save round-trip have had their chance; the dialog is what holds the chain).
+  // ONESHOT-OK: settled — the preceding wait is the negative-assertion window itself (the debounce + a full save round-trip have had their chance; the dialog is what holds the chain).
   expect(trpc.count("preset.update")).toBe(0);
 });
 
@@ -650,9 +647,8 @@ test("FORK-CHOICE keep-editing — the edit lands on the EXISTING fork, the edit
   await page.evaluate((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)), SETTLE_MS);
   // THE PIN (mutation count): the built-in is never written to, so the server never COWs — the library still
   // holds exactly the ONE fork it started with, no second copy minted behind the owner's back.
-  // ONESHOT-OK: settled — the wait above is the negative-assertion window.
   expect(updatesAgainst(trpc, BUILT_IN).length).toBe(0);
-  expect((trpc.inputs("preset.update") as ForkUpdateCall[]).every((call) => call.id === FORK_ONE)).toBe(true);
+  await expect.poll(async () => (trpc.inputs("preset.update") as ForkUpdateCall[]).every((call) => call.id === FORK_ONE)).toBe(true);
   await expect(component.getByText(LINEAGE_RE)).toHaveCount(1);
 });
 
@@ -681,7 +677,7 @@ test("FORK-CHOICE new fork — the suggested name is pre-filled, the mint carrie
       name: "Deep run",
     });
   expect(updatesAgainst(trpc, FORK_ONE).length).toBe(0);
-  expect((trpc.inputs("preset.update") as ForkUpdateCall[]).at(-1)?.config?.params?.quality).toBe("balanced");
+  await expect.poll(async () => (trpc.inputs("preset.update") as ForkUpdateCall[]).at(-1)?.config?.params?.quality).toBe("balanced");
 
   // The editor retargets onto the NEW fork, and the library now shows two rows both scented "forked from
   // Default" — the lineage that makes a library of forks navigable at all.
@@ -880,8 +876,12 @@ test("PROSE GEOMETRY — the box scrolls at its cap, the refusal stays on screen
 
   // THE BOX IS CAPPED AND SCROLLS — every byte still reachable, none of it spent on page height.
   const box = await field.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }));
-  expect(box.content).toBeGreaterThan(box.client);
-  expect(box.client).toBeLessThan((page.viewportSize()?.height ?? 0) / 2);
+  await expect
+    .poll(async () => (await field.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }))).content)
+    .toBeGreaterThan(box.client);
+  await expect
+    .poll(async () => (await field.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }))).client)
+    .toBeLessThan((page.viewportSize()?.height ?? 0) / 2);
 
   await field.press("End");
   await field.press("Backspace");
@@ -994,8 +994,12 @@ test("FORMAT-STRING CAP — the nudge field wears the schema's cap and counts to
 
   // …and the box that now holds 8000 characters is still a field, not a page: it scrolls at its ceiling.
   const box = await field.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }));
-  expect(box.content).toBeGreaterThan(box.client);
-  expect(box.client).toBeLessThan((page.viewportSize()?.height ?? 0) / 2);
+  await expect
+    .poll(async () => (await field.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }))).content)
+    .toBeGreaterThan(box.client);
+  await expect
+    .poll(async () => (await field.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }))).client)
+    .toBeLessThan((page.viewportSize()?.height ?? 0) / 2);
 });
 
 // ── THE GUIDED-PROMPT CAP (the THIRD regime — owner ruling 2026-08-08, parked-options §2 option 2) ──────
@@ -1033,8 +1037,12 @@ test("GUIDED-PROMPT CAP — the steer field wears the shared injection-template 
 
   // …and the box holding 8000 characters is still a field, not a page.
   const box = await field.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }));
-  expect(box.content).toBeGreaterThan(box.client);
-  expect(box.client).toBeLessThan((page.viewportSize()?.height ?? 0) / 2);
+  await expect
+    .poll(async () => (await field.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }))).content)
+    .toBeGreaterThan(box.client);
+  await expect
+    .poll(async () => (await field.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }))).client)
+    .toBeLessThan((page.viewportSize()?.height ?? 0) / 2);
 });
 
 /** The framing override as it rides `preset.update` — the payload the cap exists to keep parseable. */
@@ -1237,8 +1245,36 @@ test("P2-1 FENCE — the header column and the view's content column are the SAM
 
   expect(columns.header, "the header's capped column resolved").not.toBeNull();
   expect(columns.panel, "the view body's capped column resolved").not.toBeNull();
-  expect(columns.panel?.x).toBe(columns.header?.x);
-  expect(columns.panel?.w).toBe(columns.header?.w);
+  await expect
+    .poll(
+      async () =>
+        (
+          await component.evaluate((root: HTMLElement) => {
+            const capped = [...root.querySelectorAll<HTMLElement>(".mx-auto")].filter((el) => el.closest("[role=tablist]") === null);
+            const header = capped.find((el) => el.querySelector("[role=tablist]") !== null);
+            const panel = capped.find((el) => el.closest("[role=tabpanel]") !== null);
+            const read = (el: HTMLElement | undefined): { x: number; w: number } | null =>
+              el === undefined ? null : { x: Math.round(el.getBoundingClientRect().x), w: Math.round(el.getBoundingClientRect().width) };
+            return { header: read(header), panel: read(panel) };
+          })
+        ).panel?.x,
+    )
+    .toBe(columns.header?.x);
+  await expect
+    .poll(
+      async () =>
+        (
+          await component.evaluate((root: HTMLElement) => {
+            const capped = [...root.querySelectorAll<HTMLElement>(".mx-auto")].filter((el) => el.closest("[role=tablist]") === null);
+            const header = capped.find((el) => el.querySelector("[role=tablist]") !== null);
+            const panel = capped.find((el) => el.closest("[role=tabpanel]") !== null);
+            const read = (el: HTMLElement | undefined): { x: number; w: number } | null =>
+              el === undefined ? null : { x: Math.round(el.getBoundingClientRect().x), w: Math.round(el.getBoundingClientRect().width) };
+            return { header: read(header), panel: read(panel) };
+          })
+        ).panel?.w,
+    )
+    .toBe(columns.header?.w);
 });
 
 // P3-4 (side-eye 2026-08-22): the tablist was the ONE element of 112 mapped controls on this surface with

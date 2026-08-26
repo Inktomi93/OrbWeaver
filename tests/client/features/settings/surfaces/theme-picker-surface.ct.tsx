@@ -108,11 +108,9 @@ test("Customize + zero edits + Back mints NOTHING — no row ever existed", asyn
   // Barrier on the SETTLED list arm before the zero-count read.
   await expect(component.getByText("My Theme", { exact: true })).toBeVisible();
 
-  // ONESHOT-OK: read after the list re-rendered; a mint could only have fired during the editor session
-  // that has already been torn down.
+  // ONESHOT-OK: read after the list re-rendered; a mint could only have fired during the editor session that has already been torn down.
   expect(trpc.count("settings.duplicateTheme")).toBe(0);
-  // ONESHOT-OK: same settled barrier — the create arm is asserted here too because either mint landing
-  // would be the same defect (a row the owner never asked for).
+  // ONESHOT-OK: same settled barrier — the create arm is asserted here too because either mint landing would be the same defect (a row the owner never asked for).
   expect(trpc.count("settings.createTheme")).toBe(0);
 });
 
@@ -136,8 +134,7 @@ test("the first real edit mints the copy — and the autosave that follows patch
     .poll(() => trpc.lastInput("settings.updateTheme"), { intervals: [50, 100, 200] })
     .toMatchObject({ id: OWNED.id, input: { name: "Mocha but mine" } });
   // The mint happened exactly once across the whole session (the edit, not each keystroke or debounced save).
-  // ONESHOT-OK: reads AFTER the awaited updateTheme poll settled — the autosave save is the write the
-  // session made, so no further mint can arrive from this same edit.
+  // ONESHOT-OK: reads AFTER the awaited updateTheme poll settled — the autosave save is the write the session made, so no further mint can arrive from this same edit.
   expect(trpc.count("settings.duplicateTheme")).toBe(1);
 });
 
@@ -235,8 +232,7 @@ test("Delete does not destroy immediately — it opens an AlertDialog confirm (F
   await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
   // The NEGATIVE half of the title's claim, pinned (assertion-quality audit 2026-07-24): the confirm
   // being open is not proof nothing fired — assert ZERO removeTheme calls until a real confirm.
-  // ONESHOT-OK: reads AFTER the awaited alertdialog assertions settled the surface; a zero can only
-  // false-pass if the mutation fires later, which the still-open confirm makes impossible.
+  // ONESHOT-OK: reads AFTER the awaited alertdialog assertions settled the surface; a zero can only false-pass if the mutation fires later, which the still-open confirm makes impossible.
   expect(trpc.count("settings.removeTheme")).toBe(0);
 });
 

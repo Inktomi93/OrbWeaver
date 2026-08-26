@@ -59,7 +59,17 @@ test("the island carries the CD3 focal treatment — a speaker stripe and a rati
     return { width: style.borderInlineStartWidth, styleName: style.borderInlineStartStyle };
   });
   expect(Number.parseFloat(stripe.width), "the speaker stripe has a real width").toBeGreaterThan(0);
-  expect(stripe.styleName).toBe("solid");
+  await expect
+    .poll(
+      async () =>
+        (
+          await island.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return { width: style.borderInlineStartWidth, styleName: style.borderInlineStartStyle };
+          })
+        ).styleName,
+    )
+    .toBe("solid");
 
   // The glow is on the ::before layer and it is CHROMATIC (a resolved colour, not `none`).
   const shadow = await glowShadow(page);

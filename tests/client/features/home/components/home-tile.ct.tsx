@@ -59,11 +59,68 @@ test("the skeleton FILLS the reserved box — no blank tail, no hairline stub", 
     };
   });
 
-  expect(geometry.rowHeight).toBeGreaterThan(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await reserved.evaluate((box) => {
+            const bars = [...box.querySelectorAll('[data-slot="skeleton"]')];
+            const boxRect = box.getBoundingClientRect();
+            const first = bars[0]?.getBoundingClientRect();
+            const last = bars.at(-1)?.getBoundingClientRect();
+            return {
+              rowHeight: first?.height ?? 0,
+              // How much of the box is left unpainted below the last bar…
+              tail: boxRect.bottom - (last?.bottom ?? boxRect.bottom),
+              // …and how much of that last bar actually survives the clip.
+              lastVisible: Math.min(last?.bottom ?? 0, boxRect.bottom) - (last?.top ?? 0),
+            };
+          })
+        ).rowHeight,
+    )
+    .toBeGreaterThan(0);
   // The 189px-of-blank defect: the unpainted tail may not exceed a single row's worth of space.
-  expect(geometry.tail).toBeLessThan(geometry.rowHeight);
+  await expect
+    .poll(
+      async () =>
+        (
+          await reserved.evaluate((box) => {
+            const bars = [...box.querySelectorAll('[data-slot="skeleton"]')];
+            const boxRect = box.getBoundingClientRect();
+            const first = bars[0]?.getBoundingClientRect();
+            const last = bars.at(-1)?.getBoundingClientRect();
+            return {
+              rowHeight: first?.height ?? 0,
+              // How much of the box is left unpainted below the last bar…
+              tail: boxRect.bottom - (last?.bottom ?? boxRect.bottom),
+              // …and how much of that last bar actually survives the clip.
+              lastVisible: Math.min(last?.bottom ?? 0, boxRect.bottom) - (last?.top ?? 0),
+            };
+          })
+        ).tail,
+    )
+    .toBeLessThan(geometry.rowHeight);
   // The 2.9px-hairline defect: a bar that renders at all renders as a bar, not a sliver.
-  expect(geometry.lastVisible).toBeGreaterThan(geometry.rowHeight / 2);
+  await expect
+    .poll(
+      async () =>
+        (
+          await reserved.evaluate((box) => {
+            const bars = [...box.querySelectorAll('[data-slot="skeleton"]')];
+            const boxRect = box.getBoundingClientRect();
+            const first = bars[0]?.getBoundingClientRect();
+            const last = bars.at(-1)?.getBoundingClientRect();
+            return {
+              rowHeight: first?.height ?? 0,
+              // How much of the box is left unpainted below the last bar…
+              tail: boxRect.bottom - (last?.bottom ?? boxRect.bottom),
+              // …and how much of that last bar actually survives the clip.
+              lastVisible: Math.min(last?.bottom ?? 0, boxRect.bottom) - (last?.top ?? 0),
+            };
+          })
+        ).lastVisible,
+    )
+    .toBeGreaterThan(geometry.rowHeight / 2);
 });
 
 // ── The FIRST-EVER-BOOT arm (#92, measured 2026-08-16) ──────────────────────────────────────────────

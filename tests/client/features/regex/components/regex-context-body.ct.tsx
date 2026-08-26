@@ -174,7 +174,22 @@ test("an UNBREAKABLE room title clips, and its stamp survives at the 320px conte
     const stampBox = stamp.getBoundingClientRect();
     return { paneRight: paneBox.getBoundingClientRect().right, stampRight: stampBox.right, stampWidth: stampBox.width };
   });
-  expect(fit?.stampRight).toBeLessThanOrEqual(fit?.paneRight ?? 0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const paneBox = document.querySelector('[data-slot="regex-context-body"]');
+            const stamp = document.querySelector('[data-slot="regex-usage-rooms"] [data-voice="datum"]');
+            if (paneBox === null || stamp === null) {
+              return null;
+            }
+            const stampBox = stamp.getBoundingClientRect();
+            return { paneRight: paneBox.getBoundingClientRect().right, stampRight: stampBox.right, stampWidth: stampBox.width };
+          })
+        )?.stampRight,
+    )
+    .toBeLessThanOrEqual(fit?.paneRight ?? 0);
   expect(fit?.stampWidth ?? 0).toBeGreaterThan(0); // not crushed to zero by the long title beside it
 });
 
@@ -221,5 +236,21 @@ test("a long carrier name clips inside the 320px context column instead of widen
     }
     return { paneRight: pane.getBoundingClientRect().right, nameRight: name.getBoundingClientRect().right };
   });
-  expect(fit?.nameRight).toBeLessThanOrEqual(fit?.paneRight ?? 0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const pane = document.querySelector('[data-slot="regex-context-body"]');
+            // Addressed by its `title` tooltip (the row's own affordance for a clipped name), never by the
+            // `truncate` class — a selector naming the fix would make the pin pass by not finding anything.
+            const name = document.querySelector('[data-slot="regex-usage-presets"] [title]');
+            if (pane === null || name === null) {
+              return null;
+            }
+            return { paneRight: pane.getBoundingClientRect().right, nameRight: name.getBoundingClientRect().right };
+          })
+        )?.nameRight,
+    )
+    .toBeLessThanOrEqual(fit?.paneRight ?? 0);
 });

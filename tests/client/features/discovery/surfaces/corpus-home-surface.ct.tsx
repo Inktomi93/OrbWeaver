@@ -275,7 +275,30 @@ test("the readiness failure is dated by a kicker and reads in the rail's quiet r
   // the primary CTA as the column's one warm element.
   expect(paint.colour, "the failure joined the rail's quiet register").toBe(paint.quietColour);
   // …and it did NOT go back to the footnote step P2-7 rejected.
-  expect(paint.sizePx).toBeGreaterThanOrEqual(READABLE_FLOOR_PX);
+  await expect
+    .poll(
+      async () =>
+        (
+          await block.evaluate((el) => {
+            const kicker = el.firstElementChild;
+            const sentence = el.lastElementChild;
+            if (kicker === null || sentence === null) {
+              throw new Error("the failure block did not render its kicker and its sentence");
+            }
+            const kickerStyle = globalThis.getComputedStyle(kicker);
+            const sentenceStyle = globalThis.getComputedStyle(sentence);
+            return {
+              kickerText: kicker.textContent ?? "",
+              kickerTop: kicker.getBoundingClientRect().top,
+              sentenceTop: sentence.getBoundingClientRect().top,
+              colour: sentenceStyle.color,
+              quietColour: kickerStyle.color,
+              sizePx: Number.parseFloat(sentenceStyle.fontSize),
+            };
+          })
+        ).sizePx,
+    )
+    .toBeGreaterThanOrEqual(READABLE_FLOOR_PX);
 });
 
 test("…and the jobs door is present in the CLEAN arm too — the fix did not just move the hole", async ({ mount, page }) => {

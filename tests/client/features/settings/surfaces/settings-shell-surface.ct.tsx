@@ -671,12 +671,75 @@ test("both settings columns fill the row height (own their scroll axis; nav can'
       contentScrolls: isScroller(content),
     };
   });
-  expect(heights.navScrolls).toBe(true);
-  expect(heights.contentScrolls).toBe(true);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const nav = document.querySelector('[role="navigation"]');
+            const content = document.querySelector('[role="region"]');
+            const paneColumn = content?.parentElement ?? null;
+            const row = nav?.parentElement ?? null;
+            const isScroller = (el: Element | null): boolean => el !== null && ["auto", "scroll"].includes(getComputedStyle(el).overflowY);
+            return {
+              row: row?.clientHeight ?? -1,
+              nav: nav?.clientHeight ?? -2,
+              paneColumn: paneColumn?.clientHeight ?? -3,
+              content: content?.clientHeight ?? -4,
+              navScrolls: isScroller(nav),
+              contentScrolls: isScroller(content),
+            };
+          })
+        ).navScrolls,
+    )
+    .toBe(true);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const nav = document.querySelector('[role="navigation"]');
+            const content = document.querySelector('[role="region"]');
+            const paneColumn = content?.parentElement ?? null;
+            const row = nav?.parentElement ?? null;
+            const isScroller = (el: Element | null): boolean => el !== null && ["auto", "scroll"].includes(getComputedStyle(el).overflowY);
+            return {
+              row: row?.clientHeight ?? -1,
+              nav: nav?.clientHeight ?? -2,
+              paneColumn: paneColumn?.clientHeight ?? -3,
+              content: content?.clientHeight ?? -4,
+              navScrolls: isScroller(nav),
+              contentScrolls: isScroller(content),
+            };
+          })
+        ).contentScrolls,
+    )
+    .toBe(true);
   expect(Math.abs(heights.nav - heights.row)).toBeLessThan(2);
   expect(Math.abs(heights.paneColumn - heights.row)).toBeLessThan(2);
   // The scroller never EXCEEDS its column (it caps at the space the footer leaves).
-  expect(heights.content).toBeLessThanOrEqual(heights.paneColumn);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const nav = document.querySelector('[role="navigation"]');
+            const content = document.querySelector('[role="region"]');
+            const paneColumn = content?.parentElement ?? null;
+            const row = nav?.parentElement ?? null;
+            const isScroller = (el: Element | null): boolean => el !== null && ["auto", "scroll"].includes(getComputedStyle(el).overflowY);
+            return {
+              row: row?.clientHeight ?? -1,
+              nav: nav?.clientHeight ?? -2,
+              paneColumn: paneColumn?.clientHeight ?? -3,
+              content: content?.clientHeight ?? -4,
+              navScrolls: isScroller(nav),
+              contentScrolls: isScroller(content),
+            };
+          })
+        ).content,
+    )
+    .toBeLessThanOrEqual(heights.paneColumn);
 });
 
 // OWNER DOGFOOD 2026-08-13, "the settings screen scrolls past the end of its results — blank space below
@@ -862,11 +925,77 @@ test("the jump flash hugs the section box and stays within the scroll container"
     };
   });
   // The flash is an INSET ring on the section (never an outset outline clipped at the scroll edge).
-  expect(geo?.hasInsetRing).toBe(true);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const section = document.querySelector('[id$="-avatars"]') as HTMLElement | null;
+            const region = document.querySelector('[role="region"]') as HTMLElement | null;
+            if (section === null || region === null) {
+              return null;
+            }
+            const sb = section.getBoundingClientRect();
+            const rb = region.getBoundingClientRect();
+            return {
+              hasInsetRing: getComputedStyle(section).boxShadow.includes("inset"),
+              sectionHeight: Math.round(sb.height),
+              scrollHeight: section.scrollHeight,
+              withinLeft: sb.left >= rb.left - 1,
+              withinRight: sb.right <= rb.left + region.clientWidth + 1,
+            };
+          })
+        )?.hasInsetRing,
+    )
+    .toBe(true);
   // The box hugs content — its rendered height is its own content height (no grid-stretch dead space).
   expect(Math.abs((geo?.sectionHeight ?? 0) - (geo?.scrollHeight ?? -1))).toBeLessThanOrEqual(2);
-  expect(geo?.withinLeft).toBe(true);
-  expect(geo?.withinRight).toBe(true);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const section = document.querySelector('[id$="-avatars"]') as HTMLElement | null;
+            const region = document.querySelector('[role="region"]') as HTMLElement | null;
+            if (section === null || region === null) {
+              return null;
+            }
+            const sb = section.getBoundingClientRect();
+            const rb = region.getBoundingClientRect();
+            return {
+              hasInsetRing: getComputedStyle(section).boxShadow.includes("inset"),
+              sectionHeight: Math.round(sb.height),
+              scrollHeight: section.scrollHeight,
+              withinLeft: sb.left >= rb.left - 1,
+              withinRight: sb.right <= rb.left + region.clientWidth + 1,
+            };
+          })
+        )?.withinLeft,
+    )
+    .toBe(true);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const section = document.querySelector('[id$="-avatars"]') as HTMLElement | null;
+            const region = document.querySelector('[role="region"]') as HTMLElement | null;
+            if (section === null || region === null) {
+              return null;
+            }
+            const sb = section.getBoundingClientRect();
+            const rb = region.getBoundingClientRect();
+            return {
+              hasInsetRing: getComputedStyle(section).boxShadow.includes("inset"),
+              sectionHeight: Math.round(sb.height),
+              scrollHeight: section.scrollHeight,
+              withinLeft: sb.left >= rb.left - 1,
+              withinRight: sb.right <= rb.left + region.clientWidth + 1,
+            };
+          })
+        )?.withinRight,
+    )
+    .toBe(true);
 });
 
 // Header divider + top alignment (owner item 3): inside the real modal chrome, the `.shell-modal-header`
@@ -918,7 +1047,31 @@ test("the modal header divider spans the full content width and the columns shar
     };
   });
   // The divider (header border) spans the full modal content box, not the nav column.
-  expect(geo?.hasBorder).toBe(true);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const popup = document.querySelector('[data-slot="dialog-popup"]') as HTMLElement | null;
+            const header = document.querySelector(".shell-modal-header") as HTMLElement | null;
+            const firstSection = document.querySelector('[id^="settings-anchor-appearance-"]') as HTMLElement | null;
+            const userLabel = [...document.querySelectorAll("*")].find((n) => n.textContent === "User");
+            if (popup === null || header === null || firstSection === null || userLabel === undefined) {
+              return null;
+            }
+            const popupCS = getComputedStyle(popup);
+            const contentWidth = popup.clientWidth - Number.parseFloat(popupCS.paddingLeft) - Number.parseFloat(popupCS.paddingRight);
+            return {
+              headerWidth: Math.round(header.getBoundingClientRect().width),
+              contentWidth: Math.round(contentWidth),
+              hasBorder: getComputedStyle(header).borderBottomWidth !== "0px",
+              userTop: Math.round(userLabel.getBoundingClientRect().top),
+              sectionTop: Math.round(firstSection.getBoundingClientRect().top),
+            };
+          })
+        )?.hasBorder,
+    )
+    .toBe(true);
   expect(Math.abs((geo?.headerWidth ?? 0) - (geo?.contentWidth ?? -1))).toBeLessThanOrEqual(2);
   // "User" (nav) and the first section (pane) start at the same baseline.
   expect(Math.abs((geo?.userTop ?? 0) - (geo?.sectionTop ?? -1))).toBeLessThanOrEqual(2);

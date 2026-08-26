@@ -287,14 +287,137 @@ test("every readout row ties its label to its value — no gap to cross at any w
     return { gap: worst, missing: null, slack: widest - narrowest + columnGap, valueXs: xs.size };
   });
 
-  expect(worstGap.missing).toBeNull();
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const pane = document.querySelector('[data-slot="databank-content"]');
+            const labels = ["Origin", "Type", "Size", "Characters", "Passages", "Added", "Updated"];
+            let worst = 0;
+            let widest = 0;
+            let narrowest = Number.POSITIVE_INFINITY;
+            const xs = new Set<number>();
+            for (const name of labels) {
+              const label = [...(pane?.querySelectorAll("p,span") ?? [])].find((el) => el.textContent?.trim() === name && el.children.length === 0);
+              const value = label?.nextElementSibling;
+              if (label === undefined || value === null || value === undefined) {
+                return { gap: Number.POSITIVE_INFINITY, missing: name, slack: 0, valueXs: 0 };
+              }
+              // The label's TEXT, not its BOX. A fixed-width column puts its slack INSIDE the box, so a box-edge
+              // measurement reads ~6px while the eye crosses the whole column — which is exactly how the 152px
+              // control token passed this test for a day (side-eye 2026-08-19 N-7).
+              const range = document.createRange();
+              range.selectNodeContents(label);
+              const text = range.getBoundingClientRect();
+              worst = Math.max(worst, value.getBoundingClientRect().left - text.right);
+              widest = Math.max(widest, text.width);
+              narrowest = Math.min(narrowest, text.width);
+              xs.add(Math.round(value.getBoundingClientRect().left));
+            }
+            const grid = pane?.querySelector('[class*="grid-cols"]');
+            if (grid === null || grid === undefined) {
+              // NOT a grid ⇒ there is no shared track, so there is no irreducible cost to compare against and the
+              // pin has nothing to say — which is itself the failure (a stack of rows is the shape N-7 replaced).
+              return { gap: worst, missing: "the readout grid", slack: 0, valueXs: xs.size };
+            }
+            const columnGap = Number.parseFloat(getComputedStyle(grid).columnGap);
+            // What ONE shared column costs by construction: the shortest label's row carries the difference to the
+            // longest, plus the grid's own gap. Anything ABOVE this is track slack — the defect.
+            return { gap: worst, missing: null, slack: widest - narrowest + columnGap, valueXs: xs.size };
+          })
+        ).missing,
+    )
+    .toBeNull();
   // Every value still starts at ONE x — the property the column exists for, and the one a per-row
   // `max-content` would quietly lose.
-  expect(worstGap.valueXs).toBe(1);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const pane = document.querySelector('[data-slot="databank-content"]');
+            const labels = ["Origin", "Type", "Size", "Characters", "Passages", "Added", "Updated"];
+            let worst = 0;
+            let widest = 0;
+            let narrowest = Number.POSITIVE_INFINITY;
+            const xs = new Set<number>();
+            for (const name of labels) {
+              const label = [...(pane?.querySelectorAll("p,span") ?? [])].find((el) => el.textContent?.trim() === name && el.children.length === 0);
+              const value = label?.nextElementSibling;
+              if (label === undefined || value === null || value === undefined) {
+                return { gap: Number.POSITIVE_INFINITY, missing: name, slack: 0, valueXs: 0 };
+              }
+              // The label's TEXT, not its BOX. A fixed-width column puts its slack INSIDE the box, so a box-edge
+              // measurement reads ~6px while the eye crosses the whole column — which is exactly how the 152px
+              // control token passed this test for a day (side-eye 2026-08-19 N-7).
+              const range = document.createRange();
+              range.selectNodeContents(label);
+              const text = range.getBoundingClientRect();
+              worst = Math.max(worst, value.getBoundingClientRect().left - text.right);
+              widest = Math.max(widest, text.width);
+              narrowest = Math.min(narrowest, text.width);
+              xs.add(Math.round(value.getBoundingClientRect().left));
+            }
+            const grid = pane?.querySelector('[class*="grid-cols"]');
+            if (grid === null || grid === undefined) {
+              // NOT a grid ⇒ there is no shared track, so there is no irreducible cost to compare against and the
+              // pin has nothing to say — which is itself the failure (a stack of rows is the shape N-7 replaced).
+              return { gap: worst, missing: "the readout grid", slack: 0, valueXs: xs.size };
+            }
+            const columnGap = Number.parseFloat(getComputedStyle(grid).columnGap);
+            // What ONE shared column costs by construction: the shortest label's row carries the difference to the
+            // longest, plus the grid's own gap. Anything ABOVE this is track slack — the defect.
+            return { gap: worst, missing: null, slack: widest - narrowest + columnGap, valueXs: xs.size };
+          })
+        ).valueXs,
+    )
+    .toBe(1);
   // …and the column is exactly its content: the worst row's gap is the irreducible cost of sharing a track
   // (longest label − shortest + the grid gap), with NO slack on top. Derived rather than a number, so a
   // relabelling or a gap retune cannot rot it — and a fixed 152px control column fails it by ~90px.
-  expect(worstGap.gap).toBeLessThanOrEqual(worstGap.slack + 1);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const pane = document.querySelector('[data-slot="databank-content"]');
+            const labels = ["Origin", "Type", "Size", "Characters", "Passages", "Added", "Updated"];
+            let worst = 0;
+            let widest = 0;
+            let narrowest = Number.POSITIVE_INFINITY;
+            const xs = new Set<number>();
+            for (const name of labels) {
+              const label = [...(pane?.querySelectorAll("p,span") ?? [])].find((el) => el.textContent?.trim() === name && el.children.length === 0);
+              const value = label?.nextElementSibling;
+              if (label === undefined || value === null || value === undefined) {
+                return { gap: Number.POSITIVE_INFINITY, missing: name, slack: 0, valueXs: 0 };
+              }
+              // The label's TEXT, not its BOX. A fixed-width column puts its slack INSIDE the box, so a box-edge
+              // measurement reads ~6px while the eye crosses the whole column — which is exactly how the 152px
+              // control token passed this test for a day (side-eye 2026-08-19 N-7).
+              const range = document.createRange();
+              range.selectNodeContents(label);
+              const text = range.getBoundingClientRect();
+              worst = Math.max(worst, value.getBoundingClientRect().left - text.right);
+              widest = Math.max(widest, text.width);
+              narrowest = Math.min(narrowest, text.width);
+              xs.add(Math.round(value.getBoundingClientRect().left));
+            }
+            const grid = pane?.querySelector('[class*="grid-cols"]');
+            if (grid === null || grid === undefined) {
+              // NOT a grid ⇒ there is no shared track, so there is no irreducible cost to compare against and the
+              // pin has nothing to say — which is itself the failure (a stack of rows is the shape N-7 replaced).
+              return { gap: worst, missing: "the readout grid", slack: 0, valueXs: xs.size };
+            }
+            const columnGap = Number.parseFloat(getComputedStyle(grid).columnGap);
+            // What ONE shared column costs by construction: the shortest label's row carries the difference to the
+            // longest, plus the grid's own gap. Anything ABOVE this is track slack — the defect.
+            return { gap: worst, missing: null, slack: widest - narrowest + columnGap, valueXs: xs.size };
+          })
+        ).gap,
+    )
+    .toBeLessThanOrEqual(worstGap.slack + 1);
 });
 
 // CD1 (section.tsx's own doc): a read-only grouping gets the micro-caps kicker + a hairline rule, not the

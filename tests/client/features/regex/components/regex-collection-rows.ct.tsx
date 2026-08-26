@@ -165,7 +165,7 @@ test("every library row carries an EDITED stamp, so freshly-added rows are not i
   // Two rows, and the two subtitles must not be the same string — the stamps are three days apart.
   await expect.poll(async () => await group.getByText(EDITED_STAMP).allTextContents()).toHaveLength(2);
   const subtitles = await group.getByText(EDITED_STAMP).allTextContents();
-  expect(subtitles[0]).not.toBe(subtitles[1]);
+  await expect.poll(async () => (await group.getByText(EDITED_STAMP).allTextContents())[0]).not.toBe(subtitles[1]);
   // And it reads as an EDIT stamp, in the preset library's own words.
   expect(subtitles[0] ?? "").toMatch(NEW_SCRIPT_SUBTITLE);
 });

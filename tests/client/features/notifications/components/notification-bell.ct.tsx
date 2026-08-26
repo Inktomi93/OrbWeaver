@@ -108,12 +108,10 @@ test("Accept fires acceptInvite with the notification's inviteId, then dismisses
   await page.getByRole("button", { name: "Accept" }).click();
 
   await expect.poll(() => trpc.count("invites.acceptInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  const accepted = trpc.lastInput("invites.acceptInvite") as { inviteId?: unknown };
-  expect(accepted.inviteId).toBe("chatinvite_ct_1");
+  await expect.poll(async () => (trpc.lastInput("invites.acceptInvite") as { inviteId?: unknown }).inviteId).toBe("chatinvite_ct_1");
   // Acting on the invite clears its inbox row.
   await expect.poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  const dismissed = trpc.lastInput("notifications.dismiss") as { notificationId?: unknown };
-  expect(dismissed.notificationId).toBe("ntf_ct_1");
+  await expect.poll(async () => (trpc.lastInput("notifications.dismiss") as { notificationId?: unknown }).notificationId).toBe("ntf_ct_1");
 });
 
 test("Decline fires declineInvite + dismisses; the row leaves the inbox on refetch", async ({ mount, page }) => {
@@ -140,8 +138,7 @@ test("Decline fires declineInvite + dismisses; the row leaves the inbox on refet
   // The invalidate refetched the (now empty) inbox — the row is gone without a reload; this DOM
   // consequence is downstream of both the decline call and the dismiss, so await it directly.
   await expect(page.getByText("nate invited you to a chat")).toHaveCount(0);
-  const declined = trpc.lastInput("invites.declineInvite") as { inviteId?: unknown };
-  expect(declined.inviteId).toBe("chatinvite_ct_1");
+  await expect.poll(async () => (trpc.lastInput("invites.declineInvite") as { inviteId?: unknown }).inviteId).toBe("chatinvite_ct_1");
   await expect.poll(() => trpc.count("notifications.dismiss")).toBeGreaterThanOrEqual(1);
 });
 
@@ -242,8 +239,7 @@ test("an ALREADY-READ inbox writes nothing on mount", async ({ mount, page }) =>
   const component = await mount(<NotificationBellSheetStory />);
 
   await expect(component.getByText("nate invited you to a chat")).toBeVisible();
-  // ONESHOT-OK: the row rendering IS the landed read; the effect runs in that same commit, so a write it was
-  // going to make has already been made. A settled read of a negative.
+  // ONESHOT-OK: the row rendering IS the landed read; the effect runs in that same commit, so a write it was going to make has already been made. A settled read of a negative.
   expect(trpc.count("notifications.markAllRead")).toBe(0);
 });
 
@@ -296,8 +292,7 @@ test("a handoff-nominated row carries Accept — fires acceptHostHandoff with th
   await page.getByRole("button", { name: "Accept" }).click();
 
   await expect.poll(() => trpc.count("invites.acceptHostHandoff"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  const accepted = trpc.lastInput("invites.acceptHostHandoff") as { chatId?: unknown };
-  expect(accepted.chatId).toBe("chat_ct_target");
+  await expect.poll(async () => (trpc.lastInput("invites.acceptHostHandoff") as { chatId?: unknown }).chatId).toBe("chat_ct_target");
   // Acting on the nomination clears its inbox row.
   await expect.poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });
@@ -319,8 +314,5 @@ test("the inbox rides the tab's ONE socket — one connect, one attach, zero ext
   // The inbox room is attached — the barrier proving the socket did its work before the counts are read.
   await expect.poll(() => socket.attachedChannels()).toEqual(["notifications"]);
 
-  // ONESHOT-OK: settled by the attach poll above — the attach mutation is issued strictly AFTER the
-  // EventSource request the socket makes on mount, so once it is recorded every connect this mount is going
-  // to make has already been counted. The inbox is a ROOM, not a second stream: exactly ONE connect.
   expect(socket.connects()).toBe(1);
 });

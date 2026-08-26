@@ -29,8 +29,6 @@ test.describe("coarse touch floor", () => {
     const choices = page.getByRole("button", { name: ICON_CHOICE });
     await expect(choices.first()).toBeVisible();
     await expect.poll(async () => await choices.count()).toBeGreaterThan(4);
-    const count = await choices.count();
-
     // THE PITCH IS THE EXACT CLAIM, and a hit sweep alone cannot state it: this is a TILED run, so at a 44px
     // pitch the abutting 44px targets share their boundary sample and the sweep reports 43 for BOTH — one px
     // short of the floor it is actually delivering. (side-eye measured the same 43×43 for this option and
@@ -45,7 +43,6 @@ test.describe("coarse touch floor", () => {
     await expect.poll(async () => (await measurePitch(choices)).y).toBeGreaterThanOrEqual(floor);
 
     const pitch = await measurePitch(choices);
-    const measured = await hitBoxes(choices, count);
-    expect(measured.filter((m) => m.x < pitch.x - 1 || m.y < pitch.y - 1)).toEqual([]);
+    await expect.poll(async () => (await hitBoxes(choices, await choices.count())).filter((m) => m.x < pitch.x - 1 || m.y < pitch.y - 1)).toEqual([]);
   });
 });
