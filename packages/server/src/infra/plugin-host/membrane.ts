@@ -263,6 +263,17 @@ function handleSafeToDump(ctx: QuickJSContext, rootH: QuickJSHandle): boolean {
   }
 }
 
+type DumpGuestResult = { readonly ok: true; readonly value: unknown } | { readonly ok: false };
+
+/** The ONE guest-handle materialization doorway. The explicit walk is deliberately inside the helper so a
+ *  caller cannot remember the guard but accidentally put it after `ctx.dump`. */
+function tryDumpGuestValue(ctx: QuickJSContext, handle: QuickJSHandle): DumpGuestResult {
+  if (!handleSafeToDump(ctx, handle)) {
+    return { ok: false };
+  }
+  return { ok: true, value: ctx.dump(handle) as unknown };
+}
+
 /** The DECLARATIVE UI plane (plugin-ui-plane #679 U1). Two host fns, both capability `ui.surface`:
  *   - `register(def)` — SYNC, activation-time (the `tools.register` mirror): validate the serializable metadata
  *     host-side (`pluginSurfaceRegistrationMetaSchema` — the trust boundary), keep the guest `onAction` HANDLE,
@@ -287,27 +298,26 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     using tierH = ctx.getProp(defHandle, "tier");
     using specH = ctx.getProp(defHandle, "spec");
     const onAction = ctx.getProp(defHandle, "onAction");
-    // DoS PRE-WALK (#707 Finding A): refuse a spec too deeply nested to `ctx.dump` + recursively parse BEFORE
-    // either walks it on the host stack. Without this, a ~2000-deep tree throws a `RangeError` past `safeParse`
-    // (activation-fatal, defeating §4.9) and a ~3000-deep tree overflows `ctx.dump` and corrupts the shared
-    // runtime. `spec` absent ⇒ `typeof "undefined"`, nothing to walk (a scripted-tier surface has no spec).
-    if (ctx.typeof(specH) !== "undefined" && !handleSafeToDump(ctx, specH)) {
-      onAction.dispose();
-      runtime.logWarn("ui.register refused a surface: spec is too deeply nested or too large to validate");
-      return ctx.undefined;
-    }
     // The materialize + parse runs under a BELT: ANY throw (a residual `RangeError` the pre-walk did not pre-empt,
     // a marshalling failure) becomes the §4.9 SOFT refusal, never an activation-fatal throw. `safeParse` catches
     // `ZodError` but NOT a `RangeError`, so the try/catch is load-bearing, not decoration.
     // `spec` absent ⇒ `ctx.dump` yields `undefined`, which the schema's optional `spec` accepts.
     let parsed: ReturnType<typeof pluginSurfaceRegistrationMetaSchema.safeParse>;
     try {
+      const id = tryDumpGuestValue(ctx, idH);
+      const anchor = tryDumpGuestValue(ctx, anchorH);
+      const title = tryDumpGuestValue(ctx, titleH);
+      const tier = tryDumpGuestValue(ctx, tierH);
+      const spec = tryDumpGuestValue(ctx, specH);
+      if (!(id.ok && anchor.ok && title.ok && tier.ok && spec.ok)) {
+        throw new Error("metadata is too deeply nested or too large to validate");
+      }
       const meta = {
-        id: ctx.dump(idH) as unknown,
-        anchor: ctx.dump(anchorH) as unknown,
-        title: ctx.dump(titleH) as unknown,
-        tier: ctx.dump(tierH) as unknown,
-        spec: ctx.dump(specH) as unknown,
+        id: id.value,
+        anchor: anchor.value,
+        title: title.value,
+        tier: tier.value,
+        spec: spec.value,
       };
       parsed = pluginSurfaceRegistrationMetaSchema.safeParse(meta);
     } catch (err) {
@@ -769,9 +779,16 @@ function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membrane
     using descHandle = ctx.getProp(defHandle, "description");
     using paramsHandle = ctx.getProp(defHandle, "parameters");
     const handler = ctx.getProp(defHandle, "handler");
-    const name = ctx.dump(nameHandle) as unknown;
-    const description = ctx.dump(descHandle) as unknown;
-    const parameters = ctx.dump(paramsHandle) as unknown;
+    const dumpedName = tryDumpGuestValue(ctx, nameHandle);
+    const dumpedDescription = tryDumpGuestValue(ctx, descHandle);
+    const dumpedParameters = tryDumpGuestValue(ctx, paramsHandle);
+    if (!(dumpedName.ok && dumpedDescription.ok && dumpedParameters.ok)) {
+      handler.dispose();
+      throw new Error("plugin host: tools.register metadata is too deeply nested");
+    }
+    const name = dumpedName.value;
+    const description = dumpedDescription.value;
+    const parameters = dumpedParameters.value;
     if (typeof name !== "string" || typeof description !== "string" || typeof parameters !== "object" || parameters === null) {
       handler.dispose();
       throw new Error("plugin host: tools.register definition must be { name, description, parameters, handler }");
@@ -801,8 +818,14 @@ function setTransforms(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Mem
     using nameHandle = ctx.getProp(defHandle, "name");
     using pointHandle = ctx.getProp(defHandle, "point");
     const apply = ctx.getProp(defHandle, "apply");
-    const name = ctx.dump(nameHandle) as unknown;
-    const point = ctx.dump(pointHandle) as unknown;
+    const dumpedName = tryDumpGuestValue(ctx, nameHandle);
+    const dumpedPoint = tryDumpGuestValue(ctx, pointHandle);
+    if (!(dumpedName.ok && dumpedPoint.ok)) {
+      apply.dispose();
+      throw new Error("plugin host: transforms.register metadata is too deeply nested");
+    }
+    const name = dumpedName.value;
+    const point = dumpedPoint.value;
     if (typeof name !== "string" || (point !== "user_input" && point !== "assembled_dynamic")) {
       apply.dispose();
       throw new Error("plugin host: transforms.register definition must be { name, point: 'user_input'|'assembled_dynamic', apply }");
@@ -829,7 +852,11 @@ function setEvents(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     if (typeHandle === undefined || handlerHandle === undefined) {
       throw new Error("plugin host: events.on requires (type, handler)");
     }
-    const type = ctx.dump(typeHandle) as unknown;
+    const dumpedType = tryDumpGuestValue(ctx, typeHandle);
+    if (!dumpedType.ok) {
+      throw new Error("plugin host: events.on type is too deeply nested");
+    }
+    const type = dumpedType.value;
     if (typeof type !== "string" || !TRIGGER_TYPES.has(type)) {
       throw new Error("plugin host: events.on type must be a Tier-1 trigger type (chat/domain taxonomy)");
     }
@@ -990,14 +1017,16 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     // arg overflows `ctx.dump` HOST-side and CORRUPTS the shared WASM runtime (the `list_empty` dispose abort, a
     // crash of every co-resident plugin), which is NOT a contained refusal (#707 Finding C — reachable from any
     // async host fn with any grant). Refuse as guest errors-as-data; settles synchronously, so no `pending`.
+    const args: unknown[] = [];
     for (const handle of argHandles) {
-      if (!handleSafeToDump(ctx, handle)) {
+      const dumped = tryDumpGuestValue(ctx, handle);
+      if (!dumped.ok) {
         using err = ctx.newError(`plugin host: ${name} argument is too deeply nested`);
         deferred.reject(err);
         return deferred.handle;
       }
+      args.push(dumped.value);
     }
-    const args = argHandles.map((handle) => ctx.dump(handle) as unknown);
 
     // THE INBOUND ARG CAP — the mirror of the result cap below, checked BEFORE the in-flight gate so a refused
     // call never charges a slot. Both refusal arms settle synchronously, so neither registers in `pending`.

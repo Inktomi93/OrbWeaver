@@ -99,6 +99,7 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
 /** Optional membrane wiring the net.fetch / transforms / events seams need (default: no hosts, noop collect). */
 interface RuntimeExtras {
   readonly netHosts?: readonly string[];
+  readonly collectTool?: MembraneRuntime["collectTool"];
   readonly collectTransform?: MembraneRuntime["collectTransform"];
   readonly collectEvent?: MembraneRuntime["collectEvent"];
   readonly collectSurface?: MembraneRuntime["collectSurface"];
@@ -115,7 +116,7 @@ function makeRuntime(grants: readonly PluginCapability[], canWrite: boolean, bri
     currentToken: () => TOKEN,
     inFlight: { count: 0 },
     pending: new Set(),
-    collectTool: () => undefined,
+    collectTool: extra.collectTool ?? ((): void => undefined),
     collectTransform: extra.collectTransform ?? ((): void => undefined),
     collectEvent: extra.collectEvent ?? ((): void => undefined),
     collectSurface: extra.collectSurface ?? ((): void => undefined),
@@ -308,6 +309,31 @@ describe("attachMembrane — opaque handle + host-authority ceiling", () => {
       expect(out).toContain("host authority");
       expect(fake.writes.count).toBe(0);
     });
+  });
+});
+
+describe("attachMembrane — sync registration metadata is guarded before ctx.dump", () => {
+  test("a deeply nested tools.register parameter schema is refused before collection", async () => {
+    const { bridge } = fakeBridge();
+    const collected: unknown[] = [];
+    const runtime = makeRuntime(["tools.register"], false, bridge, {
+      collectTool: (registration, handler): void => {
+        collected.push(registration);
+        handler.dispose();
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      const result = ctx.evalCode(
+        `let parameters = { type: "object" };
+         for (let i = 0; i < 96; i++) { parameters = { child: parameters }; }
+         let outcome = "collected";
+         try { host.tools.register({ name: "deep", description: "d", parameters, handler: () => {} }); }
+         catch (e) { outcome = "caught:" + e.message; }
+         outcome`,
+      );
+      expect(readString(ctx, result.error ?? result.value)).toContain("too deeply nested");
+    });
+    expect(collected).toEqual([]);
   });
 });
 
