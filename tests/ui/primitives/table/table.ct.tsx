@@ -5,7 +5,7 @@
 // freshly-derived-array footgun (ui-primitive-contract §13).
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { BasicTableStory, NullableSortStory, PaginatedTableStory, ShrinkingDataStory } from "./table.fixtures.tsx";
+import { BasicTableStory, InvalidPageSizeTableStory, NullableSortStory, PaginatedTableStory, ShrinkingDataStory } from "./table.fixtures.tsx";
 
 test("renders columns and rows", async ({ mount, page }) => {
   await mount(<BasicTableStory />);
@@ -96,6 +96,13 @@ test("pagination: prev/next navigate pages and self-disable at the bounds", asyn
 
   await prev.click();
   await expect(page.getByText("Page 2 of 3")).toBeVisible();
+});
+
+test("pagination clamps page sizes below one to one row per page", async ({ mount, page }) => {
+  await mount(<InvalidPageSizeTableStory pageSize={0.5} />);
+  await expect(page.getByText("Page 1 of 12")).toBeVisible();
+  await expect(page.getByText("1–1 of 12")).toBeVisible();
+  await expect(page.getByRole("row")).toHaveCount(2); // 1 header + 1 data row
 });
 
 test("row selection: select-all checks every row and goes indeterminate on a partial selection", async ({ mount, page }) => {

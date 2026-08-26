@@ -15,6 +15,12 @@
 // pattern below): a zero-norm vector normalizes to itself (all zeros).
 const ZERO_NORM_GUARD = 1;
 
+function assertDimension(vector: Float32Array, expected: number, operation: string): void {
+  if (vector.length !== expected) {
+    throw new Error(`${operation}: vector dim mismatch (got ${vector.length}, expected ${expected})`);
+  }
+}
+
 // ── Pure JS (single-pair / single-vector) ───────────────────────────────────
 
 /**
@@ -25,9 +31,7 @@ const ZERO_NORM_GUARD = 1;
  * degrades recall in production.
  */
 export function cosineSim(a: Float32Array, b: Float32Array): number {
-  if (a.length !== b.length) {
-    throw new Error(`cosineSim: vector dim mismatch (got ${a.length}, expected ${b.length})`);
-  }
+  assertDimension(a, b.length, "cosineSim");
   let s = 0;
   for (let i = 0; i < a.length; i += 1) {
     s += (a[i] ?? 0) * (b[i] ?? 0);
@@ -62,6 +66,7 @@ export function mean(vecs: readonly Float32Array[]): Float32Array {
   const dim = first.length;
   const out = new Float32Array(dim);
   for (const v of vecs) {
+    assertDimension(v, dim, "mean");
     for (let d = 0; d < dim; d += 1) {
       out[d] = (out[d] ?? 0) + (v[d] ?? 0);
     }
@@ -120,6 +125,7 @@ export function pairwiseCosine(vecs: readonly Float32Array[]): { sim: Float32Arr
   for (let i = 0; i < n; i += 1) {
     const v = vecs[i];
     if (v !== undefined) {
+      assertDimension(v, dim, "pairwiseCosine");
       normalizeInto(v, flat, i * dim, dim);
     }
   }
@@ -158,6 +164,7 @@ export function cosineToMany(target: Float32Array, others: readonly Float32Array
   for (let i = 0; i < k; i += 1) {
     const v = others[i];
     if (v !== undefined) {
+      assertDimension(v, dim, "cosineToMany");
       normalizeInto(v, scratch, dim, dim);
       out[i] = dotRows(scratch, 0, dim, dim);
     }

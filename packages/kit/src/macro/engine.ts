@@ -3,7 +3,7 @@
 // re-exported from the barrel — can import `processMacros` without an import CYCLE (index → row-macros →
 // index would trip `noImportCycles`/`no-circular`; index → row-macros → engine does not).
 
-import { trimContent } from "./content.ts";
+import { trimContent, utf8ByteLength } from "./content.ts";
 import { evaluateMacros } from "./evaluator.ts";
 import { parseMacros } from "./parser.ts";
 import { createDefaultRegistry } from "./registry.ts";
@@ -21,7 +21,7 @@ const MAX_OUTPUT_BYTES = 1_000_000;
 // a write-boundary schema admits is a 100 KB card field / world-info `content` (TEXT_MAX = CONTENT_MAX =
 // 100_000). This cap sits at 2 MB — 20× that ceiling and 2× the output cap — so any real input (a maxed
 // card field, or a section concatenating several) passes, while a pathological multi-megabyte input is
-// refused before it is parsed. Measured in `.length` (UTF-16 units) to match MAX_OUTPUT_BYTES's accounting.
+// refused before it is parsed. Input and output use the same UTF-8 byte measure.
 const MAX_INPUT_BYTES = 2_000_000;
 
 // Intra-file helper — `createMacroContext` below is its only caller. Off the public surface (the
@@ -89,7 +89,12 @@ export function createMacroContext(options: ProcessMacroOptions, registry: Macro
 export function processMacros(text: string, options: ProcessMacroOptions, registry: MacroRegistry = globalMacroRegistry): string {
   // Input belt (see MAX_INPUT_BYTES): refuse a pathological input before parsing. Degrade-don't-throw —
   // the engine's posture on every cap — so a hostile field can never block the shared event loop.
-  if (text.length > MAX_INPUT_BYTES) {
+  const inputBytes = utf8ByteLength(text);
+  if (inputBytes === null) {
+    options.onWarn?.("[Macro Engine] input contains an unpaired UTF-16 surrogate — rendering skipped");
+    return "";
+  }
+  if (inputBytes > MAX_INPUT_BYTES) {
     options.onWarn?.(`[Macro Engine] input limit ${MAX_INPUT_BYTES} bytes exceeded — rendering skipped`);
     return "";
   }

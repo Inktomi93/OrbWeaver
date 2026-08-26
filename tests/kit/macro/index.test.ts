@@ -475,6 +475,28 @@ test("output over the 1MB cap truncates to exactly the cap and warns once", () =
   expect(warnings.filter((w) => w.includes("output limit"))).toHaveLength(1);
 });
 
+test("the output cap measures UTF-8 bytes rather than UTF-16 code units", () => {
+  const oversized = "😀".repeat(300_000); // 1.2 MB UTF-8, 600k UTF-16 code units
+  const warnings: string[] = [];
+  const out = processMacros(oversized, opts({ onWarn: (m) => warnings.push(m) }));
+  expect(out).toBe("");
+  expect(warnings.filter((w) => w.includes("output limit 1000000 bytes"))).toHaveLength(1);
+});
+
+test("an unpaired UTF-16 surrogate is refused without throwing", () => {
+  const warnings: string[] = [];
+  const out = processMacros("\uD800", opts({ onWarn: (m) => warnings.push(m) }));
+  expect(out).toBe("");
+  expect(warnings.filter((w) => w.includes("unpaired UTF-16 surrogate"))).toHaveLength(1);
+});
+
+test("an expansion producing an unpaired UTF-16 surrogate is truncated without throwing", () => {
+  const warnings: string[] = [];
+  const out = processMacros("before{{broken}}after", opts({ env: { broken: "\uD800" }, onWarn: (m) => warnings.push(m) }));
+  expect(out).toBe("before");
+  expect(warnings.filter((w) => w.includes("output contains an unpaired UTF-16 surrogate"))).toHaveLength(1);
+});
+
 // ── {{expr::<cel>}} macro (02 §3) — CEL surfaced inside templates over ctx.celBindings ─────────────
 
 test("{{expr}} renders a boolean CEL result as true/false", () => {
