@@ -32,9 +32,10 @@ import { FileText, Icon, Search } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
+import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FormDialog } from "#components";
 import { SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useDebouncedValue } from "#lib";
@@ -57,28 +58,56 @@ export interface AddChatDocumentDialogProps {
 }
 
 export function AddChatDocumentDialog({ chatId, open, onOpenChange, activeIds }: AddChatDocumentDialogProps): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const attach = useAttachDocumentToChat({ trpc, invalidation });
+  const ownedRef = useRef(false);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  const attachDocument = async (documentId: DocumentId): Promise<void> => {
+    if (ownedRef.current) {
+      return;
+    }
+    ownedRef.current = true;
+    setFailure(null);
+    try {
+      await attach.mutateAsync({ chatId, documentId });
+      onOpenChange(false);
+    } catch {
+      setFailure("Couldn't add the document to this chat.");
+    } finally {
+      ownedRef.current = false;
+    }
+  };
+
   return (
     <FormDialog
       description="Its indexed passages join what this chat can pull from — for everyone in the room. You can take it back out here at any time."
-      onOpenChange={onOpenChange}
+      onOpenChange={(next): void => {
+        if (next || !ownedRef.current) {
+          onOpenChange(next);
+        }
+      }}
       open={open}
       title="Add a document to this chat"
     >
       {/* Non-suspending: the dialog frame paints at once and the candidate list fills in, so opening the
           picker never blanks the panel behind it through a shared suspense boundary. */}
-      <PickerBody activeIds={activeIds} chatId={chatId} onAttached={(): void => onOpenChange(false)} />
+      <PickerBody activeIds={activeIds} failure={failure} isOwned={attach.isPending} onAttach={attachDocument} />
     </FormDialog>
   );
 }
 
 function PickerBody({
-  chatId,
   activeIds,
-  onAttached,
+  failure,
+  isOwned,
+  onAttach,
 }: {
-  readonly chatId: ChatId;
   readonly activeIds: readonly DocumentId[];
-  readonly onAttached: () => void;
+  readonly failure: string | null;
+  readonly isOwned: boolean;
+  readonly onAttach: (documentId: DocumentId) => Promise<void>;
 }): ReactElement {
   const trpc = useTRPC();
   const [query, setQuery] = useState("");
@@ -94,10 +123,11 @@ function PickerBody({
       <Input aria-label="Search your documents" onValueChange={setQuery} placeholder="Search your documents" value={query} />
       <PickerCandidates
         candidates={candidates}
-        chatId={chatId}
+        failure={failure}
         isPending={bank.isPending}
+        isOwned={isOwned}
         needle={needle}
-        onAttached={onAttached}
+        onAttach={onAttach}
         onClearSearch={(): void => setQuery("")}
         bankIsEmpty={documents.length === 0}
       />
@@ -107,25 +137,23 @@ function PickerBody({
 
 function PickerCandidates({
   candidates,
-  chatId,
+  failure,
   isPending,
+  isOwned,
   needle,
-  onAttached,
+  onAttach,
   onClearSearch,
   bankIsEmpty,
 }: {
   readonly candidates: readonly { readonly id: DocumentId; readonly name: string; readonly byteSize: number }[];
-  readonly chatId: ChatId;
+  readonly failure: string | null;
   readonly isPending: boolean;
+  readonly isOwned: boolean;
   readonly needle: string;
-  readonly onAttached: () => void;
+  readonly onAttach: (documentId: DocumentId) => Promise<void>;
   readonly onClearSearch: () => void;
   readonly bankIsEmpty: boolean;
 }): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const attach = useAttachDocumentToChat({ trpc, invalidation });
-
   if (isPending) {
     return <SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />;
   }
@@ -171,11 +199,9 @@ function PickerCandidates({
           actions={
             <Button
               aria-label={`Add ${document.name} to this chat`}
+              disabled={isOwned}
               intent="secondary"
-              onClick={(): void => {
-                attach.mutate({ chatId, documentId: document.id });
-                onAttached();
-              }}
+              onClick={(): void => void onAttach(document.id)}
               size="sm"
               type="button"
             >
@@ -187,6 +213,11 @@ function PickerCandidates({
           title={document.name}
         />
       ))}
+      {failure === null ? null : (
+        <Text className="text-destructive" role="alert" voice="label">
+          {failure}
+        </Text>
+      )}
     </Stack>
   );
 }

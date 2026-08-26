@@ -92,7 +92,7 @@ import { buildCastAvatarMaps, buildCastNameContext, DEFAULT_GROUP_CONFIG } from 
 import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
-import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -103,6 +103,7 @@ import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { CharacterGalleryDialog } from "../../../../packages/client/src/features/chat/anchors/character-gallery-dialog.tsx";
+import { AddChatBookDialog } from "../../../../packages/client/src/features/chat/components/add-chat-book-dialog.tsx";
 import { AddChatDocumentDialog } from "../../../../packages/client/src/features/chat/components/add-chat-document-dialog.tsx";
 import { AppearanceAvatarsSection } from "../../../../packages/client/src/features/chat/components/appearance-avatars-section.tsx";
 import { AppearanceMessageDetailsSection } from "../../../../packages/client/src/features/chat/components/appearance-message-details-section.tsx";
@@ -2437,6 +2438,31 @@ export function AddChatDocumentDialogStory({ activeIds = [] }: { readonly active
           open={open}
         />
         <p data-testid="picker-closes">{String(closes)}</p>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The host-only lorebook picker, kept open by a controlled harness so its durable-write ownership and
+ *  close request are observable independently. */
+export function AddChatBookDialogStory({ attachedIds = [] }: { readonly attachedIds?: readonly WorldBookId[] } = {}): ReactElement {
+  const [open, setOpen] = useState(true);
+  const [closes, setCloses] = useState(0);
+  return (
+    <CtDataProviders>
+      <div>
+        <AddChatBookDialog
+          attachedIds={attachedIds}
+          chatId={CHAT_ID}
+          onOpenChange={(next): void => {
+            setOpen(next);
+            if (!next) {
+              setCloses((n) => n + 1);
+            }
+          }}
+          open={open}
+        />
+        <p data-testid="book-picker-closes">{String(closes)}</p>
       </div>
     </CtDataProviders>
   );
