@@ -1435,6 +1435,41 @@
       ]
     },
     {
+      "path": "docs/reviews/stickler/2026-08-26-issue-751-caught-failure-ownership.md",
+      "assignedSha256": "ef4bc94aa052339d892051f2f6729a50ad0e8f8aca413f59a7c4e5738efaf7cf",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "ef4bc94aa052339d892051f2f6729a50ad0e8f8aca413f59a7c4e5738efaf7cf",
+      "verifiedCommit": "e3177c9b3f6b070438f9cb1d6fb72c17bed93707",
+      "verifiedAt": "2026-08-26",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-26-issue-751-caught-failure-ownership.md:1-186 full read and exact-byte integration receipt",
+        "runtime-only range 320e4d7a9..62461134d passed 65 client/server plus 69 tooling tests and 6 scoped CTs",
+        "three ts7 programs, scoped Biome/ESLint, doc catalog, diff-check, and clean-worktree proof passed"
+      ],
+      "summary": "Independent bounded review of issue #751: approves the repaired runtime-only stack and rejects activation of the incomplete caught-failure gate and marker census.",
+      "claims": [
+        {
+          "claim": "The runtime-only repairs are integration-clean, while the incomplete caught-failure gate remains banked and #751 remains Running.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#751"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/providers/vllm/engine/wake-gate.ts:156"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/infra/providers/vllm/engine/wake-gate.test.ts:89"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/reviews/stickler/2026-08-26-issue-753-async-ownership.md",
       "assignedSha256": "94ea566e7fb9d1f2ba5050ba066250d68fc0838fe1835a0e41dc3cf4cce6370f",
       "disposition": "current",
