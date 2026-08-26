@@ -15,11 +15,15 @@ vi.mock("node:fs", async (importOriginal) => {
     mkdirSync: (...args: Parameters<typeof real.mkdirSync>) => (fsFailure.operation === "read" ? undefined : real.mkdirSync(...args)),
     writeFileSync: (...args: Parameters<typeof real.writeFileSync>) => (fsFailure.operation === "read" ? undefined : real.writeFileSync(...args)),
     readFileSync: (...args: Parameters<typeof real.readFileSync>) => {
-      if (fsFailure.operation === "read") throw Object.assign(new Error(`planted ${fsFailure.code} token failure`), { code: fsFailure.code });
+      if (fsFailure.operation === "read") {
+        throw Object.assign(new Error(`planted ${fsFailure.code} token failure`), { code: fsFailure.code });
+      }
       return (real.readFileSync as (...inner: unknown[]) => unknown)(...args);
     },
     unlinkSync: (...args: Parameters<typeof real.unlinkSync>) => {
-      if (fsFailure.operation === "unlink") throw Object.assign(new Error(`planted ${fsFailure.code} pidfile failure`), { code: fsFailure.code });
+      if (fsFailure.operation === "unlink") {
+        throw Object.assign(new Error(`planted ${fsFailure.code} pidfile failure`), { code: fsFailure.code });
+      }
       return real.unlinkSync(...args);
     },
     statSync: (path: Parameters<typeof real.statSync>[0], options?: Parameters<typeof real.statSync>[1]) => {

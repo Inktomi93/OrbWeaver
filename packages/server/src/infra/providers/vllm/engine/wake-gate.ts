@@ -64,7 +64,7 @@ function utilFractions(): EngineUtilFractions {
 export interface WakeGateDeps {
   readonly repoRoot: string;
   /** The HONEST sleep probe — `GET /is_sleeping` on the engine itself (never /health, never the registry). */
-  readonly isSleeping: (engine: VllmEngine) => Promise<boolean>;
+  readonly isSleeping: (engine: VllmEngine) => Promise<boolean | null>;
   readonly reap: (repoRoot: string) => Promise<number[]>;
   readonly queryGpu: typeof queryGpuVram;
   readonly wakeAndAwait: (engine: VllmEngine) => Promise<boolean>;
@@ -153,7 +153,15 @@ export async function ensureAwake(engine: VllmEngine, deps: WakeGateDeps = defau
   if (until !== undefined && deps.now() < until) {
     return; // observed awake within the TTL — dispatch straight through (no HTTP).
   }
-  if (!(await deps.isSleeping(engine))) {
+  const sleeping = await deps.isSleeping(engine);
+  if (sleeping === null) {
+    throw new ProviderError({
+      kind: "server",
+      retryable: true,
+      message: `vllm ${engine} engine sleep state is unavailable — dispatch refused because treating an unmeasurable engine as awake can hang on a paused scheduler.`,
+    });
+  }
+  if (!sleeping) {
     awakeUntil.set(engine, deps.now() + AWAKE_TTL_MS);
     return; // the engine itself says it is awake (a down engine also lands here — the dispatch maps that error).
   }

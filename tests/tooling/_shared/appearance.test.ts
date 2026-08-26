@@ -7,7 +7,6 @@
 // element it lands on, and that CLI misuse is refused instead of silently doing nothing.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import type { BrowserContext, Route } from "@playwright/test";
 import {
   appearancePresetNames,
   applyAppearanceFlag,
@@ -19,6 +18,7 @@ import {
   parseAppearancePatch,
   trpcProcedureIndex,
 } from "@orb/tooling/_shared/appearance";
+import type { BrowserContext, Route } from "@playwright/test";
 import { installSettingsShim } from "../../../tooling/src/_shared/appearance.ts";
 import { parseSnapArgs } from "../../../tooling/src/snap/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
@@ -160,8 +160,9 @@ test("no appearance flag = the account's real state (the shim is not installed a
 test("a failed real-response fallback rejects the appearance shim instead of reporting a usable route", async () => {
   let handler: ((route: Route) => Promise<void>) | undefined;
   const context = {
-    route: async (_glob: string, registered: (route: Route) => Promise<void>) => {
+    route: (_glob: string, registered: (route: Route) => Promise<void>) => {
       handler = registered;
+      return Promise.resolve();
     },
   } as unknown as BrowserContext;
   await installSettingsShim(context, { appearance: { reducedMotion: false }, theme: null });

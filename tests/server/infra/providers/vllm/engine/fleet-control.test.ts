@@ -11,8 +11,8 @@ import {
   capacityWarnings,
   clearHold,
   decideWake,
-  holdMarkerPath,
   getIsSleeping,
+  holdMarkerPath,
   initialAutoSleepState,
   isEngineIdle,
   isHeld,
@@ -37,13 +37,26 @@ const GIB = 1_073_741_824;
 afterEach(() => vi.unstubAllGlobals());
 
 test("an unreadable sleep-state probe cannot be reported as a successful wake", async () => {
-  vi.stubGlobal("fetch", vi.fn(async (input: string | URL) => {
-    if (String(input).includes("/wake_up")) return new Response(null, { status: 200 });
-    throw new Error("planted sleep-state probe failure");
-  }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: string | URL) => {
+      if (String(input).includes("/wake_up")) {
+        return Promise.resolve(new Response(null, { status: 200 }));
+      }
+      return Promise.reject(new Error("planted sleep-state probe failure"));
+    }),
+  );
   await expect(getIsSleeping("gen")).resolves.toBeNull();
   let now = 0;
-  await expect(postWakeAndAwait("gen", { now: () => now, sleep: async (ms) => { now += ms; } })).resolves.toBe(false);
+  await expect(
+    postWakeAndAwait("gen", {
+      now: () => now,
+      sleep: (ms) => {
+        now += ms;
+        return Promise.resolve();
+      },
+    }),
+  ).resolves.toBe(false);
 });
 
 const UTIL: EngineUtilFractions = {

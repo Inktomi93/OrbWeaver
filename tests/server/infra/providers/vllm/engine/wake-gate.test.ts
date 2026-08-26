@@ -86,6 +86,26 @@ describe("ensureAwake — awake engines are a no-op", () => {
 });
 
 describe("ensureAwake — sleep detection is HONEST (the engine, not the supervisor registry)", () => {
+  test("an unmeasurable sleep state refuses dispatch and is not cached as awake", async () => {
+    let probes = 0;
+    const d = deps({
+      isSleeping: () => {
+        probes += 1;
+        // Deliberately model the production probe's runtime null while remaining compilable against the
+        // old boolean-only dependency contract; the old gate treated this value as awake and cached it.
+        return Promise.resolve(null) as Promise<boolean>;
+      },
+    });
+
+    const first = await expectProviderError(ensureAwake("embed", d));
+    const second = await expectProviderError(ensureAwake("embed", d));
+
+    expect(first.retryable).toBe(true);
+    expect(first.message).toContain("sleep state is unavailable");
+    expect(second.message).toContain("sleep state is unavailable");
+    expect(probes).toBe(2);
+  });
+
   test("sleeping + headroom + not held → wake runs, resolves (dispatch proceeds)", async () => {
     const t = trackWake();
     await ensureAwake("rerank", deps({ wakeAndAwait: t.wake }));

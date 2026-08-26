@@ -27,9 +27,13 @@ const ANIMATION = `<style>
 </style>`;
 
 /** A minimal __orb bridge whose motion() answers with the given snapshot. */
-function page(motionJson: string, opts: { animated?: boolean; resetThrows?: boolean; settleThrows?: boolean; missingReset?: boolean; missingSettle?: boolean } = {}): string {
+function page(
+  motionJson: string,
+  opts: { animated?: boolean; resetThrows?: boolean; settleThrows?: boolean; missingReset?: boolean; missingSettle?: boolean } = {},
+): string {
   const animated = opts.animated ?? true;
-  const resetEvidence = opts.missingReset === true ? "" : `resetEvidence: ${opts.resetThrows === true ? '() => { throw new Error("planted reset failure"); }' : "() => {}"},`;
+  const resetEvidence =
+    opts.missingReset === true ? "" : `resetEvidence: ${opts.resetThrows === true ? '() => { throw new Error("planted reset failure"); }' : "() => {}"},`;
   const motionFlaggersSettled =
     opts.missingSettle === true
       ? ""

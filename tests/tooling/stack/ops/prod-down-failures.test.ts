@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/useNamingConvention: module mocks must preserve the production export names.
 import process from "node:process";
 import { vi } from "vitest";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -54,7 +55,9 @@ test("SIGKILL surfaces permission failure instead of reporting a live process st
   let calls = 0;
   const kill = vi.spyOn(process, "kill").mockImplementation((() => {
     calls += 1;
-    if (calls === 2) throw signalError("EPERM");
+    if (calls === 2) {
+      throw signalError("EPERM");
+    }
     return true;
   }) as typeof process.kill);
   try {

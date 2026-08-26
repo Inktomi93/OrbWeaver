@@ -36,7 +36,9 @@ export function generateProseBaseline(root: string): number {
       const slots = (parsed as { slots?: unknown }).slots;
       return typeof slots === "object" && slots !== null ? (slots as Record<string, BaselineRow>) : {};
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return {};
+      }
       throw error;
     }
   }

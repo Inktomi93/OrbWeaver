@@ -16,7 +16,11 @@ test("cross-origin CSSOM SecurityError skips only that sheet", () => {
   vi.stubGlobal("CSSGroupingRule", FakeGroupingRule);
   vi.stubGlobal("document", {
     styleSheets: [
-      { get cssRules(): never { throw Object.assign(new Error("cross origin"), { name: "SecurityError" }); } },
+      {
+        get cssRules(): never {
+          throw Object.assign(new Error("cross origin"), { name: "SecurityError" });
+        },
+      },
       { cssRules: [{ selectorText: ".live" }] },
     ],
   });

@@ -295,7 +295,9 @@ describe("bindDurableLocalToUser — the three arms", () => {
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => hints.get(key) ?? null,
       setItem: (key: string, value: string): void => {
-        if (key === "orb:pending-legacy-adoption") throw new Error("pending owner refused");
+        if (key === "orb:pending-legacy-adoption") {
+          throw new Error("pending owner refused");
+        }
         hints.set(key, value);
       },
       removeItem: (key: string) => hints.delete(key),
@@ -395,7 +397,9 @@ describe("bindDurableLocalToUser — the three arms", () => {
     const shell = storeDouble(map);
     const drafts = storeDouble(map);
     const draftStorage = drafts.api.persist.getOptions().storage;
-    if (draftStorage === undefined) throw new Error("draft storage double must exist");
+    if (draftStorage === undefined) {
+      throw new Error("draft storage double must exist");
+    }
     let failOnce = true;
     registerDurableLocalStore({ prefix: "orb:", name: "shell", api: shell.api, reset: shell.reset });
     registerDurableLocalStore({
