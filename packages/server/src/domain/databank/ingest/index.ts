@@ -42,6 +42,19 @@ interface DocCounts {
   readonly chunksPruned: number;
 }
 
+interface RunDocumentArgs {
+  readonly documentId: DocumentId;
+  readonly mode: ReindexMode;
+  readonly signal: AbortSignal;
+  readonly acc: IngestAccumulator;
+  readonly touchedOwners: Set<UserId>;
+}
+
+// Read through a call boundary so TypeScript does not freeze `AbortSignal.aborted` at its pre-await value.
+function isAborted(signal: AbortSignal): boolean {
+  return signal.aborted;
+}
+
 /** Accumulate per-document counts into the run-level result. */
 class IngestAccumulator {
   private documents = 0;
@@ -79,13 +92,16 @@ class IngestAccumulator {
 
 /** Chunk + embed + prune ONE document's derived layer. Throws only on a genuinely failed embed (the caller
  *  records it as data); returns the per-document counts on success. */
-async function ingestOne(ctx: DatabankContext, doc: LoadedDocument): Promise<DocCounts> {
+async function ingestOne(ctx: DatabankContext, doc: LoadedDocument, signal: AbortSignal): Promise<DocCounts> {
   const settings = await ctx.getDatabankSettings(doc.ownerId);
   const space = ctx.getActiveEmbedSpace();
   const chunks = chunkText(doc.extractedText, settings.chunk);
   let chunksUpserted = 0;
   let chunksNoop = 0;
   for (const chunk of chunks) {
+    if (isAborted(signal)) {
+      return { chunksUpserted, chunksNoop, chunksPruned: 0 };
+    }
     const stored = await ctx.embeddingsStore({
       kind: "document",
       lens: "chunk",
@@ -100,6 +116,9 @@ async function ingestOne(ctx: DatabankContext, doc: LoadedDocument): Promise<Doc
       chunksUpserted += 1;
     }
   }
+  if (isAborted(signal)) {
+    return { chunksUpserted, chunksNoop, chunksPruned: 0 };
+  }
   const { rowsDeleted } = await ctx.pruneDocumentChunks({ documentId: doc.id, keepCount: chunks.length, model: space.model });
   return { chunksUpserted, chunksNoop, chunksPruned: rowsDeleted };
 }
@@ -111,15 +130,18 @@ async function ingestOne(ctx: DatabankContext, doc: LoadedDocument): Promise<Doc
 // read marker: reindex runs AFTER the enqueue authority check (the workload row's owner is the gate) over ids
 // the enqueue itself resolved. The write refreshes derived extraction text, never user-authored content.
 // Ends the day ingest takes a documentId straight off a request.
-async function maybeReExtract(ctx: DatabankContext, doc: LoadedDocument, acc: IngestAccumulator): Promise<LoadedDocument> {
-  if (doc.sourceAssetId === null || doc.extractorVersion === ctx.extractorVersion) {
+async function maybeReExtract(ctx: DatabankContext, doc: LoadedDocument, acc: IngestAccumulator, signal: AbortSignal): Promise<LoadedDocument> {
+  if (isAborted(signal) || doc.sourceAssetId === null || doc.extractorVersion === ctx.extractorVersion) {
     return doc;
   }
   const bytes = await ctx.loadAssetBytes(doc.sourceAssetId);
-  if (bytes === undefined) {
+  if (isAborted(signal) || bytes === undefined) {
     return doc;
   }
   const extracted = await ctx.extractText(bytes, doc.mime);
+  if (isAborted(signal)) {
+    return doc;
+  }
   const at = ctx.now();
   await ctx.db
     .update(documents)
@@ -156,28 +178,33 @@ function announceIngest(ctx: DatabankContext, touchedOwners: ReadonlySet<UserId>
 }
 
 export function createDatabankIngest(ctx: DatabankContext): DatabankIngest {
-  const runDocument = async (documentId: DocumentId, mode: ReindexMode, acc: IngestAccumulator, touchedOwners: Set<UserId>): Promise<void> => {
+  const runDocument = async ({ documentId, mode, signal, acc, touchedOwners }: RunDocumentArgs): Promise<void> => {
+    if (isAborted(signal)) {
+      return;
+    }
     const doc = await loadDocument(ctx.db, documentId);
-    if (doc === undefined) {
+    if (isAborted(signal) || doc === undefined) {
       // A document deleted between enqueue and dispatch — no work, no failure (its chunks CASCADEd away).
       return;
     }
     acc.addDocument();
     touchedOwners.add(doc.ownerId);
     try {
-      const source = mode === "re-extract" ? await maybeReExtract(ctx, doc, acc) : doc;
-      acc.addCounts(await ingestOne(ctx, source));
+      const source = mode === "re-extract" ? await maybeReExtract(ctx, doc, acc, signal) : doc;
+      if (!isAborted(signal)) {
+        acc.addCounts(await ingestOne(ctx, source, signal));
+      }
     } catch (error) {
       acc.addFailure(documentId, error);
     }
   };
 
   return {
-    ingestDocument: async ({ documentId }): Promise<IngestRunResult> => {
+    ingestDocument: async ({ documentId, signal }): Promise<IngestRunResult> => {
       const acc = new IngestAccumulator();
       const touchedOwners = new Set<UserId>();
       try {
-        await runDocument(documentId, "chunk-embed", acc, touchedOwners);
+        await runDocument({ documentId, mode: "chunk-embed", signal, acc, touchedOwners });
         return acc.result();
       } finally {
         announceIngest(ctx, touchedOwners);
@@ -192,10 +219,10 @@ export function createDatabankIngest(ctx: DatabankContext): DatabankIngest {
       try {
         const ids = await resolveReindexIds(ctx, ownerId, scope);
         for (const id of ids) {
-          if (signal.aborted) {
+          if (isAborted(signal)) {
             break;
           }
-          await runDocument(id, mode, acc, touchedOwners);
+          await runDocument({ documentId: id, mode, signal, acc, touchedOwners });
         }
         return acc.result();
       } finally {

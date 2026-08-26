@@ -12,6 +12,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { parseChatJsonl } from "#kit/serde/chat";
+import { ProfileImportLimitError } from "../contract/errors.ts";
 import type {
   CollectedBackground,
   CollectedCard,
@@ -119,9 +120,14 @@ function group(state: CollectState, handle: CharacterHandle): Group {
 
 // Sorted so collision disambiguation is deterministic — readdir order is filesystem-dependent.
 async function listDir(fs: ImportFsPort, dir: string): Promise<{ name: string; kind: string }[]> {
-  const ents = await fs.readdir(dir);
-  const capped = ents.length > MAX_DIR_ENTRIES ? ents.slice(0, MAX_DIR_ENTRIES) : ents;
-  return capped.toSorted((a, b) => a.name.localeCompare(b.name));
+  const sorted = (await fs.readdir(dir)).toSorted((a, b) => a.name.localeCompare(b.name));
+  return sorted.length > MAX_DIR_ENTRIES ? sorted.slice(0, MAX_DIR_ENTRIES) : sorted;
+}
+
+function rethrowProfileLimit(error: unknown): void {
+  if (error instanceof ProfileImportLimitError) {
+    throw error;
+  }
 }
 
 // Numeric suffix instead of silently overwriting the first card on a slug collision. THE seam where a
@@ -318,7 +324,8 @@ async function collectSettingsPreset(fs: ImportFsPort, profileDir: string, state
   try {
     const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
     settingsRaw = JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
+  } catch (error) {
+    rethrowProfileLimit(error);
     return;
   }
   const parsed = parseStSettingsPreset(settingsRaw);
@@ -351,7 +358,8 @@ async function collectGroupChats(args: {
         continue;
       }
       bytes = await fs.readFile(filePath);
-    } catch {
+    } catch (error) {
+      rethrowProfileLimit(error);
       missingChatLeaves.push(fileName);
       continue;
     }
@@ -412,7 +420,8 @@ async function collectUnhandled(fs: ImportFsPort, profileDir: string, state: Col
         }
       }
     }
-  } catch {
+  } catch (error) {
+    rethrowProfileLimit(error);
     // No/corrupt settings.json — nothing to report from it (personas collection records its own absence).
   }
 }
@@ -423,7 +432,8 @@ async function collectAppearance(fs: ImportFsPort, profileDir: string): Promise<
   try {
     const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
     return stAppearancePatch(JSON.parse(new TextDecoder().decode(bytes)));
-  } catch {
+  } catch (error) {
+    rethrowProfileLimit(error);
     return {};
   }
 }
@@ -447,7 +457,8 @@ async function readSettingsJson(fs: ImportFsPort, profileDir: string): Promise<u
   try {
     const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
     return JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
+  } catch (error) {
+    rethrowProfileLimit(error);
     return null;
   }
 }
@@ -538,7 +549,8 @@ async function collectTags(fs: ImportFsPort, profileDir: string): Promise<Readon
   try {
     const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
     return parseStTags(JSON.parse(new TextDecoder().decode(bytes))).byEntityKey;
-  } catch {
+  } catch (error) {
+    rethrowProfileLimit(error);
     return new Map();
   }
 }
@@ -549,7 +561,8 @@ async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<Co
   try {
     const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
     settingsRaw = JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
+  } catch (error) {
+    rethrowProfileLimit(error);
     return [];
   }
   const { personas } = parseStPersonas(settingsRaw);
@@ -559,7 +572,8 @@ async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<Co
     let avatarBytes: Uint8Array | undefined;
     try {
       avatarBytes = await fs.readFile(fs.join(avatarsDir, parsed.avatarFile));
-    } catch {
+    } catch (error) {
+      rethrowProfileLimit(error);
       avatarBytes = undefined;
     }
     out.push(avatarBytes !== undefined ? { parsed, avatarBytes } : { parsed });

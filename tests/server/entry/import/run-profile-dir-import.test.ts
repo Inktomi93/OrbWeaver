@@ -388,6 +388,73 @@ function deps(
 }
 
 describe("runProfileDirImport", () => {
+  test("sorts a directory before applying the collector entry ceiling", async () => {
+    const cardPath = "root/userA/characters/a.png";
+    const base = memoryFs({ [cardPath]: cardPng("A") });
+    const filesystemOrder: { name: string; kind: "file" | "other" }[] = Array.from({ length: 100_000 }, (_unused, i) => ({
+      name: `z-${String(i).padStart(6, "0")}`,
+      kind: "other",
+    }));
+    filesystemOrder.push({ name: "a.png", kind: "file" });
+    const fs: ImportFsPort = {
+      ...base,
+      readdir: (dir) => (dir === "root/userA/characters" ? Promise.resolve(filesystemOrder) : base.readdir(dir)),
+    };
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(fs, f));
+
+    expect(report.changed).toBe(1);
+    expect(f.log).toContain("character.create");
+  });
+
+  test("rejects an oversized non-chat candidate from stat before reading it", async () => {
+    const cardPath = "root/userA/characters/Aria.png";
+    const base = memoryFs({ [cardPath]: cardPng("Aria") });
+    const reads: string[] = [];
+    const fs: ImportFsPort = {
+      ...base,
+      readFile: (path) => {
+        reads.push(path);
+        return base.readFile(path);
+      },
+      stat: (path) => (path === cardPath ? Promise.resolve({ size: ASSET_UPLOAD_MAX_BYTES + 1 }) : base.stat(path)),
+    };
+
+    await expect(runProfileDirImport(deps(fs, fakes()))).rejects.toMatchObject({
+      name: "ProfileImportLimitError",
+      code: "profile_file_too_large",
+    });
+    expect(reads).not.toContain(cardPath);
+  });
+
+  test("rejects before reading the candidate that would exceed the direct-profile aggregate budget", async () => {
+    const files: Record<string, Uint8Array> = {};
+    const cardPaths: string[] = [];
+    for (let i = 0; i < 17; i += 1) {
+      const path = `root/user-${String(i).padStart(2, "0")}/characters/Card-${i}.png`;
+      files[path] = cardPng(`Card ${i}`);
+      cardPaths.push(path);
+    }
+    const base = memoryFs(files);
+    const reads: string[] = [];
+    const fs: ImportFsPort = {
+      ...base,
+      readFile: (path) => {
+        reads.push(path);
+        return base.readFile(path);
+      },
+      stat: (path) => (cardPaths.includes(path) ? Promise.resolve({ size: ASSET_UPLOAD_MAX_BYTES }) : base.stat(path)),
+    };
+
+    await expect(runProfileDirImport(deps(fs, fakes()))).rejects.toMatchObject({
+      name: "ProfileImportLimitError",
+      code: "profile_total_too_large",
+    });
+    expect(reads.filter((path) => cardPaths.includes(path))).toHaveLength(16);
+    expect(reads).not.toContain(cardPaths[16]);
+  });
+
   test("imports personas → per-bundle character + chats, tallying scanned/changed", async () => {
     const fs = memoryFs(fixtureFiles("root"));
     const f = fakes();

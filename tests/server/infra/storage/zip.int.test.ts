@@ -49,6 +49,13 @@ function packToBuffer(entries: readonly ZipEntry[]): Promise<Uint8Array> {
   return drainStream(packZip(asAsync(entries)));
 }
 
+// biome-ignore lint/suspicious/useAwait: this is the lazy async producer contract packZip consumes; yielding 50k entries must not preallocate an array.
+async function* numberedEntries(count: number): AsyncGenerator<ZipEntry> {
+  for (let i = 0; i < count; i += 1) {
+    yield { path: `entries/${i}`, bytes: new Uint8Array() };
+  }
+}
+
 /** A staged entry read fully into memory — the shape every test asserts on directly. */
 interface Extracted {
   readonly path: string;
@@ -346,6 +353,20 @@ describe("method + structure guards", () => {
 });
 
 describe("DoS caps", () => {
+  test("packZip refuses the 50,001st entry instead of emitting an archive its default reader rejects", async () => {
+    await expect(drainStream(packZip(numberedEntries(50_001)))).rejects.toMatchObject({
+      ...REJECTED,
+      kind: "too-many-entries",
+    });
+  });
+
+  test("packZip refuses a UTF-8 path that cannot fit the ZIP U16 name field", async () => {
+    await expect(packToBuffer([{ path: "x".repeat(65_536), bytes: enc.encode("body must never be compressed") }])).rejects.toMatchObject({
+      ...REJECTED,
+      kind: "unsupported",
+    });
+  });
+
   test("rejects an archive over the total buffered cap (aborts mid-read of the chunk stream)", async () => {
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
