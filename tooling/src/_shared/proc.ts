@@ -48,6 +48,10 @@ export interface RunNicedSyncOptions {
    *  child (SIGTERM + ENOBUFS) — so a caller whose payload is genuinely large (ts7 `--listFilesOnly` over
    *  the whole graph is ~5,400 paths / ~0.5MB) must raise it or its verdict silently becomes a kill. */
   readonly maxBuffer?: number;
+  /** Wall-clock ceiling in ms; the child is killed past it (`status` comes back null). A caller whose
+   *  child can hang — a planted mutant that turns a loop infinite is the standing case — MUST set this,
+   *  or the run never returns a verdict at all. */
+  readonly timeout?: number;
 }
 
 export interface RunNicedSyncResult {
@@ -63,6 +67,7 @@ export function runNicedSync(cmd: string, args: readonly string[], opts: RunNice
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(opts.env === undefined ? {} : { env: opts.env }),
     ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
+    ...(opts.timeout === undefined ? {} : { timeout: opts.timeout }),
     ...(stdio === undefined ? { encoding: "utf8" as const } : { stdio }),
   });
   return { status: res.status, stdout: typeof res.stdout === "string" ? res.stdout : "", stderr: typeof res.stderr === "string" ? res.stderr : "" };

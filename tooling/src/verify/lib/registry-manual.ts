@@ -160,6 +160,15 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
       "CANDIDATE lens (`pnpm ast chains <scope>`) — a FIXPOINT: one consumption edge the substrate cannot see kills a whole subtree in the report, so verify the call sites before acting, and fix at the chain's HEAD (wire/delete/`@public` it), never per link",
   },
   {
+    name: "mutation:probe",
+    group: "tests",
+    tiers: ["manual"],
+    argv: ["pnpm", "mutation:probe"],
+    classify: asViolations,
+    manualReason:
+      "adjudicates a Stryker report's Survived/NoCoverage rows by PLANTING each mutant — takes a report path + a source path, so it has no whole-tree form; the report itself is the on-demand input",
+  },
+  {
     name: "tests:coverage",
     group: "tests",
     tiers: ["manual"],
