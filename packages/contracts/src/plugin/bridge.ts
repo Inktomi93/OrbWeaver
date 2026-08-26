@@ -13,6 +13,15 @@ import type { PluginNotificationRecipient } from "#notifications";
 import type { PluginMessageView, PluginWorldEntryUpsert } from "./host-v1.ts";
 import type { PluginSuggestedAct } from "./suggestion.ts";
 
+/** Isomorphic invocation liveness crossing the contracts cake. `AbortSignal` itself is a DOM/server type and
+ *  cannot live in `@orb/contracts`; infra adapts its controller to this subscription seam, and the server-side
+ *  bridge re-mints an AbortSignal only at the provider door that accepts one. */
+export interface PluginInvocationLiveness {
+  readonly aborted: boolean;
+  /** Subscribe to cancellation. If the invocation is already aborted, the listener runs synchronously. */
+  readonly onAbort: (listener: () => void) => () => void;
+}
+
 /** The JSON-shaped, authority-agnostic op bridge the membrane calls. Chat-scoped fns take an admitted
  *  `ChatId`; global-vars is pre-scoped to the installer by the domain builder. Exposes the composable set:
  *  chat.read / chat.variables.write / global_vars + the two host-gated writers worldInfo + imagery (the domain
@@ -84,7 +93,7 @@ export interface PluginBridge {
    *  so a check that awaited before recording would let a burst straight through the gap). Returns raw text;
    *  the guest never sees cost (cost VISIBILITY rides the stats domain off the generation itself). */
   readonly llm: {
-    readonly quiet: (prompt: string) => Promise<{ readonly text: string }>;
+    readonly quiet: (prompt: string, liveness: PluginInvocationLiveness) => Promise<{ readonly text: string }>;
   };
   /** POSTURE 2 — stash `act` as a SUGGESTION for the ADMITTED chat's host to confirm, instead of performing
    *  it. Called by the membrane on exactly the arm that used to be a flat refusal: the installer holds the
