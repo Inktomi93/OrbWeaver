@@ -345,6 +345,13 @@ test("a bare run still has an empty reach queue — entry motion stays the defau
   expect(args.route).toBe("/");
 });
 
+test("viewport and measurement-window argv reject malformed values", () => {
+  expect(parseMotionArgs(["/", "--viewport", "1280x800x2"]).errors).toContain("--viewport requires WIDTHxHEIGHT positive integers");
+  for (const raw of ["-1", "0", "Infinity", "nope"]) {
+    expect(parseMotionArgs(["/", "--window", raw]).errors).toContain("--window requires a positive finite duration in milliseconds");
+  }
+});
+
 // ── APPARATUS DIAGNOSIS (#515) — the permanent pin for a WRONG diagnosis printed with confidence ──────
 // motion-audit printed "the __orb dev bridge is ABSENT — this run is not a verdict" against a page that
 // exposes all 21 bridge keys (snap read them on the same URL seconds later). The run had swallowed its

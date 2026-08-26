@@ -48,6 +48,12 @@ test("parseViewport rejects negative width or height — truthiness alone admits
   expect(parseViewport("-1920x-1080")).toBeNull();
 });
 
+test("parseViewport rejects fractional, non-finite, and extra dimensions", () => {
+  for (const raw of ["1280.5x800", "1280x800.5", "Infinityx800", "1280x800x2", "1280x800junk"]) {
+    expect(parseViewport(raw)).toBeNull();
+  }
+});
+
 // ── parseGotoTarget ───────────────────────────────────────────────────────────────────────────────────
 
 test("parseGotoTarget maps a bare id to the section method", () => {

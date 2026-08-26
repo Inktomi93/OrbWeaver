@@ -24,7 +24,7 @@ import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
 import { expect, test } from "../support/tool-fixtures.ts";
-import { runNodeWithBudget, scaledBudget } from "./_load-budget.ts";
+import { runPnpmWithBudget, scaledBudget } from "./_load-budget.ts";
 
 // LOAD-HONEST BUDGET (#606). This hook runs `check:structure` TWICE — once CLEAN (→ the registry + the
 // scan-health/ratchet/denominator assertions, which MUST read a clean tree) and once WITH `__g_` fixtures
@@ -54,7 +54,7 @@ const ROOT = join(import.meta.dirname, "..", "..");
 //
 // The `  ·  scanned N/M files…` SCAN-HEALTH suffix (2026-08-13) rides every gate line, so both patterns
 // end in an optional suffix group rather than a bare `$` — still anchored (the whole line is described),
-// still total against ambient `pnpm` chatter. A third shape joined at the same time: `  ⚠ <name>` for a
+// still total against ambient `pnpm` chatter. A third shape joined at the same time: `  ! <name>` for a
 // gate that scanned ZERO files, which is neither a pass nor a violation but a BLIND checker. It is
 // scraped into the registry (the gate did run) AND asserted absent by its own test below — without the
 // scrape, a blind gate would silently drop out of `registry` and surface as a baffling
@@ -62,7 +62,7 @@ const ROOT = join(import.meta.dirname, "..", "..");
 const SCAN_SUFFIX = String.raw` {2}·  scanned \d+/\d+ files.*`;
 const OK_RE = new RegExp(`^ {2}✓ (?<gate>[a-zA-Z0-9-]+)(?:${SCAN_SUFFIX})?$`, "gmu");
 const FIRED_RE = new RegExp(String.raw`^ {2}✗ (?<gate>[a-zA-Z0-9-]+) \(\d+\)(?:${SCAN_SUFFIX})?$`, "gmu");
-const BLIND_RE = new RegExp(`^ {2}⚠ (?<gate>[a-zA-Z0-9-]+)(?:${SCAN_SUFFIX})?$`, "gmu");
+const BLIND_RE = new RegExp(`^ {2}! (?<gate>[a-zA-Z0-9-]+)(?:${SCAN_SUFFIX})?$`, "gmu");
 const TS_EXT_RE = /\.ts$/u;
 const GATE_DIR = join(ROOT, "tooling", "src", "verify", "gates");
 // every gate file on disk (basename) — the source of truth for "what gates exist". `__g_*` are THIS suite's
@@ -93,15 +93,13 @@ function cleanFixtures(): void {
 }
 
 function runStructure(): string {
-  // The child is `node <cli> structure` — the tool's ONE argv front door (an ops/ file is not
-  // self-executing). Spawning node DIRECTLY drops the pnpm hop this used to need to reach tsx, and with it
-  // pnpm's deps-state revalidation, which inside this suite both mutated node_modules underneath the running
-  // vitest process and prepended its banner to the stdout we parse. `runNodeWithBudget` returns the report on
+  // The child uses the supported `pnpm check:structure` workspace entry, preserving its configured heap and
+  // dependency contract. `runPnpmWithBudget` returns the report on
   // a normal finish AND on report.ts's exit-1-when-a-gate-fires (both are stdout), and THROWS a legible
   // ORB-LOAD-KILL only when the child is killed by its load-scaled `timeout` — so a load kill self-identifies
   // as exit-2/not-a-verdict instead of surfacing as an opaque hook timeout that reads like a real red (#606).
-  return runNodeWithBudget(
-    ["tooling/src/verify/cli.ts", "structure"],
+  return runPnpmWithBudget(
+    ["check:structure"],
     {
       cwd: ROOT,
       // THIS suite's child runs must SEE the __g_ fixtures it plants — the real-tree entrypoints strip
@@ -1179,11 +1177,11 @@ test("derives a non-trivial gate registry from report.ts (not silently empty)", 
 });
 
 // Any glyph, then the scan suffix — a status line that carries no count fails this.
-const SCANNED_RE = /^ {2}[✓✗⚠] (?<gate>[a-zA-Z0-9-]+).*? {2}· {2}scanned \d+\/\d+ files/gmu;
-const DENSITY_ADMITTED_RE = /^ {2}[✓✗⚠] density-tier.*admitted-by-ratchet: \d+/mu;
+const SCANNED_RE = /^ {2}[✓✗!] (?<gate>[a-zA-Z0-9-]+).*? {2}· {2}scanned \d+\/\d+ files/gmu;
+const DENSITY_ADMITTED_RE = /^ {2}[✓✗!] density-tier.*admitted-by-ratchet: \d+/mu;
 // #569: the admitted number is SPLIT BY CLASS everywhere it prints — a ratified admission is permanent by a
 // recorded ruling and must not read as burnable backlog. `suppressions` is the ledger that carries both.
-const SUPPRESSIONS_SPLIT_RE = /^ {2}[✓✗⚠] suppressions.*admitted-by-ratchet: (?<total>\d+) \((?<debt>\d+) debt · (?<ratified>\d+) ratified\)/mu;
+const SUPPRESSIONS_SPLIT_RE = /^ {2}[✓✗!] suppressions.*admitted-by-ratchet: (?<total>\d+) \((?<debt>\d+) debt · (?<ratified>\d+) ratified\)/mu;
 const SINGLE_PASS_SPLIT_RE = /^single-pass: (?<total>\d+) finding\(s\) admitted by ratchet baselines \((?<debt>\d+) debt · (?<ratified>\d+) ratified\)/mu;
 
 test("every gate reports the SCAN DENOMINATOR behind its verdict (Codex GA-H-01)", () => {
