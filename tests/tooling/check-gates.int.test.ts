@@ -484,9 +484,10 @@ function writeFixtures(): void {
   // bus-coverage joins UNFIXTURABLE_GATES; the STALE mechanism stays proven by the `user-bus-coverage` twin
   // below (its DEFERRED `connectionsChanged`). Keep in sync with the DEFERRED map in bus-coverage.ts.
   // user-bus-coverage: the STALE arm — the DEFERRED `connectionsChanged` member (no per-user connection
-  // store yet) gains an emit-site literal in domain scope → "stale allowlist". Keep in sync with the
-  // DEFERRED map in user-bus-coverage.ts (if a real per-user connection emit lands, retarget this fixture).
-  fx(`${D}/chat/__g_userbus.ts`, 'export const staleUserBusEmit = "connectionsChanged";\n');
+  // store yet) gains a canonical injected emitter call → "stale allowlist". An arbitrary matching literal
+  // is deliberately a decoy, not producer evidence; tests/tooling/verify/lib/bus-coverage.test.ts locks both
+  // sides. Keep in sync with the DEFERRED map in user-bus-coverage.ts.
+  fx(`${D}/chat/__g_userbus.ts`, 'ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });\n');
   // rpg-bus-coverage: NO fixture — as of W1c-b its DEFERRED map is EMPTY (every RpgBusEvent member gained a real
   // emit site in domain/rpg/**). With no deferred member, neither STALE (needs a deferred member) nor MISSING (a
   // `__g_` file can't add a REAL member to the single-home union) is fixturable, so it joins UNFIXTURABLE_GATES
@@ -663,6 +664,13 @@ function writeFixtures(): void {
     "packages/server/src/domain/__g_ownerupserts/persistence/__g_ownerupserts.ts",
     'import { characters } from "@orb/db";\nexport async function gPut(db: D, row: R) {\n  return db.insert(characters).values(row).onConflictDoUpdate({ target: characters.id, set: { name: row.name } });\n}\n',
   );
+  // untrusted-regex-safe-exec: the canonical composition property wired to native `.test`, not the
+  // node:vm watchdog factory. The gate deliberately ignores every other dynamic RegExp site.
+  fx("packages/server/src/entry/compose/__g_chat.ts", "export const gCtx = { testRegexKey: (regex: RegExp, value: string): boolean => regex.test(value) };\n");
+  // public-route-body-cap: a mutating non-tRPC route that parses the body with no cap middleware.
+  fx("packages/server/src/entry/http/__g_bodycap.ts", 'app.post("/api/__g", async (c) => c.json(await c.req.json()));\n');
+  // plugin-dump-guard: a guest membrane value materialized outside the one guard-before-dump helper.
+  fx("packages/server/src/infra/plugin-host/__g_membrane.ts", "export function gDump(ctx: Ctx, handle: Handle): unknown {\n  return ctx.dump(handle);\n}\n");
   // injected-op-caller-param: a domain contract op taking a branded entity id and returning a Promise, with
   // no caller/scope param and no CALLER_FREE_OPS row.
   fx(

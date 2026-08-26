@@ -145,6 +145,20 @@ function handlerFor(deps: AuthRoutesDeps, key: string): Handler {
   return handler;
 }
 
+function registeredHandlerCount(deps: AuthRoutesDeps, key: string): number {
+  const counts = new Map<string, number>();
+  const record =
+    (method: string) =>
+    (path: string, ...handlers: Handler[]): unknown => {
+      counts.set(`${method} ${path}`, handlers.length);
+      return app;
+    };
+  const app = { get: record("GET"), post: record("POST") };
+  // FABRICATION-OK: registration-only route capture; handler count proves the middleware belt is present.
+  registerAuthRoutes(app as unknown as Parameters<typeof registerAuthRoutes>[0], deps);
+  return counts.get(key) ?? 0;
+}
+
 interface SessionRecorder {
   readonly sessions: AuthSessionsPort;
   /** W7a — the live-socket eviction the routes fire beside every revoke. */
@@ -1101,6 +1115,11 @@ describe("OIDC back-channel logout route (A5)", () => {
   test("route IS registered when backchannelLogout is supplied (OIDC_BACKCHANNEL_LOGOUT=on)", () => {
     const { deps } = bclDeps({});
     expect(routesOf(deps).has("POST /api/auth/oidc/backchannel-logout")).toBe(true);
+  });
+
+  test("the back-channel route registers a body-cap middleware before its handler", () => {
+    const { deps } = bclDeps({});
+    expect(registeredHandlerCount(deps, "POST /api/auth/oidc/backchannel-logout")).toBe(2);
   });
 
   test("a valid logout_token → verify → revoke every session for the subject → 200, Cache-Control no-store", async () => {
