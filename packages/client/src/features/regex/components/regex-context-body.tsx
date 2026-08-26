@@ -45,6 +45,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import { RegexScopeOrder } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { deriveChatTitle, regexScriptTitle, rowQualifiers, timeLib } from "#lib";
@@ -78,6 +79,22 @@ function RegexScopePanel({
   const invalidation = useInvalidation();
   const attach = useAttachRegexGlobal({ trpc, invalidation });
   const detach = useDetachRegexGlobal({ trpc, invalidation });
+  const globalAdmission = useRef(false);
+
+  const onGlobalChange = (checked: boolean): void => {
+    if (globalAdmission.current) {
+      return;
+    }
+    globalAdmission.current = true;
+    const release = (): void => {
+      globalAdmission.current = false;
+    };
+    if (checked) {
+      attach.mutate({ scriptId: script.id }, { onSettled: release });
+    } else {
+      detach.mutate({ scriptId: script.id }, { onSettled: release });
+    }
+  };
 
   return (
     // `padding="block"` — the same inset its sibling arm (`BookAttachments`) uses, so one context slot has
@@ -91,13 +108,7 @@ function RegexScopePanel({
           aria-label={`${regexScriptTitle(script)} runs in every chat`}
           checked={isGlobal}
           disabled={attach.isPending || detach.isPending}
-          onCheckedChange={(checked): void => {
-            if (checked) {
-              attach.mutate({ scriptId: script.id });
-            } else {
-              detach.mutate({ scriptId: script.id });
-            }
-          }}
+          onCheckedChange={onGlobalChange}
         />
       </Row>
       <Text voice="gloss">The one scope this library owns — the other three attach this script from the thing it belongs to.</Text>

@@ -58,7 +58,7 @@ test("Approve fires admin.setEnabled({enabled:true}) for that row", async ({ mou
   await expect.poll(() => trpc.lastInput("admin.setEnabled"), { intervals: [20, 50, 100] }).toEqual({ userId: "user_pend1", enabled: true });
 });
 
-test("an approval write owns only its account row, and rejection releases that row for retry", async ({ mount, page }) => {
+test("a same-task repeat admits one approval, owns only its account row, and rejection releases retry", async ({ mount, page }) => {
   const held = trpcHold();
   const trpc = await stub(page, USERS, { "admin.setEnabled": held });
   const component = await mount(<AdminApprovalsSectionStory />);
@@ -66,7 +66,10 @@ test("an approval write owns only its account row, and rejection releases that r
   const approvals = component.getByTestId("admin-approve");
   const first = approvals.nth(0);
   const sibling = approvals.nth(1);
-  await first.click();
+  await first.evaluate((element) => {
+    (element as HTMLElement).click();
+    (element as HTMLElement).click();
+  });
   await held.requested;
 
   await expect(first).toBeDisabled();

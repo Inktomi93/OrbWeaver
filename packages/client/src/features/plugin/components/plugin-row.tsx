@@ -47,7 +47,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ConfirmDialog, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
@@ -74,9 +74,25 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
   const setGrant = useSetPluginGrant({ trpc, invalidation });
   const uninstall = useUninstallPlugin({ trpc, invalidation });
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const enableAdmission = useRef(false);
 
   const status = statusCopy(plugin.status, plugin.reconsentPending);
   const provenance = builtAgainstLine(plugin.builtAgainst);
+
+  const onEnabledChange = (next: boolean): void => {
+    if (enableAdmission.current) {
+      return;
+    }
+    enableAdmission.current = true;
+    setEnabled.mutate(
+      { pluginId: plugin.id, enabled: next },
+      {
+        onSettled: (): void => {
+          enableAdmission.current = false;
+        },
+      },
+    );
+  };
 
   const applyUpgrade = async (preview: PluginBundlePreview): Promise<void> => {
     const updated = await upgrade.mutateAsync({ pluginId: plugin.id, bundleBase64: toBundleBase64(preview.bytes) }).catch(() => undefined);
@@ -124,7 +140,7 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
             aria-label={`Turn ${plugin.name} on`}
             checked={plugin.status === "enabled"}
             disabled={setEnabled.isPending}
-            onCheckedChange={(next): void => setEnabled.mutate({ pluginId: plugin.id, enabled: next })}
+            onCheckedChange={onEnabledChange}
           />
           {/* Update sits IN the cluster (it is reversible-ish and the common maintenance act); Remove is
               demoted into the overflow behind the composite's ConfirmDialog, so the irreversible action
