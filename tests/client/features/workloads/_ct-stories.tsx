@@ -11,6 +11,8 @@ import { useState } from "react";
 import { SchedulesSection } from "../../../../packages/client/src/features/workloads/components/schedules-section.tsx";
 import { WorkloadsJobsSection } from "../../../../packages/client/src/features/workloads/components/workloads-jobs-section.tsx";
 import { WorkloadsTuningSection } from "../../../../packages/client/src/features/workloads/components/workloads-tuning-section.tsx";
+import type { LibraryImport } from "../../../../packages/client/src/features/workloads/hooks/use-library-import.ts";
+import { useLibraryImport } from "../../../../packages/client/src/features/workloads/hooks/use-library-import.ts";
 import { BackupSettingsSurface } from "../../../../packages/client/src/features/workloads/surfaces/backup-settings-surface.tsx";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 
@@ -96,6 +98,53 @@ export function BackupSettingsStory(): ReactElement {
           <BackupSettingsSurface />
         </div>
       </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+/** Direct hook driver for the request-ownership boundary. Production UI prevents a second ordinary pick
+ *  while uploading; these buttons reproduce a programmatic overlap without faking the fetch seam. */
+function LibraryImportEpochBody(): ReactElement {
+  const libraryImport = useLibraryImport();
+  const [capturedSucceeded, setCapturedSucceeded] = useState<LibraryImport["track"]["onSucceeded"] | null>(null);
+  const start = (name: "old" | "new"): void => {
+    libraryImport.importFiles([new File([name], `${name}.png`, { type: "image/png" })]);
+  };
+  const outcome = libraryImport.state.status === "done" ? (libraryImport.state.summary.outcomes[0]?.path ?? "done") : libraryImport.state.status;
+
+  return (
+    <>
+      <button type="button" onClick={(): void => start("old")}>
+        Import old batch
+      </button>
+      <button type="button" onClick={(): void => start("new")}>
+        Import new batch
+      </button>
+      <button type="button" onClick={(): void => libraryImport.importFiles([new File(["zip"], "old.zip", { type: "application/zip" })])}>
+        Start old workload
+      </button>
+      <button
+        type="button"
+        disabled={libraryImport.state.status !== "running"}
+        onClick={(): void => setCapturedSucceeded(() => libraryImport.track.onSucceeded)}
+      >
+        Capture current workload
+      </button>
+      <button type="button" disabled={capturedSucceeded === null} onClick={(): void => capturedSucceeded?.({ imported: 9, skipped: 0, failed: 0 })}>
+        Complete captured workload
+      </button>
+      <button type="button" onClick={libraryImport.reset}>
+        Reset import
+      </button>
+      <output data-testid="import-outcome">{outcome}</output>
+    </>
+  );
+}
+
+export function LibraryImportEpochStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <LibraryImportEpochBody />
     </CtDataProviders>
   );
 }
