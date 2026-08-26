@@ -9,6 +9,7 @@ import type { ModelsListResponse } from "@openrouter/sdk/models";
 import type { GetModelsResponse } from "@openrouter/sdk/models/operations";
 import type { PageIterator } from "@openrouter/sdk/types";
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
+import { ProviderError } from "../../contract/index.ts";
 import { providerErrorFromHttp } from "../kit/index.ts";
 
 // The structural slice this verb needs off the client port. `models.list()` is the public `/models`
@@ -31,6 +32,15 @@ function toNumberOrNull(value: string | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function abortedCatalogError(cause: unknown): ProviderError {
+  return new ProviderError({
+    kind: "aborted",
+    retryable: false,
+    message: "openrouter catalog: request aborted",
+    cause,
+  });
+}
+
 /**
  * Fetch + normalize the live OpenRouter model catalog. Maps each SDK `Model` into the cross-boundary
  * {@link ModelCatalogEntry}: pricing strings → numbers (blank → null, the unpriced signal), the input
@@ -41,6 +51,12 @@ export async function fetchOrCatalog(client: OrCatalogClient, signal?: AbortSign
   try {
     response = (await client.models.list(undefined, signal === undefined ? undefined : { signal })).result;
   } catch (err) {
+    // Bind cancellation to THIS request's signal, not to the SDK error's name/message. AbortController.abort
+    // accepts any reason, and the SDK may reject with that plain Error unchanged; a caller reason containing
+    // "timeout" would otherwise be misclassified as a retryable server failure and re-run cancelled work.
+    if (signal?.aborted === true) {
+      throw abortedCatalogError(err);
+    }
     throw providerErrorFromHttp(err, "openrouter catalog");
   }
   return response.data.map((model) => ({
