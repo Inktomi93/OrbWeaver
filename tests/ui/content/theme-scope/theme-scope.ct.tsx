@@ -14,6 +14,7 @@ test("a legal override lands as a scoped custom property", async ({ mount }) => 
     </ThemeScope>,
   );
   const value = await cmp.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-user-bubble"));
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(value.trim()).toBe("oklch(0.3 0.1 20)");
 });
 

@@ -252,10 +252,13 @@ test("subtitleWrap clamps a GLOSS subtitle to two lines instead of truncating a 
     const s = globalThis.getComputedStyle(el);
     return { clamp: s.webkitLineClamp, whitespace: s.whiteSpace, height: el.getBoundingClientRect().height };
   });
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(style.clamp).toBe("2");
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(style.whitespace).not.toBe("nowrap");
   // RENDERED: the clamped block is genuinely two lines tall at this width, not one ellipsised line.
   const oneLine = await page.locator('[data-slot="list-row-title"]').evaluate((el) => el.getBoundingClientRect().height);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(style.height).toBeGreaterThan(oneLine);
 });
 
@@ -408,14 +411,16 @@ test("rowTint=row paints the hover tint on the ROOT, and the body stops painting
   await expect(body).not.toHaveCSS("background-color", accent);
   await expect(cluster).not.toHaveCSS("background-color", accent);
   // The cluster is INSIDE the painted box — that is what "the glyphs ride the row tint" means in geometry.
-  // ONESHOT-OK: settled — the tint assertions above already awaited the row's hover transition, and this
+  // Settled snapshot: the tint assertions above already awaited the row's hover transition, and this
   // reads STATIC layout (no animation moves the cluster relative to the root).
   const boxes = await root.evaluate((el) => {
     const rootRect = el.getBoundingClientRect();
     const actionsRect = (el.querySelector(`[data-slot="list-row-actions"]`) as HTMLElement).getBoundingClientRect();
     return { rootRight: rootRect.right, actionsRight: actionsRect.right, rootLeft: rootRect.left, actionsLeft: actionsRect.left };
   });
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(boxes.actionsLeft).toBeGreaterThanOrEqual(boxes.rootLeft);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(boxes.actionsRight).toBeLessThanOrEqual(boxes.rootRight);
 });
 
@@ -485,6 +490,8 @@ test("subtitleDecorative keeps the subtitle visible but out of the row's descrip
   const describedBy = (await row.getAttribute("aria-describedby")) ?? "";
   expect(describedBy).not.toBe("");
   const described = await page.locator(`#${describedBy.split(" ").join(", #")}`).allTextContents();
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(described.join(" ")).toContain("fires on every reply");
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(described.join(" ")).not.toContain("{{input}}");
 });

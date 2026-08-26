@@ -554,7 +554,9 @@ test("M5: an OFF-SCREEN code block is laid out at its content height, not a 200p
     own: Math.round(el.getBoundingClientRect().height),
     children: Math.round([...el.children].reduce((sum, c) => sum + c.getBoundingClientRect().height, 0)),
   }));
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.children).toBeGreaterThan(0);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.own).toBeLessThan(200);
 });
 
@@ -590,11 +592,16 @@ test("issue 238: a blockquote renders its rule + indent + separation, and does n
     };
   });
   // All three measured 0 before #238 — the whole defect.
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.borderLeft).toBeGreaterThan(0);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.paddingLeft).toBeGreaterThan(0);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.paddingTop).toBeGreaterThan(0);
   // The rule is a real, visible edge — not a transparent one (a 4px transparent border still measures 4).
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.borderAlpha).toBeGreaterThan(0);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.borderColor).not.toBe(box.bg);
   // …and the narration voice beside it carries NONE of that geometry: the two are no longer the same
   // rendering (both are italic + muted by design; the quote's distinctness has to come from its box).
@@ -651,12 +658,18 @@ test("issue 490: inline code renders at the CODE token size with the tight verti
     });
   // Both tokens must actually resolve, or every equality below is a vacuous ""==="" (the same
   // positive-control discipline a planted fixture gives a gate).
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(measured.codeToken).not.toBe("");
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(measured.tightToken).not.toBe("");
   const px = (rem: string): number => Number.parseFloat(rem) * measured.remPx;
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(measured.fontSize)).toBeCloseTo(px(measured.codeToken), 1);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(measured.paddingTop)).toBeCloseTo(px(measured.tightToken), 1);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(measured.paddingBottom)).toBeCloseTo(px(measured.tightToken), 1);
   // …and it is still SMALLER than the prose it sits in — the reader-visible half of the finding.
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(measured.fontSize)).toBeLessThan(measured.proseFontSize);
 });

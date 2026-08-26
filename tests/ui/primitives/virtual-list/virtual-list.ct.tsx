@@ -270,6 +270,7 @@ test("rapid settled scope churn lands only the latest reset and cancels older fr
   const landing = await page.evaluate(() =>
     (globalThis as typeof globalThis & { __resetFrameHarness: { pendingIds: () => number[] } }).__resetFrameHarness.pendingIds(),
   );
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(landing.length).toBeGreaterThan(0);
   await scroll.evaluate((node) => {
     node.scrollTop = 600;

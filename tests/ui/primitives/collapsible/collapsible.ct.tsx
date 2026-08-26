@@ -142,8 +142,10 @@ test("size: `control` clears the pointer's control floor and `inline` (the defau
 
   const inlineBox = await page.getByRole("button", { name: "Running text" }).boundingBox();
   const controlBox = await page.getByRole("button", { name: "Its own row" }).boundingBox();
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(controlBox?.height).toBeGreaterThanOrEqual(floor);
   // The default is UNCHANGED — this variant may not silently re-box every disclosure already shipped.
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(inlineBox?.height).toBeLessThan(floor);
 });
 

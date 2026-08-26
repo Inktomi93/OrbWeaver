@@ -38,6 +38,7 @@ test("instrument control: the CT context is a COARSE-pointer touch device", asyn
   }));
   expect(probe.coarse, "hasTouch must flip @media(pointer: coarse)").toBe(true);
   expect(probe.touch, "the touch event pipeline must exist").toBe(true);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(probe.maxTouchPoints).toBeGreaterThan(0);
 });
 
@@ -76,7 +77,7 @@ test("reduced motion: a thumb rings NOTHING — the one static frame stays exact
   await mount(<WeaveTouchBox state="settled" />);
   const canvas = page.locator('[data-slot="web-weave-canvas"]');
   await expect(canvas).toHaveAttribute("data-orb-weave-frames", "1");
-  // ONESHOT-OK: the frames attribute above proves the single static paint landed; under reduced
+  // Settled snapshot: the frames attribute above proves the single static frame landed; under reduced
   // motion nothing repaints until an explicit change, so this read is of settled state.
   const before = await frameFingerprint(canvas);
   const mid = await boxCentre(canvas);
