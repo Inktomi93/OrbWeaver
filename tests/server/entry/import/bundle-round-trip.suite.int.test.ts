@@ -687,8 +687,8 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
               .where(eq(assetsTable.ownerId, targetId))
           ).length,
           assets: (await freshDatabase.select({ id: assetsTable.id }).from(assetsTable).where(eq(assetsTable.ownerId, targetId))).length,
-          // R6 — the chat-anchored planes. A re-import must not double them either: the chat dedups on
-          // `importHash`, so the overlay/campaign restore is skipped wholesale rather than re-run.
+          // R6 — the chat-anchored planes. A re-import must not double them either: canon dedups on
+          // `importHash`, returns its existing identity, and the idempotent overlay/campaign tails replay.
           chatInjections: (await freshDatabase.select({ id: chatInjections.id }).from(chatInjections).where(eq(chatInjections.chatId, freshHostChatId))).length,
           chatTags: (await freshDatabase.select({ tagId: chatTags.tagId }).from(chatTags).where(eq(chatTags.ownerId, targetId))).length,
           rpgGames: (await freshDatabase.select({ id: rpgGames.id }).from(rpgGames).where(eq(rpgGames.chatId, freshHostChatId))).length,

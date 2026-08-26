@@ -148,6 +148,8 @@ describe("createImportRpgGame", () => {
     };
 
     await createImportRpgGame(portabilityCtx(db))({ chatId: targetChat, hostUserId, game: remapped });
+    // Retry after the campaign batch committed but before the bundle caller observed completion.
+    await createImportRpgGame(portabilityCtx(db))({ chatId: targetChat, hostUserId, game: remapped });
 
     const games = await db.select().from(rpgGames).where(eq(rpgGames.chatId, targetChat));
     expect(games).toHaveLength(1);
@@ -158,8 +160,10 @@ describe("createImportRpgGame", () => {
     expect(snaps[0]?.location).toBe("the broken bridge");
     const entries = await db.select().from(rpgJournal).where(eq(rpgJournal.gameId, gameId));
     expect(entries[0]?.variantId).toBe(target.variantId);
+    expect(entries).toHaveLength(1);
     const records = await db.select().from(rpgTurnToolCalls).where(eq(rpgTurnToolCalls.gameId, gameId));
     expect(records[0]?.variantId).toBe(target.variantId);
+    expect(records).toHaveLength(1);
     // THE HANDSHAKE: the carried `snapshotIndex` resolved back to the snapshot this same write minted.
     const checkpoints = await db.select().from(rpgCheckpoints).where(eq(rpgCheckpoints.gameId, gameId));
     expect(checkpoints[0]?.snapshotId).toBe(snaps[0]?.id);
