@@ -49,7 +49,21 @@ test("parseViewport rejects negative width or height — truthiness alone admits
 });
 
 test("parseViewport rejects fractional, non-finite, and extra dimensions", () => {
-  for (const raw of ["1280.5x800", "1280x800.5", "Infinityx800", "1280x800x2", "1280x800junk"]) {
+  for (const raw of [
+    "1280.5x800",
+    "1280x800.5",
+    "Infinityx800",
+    "1280x800x2",
+    "1280x800junk",
+    "1e3x768",
+    "+1024x768",
+    " 1024x768",
+    "1024x768 ",
+    "1024 x768",
+    "1024x 768",
+    `${Number.MAX_SAFE_INTEGER + 1}x768`,
+    `1024x${Number.MAX_SAFE_INTEGER + 1}`,
+  ]) {
     expect(parseViewport(raw)).toBeNull();
   }
 });

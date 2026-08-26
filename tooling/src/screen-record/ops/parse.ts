@@ -116,6 +116,19 @@ Run:
 
 Exit: 0 recorded · 1 step failure / page error · EXIT.misuse on a bad CLI.`;
 
+function scanValueFlag(token: string, value: string | undefined): readonly [error: string | null, consumesValue: boolean] {
+  if (!VALUE_FLAGS.has(token)) {
+    return [`unknown flag ${token}`, false];
+  }
+  if (value === undefined || value.startsWith("--")) {
+    return [`${token} requires a value`, false];
+  }
+  if (token === "--viewport" && parseViewport(value) === null) {
+    return ["--viewport requires WIDTHxHEIGHT positive integers", true];
+  }
+  return [null, true];
+}
+
 /** Argv scanned for misuse BEFORE a browser boots (the fleet's strict-CLI posture — a typo'd flag
  *  must not silently record the wrong tape). */
 function scanArgv(argv: readonly string[]): string[] {
@@ -134,16 +147,13 @@ function scanArgv(argv: readonly string[]): string[] {
       }
       continue;
     }
-    if (!VALUE_FLAGS.has(token)) {
-      errors.push(`unknown flag ${token}`);
-      continue;
+    const [error, consumesValue] = scanValueFlag(token, argv[index + 1]);
+    if (error !== null) {
+      errors.push(error);
     }
-    const value = argv[index + 1];
-    if (value === undefined || value.startsWith("--")) {
-      errors.push(`${token} requires a value`);
-      continue;
+    if (consumesValue) {
+      index += 1;
     }
-    index += 1;
   }
   if (routeCount > 1) {
     errors.push(`expected at most one route, got ${routeCount}`);
