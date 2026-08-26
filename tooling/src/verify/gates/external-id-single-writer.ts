@@ -1,7 +1,8 @@
 // Gate: external-id-single-writer (Spine-Identity-and-Auth.md — the U1 bind-once identity invariant) —
 // `users.externalId` / `external_id` is the STABLE SSO subject bound ONCE to a row; it may be WRITTEN only
-// by the two sanctioned sessions verbs (provision-identity.ts — the SSO-seam upsert; link-external-id.ts —
-// the admin B5 link capability). A THIRD write site is exactly the fragmented N-provisioning-paths hole
+// by the two sanctioned sessions capabilities (provision-identity.ts — the SSO-seam upsert;
+// link-external-id.ts — the admin B5 link capability). The link capability's one physical writer lives in
+// sessions/persistence/users.ts. A THIRD writer or caller is exactly the fragmented N-provisioning-paths hole
 // OpenWebUI's W1 takeover rides — a future auth method that adds its own externalId linking site REDS here.
 // A "write" = a BIND of a NON-NULL subject: an `externalId`/`external_id` object-KEY whose nearest enclosing
 // call is a users write verb (insertUser/updateUser/set/values/onConflictDoUpdate), or an `<x>.externalId = …`
@@ -26,7 +27,7 @@ const KEYS: ReadonlySet<string> = new Set(["externalId", "external_id"]);
 const WRITE_VERBS: ReadonlySet<string> = new Set(["insertUser", "updateUser", "set", "values", "onConflictDoUpdate"]);
 
 const MESSAGE =
-  "a `users.externalId` write outside the two sanctioned sessions verbs (Spine-Identity-and-Auth.md U1 — the bind-once identity chokepoint). `externalId` is the STABLE SSO subject; it is WRITTEN only by domain/sessions/verbs/provision-identity.ts (the SSO-seam upsert) + link-external-id.ts (the admin B5 link). A second linking site is the fragmented-provisioning hole (OpenWebUI W1 takeover) this invariant forbids.";
+  "a `users.externalId` write or atomic-claim call outside the two sanctioned sessions capabilities (Spine-Identity-and-Auth.md U1 — the bind-once identity chokepoint). `externalId` is the STABLE SSO subject; it is bound only by provision-identity.ts or link-external-id.ts through its single persistence writer. A second linking site is the fragmented-provisioning hole (OpenWebUI W1 takeover) this invariant forbids.";
 const FIX =
   "route the link through the injected sessions `linkExternalId` capability (the admin path) or `provisionIdentity` — never write the externalId column directly; the bind-once guard (isSubjectMismatch) lives on those two verbs.";
 
@@ -34,10 +35,12 @@ const GATE_SELF = "tooling/src/verify/gates/external-id-single-writer.ts";
 /** Real-tree anchor (gate-hub #11): the identity root's own schema file, present on every real run and never
  *  materialized by a conformance mini-project unless an example does so deliberately. */
 const ANCHOR = "packages/db/src/schema/users.ts";
-const SESSIONS = "packages/server/src/domain/sessions/verbs/";
-/** The TWO sanctioned externalId writers (Spine-Identity-and-Auth.md U1). Named individually so the stale
- *  arm can name the dead one. */
-const SANCTIONED_FILES = [`${SESSIONS}provision-identity.ts`, `${SESSIONS}link-external-id.ts`] as const;
+const SESSIONS = "packages/server/src/domain/sessions/";
+const LINK_CAPABILITY = `${SESSIONS}verbs/link-external-id.ts`;
+const CLAIM_WRITER = "claimExternalIdIfUnbound";
+/** The TWO physical externalId writers serving the sanctioned capabilities (Spine-Identity-and-Auth.md U1).
+ *  Named individually so the stale arm can name the dead one. */
+const SANCTIONED_FILES = [`${SESSIONS}verbs/provision-identity.ts`, `${SESSIONS}persistence/users.ts`] as const;
 const STALE_PREFIX =
   "stale sanctioned-writer — this file no longer writes `users.externalId`, so its carve-out is dead (either the U1 detector broke, or the writer moved — ratchet down / re-point): ";
 
@@ -106,6 +109,10 @@ function externalIdWrites(sf: SourceFile): Node[] {
   return out;
 }
 
+function isClaimWriterCall(node: Node): boolean {
+  return node.isKind(SyntaxKind.CallExpression) && calleeName(node) === CLAIM_WRITER;
+}
+
 function repoRel(path: string): string {
   const idx = path.indexOf("/packages/");
   return idx === -1 ? path : path.slice(idx + 1);
@@ -121,8 +128,14 @@ export const gate: GateDescriptor = {
   message: MESSAGE,
   fix: FIX,
   scanRoot: (p) => p.startsWith("packages/server/src/"),
-  kinds: [SyntaxKind.PropertyAssignment, SyntaxKind.ShorthandPropertyAssignment, SyntaxKind.BinaryExpression],
+  kinds: [SyntaxKind.PropertyAssignment, SyntaxKind.ShorthandPropertyAssignment, SyntaxKind.BinaryExpression, SyntaxKind.CallExpression],
   visit: (node, sf, ctx) => {
+    if (isClaimWriterCall(node)) {
+      if (repoRel(sf.getFilePath()) !== LINK_CAPABILITY) {
+        ctx.report(node, { token: CLAIM_WRITER, offset: 0 });
+      }
+      return;
+    }
     if (!(isExternalIdWriteKey(node) || isExternalIdAssignment(node))) {
       return;
     }
@@ -148,6 +161,15 @@ export const gate: GateDescriptor = {
         });
       }
     }
+    const link = ctx.project.getSourceFile(`${ctx.root}/${LINK_CAPABILITY}`);
+    if (link === undefined || link.getDescendantsOfKind(SyntaxKind.CallExpression).every((call) => !isClaimWriterCall(call))) {
+      ctx.report({
+        file: GATE_SELF,
+        line: 1,
+        column: 0,
+        message: `${STALE_PREFIX}"${LINK_CAPABILITY}" no longer calls ${CLAIM_WRITER} — tooling/src/verify/gates/external-id-single-writer.ts`,
+      });
+    }
   },
   mustFlag: [
     {
@@ -159,6 +181,16 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/sessions/verbs/second-link.ts",
       expect: { count: 1, token: "externalId" },
       why: "a THIRD externalId write site — a new linking verb calling updateUser({ externalId }) outside the two sanctioned files: the fragmented-provisioning hole U1 forbids, RED",
+    },
+    {
+      files:
+        'import { claimExternalIdIfUnbound } from "../persistence/users.ts";\n' +
+        "export async function secondLink(db: D, userId: U, externalId: E): Promise<void> {\n" +
+        "  await claimExternalIdIfUnbound(db, userId, externalId, 0);\n" +
+        "}\n",
+      at: "packages/server/src/domain/sessions/verbs/second-link.ts",
+      expect: { count: 1, token: CLAIM_WRITER },
+      why: "a THIRD capability calling the atomic persistence writer — indirect fragmentation is the same takeover surface, RED",
     },
     {
       files: "export function patch(changes: { externalId?: string }, externalId: string): void {\n  changes.externalId = externalId;\n}\n",
@@ -174,6 +206,15 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files:
+        'import { claimExternalIdIfUnbound } from "../persistence/users.ts";\n' +
+        "export async function linkExternalId(db: D, userId: U, externalId: E): Promise<void> {\n" +
+        "  await claimExternalIdIfUnbound(db, userId, externalId, 0);\n" +
+        "}\n",
+      at: LINK_CAPABILITY,
+      why: "the one sanctioned admin capability calling its exact persistence writer, passes",
+    },
     {
       files:
         'import { users } from "@orb/db";\nexport const COLS = { id: users.id, externalId: users.externalId } as const;\nexport const read = (db: DB) => db.select(COLS);\n',
