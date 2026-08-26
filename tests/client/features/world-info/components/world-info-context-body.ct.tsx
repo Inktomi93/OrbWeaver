@@ -15,6 +15,8 @@ import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trp
 import { WorldInfoContextStory } from "../_ct-stories.tsx";
 
 const BOOK_ID = "world_book_reorder001";
+const RETRY_RE = /Retry/u;
+const NO_PERSONAS_RE = /No personas yet/u;
 const BOOK_ROW = {
   id: BOOK_ID,
   name: "Reorder Book",
@@ -22,6 +24,18 @@ const BOOK_ROW = {
   createdAt: 1,
   entryCount: 0,
   usage: { characters: 0, personas: 0, chats: 0, global: false, total: 0 },
+};
+const PERSONA = {
+  id: "persona_nova",
+  name: "Nova",
+  title: null,
+  description: "",
+  starred: false,
+  avatarAssetId: null,
+  avatarHash: null,
+  metadata: null,
+  createdAt: 1,
+  updatedAt: 1,
 };
 
 /** A library whose second card is only ever reachable THROUGH the search param — the stub answers the term
@@ -119,20 +133,42 @@ test("attachment controls lock on the one shared reverse read and expose an expl
     "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
     "worldInfo.listGlobal": () => [],
     "worldInfo.listAttachmentsForBook": () => held,
-    "persona.list": () => [],
+    "persona.list": () => [PERSONA],
     "character.list": searchedLibrary,
   });
   const context = await mount(<WorldInfoContextStory />);
   await context.getByRole("button", { name: "Attach to a character" }).click();
   await held.requested;
+  await expect(context.getByRole("status")).toContainText("Loading attachment status");
   const toggle = context.getByRole("switch", { name: "Attach to Astrid" });
   await expect(toggle).toBeDisabled();
   held.release(trpcError());
 
-  const retry = context.getByRole("button", { name: "Retry" }).first();
+  await expect(context.getByRole("alert")).toContainText("Couldn't load attachment status.");
+  const retry = context.getByRole("button", { name: "Retry attachment status" });
   await expect(retry).toBeVisible();
+  await expect(context.getByRole("button", { name: RETRY_RE })).toHaveCount(1);
   await expect(toggle).toBeDisabled();
   // The held marker replays its settled failure on retry; this still proves the explicit retry door fires.
   await retry.click();
   await expect.poll(() => trpc.count("worldInfo.listAttachmentsForBook")).toBe(2);
+});
+
+test("the personas section does not claim zero or empty while its target roster is pending", async ({ mount, page }) => {
+  const personasHeld = trpcHold();
+  await routeTrpc(page, {
+    "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
+    "worldInfo.listGlobal": () => [],
+    "worldInfo.listAttachmentsForBook": () => ({ characters: [], personaIds: [] }),
+    "persona.list": () => personasHeld,
+  });
+  const context = await mount(<WorldInfoContextStory />);
+  await personasHeld.requested;
+
+  await expect(context.getByRole("heading", { name: "Attached by personas" })).toBeVisible();
+  await expect(context.getByText("Attached by personas · 0")).toHaveCount(0);
+  await expect(context.getByText(NO_PERSONAS_RE)).toHaveCount(0);
+
+  personasHeld.release([]);
+  await expect(context.getByText(NO_PERSONAS_RE)).toBeVisible();
 });
