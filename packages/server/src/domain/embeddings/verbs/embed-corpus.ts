@@ -24,7 +24,6 @@ export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store
       if (signal.aborted) {
         break;
       }
-      // biome-ignore lint/performance/noAwaitInLoops: sequential by design — parallel items would stampede the embed backend.
       const text = await ctx.loadCardText(characterId);
       if (text === undefined || text.length === 0) {
         skipped += 1;

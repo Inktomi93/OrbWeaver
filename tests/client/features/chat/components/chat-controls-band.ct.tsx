@@ -149,7 +149,6 @@ for (const { label, width, height } of CONTRAST_WIDTHS) {
     await expect(band).toBeVisible();
     for (const mode of ["send", "compose"] as const) {
       const chip = component.locator(`${CHIPS} button[data-mode="${mode}"]`);
-      // biome-ignore lint/performance/noAwaitInLoops: a framebuffer read is a SEQUENTIAL browser operation — two concurrent screenshots of the same page interleave and one of them samples the other's frame.
       await expect(chip).toBeVisible();
       // Settled snapshot: the visibility barrier above settled this chip's box; the framebuffer read is of a
       // painted, settled frame, not of mutable async state.
@@ -267,7 +266,6 @@ test("#674 the chip's mode glyph renders at the house 16px step, not lucide's in
 
   for (const mode of ["send", "compose"] as const) {
     const glyph = component.locator(`${CHIPS} button[data-mode="${mode}"] svg`);
-    // biome-ignore lint/performance/noAwaitInLoops: two ordered assertions over a two-element set — the same sequential discipline the contrast loop above states.
     await expect(glyph).toBeVisible();
     // The RENDERED box, not the attribute alone: a `size` prop that a stylesheet then overrode would pass
     // an attribute check and still paint 24px.

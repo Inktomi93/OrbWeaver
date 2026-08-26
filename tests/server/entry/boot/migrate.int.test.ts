@@ -103,7 +103,6 @@ test("a regenerated-baseline boot (the destructive reset) still backs up first, 
     // Force six more change-boots by back-dating the recorded baseline each time (the post-squash-regen
     // state). Each one resets + re-migrates, so each MUST take its own backup before dropping the tables.
     for (let i = 0; i < 6; i++) {
-      // biome-ignore lint/performance/noAwaitInLoops: the boots must run SEQUENTIALLY — each one back-dates the record the next one reads, and the point is seven distinct backup stamps.
       await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
       await runBootMigrations({ db, databaseUrl: url });
     }

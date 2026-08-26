@@ -75,7 +75,6 @@ export async function runProfileImport(deps: ProfileImportDeps): Promise<Profile
   for (const file of files) {
     const filename = file.filename ?? null;
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: bulk import is intentionally sequential — each card is one atomic write, with resumable per-card failures[] isolation.
       const result = await service.importCharacter({
         card: {
           bytes: file.bytes,

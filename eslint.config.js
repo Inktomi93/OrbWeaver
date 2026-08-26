@@ -338,7 +338,7 @@ export default tseslint.config(
     plugins: { "@typescript-eslint": tseslint.plugin },
     rules: {
       // A dropped Promise silently swallows the error/race — the standout catch Biome can't structurally see.
-      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
       // A Promise where a void/boolean is expected. `checksVoidReturn.attributes: false` is load-bearing:
       // without it this nags idiomatic `onClick={async …}` (TanStack `mutateAsync`) JSX handlers — forward-
       // necessary once chat wires those, kept even though the current tree has zero such sites.
@@ -383,7 +383,7 @@ export default tseslint.config(
       // THE headline rule here: 36 un-awaited async `toExitWith` matchers, all of them assertions that
       // could not fail their own test. Nothing else in the stack can see a dropped Promise. (Measured 0
       // across the #473 dirs — that zero is what closes the census, not an assumption.)
-      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
       "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
       "@typescript-eslint/await-thenable": "error",
       // The §5.5 string-union dispatch law as a lint rule: a `default:` catch-all lets a NEW union member

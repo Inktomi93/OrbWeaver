@@ -23,7 +23,6 @@ async function pushLiveSchema(db: Db): Promise<void> {
   const current = await generateSQLiteDrizzleJson(schema as Record<string, unknown>);
   const statements = await generateSQLiteMigration(empty, current);
   for (const statement of statements) {
-    // biome-ignore lint/performance/noAwaitInLoops: DDL must apply sequentially in emitted order on one connection — Promise.all would race CREATE statements and corrupt dependency order.
     await db.run(sql.raw(statement));
   }
 }

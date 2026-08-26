@@ -943,7 +943,7 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatServ
     await ctx.db.batch(batchMany(statements));
     const view = buildCommittedMessageView(params);
     await emit({ type: "messageCommitted", chatId, messageId: view.id, view });
-    void ctx.emitChatChanged(chatId);
+    await ctx.emitChatChanged(chatId);
     return await projectEditReturn(ctx, view, membership);
   };
 }

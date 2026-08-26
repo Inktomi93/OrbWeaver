@@ -239,7 +239,6 @@ async function buildDistillWrites(
   const parsed: (CharacterDistillation | null)[] = [];
   for (let i = 0; i < ready.length; i += DISTILL_RETRY_CONCURRENCY) {
     const wave = ready.slice(i, i + DISTILL_RETRY_CONCURRENCY);
-    // biome-ignore lint/performance/noAwaitInLoops: bounded-concurrency waves — each wave's per-card retries run in parallel, then the loop advances; that IS the concurrency bound.
     const waveParsed = await Promise.all(wave.map((target, j) => parseOneDistill(deps, target, items[i + j]?.text ?? "", pass)));
     parsed.push(...waveParsed);
     // The WAVE is the only real progress tick this pass has: the summarize call is one batched round-trip
@@ -311,7 +310,6 @@ async function commitSummaries(db: Db, stmts: readonly BatchItem<"sqlite">[]): P
       continue;
     }
     // @orb-gate-ignore no-await-db-in-loop: bounded per-chunk batch — deliberate backpressure over the libSQL bound-variable cap (mirrors every bulk-write in the slice).
-    // biome-ignore lint/performance/noAwaitInLoops: bounded per-chunk batch — deliberate backpressure, not a fan-out.
     await db.batch(chunk as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
   }
 }
@@ -322,7 +320,6 @@ async function stageSuggestions(deps: DistillCharactersDeps, stagedLabels: reado
   let tagsStaged = 0;
   for (const label of stagedLabels) {
     signal?.throwIfAborted();
-    // biome-ignore lint/performance/noAwaitInLoops: the tag attach is a metered resolve-or-create chokepoint (per-name unique race guard) — staged sequentially, not fanned out.
     const attached = await deps.attachCardTagByName({
       ownerId: label.ownerId,
       characterId: label.characterId,

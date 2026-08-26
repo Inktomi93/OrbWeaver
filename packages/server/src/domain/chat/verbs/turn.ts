@@ -729,7 +729,7 @@ async function persistUserMessage(
     throw err;
   });
   await emit({ type: "messageCommitted", chatId: args.chatId, messageId: view.id, view });
-  void ctx.emitChatChanged(args.chatId);
+  await ctx.emitChatChanged(args.chatId);
   return view;
 }
 
@@ -1211,7 +1211,6 @@ async function runAutoSwipe(auto: AutoBehaviorDeps, frame: AutoFrame, tip: Messa
   let current = tip;
   for (let i = 0; i < cfg.maxRetries && !frame.signal.aborted; i += 1) {
     const target = current;
-    // biome-ignore lint/performance/noAwaitInLoops: each swipe re-checks the prior variant + takes the per-chat lock — inherently sequential (bound 1).
     const next = await runAutoFollowUp(() => auto.swipe({ principal: frame.principal, chatId: frame.chatId, messageId: target.id }));
     if (next === null) {
       break;
@@ -1235,7 +1234,6 @@ async function runAutoContinue(auto: AutoBehaviorDeps, frame: AutoFrame, tip: Me
       break;
     }
     const target = current;
-    // biome-ignore lint/performance/noAwaitInLoops: each continue extends the prior tip + takes the per-chat lock — inherently sequential (bound 1).
     const next = await runAutoFollowUp(() => auto.continueTurn({ principal: frame.principal, chatId: frame.chatId, messageId: target.id }));
     if (next === null) {
       break;
@@ -2081,7 +2079,6 @@ function createDeltaBridge(): DeltaBridge {
       } else if (done) {
         draining = false;
       } else {
-        // biome-ignore lint/performance/noAwaitInLoops: a stream drain is inherently sequential — park until the next push/close.
         await arrival;
       }
     }
@@ -2302,7 +2299,7 @@ async function restoreContinue(
     throw new ChatNotFoundError(chatId);
   }
   await emit({ type: "messageCommitted", chatId, messageId: view.id, view });
-  void ctx.emitChatChanged(chatId);
+  await ctx.emitChatChanged(chatId);
   return view;
 }
 
@@ -2472,7 +2469,6 @@ function createDrainDeferredTurns(ctx: ChatContext, deps: TurnDeps): ChatService
     let ran = 0;
     let dropped = 0;
     for (const row of rows) {
-      // biome-ignore lint/performance/noAwaitInLoops: deferred turns drain SEQUENTIALLY — each acquires the per-chat lock + spends the host's count budget; a parallel sweep would race the lock + the limiter.
       const outcome = await drainOne(ctx, deps, row);
       if (outcome === "ran") {
         ran += 1;

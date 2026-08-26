@@ -10,6 +10,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
+import { notify } from "#lib";
 
 type AppForm = AppFormInstance<PromptConfig>;
 
@@ -93,7 +94,7 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
                     intent="ghost"
                     size="sm"
                     onClick={(): void => {
-                      void form.removeFieldValue(optionsName, j);
+                      form.removeFieldValue(optionsName, j).catch(() => notify.error("Couldn't remove the option."));
                     }}
                   >
                     Remove

@@ -117,7 +117,6 @@ async function status(): Promise<number> {
   const held = isHeld(RUN_DIR);
   log(`hold marker: ${held ? "PRESENT (sleeping-held; `engines:wake` releases)" : "absent"}`);
   for (const engine of VLLM_ENGINES) {
-    // biome-ignore lint/performance/noAwaitInLoops: a small, fixed, sequential fleet — three engines.
     await logEngineRow(engine, held);
   }
   for (const g of gpus) {
@@ -144,7 +143,6 @@ async function sleepAll(): Promise<number> {
   log("wrote hold marker — engines HELD; a stray request will NOT auto-wake them. `engines:wake` releases.");
   let slept = 0;
   for (const engine of VLLM_ENGINES) {
-    // biome-ignore lint/performance/noAwaitInLoops: three engines, sequential loopback POSTs.
     const ok = await postSleep(engine);
     log(`${engine}: /sleep?level=1 → ${ok ? "ok" : "FAILED (engine down or sleep-mode off?)"}`);
     if (ok) {
@@ -181,7 +179,6 @@ async function wakeAll(): Promise<number> {
       refused += 1;
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: sequential wake — engines share GPUs, one at a time.
     const ok = await postWakeAndAwait(engine, { now: () => Date.now(), sleep });
     log(`${engine}: wake ${ok ? "→ ready" : "TIMED OUT (30s bound)"}`);
     if (ok) {

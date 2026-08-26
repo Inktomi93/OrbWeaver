@@ -311,7 +311,6 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
   // Drain the microtask/promise chain (probes, the spawn mutex) without advancing wall-clock.
   const settle = async (): Promise<void> => {
     for (let i = 0; i < 8; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: draining the async chain is inherently sequential.
       await vi.advanceTimersByTimeAsync(0);
     }
   };
@@ -416,7 +415,6 @@ describe("startVllmEngines — auto-sleep idle timer", () => {
   });
   const settle = async (): Promise<void> => {
     for (let i = 0; i < 8; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: draining the async chain is inherently sequential.
       await vi.advanceTimersByTimeAsync(0);
     }
   };
@@ -533,7 +531,6 @@ describe("startVllmEngines — the local-GPU requirement is MANAGER-scoped", () 
   });
   const settle = async (): Promise<void> => {
     for (let i = 0; i < 8; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: draining the async chain is inherently sequential.
       await vi.advanceTimersByTimeAsync(0);
     }
   };

@@ -268,7 +268,6 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
     if (ent.kind !== "directory") {
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: user dirs are collected sequentially — a one-time bulk-import scan, not a hot path.
     const result = await collectBundlesFromDir(fs, fs.join(profileRoot, ent.name), [], stWallClockZone(deps));
     bundles.push(...result.bundles);
     personas.push(...result.personas);
@@ -353,7 +352,6 @@ async function countWouldCreate(deps: ProfileDirImportDeps, bundles: readonly Co
       break;
     }
     const importHash = importFileHash(b.cardBytes);
-    // biome-ignore lint/performance/noAwaitInLoops: dedup oracles are probed sequentially per bundle during the one-time dry scan.
     const byHash = await deps.character.findByImportHash({ ownerId, importHash });
     if (byHash !== null) {
       continue;
@@ -408,7 +406,6 @@ async function storeCollectedBackgrounds(
       break;
     }
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: backgrounds are stored sequentially during the one-time bulk import — one CAS write each, isolated per file.
       const stored = await store({
         principal: deps.principal,
         bytes: background.bytes,
@@ -433,7 +430,6 @@ async function importCollectedWorlds(deps: ProfileDirImportDeps, worlds: readonl
     if (deps.signal.aborted) {
       break;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: worlds are imported sequentially during the one-time bulk import, not a hot path.
     const bookResult = await deps.importStandaloneLorebook({ ownerId: deps.principal.userId, book: world.book });
     if (!bookResult.replaced) {
       created += 1;
@@ -616,7 +612,6 @@ async function attachCollectedWorldLinks(
     if (attach === undefined || characterId === undefined) {
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: a handful of name-link attaches during the one-time bulk import, isolated per character.
     const result = await attachWorldLinksFor({ attach, ownerId: deps.principal.userId, characterId, bundle, extras });
     attached += result.attached;
     missing.push(...result.missing);
@@ -653,7 +648,6 @@ async function importOrphanBundles(
       break;
     }
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: orphan dirs import sequentially during the one-time bulk import — one idempotent mint + one chat write each, isolated per dir.
       const mint = await service.importOrphanCharacter({
         dirName: orphan.dirName,
         handle: orphan.handle,
@@ -765,7 +759,6 @@ async function importCollectedBundles(
       break;
     }
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: bulk import is intentionally sequential — each card is one atomic idempotent write, isolated per bundle.
       const result = await importOneBundle(service, bundle);
       changed += result.changed;
       chatsPersonaHealed += result.chatsPersonaHealed;
@@ -853,7 +846,6 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
     if (deps.signal.aborted) {
       break;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: avatars are stored sequentially during the one-time bulk import (a short persona list), not a hot path.
     personaInputs.push(await toPersonaInput(store, deps.principal, p));
   }
   if (personaInputs.length > 0) {

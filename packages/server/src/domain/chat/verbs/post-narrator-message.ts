@@ -94,7 +94,7 @@ export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMe
     const view = buildCommittedMessageView(params);
     await deps.emit({ type: "messageCommitted", chatId, messageId, view });
     // A new narrator message moved chat-list recency → fan `chatsChanged` (list-only) to present human members.
-    void ctx.emitChatChanged(chatId);
+    await ctx.emitChatChanged(chatId);
     return { messageId, variantId: params.variantId };
   };
 }

@@ -3742,20 +3742,16 @@ test.describe("coarse game rail cells", () => {
 // the traversal: it proves the rail is keyboard-REACHABLE first, and only then judges the ring. The rail
 // cells are one roving tab stop (Base UI), so the walk is bounded.
 
-/** Tab from the document until focus lands inside `selector`. A keyboard traversal is inherently sequential,
- *  so it is expressed as a promise CHAIN rather than a loop with awaits in it (`noAwaitInLoops`): each press
- *  is followed by a settled read of where focus actually went. */
-function tabInto(page: import("@playwright/test").Page, selector: string, maxPresses = 24): Promise<boolean> {
-  const focusIsInside = (): Promise<boolean> =>
-    page.evaluate((sel: string) => document.activeElement !== null && document.activeElement.closest(sel) !== null, selector);
-  const pressTab = (): Promise<void> => page.keyboard.press("Tab");
-  const step = (remaining: number): Promise<boolean> =>
-    remaining === 0
-      ? Promise.resolve(false)
-      : pressTab()
-          .then(focusIsInside)
-          .then((landed) => (landed ? true : step(remaining - 1)));
-  return step(maxPresses);
+/** Tab from the document until focus lands inside `selector`; each press must settle before focus is read. */
+async function tabInto(page: import("@playwright/test").Page, selector: string, maxPresses = 24): Promise<boolean> {
+  for (let remaining = maxPresses; remaining > 0; remaining -= 1) {
+    await page.keyboard.press("Tab");
+    const landed = await page.evaluate((sel: string) => document.activeElement !== null && document.activeElement.closest(sel) !== null, selector);
+    if (landed) {
+      return true;
+    }
+  }
+  return false;
 }
 
 test.describe("coarse game rail focus ring", () => {

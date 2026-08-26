@@ -32,8 +32,8 @@
 // SPEND: local vLLM only. The route is pinned to the stateless openai-compat wire in beforeAll (the arm
 // that keeps turns bounded), restored in afterAll. Each leg fires a handful of short turns. Turns are
 // free on the local stack; the @live tag keeps the routine/CI-smoke lane model-free (config grepInvert),
-// and every leg honest-bails (early return + annotation, NEVER test.skip(cond) — the structure gate reads
-// that as a stub) when the operator's stack has no local chat backend wired, so a run is never a FALSE PASS.
+// and every leg records a runner-native conditional skip when the operator's stack has no local chat
+// backend wired, so unavailable evidence is not recorded as a pass.
 //
 // SELF-SEEDING: each test mints its OWN spec-owned character(s) (unique handle + unique display name) and
 // its OWN uniquely-titled chat via startGroupChat (opening:"none" ⇒ empty canon, so every assertion counts
@@ -152,7 +152,7 @@ async function pollAssistantCount(chatId: ChatId, n: number): Promise<void> {
 
 test.describe("guided generations on the live local stack", () => {
   let originalRoute: ChatRoute | undefined;
-  /** Null ⇒ local turns work; a string ⇒ the honest bail reason every arm annotates with. */
+  /** Null ⇒ local turns work; a string ⇒ the unavailable reason every arm reports to the runner. */
   let bail: string | null = null;
 
   // The ENVIRONMENT probe, paid ONCE: pin the stateless route and drive one throwaway REAL turn (a swipe
@@ -188,6 +188,10 @@ test.describe("guided generations on the live local stack", () => {
     }
   });
 
+  function skipWhenBackendUnavailable(): void {
+    test.skip(bail !== null, bail === null ? "local chat backend available" : `no local chat backend on this stack: ${bail}`);
+  }
+
   // ── LEG 1 — STEER SHAPES THE TURN ────────────────────────────────────────────────────────────────
   // The honest pre-turn instrument: previewAssembly routes the steer through the SAME gather→build a real
   // turn gets, so the steer INSTRUCTION is assertable in the assembled prompt BEFORE any generation (and a
@@ -196,10 +200,7 @@ test.describe("guided generations on the live local stack", () => {
   // never model obedience (we do not read the reply's prose).
   test("steer shapes the turn: the instruction reaches the assembly and a guided response commits", { tag: "@live" }, async ({ page }) => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    if (bail !== null) {
-      test.info().annotations.push({ type: "skipped", description: `no local chat backend on this stack: ${bail}` });
-      return;
-    }
+    skipWhenBackendUnavailable();
     const charId = await mintFreshCharacter(SOLO.handle, SOLO.name, SOLO.greeting);
     const title = `e2e-guided-steer-${Date.now()}`;
     const chat = await startGroupChat({ characterIds: [charId], title });
@@ -233,10 +234,7 @@ test.describe("guided generations on the live local stack", () => {
   // SELECTED (selectedVariantIdx advances). Server truth = the slot's variant metadata + content on canon.
   test("rewrite lands as a variant: same slot, +1 variant, original intact, new one selected", { tag: "@live" }, async ({ page }) => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    if (bail !== null) {
-      test.info().annotations.push({ type: "skipped", description: `no local chat backend on this stack: ${bail}` });
-      return;
-    }
+    skipWhenBackendUnavailable();
     const charId = await mintFreshCharacter(SOLO.handle, SOLO.name, SOLO.greeting);
     const title = `e2e-guided-rewrite-${Date.now()}`;
     const chat = await startGroupChat({ characterIds: [charId], title });
@@ -289,10 +287,7 @@ test.describe("guided generations on the live local stack", () => {
   // items are DISABLED-WITH-REASON on a never-continued reply (owner: no hidden affordances).
   test("undo/revert continue round-trips: content grows, undo restores, revert re-applies", { tag: "@live" }, async ({ page }) => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    if (bail !== null) {
-      test.info().annotations.push({ type: "skipped", description: `no local chat backend on this stack: ${bail}` });
-      return;
-    }
+    skipWhenBackendUnavailable();
     const charId = await mintFreshCharacter(SOLO.handle, SOLO.name, SOLO.greeting);
     const title = `e2e-guided-continue-${Date.now()}`;
     const chat = await startGroupChat({ characterIds: [charId], title });
@@ -346,10 +341,7 @@ test.describe("guided generations on the live local stack", () => {
   // IS the chosen speaker. Server truth = the committed row's characterId.
   test("steer + speaker: the guided response commits a row authored by the chosen speaker", { tag: "@live" }, async ({ page }) => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    if (bail !== null) {
-      test.info().annotations.push({ type: "skipped", description: `no local chat backend on this stack: ${bail}` });
-      return;
-    }
+    skipWhenBackendUnavailable();
     const alphaId = await mintFreshCharacter(DUO[0].handle, DUO[0].name, DUO[0].greeting);
     const bravoId = await mintFreshCharacter(DUO[1].handle, DUO[1].name, DUO[1].greeting);
     const title = `e2e-guided-speaker-${Date.now()}`;

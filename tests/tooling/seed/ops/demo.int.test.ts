@@ -63,7 +63,6 @@ test("seed:demo populates the marquee demo shapes against a fresh db", async () 
     if (row.avatarAssetId === null) {
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: a handful of seeded cards; per-row FK-resolution is the assertion.
     const asset = await db
       .select({ id: assets.id })
       .from(assets)

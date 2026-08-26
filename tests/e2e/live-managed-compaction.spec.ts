@@ -194,7 +194,6 @@ test("STABLE-cap leg: managed compaction drops the covered turns from a stable-c
       "The party sets out; narrate the first day's travel vividly.",
     ];
     for (const beat of beats) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential dependent turns.
       await tolerantSend(beat);
     }
 

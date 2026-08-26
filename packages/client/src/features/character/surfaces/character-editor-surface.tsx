@@ -22,7 +22,7 @@ import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data"
 import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import type { CharacterDetailContribution, CharacterDetailState, ContributorRegistry } from "#lib";
-import { useFocusOnMount } from "#lib";
+import { notify, useFocusOnMount } from "#lib";
 import { clearCharacterFacet, selectCharacterFacet, useSelectedCharacterFacetId } from "#state";
 import { CharacterFacetEditor } from "../components/character-facet-editor.tsx";
 import { CharacterFacetList } from "../components/character-facet-list.tsx";
@@ -204,7 +204,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();
-          void form.handleSubmit();
+          form.handleSubmit().catch(() => notify.error("Couldn't save the character."));
         }}
       >
         <Stack gap="section" className="mx-auto w-full max-w-(--container-cq-lg)" padding="section">

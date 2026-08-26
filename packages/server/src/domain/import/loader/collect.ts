@@ -145,7 +145,6 @@ async function collectCards(fs: ImportFsPort, profileDir: string, state: Collect
     if (ent.kind !== "file" || !PNG_EXT.test(ent.name)) {
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: cards are read + hashed sequentially — a bounded, one-time collection scan, not a hot path.
     const bytes = await fs.readFile(fs.join(charsDir, ent.name));
     const stem = ent.name.replace(PNG_EXT, "");
     const parsed = await parseCardPng(bytes, stem);
@@ -186,7 +185,6 @@ async function collectChatsForDir(args: {
       continue;
     }
     const filePath = fs.join(dirPath, fileEnt.name);
-    // biome-ignore lint/performance/noAwaitInLoops: chats are stat+read+parsed sequentially — a one-time collection scan bounded by the dir cap, not a hot path.
     const sz = await fs.stat(filePath);
     if (sz.size > MAX_JSONL_BYTES) {
       state.skippedChats.push(fs.join(dirName, fileEnt.name));
@@ -241,7 +239,6 @@ async function collectWorlds(fs: ImportFsPort, profileDir: string, state: Collec
     if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: worlds are read + parsed sequentially — a one-time collection scan bounded by the dir cap, not a hot path.
     const bytes = await fs.readFile(fs.join(worldsDir, ent.name));
     const book = parseStWorldFile(bytes, ent.name.replace(JSON_EXT, ""));
     if (book === null) {
@@ -262,7 +259,6 @@ async function collectPresetDir(fs: ImportFsPort, profileDir: string, state: Col
       continue;
     }
     const sourceFile = fs.join(ST_PRESET_DIR, ent.name);
-    // biome-ignore lint/performance/noAwaitInLoops: preset files are read + parsed sequentially during the one-time collection scan, not a hot path.
     const bytes = await fs.readFile(fs.join(dir, ent.name));
     const parsed = parseStPresetFile(bytes, ent.name.replace(JSON_EXT, ""));
     if (parsed === null) {
@@ -284,7 +280,6 @@ async function collectThemes(fs: ImportFsPort, profileDir: string, state: Collec
       continue;
     }
     const sourceFile = fs.join(ST_THEME_DIR, ent.name);
-    // biome-ignore lint/performance/noAwaitInLoops: theme files are read + parsed sequentially during the one-time collection scan, not a hot path.
     const bytes = await fs.readFile(fs.join(dir, ent.name));
     const result = parseStThemeFile(bytes, ent.name.replace(JSON_EXT, ""));
     if (!result.ok) {
@@ -310,7 +305,6 @@ async function collectBackgrounds(fs: ImportFsPort, profileDir: string, state: C
       state.skippedBackgrounds.push({ file: sourceFile, reason: "not an importable image/video file (unrecognized extension)" });
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: background files are read sequentially during the one-time collection scan, not a hot path.
     const bytes = await fs.readFile(fs.join(dir, ent.name));
     state.backgrounds.push({ filename: sourceFile, name: stBackgroundName(ent.name), mime, bytes });
   }
@@ -351,7 +345,6 @@ async function collectGroupChats(args: {
     const filePath = fs.join(dir, fileName);
     let bytes: Uint8Array;
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: a group's transcripts are stat+read sequentially during the one-time collection scan.
       const sz = await fs.stat(filePath);
       if (sz.size > MAX_JSONL_BYTES) {
         missingChatLeaves.push(fileName);
@@ -389,7 +382,6 @@ async function collectGroups(fs: ImportFsPort, profileDir: string, state: Collec
       continue;
     }
     const sourceFile = fs.join(GROUPS_DIR, ent.name);
-    // biome-ignore lint/performance/noAwaitInLoops: group definitions are read sequentially during the one-time collection scan.
     const bytes = await fs.readFile(fs.join(groupsDir, ent.name));
     const parsed = parseStGroupFile(bytes, ent.name.replace(JSON_EXT, ""));
     if (parsed === null) {
@@ -566,7 +558,6 @@ async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<Co
   for (const parsed of personas) {
     let avatarBytes: Uint8Array | undefined;
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: avatar bytes are read sequentially during the one-time collection scan (a short persona list), not a hot path.
       avatarBytes = await fs.readFile(fs.join(avatarsDir, parsed.avatarFile));
     } catch {
       avatarBytes = undefined;
@@ -618,7 +609,6 @@ export async function collectBundlesFromDir(
   const chatsDir = fs.join(profileDir, "chats");
   for (const dirEnt of await listDir(fs, chatsDir)) {
     if (dirEnt.kind === "directory") {
-      // biome-ignore lint/performance/noAwaitInLoops: chat dirs are scanned sequentially (one-time collection), each its own bounded read loop.
       await collectChatsForDir({ fs, chatsDir, dirName: dirEnt.name, state, wallClockZone });
     }
   }

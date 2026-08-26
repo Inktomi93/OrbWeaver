@@ -293,7 +293,7 @@ function PickerRow({
         aria-label={`Attach ${name}`}
         checked={attached}
         onCheckedChange={(next): void => {
-          void toggle(script.id, next);
+          toggle(script.id, next).catch(() => undefined); // The selected mutation's errorToast owns failure.
         }}
       />
     </Row>

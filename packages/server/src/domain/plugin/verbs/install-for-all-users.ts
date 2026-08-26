@@ -57,7 +57,6 @@ export function createInstallForAllUsers(ctx: PluginContext, deps: PluginDistrib
     // file, so a Promise.all over every account on the box would turn a publish into a write storm — and a
     // serial loop keeps a mid-fan-out failure legible (see the header's resume note).
     for (const recipient of recipients) {
-      // biome-ignore lint/performance/noAwaitInLoops: serial by design — see the comment above the loop.
       const held = await alreadyHolds(ctx, recipient, manifest.id);
       if (held) {
         skipped.push({ userId: recipient.userId, userHandle: recipient.handle, reason: "already-installed" });

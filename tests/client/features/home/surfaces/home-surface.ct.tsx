@@ -833,13 +833,11 @@ test("#499 the databank empty state's CTAs clear the 1280x800 fold — and the s
   await expect(home.getByRole("button", { name: ADD_DOCUMENT_CTA })).toBeVisible();
   await expect(home.locator("[aria-busy]")).toHaveCount(0);
 
-  // SEQUENTIAL by construction: every cell re-sizes the same live pane, so the widths cannot be probed
-  // concurrently (biome `performance/noAwaitInLoops` targets accidental serialization, which this is not).
-  const cells = await FOLD_WIDTHS.reduce<Promise<{ width: number; cell: FoldCell }[]>>(async (pending, width) => {
-    const done = await pending;
-    done.push({ width, cell: await measureFoldReach(page, width) });
-    return done;
-  }, Promise.resolve([]));
+  // Every cell resizes the same live pane, so each width must settle before the next is probed.
+  const cells: { width: number; cell: FoldCell }[] = [];
+  for (const width of FOLD_WIDTHS) {
+    cells.push({ width, cell: await measureFoldReach(page, width) });
+  }
 
   const matrix = cells.map(
     ({ width, cell }) =>

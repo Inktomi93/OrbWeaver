@@ -82,9 +82,8 @@ test("focus is trapped inside the popup and returns to the trigger on close", as
   await expect(dialog).toBeVisible();
 
   // Tab through more presses than there are focusable items (Cancel/Confirm = 2) so the cycle wraps
-  // at least once — focus must stay inside the popup at every step. Unrolled (not a loop) — each Tab
-  // depends on the prior one's settled focus, so this is a biome noAwaitInLoops false-positive to
-  // sidestep.
+  // at least once — focus must stay inside the popup at every step. Each Tab depends on the prior one's
+  // settled focus.
   await page.keyboard.press("Tab");
   await expect(dialog.locator(":focus")).toHaveCount(1);
   await page.keyboard.press("Tab");

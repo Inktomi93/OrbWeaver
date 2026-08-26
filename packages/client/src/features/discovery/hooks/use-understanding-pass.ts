@@ -207,7 +207,7 @@ export function useUnderstandingPass(): UnderstandingPassView {
     if (run !== null || startRun.isPending) {
       return;
     }
-    void (async (): Promise<void> => {
+    (async (): Promise<void> => {
       const distill = await startRun.mutateAsync({ input: { kind: "distill-characters", params: {} }, mode: "singular" });
       if (memoryDisabled) {
         // No digests can exist, so themes is not enqueued at all — a queued row that will refuse is worse
@@ -218,7 +218,7 @@ export function useUnderstandingPass(): UnderstandingPassView {
       // rather than clustering digests nobody wrote.
       const backfill = await startRun.mutateAsync({ input: { kind: "memory-backfill", params: {} }, mode: "singular", dependsOn: [distill.id] });
       await startRun.mutateAsync({ input: { kind: "compute-themes", params: {} }, mode: "singular", dependsOn: [backfill.id] });
-    })();
+    })().catch(() => undefined); // Each mutation's errorToast owns the surfaced failure.
   };
 
   // The LIVE tail wins while it is connected; with no frame yet (a reload mid-pass) the row's DURABLE

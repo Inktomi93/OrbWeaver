@@ -151,7 +151,6 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
     if (deps.signal.aborted) {
       break;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: sequential — the per-scope shrink-reclaim writes inside planDigests must not race.
     const witnessing = castSet.has(scope.scopedCharacterId) ? await loadWitnessHorizons(ctx.db, chatId, scope.scopedCharacterId) : undefined;
     const plan = await planDigests(ctx, { scope, config, macroNames, signal: deps.signal, ...(witnessing !== undefined ? { witnessing } : {}) });
     sweep.digestsScanned += 1; // each (chat × scope) bucket is one scanned unit, planned or a no-op
@@ -176,7 +175,6 @@ async function planAllBuckets(
       break; // cooperative abort between chats — every completed unit is durable + idempotent
     }
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: the plan sweep is sequential by design — parallel chats would race the db + the per-scope shrink-reclaim writes.
       await planOneChat(ctx, deps, chatId, sweep);
     } catch (err) {
       sweep.failed += 1;
@@ -275,7 +273,6 @@ async function storeAllTier0(ctx: ChatContext, state: CommitState, perPlanTexts:
     acc.skipped += plan.skipped;
     acc.skippedTokenGuard += plan.skippedTokenGuard;
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential embed-store — the tier-0 writes must not race the db.
       const stored = await storeTier0(ctx, plan, texts);
       acc.written += stored.written;
       acc.skippedEmpty += stored.skippedEmpty;
@@ -305,7 +302,6 @@ async function collectTierAcrossBuckets(ctx: ChatContext, state: CommitState, ti
       continue;
     }
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: per-bucket tier-k reads precede this tier's writes; parallel would race the db.
       const cons = await collectConsolidationTier(ctx, plan.scope, plan.cfg, { tier, existing: plan.existing, signal: state.signal });
       if (cons === null) {
         continue; // this bucket's consolidation ceiling
@@ -356,7 +352,6 @@ async function summarizeAndStoreTier(ctx: ChatContext, collected: readonly Colle
       continue;
     }
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential embed-store — the consolidation writes must not race the db.
       const stored = await storeConsolidationTier(ctx, c.scope, c.cons, texts);
       acc.written += stored.written;
       acc.skippedEmpty += stored.skippedEmpty;
@@ -393,7 +388,6 @@ async function consolidateAllTiers(ctx: ChatContext, state: CommitState): Promis
     if (state.signal.aborted) {
       break;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: tier k+1 reads tier k's rows — the corpus walk is sequential BY TIER (buckets within a tier are the batch).
     failed += await consolidateCorpusTier(ctx, state, tier);
   }
   return failed;
@@ -524,7 +518,6 @@ export async function backfillGroupCharacters(
     if (args.signal.aborted) {
       break;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: sequential by design — the mint writes must not race each other (idempotence is per-chat, checked-then-minted).
     const roster = await loadRoster(ctx.db, chatId);
     const cast = roster.filter((r) => classifyParticipant(r)?.kind === "character");
     const hostUserId = hostUserIdOf(roster);

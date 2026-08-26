@@ -70,7 +70,6 @@ export function createImportOrphanCharacter(ctx: ImportContext): ImportService["
     // already decided no card matches this dir).
     let free: CharacterHandle = handle;
     let n = 2;
-    // biome-ignore lint/performance/noAwaitInLoops: a sequential probe for the next free per-owner handle — at most a handful of collisions.
     while ((await ctx.findByHandle({ ownerId: ctx.ownerId, handle: free })) !== null) {
       free = castId<CharacterHandle>(`${handle}-${n}`);
       n += 1;

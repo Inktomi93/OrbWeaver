@@ -1,5 +1,5 @@
 // RESIDUAL unit test surviving the legacy-oracle burndown (reports/tooling/LEGACY-ORACLE-BURNDOWN.md
-// Phase 1). monotonic-tests tooth 1 (the forbidden-skip AST scan — every FLAG/PASS shape) moved into its
+// Phase 1). monotonic-tests tooth 1 (the pseudo-skip AST scan — every FLAG/PASS shape) moved into its
 // descriptor's mustFlag/mustPass conformance examples. Tooth 2 — the deleted-baseline-manifest reconciliation
 // — did NOT: it reads a committed `docs/test-baseline/manifest.json` off DISK and flags a listed test file
 // that no longer exists (and isn't ledgered), a missing/malformed manifest on the real tree, or a stale

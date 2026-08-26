@@ -417,7 +417,6 @@ async function runSpot(spot: Spot): Promise<void> {
   const reads: TurnRead[] = [];
   for (const turnNo of TURN_SEQUENCE) {
     const { built, hookText } = shapeSpotTurn(spot, turnNo);
-    // biome-ignore lint/performance/noAwaitInLoops: the 3 turns are sequential BY DESIGN — each resumes the prior lineage; serial order is the whole point of a resumed battery.
     const decision = await cache.ensureSeededSession(chatId, built.seed);
     const t = await runTurn(
       {
@@ -563,7 +562,6 @@ async function main(): Promise<void> {
   }
   for (const spot of spots) {
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: spots run sequentially — quota-metered live batteries; serial order keeps cache-metric attribution clean.
       await runSpot(spot);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);

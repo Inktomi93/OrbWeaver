@@ -39,7 +39,6 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
       [1, 0],
       [1, 1],
     ] as const) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts in a test.
       await upsertChatDigest(db, {
         id: castId<ChatDigestId>(`chat_digest_${tier}_${blockIdx}`),
         chatId,
@@ -106,7 +105,6 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
     // Witnessing means two buckets legitimately hold DIFFERENT block sets, so a shrink in one says nothing
     // about the other — pruning globally would silently delete a valid digest every single pass.
     for (const scopedCharacterId of [mine, theirs]) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts in a test.
       await upsertChatDigest(db, {
         id: castId<ChatDigestId>(`chat_digest_${scopedCharacterId}`),
         chatId,
@@ -169,7 +167,6 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
     await seedUser(db, { handle: castId<Handle>("owner") });
     const chatId = await seedChat(db);
     for (const blockIdx of [0, 1, 2]) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts in a test.
       await upsertChatSegment(db, {
         id: castId<ChatSegmentId>(`chat_segment_${blockIdx}`),
         chatId,
@@ -214,7 +211,6 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
       { blockIdx: 2, chunkIdx: 1 },
     ];
     for (const r of rows) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts in a test.
       await upsertChatSegment(db, {
         id: castId<ChatSegmentId>(`chat_segment_${r.blockIdx}_${r.chunkIdx}`),
         chatId,

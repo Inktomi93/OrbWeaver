@@ -6,11 +6,13 @@
 // boundary: buffers the compressed archive under a cap, parses the central directory (never the local
 // headers, which a crafted archive can desync), validates each entry before inflating, then stages inflated bytes to disk.
 
+import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import { mkdir, mkdtemp, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { crc32, deflateRawSync, inflateRawSync, constants as zlibConstants } from "node:zlib";
+import { superviseDetached } from "#foundation/observability";
 
 const SIG_LOCAL = 0x04_03_4b_50;
 const SIG_CENTRAL = 0x02_01_4b_50;
@@ -323,7 +325,6 @@ function toAsyncIterable(source: ReadableStream<Uint8Array> | AsyncIterable<Uint
       const reader = stream.getReader();
       try {
         for (;;) {
-          // biome-ignore lint/performance/noAwaitInLoops: draining a stream is inherently one awaited read per chunk.
           const { done, value } = await reader.read();
           if (done) {
             return;
@@ -396,7 +397,6 @@ async function stageRecords(dir: string, buf: Uint8Array, records: readonly Cent
     }
     // Staged filename is the entry INDEX, never the archive's own attacker-chosen path.
     const stagedPath = join(dir, String(i));
-    // biome-ignore lint/performance/noAwaitInLoops: staging is inherently one awaited disk write per entry (and the whole point is to NOT hold the inflated bundle in memory).
     await writeStaged(stagedPath, bytes);
     entries.push({ path: rec.name, read: () => readStaged(stagedPath) });
   }
@@ -539,7 +539,9 @@ export function packZip(entries: AsyncIterable<ZipEntry>): ReadableStream<Uint8A
       controller.close();
     },
     cancel(): void {
-      void iterator.return?.(undefined);
+      if (iterator.return !== undefined) {
+        superviseDetached(`zip-stream:iterator-return:${randomUUID()}`, "zip.stream.cancel", {}, () => iterator.return?.(undefined));
+      }
     },
   });
 }

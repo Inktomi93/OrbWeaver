@@ -618,7 +618,6 @@ function createChunkPump<T>(): {
       }
       const arrival = Promise.withResolvers<void>();
       notify = arrival.resolve;
-      // biome-ignore lint/performance/noAwaitInLoops: waiting for next chunk
       await arrival.promise;
     }
   }

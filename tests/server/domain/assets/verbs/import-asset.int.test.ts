@@ -99,7 +99,6 @@ describe("importAsset — full re-link round-trip", () => {
     const freshOwner = await seedUser(dstDb, { handle: castId<Handle>("migrated") });
 
     for (const file of files) {
-      // biome-ignore lint/performance/noAwaitInLoops: the delivery core imports one file at a time (per-file isolation); the test mirrors that sequential contract.
       const outcome = await importAsset(freshOwner, file);
       expect(outcome).toEqual({ ok: true, created: true });
     }
@@ -118,7 +117,6 @@ describe("importAsset — full re-link round-trip", () => {
 
     // (4) idempotent re-import: no new rows.
     for (const file of files) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential per-file re-import (idempotency check).
       expect(await importAsset(freshOwner, file)).toEqual({ ok: true, created: false });
     }
     expect(await ownedAssetCount(dst, freshOwner)).toBe(2);

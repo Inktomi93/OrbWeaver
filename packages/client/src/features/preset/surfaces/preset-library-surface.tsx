@@ -87,7 +87,7 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
   // The band owns the pane's create PRIMARY; this is the EMPTY-STATE's own action, which must stay (an
   // empty library that only says "no presets yet" is a dead end).
   const onCreate = (): void => {
-    void create.mutateAsync({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND }).then((created) => onSelectPreset(created.id));
+    create.mutate({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND }, { onSuccess: (created): void => onSelectPreset(created.id) });
   };
 
   // §16 row 3: the ONE activation writer this pane has (the row toggle) — the kebab's echo of it is GONE
@@ -111,27 +111,25 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
 
   // G6 export: the CACHED detail row → `buildPresetFile` → a browser download. Same bytes as the bundle arm.
   const onExport = (id: PresetId): void => {
-    void (async (): Promise<void> => {
-      try {
-        const detail = await client.preset.get.query({ id });
+    client.preset.get
+      .query({ id })
+      .then((detail) => {
         downloadJson(`${slugifyFilename(detail.name, "preset")}.json`, buildPresetFile(detail.name, detail.config));
-      } catch {
-        notify.error("Couldn't export the preset.");
-      }
-    })();
+      })
+      .catch(() => notify.error("Couldn't export the preset."));
   };
 
   const onDuplicate = (id: PresetId): void => {
     const source = presets.find((p) => p.id === id);
-    void (async (): Promise<void> => {
-      const detail = await client.preset.get.query({ id });
-      const created = await create.mutateAsync({
-        name: `Copy of ${source?.name ?? "preset"}`,
-        kind: NEW_PRESET_KIND,
-        config: detail.config,
-      });
-      onSelectPreset(created.id);
-    })();
+    client.preset.get
+      .query({ id })
+      .then((detail) => {
+        create.mutate(
+          { name: `Copy of ${source?.name ?? "preset"}`, kind: NEW_PRESET_KIND, config: detail.config },
+          { onSuccess: (created): void => onSelectPreset(created.id) },
+        );
+      })
+      .catch(() => notify.error("Couldn't duplicate the preset."));
   };
 
   const onDelete = (id: PresetId): void => {

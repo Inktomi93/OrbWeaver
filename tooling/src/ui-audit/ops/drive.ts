@@ -89,7 +89,6 @@ export async function navigateAndReveal(page: AuditPage, opts: Args, url: string
 
   let actionsFailed = 0;
   for (const action of opts.actions) {
-    // biome-ignore lint/performance/noAwaitInLoops: the queue is SEQUENTIAL by contract — each action may produce the surface the next one targets (the reason it exists).
     actionsFailed += await driveAction(page, action, opts.waitMs);
   }
   await settle(page, opts.waitMs);

@@ -92,7 +92,6 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
     // live turn does. The old settings-section patch is gone with the section.
     for (const script of scripts) {
       const { id: _cardId, name, enabled, ...behavior } = script;
-      // biome-ignore lint/performance/noAwaitInLoops: a tiny fixed seed set, written in order so the attach positions are deterministic.
       const row = await services.regex.createScript({ principal, input: { name, enabled, ...behavior } });
       await services.regex.attachGlobal({ principal, scriptId: row.id });
     }

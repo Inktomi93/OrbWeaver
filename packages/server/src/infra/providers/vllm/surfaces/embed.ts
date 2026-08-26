@@ -219,7 +219,6 @@ export function createVllmEmbed(deps: VllmEmbedDeps): (req: EmbedRequest) => Pro
         if (chunk === undefined) {
           break;
         }
-        // biome-ignore lint/performance/noAwaitInLoops: the worker pulls chunks serially; concurrency is the worker COUNT.
         const response = await embedChunk(deps.client, {
           model: req.model,
           texts: chunk.map((k) => k.prompt),

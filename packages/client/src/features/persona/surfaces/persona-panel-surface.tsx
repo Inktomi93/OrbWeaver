@@ -135,10 +135,10 @@ function PanelBody({ presentation }: { readonly presentation: ChromePresentation
           and the band is what a band is: the collection's name and its two verbs. */}
       <PersonaHeader
         onImport={(file): void => {
-          void onImportFile(file);
+          onImportFile(file).catch(() => notify.error("Couldn't restore the persona."));
         }}
         onNew={(): void => {
-          void onCreate();
+          onCreate().catch(() => notify.error("Couldn't create the persona."));
         }}
       />
       <Separator />
@@ -150,7 +150,7 @@ function PanelBody({ presentation }: { readonly presentation: ChromePresentation
                 intent="primary"
                 size="sm"
                 onClick={(): void => {
-                  void onCreate();
+                  onCreate().catch(() => notify.error("Couldn't create the persona."));
                 }}
               >
                 <Icon icon={Plus} size="sm" />

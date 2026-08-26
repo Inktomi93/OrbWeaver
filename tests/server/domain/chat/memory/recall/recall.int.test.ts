@@ -121,7 +121,6 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     expect(before).toContain("scene 2");
 
     for (const seq of [3, 4]) {
-      // biome-ignore lint/performance/noAwaitInLoops: two ordered updates in a test seed.
       await db
         .update(messages)
         .set({ excludedFromPrompt: true })
@@ -194,7 +193,6 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     const chatId = await seedChat(db, "tier");
     // tier-0 blocks 0..3 + tier-1 blocks 0 (covers 0,1) and 1 (covers 2,3). fanOut 2.
     for (let b = 0; b < 4; b += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
       await seedDigest(db, {
         chatId,
         tier: 0,
@@ -310,7 +308,6 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     const chatId = await seedChat(db, "witness");
     // Three merged-era blocks in the shared bucket + their segment seq-spans (block b covers seq [8b+1, 8b+8]).
     for (let b = 0; b < 3; b += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
       await seedDigest(db, {
         chatId,
         scopedCharacterId: GROUP_CHAR,
@@ -338,7 +335,6 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
   test("witnessing filter: a kicked interval stays invisible (correct across kick→re-add)", async () => {
     const chatId = await seedChat(db, "kick");
     for (let b = 0; b < 3; b += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
       await seedDigest(db, {
         chatId,
         scopedCharacterId: GROUP_CHAR,
@@ -370,7 +366,6 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     const chatId = await seedChat(db, "e2e");
     // Three shared-bucket blocks + their spans (block b covers seq [8b+1, 8b+8]).
     for (let b = 0; b < 3; b += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
       await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: b, topicAnchor: `[b${b}]`, keywords: [] });
       await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
     }
@@ -448,7 +443,6 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
   test("mixB/mixC hand search the §5 BRIDGE (coarse for the distant past) as candidates — NOT the flat union", async () => {
     const chatId = await seedChat(db, "cand");
     for (let b = 0; b < 4; b += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
       await seedDigest(db, {
         chatId,
         tier: 0,
@@ -582,7 +576,6 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
   test("witness filter resolves a HIGHER-TIER digest's span via its tier-0 range (a distant arc never seen is dropped)", async () => {
     const chatId = await seedChat(db, "htw");
     for (let b = 0; b < 4; b += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
       await seedDigest(db, {
         chatId,
         scopedCharacterId: GROUP_CHAR,
@@ -657,7 +650,6 @@ describe("memory/recall — the §3a recall window-filter (the SECOND guard, tok
   /** Seed three shared-bucket tier-0 blocks 0/1/2 with seq-spans [1-8] / [9-16] / [17-24]. */
   async function seedThreeBlocks(chatId: ChatId): Promise<void> {
     for (let b = 0; b < 3; b += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
       await seedDigest(db, {
         chatId,
         scopedCharacterId: GROUP_CHAR,

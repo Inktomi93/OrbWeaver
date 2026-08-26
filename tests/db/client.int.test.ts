@@ -446,7 +446,6 @@ async function forecastDb(dir: string, applied?: { hash: string; when: number })
   // randomblob server-side: a >1MB TEXT bind through libSQL lands EMPTY, so the padding is generated in SQL.
   await db.run(sql`CREATE TABLE pad (b BLOB)`);
   for (let i = 0; i < PAD_MIB; i++) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential inserts ARE the padding — parallel writes would race one connection.
     await db.run(sql`INSERT INTO pad (b) VALUES (randomblob(1048576))`);
   }
   if (applied !== undefined) {

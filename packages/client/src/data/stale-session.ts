@@ -36,7 +36,7 @@
 // mounted yet, and the ladder correctly degrades to rung 2.
 
 import type { ChatId, Handle } from "@orb/kit/ids";
-import { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "#lib";
+import { notify, onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "#lib";
 import { fetchAuthMe } from "./auth-bootstrap.ts";
 import { fetchAuthConfig } from "./auth-config.ts";
 import { markSessionFresh } from "./session-freshness.ts";
@@ -215,9 +215,14 @@ export function beginSessionRecovery(): void {
   recovering = true;
   // The latch releases on the VERDICT, not forever: a resumed tab must be able to re-enter the ladder the
   // next time its session dies. Only an ordered navigation keeps it set (see `navigated`).
-  void runSessionRecoverySingleFlight(runLadder).finally(() => {
-    recovering = false;
-  });
+  runSessionRecoverySingleFlight(runLadder)
+    .finally(() => {
+      recovering = false;
+    })
+    .catch(() => {
+      notify.error("Session recovery failed. Sign in again.");
+      signOut();
+    });
 }
 
 /** The QueryCache/MutationCache belt (#23b) — every settled error passes through here. */

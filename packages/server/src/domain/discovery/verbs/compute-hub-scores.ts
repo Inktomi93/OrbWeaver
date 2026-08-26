@@ -70,7 +70,6 @@ async function fanOutHubPass<T extends HubRow>(
   let rowsScored = 0;
   let groupsProcessed = 0;
   for (const owner of owners) {
-    // biome-ignore lint/performance/noAwaitInLoops: owner-local hubness — sequential keeps writeHubScores backpressure bounded; parallel would stampede the write seam.
     const stats = await runHubPass(await readForOwner(owner), cfg);
     rowsScored += stats.rowsScored;
     groupsProcessed += stats.groupsProcessed;

@@ -94,7 +94,6 @@ describe.skipIf(!LIVE)("memory recall@k — LIVE embed floor (#251)", () => {
     for (const [i, scene] of SCENES.entries()) {
       const vector = documents.vectors[i];
       expect(vector, `the embed engine returned no vector for scene ${scene.blockIdx}`).not.toBeNull();
-      // biome-ignore lint/performance/noAwaitInLoops: ordered fixture inserts.
       await seedChatDigest(db, {
         chatId,
         scopedCharacterId: GROUP_CHAR,
@@ -166,7 +165,6 @@ describe.skipIf(!LIVE)("memory recall@k — LIVE embed floor (#251)", () => {
     async () => {
       const results: { query: string; ranked: readonly number[]; expected: number }[] = [];
       for (const q of QUERIES) {
-        // biome-ignore lint/performance/noAwaitInLoops: a sequential sweep — the engine is shared with the box.
         const ranked = await rankedBlocks(q.text);
         results.push({ query: q.text, ranked, expected: q.expectBlockIdx });
       }

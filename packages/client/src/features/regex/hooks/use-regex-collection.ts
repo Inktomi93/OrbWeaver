@@ -65,9 +65,7 @@ export function useCreateRegexMember(): () => void {
   const invalidation = useInvalidation();
   const create = useCreateRegexScript({ trpc, invalidation });
   return (): void => {
-    void create.mutateAsync({ input: makeRegexScriptDefaults() }).then((row) => {
-      selectCollectionMember(REGEX_COLLECTION_ID, row.id);
-    });
+    create.mutate({ input: makeRegexScriptDefaults() }, { onSuccess: (row): void => selectCollectionMember(REGEX_COLLECTION_ID, row.id) });
   };
 }
 

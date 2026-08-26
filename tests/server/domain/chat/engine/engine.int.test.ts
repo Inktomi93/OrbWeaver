@@ -118,6 +118,8 @@ function harness(
     /** The injected expressions post-turn classify (default null = not wired). The I-7 classify-trace pin
      *  wires a recorder. */
     expressions?: ChatContext["expressions"];
+    /** Override the durable chat emitter while preserving the harness recorder. */
+    emit?: Parameters<typeof createTurnEngine>[1]["emit"];
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
@@ -140,7 +142,7 @@ function harness(
   const engine = createTurnEngine(ctx, {
     emit: (event: ChatBusEvent): Promise<void> => {
       events.push(event);
-      return Promise.resolve();
+      return over.emit?.(event) ?? Promise.resolve();
     },
     debitBudget,
     resolveTurnPolicy: (): Promise<{ budget: number | null; allowNonOwnerMaxProSub: boolean }> =>
@@ -264,6 +266,57 @@ describe("createTurnEngine — happy path", () => {
     expect(t.indexOf("turnStarted")).toBeLessThan(t.indexOf("messageCommitted"));
     expect(t.indexOf("messageCommitted")).toBeLessThan(t.indexOf("turnCompleted"));
     expect(t).toContain("delta");
+  });
+
+  test("owns the delta drain: terminal success cannot overtake a held delta emit", async () => {
+    const chatId = await seedChat(db, "delta-order");
+    let releaseDelta: (() => void) | undefined;
+    let markDeltaStarted: (() => void) | undefined;
+    const deltaStarted = new Promise<void>((resolve) => {
+      markDeltaStarted = resolve;
+    });
+    const heldDelta = new Promise<void>((resolve) => {
+      releaseDelta = resolve;
+    });
+    const h = harness(db, {
+      emit: (event): Promise<void> => {
+        if (event.type === "delta") {
+          markDeltaStarted?.();
+          return heldDelta;
+        }
+        return Promise.resolve();
+      },
+    });
+
+    let settled = false;
+    const turn = h.engine.runTurn(prepOf(chatId)).finally(() => {
+      settled = true;
+    });
+    await deltaStarted;
+
+    expect(settled).toBe(false);
+    expect(types(h.events)).not.toContain("messageCommitted");
+    expect(types(h.events)).not.toContain("turnCompleted");
+
+    releaseDelta?.();
+    await turn;
+    expect(types(h.events).indexOf("delta")).toBeLessThan(types(h.events).indexOf("turnCompleted"));
+  });
+
+  test("a rejected delta drain rejects the turn and cannot emit terminal success", async () => {
+    const chatId = await seedChat(db, "delta-rejection");
+    const failure = new Error("durable delta append failed");
+    const rejected = Promise.reject(failure);
+    // The old engine drops this Promise. Observe it here so the RED control is a failed ownership assertion,
+    // not Vitest's process-level unhandled-rejection detector.
+    rejected.catch(() => undefined);
+    const h = harness(db, {
+      emit: (event): Promise<void> => (event.type === "delta" ? rejected : Promise.resolve()),
+    });
+
+    await expect(h.engine.runTurn(prepOf(chatId))).rejects.toThrow(failure);
+    expect(types(h.events)).not.toContain("messageCommitted");
+    expect(types(h.events)).not.toContain("turnCompleted");
   });
 
   test("PD user-bus lane: fans `chatsChanged` ONCE for the turn, list-only (no `detail`), after the settle", async () => {

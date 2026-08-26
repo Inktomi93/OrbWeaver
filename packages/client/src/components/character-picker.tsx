@@ -166,7 +166,7 @@ function CharacterPickerBody({
   const { hasNextPage, isFetching, fetchNextPage } = query;
   const fetchMore = (): void => {
     if (hasNextPage && !isFetching) {
-      void fetchNextPage();
+      fetchNextPage().catch(() => undefined); // Query state owns the fetch error.
     }
   };
   const onScroll = (event: UIEvent<HTMLDivElement>): void => {

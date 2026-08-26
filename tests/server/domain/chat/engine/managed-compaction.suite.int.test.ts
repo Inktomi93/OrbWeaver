@@ -97,7 +97,6 @@ async function seedChatWithHistory(count: number): Promise<ChatId> {
   const chatId = await seedChat(db, `c${chatSeq}`);
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
   for (let seq = 1; seq <= count; seq += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts.
     await seedMessage(db, chatId, seq, {
       role: seq % 2 === 1 ? "user" : "assistant",
       ...(seq % 2 === 1 ? { authorUserId: host } : {}),

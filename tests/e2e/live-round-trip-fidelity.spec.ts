@@ -65,12 +65,10 @@ test("TASK-24 four-layer capture works on the live stack (names 'completion', on
     const wire = captures[0]?.body as Record<string, unknown> | undefined;
     // The AUTHORITATIVE fidelity harness is the deterministic int test — this @live leg only proves the seam
     // works on a REAL stack turn. If WIRE_CAPTURE is not enabled on the operator-started stack the capture is
-    // empty; bail HONESTLY (annotate, never false-pass) rather than assert against nothing — the int test
-    // carries the assertions regardless. Early-return (not test.skip) so the structure gate doesn't read a
-    // runtime conditional-skip as a stub test declaration.
+    // empty; report the evidence as genuinely unavailable rather than passing without assertions.
+    test.skip(wire === undefined, "WIRE_CAPTURE not enabled on the live stack — the int test is the authoritative harness");
     if (wire === undefined) {
-      test.info().annotations.push({ type: "skipped", description: "WIRE_CAPTURE not enabled on the live stack — the int test is the authoritative harness" });
-      return;
+      throw new Error("Playwright conditional skip returned without stopping the test");
     }
 
     // FE — the preset resolves to completion (what the harness set).

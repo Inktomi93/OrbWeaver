@@ -95,7 +95,6 @@ async function waitHealthy(engine: string, port: number, child: FullPriorityChil
       log(`ERROR — ${engine} exited before becoming healthy; see vllm-${engine}.log.`);
       return;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: a sequential health poll is inherently serial.
     if (await portHealthy(port)) {
       log(`${engine} up (:${port})`);
       return;
@@ -259,7 +258,6 @@ async function main(): Promise<ExitCode> {
     // Adopt-in-place: a port already answering /health is an ALREADY-SERVING engine (a prior adopt's
     // fleet). Spawning "our own" copy here is how the duplicate fleet happened — the dupe loads its
     // model into VRAM, loses the port bind, and idles forever. Its pidfile row survives via merge.
-    // biome-ignore lint/performance/noAwaitInLoops: sequential boot — vLLM's memory profiler cannot run two at once.
     if (await portHealthy(port)) {
       log(`${engine} already serving (:${port}) — adopted in place, no spawn.`);
       continue;

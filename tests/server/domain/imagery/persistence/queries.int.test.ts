@@ -153,7 +153,6 @@ describe("findReusableGeneration", () => {
     // An older single-image generation, then a newer 3-image generation (shared createdAt).
     await seedGeneration({ owner, generationId: "g_old", assetId: castId<AssetId>("asset_old"), createdAt: FROZEN_AT });
     for (let i = 0; i < 3; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential seeding in a test.
       await seedGeneration({ owner, generationId: `g_new_${i}`, assetId: castId<AssetId>(`asset_new_${i}`), createdAt: FROZEN_AT + 1000 });
     }
 

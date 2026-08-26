@@ -275,7 +275,6 @@ async function main(): Promise<void> {
   process.stderr.write(`guard-replay: scanning ${files.length} files across ${roots.length} roots\n`);
   let done = 0;
   for (const f of files) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential BY DESIGN — one transcript in memory at a time bounds peak memory across a 4.5GB corpus (same rationale as transcript-census.mjs).
     await processFile(f);
     done += 1;
     if (done % PROGRESS_EVERY_N_FILES === 0) {

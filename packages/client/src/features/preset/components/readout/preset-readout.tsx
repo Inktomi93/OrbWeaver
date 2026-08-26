@@ -121,7 +121,7 @@ function ActiveProfile({
         effective={effective.data ?? undefined}
         error={effective.error}
         onRetry={(): void => {
-          void effective.refetch();
+          effective.refetch().catch(() => undefined); // The query's error state owns the retry failure.
         }}
       />
       <CapabilityCard capability={capability.data?.capability} model={effective.data?.model} />
@@ -199,7 +199,7 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
             effective={effective.data ?? undefined}
             error={effective.error}
             onRetry={(): void => {
-              void effective.refetch();
+              effective.refetch().catch(() => undefined); // The query's error state owns the retry failure.
             }}
           />
           <CapabilityCard capability={capability.data?.capability} model={effective.data?.model} />

@@ -32,7 +32,6 @@ test("counts the WHOLE bank by phase — including the documents past the first 
   h.advance(STALE_INGEST_MS + 1000);
   for (let i = 0; i < DATABANK_LIST_DEFAULT_LIMIT; i += 1) {
     h.advance(1000);
-    // biome-ignore lint/performance/noAwaitInLoops: the seed order IS the fixture — each createFromText mints the next id off the harness's sequence, and Promise.all would race the (updatedAt, id) ordering.
     await h.service.createFromText({ principal, name: `filler-${String(i)}.md`, text: `note ${String(i)}` });
   }
   // A foreign bank that must not appear in any number below.

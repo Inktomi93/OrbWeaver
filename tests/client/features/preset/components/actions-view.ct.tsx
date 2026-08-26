@@ -41,7 +41,6 @@ const CLUSTER_BANDS = ["Round framing", "The scene plane", "Party & trackers", "
 /** Expand every cluster band, so a total-list assertion really is total. */
 async function expandAllClusters(probe: Locator): Promise<void> {
   for (const band of CLUSTER_BANDS) {
-    // biome-ignore lint/performance/noAwaitInLoops: real user clicks are inherently sequential — each expansion pushes the bands below it down, so a Promise.all would race the pointer against a shifting layout (the scatter.ct precedent).
     await probe.getByRole("button", { name: band }).click();
   }
 }

@@ -84,7 +84,6 @@ async function routeRoom(page: Page, frames: readonly StreamFrame[]): Promise<{ 
   await page.route("**/api/trpc/**", async (route) => {
     if ((route.request().headers()["accept"] ?? "").includes("text/event-stream")) {
       for (let i = 0; i < MAX_ATTACH_POLLS && !socket.attachedChannels().some((key) => key.startsWith("automation:")); i += 1) {
-        // biome-ignore lint/performance/noAwaitInLoops: the attach handshake is inherently sequential.
         await new Promise((resolve) => setTimeout(resolve, 25));
       }
     }

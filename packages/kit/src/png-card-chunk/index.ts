@@ -297,7 +297,6 @@ async function inflate(compressed: Uint8Array): Promise<Uint8Array | null> {
   const parts: Uint8Array[] = [];
   try {
     for (;;) {
-      // biome-ignore lint/performance/noAwaitInLoops: draining a stream reader IS a sequential read loop.
       const { done, value } = await reader.read();
       if (done) {
         break;
