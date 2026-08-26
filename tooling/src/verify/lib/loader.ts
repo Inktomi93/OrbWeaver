@@ -8,6 +8,11 @@ import type { GateDescriptor } from "../contract/gate.ts";
 
 const D_TS_RE = /\.d\.ts$/u;
 const BASENAME_RE = /([^/]+)\.ts$/u;
+// `check-gates` / conformance fixtures must live inside the real gate directory so corpus-scoped gates can
+// inspect them. They are source inputs to those gates, never gate modules themselves. Keeping the reserved
+// probe names out of descriptor reconciliation preserves both halves: the project still scans the fixture,
+// while run-manifest does not mistake a deliberately descriptorless proof file for an unwired real gate.
+const PROBE_GATE_FILE_RE = /(^|\/)__(?:g|dc)_/u;
 
 function nonEmptyArray(v: unknown): boolean {
   return Array.isArray(v) && v.length > 0;
@@ -75,7 +80,7 @@ export interface GateCorpus {
  *  and REPORT what it walked (#410). */
 export async function loadGateCorpus(root: string): Promise<GateCorpus> {
   const files = globSync("tooling/src/verify/gates/*.ts", { cwd: root })
-    .filter((f) => !D_TS_RE.test(f))
+    .filter((f) => !(D_TS_RE.test(f) || PROBE_GATE_FILE_RE.test(f)))
     .sort();
   const gates: GateDescriptor[] = [];
   const unregistered: string[] = [];

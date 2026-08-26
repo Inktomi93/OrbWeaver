@@ -23,6 +23,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
+import { loadGateCorpus } from "../../tooling/src/verify/lib/loader.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { runPnpmWithBudget, scaledBudget } from "./_load-budget.ts";
 
@@ -1174,6 +1175,12 @@ afterAll(() => {
 
 test("derives a non-trivial gate registry from report.ts (not silently empty)", () => {
   expect(registry.size).toBeGreaterThan(8);
+});
+
+test("reserved proof files stay project inputs but never become descriptor corpus", async () => {
+  const corpus = await loadGateCorpus(ROOT);
+  expect(corpus.files.filter((file) => file.includes("/__g_") || file.includes("/__dc_"))).toEqual([]);
+  expect(corpus.unregistered).toEqual([]);
 });
 
 // Any glyph, then the scan suffix — a status line that carries no count fails this.
