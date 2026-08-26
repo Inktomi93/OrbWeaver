@@ -1,6 +1,6 @@
 // .int tests for schema/automation (D46 — the baseline rider). Real libSQL :memory: via freshDb
-// (FK PRAGMA ON). Covers: the enum test-mirrors (trigger_bus ← AUTOMATION_TRIGGER_BUSES, outcome ←
-// AUTOMATION_FIRE_OUTCOMES); automation_rules round-trip (born disabled, action blob, defaults) + the
+// (FK PRAGMA ON). Covers: the enum test-mirrors (trigger_bus ← AUTOMATION_TRIGGER_BUSES, stored outcome ←
+// public outcomes + internal reservation); automation_rules round-trip (born disabled, action blob, defaults) + the
 // paired bus↔tuple trigger CHECK (a cross-bus trigger name is unrepresentable) + the 120-char name
 // CHECK; automation_budgets defaults; automation_fires FK CASCADE off the rule; automation_rule_state —
 // rule-id natural PK (one row per rule), CASCADE off the rule, the guidance default + the
@@ -11,7 +11,7 @@
 import type { ChatTriggerType } from "@orb/contracts/automation";
 import { ANALYSIS_GUIDANCE_MAX, AUTOMATION_FIRE_OUTCOMES, AUTOMATION_TRIGGER_BUSES } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
-import { automationBudgets, automationFires, automationRuleState, automationRules, chats, globalVariables } from "@orb/db";
+import { AUTOMATION_FIRE_STORAGE_OUTCOMES, automationBudgets, automationFires, automationRuleState, automationRules, chats, globalVariables } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -50,8 +50,10 @@ test("automation_rules.trigger_bus enum mirrors AUTOMATION_TRIGGER_BUSES", () =>
   expect(automationRules.triggerBus.enumValues).toEqual([...AUTOMATION_TRIGGER_BUSES]);
 });
 
-test("automation_fires.outcome enum mirrors AUTOMATION_FIRE_OUTCOMES", () => {
-  expect(automationFires.outcome.enumValues).toEqual([...AUTOMATION_FIRE_OUTCOMES]);
+test("automation_fires.outcome stores every public terminal plus the internal reservation state", () => {
+  expect(automationFires.outcome.enumValues).toEqual([...AUTOMATION_FIRE_STORAGE_OUTCOMES]);
+  expect(AUTOMATION_FIRE_STORAGE_OUTCOMES.slice(0, -1)).toEqual([...AUTOMATION_FIRE_OUTCOMES]);
+  expect(AUTOMATION_FIRE_STORAGE_OUTCOMES.at(-1)).toBe("reserved");
 });
 
 // ── automation_rules ───────────────────────────────────────────────────────────────────────────────────

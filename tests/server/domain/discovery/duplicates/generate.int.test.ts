@@ -178,6 +178,27 @@ describe("computeDuplicatePairs", () => {
     await db.delete(characters).where(eq(characters.id, c1));
     expect(await db.select().from(duplicateCharacterPairs)).toHaveLength(0);
   });
+
+  test("a qualifying-pair overflow fails before replace and preserves the previous complete set", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_bounded");
+    const first = await seedCharacter(db, { id: "character_bound_0", ownerId: owner });
+    const second = await seedCharacter(db, { id: "character_bound_1", ownerId: owner });
+    await seedCharacterEmbedding(db, { characterId: first, embedding: vec(1), contentHash: "bound-hash-0" });
+    await seedCharacterEmbedding(db, { characterId: second, embedding: vec(1), contentHash: "bound-hash-1" });
+    const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
+    await svc.computeDuplicatePairs();
+    expect(await db.select().from(duplicateCharacterPairs)).toHaveLength(1);
+
+    // 143 representatives produce 10,153 qualifying pairs. The production ceiling is 10,000, so this
+    // corpus must be refused rather than replacing the valid one-pair set with a prefix.
+    const remaining = Array.from({ length: 141 }, (_, i) => i + 2);
+    const ids = await Promise.all(remaining.map((i) => seedCharacter(db, { id: `character_bound_${i}`, ownerId: owner })));
+    await Promise.all(ids.map((characterId, i) => seedCharacterEmbedding(db, { characterId, embedding: vec(1), contentHash: `bound-hash-${i + 2}` })));
+
+    await expect(svc.computeDuplicatePairs()).rejects.toThrow("pair scan output limit exceeded: more than 10000 pairs");
+    expect(await db.select().from(duplicateCharacterPairs)).toHaveLength(1);
+  });
 });
 
 // ── the chat near-dup arm (Jaccard of segment content-hashes + fork relation) ──
