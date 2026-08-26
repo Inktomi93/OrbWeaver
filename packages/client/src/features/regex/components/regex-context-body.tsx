@@ -90,6 +90,7 @@ function RegexScopePanel({
         <Switch
           aria-label={`${regexScriptTitle(script)} runs in every chat`}
           checked={isGlobal}
+          disabled={attach.isPending || detach.isPending}
           onCheckedChange={(checked): void => {
             if (checked) {
               attach.mutate({ scriptId: script.id });

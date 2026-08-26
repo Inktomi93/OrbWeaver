@@ -123,6 +123,7 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
           <Switch
             aria-label={`Turn ${plugin.name} on`}
             checked={plugin.status === "enabled"}
+            disabled={setEnabled.isPending}
             onCheckedChange={(next): void => setEnabled.mutate({ pluginId: plugin.id, enabled: next })}
           />
           {/* Update sits IN the cluster (it is reversible-ish and the common maintenance act); Remove is

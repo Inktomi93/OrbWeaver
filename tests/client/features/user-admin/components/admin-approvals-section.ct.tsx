@@ -6,7 +6,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { AdminApprovalsSectionStory } from "../_ct-stories.tsx";
 
 const T = 1_700_000_000_000;
@@ -56,6 +56,27 @@ test("Approve fires admin.setEnabled({enabled:true}) for that row", async ({ mou
   // The first pending row (newbie) — click its Approve.
   await component.getByTestId("admin-approve").first().click();
   await expect.poll(() => trpc.lastInput("admin.setEnabled"), { intervals: [20, 50, 100] }).toEqual({ userId: "user_pend1", enabled: true });
+});
+
+test("an approval write owns only its account row, and rejection releases that row for retry", async ({ mount, page }) => {
+  const held = trpcHold();
+  const trpc = await stub(page, USERS, { "admin.setEnabled": held });
+  const component = await mount(<AdminApprovalsSectionStory />);
+
+  const approvals = component.getByTestId("admin-approve");
+  const first = approvals.nth(0);
+  const sibling = approvals.nth(1);
+  await first.click();
+  await held.requested;
+
+  await expect(first).toBeDisabled();
+  await expect(sibling).toBeEnabled();
+  expect(trpc.count("admin.setEnabled")).toBe(1);
+
+  held.release(trpcError());
+  await expect(first).toBeEnabled();
+  await first.click();
+  await expect.poll(() => trpc.count("admin.setEnabled")).toBe(2);
 });
 
 test("the empty state renders when no account is pending", async ({ mount, page }) => {
