@@ -152,7 +152,7 @@
       "authority": "operational",
       "fullRead": true,
       "verifiedSha256": "b1096aac374baec26cb6fc2f8d9d75a228bbfd516ed7b0725af25d6b70f7369e",
-      "verifiedCommit": "92011ffcf420248267d7b6ff51d57e7f223d9690",
+      "verifiedCommit": "f14031737983003b738092b3f1e26efe8e942111",
       "verifiedAt": "2026-08-26",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",

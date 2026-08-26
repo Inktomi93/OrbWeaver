@@ -915,7 +915,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "8680cdd84ec7008c96a8bd35f3c8c4bed1feaeb999c407a9af99348600e21661",
-      "verifiedCommit": "e9c655f40a68766e4cf06c34f8b847ac3668beeb",
+      "verifiedCommit": "f14031737983003b738092b3f1e26efe8e942111",
       "verifiedAt": "2026-08-26",
       "evidence": [
         "docs/design/issue-750-suppression-governance.md read in full after implementation commit 92011ffcf and current-main census refresh e9c655f40; scope, detector contract, policy disposition, rejected alternatives, proof plan, and detector-equivalent census rechecked against issue #750 and the live gate",
