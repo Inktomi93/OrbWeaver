@@ -7,24 +7,54 @@
 
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { characterSnapshots, characters } from "@orb/db";
+import { assets, characterSnapshots, characters } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
-import type { CharacterId, UserId } from "@orb/kit/ids";
-import { and, eq, inArray } from "drizzle-orm";
-import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors.ts";
+import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import type { SQL } from "drizzle-orm";
+import { and, eq, exists, inArray, sql } from "drizzle-orm";
+import { CHARACTER_BACKGROUND_UNAVAILABLE, CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors.ts";
 
 type CharacterInsert = typeof characters.$inferInsert;
 type CharacterEdits = Partial<CharacterInsert>;
 type SnapshotInsert = typeof characterSnapshots.$inferInsert;
 
+function backgroundAssetId(value: CharacterInsert["backgroundOverride"]): AssetId | undefined {
+  return value?.kind === "asset" && value.assetId.length > 0 ? castId<AssetId>(value.assetId) : undefined;
+}
+
+// @owner-scope-ok: character creation may carry a background from an already-authorized duplicate/import
+// source owned by someone else. This existence-only arbitration ends if carried backgrounds become
+// owner-only or move to a normalized FK-backed relation.
+function carriedBackgroundExists(db: Db, assetId: AssetId | undefined): SQL {
+  return assetId === undefined ? sql`1` : exists(db.select({ one: sql`1` }).from(assets).where(eq(assets.id, assetId)));
+}
+
+function ownedBackgroundExists(db: Db, ownerId: UserId, assetId: AssetId | undefined): SQL {
+  return assetId === undefined
+    ? sql`1`
+    : exists(
+        db
+          .select({ one: sql`1` })
+          .from(assets)
+          .where(and(eq(assets.id, assetId), eq(assets.ownerId, ownerId))),
+      );
+}
+
 /** Insert a new character row. A per-owner handle collision → `CharacterOperationError("handle_conflict")`. */
 export async function insertCharacter(db: Db, values: CharacterInsert, bumpCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>): Promise<void> {
+  const guardedId = sql<CharacterId>`(SELECT ${values.id} WHERE ${carriedBackgroundExists(db, backgroundAssetId(values.backgroundOverride))})`;
   try {
-    const statements: BatchStmt[] = [db.insert(characters).values(values)];
+    const statements: BatchStmt[] = [db.insert(characters).values({ ...values, id: guardedId })];
     bumpCanonVersion(statements, db, values.ownerId);
     await db.batch(batchMany(statements));
   } catch (err) {
+    if (backgroundAssetId(values.backgroundOverride) !== undefined && isConstraintViolation(err)?.kind === "not-null") {
+      const unavailable = new CharacterOperationError(CHARACTER_BACKGROUND_UNAVAILABLE, "The background asset is no longer available.");
+      unavailable.cause = err;
+      throw unavailable;
+    }
     if (isConstraintViolation(err)?.kind === "unique") {
       const conflict = new CharacterOperationError(CHARACTER_HANDLE_CONFLICT, `a character with handle "${values.handle}" already exists`);
       conflict.cause = err;
@@ -39,14 +69,35 @@ export async function insertCharacter(db: Db, values: CharacterInsert, bumpCanon
  *  X-16 precedent), same as `contentHash`. A `handle` edit can trip the per-owner `(ownerId, handle)`
  *  unique index → the same typed `CharacterOperationError("handle_conflict")` `insertCharacter` raises
  *  (never a raw DB error surfacing). */
-export async function writeCardInPlace(db: Db, characterId: CharacterId, ownerId: UserId, edits: CharacterEdits): Promise<boolean> {
+export async function writeCardInPlace(
+  db: Db,
+  characterId: CharacterId,
+  ownerId: UserId,
+  edits: CharacterEdits,
+): Promise<"written" | "missing" | "background-unavailable"> {
+  const assetId = backgroundAssetId(edits.backgroundOverride);
   try {
     const updated = await db
       .update(characters)
       .set(edits)
-      .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
+      .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId), ownedBackgroundExists(db, ownerId, assetId)))
       .returning({ id: characters.id });
-    return updated.length > 0;
+    if (updated.length > 0) {
+      return "written";
+    }
+    if (
+      assetId !== undefined &&
+      (
+        await db
+          .select({ id: assets.id })
+          .from(assets)
+          .where(and(eq(assets.id, assetId), eq(assets.ownerId, ownerId)))
+          .limit(1)
+      ).length === 0
+    ) {
+      return "background-unavailable";
+    }
+    return "missing";
   } catch (err) {
     if (isConstraintViolation(err)?.kind === "unique") {
       const conflict = new CharacterOperationError(CHARACTER_HANDLE_CONFLICT, `a character with handle "${edits.handle}" already exists`);

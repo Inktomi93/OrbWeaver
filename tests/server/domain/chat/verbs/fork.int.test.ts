@@ -11,7 +11,7 @@ import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characters, chatInjections, chats, messages, messageVariants } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { and, asc, eq, getTableColumns } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -193,6 +193,33 @@ describe("forkChat — canon-mutator stats push (stats.md)", () => {
 });
 
 describe("forkChat — D27 deep copy", () => {
+  test("a carried asset background that GC already won cannot land on the fork", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const missingAssetId = mintTypeId(ID_PREFIX.asset);
+    const chatId = await seedChat(db, "stale-background", {
+      metadata: {
+        background: {
+          kind: "asset",
+          seededId: "",
+          externalUrl: "",
+          assetId: missingAssetId,
+          assetHash: "gone",
+          mime: "image/png",
+          provenanceUrl: "",
+        },
+      },
+    });
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+
+    const err = await fork.forkChat({ principal: principal(host), chatId }).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("background_unavailable");
+    expect(await db.select().from(chats)).toHaveLength(1);
+    expect(emitted).toEqual([]);
+  });
+
   test("the host forks a multi-human room: parented, canon copied with fresh ids, the OTHER human is not copied", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const member = await seedUser(db, castId<Handle>("member"));

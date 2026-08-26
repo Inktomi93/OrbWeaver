@@ -11,11 +11,13 @@
 import type { UserSettings } from "@orb/contracts/settings";
 import { appSettingsConfig, DEFAULT_USER_SETTINGS, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import { settings, userSettings } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import { assets, settings, userSettings } from "@orb/db";
+import { DomainOperationError } from "@orb/kit/errors";
+import type { AssetId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import { eq } from "drizzle-orm";
+import { and, eq, exists, sql } from "drizzle-orm";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
 import type { GlobalSettingView, UserSettingsView } from "../contract/views.ts";
 import { requireIntactStoredConfig } from "../substrate/stored-config.ts";
@@ -71,7 +73,27 @@ export async function writeUserConfig(db: Db, ownerId: UserId, config: UserSetti
     requireIntactStoredConfig(userSettingsConfig.parseOutcome(row.config, row.schemaVersion), `user_settings for ${ownerId}`);
   }
   await ensureUserSettings(db, ownerId, at);
-  await db.update(userSettings).set({ config, schemaVersion: USER_SETTINGS_SCHEMA_VERSION, updatedAt: at }).where(eq(userSettings.userId, ownerId));
+  const current =
+    config.appearance.backgroundImageKind === "asset" && config.appearance.backgroundAssetId.length > 0
+      ? [castId<AssetId>(config.appearance.backgroundAssetId)]
+      : [];
+  const ids = [...current, ...config.appearance.backgroundLibrary.map((entry) => entry.assetId)].filter((id, index, all) => all.indexOf(id) === index);
+  const owned = ids.map((id) =>
+    exists(
+      db
+        .select({ one: sql`1` })
+        .from(assets)
+        .where(and(eq(assets.id, id), eq(assets.ownerId, ownerId))),
+    ),
+  );
+  const written = await db
+    .update(userSettings)
+    .set({ config, schemaVersion: USER_SETTINGS_SCHEMA_VERSION, updatedAt: at })
+    .where(and(eq(userSettings.userId, ownerId), ...owned))
+    .returning({ userId: userSettings.userId });
+  if (written.length === 0) {
+    throw new DomainOperationError("background_unavailable", "A background asset is no longer available.");
+  }
 }
 
 function toView(row: { key: string; value: JsonValue; updatedAt: number }): GlobalSettingView {

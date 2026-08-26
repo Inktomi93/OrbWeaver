@@ -11,9 +11,10 @@
 import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import { userSettings } from "@orb/db";
+import { assets, userSettings } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { APP_SETTINGS_KEY } from "../../../../../packages/server/src/domain/settings/contract/keys.ts";
@@ -100,6 +101,35 @@ describe("ensureUserSettings / writeUserConfig", () => {
     expect(after.config.memory.enabled).toBe(true);
     expect(after.updatedAt).toBe(AT + 5);
     expect(after.schemaVersion).toBeGreaterThan(0);
+  });
+
+  test("the atomic write validates the complete current + library asset set", async () => {
+    const db = await freshDb();
+    const u = await seedUser(db, { id: "user_backgrounds" });
+    const currentId = mintTypeId(ID_PREFIX.asset);
+    const libraryId = mintTypeId(ID_PREFIX.asset);
+    await db.insert(assets).values([
+      { id: currentId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: "current", uploadedAt: AT },
+      { id: libraryId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: "library", uploadedAt: AT },
+    ]);
+    const before = await readUserSettings(db, u);
+    const config: UserSettings = {
+      ...before.config,
+      appearance: {
+        ...before.config.appearance,
+        backgroundImageKind: "asset",
+        backgroundAssetId: currentId,
+        backgroundAssetHash: "current",
+        backgroundLibrary: [{ entryId: "library-row", assetId: libraryId, assetHash: "library", mime: "image/png", name: "Library" }],
+      },
+    };
+    await db.delete(assets).where(eq(assets.id, libraryId));
+
+    const err = await writeUserConfig(db, u, config, AT + 5).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(DomainOperationError);
+    expect((err as DomainOperationError).code).toBe("background_unavailable");
+    expect((await readUserSettings(db, u)).config.appearance.backgroundAssetId).toBe(before.config.appearance.backgroundAssetId);
   });
 
   // #471 — the write seam is the choke point: EVERY caller builds its next blob by spreading a read, and the
