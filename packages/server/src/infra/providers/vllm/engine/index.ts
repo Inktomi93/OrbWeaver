@@ -74,7 +74,7 @@ export {
   verifyEngineLaunchIdentity,
   writeEngineLaunchIdentities,
 } from "./process-identity.ts";
-export { ownedOrphanCandidates, parseEngineFamilyProcessRows, reapOrphanedFamily } from "./reaper.ts";
+export { reapOrphanedFamily } from "./reaper.ts";
 export type { EngineDeploymentEnv, EngineDeploymentFacts, EngineSpawnSpec } from "./spawn-engine.ts";
 export { buildEngineSpawnSpec, resolveEngineDeploymentFacts, resolveStoreRoot } from "./spawn-engine.ts";
 export {

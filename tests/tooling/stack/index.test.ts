@@ -49,6 +49,7 @@ import { expect, test } from "../../support/tool-fixtures.ts";
 const DRAIN_MS_RE = /const SHUTDOWN_DRAIN_MS = ([\d_]+);/u;
 /** An un-credentialed 200 from /api/_debug must print as an ALARM post-AUTHFIX-2, not as a dev posture. */
 const UNCREDENTIALED_ALARM = /NO credential|investigate/u;
+const MANUAL_CLEANUP_RE = /manual cleanup|relaunch/u;
 
 const DEV_IDENTITY: DevStackIdentity = {
   version: 1,
@@ -82,16 +83,18 @@ test("a valid owned dev-stack group is the only shape that reaches the negative-
   expect(calls).toEqual([[-DEV_IDENTITY.pgid, "SIGTERM"]]);
 });
 
-test("a dead leader may use a stable same-group survivor, but a reused leader blocks it", () => {
+test("a dead leader refuses a stable same-group survivor without signaling it", () => {
   const survivor = { ...DEV_IDENTITY, pid: 5000 };
-  expect(verifyDevStackIdentity(DEV_IDENTITY, { readProcess: () => null, groupProcesses: () => [survivor] })).toEqual({
-    verdict: "owned",
-    pgid: DEV_IDENTITY.pgid,
-    witness: survivor,
-  });
+  const processTable = new Map<number, DevStackIdentity>([[survivor.pid, survivor]]);
+  const calls: Array<readonly [number, NodeJS.Signals]> = [];
   expect(
-    verifyDevStackIdentity(DEV_IDENTITY, { readProcess: () => ({ ...DEV_IDENTITY, startTicks: "reused" }), groupProcesses: () => [survivor] }).verdict,
-  ).toBe("refused");
+    signalDevStackIdentity(DEV_IDENTITY, "SIGTERM", {
+      readProcess: (pid) => processTable.get(pid) ?? null,
+      kill: (target, signal) => calls.push([target, signal]),
+    }),
+  ).toEqual({ verdict: "refused", reason: expect.stringMatching(MANUAL_CLEANUP_RE) });
+  expect(calls).toEqual([]);
+  expect(verifyDevStackIdentity(DEV_IDENTITY, { readProcess: () => ({ ...DEV_IDENTITY, startTicks: "reused" }) }).verdict).toBe("refused");
 });
 
 // ── argv ─────────────────────────────────────────────────────────────────────────────────────────────
