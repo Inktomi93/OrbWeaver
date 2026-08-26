@@ -227,6 +227,19 @@ export function stampRuleFiredStatement(db: Db, ruleId: AutomationRuleId, now: n
     .returning({ id: automationRules.id });
 }
 
+/**
+ * The success-finalization batch's second statement. SQLite `changes()` is connection-local and reports the
+ * immediately preceding reservation UPDATE, so a vanished reservation makes this stamp a zero-row no-op while
+ * both statements still commit atomically.
+ */
+export function stampRuleFiredAfterReservationStatement(db: Db, ruleId: AutomationRuleId, now: number): AwaitableBatchStmt<{ id: AutomationRuleId }[]> {
+  return db
+    .update(automationRules)
+    .set({ lastFiredAt: now, consecutiveErrors: 0, lastError: null, updatedAt: now })
+    .where(and(eq(automationRules.id, ruleId), sql`changes() > 0`))
+    .returning({ id: automationRules.id });
+}
+
 export async function stampRuleFired(db: Db, ruleId: AutomationRuleId, now: number): Promise<void> {
   await stampRuleFiredStatement(db, ruleId, now);
 }
