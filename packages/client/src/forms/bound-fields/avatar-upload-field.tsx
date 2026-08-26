@@ -13,7 +13,7 @@ import { FileDropzone } from "@orb/ui/file-dropzone";
 import { CircleUser, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useBoundField } from "./use-bound-field.ts";
 
 export interface AvatarUploadFieldProps {
@@ -42,23 +42,33 @@ export function AvatarUploadField(props: AvatarUploadFieldProps): ReactElement {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const uploadEpoch = useRef(0);
 
   async function handleFilesSelected({ accepted }: FileDropzoneResult): Promise<void> {
     const file = accepted[0];
     if (file === undefined) {
       return;
     }
+    const epoch = ++uploadEpoch.current;
     setLoading(true);
+    setSuccess(false);
     setUploadError(null);
     try {
       const stored = await upload(file);
+      if (epoch !== uploadEpoch.current) {
+        return;
+      }
       field.handleChange(stored.assetId);
       setPreviewHash(stored.hash);
       setSuccess(true);
     } catch {
-      setUploadError("Upload failed — try again.");
+      if (epoch === uploadEpoch.current) {
+        setUploadError("Upload failed — try again.");
+      }
     } finally {
-      setLoading(false);
+      if (epoch === uploadEpoch.current) {
+        setLoading(false);
+      }
     }
   }
 
