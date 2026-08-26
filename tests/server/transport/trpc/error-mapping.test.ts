@@ -11,6 +11,7 @@ import {
   DomainRateLimitError,
   DomainUnavailableError,
 } from "@orb/kit/errors";
+import { CredentialsDecryptError } from "@orb/server/domain/credentials";
 import { classifyDomainError, domainReason } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -81,5 +82,16 @@ describe("domainReason — the honest reason code rides only a DomainOperationEr
   test("an error with no domain cause has no reason field", () => {
     expect(domainReason({ cause: new Error("boom") })).toBeUndefined();
     expect(domainReason({})).toBeUndefined();
+  });
+
+  test("credential decrypt failure serializes as non-retryable BAD_REQUEST with only its safe typed reason", () => {
+    const secrets = ["cannot", "cannot be", "matching"];
+    const mapped = classifyDomainError(new CredentialsDecryptError(secrets));
+    expect(mapped?.code).toBe("BAD_REQUEST");
+    expect(domainReason(mapped ?? {})).toBe("credential_decrypt_failed");
+    const serialized = JSON.stringify(mapped);
+    for (const secret of secrets) {
+      expect(serialized).not.toContain(secret);
+    }
   });
 });

@@ -6,6 +6,7 @@
 
 import { userCredentials } from "@orb/db";
 import { createCredentialsService } from "@orb/server/domain/credentials";
+import { createSecretBox } from "@orb/server/infra/crypto";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -137,6 +138,30 @@ describe("testHealth", () => {
     // The probe reached the endpoint the ROW declares, carrying the decrypted key (an auth check with no
     // key would classify every authenticated endpoint as revoked).
     expect(h.endpointProbes).toEqual([{ baseUrl: "https://x.test/v1", apiKey: "sk-byo-secret", headers: { "x-team": "alpha" } }]);
+  });
+
+  test("wrong-key failure rejects typed before probe/throttle and never reaches the endpoint keyless", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCredentialsService(h.ctx);
+    const owner = await seedUser(db, { id: "user_wrong_key", role: "user" });
+    const plaintextKey = "sk-secret-health";
+    const headerValue = "header-secret-health";
+    const cred = await svc.add({
+      principal: principal(owner),
+      provider: "custom_openai",
+      key: plaintextKey,
+      metadata: { kind: "custom_openai", baseUrl: "https://x.test/v1", headers: { "x-api-key": headerValue } },
+    });
+    const wrongKeyService = createCredentialsService({ ...h.ctx, box: createSecretBox(Buffer.alloc(32, 42)) });
+
+    const probe = (): Promise<unknown> => wrongKeyService.testHealth({ principal: principal(owner), credentialId: cred.id });
+    const firstFailure = await probe().catch((error: unknown) => error);
+    expect(firstFailure).toMatchObject({ code: "credential_decrypt_failed", retryable: false });
+    expect(JSON.stringify(firstFailure)).not.toContain(plaintextKey);
+    expect(JSON.stringify(firstFailure)).not.toContain(headerValue);
+    await expect(probe()).rejects.toMatchObject({ code: "credential_decrypt_failed", retryable: false });
+    expect(h.endpointProbes).toHaveLength(0);
   });
 
   test("a custom_openai endpoint that rejects the key marks the row revoked", async () => {
