@@ -35,6 +35,7 @@ export async function runMotionAudit(opts: Args): Promise<number> {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS });
     // The readiness outcome is KEPT, not swallowed (#515). Discarding it here is what let a cold-vite boot
     // timeout be reported as "the __orb dev bridge is ABSENT" on a page that has the whole bridge.
+    // @orb-gate-ignore caught-failure-ownership(promise:waitFor): false feeds apparatusGap, which emits INSTRUMENT ERROR instead of a motion verdict. Ends if readiness stops gating measurement.
     const ready = await page
       .locator("html[data-app-ready]")
       .waitFor({ state: "attached", timeout: READY_TIMEOUT_MS })
@@ -52,27 +53,66 @@ export async function runMotionAudit(opts: Args): Promise<number> {
     }
 
     // Reach the surface FIRST (and reset the evidence it produced), then trace the measured window.
-    const reachFailures = await driveReach(page, opts.reach);
+    let reachFailures: number;
+    // @orb-gate-ignore caught-failure-ownership(empty:error): resetEvidence failure is reported as INSTRUMENT ERROR and returns tool-error before measurement. Ends if this catch can continue into measurement.
+    try {
+      reachFailures = await driveReach(page, opts.reach);
+    } catch (error) {
+      reportInstrumentError(url, {
+        evidence: "the post-reach evidence reset",
+        detail: `resetEvidence failed after reaching the surface — stale reach evidence could fabricate the verdict, so this run refuses: ${error instanceof Error ? error.message : String(error)}`,
+      });
+      return EXIT.toolError;
+    }
     // The dead-class flagger's one full census is dev-instrument work. requestIdleCallback can postpone it
     // until the first later mutation, so explicitly settle it outside the product interaction window.
-    await page.evaluate("globalThis.__orb?.motionFlaggersSettled()").catch(() => undefined);
+    // @orb-gate-ignore caught-failure-ownership(empty:error): settle failure is reported as INSTRUMENT ERROR and returns tool-error before measurement. Ends if this catch can continue into measurement.
+    try {
+      await page.evaluate(
+        `(() => {
+          if (typeof globalThis.__orb?.motionFlaggersSettled !== "function") throw new Error("__orb.motionFlaggersSettled is unavailable");
+          return globalThis.__orb.motionFlaggersSettled();
+        })()`,
+      );
+    } catch (error) {
+      reportInstrumentError(url, {
+        evidence: "the motion flagger settle barrier",
+        detail: `motionFlaggersSettled failed before measurement — the dead-class census is incomplete, so this run refuses: ${error instanceof Error ? error.message : String(error)}`,
+      });
+      return EXIT.toolError;
+    }
     const measuredClick = await prepareMeasuredClick(page, opts.selector);
     if (opts.selector !== null) {
       // Preparation forced all Playwright geometry before this checkpoint. The next browser work is the
       // native click itself; no measurement-owned actionability/layout can enter the product window.
       // Raw string (DOM-less tsconfig): two rAFs so the reset lands after Playwright's geometry reads.
-      await page
-        .evaluate(
-          `new Promise((resolve) => {
+      // @orb-gate-ignore caught-failure-ownership(empty:error): resetEvidence failure is converted to INSTRUMENT ERROR and tool-error exit before measurement. Ends if reportInstrumentError stops terminating this run.
+      try {
+        await page.evaluate(
+          `new Promise((resolve, reject) => {
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              globalThis.__orb?.resetEvidence();
-              resolve();
+              try {
+                if (typeof globalThis.__orb?.resetEvidence !== "function") {
+                  reject(new Error("__orb.resetEvidence is unavailable"));
+                  return;
+                }
+                globalThis.__orb.resetEvidence();
+                resolve();
+              } catch (error) {
+                reject(error);
+              }
             });
           });
         })`,
-        )
-        .catch(() => undefined);
+        );
+      } catch (error) {
+        reportInstrumentError(url, {
+          evidence: "the pre-measurement evidence reset",
+          detail: `resetEvidence failed before the measured click — stale reach evidence could fabricate the verdict, so this run refuses: ${error instanceof Error ? error.message : String(error)}`,
+        });
+        return EXIT.toolError;
+      }
     }
 
     const data = await runAudit(page, cdp, opts, measuredClick);
