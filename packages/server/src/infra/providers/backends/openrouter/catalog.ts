@@ -4,6 +4,7 @@
 // cross-boundary `ModelCatalogEntry[]` (the connection contract). Imports `backends/kit` DOWN; never a
 // sibling backend.
 
+import type { RequestOptions } from "@openrouter/sdk/lib/sdks";
 import type { ModelsListResponse } from "@openrouter/sdk/models";
 import type { GetModelsResponse } from "@openrouter/sdk/models/operations";
 import type { PageIterator } from "@openrouter/sdk/types";
@@ -15,7 +16,7 @@ import { providerErrorFromHttp } from "../kit/index.ts";
 // `PageIterator`; the first page's `.result` holds the catalog (`/models` returns it un-paginated).
 interface OrCatalogClient {
   readonly models: {
-    readonly list: () => Promise<PageIterator<GetModelsResponse, { offset: number }>>;
+    readonly list: (request?: undefined, options?: RequestOptions) => Promise<PageIterator<GetModelsResponse, { offset: number }>>;
   };
 }
 
@@ -35,10 +36,10 @@ function toNumberOrNull(value: string | undefined): number | null {
  * {@link ModelCatalogEntry}: pricing strings → numbers (blank → null, the unpriced signal), the input
  * modalities + supported parameters stringified. A transport/HTTP failure becomes a typed `ProviderError`.
  */
-export async function fetchOrCatalog(client: OrCatalogClient): Promise<ModelCatalogEntry[]> {
+export async function fetchOrCatalog(client: OrCatalogClient, signal?: AbortSignal): Promise<ModelCatalogEntry[]> {
   let response: ModelsListResponse;
   try {
-    response = (await client.models.list()).result;
+    response = (await client.models.list(undefined, signal === undefined ? undefined : { signal })).result;
   } catch (err) {
     throw providerErrorFromHttp(err, "openrouter catalog");
   }
