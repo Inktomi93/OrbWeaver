@@ -7,12 +7,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
-import { createDb, runMigrations } from "@orb/db";
-import type { WorkloadId } from "@orb/kit/ids";
+import { createDb, runMigrations, users, workloads } from "@orb/db";
+import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { isActiveKindUniqueViolation } from "../../../../../packages/server/src/domain/workloads/persistence/constraints.ts";
-import { insertWorkload } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
+import { insertWorkload, markStarted } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { T0 } from "../_support.ts";
@@ -78,6 +79,48 @@ describe("isActiveKindUniqueViolation", () => {
       expect(fulfilled).toHaveLength(1);
       expect(rejected).toHaveLength(1);
       expect(isActiveKindUniqueViolation(rejected[0]?.reason)).toBe(true);
+    } finally {
+      for (const suffix of ["", "-wal", "-shm"]) {
+        rmSync(`${path}${suffix}`, { force: true });
+      }
+      rmSync(dir, { force: true, recursive: true });
+    }
+  });
+
+  test("real SQLite keeps concurrent system and owned admissions disjoint through owner delete and idempotent claim", async () => {
+    const dir = mkdtempSync(join(tmpdir(), `orb-workload-owner-delete-${pid}-`));
+    const path = join(dir, "queue.db");
+    try {
+      const firstDb = await createDb(`file:${path}`);
+      await runMigrations(firstDb, MIGRATIONS_DIR);
+      const secondDb = await createDb(`file:${path}`);
+      const ownerId = castId<UserId>("user_concurrent_owned");
+      const ownedId = castId<WorkloadId>("workload_concurrent_owned");
+      await firstDb.insert(users).values({ id: ownerId, handle: castId<Handle>("concurrent-owned"), role: "user" });
+      const base = {
+        kind: "reconcile-stats" as const,
+        mode: "singular" as const,
+        admissionKey: "none",
+        lane: "sweep" as const,
+        params: {},
+        dependsOn: null,
+        scheduledAt: T0,
+        createdAt: T0,
+      };
+
+      const admissions = await Promise.allSettled([
+        insertWorkload(firstDb, { id: castId<WorkloadId>("workload_concurrent_system"), ...base, ownerId: null }),
+        insertWorkload(secondDb, { id: ownedId, ...base, ownerId }),
+      ]);
+      expect(admissions.map((outcome) => outcome.status)).toEqual(["fulfilled", "fulfilled"]);
+
+      await firstDb.delete(users).where(eq(users.id, ownerId));
+      const retained = await secondDb.select().from(workloads).where(eq(workloads.kind, "reconcile-stats"));
+      expect(retained).toHaveLength(2);
+      expect(retained.map((row) => row.ownerId)).toEqual([null, null]);
+      expect(retained.map((row) => row.admissionSystem).sort()).toEqual([false, true]);
+      expect(await markStarted(firstDb, ownedId, T0 + 1)).toBe(true);
+      expect(await markStarted(secondDb, ownedId, T0 + 2)).toBe(false);
     } finally {
       for (const suffix of ["", "-wal", "-shm"]) {
         rmSync(`${path}${suffix}`, { force: true });

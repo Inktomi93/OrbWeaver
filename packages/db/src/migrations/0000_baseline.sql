@@ -1381,6 +1381,7 @@ CREATE TABLE `workloads` (
 	`result` text,
 	`progress` text,
 	`owner_id` text,
+	`admission_system` integer DEFAULT true NOT NULL,
 	`depends_on` text,
 	`error` text,
 	`scheduled_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
@@ -1394,8 +1395,8 @@ CREATE TABLE `workloads` (
 	CONSTRAINT "workloads_lane_check" CHECK(lane in ('interactive', 'sweep'))
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `workloads_mode_active_singular_owned` ON `workloads` (`kind`,`owner_id`,`admission_key`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'singular' and owner_id is not null;--> statement-breakpoint
-CREATE UNIQUE INDEX `workloads_mode_active_singular_system` ON `workloads` (`kind`,`admission_key`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'singular' and owner_id is null;--> statement-breakpoint
+CREATE UNIQUE INDEX `workloads_mode_active_singular_owned` ON `workloads` (`kind`,`owner_id`,`admission_key`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'singular' and admission_system = 0;--> statement-breakpoint
+CREATE UNIQUE INDEX `workloads_mode_active_singular_system` ON `workloads` (`kind`,`admission_key`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'singular' and admission_system = 1;--> statement-breakpoint
 CREATE UNIQUE INDEX `workloads_mode_active_bulk` ON `workloads` (`kind`,`admission_key`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'bulk';--> statement-breakpoint
 CREATE INDEX `workloads_owner_idx` ON `workloads` (`owner_id`);--> statement-breakpoint
 CREATE TABLE `character_books` (

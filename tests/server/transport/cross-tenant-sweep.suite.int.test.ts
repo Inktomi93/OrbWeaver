@@ -1653,6 +1653,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       status: "failed",
       mode: "singular",
       ownerId: OWNER_USER_ID,
+      admissionSystem: false,
       error: MARK.workload,
       scheduledAt: 1,
       createdAt: 1,
