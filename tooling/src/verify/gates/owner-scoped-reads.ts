@@ -172,8 +172,19 @@ function rejectingGuardOf(comparison: Node, resultDecl: Node): boolean {
   }
 }
 
+/** A verifier may return the ownership relationship itself instead of loading the row for egress. Keep
+ *  this arm deliberately narrow: the exact `===` comparison must be the return expression. */
+function returnsOwnerVerdict(comparison: Node): boolean {
+  let expression = comparison;
+  while (expression.getParent()?.isKind(SyntaxKind.ParenthesizedExpression) === true) {
+    expression = expression.getParentOrThrow();
+  }
+  return expression.getParent()?.isKind(SyntaxKind.ReturnStatement) === true;
+}
+
 /** The POST-FETCH-FILTER arm: the enclosing function must relate the exact fetched result's `.ownerId` to
- *  the caller's authorized owner binding, and that mismatch must drive a rejecting guard. */
+ *  the caller's authorized owner binding. A row-loading function rejects a mismatch; a boolean verifier
+ *  may return the exact equality relationship directly. */
 function hasPostFetchFilter(read: Node, fn: Node | undefined): boolean {
   if (fn === undefined) {
     return false;
@@ -184,7 +195,7 @@ function hasPostFetchFilter(read: Node, fn: Node | undefined): boolean {
   }
   return fn.getDescendantsOfKind(SyntaxKind.BinaryExpression).some((b) => {
     const op = b.getOperatorToken().getKind();
-    if (op !== SyntaxKind.ExclamationEqualsEqualsToken) {
+    if (op !== SyntaxKind.ExclamationEqualsEqualsToken && op !== SyntaxKind.EqualsEqualsEqualsToken) {
       return false;
     }
     const left = b.getLeft();
@@ -195,7 +206,10 @@ function hasPostFetchFilter(read: Node, fn: Node | undefined): boolean {
       return false;
     }
     const callerOwner = leftIsResultOwner ? right : left;
-    return isCallerOwnerBinding(callerOwner, resultDecl) && rejectingGuardOf(b, resultDecl);
+    if (!isCallerOwnerBinding(callerOwner, resultDecl)) {
+      return false;
+    }
+    return op === SyntaxKind.EqualsEqualsEqualsToken ? returnsOwnerVerdict(b) : rejectingGuardOf(b, resultDecl);
   });
 }
 
@@ -391,6 +405,14 @@ export const gate: GateDescriptor = {
           'import { characters } from "@orb/db";\nexport async function loadIt(db: Db, id: string, caller: string) {\n  const rows = await db.select().from(characters).where(eq(characters.id, id)).limit(1);\n  const card = rows[0];\n  if (card === undefined || card.ownerId !== caller) return null;\n  return card;\n}\n',
       },
       why: "arm 2 through one local alias — `rows -> card -> card.ownerId` is still a relationship to this read result, matching persona/loadOwnedCharacterCard",
+    },
+    {
+      files: {
+        "packages/db/src/schema/persona.ts": 'export const personas = sqliteTable("personas", { ownerId: text("owner_id") });\n',
+        "packages/server/src/entry/compose/chat.ts":
+          'import { personas } from "@orb/db";\nexport const verifyPersonaOwned = async ({ ownerId, personaId }) => {\n  const rows = await db.select({ ownerId: personas.ownerId }).from(personas).where(eq(personas.id, personaId)).limit(1);\n  return rows[0]?.ownerId === ownerId;\n};\n',
+      },
+      why: "arm 2 as a boolean verifier — returning the exact fetched owner relationship exposes only the authorization verdict, never the row",
     },
     {
       files: {

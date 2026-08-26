@@ -4,7 +4,7 @@
 // `*Service` interface's members per `domain/<d>/contract/service.ts` and requires a boundary-anchored
 // service call `<service>.<verb>(` or its `create<Verb>(` factory call in domain tests. COMMENT POSTURE:
 // comment-SAFE — AST CallExpressions only. DEFERRED is a ratchet (bus-coverage.ts precedent).
-import type { CallExpression, InterfaceDeclaration, Project, SourceFile } from "ts-morph";
+import type { CallExpression, InterfaceDeclaration, Project, SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
@@ -14,6 +14,7 @@ import { fileLoaded } from "../lib/pass.ts";
 const SERVICE_CONTRACT_RE = /\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\/service\.ts$/u;
 const DOMAIN_TEST_RE = /\/tests\/server\/domain\/(?<domain>[^/]+)\//u;
 const SERVICE_FACTORY_RE = /^create[A-Z].*Service$/u;
+const SERVICE_CONTRACT_SUFFIX_RE = /\/contract\/service\.ts$/u;
 
 // Verbs DECLARED on a *Service interface with zero test invocation anywhere — the W1i backlog. A new
 // uncovered verb NOT on this list is RED.
@@ -93,10 +94,50 @@ function isServiceFactoryCall(call: CallExpression): boolean {
   return name !== undefined && SERVICE_FACTORY_RE.test(name);
 }
 
-function isAssembledServiceExpression(node: Node, seen = new Set<string>()): boolean {
+function typeComesFromService(type: Type, service: InterfaceDeclaration): boolean {
+  const declarations = [type.getAliasSymbol(), type.getSymbol()].flatMap((symbol) => symbol?.getDeclarations() ?? []);
+  if (declarations.includes(service)) {
+    return true;
+  }
+  return [...type.getUnionTypes(), ...type.getIntersectionTypes()].some((member) => typeComesFromService(member, service));
+}
+
+function typeVerbComesFromDomain(type: Type, service: InterfaceDeclaration, verb: string): boolean {
+  const domainRoot = service.getSourceFile().getFilePath().replace(SERVICE_CONTRACT_SUFFIX_RE, "/");
+  const property = type.getProperty(verb);
+  if (
+    property?.getDeclarations().some((declaration) => {
+      const path = declaration.getSourceFile().getFilePath();
+      return path.startsWith(domainRoot) && (path.includes("/verbs/") || path.endsWith("/service.ts"));
+    }) === true
+  ) {
+    return true;
+  }
+  return [...type.getUnionTypes(), ...type.getIntersectionTypes()].some((member) => typeVerbComesFromDomain(member, service, verb));
+}
+
+function isDomainVerbBundleFactory(call: CallExpression, service: InterfaceDeclaration, verb: string): boolean {
+  const name = calledName(call);
+  if (name?.startsWith("create") !== true || call.getType().getProperty(verb) === undefined) {
+    return false;
+  }
+  const callee = unwrapExpression(call.getExpression());
+  const symbol = callee.getSymbol();
+  const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
+  const domainRoot = service.getSourceFile().getFilePath().replace(SERVICE_CONTRACT_SUFFIX_RE, "/");
+  return declarations.some((declaration) => {
+    const path = declaration.getSourceFile().getFilePath();
+    return path.startsWith(domainRoot) && (path.includes("/verbs/") || path.endsWith("/service.ts"));
+  });
+}
+
+function isAssembledServiceExpression(node: Node, service: InterfaceDeclaration, verb: string, seen = new Set<string>()): boolean {
   const expression = unwrapExpression(node);
+  if (typeComesFromService(expression.getType(), service) || typeVerbComesFromDomain(expression.getType(), service, verb)) {
+    return true;
+  }
   if (Node.isCallExpression(expression)) {
-    if (isServiceFactoryCall(expression)) {
+    if (isServiceFactoryCall(expression) || isDomainVerbBundleFactory(expression, service, verb)) {
       return true;
     }
     const helperName = calledName(expression);
@@ -107,7 +148,7 @@ function isAssembledServiceExpression(node: Node, seen = new Set<string>()): boo
     return (
       helper?.getDescendantsOfKind(SyntaxKind.ReturnStatement).some((statement) => {
         const returned = statement.getExpression();
-        return returned !== undefined && isAssembledServiceExpression(returned, seen);
+        return returned !== undefined && isAssembledServiceExpression(returned, service, verb, seen);
       }) === true
     );
   }
@@ -125,18 +166,18 @@ function isAssembledServiceExpression(node: Node, seen = new Set<string>()): boo
     .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
     .find((candidate) => candidate.getName() === name);
   const initializer = declaration?.getInitializer();
-  return initializer !== undefined && isAssembledServiceExpression(initializer, seen);
+  return initializer !== undefined && isAssembledServiceExpression(initializer, service, verb, seen);
 }
 
-function isAssembledServiceCall(call: CallExpression): boolean {
+function isAssembledServiceCall(call: CallExpression, service: InterfaceDeclaration, verb: string): boolean {
   const expression = unwrapExpression(call.getExpression());
   if (Node.isPropertyAccessExpression(expression) || Node.isElementAccessExpression(expression)) {
-    return isAssembledServiceExpression(expression.getExpression());
+    return isAssembledServiceExpression(expression.getExpression(), service, verb);
   }
   return false;
 }
 
-function isCovered(files: readonly SourceFile[], verb: string): boolean {
+function isCovered(files: readonly SourceFile[], service: InterfaceDeclaration, verb: string): boolean {
   const factory = factoryName(verb);
   return files.some((sf) =>
     sf.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
@@ -144,7 +185,7 @@ function isCovered(files: readonly SourceFile[], verb: string): boolean {
       if (name === factory) {
         return true;
       }
-      return name === verb && (isAssembledServiceCall(call) || isFactoryBoundVerb(call, verb));
+      return name === verb && (isAssembledServiceCall(call, service, verb) || isFactoryBoundVerb(call, verb));
     }),
   );
 }
@@ -170,11 +211,11 @@ function interfaceVerbNames(iface: InterfaceDeclaration): string[] {
 
 /** Every verb declared by the domain's `*Service` interfaces (name ends exactly in `Service` — excludes
  *  `*ServiceDeps`, which is a DI bundle, not the verb surface). */
-function serviceVerbs(contract: SourceFile): string[] {
-  const verbs: string[] = [];
+function serviceVerbs(contract: SourceFile): Array<{ readonly service: InterfaceDeclaration; readonly verb: string }> {
+  const verbs: Array<{ readonly service: InterfaceDeclaration; readonly verb: string }> = [];
   for (const iface of contract.getInterfaces()) {
     if (iface.isExported() && iface.getName().endsWith("Service")) {
-      verbs.push(...interfaceVerbNames(iface));
+      verbs.push(...interfaceVerbNames(iface).map((verb) => ({ service: iface, verb })));
     }
   }
   return verbs;
@@ -198,9 +239,9 @@ function reconcileContractVerbPresence(project: Project): Violation[] {
     }
     const corpus = domainTestFiles(domain, files);
     const file = `packages/server/src/domain/${domain}/contract/service.ts`;
-    for (const verb of serviceVerbs(contract)) {
+    for (const { service, verb } of serviceVerbs(contract)) {
       const key = `${domain}.${verb}`;
-      if (isCovered(corpus, verb)) {
+      if (isCovered(corpus, service, verb)) {
         continue;
       }
       if (key in DEFERRED) {
@@ -311,6 +352,32 @@ export const gate: GateDescriptor = {
         "tests/server/domain/hub/x.test.ts": "const service = createHubService(ctx);\nexport const q = service.coveredVerb();\n",
       },
       why: "the verb is invoked on a service assembled by its domain factory — covered, passes",
+    },
+    {
+      files: {
+        "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  coveredVerb(): void;\n}\n",
+        "tests/server/domain/hub/x.test.ts":
+          'import type { HubService } from "../../../../packages/server/src/domain/hub/contract/service.ts";\ndeclare const fixture: { readonly svc: HubService };\nfixture.svc.coveredVerb();\n',
+      },
+      why: "a service carried as a typed property on a fixture preserves the exact contract-interface identity — the dominant real test shape",
+    },
+    {
+      files: {
+        "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  coveredVerb(): void;\n}\n",
+        "packages/server/src/domain/hub/verbs/reads.ts": "export function createHubReads() { return { coveredVerb: (): void => undefined }; }\n",
+        "tests/server/domain/hub/x.test.ts":
+          'import { createHubReads } from "../../../../packages/server/src/domain/hub/verbs/reads.ts";\ncreateHubReads().coveredVerb();\n',
+      },
+      why: "a verb invoked through a concrete bundle factory declared in the owning domain's verbs tree is covered — the grouped ChatService test shape",
+    },
+    {
+      files: {
+        "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  coveredVerb(): void;\n}\n",
+        "packages/server/src/domain/hub/verbs/reads.ts": "export function createHubReads() { return { coveredVerb: (): void => undefined }; }\n",
+        "tests/server/domain/hub/x.test.ts":
+          'import { createHubReads } from "../../../../packages/server/src/domain/hub/verbs/reads.ts";\ndeclare const fixture: { readonly reads: ReturnType<typeof createHubReads> };\nfixture.reads.coveredVerb();\n',
+      },
+      why: "a verb bundle carried on a fixture retains the owning factory's property-declaration identity — the nested Chat turn harness shape",
     },
     {
       files: {

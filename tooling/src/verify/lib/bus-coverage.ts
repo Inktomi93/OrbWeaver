@@ -67,7 +67,15 @@ const CANONICAL_LOCAL_FUNCTIONS = new Map<string, ReadonlyMap<string, RegExp>>([
     "CHAT_BUS_EVENT_TYPES",
     new Map([
       ["emitQuiet", /\/domain\/chat\/engine\/engine\.ts$/u],
+      ["emitRoomEvent", /\/entry\/compose\/room-reach\.ts$/u],
       ["writeReasoning", /\/domain\/chat\/verbs\/edit\.ts$/u],
+    ]),
+  ],
+  [
+    "USER_BUS_EVENT_TYPES",
+    new Map([
+      ["emit", PLUGIN_SURFACE_STATE],
+      ["publishUserEvent", /\/transport\/trpc\/user-events-bus\.ts$/u],
     ]),
   ],
 ]);

@@ -81,6 +81,9 @@ function importedVectorTable(node: Node): string {
 }
 
 function comesFromDbNamespace(node: Node): boolean {
+  if (!node.isKind(SyntaxKind.Identifier)) {
+    return false;
+  }
   return node.getDefinitionNodes().some((definition) => {
     if (definition.getKind() !== SyntaxKind.NamespaceImport) {
       return false;

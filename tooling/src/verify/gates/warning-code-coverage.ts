@@ -109,8 +109,8 @@ function isExecutableWarningRecord(object: ObjectLiteralExpression, channel: War
   const call = object.getFirstAncestorByKind(SyntaxKind.CallExpression);
   const returned = object.getFirstAncestorByKind(SyntaxKind.ReturnStatement);
   const name = call === undefined ? undefined : callName(call);
-  if (name === "push") {
-    const expression = unwrapExpression(call?.getExpression());
+  if (call !== undefined && name === "push") {
+    const expression = unwrapExpression(call.getExpression());
     const receiver = Node.isPropertyAccessExpression(expression) ? expression.getExpression() : undefined;
     return receiver !== undefined && isWarningsReceiver(receiver) && object.getProperty("message") !== undefined;
   }
