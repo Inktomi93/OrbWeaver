@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "cb7d855d-740b-4fee-b97a-6390889956cb",
+  "id": "aa4afd3f-1163-4f25-a5f8-e1b7e977ec74",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -334,7 +334,7 @@
       "checkConstraints": {
         "automation_fires_outcome_check": {
           "name": "automation_fires_outcome_check",
-          "value": "outcome in ('fired', 'predicate_false', 'predicate_error', 'budget_refused', 'depth_refused', 'action_error', 'authority_refused', 'test_run')"
+          "value": "outcome in ('fired', 'predicate_false', 'predicate_error', 'budget_refused', 'depth_refused', 'action_error', 'authority_refused', 'test_run', 'reserved')"
         }
       }
     },

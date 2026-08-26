@@ -33,11 +33,11 @@ import type { AutomationAction, AutomationCelEnv, AutomationFireOutcome, Automat
 import { automationActionsSchema } from "@orb/contracts/automation";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { AutomationFireId, ChatId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ArmOutcome, DispatchFrame, DispatchOptions, DispatchSummary, ResolvedTrigger, RuleRow } from "../contract/ops.ts";
 import type { AutomationContext } from "../contract/service.ts";
-import { insertFire } from "../persistence/fires.ts";
+import { commitReservedFire, finalizeReservedFire, insertFire, releaseFireReservation, reserveFireBudget } from "../persistence/fires.ts";
 import { disableRule, recordRuleError, stampRuleFired } from "../persistence/rules.ts";
 import { holdsChatHostAuthority, holdsOwnerAuthority } from "../substrate/authority.ts";
 import { buildCelEnv } from "../substrate/cel-env.ts";
@@ -167,8 +167,17 @@ async function notifyAutoDisabled(rc: RuleCtx): Promise<void> {
 /** Record a rule ERROR (predicate/action/authority): increment the ledger, log the fire, emit `ruleErrored`,
  *  and auto-disable at the ceiling — a DURABLE `automation-notice` to the author (`notifyAutoDisabled`) PLUS
  *  the transient `ruleAutoDisabled` bus event. Returns whether the rule was disabled. */
-async function onRuleError(rc: RuleCtx, outcome: AutomationFireOutcome, detail: Record<string, unknown>): Promise<RuleResult> {
-  await record(rc, outcome, detail);
+async function onRuleError(
+  rc: RuleCtx,
+  outcome: Exclude<AutomationFireOutcome, "fired">,
+  detail: Record<string, unknown>,
+  reservationId: AutomationFireId | null = null,
+): Promise<RuleResult> {
+  if (reservationId === null) {
+    await record(rc, outcome, detail);
+  } else {
+    await finalizeReservedFire(rc.ctx.db, reservationId, outcome, detail);
+  }
   const errors = await recordRuleError(rc.ctx.db, rc.rule.id, outcome, rc.deps.nowMs);
   notifyRuleEvent(rc, "ruleErrored");
   if (errors >= CONSECUTIVE_ERROR_DISABLE_AT) {
@@ -226,6 +235,35 @@ function inviteOnRefusal(rc: RuleCtx, actions: readonly AutomationAction[], limi
     payload: null,
   });
   rc.ctx.notify({ type: "suggestionRaised", chatId, source, suggestionId: id, kind: "invitation", summary, expiresAt });
+}
+
+type ReservationVerdict = { readonly ok: true; readonly id: AutomationFireId } | { readonly ok: false; readonly result: RuleResult };
+
+/**
+ * The authoritative autonomous admission immediately before arms. `runGates` keeps its cheap/readable early
+ * refusal, but only this conditional INSERT authorizes effects: a competing writer can land between the early
+ * read and here, and this door will then record the newly-visible refusal instead of running the arm.
+ */
+async function reserveForArms(rc: RuleCtx, actions: readonly AutomationAction[]): Promise<ReservationVerdict> {
+  const id = rc.ctx.newFireId();
+  const reserved = await reserveFireBudget(rc.ctx.db, {
+    id,
+    ruleId: rc.rule.id,
+    automationDepth: rc.deps.resolved.automationDepth,
+    firedAt: rc.deps.nowMs,
+  });
+  if (reserved) {
+    return { ok: true, id };
+  }
+  const budget = await checkBudget(rc.ctx.db, { rule: rc.rule, scope: rc.chatId, nowMs: rc.deps.nowMs });
+  if (budget.ok) {
+    // A reservation can fail only on one of the conditions `checkBudget` reads too. Loudness here prevents a
+    // future SQL/check drift from degrading into an invented refusal reason or, worse, an unreserved effect.
+    throw new Error(`automation: budget reservation for ${rc.rule.id} failed without a classifiable limit`);
+  }
+  await record(rc, "budget_refused", { limit: budget.detail });
+  inviteOnRefusal(rc, actions, budget.detail);
+  return { ok: false, result: ended("budget_refused") };
 }
 
 /** A rule's arm run: the aborting arm's `arm_error` detail (`null` = no arm errored), plus the two terminal
@@ -392,6 +430,14 @@ async function dispatchRule(rc: RuleCtx, actions: readonly AutomationAction[]): 
     }
     return ended("predicate_false");
   }
+  let reservationId: AutomationFireId | null = null;
+  if (rc.deps.manualBy === null) {
+    const reservation = await reserveForArms(rc, actions);
+    if (!reservation.ok) {
+      return reservation.result;
+    }
+    reservationId = reservation.id;
+  }
   const eventDepth = rc.deps.resolved.automationDepth;
   const frame: DispatchFrame = {
     chatId: rc.chatId,
@@ -409,7 +455,7 @@ async function dispatchRule(rc: RuleCtx, actions: readonly AutomationAction[]): 
     getLog().warn({ err: err instanceof Error ? err.message : String(err), ruleId: rc.rule.id }, "automation dispatch: arm threw (isolated)");
     armsResult = { detail: { error: err instanceof Error ? err.message : String(err) }, suggested: false, paused: false };
   }
-  return finalizeRule(rc, armsResult);
+  return finalizeRule(rc, armsResult, reservationId);
 }
 
 /** Record the rule's terminal (dispatch step 6): `action_error` when an arm aborted, `fired` when the arms
@@ -418,28 +464,41 @@ async function dispatchRule(rc: RuleCtx, actions: readonly AutomationAction[]): 
  *  THE SUGGEST TERMINAL WRITES NO ROW, which is §3-S4's fire-log honesty made mechanical: a raised card is
  *  not a fire, so it must not appear as one in the host's "why did this run" log, must not stamp
  *  `last_fired_at` (it consumed no cooldown), and must not count toward the per-hour rate cap (only `fired`
- *  rows do — `persistence/fires.ts`). The CONFIRM writes the `fired` row, stamped with the confirmer, when
- *  the host says yes. A rule that mixed postures — a direct arm beside a confirm-first one — still lands
+ *  terminal rows do — `persistence/fires.ts`; its in-flight reservation is released). The CONFIRM writes the
+ *  `fired` row, stamped with the confirmer, when the host says yes. A rule that mixed postures — a direct arm
+ *  beside a confirm-first one — still lands
  *  here as `suggested`: the direct arm's own effect already happened, and claiming the RULE fired would
  *  overstate what a host will see. */
-async function finalizeRule(rc: RuleCtx, armsResult: ArmsResult): Promise<RuleResult> {
+async function finalizeRule(rc: RuleCtx, armsResult: ArmsResult, reservationId: AutomationFireId | null): Promise<RuleResult> {
   if (armsResult.detail !== null) {
-    return onRuleError(rc, "action_error", armsResult.detail);
+    return onRuleError(rc, "action_error", armsResult.detail, reservationId);
   }
   // D146-d — an arm PAUSED (its contributor was deactivated between the pause gate and the call). Terminates
   // exactly like the gate would have: no fire row, no error tick, no `last_fired_at`. Checked before the
   // `suggested` branch only because a pause aborts the remaining arms while a stash does not, so the two can
   // never both be true — the order states which one is the abort.
   if (armsResult.paused) {
+    if (reservationId !== null) {
+      await releaseFireReservation(rc.ctx.db, reservationId);
+    }
     return PAUSED;
   }
   if (armsResult.suggested) {
+    if (reservationId !== null) {
+      await releaseFireReservation(rc.ctx.db, reservationId);
+    }
     return ended("suggested");
   }
-  await stampRuleFired(rc.ctx.db, rc.rule.id, rc.deps.nowMs);
+  if (reservationId !== null) {
+    await commitReservedFire(rc.ctx.db, reservationId, rc.rule.id, rc.deps.nowMs);
+  } else {
+    await stampRuleFired(rc.ctx.db, rc.rule.id, rc.deps.nowMs);
+  }
   // A manual fire says so in its own row: the fire log's whole job is answering "why did/didn't this run",
   // and a host-forced run that reads identically to a condition-met fire makes that answer a lie.
-  await record(rc, "fired", rc.deps.manualBy === null ? null : { runNow: true, byUserId: rc.deps.manualBy });
+  if (reservationId === null) {
+    await record(rc, "fired", { runNow: true, byUserId: rc.deps.manualBy });
+  }
   notifyRuleEvent(rc, "ruleFired");
   return ended("fired");
 }
