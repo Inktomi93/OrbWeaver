@@ -1733,7 +1733,10 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     resolveRoster: deps.rpgChatOps.resolveRpgRoster,
     // R4 — promotion's durable half (card + roster seat), the ONE rpg write that reaches outside the game.
     promoteToRoster: buildPromoteToRoster(deps),
-    postNarratorMessage: deps.rpgChatOps.postNarratorMessage,
+    // Restore's narrow atomic companion seam: RPG builds one RPG statement from chat's minted marker ids;
+    // chat owns the existing narrator batch and commits/emits. The two domains never construct each other's rows.
+    postNarratorMessage: (chatId, content, buildSnapshotStatement) =>
+      deps.rpgChatOps.postNarratorMessage(chatId, content, undefined, { rpgRestoreStatement: buildSnapshotStatement }),
     resolvePresetOwned: deps.resolvePresetOwned,
     copyPresetToUser: deps.copyPresetToUser,
     // The chat's active-preset macros (WAVE MU) — the injected chat op the GM console's shadow gloss reads.

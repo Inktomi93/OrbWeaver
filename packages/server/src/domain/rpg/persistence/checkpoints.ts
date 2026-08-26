@@ -1,9 +1,10 @@
 // domain/rpg/persistence/checkpoints — labeled snapshot bookmarks (rpg-design/05 §4.4). Create (label a
 // snapshot) · list · read (the restore target). RESTORE ITSELF is composed in the verb layer (W1b): it
-// reads the checkpointed snapshot, then clone-forwards it BORN COMMITTED onto a fresh narrator variant via
-// `writeRestoredSnapshot` (persistence/snapshots) — this slot owns only the checkpoint rows. The snapshot FK
-// is RESTRICT (a restore broken because the snapshot vanished must be a constraint error, not a silent
-// dangle). No JSON columns — no parse-on-read belt. `id`/`now` injected.
+// reads the checkpointed snapshot, then clone-forwards it BORN COMMITTED through
+// `buildRestoredSnapshotStatement` (persistence/snapshots), committed beside the visible narrator marker —
+// this slot owns only checkpoint rows. The snapshot FK is RESTRICT (a restore broken because the snapshot
+// vanished must be a constraint error, not a silent dangle). No JSON columns — no parse-on-read belt.
+// `id`/`now` injected.
 
 import type { Db } from "@orb/db";
 import { rpgCheckpoints } from "@orb/db";
