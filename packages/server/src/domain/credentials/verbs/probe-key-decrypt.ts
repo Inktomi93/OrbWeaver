@@ -1,5 +1,6 @@
 import { userCredentials } from "@orb/db";
 import type { CredentialContext } from "../context.ts";
+import { CredentialsDecryptError } from "../contract/errors.ts";
 import type { CredentialsService } from "../contract/service.ts";
 import { aadFor } from "../persistence/aad.ts";
 import { decryptSealed } from "../substrate/decrypt.ts";
@@ -37,7 +38,14 @@ export function createProbeKeyDecrypt(ctx: CredentialContext): CredentialsServic
       tag: r.tag,
     };
 
-    const decrypted = decryptSealed(ctx.box, sealed, aadFor(r.ownerId, r.provider));
-    return decrypted !== null;
+    try {
+      decryptSealed(ctx.box, sealed, aadFor(r.ownerId, r.provider));
+      return true;
+    } catch (error) {
+      if (error instanceof CredentialsDecryptError) {
+        return false;
+      }
+      throw error;
+    }
   };
 }

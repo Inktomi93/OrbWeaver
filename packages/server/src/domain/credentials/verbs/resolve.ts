@@ -27,9 +27,6 @@ async function resolveOpenRouter(ctx: CredentialContext, ownerId: UserId): Promi
     throw new DomainNoCredentialError("openrouter");
   }
   const plaintext = decryptSealed(ctx.box, active, aadFor(ownerId, "openrouter"));
-  if (plaintext === null) {
-    throw new DomainNoCredentialError("openrouter");
-  }
   return mintOpenRouter(plaintext, active.id);
 }
 
@@ -43,11 +40,12 @@ async function resolveCustomOpenAi(ctx: CredentialContext, ownerId: UserId): Pro
   if (endpoint === null) {
     throw new DomainOperationError(CREDENTIALS_OP_CODES.metadataInvalid, "custom_openai credential is missing its baseUrl metadata.");
   }
-  // apiKey may be empty (a no-auth local server) → null. A decrypt failure is also "no key" (null).
+  // A successfully decrypted empty plaintext is the intentional no-auth arm. Decrypt failure throws the
+  // typed configuration error before this mint, so it can never become a keyless request.
   const plaintext = decryptSealed(ctx.box, active, aadFor(ownerId, "custom_openai"));
   return mintCustomOpenAi({
     baseUrl: endpoint.baseUrl,
-    apiKey: plaintext !== null && plaintext.length > 0 ? plaintext : null,
+    apiKey: plaintext.length > 0 ? plaintext : null,
     headers: endpoint.headers,
     credentialId: active.id,
     model: endpoint.model ?? undefined,

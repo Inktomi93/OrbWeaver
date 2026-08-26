@@ -1,11 +1,12 @@
 // verb: resolve — the turn-time chokepoint. The security core: every source arm, the max-pro-sub OWNER
 // gate (D17), the AES-256-GCM AAD binding (a row lifted to another owner WON'T decrypt — GCM tag
-// mismatch, treated as absent), and the revoked/missing → no-credential floor. Real db + real SecretBox.
+// mismatch becomes the typed config error), and the revoked/missing → no-credential floor. Real db + real SecretBox.
 
 import type { ProviderMetadata } from "@orb/contracts/credentials";
 import { userCredentials } from "@orb/db";
 import { DomainForbiddenError, DomainNoCredentialError } from "@orb/kit/errors";
-import { createCredentialsService } from "@orb/server/domain/credentials";
+import { CredentialsDecryptError, createCredentialsService } from "@orb/server/domain/credentials";
+import { createSecretBox } from "@orb/server/infra/crypto";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -54,7 +55,7 @@ describe("resolve", () => {
     expect(resolved).toMatchObject({ source: "openrouter", apiKey: "sk-or-secret" });
   });
 
-  test("AAD binding: a row LIFTED to another owner fails to decrypt → no credential (GCM tag mismatch)", async () => {
+  test("AAD binding: a row LIFTED to another owner fails with the typed decrypt/config error", async () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const alice = await seedUser(db, { id: "user_alice", role: "user" });
@@ -69,7 +70,7 @@ describe("resolve", () => {
     // bound to `alice|openrouter`; decrypting it as `bob|openrouter` fails the GCM tag check.
     await db.update(userCredentials).set({ ownerId: bob }).where(eq(userCredentials.id, added.id));
 
-    await expect(svc.resolve({ principal: principal(bob), source: "openrouter" })).rejects.toThrow(DomainNoCredentialError);
+    await expect(svc.resolve({ principal: principal(bob), source: "openrouter" })).rejects.toBeInstanceOf(CredentialsDecryptError);
     // Alice (the original AAD slot) no longer owns the row, so she has nothing to resolve either.
     await expect(svc.resolve({ principal: principal(alice), source: "openrouter" })).rejects.toThrow(DomainNoCredentialError);
   });
@@ -135,6 +136,41 @@ describe("resolve", () => {
     expect(resolved.baseUrl).toBe("http://127.0.0.1:8000/v1");
     // Asserted on the field itself: `toMatchObject({apiKey: null})` would not distinguish "" from null.
     expect(resolved.apiKey).toBeNull();
+  });
+
+  test("malformed custom_openai ciphertext is a typed non-retryable config failure, never keyless", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCredentialsService(h.ctx);
+    const owner = await seedUser(db, { id: "user_bad_ciphertext", role: "user" });
+    const added = await svc.add({
+      principal: principal(owner),
+      provider: "custom_openai",
+      key: "sk-valid-before-corruption",
+      metadata: { kind: "custom_openai", baseUrl: "https://llm.local/v1" },
+    });
+    await db.update(userCredentials).set({ ciphertext: "not-valid-ciphertext" }).where(eq(userCredentials.id, added.id));
+
+    await expect(svc.resolve({ principal: principal(owner), source: "custom_openai" })).rejects.toMatchObject({
+      code: "credential_decrypt_failed",
+      retryable: false,
+    });
+  });
+
+  test("custom_openai encrypted under a different key is a typed config failure, never keyless", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCredentialsService(h.ctx);
+    const owner = await seedUser(db, { id: "user_wrong_key", role: "user" });
+    await svc.add({
+      principal: principal(owner),
+      provider: "custom_openai",
+      key: "sk-encrypted",
+      metadata: { kind: "custom_openai", baseUrl: "https://llm.local/v1" },
+    });
+    const wrongKeyService = createCredentialsService({ ...h.ctx, box: createSecretBox(Buffer.alloc(32, 42)) });
+
+    await expect(wrongKeyService.resolve({ principal: principal(owner), source: "custom_openai" })).rejects.toBeInstanceOf(CredentialsDecryptError);
   });
 
   test("a custom_openai row with corrupt/missing baseUrl metadata → typed credential_metadata_invalid", async () => {
