@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 0,
+    "pending": 1,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -11797,6 +11797,37 @@
         ]
       },
       "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/issue-723-rpg-recovery.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 153,
+      "bytes": 10740,
+      "sha256": "392a44c3cd04ac2a16da166d26d6de182e912bb85d09390324a7503dc1922067",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "complete",
+          "updated": "2026-08-26"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/issue-723-rpg-recovery.md",
+        "assignedSha256": "392a44c3cd04ac2a16da166d26d6de182e912bb85d09390324a7503dc1922067",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/list-pane-projection-proposal.md",

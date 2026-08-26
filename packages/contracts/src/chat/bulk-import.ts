@@ -154,11 +154,14 @@ export interface ImportedChatIdentity {
 /** The tallies `createBulkImportChats` returns for one bulk-import run. `realConversationWritten` is the
  *  PD-78 backfill gate (import enqueues ONE `memory-backfill` when true). */
 export interface BulkImportChatsResult {
+  /** The canonical identity resolved for EVERY input, in input order, whether this call wrote it or the scoped
+   * import claim found it already present. This is the retry/re-link surface for cross-domain overlays; unlike
+   * `written`, it is not a creation tally. */
+  readonly identities: readonly ImportedChatIdentity[];
   /** What this run actually WROTE, in input order (a dedup-skipped input contributes nothing). A write that
    *  cannot say what it wrote forces its caller to re-derive the rows by a side-channel lookup: the demo-chat
-   *  seeder needs the chat id to attach its rpg game through rpg's own create door, and the R6 bundle import
-   *  needs the message/variant remap to re-link the carried campaign. ONE answer for both — a bare
-   *  `chatIds` beside this would be the same fact spelled twice. */
+   *  seeder needs the chat id to attach its rpg game through rpg's own create door. Cross-domain retry/re-link
+   *  callers consume `identities`, because this creation-only tally is intentionally empty on dedup. */
   readonly written: readonly ImportedChatIdentity[];
   readonly chatsImported: number;
   readonly chatsSkipped: number;

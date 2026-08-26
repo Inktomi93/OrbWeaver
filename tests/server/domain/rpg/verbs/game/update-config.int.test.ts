@@ -164,6 +164,22 @@ describe("updateConfig — knobs + profile mutability", () => {
     expect((await findGameByChat(db, chatId))?.config.engaged).toBe(true);
   });
 
+  test("#723 retry after the config commit repairs the engaged pointer mirror", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    h.fakes.pointerFailuresRemaining = 1;
+
+    await expect(h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { engaged: false } })).rejects.toThrow(
+      "injected pointer mirror interruption",
+    );
+    // The interruption is deliberately AFTER the first durable step.
+    expect((await findGameByChat(db, chatId))?.config.engaged).toBe(false);
+    expect(h.fakes.pointers.at(-1)?.engaged).toBe(true);
+
+    await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { engaged: false } });
+    expect((await findGameByChat(db, chatId))?.config.engaged).toBe(false);
+    expect(h.fakes.pointers.at(-1)).toEqual({ chatId, gameId: (await findGameByChat(db, chatId))?.id, engaged: false });
+  });
+
   test("#9 dateMode: defaults narrated; structured sets + survives an unrelated edit (never-reset)", async () => {
     const { chatId, h } = await seedLiteGame(db);
     expect((await findGameByChat(db, chatId))?.config.dateMode).toBe("narrated");
