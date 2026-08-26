@@ -32,7 +32,7 @@ export interface PendingGuardReceipt {
 export interface PendingGuardCensus {
   readonly scannedTsx: number;
   readonly directControls: number;
-  /** Controls whose safety cannot be mechanically established: no disabled guard, or an unclassified guard. */
+  /** Controls whose safety needs review: no/other guard, plus generation guards that remain review-tier. */
   readonly reviewResiduals: number;
   readonly rows: readonly PendingGuardReceipt[];
   readonly totals: Readonly<Record<PendingGuardClassification, number>>;

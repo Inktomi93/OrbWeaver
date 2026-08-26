@@ -14,6 +14,7 @@
 //      nameable script source is the hash of our height script (2026-08-16 tier-B pass, #91)
 
 import type { ParticipantView, RenderPolicy } from "@orb/contracts/chat";
+import { CARD_FRAME_MINT_BODY_MAX_BYTES } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { CARD_FRAME_HEIGHT_SCRIPT, CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH } from "@orb/kit/card-frame";
@@ -166,8 +167,13 @@ describe("card-frame — the credential gates", () => {
     expect((await h.mint({ ...CARD, trustHtml: true })).status).toBe(400); // strictObject: no smuggled policy
   });
 
-  test("an oversized JSON body is rejected by the route cap before schema parsing", async () => {
-    const res = await harness().mint({ ...CARD, html: "x".repeat(64_000), padding: "x".repeat(64_000) });
+  test("the route cap admits the schema's largest escaped document", async () => {
+    const res = await harness().mint({ ...CARD, html: '"'.repeat(64_000), css: '"'.repeat(16_000) });
+    expect(res.status).toBe(200);
+  });
+
+  test("a body over the contract-derived byte ceiling is rejected before schema parsing", async () => {
+    const res = await harness().mint({ ...CARD, padding: "x".repeat(CARD_FRAME_MINT_BODY_MAX_BYTES) });
     expect(res.status).toBe(413);
   });
 });
