@@ -143,7 +143,9 @@ export default defineConfig({
     // --- coverage: REPORT-ONLY (no `thresholds` → never gates; runs only via `pnpm test:coverage`) ---
     coverage: {
       provider: "v8", // AST-aware remap (Istanbul-accurate, v8-fast) — the v4 default
-      include: ["packages/*/src/**/*.ts"], // v4 removed coverage.all/extensions — include is explicit
+      // v4 removed coverage.all/extensions — include is explicit. Keep every shipped TS dialect plus the
+      // tooling control plane in the measured corpus; omitting either makes a partial report read as total.
+      include: ["packages/*/src/**/*.{ts,tsx}", "tooling/src/**/*.ts"],
       exclude: ["**/index.ts", "**/*.d.ts", "**/*.test-d.ts"],
       reporter: ["text-summary", "html", "json-summary"],
       reportsDirectory: "reports/coverage",
