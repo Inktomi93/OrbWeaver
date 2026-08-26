@@ -17,7 +17,12 @@ export function createCancel(ctx: WorkloadServiceContext): Pick<WorkloadService,
     if (row === null || !isVisibleToCaller(ctx.isAdmin, params.caller, row.ownerId)) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }
-    return await markCancelling(ctx.db, params.id, ctx.now());
+    const at = ctx.now();
+    const result = await markCancelling(ctx.db, params.id, at);
+    if (result.status === "cancelled") {
+      ctx.emitEvent({ type: "cancelled", workloadId: row.id, kind: row.kind, at });
+    }
+    return result;
   }
   return { cancel };
 }

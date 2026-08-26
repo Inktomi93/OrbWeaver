@@ -6,6 +6,7 @@
 import type { WorkloadStatus } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { nextRunnableWorkload, workloadStreamEmitter } from "@orb/server/domain/workloads";
 import { describe } from "vitest";
 import {
   failQueuedRow,
@@ -18,7 +19,6 @@ import {
   markCancelling,
   markStarted,
   markTerminal,
-  nextRunnableWorkload,
   toView,
 } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -221,6 +221,32 @@ describe("nextRunnableWorkload (queue head + poison fail-in-place)", () => {
     expect(next?.id).toBe("valid");
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("poison"))).toBe("failed");
   });
+
+  test("poison failure emits exactly once, after the failed state is durable", async () => {
+    const db = await freshDb();
+    await seedWorkloadRow(db, {
+      id: "poison_event",
+      kind: "compute-themes",
+      params: { k: -1 },
+      scheduledAt: T0,
+    });
+    const observedStatuses: Promise<WorkloadStatus | undefined>[] = [];
+    const listener = (event: { workloadId: WorkloadId }): void => {
+      if (event.workloadId === "poison_event") {
+        observedStatuses.push(loadWorkloadStatus(db, event.workloadId));
+      }
+    };
+    workloadStreamEmitter.on("workload", listener);
+    try {
+      await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep");
+      await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 1, "sweep");
+    } finally {
+      workloadStreamEmitter.off("workload", listener);
+    }
+
+    expect(observedStatuses).toHaveLength(1);
+    await expect(observedStatuses[0]).resolves.toBe("failed");
+  });
 });
 
 // The head-blocking defect's regression floor, at the QUERY level: the queue head is per-LANE, so an
@@ -334,6 +360,32 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("blocked"))).toBe("queued");
   });
 
+  test("more than one queue window of blocked dependents cannot starve a runnable tail", async () => {
+    const db = await freshDb();
+    await seedWorkloadRow(db, { id: "dep", kind: "compute-themes", status: "running", scheduledAt: T0, createdAt: T0 });
+    for (let index = 0; index < 11; index += 1) {
+      const ownerId = await seedUser(db, `blocked_owner_${String(index).padStart(2, "0")}`);
+      await seedWorkloadRow(db, {
+        id: `blocked_${String(index).padStart(2, "0")}`,
+        kind: "reconcile-stats",
+        status: "queued",
+        dependsOn: [depId],
+        ownerId,
+        scheduledAt: T0,
+        createdAt: T0 + index,
+      });
+    }
+    await seedWorkloadRow(db, {
+      id: "runnable_tail",
+      kind: "reconcile-stats",
+      status: "queued",
+      scheduledAt: T0 + 20,
+      createdAt: T0 + 20,
+    });
+
+    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 20, "sweep"))?.id).toBe("runnable_tail");
+  });
+
   test("a FAILED dependency fails the dependent with dependency_failed (it never runs)", async () => {
     const db = await freshDb();
     await seedWorkloadRow(db, { id: "dep", kind: "compute-themes", status: "failed" });
@@ -347,6 +399,33 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
     const dependent = await loadWorkload(db, CONTRIBUTIONS, castId<WorkloadId>("dependent"));
     expect(dependent?.status).toBe("failed");
     expect(dependent?.error).toContain("did not succeed");
+  });
+
+  test("dependency failure emits exactly once, after the failed state is durable", async () => {
+    const db = await freshDb();
+    await seedWorkloadRow(db, { id: "dep", kind: "compute-themes", status: "failed" });
+    await seedWorkloadRow(db, {
+      id: "dependent_event",
+      kind: "reconcile-stats",
+      status: "queued",
+      dependsOn: [depId],
+    });
+    const observedStatuses: Promise<WorkloadStatus | undefined>[] = [];
+    const listener = (event: { workloadId: WorkloadId }): void => {
+      if (event.workloadId === "dependent_event") {
+        observedStatuses.push(loadWorkloadStatus(db, event.workloadId));
+      }
+    };
+    workloadStreamEmitter.on("workload", listener);
+    try {
+      await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep");
+      await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 1, "sweep");
+    } finally {
+      workloadStreamEmitter.off("workload", listener);
+    }
+
+    expect(observedStatuses).toHaveLength(1);
+    await expect(observedStatuses[0]).resolves.toBe("failed");
   });
 
   test("a cancelled/worker_died dependency also counts as a dependency failure", async () => {

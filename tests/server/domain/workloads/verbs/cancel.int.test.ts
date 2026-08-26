@@ -1,6 +1,9 @@
 // Verb test: cancel — the queued→cancelled / running→cancelling transitions returned to the caller.
 
+import type { WorkloadStatus } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
+import type { WorkloadId } from "@orb/kit/ids";
+import { workloadStreamEmitter } from "@orb/server/domain/workloads";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -11,6 +14,28 @@ describe("workloads.cancel", () => {
     const db = await freshDb();
     const id = await seedWorkloadRow(db, { status: "queued" });
     expect(await makeService(db).cancel({ id, caller: null })).toEqual({ status: "cancelled" });
+  });
+
+  test("a queued terminal cancellation emits exactly once after the row is durable", async () => {
+    const db = await freshDb();
+    const id = await seedWorkloadRow(db, { status: "queued" });
+    const service = makeService(db);
+    const observedStatuses: Promise<WorkloadStatus>[] = [];
+    const listener = (event: { workloadId: WorkloadId }): void => {
+      if (event.workloadId === id) {
+        observedStatuses.push(service.get({ id, caller: null }).then((row) => row.status));
+      }
+    };
+    workloadStreamEmitter.on("workload", listener);
+    try {
+      await service.cancel({ id, caller: null });
+      await service.cancel({ id, caller: null });
+    } finally {
+      workloadStreamEmitter.off("workload", listener);
+    }
+
+    expect(observedStatuses).toHaveLength(1);
+    await expect(observedStatuses[0]).resolves.toBe("cancelled");
   });
 
   test("a running row enters cancelling", async () => {

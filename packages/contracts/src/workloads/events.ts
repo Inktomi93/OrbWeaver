@@ -21,9 +21,10 @@ import type { WorkloadId } from "@orb/kit/ids";
 import type { WorkloadKind, WorkloadStatus } from "./axes.ts";
 import type { WorkloadProgress } from "./execution.ts";
 
-/** Each arm has exactly ONE producing site: `runtime` (the engine dispatch catch), `cancelled` (an abort
- *  observed), `worker_died` (the reaper only), `dependency_failed` (the DAG scheduler predicate, which fails
- *  the dependent in place with no bus event — persistence is pure data access). */
+/** Each arm has one owning producer plane: `runtime` (the engine dispatch catch or the engine's durable
+ *  poison-row bridge), `cancelled` (the queued cancel verb or an in-flight abort), `worker_died` (the reaper only), and
+ *  `dependency_failed` (the engine bridge over the DAG scheduler's durable terminalization). Persistence
+ *  stays pure data access: it reports a moved row through an injected sink and never imports the bus. */
 const WORKLOAD_ERROR_KINDS = ["runtime", "cancelled", "worker_died", "dependency_failed"] as const;
 type WorkloadErrorKind = (typeof WORKLOAD_ERROR_KINDS)[number];
 

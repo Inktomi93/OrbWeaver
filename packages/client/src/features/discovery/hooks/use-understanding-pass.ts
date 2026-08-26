@@ -7,7 +7,7 @@
 // so this reads and writes `trpc.workloads.*` directly and imports nothing from features/workloads.
 //
 // THE CHAIN IS THE ENGINE'S, NOT A CLIENT LOOP. Each row is enqueued with `dependsOn: [previousId]`, which
-// the DAG scheduler (`persistence/nextRunnableWorkload`) holds until its dependency succeeds — so a closed
+// the DAG scheduler (`engine/nextRunnableWorkload`) holds until its dependency succeeds — so a closed
 // tab, a reload, or a slow stage all behave, and a failed stage terminals its dependants as
 // `dependency_failed` instead of running them over inputs that were never written.
 //
