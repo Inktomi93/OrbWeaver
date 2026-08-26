@@ -24,6 +24,7 @@ import type {
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { ChatImportContext } from "../../../../../packages/server/src/domain/chat/contract/import.ts";
 import { createBulkImportChats } from "../../../../../packages/server/src/domain/chat/persistence/import-write.ts";
 import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
@@ -140,6 +141,33 @@ function chatInput(importedFrom: string, over: Partial<BulkImportChatInput> = {}
 }
 
 describe("createBulkImportChats", () => {
+  test("an imported asset background that GC already won cannot land as a dangling JSON reference", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const missingAssetId = castId<AssetId>("asset_missingbackground");
+    const file = chatInput("Aria.jsonl", {
+      metadata: {
+        background: {
+          kind: "asset",
+          seededId: "",
+          externalUrl: "",
+          assetId: missingAssetId,
+          assetHash: "gone",
+          mime: "image/png",
+          provenanceUrl: "",
+        },
+      },
+    });
+
+    const err = await createBulkImportChats(importCtx(db, owner.id))({ ownerId: owner.id, characterId: character.id, chats: [file] }).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("background_unavailable");
+    expect(await db.select().from(chats)).toEqual([]);
+    expect(await db.select().from(chatImportClaims)).toEqual([]);
+  });
+
   test("concurrent identical imports converge on one character-scoped room", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
