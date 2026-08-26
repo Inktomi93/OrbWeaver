@@ -635,6 +635,37 @@
       "summary": "Superseded commissioning draft (2026-08-23) of the interaction direction; provenance only."
     },
     {
+      "path": "docs/design/issue-712-gate-family.md",
+      "assignedSha256": "247ee0a3a3ca5c65ca01b97fad23a474e8f85a0f7f05b5c061f95826fae7e414",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "80fac97c245cdc4a76c622aad53eca596fbd568eb606c6eb1ae153b4dc3d36da",
+      "verifiedCommit": "04663a354a5f17acba271fcb7b58b40312eb7f52",
+      "verifiedAt": "2026-08-25",
+      "evidence": [
+        "docs/design/issue-712-gate-family.md read in full after commit 04663a354; every E1-E8 disposition and the explicit 34-control E7 review residual were rechecked against issue #712, the live paired seams, and the generated 588-TSX / 67-control census",
+        "tooling/src/verify/gates/GATE-AUTHORING.md:49 fail-closed descriptor contract",
+        "docs/architecture/core/Core-0-Architecture-and-Structure.md:314 durable-tool versus research-zone boundary"
+      ],
+      "summary": "Issue #712 implementation design: extend the existing owner-write family; add three narrow active gates; keep E5/E6/E7 in generated review evidence; promote the review mirror to a fail-closed manual milestone tool under the D62 no-CI ruling.",
+      "claims": [
+        {
+          "claim": "The E1-E8 disposition implements issue #712 without claiming semantic dataflow properties as generic static gates.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#712"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/GATE-AUTHORING.md:480"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/list-pane-projection-proposal.md",
       "assignedSha256": "194774ea6ea9aeb592d2140a4a926bc456af609edd786f088bd068fc1be04cda",
       "disposition": "archive",

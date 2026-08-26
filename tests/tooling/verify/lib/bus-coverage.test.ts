@@ -15,6 +15,11 @@ const SPEC: BusCoverageSpec = {
   stalePrefix: "stale: ",
 };
 
+const DEFERRED_SPEC: BusCoverageSpec = {
+  ...SPEC,
+  deferred: { connectionsChanged: "fixture deferral" },
+};
+
 const CHAT_HOME = "packages/contracts/src/chat/bus.ts";
 const CHAT_EMIT = "packages/server/src/transport/trpc/stream/sources/chat.ts";
 const CHAT_SPEC: BusCoverageSpec = {
@@ -39,6 +44,36 @@ test("arbitrary discriminator literals do not count as bus emits", () => {
       [EMIT]: 'export const decoy = "alpha";\n',
     }),
   ).toHaveLength(1);
+});
+
+test("an arbitrary literal cannot stale a deferred user-bus member", () => {
+  expect(
+    reconcileBusCoverage(
+      ctxFor({
+        [HOME]: "export const USER_BUS_EVENT_TYPES = { connectionsChanged: true } as const;\n",
+        [EMIT]: 'export const decoy = "connectionsChanged";\n',
+      }).project,
+      DEFERRED_SPEC,
+    ),
+  ).toEqual([]);
+});
+
+test("a canonical emitter call stales a deferred user-bus member", () => {
+  expect(
+    reconcileBusCoverage(
+      ctxFor({
+        [HOME]: "export const USER_BUS_EVENT_TYPES = { connectionsChanged: true } as const;\n",
+        [EMIT]: 'ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });\n',
+      }).project,
+      DEFERRED_SPEC,
+    ),
+  ).toEqual([
+    {
+      file: HOME,
+      line: 1,
+      message: "stale: connectionsChanged",
+    },
+  ]);
 });
 
 test("an unrelated call carrying a type-shaped object does not count as a bus emit", () => {

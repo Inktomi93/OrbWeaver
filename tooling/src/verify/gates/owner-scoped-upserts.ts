@@ -10,7 +10,7 @@ import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
-import { markedFunctions, markerKeyFor, upsertConfigOf } from "../lib/tenancy-read.ts";
+import { markedFunctions, markerKeyFor, ownerScopedTableBinding, upsertConfigOf } from "../lib/tenancy-read.ts";
 import { ownerScopedTableIdents } from "./table-scoping-class.ts";
 
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
@@ -82,11 +82,7 @@ function insertTargetIdent(node: Node): string | undefined {
   if (!(callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getName() === INSERT_VERB)) {
     return;
   }
-  const arg = node.getArguments()[0];
-  if (arg === undefined || !arg.isKind(SyntaxKind.Identifier) || !ownerTableIdents.has(arg.getText())) {
-    return;
-  }
-  return arg.getText();
+  return ownerScopedTableBinding(node.getArguments()[0], ownerTableIdents);
 }
 
 /** Does the upsert config constrain the DO UPDATE to THIS table's own owner column? Requires the qualified
@@ -228,6 +224,15 @@ export const gate: GateDescriptor = {
       expect: { count: 1 },
       why: "a WRITE marker does not exempt an UPSERT — the vocabularies are separate on purpose. `@owner-scope-write-ok` promises a `.where` names the caller's row; it says nothing about which row a UNIQUE INDEX collision picks",
     },
+    {
+      files: {
+        "packages/db/src/schema/plugin.ts": 'export const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          'import { pluginKv as kvTable } from "@orb/db";\nexport async function putKv(db: Db, entry: E) {\n  return db.insert(kvTable).values(entry).onConflictDoUpdate({ target: [kvTable.pluginId, kvTable.key], set: { value: entry.value } });\n}\n',
+      },
+      expect: { count: 1, token: "kvTable" },
+      why: "an import alias is still the same owner-scoped table — renaming the local binding cannot bypass the upsert half",
+    },
   ],
   mustPass: [
     {
@@ -294,6 +299,14 @@ export const gate: GateDescriptor = {
           'import { characterSummaries } from "@orb/db";\nexport async function store(db: Db, row: R) {\n  return db.insert(characterSummaries).values(row).onConflictDoUpdate({ target: characterSummaries.characterId, set: { text: row.text } });\n}\n',
       },
       why: "DECLARED LIMIT: a (d) PARENT-derived table is out of scope — its tenancy is the parent's, so the owner column this gate keys on does not exist to be put in a target. The parent's own reachability is `owner-scoped-reads`' question",
+    },
+    {
+      files: {
+        "packages/db/src/schema/plugin.ts": 'export const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          'import { pluginKv as kvTable } from "@orb/db";\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(kvTable).values(entry).onConflictDoUpdate({ target: [kvTable.pluginId, kvTable.key], setWhere: eq(kvTable.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
+      },
+      why: "the alias resolver returns the local binding, so a guarded conflict target written through that alias remains safe",
     },
   ],
 };

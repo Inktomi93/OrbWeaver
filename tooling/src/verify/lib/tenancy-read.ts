@@ -15,6 +15,22 @@ function repoRel(path: string): string {
   return idx === -1 ? path.replace(LEADING_SLASH_RE, "") : path.slice(idx + 1);
 }
 
+/** Resolve an identifier used as a drizzle table argument back to a derived schema-table name. The returned
+ *  name stays LOCAL because the WHERE/conflict predicate is written against that binding. */
+export function ownerScopedTableBinding(node: Node | undefined, ownerTableIdents: ReadonlySet<string>): string | undefined {
+  if (node?.isKind(SyntaxKind.Identifier) !== true) {
+    return;
+  }
+  if (ownerTableIdents.has(node.getText()) || node.getDefinitions().some((definition) => ownerTableIdents.has(definition.getName()))) {
+    return node.getText();
+  }
+  const declarations = node.getSymbol()?.getDeclarations() ?? [];
+  const importedOwner = declarations.some(
+    (declaration) => declaration.isKind(SyntaxKind.ImportSpecifier) && ownerTableIdents.has(declaration.getNameNode().getText()),
+  );
+  return importedOwner ? node.getText() : undefined;
+}
+
 /** Walk a drizzle method chain UP from its table anchor (`.from(T)` for a read, `db.update(T)`/`db.delete(T)`
  *  for a write), collecting the calls that follow it. */
 function chainCalls(start: Node): CallExpression[] {
