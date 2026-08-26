@@ -1,17 +1,18 @@
 // persistence/checkpoints — labeled snapshot bookmarks + the restore clone-forward (rpg-design/05 §4.4).
-// .int: real FK. Create/list + the restore path (findCheckpoint → writeRestoredSnapshot, born COMMITTED) +
-// the RESTRICT belt (a checkpoint pins its snapshot against delete).
+// .int: real FK. Create/list + the restore statement builder (born COMMITTED) + the RESTRICT belt (a
+// checkpoint pins its snapshot against delete). Marker/snapshot batch rollback is pinned at the verb mirror.
 
 import type { Db } from "@orb/db";
 import { rpgSnapshots } from "@orb/db";
+import { batchMany } from "@orb/db/kit";
 import type { RpgCheckpointId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { findCheckpoint, insertCheckpoint, listCheckpoints } from "../../../../../packages/server/src/domain/rpg/persistence/checkpoints.ts";
-import { insertSnapshot, writeRestoredSnapshot } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { buildRestoredSnapshotStatement, insertSnapshot } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, FROZEN_AT, handTarget, seedChat, seedGame, seedMessage, snapshotId, test } from "../_support.ts";
+import { expect, FROZEN_AT, seedChat, seedGame, seedMessage, snapshotId, test } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -72,7 +73,12 @@ describe("restore", () => {
       throw new Error("checkpointed snapshot vanished");
     }
     const notice = await seedMessage(db, chatId, 2, { role: "assistant", content: "— scene restored —" });
-    const restored = await writeRestoredSnapshot(db, checkpointed, handTarget({ gameId, chatId, key: "restored" }));
+    const restoredId = snapshotId("restored");
+    await db.batch(batchMany([buildRestoredSnapshotStatement(db, checkpointed, { id: restoredId, gameId, now: FROZEN_AT }, notice.messageId)]));
+    const [restored] = await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.id, restoredId)).limit(1);
+    if (restored === undefined) {
+      throw new Error("restored snapshot was not committed");
+    }
     expect(restored.location).toBe("camp");
     expect(restored.committed).toBe(1); // the restored scene is truth immediately
     // The hand arm: no variant to swipe, no slot to delete — ordered by the notice it followed.

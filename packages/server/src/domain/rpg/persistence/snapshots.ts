@@ -10,9 +10,9 @@
 //     (VER-1b — the reminder/delta a reroll is generated against must not describe the abandoned variant).
 //   • writeStagedSnapshot / writeStagedSnapshotAndJournal — the TURN arm: a new variant's snapshot inherits
 //     ALL fields from its resolution
-//     base, born committed=0. `writeHandSnapshot`/`writeResyncedSnapshot`/`writeRestoredSnapshot` — the HAND
-//     arm, born committed=1. `fieldLocks` carry forward from the base unchanged (tools never author locks —
-//     only `editSnapshot` does, W1b).
+//     base, born committed=0. `writeHandSnapshot`/`writeResyncedSnapshot` and restore's unexecuted companion
+//     statement builder — the HAND arm, born committed=1. `fieldLocks` carry forward from the base unchanged
+//     (tools never author locks — only `editSnapshot` does, W1b).
 //   • commitSnapshotForVariant — `onUserCommit` locks in the state the user was seeing (committed 0 → 1).
 //
 // THE TWO-ARM LAW (D124) AND THE ORDER IT IMPLIES. A snapshot is VARIANT-KEYED IFF it was produced by that
@@ -48,6 +48,7 @@ import {
 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { messages, rpgJournal, rpgSnapshots } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type { ChatId, MessageId, MessageVariantId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
 import { and, count, desc, eq, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
@@ -594,11 +595,21 @@ export async function writeResyncedSnapshot(db: Db, state: RpgSnapshotState, tar
   return { ok: true, row };
 }
 
-/** Checkpoint restore: clone a pointed snapshot forward as a HAND row, BORN COMMITTED (locks preserved). Per
- *  D124 fork 4 the restore's own snapshot is a hand row too — the visible "— scene restored —" notice stays
- *  pure prose, and swiping that notice can never orphan the restored state. */
-export function writeRestoredSnapshot(db: Db, base: RpgSnapshotRow, target: HandSnapshotTarget): Promise<RpgSnapshotRow> {
-  return writeHandSnapshot(db, snapshotRowToState(base), base.fieldLocks, target);
+/** Checkpoint restore's UNEXECUTED companion statement: clone a pointed snapshot forward as a HAND row, BORN
+ *  COMMITTED with locks preserved, stamped at the visible restore marker. The narrator writer appends this to
+ *  its existing pure-write batch, so marker and state have one commit while each domain still builds only its
+ *  own row. Every other hand door continues to resolve its tail inside {@link writeHandSnapshot}. */
+export function buildRestoredSnapshotStatement(
+  db: Db,
+  base: RpgSnapshotRow,
+  target: Pick<HandSnapshotTarget, "id" | "gameId" | "now">,
+  asOfMessageId: MessageId,
+): BatchStmt {
+  return batchStmt(
+    db
+      .insert(rpgSnapshots)
+      .values(snapshotInsertFrom(snapshotRowToState(base), { fieldLocks: base.fieldLocks, committed: COMMITTED, arm: handArmKeys(asOfMessageId) }, target)),
+  );
 }
 
 /** Lock in the state the user was seeing: set `committed=1` on one variant's snapshot (`onUserCommit`). */
