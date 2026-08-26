@@ -17,7 +17,7 @@ import { isDeceptionActive } from "@orb/contracts/rpg";
 import type { ChatId, MessageId, MessageVariantId, PresetId } from "@orb/kit/ids";
 import type { ChatRpgGatherResult, ChatRpgOps, GatherTurnContextArgs, RpgTurnContext } from "../../chat/index.ts";
 import type { RpgContext } from "../contract/service.ts";
-import { mintLiteGame } from "../game-mint.ts";
+import { planLiteGameBirth } from "../game-mint.ts";
 import { findGameByChat } from "../persistence/games.ts";
 import { commitSnapshotForVariant, findLastAssistantSelectedVariant, findMessageSeq } from "../persistence/snapshots.ts";
 import { flushTurn } from "./flush.ts";
@@ -98,16 +98,11 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
   }
 
   return {
-    // #40 DRAFT-TIME birth (`chat.startChat` carried `startAsGame`): mint the lite game for the freshly
-    // created chat — the startChat caller IS the just-minted host (chat's verb is the authority gate), and
-    // the mint runs BEFORE the opening turn so turn 1's gather already sees the game. Idempotent belt: an
-    // existing game (a double-fired commit) is a no-op, never a duplicate-row throw mid-creation.
-    startGame: async (chatId, params): Promise<void> => {
-      if (await findGameByChat(ctx.db, chatId)) {
-        return;
-      }
-      await mintLiteGame(ctx, { chatId, profile: params.profile });
-    },
+    // #40 DRAFT-TIME birth (`chat.startChat` carried `startAsGame`): contribute RPG's row to the fresh room's
+    // atomic batch. The startChat caller IS the just-minted host (chat's verb is the authority gate), and the
+    // game exists before the opening turn so turn 1's gather sees it.
+    planGameBirth: (chatId, params): ReturnType<ChatRpgOps["planGameBirth"]> => planLiteGameBirth(ctx, { chatId, profile: params.profile }),
+    gameBirthCommitted: (chatId): void => ctx.emitBus({ type: "gameChanged", chatId }),
     resolvePresetOverride,
     // The GAME-authored user macros (MU §12A.5 / owner ruling #20's game half): `config.userMacros`, handed
     // to chat as declarations for BOTH the per-turn macro registry and the picks-pane read. KNOB-DRIVEN and

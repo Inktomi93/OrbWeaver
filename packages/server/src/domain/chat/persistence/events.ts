@@ -7,8 +7,32 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatEvents } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchStmt } from "@orb/db/kit";
 import type { ChatEventId, ChatId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
+
+interface ChatEventInsertArgs {
+  readonly id: ChatEventId;
+  readonly chatId: ChatId;
+  readonly event: ChatBusEvent;
+  readonly createdAt: number;
+}
+
+/** An unexecuted durable-event append for a caller that already owns a wider atomic batch. `seq` must be
+ * known by construction; chat birth is the sole caller and is necessarily the room's first event. */
+export function insertChatEventStatement(db: Db, args: ChatEventInsertArgs & { readonly seq: number }): BatchStmt {
+  return batchStmt(
+    db.insert(chatEvents).values({
+      id: args.id,
+      chatId: args.chatId,
+      seq: args.seq,
+      type: args.event.type,
+      payload: args.event,
+      createdAt: args.createdAt,
+    }),
+  );
+}
 
 /**
  * Append one room-public event to the durable `chat_events` log, returning the assigned per-chat `seq`
@@ -18,15 +42,7 @@ import { sql } from "drizzle-orm";
  * (the bus's injected minter + clock — determinism, testing §3). The caller (bus.ts) AWAITS this before
  * the in-memory ring push — durable-first, so a crash can never leave a delivered-but-unlogged event.
  */
-export async function appendChatEvent(
-  db: Db,
-  args: {
-    readonly id: ChatEventId;
-    readonly chatId: ChatId;
-    readonly event: ChatBusEvent;
-    readonly createdAt: number;
-  },
-): Promise<number> {
+export async function appendChatEvent(db: Db, args: ChatEventInsertArgs): Promise<number> {
   const rows = await db
     .insert(chatEvents)
     .values({

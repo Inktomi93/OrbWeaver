@@ -22,7 +22,19 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
-import { characterBooks, characters, chatBooks, chatDigestSpeakers, chatDigests, chatParticipants, messages, worldBooks, worldEntries } from "@orb/db";
+import {
+  auditLogs,
+  characterBooks,
+  characters,
+  chatBooks,
+  chatDigestSpeakers,
+  chatDigests,
+  chatHandoffResumptions,
+  chatParticipants,
+  messages,
+  worldBooks,
+  worldEntries,
+} from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
@@ -96,7 +108,7 @@ function minters(): { newCharacterId: () => CharacterId; newBookId: () => WorldB
 /** A chat context wired with the REAL copy factories. `copyAvatar` is the identity-ish stub (the avatar
  *  re-own is the assets domain's — its own contract; here it simply reports "no avatar"), so these tests
  *  assert the card/book/digest planes without an assets service. */
-function copyContext(): Parameters<typeof createRoster>[0] {
+function copyContext(overrides: NonNullable<Parameters<typeof makeChatContext>[1]> = {}): Parameters<typeof createRoster>[0] {
   const mint = minters();
   const notes: NotificationEvent[] = [];
   return makeChatContext(db, {
@@ -110,6 +122,7 @@ function copyContext(): Parameters<typeof createRoster>[0] {
     }),
     copyHandoffBooks: createCopyHandoffBooks({ db, now: () => 1, newBookId: mint.newBookId, newEntryId: mint.newEntryId }),
     restampHandoffDigests: createHandoffRestampStatements({ db }),
+    ...overrides,
   });
 }
 
@@ -156,6 +169,51 @@ describe("no offer — the built D64 behavior stays byte-identical", () => {
 });
 
 describe("the accepted offer — the room moves onto the copies", () => {
+  test("an actor-tail failure leaves a resumable marker; retry converges without a second audit", async () => {
+    const { host, member, chatId } = await seedTransferRoom();
+    let attempts = 0;
+    // FABRICATION-OK: minimal ChatRpgOps fault injector; this accept path reaches only the two handoff methods below.
+    const rpg = {
+      handoffHealStatements: (): Promise<readonly BatchStmt[]> => Promise.resolve([]),
+      handoffRekeyActors: (): Promise<void> => {
+        attempts += 1;
+        return attempts === 1 ? Promise.reject(new Error("injected actor rekey failure")) : Promise.resolve();
+      },
+    } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
+    let eventAttempts = 0;
+    const resumableEmit = (event: ChatBusEvent): Promise<boolean> => {
+      eventAttempts += 1;
+      if (eventAttempts === 1) {
+        return Promise.resolve(false);
+      }
+      emitted.push(event);
+      return Promise.resolve(true);
+    };
+    const roster = createRoster(copyContext({ rpg }), { claimChat: (): Promise<void> => Promise.resolve(), emit: resumableEmit });
+
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCast: true, copyGmPreset: false } });
+    emitted.length = 0;
+    eventAttempts = 0;
+    await expect(roster.acceptHostHandoff({ principal: principal(member), chatId })).rejects.toThrow("injected actor rekey failure");
+
+    expect(await db.select().from(chatHandoffResumptions)).toHaveLength(1);
+    expect((await db.select().from(chatParticipants).where(eq(chatParticipants.userId, member)))[0]?.role).toBe("host");
+    expect(await db.select().from(auditLogs).where(eq(auditLogs.action, "chat.acceptHostHandoff"))).toHaveLength(1);
+
+    // The nomination is already clear, so this call reaches the durable marker rather than the nomination
+    // gate. A total-bus false verdict must keep the marker too — awaiting a resolved emit is not evidence.
+    await expect(roster.acceptHostHandoff({ principal: principal(member), chatId })).rejects.toThrow("was not durably appended");
+    expect(await db.select().from(chatHandoffResumptions)).toHaveLength(1);
+
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+
+    expect(attempts).toBe(3);
+    expect(eventAttempts).toBe(2);
+    expect(await db.select().from(chatHandoffResumptions)).toHaveLength(0);
+    expect(await db.select().from(auditLogs).where(eq(auditLogs.action, "chat.acceptHostHandoff"))).toHaveLength(1);
+    expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
+  });
+
   test("the seated card is COPIED to the nominee, the seat re-points IN PLACE, and the original is untouched", async () => {
     const { host, member, chatId, aria } = await seedTransferRoom();
     const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });

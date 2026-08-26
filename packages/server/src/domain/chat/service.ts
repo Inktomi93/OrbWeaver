@@ -151,9 +151,9 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
     checkSendAvailability: deps.checkSendAvailability,
     resolveForeignInputs: deps.resolveForeignInputs,
   });
-  const startChat = createStartChat(ctx, { emit: deps.emit, loadParticipantViews });
+  const startChat = createStartChat(ctx, { emit: deps.emit, prepareCreationEvent: deps.prepareCreationEvent, loadParticipantViews });
   const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, emitLive: deps.emitLive, activeTurns: deps.activeTurns, claimChat });
-  const roster = createRoster(ctx, { emit: deps.emit, claimChat });
+  const roster = createRoster(ctx, { emit: deps.emitChecked, claimChat });
 
   return {
     service: {

@@ -184,6 +184,28 @@ CREATE TABLE `chat_events` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chat_events_chat_seq_unique` ON `chat_events` (`chat_id`,`seq`);--> statement-breakpoint
+CREATE TABLE `chat_handoff_resumptions` (
+	`chat_id` text PRIMARY KEY NOT NULL,
+	`accepted_by_user_id` text NOT NULL,
+	`actor_rekeys` text NOT NULL,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`accepted_by_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `chat_handoff_resumptions_accepted_by_idx` ON `chat_handoff_resumptions` (`accepted_by_user_id`);--> statement-breakpoint
+CREATE TABLE `chat_import_claims` (
+	`chat_id` text NOT NULL,
+	`character_id` text NOT NULL,
+	`import_hash` text NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	PRIMARY KEY(`character_id`, `import_hash`),
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `chat_import_claims_chat_idx` ON `chat_import_claims` (`chat_id`);--> statement-breakpoint
 CREATE TABLE `chat_injections` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,

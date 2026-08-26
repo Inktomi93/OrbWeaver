@@ -198,6 +198,25 @@ function scanArgv(argv: readonly string[]): string[] {
   if (routeCount > 1) {
     errors.push(`expected at most one route, got ${routeCount}`);
   }
+  errors.push(...strictValueErrors(argv));
+  return errors;
+}
+
+function strictValueErrors(argv: readonly string[]): string[] {
+  const errors: string[] = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    const raw = argv[index + 1];
+    if (flag === "--viewport" && raw !== undefined && parseViewport(raw) === null) {
+      errors.push("--viewport requires WIDTHxHEIGHT positive integers");
+    }
+    if ((flag === "--settle" || flag === "--pause") && raw !== undefined) {
+      const duration = Number(raw);
+      if (!Number.isFinite(duration) || duration <= 0) {
+        errors.push(`${flag} requires a positive finite duration in milliseconds`);
+      }
+    }
+  }
   return errors;
 }
 

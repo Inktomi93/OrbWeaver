@@ -239,3 +239,26 @@ The squashed baseline regenerated in the isolated worktree. Its SQL delta is exa
 generator-issued snapshot id, and the journal carries only the regenerated baseline timestamp. Per the DB
 rule, merging this changes the baseline hash and the next server migration resets the dev database, so the
 pre-migrate backup must be pinned in the orchestrator's merge window.
+
+## 8. Post-#720 union-baseline integration
+
+The completed #721 stack was merged with post-#720 main `41d198f1d5f1`. The independently generated SQL,
+snapshot, and journal were discarded rather than text-merged, then one `0000_baseline` was regenerated from
+the union source schema. The regenerated baseline reports 91 tables and contains all of:
+
+- #720 `chat_import_claims`, including the `(character_id, import_hash)` scope primary key and chat index;
+- #720 `chat_handoff_resumptions`, including its accepted-user index and chat/user foreign keys;
+- #721's storage-only `reserved` member in `automation_fires_outcome_check`.
+
+The direct schema-to-baseline comparator plus boot/client migration tests passed: 3 files, 37 tests. That run
+applied the fresh baseline, proved current/idempotent boot, exercised regenerated-baseline auto-reset,
+verified backup-before-reset and retention, and proved launched mode refuses the destructive reset. The #721
+focused reruns passed vLLM ownership (2 files, 51 tests), bounded discovery (6 files, 39 tests), and atomic
+automation admission (9 files, 84 tests). The `@orb/server`, `@orb/db`, and `@orb/kit` TypeScript programs and
+focused Biome check over the 14 #721 TypeScript files also passed. No whole-tree verification,
+structure/check-gates, hooks, or full suite ran in the lane.
+
+This union regeneration changes the baseline journal timestamp/hash again. The merge-window consequence is
+unchanged: a normal development boot takes a backup, resets the stale squashed-baseline database, and applies
+the union baseline; launched mode fails instead of wiping. The orchestrator must preserve that reset/backup
+window when integrating this stack.

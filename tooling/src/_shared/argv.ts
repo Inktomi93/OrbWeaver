@@ -40,8 +40,12 @@ export function splitFirstEq(raw: string): EqSplit | null {
 
 /** Parse `--viewport "WxH"` (e.g. "1920x1080"). Null on anything malformed or non-positive. */
 export function parseViewport(raw: string): Viewport | null {
-  const [w, h] = raw.split("x").map(Number);
-  if (w !== undefined && h !== undefined && Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+  const parts = raw.split("x");
+  if (parts.length !== 2) {
+    return null;
+  }
+  const [w, h] = parts.map(Number);
+  if (w !== undefined && h !== undefined && Number.isInteger(w) && Number.isInteger(h) && w > 0 && h > 0) {
     return { width: w, height: h };
   }
   return null;

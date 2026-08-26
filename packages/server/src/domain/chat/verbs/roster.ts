@@ -36,7 +36,7 @@ import type { AssetId, CharacterId, ChatId, ChatParticipantId, PersonaId, UserId
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
-import type { ClaimChatOp } from "../contract/context.ts";
+import type { ClaimChatOp, HandoffResumption } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import { TOOL_RECURSE_LIMIT_MAX, TOOL_RECURSE_LIMIT_MIN, toolRecurseLimitSchema } from "../contract/metadata.ts";
 import type {
@@ -61,6 +61,7 @@ import type {
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
 import { restampChatCharacterStatement } from "../persistence/canon-write.ts";
+import { clearHandoffResumption, insertHandoffResumptionStatement, loadHandoffResumption } from "../persistence/handoff-resume.ts";
 import {
   acceptHostHandoffSwapStatements,
   assertForcedCharacterMember,
@@ -80,8 +81,9 @@ import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 import { canonMessageDelta } from "../substrate/stats-delta.ts";
 
-/** The emit op the mutating roster verbs close over. */
-type EmitChatEvent = (event: DurableChatBusEvent) => Promise<void>;
+/** The emit op the mutating roster verbs close over. Production returns `false` only when the total bus
+ * classified and dropped its durable append; direct verb tests historically return no value. */
+type EmitChatEvent = (event: DurableChatBusEvent) => Promise<unknown>;
 
 /** The extra collaborators the roster bundle needs beyond `ChatContext`. */
 interface RosterDeps {
@@ -866,6 +868,18 @@ function anchorSurvivesHandoff(ctx: ChatContext, newOwnerUserId: UserId, anchorP
   return ctx.verifyPersonaOwned({ ownerId: newOwnerUserId, personaId: anchorPersonaId });
 }
 
+/** Finish the only non-statement-shaped handoff tail. The marker is deleted LAST; any throw leaves the exact
+ *  accepted-host/actor payload durable for a retry after the nomination has already cleared. */
+async function completeHandoffResumption(ctx: ChatContext, emit: EmitChatEvent, resume: HandoffResumption): Promise<void> {
+  if (resume.actorRekeys.length > 0) {
+    await ctx.rpg?.handoffRekeyActors(resume.chatId, resume.actorRekeys);
+  }
+  if ((await emit({ type: "chatUpdated", chatId: resume.chatId })) === false) {
+    throw new Error(`chat ${resume.chatId}: host handoff completion event was not durably appended`);
+  }
+  await clearHandoffResumption(ctx.db, resume.chatId, resume.acceptedByUserId);
+}
+
 /** `acceptHostHandoff` — step 2: the nominee accepts (a self-action). The caller must equal
  *  chats.pendingHostUserId, else not_turn_owner. On pass, atomically swaps roles, drops the outgoing host's
  *  character seats the new host doesn't own, HEALS the two room pointers that would otherwise degrade
@@ -886,6 +900,14 @@ function anchorSurvivesHandoff(ctx: ChatContext, newOwnerUserId: UserId, anchorP
 function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatService["acceptHostHandoff"] {
   return async ({ principal, chatId }: AcceptHostHandoffParams): Promise<void> => {
     const { chat } = await requireParticipant(ctx, principal, chatId);
+    const resumable = await loadHandoffResumption(ctx.db, chatId);
+    if (resumable !== null) {
+      if (resumable.acceptedByUserId !== principal.userId) {
+        throw new ChatOperationError(CHAT_OP_CODES.notTurnOwner, `chat ${chatId}: only the accepted host may resume the host handoff`);
+      }
+      await completeHandoffResumption(ctx, emit, resumable);
+      return;
+    }
     const { pendingHostUserId, offer } = await loadPendingHandoff(ctx.db, chatId);
     if (pendingHostUserId === null || pendingHostUserId !== principal.userId) {
       throw new ChatOperationError(CHAT_OP_CODES.notTurnOwner, `chat ${chatId}: only the nominated member may accept the host handoff`);
@@ -900,6 +922,7 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
     const droppedSeatIds = (await resolveDroppedCharacterSeatIds(ctx, principal.userId, roster)).filter((id) => !repointed.has(id));
     const dropSeq = await loadMaxMessageSeq(ctx.db, chatId);
     const clearAnchorPersona = !(await anchorSurvivesHandoff(ctx, principal.userId, chat.anchorPersonaId));
+    const acceptedAt = ctx.now();
     // The rpg-side heal (F1) + sheet re-key arrive as UNEXECUTED statements so they commit with the swap; `[]`
     // for a non-game room / an unwired rpg ⇒ byte-identical to a plain handoff.
     const rpgHeal =
@@ -915,7 +938,7 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       ...acceptHostHandoffSwapStatements(ctx.db, {
         chatId,
         nomineeUserId: principal.userId,
-        now: ctx.now(),
+        now: acceptedAt,
         clearAnchorPersona,
       }),
       ...plan.seats.map(({ participantId, copy }) => repointCharacterSeatStatement(ctx.db, participantId, copy.characterId)),
@@ -924,6 +947,28 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       ...plan.bookRepoint,
       ...droppedSeatIds.map((id) => markParticipantLeftStatement(ctx.db, id, dropSeq)),
       ...rpgHeal,
+      insertHandoffResumptionStatement(ctx.db, {
+        chatId,
+        acceptedByUserId: principal.userId,
+        actorRekeys: plan.cardCopies,
+        now: acceptedAt,
+      }),
+      ctx.auditStatement(
+        {
+          actorUserId: principal.userId,
+          action: "chat.acceptHostHandoff",
+          entityType: "chat",
+          entityId: chatId,
+          metadata: {
+            previousHostUserId: oldHostUserId,
+            healedAnchorPersona: clearAnchorPersona,
+            healedGmPreset: rpgHeal.length > 0,
+            copiedCards: plan.cardCopies.length,
+            droppedSeats: droppedSeatIds.length,
+          },
+        },
+        acceptedAt,
+      ),
     ];
     if (oldHostUserId !== null && oldHostUserId !== principal.userId) {
       await ctx.emitNotification(
@@ -938,29 +983,10 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
     } else {
       await ctx.db.batch(batchMany(swap));
     }
-    // POST-SWAP, deliberately (see `ChatRpgOps.handoffRekeyActors`): the tracker-plane re-key is a hand-door
-    // read-modify-write, not a statement. The room has already changed hands correctly by here.
-    if (plan.cardCopies.length > 0) {
-      await ctx.rpg?.handoffRekeyActors(chatId, plan.cardCopies);
-    }
-    await emit({ type: "chatUpdated", chatId });
-    await ctx.audit(
-      {
-        actorUserId: principal.userId,
-        action: "chat.acceptHostHandoff",
-        entityType: "chat",
-        entityId: chatId,
-        // The heal + copy FLAGS and COUNTS (never the ids): a transfer that re-pointed the room's POV, its GM
-        // voice, or its cast says so.
-        metadata: {
-          previousHostUserId: oldHostUserId,
-          healedAnchorPersona: clearAnchorPersona,
-          healedGmPreset: rpgHeal.length > 0,
-          copiedCards: plan.cardCopies.length,
-          droppedSeats: droppedSeatIds.length,
-        },
-      },
-      ctx.now(),
-    );
+    await completeHandoffResumption(ctx, emit, {
+      chatId,
+      acceptedByUserId: principal.userId,
+      actorRekeys: plan.cardCopies,
+    });
   };
 }

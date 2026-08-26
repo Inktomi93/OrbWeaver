@@ -719,6 +719,33 @@
       ]
     },
     {
+      "path": "docs/design/issue-720-retry-safe-creation-handoff.md",
+      "assignedSha256": "4fa101f931d631f9c5ca92203696875bb770868fc53bdddbaaff8ae54d855ce7",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "4fa101f931d631f9c5ca92203696875bb770868fc53bdddbaaff8ae54d855ce7",
+      "verifiedCommit": "472424d8c068e9a42f3402a2cd4c8f80d77e9c9c",
+      "verifiedAt": "2026-08-26",
+      "evidence": [
+        "docs/design/issue-720-retry-safe-creation-handoff.md read in full before implementation and re-read against the integrated tree at 472424d8c",
+        "focused behavioral and DB integration verification at bc269a845: 15 files, 230 tests passed, including deterministic concurrent image/import controls and injected game/event/actor/bus failures",
+        "pnpm typecheck (TS7) green; Biome and typed ESLint green over every touched TypeScript file"
+      ],
+      "summary": "Issue #720 implemented design of record: retry-only canonical imagery allocation, a character-scoped atomic import claim, one room/game/pointer/chatCreated birth batch, and host-handoff audit plus a durable resumable actor/event tail.",
+      "claims": [
+        {
+          "claim": "The four creation and handoff workflows converge under the concurrent and injected-failure cases required by issue #720.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#720"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/list-pane-projection-proposal.md",
       "assignedSha256": "194774ea6ea9aeb592d2140a4a926bc456af609edd786f088bd068fc1be04cda",
       "disposition": "archive",

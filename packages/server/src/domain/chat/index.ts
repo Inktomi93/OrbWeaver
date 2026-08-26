@@ -14,6 +14,7 @@ export type { ChatContext, ChatServiceDeps } from "./context.ts";
 // `TeachingContribution`/`TeachingContext`/`TeachingCollection`/`TeachingKnobs` are the shape every later
 // contributing domain implements against.
 export type {
+  ChatRpgGameBirthPlan,
   ChatRpgGatherResult,
   ChatRpgOps,
   ChatTeachingRegistry,

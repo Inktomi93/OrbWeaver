@@ -20,6 +20,22 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 const FROZEN_NOW = 1_700_000_000_000;
 const SEED_SECRET = "seed-demo-test-session-secret-0000000000";
 
+test("seed:demo fails before mutation when a promised bundled asset is unavailable", async () => {
+  const db = await freshDb();
+  const deps = {
+    db,
+    now: () => FROZEN_NOW,
+    sessionSecret: SEED_SECRET,
+    casDir: mkdtempSync(join(tmpdir(), "seed-demo-cas-")),
+    variantDir: mkdtempSync(join(tmpdir(), "seed-demo-var-")),
+    force: true,
+    log: () => undefined,
+    validateRequiredAssets: () => Promise.reject(new Error("required bundled avatars missing: planted")),
+  };
+  await expect(runFullSeed(deps)).rejects.toThrow("required bundled avatars missing: planted");
+  expect(await db.select().from(users)).toEqual([]);
+});
+
 test("seed:demo populates the marquee demo shapes against a fresh db", async () => {
   const db = await freshDb();
   const casDir = mkdtempSync(join(tmpdir(), "seed-demo-cas-"));
