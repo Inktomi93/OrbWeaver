@@ -12005,7 +12005,7 @@
       "issue": 5,
       "lines": 76,
       "bytes": 7075,
-      "sha256": "c595ae1097373b844a19a4ef40afb66d2271d389b074172403cf837cfa9d2c8b",
+      "sha256": "8680cdd84ec7008c96a8bd35f3c8c4bed1feaeb999c407a9af99348600e21661",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12018,16 +12018,16 @@
       },
       "receipt": {
         "path": "docs/design/issue-750-suppression-governance.md",
-        "assignedSha256": "c595ae1097373b844a19a4ef40afb66d2271d389b074172403cf837cfa9d2c8b",
+        "assignedSha256": "8680cdd84ec7008c96a8bd35f3c8c4bed1feaeb999c407a9af99348600e21661",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "c595ae1097373b844a19a4ef40afb66d2271d389b074172403cf837cfa9d2c8b",
-        "verifiedCommit": "92011ffcf420248267d7b6ff51d57e7f223d9690",
+        "verifiedSha256": "8680cdd84ec7008c96a8bd35f3c8c4bed1feaeb999c407a9af99348600e21661",
+        "verifiedCommit": "e9c655f40a68766e4cf06c34f8b847ac3668beeb",
         "verifiedAt": "2026-08-26",
         "evidence": [
-          "docs/design/issue-750-suppression-governance.md read in full after rebased implementation commit 92011ffcf; scope, detector contract, policy disposition, rejected alternatives, proof plan, and detector-equivalent census rechecked against issue #750 and the live gate",
-          "detector-equivalent census: 5,821 project files; 3,645 governed TS/TSX files; 161 files with 310 directive sites across 48 rule classes; generated ledger 0 debt and 310 ratified",
+          "docs/design/issue-750-suppression-governance.md read in full after implementation commit 92011ffcf and current-main census refresh e9c655f40; scope, detector contract, policy disposition, rejected alternatives, proof plan, and detector-equivalent census rechecked against issue #750 and the live gate",
+          "detector-equivalent census: 5,822 project files; 3,645 governed TS/TSX files; 161 files with 310 directive sites across 48 rule classes; generated ledger 0 debt and 310 ratified",
           "focused proof: pre-fix tooling/scripts plants were invisible; post-fix both plants red; gate conformance 8/8; suppression/config tests 19/19; scoped Biome, ESLint, tooling typecheck, and docs formatting green"
         ],
         "summary": "Issue #750 design and implementation record: one governed typed-source predicate for package source, tooling, and scripts; exact directive detection; generated foreign-runtime fence; dead noSecrets/useTopLevelRegex cleanup; and a detector-equivalent zero-debt census.",
