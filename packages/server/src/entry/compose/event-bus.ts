@@ -13,15 +13,18 @@ type DomainEventHandler = (event: DomainEvent) => void | Promise<void>;
  *  the indexer at the root). Constructed once per process at `entry/`. */
 export interface DomainEventBus {
   readonly emit: EmitDomainEvent;
-  readonly subscribe: (handler: DomainEventHandler) => void;
+  readonly subscribe: (handler: DomainEventHandler) => () => void;
 }
 
 /** Build the in-process domain-event bus. The subscriber set is closure-scoped (ASSUMES single-replica). */
 export function createDomainEventBus(): DomainEventBus {
   const handlers = new Set<DomainEventHandler>();
   return {
-    subscribe: (handler: DomainEventHandler): void => {
+    subscribe: (handler: DomainEventHandler): (() => void) => {
       handlers.add(handler);
+      return () => {
+        handlers.delete(handler);
+      };
     },
     emit: (event: DomainEvent): void => {
       for (const handler of handlers) {

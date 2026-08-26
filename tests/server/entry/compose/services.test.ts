@@ -18,6 +18,7 @@ import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsIndexer } from "@orb/server/domain/embeddings";
 import { createDomainEventBus, createServices } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
+import { logger } from "@orb/server/foundation/observability";
 import { DEFAULT_EMBED_MODEL } from "@orb/server/infra/providers";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import type { SocketListener } from "@orb/server/transport/trpc";
@@ -850,12 +851,39 @@ describe("embed-model change reindex trigger (DBK-B(b))", () => {
       input: { section: "routing", patch: { roleDefaults: { embed: { model: "qwen3-embed-v2" } } } },
     });
 
-    // The trigger is fire-and-forget (`void workloads.start(...).catch(...)`); flush the IO queue deterministically.
+    // The trigger is supervised detached work; flush the IO queue deterministically.
     await drain(() => false);
 
     const bulkKinds = new Set((await db.select().from(workloads)).filter((r) => r.mode === "bulk").map((r) => r.kind));
     expect(bulkKinds.has("index")).toBe(true); // character/image/memory chunks
     expect(bulkKinds.has("databank-reindex")).toBe(true); // document chunks — the DBK-B(b) addition
+  });
+
+  test("a detached enqueue rejection is structured and operator-visible without failing the settings write", async () => {
+    const db = await freshDb();
+    const result = await buildGraph(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const enqueueFailure = new Error("workload admission unavailable");
+    vi.spyOn(result.services.workloads, "start").mockRejectedValue(enqueueFailure);
+    const errorSpy = vi.spyOn(logger, "error");
+
+    await expect(
+      result.services.settings.updateUserSettingsSection({
+        principal: principal(owner),
+        input: { section: "routing", patch: { roleDefaults: { embed: { model: "qwen3-embed-v3" } } } },
+      }),
+    ).resolves.toBeDefined();
+    await drain(() => errorSpy.mock.calls.filter((call) => (call[0] as { spanName?: string }).spanName === "embeddings.modelChangeReindex").length === 2);
+
+    const failures = errorSpy.mock.calls.filter((call) => (call[0] as { spanName?: string }).spanName === "embeddings.modelChangeReindex");
+    expect(failures).toHaveLength(2);
+    expect(failures.map((call) => call[0])).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ err: enqueueFailure, workloadKind: "index", spanName: "embeddings.modelChangeReindex" }),
+        expect.objectContaining({ err: enqueueFailure, workloadKind: "databank-reindex", spanName: "embeddings.modelChangeReindex" }),
+      ]),
+    );
+    expect(failures.every((call) => call[1] === "detached operation failed")).toBe(true);
   });
 });
 

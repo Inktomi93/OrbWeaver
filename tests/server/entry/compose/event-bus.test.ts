@@ -30,6 +30,33 @@ test("emit delivers the event to a subscribed handler (the indexer subscription 
   expect(seen[0]).toEqual({ type: "character.updated", characterId, contentChanged: true });
 });
 
+test("the returned unsubscribe removes only that subscriber", async () => {
+  const bus = createDomainEventBus();
+  const removedSeen: DomainEvent[] = [];
+  const retainedSeen: DomainEvent[] = [];
+  // `unknown` keeps this behavioral proof compilable against the old `void` contract: the defect is the
+  // runtime absence of a teardown function, not a type error introduced by the fix.
+  const unsubscribe: unknown = bus.subscribe((received) => {
+    removedSeen.push(received);
+  });
+  bus.subscribe((received) => {
+    retainedSeen.push(received);
+  });
+
+  expect(unsubscribe).toBeTypeOf("function");
+  if (typeof unsubscribe !== "function") {
+    return;
+  }
+  unsubscribe();
+
+  const event: AssetCreatedEvent = { type: "asset.created", assetId: castId<AssetId>("asset_unsubscribe") };
+  bus.emit(event);
+  await Promise.resolve();
+
+  expect(removedSeen).toHaveLength(0);
+  expect(retainedSeen).toEqual([event]);
+});
+
 test("a throwing subscriber is isolated — emit does not throw and other handlers still run", async () => {
   const bus = createDomainEventBus();
   const seen: string[] = [];

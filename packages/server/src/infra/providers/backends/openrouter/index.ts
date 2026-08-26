@@ -507,6 +507,6 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
         req.signal,
         providerCredentialSecretValues(req.credential),
       ),
-    fetchCatalog: async (_req: FetchCatalogRequest): Promise<ModelCatalogEntry[]> => await fetchOrCatalog(getClient("")),
+    fetchCatalog: async (req: FetchCatalogRequest): Promise<ModelCatalogEntry[]> => await fetchOrCatalog(getClient(""), req.signal),
   };
 }

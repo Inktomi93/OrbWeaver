@@ -43,7 +43,7 @@ import type { WorkloadContributions, WorkloadService } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
-import { withRequestSpan } from "#foundation/observability";
+import { superviseDetached } from "#foundation/observability";
 import type { RoleClientsWithSignal } from "#infra/providers";
 import { requireAuthorOrHost, resolveTier0Range, setParticipantActivePersona } from "../../domain/chat/index.ts";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
@@ -333,25 +333,23 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   // memory chunks; DOCUMENT chunks live in `document_chunks` and are re-embedded by a separate bulk
   // `databank-reindex` (chunk-embed) sweep — without it a model change strands every document chunk in the OLD
   // embed space (DBK-B(b)). Both are enqueued together; each is independent. Fire-and-forget: a duplicate run (a
-  // kind is already active → DomainConflictError) or any enqueue failure is swallowed here — it must never fail
-  // the settings write that triggered it (mirrors the `emitUserEvent` treatment in updateUserSettingsSection).
-  // Each enqueue opens its OWN DETACHED root span: it outlives the settings write that triggered it, so a
-  // parented span would be dropped as a late orphan and a failed enqueue (the reindex that never ran) would
-  // be invisible on /api/_debug/traces. The absorbing `.catch` stays OUTSIDE the root, so the span still
-  // records the error while the settings write is never faulted.
+  // kind is already active → DomainConflictError) or any enqueue failure must never fail the settings write
+  // that triggered it. Each enqueue uses the supervised-detach boundary: it opens its own root span, owns a
+  // rejection with structured operator telemetry, and preserves the workload kind needed to retry from the
+  // existing workload surface. The settings write receives no completion or ordering guarantee.
   const enqueueEmbedReindex = (): void => {
     const at = now();
-    void withRequestSpan(`embed-reindex:index:${at}`, EMBED_REINDEX_SPAN, { workloadKind: "index" }, () =>
+    superviseDetached(`embed-reindex:index:${at}`, EMBED_REINDEX_SPAN, { workloadKind: "index" }, () =>
       workloads.start({ input: { kind: "index", params: { source: "all", force: true } }, caller: null, mode: "bulk", ownerId: null }),
-    ).catch(() => undefined);
-    void withRequestSpan(`embed-reindex:databank:${at}`, EMBED_REINDEX_SPAN, { workloadKind: "databank-reindex" }, () =>
+    );
+    superviseDetached(`embed-reindex:databank:${at}`, EMBED_REINDEX_SPAN, { workloadKind: "databank-reindex" }, () =>
       workloads.start({
         input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } },
         caller: null,
         mode: "bulk",
         ownerId: null,
       }),
-    ).catch(() => undefined);
+    );
   };
 
   return {
