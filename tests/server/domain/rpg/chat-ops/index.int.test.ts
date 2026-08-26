@@ -2,13 +2,31 @@
 // the mode-blind preset knob read, the send-path snapshot commit, the abort clear, and the always-null seat
 // read. The gather + flush have their own mirrors (`./gather`, `./flush`).
 
+import { batchMany } from "@orb/db/kit";
 import type { ChatTurnId, Handle, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { findGameByChat } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
 import { findSnapshotByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { emptyState, expect, principal, seedChat, seedLiteGame, seedMessage, seedPreset, test, turnConnection } from "../_support.ts";
+import { emptyState, expect, makeRpgService, principal, seedChat, seedLiteGame, seedMessage, seedPreset, test, turnConnection } from "../_support.ts";
 
 const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_c1");
+
+test("planGameBirth contributes an unexecuted RPG row and emits only after the caller commits it", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, "birth");
+  const h = makeRpgService(db);
+
+  const plan = h.chatOps.planGameBirth(chatId, {});
+  expect(await findGameByChat(db, chatId)).toBeUndefined();
+  expect(h.fakes.busEvents).toEqual([]);
+
+  await db.batch(batchMany([...plan.statements]));
+  h.chatOps.gameBirthCommitted(chatId);
+
+  expect((await findGameByChat(db, chatId))?.id).toBe(plan.gameId);
+  expect(h.fakes.busEvents).toEqual([{ type: "gameChanged", chatId }]);
+});
 
 test("resolvePresetOverride is MODE-BLIND: born NULL (augment) until the knob is set", async () => {
   const db = await freshDb();

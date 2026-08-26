@@ -34,6 +34,7 @@ import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns.ts";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
+import { insertChatEventStatement } from "../../../../../packages/server/src/domain/chat/persistence/events.ts";
 import { listMemberChats } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { characterSeatedInAnotherChat } from "../../../../../packages/server/src/domain/chat/persistence/roster.ts";
 import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle.ts";
@@ -135,7 +136,22 @@ function dbClaimingBeforeDelete(base: Db, hook: () => Promise<void>): Db {
 /** `startChat`'s collaborators — creation itself never claims (R2 retired the generate-opening arm that
  *  used to be the one claiming path here; every case in this suite claims through a SEPARATE verb call). */
 function startDeps(_ctx: ChatContext): Parameters<typeof createStartChat>[1] {
-  return { emit, loadParticipantViews: makeLoadParticipantViews(db) };
+  return {
+    emit,
+    prepareCreationEvent: (event) => ({
+      statement: insertChatEventStatement(_ctx.db, {
+        id: _ctx.newEventId(),
+        chatId: event.chatId,
+        seq: 1,
+        event,
+        createdAt: _ctx.now(),
+      }),
+      publishCommitted: (): void => {
+        emitted.push(event);
+      },
+    }),
+    loadParticipantViews: makeLoadParticipantViews(db),
+  };
 }
 
 /** Read one chat's husk column back. */

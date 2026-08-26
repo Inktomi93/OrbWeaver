@@ -39,7 +39,8 @@ function parseGameRow(row: RpgGameRow): RpgGameRow {
   return { ...row, config: parsed.data };
 }
 
-/** Insert the game row, returning it parsed. */
+/** Insert the game row, returning it parsed. Test-anchored setup surface; production birth uses the
+ *  statement-plan seam in `game-mint.ts`. */
 export async function insertGame(db: Db, values: NewRpgGame): Promise<RpgGameRow> {
   const rows = await db.insert(rpgGames).values(values).returning();
   const row = rows[0];
