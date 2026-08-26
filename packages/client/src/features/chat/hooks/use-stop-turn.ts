@@ -7,10 +7,11 @@
 // (domain/chat/verbs/turn.ts `createAbort`) is idempotent server-side too (a no-in-flight abort is a
 // no-op) — the store guard + the server guard are belt-and-suspenders, not redundant with each other
 // (the store guard is what makes the SECOND CLICK feel instant-safe; the server guard is what makes a
-// genuinely-raced double network call harmless).
+// genuinely-raced double network call harmless). A rejected abort rolls back only this client-owned
+// stopping transition; a terminal bus event that already won remains terminal.
 
 import type { ChatId } from "@orb/kit/ids";
-import { createEntityMutation, markTurnStopping, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, markTurnStopping, recoverTurnAfterStopFailure, useInvalidation, useTRPC } from "#data";
 import type { TurnSlot } from "#state";
 import { useTurnPhase } from "#state";
 
@@ -46,8 +47,16 @@ export function useStopTurn(chatId: ChatId | null): UseStopTurnResult {
     if (chatId === null || !canStop) {
       return; // idempotent: idle / already-stopping / terminal — nothing to do
     }
-    markTurnStopping(chatId);
-    abort.mutate({ chatId });
+    const previousPhase = markTurnStopping(chatId);
+    if (previousPhase === null) {
+      return;
+    }
+    abort.mutate(
+      { chatId },
+      {
+        onError: (): void => recoverTurnAfterStopFailure(chatId, previousPhase),
+      },
+    );
   };
 
   return { phase, canStop, stop };

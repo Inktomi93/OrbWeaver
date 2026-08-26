@@ -10,6 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ComponentProps, ReactElement } from "react";
 import { useState } from "react";
+import { AddCredentialDialog } from "../../../../packages/client/src/features/credentials/components/add-credential-dialog.tsx";
 import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row.tsx";
 import { ModelPicker } from "../../../../packages/client/src/features/credentials/components/model-picker.tsx";
 import { ConnectionsSettingsSurface } from "../../../../packages/client/src/features/credentials/surfaces/connections-settings-surface.tsx";
@@ -44,6 +45,20 @@ export function CredentialKeyRowStory(): ReactElement {
       <div style={{ width: 560 }}>
         <CredentialKeyRowInner />
       </div>
+    </CtDataProviders>
+  );
+}
+
+function AddCredentialDialogInner(): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  return <AddCredentialDialog open={true} onOpenChange={(): void => undefined} trpc={trpc} invalidation={invalidation} />;
+}
+
+export function AddCredentialDialogStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <AddCredentialDialogInner />
     </CtDataProviders>
   );
 }

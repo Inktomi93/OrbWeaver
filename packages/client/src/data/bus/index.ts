@@ -3,7 +3,7 @@
 
 export type { ChatBusDeps } from "./apply-chat-bus-event.ts";
 export { applyChatBusEvent } from "./apply-chat-bus-event.ts";
-export { markTurnStopping, useChatBusDeps } from "./chat-bus-writes.ts";
+export { markTurnStopping, recoverTurnAfterStopFailure, useChatBusDeps } from "./chat-bus-writes.ts";
 export type { ChatEventSeqGuard } from "./chat-event-seq-guard.ts";
 export { createChatEventSeqGuard } from "./chat-event-seq-guard.ts";
 export type { RoomSubscriber, RoomTransport } from "./room-registry.ts";

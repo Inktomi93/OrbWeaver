@@ -74,6 +74,7 @@ function harness(chatIds: readonly ChatId[]): Harness {
       // state/chat-stream.ts's header) but `ChatBusDeps.stream` is typed as the full `ChatStreamApi`,
       // so the harness literal needs the field to satisfy the type. Real impl, unused by this suite.
       markStopping: chatStream.markStopping,
+      recoverAfterStopFailure: chatStream.recoverAfterStopFailure,
     },
     invalidate,
     onWarning,

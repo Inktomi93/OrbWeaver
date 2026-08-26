@@ -3,7 +3,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { CredentialKeyRowStory, CustomCredentialKeyRowStory, RevokedCredentialKeyRowStory } from "../_ct-stories.tsx";
 
 test("remove is confirm-gated: cancel fires nothing, confirm fires credentials.remove", async ({ mount, page }) => {
@@ -64,6 +64,23 @@ test("a custom_openai row's Test button fires the honest credentials.testHealth 
   // ONESHOT-OK: the code path completed (testHealth's input was polled to arrival above), so this 'never fired' fetchModels count is settled (#SID-01/#9 — the reachability shortcut is retired).
   expect(trpc.count("credentials.fetchModels")).toBe(0);
   await expect(page.getByText("ok", { exact: true })).toBeVisible();
+});
+
+test("a rejected health probe keeps an explicit error and retry affordance", async ({ mount, page }) => {
+  let attempts = 0;
+  const trpc = await routeTrpc(page, {
+    "credentials.testHealth": () => {
+      attempts += 1;
+      return trpcError({ message: "provider unavailable" });
+    },
+  });
+
+  await mount(<CredentialKeyRowStory />);
+  await page.getByRole("button", { name: "Test", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Test failed");
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect.poll(() => trpc.count("credentials.testHealth"), { intervals: [20, 50, 100] }).toBe(2);
+  expect(attempts).toBe(2);
 });
 
 test("a revoked row's clear-revoked fires credentials.clearRevoked directly", async ({ mount, page }) => {

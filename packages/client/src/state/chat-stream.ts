@@ -3,15 +3,17 @@
 // Token churn stays isolated: only a component subscribed to that chat's slot re-renders on a delta.
 //
 // Write ownership: every action here is bus-only (called only from `applyChatBusEvent`) except
-// `markStopping`, which the composer's Stop button reaches via `data/bus`'s `markTurnStopping`
-// wrapper for instant feedback before the abort round-trip starts (`chatStream` itself may only be
-// imported inside data/bus/ — gate `chat-stream-writes-in-bus-only`). The slot does not close there —
-// it closes only on the bus's turnAborted (or a race-won turnCompleted).
+// `markStopping` + its guarded `recoverAfterStopFailure`, which the composer's Stop button reaches via
+// `data/bus` wrappers for instant feedback and rejected-request recovery (`chatStream` itself may only be
+// imported inside data/bus/ — gate `chat-stream-writes-in-bus-only`). The slot does not close there — it
+// closes only on the bus's turnAborted (or a race-won turnCompleted).
 
-import type { ChatDeltaEvent, MemoryRecallPhase, TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { perfMark, perfMeasure } from "#lib";
+import type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream-types.ts";
 import { createGatedStore } from "./create-gated-store.ts";
+
+export type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream-types.ts";
 
 // Mark names are per-chat so concurrent rooms never cross-measure: beginTurn stamps the start, the
 // first delta onto a pending slot measures TTFT, and the terminal events measure end-to-end latency.
@@ -28,48 +30,6 @@ const turnLatencyMeasure = (chatId: ChatId): string => `turn-latency:${chatId}`;
  *  left to show (`use-message-items.ts`). Stamped for an ASSISTANT commit only — the caller's own user row
  *  commits inside the same live slot on a `send`, and standing that down as the turn's output would blank
  *  the ghost for the whole turn. */
-export type TurnSlot =
-  | { readonly phase: "idle" }
-  | {
-      readonly phase: "pending"; // turnStarted seen, no token yet — the TTFT "Thinking…" window
-      readonly intent: TurnIntent;
-      readonly speakerCharacterId: CharacterId | null;
-      readonly targetMessageId: MessageId | null;
-      readonly committedMessageId: MessageId | null;
-    }
-  | {
-      readonly phase: "streaming";
-      readonly intent: TurnIntent;
-      readonly speakerCharacterId: CharacterId | null;
-      readonly targetMessageId: MessageId | null;
-      readonly committedMessageId: MessageId | null;
-      readonly text: string;
-      readonly reasoning: string;
-    }
-  | {
-      // The server may still emit deltas until it observes the cancel, so this carries the same
-      // accumulated fields as streaming. Terminal only on turnCompleted/turnAborted.
-      readonly phase: "stopping";
-      readonly intent: TurnIntent;
-      readonly speakerCharacterId: CharacterId | null;
-      readonly targetMessageId: MessageId | null;
-      readonly committedMessageId: MessageId | null;
-      readonly text: string;
-      readonly reasoning: string;
-    }
-  | {
-      readonly phase: "completed";
-      readonly intent: TurnIntent;
-      readonly messageId: MessageId | null;
-    }
-  | { readonly phase: "aborted"; readonly intent: TurnIntent; readonly reason: TurnAbortReason };
-
-/** The per-chat MEMORY-RECALL phase (#313) — the header brain-icon's state, a SEPARATE axis from the turn
- *  slot (recall runs DURING the pending window, and a group round fires one pair per scoped speaker, so it is
- *  not a phase of the `TurnSlot` machine). `"idle"` (memory off / no recall this turn) is the ABSENCE of an
- *  entry, so it never mints a stored object. `count` on `"recalled"` is the surfaced block count. */
-export type RecallState = { readonly phase: "recalling" } | { readonly phase: "recalled"; readonly count: number };
-
 interface ChatStreamState {
   readonly turns: Readonly<Record<string, TurnSlot>>;
   /** Absent chat ⇒ idle (memory off / no recall this turn). */
@@ -216,35 +176,6 @@ function flushPending(chatId: ChatId): void {
 }
 
 /** The write API — every action but `markStopping` is consumed only by `applyChatBusEvent`. */
-export interface ChatStreamApi {
-  readonly beginTurn: (
-    chatId: ChatId,
-    turn: {
-      intent: TurnIntent;
-      speakerCharacterId: CharacterId | null;
-      targetMessageId: MessageId | null;
-    },
-  ) => void;
-  readonly appendDelta: (delta: ChatDeltaEvent) => void;
-  readonly completeTurn: (chatId: ChatId, messageId: MessageId | null) => void;
-  readonly abortTurn: (chatId: ChatId, reason: TurnAbortReason) => void;
-  /** Fire the per-chat "the caller's own user row committed" signal — a fire-and-forget notification,
-   *  not a slot write. The composer's send-hook subscribes to clear its draft exactly on this. */
-  readonly notifyUserMessageCommitted: (chatId: ChatId) => void;
-  /** Called via `data/bus`'s `markTurnStopping` wrapper: pending/streaming → stopping, preserving
-   *  accumulated text/reasoning. Idempotent no-op from any other phase. */
-  readonly markStopping: (chatId: ChatId) => void;
-  /** Stamp the canon row this LIVE turn just wrote (`messageCommitted` for an assistant view) — the
-   *  ghost's handover signal (see `TurnSlot`). Idempotent no-op off-turn; never called for a user row. */
-  readonly markCommitted: (chatId: ChatId, messageId: MessageId) => void;
-  /** Land a `memoryRecall` bus phase (#313) onto this chat's recall axis — `"recalling"` (count ignored) or
-   *  `"recalled"` with the surfaced count. Drives the header brain-icon; touches no turn slot. */
-  readonly setRecallPhase: (chatId: ChatId, phase: MemoryRecallPhase, count: number | null) => void;
-  /** Clear a chat's recall axis to idle — fired at `turnAccepted` (before recall runs) so each turn starts
-   *  clean and a memory-OFF turn shows idle instead of the prior turn's stale count. */
-  readonly resetRecall: (chatId: ChatId) => void;
-}
-
 // Fire-and-forget notification, not state anyone reads back — homing it as store state would only
 // invite a stray selector and a fresh render on every send.
 const userMessageCommittedListeners = new Map<ChatId, Set<() => void>>();
@@ -331,12 +262,36 @@ export const chatStream: ChatStreamApi = {
         },
         "turn/stopping",
       );
-      return;
+      return "pending";
     }
     if (slot.phase === "streaming") {
       setSlot(chatId, { ...slot, phase: "stopping" }, "turn/stopping");
+      return "streaming";
     }
     // idle / stopping / completed / aborted: idempotent no-op (the double-abort guard).
+    return null;
+  },
+  recoverAfterStopFailure: (chatId, previousPhase) => {
+    flushPending(chatId);
+    const slot = slotOf(chatId);
+    if (slot.phase !== "stopping") {
+      return;
+    }
+    if (previousPhase === "streaming" || slot.text !== "" || slot.reasoning !== "") {
+      setSlot(chatId, { ...slot, phase: "streaming" }, "turn/stop-failed");
+      return;
+    }
+    setSlot(
+      chatId,
+      {
+        phase: "pending",
+        intent: slot.intent,
+        speakerCharacterId: slot.speakerCharacterId,
+        targetMessageId: slot.targetMessageId,
+        committedMessageId: slot.committedMessageId,
+      },
+      "turn/stop-failed",
+    );
   },
   markCommitted: (chatId, messageId) => {
     const slot = slotOf(chatId);

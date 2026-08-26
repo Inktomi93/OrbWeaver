@@ -379,6 +379,107 @@ export function TagCreateOptimisticStory(): ReactElement {
   );
 }
 
+interface OverlapTagVars {
+  readonly label: "older" | "newer";
+}
+
+let rejectOlderOverlap: (() => void) | undefined;
+
+const useCreateTagOverlap = createEntityMutation<OverlapTagVars, TagView, TagView[]>({
+  options: () => ({
+    mutationKey: ["ct", "overlap"],
+    mutationFn: (vars): Promise<TagView> => {
+      if (vars.label === "older") {
+        return new Promise<TagView>((_resolve, reject) => {
+          rejectOlderOverlap = (): void => reject(new Error("older failed"));
+        });
+      }
+      return Promise.resolve({
+        id: castId("tag_newer"),
+        name: "newer",
+        color: null,
+        color2: null,
+        source: null,
+        folderType: "NONE",
+        sortOrder: null,
+        isHiddenOnCard: false,
+      });
+    },
+  }),
+  optimistic: {
+    readKey: (trpc) => trpc.tag.listTags.queryKey(),
+    update: (old, vars) => [
+      ...(old ?? []),
+      {
+        id: castId(`tag_pending_${vars.label}`),
+        name: vars.label,
+        color: null,
+        color2: null,
+        source: null,
+        folderType: "NONE",
+        sortOrder: null,
+        isHiddenOnCard: false,
+      },
+    ],
+  },
+  busDriven: true,
+});
+
+function TagCreateOverlapInner(): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const queryClient = useQueryClient();
+  const { data: tags } = useSuspenseQuery(trpc.tag.listTags.queryOptions());
+  const mutation = useCreateTagOverlap({ trpc, invalidation });
+  const [settledFailure, setSettledFailure] = useState<string | null>(null);
+  const create = (label: OverlapTagVars["label"]): void => {
+    if (label === "older") {
+      void mutation.mutateAsync({ label }).catch((error: unknown) => {
+        setSettledFailure(error instanceof Error ? error.message : String(error));
+      });
+      return;
+    }
+    mutation.mutate(
+      { label },
+      {
+        onSuccess: (created): void => {
+          queryClient.setQueryData<TagView[]>(trpc.tag.listTags.queryKey(), [created]);
+        },
+      },
+    );
+  };
+
+  return (
+    <div>
+      <ul data-testid="overlap-tag-list">
+        {tags.map((tag) => (
+          <li key={tag.id}>{tag.name}</li>
+        ))}
+      </ul>
+      {settledFailure !== null ? <p role="alert">{settledFailure}</p> : null}
+      <button type="button" onClick={(): void => create("older")}>
+        older
+      </button>
+      <button type="button" onClick={(): void => create("newer")}>
+        newer
+      </button>
+      <button type="button" onClick={(): void => rejectOlderOverlap?.()}>
+        fail older
+      </button>
+    </div>
+  );
+}
+
+export function TagCreateOverlapStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
+        <TagCreateOverlapInner />
+      </QueryBoundary>
+    </CtDataProviders>
+  );
+}
+
 // COLD-cache probe (the N0 rollback fix): NO `listTags` reader mounts, so that query is never
 // fetched — its snapshot in onMutate is `undefined` and the optimistic write CREATES the cache
 // entry. On failure the fix must REMOVE the entry (a v5 `setQueryData(key, undefined)` is a no-op —

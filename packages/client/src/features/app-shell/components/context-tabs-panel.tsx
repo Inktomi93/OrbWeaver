@@ -130,13 +130,15 @@ const TAB_ACTIVE_CLASSES = "border-b-2 border-transparent data-active:border-pri
  *  Badge (§4.6): a dot when `badge` is truthy-boolean, a count when it's a number \> 0 — NEVER on the active
  *  tab, and the dot is `aria-hidden` (the tab content states the change). Disabled (PHASE, §4.6): a non-null
  *  `disabledReason` ⇒ `aria-disabled` + `title=<reason>` (the [base-ui-disabled-menuitem-title] pattern —
- *  never a tooltip wrap) + reduced opacity + a lock glyph, staying focusable-discoverable. */
+ *  never a tooltip wrap) + reduced opacity + a lock glyph. The native disabled state blocks both pointer
+ *  and keyboard activation; the visible label and title keep the reason discoverable. */
 function ContextTab({ entry, isActive }: { readonly entry: ResolvedContextTab; readonly isActive: boolean }): ReactElement {
   const disabled = entry.disabledReason !== null;
 
   return (
     <TabsTab
       value={entry.id}
+      disabled={disabled}
       aria-label={entry.label}
       // NOT `shrink-0`: the cell is a GRID TRACK now (shell.css sizes the strip `minmax(max-content, 1fr)`),
       // and a flex shorthand on a grid item only argues with the track it already cannot be squeezed below.
