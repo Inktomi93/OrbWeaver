@@ -21,16 +21,16 @@ Five existing workflows converge after interruption without a new transaction fr
 
 The register remains current at all five seams, but the integrated work changes the correct repair:
 
-- #719 serialized `writeHandState` from head resolve through write
+- \#719 serialized `writeHandState` from head resolve through write
   (`packages/server/src/domain/rpg/snapshot-edit.ts:46-71,171-207`). It closes same-game hand clobbering, not
   the durable card/seat work that precedes promotion's hand re-key
   (`packages/server/src/domain/rpg/verbs/promote-actor.ts:47-87`). Promotion recovery therefore remains live.
-- #720 made each imported chat and its scoped import claim atomic
+- \#720 made each imported chat and its scoped import claim atomic
   (`packages/server/src/domain/chat/persistence/import-write.ts:421-480,603-639`). That makes canon retry-safe,
   but the bundle caller still returns before overlays whenever `written[0]` is absent
   (`packages/server/src/domain/import/verbs/import-chat-bundle.ts:304-323`). The old “skip overlays” rationale is
   now stale; the residual recovery bug is live. #720's start-as-game and host-handoff work is excluded.
-- #721 touched runtime and automation budgets, not these paths. It changes none of the five premises.
+- \#721 touched runtime and automation budgets, not these paths. It changes none of the five premises.
 - `updateConfig` still writes the RPG config before its injected pointer mirror and suppresses the mirror on a
   retry because it compares against the now-updated config (`packages/server/src/domain/rpg/verbs/game/update-config.ts:121-133`).
 - the turn flush still writes the snapshot before separately inserting journal rows
