@@ -86,8 +86,8 @@ describe("extractHttpErrorDiagnostic", () => {
     };
     const diag = extractHttpErrorDiagnostic(err, [secret]);
     expect(JSON.stringify(diag)).not.toContain(secret);
-    expect(diag.body).toContain("«redacted»");
-    expect(diag.cause).toContain("«redacted»");
+    expect(diag.body).toContain("█");
+    expect(diag.cause).toContain("█");
   });
 });
 

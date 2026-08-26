@@ -9,7 +9,7 @@
 // decision logic; the first real production launch is the owner's. This file's home is tests/tooling/ per
 // core/Spine-Testing.md §2 (a test of a scripts/ tool), same as snap-stage.test.ts / snap-flags.test.ts.
 import { readFileSync } from "node:fs";
-import type { ObservedInstance, ProdRecord } from "../../../tooling/src/stack/index.ts";
+import type { DevStackIdentity, ObservedInstance, ProdRecord } from "../../../tooling/src/stack/index.ts";
 import {
   buildProdSpawnPlan,
   CLIENT_DIST_INDEX_REL,
@@ -27,6 +27,7 @@ import {
   formatDispatch,
   lockHolderText,
   mayRemovePidfile,
+  parseDevStackIdentity,
   parseListenerPid,
   parseLockHolder,
   parseProcStartTicks,
@@ -37,8 +38,10 @@ import {
   SERVER_ENTRY_REL,
   STACK_SPAWNERS,
   serializeProdRecord,
+  signalDevStackIdentity,
   spawnerForPort,
   valueExportNames,
+  verifyDevStackIdentity,
 } from "../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -46,6 +49,50 @@ import { expect, test } from "../../support/tool-fixtures.ts";
 const DRAIN_MS_RE = /const SHUTDOWN_DRAIN_MS = ([\d_]+);/u;
 /** An un-credentialed 200 from /api/_debug must print as an ALARM post-AUTHFIX-2, not as a dev posture. */
 const UNCREDENTIALED_ALARM = /NO credential|investigate/u;
+
+const DEV_IDENTITY: DevStackIdentity = {
+  version: 1,
+  repoRoot: "/repo",
+  pid: 4242,
+  pgid: 4242,
+  startTicks: "123",
+  executable: "/usr/bin/bash",
+  cmdlineBase64: Buffer.from("bash\0/repo/tooling/src/stack/stack.sh\0_leader\0").toString("base64"),
+  cwd: "/repo",
+};
+
+test("dev-stack identity rejects corrupt, <=1, and stale/reused records before any signal", () => {
+  expect(parseDevStackIdentity("garbage")).toBeNull();
+  expect(parseDevStackIdentity(JSON.stringify({ ...DEV_IDENTITY, pid: 1, pgid: 1 }))).toBeNull();
+  expect(verifyDevStackIdentity(DEV_IDENTITY, { readProcess: () => ({ ...DEV_IDENTITY, startTicks: "999" }) }).verdict).toBe("refused");
+  const calls: number[] = [];
+  expect(
+    signalDevStackIdentity(DEV_IDENTITY, "SIGKILL", { readProcess: () => ({ ...DEV_IDENTITY, startTicks: "999" }), kill: (target) => calls.push(target) })
+      .verdict,
+  ).toBe("refused");
+  expect(calls).toEqual([]);
+});
+
+test("a valid owned dev-stack group is the only shape that reaches the negative-PGID signal", () => {
+  const calls: Array<readonly [number, NodeJS.Signals]> = [];
+  expect(signalDevStackIdentity(DEV_IDENTITY, "SIGTERM", { readProcess: () => DEV_IDENTITY, kill: (target, signal) => calls.push([target, signal]) })).toEqual({
+    verdict: "signaled",
+    pgid: DEV_IDENTITY.pgid,
+  });
+  expect(calls).toEqual([[-DEV_IDENTITY.pgid, "SIGTERM"]]);
+});
+
+test("a dead leader may use a stable same-group survivor, but a reused leader blocks it", () => {
+  const survivor = { ...DEV_IDENTITY, pid: 5000 };
+  expect(verifyDevStackIdentity(DEV_IDENTITY, { readProcess: () => null, groupProcesses: () => [survivor] })).toEqual({
+    verdict: "owned",
+    pgid: DEV_IDENTITY.pgid,
+    witness: survivor,
+  });
+  expect(
+    verifyDevStackIdentity(DEV_IDENTITY, { readProcess: () => ({ ...DEV_IDENTITY, startTicks: "reused" }), groupProcesses: () => [survivor] }).verdict,
+  ).toBe("refused");
+});
 
 // ── argv ─────────────────────────────────────────────────────────────────────────────────────────────
 

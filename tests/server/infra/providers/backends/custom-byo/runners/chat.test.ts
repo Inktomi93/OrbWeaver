@@ -480,7 +480,7 @@ describe("createCustomByoBackend — streaming + non-streaming + the user-declar
 // literals (the apiKey + any secret-valued header) out of the CAPTURED body by value — while the body actually
 // SENT to the endpoint keeps the plaintext (the endpoint needs it). Credential-leak-by-value class.
 describe("createCustomByoBackend — captured wire scrubs credential literals (F4)", () => {
-  const REDACTED = "«redacted»";
+  const REDACTED = "█";
   const HEADER_SECRET = "hdr-secret-abcdef123456";
 
   test("an includeBody-embedded apiKey is REDACTED in the capture but PLAINTEXT on the sent body", async () => {

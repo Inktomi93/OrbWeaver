@@ -16,14 +16,19 @@
 // after classification, before any action — so nothing is spawned, no port is touched, and the prod
 // supervisor is never exec'd. `.int.test.ts` because it shells out; it writes nothing to the tree.
 import type { SpawnSyncReturns } from "node:child_process";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
+import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { probeServedTransform } from "../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const STACK_SH = fileURLToPath(new URL("../../../tooling/src/stack/stack.sh", import.meta.url));
+const DEV_IDENTITY_ENTRY = fileURLToPath(new URL("../../../tooling/src/stack/ops/dev-identity-entry.ts", import.meta.url));
 
 interface Dispatch {
   readonly status: number;
@@ -102,6 +107,34 @@ test("the dev force-restart spellings still reach the force path, and a bare cal
   expect(dispatch("restart", "--force").line).toBe("DISPATCH verb=restart mode=dev debug=0 force=1 rest=");
   expect(dispatch("force-restart").line).toBe("DISPATCH verb=restart mode=dev debug=0 force=1 rest=");
   expect(dispatch().line).toBe("DISPATCH verb=status mode=dev debug=0 force=0 rest=");
+});
+
+test("foreign fleet-shaped argv receives zero signals from the strict dev identity door", async () => {
+  const repoRoot = mkdtempSync(path.join(tmpdir(), "orb-foreign-stack-"));
+  const child = spawn(process.execPath, ["-e", "setInterval(() => undefined, 60_000)", ".cache/vllm/venv EngineCore Worker_TP"], {
+    cwd: repoRoot,
+    detached: true,
+    stdio: "ignore",
+  });
+  await once(child, "spawn");
+  const pid = child.pid;
+  expect(pid).toBeGreaterThan(1);
+  if (pid === undefined || pid <= 1) {
+    throw new Error("foreign-stack probe did not receive a safe child pid");
+  }
+  try {
+    const probe = spawnSync(process.execPath, [DEV_IDENTITY_ENTRY, "probe"], { cwd: repoRoot, encoding: "utf8" });
+    expect(probe.status).toBe(1);
+    expect(probe.stdout).toContain("verdict=absent");
+    expect(() => process.kill(pid, 0)).not.toThrow();
+  } finally {
+    try {
+      process.kill(-pid, "SIGKILL");
+    } catch {
+      // Test owns this disposable group; it may have exited independently.
+    }
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
 });
 
 test("logs passes its positional arguments through untouched", () => {

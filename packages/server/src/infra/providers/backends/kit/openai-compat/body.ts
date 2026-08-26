@@ -8,6 +8,7 @@
 // must not depend on that infra-internal funnel type (which doesn't exist yet), so this takes a minimal
 // {@link OpenAiSamplingInput} the runner projects its resolved knobs into.
 
+import { redactKnownSecrets, secretSafeRedactionMarker } from "#kit/secret-redaction";
 import type { ResponseFormat, ToolChoice, WireTool } from "../../../contract/chat.ts";
 import type { ChatToolCallDelta } from "../wire-schemas.ts";
 
@@ -30,14 +31,13 @@ export interface OpenAiSamplingInput {
 
 // Header-name patterns that mark a secret (hoisted per useTopLevelRegex — runs per redaction).
 const SECRET_HEADER_RE = /authorization|api[-_]?key|token|secret/i;
-const REDACTED = "«redacted»";
 
 // Shape-based fallbacks for the inspector body-preview scrub (hoisted; run per inspection). These are
 // DEFENSE-IN-DEPTH only — the primary guarantee is scrubbing the KNOWN secret literals by value. They
 // catch the case where an echoing endpoint re-encodes/reshapes the token around a recognizable frame we
 // still hold no exact literal for. The token class is CREDENTIAL chars only (`\w.\-+/=`) — it deliberately
 // STOPS at a quote / JSON delimiter / whitespace so a reflected token inside a JSON body doesn't swallow
-// the surrounding structure (and won't re-consume the `«redacted»` sentinel a prior literal-scrub left).
+// the surrounding structure (and won't re-consume a marker a prior literal-scrub left).
 // Single bounded class, no nesting → ReDoS-safe.
 const BEARER_TOKEN_RE = /Bearer\s+[\w.\-+/=]+/gi;
 const SK_KEY_RE = /sk-[A-Za-z0-9_-]{16,}/g;
@@ -159,10 +159,11 @@ function rawFragment(entry: Record<string, unknown>, position: number): ChatTool
 /** Mask secrets in a header map before it is surfaced (observability span / inspector preview).
  *  `Authorization` + any header whose NAME hints at a key/token/secret is replaced; values are never
  *  inspected (the name is the signal). */
-export function redactHeaders(headers: Readonly<Record<string, string>>): Record<string, string> {
+export function redactHeaders(headers: Readonly<Record<string, string>>, secrets: readonly string[] = secretHeaderValues(headers)): Record<string, string> {
+  const marker = secretSafeRedactionMarker(secrets);
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(headers)) {
-    out[key] = SECRET_HEADER_RE.test(key) ? REDACTED : value;
+    out[key] = redactKnownSecrets(SECRET_HEADER_RE.test(key) ? marker : value, secrets);
   }
   return out;
 }
@@ -196,15 +197,9 @@ export function secretHeaderValues(headers: Readonly<Record<string, string>> | n
  * auth header defines the value's secret semantics — collision-driven over-redaction is safer than leakage.
  */
 export function redactSecretsFromText(text: string, secrets: readonly string[]): string {
-  let scrubbed = text;
-  // Longest-first so a secret that is a substring of another is handled by the longer replacement first.
-  const literals = [...new Set(secrets)].filter((s) => s.length > 0).sort((a, b) => b.length - a.length);
-  for (const secret of literals) {
-    scrubbed = scrubbed.replace(new RegExp(RegExp.escape(secret), "g"), REDACTED);
-  }
-  scrubbed = scrubbed.replace(BEARER_TOKEN_RE, `Bearer ${REDACTED}`);
-  scrubbed = scrubbed.replace(SK_KEY_RE, REDACTED);
-  return scrubbed;
+  const marker = secretSafeRedactionMarker(secrets);
+  const shaped = text.replace(BEARER_TOKEN_RE, `Bearer ${marker}`).replace(SK_KEY_RE, marker);
+  return redactKnownSecrets(shaped, secrets);
 }
 
 /**

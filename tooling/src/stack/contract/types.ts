@@ -97,6 +97,27 @@ export interface ProdRecord {
   readonly logPath: string;
 }
 
+/** Fresh Linux process identity used by the detached dev-stack ownership verifier. */
+export interface ObservedStackProcess {
+  readonly pid: number;
+  readonly pgid: number;
+  readonly startTicks: string;
+  readonly executable: string;
+  readonly cmdlineBase64: string;
+  readonly cwd: string;
+}
+
+/** Complete launch identity persisted before stack.sh releases control of its setsid leader. */
+export interface DevStackIdentity extends ObservedStackProcess {
+  readonly version: 1;
+  readonly repoRoot: string;
+}
+
+export type DevStackIdentityVerdict =
+  | { readonly verdict: "owned"; readonly pgid: number; readonly witness: ObservedStackProcess }
+  | { readonly verdict: "absent"; readonly reason: string }
+  | { readonly verdict: "refused"; readonly reason: string };
+
 const SPAWN_LOCK_ACTIONS = ["retake", "refuse", "break-stale"] as const;
 export type SpawnLockAction = (typeof SPAWN_LOCK_ACTIONS)[number];
 

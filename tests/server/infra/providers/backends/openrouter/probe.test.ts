@@ -52,6 +52,6 @@ describe("probeOpenRouterCredential", () => {
       throw new Error(`expected revoked health, got ${health.status}`);
     }
     expect(health.reason).not.toContain(secret);
-    expect(health.reason).toContain("«redacted»");
+    expect(health.reason).toContain("█");
   });
 });
