@@ -53,8 +53,7 @@
 ### Operator one-offs
 
 `dev/sandbox.sh` (`pnpm sandbox`) · `probes/history-system-rows.ts`
-(`pnpm probe:history-system-rows`, the D69 capability measurement) · `mutation/arid-ignorer.ts` (the
-Stryker `PluginKind.Ignore` plugin — `Spine-Testing.md` §"An ARID mutant is not a test failure").
+(`pnpm probe:history-system-rows`, the D69 capability measurement).
 
 `sandbox.sh` is HAND-RUN ONLY, re-derived 2026-08-22 (#421): it is reached solely by its `pnpm sandbox`
 alias and runs on the HOST to launch `.devcontainer/`. (`dev/oracle-steady-clone.sh`, the neo-parity

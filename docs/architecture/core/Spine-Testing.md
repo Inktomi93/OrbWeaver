@@ -209,14 +209,31 @@ via TS7027 and leaves the score. Measured on one file, 47 mutants: stock native 
 native **66.67 in 2m50s**; classic **66.67 in 3m17s** — same verdict, slightly faster. Full four-arm
 receipts live in `stryker.config.json`'s `_checkers_comment`.
 
-**An ARID mutant is not a test failure.** `scripts/mutation/arid-ignorer.ts` (a `PluginKind.Ignore` plugin,
-wired through `ignorers: ["arid"]` in BOTH configs) drops string-literal mutants whose only destination is an
-observability sink — trace recorders, trace-collection appends, trace assignments, trace-carrying payload
-objects, logger calls. Those can only ever survive: the "fix" would be a test pinning a debug label
-byte-for-byte, i.e. the tautology this doc bans. The predicate is STRUCTURAL — there is no in-source
-annotation an author can add to silence their own mutant — and it is bite-proved in BOTH directions by
-`tests/tooling/mutation-arid-ignorer.test.ts`. Adding or removing it CHANGES THE DENOMINATOR, so it is part
-of the gate's calibration, never a cosmetic.
+**An ARID mutant is not a test failure.** `tooling/src/mutation-arid/` (a `PluginKind.Ignore` plugin,
+wired through `ignorers: ["arid"]` in BOTH configs) drops two families that are unkillable BY DESIGN:
+
+1. **Observability sinks** — string-literal mutants whose only destination is a trace recorder,
+   trace-collection append, trace assignment, trace-carrying payload object, or a logger call. The "fix"
+   would be a test pinning a debug label byte-for-byte, i.e. the tautology this doc bans.
+2. **Compile-time-unreachable arms** — every mutant inside a `default:` case (or block) that declares a
+   `never`-typed binding. `tsc` has already proved the arm cannot execute, so no test can reach it; the
+   exhaustive-dispatch discipline (`Spine-TypeScript-and-Patterns.md`) puts one in EVERY dispatch site,
+   which makes this dead weight under every score computed over a dispatching file. Measured 2026-08-26
+   with `pnpm mutation:probe` on `domain/admin/guard.ts`: 6 of its 8 planted survivors were exactly this
+   — 25% of that file's denominator.
+
+Family 2 matches the ARM node, so Stryker's whole-subtree ignore is the point; family 1 matches the leaf,
+because matching the enclosing call would swallow real mutants among its arguments. The predicate is
+STRUCTURAL — there is no in-source annotation an author can add to silence their own mutant — and it is
+bite-proved in BOTH directions by `tests/tooling/mutation-arid/`. Adding or removing it CHANGES THE
+DENOMINATOR, so it is part of the gate's calibration, never a cosmetic: `pnpm mutation:arid <report.json>`
+prints the ignored count per reason, and a change in that count means `break` must be re-measured.
+
+**A reported survivor is not ground truth either.** `pnpm mutation:probe <report.json> <source-rel>` plants
+each reported mutant and runs the source's mirror suite, naming the tests that kill it. Measured 2026-08-22
+over `assemble.ts`, 184 of 230 reported survivors were already killed by tests on the tree — perTest
+coverage credits module-load-scope mutants to whichever unrelated test loaded the module first. Adjudicate
+before writing kill-tests for a survivor list.
 
 **The gate's `mutate` list is frozen to its calibrated set; new candidates enter the EXPLORATORY config as
 sentinels** (`stryker.config.json` — currently the runtime-string-key and shipped-inversion classes: chat
