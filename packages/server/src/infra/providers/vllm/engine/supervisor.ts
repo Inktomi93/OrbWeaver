@@ -6,7 +6,6 @@
 
 import { execFile } from "node:child_process";
 import path from "node:path";
-import process from "node:process";
 import { setTimeout as sleepFor } from "node:timers/promises";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
@@ -16,14 +15,14 @@ import { setEngineStatus } from "./engine-status.ts";
 import { engineBaseUrl } from "./engine-url.ts";
 import { VLLM_ENGINES } from "./engines.ts";
 import type { AutoSleepState, EngineMetrics } from "./fleet-control.ts";
-import { advanceAutoSleep, fetchEngineMetrics, initialAutoSleepState, postSleep } from "./fleet-control.ts";
+import { advanceAutoSleep, enginePortPid, fetchEngineMetrics, initialAutoSleepState, postSleep } from "./fleet-control.ts";
 import { detectGpu } from "./gpu.ts";
+import { signalRecordedEngineProcess } from "./process-identity.ts";
 import { reapOrphanedFamily } from "./reaper.ts";
-
-const SS_PID_RE = /pid=(\d+)/;
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 type EngineLifecycleStatus = (typeof ENGINE_LIFECYCLE_STATUSES)[number];
+type EngineSignalVerdict = ReturnType<typeof signalRecordedEngineProcess>;
 
 const ENGINES: readonly VllmEngine[] = VLLM_ENGINES;
 
@@ -187,23 +186,6 @@ interface EngineState {
   pendingSpawn: boolean;
 }
 
-async function portOwnerPid(engine: VllmEngine): Promise<number | null> {
-  const out = await new Promise<string>((resolve) => {
-    execFile("ss", ["-tlnp"], (err, stdout) => resolve(err ? "" : stdout));
-  });
-  const port = new URL(engineBaseUrl(engine)).port;
-  for (const line of out.split("\n")) {
-    if (!line.includes(`:${port} `)) {
-      continue;
-    }
-    const m = SS_PID_RE.exec(line);
-    if (m !== null) {
-      return Number(m[1]);
-    }
-  }
-  return null;
-}
-
 /** Ask a healthy engine whether it is asleep. Only meaningful when sleepMode is on (else /is_sleeping is
  *  unregistered → 404, treated as "not sleeping"). Any failure/non-200 ⇒ not sleeping (fail toward healthy —
  *  a sleeping-mislabel would only cost a needless wake, never a hang). */
@@ -275,6 +257,10 @@ export function startVllmEngines(opts: {
   fetchMetrics?: (engine: VllmEngine) => Promise<EngineMetrics | null>;
   /** POST /sleep?level=1 to an engine (injected in tests). Defaults to the loopback sleep POST. */
   postSleep?: (engine: VllmEngine) => Promise<boolean>;
+  /** Current configured-port listener. Injected only to prove foreign-listener refusal without touching OS processes. */
+  portOwnerPid?: (engine: VllmEngine) => Promise<number | null>;
+  /** The one verified signal door. Production reads the durable launch record immediately before kill. */
+  signalEngineProcess?: (engine: VllmEngine, listenerPid: number | null, signal: NodeJS.Signals) => EngineSignalVerdict;
 }): () => void {
   const { repoRoot, now } = opts;
   const triggerSpawn = opts.triggerSpawn ?? realTriggerSpawn;
@@ -285,6 +271,11 @@ export function startVllmEngines(opts: {
   const autoSleepIdleMs = opts.autoSleepIdleMs ?? env.VLLM_AUTO_SLEEP_IDLE_MS;
   const fetchMetrics = opts.fetchMetrics ?? fetchEngineMetrics;
   const postSleepFn = opts.postSleep ?? postSleep;
+  const readPortOwner = opts.portOwnerPid ?? enginePortPid;
+  const signalEngineProcess =
+    opts.signalEngineProcess ??
+    ((engine: VllmEngine, listenerPid: number | null, signal: NodeJS.Signals): EngineSignalVerdict =>
+      signalRecordedEngineProcess({ repoRoot, engine, port: Number(new URL(engineBaseUrl(engine)).port), listenerPid, signal }));
   const autoSleepStates = new Map<VllmEngine, AutoSleepState>(ENGINES.map((e) => [e, initialAutoSleepState]));
   const log = getLog().child({ component: "vllm-engines" });
 
@@ -400,16 +391,14 @@ export function startVllmEngines(opts: {
   // A hung engine we're RESTARTING owns its port but won't serve — kill its process group so the port frees
   // and the re-triggered detached spawn can bind. (A cleanly-exited engine leaves a free port; nothing to do.)
   async function killHungPortOwner(s: EngineState): Promise<void> {
-    const pid = await portOwnerPid(s.engine);
-    if (pid === null) {
-      return;
-    }
-    try {
-      process.kill(-pid, "SIGKILL"); // the setsid group leader — takes the APIServer + its EngineCore
-      log.warn({ engine: s.engine, pid }, "vllm-engines: killed hung engine's process group before re-spawn");
+    const listenerPid = await readPortOwner(s.engine);
+    const outcome = signalEngineProcess(s.engine, listenerPid, "SIGKILL");
+    if (outcome.verdict === "signaled") {
+      log.warn({ engine: s.engine, pgid: outcome.pgid }, "vllm-engines: killed verified hung engine process group before re-spawn");
       await sleep(ORPHAN_REAP_SETTLE_MS);
-    } catch {
-      // already gone
+    } else if (outcome.verdict === "refused") {
+      mark(s, "foreign", outcome.reason);
+      log.error({ engine: s.engine, listenerPid, reason: outcome.reason }, "vllm-engines: refused hung-engine kill — launch identity did not match");
     }
   }
 
@@ -593,29 +582,29 @@ export function startVllmEngines(opts: {
   }
 
   // A human override RESETS the breaker — they are the half-open probe. Under ownership inversion there is no
-  // in-process child: bounce the engine by killing its port owner's group, then re-trigger the detached spawn
-  // (the queued-spawn path's killHungPortOwner also covers a hung port, but doing it here makes the admin
-  // action immediate). The re-trigger reboots from the CURRENT env-floor launch config.
+  // in-process child: bounce only the durable launch identity that still owns the configured port, then
+  // re-trigger the detached spawn. The re-trigger reboots from the CURRENT env-floor launch config.
   async function adminRestart(engine: VllmEngine): Promise<string> {
     const s = states.get(engine);
     if (s === undefined) {
       return "unknown engine";
     }
+    const listenerPid = await readPortOwner(engine);
+    const outcome = signalEngineProcess(engine, listenerPid, "SIGTERM");
+    if (outcome.verdict === "refused") {
+      mark(s, "foreign", `admin restart refused: ${outcome.reason}`);
+      log.error({ engine, listenerPid, reason: outcome.reason }, "vllm-engines: admin restart refused — launch identity did not match");
+      return `restart refused — ${outcome.reason}`;
+    }
     s.restarts = [];
     s.failedAt = undefined;
-    const pid = await portOwnerPid(engine);
-    if (pid !== null) {
-      try {
-        process.kill(-pid, "SIGTERM"); // the setsid group — APIServer + EngineCore
-      } catch {
-        // already gone
-      }
+    if (outcome.verdict === "signaled") {
       mark(s, "down", "admin restart: terminated port owner; re-triggering detached spawn");
       queueSpawn(s, "admin restart", ORPHAN_REAP_SETTLE_MS, true);
-      return `terminated pid ${pid} — detached re-spawn in progress`;
+      return `terminated verified pgid ${outcome.pgid} — detached re-spawn in progress`;
     }
     queueSpawn(s, "admin restart", 0, false);
-    return "no engine on the port — detached spawn requested";
+    return "no owned engine on the port — detached spawn requested";
   }
   registerVllmEngineController({ restart: adminRestart });
 

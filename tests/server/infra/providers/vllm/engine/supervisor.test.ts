@@ -7,7 +7,7 @@
 // prove the flag stays true across the restart-backoff window — a monitor tick landing in that window must
 // NOT double-queue the spawn (which would double-charge the breaker and mislabel an owned engine 'adopted').
 
-import { breakerAllows, decideTick, engineBaseUrl, getEngineStatus, startVllmEngines } from "@orb/server/infra/providers/vllm/engine";
+import { breakerAllows, decideTick, engineBaseUrl, getEngineStatus, getVllmEngineController, startVllmEngines } from "@orb/server/infra/providers/vllm/engine";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
@@ -383,6 +383,97 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
       expect(getEngineStatus("embed")?.status).toBe("adopted");
       expect(getEngineStatus("rerank")?.status).toBe("adopted");
       expect(getEngineStatus("gen")?.status).toBe("adopted");
+    } finally {
+      stop();
+    }
+  });
+});
+
+describe("startVllmEngines — admin restart proves durable process ownership", () => {
+  const fixedNow = 1_000_000;
+
+  beforeEach(() => {
+    io.healthy.clear();
+    io.triggers.length = 0;
+    io.healthy.add("embed");
+    io.healthy.add("rerank");
+    io.healthy.add("gen");
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", (input: unknown): Promise<{ ok: boolean; json: () => Promise<unknown> }> => {
+      const url = String(input);
+      const engine = (["embed", "rerank", "gen"] as const).find((candidate) => url.startsWith(engineBaseUrl(candidate)));
+      if (engine !== undefined && io.healthy.has(engine)) {
+        // biome-ignore lint/style/useNamingConvention: is_sleeping mirrors the vLLM wire body.
+        const body = url.includes("/is_sleeping") ? { is_sleeping: false } : {};
+        return Promise.resolve({ ok: true, json: (): Promise<unknown> => Promise.resolve(body) });
+      }
+      return Promise.reject(new Error("ECONNREFUSED"));
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  const settle = async (): Promise<void> => {
+    for (let i = 0; i < 8; i += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: draining the async chain is inherently sequential.
+      await vi.advanceTimersByTimeAsync(0);
+    }
+  };
+
+  test("a foreign configured-port listener is refused without queuing a spawn", async () => {
+    const signalAttempts: NodeJS.Signals[] = [];
+    const stop = startVllmEngines({
+      repoRoot: "/repo",
+      now: (): number => fixedNow,
+      sleep: () => Promise.resolve(),
+      triggerSpawn: () => io.triggers.push(io.triggers.length),
+      portOwnerPid: () => Promise.resolve(7331),
+      signalEngineProcess: (_engine, _listenerPid, signal) => {
+        signalAttempts.push(signal);
+        return { verdict: "refused", reason: "configured port is owned by a foreign process" };
+      },
+    });
+    try {
+      await settle();
+      const result = await getVllmEngineController()?.restart("embed");
+      await settle();
+      expect(result).toContain("restart refused");
+      expect(signalAttempts).toEqual(["SIGTERM"]);
+      expect(io.triggers).toEqual([]);
+      expect(getEngineStatus("embed")?.status).toBe("foreign");
+    } finally {
+      stop();
+    }
+  });
+
+  test("a verified owned listener receives TERM then a verified KILL before one detached restart", async () => {
+    const signals: NodeJS.Signals[] = [];
+    const stop = startVllmEngines({
+      repoRoot: "/repo",
+      now: (): number => fixedNow,
+      sleep: () => Promise.resolve(),
+      triggerSpawn: () => {
+        io.triggers.push(io.triggers.length);
+        io.healthy.add("embed");
+      },
+      portOwnerPid: () => Promise.resolve(4242),
+      signalEngineProcess: (engine, _listenerPid, signal) => {
+        signals.push(signal);
+        io.healthy.delete(engine);
+        return { verdict: "signaled", pgid: 4242 };
+      },
+    });
+    try {
+      await settle();
+      const result = await getVllmEngineController()?.restart("embed");
+      expect(result).toContain("terminated verified pgid 4242");
+      await settle();
+      expect(signals).toEqual(["SIGTERM", "SIGKILL"]);
+      expect(io.triggers).toHaveLength(1);
+      expect(getEngineStatus("embed")?.status).toBe("owned");
     } finally {
       stop();
     }
