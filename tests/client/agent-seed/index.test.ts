@@ -15,10 +15,12 @@ import { expect, test } from "../../support/fixtures.ts";
 
 const CHARACTER_ID = castId<CharacterId>("character_seed_a");
 const CHAT_ID = castId<ChatId>("chat_seed_a");
+const RETRY_CHAT_ID = castId<ChatId>("chat_seed_b");
 const USER_ID = castId<UserId>("user_seed_a");
 
 const EDITSNAPSHOT_REFUSAL_MSG = /rpg\.editSnapshot refused — scene plane refused/;
 const PATCHACTOR_REFUSAL_MSG = /rpg\.patchActor refused — actor plane refused/;
+const UNFINISHED_D20_MSG = /unfinished d20 seed/;
 
 /** Minimal structural fake of the `TRPCClient<AppRouter>` surface `buildAgentSeed` actually calls — every
  *  method the seeder touches, nothing else, each a `vi.fn()` so a test can assert exact call args (the
@@ -48,6 +50,61 @@ function fakeClient(opts: { readonly existingHandle?: boolean; readonly editSnap
     } as any,
     // biome-ignore lint/suspicious/noExplicitAny: structural fake of the full TRPCClient proxy — buildAgentSeed only touches the branches built above.
   } as any;
+}
+
+const SEED_WRITE_STEPS = [
+  "createGame",
+  "updateConfig",
+  "patchSheet",
+  "editSnapshot",
+  "patchActor:user",
+  "patchActor:mira",
+  "patchActor:corvin",
+  "upsertQuest:Claim the Vault",
+  "upsertQuest:Earn Mira's Trust",
+  "addJournalEntry:The Gilded Ember",
+  "addJournalEntry:Corvin Ashe",
+  "addJournalEntry:The key revealed",
+  "addJournalEntry:The vault below",
+] as const;
+
+/** Stateful wire fake: successful calls apply one canonical step to the addressed chat; `failAt` rejects
+ *  once BEFORE applying. It makes a retry that mints a second room observably leave the first partial. */
+function retryClient(failAt: (typeof SEED_WRITE_STEPS)[number]): {
+  readonly client: ReturnType<typeof fakeClient>;
+  readonly applied: string[];
+} {
+  const client = fakeClient({ existingHandle: true });
+  const applied: string[] = [];
+  let failed = false;
+  let starts = 0;
+  const apply = (chatId: ChatId, step: string, result?: unknown): Promise<unknown> => {
+    if (!failed && step === failAt) {
+      failed = true;
+      return Promise.reject(new Error(`injected failure at ${step}`));
+    }
+    applied.push(`${chatId}:${step}`);
+    return Promise.resolve(result);
+  };
+
+  client.chat.startChat.mutate = vi.fn(() => {
+    const chatId = starts === 0 ? CHAT_ID : RETRY_CHAT_ID;
+    starts += 1;
+    return Promise.resolve({ chat: { id: chatId } });
+  });
+  client.rpg.createGame.mutate = vi.fn(({ chatId }: { readonly chatId: ChatId }) => apply(chatId, "createGame"));
+  client.rpg.updateConfig.mutate = vi.fn(({ chatId }: { readonly chatId: ChatId }) => apply(chatId, "updateConfig"));
+  client.rpg.patchSheet.mutate = vi.fn(({ chatId }: { readonly chatId: ChatId }) => apply(chatId, "patchSheet"));
+  client.rpg.editSnapshot.mutate = vi.fn(({ chatId }: { readonly chatId: ChatId }) => apply(chatId, "editSnapshot", { ok: true }));
+  client.rpg.patchActor.mutate = vi.fn(
+    ({ chatId, targetRef }: { readonly chatId: ChatId; readonly targetRef: { readonly kind: string; readonly castKey?: string } }) =>
+      apply(chatId, `patchActor:${targetRef.kind === "cast" ? targetRef.castKey : targetRef.kind}`, { ok: true }),
+  );
+  client.rpg.upsertQuest.mutate = vi.fn(({ chatId, name }: { readonly chatId: ChatId; readonly name: string }) => apply(chatId, `upsertQuest:${name}`));
+  client.rpg.addJournalEntry.mutate = vi.fn(({ chatId, title }: { readonly chatId: ChatId; readonly title: string }) =>
+    apply(chatId, `addJournalEntry:${title}`),
+  );
+  return { client, applied };
 }
 
 afterEach(() => {
@@ -174,4 +231,25 @@ test("richGame() defaults to the freeform profile and returns the seeded chatId"
   expect(result).toEqual({ chatId: CHAT_ID });
   const createGameArg = client.rpg.createGame.mutate.mock.calls[0][0];
   expect(createGameArg.profile.attributes).toEqual([]);
+});
+
+test.each(SEED_WRITE_STEPS)("a partial failure at %s retries into the SAME complete game without duplicate canonical writes", async (failAt) => {
+  const { client, applied } = retryClient(failAt);
+  const seed = buildAgentSeed(client);
+
+  await expect(seed.game({ profile: "d20" })).rejects.toThrow(`injected failure at ${failAt}`);
+  await expect(seed.game({ profile: "d20" })).resolves.toEqual({ chatId: CHAT_ID });
+
+  expect(client.chat.startChat.mutate).toHaveBeenCalledOnce();
+  expect(applied).toEqual(SEED_WRITE_STEPS.map((step) => `${CHAT_ID}:${step}`));
+});
+
+test("an unfinished seed refuses different arguments instead of orphaning its partial game", async () => {
+  const { client } = retryClient("createGame");
+  const seed = buildAgentSeed(client);
+
+  await expect(seed.game({ profile: "d20" })).rejects.toThrow("injected failure at createGame");
+  await expect(seed.game({ profile: "freeform" })).rejects.toThrow(UNFINISHED_D20_MSG);
+
+  expect(client.chat.startChat.mutate).toHaveBeenCalledOnce();
 });

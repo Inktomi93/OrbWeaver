@@ -8,7 +8,7 @@
 // owns the state transitions and hands the tracker its terminal/progress callbacks via `track`.
 
 import type { WorkloadId } from "@orb/kit/ids";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { importBundle, importCharacters, importTree, relativePathOf, useInvalidation } from "#data";
 import { notify } from "#lib";
 import type { BundleCounts, ImportSummary } from "../lib/portability-model.ts";
@@ -22,6 +22,7 @@ type LibraryImportState =
   | { readonly status: "uploading"; readonly filename: string }
   | {
       readonly status: "running";
+      readonly epoch: number;
       readonly workloadId: WorkloadId;
       readonly progress: WorkloadProgressView;
     }
@@ -54,8 +55,12 @@ function isZip(file: File): boolean {
 export function useLibraryImport(): LibraryImport {
   const invalidation = useInvalidation();
   const [state, setState] = useState<LibraryImportState>({ status: "idle" });
+  const requestEpoch = useRef(0);
 
-  const finish = (summary: ImportSummary): void => {
+  const finish = (epoch: number, summary: ImportSummary): void => {
+    if (epoch !== requestEpoch.current) {
+      return;
+    }
     invalidation.invalidateAllUserRoots();
     setState({ status: "done", summary });
     const caption = summaryCaption(summary);
@@ -68,7 +73,10 @@ export function useLibraryImport(): LibraryImport {
     }
   };
 
-  const fail = (message: string): void => {
+  const fail = (epoch: number, message: string): void => {
+    if (epoch !== requestEpoch.current) {
+      return;
+    }
     setState({ status: "error", message });
     notify.error("Import failed. Check the file and try again.");
   };
@@ -78,18 +86,21 @@ export function useLibraryImport(): LibraryImport {
     if (first === undefined) {
       return;
     }
+    const epoch = ++requestEpoch.current;
     setState({ status: "uploading", filename: first.name });
     if (isZip(first)) {
       importBundle(first)
         .then(({ workloadId }) => {
-          setState({ status: "running", workloadId, progress: { pct: null, label: null } });
+          if (epoch === requestEpoch.current) {
+            setState({ status: "running", epoch, workloadId, progress: { pct: null, label: null } });
+          }
         })
-        .catch((error: unknown) => fail(errorMessage(error)));
+        .catch((error: unknown) => fail(epoch, errorMessage(error)));
       return;
     }
     importCharacters(files)
-      .then((result) => finish(summarizeCardImport(result)))
-      .catch((error: unknown) => fail(errorMessage(error)));
+      .then((result) => finish(epoch, summarizeCardImport(result)))
+      .catch((error: unknown) => fail(epoch, errorMessage(error)));
   };
 
   const importFolder = (files: readonly File[]): void => {
@@ -97,23 +108,40 @@ export function useLibraryImport(): LibraryImport {
     if (first === undefined) {
       return;
     }
+    const epoch = ++requestEpoch.current;
     setState({ status: "uploading", filename: relativePathOf(first) });
     importTree(files)
       .then(({ workloadId }) => {
-        setState({ status: "running", workloadId, progress: { pct: null, label: null } });
+        if (epoch === requestEpoch.current) {
+          setState({ status: "running", epoch, workloadId, progress: { pct: null, label: null } });
+        }
       })
-      .catch((error: unknown) => fail(errorMessage(error)));
+      .catch((error: unknown) => fail(epoch, errorMessage(error)));
   };
 
+  const trackEpoch = state.status === "running" ? state.epoch : null;
   const track: LibraryImportTrack = {
     onProgress: (progress) => {
-      setState((prev) => (prev.status === "running" ? { ...prev, progress } : prev));
+      if (trackEpoch !== null && trackEpoch === requestEpoch.current) {
+        setState((prev) => (prev.status === "running" && prev.epoch === trackEpoch ? { ...prev, progress } : prev));
+      }
     },
-    onSucceeded: (counts) => finish(summarizeBundleCounts(counts)),
-    onFailed: fail,
+    onSucceeded: (counts) => {
+      if (trackEpoch !== null) {
+        finish(trackEpoch, summarizeBundleCounts(counts));
+      }
+    },
+    onFailed: (message) => {
+      if (trackEpoch !== null) {
+        fail(trackEpoch, message);
+      }
+    },
   };
 
-  const reset = (): void => setState({ status: "idle" });
+  const reset = (): void => {
+    requestEpoch.current += 1;
+    setState({ status: "idle" });
+  };
   return { state, importFiles, importFolder, reset, track };
 }
 
