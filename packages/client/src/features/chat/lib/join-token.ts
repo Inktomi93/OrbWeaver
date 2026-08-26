@@ -14,5 +14,8 @@ export function readJoinToken(): string | null {
 
 /** Scrub the token from the address bar (history included) — call as soon as the token is captured. */
 export function clearJoinParam(): void {
-  globalThis.history.replaceState(null, "", "/");
+  const params = new URLSearchParams(globalThis.location.search);
+  params.delete("join");
+  const search = params.size === 0 ? "" : `?${params.toString()}`;
+  globalThis.history.replaceState(null, "", `${globalThis.location.pathname}${search}${globalThis.location.hash}`);
 }
