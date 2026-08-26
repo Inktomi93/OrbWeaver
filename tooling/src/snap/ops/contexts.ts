@@ -4,7 +4,7 @@
 import type { Page } from "@playwright/test";
 import { artifactFile, artifactKey, print, printResult, routeSlug } from "../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../_shared/browser.ts";
-import { buildUrl } from "../../_shared/browser.ts";
+import { buildUrl, closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { FixtureTarget } from "../contract/fixture.ts";
 import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "../contract/types.ts";
@@ -111,6 +111,15 @@ function reportContexts(args: ContextReportArgs): { readonly failedRequests: num
   return { failedRequests, pageErrors, viteChurn };
 }
 
+interface OwnedContextsArgs {
+  readonly url: string;
+  readonly name: string;
+  readonly out: string;
+  readonly key: string;
+  readonly produceShot: boolean;
+  readonly totalContexts: number;
+}
+
 export async function snapContexts(opts: Args, users: readonly FixtureUser[], target: FixtureTarget): Promise<number> {
   const url = buildUrl(opts.base, opts.route);
   const name = opts.out ?? routeSlug(opts.route);
@@ -132,6 +141,15 @@ export async function snapContexts(opts: Args, users: readonly FixtureUser[], ta
     cookieDomain: new URL(opts.base).hostname,
   });
 
+  try {
+    return await runOwnedContexts(session, opts, users, { url, name, out, key, produceShot, totalContexts });
+  } catch (error) {
+    return await closeProbeSessionAfterError(session, error);
+  }
+}
+
+async function runOwnedContexts(session: ProbeSession, opts: Args, users: readonly FixtureUser[], args: OwnedContextsArgs): Promise<number> {
+  const { url, name, out, key, produceShot, totalContexts } = args;
   const plan: ShotPlan = { url, out, produceShot };
   const outcomes = await captureContexts(session, opts, plan, totalContexts);
   const reportArgs: ContextReportArgs = { opts, session, outcomes, users, plan, out, totalContexts };
