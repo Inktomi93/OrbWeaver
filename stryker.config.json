@@ -18,7 +18,7 @@
   "_tsconfig_comment": "Uses the root aggregating tsconfig.json.",
   "tsconfigFile": "tsconfig.json",
 
-  "reporters": ["html", "clear-text", "progress"],
+  "reporters": ["html", "json", "clear-text", "progress"],
   "htmlReporter": { "fileName": "reports/mutation/mutation.html" },
 
   "_mutate_comment": "Default scope = the high-stakes pure modules (all exist; PD-114 dropped the phantom domain/chat/routing.ts — prompt assembly is assembly/assemble.ts). Broaden on the CLI, e.g. `pnpm test:mutation --mutate 'packages/server/src/domain/chat/**/*.ts'`. SENTINELS (added 2026-08-21, exploratory ONLY — the gate's mutate list is a CALIBRATED set and stays frozen): the last four entries are the two defect classes no other tier sees. (a) RUNTIME-STRING-KEY arithmetic — stats-delta.ts and rebuild-from-canon.ts accumulate per-turn economics through keys resolved at runtime, where an operator flip produces a plausible number no type or schema notices. (b) SHIPPED-INVERSION — canon-write.ts and memory/recall/recall.ts are exactly where a survived conditional already cost a live bug (the recall.ts inversion), which is the founding case for this whole apparatus. Promote a sentinel into the gate list only WITH a fresh calibration; the gate's `break` is bound to its measured set.",
