@@ -36,7 +36,7 @@ export function insertChatEventStatement(db: Db, args: ChatEventInsertArgs & { r
 
 /** An unexecuted append with its assigned cursor returned. This is the co-statement door for a caller whose
  * adjacent durable state must commit in the same SQLite batch as the event. */
-export function appendChatEventStatement(db: Db, args: ChatEventInsertArgs): AwaitableBatchStmt<{ seq: number }[]> {
+function appendChatEventStatement(db: Db, args: ChatEventInsertArgs): AwaitableBatchStmt<{ seq: number }[]> {
   return db
     .insert(chatEvents)
     .values({
@@ -47,6 +47,27 @@ export function appendChatEventStatement(db: Db, args: ChatEventInsertArgs): Awa
       payload: args.event,
       createdAt: args.createdAt,
     })
+    .returning({ seq: chatEvents.seq });
+}
+
+/** Append only when the immediately preceding statement claimed a row. This statement must be second in one
+ * SQLite batch: `changes()` is connection-local, so a zero-row claim makes this INSERT a converged no-op. */
+export function appendChatEventAfterClaimStatement(db: Db, args: ChatEventInsertArgs): AwaitableBatchStmt<{ seq: number }[]> {
+  return db
+    .insert(chatEvents)
+    .select(
+      db
+        .select({
+          id: sql<ChatEventId>`${args.id}`.as("id"),
+          chatId: sql<ChatId>`${args.chatId}`.as("chat_id"),
+          seq: sql<number>`(select coalesce(max(${chatEvents.seq}), 0) + 1 from ${chatEvents} where ${chatEvents.chatId} = ${args.chatId})`.as("seq"),
+          type: sql<ChatBusEvent["type"]>`${args.event.type}`.as("type"),
+          payload: sql<ChatBusEvent>`${JSON.stringify(args.event)}`.as("payload"),
+          createdAt: sql<number>`${args.createdAt}`.as("created_at"),
+        })
+        .from(sql`(select 1)`)
+        .where(sql`changes() > 0`),
+    )
     .returning({ seq: chatEvents.seq });
 }
 

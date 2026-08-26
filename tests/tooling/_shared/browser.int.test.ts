@@ -5,10 +5,18 @@ import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { LocalStorageSeed } from "@orb/tooling/_shared/browser";
-import { launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
+import { closeProbeSession, launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { spawnNiced } from "@orb/tooling/_shared/proc";
+import { chromium } from "@playwright/test";
 import { afterAll } from "vitest";
-import { chromiumPidsOwnedBy } from "../../support/chromium-processes.ts";
+import type { ChromiumIdentity } from "../../support/chromium-processes.ts";
+import {
+  chromiumDescendantIdentities,
+  livingChromiumIdentities,
+  terminateChromiumIdentities,
+  watchChromiumDescendants,
+} from "../../support/chromium-processes.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 // 3-up: tests/tooling/_shared → repo root (re-derived at the P2 relocation — the depth-derived-root class).
@@ -32,6 +40,11 @@ function runSnap(args: readonly string[]): SnapRun {
     timeout: 30_000,
   });
   return { status: result.status, stdout: String(result.stdout), stderr: String(result.stderr) };
+}
+
+async function runSnapAsync(args: readonly string[]): Promise<SnapRun> {
+  const result = await spawnNiced(process.execPath, [SNAP_CLI, ...args], { cwd: ROOT, timeoutMs: 30_000 });
+  return { status: result.code, stdout: result.stdout, stderr: result.stderr };
 }
 
 function fixture(name: string, body: string): string {
@@ -89,8 +102,53 @@ test("a real Chromium process is disconnected after a driven body throws", async
   expect(session.browser.isConnected()).toBe(false);
 });
 
+test("the process census sees a live Chromium process before cleanup", async () => {
+  const session = await launchProbeSession({
+    headless: true,
+    viewport: { width: 320, height: 240 },
+    colorScheme: null,
+    reducedMotion: false,
+    localStorage: [],
+  });
+  try {
+    const live = chromiumDescendantIdentities(process.pid);
+    expect(live).not.toEqual([]);
+  } finally {
+    await closeProbeSession(session);
+  }
+});
+
+test("captured Chromium identities survive reparenting without becoming a false clean", async () => {
+  const profile = join(TEMP, "reparented-leak-profile");
+  const leakScript = `const { spawn } = require("node:child_process");
+const chromium = spawn(process.argv[1], ["--headless", "--no-sandbox", "--disable-gpu", "--user-data-dir=" + process.argv[2], "about:blank"], {
+  detached: true,
+  stdio: "ignore",
+});
+chromium.unref();
+setTimeout(() => process.exit(0), 500);`;
+  const witness = watchChromiumDescendants(process.pid);
+  let captured: readonly ChromiumIdentity[] = [];
+  try {
+    const result = await spawnNiced(process.execPath, ["-e", leakScript, chromium.executablePath(), profile], { cwd: TEMP, timeoutMs: 5000 });
+    expect(result.code, result.stderr).toBe(0);
+    captured = witness.stop();
+    const living = livingChromiumIdentities(captured);
+    const descendantKeys = new Set(chromiumDescendantIdentities(process.pid).map((identity) => `${identity.pid}:${identity.startTime}`));
+    const stillDescendants = living.filter((identity) => descendantKeys.has(`${identity.pid}:${identity.startTime}`));
+
+    expect(captured.length).toBeGreaterThan(0);
+    expect(living.length).toBeGreaterThan(0);
+    expect(stillDescendants).toEqual([]);
+  } finally {
+    terminateChromiumIdentities(captured);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(livingChromiumIdentities(captured)).toEqual([]);
+  }
+});
+
 test("a context-initialization failure leaves no owned Chromium process behind", async () => {
-  const before = chromiumPidsOwnedBy(ROOT);
+  const witness = watchChromiumDescendants(process.pid);
   const initFailure = new Error("planted init-script setup failure");
   const localStorage = new Proxy<LocalStorageSeed[]>([], {
     get(target, property, receiver) {
@@ -108,13 +166,15 @@ test("a context-initialization failure leaves no owned Chromium process behind",
     localStorage,
   }).catch((error: unknown) => error);
   expect(failure).toBe(initFailure);
-  const survivors = [...chromiumPidsOwnedBy(ROOT)].filter((pid) => !before.has(pid));
+  const observed = witness.stop();
+  expect(observed.length).toBeGreaterThan(0);
+  const survivors = livingChromiumIdentities(observed);
   expect(survivors).toEqual([]);
 });
 
-test("a snap capture failure leaves no owned Chromium process behind", () => {
-  const before = chromiumPidsOwnedBy(ROOT);
-  const result = runSnap([
+test("a snap capture failure leaves no owned Chromium process behind", async () => {
+  const witness = watchChromiumDescendants(process.pid);
+  const result = await runSnapAsync([
     "--file",
     fixture("capture-failure", "<main>capture failure</main>"),
     "--out",
@@ -122,12 +182,14 @@ test("a snap capture failure leaves no owned Chromium process behind", () => {
     "--no-failure-evidence",
   ]);
   expect(result.status).not.toBe(0);
-  const survivors = [...chromiumPidsOwnedBy(ROOT)].filter((pid) => !before.has(pid));
+  const observed = witness.stop();
+  expect(observed.length).toBeGreaterThan(0);
+  const survivors = livingChromiumIdentities(observed);
   expect(survivors).toEqual([]);
 });
 
-test("a scenario capture failure leaves no owned Chromium process behind", () => {
-  const before = chromiumPidsOwnedBy(ROOT);
+test("a scenario capture failure leaves no owned Chromium process behind", async () => {
+  const witness = watchChromiumDescendants(process.pid);
   const page = fixture("scenario-capture-failure", "<main>scenario capture failure</main>");
   const scenarioPath = join(TEMP, "scenario-capture-failure.json");
   writeFileSync(
@@ -137,9 +199,11 @@ test("a scenario capture failure leaves no owned Chromium process behind", () =>
       checkpoints: [{ name: "unwritable", args: ["--file", page, "--out", "/proc/orbweaver-planted-unwritable-scenario.png"] }],
     }),
   );
-  const result = runSnap(["--scenario", scenarioPath, "--no-failure-evidence"]);
+  const result = await runSnapAsync(["--scenario", scenarioPath, "--no-failure-evidence"]);
   expect(result.status).not.toBe(0);
-  const survivors = [...chromiumPidsOwnedBy(ROOT)].filter((pid) => !before.has(pid));
+  const observed = witness.stop();
+  expect(observed.length).toBeGreaterThan(0);
+  const survivors = livingChromiumIdentities(observed);
   expect(survivors).toEqual([]);
 });
 

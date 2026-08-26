@@ -33,7 +33,7 @@ import { batchMany } from "@orb/db/kit";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "./context.ts";
-import { appendChatEvent, appendChatEventStatement, insertChatEventStatement } from "./persistence/events.ts";
+import { appendChatEvent, appendChatEventAfterClaimStatement, insertChatEventStatement } from "./persistence/events.ts";
 import { loadChatRow } from "./persistence/queries.ts";
 import { createMemberDeltaStamper } from "./substrate/member-visibility.ts";
 
@@ -50,7 +50,10 @@ interface ChatEmitted {
  *  `DurableChatBusEvent`, not the whole union: the live-only lane (`LIVE_ONLY_CHAT_EVENT_TYPES`, contracts
  *  §3.4) has no `chat_events` form, so handing one to this emit is a COMPILE error rather than a row the db
  *  CHECK would reject at runtime. Its fan surface is `entry/compose/services::emitChatEventLive`. */
-type EmitChatEvent = (event: DurableChatBusEvent, coStatements?: readonly BatchStmt[]) => Promise<ChatEmitted | null>;
+type EmitChatEvent = (event: DurableChatBusEvent) => Promise<ChatEmitted | null>;
+
+/** `false` means another caller already consumed the claim: converged success, with nothing to publish. */
+type EmitChatEventAfterClaim = (event: DurableChatBusEvent, claimStatement: BatchStmt) => Promise<ChatEmitted | false | null>;
 
 interface ChatRingEntry {
   readonly seq: number;
@@ -59,6 +62,8 @@ interface ChatRingEntry {
 
 interface ChatBus {
   readonly emit: EmitChatEvent;
+  /** Claim state first, then append only if that exact statement changed a row, in one SQLite batch. */
+  readonly emitAfterClaim: EmitChatEventAfterClaim;
   /** Prepare the first event for a room-creation batch, then publish the already-committed row without a
    * second append. `chatCreated` is the only event whose sequence is known before its room exists. */
   readonly prepareCreation: (event: Extract<DurableChatBusEvent, { readonly type: "chatCreated" }>) => {
@@ -123,7 +128,7 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
     };
   };
 
-  const emit: EmitChatEvent = async (raw, coStatements = []) => {
+  const emit: EmitChatEvent = async (raw) => {
     const chatId = raw.chatId;
     // Stamped BEFORE the durable write and used for every downstream copy: the log row, the ring, and the
     // composition root's live fan must all carry the identical member projection.
@@ -133,17 +138,7 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
     let seq: number;
     try {
       const args = { id: deps.newEventId(), chatId, event, createdAt: deps.now() };
-      if (coStatements.length === 0) {
-        seq = await appendChatEvent(deps.db, args);
-      } else {
-        const append = appendChatEventStatement(deps.db, args);
-        const results = await deps.db.batch(batchMany([append, ...coStatements]));
-        const rows = results[0] as { seq: number }[];
-        seq = rows.at(0)?.seq ?? 0;
-        if (seq === 0) {
-          throw new Error(`chat ${chatId}: atomic event append returned no cursor`);
-        }
-      }
+      seq = await appendChatEvent(deps.db, args);
     } catch (err) {
       // FLAG[emit-is-total]: a failed durable write is classified + reported, never rethrown — the engine's
       // delta emits are fire-and-forget, so a rejection here kills the process.
@@ -154,10 +149,33 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
     return publishCommitted(seq, event);
   };
 
+  const emitAfterClaim: EmitChatEventAfterClaim = async (raw, claimStatement) => {
+    const chatId = raw.chatId;
+    const event = stamper.stamp(raw);
+    try {
+      const append = appendChatEventAfterClaimStatement(deps.db, {
+        id: deps.newEventId(),
+        chatId,
+        event,
+        createdAt: deps.now(),
+      });
+      const results = await deps.db.batch(batchMany([claimStatement, append]));
+      const rows = results[1] as { seq: number }[];
+      const seq = rows.at(0)?.seq;
+      if (seq === undefined) {
+        return false;
+      }
+      return publishCommitted(seq, event);
+    } catch (err) {
+      await reportDroppedAppend(deps.db, event, err);
+      return null;
+    }
+  };
+
   const readRing = (chatId: ChatId, afterSeq?: number): ChatRingEntry[] => {
     const ring = rings.get(chatId) ?? [];
     return afterSeq === undefined ? [...ring] : ring.filter((e) => e.seq > afterSeq);
   };
 
-  return { emit, prepareCreation, readRing };
+  return { emit, emitAfterClaim, prepareCreation, readRing };
 }
