@@ -1,13 +1,14 @@
 // Persistence: automation_fires insert + read (newest-first). The dispatch engine (A5) writes its terminals
 // through the same insertFire; A4 exercises the test_run + a couple of outcomes.
 
-import { automationFires } from "@orb/db";
+import { automationFires, automationRules } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { upsertBudget, upsertOwnerBudget } from "../../../../../packages/server/src/domain/automation/persistence/budgets.ts";
 import {
+  commitReservedFire,
   finalizeReservedFire,
   insertFire,
   listFiresForChat,
@@ -112,6 +113,17 @@ describe("automation_fires persistence", () => {
     const results = await Promise.all([reserveFireBudget(db, reservation(ruleId)), reserveFireBudget(db, reservation(ruleId))]);
     expect(results.filter(Boolean)).toHaveLength(1);
     expect(results.filter((result) => !result)).toHaveLength(1);
+  });
+
+  test("a missing success reservation cannot stamp the rule", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const chatId = await seedHostChat(db, owner);
+    const ruleId = await seedRule(db, owner, chatId);
+
+    await expect(commitReservedFire(db, mintTypeId("automation_fire"), ruleId, FIXED_NOW_MS)).rejects.toThrow("was not held during success finalization");
+    const [storedRule] = await db.select().from(automationRules).where(eq(automationRules.id, ruleId));
+    expect(storedRule?.lastFiredAt).toBeNull();
   });
 
   test("a held reservation occupies a chat ceiling across different rules", async () => {

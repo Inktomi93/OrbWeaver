@@ -12,7 +12,7 @@ import type { AwaitableBatchStmt } from "@orb/db/kit";
 import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { FireView } from "../contract/results.ts";
-import { stampRuleFiredStatement } from "./rules.ts";
+import { stampRuleFiredAfterReservationStatement } from "./rules.ts";
 
 const DEFAULT_FIRE_LIMIT = 50;
 
@@ -152,7 +152,7 @@ export async function finalizeReservedFire(
 
 /** A clean terminal atomically becomes visible as fired with the rule cooldown/error stamp beside it. */
 export async function commitReservedFire(db: Db, fireId: AutomationFireId, ruleId: AutomationRuleId, now: number): Promise<void> {
-  const [, finalized] = await db.batch([stampRuleFiredStatement(db, ruleId, now), finalizeReservedFireStatement(db, fireId, "fired", null)]);
+  const [finalized] = await db.batch([finalizeReservedFireStatement(db, fireId, "fired", null), stampRuleFiredAfterReservationStatement(db, ruleId, now)]);
   if (finalized.length !== 1) {
     throw new Error(`automation: fire reservation ${fireId} was not held during success finalization`);
   }

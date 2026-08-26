@@ -228,7 +228,7 @@ Final focused behavioral receipts:
 - automation dispatch/handle-event/fire-budget-rule persistence/fire views/schema/contracts: 9 files,
   83 tests passed.
 - additional atomic persistence rerun after converting rule/chat/owner cases to simultaneous reservation
-  attempts: 1 file, 5 tests passed.
+  attempts and planting the missing-reservation/no-stamp control: 1 file, 6 tests passed.
 
 Static receipts: `@orb/server`, `@orb/db`, and `@orb/kit` package TypeScript programs passed; a focused Biome
 check over all 14 touched TypeScript files passed. The lane deliberately did not run full verification,
