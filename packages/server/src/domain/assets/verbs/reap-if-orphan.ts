@@ -22,7 +22,7 @@ export function createReapIfOrphan(ctx: AssetsContext): AssetsService["reapIfOrp
       if (ref === undefined) {
         continue; // already gone (a concurrent reap / the cascade beat us) — nothing to do.
       }
-      await purgeAsset({
+      const purged = await purgeAsset({
         db: ctx.db,
         cas: ctx.cas,
         variants: ctx.variants,
@@ -30,7 +30,9 @@ export function createReapIfOrphan(ctx: AssetsContext): AssetsService["reapIfOrp
         ownerId: ref.ownerId,
         hash: ref.hash,
       });
-      reaped++;
+      if (purged) {
+        reaped++;
+      }
     }
     return { checked: assetIds.length, reaped };
   };

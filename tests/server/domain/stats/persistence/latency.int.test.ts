@@ -3,6 +3,7 @@
 
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import { sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { modelLatencyKey, readLatency, readModelLatencies } from "../../../../../packages/server/src/domain/stats/persistence/latency.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -89,6 +90,60 @@ describe("readLatency", () => {
 
     expect(latency.avgTtftMs).toBe(1000);
     expect(latency.avgGenMs).toBe(1000);
+  });
+
+  test("model scope applies its newest-100 bound inside the requested model/provider bucket", async () => {
+    const bucketDb = await freshDb();
+    const bucketOwner = await seedUser(bucketDb, "user_bucket", "user");
+    const bucketCharacter = await seedCharacter(bucketDb, bucketOwner, { id: "character_bucket" });
+    const bucketChat = await seedChat(bucketDb, bucketCharacter, { id: "chat_bucket" });
+    await seedMessage(bucketDb, {
+      chatId: bucketChat,
+      seq: 1,
+      role: "assistant",
+      characterId: bucketCharacter,
+      createdAt: T0 + 1,
+      variants: [{ content: "model-a", model: "model-a", provider: "provider-a", ttftMs: 111, genStartedAt: T0, genFinishedAt: T0 + 222 }],
+    });
+    for (let seq = 2; seq <= 101; seq += 1) {
+      await seedMessage(bucketDb, {
+        chatId: bucketChat,
+        seq,
+        role: "assistant",
+        characterId: bucketCharacter,
+        createdAt: T0 + seq,
+        variants: [{ content: "model-b", model: "model-b", provider: "provider-b", ttftMs: 999, genStartedAt: T0, genFinishedAt: T0 + 999 }],
+      });
+    }
+
+    const latency = await readLatency(bucketDb, bucketOwner, { kind: "model", model: "model-a", provider: "provider-a" });
+
+    expect(latency.avgTtftMs).toBe(111);
+    expect(latency.avgGenMs).toBe(222);
+  });
+
+  test("the model/provider latency plan starts from the owner's indexed character set", async () => {
+    const planDb = await freshDb();
+    const plan = await planDb.all<{ detail: string }>(
+      sql.raw(`
+      EXPLAIN QUERY PLAN
+      SELECT v.ttft_ms
+      FROM message_variants v
+      JOIN messages m ON m.selected_variant_id = v.id
+      JOIN characters c ON c.id = m.character_id
+      WHERE c.owner_id = 'user_plan'
+        AND m.role = 'assistant'
+        AND v.model = 'model-a'
+        AND v.provider = 'provider-a'
+      ORDER BY m.rowid DESC
+      LIMIT 100
+    `),
+    );
+    const details = plan.map((row) => row.detail).join("\n");
+
+    expect(details).toContain("characters_owner_idx");
+    expect(details).toContain("messages_character_idx");
+    expect(details).not.toContain("SCAN c");
   });
 });
 

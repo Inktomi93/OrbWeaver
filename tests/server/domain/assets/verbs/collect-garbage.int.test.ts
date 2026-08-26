@@ -23,7 +23,7 @@ import type { Cas } from "@orb/server/infra/storage";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import type { AssetsHarness } from "../_support.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedUser, setCharacterAvatar } from "../_support.ts";
@@ -31,6 +31,7 @@ import { makeHarness, pngBytes, principal, seedCharacter, seedUser, setCharacter
 const PNG = "image/png";
 const TWO_HOURS_MS = 2 * 3_600_000;
 const MS_PER_SECOND = 1000;
+const ASSET_DELETE = /^delete from "assets"/i;
 
 /** Insert this owner's `user_settings` row with the given `appearance` overrides merged onto defaults —
  *  the JSON blob the PD-131 live-source scan reads. `undefined` `assetId` leaves the pin cleared (kind
@@ -163,6 +164,26 @@ describe("collectGarbage", () => {
     await reached.promise;
     await setCharacterAvatar(db, character, stored.assetId);
     release.resolve();
+
+    const result = await collecting;
+
+    expect(result.reclaimed).toBe(0);
+    expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(1);
+    expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(true);
+  });
+
+  test("a reference committed while the guarded asset-row DELETE is held wins the destructive edge", async () => {
+    const { db, hold } = await freshHeldDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stored = await createAssetsService(h.ctx).store({ principal: principal(owner), bytes: pngBytes(32), kind: "background", mime: PNG });
+    await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
+    const deletion = hold(ASSET_DELETE);
+    const collecting = createAssetsService(h.ctx).collectGarbage({});
+    await deletion.reached;
+    await seedBackgroundPin(db, owner, stored.assetId, stored.hash);
+    deletion.release();
 
     const result = await collecting;
 
