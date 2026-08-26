@@ -663,6 +663,13 @@ function writeFixtures(): void {
     "packages/server/src/domain/__g_ownerupserts/persistence/__g_ownerupserts.ts",
     'import { characters } from "@orb/db";\nexport async function gPut(db: D, row: R) {\n  return db.insert(characters).values(row).onConflictDoUpdate({ target: characters.id, set: { name: row.name } });\n}\n',
   );
+  // untrusted-regex-safe-exec: the canonical composition property wired to native `.test`, not the
+  // node:vm watchdog factory. The gate deliberately ignores every other dynamic RegExp site.
+  fx("packages/server/src/entry/compose/__g_chat.ts", "export const gCtx = { testRegexKey: (regex: RegExp, value: string): boolean => regex.test(value) };\n");
+  // public-route-body-cap: a mutating non-tRPC route that parses the body with no cap middleware.
+  fx("packages/server/src/entry/http/__g_bodycap.ts", 'app.post("/api/__g", async (c) => c.json(await c.req.json()));\n');
+  // plugin-dump-guard: a guest membrane value materialized outside the one guard-before-dump helper.
+  fx("packages/server/src/infra/plugin-host/__g_membrane.ts", "export function gDump(ctx: Ctx, handle: Handle): unknown {\n  return ctx.dump(handle);\n}\n");
   // injected-op-caller-param: a domain contract op taking a branded entity id and returning a Promise, with
   // no caller/scope param and no CALLER_FREE_OPS row.
   fx(

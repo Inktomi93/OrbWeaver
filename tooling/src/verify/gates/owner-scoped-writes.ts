@@ -11,7 +11,7 @@ import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
-import { markedFunctions, markerKeyFor, predicatesOwnId, whereArgOf } from "../lib/tenancy-read.ts";
+import { markedFunctions, markerKeyFor, ownerScopedTableBinding, predicatesOwnId, whereArgOf } from "../lib/tenancy-read.ts";
 import { ownerScopedTableIdents } from "./table-scoping-class.ts";
 
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
@@ -72,11 +72,7 @@ function writeTargetIdent(node: Node): string | undefined {
   if (!(callee.isKind(SyntaxKind.PropertyAccessExpression) && WRITE_VERBS.has(callee.getName()))) {
     return;
   }
-  const arg = node.getArguments()[0];
-  if (arg === undefined || !arg.isKind(SyntaxKind.Identifier) || !ownerTableIdents.has(arg.getText())) {
-    return;
-  }
-  return arg.getText();
+  return ownerScopedTableBinding(node.getArguments()[0], ownerTableIdents);
 }
 
 export const gate: GateDescriptor = {
@@ -198,6 +194,15 @@ export const gate: GateDescriptor = {
       expect: { count: 1 },
       why: "a READ marker does not exempt a WRITE — the vocabularies are separate on purpose, so a promise about who may SEE a row can never silence who may DESTROY it",
     },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { characters as characterTable } from "@orb/db";\nexport async function renameCard(db: Db, id: string, name: string) {\n  return db.update(characterTable).set({ name }).where(eq(characterTable.id, id));\n}\n',
+      },
+      expect: { count: 1, token: "characterTable" },
+      why: "an import alias is still the same owner-scoped table — renaming the local binding cannot bypass the write family",
+    },
   ],
   mustPass: [
     {
@@ -247,6 +252,14 @@ export const gate: GateDescriptor = {
           'import { pluginKv } from "@orb/db";\nexport async function put(db: Db, row: Row) {\n  return db.insert(pluginKv).values(row).onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], set: { value: row.value } });\n}\n',
       },
       why: "DECLARED LIMIT, now SUPERSEDED rather than assumed: an UPSERT is an update in disguise, but its collision is decided by the conflict TARGET, not a WHERE — so it is judged by the sibling gate `owner-scoped-upserts` (which reds this exact shape unless the owner reaches the target/targetWhere/setWhere). This row stays as the two gates' SEAM: it is what stops this reader from silently widening onto a shape it cannot judge",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { characters as characterTable } from "@orb/db";\nexport async function renameOwned(db: Db, id: string, ownerId: string, name: string) {\n  return db.update(characterTable).set({ name }).where(and(eq(characterTable.id, id), eq(characterTable.ownerId, ownerId)));\n}\n',
+      },
+      why: "the alias resolver returns the local binding, so an owner predicate written through that alias remains a safe arm",
     },
   ],
 };

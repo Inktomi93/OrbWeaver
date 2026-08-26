@@ -165,6 +165,11 @@ describe("card-frame — the credential gates", () => {
     expect((await h.mint({ ...CARD, html: "x".repeat(64_001) })).status).toBe(400); // over the cap
     expect((await h.mint({ ...CARD, trustHtml: true })).status).toBe(400); // strictObject: no smuggled policy
   });
+
+  test("an oversized JSON body is rejected by the route cap before schema parsing", async () => {
+    const res = await harness().mint({ ...CARD, html: "x".repeat(64_000), padding: "x".repeat(64_000) });
+    expect(res.status).toBe(413);
+  });
 });
 
 describe("card-frame — the server owns the policy", () => {

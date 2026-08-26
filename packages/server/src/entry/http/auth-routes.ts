@@ -52,6 +52,7 @@ const TOO_MANY_REQUESTS = 429;
 const PAYLOAD_TOO_LARGE = 413;
 const LOGIN_BODY_KIB = 4;
 const BYTES_PER_KIB = 1024;
+const OIDC_BACKCHANNEL_BODY_KIB = 16;
 // Per-IP login throttle: caps brute-force + scrypt-CPU-flood on the only unauthenticated CPU-heavy endpoint
 // `local` mode opens (the tRPC rate-limit mount doesn't cover this plain Hono route). DB-backed
 // (transport/rate-limit) so the cap holds across replicas. The cap itself is `AppSettings.rateLimits.login`
@@ -78,6 +79,8 @@ const HANDLE_KEY_MAX_CHARS = 128;
 const UNKNOWN_IP_KEY = "unknown";
 // Credentials are tiny; cap the login body so a huge POST can't DoS this unauthenticated endpoint.
 const LOGIN_BODY_MAX_BYTES = LOGIN_BODY_KIB * BYTES_PER_KIB;
+// A compact JWT fits comfortably; the cap bounds unauthenticated form parsing before signature validation.
+const OIDC_BACKCHANNEL_BODY_MAX_BYTES = OIDC_BACKCHANNEL_BODY_KIB * BYTES_PER_KIB;
 const OIDC_LOGIN_ROUTE = "/api/auth/oidc/login";
 const OIDC_CALLBACK_ROUTE = "/api/auth/oidc/callback";
 const OIDC_BACKCHANNEL_LOGOUT_ROUTE = "/api/auth/oidc/backchannel-logout";
@@ -707,40 +710,44 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
  *  the subject. Returns 200 on success, 400 on any validation failure (per spec), always no-store.
  *  Idempotent — a re-delivered token re-revokes nothing (no Redis replay cache needed). */
 function registerBackchannelLogout(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps, bcl: NonNullable<OidcRoutesDeps["backchannelLogout"]>): void {
-  app.post(OIDC_BACKCHANNEL_LOGOUT_ROUTE, async (c) => {
-    c.header("Cache-Control", "no-store");
-    const body = await c.req.parseBody();
-    const logoutToken = typeof body[LOGOUT_TOKEN_FIELD] === "string" ? body[LOGOUT_TOKEN_FIELD] : "";
-    // Per OIDC BCL §2.7 a failed logout returns 400 with a JSON `error` (error_description is optional and
-    // omitted here — this is a server-to-server call, so a single machine code is enough and keeps the
-    // response body free of a snake_case wire field).
-    if (logoutToken.length === 0) {
-      return c.json({ error: "invalid_request" }, BAD_REQUEST);
-    }
-    const meta = (await oidc.getConfig()).serverMetadata();
-    const jwksUri = meta.jwks_uri;
-    if (typeof jwksUri !== "string" || jwksUri.length === 0) {
-      return c.json({ error: "server_error" }, BAD_REQUEST);
-    }
-    const subject = await bcl.verify({ logoutToken, jwks: jwksUri, issuer: meta.issuer, audience: bcl.clientId });
-    if (subject === null) {
-      // The verifier already emitted a securityEvent naming the exact violation.
-      return c.json({ error: "invalid_request" }, BAD_REQUEST);
-    }
-    if (subject.sub !== null) {
-      const { revoked, userIds } = await deps.sessions.revokeByExternalId(castId<ExternalId>(subject.sub));
-      // W7a — per USER here, not per session: the IdP has ended the HUMAN's login, and one subject can be
-      // bound to more than one row. Idempotent with the revoke itself — a re-delivered logout token names no
-      // users and evicts nothing.
-      for (const userId of userIds) {
-        deps.sockets.evictUser(userId);
+  app.post(
+    OIDC_BACKCHANNEL_LOGOUT_ROUTE,
+    bodyLimit({ maxSize: OIDC_BACKCHANNEL_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }),
+    async (c) => {
+      c.header("Cache-Control", "no-store");
+      const body = await c.req.parseBody();
+      const logoutToken = typeof body[LOGOUT_TOKEN_FIELD] === "string" ? body[LOGOUT_TOKEN_FIELD] : "";
+      // Per OIDC BCL §2.7 a failed logout returns 400 with a JSON `error` (error_description is optional and
+      // omitted here — this is a server-to-server call, so a single machine code is enough and keeps the
+      // response body free of a snake_case wire field).
+      if (logoutToken.length === 0) {
+        return c.json({ error: "invalid_request" }, BAD_REQUEST);
       }
-      securityEvent("oidc_backchannel_logout", { revoked }, "security: OIDC back-channel logout — revoked all sessions for the subject");
-    }
-    // sid-only (no sub): the token validated, but we key sessions on external_id==sub and store no per-session
-    // IdP sid, so there is nothing to action. Still a 200 (the token was well-formed and authentic).
-    return c.body(null, OK);
-  });
+      const meta = (await oidc.getConfig()).serverMetadata();
+      const jwksUri = meta.jwks_uri;
+      if (typeof jwksUri !== "string" || jwksUri.length === 0) {
+        return c.json({ error: "server_error" }, BAD_REQUEST);
+      }
+      const subject = await bcl.verify({ logoutToken, jwks: jwksUri, issuer: meta.issuer, audience: bcl.clientId });
+      if (subject === null) {
+        // The verifier already emitted a securityEvent naming the exact violation.
+        return c.json({ error: "invalid_request" }, BAD_REQUEST);
+      }
+      if (subject.sub !== null) {
+        const { revoked, userIds } = await deps.sessions.revokeByExternalId(castId<ExternalId>(subject.sub));
+        // W7a — per USER here, not per session: the IdP has ended the HUMAN's login, and one subject can be
+        // bound to more than one row. Idempotent with the revoke itself — a re-delivered logout token names no
+        // users and evicts nothing.
+        for (const userId of userIds) {
+          deps.sockets.evictUser(userId);
+        }
+        securityEvent("oidc_backchannel_logout", { revoked }, "security: OIDC back-channel logout — revoked all sessions for the subject");
+      }
+      // sid-only (no sub): the token validated, but we key sessions on external_id==sub and store no per-session
+      // IdP sid, so there is nothing to action. Still a 200 (the token was well-formed and authentic).
+      return c.body(null, OK);
+    },
+  );
 }
 
 /** A4 — parse the groups-claim VALUE. An array yields its string members (unchanged prior behavior); a
