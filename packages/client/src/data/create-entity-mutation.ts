@@ -2,8 +2,8 @@
 // useMutation + loose cache surgery (the `client-cache-surgery-only-in-data` gate makes that
 // physics: an imperative QueryClient call outside data/ is RED, so a cache need lands HERE). Bakes
 // the 4-phase cache-flavor optimistic recipe (cancelQueries → snapshot → setQueryData →
-// return-rollback; onError restores from the returned context only while that exact optimistic value still
-// owns the cache, so an older failure cannot overwrite a newer write), the `echo` post-write read seed (a verb whose RESPONSE is the authoritative row
+// return-rollback; a per-query mutation token, not cache object identity, owns rollback so structural
+// sharing cannot let an older failure overwrite a newer write), the `echo` post-write read seed (a verb whose RESPONSE is the authoritative row
 // for a read), a lightweight variables-render ghost-row mode free on every mutation, and one sticky
 // error slot per mutation with explicit clearError(). Callback property order is
 // onMutate → onError → onSuccess → onSettled (type-inference-sensitive).
@@ -11,8 +11,8 @@
 // THREE outcome classes, not two (EDITSNAP-OK): resolved-and-committed · threw (`errorToast`) · RESOLVED AND
 // REFUSED (`refusal`). The third is the one that goes silently wrong — see the `refusal` doc below.
 
-import type { DefaultError, MutateOptions, QueryKey, UseMutationOptions } from "@tanstack/react-query";
-import { useMutation } from "@tanstack/react-query";
+import type { DefaultError, MutateOptions, QueryClient, QueryKey, UseMutationOptions } from "@tanstack/react-query";
+import { hashKey, useMutation } from "@tanstack/react-query";
 import { notify } from "#lib";
 import type { InvalidateFilter, Invalidation } from "./invalidation.ts";
 import type { Trpc } from "./trpc.ts";
@@ -113,8 +113,40 @@ export interface EntityMutationResult<TVars, TData> {
 interface OptimisticContext<TRead> {
   readonly snapshot: TRead | undefined;
   readonly readKey: QueryKey | null;
-  /** Exact cache value this mutation installed. A later write changes ownership by changing this ref. */
-  readonly optimisticValue: TRead | undefined;
+  readonly owner: OptimisticOwner | null;
+}
+
+interface OptimisticOwner {
+  readonly queryHash: string;
+  readonly token: symbol;
+}
+
+const optimisticOwners = new WeakMap<QueryClient, Map<string, symbol>>();
+
+function claimOptimisticOwner(queryClient: QueryClient, readKey: QueryKey): OptimisticOwner {
+  let owners = optimisticOwners.get(queryClient);
+  if (owners === undefined) {
+    owners = new Map();
+    optimisticOwners.set(queryClient, owners);
+  }
+  const owner = { queryHash: hashKey(readKey), token: Symbol("optimistic-mutation") };
+  owners.set(owner.queryHash, owner.token);
+  return owner;
+}
+
+function ownsOptimisticRollback(queryClient: QueryClient, owner: OptimisticOwner): boolean {
+  return optimisticOwners.get(queryClient)?.get(owner.queryHash) === owner.token;
+}
+
+function releaseOptimisticOwner(queryClient: QueryClient, owner: OptimisticOwner): void {
+  const owners = optimisticOwners.get(queryClient);
+  if (owners?.get(owner.queryHash) !== owner.token) {
+    return;
+  }
+  owners.delete(owner.queryHash);
+  if (owners.size === 0) {
+    optimisticOwners.delete(queryClient);
+  }
 }
 
 /** Build the mutation hook once at module scope; features call the returned hook. Deps (trpc +
@@ -129,37 +161,45 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
       ...(config.errorToast === undefined ? {} : { meta: { errorToast: config.errorToast } }),
       onMutate: async (vars, context): Promise<OptimisticContext<TRead>> => {
         if (config.optimistic === undefined) {
-          return { snapshot: undefined, readKey: null, optimisticValue: undefined };
+          return { snapshot: undefined, readKey: null, owner: null };
         }
         const readKey = config.optimistic.readKey(trpc, vars);
         // Cancel in-flight refetches so they can't clobber the optimistic write.
         await context.client.cancelQueries({ queryKey: readKey });
         const snapshot = context.client.getQueryData<TRead>(readKey);
-        const optimisticValue = context.client.setQueryData<TRead>(readKey, (old) =>
-          config.optimistic === undefined ? old : config.optimistic.update(old, vars),
-        );
+        context.client.setQueryData<TRead>(readKey, (old) => (config.optimistic === undefined ? old : config.optimistic.update(old, vars)));
+        // Claim only after the updater succeeds: an updater rejection has no write to own and must not
+        // leave ownership metadata behind.
+        const owner = claimOptimisticOwner(context.client, readKey);
         // Return the snapshot rather than close over it — rollback reads it from onError's arg, so
         // concurrent mutations each roll back their own.
-        return { snapshot, readKey, optimisticValue };
+        return { snapshot, readKey, owner };
       },
       onError: (_error, _vars, onMutateResult, context) => {
-        if (onMutateResult === undefined || onMutateResult.readKey === null) {
+        if (onMutateResult === undefined || onMutateResult.readKey === null || onMutateResult.owner === null) {
           return;
         }
-        // A later optimistic write or success owns the cache now. An older rejection may report its own
-        // error, but it must not replace newer knowledge with the snapshot it started from.
-        if (context.client.getQueryData<TRead>(onMutateResult.readKey) !== onMutateResult.optimisticValue) {
+        // Object identity is not ownership: TanStack structural sharing can preserve an older reference
+        // for a newer deep-equal success. The per-query token records which mutation wrote last.
+        if (!ownsOptimisticRollback(context.client, onMutateResult.owner)) {
           return;
         }
-        // Cold cache (no snapshot): the optimistic write created the entry, and v5 treats
-        // setQueryData(key, undefined) as a no-op — remove it instead of leaving a phantom row.
-        if (onMutateResult.snapshot === undefined) {
-          context.client.removeQueries({ queryKey: onMutateResult.readKey });
-        } else {
-          context.client.setQueryData<TRead>(onMutateResult.readKey, onMutateResult.snapshot);
+        try {
+          // Cold cache (no snapshot): the optimistic write created the entry, and v5 treats
+          // setQueryData(key, undefined) as a no-op — remove it instead of leaving a phantom row.
+          if (onMutateResult.snapshot === undefined) {
+            context.client.removeQueries({ queryKey: onMutateResult.readKey });
+          } else {
+            context.client.setQueryData<TRead>(onMutateResult.readKey, onMutateResult.snapshot);
+          }
+        } finally {
+          releaseOptimisticOwner(context.client, onMutateResult.owner);
         }
       },
-      onSuccess: (data, vars, _onMutateResult, context) => {
+      onSuccess: (data, vars, onMutateResult, context) => {
+        if (onMutateResult.owner !== null) {
+          releaseOptimisticOwner(context.client, onMutateResult.owner);
+        }
         // The errors-as-data arm runs FIRST: a refusal resolved, so this is the only callback that will ever
         // see it, and a refused write must not seed a read as if it had committed.
         const refusal = config.refusal?.(data) ?? null;
