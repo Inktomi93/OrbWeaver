@@ -26,6 +26,7 @@
     "record": "node tooling/src/screen-record/cli.ts",
     "perf-meter": "node tooling/src/cpu-profile/cli.ts",
     "motion-audit": "node tooling/src/motion-audit/cli.ts",
+    "review:mirror": "node tooling/src/review-mirror/cli.ts",
     "sdk:behavior-probe": "node scripts/probes/sdk-behavior-probe.ts",
     "sdk:cache-probe": "node scripts/probes/sdk-cache-probe.ts",
     "sdk:dynamic-probe": "node scripts/probes/sdk-dynamic-content-probe.ts",

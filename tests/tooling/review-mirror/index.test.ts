@@ -1,0 +1,103 @@
+import { Project } from "ts-morph";
+import type { ReviewMirrorEvidence } from "../../../tooling/src/review-mirror/index.ts";
+import { censusPendingGuards, reviewEvidenceGaps, stripComments } from "../../../tooling/src/review-mirror/index.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
+
+const ROOT = "/review-fixture";
+
+function evidence(): ReviewMirrorEvidence {
+  return {
+    schemaVersion: 1,
+    generatedAt: "2026-08-25T00:00:00.000Z",
+    sourceCommit: "a".repeat(40),
+    mirror: {
+      target: "/tmp/mirror",
+      tracked: 10,
+      mirroredFiles: 8,
+      mirroredCode: 6,
+      mirroredBytes: 100,
+      stripped: 5,
+      copied: 3,
+      dropped: 2,
+      errors: [],
+      missingCode: [],
+    },
+    reviewFocus: [
+      { id: "e5", family: "E5", title: "x", path: "x.ts", symbol: "x", why: "x", line: 1 },
+      { id: "e6", family: "E6", title: "y", path: "y.ts", symbol: "y", why: "y", line: 1 },
+    ],
+    pendingGuard: {
+      scannedTsx: 1,
+      directControls: 1,
+      rows: [
+        {
+          path: "packages/client/src/x.tsx",
+          line: 1,
+          component: "X",
+          control: "Button",
+          handler: "<inline:1>",
+          mutations: ["mutate"],
+          disabled: null,
+          classification: "missing",
+        },
+      ],
+      totals: { "direct-pending": 0, "derived-pending": 0, epoch: 0, missing: 1, "other-guard": 0 },
+    },
+  };
+}
+
+test("TS stripping removes comments without corrupting regex, template or line positions", () => {
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: this literal is the parser fixture's template source.
+  const source = "const pattern = /https?:\\/\\//u; // prose\nconst value = `// ${pattern.source}`;\n/* block\ncomment */\nexport { value };\n";
+  const stripped = stripComments("sample.ts", source);
+  expect(stripped).toContain("/https?:\\/\\//u");
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: expected source bytes, not a test interpolation.
+  expect(stripped).toContain("`// ${pattern.source}`");
+  expect(stripped).not.toContain("prose");
+  expect(stripped).not.toContain("comment");
+  expect(stripped.split("\n")).toHaveLength(source.split("\n").length);
+});
+
+test("missing or empty generation evidence is an instrument error, never a clean zero", () => {
+  const valid = evidence();
+  expect(reviewEvidenceGaps(valid)).toEqual([]);
+  const empty: ReviewMirrorEvidence = {
+    ...valid,
+    mirror: { ...valid.mirror, tracked: 0, mirroredFiles: 0, mirroredCode: 0, mirroredBytes: 0, missingCode: ["x.ts"] },
+    pendingGuard: { ...valid.pendingGuard, scannedTsx: 0, directControls: 0, rows: [] },
+  };
+  expect(reviewEvidenceGaps(empty)).toEqual(
+    expect.arrayContaining([
+      "git tracked-file census is empty",
+      "mirror generation produced empty file/code/byte evidence",
+      "mirror is missing 1 tracked code file(s)",
+      "E7 Button/Switch pending-guard census is empty",
+    ]),
+  );
+});
+
+test("the E7 census distinguishes direct, derived, epoch and genuinely missing guards", () => {
+  const project = new Project({ skipAddingFilesFromTsConfig: true });
+  project.createSourceFile(
+    `${ROOT}/packages/client/src/example.tsx`,
+    `export function Example() {
+      const save = () => mutation.mutate();
+      const busy = mutation.isPending || other;
+      const epochSave = () => { if (requestEpoch !== currentEpoch) return; mutation.mutate(); };
+      const nestedOnly = () => { queueMicrotask(() => mutation.mutate()); };
+      return <>
+        <Button onClick={() => mutation.mutate()} />
+        <Button onClick={save} disabled={busy} />
+        <Switch onCheckedChange={() => mutation.mutateAsync()} disabled={mutation.isPending} />
+        <Button onClick={epochSave} />
+        <Button onClick={nestedOnly} />
+      </>;
+    }
+    `,
+  );
+  const census = censusPendingGuards(project, ROOT);
+  expect(census.scannedTsx).toBe(1);
+  expect(census.directControls).toBe(4);
+  expect(census.totals).toEqual({ "direct-pending": 1, "derived-pending": 1, epoch: 1, missing: 1, "other-guard": 0 });
+  expect(census.rows.map((row) => row.line)).toEqual([7, 8, 9, 10]);
+});
