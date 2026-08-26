@@ -306,7 +306,16 @@ function BulkBarInner(): ReactElement {
       <button type="button" onClick={(): void => setSelectedIds(["char_d"])}>
         Select newer character
       </button>
-      <CharacterBulkBar ids={selectedIds} onClear={(): void => setSelectedIds([])} selectedCount={selectedIds.length} trpc={trpc} />
+      <button type="button" onClick={(): void => setSelectedIds(["char_a", "char_d"])}>
+        Select overlapping newer characters
+      </button>
+      <CharacterBulkBar
+        ids={selectedIds}
+        onClear={(): void => setSelectedIds([])}
+        onRemoveSubmitted={(submitted): void => setSelectedIds((current) => current.filter((id) => !submitted.includes(id)))}
+        selectedCount={selectedIds.length}
+        trpc={trpc}
+      />
     </>
   );
 }

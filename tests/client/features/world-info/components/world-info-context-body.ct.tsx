@@ -15,6 +15,7 @@ import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trp
 import { WorldInfoContextStory } from "../_ct-stories.tsx";
 
 const BOOK_ID = "world_book_reorder001";
+const ASTRID_ID = "character_aaaaaaaaaaaaaaaaaaaaaaaaaa";
 const RETRY_RE = /Retry/u;
 const NO_PERSONAS_RE = /No personas yet/u;
 const BOOK_ROW = {
@@ -41,7 +42,7 @@ const PERSONA = {
 /** A library whose second card is only ever reachable THROUGH the search param — the stub answers the term
  *  the way the verb does (a server-side predicate), never a client-side filter of one page. */
 const LIBRARY = [
-  { id: "character_aaaaaaaaaaaaaaaaaaaaaaaaaa", name: "Astrid", avatarHash: null },
+  { id: ASTRID_ID, name: "Astrid", avatarHash: null },
   { id: "character_bbbbbbbbbbbbbbbbbbbbbbbbbb", name: "Bramble", avatarHash: null },
 ];
 function searchedLibrary(input: unknown): { items: typeof LIBRARY; nextCursor: null } {
@@ -141,17 +142,41 @@ test("attachment controls lock on the one shared reverse read and expose an expl
   await held.requested;
   await expect(context.getByRole("status")).toContainText("Loading attachment status");
   const toggle = context.getByRole("switch", { name: "Attach to Astrid" });
-  await expect(toggle).toBeDisabled();
+  await expect(toggle).toHaveCount(0);
   held.release(trpcError());
 
   await expect(context.getByRole("alert")).toContainText("Couldn't load attachment status.");
   const retry = context.getByRole("button", { name: "Retry attachment status" });
   await expect(retry).toBeVisible();
   await expect(context.getByRole("button", { name: RETRY_RE })).toHaveCount(1);
-  await expect(toggle).toBeDisabled();
+  await expect(toggle).toHaveCount(0);
   // The held marker replays its settled failure on retry; this still proves the explicit retry door fires.
   await retry.click();
   await expect.poll(() => trpc.count("worldInfo.listAttachmentsForBook")).toBe(2);
+});
+
+test("attachment rows withhold checked semantics until the shared read settles, then render the resolved state", async ({ mount, page }) => {
+  const held = trpcHold();
+  await routeTrpc(page, {
+    "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
+    "worldInfo.listGlobal": () => [],
+    "worldInfo.listAttachmentsForBook": () => held,
+    "persona.list": () => [PERSONA],
+    "character.list": searchedLibrary,
+  });
+  const context = await mount(<WorldInfoContextStory />);
+  await context.getByRole("button", { name: "Attach to a character" }).click();
+  await held.requested;
+
+  await expect(context.getByRole("switch", { name: "Attach to Astrid" })).toHaveCount(0);
+  await expect(context.getByRole("switch", { name: "Attach to Bramble" })).toHaveCount(0);
+  await expect(context.getByRole("combobox", { name: "Role for Astrid" })).toHaveCount(0);
+
+  held.release({ characters: [{ characterId: ASTRID_ID, role: "primary" }], personaIds: [PERSONA.id] });
+  await expect(context.getByRole("switch", { name: "Attach to Astrid" })).toBeChecked();
+  await expect(context.getByRole("switch", { name: "Attach to Bramble" })).not.toBeChecked();
+  await expect(context.getByRole("combobox", { name: "Role for Astrid" })).toContainText("primary");
+  await expect(context.getByRole("switch", { name: "Attach to Nova" })).toBeChecked();
 });
 
 test("the personas section does not claim zero or empty while its target roster is pending", async ({ mount, page }) => {
