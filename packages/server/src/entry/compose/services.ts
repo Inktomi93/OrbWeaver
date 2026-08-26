@@ -108,7 +108,7 @@ import type { ImportWorldInfoPort } from "../import/index.ts";
 import { buildAdmin } from "./admin.ts";
 import { buildAssetsCharacter } from "./assets-character.ts";
 import { buildAutomationPlugin } from "./automation-plugin.ts";
-import type { ChatComposeResult } from "./chat.ts";
+import type { ChatComposeInput, ChatComposeResult } from "./chat.ts";
 import { buildChatService } from "./chat.ts";
 import { buildDatabank } from "./databank.ts";
 import { createDemoChatGameDoor } from "./demo-chat-game.ts";
@@ -470,7 +470,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // assembly, a genuine cycle) and threaded into persona's write, expressions' classify emit, and
   // buildChatService.
   const chatBus = createChatBus({ db, now, newEventId: minter(ID_PREFIX.chatEvent) });
-  const emitChatEvent = async (event: DurableChatBusEvent): Promise<void> => {
+  const emitChatEventChecked = async (event: DurableChatBusEvent): Promise<boolean> => {
     const logged = await chatBus.emit(event);
     // `null` ⇒ the durable append was dropped + reported (bus.ts FLAG[emit-is-total], e.g. the chat was
     // deleted mid-turn). Durable-first means an un-logged event is never fanned — it has no replay cursor.
@@ -478,7 +478,19 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // and the live path must deliver byte-for-byte what the durable replay will.
     if (logged !== null) {
       publishChatEvent(logged);
+      return true;
     }
+    return false;
+  };
+  const emitChatEvent = async (event: DurableChatBusEvent): Promise<void> => {
+    await emitChatEventChecked(event);
+  };
+  const prepareChatCreationEvent: ChatComposeInput["prepareChatCreationEvent"] = (event) => {
+    const prepared = chatBus.prepareCreation(event);
+    return {
+      statement: prepared.statement,
+      publishCommitted: (): void => publishChatEvent(prepared.publishCommitted()),
+    };
   };
   // THE LIVE-ONLY FAN (entity→room member-freshness bridge, design §3.4) — the durable-append-free twin of
   // `emitChatEvent`. No `chat_events` INSERT, no ring entry, no seq: the member carries no canon, so there is
@@ -663,7 +675,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     return rpgOpsHolder;
   };
   const rpgOpsDelegate: NonNullable<ChatContext["rpg"]> = {
-    startGame: (chatId, params) => rpgOps().startGame(chatId, params),
+    planGameBirth: (chatId, params) => rpgOps().planGameBirth(chatId, params),
+    gameBirthCommitted: (chatId) => rpgOps().gameBirthCommitted(chatId),
     resolvePresetOverride: (chatId) => rpgOps().resolvePresetOverride(chatId),
     resolveUserMacros: (chatId) => rpgOps().resolveUserMacros(chatId),
     gatherTurnContext: (args) => rpgOps().gatherTurnContext(args),
@@ -690,6 +703,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     recallRecorder,
     emitChatEvent,
+    emitChatEventChecked,
+    prepareChatCreationEvent,
     emitChatEventLive,
     holder: deps.holder ?? "replica-default",
     sessionSecret: deps.sessionSecret,

@@ -87,7 +87,7 @@ import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { createCopyHandoffBooks } from "#domain/world-info";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
-import { recordMemoryLog } from "#foundation/observability";
+import { buildAuditStatement, recordMemoryLog } from "#foundation/observability";
 import type { AgentSeedTurn, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, RoleClientsWithSignal, WarningCode } from "#infra/providers";
 import { AGENT_PROMPT_TAIL_JOINER, createAgentToolServer } from "#infra/providers";
 import { createRegexApplyReplace, createRegexTest } from "#kit/regex";
@@ -266,6 +266,10 @@ export interface ChatComposeInput {
   /** The one chat bus's durable-first emit, built at the composition root and injected so chat doesn't
    *  construct a second bus. The same wrapper backs persona's active-persona write. */
   readonly emitChatEvent: (event: DurableChatBusEvent) => Promise<void>;
+  /** The same emit with the durable append verdict retained for resumable host-handoff completion. */
+  readonly emitChatEventChecked: ChatServiceDeps["emitChecked"];
+  /** The chat bus's prepared birth-event seam: statement joins room creation; callback fans after commit. */
+  readonly prepareChatCreationEvent: ChatServiceDeps["prepareCreationEvent"];
   /** The same bus's LIVE-ONLY fan (no `chat_events` append). Chat's one consumer is `chatDeleted`, whose
    *  durable row cascades away with the chat it announces — see the lifecycle verbs' DELETE-FIRST header. */
   readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
@@ -846,6 +850,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     newChatTurnId: minter(ID_PREFIX.chatTurn),
     hashToken: createTokenHasher(input.sessionSecret),
     audit: input.audit,
+    auditStatement: (entry, at) => buildAuditStatement(db, entry, at),
     // Fans chatsChanged to every present human member's channel; the engine passes a bare chatId
     // (principal-blind) — this composition-root helper enumerates membership.
     emitChatChanged: createChatChangedEmitter(db),
@@ -1253,6 +1258,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
   const chatDeps: ChatServiceDeps = {
     emit: emitChatEvent,
+    emitChecked: input.emitChatEventChecked,
+    prepareCreationEvent: input.prepareChatCreationEvent,
     emitLive: input.emitChatEventLive,
     activeTurns: createActiveTurns(),
     prng: () => Math.random(),

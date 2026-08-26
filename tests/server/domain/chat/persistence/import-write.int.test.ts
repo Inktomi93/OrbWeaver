@@ -6,7 +6,7 @@
 
 import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
+import { chatImportClaims, chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type {
   AssetId,
@@ -137,6 +137,41 @@ function chatInput(importedFrom: string, over: Partial<BulkImportChatInput> = {}
 }
 
 describe("createBulkImportChats", () => {
+  test("concurrent identical imports converge on one character-scoped room", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    let arrivals = 0;
+    let release: (() => void) | undefined;
+    const together = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const heldContext: ChatImportContext = {
+      ...importCtx(db, owner.id),
+      filterExistingAssetIds: async () => {
+        arrivals += 1;
+        if (arrivals === 2) {
+          release?.();
+        }
+        await together;
+        return [];
+      },
+    };
+    const file = chatInput("Aria.jsonl");
+
+    const outcomes = await Promise.all([
+      createBulkImportChats(heldContext)({ ownerId: owner.id, characterId: character.id, chats: [file] }),
+      createBulkImportChats(heldContext)({ ownerId: owner.id, characterId: character.id, chats: [file] }),
+    ]);
+
+    expect(outcomes.map((result) => [result.chatsImported, result.chatsSkipped]).sort()).toEqual([
+      [0, 1],
+      [1, 0],
+    ]);
+    expect(await db.select().from(chats)).toHaveLength(1);
+    expect(await db.select().from(chatImportClaims)).toHaveLength(1);
+  });
+
   test("writes chats→messages→variants + founding roster; the carried prose plane lands as injections", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});

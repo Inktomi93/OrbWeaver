@@ -16,7 +16,7 @@ import { createGenerateImage } from "../../../../../packages/server/src/domain/c
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, noClaim, seedChat, seedParticipant, seedUser } from "../_support.ts";
+import { makeChatContext, noClaim, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -36,6 +36,63 @@ function principal(userId: UserId): Principal {
 }
 
 describe("generateImage", () => {
+  test("an unrelated unique failure stays loud instead of spinning the append retry", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "unique");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    const existing = await seedMessage(db, chatId, 1, { role: "user", authorUserId: host });
+    let providerCalls = 0;
+    const ctx = makeChatContext(db, {
+      newMessageId: () => existing.messageId,
+      generatePicture: () => {
+        providerCalls += 1;
+        return Promise.resolve({ images: [{ assetId: castId<AssetId>("asset_one") }], warnings: [] });
+      },
+    });
+    const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
+
+    await expect(generateImage({ principal: principal(host), chatId, mode: "free" })).rejects.toThrow();
+    expect(providerCalls).toBe(1);
+    expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(1);
+  });
+
+  test("concurrent completed generations both append canon without re-running either provider call", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+
+    let arrivals = 0;
+    let release: (() => void) | undefined;
+    const together = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const calls: string[] = [];
+    const ctx = makeChatContext(db, {
+      generatePicture: async (p) => {
+        calls.push(p.prompt ?? "");
+        arrivals += 1;
+        if (arrivals === 2) {
+          release?.();
+        }
+        await together;
+        return {
+          images: [{ assetId: castId<AssetId>(`asset_${p.prompt ?? "none"}`) }],
+          warnings: [],
+        };
+      },
+    });
+    const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
+
+    const views = await Promise.all([
+      generateImage({ principal: principal(host), chatId, mode: "free", prompt: "one" }),
+      generateImage({ principal: principal(host), chatId, mode: "free", prompt: "two" }),
+    ]);
+
+    expect(calls.toSorted((a, b) => a.localeCompare(b))).toEqual(["one", "two"]);
+    expect(new Set(views.map((view) => view.seq))).toEqual(new Set([1, 2]));
+    expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(2);
+  });
+
   test("commits ONE caller-authored message carrying n asset refs + emits messageCommitted", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");

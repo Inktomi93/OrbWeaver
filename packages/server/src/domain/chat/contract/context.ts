@@ -49,6 +49,7 @@ import type {
   PendingTurnId,
   PersonaId,
   PresetId,
+  RpgGameId,
   UserId,
 } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -643,13 +644,12 @@ export interface RpgTurnContext {
 }
 
 export interface ChatRpgOps {
-  /** The #40 DRAFT-TIME game birth: `startChat` carried a `startAsGame` intent, so rpg mints the lite game
-   *  for the just-created chat RIGHT AFTER the creation batch commits and BEFORE the opening turn runs —
-   *  turn 1 is already in-game (the gather sees the row). The startChat CALLER is the just-minted host, so
-   *  no second authority resolve rides this op (the chat verb is the gate); idempotent (an existing game is
-   *  a no-op). `profile` is rpg's own contract shape (the `ChatRpgPointer` foreign-schema precedent — chat
-   *  threads it BLIND from the wire to this op, never reading inside it). */
-  readonly startGame: (chatId: ChatId, params: { readonly profile?: RpgStatProfile | undefined }) => Promise<void>;
+  /** The #40 DRAFT-TIME game birth plan. RPG constructs its own table statements and minted id; chat folds
+   *  them into the room's creation batch and stores only the opaque pointer. No domain constructs the
+   *  other's rows, while room/game/pointer are one durable commit. */
+  readonly planGameBirth: (chatId: ChatId, params: { readonly profile?: RpgStatProfile | undefined }) => ChatRpgGameBirthPlan;
+  /** Post-commit in-process notification for a successfully committed birth plan. */
+  readonly gameBirthCommitted: (chatId: ChatId) => void;
   /** The GM-voice preset redirect: the game's `gmPresetId` (or `null` = not a game / no override), resolved
    *  before preset resolution so the turn assembles THAT preset instead of the host default. */
   readonly resolvePresetOverride: (chatId: ChatId) => Promise<PresetId | null>;
@@ -772,6 +772,12 @@ export interface ChatRpgOps {
    *  transferred with its tracker rows still on the old keys, and a re-run converges (an already-moved actor
    *  refuses per-actor and changes nothing). Never throws into the accept. `[]`/a non-game chat writes nothing. */
   readonly handoffRekeyActors: (chatId: ChatId, cardCopies: readonly HandoffCardCopy[]) => Promise<void>;
+}
+
+/** RPG's unexecuted contribution to a chat-owned atomic birth batch. */
+export interface ChatRpgGameBirthPlan {
+  readonly gameId: RpgGameId;
+  readonly statements: readonly BatchStmt[];
 }
 
 /** One source→copy card pairing an accepted handoff offer minted: `sourceCharacterId` is the DEPARTING host's
@@ -1113,6 +1119,8 @@ export interface ChatContext {
   /** Hashes an invite token before persistence — never stored raw. */
   readonly hashToken: (token: string) => string;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  /** Unexecuted audit insert for the host-handoff swap's all-or-nothing forensic record. */
+  readonly auditStatement: (entry: AuditEntry, at: number) => BatchStmt;
   /** The chat-list recency fan — message-commit terminal path and chat-list-level ops (start/fork/rename/
    *  star/archive/delete/kick) fan `chatsChanged` after the durable write. Distinct from the per-chat `emit`,
    *  which only reaches subscribers of the open chat. */
@@ -1251,6 +1259,15 @@ export type ResolveTurnPolicyOp = (runAsUserId: UserId) => Promise<{ readonly bu
 export interface ChatServiceDeps {
   /** The chat bus emit (durable-first). */
   readonly emit: (event: DurableChatBusEvent) => Promise<void>;
+  /** The same durable-first emit with its append verdict preserved. Roster handoff alone needs the verdict:
+   * its marker cannot clear when the total bus classified and dropped an append. */
+  readonly emitChecked: (event: DurableChatBusEvent) => Promise<boolean>;
+  /** Prepare the new room's first durable event for the creation batch, then fan that already-committed row
+   * without a second append. Restricted to chatCreated because only birth proves seq=1 by construction. */
+  readonly prepareCreationEvent: (event: Extract<DurableChatBusEvent, { readonly type: "chatCreated" }>) => {
+    readonly statement: BatchStmt;
+    readonly publishCommitted: () => void;
+  };
   /** The LIVE-ONLY fan — no `chat_events` append, no seq, nothing to replay. The ONLY door `chatDeleted`
    *  takes: its durable row would cascade away with the very chat it announces, and being append-free is
    *  what lets the removing verbs DELETE FIRST and fan only what `RETURNING` proves gone (R1-4a). */
