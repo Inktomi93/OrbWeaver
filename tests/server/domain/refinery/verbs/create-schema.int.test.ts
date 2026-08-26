@@ -2,8 +2,9 @@
 // anything persists, and the S5 per-owner CASE-INSENSITIVE name hygiene.
 
 import type { RefinerySchemaStage } from "@orb/contracts/refinery";
+import { DomainOperationError } from "@orb/kit/errors";
 import { ZodError } from "zod";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedUser, validScoreSchema } from "../_support.ts";
 
@@ -13,6 +14,7 @@ const HINT_REFUSAL = /x-orb-ui/u;
 const SCORE_CORE_REFUSAL = /overallScore/u;
 const VERDICT_CORE_REFUSAL = /verdict/u;
 const NAME_TAKEN_REFUSAL = /already have a schema/u;
+const REFINERY_SCHEMA_INSERT = /insert into "refinery_schemas"/iu;
 
 test("create runs the whole belt and returns the library row at version 1", async () => {
   const db = await freshDb();
@@ -86,4 +88,28 @@ test("S5 hygiene: per-owner name uniqueness is CASE-INSENSITIVE; another owner m
   await expect(
     h.svc.createSchema({ principal: principal(other), name: "myscorer", description: "", stage: "score", schema: validScoreSchema() }),
   ).resolves.toBeDefined();
+});
+
+test("two held creates of one folded name admit one row and type the loser", async () => {
+  const { db, hold } = await freshHeldDb();
+  const owner = await seedUser(db, { id: "user_csch_race" });
+  const h = makeRefineryHarness(db);
+  const inserts = hold(REFINERY_SCHEMA_INSERT, 2);
+  const creates = [
+    h.svc.createSchema({ principal: principal(owner), name: "RaceSchema", description: "a", stage: "score", schema: validScoreSchema() }),
+    h.svc.createSchema({ principal: principal(owner), name: "raceschema", description: "b", stage: "score", schema: validScoreSchema() }),
+  ];
+
+  await inserts.reached;
+  inserts.release();
+  const settled = await Promise.allSettled(creates);
+
+  expect(settled.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+  const rejected = settled.find((result) => result.status === "rejected");
+  expect(rejected?.reason).toBeInstanceOf(DomainOperationError);
+  if (!(rejected?.reason instanceof DomainOperationError)) {
+    throw new Error("expected the concurrent schema-name loser to be typed");
+  }
+  expect(rejected.reason.code).toBe("refinery_schema_name_taken");
+  expect(await h.svc.listSchemas({ principal: principal(owner) })).toHaveLength(1);
 });
