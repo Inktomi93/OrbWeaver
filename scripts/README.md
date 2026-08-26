@@ -85,6 +85,11 @@ and re-included by that dir's own `.gitignore` negation.
 
 ## Tool dependencies that LEFT this zone
 
+`review-mirror.mjs` moved to `tooling/src/review-mirror/` on 2026-08-25 (#712). The recurring
+adversarial milestone sweep is a durable instrument, not a throwaway lens: `pnpm review:mirror` now
+generates the comment-stripped tracked-code mirror plus fail-closed E5/E6/E7 review evidence. D62 keeps
+it manual; no standing workflow or cron exists.
+
 `dev/multi-user-fixture.sh` and `dev/vllm-setup.sh` moved to `tooling/src/stack/` on 2026-08-22
 (#421). Neither was research: `engines.sh` CALLS `vllm-setup.sh` (first-run venv bootstrap, and the
 gpu image copies it), and `multi-user-fixture.sh` is contract-referenced by the stack tool, the seed
