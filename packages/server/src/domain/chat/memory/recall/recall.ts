@@ -215,8 +215,9 @@ function finish(
   return { text: env.text, trace: slice };
 }
 
-/** Apply the witnessing + recall-window guards to the pool, uniformly before any mode dispatch. A missing
- *  segment span fails OPEN (kept) — never hide a real digest because a segment is absent. Records the
+/** Apply the witnessing + recall-window guards to the pool, uniformly before any mode dispatch. Missing span
+ *  evidence stays recoverable when no witnessing horizon applies, but fails CLOSED when a horizon must prove
+ *  visibility — an absent covered endpoint cannot authorize a digest across that boundary. Records the
  *  eliminating stage on `verdicts` for every block it drops. */
 async function filterPool(
   ctx: ChatContext,
@@ -246,7 +247,7 @@ async function filterPool(
     const first = spans.get(d.blockIdx * blockSpan);
     const last = spans.get((d.blockIdx + 1) * blockSpan - 1);
     if (first === undefined || last === undefined) {
-      return true; // fail-open — a missing segment span must not erase a real digest
+      return env.horizons === undefined ? true : drop(d, "unwitnessed");
     }
     if (env.horizons !== undefined && !spanWitnessed(first.seqStart, last.seqEnd, env.horizons)) {
       return drop(d, "unwitnessed");
