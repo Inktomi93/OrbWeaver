@@ -142,7 +142,7 @@ services:
   vllm:
     profiles: [sibling]
     # The upstream OpenAI-compatible server, pinned to the SAME vLLM line the repo's venv proves
-    # (0.22.x). Serve command tuned at first live run (Qwen3-VL flags) — marked in docker/README.md.
+    # (0.22.1). Serve command tuned at first live run (Qwen3-VL flags) — marked in docker/README.md.
     image: vllm/vllm-openai:v0.22.1@sha256:953d3a06d5e64ab582985cd7401289d3abf2a2c14ef2158e9a84313daeec77d7
     init: true
     restart: unless-stopped
