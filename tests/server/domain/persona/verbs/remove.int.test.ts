@@ -10,10 +10,12 @@ import { createPersonaService, LastPersonaError, PersonaNotFoundError } from "@o
 import { createDeleteReachCapture } from "@orb/server/entry/compose";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts";
+
+const PERSONA_DELETE = /delete from "personas"/iu;
 
 describe("remove", () => {
   test("deletes an owned persona and CASCADEs its character_personas links (audited)", async () => {
@@ -103,6 +105,27 @@ describe("remove", () => {
     await expect(svc.remove({ principal: principal(owner), personaId: only.id })).resolves.toEqual({
       deleted: true,
     });
+  });
+
+  test("two removals of the final pair leave one persona and type the loser as last_persona", async () => {
+    const { db, hold } = await freshHeldDb();
+    const h = makeHarness(db);
+    const svc = createPersonaService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const a = await svc.create({ principal: principal(owner), input: { name: "A", description: "a" } });
+    const b = await svc.create({ principal: principal(owner), input: { name: "B", description: "b" } });
+    const deletes = hold(PERSONA_DELETE, 2);
+
+    const removals = [svc.remove({ principal: principal(owner), personaId: a.id }), svc.remove({ principal: principal(owner), personaId: b.id })];
+    await deletes.reached;
+    deletes.release();
+    const settled = await Promise.allSettled(removals);
+
+    expect(settled.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const rejected = settled.find((result) => result.status === "rejected");
+    expect(rejected?.reason).toBeInstanceOf(LastPersonaError);
+    expect(await db.select({ id: personas.id }).from(personas).where(eq(personas.ownerId, owner))).toHaveLength(1);
+    expect(h.repointCalls).toHaveLength(1);
   });
 
   // The entity→room bridge's DELETE residual (design §3.6): deleting a SEATED persona NULLs the seat, so a

@@ -6,7 +6,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
-import { and, asc, desc, eq, isNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, notExists, or, sql } from "drizzle-orm";
 import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
 
 type PresetRow = typeof presets.$inferSelect;
@@ -27,6 +27,11 @@ interface PresetInsert {
   updatedAt: number;
 }
 
+interface ConvergedPresetInsert extends PresetInsert {
+  ownerId: UserId;
+  forkedFrom: PresetId;
+}
+
 /** A partial patch over an owned row — only the present keys are written; `updatedAt` is always bumped. */
 interface PresetPatch {
   name?: string;
@@ -38,6 +43,38 @@ interface PresetPatch {
 
 export async function insertPreset(db: Db, row: PresetInsert): Promise<void> {
   await db.insert(presets).values(row);
+}
+
+/** Admit the first converged fork for an owner/source pair. The pair stays non-unique in the schema because
+ *  explicit new forks are legal; this statement narrows uniqueness to the converge verb's admission path. */
+export async function insertConvergedPresetForkIfAbsent(db: Db, row: ConvergedPresetInsert): Promise<PresetRow | undefined> {
+  const inserted = await db
+    .insert(presets)
+    .select(
+      db
+        .select({
+          id: sql<PresetId>`${row.id}`.as("id"),
+          ownerId: sql<UserId | null>`${row.ownerId}`.as("owner_id"),
+          name: sql<string>`${row.name}`.as("name"),
+          kind: sql<string>`${row.kind}`.as("kind"),
+          config: sql<PromptConfig>`${JSON.stringify(row.config)}`.as("config"),
+          schemaVersion: sql<number>`${row.schemaVersion}`.as("schema_version"),
+          forkedFrom: sql<PresetId | null>`${row.forkedFrom}`.as("forked_from"),
+          createdAt: sql<number>`${row.createdAt}`.as("created_at"),
+          updatedAt: sql<number>`${row.updatedAt}`.as("updated_at"),
+        })
+        .from(sql`(select 1)`)
+        .where(
+          notExists(
+            db
+              .select({ id: presets.id })
+              .from(presets)
+              .where(and(eq(presets.ownerId, row.ownerId), eq(presets.forkedFrom, row.forkedFrom))),
+          ),
+        ),
+    )
+    .returning();
+  return inserted.at(0);
 }
 
 /** Read one preset readable by this owner: their own row OR the shared system default. The shared arm keys on

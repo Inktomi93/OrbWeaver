@@ -1,10 +1,14 @@
 // verb: pruneUnusedTags — deletes only zero-usage tags; returns the removed count.
 
+import { characterTags } from "@orb/db";
 import { createTagService } from "@orb/server/domain/tag";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeTagHarness, principal, seedCharacter, seedTag, seedUser } from "../_support.ts";
+
+const TAG_DELETE = /delete from "tags"/iu;
 
 describe("pruneUnusedTags", () => {
   test("removes unused tags, keeps used ones, and reports the count", async () => {
@@ -26,6 +30,27 @@ describe("pruneUnusedTags", () => {
     expect(result).toStrictEqual({ removed: 1 });
     const surviving = (await svc.listTags({ principal: principal(owner) })).map((t) => t.id);
     expect(surviving).toEqual([used]);
+  });
+
+  test("an attachment committed after the zero-usage snapshot keeps the tag", async () => {
+    const { db, hold } = await freshHeldDb();
+    const owner = await seedUser(db);
+    const h = makeTagHarness(db);
+    const svc = createTagService(h.ctx);
+    const characterId = await seedCharacter(db, owner);
+    const tagId = await seedTag(db, owner, { id: "tag_raced", name: "raced" });
+    const deletes = hold(TAG_DELETE);
+
+    const pruning = svc.pruneUnusedTags({ principal: principal(owner) });
+    await deletes.reached;
+    await svc.attachTag({ principal: principal(owner), tagId, targetType: "character", targetId: characterId });
+    deletes.release();
+    const result = await pruning;
+
+    expect(result).toEqual({ removed: 0 });
+    expect((await svc.listTags({ principal: principal(owner) })).map((tag) => tag.id)).toContain(tagId);
+    expect(await db.select().from(characterTags).where(eq(characterTags.tagId, tagId))).toHaveLength(1);
+    expect(h.audits.filter((entry) => entry.action === "tag.prune")).toEqual([]);
   });
 });
 

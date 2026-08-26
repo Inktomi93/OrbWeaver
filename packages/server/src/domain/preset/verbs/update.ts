@@ -7,7 +7,14 @@ import { PresetNotFoundError } from "../contract/errors.ts";
 import type { PresetForkIntent, UpdatePresetParams } from "../contract/params.ts";
 import type { PresetService } from "../contract/service.ts";
 import type { PresetDetail } from "../contract/views.ts";
-import { findOwnedForkOf, insertPreset, listOwnedPresetNames, readablePreset, updatePresetRow } from "../persistence/queries.ts";
+import {
+  findOwnedForkOf,
+  insertConvergedPresetForkIfAbsent,
+  insertPreset,
+  listOwnedPresetNames,
+  readablePreset,
+  updatePresetRow,
+} from "../persistence/queries.ts";
 import { uniquePresetName } from "../substrate/names.ts";
 import { toPresetDetail } from "../substrate/views.ts";
 
@@ -63,7 +70,13 @@ interface ForkMint {
  *  the import is idempotent by (ownerId, name) so re-importing one backup file can't duplicate a row, whereas
  *  "start a new fork" is an explicit ask for an ADDITIONAL row — merging would silently overwrite whatever
  *  unrelated preset happened to share the name. */
-async function mintFork(ctx: PresetContext, { params, base, desiredName, intent, now }: ForkMint): Promise<PresetDetail> {
+async function mintFork(ctx: PresetContext, mint: ForkMint, admission: "ordinary"): Promise<PresetDetail>;
+async function mintFork(ctx: PresetContext, mint: ForkMint, admission: "converged"): Promise<PresetDetail | undefined>;
+async function mintFork(
+  ctx: PresetContext,
+  { params, base, desiredName, intent, now }: ForkMint,
+  admission: "ordinary" | "converged",
+): Promise<PresetDetail | undefined> {
   const config = params.config ?? parsePromptConfig(base.config);
   const forkId = ctx.newPresetId();
   const name = uniquePresetName(desiredName, await listOwnedPresetNames(ctx.db, params.userId));
@@ -78,7 +91,13 @@ async function mintFork(ctx: PresetContext, { params, base, desiredName, intent,
     createdAt: now,
     updatedAt: now,
   };
-  await insertPreset(ctx.db, row);
+  const persisted = admission === "converged" ? await insertConvergedPresetForkIfAbsent(ctx.db, row) : row;
+  if (persisted === undefined) {
+    return;
+  }
+  if (admission === "ordinary") {
+    await insertPreset(ctx.db, row);
+  }
   getLog().info({ userId: params.userId, presetId: forkId, intent }, "preset: copy-on-write fork of system default");
   await ctx.audit(
     {
@@ -91,7 +110,7 @@ async function mintFork(ctx: PresetContext, { params, base, desiredName, intent,
     now,
   );
   ctx.emitUserEvent(params.userId, { type: "presetsChanged", presetId: forkId });
-  return toPresetDetail(row);
+  return toPresetDetail(persisted);
 }
 
 /** COW: land the submission on the caller's fork of the system default, minting that fork on first use.
@@ -108,12 +127,9 @@ async function mintFork(ctx: PresetContext, { params, base, desiredName, intent,
  *  of one source are legal and two concurrent "new" intents honestly produce two rows. (Duplicate — a plain
  *  `create` off an existing row — remains the way to branch a NON-built-in preset.)
  *
- *  RESIDUAL (stated, not papered over): the converge arm's lookup + insert is read-then-write, not a DB
- *  constraint — two requests that both read "no fork yet" before either inserts still mint two. The
- *  constraint that would close it (UNIQUE `(owner_id, forked_from)`) is NOT available: `clonePackaged` mints
- *  an INDEPENDENT copy of the SAME packaged template per call by contract, and the "new" intent above mints
- *  siblings by design, so uniqueness on that pair would refuse both. The convergence lookup takes the OLDEST
- *  fork, so a pair minted by that race converges from the next save on. */
+ *  The converge arm's guarded INSERT admits only the first owner/source row visible at write time. A racing
+ *  loser then loads and patches the winner. This is deliberately verb-scoped admission rather than a UNIQUE
+ *  `(owner_id, forked_from)` constraint: `clonePackaged` and the explicit "new" arm both allow siblings. */
 async function cowFork(ctx: PresetContext, params: UpdatePresetParams, now: number): Promise<PresetDetail> {
   const base = await readablePreset(ctx.db, params.userId, SYSTEM_DEFAULT_PRESET_ID);
   if (base === undefined) {
@@ -122,16 +138,23 @@ async function cowFork(ctx: PresetContext, params: UpdatePresetParams, now: numb
   const intent: PresetForkIntent = params.fork ?? { mode: "converge" };
   switch (intent.mode) {
     case "new": {
-      return await mintFork(ctx, { params, base, desiredName: intent.name, intent: intent.mode, now });
+      return await mintFork(ctx, { params, base, desiredName: intent.name, intent: intent.mode, now }, "ordinary");
     }
     case "converge": {
       const existing = await findOwnedForkOf(ctx.db, params.userId, SYSTEM_DEFAULT_PRESET_ID);
       if (existing === undefined) {
-        return await mintFork(ctx, { params, base, desiredName: params.name ?? `${base.name} (edited)`, intent: intent.mode, now });
+        const minted = await mintFork(ctx, { params, base, desiredName: params.name ?? `${base.name} (edited)`, intent: intent.mode, now }, "converged");
+        if (minted !== undefined) {
+          return minted;
+        }
       }
-      const converged = await updatePresetRow(ctx.db, existing.id, params.userId, buildPatch(params, now));
+      const target = existing ?? (await findOwnedForkOf(ctx.db, params.userId, SYSTEM_DEFAULT_PRESET_ID));
+      if (target === undefined) {
+        throw new PresetNotFoundError(params.id);
+      }
+      const converged = await updatePresetRow(ctx.db, target.id, params.userId, buildPatch(params, now));
       if (converged === undefined) {
-        throw new PresetNotFoundError(existing.id);
+        throw new PresetNotFoundError(target.id);
       }
       getLog().info({ userId: params.userId, presetId: converged.id }, "preset: copy-on-write converged onto the existing fork");
       await ctx.audit(
