@@ -10,7 +10,6 @@
 import type { WorldBookRole } from "@orb/contracts/world-info";
 import { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";
 import type { CharacterId, PersonaId, WorldBookId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { ListRow } from "@orb/ui/list-row";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
@@ -33,11 +32,10 @@ export interface CharacterAttachRowProps {
   readonly role: WorldBookRole | undefined;
   readonly queryPending: boolean;
   readonly queryError: boolean;
-  readonly onRetry: () => void;
 }
 
 /** One character row: attach/detach this book + (while attached) its primary/auxiliary role. */
-export function CharacterAttachRow({ bookId, characterId, characterName, role, queryPending, queryError, onRetry }: CharacterAttachRowProps): ReactElement {
+export function CharacterAttachRow({ bookId, characterId, characterName, role, queryPending, queryError }: CharacterAttachRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const attach = useAttachWorldBookToCharacter({ trpc, invalidation });
@@ -60,11 +58,6 @@ export function CharacterAttachRow({ bookId, characterId, characterName, role, q
               onValueChange={(nextRole): void => attach.mutate({ characterId, bookId, role: nextRole as WorldBookRole })}
               aria-label={`Role for ${characterName}`}
             />
-          ) : null}
-          {queryError ? (
-            <Button intent="ghost" onClick={onRetry} size="sm" type="button">
-              Retry
-            </Button>
           ) : null}
           <Switch
             aria-label={`Attach to ${characterName}`}
@@ -91,11 +84,10 @@ export interface PersonaAttachRowProps {
   readonly attached: boolean;
   readonly queryPending: boolean;
   readonly queryError: boolean;
-  readonly onRetry: () => void;
 }
 
 /** One persona row: attach/detach this book (personas carry no role). */
-export function PersonaAttachRow({ bookId, personaId, personaName, attached, queryPending, queryError, onRetry }: PersonaAttachRowProps): ReactElement {
+export function PersonaAttachRow({ bookId, personaId, personaName, attached, queryPending, queryError }: PersonaAttachRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const attach = useAttachWorldBookToPersona({ trpc, invalidation });
@@ -107,25 +99,18 @@ export function PersonaAttachRow({ bookId, personaId, personaName, attached, que
     <ListRow
       title={personaName}
       actions={
-        <>
-          {queryError ? (
-            <Button intent="ghost" onClick={onRetry} size="sm" type="button">
-              Retry
-            </Button>
-          ) : null}
-          <Switch
-            aria-label={`Attach to ${personaName}`}
-            checked={attached}
-            disabled={controlsDisabled}
-            onCheckedChange={(on): void => {
-              if (on) {
-                attach.mutate({ personaId, bookId });
-              } else {
-                detach.mutate({ personaId, bookId });
-              }
-            }}
-          />
-        </>
+        <Switch
+          aria-label={`Attach to ${personaName}`}
+          checked={attached}
+          disabled={controlsDisabled}
+          onCheckedChange={(on): void => {
+            if (on) {
+              attach.mutate({ personaId, bookId });
+            } else {
+              detach.mutate({ personaId, bookId });
+            }
+          }}
+        />
       }
     />
   );

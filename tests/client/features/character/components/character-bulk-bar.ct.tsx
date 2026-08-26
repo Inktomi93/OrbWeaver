@@ -3,7 +3,8 @@
 // inside the panel width (its right edge ≤ the panel's), which `size="sm"` restores.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import type { Locator } from "@playwright/test";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { CharacterBulkBarStory } from "../_ct-stories.tsx";
 
 test("the bulk actions fit the narrow panel — Delete is not clipped past the edge", async ({ mount, page }) => {
@@ -43,4 +44,53 @@ test("bulk selection clears only after the durable archive succeeds and remains 
   await archive.click();
   await expect(count).toHaveText("0");
   await expect.poll(() => trpc.count("character.bulkArchive")).toBe(2);
+});
+
+async function replaceSelectionWhileHeld(component: Locator): Promise<void> {
+  await component.getByTestId("replace-selection-clear").click();
+  await component.getByRole("button", { name: "Select newer character" }).click();
+  await expect(component.getByRole("status", { name: "Bulk selected IDs" })).toHaveText("char_d");
+}
+
+test("a held Archive completion preserves a newer selection", async ({ mount, page }) => {
+  const held = trpcHold();
+  await routeTrpc(page, { "character.bulkArchive": held });
+  const component = await mount(<CharacterBulkBarStory />);
+
+  await component.getByRole("button", { name: "Archive", exact: true }).click();
+  await held.requested;
+  await replaceSelectionWhileHeld(component);
+  held.release({ archived: 3 });
+
+  await expect(component.getByRole("status", { name: "Bulk selected IDs" })).toHaveText("char_d");
+});
+
+test("a held Tag completion preserves a newer selection", async ({ mount, page }) => {
+  const held = trpcHold();
+  await routeTrpc(page, { "tag.listTagsWithUsage": [], "character.bulkAddCardTag": held });
+  const component = await mount(<CharacterBulkBarStory />);
+
+  await component.getByRole("button", { name: "Tag", exact: true }).click();
+  await expect(page.getByText("No tags yet — the name you type becomes your first one.")).toBeVisible();
+  await page.getByRole("combobox", { name: "Tag name" }).fill("adventure");
+  await page.getByRole("button", { name: 'Create "adventure"' }).click();
+  await held.requested;
+  await replaceSelectionWhileHeld(component);
+  held.release({ tagged: 3 });
+
+  await expect(component.getByRole("status", { name: "Bulk selected IDs" })).toHaveText("char_d");
+});
+
+test("a held Delete completion preserves a newer selection", async ({ mount, page }) => {
+  const held = trpcHold();
+  await routeTrpc(page, { "character.bulkRemove": held });
+  const component = await mount(<CharacterBulkBarStory />);
+
+  await component.getByRole("button", { name: "Delete", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete", exact: true }).click();
+  await held.requested;
+  await replaceSelectionWhileHeld(component);
+  held.release({ removed: 3 });
+
+  await expect(component.getByRole("status", { name: "Bulk selected IDs" })).toHaveText("char_d");
 });
