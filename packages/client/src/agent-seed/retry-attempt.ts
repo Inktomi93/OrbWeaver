@@ -1,7 +1,65 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { SeedProfile } from "../lib/agent-bridge.ts";
 
-type SeedStep = () => Promise<void>;
+export type SeedStep = () => Promise<void>;
+interface GameSeedResult {
+  readonly chatId: ChatId;
+}
+
+function assertSeedMatches(expectedProfile: SeedProfile, expectedTitle: string, profile: SeedProfile, title: string): void {
+  if (expectedProfile !== profile || expectedTitle !== title) {
+    throw new Error(`__orb.seed: unfinished ${expectedProfile} seed must be retried before starting ${profile}`);
+  }
+}
+
+class GameSeedFlight {
+  readonly profile: SeedProfile;
+  readonly title: string;
+  readonly promise: Promise<GameSeedResult>;
+
+  constructor(profile: SeedProfile, title: string, promise: Promise<GameSeedResult>) {
+    this.profile = profile;
+    this.title = title;
+    this.promise = promise;
+  }
+
+  assertMatches(profile: SeedProfile, title: string): void {
+    assertSeedMatches(this.profile, this.title, profile, title);
+  }
+}
+
+/** Owns a first or resumed seed before its first await. Matching callers join the owned promise; a
+ * different request cannot pass the unfinished-seed boundary while chat prerequisites are in flight. */
+export class GameSeedFlights {
+  private inFlight: GameSeedFlight | null = null;
+
+  run(profile: SeedProfile, title: string, start: () => Promise<GameSeedResult>): Promise<GameSeedResult> {
+    if (this.inFlight !== null) {
+      try {
+        this.inFlight.assertMatches(profile, title);
+      } catch (error) {
+        return Promise.reject(error);
+      }
+      return this.inFlight.promise;
+    }
+
+    const result = Promise.withResolvers<GameSeedResult>();
+    const flight = new GameSeedFlight(profile, title, result.promise);
+    this.inFlight = flight;
+    void flight.promise.then(
+      () => this.release(flight),
+      () => this.release(flight),
+    );
+    void Promise.resolve().then(start).then(result.resolve, result.reject);
+    return flight.promise;
+  }
+
+  private release(flight: GameSeedFlight): void {
+    if (this.inFlight === flight) {
+      this.inFlight = null;
+    }
+  }
+}
 
 /** Advances only after a write resolves, so a deterministic failure-before-commit resumes at that exact
  * door instead of minting another room and orphaning the partial one. */
@@ -22,9 +80,11 @@ export class PendingGameSeed {
   }
 
   assertMatches(profile: SeedProfile, title: string): void {
-    if (this.profile !== profile || this.title !== title) {
-      throw new Error(`__orb.seed: unfinished ${this.profile} seed must be retried before starting ${profile}`);
-    }
+    assertSeedMatches(this.profile, this.title, profile, title);
+  }
+
+  releaseOwnership(current: PendingGameSeed | null): PendingGameSeed | null {
+    return current === this ? null : current;
   }
 
   finish(): Promise<void> {
