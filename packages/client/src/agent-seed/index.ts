@@ -33,7 +33,6 @@ import { castId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
 import type { TRPCClient } from "@trpc/client";
 import type { OrbSeedHandle, SeedProfile } from "../lib/agent-bridge.ts";
-import type { SeedStep } from "./retry-attempt.ts";
 import { GameSeedFlights, PendingGameSeed } from "./retry-attempt.ts";
 
 /**
@@ -380,7 +379,7 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
 
       // Order is load-bearing: actor/quest writes each rewrite the current snapshot head, while journal
       // inserts preserve the authored archive order.
-      const steps: readonly SeedStep[] = [
+      const steps = [
         async (): Promise<void> => {
           await client.rpg.createGame.mutate({ chatId, mode: "lite", profile: statProfileFor(profile) });
         },
@@ -415,25 +414,16 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
           });
           assertHandWrote("editSnapshot", sceneWrite);
         },
-        ...actorWrites.map(
-          (write): SeedStep =>
-            async () => {
-              const applied = await client.rpg.patchActor.mutate({ chatId, targetRef: write.targetRef, ops: [...write.ops] });
-              assertHandWrote("patchActor", applied);
-            },
-        ),
-        ...QUESTS.map(
-          (quest): SeedStep =>
-            async () => {
-              await client.rpg.upsertQuest.mutate({ chatId, ...quest });
-            },
-        ),
-        ...JOURNAL.map(
-          (entry): SeedStep =>
-            async () => {
-              await client.rpg.addJournalEntry.mutate({ chatId, ...entry });
-            },
-        ),
+        ...actorWrites.map((write) => async (): Promise<void> => {
+          const applied = await client.rpg.patchActor.mutate({ chatId, targetRef: write.targetRef, ops: [...write.ops] });
+          assertHandWrote("patchActor", applied);
+        }),
+        ...QUESTS.map((quest) => async (): Promise<void> => {
+          await client.rpg.upsertQuest.mutate({ chatId, ...quest });
+        }),
+        ...JOURNAL.map((entry) => async (): Promise<void> => {
+          await client.rpg.addJournalEntry.mutate({ chatId, ...entry });
+        }),
       ];
       const attempt = new PendingGameSeed(profile, title, chatId, steps);
       pendingGame = attempt;

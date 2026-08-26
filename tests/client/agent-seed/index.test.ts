@@ -8,7 +8,7 @@
 // own "closed vocabulary" analogue (a legible refusal, never a silent no-op).
 
 import { buildAgentSeed } from "@orb/client/agent-seed";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
@@ -17,6 +17,7 @@ const CHARACTER_ID = castId<CharacterId>("character_seed_a");
 const CHAT_ID = castId<ChatId>("chat_seed_a");
 const RETRY_CHAT_ID = castId<ChatId>("chat_seed_b");
 const USER_ID = castId<UserId>("user_seed_a");
+const PLAYER_HANDLE = castId<Handle>("orb-seed-hero");
 
 const EDITSNAPSHOT_REFUSAL_MSG = /rpg\.editSnapshot refused — scene plane refused/;
 const PATCHACTOR_REFUSAL_MSG = /rpg\.patchActor refused — actor plane refused/;
@@ -266,7 +267,7 @@ test("concurrent first-seed failures reject every waiter and later resume the sa
 test("a different first-seed request is refused while the first prerequisite is still held", async () => {
   const client = fakeClient({ existingHandle: true });
   const characterPage = Promise.withResolvers<{
-    readonly items: readonly { readonly id: CharacterId; readonly handle: string }[];
+    readonly items: readonly { readonly id: CharacterId; readonly handle: Handle }[];
     readonly totalCount: number;
   }>();
   client.character.list.query = vi.fn(() => characterPage.promise);
@@ -286,7 +287,7 @@ test("a different first-seed request is refused while the first prerequisite is 
 
   await Promise.resolve();
   const outcomeBeforeRelease = secondOutcome;
-  characterPage.resolve({ items: [{ id: CHARACTER_ID, handle: "orb-seed-hero" }], totalCount: 1 });
+  characterPage.resolve({ items: [{ id: CHARACTER_ID, handle: PLAYER_HANDLE }], totalCount: 1 });
   const settled = await Promise.allSettled([first, second]);
 
   expect(outcomeBeforeRelease).toBe("rejected");
