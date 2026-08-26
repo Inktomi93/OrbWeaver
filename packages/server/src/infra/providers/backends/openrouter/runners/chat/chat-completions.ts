@@ -19,6 +19,7 @@ import {
   logProviderCache,
   logProviderCapability,
   mapChatCompletionToTurnResult,
+  providerCredentialSecretValues,
   providerErrorFromHttp,
   reduceChatCompletionStream,
   runWithPreCommitRetry,
@@ -261,7 +262,7 @@ async function streamOnce(args: {
     if (err instanceof ProviderError) {
       throw err;
     }
-    throw providerErrorFromHttp(err, errorPrefix(req.model));
+    throw providerErrorFromHttp(err, errorPrefix(req.model), providerCredentialSecretValues(req.credential));
   } finally {
     idle.dispose();
   }
@@ -322,7 +323,8 @@ export async function runChatCompletionTurn(client: OpenRouterChatClient, req: O
           markCommitted,
         });
       },
-      (err): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(req.model))),
+      (err): ProviderError =>
+        err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(req.model), providerCredentialSecretValues(req.credential)),
       retryOpts,
     );
 

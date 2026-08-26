@@ -47,6 +47,7 @@ import {
   logProviderSummarizeItem,
   parseChatCompletionResult,
   passthroughImageNormalizer,
+  providerCredentialSecretValues,
   providerErrorFromHttp,
   providerLog,
 } from "../kit/index.ts";
@@ -132,6 +133,7 @@ export interface OpenRouterBackendDeps {
 // role (`summarize` vs `structured` — owner ruling 2026-07-27) — a structured extraction is never a black hole.
 interface OrBatchDeps {
   readonly client: OrClient;
+  readonly secrets: readonly string[];
   readonly normalize: NormalizeImageBytes;
   readonly now: () => number;
   readonly captureWire?: WireCaptureSink | undefined;
@@ -308,13 +310,13 @@ async function buildOrBatchRequest(deps: OrBatchDeps, req: OrBatchReq, input: Su
 // next hosted-structured failure is diagnosable instead of opaque (D-ARM8-2 / the `instruments-lie` class:
 // an upstream 404 was presenting as an internal validation error, which is exactly why the earlier probe
 // "couldn't get the response body").
-function orBatchProviderError(role: "summarize" | "structured", index: number, err: unknown): ProviderError {
+function orBatchProviderError(role: "summarize" | "structured", index: number, err: unknown, secrets: readonly string[]): ProviderError {
   const prefix = `openrouter ${role} item ${index} failed`;
   if (err instanceof ProviderError) {
     return new ProviderError({ kind: err.kind, retryable: err.retryable, message: `${prefix}: ${err.message}`, cause: err });
   }
-  const classified = providerErrorFromHttp(err, prefix);
-  const body = extractHttpErrorDiagnostic(err).body;
+  const classified = providerErrorFromHttp(err, prefix, secrets);
+  const body = extractHttpErrorDiagnostic(err, secrets).body;
   if (body === undefined) {
     return classified;
   }
@@ -323,7 +325,7 @@ function orBatchProviderError(role: "summarize" | "structured", index: number, e
     retryable: classified.retryable,
     message: `${classified.message} — upstream body: ${body}`,
     ...(classified.apiErrorStatus !== undefined ? { apiErrorStatus: classified.apiErrorStatus } : {}),
-    cause: err,
+    cause: classified,
   });
 }
 
@@ -336,9 +338,10 @@ function throwOrBatchFailure(args: {
   readonly durationMs: number;
   readonly hasResponseFormat: boolean;
   readonly err: unknown;
+  readonly secrets: readonly string[];
 }): never {
-  const { role, model, index, durationMs, hasResponseFormat, err } = args;
-  const providerError = orBatchProviderError(role, index, err);
+  const { role, model, index, durationMs, hasResponseFormat, err, secrets } = args;
+  const providerError = orBatchProviderError(role, index, err, secrets);
   logProviderSummarizeItem(OR_BACKEND, {
     role,
     model,
@@ -414,7 +417,7 @@ async function runOrBatchItem(deps: OrBatchDeps, req: OrBatchReq, input: Summari
     });
     return { text, usage: { tokensIn, tokensOut, costUsd: view.usage?.cost ?? null } };
   } catch (err) {
-    return throwOrBatchFailure({ role: req.role, model: req.model, index, durationMs: deps.now() - startedAt, hasResponseFormat, err });
+    return throwOrBatchFailure({ role: req.role, model: req.model, index, durationMs: deps.now() - startedAt, hasResponseFormat, err, secrets: deps.secrets });
   }
 }
 
@@ -440,8 +443,9 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
   };
   const clientFor = (credential: EmbedRequest["credential"], label: string): OrClient => getClient(requireOpenRouterApiKey(credential, label));
   // The shared batch deps for the summarize + structured roles (one wire home).
-  const batchDeps = (client: OrClient): OrBatchDeps => ({
+  const batchDeps = (client: OrClient, credential: EmbedRequest["credential"]): OrBatchDeps => ({
     client,
+    secrets: providerCredentialSecretValues(credential),
     normalize: normalizeImageBytes,
     now: deps.now,
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
@@ -466,7 +470,7 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
     imageEmbed: async (req: ImageEmbedRequest): Promise<ImageEmbedResult> =>
       await runImageEmbed(clientFor(req.credential, "imageEmbed"), req, normalizeImageBytes),
     summarize: async (req: SummarizeRequest): Promise<SummarizeResult> =>
-      await runOrBatch(batchDeps(clientFor(req.credential, "summarize")), {
+      await runOrBatch(batchDeps(clientFor(req.credential, "summarize"), req.credential), {
         model: req.model,
         role: "summarize",
         inputs: req.inputs,
@@ -476,7 +480,7 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
         signal: req.signal,
       }),
     structured: async (req: StructuredRequest): Promise<SummarizeResult> =>
-      await runOrBatch(batchDeps(clientFor(req.credential, "structured")), {
+      await runOrBatch(batchDeps(clientFor(req.credential, "structured"), req.credential), {
         model: req.model,
         role: "structured",
         inputs: req.inputs,
@@ -487,11 +491,17 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
       }),
     generateImage: async (req: ImageGenerateRequest): Promise<ImageGenerateResult> =>
       await runGenerateImage(clientFor(req.credential, "generateImage"), req, normalizeImageBytes),
-    probe: async (req: ProbeRequest): Promise<CredentialHealth> => await probeOpenRouterCredential(clientFor(req.credential, "probe"), deps.now),
+    probe: async (req: ProbeRequest): Promise<CredentialHealth> =>
+      await probeOpenRouterCredential(clientFor(req.credential, "probe"), deps.now, providerCredentialSecretValues(req.credential)),
     accountCredits: async (req: AccountCreditsRequest): Promise<AccountCredits> =>
-      await getOpenRouterCredits(clientFor(req.credential, "accountCredits"), req.signal),
+      await getOpenRouterCredits(clientFor(req.credential, "accountCredits"), req.signal, providerCredentialSecretValues(req.credential)),
     generationCost: async (req: GenerationCostRequest): Promise<GenerationCost> =>
-      await getOpenRouterGenerationCost(clientFor(req.credential, "generationCost"), req.generationId, req.signal),
+      await getOpenRouterGenerationCost(
+        clientFor(req.credential, "generationCost"),
+        req.generationId,
+        req.signal,
+        providerCredentialSecretValues(req.credential),
+      ),
     fetchCatalog: async (_req: FetchCatalogRequest): Promise<ModelCatalogEntry[]> => await fetchOrCatalog(getClient("")),
   };
 }

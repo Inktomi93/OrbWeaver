@@ -37,12 +37,16 @@ interface OrAccountClient {
 }
 
 /** Read the credential's OpenRouter credit balance (`{ total, used }`). Works on any inference key. */
-export async function getOpenRouterCredits(client: Pick<OrAccountClient, "credits">, signal?: AbortSignal): Promise<AccountCredits> {
+export async function getOpenRouterCredits(
+  client: Pick<OrAccountClient, "credits">,
+  signal?: AbortSignal,
+  secrets: readonly string[] = [],
+): Promise<AccountCredits> {
   let response: OrCreditsResponse;
   try {
     response = await client.credits.getCredits(undefined, signal !== undefined ? { signal } : undefined);
   } catch (err) {
-    throw providerErrorFromHttp(err, "openrouter credits");
+    throw providerErrorFromHttp(err, "openrouter credits", secrets);
   }
   return { total: response.data.totalCredits, used: response.data.totalUsage };
 }
@@ -56,12 +60,13 @@ export async function getOpenRouterGenerationCost(
   client: Pick<OrAccountClient, "generations">,
   generationId: string,
   signal?: AbortSignal,
+  secrets: readonly string[] = [],
 ): Promise<GenerationCost> {
   let response: OrGenerationResponse;
   try {
     response = await client.generations.getGeneration({ id: generationId }, signal !== undefined ? { signal } : undefined);
   } catch (err) {
-    throw providerErrorFromHttp(err, "openrouter generation");
+    throw providerErrorFromHttp(err, "openrouter generation", secrets);
   }
   return {
     totalCost: response.data.totalCost,

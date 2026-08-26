@@ -44,6 +44,39 @@ const MAX_CHOICE_VALUE_LENGTH = 10_000;
 const MIN_QUESTION_LENGTH = 1;
 const MAX_QUESTION_LENGTH = 2000;
 const MAX_SEPARATOR_LENGTH = 64;
+
+// A preset value reaches the Agent SDK child process, so runtime loader/search variables are a code-
+// execution boundary rather than ordinary advanced tuning. Keep this vocabulary exported so the write
+// schema and the final subprocess builder enforce the same deny set (validation plus defense in depth).
+const UNSAFE_CLAUDE_RUNTIME_ENV_KEYS: ReadonlySet<string> = new Set([
+  "BASH_ENV",
+  "DYLD_INSERT_LIBRARIES",
+  "DYLD_LIBRARY_PATH",
+  "ENV",
+  "GCONV_PATH",
+  "LD_LIBRARY_PATH",
+  "LD_PRELOAD",
+  "NODE_OPTIONS",
+  "NODE_PATH",
+  "PERL5LIB",
+  "PERL5OPT",
+  "PYTHONHOME",
+  "PYTHONPATH",
+  "RUBYLIB",
+  "RUBYOPT",
+]);
+
+export function isUnsafeClaudeRuntimeEnvKey(key: string): boolean {
+  return UNSAFE_CLAUDE_RUNTIME_ENV_KEYS.has(key.toUpperCase());
+}
+
+const claudeEnvSchema = z.record(z.string(), z.string().nullable()).superRefine((env, ctx): void => {
+  for (const key of Object.keys(env)) {
+    if (isUnsafeClaudeRuntimeEnvKey(key)) {
+      ctx.addIssue({ code: "custom", path: [key], message: "unsafe runtime environment key is forbidden" });
+    }
+  }
+});
 /** The cap on an authored TURN-INJECTION TEMPLATE — the ONE number for that whole class (owner ruling
  *  2026-08-08, option 2 of `docs/design/parked-options-tag-contract.md` §2). Two schemas wear it and they are
  *  the same kind of thing: a `formatStrings` slot and a `guidedActions.*.prompt` are both macro-carrying text
@@ -300,10 +333,11 @@ export const userIntentSchema = z.strictObject({
     })
     .optional(),
 
-  // Escape hatch — reserved-keys floor enforced at the env-builder / runner-translate seam.
+  // Escape hatch — loader/search variables are rejected here; reserved auth/routing keys are filtered at
+  // the env-builder / runner-translate seam where the runner-owned values are known.
   advanced: z
     .object({
-      claudeEnv: z.record(z.string(), z.string().nullable()).optional(),
+      claudeEnv: claudeEnvSchema.optional(),
       // Where the volatile per-turn system-prompt half is delivered: "system" joins it into the cached
       // system-prompt string; "hook" delivers it at the message tail (cache-safe). Absent ⇒ the funnel
       // picks "hook" iff the model honors mid-conversation system, else "system".

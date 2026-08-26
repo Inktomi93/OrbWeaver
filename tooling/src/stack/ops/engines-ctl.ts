@@ -1,12 +1,14 @@
 /**
- * engines-ctl — the LOGIC half of the fleet front door (A.4). The pgid/setsid choreography (`start`/`stop`)
- * stays in engines.sh (bash's wheelhouse); the wake-budget math, sleep/wake HTTP, hold marker, and status
- * pane live HERE, importing the server module so the budget math is ONE-homed (never re-spelled in bash).
+ * engines-ctl — the LOGIC half of the fleet front door (A.4). Spawn/setsid stays in engines.sh; stop lives
+ * here because a negative-PGID signal must ride the SAME durable identity verifier as the server supervisor.
+ * The wake-budget math, sleep/wake HTTP, hold marker, and status pane also live HERE, importing the server
+ * module so the safety decisions are ONE-homed (never re-spelled in bash).
  *
  *   node tooling/src/stack/ops/engines-ctl.ts status     # per-engine pid · /health · /is_sleeping · per-GPU tenants
  *   node tooling/src/stack/ops/engines-ctl.ts sleep      # POST /sleep?level=1 to each + write the hold marker
  *   node tooling/src/stack/ops/engines-ctl.ts wake       # clear hold → reconcile → per-engine VRAM gate → wake+wait
- *   node tooling/src/stack/ops/engines-ctl.ts reconcile   # stale-pidfile + orphan-family sweep (also run pre-spawn)
+ *   node tooling/src/stack/ops/engines-ctl.ts stop       # verified TERM → bounded wait → verified KILL
+ *   node tooling/src/stack/ops/engines-ctl.ts reconcile  # stale-pidfile + orphan-family sweep (also run pre-spawn)
  *
  * Dev tooling (throwaway; global KISS applies — NOT the architecture). `sleep`/`wake` are plain loopback
  * HTTP + a marker FILE, so they work with the app server DOWN (the ComfyUI tenant workflow). The RESULT line
@@ -28,6 +30,7 @@ import {
   postWakeAndAwait,
   queryGpuVram,
   reapOrphanedFamily,
+  signalRecordedEngineProcess,
   VLLM_ENGINES,
   writeHold,
 } from "@orb/server/infra/providers/vllm/engine";
@@ -39,6 +42,8 @@ const BYTES_PER_GIB = 1_073_741_824;
 const HEALTH_TIMEOUT_MS = 2000;
 // Column pad for the per-engine status line (widest engine name = "rerank").
 const ENGINE_NAME_PAD = 6;
+const STOP_GRACE_TICKS = 30;
+const STOP_POLL_MS = 500;
 
 function log(msg: string): void {
   process.stdout.write(`engines-ctl: ${msg}\n`);
@@ -132,6 +137,65 @@ async function status(): Promise<number> {
   return 0;
 }
 
+function enginePort(engine: (typeof VLLM_ENGINES)[number]): number {
+  return engineLaunchEnvFloor()[portKey(engine)];
+}
+
+type VllmEngine = (typeof VLLM_ENGINES)[number];
+
+function recordStopOutcome(
+  engine: VllmEngine,
+  signal: NodeJS.Signals,
+  outcome: ReturnType<typeof signalRecordedEngineProcess>,
+  refused: Set<VllmEngine>,
+): number {
+  log(`${engine}: ${signal === "SIGTERM" ? "TERM" : "KILL"} ${outcome.verdict}${"reason" in outcome ? ` — ${outcome.reason}` : ` pgid=${outcome.pgid}`}`);
+  if (outcome.verdict === "refused") {
+    refused.add(engine);
+  }
+  return outcome.verdict === "signaled" ? 1 : 0;
+}
+
+async function signalFleet(signal: NodeJS.Signals, requireListener: boolean, refused: Set<VllmEngine>): Promise<number> {
+  const counts = await Promise.all(
+    VLLM_ENGINES.map(async (engine) => {
+      const listenerPid = await enginePortPid(engine);
+      if (requireListener && listenerPid === null) {
+        return 0;
+      }
+      const outcome = signalRecordedEngineProcess({ repoRoot: REPO_ROOT, engine, port: enginePort(engine), listenerPid, signal });
+      return recordStopOutcome(engine, signal, outcome, refused);
+    }),
+  );
+  return counts.reduce((sum, count) => sum + count, 0);
+}
+
+async function waitForFleetPortsFree(ticksLeft: number): Promise<void> {
+  const listeners = await Promise.all(VLLM_ENGINES.map((engine) => enginePortPid(engine)));
+  if (ticksLeft <= 1 || listeners.every((pid) => pid === null)) {
+    return;
+  }
+  await sleep(STOP_POLL_MS);
+  await waitForFleetPortsFree(ticksLeft - 1);
+}
+
+/** Stop only launch identities that still own their configured port. A missing/corrupt record or a foreign
+ * listener is an explicit refusal; neither the TERM nor KILL pass can derive a target from the port alone. */
+async function stopAll(): Promise<number> {
+  const refused = new Set<VllmEngine>();
+  const terminated = await signalFleet("SIGTERM", false, refused);
+  await waitForFleetPortsFree(STOP_GRACE_TICKS);
+  const escalated = await signalFleet("SIGKILL", true, refused);
+
+  result([
+    ["verb", "stop"],
+    ["terminated", terminated],
+    ["escalated", escalated],
+    ["refused", refused.size],
+  ]);
+  return refused.size === 0 ? 0 : 1;
+}
+
 async function sleepAll(): Promise<number> {
   // The manual hold marker: intent ahead of occupancy — the wake gate refuses on it until `engines:wake`.
   // It goes down FIRST, BEFORE any /sleep POST (live step-9 finding 2026-08-01): the three sequential sleeps
@@ -198,6 +262,7 @@ async function wakeAll(): Promise<number> {
 
 const VERBS: Record<string, () => Promise<number>> = {
   status,
+  stop: stopAll,
   sleep: sleepAll,
   wake: wakeAll,
   reconcile,

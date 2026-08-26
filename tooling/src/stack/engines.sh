@@ -45,7 +45,6 @@ EMBED_PORT="${VLLM_EMBED_PORT:-8701}"
 RERANK_PORT="${VLLM_RERANK_PORT:-8702}"
 GEN_PORT="${VLLM_GEN_PORT:-8703}"
 PORTS=("$EMBED_PORT" "$RERANK_PORT" "$GEN_PORT")
-KILL_GRACE_TICKS=30 # 30 x 0.5s = 15s
 
 mkdir -p "$RUN_DIR"
 
@@ -135,37 +134,9 @@ do_start() {
   return 1
 }
 
-# ── stop: family group-kill by pidfile, verified against pids AND ports ───────
+# ── stop: shared durable-identity verifier (TERM → wait → KILL) ──────────────
 do_stop() {
-  local killed=()
-  if [ -f "$PIDFILE" ]; then
-    # Group-kill each recorded engine pgid (setsid ⇒ pid == pgid).
-    while read -r engine pgid _; do
-      [ -z "${pgid:-}" ] && continue
-      kill -TERM -- "-$pgid" 2>/dev/null && killed+=("$engine:$pgid")
-    done <"$PIDFILE"
-  else
-    echo "engines: no pidfile — checking the ports for stragglers"
-  fi
-  # Bounded wait for all ports to free.
-  local _
-  for _ in $(seq 1 "$KILL_GRACE_TICKS"); do
-    fleet_down && break
-    sleep 0.5
-  done
-  # Any port still bound → KILL its owning process group (a straggler or a marker-less fleet).
-  local p owner pgid
-  for p in "${PORTS[@]}"; do
-    owner="$(ss -tlnp 2>/dev/null | grep ":$p " | grep -oP 'pid=\K[0-9]+' | head -1)"
-    if [ -n "${owner:-}" ]; then
-      pgid="$(ps -o pgid= -p "$owner" 2>/dev/null | tr -d ' ')"
-      [ -n "${pgid:-}" ] && kill -KILL -- "-$pgid" 2>/dev/null && killed+=("port$p:$owner")
-    fi
-  done
-  rm -f "$PIDFILE"
-  echo "engines: stopped — killed: ${killed[*]:-none}"
-  echo ""
-  echo "RESULT engines verb=stop killed=${#killed[@]}"
+  exec "$TSX" "$CTL_TS" stop
 }
 
 # ── ensure (default `pnpm engines`): adopt-or-start + log follow ──────────────

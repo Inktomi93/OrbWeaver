@@ -11,6 +11,7 @@
 import { errorMessage } from "@orb/kit/error-message";
 import type { ProviderErrorKind } from "../../contract/index.ts";
 import { ProviderError } from "../../contract/index.ts";
+import { redactSecretsFromText } from "./openai-compat/body.ts";
 import { sanitizeApiError } from "./sanitize.ts";
 
 // Transport-name patterns (hoisted per useTopLevelRegex — classifiers run on the hot error path).
@@ -175,20 +176,20 @@ function classifyHttpError(error: unknown): ErrorClassification & { status: numb
  * parse failure that wrapped it). Defensive throughout (unknown-narrowing only) so it works for any
  * HTTP-based error; both fields are sanitized before they land on a log record.
  */
-export function extractHttpErrorDiagnostic(error: unknown): HttpErrorDiagnostic {
+export function extractHttpErrorDiagnostic(error: unknown, secrets: readonly string[] = []): HttpErrorDiagnostic {
   if (!isRecord(error)) {
     return {};
   }
   const out: { body?: string; cause?: string } = {};
   const body = error["body"];
   if (typeof body === "string" && body.length > 0) {
-    out.body = sanitizeApiError(body);
+    out.body = sanitizeApiError(redactSecretsFromText(body, secrets));
   }
   const cause = error["cause"];
   if (cause !== undefined && cause !== null) {
     const causeMsg = errorMessage(cause);
     if (causeMsg.length > 0) {
-      out.cause = sanitizeApiError(causeMsg);
+      out.cause = sanitizeApiError(redactSecretsFromText(causeMsg, secrets));
     }
   }
   return out;
@@ -200,14 +201,18 @@ export function extractHttpErrorDiagnostic(error: unknown): HttpErrorDiagnostic 
  * cause. The message is sanitized BEFORE concatenation so an HTML error page or control-char-laced body
  * can't poison logs/UI.
  */
-export function providerErrorFromHttp(error: unknown, prefix: string): ProviderError {
+export function providerErrorFromHttp(error: unknown, prefix: string, secrets: readonly string[] = []): ProviderError {
   const { kind, retryable, status } = classifyHttpError(error);
-  const safe = sanitizeApiError(errorMessage(error));
+  const safe = sanitizeApiError(redactSecretsFromText(errorMessage(error), secrets));
+  // Credential-bearing HTTP boundaries must never retain the raw thrown object: SDK/fetch errors can
+  // carry reflected bodies, headers and nested causes as enumerable fields that a later logger serializes.
+  // Keep the classified status and sanitized message, but replace that opaque graph with a safe cause.
+  const cause = secrets.length === 0 ? error : new Error(safe);
   return new ProviderError({
     kind,
     retryable,
     message: `${prefix}: ${safe}`,
     ...(status !== undefined ? { apiErrorStatus: status } : {}),
-    cause: error,
+    cause,
   });
 }

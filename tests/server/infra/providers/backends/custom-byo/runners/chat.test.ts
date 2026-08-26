@@ -566,6 +566,25 @@ describe("createCustomByoBackend — error classification", () => {
     });
   });
 
+  test("a provider-reflected API key and custom auth header are absent from the surfaced error and cause", async () => {
+    const customHeaderSecret = "custom-header-secret-reflected";
+    const credential = makeCustomOpenAiCredential({
+      baseUrl: BASE_URL,
+      apiKey: SECRET_KEY,
+      headers: { "x-api-key": customHeaderSecret },
+    });
+    vi.stubGlobal("fetch", (): Response => new Response(`rejected ${SECRET_KEY} and ${customHeaderSecret}`, { status: 401 }));
+
+    const caught = await runTurn(makeRequest({ credential })).catch((error: unknown): unknown => error);
+    expect(caught).toBeInstanceOf(ProviderError);
+    const providerError = caught as ProviderError;
+    expect(providerError.message).not.toContain(SECRET_KEY);
+    expect(providerError.message).not.toContain(customHeaderSecret);
+    expect(providerError.cause).toBeInstanceOf(Error);
+    expect((providerError.cause as Error).message).not.toContain(SECRET_KEY);
+    expect((providerError.cause as Error).message).not.toContain(customHeaderSecret);
+  });
+
   test("an in-band stream error is promoted to a classified ProviderError (not a silent empty reply)", async () => {
     vi.stubGlobal("fetch", (): Response => sseResponse(['data: {"error":{"message":"context too long","code":400}}', "data: [DONE]"]));
     await expect(runTurn(makeRequest())).rejects.toBeInstanceOf(ProviderError);
