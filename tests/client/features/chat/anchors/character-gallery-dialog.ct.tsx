@@ -7,7 +7,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { CharacterGalleryDialogStory } from "../_ct-stories.tsx";
 
 const ITEM = {
@@ -19,6 +19,11 @@ const ITEM = {
   subjectCharacterId: "character_ct_gallery",
   createdAt: 1,
 };
+
+const OWNED = [
+  { assetId: "asset_ct_owned_1", hash: "b".repeat(64), mime: "image/png", animated: false, kind: "upload" },
+  { assetId: "asset_ct_owned_2", hash: "c".repeat(64), mime: "image/png", animated: false, kind: "upload" },
+];
 
 async function openLightbox(page: Page): Promise<void> {
   const cell = page.getByRole("gridcell", { name: "Gallery image" });
@@ -96,4 +101,66 @@ test("P2: cancelling the confirm removes nothing", async ({ mount, page }) => {
   await expect.poll(() => trpc.count("assets.removeFromGallery")).toBe(0);
   // The lightbox is still open — cancel is a no-op on the image itself.
   await expect(page.getByRole("button", { name: "Remove from gallery" })).toBeVisible();
+});
+
+async function selectOwnedImages(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Add images" }).first().click();
+  await expect(page.getByText("Add images to the gallery")).toBeVisible();
+  const cells = page.getByRole("gridcell", { name: "upload image" });
+  await expect(cells).toHaveCount(2);
+  await cells.nth(0).click();
+  await cells.nth(1).click();
+  await expect(page.getByText("2 selected")).toBeVisible();
+}
+
+test("the add picker owns the whole held batch, ignores repeat confirmation, and closes after every success", async ({ mount, page }) => {
+  const hold = trpcHold();
+  const trpc = await routeTrpc(page, {
+    "assets.listGallery": () => [],
+    "assets.listOwned": () => OWNED,
+    "assets.addToGallery": hold,
+  });
+  await mount(<CharacterGalleryDialogStory />);
+  await selectOwnedImages(page);
+  const confirm = page.getByRole("button", { name: "Add selected" });
+
+  await confirm.evaluate((button) => {
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+  await hold.requested;
+
+  await expect(confirm).toBeDisabled();
+  await expect(page.getByText("Add images to the gallery")).toBeVisible();
+  expect(trpc.count("assets.addToGallery")).toBe(2);
+
+  hold.release({});
+  await expect(page.getByText("Add images to the gallery")).toHaveCount(0);
+});
+
+test("a rejected add batch stays visible and retryable, then closes after the retry succeeds", async ({ mount, page }) => {
+  const rejected = trpcHold();
+  const retry = trpcHold();
+  let attempts = 0;
+  await routeTrpc(page, {
+    "assets.listGallery": () => [],
+    "assets.listOwned": () => OWNED,
+    "assets.addToGallery": () => (attempts++ < OWNED.length ? rejected : retry),
+  });
+  await mount(<CharacterGalleryDialogStory />);
+  await selectOwnedImages(page);
+  const confirm = page.getByRole("button", { name: "Add selected" });
+
+  await confirm.click();
+  await rejected.requested;
+  rejected.release(trpcError());
+
+  await expect(page.getByRole("alert")).toContainText("Couldn't add the selected images to the gallery.");
+  await expect(confirm).toBeEnabled();
+  await expect(page.getByText("Add images to the gallery")).toBeVisible();
+
+  await confirm.click();
+  await retry.requested;
+  retry.release({});
+  await expect(page.getByText("Add images to the gallery")).toHaveCount(0);
 });

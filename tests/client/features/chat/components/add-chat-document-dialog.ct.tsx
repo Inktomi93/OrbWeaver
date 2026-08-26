@@ -20,7 +20,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { AddChatDocumentDialogStory } from "../_ct-stories.tsx";
 
 const CHAT_ID = "chat_ct_keystone";
@@ -86,6 +86,55 @@ test("Add fires attachToChat with THAT row's id, and the picker closes on the fi
       documentId: LEDGER.id,
     });
   // The close is the component's own RULING — asserted as the request it made, not as a disappearing node.
+  await expect(dialog.getByTestId("picker-closes")).toHaveText("1");
+});
+
+test("the picker owns a held attach, ignores a same-tick repeat, and closes only after success", async ({ mount, page }) => {
+  const hold = trpcHold();
+  const trpc = await routeTrpc(page, {
+    "databank.list": () => ({ items: [TREATISE], nextCursor: null, totalCount: 1 }),
+    "databank.attachToChat": hold,
+  });
+  const dialog = await mount(<AddChatDocumentDialogStory />);
+  const add = page.getByRole("button", { name: "Add A Treatise on Salt to this chat" });
+  await expect(add).toBeEnabled();
+
+  await add.evaluate((button) => {
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+  await hold.requested;
+
+  await expect(add).toBeDisabled();
+  await expect(dialog.getByTestId("picker-closes")).toHaveText("0");
+  expect(trpc.count("databank.attachToChat")).toBe(1);
+
+  hold.release(null);
+  await expect(dialog.getByTestId("picker-closes")).toHaveText("1");
+});
+
+test("a rejected attach stays visible and retryable, then closes after the retry succeeds", async ({ mount, page }) => {
+  const rejected = trpcHold();
+  const retry = trpcHold();
+  let attempts = 0;
+  await routeTrpc(page, {
+    "databank.list": () => ({ items: [TREATISE], nextCursor: null, totalCount: 1 }),
+    "databank.attachToChat": () => (attempts++ === 0 ? rejected : retry),
+  });
+  const dialog = await mount(<AddChatDocumentDialogStory />);
+  const add = page.getByRole("button", { name: "Add A Treatise on Salt to this chat" });
+
+  await add.click();
+  await rejected.requested;
+  rejected.release(trpcError());
+
+  await expect(page.getByRole("alert")).toContainText("Couldn't add the document to this chat.");
+  await expect(add).toBeEnabled();
+  await expect(dialog.getByTestId("picker-closes")).toHaveText("0");
+
+  await add.click();
+  await retry.requested;
+  retry.release(null);
   await expect(dialog.getByTestId("picker-closes")).toHaveText("1");
 });
 
