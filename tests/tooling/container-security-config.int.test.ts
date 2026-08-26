@@ -52,22 +52,86 @@ printf '<%s>\\n' "$@" >> '${callsPath}'
 
   const safe = run();
   expect(safe.status).toBe(0);
-  expect(readFileSync(callsPath, "utf8")).toContain("<claude; exec zsh -l>");
+  expect(readFileSync(callsPath, "utf8")).toContain("<claude --permission-mode default; exec zsh -l>");
   expect(readFileSync(callsPath, "utf8")).not.toContain("--dangerously-skip-permissions");
 
   const unsafe = run("--unsafe-bypass-permissions");
   expect(unsafe.status).toBe(0);
   expect(readFileSync(callsPath, "utf8")).toContain("claude --dangerously-skip-permissions");
   expect(unsafe.stderr).toContain("UNSAFE: Claude permission confirmations are disabled");
+
+  const shell = run("--shell");
+  expect(shell.status).toBe(0);
+  expect(readFileSync(callsPath, "utf8")).toContain("<exec zsh -l>");
+});
+
+test("the sandbox launcher rejects raw dangerous-skip flags on both sides of --", async ({ fakeBin, repoRoot, scratch }) => {
+  const callsPath = join(scratch, "npx-calls");
+  await fakeBin(
+    "npx",
+    `#!/usr/bin/env bash
+printf '%s\\n' '--- call ---' >> '${callsPath}'
+printf '<%s>\\n' "$@" >> '${callsPath}'
+`,
+  );
+
+  const run = (...args: readonly string[]): SpawnSyncReturns<string> =>
+    spawnSync("bash", [join(repoRoot, "scripts/dev/sandbox.sh"), "--here", ...args], {
+      cwd: repoRoot,
+      encoding: "utf8",
+    });
+  const results = [run("--dangerously-skip-permissions"), run("--", "--dangerously-skip-permissions")];
+
+  for (const result of results) {
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain("Use --unsafe-bypass-permissions");
+  }
+  expect(() => readFileSync(callsPath, "utf8")).toThrow();
+});
+
+test("the sandbox launcher rejects every supported raw bypass alias and equals form", async ({ fakeBin, repoRoot, scratch }) => {
+  const callsPath = join(scratch, "npx-calls");
+  await fakeBin(
+    "npx",
+    `#!/usr/bin/env bash
+printf '%s\\n' '--- call ---' >> '${callsPath}'
+printf '<%s>\\n' "$@" >> '${callsPath}'
+`,
+  );
+
+  const run = (...args: readonly string[]): SpawnSyncReturns<string> =>
+    spawnSync("bash", [join(repoRoot, "scripts/dev/sandbox.sh"), "--here", ...args], {
+      cwd: repoRoot,
+      encoding: "utf8",
+    });
+  const cases = [
+    ["--permission-mode", "bypassPermissions"],
+    ["--permission-mode=bypassPermissions"],
+    ["--dangerously-skip-permissions=true"],
+    ["--allow-dangerously-skip-permissions"],
+    ["--", "--permission-mode", "bypassPermissions"],
+    ["--", "--permission-mode=bypassPermissions"],
+  ] as const;
+  const results = cases.map((args) => run(...args));
+
+  for (const result of results) {
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain("Use --unsafe-bypass-permissions");
+  }
+  expect(() => readFileSync(callsPath, "utf8")).toThrow();
 });
 
 test("the committed devcontainer does not persist a permission bypass", ({ repoRoot }) => {
   const config = readFileSync(join(repoRoot, ".devcontainer/devcontainer.json"), "utf8");
   const readme = readFileSync(join(repoRoot, ".devcontainer/README.md"), "utf8");
+  const projectSettings = JSON.parse(readFileSync(join(repoRoot, ".claude/settings.json"), "utf8")) as {
+    permissions?: { defaultMode?: string };
+  };
 
   expect(config).not.toContain("allowDangerouslySkipPermissions");
   expect(config).not.toContain("bypassPermissions");
   expect(config).not.toContain("defaultMode:'bypassPermissions'");
+  expect(projectSettings.permissions?.defaultMode).toBe("default");
   expect(readme).toContain("pnpm sandbox --unsafe-bypass-permissions");
   expect(readme).not.toContain("permissive mode`) safely");
 });

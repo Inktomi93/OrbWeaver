@@ -39,6 +39,12 @@ The host launcher starts this safe workflow with `pnpm sandbox`. If you knowingl
 workspace and network risk, the explicit unsafe opt-in is `pnpm sandbox --unsafe-bypass-permissions`;
 the launcher prints a warning before starting Claude and again inside the container terminal.
 
+The launcher passes `--permission-mode default`, and the committed project settings set the same safe
+default for direct `claude` sessions. Project settings override the user-level setting in the persistent
+`~/.claude` volume, so upgrades neutralize the old project-written `bypassPermissions` default without
+rewriting login state, plugins, hooks, or any other user-owned setting. The named unsafe launcher option
+remains a command-line override for that session only.
+
 ---
 
 ## Daily workflow
