@@ -635,9 +635,7 @@ export const automationActionsSchema = z.array(automationActionSchema).min(AUTOM
  *  contract (the membrane may `.parse` a fact before cloning it into the guest); the TS type is DERIVED from
  *  it, one home, the `automationActionSchema` / `pluginManifestSchema` posture — the interface can never drift
  *  from the runtime validator. */
-export const triggerFactSchema = z.object({
-  type: z.string(),
-  bus: z.enum(AUTOMATION_TRIGGER_BUSES),
+const triggerFactPayloadSchema = z.object({
   chatId: z.string().nullable(),
   // messageCommitted / messageEdited / variantSelected / messageHidden
   message: z
@@ -684,6 +682,10 @@ export const triggerFactSchema = z.object({
   personaId: z.string().optional(), // persona.updated (S7) — the persona whose CONTENT changed
   worldBookId: z.string().optional(), // world-info.updated (S7) — the OWNING book of the changed row
 });
+export const triggerFactSchema = z.discriminatedUnion("bus", [
+  triggerFactPayloadSchema.extend({ bus: z.literal("chat"), type: z.enum(CHAT_TRIGGER_TYPES) }),
+  triggerFactPayloadSchema.extend({ bus: z.literal("domain"), type: z.enum(DOMAIN_TRIGGER_TYPES) }),
+]);
 export type TriggerFact = z.infer<typeof triggerFactSchema>;
 
 /** The CEL activation for a rule predicate (and for `{{expr::…}}`). All values are JSON-safe

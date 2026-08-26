@@ -787,6 +787,19 @@ test("a second Stop click while already stopping does not fire a second chat.abo
   await expect.poll(() => trpc.count("chat.abort"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
+test("a rejected chat.abort recovers the still-live turn from stopping so Stop can be retried", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.abort": () => trpcError({ message: "abort failed" }) });
+  const component = await mount(<ComposerStory />);
+
+  await component.getByTestId("drive-begin").click();
+  await component.getByTestId("drive-delta").click();
+  await component.getByRole("button", { name: "Stop generating" }).click();
+
+  // Settled rendered arm: after the mutation rejects, the live stream is actionable again rather than
+  // marooned forever in the disabled `stopping` phase.
+  await expect(component.getByRole("button", { name: "Stop generating" })).toBeEnabled();
+});
+
 test("a send that FAILS keeps the draft for retry (never cleared — no commit signal ever fires)", async ({ mount, page }) => {
   // `chat.send` rejects and NO commit signal is ever driven → clear-on-commit never fires → the draft
   // survives. This is the race-free replacement for the old phase-gated restore: nothing was cleared, so

@@ -82,6 +82,11 @@ test("parseCel accepts a source under the cap boundary", () => {
   expect(isCelParseError(parseCel(atCap))).toBe(false);
 });
 
+test("parseCel returns a typed failure for a lone UTF-16 surrogate instead of throwing", () => {
+  const result = parseCel("\uD800");
+  expect(isCelParseError(result) ? result.code : "not-a-parse-error").toBe("invalid-utf16");
+});
+
 // ── normalization: CEL bigint ints surface as JS number (the JSON-safe plane) ─────────────────
 
 test("evalCel normalizes integer results to number", () => {

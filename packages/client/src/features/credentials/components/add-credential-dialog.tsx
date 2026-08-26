@@ -3,7 +3,7 @@
 // every open mounts a fresh form.
 //
 // Security: the key is sent to credentials.add (encrypted at rest) but never read back — credentials.list
-// returns the redacted view. The input is unmasked so the user can verify the paste; it is transient,
+// returns the redacted view. The transient input is masked by default with an explicit show/hide control,
 // never persisted client-side, and never echoed by any read.
 
 import type { CredentialProvider, ProviderMetadata } from "@orb/contracts/credentials";
@@ -210,7 +210,7 @@ function AddCredentialFormBody({
           </form.Subscribe>
 
           <form.AppField name="key">
-            {(field): ReactElement => <field.TextField label="Key" placeholder="Paste your API key" autoComplete="off" />}
+            {(field): ReactElement => <field.TextField label="Key" placeholder="Paste your API key" type="password" revealable={true} autoComplete="off" />}
           </form.AppField>
 
           <form.Subscribe

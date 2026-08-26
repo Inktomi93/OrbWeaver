@@ -2,8 +2,8 @@
 // useMutation + loose cache surgery (the `client-cache-surgery-only-in-data` gate makes that
 // physics: an imperative QueryClient call outside data/ is RED, so a cache need lands HERE). Bakes
 // the 4-phase cache-flavor optimistic recipe (cancelQueries → snapshot → setQueryData →
-// return-rollback; onError restores from the returned context so concurrent mutations each roll back
-// their own snapshot), the `echo` post-write read seed (a verb whose RESPONSE is the authoritative row
+// return-rollback; onError restores from the returned context only while that exact optimistic value still
+// owns the cache, so an older failure cannot overwrite a newer write), the `echo` post-write read seed (a verb whose RESPONSE is the authoritative row
 // for a read), a lightweight variables-render ghost-row mode free on every mutation, and one sticky
 // error slot per mutation with explicit clearError(). Callback property order is
 // onMutate → onError → onSuccess → onSettled (type-inference-sensitive).
@@ -113,6 +113,8 @@ export interface EntityMutationResult<TVars, TData> {
 interface OptimisticContext<TRead> {
   readonly snapshot: TRead | undefined;
   readonly readKey: QueryKey | null;
+  /** Exact cache value this mutation installed. A later write changes ownership by changing this ref. */
+  readonly optimisticValue: TRead | undefined;
 }
 
 /** Build the mutation hook once at module scope; features call the returned hook. Deps (trpc +
@@ -127,19 +129,26 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
       ...(config.errorToast === undefined ? {} : { meta: { errorToast: config.errorToast } }),
       onMutate: async (vars, context): Promise<OptimisticContext<TRead>> => {
         if (config.optimistic === undefined) {
-          return { snapshot: undefined, readKey: null };
+          return { snapshot: undefined, readKey: null, optimisticValue: undefined };
         }
         const readKey = config.optimistic.readKey(trpc, vars);
         // Cancel in-flight refetches so they can't clobber the optimistic write.
         await context.client.cancelQueries({ queryKey: readKey });
         const snapshot = context.client.getQueryData<TRead>(readKey);
-        context.client.setQueryData<TRead>(readKey, (old) => (config.optimistic === undefined ? old : config.optimistic.update(old, vars)));
+        const optimisticValue = context.client.setQueryData<TRead>(readKey, (old) =>
+          config.optimistic === undefined ? old : config.optimistic.update(old, vars),
+        );
         // Return the snapshot rather than close over it — rollback reads it from onError's arg, so
         // concurrent mutations each roll back their own.
-        return { snapshot, readKey };
+        return { snapshot, readKey, optimisticValue };
       },
       onError: (_error, _vars, onMutateResult, context) => {
         if (onMutateResult === undefined || onMutateResult.readKey === null) {
+          return;
+        }
+        // A later optimistic write or success owns the cache now. An older rejection may report its own
+        // error, but it must not replace newer knowledge with the snapshot it started from.
+        if (context.client.getQueryData<TRead>(onMutateResult.readKey) !== onMutateResult.optimisticValue) {
           return;
         }
         // Cold cache (no snapshot): the optimistic write created the entry, and v5 treats

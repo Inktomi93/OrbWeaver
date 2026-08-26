@@ -187,6 +187,30 @@ test("StatCell: BLANKING a set attribute commits null — the clear that un-refe
   expect(committed).toBeNull();
 });
 
+test("numeric tracker editors reject fractional input instead of truncating it", async ({ mount, page }) => {
+  const committed: string[] = [];
+  await mount(
+    <Stack gap="block">
+      <MeterRow
+        label="Vitality"
+        value={24}
+        max={30}
+        onEditValue={(next): void => void committed.push(`value:${next}`)}
+        onEditMax={(next): void => void committed.push(`max:${next}`)}
+      />
+      <StatCell label="STR" value={16} onEditValue={(next): void => void committed.push(`stat:${next}`)} />
+    </Stack>,
+  );
+
+  for (const name of ["Vitality value", "Vitality max", "STR value"]) {
+    await page.getByRole("button", { name }).click();
+    const field = page.getByRole("textbox", { name });
+    await field.fill("3.5");
+    await field.blur();
+  }
+  expect(committed).toEqual([]);
+});
+
 // ── TrackerChip ───────────────────────────────────────────────────────────────────────────────────
 
 test("TrackerChip read-only: label — value pill", async ({ mount }) => {

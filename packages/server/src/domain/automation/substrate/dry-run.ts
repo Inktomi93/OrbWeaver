@@ -36,7 +36,7 @@ function toCelBindings(env: AutomationCelEnv, withEvent: boolean, chatScoped: bo
 
 /** Synthesize a minimal fact from a rule's trigger when the host supplies no sample. */
 export function synthFact(trigger: AutomationTrigger, chatId: ChatId | null): TriggerFact {
-  return { type: trigger.type, bus: trigger.bus, chatId };
+  return { ...trigger, chatId };
 }
 
 /** Evaluate a rule predicate: `null` ⇒ always fire (`true`); a parse/eval error or a non-boolean result

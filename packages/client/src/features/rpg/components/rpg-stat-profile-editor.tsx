@@ -88,8 +88,9 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
         display={String(profile.range.min)}
         kind="numeric"
         onEdit={(next): void => {
-          const n = Number.parseInt(next, 10);
-          if (!Number.isNaN(n)) {
+          const trimmed = next.trim();
+          const n = Number(trimmed);
+          if (trimmed !== "" && Number.isInteger(n)) {
             onCommit({ ...profile, range: { min: n, max: Math.max(n + 1, profile.range.max) } });
           }
         }}
@@ -104,8 +105,9 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
         display={String(profile.range.max)}
         kind="numeric"
         onEdit={(next): void => {
-          const n = Number.parseInt(next, 10);
-          if (!Number.isNaN(n)) {
+          const trimmed = next.trim();
+          const n = Number(trimmed);
+          if (trimmed !== "" && Number.isInteger(n)) {
             onCommit({ ...profile, range: { min: profile.range.min, max: Math.max(profile.range.min + 1, n) } });
           }
         }}

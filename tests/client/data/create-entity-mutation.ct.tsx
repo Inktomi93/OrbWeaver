@@ -21,7 +21,14 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
-import { SectionEchoStory, SectionRefusalStory, TagCreateColdCacheStory, TagCreateOptimisticStory, TagCreateVariablesStory } from "./_ct-stories.tsx";
+import {
+  SectionEchoStory,
+  SectionRefusalStory,
+  TagCreateColdCacheStory,
+  TagCreateOptimisticStory,
+  TagCreateOverlapStory,
+  TagCreateVariablesStory,
+} from "./_ct-stories.tsx";
 
 interface FixtureTag {
   readonly id: string;
@@ -89,6 +96,20 @@ test("rollback: a failed mutation reverts the optimistic row, surfacing the stic
   // STAYS gone after the settle-triggered refetch too (the fixture never gained a row on failure).
   await expect(page.getByTestId("tag-list")).not.toContainText("new-tag");
   await expect.poll(() => trpc.count("tag.createTag")).toBe(1);
+});
+
+test("an older optimistic failure cannot overwrite a newer successful cache value", async ({ mount, page }) => {
+  await routeTrpc(page, { "tag.listTags": () => [] });
+
+  await mount(<TagCreateOverlapStory />);
+  await page.getByRole("button", { name: "older", exact: true }).click();
+  await expect(page.getByTestId("overlap-tag-list")).toContainText("older");
+  await page.getByRole("button", { name: "newer" }).click();
+  await expect(page.getByTestId("overlap-tag-list")).toHaveText("newer");
+
+  await page.getByRole("button", { name: "fail older" }).click();
+  await expect(page.getByRole("alert")).toHaveText("older failed");
+  await expect(page.getByTestId("overlap-tag-list")).toHaveText("newer");
 });
 
 test("cold-cache rollback: a failed mutation against a never-fetched query REMOVES the phantom row", async ({ mount, page }) => {

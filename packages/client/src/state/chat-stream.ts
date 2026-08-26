@@ -3,10 +3,10 @@
 // Token churn stays isolated: only a component subscribed to that chat's slot re-renders on a delta.
 //
 // Write ownership: every action here is bus-only (called only from `applyChatBusEvent`) except
-// `markStopping`, which the composer's Stop button reaches via `data/bus`'s `markTurnStopping`
-// wrapper for instant feedback before the abort round-trip starts (`chatStream` itself may only be
-// imported inside data/bus/ — gate `chat-stream-writes-in-bus-only`). The slot does not close there —
-// it closes only on the bus's turnAborted (or a race-won turnCompleted).
+// `markStopping` + its guarded `recoverAfterStopFailure`, which the composer's Stop button reaches via
+// `data/bus` wrappers for instant feedback and rejected-request recovery (`chatStream` itself may only be
+// imported inside data/bus/ — gate `chat-stream-writes-in-bus-only`). The slot does not close there — it
+// closes only on the bus's turnAborted (or a race-won turnCompleted).
 
 import type { ChatDeltaEvent, MemoryRecallPhase, TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
@@ -233,7 +233,10 @@ export interface ChatStreamApi {
   readonly notifyUserMessageCommitted: (chatId: ChatId) => void;
   /** Called via `data/bus`'s `markTurnStopping` wrapper: pending/streaming → stopping, preserving
    *  accumulated text/reasoning. Idempotent no-op from any other phase. */
-  readonly markStopping: (chatId: ChatId) => void;
+  readonly markStopping: (chatId: ChatId) => "pending" | "streaming" | null;
+  /** Recover a rejected abort request without racing a server terminal. Only a still-stopping slot moves;
+   *  bytes received while stopping are preserved and force the live slot back to streaming. */
+  readonly recoverAfterStopFailure: (chatId: ChatId, previousPhase: "pending" | "streaming") => void;
   /** Stamp the canon row this LIVE turn just wrote (`messageCommitted` for an assistant view) — the
    *  ghost's handover signal (see `TurnSlot`). Idempotent no-op off-turn; never called for a user row. */
   readonly markCommitted: (chatId: ChatId, messageId: MessageId) => void;
@@ -331,12 +334,36 @@ export const chatStream: ChatStreamApi = {
         },
         "turn/stopping",
       );
-      return;
+      return "pending";
     }
     if (slot.phase === "streaming") {
       setSlot(chatId, { ...slot, phase: "stopping" }, "turn/stopping");
+      return "streaming";
     }
     // idle / stopping / completed / aborted: idempotent no-op (the double-abort guard).
+    return null;
+  },
+  recoverAfterStopFailure: (chatId, previousPhase) => {
+    flushPending(chatId);
+    const slot = slotOf(chatId);
+    if (slot.phase !== "stopping") {
+      return;
+    }
+    if (previousPhase === "streaming" || slot.text !== "" || slot.reasoning !== "") {
+      setSlot(chatId, { ...slot, phase: "streaming" }, "turn/stop-failed");
+      return;
+    }
+    setSlot(
+      chatId,
+      {
+        phase: "pending",
+        intent: slot.intent,
+        speakerCharacterId: slot.speakerCharacterId,
+        targetMessageId: slot.targetMessageId,
+        committedMessageId: slot.committedMessageId,
+      },
+      "turn/stop-failed",
+    );
   },
   markCommitted: (chatId, messageId) => {
     const slot = slotOf(chatId);

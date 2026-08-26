@@ -687,8 +687,8 @@ export function ContextTabStripStory({ width, showTrackers = false, withIconless
 // ── Tab STATES in the generic (unclaimed) panel — the §4.6 badge + PHASE-disable vocabulary ──────────
 // The two-strip bracket is DELETED (HUD-1 §5.1): a bracket is a claimant's own arrangement, and a claimant
 // now owns the whole pane instead of renting slots here. What survives is the state vocabulary the generic
-// panel still owns — the badge (dot + count, never on the active tab) and disable-with-reason (aria-disabled
-// + title, focusable-discoverable). The set deliberately MIXES `strip` values: rail membership is a
+// panel still owns — the badge (dot + count, never on the active tab) and disable-with-reason (native
+// disabled + title; the visible label keeps the reason discoverable). The set deliberately MIXES `strip` values: rail membership is a
 // claimant's vocabulary, so the generic panel must IGNORE it and render ONE strip carrying every tab.
 
 const CTX_TAB_STATE_TABS: readonly ResolvedContextTab[] = [
