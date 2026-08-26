@@ -244,6 +244,80 @@ test.each(SEED_WRITE_STEPS)("a partial failure at %s retries into the SAME compl
   expect(applied).toEqual(SEED_WRITE_STEPS.map((step) => `${CHAT_ID}:${step}`));
 });
 
+test("concurrent retries join one in-flight finish without invoking the failed door twice", async () => {
+  const { client, applied } = retryClient("createGame");
+  const seed = buildAgentSeed(client);
+
+  await expect(seed.game({ profile: "d20" })).rejects.toThrow("injected failure at createGame");
+
+  let releaseRetry: (() => void) | undefined;
+  const retryHeld = new Promise<void>((resolve) => {
+    releaseRetry = resolve;
+  });
+  let markRetryStarted: (() => void) | undefined;
+  const retryStarted = new Promise<void>((resolve) => {
+    markRetryStarted = resolve;
+  });
+  const retryCreate = vi.fn(({ chatId }: { readonly chatId: ChatId }) => {
+    markRetryStarted?.();
+    return retryHeld.then(() => {
+      applied.push(`${chatId}:createGame`);
+    });
+  });
+  client.rpg.createGame.mutate = retryCreate;
+
+  const firstRetry = seed.game({ profile: "d20" });
+  const secondRetry = seed.game({ profile: "d20" });
+  await retryStarted;
+  releaseRetry?.();
+
+  await expect(Promise.all([firstRetry, secondRetry])).resolves.toEqual([{ chatId: CHAT_ID }, { chatId: CHAT_ID }]);
+  expect(retryCreate).toHaveBeenCalledOnce();
+  expect(client.chat.startChat.mutate).toHaveBeenCalledOnce();
+  expect(applied).toEqual(SEED_WRITE_STEPS.map((step) => `${CHAT_ID}:${step}`));
+});
+
+test("a joined retry failure rejects every waiter and releases the finish for a later resume", async () => {
+  const { client, applied } = retryClient("createGame");
+  const seed = buildAgentSeed(client);
+
+  await expect(seed.game({ profile: "d20" })).rejects.toThrow("injected failure at createGame");
+
+  let rejectRetry: ((reason: Error) => void) | undefined;
+  const retryHeld = new Promise<void>((_resolve, reject) => {
+    rejectRetry = reject;
+  });
+  let markRetryStarted: (() => void) | undefined;
+  const retryStarted = new Promise<void>((resolve) => {
+    markRetryStarted = resolve;
+  });
+  const retryCreate = vi
+    .fn()
+    .mockImplementationOnce(() => {
+      markRetryStarted?.();
+      return retryHeld;
+    })
+    .mockImplementation(({ chatId }: { readonly chatId: ChatId }) => {
+      applied.push(`${chatId}:createGame`);
+      return Promise.resolve();
+    });
+  client.rpg.createGame.mutate = retryCreate;
+
+  const firstRetry = seed.game({ profile: "d20" });
+  const secondRetry = seed.game({ profile: "d20" });
+  await retryStarted;
+  rejectRetry?.(new Error("joined retry failed"));
+
+  const joined = await Promise.allSettled([firstRetry, secondRetry]);
+  expect(joined.map((result) => result.status)).toEqual(["rejected", "rejected"]);
+  expect(retryCreate).toHaveBeenCalledOnce();
+
+  await expect(seed.game({ profile: "d20" })).resolves.toEqual({ chatId: CHAT_ID });
+  expect(retryCreate).toHaveBeenCalledTimes(2);
+  expect(client.chat.startChat.mutate).toHaveBeenCalledOnce();
+  expect(applied).toEqual(SEED_WRITE_STEPS.map((step) => `${CHAT_ID}:${step}`));
+});
+
 test("an unfinished seed refuses different arguments instead of orphaning its partial game", async () => {
   const { client } = retryClient("createGame");
   const seed = buildAgentSeed(client);
