@@ -183,6 +183,7 @@ export {
   rpgDeleteQuestInputSchema,
   rpgDismissActorInputSchema,
   rpgEditJournalEntryInputSchema,
+  rpgEditQuestObjectiveInputSchema,
   rpgEditSnapshotInputSchema,
   rpgListJournalInputSchema,
   rpgListTurnToolCallsInputSchema,

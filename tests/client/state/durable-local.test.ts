@@ -8,7 +8,15 @@
 // pipeline that hides which of those arms actually ran.
 
 import type { DurableLocalPersistApi, DurableLocalStorage } from "@orb/client/state";
-import { __resetDurableLocal, activeDurableLocalUserId, bindDurableLocalToUser, durableLocalKey, registerDurableLocalStore } from "@orb/client/state";
+import {
+  __resetDurableLocal,
+  activeDurableLocalUserId,
+  bindDurableLocalToUser,
+  durableLocalKey,
+  durableLocalReadyFor,
+  durableLocalWritesAllowed,
+  registerDurableLocalStore,
+} from "@orb/client/state";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, describe } from "vitest";
@@ -22,6 +30,9 @@ interface StoreDouble {
   readonly map: Map<string, unknown>;
   readonly keys: string[];
   rehydrates: number;
+  resets: number;
+  rehydrate: () => Promise<void> | void;
+  reset: () => void;
 }
 
 /** A store double: records every `setOptions` key and every `rehydrate`, over one shared storage map. */
@@ -41,8 +52,9 @@ function storeDouble(map: Map<string, unknown>): StoreDouble {
         setOptions: ({ name }): void => {
           double.keys.push(name);
         },
-        rehydrate: (): void => {
+        rehydrate: (): Promise<void> | void => {
           double.rehydrates += 1;
+          return double.rehydrate();
         },
         getOptions: (): { readonly storage?: DurableLocalStorage } => ({ storage }),
       },
@@ -50,6 +62,11 @@ function storeDouble(map: Map<string, unknown>): StoreDouble {
     map,
     keys: [],
     rehydrates: 0,
+    resets: 0,
+    rehydrate: (): void => undefined,
+    reset: (): void => {
+      double.resets += 1;
+    },
   };
   return double;
 }
@@ -59,10 +76,11 @@ afterEach(() => {
 });
 
 describe("durableLocalKey", () => {
-  test("legacy (un-namespaced) before any identity is bound, user-scoped after", () => {
+  test("legacy (un-namespaced) before any identity is bound, user-scoped after", async () => {
     expect(durableLocalKey("orb:", "shell")).toBe("orb:shell");
-    registerDurableLocalStore({ prefix: "orb:", name: "shell", api: storeDouble(new Map()).api });
-    bindDurableLocalToUser(ALICE);
+    const store = storeDouble(new Map());
+    registerDurableLocalStore({ prefix: "orb:", name: "shell", api: store.api, reset: store.reset });
+    await bindDurableLocalToUser(ALICE);
     expect(durableLocalKey("orb:", "shell")).toBe(`orb:u/${ALICE}/shell`);
     expect(durableLocalKey("orb-draft:", "character")).toBe(`orb-draft:u/${ALICE}/character`);
     expect(activeDurableLocalUserId()).toBe(ALICE);
@@ -72,12 +90,12 @@ describe("durableLocalKey", () => {
 describe("bindDurableLocalToUser — the three arms", () => {
   // ADOPT: the once-per-browser migration. The blob must MOVE (a copy would leave the leaked bytes behind
   // for the next identity), and nothing rehydrates — the in-memory state already came from that blob.
-  test("legacy → first user ADOPTS the blob onto the user key and DELETES the original", () => {
+  test("legacy → first user ADOPTS the blob onto the user key and DELETES the original", async () => {
     const map = new Map<string, unknown>([["orb:character-library", { state: { tagFilter: ["tag_x"] }, version: 1 }]]);
     const store = storeDouble(map);
-    registerDurableLocalStore({ prefix: "orb:", name: "character-library", api: store.api });
+    registerDurableLocalStore({ prefix: "orb:", name: "character-library", api: store.api, reset: store.reset });
 
-    bindDurableLocalToUser(ALICE);
+    await bindDurableLocalToUser(ALICE);
 
     expect(map.get(`orb:u/${ALICE}/character-library`)).toEqual({ state: { tagFilter: ["tag_x"] }, version: 1 });
     expect(map.has("orb:character-library")).toBe(false);
@@ -87,13 +105,13 @@ describe("bindDurableLocalToUser — the three arms", () => {
 
   // SWITCH: the identity boundary. Nothing is adopted (that would hand Alice's state to Bob) and the store
   // MUST rehydrate — otherwise the in-memory state is still the previous identity's, just writing to a new key.
-  test("user → a DIFFERENT user re-keys and REHYDRATES, and never adopts", () => {
+  test("user → a DIFFERENT user re-keys and REHYDRATES, and never adopts", async () => {
     const map = new Map<string, unknown>([["orb:shell", { state: { activeSection: "corpus" }, version: 2 }]]);
     const store = storeDouble(map);
-    registerDurableLocalStore({ prefix: "orb:", name: "shell", api: store.api });
+    registerDurableLocalStore({ prefix: "orb:", name: "shell", api: store.api, reset: store.reset });
 
-    bindDurableLocalToUser(ALICE);
-    bindDurableLocalToUser(BOB);
+    await bindDurableLocalToUser(ALICE);
+    await bindDurableLocalToUser(BOB);
 
     expect(store.keys).toEqual([`orb:u/${ALICE}/shell`, `orb:u/${BOB}/shell`]);
     expect(store.rehydrates).toBe(1); // the switch only
@@ -102,39 +120,39 @@ describe("bindDurableLocalToUser — the three arms", () => {
     expect(map.has(`orb:u/${BOB}/shell`)).toBe(false);
   });
 
-  test("re-binding the SAME user is a no-op — no re-key, no rehydrate, no flash", () => {
+  test("re-binding the SAME user is a no-op — no re-key, no rehydrate, no flash", async () => {
     const store = storeDouble(new Map());
-    registerDurableLocalStore({ prefix: "orb:", name: "tag-library", api: store.api });
+    registerDurableLocalStore({ prefix: "orb:", name: "tag-library", api: store.api, reset: store.reset });
 
-    bindDurableLocalToUser(ALICE);
-    bindDurableLocalToUser(ALICE);
+    await bindDurableLocalToUser(ALICE);
+    await bindDurableLocalToUser(ALICE);
 
     expect(store.keys).toEqual([`orb:u/${ALICE}/tag-library`]);
     expect(store.rehydrates).toBe(0);
   });
 
   // THE D2 CLAIM, stated as an assertion: two identities on one browser cannot read each other's blobs.
-  test("two users on ONE storage never read each other's state", () => {
+  test("two users on ONE storage never read each other's state", async () => {
     const map = new Map<string, unknown>();
     const store = storeDouble(map);
-    registerDurableLocalStore({ prefix: "orb:", name: "composer-draft", api: store.api });
+    registerDurableLocalStore({ prefix: "orb:", name: "composer-draft", api: store.api, reset: store.reset });
 
-    bindDurableLocalToUser(ALICE);
+    await bindDurableLocalToUser(ALICE);
     map.set(durableLocalKey("orb:", "composer-draft"), { state: { drafts: { room: "alice's unsent line" } }, version: 1 });
-    bindDurableLocalToUser(BOB);
+    await bindDurableLocalToUser(BOB);
 
     expect(map.get(durableLocalKey("orb:", "composer-draft"))).toBeUndefined();
     expect(map.get(`orb:u/${ALICE}/composer-draft`)).toEqual({ state: { drafts: { room: "alice's unsent line" } }, version: 1 });
   });
 
-  test("every registered store is re-keyed, not just the first", () => {
+  test("every registered store is re-keyed, not just the first", async () => {
     const map = new Map<string, unknown>();
     const shell = storeDouble(map);
     const drafts = storeDouble(map);
-    registerDurableLocalStore({ prefix: "orb:", name: "shell", api: shell.api });
-    registerDurableLocalStore({ prefix: "orb-draft:", name: "character", api: drafts.api });
+    registerDurableLocalStore({ prefix: "orb:", name: "shell", api: shell.api, reset: shell.reset });
+    registerDurableLocalStore({ prefix: "orb-draft:", name: "character", api: drafts.api, reset: drafts.reset });
 
-    bindDurableLocalToUser(ALICE);
+    await bindDurableLocalToUser(ALICE);
 
     expect(shell.keys).toEqual([`orb:u/${ALICE}/shell`]);
     expect(drafts.keys).toEqual([`orb-draft:u/${ALICE}/character`]);
@@ -143,20 +161,56 @@ describe("bindDurableLocalToUser — the three arms", () => {
   // zustand's `persist` EARLY-RETURNS without assigning `api.persist` when the resolved storage is falsy
   // (verified in the installed middleware source) — a browser that refuses storage, or a node lane. Such a
   // store persists nothing, so the rebind must skip it rather than crash the boot on a missing property.
-  test("a storage-less store (no `api.persist`) is skipped, not thrown on", () => {
-    registerDurableLocalStore({ prefix: "orb:", name: "storage-less", api: {} });
-    expect(() => bindDurableLocalToUser(ALICE)).not.toThrow();
+  test("a storage-less store (no `api.persist`) is skipped, not thrown on", async () => {
+    registerDurableLocalStore({ prefix: "orb:", name: "storage-less", api: {}, reset: (): void => undefined });
+    await expect(bindDurableLocalToUser(ALICE)).resolves.toBeUndefined();
     expect(activeDurableLocalUserId()).toBe(ALICE);
   });
 
-  test("adoption with NO legacy blob writes nothing (a fresh browser is not a migration)", () => {
+  test("adoption with NO legacy blob writes nothing (a fresh browser is not a migration)", async () => {
     const map = new Map<string, unknown>();
     const store = storeDouble(map);
-    registerDurableLocalStore({ prefix: "orb:", name: "recent-models", api: store.api });
+    registerDurableLocalStore({ prefix: "orb:", name: "recent-models", api: store.api, reset: store.reset });
 
-    bindDurableLocalToUser(ALICE);
+    await bindDurableLocalToUser(ALICE);
 
     expect([...map.keys()]).toEqual([]);
     expect(store.keys).toEqual([`orb:u/${ALICE}/recent-models`]);
+  });
+
+  test("a user switch resets and gates writes until that user's held hydration owns every store", async () => {
+    const store = storeDouble(new Map());
+    registerDurableLocalStore({ prefix: "orb:", name: "shell", api: store.api, reset: store.reset });
+    await bindDurableLocalToUser(ALICE);
+    const held = Promise.withResolvers<void>();
+    store.rehydrate = (): Promise<void> => held.promise;
+
+    const bindingBob = bindDurableLocalToUser(BOB);
+    await Promise.resolve();
+    expect(store.resets).toBe(1);
+    expect(durableLocalWritesAllowed()).toBe(false);
+    expect(durableLocalReadyFor(BOB)).toBe(false);
+
+    held.resolve();
+    await bindingBob;
+    expect(durableLocalReadyFor(BOB)).toBe(true);
+    expect(durableLocalWritesAllowed()).toBe(true);
+  });
+
+  test("a failed hydration remains gated and a same-user retry rehydrates before opening the stores", async () => {
+    const store = storeDouble(new Map());
+    registerDurableLocalStore({ prefix: "orb:", name: "shell", api: store.api, reset: store.reset });
+    await bindDurableLocalToUser(ALICE);
+    store.rehydrate = (): Promise<void> => Promise.reject(new Error("storage unavailable"));
+
+    await expect(bindDurableLocalToUser(BOB)).rejects.toThrow("storage unavailable");
+    expect(durableLocalReadyFor(BOB)).toBe(false);
+    expect(durableLocalWritesAllowed()).toBe(false);
+
+    store.rehydrate = (): void => undefined;
+    await bindDurableLocalToUser(BOB);
+    expect(store.rehydrates).toBe(2);
+    expect(durableLocalReadyFor(BOB)).toBe(true);
+    expect(durableLocalWritesAllowed()).toBe(true);
   });
 });

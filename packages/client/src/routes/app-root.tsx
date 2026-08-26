@@ -45,7 +45,24 @@ export function AppRoot(): ReactElement {
   // rebind, the recovery ladder's host, and the visibility probe. Mounted HERE for the same reason the bus
   // hooks are — a feature could unmount and take the whole belt with it — and AFTER the socket so a
   // resume's forced re-announce has a bound transport to announce on.
-  useSessionRecovery();
+  const durableReady = useSessionRecovery();
+
+  if (!durableReady) {
+    return <AriaAnnouncer message="Loading your workspace." />;
+  }
+
+  return <HydratedAppRoot multiHumanCapable={multiHumanCapable} joinToken={joinToken} setJoinToken={setJoinToken} />;
+}
+
+interface HydratedAppRootProps {
+  readonly multiHumanCapable: boolean;
+  readonly joinToken: string | null;
+  readonly setJoinToken: (token: string | null) => void;
+}
+
+/** Everything that can read or act on durable-local state mounts only after the verified user owns it. */
+function HydratedAppRoot({ multiHumanCapable, joinToken, setJoinToken }: HydratedAppRootProps): ReactElement {
+  const invalidation = useInvalidation();
 
   const activeSection = useActiveSection();
   const selectedCharacterId = useSelectedCharacterId();

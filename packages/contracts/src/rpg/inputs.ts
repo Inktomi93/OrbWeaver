@@ -28,6 +28,7 @@ import {
 } from "./config.ts";
 import { RPG_CYOA_CHOICE_BEHAVIORS, rpgGameModeSchema, rpgJournalTypeSchema, rpgQuestStatusSchema } from "./enums.ts";
 import { rpgStatProfileSchema } from "./profile.ts";
+import { rpgQuestObjectiveSchema } from "./snapshot.ts";
 import { RPG_HINT_MAX, rpgTrackerDefSchema } from "./tracker.ts";
 
 /** The shared chatId trust-boundary field — game-ness + authority BOTH resolve through it (no `ownerId`, D23). */
@@ -202,13 +203,35 @@ export const rpgPromoteActorInputSchema = z.object({
  *  `status` rides the DERIVED quest-status enum. `objectives` are the authoring shape (`id` optional — a new
  *  objective omits it, the verb mints; `completed` optional) — the snapshot-resident `rpgQuestObjectiveSchema`
  *  requires `id`, so this authoring variant carries the optional-id, never a re-spell of the resident union. */
-export const rpgUpsertQuestInputSchema = z.object({
+const questFields = {
   chatId: chatIdField,
-  questId: brandedId<RpgQuestId>().optional(),
   name: z.string().min(1),
   status: rpgQuestStatusSchema.optional(),
   description: z.string().optional(),
-  objectives: z.array(z.object({ id: z.string().min(1).optional(), text: z.string().min(1), completed: z.boolean().optional() })).optional(),
+};
+
+export const rpgUpsertQuestInputSchema = z.union([
+  z.strictObject({
+    ...questFields,
+    questId: z.never().optional(),
+    objectives: z.array(z.strictObject({ text: z.string().min(1), completed: z.boolean().optional() })).optional(),
+  }),
+  z.strictObject({ ...questFields, questId: brandedId<RpgQuestId>() }),
+]);
+
+/** Objective edits are operations against the server's current quest, never a client-authored list image. */
+export const rpgEditQuestObjectiveInputSchema = z.strictObject({
+  chatId: chatIdField,
+  questId: brandedId<RpgQuestId>(),
+  op: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("add"), text: z.string().min(1) }),
+    z.strictObject({
+      kind: z.literal("setCompleted"),
+      objectiveId: rpgQuestObjectiveSchema.shape.id,
+      completed: z.boolean(),
+    }),
+    z.strictObject({ kind: z.literal("delete"), objectiveId: rpgQuestObjectiveSchema.shape.id }),
+  ]),
 });
 
 /** `deleteQuest` — remove a quest from the current resolved snapshot's array (host). */

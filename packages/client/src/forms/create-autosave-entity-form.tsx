@@ -138,12 +138,17 @@ export function createAutosaveEntityForm<TValues extends object>(
     // edit — otherwise an echo→re-submit oscillation clears its own edit-free run every loop and never
     // trips. A ref (read/written only in effect/subscription callbacks, never at render).
     const programmaticWriteRef = useRef(false);
-
+    // Completion ownership: saves may overlap (an explicit retry/teardown can submit while a debounce write
+    // is still in flight). Only the newest-started submit may advance the session baseline or lifecycle.
+    // Otherwise an older response arriving last clears the newer crash draft and makes the form look clean
+    // against stale values.
+    const submitEpochRef = useRef(0);
     const form = useAppForm({
       validationLogic: revalidateLogic(),
       ...config.options,
       defaultValues: seed,
       onSubmit: async ({ value }: { value: TValues }) => {
+        const submitEpoch = ++submitEpochRef.current;
         setSaveState("saving");
         try {
           if (save === undefined) {
@@ -157,6 +162,9 @@ export function createAutosaveEntityForm<TValues extends object>(
             throw new Error(`createAutosaveEntityForm: no save function supplied for entity "${entityId}" (neither config.save nor a call-time save)`);
           }
           await save(value);
+          if (submitEpoch !== submitEpochRef.current) {
+            return;
+          }
           // Re-baseline to the just-saved snapshot AFTER save resolves (§4) — all guards now read clean.
           lastSavedRef.current = value;
           config.draft?.clearDraft(entityId);
@@ -164,7 +172,9 @@ export function createAutosaveEntityForm<TValues extends object>(
         } catch (error) {
           // Record the failed lifecycle for the retry affordance, then re-throw so the driver's own
           // `.catch` and the injected save's errorToast still run (clearDraft correctly skipped).
-          setSaveState("error");
+          if (submitEpoch === submitEpochRef.current) {
+            setSaveState("error");
+          }
           throw error;
         }
       },

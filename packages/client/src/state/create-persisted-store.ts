@@ -12,7 +12,7 @@ import { createJSONStorage, devtools, persist, subscribeWithSelector } from "zus
 import type { GatedSet, GatedStoreHook } from "./create-gated-store.ts";
 import { STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
 import type { DurableLocalPersistApi } from "./durable-local.ts";
-import { durableLocalKey, registerDurableLocalStore } from "./durable-local.ts";
+import { durableLocalKey, durableLocalWritesAllowed, registerDurableLocalStore } from "./durable-local.ts";
 
 const STORAGE_KEY_PREFIX = "orb:";
 const registeredNames = new Set<string>();
@@ -57,21 +57,32 @@ export function createPersistedStore<T, TPersisted = T>(
   const hook = create<T>()(
     devtools(
       subscribeWithSelector(
-        persist((set, get): T => initializer(set as GatedSet<T>, get), {
-          name: storageKey,
-          version: options.version,
-          migrate: options.migrate,
-          // The always-run rehydrate seam. Zustand calls `migrate` ONLY on a version mismatch and `merge`
-          // on EVERY rehydrate (version-matched blobs included) — so we run `migrate` here too, over the
-          // (possibly already-migrated on a bump) persisted blob, to sanitize a same-version poisoned blob
-          // before it reaches the store. `migrate` is TOTAL + idempotent, so the double-pass on a bump is a
-          // no-op. We ignore zustand's default shallow-merge-with-current: a persisted store's identity is
-          // its migrated persisted slice, and any transient field is (re)seeded by the initializer, not the
-          // stale blob. `persisted` is `unknown` (zustand's own type) — `migrate` owns the validation.
-          merge: (persisted: unknown, _current: T): T => options.migrate(persisted, options.version),
-          partialize: (s): TPersisted => options.partialize(s),
-          ...(options.storage === undefined ? {} : { storage: createJSONStorage(() => options.storage as StateStorage) }),
-        }),
+        persist(
+          (set, get): T =>
+            initializer(
+              ((...args: Parameters<GatedSet<T>>): void => {
+                if (durableLocalWritesAllowed()) {
+                  (set as GatedSet<T>)(...args);
+                }
+              }) as GatedSet<T>,
+              get,
+            ),
+          {
+            name: storageKey,
+            version: options.version,
+            migrate: options.migrate,
+            // The always-run rehydrate seam. Zustand calls `migrate` ONLY on a version mismatch and `merge`
+            // on EVERY rehydrate (version-matched blobs included) — so we run `migrate` here too, over the
+            // (possibly already-migrated on a bump) persisted blob, to sanitize a same-version poisoned blob
+            // before it reaches the store. `migrate` is TOTAL + idempotent, so the double-pass on a bump is a
+            // no-op. We ignore zustand's default shallow-merge-with-current: a persisted store's identity is
+            // its migrated persisted slice, and any transient field is (re)seeded by the initializer, not the
+            // stale blob. `persisted` is `unknown` (zustand's own type) — `migrate` owns the validation.
+            merge: (persisted: unknown, _current: T): T => options.migrate(persisted, options.version),
+            partialize: (s): TPersisted => options.partialize(s),
+            ...(options.storage === undefined ? {} : { storage: createJSONStorage(() => options.storage as StateStorage) }),
+          },
+        ),
       ),
       { name: storageKey, enabled: STORE_DEVTOOLS_ENABLED },
     ),
@@ -79,7 +90,14 @@ export function createPersistedStore<T, TPersisted = T>(
 
   // Enrolment, not a second registry: `durable-local.ts` owns the key scheme, so the rebind at identity
   // resolution reaches every mint without any store knowing an identity exists.
-  registerDurableLocalStore({ prefix: STORAGE_KEY_PREFIX, name, api: hook as unknown as DurableLocalPersistApi });
+  registerDurableLocalStore({
+    prefix: STORAGE_KEY_PREFIX,
+    name,
+    api: hook as unknown as DurableLocalPersistApi,
+    reset: (): void => {
+      hook.setState(hook.getInitialState(), true);
+    },
+  });
 
   return hook as GatedStoreHook<T>;
 }

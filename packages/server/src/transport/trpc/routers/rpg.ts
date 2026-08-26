@@ -30,6 +30,7 @@ import {
   rpgDeleteQuestInputSchema,
   rpgDismissActorInputSchema,
   rpgEditJournalEntryInputSchema,
+  rpgEditQuestObjectiveInputSchema,
   rpgEditSnapshotInputSchema,
   rpgListJournalInputSchema,
   rpgListTurnToolCallsInputSchema,
@@ -70,6 +71,9 @@ export const rpgRouter = t.router({
     .input(rpgPromoteActorInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.promoteActor({ principal: ctx.auth, ...input })),
   upsertQuest: authedProcedure.input(rpgUpsertQuestInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.upsertQuest({ principal: ctx.auth, ...input })),
+  editQuestObjective: authedProcedure
+    .input(rpgEditQuestObjectiveInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.editQuestObjective({ principal: ctx.auth, ...input })),
   deleteQuest: authedProcedure.input(rpgDeleteQuestInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.deleteQuest({ principal: ctx.auth, ...input })),
   addJournalEntry: authedProcedure
     .input(rpgAddJournalEntryInputSchema)

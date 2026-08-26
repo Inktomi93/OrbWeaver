@@ -206,6 +206,13 @@ export const useUpsertQuest = createEntityMutation<inferInput<Trpc["rpg"]["upser
   errorToast: "Couldn't save the goal.",
 });
 
+/** `rpg.editQuestObjective` — one objective-ID operation against the server's current quest head. */
+export const useEditQuestObjective = createEntityMutation<inferInput<Trpc["rpg"]["editQuestObjective"]>, unknown>({
+  options: (trpc) => trpc.rpg.editQuestObjective.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't save the goal step.",
+});
+
 /** `rpg.updateConfig` — the ONE config write door (host): steering note, extraction knob, cast-field
  *  schemas, relationship hints, the deception knobs, orb-pinning, and the #40 engaged toggle. Repaints
  *  the config view (the GM console's own read), the tracker view (pinnedOrbs changes the band; castFields

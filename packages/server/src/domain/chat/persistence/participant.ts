@@ -12,10 +12,10 @@ import type { HandoffOffer, ParticipantKind } from "@orb/contracts/chat";
 import { isUserBacked } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { chatParticipants, chats } from "@orb/db";
+import { chatInvites, chatParticipants, chats } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
-import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import type { CharacterId, ChatId, ChatInviteId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 
 type ParticipantActor = { readonly kind: "human"; readonly userId: UserId } | { readonly kind: "character"; readonly characterId: CharacterId };
 
@@ -146,6 +146,58 @@ export async function upsertMemberOnJoin(
     })
     .returning();
   return rows.at(0);
+}
+
+/** Invite-only conditional seat statement. It runs immediately after the conditional invite UPDATE in one
+ * `db.batch`: SQLite `changes()` is 1 only when that exact preceding claim incremented a row, so a zero-row
+ * claim makes this INSERT zero-row too. A seat constraint failure aborts the batch and rolls the increment
+ * back. This is intentionally one connection-local primitive, not a pre-read inference. */
+export function insertMemberAfterInviteClaimStatement(
+  db: Db,
+  params: {
+    readonly participantId: ChatParticipantId;
+    readonly inviteId: ChatInviteId;
+    readonly userId: UserId;
+    readonly joinSeq: number;
+    readonly now: number;
+    readonly activePersonaId: PersonaId | null;
+  },
+): AwaitableBatchStmt<(typeof chatParticipants.$inferSelect)[]> {
+  return db
+    .insert(chatParticipants)
+    .select(
+      db
+        .select({
+          id: sql<ChatParticipantId>`${params.participantId}`.as("id"),
+          chatId: chatInvites.chatId,
+          kind: sql<"human">`'human'`.as("kind"),
+          userId: sql<UserId>`${params.userId}`.as("user_id"),
+          characterId: sql<null>`null`.as("character_id"),
+          role: sql<"member">`'member'`.as("role"),
+          activePersonaId: sql<PersonaId | null>`${params.activePersonaId}`.as("active_persona_id"),
+          talkativeness: sql<number>`0.5`.as("talkativeness"),
+          disabled: sql<boolean>`false`.as("disabled"),
+          joinedAt: sql<number>`${params.now}`.as("joined_at"),
+          joinSeq: sql<number>`${params.joinSeq}`.as("join_seq"),
+          leftSeq: sql<null>`null`.as("left_seq"),
+          joinHistoryVisibility: sql<"full">`'full'`.as("join_history_visibility"),
+        })
+        .from(chatInvites)
+        .where(and(eq(chatInvites.id, params.inviteId), sql`changes() > 0`)),
+    )
+    .onConflictDoUpdate({
+      target: [chatParticipants.chatId, chatParticipants.userId],
+      set: {
+        id: params.participantId,
+        activePersonaId: params.activePersonaId,
+        joinedAt: params.now,
+        joinSeq: params.joinSeq,
+        leftSeq: null,
+        role: "member",
+      },
+      setWhere: isNotNull(chatParticipants.leftSeq),
+    })
+    .returning();
 }
 
 /** Self-leave / kick-a-human: stamp `leftSeq` on the caller's present row (atomic). Returns the row left this

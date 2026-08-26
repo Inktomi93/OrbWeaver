@@ -23,11 +23,11 @@
 // accessor returns a fresh object per render by design, and a churning dep would re-bind the host (and its
 // cross-tab subscription) on every commit. `queryClient` + the tRPC proxy are context values and stable.
 
-import type { ChatId, Handle } from "@orb/kit/ids";
+import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { timeLib } from "#lib";
-import { bindDurableLocalToUser, openModal, selectChat, useActiveChatId } from "#state";
+import { bindDurableLocalToUser, durableLocalReadyFor, openModal, selectChat, useActiveChatId } from "#state";
 import { roomRegistry } from "./bus/room-registry.ts";
 import { createInvalidation } from "./invalidation.ts";
 import { startSessionFreshness } from "./session-freshness.ts";
@@ -47,39 +47,57 @@ function subscribeVisibility(listener: () => void): () => void {
   };
 }
 
-export function useSessionRecovery(): void {
+export function useSessionRecovery(): boolean {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  // The identity read every surface already dedupes on (the shared `sessions.me` query) — non-suspense
-  // here so the shell never blocks on it; `undefined` just means "not bound yet", every consumer tolerates it.
+  // The identity read every surface already dedupes on (the shared `sessions.me` query). It is non-suspense
+  // so this hook can run the bind explicitly; `AppRoot` keeps durable consumers unmounted until it completes.
   const { data: me } = useQuery(trpc.sessions.me.queryOptions());
   const userId = me?.userId ?? null;
   const handle = me?.handle ?? null;
   const activeChatId = useActiveChatId();
+  const [hydratedUserId, setHydratedUserId] = useState<UserId | null>(null);
+  const durableReady = userId !== null && hydratedUserId === userId && durableLocalReadyFor(userId);
   // The host is page-lifecycle state, not render-derived state. Keep its identity mounted for the whole
   // authed route and refresh only the values its callbacks read: a terminal `sessions.me` error re-renders
   // this hook while QueryCache begins the ladder, and clearing the module host between effect generations
   // would turn local re-auth into the fail-closed signed-out fallback.
-  const latest = useRef({ activeChatId, handle, queryClient, trpc });
+  const latest = useRef({ activeChatId: null as ChatId | null, handle, queryClient, trpc });
 
   useEffect(() => {
-    latest.current = { activeChatId, handle, queryClient, trpc };
-  }, [activeChatId, handle, queryClient, trpc]);
+    latest.current = { activeChatId: durableReady ? activeChatId : null, handle, queryClient, trpc };
+  }, [activeChatId, durableReady, handle, queryClient, trpc]);
 
   useEffect(() => {
-    if (userId !== null) {
-      bindDurableLocalToUser(userId);
+    let ownsCompletion = true;
+    if (userId === null) {
+      return (): void => {
+        ownsCompletion = false;
+      };
     }
+    void bindDurableLocalToUser(userId)
+      .then(() => {
+        if (ownsCompletion && durableLocalReadyFor(userId)) {
+          setHydratedUserId(userId);
+        }
+      })
+      .catch(() => undefined);
+    return (): void => {
+      ownsCompletion = false;
+    };
   }, [userId]);
 
   // The OIDC bounce's return leg (F3): consume the one-shot snapshot and re-open the chat the dead session
   // was in. Returns null on every ordinary boot, so this costs one sessionStorage read per mount.
   useEffect(() => {
+    if (!durableReady) {
+      return;
+    }
     const resume = takeSessionResume();
     if (resume !== null && resume.chatId !== null) {
       selectChat(resume.chatId);
     }
-  }, []);
+  }, [durableReady]);
 
   useEffect(() => {
     bindSessionRecovery({
@@ -115,4 +133,6 @@ export function useSessionRecovery(): void {
       }),
     [],
   );
+
+  return durableReady;
 }

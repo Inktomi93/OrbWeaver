@@ -9,31 +9,28 @@ import type { RpgQuestId } from "@orb/kit/ids";
 import type { UpsertQuestParams } from "../../contract/params.ts";
 import type { RpgContext, RpgService } from "../../contract/service.ts";
 import { resolveHost } from "../../guard.ts";
-import { applyHandEdit, currentSnapshotState } from "../../snapshot-edit.ts";
+import { writeHandState } from "../../snapshot-edit.ts";
 
 export function createUpsertQuest(ctx: RpgContext): Pick<RpgService, "upsertQuest"> {
   async function upsertQuest(params: UpsertQuestParams): Promise<RpgQuestId> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
-    const state = await currentSnapshotState(ctx, game);
-
     const questId = params.questId ?? ctx.ids.quest();
-    const existing = state.quests.find((q) => q.id === questId);
-    // Objectives: a passed objective without an id mints one; an omitted objectives list keeps the existing.
-    const objectives = (params.objectives ?? existing?.objectives ?? []).map((o) => ({
-      id: o.id ?? ctx.ids.quest(),
-      text: o.text,
-      completed: o.completed ?? false,
-    }));
-    const next: RpgQuest = {
-      id: questId,
-      name: params.name,
-      status: params.status ?? existing?.status ?? "active",
-      description: params.description ?? existing?.description ?? "",
-      objectives,
-    };
-    const quests = existing ? state.quests.map((q) => (q.id === questId ? next : q)) : [...state.quests, next];
-
-    const written = await applyHandEdit(ctx, game, { quests }, { lock: [`quests.${questId}`] });
+    const written = await writeHandState(ctx, game, (head) => {
+      const existing = head.state.quests.find((q) => q.id === questId);
+      const objectives =
+        params.questId === undefined
+          ? (params.objectives ?? []).map((o) => ({ id: ctx.ids.quest(), text: o.text, completed: o.completed ?? false }))
+          : (existing?.objectives ?? []);
+      const next: RpgQuest = {
+        id: questId,
+        name: params.name,
+        status: params.status ?? existing?.status ?? "active",
+        description: params.description ?? existing?.description ?? "",
+        objectives,
+      };
+      const quests = existing ? head.state.quests.map((q) => (q.id === questId ? next : q)) : [...head.state.quests, next];
+      return { ok: true, state: { ...head.state, quests }, locks: { lock: [`quests.${questId}`] } };
+    });
     if (!written.ok) {
       // The F1 write-boundary backstop refused. This verb's own patch is schema-shaped, so the only route here
       // is a base snapshot that is already contract-invalid — surface it (no-swallow), never a silent no-op.

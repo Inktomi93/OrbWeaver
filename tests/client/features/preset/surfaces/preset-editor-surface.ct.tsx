@@ -31,7 +31,7 @@ import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundt
 import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../../../../support/ct/autosave-status-transcript.ts";
 import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
 import { makeModelCapability, makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
 import {
@@ -567,9 +567,9 @@ interface ForkUpdateCall {
 /** The owner's library: the built-in plus ONE existing fork of it — the precondition for the choice. The
  *  fake server mirrors the verb: a `new` intent MINTS a row, an absent/`converge` one lands on the existing
  *  fork (recorded either way, so a test can prove which arm actually ran). */
-function routeForkChoice(page: Page): Promise<TrpcRecorder> {
+function routeForkChoice(page: Page, updateOverride?: (input: unknown) => unknown): Promise<TrpcRecorder> {
   const forkOne = { ...presetDetail(FORK_ONE, FORK_ONE_NAME, undefined), forkedFrom: BUILT_IN };
-  const rows: PresetDetailFixture[] = [BUILT_IN_DETAIL, forkOne];
+  const rows: PresetDetailFixture[] = [BUILT_IN_DETAIL, forkOne, PRESET_A_DETAIL];
   let activeId: string | null = null;
   const patch = (id: string, config: PromptConfig): PresetDetailFixture => {
     const index = rows.findIndex((row) => row.id === id);
@@ -591,6 +591,9 @@ function routeForkChoice(page: Page): Promise<TrpcRecorder> {
     },
     "connection.resolveChatCapability": () => CAPABILITY,
     "preset.update": (input: unknown) => {
+      if (updateOverride !== undefined) {
+        return updateOverride(input);
+      }
       const call = input as ForkUpdateCall & { config: PromptConfig };
       if (call.id === BUILT_IN && call.fork?.mode === "new") {
         const minted = {
@@ -650,6 +653,23 @@ test("FORK-CHOICE keep-editing — the edit lands on the EXISTING fork, the edit
   expect(updatesAgainst(trpc, BUILT_IN).length).toBe(0);
   await expect.poll(async () => (trpc.inputs("preset.update") as ForkUpdateCall[]).every((call) => call.id === FORK_ONE)).toBe(true);
   await expect(component.getByText(LINEAGE_RE)).toHaveCount(1);
+});
+
+test("FORK-CHOICE delayed completion cannot retarget selection after the user opens another preset", async ({ mount, page }) => {
+  const held = trpcHold();
+  await routeForkChoice(page, () => held);
+  const component = await mount(<PresetForkChoiceStory />);
+
+  await pickQuality(component, page, BALANCED);
+  await page.getByRole("dialog").getByRole("button", { name: KEEP_EDITING_LABEL }).click();
+  await held.requested;
+  await component.getByRole("button", { name: "select Preset A directly" }).click();
+  await expect(component.getByText(`selected=${PRESET_A}`)).toBeVisible();
+
+  held.release(presetDetail(FORK_ONE, FORK_ONE_NAME, undefined));
+  await page.evaluate((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)), SETTLE_MS);
+  await expect(component.getByText(`selected=${PRESET_A}`)).toBeVisible();
+  await expect(component.getByText(`selected=${FORK_ONE}`)).toHaveCount(0);
 });
 
 test("FORK-CHOICE new fork — the suggested name is pre-filled, the mint carries the intent, and the list shows BOTH forks", async ({ mount, page }) => {
