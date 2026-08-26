@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 0,
+    "pending": 1,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -11568,6 +11568,37 @@
         "summary": "Superseded commissioning draft (2026-08-23) of the interaction direction; provenance only."
       },
       "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/issue-712-gate-family.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 56,
+      "bytes": 7510,
+      "sha256": "18e55457b3e0e514f1605de5779b82bed2b033527433554ee2a0a5e0a46c2374",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-25"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/issue-712-gate-family.md",
+        "assignedSha256": "18e55457b3e0e514f1605de5779b82bed2b033527433554ee2a0a5e0a46c2374",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/list-pane-projection-proposal.md",

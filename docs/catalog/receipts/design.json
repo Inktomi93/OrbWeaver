@@ -635,6 +635,18 @@
       "summary": "Superseded commissioning draft (2026-08-23) of the interaction direction; provenance only."
     },
     {
+      "path": "docs/design/issue-712-gate-family.md",
+      "assignedSha256": "18e55457b3e0e514f1605de5779b82bed2b033527433554ee2a0a5e0a46c2374",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
       "path": "docs/design/list-pane-projection-proposal.md",
       "assignedSha256": "194774ea6ea9aeb592d2140a4a926bc456af609edd786f088bd068fc1be04cda",
       "disposition": "archive",
