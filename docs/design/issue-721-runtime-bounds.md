@@ -101,8 +101,9 @@ Reservation finalization preserves current terminal accounting:
 - suggest-only or mid-dispatch pause: delete the reservation because those terminals intentionally write no
   fire row and consume no cooldown;
 - a process/database failure that prevents finalization leaves `reserved` fail-closed. It holds capacity only
-  for the same rolling-hour/cooldown windows and is hidden from the terminal log; normal retention can later
-  reap it with other fire rows.
+  for the same rolling-hour/configured-cooldown windows and is hidden from the terminal log. After those
+  windows it is inert. Like completed fire rows, it remains stored until its rule is deleted; no fire-ledger
+  retention sweep is live at this SHA.
 
 Manual `runRuleNow` and confirmation flows retain their explicit budget bypass and do not reserve. Predicate
 false/error happens before reservation and retains current logging/error semantics. A completed failed attempt
@@ -205,3 +206,36 @@ merge checks. Literal sweeps cover `reserved`, the duplicate bounds, and every c
 records the ownership-inversion lesson: preserve the Agent SDK/current vLLM backend and remove only obsolete
 skins. Applied here, that means repairing the supervisor's existing detached-launch provenance and reusing
 #717's identity door rather than reviving child-process ownership or inventing a second launch path.
+
+## 7. Implementation and proof receipts
+
+Implemented as three stacked code legs after the design commit. No scope fork remained: the chat
+inverted-index duplicate arm was excluded, and no signal path beyond #717's launch-identity verifier changed.
+
+Red-first receipts on the pinned implementation:
+
+- vLLM supervisor: 4 failed / 38 passed. The pure ownership/hung expectations failed, and both real-shell
+  healthy-to-occupied controls observed zero `SIGKILL` attempts.
+- discovery pair scan: 2 failed / 3 passed because vector/output bounds were ignored; the production
+  143-representative integration plant resolved with 10,153 rows instead of refusing.
+- automation held concurrency: 2 failed / 19 skipped. Both the success and failure plants observed two arm
+  entries while the first effect was still held.
+
+Final focused behavioral receipts:
+
+- vLLM supervisor + process identity: 2 files, 51 tests passed.
+- discovery pair/hub/character duplicates/retrieve/image analytics/similarity graph: 6 files, 39 tests passed.
+- automation dispatch/handle-event/fire-budget-rule persistence/fire views/schema/contracts: 9 files,
+  83 tests passed.
+- additional atomic persistence rerun after converting rule/chat/owner cases to simultaneous reservation
+  attempts: 1 file, 5 tests passed.
+
+Static receipts: `@orb/server`, `@orb/db`, and `@orb/kit` package TypeScript programs passed; a focused Biome
+check over all 14 touched TypeScript files passed. The lane deliberately did not run full verification,
+structure/check-gates, hooks, or a whole-tree test battery.
+
+The squashed baseline regenerated in the isolated worktree. Its SQL delta is exactly the addition of
+`'reserved'` to `automation_fires_outcome_check`; the snapshot carries the same constraint delta plus the
+generator-issued snapshot id, and the journal carries only the regenerated baseline timestamp. Per the DB
+rule, merging this changes the baseline hash and the next server migration resets the dev database, so the
+pre-migrate backup must be pinned in the orchestrator's merge window.
