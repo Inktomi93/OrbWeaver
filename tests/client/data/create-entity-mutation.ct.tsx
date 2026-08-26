@@ -27,6 +27,7 @@ import {
   TagCreateColdCacheStory,
   TagCreateOptimisticStory,
   TagCreateOverlapStory,
+  TagCreateSameValueOverlapStory,
   TagCreateVariablesStory,
 } from "./_ct-stories.tsx";
 
@@ -110,6 +111,20 @@ test("an older optimistic failure cannot overwrite a newer successful cache valu
   await page.getByRole("button", { name: "fail older" }).click();
   await expect(page.getByRole("alert")).toHaveText("older failed");
   await expect(page.getByTestId("overlap-tag-list")).toHaveText("newer");
+});
+
+test("a newer deep-equal success owns the cache even when structural sharing preserves the older reference", async ({ mount, page }) => {
+  await routeTrpc(page, { "tag.listTags": () => [] });
+
+  await mount(<TagCreateSameValueOverlapStory />);
+  await page.getByRole("button", { name: "older", exact: true }).click();
+  await expect(page.getByTestId("overlap-tag-list")).toHaveText("desired");
+  await page.getByRole("button", { name: "newer" }).click();
+  await expect(page.getByTestId("overlap-tag-list")).toHaveText("desired");
+
+  await page.getByRole("button", { name: "fail older" }).click();
+  await expect(page.getByRole("alert")).toHaveText("older failed");
+  await expect(page.getByTestId("overlap-tag-list")).toHaveText("desired");
 });
 
 test("cold-cache rollback: a failed mutation against a never-fetched query REMOVES the phantom row", async ({ mount, page }) => {
