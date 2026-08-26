@@ -146,7 +146,6 @@ describe("login — CSRF gate (real app)", () => {
     const app = await appWith();
     const attacker = "10.9.9.3";
     for (let i = 0; i < 20; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential — asserting the throttle bucket is untouched.
       const res = await postLoginNoCsrf(app, attacker);
       expect(res.status).toBe(403);
     }
@@ -161,7 +160,6 @@ describe("login throttle — 10/min/IP (brute-force + scrypt-flood cap)", () => 
     const attacker = "203.0.113.10";
     // 10 wrong-password attempts are allowed (each 401), the 11th is throttled.
     for (let i = 0; i < 10; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: the throttle counts SEQUENTIAL attempts — parallel calls would race the fixed-window increment.
       const res = await postLogin(app, attacker, { handle: "owner", password: "wrong" });
       expect(res.status).toBe(401);
     }
@@ -180,7 +178,6 @@ describe("login throttle — 10/min/IP (brute-force + scrypt-flood cap)", () => 
     const app = await appWith({ authenticate: ownerAuth(castId<UserId>("usr_owner")) });
     const ip = "203.0.113.20";
     for (let i = 0; i < 10; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential — see above.
       await postLogin(app, ip, { handle: "owner", password: "hunter2pw" });
     }
     const res = await postLogin(app, ip, { handle: "owner", password: "hunter2pw" });
@@ -202,7 +199,6 @@ describe("login throttle — the HANDLE axis (B1: the distributed brute force th
    *  see. Sequential: the fixed-window increment is racy under parallel calls. */
   async function burstFromRotatingIps(app: Hono, handle: Handle, octetBase: number): Promise<void> {
     for (let i = 0; i < HANDLE_CAP; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: the throttle counts SEQUENTIAL attempts — parallel calls would race the fixed-window increment.
       const res = await postLogin(app, `192.0.2.${octetBase + i}`, { handle, password: "wrong" });
       expect(res.status).toBe(401);
     }

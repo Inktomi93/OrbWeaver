@@ -37,7 +37,6 @@ export function createApplyDistributedPlugins(
     // Serial: the set is small (a deployment publishes a handful), and each iteration is a bundle read plus a
     // CAS write plus two verb calls — the install fan-out's reasoning, at the other axis.
     for (const record of records) {
-      // biome-ignore lint/performance/noAwaitInLoops: serial by design — see the comment above the loop.
       const held = await alreadyHolds(ctx, caller, record.slug);
       if (held) {
         skippedSlugs.push(record.slug);

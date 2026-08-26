@@ -195,7 +195,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
   const listOwnedBookIds = createListOwnedBookIds(deps.worldInfoExportCtx);
   const worldInfoExportAll = async function* worldInfoAll(ownerId: UserId): AsyncIterable<PortableFile> {
     for (const bookId of await listOwnedBookIds({ ownerId })) {
-      // biome-ignore lint/performance/noAwaitInLoops: enumeration streams one book at a time (bounded memory — the descriptor contract).
       const book = await exportWorldBook({ ownerId, bookId });
       if (book !== null) {
         yield book;
@@ -245,7 +244,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     ext: ".json",
     async *exportAll(ownerId: UserId): AsyncIterable<PortableFile> {
       for (const documentId of await listOwnedDocumentIds({ ownerId })) {
-        // biome-ignore lint/performance/noAwaitInLoops: enumeration streams one document (+ its canon text) at a time (bounded memory — the descriptor contract).
         const file = await exportDocument({ ownerId, documentId });
         if (file !== null) {
           yield file;
@@ -265,7 +263,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
   const personaExportAll = async function* personaAll(ownerId: UserId): AsyncIterable<PortableFile> {
     const principal = await deps.resolveOwnerPrincipal(ownerId);
     for (const detail of await deps.persona.list({ principal })) {
-      // biome-ignore lint/performance/noAwaitInLoops: enumeration streams one persona at a time (bounded memory).
       yield await deps.persona.export({ principal, personaId: detail.id });
     }
   };
@@ -290,7 +287,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
   const characterExportAll = async function* characterAll(ownerId: UserId): AsyncIterable<PortableFile> {
     const principal = await deps.resolveOwnerPrincipal(ownerId);
     for (const characterId of await deps.listOwnedCharacterIds(ownerId)) {
-      // biome-ignore lint/performance/noAwaitInLoops: enumeration streams one card (+ its avatar blob) at a time (bounded memory).
       const card = await deps.exportService.exportCharacter({ principal, characterId });
       if (card !== null) {
         yield { filename: card.filename, bytes: card.bytes };
@@ -326,7 +322,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
   const chatExportAll = async function* chatAll(ownerId: UserId): AsyncIterable<PortableFile> {
     const principal = await deps.resolveOwnerPrincipal(ownerId);
     for (const { chatId, handle } of await deps.exportService.listHostChats({ principal })) {
-      // biome-ignore lint/performance/noAwaitInLoops: enumeration streams one chat at a time (bounded memory — the descriptor contract).
       const bundle = await deps.exportService.exportChatBundle({ principal, chatId });
       if (bundle !== null) {
         // Nest under the host handle, chat id as the leaf (same-title chats can't collide) — the jsonl arm's

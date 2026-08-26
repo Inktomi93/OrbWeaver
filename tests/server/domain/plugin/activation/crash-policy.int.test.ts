@@ -34,7 +34,6 @@ test("crashes below the threshold record the detail but keep the plugin runnable
 
   // Below the threshold: counter climbs, detail recorded, NOT disabled, NO notification.
   for (let i = 1; i < PLUGIN_CRASH_DISABLE_THRESHOLD; i += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential crash records — each depends on the prior counter.
     const verdict = await policy.recordCrash({ pluginId: installed.id, recipientUserId: owner, error: `crash ${i}` });
     expect(verdict.disabled).toBe(false);
     expect(verdict.count).toBe(i);

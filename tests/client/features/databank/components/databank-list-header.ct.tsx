@@ -100,7 +100,7 @@ test("switching Add mode moves neither the mode strip nor the footer off the dia
   const upload = dialog.getByRole("button", { name: "Upload a file" });
   await expect(upload).toBeVisible();
 
-  // Unrolled rather than looped: `noAwaitInLoops`, and three arms is the whole axis.
+  // Three explicit arms are the whole axis.
   const measure = async (mode: string): Promise<{ stripY: number; deadPx: number; regionPx: number }> => {
     await dialog.getByRole("button", { name: mode }).click();
     // SETTLED: the clicked arm is the pressed one before its geometry is read.

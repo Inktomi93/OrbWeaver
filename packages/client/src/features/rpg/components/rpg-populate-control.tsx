@@ -79,7 +79,7 @@ export function RpgPopulateControl({ chatId, actor, canPopulate }: RpgPopulateCo
           disabled={populate.isPending || reason !== ""}
           {...(reason === "" ? {} : { title: reason })}
           onClick={(): void => {
-            void onFill();
+            onFill().catch(() => undefined); // onFill owns and surfaces mutation failure.
           }}
         >
           <Icon icon={Sparkles} size="xs" />

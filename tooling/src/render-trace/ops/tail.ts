@@ -77,7 +77,6 @@ async function poll(token: string | undefined): Promise<void> {
   const fresh = traces.filter((t) => !seen.has(t.requestId)).reverse();
   for (const summary of fresh) {
     seen.add(summary.requestId);
-    // biome-ignore lint/performance/noAwaitInLoops: details print in chronological order BY DESIGN — a parallel fetch would interleave waterfalls.
     const detailRes = await fetch(`${HOST}/api/_debug/traces/${summary.requestId}`, {
       headers: authHeaders(token),
     });
@@ -95,14 +94,19 @@ export function tailOp(argv: readonly string[]): Promise<number> {
   const tokenEnv = process.env["DEBUG_TOKEN"];
   const token = tokenArg === undefined ? tokenEnv : tokenArg.slice("--token=".length);
   return new Promise<number>((resolve) => {
+    const runPoll = (): void => {
+      poll(token).catch((err: unknown) => {
+        process.stderr.write(`trace-tail: poll failed (${errorMessage(err)})\n`);
+      });
+    };
     const timer = setInterval(() => {
-      void poll(token);
+      runPoll();
     }, INTERVAL_MS);
     process.on("SIGINT", () => {
       process.stderr.write("\ntrace-tail: bye\n");
       clearInterval(timer);
       resolve(EXIT.clean);
     });
-    void poll(token);
+    runPoll();
   });
 }

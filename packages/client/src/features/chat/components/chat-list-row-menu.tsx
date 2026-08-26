@@ -60,14 +60,10 @@ export function ChatListRowMenu({ actions, chatId, title, rowName, starred, arch
     setRenameOpen(false);
   };
   const confirmDelete = (): void => {
-    void (async (): Promise<void> => {
-      try {
-        await actions.remove({ chatId });
-        onDeleted?.(chatId);
-      } catch {
-        // The failure toast (mutation `meta.errorToast`) already surfaced it; stay on the chat.
-      }
-    })();
+    actions.remove({ chatId }).then(
+      (): void => onDeleted?.(chatId),
+      () => undefined, // The mutation's errorToast owns failure; stay on the chat.
+    );
   };
 
   return (

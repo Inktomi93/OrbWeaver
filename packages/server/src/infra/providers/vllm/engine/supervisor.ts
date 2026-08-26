@@ -353,7 +353,6 @@ export function startVllmEngines(opts: {
   async function awaitHealthy(s: EngineState): Promise<void> {
     const deadline = now() + SPAWN_HEALTH_DEADLINE_MS;
     while (now() < deadline && !stopped) {
-      // biome-ignore lint/performance/noAwaitInLoops: a health poll is inherently sequential.
       if (markSpawnUp(s, await probeEngine(s.engine, sleepMode))) {
         return;
       }
@@ -558,7 +557,6 @@ export function startVllmEngines(opts: {
       if (stopped) {
         return;
       }
-      // biome-ignore lint/performance/noAwaitInLoops: one metrics scrape per engine, sequential is fine.
       await autoSleepOne(engine, probes.get(engine) ?? "free");
     }
   }
@@ -569,7 +567,6 @@ export function startVllmEngines(opts: {
       if (stopped) {
         return;
       }
-      // biome-ignore lint/performance/noAwaitInLoops: sequential probes keep the picture coherent per tick.
       probes.set(engine, await probeEngine(engine, sleepMode));
     }
     for (const s of states.values()) {

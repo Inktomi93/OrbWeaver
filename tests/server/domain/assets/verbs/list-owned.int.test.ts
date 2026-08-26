@@ -105,7 +105,6 @@ describe("listOwned", () => {
     // exists for. Stored sequentially so the injected minter stamps deterministic ascending ids.
     const stored: StoredAsset[] = [];
     for (let i = 0; i < 5; i++) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential stores mint deterministic ascending ids (the paging tiebreak under test).
       const s = await svc.store({
         principal: principal(owner),
         bytes: pngBytes(i),

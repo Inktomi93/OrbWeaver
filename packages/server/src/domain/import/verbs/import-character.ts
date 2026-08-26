@@ -42,7 +42,6 @@ function fallbackNameFrom(filename: string | undefined): string {
 async function freeHandle(ctx: ImportContext, base: CharacterHandle): Promise<CharacterHandle> {
   let handle: CharacterHandle = base;
   let n = 2;
-  // biome-ignore lint/performance/noAwaitInLoops: a sequential probe for the next free per-owner handle — at most a handful of same-name collisions.
   while ((await ctx.findByHandle({ ownerId: ctx.ownerId, handle })) !== null) {
     handle = castId<CharacterHandle>(`${base}-${n}`);
     n += 1;
@@ -52,7 +51,6 @@ async function freeHandle(ctx: ImportContext, base: CharacterHandle): Promise<Ch
 
 async function attachCardTags(ctx: ImportContext, characterId: CharacterId, tags: readonly string[]): Promise<void> {
   for (const tagName of tags) {
-    // biome-ignore lint/performance/noAwaitInLoops: card tags attach sequentially — each is an independent idempotent resolve-or-create-and-attach; card tag lists are short.
     await ctx.attachCardTag({ ownerId: ctx.ownerId, characterId, tagName });
   }
 }

@@ -82,7 +82,6 @@ async function seedScene(
 
   const chars: Record<string, CharacterId> = {};
   for (const name of spec.characters) {
-    // biome-ignore lint/performance/noAwaitInLoops: deterministic fixture seeding — join order is load-bearing.
     const id = await seedCharacter(db, host, `${spec.key}_${name}`);
     chars[name] = id;
 
@@ -91,7 +90,6 @@ async function seedScene(
 
   const personas: Record<string, PersonaId> = {};
   for (const h of spec.humans) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential fixture seeding.
     const pid = await seedPersona(db, host, `${spec.key}_${h.personaKey}`, {
       ...(h.description !== undefined ? { description: h.description } : {}),
     });
@@ -107,7 +105,6 @@ async function seedScene(
     });
   }
   for (const extra of spec.extraPersonas ?? []) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential fixture seeding.
     personas[extra] = await seedPersona(db, host, `${spec.key}_${extra}`);
   }
 

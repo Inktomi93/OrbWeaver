@@ -20,6 +20,7 @@ import { useState } from "react";
 import { FormDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryBoundary } from "#data";
+import { notify } from "#lib";
 import { useAddCredentialForm } from "../hooks/use-add-credential-form.ts";
 import { useAddCredential, useFetchModels } from "../hooks/use-connections-mutations.ts";
 import type { AddCredentialFormValues } from "../lib/add-credential-form-model.ts";
@@ -137,7 +138,7 @@ function AddCredentialFormBody({
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();
-          void form.handleSubmit();
+          form.handleSubmit().catch(() => notify.error("Couldn't submit the credential."));
         }}
       >
         <Stack gap="block">

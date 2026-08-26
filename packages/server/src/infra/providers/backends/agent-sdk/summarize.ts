@@ -226,7 +226,6 @@ export async function summarize(req: SubBatchRequest, deps: AgentSdkDeps): Promi
         break;
       }
       try {
-        // biome-ignore lint/performance/noAwaitInLoops: the worker pulls items serially; concurrency is the worker COUNT (mirrors the vLLM surface).
         const turn = await runSummarizeItem(req, input, deps);
         items[i] = toItem(turn, hadSchema, req.model);
         ok += 1;

@@ -83,7 +83,6 @@ async function waitForReady(baseUrl: string, deadlineMs: number): Promise<void> 
   while (Date.now() - start < deadlineMs) {
     try {
       // Orb's liveness route is /healthz (entry/http/healthz.ts) — NOT neo's /api/healthz.
-      // biome-ignore lint/performance/noAwaitInLoops: a readiness poll IS a sequential wait loop.
       const res = await fetch(`${baseUrl}/healthz`);
       if (res.ok) {
         return;
@@ -132,7 +131,6 @@ async function fireRequests(baseUrl: string, requests: readonly FireRequest[]): 
   for (const req of requests) {
     const url = `${baseUrl}${req.path}`;
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: requests fire sequentially BY DESIGN — parallel fire would interleave traces and defeat the one-verb inspector.
       const res = await fetch(url, { method: req.method });
       fired += 1;
       const rid = res.headers.get("x-request-id");
@@ -153,7 +151,6 @@ async function fireRequests(baseUrl: string, requests: readonly FireRequest[]): 
 async function renderTraces(baseUrl: string, requestIds: readonly string[], debugToken: string): Promise<number> {
   let rendered = 0;
   for (const rid of requestIds) {
-    // biome-ignore lint/performance/noAwaitInLoops: waterfalls print in fire order BY DESIGN.
     const detailRes = await fetch(`${baseUrl}/api/_debug/traces/${rid}`, {
       headers: { "x-debug-token": debugToken },
     });

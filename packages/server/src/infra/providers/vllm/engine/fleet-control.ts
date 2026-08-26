@@ -374,7 +374,6 @@ export async function postWakeAndAwait(engine: VllmEngine, deps: { now: () => nu
   }
   const deadline = deps.now() + WAKE_READY_TIMEOUT_MS;
   while (deps.now() < deadline) {
-    // biome-ignore lint/performance/noAwaitInLoops: a readiness poll is inherently sequential.
     if (!(await getIsSleeping(engine))) {
       return true;
     }

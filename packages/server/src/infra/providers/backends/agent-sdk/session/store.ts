@@ -245,7 +245,6 @@ export class SessionCache {
   private async readoptDeterministicCandidate(chatId: ChatId, turns: readonly SeedTurn[]): Promise<SeededSessionDecision | null> {
     for (let salt = 0; salt < MAX_SEED_SALT; salt++) {
       const sessionId = seedSessionId(chatId, turns, salt);
-      // biome-ignore lint/performance/noAwaitInLoops: inherently sequential — a salted candidate is consulted only after the lower salt proved absent/mismatched.
       const rows = await this.loadSession(sessionId);
       if (rows.length > 0 && sessionContainsSeedPrefix(rows, turns)) {
         this.byChat.set(chatId, sessionId);
@@ -259,7 +258,6 @@ export class SessionCache {
   private async seedFresh(chatId: ChatId, turns: readonly SeedTurn[], seededAs: "seeded" | "forked" = "seeded"): Promise<SeededSessionDecision> {
     for (let salt = 0; salt < MAX_SEED_SALT; salt++) {
       const sessionId = seedSessionId(chatId, turns, salt);
-      // biome-ignore lint/performance/noAwaitInLoops: inherently sequential — salt N is consulted only after salt N-1's stored transcript proved diverged.
       const rows = await this.loadSession(sessionId);
       if (rows.length === 0) {
         await this.store.append({ projectKey: INTERNAL_PROJECT_KEY, sessionId }, buildSeedFrames(turns, sessionId));

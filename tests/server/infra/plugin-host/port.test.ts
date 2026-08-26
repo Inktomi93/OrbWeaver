@@ -116,7 +116,6 @@ async function residentRaceTool(host: ReturnType<typeof createPluginHost>, bridg
  *  its gated getVariables to appear, then release it — advancing the per-instance tail one item at a time. */
 async function drainGatedInvokes(fake: RacingBridge, count: number): Promise<void> {
   for (let i = 0; i < count; i++) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential drain BY DESIGN — the FIFO admits the next queued invoke only after the prior settles, so each gate must be awaited before releasing the next.
     await waitForGate(fake);
     fake.releaseNext({ tension: "ok" });
   }
@@ -126,7 +125,6 @@ async function drainGatedInvokes(fake: RacingBridge, count: number): Promise<voi
  *  macrotask ticks after the prior settles to reach its awaited host call). */
 async function waitForGate(fake: RacingBridge): Promise<void> {
   for (let spins = 0; spins < 200 && fake.gates.length === 0; spins++) {
-    // biome-ignore lint/performance/noAwaitInLoops: a readiness poll is sequential by nature — each tick must complete before re-checking the gate.
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
 }
@@ -1437,7 +1435,6 @@ describe("readLog is a RUNTIME record, not an activation snapshot (#627)", () =>
     }
     const calls = 8;
     for (let n = 0; n < calls; n++) {
-      // biome-ignore lint/performance/noAwaitInLoops: the per-instance FIFO serializes invokes anyway — a parallel burst would exercise the queue-depth gate, not the ring.
       await host.invoke(outcome.instance, ref, JSON.stringify({ n }), noChat);
     }
     const log = host.readLog(outcome.instance);

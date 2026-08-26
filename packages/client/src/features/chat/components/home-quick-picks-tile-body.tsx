@@ -43,7 +43,7 @@ export function HomeQuickPicksTileBody(): ReactElement {
   // anchor, and the room surface's own mount hook takes it from there.
   const { startChat } = useStartChat();
   const startChatWith = (characterId: CharacterId): void => {
-    void startChat({ characterIds: [characterId] });
+    startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.
   };
   const { data: page } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: QUICK_PICKS_LIMIT }));
   const quickPicks = page.items.slice(0, QUICK_PICKS_LIMIT);

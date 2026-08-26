@@ -210,7 +210,6 @@ describe("the accepted offer — the room moves onto the copies", () => {
       [mine, chatId],
       [theirs, otherChatId],
     ] as const) {
-      // biome-ignore lint/performance/noAwaitInLoops: two seed rows, written in order for a readable failure.
       await db.insert(chatDigests).values({
         id,
         chatId: chat,

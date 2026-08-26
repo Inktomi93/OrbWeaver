@@ -85,7 +85,6 @@ async function collectSince(service: NotificationsService, principal: Principal,
   const missed: InboxView[] = [];
   let cursor: number | undefined;
   for (let page = 0; page < MAX_REPLAY_PAGES; page++) {
-    // biome-ignore lint/performance/noAwaitInLoops: cursor paging is inherently sequential — each page's cursor depends on the prior page's result.
     const res = await service.list({
       principal,
       limit: REPLAY_PAGE,

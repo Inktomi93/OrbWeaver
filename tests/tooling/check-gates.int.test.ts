@@ -467,16 +467,10 @@ function writeFixtures(): void {
   fx("tooling/src/verify/gates/__g_dangl.ts", 'const gate = { docRow: "__g_ghost-nowhere.md" };\nexport const stub = gate;\n');
   // suppressions: a marker in a file with NO baseline entry (budget 0) — the exceed arm fires.
   fx(`${D}/hub/__g_suppr.ts`, "// biome-ignore lint/suspicious/noExplicitAny: fixture probe\nexport const g = 1;\n");
-  // monotonic-tests tooth 1: an unconditional skip with no escape marker at all.
-  fx("tests/tooling/__g_skip.test.ts", 'import { test } from "support/test";\ntest.skip("g", () => {});\n');
-  // monotonic-tests tooth 3 (STALE marker, 2026-08-03): a reasoned escape marker guarding NO skip — the
-  // one-sided-escape rot the two-sided law bans (the skip was un-skipped; the exemption outlived it and now
-  // silently pre-authorizes the next skip written on that line). The marker text is ASSEMBLED from parts so
-  // THIS comment can't carry the literal token and become a stale marker in its own right — the same
-  // self-reference dodge the `__g_det` / `__g_fab` fixtures use for their own gates' tokens.
+  // monotonic-tests tooth 1: metadata claims "skipped" but an early return records a passed test.
   fx(
-    "tests/tooling/__g_stalemarker.test.ts",
-    `import { test } from "support/test";\n// ${["allow", "skip"].join("-")}: obsolete reason\ntest("g runs", () => {});\n`,
+    "tests/tooling/__g_pseudoskip.test.ts",
+    'import { test } from "support/test";\ntest("g", () => {\n  test.info().annotations.push({ type: "skipped" });\n  return;\n});\n',
   );
   // bus-coverage: NO fixture — its DEFERRED map is now EMPTY (the last deferral, `expression`, closed when the
   // E3 classify emit landed). With no deferred member, neither STALE (needs a deferred member) nor MISSING

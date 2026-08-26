@@ -166,7 +166,6 @@ describe("the pump re-runs the gate, and its throw is one room's fault", () => {
     publishUserEvent(MEMBER, { type: "tagsChanged" });
     frames.push(frameOf((await first).value));
     for (let i = 1; i < 5; i++) {
-      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
       const result = await iterator.next();
       frames.push(frameOf(result.value));
     }

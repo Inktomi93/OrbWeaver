@@ -49,23 +49,23 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
     if (incomplete) {
       return;
     }
-    void (async (): Promise<void> => {
-      try {
-        const character = await create.mutateAsync({
-          input: {
-            handle: slugifyHandle(name.trim()),
-            name: name.trim(),
-            description: description.trim(),
-          },
-        });
-        selectCharacter(character.id);
-        onOpenChange(false);
-        setName("");
-        setDescription("");
-      } catch {
-        // `createEntityMutation`'s `errorToast` already surfaced the failure — keep the dialog open.
-      }
-    })();
+    create.mutate(
+      {
+        input: {
+          handle: slugifyHandle(name.trim()),
+          name: name.trim(),
+          description: description.trim(),
+        },
+      },
+      {
+        onSuccess: (character): void => {
+          selectCharacter(character.id);
+          onOpenChange(false);
+          setName("");
+          setDescription("");
+        },
+      },
+    );
   };
 
   return (

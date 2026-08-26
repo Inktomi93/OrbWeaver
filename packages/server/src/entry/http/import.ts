@@ -37,7 +37,6 @@ async function stageCapped(body: ReadableStream<Uint8Array>, path: string, maxBy
   let total = 0;
   try {
     for (;;) {
-      // biome-ignore lint/performance/noAwaitInLoops: streaming the upload chunk-by-chunk to disk IS the sequential work — buffering the whole (capped) body first defeats the DoS bound.
       const { done, value } = await reader.read();
       if (done) {
         return true;

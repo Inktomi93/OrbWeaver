@@ -100,7 +100,6 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: EmbedAssetsDeps)
       if (signal.aborted) {
         break; // cooperative abort between assets — every completed embed is durable + idempotent
       }
-      // biome-ignore lint/performance/noAwaitInLoops: the sweep is sequential BY DESIGN (the backfillMemory precedent — parallel items would stampede the imageEmbed/summarize backends; the hash pre-check makes per-item cost cheap on resume).
       const outcome = await embedOneAsset(ctx, deps, assetId, force);
       if (outcome === "embedded") {
         embedded += 1;

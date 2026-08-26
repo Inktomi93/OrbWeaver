@@ -15,6 +15,7 @@ import { BasicTracerProvider, SimpleSpanProcessor } from "@opentelemetry/sdk-tra
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 import { errorMessage } from "@orb/kit/error-message";
 import { APP_VERSION } from "#foundation/config";
+import { getLog } from "./logger.ts";
 
 const TRACER_NAME = "orbweaver";
 // The attribute the root span stamps + child spans copy down so the ring buckets a whole tree together.
@@ -335,6 +336,17 @@ export function withRequestSpan<T>(requestId: string, name: string, attrs: SpanA
     } finally {
       root.end();
     }
+  });
+}
+
+/** Start work that deliberately outlives its caller. The operation FACTORY runs inside its own request-root
+ * span; returning `void` is the explicit contract that callers receive no completion or ordering guarantee.
+ * This function owns the Promise completely: the root records the rejection, then the terminal catch emits
+ * one structured operator-visible error. Durable writes and canonical event emissions must be awaited by
+ * their caller instead of using this boundary. */
+export function superviseDetached(requestId: string, name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown): void {
+  withRequestSpan(requestId, name, attrs, operation).catch((err: unknown) => {
+    getLog().error({ ...cleanAttrs(attrs), err, requestId, spanName: name }, "detached operation failed");
   });
 }
 

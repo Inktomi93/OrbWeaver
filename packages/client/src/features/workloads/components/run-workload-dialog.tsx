@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { FormDialog, FormSubmitButton } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { timeLib } from "#lib";
+import { notify, timeLib } from "#lib";
 import { useRunWorkloadForm } from "../hooks/use-run-workload-form.ts";
 import { useStartWorkload } from "../hooks/use-workload-mutations.ts";
 import type { RunWorkloadFormValues } from "../lib/workloads-model.ts";
@@ -195,7 +195,7 @@ function RunWorkloadFormBody({
         disabled={start.isPending}
         label={start.isPending ? "Starting…" : "Run job"}
         onSubmit={(): void => {
-          void form.handleSubmit();
+          form.handleSubmit().catch(() => notify.error("Couldn't start the workload."));
         }}
         testKey="runWorkloadSubmit"
       />

@@ -1850,7 +1850,6 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // collected then asserted ONCE (no branching expect) so EVERY leak surfaces in a single readable diff.
     const leaks: string[] = [];
     for (const probe of PROBES) {
-      // biome-ignore lint/performance/noAwaitInLoops: probes run serially against one shared graph/db (isolation + readable per-probe failures).
       const verdict = await leakVerdict(probe.path, () => probe.call(otherCaller, ids));
       if (verdict !== null) {
         leaks.push(verdict);

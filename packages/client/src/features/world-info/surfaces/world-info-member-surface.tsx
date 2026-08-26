@@ -68,14 +68,19 @@ function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement 
   };
 
   const onCreate = (): void => {
-    void create.mutateAsync({ bookId, input: { title: NEW_ENTRY_TITLE, content: NEW_ENTRY_CONTENT } }).then((created) => selectWorldEntry(created.id));
+    create.mutate({ bookId, input: { title: NEW_ENTRY_TITLE, content: NEW_ENTRY_CONTENT } }, { onSuccess: (created): void => selectWorldEntry(created.id) });
   };
 
   const onBackfill = (): void => {
-    void backfill.mutateAsync({ bookId }).then(({ filled }) =>
-      toast.add({
-        title: filled === 0 ? "No blank titles to fill" : `Filled ${filled} title${filled === 1 ? "" : "s"}`,
-      }),
+    backfill.mutate(
+      { bookId },
+      {
+        onSuccess: ({ filled }): void => {
+          toast.add({
+            title: filled === 0 ? "No blank titles to fill" : `Filled ${filled} title${filled === 1 ? "" : "s"}`,
+          });
+        },
+      },
     );
   };
 

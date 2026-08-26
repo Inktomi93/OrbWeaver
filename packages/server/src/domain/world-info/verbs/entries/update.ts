@@ -76,7 +76,6 @@ export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateEnt
       const scope = resolveEntryScope(updated.metadata, (updated.keys?.length ?? 0) > 0);
       const chatIds = await listChatIdsForBook(ctx.db, updated.worldBookId);
       for (const chatId of chatIds) {
-        // biome-ignore lint/performance/noAwaitInLoops: the chat bus assigns a monotonic seq per emit — fan-out emits are sequential (create.ts precedent).
         await ctx.emitWiEvent({
           type: "wiEntryScopeChanged",
           chatId,

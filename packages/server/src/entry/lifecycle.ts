@@ -4,6 +4,7 @@
 // app, and tears it all down gracefully. Entry mints the one real wall clock and threads it everywhere as
 // the injected `now`; nothing below entry reads ambient time.
 
+import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -33,7 +34,7 @@ import {
   resolveDiagnosticsPosture,
   resolveEnginesPosture,
 } from "#foundation/env";
-import { getLog, initTracing, wrapLibSqlClient } from "#foundation/observability";
+import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
 import { createBackchannelLogoutVerifier, createForwardJwtVerifier, createPasswordHasher, ownerFallbackAllowed } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
@@ -436,7 +437,9 @@ export function createLifecycle(): Lifecycle {
     // is tapped separately into the same `handleEvent`. Fire-and-forget; SIGTERM stops both.
     stopAutomationWatcher = startAutomationWatcher(createAutomationWatcherEnv({ automation: built.automation, eventBus: built.eventBus })).stop;
     setChatOpenTap((chatId) => {
-      void built.automation.handleEvent({ type: "chatOpened", chatId });
+      superviseDetached(`automation:chat-opened:${chatId}:${randomUUID()}`, "automation.handleEvent", { eventType: "chatOpened", chatId }, () =>
+        built.automation.handleEvent({ type: "chatOpened", chatId }),
+      );
     });
 
     // B4 — the in-app first-run owner-password setup rides the same builder (LOCAL_INITIAL_PASSWORD is now
@@ -511,15 +514,26 @@ export function createLifecycle(): Lifecycle {
       seedUserCharacters: (principal: Principal): void => {
         // CHAINED, not parallel: the demo chats attach to the cards this user is getting right now, so they
         // must not race the pack. `ensureSeeded` never throws, so the `.then` is unconditional.
-        void built.characterSeeder.ensureSeeded(principal).then((): Promise<void> => built.demoChatSeeder.ensureSeeded(principal));
-        void built.personaSeeder.ensureSeeded(principal);
+        superviseDetached(`seed-user:${principal.userId}:characters:${randomUUID()}`, "seed.user.characters", { userId: principal.userId }, () =>
+          built.characterSeeder.ensureSeeded(principal).then((): Promise<void> => built.demoChatSeeder.ensureSeeded(principal)),
+        );
+        superviseDetached(`seed-user:${principal.userId}:persona:${randomUUID()}`, "seed.user.persona", { userId: principal.userId }, () =>
+          built.personaSeeder.ensureSeeded(principal),
+        );
         // Independent of the character/chat chain — the example plugins attach to nothing, so they race
         // nobody. Fire-and-forget like its siblings; `ensureSeeded` never throws.
-        void built.examplePluginSeeder.ensureSeeded(principal);
+        superviseDetached(`seed-user:${principal.userId}:example-plugin:${randomUUID()}`, "seed.user.example-plugin", { userId: principal.userId }, () =>
+          built.examplePluginSeeder.ensureSeeded(principal),
+        );
         // The SERVER-WIDE published plugin set (D147 clause (d)) — the new-user half of the admin fan-out, for
         // a user created after a publish ran. Independent of everything above (a distributed plugin attaches to
         // no card and no chat) and latched per user, so a withdrawal by its owner is respected.
-        void built.distributedPluginApplier.ensureApplied(principal);
+        superviseDetached(
+          `seed-user:${principal.userId}:distributed-plugins:${randomUUID()}`,
+          "seed.user.distributed-plugins",
+          { userId: principal.userId },
+          () => built.distributedPluginApplier.ensureApplied(principal),
+        );
       },
       oidcProviderName: env.OIDC_PROVIDER_NAME,
       ...(localAuth ?? {}),

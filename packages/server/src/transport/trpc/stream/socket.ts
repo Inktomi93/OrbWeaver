@@ -39,13 +39,14 @@
 // narrowing). `Last-Event-ID` on connect is deliberately IGNORED — one SSE stream has one resume id and this
 // socket carries N independent cursors; the resume truth is the per-room cursor in the cell.
 
+import { randomUUID } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { StreamErrorCode, StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey, STREAM_ERROR_CODES } from "@orb/contracts/stream";
 import type { SocketId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
-import { getLog } from "#foundation/observability";
+import { getLog, superviseDetached } from "#foundation/observability";
 import type { Services } from "../context.ts";
 import { classifyDomainError } from "../error-mapping.ts";
 import { createFrameQueue } from "./frame-queue.ts";
@@ -180,7 +181,9 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
     const control = new AbortController();
     pumps.set(key, control);
     queue.pushControl({ channel: "control", type: "attached", ref });
-    void pumpRoom(ref, cursor, control);
+    superviseDetached(`stream-room:${socketId}:${key}:${randomUUID()}`, "stream.room.pump", { channel: ref.channel, userId: principal.userId }, () =>
+      pumpRoom(ref, cursor, control),
+    );
   }
 
   /** An idempotent re-announce (no cursor change) — the barrier's lift signal. A room already pumping is

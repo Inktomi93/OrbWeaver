@@ -66,7 +66,10 @@ export function AccountSurface(): ReactElement {
           data-testid={testId("accountLogout")}
           onClick={(): void => {
             setSigningOut(true);
-            void signOut().finally((): void => setSigningOut(false));
+            signOut().then(
+              (): void => setSigningOut(false),
+              (): void => setSigningOut(false),
+            );
           }}
         >
           {signingOut ? "Signing out…" : "Sign out"}

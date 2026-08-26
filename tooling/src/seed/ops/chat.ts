@@ -48,7 +48,6 @@ async function ensureCast(
   for (let i = 0; i < count; i += 1) {
     const handle = castId<CharacterHandle>(`${SEED_HANDLE_PREFIX}-${i + 1}`);
     const name = `Cast ${i + 1}`;
-    // biome-ignore lint/performance/noAwaitInLoops: a handful of cards; serial keeps the create-or-reuse obvious.
     const existing = await services.character.findByHandle({ ownerId, handle });
     if (existing !== null) {
       cast.push({ id: existing.characterId, name });

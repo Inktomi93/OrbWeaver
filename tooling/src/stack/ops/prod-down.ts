@@ -72,7 +72,6 @@ async function watchDrain(record: ProdRecord, fromOffset: number): Promise<Drain
     if (!processAlive(record.pid)) {
       return classifyDrainTail(readFrom(record.logPath, fromOffset));
     }
-    // biome-ignore lint/performance/noAwaitInLoops: a drain watch is inherently serial.
     await sleep(POLL_INTERVAL_MS);
   }
   return "pending";
@@ -81,7 +80,6 @@ async function watchDrain(record: ProdRecord, fromOffset: number): Promise<Drain
 async function waitGone(pid: number): Promise<void> {
   const deadline = Date.now() + DRAIN_WATCH_MS;
   while (Date.now() < deadline && processAlive(pid)) {
-    // biome-ignore lint/performance/noAwaitInLoops: serial wait.
     await sleep(POLL_INTERVAL_MS);
   }
 }

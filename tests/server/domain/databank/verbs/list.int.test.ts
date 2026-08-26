@@ -53,7 +53,6 @@ test("SEARCH is the server's: a document only reachable on a later page comes ba
   const needle = await h.service.createFromText({ principal, name: "Treaty of Ashfen.md", text: "the accord" });
   for (let i = 0; i < DATABANK_LIST_DEFAULT_LIMIT; i += 1) {
     h.advance(1000);
-    // biome-ignore lint/performance/noAwaitInLoops: the seed order IS the fixture — each createFromText mints the next id off the harness's sequence, and Promise.all would race the (updatedAt, id) ordering.
     await h.service.createFromText({ principal, name: `filler-${String(i)}.md`, text: `note ${String(i)}` });
   }
 
@@ -95,7 +94,6 @@ test("the PHASE lens narrows the whole bank — a wedged document deep in it is 
   // …and a page of filler on top, so none of the four is on the first page of the UNFILTERED list.
   for (let i = 0; i < DATABANK_LIST_DEFAULT_LIMIT; i += 1) {
     h.advance(1000);
-    // biome-ignore lint/performance/noAwaitInLoops: sequential seeding — see the search pin above.
     await h.service.createFromText({ principal, name: `filler-${String(i)}.md`, text: `note ${String(i)}` });
   }
 
@@ -133,7 +131,6 @@ test("walks the WHOLE bank by cursor — every document past the first page is r
   // `updatedAt` alone would either re-serve or skip the rows sharing the boundary timestamp.
   const total = DATABANK_LIST_DEFAULT_LIMIT + 1;
   for (let i = 0; i < total; i += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: the seed order IS the fixture — each createFromText mints the next id off the harness's sequence, and Promise.all would race exactly the (updatedAt, id) ordering this test walks.
     await h.service.createFromText({ principal, name: `doc-${String(i)}.md`, text: `note ${String(i)}` });
   }
 
@@ -144,7 +141,6 @@ test("walks the WHOLE bank by cursor — every document past the first page is r
   const walked: DocumentId[] = firstPage.items.map((d) => d.id);
   let cursor = firstPage.nextCursor;
   while (cursor !== null) {
-    // biome-ignore lint/performance/noAwaitInLoops: a keyset walk is sequential BY DEFINITION — page N+1's cursor does not exist until page N comes back.
     const page = await h.service.list({ principal, cursor });
     walked.push(...page.items.map((d) => d.id));
     cursor = page.nextCursor;
@@ -162,7 +158,6 @@ test("pages at the caller's own size and clamps a request above the ceiling", as
   const principal = principalFor(owner);
   const seeded = 7;
   for (let i = 0; i < seeded; i += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential seeding — see the keyset-walk test above.
     await h.service.createFromText({ principal, name: `doc-${String(i)}.md`, text: `note ${String(i)}` });
   }
 

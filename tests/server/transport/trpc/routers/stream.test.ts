@@ -61,16 +61,15 @@ function frameOf(yielded: unknown): StreamFrame {
 }
 
 /** Pull frames off a live socket until `count` have arrived, publishing via `drive` once the pumps are up. */
-async function collect(socket: AsyncIterable<unknown>, count: number, drive: () => void): Promise<StreamFrame[]> {
+async function collect(socket: AsyncIterable<unknown>, count: number, drive: () => Promise<void> | void): Promise<StreamFrame[]> {
   const iterator = socket[Symbol.asyncIterator]();
   // The first pull starts the generator (its setup slice runs synchronously), THEN the events fire — so the
   // pumps are attached before anything is published and nothing races into a gap.
   const first = iterator.next();
   await new Promise((resolve) => setTimeout(resolve, 0));
-  drive();
+  await drive();
   const frames: StreamFrame[] = [frameOf((await first).value)];
   for (let i = 1; i < count; i++) {
-    // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
     const result = await iterator.next();
     frames.push(frameOf(result.value));
   }
@@ -97,10 +96,9 @@ describe("one socket, N rooms", () => {
     const call = caller(ctxWith(seated));
     const socket = await call.stream.connect({ socketId });
 
-    const frames = await collect(socket as AsyncIterable<unknown>, 2, () => {
-      void call.stream.attach({ socketId, ref: { channel: "rpg", chatId: CHAT } }).then(() => {
-        publishRpgEvent({ type: "gameChanged", chatId: CHAT });
-      });
+    const frames = await collect(socket as AsyncIterable<unknown>, 2, async () => {
+      await call.stream.attach({ socketId, ref: { channel: "rpg", chatId: CHAT } });
+      publishRpgEvent({ type: "gameChanged", chatId: CHAT });
     });
 
     expect(frames[0]).toEqual({ channel: "control", type: "attached", ref: { channel: "rpg", chatId: CHAT } });

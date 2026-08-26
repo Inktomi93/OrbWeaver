@@ -196,7 +196,6 @@ export function createFrameQueue(opts: FrameQueueOptions): FrameQueue {
     while (!closed || items.length > 0) {
       const item = items.shift();
       if (item === undefined) {
-        // biome-ignore lint/performance/noAwaitInLoops: the drain loop IS a wait-for-the-next-frame loop — the `await` is the wait, and hoisting it out would need unbounded promise recursion on a long-lived socket.
         await nextTick();
         continue;
       }

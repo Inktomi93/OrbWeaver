@@ -87,7 +87,6 @@ async function summarizeBatchIsolated(
         continue;
       }
       try {
-        // biome-ignore lint/performance/noAwaitInLoops: the isolation fallback runs ONLY after a batch rejection — each item is retried alone so a poison item loses only itself while its siblings persist.
         const res = await ctx.summarize([input], opts);
         out.push(res.items.at(0)?.text ?? null);
       } catch (err) {
@@ -315,7 +314,6 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
       continue;
     }
     const parsed = parseDigest(raw);
-    // biome-ignore lint/performance/noAwaitInLoops: the LLM fan-out already happened as ONE batch; this loop is only the metered/ordered embed-store upserts (idempotent per block).
     await ctx.embeddingsStore({
       lens: "digest",
       key: { chatId, tier: 0, blockIdx: item.block.blockIdx, scopedCharacterId },
@@ -397,7 +395,6 @@ async function consolidateTiers(
   let skippedEmpty = 0;
   for (let tier = 0; tier < cfg.maxTier; tier += 1) {
     signal?.throwIfAborted();
-    // biome-ignore lint/performance/noAwaitInLoops: a tier consolidates the PRIOR tier's rows — the read at tier k depends on the writes at tier k-1, so the walk is inherently sequential.
     const pass = await consolidateOneTier(ctx, scope, cfg, { tier, existing, signal });
     if (pass === null) {
       break; // fewer than fanOut children at this tier → the consolidation ceiling
@@ -547,7 +544,6 @@ export async function storeConsolidationTier(
       skippedEmpty += 1;
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: the LLM fan-out already happened as ONE batch; this loop is only the metered/ordered embed-store upserts (idempotent per parent).
     await ctx.embeddingsStore({
       lens: "digest",
       key: {

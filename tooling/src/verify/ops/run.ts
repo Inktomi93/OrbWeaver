@@ -255,7 +255,6 @@ async function runTier(root: string, parsed: Parsed): Promise<VerifyReport> {
     }
     // Sequential BY DESIGN: stages share the CPU, the reports dir and the console — they run one at a
     // time in registry order, exactly as the old sync loop ran them. The await IS the ordering.
-    // biome-ignore lint/performance/noAwaitInLoops: serialized stage execution is the contract, not a missed parallelism.
     results.push(await runOneStage(root, stage, parsed.selection, parsed.verbose));
   }
 

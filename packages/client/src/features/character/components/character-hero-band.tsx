@@ -165,7 +165,7 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
       accept="image/*"
       onFilesSelected={([file]): void => {
         if (file !== undefined) {
-          void onFile(file);
+          onFile(file).catch(() => notify.error("Couldn't upload the portrait."));
         }
       }}
     >

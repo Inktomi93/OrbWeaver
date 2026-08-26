@@ -1159,7 +1159,6 @@ test("no nav row clips at the 220px column, in ANY category", async ({ mount, pa
   const categories = nav.locator('[data-slot="list-row-root"]:has([data-slot="list-row-leading"])');
   const total = await categories.count();
   const clipped: string[] = [];
-  // biome-ignore-start lint/performance/noAwaitInLoops: the sweep is inherently sequential — only the ACTIVE pane's rows are in the DOM, so each category must be opened and measured before the next one is opened.
   for (let index = 0; index < total; index += 1) {
     await categories.nth(index).getByRole("button").click();
     // The click has landed once exactly one row is current (the pane's first section, or the section-less
@@ -1167,7 +1166,6 @@ test("no nav row clips at the 220px column, in ANY category", async ({ mount, pa
     await expect(nav.locator('[aria-current="true"]')).toHaveCount(1);
     clipped.push(...(await readClippedNavLabels(page)));
   }
-  // biome-ignore-end lint/performance/noAwaitInLoops: end of the sequential sweep.
   expect(total).toBeGreaterThan(5); // ONESHOT-OK: the category count was consumed by the completed sequential sweep above
   expect([...new Set(clipped)]).toEqual([]);
 });

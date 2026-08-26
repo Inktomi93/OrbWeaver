@@ -26,6 +26,7 @@ import type {
   PluginTransformRegistration,
 } from "@orb/contracts/plugin";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSWASMModule, VmCallResult } from "quickjs-emscripten-core";
+import { superviseDetached } from "#foundation/observability";
 import {
   GUEST_MAX_STACK_BYTES,
   HOST_FN_DEADLINE_MS,
@@ -583,11 +584,13 @@ export function boundHostFn(
         },
       )
       .finally(() => clearTimeout(timer));
-    void deferred.settled.then(() => {
-      if (ctx.alive) {
-        ctx.runtime.executePendingJobs();
-      }
-    });
+    superviseDetached(`plugin-sandbox:${randomUUID()}`, "plugin.sandbox.pending-jobs", {}, () =>
+      deferred.settled.then(() => {
+        if (ctx.alive) {
+          ctx.runtime.executePendingJobs();
+        }
+      }),
+    );
     return deferred.handle;
   });
 }

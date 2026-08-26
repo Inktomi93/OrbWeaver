@@ -18,7 +18,6 @@ export function createReapIfOrphan(ctx: AssetsContext): AssetsService["reapIfOrp
       if (referenced.has(assetId)) {
         continue;
       }
-      // biome-ignore lint/performance/noAwaitInLoops: per-asset drop-row-BEFORE-blob sequencing is DELIBERATE — batching all rows then all blobs widens the row-without-blob window (the invariant this verb protects).
       const ref = await loadAssetCasRefById(ctx.db, assetId);
       if (ref === undefined) {
         continue; // already gone (a concurrent reap / the cascade beat us) — nothing to do.

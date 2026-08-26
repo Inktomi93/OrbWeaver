@@ -56,7 +56,6 @@ export function createBackfillAvatars(ctx: AssetsContext): AssetsService["backfi
     let mismatched = 0;
     for (let i = 0; i < cards.length; i += CONCURRENCY) {
       const wave = cards.slice(i, i + CONCURRENCY);
-      // biome-ignore lint/performance/noAwaitInLoops: bounded-concurrency waves — each wave of ~8 stores runs in parallel, then the loop advances; that IS the concurrency bound.
       const results = await Promise.all(wave.map((card) => storeCard(ctx, ownerId, card)));
       for (const result of results) {
         if (result === undefined) {

@@ -302,7 +302,6 @@ async function seedRoom(
   const chars: CharacterId[] = [];
   const names: Record<string, string> = {};
   for (const k of charKeys) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential fixture seeding — deterministic ids + join order.
     const cid = await seedCharacter(db, host, k);
     await seedParticipant(db, {
       chatId,
@@ -1577,7 +1576,6 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     const member = await seedUser(db, castId<Handle>("member"));
     const chatIds: ChatId[] = [];
     for (let i = 0; i < 4; i += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential deterministic fixture seeding.
       const chatId = await seedChat(db, `c${i}`, {
         metadata: { group: { output: "per-speaker", policy: "natural" } },
       });
@@ -1612,7 +1610,6 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     expect(await loadPendingTurnsForReclaim(db)).toHaveLength(0); // all consumed
     // Each chat got exactly one AI response (never two).
     for (const chatId of chatIds) {
-      // biome-ignore lint/performance/noAwaitInLoops: per-chat assertion over a tiny fixed set.
       const assistants = (await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant");
       expect(assistants).toHaveLength(1);
     }

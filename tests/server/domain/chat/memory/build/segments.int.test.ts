@@ -130,7 +130,6 @@ describe("memory/build/segments", () => {
     // and end-to-end through `message_variants` + `loadCanonThroughSeq` at 3M, 6.2M, 13M and 26.1M chars.
     // #179; the standing tripwire is in `tests/db/client.int.test.ts`.)
     for (let seq = 1; seq <= 24; seq += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts in a test.
       await seedMessage(db, chatId, seq, { characterId: aria, content: HUGE_LINE.repeat(3000) });
     }
     const store = fakeEmbeddingsStore(db);

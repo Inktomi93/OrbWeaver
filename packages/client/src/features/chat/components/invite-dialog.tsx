@@ -99,7 +99,7 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();
-          void form.handleSubmit();
+          form.handleSubmit().catch(() => notify.error("Couldn't create the invite."));
         }}
       >
         <Stack gap="block">

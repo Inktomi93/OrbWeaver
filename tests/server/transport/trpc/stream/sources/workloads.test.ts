@@ -228,7 +228,6 @@ describe("the gate runs at attach ONLY — deliberately, not by omission", () =>
     publishUserEvent(OWNER, { type: "tagsChanged" });
     frames.push(frameOf((await first).value));
     for (let i = 1; i < 4; i++) {
-      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
       const result = await iterator.next();
       frames.push(frameOf(result.value));
     }

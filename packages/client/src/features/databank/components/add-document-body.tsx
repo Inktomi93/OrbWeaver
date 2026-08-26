@@ -40,6 +40,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormSubmitButton } from "#components";
 import { uploadDocument, useInvalidation, useTRPC, useUploadCaps } from "#data";
+import { notify } from "#lib";
 import { closeModal, selectDocumentFromList, setActiveSection } from "#state";
 import { useCreateDocumentFromText, useScrapeWeb, useScrapeWiki, useScrapeYoutube } from "../hooks/use-databank-mutations.ts";
 import { useScrapeForm } from "../hooks/use-scrape-form.ts";
@@ -160,9 +161,8 @@ function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement
     }
     setLoading(true);
     setError(null);
-    void (async (): Promise<void> => {
-      try {
-        const result = await uploadDocument(file);
+    uploadDocument(file).then(
+      (result) => {
         // The raw multipart seam has no `createEntityMutation` to hang `invalidates` on — refresh the list
         // AND the bank census through the SAME sanctioned seam by hand (never a bare `invalidateQueries`).
         // Both, because an upload moves a row onto the list and a document onto the count: the producer
@@ -175,12 +175,13 @@ function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement
           ingest: result.ingest,
           ...(result.warning === undefined ? {} : { warning: result.warning }),
         });
-      } catch {
-        setError("Upload failed — check the file type and size, then try again.");
-      } finally {
         setLoading(false);
-      }
-    })();
+      },
+      () => {
+        setError("Upload failed — check the file type and size, then try again.");
+        setLoading(false);
+      },
+    );
   };
 
   return (
@@ -217,14 +218,19 @@ function PasteBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement 
     if (!canCreate) {
       return;
     }
-    void create.mutateAsync({ name: trimmedName, text: trimmedText }).then((result) => {
-      onLanded({
-        id: result.document.id,
-        outcome: result.outcome,
-        ingest: result.ingest,
-        ...(result.warning === undefined ? {} : { warning: result.warning }),
-      });
-    });
+    create.mutate(
+      { name: trimmedName, text: trimmedText },
+      {
+        onSuccess: (result): void => {
+          onLanded({
+            id: result.document.id,
+            outcome: result.outcome,
+            ingest: result.ingest,
+            ...(result.warning === undefined ? {} : { warning: result.warning }),
+          });
+        },
+      },
+    );
   };
 
   return (
@@ -315,7 +321,7 @@ function LinkBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement {
               disabled={urlEmpty || pending}
               label={pending ? "Fetching…" : "Fetch and add"}
               onSubmit={(): void => {
-                void form.handleSubmit();
+                form.handleSubmit().catch(() => notify.error("Couldn't add the document."));
               }}
               testKey="databankScrapeSubmit"
             />

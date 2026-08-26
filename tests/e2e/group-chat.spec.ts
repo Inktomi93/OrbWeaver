@@ -67,14 +67,12 @@ async function mintCast(count: number): Promise<SeededCast> {
   const chosen = CAST.slice(0, count);
   const characterIds: CharacterId[] = [];
   for (const member of chosen) {
-    // biome-ignore lint/performance/noAwaitInLoops: mintFreshCharacter re-mints by handle (remove-then-create) — concurrent mints would race the same handle.
     characterIds.push(await mintFreshCharacter(member.handle, member.name, `${member.name} greeting.`));
   }
   return {
     characterIds,
     cleanup: async (): Promise<void> => {
       for (const id of characterIds) {
-        // biome-ignore lint/performance/noAwaitInLoops: teardown is a best-effort sequence; a parallel fan would hide which removal failed.
         await removeCharacter(id).catch(() => null);
       }
     },

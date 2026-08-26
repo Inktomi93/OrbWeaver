@@ -530,13 +530,11 @@ async function hoverScroller(host: Locator, page: Page): Promise<void> {
  */
 async function highestScrollTopSeen(host: Locator, page: Page): Promise<number> {
   let highest = Number.NEGATIVE_INFINITY;
-  // biome-ignore-start lint/performance/noAwaitInLoops: a settle trace is inherently sequential.
   for (let i = 0; i < SETTLE_SAMPLES; i += 1) {
     // biome-ignore lint/nursery/noPlaywrightWaitForTimeout: the sampling interval of a stability trace — there is no state to wait FOR, the absence of movement is the assertion.
     await page.waitForTimeout(SETTLE_SAMPLE_MS);
     highest = Math.max(highest, await readScrollTop(host));
   }
-  // biome-ignore-end lint/performance/noAwaitInLoops: end of the settle trace.
   return highest;
 }
 

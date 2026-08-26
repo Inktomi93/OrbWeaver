@@ -43,7 +43,6 @@ interface FixtureUser {
 async function loginAllFixtureUsers(users: readonly FixtureUser[], target: FixtureTarget): Promise<(string | null)[] | null> {
   const cookies: (string | null)[] = [];
   for (const u of users) {
-    // biome-ignore lint/performance/noAwaitInLoops: N logins (≤4) against the fixture's per-IP throttle — sequential is deliberate, not a bottleneck worth parallelizing.
     const login = await loginFixtureUser(target.serverUrl, u.handle, u.password);
     if ("error" in login) {
       print(`LOGIN FAILED  ${u.handle}: ${login.error}`);
@@ -88,7 +87,6 @@ async function captureContexts(session: ProbeSession, opts: Args, plan: ShotPlan
   for (let index = 0; index < totalContexts; index += 1) {
     const page = session.contexts[index]?.pages[0] as Page;
     outcomes.push(
-      // biome-ignore lint/performance/noAwaitInLoops: contexts are driven sequentially so later users observe earlier-user actions.
       await capture(
         page,
         opts,

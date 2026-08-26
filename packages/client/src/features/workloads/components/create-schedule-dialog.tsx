@@ -17,6 +17,7 @@ import type { ReactElement } from "react";
 import { FormDialog, FormSubmitButton } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
+import { notify } from "#lib";
 import { useCreateScheduleForm } from "../hooks/use-create-schedule-form.ts";
 import { useCreateSchedule, useUpdateSchedule } from "../hooks/use-workload-mutations.ts";
 import { buildStartInput, isMaintenanceWorkloadKind, isStartableWorkloadKind, workloadKindItems } from "../lib/workloads-model.ts";
@@ -149,7 +150,7 @@ function ScheduleFormBody({
         disabled={isPending}
         label={submitLabel}
         onSubmit={(): void => {
-          void form.handleSubmit();
+          form.handleSubmit().catch(() => notify.error("Couldn't save the schedule."));
         }}
         testKey={isEdit ? "editScheduleSubmit" : "createScheduleSubmit"}
       />

@@ -57,15 +57,66 @@ interface LeaseWriter {
   readonly report: (progress: WorkloadProgress, at: number) => void;
   /** The timer arm: write the lease unconditionally, carrying the latest snapshot (if any). */
   readonly tick: (at: number) => void;
+  /** Queue another DB-backed monitor read on the same owned chain (the cancellation poll). */
+  readonly monitor: (operation: () => Promise<void>) => void;
+  /** Rejects on the first monitor/write failure and aborts the contribution through the caller's race. */
+  readonly failure: Promise<never>;
+  /** Own every queued operation before the row receives a terminal state. */
+  readonly drain: () => Promise<void>;
 }
 
-function createLeaseWriter(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow): LeaseWriter {
+/** Distinguish a lease-monitor failure from a cooperative abort. The monitor aborts the contribution to
+ * stop more work, but that must terminalize as `failed`, not masquerade as a user cancellation. */
+class LeaseFailure extends Error {
+  readonly reason: unknown;
+
+  constructor(reason: unknown) {
+    super(reason instanceof Error ? reason.message : String(reason));
+    this.name = "LeaseFailure";
+    this.reason = reason;
+  }
+}
+
+function createLeaseWriter(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, controller: AbortController): LeaseWriter {
   const cadenceMs = deps.heartbeatMs ?? DEFAULT_HEARTBEAT_MS;
   let latest: WorkloadProgress | undefined;
   let lastWriteAt: number | null = null;
+  let tail = Promise.resolve();
+  let idle = true;
+  let failed = false;
+  const { promise: failure, reject } = Promise.withResolvers<never>();
+  const monitor = (operation: () => Promise<void>): void => {
+    if (failed) {
+      return;
+    }
+    let next: Promise<void>;
+    try {
+      // Preserve report()'s existing contract: the first durable write starts synchronously. Later monitor
+      // work chains behind it so heartbeat/cancel reads cannot reorder or escape the runner lifecycle.
+      next = idle ? operation() : tail.then(operation);
+    } catch (err) {
+      next = Promise.reject(err);
+    }
+    idle = false;
+    tail = next;
+    next.then(
+      () => {
+        if (tail === next) {
+          idle = true;
+        }
+      },
+      (err: unknown) => {
+        if (!failed) {
+          failed = true;
+          controller.abort();
+          reject(new LeaseFailure(err));
+        }
+      },
+    );
+  };
   const write = (at: number): void => {
     lastWriteAt = at;
-    void heartbeat(deps.db, row.id, at, latest);
+    monitor(() => heartbeat(deps.db, row.id, at, latest));
   };
   return {
     report: (progress, at): void => {
@@ -75,6 +126,9 @@ function createLeaseWriter(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow): 
       }
     },
     tick: write,
+    monitor,
+    failure,
+    drain: () => tail,
   };
 }
 
@@ -99,12 +153,12 @@ function startLeaseTimers(
   if (cancelPollMs > 0) {
     timers.push(
       setInterval(() => {
-        void (async (): Promise<void> => {
+        lease.monitor(async () => {
           const status = await loadWorkloadStatus(deps.db, row.id);
           if (status === "cancelling") {
             controller.abort();
           }
-        })();
+        });
       }, cancelPollMs),
     );
   }
@@ -213,7 +267,7 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
     signal.addEventListener("abort", onIncomingAbort, { once: true });
   }
 
-  const lease = createLeaseWriter(deps, row);
+  const lease = createLeaseWriter(deps, row, controller);
   const report: ReportProgress = (progress): void => {
     const at = deps.now();
     // The durable half — throttled to the lease cadence, piggybacked on the heartbeat's own UPDATE.
@@ -228,17 +282,45 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
   };
 
   const timers = startLeaseTimers(deps, row, controller, lease);
+  const contribution = withRequestSpan(`workload:${row.id}`, "workload.run", { kind: row.kind }, () =>
+    dispatchAndRun(deps, { ctx, row, report, signal: controller.signal }),
+  );
+  let leaseFailed = false;
+  let outcome: { readonly kind: "success"; readonly result: unknown } | { readonly kind: "failure"; readonly err: unknown; readonly aborted: boolean };
   try {
-    const result = await withRequestSpan(`workload:${row.id}`, "workload.run", { kind: row.kind }, () =>
-      dispatchAndRun(deps, { ctx, row, report, signal: controller.signal }),
-    );
-    await finalizeSuccess(deps, row, { aborted: controller.signal.aborted, result });
+    const result = await Promise.race([contribution, lease.failure]);
+    outcome = { kind: "success", result };
   } catch (err) {
-    await finalizeFailure(deps, row, { aborted: controller.signal.aborted, err });
+    const leaseFailure = err instanceof LeaseFailure;
+    leaseFailed = leaseFailure;
+    outcome = {
+      kind: "failure",
+      err: leaseFailure ? err.reason : err,
+      aborted: !leaseFailure && controller.signal.aborted,
+    };
   } finally {
     for (const timer of timers) {
       clearInterval(timer);
     }
     signal.removeEventListener("abort", onIncomingAbort);
+  }
+  if (leaseFailed) {
+    // A lease failure aborts the contribution, but abort is cooperative. Do not stamp a terminal row while
+    // the contribution is still unwinding (or still able to write); the runner owns that Promise to settlement.
+    await contribution.catch(() => undefined);
+  }
+  try {
+    await lease.drain();
+  } catch (err) {
+    outcome = { kind: "failure", err, aborted: false };
+  }
+  if (outcome.kind === "failure") {
+    await finalizeFailure(deps, row, { aborted: outcome.aborted, err: outcome.err });
+    return;
+  }
+  try {
+    await finalizeSuccess(deps, row, { aborted: controller.signal.aborted, result: outcome.result });
+  } catch (err) {
+    await finalizeFailure(deps, row, { aborted: controller.signal.aborted, err });
   }
 }

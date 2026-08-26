@@ -75,14 +75,12 @@ export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): 
    *  attempt's row state, so a parallel walk could double-create a handle. */
   async function forEachCard(run: (card: SeedCard) => Promise<void>): Promise<void> {
     for (const card of DEFAULT_CHARACTER_CARDS) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential BY DESIGN — see the doc comment above; the pack is ten cards and this runs once per library.
       await run(card);
     }
   }
 
   async function attachTags(principal: Principal, card: SeedCard, characterId: CharacterId): Promise<void> {
     for (const tagName of card.tags) {
-      // biome-ignore lint/performance/noAwaitInLoops: card tags attach sequentially — each is an independent idempotent resolve-or-create-and-attach; the tag lists are short.
       await deps.attachCardTag({ ownerId: principal.userId, characterId, tagName });
     }
   }

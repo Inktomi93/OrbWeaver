@@ -1486,7 +1486,6 @@ test("#375 Reading derives the context crossover from the resolved pane geometry
 
   const violations: PrimacyViolation[] = [];
   for (let width = 1278; width <= 1302; width += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: #375 one browser page must settle each viewport before the next resize to locate the contiguous failure interval.
     const violation = await readingPrimacyViolationAt(page, width);
     if (violation !== null) {
       violations.push(violation);

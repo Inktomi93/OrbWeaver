@@ -41,7 +41,6 @@ export async function tickWorkloadSchedules(deps: ScheduleTickDeps): Promise<voi
   const due = await findDueSchedules(deps.db, deps.now());
   for (const schedule of due) {
     const at = deps.now();
-    // biome-ignore lint/performance/noAwaitInLoops: sequential by design — each start respects the single-active DB lock.
     await enqueueDue(deps, schedule);
     await advanceSchedule(deps.db, schedule.id, at + CADENCE_INTERVAL_MS[schedule.cadence], at);
   }

@@ -839,7 +839,6 @@ async function so1(): Promise<void> {
   const cells: SoCell[] = [];
   for (const model of models) {
     for (const schemaCase of SO_SCHEMAS) {
-      // biome-ignore lint/performance/noAwaitInLoops: cells are sequential BY DESIGN — quota-metered live turns, ordered output.
       const cell = await runStructuredCell(model, schemaCase);
       cells.push(cell);
       console.log(`  [${model} / ${schemaCase.id}] ${cell.outcome} — ${cell.detail}`);
@@ -889,7 +888,6 @@ async function main(): Promise<void> {
     }
     console.log(`── ${name} ──`);
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: scenarios are sequential BY DESIGN — quota-metered live turns, ordered output.
       await run();
     } catch (error) {
       verdict(name, false, `threw: ${error instanceof Error ? error.message : String(error)}`);

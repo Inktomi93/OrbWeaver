@@ -590,7 +590,6 @@ describe("§5.5 two rooms on one socket — the per-room verdict, and the produc
     drive();
     const frames: StreamFrame[] = [frameOf((await first).value)];
     for (let i = 1; i < count; i++) {
-      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
       const result = await iterator.next();
       frames.push(frameOf(result.value));
     }

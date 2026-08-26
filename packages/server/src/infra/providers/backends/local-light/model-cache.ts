@@ -3,11 +3,12 @@
 // Default embedder is jinaai/jina-clip-v2, one model whose text + image encoders share a 1024-dim joint
 // space; one load serves both the embed and imageEmbed roles.
 
+import { randomUUID } from "node:crypto";
 import process from "node:process";
 import type { DataType, DeviceType, Tensor } from "@huggingface/transformers";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { l2Normalize } from "@orb/kit/vector-math";
-import { getLog } from "#foundation/observability";
+import { getLog, superviseDetached } from "#foundation/observability";
 import { ProviderError } from "../../contract/index.ts";
 
 // Small on purpose — each ONNX session holds native (off-heap) memory; the headroom just absorbs a deliberate model switch.
@@ -251,7 +252,7 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
       return await loadWithCpuFallback(device, (dev) => AutoModel.from_pretrained(id, { device: dev, dtype }));
     },
     (m) => {
-      void m.dispose();
+      superviseDetached(`local-light:dispose:jina:${randomUUID()}`, "local-light.model.dispose", { modelKind: "jina" }, () => m.dispose());
     },
   );
   const reranker = createMemo(
@@ -260,7 +261,7 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
       return await loadWithCpuFallback(device, (dev) => AutoModelForSequenceClassification.from_pretrained(id, { device: dev, dtype }));
     },
     (m) => {
-      void m.dispose();
+      superviseDetached(`local-light:dispose:reranker:${randomUUID()}`, "local-light.model.dispose", { modelKind: "reranker" }, () => m.dispose());
     },
   );
   const tokenizer = createMemo(
@@ -285,7 +286,9 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
       return await loadWithCpuFallback(device, (dev) => pipeline("background-removal", id, { device: dev, dtype }));
     },
     (p) => {
-      void p.dispose();
+      superviseDetached(`local-light:dispose:background-removal:${randomUUID()}`, "local-light.model.dispose", { modelKind: "background-removal" }, () =>
+        p.dispose(),
+      );
     },
   );
 

@@ -8,6 +8,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { EntryListEditor } from "#components";
 import type { AppFormInstance } from "#forms";
+import { notify } from "#lib";
 import { VariableEditorDialog } from "./variable-editor-dialog.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
@@ -52,7 +53,7 @@ export function VariablesTab({ form }: { readonly form: AppForm }): ReactElement
           onAdd={onAdd}
           onEdit={setEditIndex}
           onRemove={(index): void => {
-            void form.removeFieldValue("variables", index);
+            form.removeFieldValue("variables", index).catch(() => notify.error("Couldn't remove the variable."));
           }}
           renderEditor={(index): ReactElement => <VariableEditorDialog form={form} index={index} onClose={(): void => setEditIndex(null)} />}
         />

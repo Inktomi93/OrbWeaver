@@ -208,7 +208,6 @@ async function seedRoom(
   const chars: CharacterId[] = [];
   const names: Record<string, string> = {};
   for (const key of characters) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential fixture seeding — deterministic ids + join order.
     const characterId = await seedCharacter(db, host, key);
     await seedParticipant(db, {
       chatId,

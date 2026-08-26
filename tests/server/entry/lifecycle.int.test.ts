@@ -57,7 +57,6 @@ afterAll(async () => {
 async function waitForHealthz(): Promise<Response> {
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: a readiness poll is sequential by nature — each probe must complete before the next.
       const res = await fetch(HEALTHZ_URL);
       return res;
     } catch {

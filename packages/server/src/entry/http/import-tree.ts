@@ -191,7 +191,6 @@ async function collectParts(form: FormData): Promise<UploadPart[]> {
       throw new TreeRejected(PAYLOAD_TOO_LARGE, `"${file.name}" exceeds the ${TREE_MAX_FILE_MIB} MiB per-file cap`);
     }
     const relPath = sanitizeRelPath(file.name);
-    // biome-ignore lint/performance/noAwaitInLoops: parts are read sequentially — the batch is already bounded by the count + per-file + total-body caps.
     parts.push({ relPath, bytes: new Uint8Array(await file.arrayBuffer()) });
   }
   return parts;
@@ -237,7 +236,6 @@ async function stagePart(stagedRoot: string, relTarget: string, bytes: Uint8Arra
 async function stageTree(stagedRoot: string, parts: readonly UploadPart[], wrapper: string | null, stagePrefix: string): Promise<void> {
   for (const part of parts) {
     const relTarget = stagePrefix + stripWrapper(part.relPath, wrapper);
-    // biome-ignore lint/performance/noAwaitInLoops: files are staged sequentially to disk (a bounded batch); the whole point is to NOT hold every write in flight at once.
     await stagePart(stagedRoot, relTarget, part.bytes);
   }
 }

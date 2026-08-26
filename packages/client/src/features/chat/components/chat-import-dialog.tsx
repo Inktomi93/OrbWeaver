@@ -60,9 +60,8 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
     if (accepted.length === 0) {
       return;
     }
-    void (async (): Promise<void> => {
-      try {
-        const result = await importChats(accepted);
+    importChats(accepted).then(
+      (result) => {
         const notice = importNotice(result);
         notify[notice.kind](notice.message);
         if (result.imported.length === 0) {
@@ -72,10 +71,9 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
         // A raw multipart POST (not a tRPC mutation) — fire the same user-bus path-invalidate manually.
         invalidation.invalidateUser({ type: "chatsChanged" });
         onOpenChange(false);
-      } catch {
-        notify.error("Couldn't import the chat.");
-      }
-    })();
+      },
+      () => notify.error("Couldn't import the chat."),
+    );
   };
 
   return (

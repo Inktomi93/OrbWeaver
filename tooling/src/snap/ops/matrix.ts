@@ -44,7 +44,6 @@ export async function snapMatrix(opts: Args): Promise<number> {
       reducedMotion: variant.reducedMotion,
     };
     print(`\n========== MATRIX ${variant.id} ==========`);
-    // biome-ignore lint/performance/noAwaitInLoops: variants are sequential to cap local Chromium/resource pressure.
     const code = runArgs.scenario === null ? await snap(runArgs) : await snapScenario(runArgs);
     failures += Number(code !== 0);
   }

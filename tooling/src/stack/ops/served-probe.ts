@@ -78,7 +78,6 @@ export async function probeServedTransform(roots: readonly string[] = WATCHED_SO
   for (const candidate of candidates) {
     const rel = relative(REPO_ROOT, candidate.path);
     const diskSource = readSource(candidate.path);
-    // biome-ignore lint/performance/noAwaitInLoops: the candidates are ordered by mtime and the FIRST comparable one is the answer — probing the rest in parallel would fetch modules the verdict never uses.
     const servedBody = await fetchServed(candidate.path);
     const verdict = classifyServedTransform({ file: rel, diskSource, servedBody });
     if (verdict.state !== "unverifiable") {

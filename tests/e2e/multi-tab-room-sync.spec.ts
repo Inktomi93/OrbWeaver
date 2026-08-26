@@ -11,8 +11,8 @@
 // assertions load-bearing: if the bus fan regresses, multi-device divergence is SILENT.
 //
 // Split by cost: membership + config sync are DETERMINISTIC (model-free roster/metadata writes); the
-// transcript/turn fan needs a real turn and is tagged `@live` (local vLLM, zero hosted spend), honest-bail
-// (early return + annotation, never `test.skip(cond, …)`) if the stack has no local backend.
+// transcript/turn fan needs a real turn and is tagged `@live` (local vLLM, zero hosted spend). Unlike the
+// optional characterization suites, backend absence here is a required-live failure, not a passing test.
 //
 // Self-seeded: spec-owned characters (unique handles + display names) and a uniquely-titled chat, torn
 // down in a finally — never `listChats()[0]` on the shared DB.
@@ -57,7 +57,6 @@ interface Room {
 async function seedRoom(label: string, count: number, groupConfig?: Record<string, unknown>): Promise<Room> {
   const characterIds: CharacterId[] = [];
   for (const member of CAST.slice(0, count)) {
-    // biome-ignore lint/performance/noAwaitInLoops: mintFreshCharacter re-mints by handle (remove-then-create) — a parallel fan would race the same handle.
     characterIds.push(await mintFreshCharacter(member.handle, member.name, `${member.name} greeting.`));
   }
   const title = `e2e-hub-${label}-${Date.now()}`;
@@ -69,7 +68,6 @@ async function seedRoom(label: string, count: number, groupConfig?: Record<strin
 async function teardown(room: Room): Promise<void> {
   await deleteChat(room.chatId).catch(() => null);
   for (const id of room.characterIds) {
-    // biome-ignore lint/performance/noAwaitInLoops: teardown is a best-effort sequence; a parallel fan would hide which removal failed.
     await removeCharacter(id).catch(() => null);
   }
 }
@@ -136,7 +134,6 @@ test("a group-config change in tab A reaches tab B's open Group-behavior section
     // Group tab), so B's `chat.getGroupConfig` read is already mounted and cached — the only thing that can
     // refresh it is a bus-driven invalidation.
     for (const tab of [tabA, tabB]) {
-      // biome-ignore lint/performance/noAwaitInLoops: the two tabs open their panels sequentially so a failure names the tab that failed.
       await openDetailPanel(tab);
       await openGroupBehaviorSection(tab);
     }

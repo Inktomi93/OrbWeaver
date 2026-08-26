@@ -1698,7 +1698,6 @@ test("#168 FENCE (green before the fix): nothing in the row's content out-paints
   await expect.poll(() => component.evaluate((el: HTMLElement) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(400);
   const nameRow = component.locator(NAME_ROW);
   for (const top of [200, 600, 1000, 1400]) {
-    // biome-ignore lint/performance/noAwaitInLoops: each scroll must land before the next sample.
     await component.evaluate((el: HTMLElement, y: number) => {
       el.scrollTop = y;
     }, top);

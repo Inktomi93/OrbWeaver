@@ -225,7 +225,6 @@ async function stampParsedScores(
   for (let i = 0; i < items.length; i += SWEEP_RETRY_CONCURRENCY) {
     progress.signal?.throwIfAborted();
     const wave = items.slice(i, i + SWEEP_RETRY_CONCURRENCY);
-    // biome-ignore lint/performance/noAwaitInLoops: bounded-concurrency WAVES — a wave's per-card retries and its stamps run inside `runWave`; the loop advancing one wave at a time IS the concurrency bound (a fan-out over the whole library is the 429 storm the header names).
     const outcome = await runWave(deps, { wave, replies: replies.slice(i, i + wave.length), sampleOpts, stampedOwners });
     scored += outcome.scored;
     failed += outcome.failed;
@@ -255,7 +254,6 @@ async function runWave(
     if (item === undefined || payload === null) {
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: sequenced per-card merge-stamp — see this function's header (a fan-out over one JSON column is a lost-update race).
     await deps.stampRefinerySignals({ ownerId: item.target.ownerId, characterId: item.target.characterId, patch: { score: payload.overallScore } });
     stampedOwners.add(item.target.ownerId);
     scored += 1;

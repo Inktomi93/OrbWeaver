@@ -311,7 +311,6 @@ async function markContrastCandidates(page: Page, selector: string): Promise<num
     // browser — it carries NO closure over module scope (measured live: a first draft that referenced
     // CONTRAST_MARK by closure threw "CONTRAST_MARK is not defined" in-page). Both the mark and the
     // index travel through the explicit `arg`, never the closure.
-    // biome-ignore lint/performance/noAwaitInLoops: sequential tagging over a bounded match set — same discipline as captureContrasts/driveActions.
     await loc
       .nth(i)
       .evaluate((el, args) => (el as unknown as { setAttribute: (name: string, value: string) => void }).setAttribute(args.mark, String(args.idx)), {
@@ -416,7 +415,6 @@ async function checkContrast(page: Page, selector: string, forcePixel: boolean, 
 export async function captureContrasts(page: Page, selectors: readonly string[], forcePixel: boolean, viewport: Viewport): Promise<ContrastOutcome[]> {
   const results: ContrastOutcome[] = [];
   for (const selector of selectors) {
-    // biome-ignore lint/performance/noAwaitInLoops: argv-ordered, independent checks — same discipline as captureEvals/driveActions.
     results.push(await checkContrast(page, selector, forcePixel, viewport));
   }
   return results;

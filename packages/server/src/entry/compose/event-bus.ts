@@ -3,8 +3,9 @@
 // replica) — the subscriber set is a per-process closure. Emit is fire-and-forget + error-isolated: a
 // thrown/rejected handler is logged, never propagated, so a failing subscriber can't break the write path.
 
+import { randomUUID } from "node:crypto";
 import type { DomainEvent, EmitDomainEvent } from "@orb/contracts/events";
-import { getLog } from "#foundation/observability";
+import { superviseDetached } from "#foundation/observability";
 
 type DomainEventHandler = (event: DomainEvent) => void | Promise<void>;
 
@@ -13,15 +14,6 @@ type DomainEventHandler = (event: DomainEvent) => void | Promise<void>;
 export interface DomainEventBus {
   readonly emit: EmitDomainEvent;
   readonly subscribe: (handler: DomainEventHandler) => void;
-}
-
-/** Run one subscriber with error isolation — a rejection is logged, never propagated to the emitter. */
-async function dispatch(handler: DomainEventHandler, event: DomainEvent): Promise<void> {
-  try {
-    await handler(event);
-  } catch (err) {
-    getLog().warn({ err, eventType: event.type }, "domain-event handler failed");
-  }
 }
 
 /** Build the in-process domain-event bus. The subscriber set is closure-scoped (ASSUMES single-replica). */
@@ -33,7 +25,7 @@ export function createDomainEventBus(): DomainEventBus {
     },
     emit: (event: DomainEvent): void => {
       for (const handler of handlers) {
-        void dispatch(handler, event);
+        superviseDetached(`domain-event:${event.type}:${randomUUID()}`, "domain-event.dispatch", { eventType: event.type }, () => handler(event));
       }
     },
   };

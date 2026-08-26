@@ -92,9 +92,9 @@ function RegexScopePanel({
           checked={isGlobal}
           onCheckedChange={(checked): void => {
             if (checked) {
-              void attach.mutateAsync({ scriptId: script.id });
+              attach.mutate({ scriptId: script.id });
             } else {
-              void detach.mutateAsync({ scriptId: script.id });
+              detach.mutate({ scriptId: script.id });
             }
           }}
         />

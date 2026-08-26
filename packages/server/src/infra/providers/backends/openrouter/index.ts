@@ -427,7 +427,6 @@ async function runOrBatchItem(deps: OrBatchDeps, req: OrBatchReq, input: Summari
 async function runOrBatch(deps: OrBatchDeps, req: OrBatchReq): Promise<SummarizeResult> {
   const items: SummarizeResult["items"] = [];
   for (const [index, input] of req.inputs.entries()) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential by design (see the OR per-key rate-limit note above); the per-item image normalize rides the same loop.
     items.push(await runOrBatchItem(deps, req, input, index));
   }
   return { items, model: req.model };

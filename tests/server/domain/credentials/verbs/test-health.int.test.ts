@@ -174,8 +174,7 @@ describe("testHealth", () => {
     });
 
     h.setEndpointProbeResult({ status: "unreachable", checkedAt: 0, reason: "ECONNREFUSED" });
-    // Three sequential strikes, unrolled: each depends on the clock advancing past the probe window,
-    // so the awaits are ordered by design (noAwaitInLoops would mis-read a loop as parallelizable).
+    // Three sequential strikes: each depends on the clock advancing past the probe window.
     const strike1 = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
     expect(strike1.status).toBe("unreachable");
     h.advance(MINUTE_MS);

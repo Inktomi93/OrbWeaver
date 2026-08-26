@@ -403,8 +403,8 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       if (IS_DEV) {
         busDupCheck(filterKeyName(filter));
       }
-      // Fire-and-forget by design: refetch failures surface on the queries' own error state.
-      void deps.queryClient.invalidateQueries(filter);
+      // Refetch failures surface on the queries' own error state; consume the aggregate Promise here.
+      deps.queryClient.invalidateQueries(filter).catch(() => undefined);
     }
   };
   return {

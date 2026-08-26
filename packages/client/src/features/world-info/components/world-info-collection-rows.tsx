@@ -57,7 +57,7 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
   const filtered = needle === "" ? books : books.filter((book) => book.name.toLowerCase().includes(needle));
 
   const onDuplicate = (id: WorldBookId): void => {
-    void duplicate.mutateAsync({ bookId: id }).then((created) => view.onSelect(created.id));
+    duplicate.mutate({ bookId: id }, { onSuccess: (created): void => view.onSelect(created.id) });
   };
 
   const onDelete = (id: WorldBookId): void => {

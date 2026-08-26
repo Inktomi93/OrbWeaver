@@ -355,7 +355,6 @@ test("every seeded example packs to a bundle the real install verb accepts", asy
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
   const ids: PluginId[] = [];
   for (const slug of EXAMPLE_PLUGIN_SLUGS) {
-    // biome-ignore lint/performance/noAwaitInLoops: a two-file pack read per slug; sequential keeps the failure legible.
     const bundle = await packSeedPluginBundle(slug);
     expect(bundle, `${slug} has no packable source directory`).not.toBeNull();
     const row = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });

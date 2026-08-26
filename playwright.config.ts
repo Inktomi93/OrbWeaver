@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import process from "node:process";
 import { defineConfig, devices } from "@playwright/test";
 import { DEV_TARGET_ALLOWED, MODE_PROJECTS, SINGLE_USER } from "./tests/e2e/support/modes.ts";
@@ -26,6 +27,10 @@ const inCI = process.env["CI"] !== undefined;
 // Opt-in gate for the real-model-turn specs (tagged `@live`): routine runs EXCLUDE `@live` so `pnpm e2e`
 // never spends live model credits. Run them with `E2E_LIVE=1 pnpm e2e`. `grepInvert` drops matching tags.
 const e2eLive = process.env["E2E_LIVE"] === "1";
+// The manual `pnpm e2e:live` front door promises a real model-turn verdict. Direct/routine e2e runs may
+// honestly contain only optional unavailable tests; only that front door enables the all-skipped refusal.
+const requireLiveEvidence = process.env["E2E_REQUIRE_EVIDENCE"] === "1";
+const requiredLiveReporter = resolve(import.meta.dirname, "tooling/src/verify/ops/required-live-evidence-reporter.ts");
 
 // One Playwright project per mode. Every project shares the browser/use defaults; each pins its own baseURL
 // (its vite origin) + `E2E_BASE_URL` (via the webServer env) so the support tRPC + actor clients hit THAT
@@ -75,7 +80,12 @@ export default defineConfig({
   ...(e2eLive ? {} : { grepInvert: /@live/u }),
   forbidOnly: inCI,
   retries: inCI ? 2 : 0,
-  reporter: [["list"], ["json", { outputFile: "reports/e2e-report.json" }], ["html", { outputFolder: "reports/e2e-report", open: "never" }]],
+  reporter: [
+    ["list"],
+    ["json", { outputFile: "reports/e2e-report.json" }],
+    ["html", { outputFolder: "reports/e2e-report", open: "never" }],
+    ...(requireLiveEvidence ? [[requiredLiveReporter]] : []),
+  ],
   use: {
     // retain-on-failure, NOT on-first-retry: local retries=0, so first-retry artifacts NEVER exist for a
     // plain local failure — the exact runs that need diagnosing.

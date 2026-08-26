@@ -65,6 +65,7 @@ export {
   type SpanAttrs,
   setSpanAttrs,
   span,
+  superviseDetached,
   withRequestSpan,
   wrapLibSqlClient,
 } from "./tracing.ts";

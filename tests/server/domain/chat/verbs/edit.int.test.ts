@@ -1081,7 +1081,6 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
     const persona = await seedPersona(db, member, "mara");
     // Seeded serially: `seq` is UNIQUE per chat and each row's insert must land before the next claims one.
     for (let seq = 1; seq <= LONG_CHAT; seq += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: seq-ordered inserts against one db — the ordering IS the fixture.
       await seedMessage(db, chatId, seq, { role: "user", authorUserId: member, content: "{{user}} waves" });
     }
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });

@@ -34,6 +34,7 @@
 // per-lane loop stays sequential BY DESIGN (see the poll-loop comment); lanes are EXECUTION, the single-active
 // unique indexes are ADMISSION, and the two never interact.
 
+import { randomUUID } from "node:crypto";
 import type { WorkloadLane } from "@orb/contracts/workloads";
 import { WORKLOAD_LANES } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
@@ -46,7 +47,7 @@ import type {
   WorkloadRunnableRow,
   WorkloadRunnerDeps,
 } from "#domain/workloads";
-import { getLog } from "#foundation/observability";
+import { getLog, superviseDetached } from "#foundation/observability";
 
 const LOG_COMPONENT = "workloads-worker";
 
@@ -201,7 +202,9 @@ export async function startWorkloadsWorker(deps: WorkloadsWorkerDeps): Promise<v
   // are swallowed inside reapOnce; nothing here can kill the poll loops. This worker IS alive here, so a row
   // it finds stale genuinely stopped bumping its lease.
   const clearReap = deps.scheduleInterval(() => {
-    void reapOnce(deps, "heartbeat_stale");
+    superviseDetached(`workload-reap:${String(deps.runnerDeps.now())}:${randomUUID()}`, "workloads.reap", { reason: "heartbeat_stale" }, () =>
+      reapOnce(deps, "heartbeat_stale"),
+    );
   }, reapMs);
 
   // Wake-on-emit: ANY workload event (started/progress/terminal — every emitter is a row already in flight)
@@ -243,7 +246,6 @@ export async function startWorkloadsWorker(deps: WorkloadsWorkerDeps): Promise<v
   /** ONE lane's poll loop — sequential within the lane, independent of every other lane. */
   const runLane = async (lane: WorkloadLane): Promise<void> => {
     while (!deps.signal.aborted) {
-      // biome-ignore lint/performance/noAwaitInLoops: a lane's poll loop is sequential BY DESIGN — claim one row, run it to completion, then poll the next; parallelism inside a lane would only race the single-active-per-kind DB lock (cross-lane parallelism is the sibling loops).
       const outcome = await claimAndRunNext(deps, lane);
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- tsc narrows `while (!deps.signal.aborted)` as still false here, but `.aborted` is a live getter that can flip true during the `await` above (shutdown mid-claim)
       if (deps.signal.aborted) {

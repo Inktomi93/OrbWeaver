@@ -457,7 +457,6 @@ async function main(): Promise<void> {
     }
     console.log(`── ${name} ──`);
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: scenarios are sequential BY DESIGN — s6 reuses s1's session, and serial turns keep the cache-metric attribution unambiguous.
       await run();
     } catch (error) {
       verdict(name, false, `threw: ${error instanceof Error ? error.message : String(error)}`);

@@ -180,7 +180,6 @@ test("#171 — no Setup row ends in pointer prose, and every row either affords 
   const setup = page.getByTestId(testId("refinerySetupTab"));
   await expect(setup).toBeVisible();
   for (const prose of POINTER_PROSE) {
-    // biome-ignore lint/performance/noAwaitInLoops: three assertions against one settled surface, sequential by construction.
     await expect(setup.getByText(prose)).toHaveCount(0);
   }
   // Stage modes keeps its READOUT — it is the one value with no editor anywhere, so a door would be a lie

@@ -241,17 +241,10 @@ function PresetEditorBody({
   // The reset ACT — the header owns the door and its confirm; the write is a SESSION concern (the mutation
   // plus the reseed that lands its response row), so it is wired here and injected.
   const confirmReset = (): void => {
-    void (async (): Promise<void> => {
-      try {
-        // Reseed from the mutation's RESPONSE row (§5) — the verb returns the freshly-reset PresetDetail, so
-        // there is no post-invalidation cache read to race. `reseed` discard-flags the outgoing session so the
-        // dirty pre-reset form is dropped, never written back over the starter (the F2 write-back vector).
-        const row = await reset.mutateAsync({ id: presetId });
-        reseed(seedConfig(row.config));
-      } catch {
-        // The mutation's own errorToast already surfaced it; keep the current arrangement.
-      }
-    })();
+    // Reseed from the mutation's RESPONSE row (§5) — the verb returns the freshly-reset PresetDetail, so
+    // there is no post-invalidation cache read to race. `reseed` discard-flags the outgoing session so the
+    // dirty pre-reset form is dropped, never written back over the starter (the F2 write-back vector).
+    reset.mutate({ id: presetId }, { onSuccess: (row): void => reseed(seedConfig(row.config)) });
   };
 
   // The session's `form` is the boundary's widened surface minus `reset`; the view bodies are typed
