@@ -91,7 +91,7 @@ test("an unattached script shows all three rosters at zero, never a blank pane",
   await expect(page.getByRole("switch", { name: "strip ooc runs in every chat" })).toBeVisible();
 });
 
-test("the global-scope write owns the switch until settle, and rejection releases retry", async ({ mount, page }) => {
+test("a same-task repeat admits one global-scope write, and rejection releases retry", async ({ mount, page }) => {
   const held = trpcHold();
   const trpc = await routeTrpc(page, {
     "regex.listScripts": () => [SCRIPT],
@@ -102,7 +102,10 @@ test("the global-scope write owns the switch until settle, and rejection release
   await mount(<RegexContextStory />);
 
   const scope = page.getByRole("switch", { name: "strip ooc runs in every chat" });
-  await scope.click();
+  await scope.evaluate((element) => {
+    (element as HTMLElement).click();
+    (element as HTMLElement).click();
+  });
   await held.requested;
 
   await expect(scope).toBeDisabled();
