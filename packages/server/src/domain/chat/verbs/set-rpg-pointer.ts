@@ -18,9 +18,11 @@ import { chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { ChatId } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
 import type { SetRpgPointer } from "../contract/context.ts";
+import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
+import { carriedBackgroundAvailable } from "../persistence/background-write.ts";
 import { loadChatRow } from "../persistence/queries.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
@@ -42,10 +44,23 @@ export function createSetRpgPointer(ctx: ChatContext): SetRpgPointer {
       nextMetadata = { ...chat.metadata, rpg: pointer };
     }
     const hostUserId = hostUserIdOf(await loadRoster(ctx.db, chatId));
-    const statements: BatchStmt[] = [ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId))];
+    const statement = ctx.db
+      .update(chats)
+      .set({ metadata: nextMetadata, updatedAt: ctx.now() })
+      .where(and(eq(chats.id, chatId), carriedBackgroundAvailable(ctx.db, nextMetadata)))
+      .returning({ id: chats.id });
+    const statements: BatchStmt[] = [statement];
     if (hostUserId !== null) {
       ctx.bumpStatsCanonVersion(statements, ctx.db, hostUserId);
     }
-    await ctx.db.batch(batchMany(statements));
+    const results = await ctx.db.batch(batchMany(statements));
+    const updated = results[0] as readonly { readonly id: ChatId }[];
+    if (updated.length > 0) {
+      return;
+    }
+    const stillExists = await ctx.db.select({ id: chats.id }).from(chats).where(eq(chats.id, chatId)).limit(1);
+    if (stillExists.length > 0) {
+      throw new ChatOperationError(CHAT_OP_CODES.backgroundUnavailable, `chat ${chatId}: the background asset is no longer available`);
+    }
   };
 }

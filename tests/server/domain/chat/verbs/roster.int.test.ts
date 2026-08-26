@@ -30,6 +30,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { deleteAssetRowIfUnreferenced } from "../../../../../packages/server/src/domain/assets/persistence/asset-refs.ts";
 import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus.ts";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { getToolRecurseLimit } from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
@@ -72,6 +73,26 @@ const emit = async (event: ChatBusEvent, claimStatement?: BatchStmt): Promise<vo
 
 function principal(userId: UserId): Principal {
   return makePrincipal(userId, { handle: castId<Handle>("h") });
+}
+
+const METADATA_WRITERS = ["group", "room overrides", "databank visibility", "host display scripts", "offer choices", "tool recurse limit"] as const;
+type MetadataWriter = (typeof METADATA_WRITERS)[number];
+
+function runMetadataWriter(kind: MetadataWriter, roster: ReturnType<typeof createRoster>, host: UserId, chatId: ChatId): Promise<unknown> {
+  switch (kind) {
+    case "group":
+      return roster.setGroupConfig({ principal: principal(host), chatId, config: { output: "per-speaker", policy: "natural" } });
+    case "room overrides":
+      return roster.setRoomOverrides({ principal: principal(host), chatId, overrides: { scenario: "new" } });
+    case "databank visibility":
+      return roster.setChatDocumentVisibility({ principal: principal(host), chatId, visibility: { hidden: [] } });
+    case "host display scripts":
+      return roster.setHostDisplayScripts({ principal: principal(host), chatId, enabled: true });
+    case "offer choices":
+      return roster.setOfferChoices({ principal: principal(host), chatId, enabled: true });
+    case "tool recurse limit":
+      return roster.setToolRecurseLimit({ principal: principal(host), chatId, limit: 6 });
+  }
 }
 
 /** `greetings` is a REQUIRED array on the real card (`characterCardSchema`) and `addCharacterToChat` reads
@@ -376,6 +397,39 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.metadata?.background).toBeUndefined();
     expect(emitted).toEqual([]);
+  });
+
+  test.each(METADATA_WRITERS)("a stale %s write cannot resurrect a cleared background after GC", async (writer) => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const assetId = await seedAsset(db, host, "siblingreplay");
+    const chatId = await seedChat(db, "stale-sibling", { metadata: { background: bg({ kind: "asset", assetId, assetHash: "hash", mime: "image/png" }) } });
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    let reachedResolve: (() => void) | undefined;
+    let releaseResolve: (() => void) | undefined;
+    const reached = new Promise<void>((resolve) => {
+      reachedResolve = resolve;
+    });
+    const release = new Promise<void>((resolve) => {
+      releaseResolve = resolve;
+    });
+    const staleRoster = createRoster(makeChatContext(db), {
+      emit,
+      claimChat: async () => {
+        reachedResolve?.();
+        await release;
+      },
+    });
+    const writing = runMetadataWriter(writer, staleRoster, host, chatId);
+    await reached;
+    const clearingRoster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    await clearingRoster.setChatBackground({ principal: principal(host), chatId, background: bg({ kind: "none" }) });
+    expect(await deleteAssetRowIfUnreferenced(db, host, assetId)).toBe(true);
+    releaseResolve?.();
+
+    await expect(writing).rejects.toMatchObject({ code: "background_unavailable" });
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.metadata?.background?.kind).toBe("none");
+    expect(await db.select().from(assets).where(eq(assets.id, assetId))).toEqual([]);
   });
 
   test("a non-asset kind carrying a populated assetId persists CLEAN — asset fields emptied, no foreign GC-root smuggle", async () => {
