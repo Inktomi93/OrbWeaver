@@ -265,7 +265,6 @@ export async function labelInNameFindings(root: Locator | Page): Promise<readonl
        */
       const visibleLabelOf = (node: Element): string => {
         const clone = node.cloneNode(true) as HTMLElement;
-        // biome-ignore lint/performance/useTopLevelRegex: this body is serialized into the page; a module-scope regex is not in scope there.
         const ids = (node.getAttribute("aria-describedby") ?? "").split(/\s+/).filter((s) => s !== "");
         for (const id of ids) {
           for (const described of clone.querySelectorAll(`[id="${CSS.escape(id)}"]`)) {

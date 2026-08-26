@@ -12,7 +12,6 @@ import {
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const DRY = "dry_multiplier";
-/** The row refusals, hoisted (useTopLevelRegex). */
 const DUPLICATE_RE = /already uses this name/;
 const BLANK_NAME_RE = /Give this parameter a name/;
 const INVALID_JSON_RE = /Not valid JSON/;

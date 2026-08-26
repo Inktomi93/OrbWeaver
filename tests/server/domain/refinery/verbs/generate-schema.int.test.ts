@@ -18,8 +18,7 @@ function asArm<K extends SchemaForgeResult["kind"]>(result: SchemaForgeResult, k
   return result as Extract<SchemaForgeResult, { kind: K }>;
 }
 
-/** `$ref` and an open `additionalProperties` map are the two structural failures the 2026-08-09 live probe
- *  measured on hosted endpoints — hoisted so the wire assertions stay `useTopLevelRegex`-clean. */
+/** `$ref` and an open `additionalProperties` map are the two structural failures measured on hosted endpoints. */
 const OPEN_KEY_MAP_RE = /"additionalProperties":\{/;
 
 /** One design row in the forge's leaf language. */

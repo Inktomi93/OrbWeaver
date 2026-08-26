@@ -1,5 +1,3 @@
-// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are drizzle schema
-// fixture snippets (sqliteTable(...) calls), not secrets.
 // Gate: schema-branding — the Drizzle-column companion to the no-raw-id grit. Every entity id column
 // in packages/db/src/schema/ must carry a `.$type<XId>()` brand so the TypeID discipline can't rot when
 // a new table/FK is added unbranded. Two checks, generic (no hardcoded table list): unbranded-id-pk (a

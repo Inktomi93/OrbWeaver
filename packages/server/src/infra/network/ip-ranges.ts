@@ -5,7 +5,6 @@
 // biome-ignore-all lint/suspicious/noBitwiseOperators: IP/CIDR math is fundamentally bitwise — parsing an
 // address packs octets/hextets via shift+OR, and prefix masking is shift+AND on the integer address.
 
-/** The dotted-quad matcher (hoisted — useTopLevelRegex; this is a hot path called per address). */
 const IPV4_RE = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
 /** A single IPv6 hextet (1–4 hex digits). */
 const HEXTET_RE = /^[0-9a-fA-F]{1,4}$/;

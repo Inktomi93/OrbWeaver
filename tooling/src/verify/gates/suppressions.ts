@@ -1,16 +1,7 @@
-// Gate: suppressions (Core-Enforcement-Deferred-Dropped.md "suppressions" row; Spine-Testing.md §5
-// house-suppression discipline) — counts down the four suppression-marker shapes under `packages/*/src`:
-// `biome-ignore`/`biome-ignore-all`, every `eslint-disable` variant (bare/-next-line/-line), the two
-// TypeScript suppression directives. Comment markers ONLY — a scan over ts-morph COMMENT RANGES (leading +
-// trailing + the JSX comment-only-expression carrier, `suppressionSites`), never raw source text, so a
-// string literal merely MENTIONING one of these tokens (gate/tooling fixture code) never counts. BASELINE RATCHET (the `no-test-fabrication` per-file
-// shape): a committed `suppressions.baseline.json` maps repo-relative file → its budget; a file's live
-// count exceeding its budget REDs the excess (newest suppressions surface first, by source order). BOTH
-// WAYS: a baseline entry ABOVE the file's live count is a STALE-RED — the ratchet only tightens, it can
-// never coast on a number the file no longer needs. Regenerate: `node tooling/src/verify/cli.ts baseline suppressions`
-// (rewrites the whole map from a live scan — run only on a sanctioned bulk shift, day-to-day the count
-// only falls). Escape: none — a suppression IS the marker; the "escape" from this gate is deleting the
-// suppression or bumping the baseline via a sanctioned regenerate.
+// Gate: suppressions — a both-ways per-file ratchet over authored typed source in package source,
+// tooling, and scripts. Detection accepts exact comment directives, including biome start/end ranges;
+// prose and strings do not count. RATIFIED_RULES classifies decided markers, while unlisted rules remain
+// debt. Regenerate only through `verify baseline suppressions`; ordinary changes may only shrink rows.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
@@ -21,11 +12,19 @@ import type { GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
 
 export const BASELINE_REL = "tooling/src/verify/gates/suppressions.baseline.json";
-const SRC_RE = /^packages\/[^/]+\/src\//u;
-const SUPPRESSION_RE = /biome-ignore(?:-all)?|eslint-disable(?:-next-line|-line)?|@ts-expect-error|@ts-ignore/u;
+const PACKAGE_SOURCE_RE = /^packages\/[^/]+\/src\/.*\.tsx?$/u;
+const TOOLING_SOURCE_RE = /^tooling\/src\/.*\.tsx?$/u;
+const SCRIPT_SOURCE_RE = /^scripts\/.*\.tsx?$/u;
+const CAPTURED_RUNTIME_PREFIX = "scripts/probes/st-goldens/sillytavern-runtime/";
+const COMMENT_OPEN = String.raw`(?:\/\/|\/\*+|\{\/\*+)`;
+const DIRECTIVE_TOKEN = String.raw`(?:biome-ignore(?:-all|-start|-end)?|eslint-disable(?:-next-line|-line)?|@ts-expect-error|@ts-ignore)`;
+const SUPPRESSION_RE = new RegExp(String.raw`^\s*${COMMENT_OPEN}\s*(${DIRECTIVE_TOKEN})\b`, "u");
 /** The RULE a marker names — the classification key. `biome-ignore[-all|-start|-end] <rule>:`, an
  *  `eslint-disable*` rule id, or the bare TypeScript directive (which names no rule and is its own key). */
-const RULE_RE = /biome-ignore(?:-all|-start|-end)?\s+(\S+?):|eslint-disable(?:-next-line|-line)?\s+([^\s:,]+)|(@ts-expect-error|@ts-ignore)/u;
+const RULE_RE = new RegExp(
+  String.raw`^\s*${COMMENT_OPEN}\s*(?:biome-ignore(?:-all|-start|-end)?\s+(\S+?):|eslint-disable(?:-next-line|-line)?\s+([^\s:,]+)|(@ts-expect-error|@ts-ignore)\b)`,
+  "u",
+);
 
 /** Why one RULE's markers are permanent: `ruling` = the code is deliberately this way and a stated
  *  invariant says so; `tool-fp` = the analyzer is WRONG about this code (a documented false positive). */
@@ -34,24 +33,8 @@ interface RatifiedRule {
   readonly why: string;
 }
 
-/** THE RATIFICATION TABLE (#569, seeded from the #575 triage that read all 346 markers across 184 files:
- *  0 fix-underlying, 0 stale). A marker whose rule is here is RATIFIED — permanent, not backlog — and the
- *  per-file rows in the baseline carry that partition so `pnpm debt` and the single-pass never print a
- *  ruled suppression as burnable debt. A rule ABSENT here is DEBT by default.
- *
- *  RULING SUPERSEDED (#596). This header used to record that `noExcessiveCognitiveComplexity` was
- *  DELIBERATELY left out — "the 5 markers stay gray, owner judgment, not promoted". The owner then ruled the
- *  terminal state of the debt campaign to be ZERO burnable, every survivor carrying its ruling, which the
- *  gray-by-omission posture cannot express: an unruled marker is indistinguishable from backlog nobody has
- *  read. So the five were re-judged one at a time (#596): `entry/compose/chat.ts` DECOMPOSED (its turn bridge
- *  really did hold two mappings and a push→pull pump behind one "adapter logic" excuse — the marker is gone,
- *  and two more went with it), and the four that survived are ratified BY RULE below. The mechanism the old
- *  ruling protected is untouched: the class is still DERIVED here and never hand-declared in a baseline row.
- *
- *  TWO-SIDED (GATE-AUTHORING.md §4.4): a row matching ZERO live markers is RED — a ratification that
- *  absolves nothing is a loaded gun for the next marker written under that rule. Note what a ratification
- *  does NOT do: the EXCEED arm still REDs any marker past a file's committed budget, so ratifying a RULE
- *  absolves the decided set, never the next marker somebody writes under it. */
+/** Ratification is derived by rule class; absent classes remain debt. The per-file exceed arm still rejects
+ *  every new marker, while a class matching zero live sites is stale and rejected. */
 const RATIFIED_RULES: Readonly<Record<string, RatifiedRule>> = {
   "lint/style/useNamingConvention": {
     kind: "ruling",
@@ -128,7 +111,6 @@ const RATIFIED_RULES: Readonly<Record<string, RatifiedRule>> = {
     kind: "ruling",
     why: "the signature MIRRORS an injected cross-feature contract (a positional delegate); narrowing it forks the contract",
   },
-  "lint/security/noSecrets": { kind: "tool-fp", why: "authored card prose (long `<START>…` example dialogue) is high-entropy text, not a credential" },
   "react-you-might-not-need-an-effect/no-external-store-subscription": {
     kind: "ruling",
     why: "the subscription drives an IMPERATIVE flush (jump the reveal cursor), not a state mirror",
@@ -164,6 +146,50 @@ const RATIFIED_RULES: Readonly<Record<string, RatifiedRule>> = {
   "lint/complexity/noUselessConstructor": { kind: "ruling", why: "the narrowing constructor IS the point — it pins the error subclass's argument type" },
   "lint/correctness/useYield": { kind: "ruling", why: "an empty async generator IS the held-open no-turn prompt (the agent-sdk catalog's designed shape)" },
   "lint/suspicious/noControlCharactersInRegex": { kind: "ruling", why: "the regex exists to STRIP control characters — naming them is the function" },
+  "@ts-expect-error": {
+    kind: "ruling",
+    why: "probe-only compatibility seams intentionally import untyped JS or browser-virtual modules whose runtime shape is asserted immediately after the directive",
+  },
+  "lint/complexity/noUselessReturn": {
+    kind: "tool-fp",
+    why: "the explicit fallthrough return satisfies TypeScript noImplicitReturns because sibling branches return values",
+  },
+  "lint/complexity/noUselessUndefined": {
+    kind: "tool-fp",
+    why: "the explicit undefined fallthrough satisfies TypeScript noImplicitReturns because sibling branches return values",
+  },
+  "lint/nursery/noConditionalExpect": {
+    kind: "tool-fp",
+    why: "the call is the codemod kit's guard-clause assert helper, not a test-runner expectation",
+  },
+  "lint/nursery/noPlaywrightNetworkidle": {
+    kind: "ruling",
+    why: "an explicit probe/golden-harness observation mode asks for bounded network quiet; it is not a test readiness guess",
+  },
+  "lint/nursery/noPlaywrightWaitForSelector": {
+    kind: "ruling",
+    why: "the foreign ST golden harness has no owned semantic locator contract, so its dynamic DOM selector is the integration boundary",
+  },
+  "lint/nursery/noPlaywrightWaitForTimeout": {
+    kind: "ruling",
+    why: "probe/golden harnesses deliberately observe a bounded time window; they are instruments, not polling test assertions",
+  },
+  "lint/style/noProcessEnv": {
+    kind: "ruling",
+    why: "tool and probe launch boundaries own ambient harness knobs and child-process inheritance; they are outside the app configuration perimeter",
+  },
+  "lint/style/useFilenamingConvention": {
+    kind: "ruling",
+    why: "the gate filename must byte-match its registered gate name, whose onData spelling names the external callback vocabulary",
+  },
+  "lint/suspicious/noTemplateCurlyInString": {
+    kind: "tool-fp",
+    why: "gate self-proof strings intentionally carry template-literal source text for the synthetic project to parse",
+  },
+  "lint/suspicious/useAwait": {
+    kind: "ruling",
+    why: "a buffered replay generator has nothing to await but must remain async to implement the AsyncIterable contract",
+  },
 };
 
 /** One file's markers as a per-rule histogram, sorted for a stable ledger diff. */
@@ -205,9 +231,12 @@ export interface SuppressionSite {
   readonly rule: string | null;
 }
 
-/** True when this file is under `packages/<pkg>/src/` (bare repo-relative — scanRoot convention). */
-export function isSrcFile(repoRelPath: string): boolean {
-  return SRC_RE.test(repoRelPath);
+/** The one governed authored typed-source set shared by enforcement and baseline generation. */
+export function isGovernedTypedSource(repoRelPath: string): boolean {
+  if (repoRelPath.startsWith(CAPTURED_RUNTIME_PREFIX)) {
+    return false;
+  }
+  return PACKAGE_SOURCE_RE.test(repoRelPath) || TOOLING_SOURCE_RE.test(repoRelPath) || SCRIPT_SOURCE_RE.test(repoRelPath);
 }
 
 /** Every suppression-marker comment in one source file, in source order (line, matched token).
@@ -225,6 +254,7 @@ export function suppressionSites(sf: SourceFile): SuppressionSite[] {
   // the robust dedupe key (position identity drifts across carriers for the exact same comment).
   const record = (pos: number, text: string): void => {
     const match = SUPPRESSION_RE.exec(text);
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: RegExp.exec can return null; Biome narrows this constructed grammar incorrectly.
     if (match === null) {
       return;
     }
@@ -234,7 +264,8 @@ export function suppressionSites(sf: SourceFile): SuppressionSite[] {
     }
     seenLines.add(line);
     const ruleMatch = RULE_RE.exec(text);
-    sites.push({ line, token: match[0], rule: ruleMatch?.[1] ?? ruleMatch?.[2] ?? ruleMatch?.[3] ?? null });
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: RULE_RE is stricter than detection, so a matched directive can still have no parsed rule.
+    sites.push({ line, token: match[1] ?? match[0], rule: ruleMatch?.[1] ?? ruleMatch?.[2] ?? ruleMatch?.[3] ?? null });
   };
   // getDescendants() (not forEachDescendant) — it includes token nodes (e.g. CloseBraceToken), which is
   // where a same-block trailing suppression (an `else if` arm's last statement) actually attaches its
@@ -254,10 +285,10 @@ export function suppressionSites(sf: SourceFile): SuppressionSite[] {
   return sites;
 }
 
-/** The repo-relative path of a source file, or undefined if it isn't under a package's src dir. */
-export function srcRel(root: string, absPath: string): string | undefined {
+/** The repo-relative path of governed typed source, or undefined outside the governed set. */
+export function governedSourceRel(root: string, absPath: string): string | undefined {
   const rel = absPath.startsWith(root) ? absPath.slice(root.length + 1) : absPath;
-  return isSrcFile(rel) ? rel : undefined;
+  return isGovernedTypedSource(rel) ? rel : undefined;
 }
 
 /** The committed ledger through the ONE row reader — each row carries its DEBT/RATIFIED partition. */
@@ -277,17 +308,17 @@ const CLASS_DRIFT_MESSAGE = (rel: string, declared: number, derived: number): st
   "the class is DERIVED from RATIFIED_RULES, never hand-declared: fix the row (or add/remove the rule's table entry, with its why). " +
   "A ratified count the tree does not earn is a permanent admission nobody granted (#569).";
 const STALE_RULE_MESSAGE = (rule: string): string =>
-  `stale RATIFIED_RULES entry — \`${rule}\` classifies ZERO live suppression markers under packages/*/src, so the ratification ` +
+  `stale RATIFIED_RULES entry — \`${rule}\` classifies ZERO live suppression markers under governed typed source, so the ratification ` +
   "grants nothing while reading as live law. Delete the row (GATE-AUTHORING.md §4.4, every exemption vocabulary is two-sided).";
 const STALE_MESSAGE = (rel: string, baseline: number, live: number): string =>
   `stale suppressions.baseline.json entry — "${rel}" is budgeted ${baseline} but has only ${live} live ` +
   "suppression marker(s): regenerate the baseline (`node tooling/src/verify/cli.ts baseline suppressions`) " +
-  "to ratchet the floor down (Core-Enforcement-Deferred-Dropped.md, suppressions row).";
+  "to ratchet the floor down (Core-Enforcement-Active-Gates.md, suppressions row).";
 const EXCEED_MESSAGE = (token: string): string =>
   `suppression marker \`${token}\` exceeds this file's committed suppressions.baseline.json budget — ` +
   "delete the suppression (fix the underlying lint/type issue) or, if genuinely warranted, regenerate the " +
   "baseline via a sanctioned bulk shift (`node tooling/src/verify/cli.ts baseline suppressions`); the ratchet " +
-  "only shrinks day-to-day (Core-Enforcement-Deferred-Dropped.md, suppressions row).";
+  "only shrinks day-to-day (Core-Enforcement-Active-Gates.md, suppressions row).";
 
 /** The exceed-budget + stale-baseline reconciliation shared by `run` and the residual unit test (via an
  *  injected baseline — the gate-conformance runner has no baseline.json on a synthetic tree).
@@ -324,7 +355,7 @@ function scanLive(root: string, files: readonly SourceFile[]): LiveScan {
   const sites = new Map<string, readonly SuppressionSite[]>();
   const rules = new Set<string>();
   for (const sf of files) {
-    const rel = srcRel(root, sf.getFilePath());
+    const rel = governedSourceRel(root, sf.getFilePath());
     if (rel === undefined) {
       continue;
     }
@@ -392,21 +423,19 @@ function staleRatifiedRules(root: string, liveRules: ReadonlySet<string>): reado
 
 export const gate: GateDescriptor = {
   name: "suppressions",
-  docRow: "Core-Enforcement-Deferred-Dropped.md (suppressions row) / Spine-Testing.md §5",
+  docRow: "Core-Enforcement-Active-Gates.md (suppressions row) / Spine-Testing.md §5",
   status: "active",
   scopeSafety: "whole-project", // the baseline budget is a per-file whole-tree count, both-ways stale needs the full set
   message: EXCEED_MESSAGE("<marker>"),
   fix: "delete the suppression (fix the underlying issue), or regenerate suppressions.baseline.json via a sanctioned bulk shift (`node tooling/src/verify/cli.ts baseline suppressions`).",
-  scanRoot: (p) => isSrcFile(p),
+  scanRoot: (p) => isGovernedTypedSource(p),
   run: (ctx) => {
     const baseline = loadBaseline(ctx.root);
     const { violations, admitted, admittedRatified } = reconcileSuppressions(ctx.root, ctx.files, baseline);
     for (const v of violations) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    // Declared debt is not absence: without this the single-pass's admitted total omits this whole ledger.
-    // SPLIT BY CLASS (#569) — 341 of the 346 live markers are ruled/tool-FP permanent, and printing them as
-    // burnable backlog is exactly the misreading this classification exists to end.
+    // Declared debt is not absence: report the ledger's derived ratified partition separately.
     ctx.scan({ admitted, admittedRatified });
   },
   // NOTE: the BASELINE-BUDGET ratchet arms (a file AT its baseline passes; EXCEEDING REDs only the
@@ -435,6 +464,36 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "@ts-expect-error" },
       why: "a `@ts-expect-error` marker under packages/*/src with no baseline budget — a suppression",
     },
+    {
+      files: "// biome-ignore lint/suspicious/noExplicitAny: fixture probe\nexport const a = 1;\n",
+      at: "tooling/src/x.ts",
+      expect: { messageIncludes: "biome-ignore" },
+      why: "tooling/src is governed typed source, so its missing-baseline marker is rejected",
+    },
+    {
+      files: "// eslint-disable-next-line no-alert\nexport const a = 1;\n",
+      at: "scripts/x.tsx",
+      expect: { messageIncludes: "eslint-disable-next-line" },
+      why: "scripts TSX is governed typed source, so its missing-baseline marker is rejected",
+    },
+    {
+      files: "// biome-ignore-start lint/suspicious/noUnnecessaryConditions: live guard\nexport const a = 1;\n",
+      at: "packages/kit/src/start.ts",
+      expect: { messageIncludes: "biome-ignore-start" },
+      why: "a biome range-start directive is an exact suppression token, not a partial biome-ignore match",
+    },
+    {
+      files: "// biome-ignore-end lint/suspicious/noUnnecessaryConditions: end live guard\nexport const a = 1;\n",
+      at: "packages/kit/src/end.ts",
+      expect: { messageIncludes: "biome-ignore-end" },
+      why: "a biome range-end directive is an exact suppression token, not a partial biome-ignore match",
+    },
+    {
+      files: "// biome-ignore lint/style/useNamingConvention: upstream wire key\nexport const snake_case = 1;\n",
+      at: "scripts/probes/st-goldens/generate-goldens.ts",
+      expect: { messageIncludes: "biome-ignore" },
+      why: "the authored st-goldens generator remains governed despite its captured runtime neighbor",
+    },
   ],
   mustPass: [
     {
@@ -445,7 +504,17 @@ export const gate: GateDescriptor = {
     {
       files: "// biome-ignore lint/foo: reason\nexport const a = 1;\n",
       at: "tests/tooling/x.test.ts",
-      why: "scope: a suppression marker OUTSIDE packages/*/src is not gated here — passes",
+      why: "tests are outside the governed typed-source budget — passes",
+    },
+    {
+      files: '// This fixture mentions biome-ignore lint/foo: as prose.\nexport const a = "// eslint-disable-next-line no-alert";\n',
+      at: "tooling/src/fixture-string.ts",
+      why: "directive words in a prose comment or string fixture are not exact suppression directives",
+    },
+    {
+      files: "// biome-ignore lint/style/useNamingConvention: captured vendor source\nexport const snake_case = 1;\n",
+      at: "scripts/probes/st-goldens/sillytavern-runtime/vendor.tsx",
+      why: "the generated foreign runtime capture is excluded even though authored st-goldens scripts are governed",
     },
     {
       files: "export const a = 1;\n",

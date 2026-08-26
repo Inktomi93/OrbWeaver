@@ -3225,7 +3225,7 @@ function fireOrderRpg(timeline: string[]): NonNullable<ChatContext["rpg"]> {
 }
 
 const RPG_FIRE_MARK = "rpg:onTurnCompleted";
-/** The round's own trace-ring bucket key — `rpg-turn:<turnId>` (hoisted: useTopLevelRegex). */
+/** The round's own trace-ring bucket key: `rpg-turn:<turnId>`. */
 const RPG_ROUND_REQUEST_ID_RE = /^rpg-turn:/;
 
 test("S1: the rpg post-turn flush is registered BEFORE the turnCompleted emit (after the commit)", async () => {
@@ -3319,7 +3319,7 @@ test("the post-turn rpg round opens its OWN request trace (it outlives the reque
 // cost and its failures were invisible everywhere: no span of its own, and a parented one would have been
 // dropped as a late orphan. Same proof shape as the round above, driven from inside an outer request root.
 const RPG_USER_COMMIT_ROOT = "rpg.userCommit";
-/** The commit's own trace-ring bucket key — `rpg-user-commit:<messageId>` (hoisted: useTopLevelRegex). */
+/** The commit's own trace-ring bucket key: `rpg-user-commit:<messageId>`. */
 const RPG_USER_COMMIT_REQUEST_ID_RE = /^rpg-user-commit:/;
 const USER_COMMIT_OUTER_REQUEST_ID = "rpg-user-commit-outer-request";
 

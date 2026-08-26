@@ -33,7 +33,6 @@ import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { makeInertOps, makePluginHarness, ownerPrincipalFor, seedUser } from "../../domain/plugin/_support.ts";
 
-/** A numbered draw line from the oracle deck's result (`1. The Road`). Top-level per `useTopLevelRegex`. */
 const DRAW_LINE_RE = /^\d+\. (.+)$/;
 
 /** The production runtime under DETERMINISTIC seams — the same object compose builds, so the membrane, the

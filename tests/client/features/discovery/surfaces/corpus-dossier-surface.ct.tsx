@@ -36,7 +36,7 @@ async function routeDossier(page: Page, answer: Record<string, unknown>, dossier
 }
 
 const QUESTION = "What drives them?";
-// Hoisted (biome useTopLevelRegex): the quality readout's two locators, matched by their leading copy.
+// The quality readout's two locators, matched by their leading copy.
 const SCORE_READOUT = /Refinery score:/;
 const NOT_SCORED = /Not scored yet/;
 /** B8/U3 locators, hoisted for the same reason. */

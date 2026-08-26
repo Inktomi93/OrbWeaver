@@ -96,7 +96,7 @@ function baseRoutes(): TrpcRoutes {
   };
 }
 
-// The describe field's placeholder — hoisted (biome `useTopLevelRegex`).
+// The describe field's placeholder.
 const DESCRIBE_PLACEHOLDER = /rating 1-10, a mood enum/;
 /** The Scope row's note, which names scope's ONE editing home (#158 item 1). */
 const SCOPE_HOME_NOTE = /Changed on the workbench/;

@@ -1,5 +1,3 @@
-// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are JSX/form fixture
-// snippets (factory imports + controlled-input markup), not secrets.
 // Gate: form-factory-for-multifield (D54 §13.3/§13.4, UI-Primitives-and-Reuse.md §13.4). The live
 // `no-direct-useform` grit already forces the factories the moment TanStack Form is touched; the hole
 // this gate closes is the form that dodges Form ENTIRELY — a features/** component hand-rolling ≥3

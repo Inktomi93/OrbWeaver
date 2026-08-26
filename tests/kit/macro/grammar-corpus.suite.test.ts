@@ -273,7 +273,7 @@ test("[corpus/determinism] a swipe replay (same seed) reproduces the exact bytes
 
 // A body mixing draws + var ops — the op-log and the PRNG stream must interleave identically.
 const DRAWY_BODY = "{{setvar::hp::5}}{{pick::a::b::c}}-{{roll::2d6}}-{{incvar::hp}}-{{getvar::hp}}";
-// option|roll|counter — pins that the lazy-handler draws genuinely fired (top-level per useTopLevelRegex).
+// option|roll|counter — pins that the lazy-handler draws genuinely fired.
 const JOIN_SHAPE = /^.\|\d+\|1$/;
 
 test("[corpus/determinism] {{!if}} (eager-forced args) vs {{if}} (lazy default): byte-identical + op-log", () => {

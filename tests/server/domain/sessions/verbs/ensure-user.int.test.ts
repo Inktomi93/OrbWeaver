@@ -9,7 +9,6 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService } from "../_support.ts";
 
-/** The phantom-id refusal message (hoisted — `useTopLevelRegex`). */
 const NO_ROW_AFTER_INSERT = /no users row for handle/u;
 
 let db: Db;

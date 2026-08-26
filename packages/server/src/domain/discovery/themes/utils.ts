@@ -1,7 +1,6 @@
 // domain/discovery/themes/utils — small pure helpers for the theme subsystem (zero I/O).
 
 const MAX_NAME_LEN = 60;
-// Module-level regexes (biome useTopLevelRegex — avoid recompiling per call).
 const LEADING_BULLET = /^[-*\d.)\s]+/;
 const SURROUNDING_QUOTES = /^["'`]+|["'`]+$/g;
 const INNER_WHITESPACE = /\s+/g;

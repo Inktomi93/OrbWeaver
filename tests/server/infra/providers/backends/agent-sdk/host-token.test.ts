@@ -1,6 +1,5 @@
 // biome-ignore-all lint/style/useNamingConvention: OAuth wire + credentials-file fields are snake_case
 // (grant_type/access_token/expires_in/refresh_token) — the SDK/OAuth wire vocab, not our identifiers.
-// biome-ignore-all lint/security/noSecrets: the token strings here are obvious test fixtures, not real keys.
 //
 // host-token — the PROACTIVE Max-sub OAuth refresh (fixes `auth_failed` every few hours when the host
 // access token expires but the spawned runtime's own refresh can't persist through the ephemeral-dir

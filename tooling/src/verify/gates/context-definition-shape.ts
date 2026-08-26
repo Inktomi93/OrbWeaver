@@ -1,4 +1,3 @@
-// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TS/TSX fixture snippets, not secrets.
 // Gate: context-definition-shape (client-architecture-lockdown.md §6b / §16 G3) — post-M3, the walls
 // around the `defineContextTabs<S>` mint (`lib/registry-contracts.ts`). FOUR arms: (1) a hand-rolled
 // `{ kind: "tabs", useResolved }` object literal outside the mint's own file — a badge-wearing tabs

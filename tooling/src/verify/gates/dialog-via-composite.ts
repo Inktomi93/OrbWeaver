@@ -1,4 +1,3 @@
-// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are JSX fixture snippets, not secrets.
 // Gate: dialog-via-composite (derive-modernization-audit.md §W1 G24) — a features/** file importing the raw
 // `Dialog` root from @orb/ui/dialog is hand-assembling the modal anatomy the FormDialog composite (form +
 // single-control prompt) and ConfirmDialog (alert, G7) exist to own. RED unless the file is on the

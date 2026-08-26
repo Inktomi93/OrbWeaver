@@ -1,5 +1,4 @@
 // biome-ignore-all lint/style/useNamingConvention: ST chat-JSONL wire field names (snake_case) are the format.
-// biome-ignore-all lint/security/noSecrets: ST @-date tokens in the fixtures are not secrets.
 // Unit test for domain/import/verbs/importChats (Option B; PD-77) — `import` performs NO db access: it maps
 // each parsed ST chat → the canonical `BulkImportChatInput` and delegates the WRITE to the injected
 // `bulkImportChats` op (a recording fake here). Asserts the ST→canonical MAPPING + the PD-78 backfill gate.

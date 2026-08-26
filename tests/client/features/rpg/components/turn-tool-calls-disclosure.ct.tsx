@@ -67,7 +67,6 @@ const RECORDED_TURN = [
   },
 ];
 
-// Regex literals hoisted to module scope (biome `useTopLevelRegex`).
 const RE_TRIGGER = /Game actions on this turn/;
 const RE_COUNT_4 = /4/;
 const RE_EXPECTED_STRING = /Invalid input: expected string/;

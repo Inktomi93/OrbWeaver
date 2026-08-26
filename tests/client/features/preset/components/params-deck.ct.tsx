@@ -40,13 +40,12 @@ import {
 function savePoll(): { intervals: number[] } {
   return { intervals: [100, 200, 300, 500] };
 }
-// The capability-gate notes + the ADVANCED gloss (hoisted — useTopLevelRegex). ONE note for the model-fed
+// The capability-gate notes and ADVANCED gloss. One note for the model-fed
 // clusters (F-02), printed once where it used to appear three times.
 const GATE_SETTINGS_RE = /Settings → Connections → Model roles/;
 /** Any prose claiming something about the user's chat model — the gate's PENDING arm must show none of it. */
 const CHAT_MODEL_CLAIM_RE = /chat model/;
-/** `toHaveAttribute(name, ANY)` needs a hoisted pattern (useTopLevelRegex) — the assertions below are
- *  about an attribute's ABSENCE, so the pattern only has to match anything at all. */
+/** These assertions concern an attribute's absence, so the pattern only has to match anything at all. */
 const ANY = /.*/u;
 /** The exact server message the review captured — the deck must show it, not swallow it. */
 const CAPABILITY_ERROR = "400 incoherent routing (agent-sdk × local-light)";
@@ -424,7 +423,7 @@ test("ADVANCED — the ONE collapsed disclosure; it opens onto the escape hatche
 const CUSTOM_SCOPE_RE = /Sent verbatim on a Local vLLM or Custom OpenAI-compatible connection; OpenRouter ignores them/;
 /** The autosave header's HELD arm — what the status must read while a row is unfinished. */
 const NOT_SAVED = "Not saved";
-/** The value cell's refusal, and the two belt warnings (hoisted — useTopLevelRegex). */
+/** The value-cell refusal and two belt warnings. */
 const INVALID_JSON_RE = /Not valid JSON/;
 const BELT_STREAM_RE = /The local engine owns stream — it is dropped from a vLLM request/;
 const BELT_DRY_RE = /The local engine owns dry_multiplier/;

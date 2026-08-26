@@ -17,7 +17,7 @@ import { ATTACHED_CHARACTER, ATTACHED_ROOM, READY_DOC, stubDatabank } from "../f
  *  line as well as its title (top-level so the pattern is compiled once). */
 const CRIMSON_ROW = /The Crimson Court/;
 
-/** The downgraded promise, and the roster promise it replaced (top-level — compiled once, `useTopLevelRegex`). */
+/** The downgraded promise and the roster promise it replaced. */
 const COUNT_PROMISE = /how many chats and characters it reaches/u;
 const ROSTER_PROMISE = /which chats and characters it already feeds/u;
 

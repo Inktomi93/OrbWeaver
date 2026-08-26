@@ -318,7 +318,8 @@ function saidColour(reply: string): "RED" | "BLUE" | "neither" | "both" {
 }
 
 // ── The spots ────────────────────────────────────────────────────────────────────────────────────────────
-type SpotId = "A" | "B" | "C";
+const SPOT_IDS = ["A", "B", "C"] as const;
+type SpotId = (typeof SPOT_IDS)[number];
 interface Spot {
   readonly id: SpotId;
   readonly label: string;
