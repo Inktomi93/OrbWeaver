@@ -24,8 +24,8 @@ export const REVIEW_FOCUS: readonly ReviewFocus[] = [
     id: "E5-refinery-name-uniqueness",
     family: "E5",
     title: "refinery schema-name uniqueness",
-    path: "packages/server/src/domain/refinery/substrate/schema-library.ts",
-    symbol: "assertSchemaNameFree",
+    path: "packages/server/src/domain/refinery/persistence/queries.ts",
+    symbol: "insertOwnedSchemaIfNameFree",
     why: "prove case-folded owner/name uniqueness survives concurrent creates",
   },
   {
