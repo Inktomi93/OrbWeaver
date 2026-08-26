@@ -78,16 +78,14 @@ test("lists a schedule off its OWN read; toggle/delete fire the owner-scoped ver
   await section.getByRole("switch", { name: "Enable Index (embeddings) schedule" }).click();
   // No DOM correlate: the mock's `listSchedules` responder is static — tighten the poll instead.
   await expect.poll(() => trpc.count("workloads.setScheduleEnabled"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  const toggled = trpc.lastInput("workloads.setScheduleEnabled") as { id?: unknown };
-  expect(toggled.id).toBe("workload_schedule_ct_1");
+  await expect.poll(async () => (trpc.lastInput("workloads.setScheduleEnabled") as { id?: unknown }).id).toBe("workload_schedule_ct_1");
 
   // Delete fires deleteSchedule with the row id. The name is QUALIFIED (side-eye 2026-08-08 P1-3): the row's
   // only destructive control used to announce the bare word "Delete", so N rows offered N identical buttons
   // and no way to hear which one you were about to destroy. Asserting the qualified name is what keeps it.
   await section.getByRole("button", { name: "Delete Index (embeddings) schedule" }).click();
   await expect.poll(() => trpc.count("workloads.deleteSchedule"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  const deleted = trpc.lastInput("workloads.deleteSchedule") as { id?: unknown };
-  expect(deleted.id).toBe("workload_schedule_ct_1");
+  await expect.poll(async () => (trpc.lastInput("workloads.deleteSchedule") as { id?: unknown }).id).toBe("workload_schedule_ct_1");
 
   // The handle map is an adminProcedure read, skipToken-gated for a plain user — it must never have fired.
   await expect.poll(() => trpc.count("admin.listUsers")).toBe(0);
@@ -148,13 +146,39 @@ test("the create dialog wires a singular createSchedule (kind + cadence + params
   // CreateScheduleDialog closes only after `mutateAsync` resolves (its `onDone`) — wait on that
   // instead of polling the mock.
   await expect(page.getByTestId("create-schedule-dialog")).toHaveCount(0);
-  const created = trpc.lastInput("workloads.createSchedule") as {
-    input?: { kind?: unknown; params?: unknown };
-    cadence?: unknown;
-  };
-  expect(created.input?.kind).toBe("index");
-  expect(created.input?.params).toEqual({ source: "all" });
-  expect(created.cadence).toBe("weekly");
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.createSchedule") as {
+            input?: { kind?: unknown; params?: unknown };
+            cadence?: unknown;
+          }
+        ).input?.kind,
+    )
+    .toBe("index");
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.createSchedule") as {
+            input?: { kind?: unknown; params?: unknown };
+            cadence?: unknown;
+          }
+        ).input?.params,
+    )
+    .toEqual({ source: "all" });
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.createSchedule") as {
+            input?: { kind?: unknown; params?: unknown };
+            cadence?: unknown;
+          }
+        ).cadence,
+    )
+    .toBe("weekly");
 });
 
 test("owner: the create dialog offers a Bulk toggle on a sweep kind and wires a BULK schedule", async ({ mount, page }) => {
@@ -179,12 +203,28 @@ test("owner: the create dialog offers a Bulk toggle on a sweep kind and wires a 
 
   await page.getByTestId("create-schedule-submit").click();
   await expect(page.getByTestId("create-schedule-dialog")).toHaveCount(0);
-  const created = trpc.lastInput("workloads.createSchedule") as {
-    input?: { kind?: unknown };
-    mode?: unknown;
-  };
-  expect(created.input?.kind).toBe("index");
-  expect(created.mode).toBe("bulk");
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.createSchedule") as {
+            input?: { kind?: unknown };
+            mode?: unknown;
+          }
+        ).input?.kind,
+    )
+    .toBe("index");
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.createSchedule") as {
+            input?: { kind?: unknown };
+            mode?: unknown;
+          }
+        ).mode,
+    )
+    .toBe("bulk");
 });
 
 test("owner: a Maintenance kind schedule is bulk BY FORCE (a note, no toggle) and wires mode:bulk", async ({ mount, page }) => {
@@ -207,12 +247,28 @@ test("owner: a Maintenance kind schedule is bulk BY FORCE (a note, no toggle) an
 
   await page.getByTestId("create-schedule-submit").click();
   await expect(page.getByTestId("create-schedule-dialog")).toHaveCount(0);
-  const created = trpc.lastInput("workloads.createSchedule") as {
-    input?: { kind?: unknown };
-    mode?: unknown;
-  };
-  expect(created.input?.kind).toBe("refresh-model-catalog");
-  expect(created.mode).toBe("bulk");
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.createSchedule") as {
+            input?: { kind?: unknown };
+            mode?: unknown;
+          }
+        ).input?.kind,
+    )
+    .toBe("refresh-model-catalog");
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.createSchedule") as {
+            input?: { kind?: unknown };
+            mode?: unknown;
+          }
+        ).mode,
+    )
+    .toBe("bulk");
 });
 
 test("the Edit action opens a seeded dialog and wires updateSchedule (cadence retune)", async ({ mount, page }) => {
@@ -234,9 +290,8 @@ test("the Edit action opens a seeded dialog and wires updateSchedule (cadence re
   await page.getByRole("option", { name: "Every week" }).click();
   await page.getByTestId("edit-schedule-submit").click();
   await expect(page.getByTestId("edit-schedule-dialog")).toHaveCount(0);
-  const updated = trpc.lastInput("workloads.updateSchedule") as { id?: unknown; cadence?: unknown };
-  expect(updated.id).toBe("workload_schedule_ct_1");
-  expect(updated.cadence).toBe("weekly");
+  await expect.poll(async () => (trpc.lastInput("workloads.updateSchedule") as { id?: unknown; cadence?: unknown }).id).toBe("workload_schedule_ct_1");
+  await expect.poll(async () => (trpc.lastInput("workloads.updateSchedule") as { id?: unknown; cadence?: unknown }).cadence).toBe("weekly");
 });
 
 test("owner: a BULK schedule row wears the Bulk badge and a foreign row shows its owner handle", async ({ mount, page }) => {

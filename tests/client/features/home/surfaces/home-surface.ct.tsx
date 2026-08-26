@@ -124,17 +124,17 @@ const trackCount = (template: string): number => template.trim().split(WHITESPAC
 
 test("the tile grid resolves to TWO columns at the content width", async ({ mount }) => {
   const home = await mount(<HomeTileOrderStory />);
-
-  const template = await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns);
-  expect(trackCount(template)).toBe(2);
+  await expect
+    .poll(async () => trackCount(await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns)))
+    .toBe(2);
 });
 
 test("the tile grid collapses to ONE column when its own pane is narrow", async ({ mount, page }) => {
   await page.setViewportSize({ width: 420, height: 900 });
   const home = await mount(<HomeTileOrderStory />);
-
-  const template = await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns);
-  expect(trackCount(template)).toBe(1);
+  await expect
+    .poll(async () => trackCount(await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns)))
+    .toBe(1);
 });
 
 test("RED-FIRST (#102): home's grid FILLS the pane it is given — no centred cap, no symmetric void", async ({ mount, page }) => {
@@ -155,15 +155,40 @@ test("#102 CHROME DIET: a tile frame is a KICKER BAND, not a card — no border,
   // interactive island — exactly what CD1 reserves a box for. Asserted on the RESOLVED style, because the
   // Card the frame used to render resolved its padding/radius out of tiers.css, not out of its own class.
   const home = await mount(<HomeTileOrderStory />);
-
-  const box = await home.locator('[data-home-tile="a-first"]').evaluate((el) => {
-    const style = globalThis.getComputedStyle(el);
-    return { border: Number.parseFloat(style.borderTopWidth), radius: Number.parseFloat(style.borderTopLeftRadius), bg: style.backgroundColor };
-  });
-  expect(box.border).toBe(0);
-  expect(box.radius).toBe(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await home.locator('[data-home-tile="a-first"]').evaluate((el) => {
+            const style = globalThis.getComputedStyle(el);
+            return { border: Number.parseFloat(style.borderTopWidth), radius: Number.parseFloat(style.borderTopLeftRadius), bg: style.backgroundColor };
+          })
+        ).border,
+    )
+    .toBe(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await home.locator('[data-home-tile="a-first"]').evaluate((el) => {
+            const style = globalThis.getComputedStyle(el);
+            return { border: Number.parseFloat(style.borderTopWidth), radius: Number.parseFloat(style.borderTopLeftRadius), bg: style.backgroundColor };
+          })
+        ).radius,
+    )
+    .toBe(0);
   // `rgba(0, 0, 0, 0)` is the transparent-background computed form.
-  expect(box.bg).toBe("rgba(0, 0, 0, 0)");
+  await expect
+    .poll(
+      async () =>
+        (
+          await home.locator('[data-home-tile="a-first"]').evaluate((el) => {
+            const style = globalThis.getComputedStyle(el);
+            return { border: Number.parseFloat(style.borderTopWidth), radius: Number.parseFloat(style.borderTopLeftRadius), bg: style.backgroundColor };
+          })
+        ).bg,
+    )
+    .toBe("rgba(0, 0, 0, 0)");
 });
 
 test("#102 REGIONS: masthead above the split, hearth in the LEAD column, an unplaced tile on the SHELF", async ({ mount, page }) => {
@@ -196,7 +221,14 @@ test("RED-FIRST (#102-P1-1): the 1.55fr/1fr split holds even when the hearth's c
 
   const template = await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns);
   const tracks = template.trim().split(WHITESPACE_RE).map(Number.parseFloat);
-  expect(tracks).toHaveLength(2);
+  await expect
+    .poll(async () =>
+      (await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns))
+        .trim()
+        .split(WHITESPACE_RE)
+        .map(Number.parseFloat),
+    )
+    .toHaveLength(2);
   const [lead = 0, rail = 0] = tracks;
   // 1.55:1 = 1.55. A track floored at its content read 1.92; anything at or under 1.6 is the declared
   // shape surviving, and the tolerance is what keeps this off a px literal.
@@ -210,8 +242,7 @@ test("RED-FIRST (#102-F3): the rail's two footnote blocks go SIDE BY SIDE at a w
   const home = await mount(<HomeRegionStory />);
 
   const foot = home.locator("[data-home-shelf-foot]");
-  const footTemplate = await foot.evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns);
-  expect(trackCount(footTemplate)).toBe(2);
+  await expect.poll(async () => trackCount(await foot.evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns))).toBe(2);
 
   // …and it is REAL geometry, not just a template: the doorway group sits beside the last shelf tile.
   // Measured COLLAPSED (#455): the fold's own trigger row is the block that has to pair, and the shipped
@@ -224,9 +255,9 @@ test("RED-FIRST (#102-F3): the rail's two footnote blocks go SIDE BY SIDE at a w
 test("#102-F3 the footnote pair STACKS again at the pane width the rail is narrow", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 1200 });
   const home = await mount(<HomeRegionStory />);
-
-  const template = await home.locator("[data-home-shelf-foot]").evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns);
-  expect(trackCount(template)).toBe(1);
+  await expect
+    .poll(async () => trackCount(await home.locator("[data-home-shelf-foot]").evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns)))
+    .toBe(1);
 });
 
 test("#102 DOORWAYS are grouped under ONE band, not framed one by one", async ({ mount, page }) => {
@@ -311,16 +342,42 @@ test("a DORMANT doorway wears a DASHED RULE — not-built-yet, at a fraction of 
   // single dashed rule down the doorway's inline start (the mockup's `.doorway`). Same signal, no box.
   const dormant = await mount(<HomeDormantTileStory />);
   await dormant.getByRole("button", { name: GROUP_LABEL }).click();
-
-  const style = await dormant.locator('[data-home-tile="dormant"]').evaluate((el) => {
-    const s = globalThis.getComputedStyle(el);
-    return { style: s.borderLeftStyle, width: s.borderLeftWidth, top: Number.parseFloat(s.borderTopWidth) };
-  });
-  expect(style.style).toBe("dashed");
+  await expect
+    .poll(
+      async () =>
+        (
+          await dormant.locator('[data-home-tile="dormant"]').evaluate((el) => {
+            const s = globalThis.getComputedStyle(el);
+            return { style: s.borderLeftStyle, width: s.borderLeftWidth, top: Number.parseFloat(s.borderTopWidth) };
+          })
+        ).style,
+    )
+    .toBe("dashed");
   // A dashed edge that resolved to 0 width would be invisible — the mock's rule is a real hairline.
-  expect(Number.parseFloat(style.width)).toBeGreaterThan(0);
+  await expect
+    .poll(async () =>
+      Number.parseFloat(
+        (
+          await dormant.locator('[data-home-tile="dormant"]').evaluate((el) => {
+            const s = globalThis.getComputedStyle(el);
+            return { style: s.borderLeftStyle, width: s.borderLeftWidth, top: Number.parseFloat(s.borderTopWidth) };
+          })
+        ).width,
+      ),
+    )
+    .toBeGreaterThan(0);
   // …and it is a RULE, not a frame: no box round the doorway.
-  expect(style.top).toBe(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await dormant.locator('[data-home-tile="dormant"]').evaluate((el) => {
+            const s = globalThis.getComputedStyle(el);
+            return { style: s.borderLeftStyle, width: s.borderLeftWidth, top: Number.parseFloat(s.borderTopWidth) };
+          })
+        ).top,
+    )
+    .toBe(0);
 });
 
 test("a DORMANT tile RECEDES: a muted-gloss teaser, and the dev citation a mono/faded footnote under it", async ({ mount }) => {
@@ -349,22 +406,87 @@ test("a DORMANT tile RECEDES: a muted-gloss teaser, and the dev citation a mono/
     probe.remove();
     return { size: Number.parseFloat(style.fontSize), color: style.color, muted, foreground };
   });
-  const reason = await tile.getByText(REASON_RE).evaluate((el) => ({
-    size: Number.parseFloat(globalThis.getComputedStyle(el).fontSize),
-    family: globalThis.getComputedStyle(el).fontFamily,
-    alpha: globalThis.getComputedStyle(el).opacity,
-  }));
-
-  expect(teaser.color).toBe(teaser.muted);
-  expect(teaser.color).not.toBe(teaser.foreground);
-  expect(reason.size).toBeLessThanOrEqual(teaser.size);
-  expect(reason.family.toLowerCase()).toContain("mono");
+  await expect
+    .poll(
+      async () =>
+        (
+          await tile.getByText(TEASER_RE).evaluate((el) => {
+            const style = globalThis.getComputedStyle(el);
+            const probe = el.ownerDocument.createElement("span");
+            probe.style.color = "var(--color-muted-foreground)";
+            el.ownerDocument.body.append(probe);
+            const muted = globalThis.getComputedStyle(probe).color;
+            const foreground = ((): string => {
+              probe.style.color = "var(--color-foreground)";
+              return globalThis.getComputedStyle(probe).color;
+            })();
+            probe.remove();
+            return { size: Number.parseFloat(style.fontSize), color: style.color, muted, foreground };
+          })
+        ).color,
+    )
+    .toBe(teaser.muted);
+  await expect
+    .poll(
+      async () =>
+        (
+          await tile.getByText(TEASER_RE).evaluate((el) => {
+            const style = globalThis.getComputedStyle(el);
+            const probe = el.ownerDocument.createElement("span");
+            probe.style.color = "var(--color-muted-foreground)";
+            el.ownerDocument.body.append(probe);
+            const muted = globalThis.getComputedStyle(probe).color;
+            const foreground = ((): string => {
+              probe.style.color = "var(--color-foreground)";
+              return globalThis.getComputedStyle(probe).color;
+            })();
+            probe.remove();
+            return { size: Number.parseFloat(style.fontSize), color: style.color, muted, foreground };
+          })
+        ).color,
+    )
+    .not.toBe(teaser.foreground);
+  await expect
+    .poll(
+      async () =>
+        (
+          await tile.getByText(REASON_RE).evaluate((el) => ({
+            size: Number.parseFloat(globalThis.getComputedStyle(el).fontSize),
+            family: globalThis.getComputedStyle(el).fontFamily,
+            alpha: globalThis.getComputedStyle(el).opacity,
+          }))
+        ).size,
+    )
+    .toBeLessThanOrEqual(teaser.size);
+  await expect
+    .poll(async () =>
+      (
+        await tile.getByText(REASON_RE).evaluate((el) => ({
+          size: Number.parseFloat(globalThis.getComputedStyle(el).fontSize),
+          family: globalThis.getComputedStyle(el).fontFamily,
+          alpha: globalThis.getComputedStyle(el).opacity,
+        }))
+      ).family.toLowerCase(),
+    )
+    .toContain("mono");
   // RED-FIRST (rail sweep P1-3): the state line carries NO alpha. `opacity-60` over the already-muted ink
   // measured **3.68:1** on the live surface — under the 4.5 floor — and the design-audit's own contrast
   // walker could not see it (it does not compose ancestor opacity, so it scored the line as opaque). The
   // mono face alone carries the separation now, which costs no contrast. This inverts the assertion that
   // used to stand here (`alpha < 1`), deliberately.
-  expect(Number.parseFloat(reason.alpha)).toBe(1);
+  await expect
+    .poll(async () =>
+      Number.parseFloat(
+        (
+          await tile.getByText(REASON_RE).evaluate((el) => ({
+            size: Number.parseFloat(globalThis.getComputedStyle(el).fontSize),
+            family: globalThis.getComputedStyle(el).fontFamily,
+            alpha: globalThis.getComputedStyle(el).opacity,
+          }))
+        ).alpha,
+      ),
+    )
+    .toBe(1);
 });
 
 test("the grid aligns tiles to START — a short tile never stretches to its row-mate's height", async ({ mount }) => {

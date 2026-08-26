@@ -158,9 +158,39 @@ test("the Add dialog's teaching sentence is set to be READ, not to be a footnote
     };
   });
 
-  expect(sizes.teaching).toBeGreaterThan(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const dialog = document.querySelector('[role="dialog"]');
+            const gloss = [...(dialog?.querySelectorAll("*") ?? [])].find((el) => el.textContent?.trim().startsWith("Upload a file, paste text"));
+            const label = [...(dialog?.querySelectorAll("label") ?? [])][0];
+            return {
+              teaching: gloss === undefined ? 0 : Number.parseFloat(getComputedStyle(gloss).fontSize),
+              field: label === undefined ? 0 : Number.parseFloat(getComputedStyle(label).fontSize),
+            };
+          })
+        ).teaching,
+    )
+    .toBeGreaterThan(0);
   // At least the step a field label reads at — never below the chrome around it.
-  expect(sizes.teaching).toBeGreaterThanOrEqual(sizes.field);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const dialog = document.querySelector('[role="dialog"]');
+            const gloss = [...(dialog?.querySelectorAll("*") ?? [])].find((el) => el.textContent?.trim().startsWith("Upload a file, paste text"));
+            const label = [...(dialog?.querySelectorAll("label") ?? [])][0];
+            return {
+              teaching: gloss === undefined ? 0 : Number.parseFloat(getComputedStyle(gloss).fontSize),
+              field: label === undefined ? 0 : Number.parseFloat(getComputedStyle(label).fontSize),
+            };
+          })
+        ).teaching,
+    )
+    .toBeGreaterThanOrEqual(sizes.field);
 });
 
 // THE BAND PRINTS THE CENSUS (2026-08-14). It used to print the length of `databank.list`'s first page,

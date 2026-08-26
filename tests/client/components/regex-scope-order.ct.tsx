@@ -107,19 +107,54 @@ test("the ordered slice ranks its rows, and the unattached slice does not", asyn
   await stubScope(page, "regex.listForCharacter", [FIRST, SECOND, LOOSE], [FIRST, SECOND]);
   await mount(<RegexPickerStory />);
   await expect(page.getByRole("switch", { name: "Attach strip ooc" })).toBeVisible();
-
-  const leads = await page.evaluate(() => {
-    // The row IS the attach switch's parent (identity cluster + switch), so its first rendered line is
-    // whatever leads the row — the rank where there is one, the name where there is not.
-    const rowFor = (label: string): string => {
-      const row = document.querySelector(`[aria-label="Attach ${label}"]`)?.parentElement;
-      return (row as HTMLElement | null)?.innerText.split("\n")[0]?.trim() ?? "";
-    };
-    return { first: rowFor("strip ooc"), second: rowFor("rename hero"), loose: rowFor("not attached one") };
-  });
-  expect(leads.first).toBe("1");
-  expect(leads.second).toBe("2");
-  expect(leads.loose).toBe("not attached one");
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            // The row IS the attach switch's parent (identity cluster + switch), so its first rendered line is
+            // whatever leads the row — the rank where there is one, the name where there is not.
+            const rowFor = (label: string): string => {
+              const row = document.querySelector(`[aria-label="Attach ${label}"]`)?.parentElement;
+              return (row as HTMLElement | null)?.innerText.split("\n")[0]?.trim() ?? "";
+            };
+            return { first: rowFor("strip ooc"), second: rowFor("rename hero"), loose: rowFor("not attached one") };
+          })
+        ).first,
+    )
+    .toBe("1");
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            // The row IS the attach switch's parent (identity cluster + switch), so its first rendered line is
+            // whatever leads the row — the rank where there is one, the name where there is not.
+            const rowFor = (label: string): string => {
+              const row = document.querySelector(`[aria-label="Attach ${label}"]`)?.parentElement;
+              return (row as HTMLElement | null)?.innerText.split("\n")[0]?.trim() ?? "";
+            };
+            return { first: rowFor("strip ooc"), second: rowFor("rename hero"), loose: rowFor("not attached one") };
+          })
+        ).second,
+    )
+    .toBe("2");
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            // The row IS the attach switch's parent (identity cluster + switch), so its first rendered line is
+            // whatever leads the row — the rank where there is one, the name where there is not.
+            const rowFor = (label: string): string => {
+              const row = document.querySelector(`[aria-label="Attach ${label}"]`)?.parentElement;
+              return (row as HTMLElement | null)?.innerText.split("\n")[0]?.trim() ?? "";
+            };
+            return { first: rowFor("strip ooc"), second: rowFor("rename hero"), loose: rowFor("not attached one") };
+          })
+        ).loose,
+    )
+    .toBe("not attached one");
 });
 
 test("a keyboard reorder writes the new id order to applyScopeOrder and repaints in it", async ({ mount, page }) => {
@@ -212,7 +247,21 @@ test("the global tier's run order is authored where its membership is", async ({
       return fit;
     })
     .not.toBeNull();
-  expect(fit?.handleRight).toBeLessThanOrEqual(fit?.paneRight ?? 0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const pane = document.querySelector('[data-slot="regex-context-body"]');
+            const handle = document.querySelector('[data-slot="sortable-handle"]');
+            if (pane === null || handle === null) {
+              return null;
+            }
+            return { handleRight: handle.getBoundingClientRect().right, paneRight: pane.getBoundingClientRect().right };
+          })
+        )?.handleRight,
+    )
+    .toBeLessThanOrEqual(fit?.paneRight ?? 0);
 
   const handles = page.locator('[data-slot="sortable-handle"]');
   await handles.nth(0).focus();

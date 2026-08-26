@@ -137,6 +137,20 @@ test("the CONTEXT band paints in the same band voice as the LIST band beside it"
     return { transform: style.textTransform, size: style.fontSize, weight: style.fontWeight };
   });
   // The `kicker` voice — the treatment `ListPaneHeader` gives the LIST band (micro · caps · semibold).
-  expect(painted?.transform).toBe("uppercase");
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const band = document.querySelector('[data-slot="ct-config-context-band"] span');
+            if (band === null) {
+              return null;
+            }
+            const style = getComputedStyle(band);
+            return { transform: style.textTransform, size: style.fontSize, weight: style.fontWeight };
+          })
+        )?.transform,
+    )
+    .toBe("uppercase");
   expect(Number.parseFloat(painted?.size ?? "0")).toBeLessThan(12);
 });

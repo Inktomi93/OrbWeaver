@@ -69,9 +69,8 @@ test("the control box IS the resolved control-md token square (the per-pointer f
   // Derived from the element's OWN resolved custom property, so this holds under either pointer arm — what
   // it proves is that the box is the TOKEN, never a hardcoded px.
   const expected = await button.evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
-  const box = await button.boundingBox();
-  expect(box?.width).toBe(expected);
-  expect(box?.height).toBe(expected);
+  await expect.poll(async () => (await button.boundingBox())?.width).toBe(expected);
+  await expect.poll(async () => (await button.boundingBox())?.height).toBe(expected);
   // …and the coarse arm of that same token is the ≥44px touch floor.
   expect(COARSE_CONTROL_MD_PX).toBeGreaterThanOrEqual(44);
 });

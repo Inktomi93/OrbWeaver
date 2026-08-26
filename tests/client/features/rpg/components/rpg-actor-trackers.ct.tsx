@@ -42,7 +42,6 @@ test.describe("coarse touch floor", () => {
       .toBeGreaterThan(1);
 
     const floor = await touchFloorPx(page);
-    const measured = await hitBoxes(removes, await removes.count());
-    expect(measured.filter((m) => m.x < floor || m.y < floor)).toEqual([]);
+    await expect.poll(async () => (await hitBoxes(removes, await removes.count())).filter((m) => m.x < floor || m.y < floor)).toEqual([]);
   });
 });

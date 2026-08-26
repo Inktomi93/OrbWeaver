@@ -169,7 +169,6 @@ test("a NON-auth socket fault still only degrades the room — no session probe"
   // Same barrier: the user frame is strictly after the fault, so its arrival settles "the fault has been
   // handled". Only UNAUTHORIZED is a session verdict; everything else keeps its room-degradation handling.
   await expect(page.getByTestId("user-events")).toHaveText("tagsChanged");
-  // ONESHOT-OK: settled by the barrier above — the fault is already routed, and this count only climbs.
   expect(authMe()).toBe(0);
 });
 

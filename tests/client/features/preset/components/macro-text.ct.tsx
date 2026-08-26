@@ -47,10 +47,9 @@ test("the macro chip's fill RECEDES to a tint — the solid info pill is gone", 
   const chip = run.getByText(CHIP_TEXT);
   // The shape of the defect, stated as the thing that must NOT be true: an opaque paint of the info token.
   await expect.poll(async () => await chip.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(resolvedTokenColor("color.info"));
-  const background = await chip.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(alphaOf(background)).toBeLessThan(0.5);
+  await expect.poll(async () => alphaOf(await chip.evaluate((el) => getComputedStyle(el).backgroundColor))).toBeLessThan(0.5);
   // …and it is a real tint, not a silent drop to transparent — the chip must still read as a chip.
-  expect(alphaOf(background)).toBeGreaterThan(0);
+  await expect.poll(async () => alphaOf(await chip.evaluate((el) => getComputedStyle(el).backgroundColor))).toBeGreaterThan(0);
 });
 
 test("the macro chip keeps the INFO hue — the fix is the rendering, not the palette (owner ruling)", async ({ mount }) => {

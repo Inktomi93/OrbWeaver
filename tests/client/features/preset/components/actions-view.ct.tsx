@@ -154,9 +154,10 @@ test("the row's DESCRIPTION is what the action does, never its template body", a
   // states the invariant directly: a screen reader hears what the action DOES, not the template body.
   const describedBy = (await row.getAttribute("aria-describedby")) ?? "";
   expect(describedBy).not.toBe("");
-  const described = await probe.locator(`#${describedBy.split(" ").join(", #")}`).allTextContents();
-  expect(described.join(" ")).toContain("writes as you for one turn");
-  expect(described.join(" ")).not.toContain("{{person}}");
+  await expect
+    .poll(async () => (await probe.locator(`#${describedBy.split(" ").join(", #")}`).allTextContents()).join(" "))
+    .toContain("writes as you for one turn");
+  await expect.poll(async () => (await probe.locator(`#${describedBy.split(" ").join(", #")}`).allTextContents()).join(" ")).not.toContain("{{person}}");
 });
 
 test("the state chip reads Customized only for a real override — and ABSENCE is the default", async ({ mount }) => {

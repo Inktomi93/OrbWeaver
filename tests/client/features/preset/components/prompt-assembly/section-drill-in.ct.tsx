@@ -176,17 +176,58 @@ test("the main-prompt GHOST fits its own box — the second-person address claus
   await probe.getByRole("button", { name: "Edit Main prompt" }).click();
 
   const template = probe.getByRole("textbox", { name: "Template" });
-  const fit = await template.evaluate((area: HTMLTextAreaElement) => ({
-    overflow: area.scrollHeight - area.clientHeight,
-    // The ghost is what is actually on screen — pin that it IS the factory default, not an empty box.
-    ghost: area.placeholder,
-    value: area.value,
-  }));
-
-  expect(fit.value).toBe("");
-  expect(fit.ghost).toContain("Address");
-  expect(fit.ghost).toContain("chosen for themselves");
-  expect(fit.overflow).toBeLessThanOrEqual(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await template.evaluate((area: HTMLTextAreaElement) => ({
+            overflow: area.scrollHeight - area.clientHeight,
+            // The ghost is what is actually on screen — pin that it IS the factory default, not an empty box.
+            ghost: area.placeholder,
+            value: area.value,
+          }))
+        ).value,
+    )
+    .toBe("");
+  await expect
+    .poll(
+      async () =>
+        (
+          await template.evaluate((area: HTMLTextAreaElement) => ({
+            overflow: area.scrollHeight - area.clientHeight,
+            // The ghost is what is actually on screen — pin that it IS the factory default, not an empty box.
+            ghost: area.placeholder,
+            value: area.value,
+          }))
+        ).ghost,
+    )
+    .toContain("Address");
+  await expect
+    .poll(
+      async () =>
+        (
+          await template.evaluate((area: HTMLTextAreaElement) => ({
+            overflow: area.scrollHeight - area.clientHeight,
+            // The ghost is what is actually on screen — pin that it IS the factory default, not an empty box.
+            ghost: area.placeholder,
+            value: area.value,
+          }))
+        ).ghost,
+    )
+    .toContain("chosen for themselves");
+  await expect
+    .poll(
+      async () =>
+        (
+          await template.evaluate((area: HTMLTextAreaElement) => ({
+            overflow: area.scrollHeight - area.clientHeight,
+            // The ghost is what is actually on screen — pin that it IS the factory default, not an empty box.
+            ghost: area.placeholder,
+            value: area.value,
+          }))
+        ).overflow,
+    )
+    .toBeLessThanOrEqual(0);
 });
 
 test("the main-prompt drill-in DISCLOSES the mode-aware default — and that one typed template covers both turn kinds", async ({ mount }) => {

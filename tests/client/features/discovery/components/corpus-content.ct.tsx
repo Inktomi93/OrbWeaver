@@ -298,10 +298,7 @@ test("THE PORTRAIT ON THE PAYLOAD: a member carrying a hash draws its blob; a nu
 
   // …and the surface asked for the alignment report ZERO times — the pin that the second owner-scoped read
   // is GONE, not merely redundant. (The Visuals CONTEXT tab still reads that verb; it is not mounted here.)
-  // ONESHOT-OK: settled by construction — every query on this surface is a `useSuspenseQuery` fired in the
-  // first render and batched into ONE http request by httpBatchLink, and the portraits asserted above only
-  // paint after that batch's response. A `portraitAlignment` call could only have ridden that same flight,
-  // so by the time a face is visible the recorder has seen everything this mount will ever ask for.
+  // ONESHOT-OK: settled by construction — every query on this surface is a `useSuspenseQuery` fired in the first render and batched into ONE http request by httpBatchLink, and the portraits asserted above only paint after that batch's response. A `portraitAlignment` call could only have ridden that same flight, so by the time a face is visible the recorder has seen everything this mount will ever ask for.
   expect(recorder.count("discovery.portraitAlignment")).toBe(0);
 });
 
@@ -516,8 +513,38 @@ test("the CONTENT region insets its own body — no row starts flush at the pane
     probe.remove();
     return { left: style.paddingLeft, right: style.paddingRight, expected };
   });
-  expect(measured.left).toBe(measured.expected);
-  expect(measured.right).toBe(measured.expected);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.locator('[data-slot="corpus-content"]').evaluate((el) => {
+            const style = globalThis.getComputedStyle(el);
+            const probe = document.createElement("div");
+            probe.style.width = "var(--spacing-section)";
+            el.append(probe);
+            const expected = globalThis.getComputedStyle(probe).width;
+            probe.remove();
+            return { left: style.paddingLeft, right: style.paddingRight, expected };
+          })
+        ).left,
+    )
+    .toBe(measured.expected);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.locator('[data-slot="corpus-content"]').evaluate((el) => {
+            const style = globalThis.getComputedStyle(el);
+            const probe = document.createElement("div");
+            probe.style.width = "var(--spacing-section)";
+            el.append(probe);
+            const expected = globalThis.getComputedStyle(probe).width;
+            probe.remove();
+            return { left: style.paddingLeft, right: style.paddingRight, expected };
+          })
+        ).right,
+    )
+    .toBe(measured.expected);
 
   const [regionBox, headingBox] = await Promise.all([page.locator('[data-slot="corpus-content"]').boundingBox(), masthead.boundingBox()]);
   if (regionBox === null || headingBox === null) {

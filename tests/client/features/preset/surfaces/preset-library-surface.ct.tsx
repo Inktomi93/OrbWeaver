@@ -368,9 +368,7 @@ test("an '(edited)' row deletes from its ⋯ menu — and the built-in row offer
   // THE PIN: the duplicate's OWN id reaches `preset.remove` (a row-indexed delete would send the wrong one).
   await expect.poll(() => (trpc.inputs("preset.remove") as RemoveCall[]).map((call) => call.id)).toEqual([EDITED_TWO]);
   // Nothing was active, so nothing clears the pointer.
-  // ONESHOT-OK: settled — `onDelete` fires the (conditional) settings write and `preset.remove` in the SAME
-  // click handler, and the batch link sends that tick's mutations in ONE request; the recorded remove above
-  // therefore proves the request landed, so a settings write, had it happened, is already recorded too.
+  // ONESHOT-OK: settled — `onDelete` fires the (conditional) settings write and `preset.remove` in the SAME click handler, and the batch link sends that tick's mutations in ONE request; the recorded remove above therefore proves the request landed, so a settings write, had it happened, is already recorded too.
   expect(trpc.count("settings.updateUserSettingsSection")).toBe(0);
 });
 
@@ -463,7 +461,17 @@ test("P1-1 at the DOCKED 272px pane the trailing strip costs TWO slots and the n
     return { cluster: rect('[data-slot="list-row-actions"]').width, title: rect('[data-slot="list-row-title"]').width };
   });
   // Two control boxes and nothing else — the dead third (the inline Duplicate) would show up here as a slot more.
-  expect(geometry.cluster).toBeGreaterThanOrEqual(2 * slot);
+  await expect
+    .poll(
+      async () =>
+        (
+          await row.evaluate((el) => {
+            const rect = (sel: string): DOMRect => (el.querySelector(sel) as HTMLElement).getBoundingClientRect();
+            return { cluster: rect('[data-slot="list-row-actions"]').width, title: rect('[data-slot="list-row-title"]').width };
+          })
+        ).cluster,
+    )
+    .toBeGreaterThanOrEqual(2 * slot);
   expect(geometry.cluster, "no third slot, and no spacer standing in for one").toBeLessThan(3 * slot);
   // …and the name column clears the 109px the review measured, by more than the slot it reclaimed.
   expect(geometry.title, "the name gets the reclaimed slot, not the gutter").toBeGreaterThan(109 + slot);
@@ -521,9 +529,8 @@ test("§12.2 the kebab rests hidden and IS the control-md box (the row grammar's
 
   // Derived from the element's OWN resolved token, so it holds under either pointer arm (D62 P1).
   const expected = await kebab.evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
-  const box = await kebab.boundingBox();
-  expect(box?.width).toBe(expected);
-  expect(box?.height).toBe(expected);
+  await expect.poll(async () => (await kebab.boundingBox())?.width).toBe(expected);
+  await expect.poll(async () => (await kebab.boundingBox())?.height).toBe(expected);
 });
 
 // P3a: the copy-on-write flood mints forks that share ONE name exactly, so the action labels carry the
@@ -1007,8 +1014,7 @@ test("G6 an orb.preset file rides the ONE import verb with its own bytes, after 
   await page.getByRole("button", { name: "Import preset", exact: true }).click();
   // The FILE'S OWN TEXT reaches the door — not a client-side reserialization, and never `preset.create`.
   await expect.poll(() => (trpc.inputs("preset.importFile") as ImportFileCall[]).map((call) => call.fileText)).toEqual([ORB_FILE]);
-  // ONESHOT-OK: settled — ONE confirm handler picks exactly one arm, so the recorded `importFile` above
-  // proves the click's request already landed; a `create` from the same click would be recorded by now.
+  // ONESHOT-OK: settled — ONE confirm handler picks exactly one arm, so the recorded `importFile` above proves the click's request already landed; a `create` from the same click would be recorded by now.
   expect(trpc.count("preset.create")).toBe(0);
 });
 

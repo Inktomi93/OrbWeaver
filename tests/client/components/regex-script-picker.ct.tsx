@@ -107,8 +107,42 @@ test("the picker's group heading paints like the deck's other group headings, no
     };
     return { sibling: read("Delivery"), regex: read("Regex") };
   });
-  expect(painted.sibling).not.toBeNull();
-  expect(painted.regex).toEqual(painted.sibling);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const read = (text: string): { size: string; transform: string; color: string } | null => {
+              const found = [...document.querySelectorAll("h3")].find((h) => h.textContent?.trim() === text);
+              if (found === null || found === undefined) {
+                return null;
+              }
+              const style = getComputedStyle(found);
+              return { size: style.fontSize, transform: style.textTransform, color: style.color };
+            };
+            return { sibling: read("Delivery"), regex: read("Regex") };
+          })
+        ).sibling,
+    )
+    .not.toBeNull();
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() => {
+            const read = (text: string): { size: string; transform: string; color: string } | null => {
+              const found = [...document.querySelectorAll("h3")].find((h) => h.textContent?.trim() === text);
+              if (found === null || found === undefined) {
+                return null;
+              }
+              const style = getComputedStyle(found);
+              return { size: style.fontSize, transform: style.textTransform, color: style.color };
+            };
+            return { sibling: read("Delivery"), regex: read("Regex") };
+          })
+        ).regex,
+    )
+    .toEqual(painted.sibling);
 });
 
 // THE PICKER DROPS ITS HEADING when it IS the body of something already named (side-eye X-7): the character

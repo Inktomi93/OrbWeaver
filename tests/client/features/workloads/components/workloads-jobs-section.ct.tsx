@@ -170,16 +170,55 @@ test("run dialog: singular by default, params ride the kind, and a non-owner see
   // The dialog closes only after `mutateAsync` resolves (RunWorkloadDialog's `onDone`) — an
   // event-driven proxy for "the mutation landed" instead of polling the mock call-count.
   await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
-  const started = trpc.lastInput("workloads.start") as {
-    input?: { kind?: unknown; params?: unknown };
-    mode?: unknown;
-    targetOwnerId?: unknown;
-  };
-  expect(started.input?.kind).toBe("index");
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.start") as {
+            input?: { kind?: unknown; params?: unknown };
+            mode?: unknown;
+            targetOwnerId?: unknown;
+          }
+        ).input?.kind,
+    )
+    .toBe("index");
   // `index` always carries its REQUIRED source; the form defaults to `all` (reindex everything).
-  expect(started.input?.params).toEqual({ source: "all" });
-  expect(started.mode).toBe("singular");
-  expect(started.targetOwnerId).toBeUndefined();
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.start") as {
+            input?: { kind?: unknown; params?: unknown };
+            mode?: unknown;
+            targetOwnerId?: unknown;
+          }
+        ).input?.params,
+    )
+    .toEqual({ source: "all" });
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.start") as {
+            input?: { kind?: unknown; params?: unknown };
+            mode?: unknown;
+            targetOwnerId?: unknown;
+          }
+        ).mode,
+    )
+    .toBe("singular");
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.start") as {
+            input?: { kind?: unknown; params?: unknown };
+            mode?: unknown;
+            targetOwnerId?: unknown;
+          }
+        ).targetOwnerId,
+    )
+    .toBeUndefined();
 });
 
 test("owner bulk create-kind: the Bulk switch + required target picker wire targetOwnerId", async ({ mount, page }) => {
@@ -208,14 +247,42 @@ test("owner bulk create-kind: the Bulk switch + required target picker wire targ
 
   await page.getByTestId("run-workload-submit").click();
   await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
-  const started = trpc.lastInput("workloads.start") as {
-    input?: { kind?: unknown };
-    mode?: unknown;
-    targetOwnerId?: unknown;
-  };
-  expect(started.input?.kind).toBe("import-st");
-  expect(started.mode).toBe("bulk");
-  expect(started.targetOwnerId).toBe("user_ct_mira");
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.start") as {
+            input?: { kind?: unknown };
+            mode?: unknown;
+            targetOwnerId?: unknown;
+          }
+        ).input?.kind,
+    )
+    .toBe("import-st");
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.start") as {
+            input?: { kind?: unknown };
+            mode?: unknown;
+            targetOwnerId?: unknown;
+          }
+        ).mode,
+    )
+    .toBe("bulk");
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.start") as {
+            input?: { kind?: unknown };
+            mode?: unknown;
+            targetOwnerId?: unknown;
+          }
+        ).targetOwnerId,
+    )
+    .toBe("user_ct_mira");
 });
 
 test("owner maintenance kind: the Maintenance group offers refresh-model-catalog; it runs mode:bulk with NO target", async ({ mount, page }) => {
@@ -243,14 +310,42 @@ test("owner maintenance kind: the Maintenance group offers refresh-model-catalog
 
   await page.getByTestId("run-workload-submit").click();
   await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
-  const started = trpc.lastInput("workloads.start") as {
-    input?: { kind?: unknown };
-    mode?: unknown;
-    targetOwnerId?: unknown;
-  };
-  expect(started.input?.kind).toBe("refresh-model-catalog");
-  expect(started.mode).toBe("bulk");
-  expect(started.targetOwnerId).toBeUndefined();
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.start") as {
+            input?: { kind?: unknown };
+            mode?: unknown;
+            targetOwnerId?: unknown;
+          }
+        ).input?.kind,
+    )
+    .toBe("refresh-model-catalog");
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.start") as {
+            input?: { kind?: unknown };
+            mode?: unknown;
+            targetOwnerId?: unknown;
+          }
+        ).mode,
+    )
+    .toBe("bulk");
+  await expect
+    .poll(
+      async () =>
+        (
+          trpc.lastInput("workloads.start") as {
+            input?: { kind?: unknown };
+            mode?: unknown;
+            targetOwnerId?: unknown;
+          }
+        ).targetOwnerId,
+    )
+    .toBeUndefined();
 });
 
 test("a failed row shows the FRIENDLY message; the raw exception stays one disclosure away", async ({ mount, page }) => {
@@ -320,13 +415,11 @@ test("cancel is confirm-gated (AlertDialog) and retry fires on a failure termina
   // No DOM correlate: the mock's `workloads.list` responder is static, so the invalidation-driven
   // refetch re-renders nothing observable — poll the call-count, but tightly (not the 1.85s default).
   await expect.poll(() => trpc.count("workloads.cancel"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  const cancelled = trpc.lastInput("workloads.cancel") as { id?: unknown };
-  expect(cancelled.id).toBe("workload_ct_1");
+  await expect.poll(async () => (trpc.lastInput("workloads.cancel") as { id?: unknown }).id).toBe("workload_ct_1");
 
   await page.getByRole("button", { name: "Retry — Distill characters" }).click();
   await expect.poll(() => trpc.count("workloads.retry"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  const retried = trpc.lastInput("workloads.retry") as { id?: unknown };
-  expect(retried.id).toBe("workload_ct_2");
+  await expect.poll(async () => (trpc.lastInput("workloads.retry") as { id?: unknown }).id).toBe("workload_ct_2");
 });
 
 test("a LIVE progress event drives the row's determinate progress bar (row-local buffer)", async ({ mount, page }) => {
@@ -375,7 +468,7 @@ test("run dialog: setting 'Run at' defers the run — start carries scheduledAt 
   const started = trpc.lastInput("workloads.start") as { scheduledAt?: unknown };
   expect(typeof started.scheduledAt).toBe("number");
   // 2099 is ≈ 4.07e12 ms — well past any near-now default, tz-slack notwithstanding.
-  expect(started.scheduledAt as number).toBeGreaterThan(4_000_000_000_000);
+  await expect.poll(async () => (trpc.lastInput("workloads.start") as { scheduledAt?: unknown }).scheduledAt as number).toBeGreaterThan(4_000_000_000_000);
 });
 
 test("run dialog: 'Run after these complete' lists in-flight runs and wires dependsOn", async ({ mount, page }) => {
@@ -398,8 +491,7 @@ test("run dialog: 'Run after these complete' lists in-flight runs and wires depe
 
   await page.getByTestId("run-workload-submit").click();
   await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
-  const started = trpc.lastInput("workloads.start") as { dependsOn?: unknown };
-  expect(started.dependsOn).toEqual(["workload_ct_dep"]);
+  await expect.poll(async () => (trpc.lastInput("workloads.start") as { dependsOn?: unknown }).dependsOn).toEqual(["workload_ct_dep"]);
 });
 
 test("list: a deferred (future-dated) queued row shows the Scheduled state, not a progress bar", async ({ mount, page }) => {

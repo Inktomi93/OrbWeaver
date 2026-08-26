@@ -65,13 +65,19 @@ test("the transform picks ride the rewrite input as KINDS — no fragment bytes 
   await page.getByRole("button", { name: "Second person", exact: true }).click();
   await page.getByRole("button", { name: "Rewrite", exact: true }).click();
   await expect.poll(() => trpc.count("character.rewriteGreeting")).toBe(1);
-
-  const input = trpc.lastInput("character.rewriteGreeting") as { greeting?: string; steer?: string; transforms?: readonly string[] };
-  expect(input.greeting).toBe("Hello there, traveller.");
-  expect(input.transforms).toStrictEqual(["second-person", "present-tense"]);
+  await expect
+    .poll(async () => (trpc.lastInput("character.rewriteGreeting") as { greeting?: string; steer?: string; transforms?: readonly string[] }).greeting)
+    .toBe("Hello there, traveller.");
+  await expect
+    .poll(async () => (trpc.lastInput("character.rewriteGreeting") as { greeting?: string; steer?: string; transforms?: readonly string[] }).transforms)
+    .toStrictEqual(["second-person", "present-tense"]);
   // The free-text box was untouched, so the steer is empty — and the fragment bytes stayed server-side.
-  expect(input.steer).toBe("");
-  expect(JSON.stringify(input)).not.toContain("immediate and ongoing");
+  await expect
+    .poll(async () => (trpc.lastInput("character.rewriteGreeting") as { greeting?: string; steer?: string; transforms?: readonly string[] }).steer)
+    .toBe("");
+  await expect
+    .poll(async () => JSON.stringify(trpc.lastInput("character.rewriteGreeting") as { greeting?: string; steer?: string; transforms?: readonly string[] }))
+    .not.toContain("immediate and ongoing");
 });
 
 // ── QUOTE-1: the studio PREVIEW is chat prose, so it obeys `appearance.colorQuotedSpeech` ──────────

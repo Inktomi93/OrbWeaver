@@ -126,6 +126,42 @@ test("reading typography reaches the bubble — line-height rides --reading-line
     };
   }, BUBBLE);
 
-  expect(typography.ratioToken).toBeGreaterThan(0);
-  expect(typography.lineHeightPx).toBeCloseTo(typography.fontSizePx * typography.ratioToken, 1);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate((selector) => {
+            const bubble = document.querySelector(selector);
+            if (bubble === null) {
+              throw new Error(`no ${selector} mounted`);
+            }
+            const style = getComputedStyle(bubble);
+            return {
+              lineHeightPx: Number.parseFloat(style.lineHeight),
+              fontSizePx: Number.parseFloat(style.fontSize),
+              ratioToken: Number.parseFloat(style.getPropertyValue("--reading-line-height")),
+            };
+          }, BUBBLE)
+        ).ratioToken,
+    )
+    .toBeGreaterThan(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate((selector) => {
+            const bubble = document.querySelector(selector);
+            if (bubble === null) {
+              throw new Error(`no ${selector} mounted`);
+            }
+            const style = getComputedStyle(bubble);
+            return {
+              lineHeightPx: Number.parseFloat(style.lineHeight),
+              fontSizePx: Number.parseFloat(style.fontSize),
+              ratioToken: Number.parseFloat(style.getPropertyValue("--reading-line-height")),
+            };
+          }, BUBBLE)
+        ).lineHeightPx,
+    )
+    .toBeCloseTo(typography.fontSizePx * typography.ratioToken, 1);
 });

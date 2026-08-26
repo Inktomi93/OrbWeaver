@@ -106,10 +106,58 @@ test("only the ACT-NOW phase chip carries a glyph — the amber is shared, the m
     }),
   );
 
-  expect(chips[0]?.glyphs).toBe(1);
-  expect(chips[1]?.glyphs).toBe(0);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() =>
+            ["Empty", "Indexing"].map((label) => {
+              const chip = [...document.querySelectorAll('[data-slot="badge"]')].find((el) => el.textContent?.trim() === label);
+              return {
+                label,
+                glyphs: chip?.querySelectorAll("svg").length ?? -1,
+                color: chip === undefined ? "MISSING" : getComputedStyle(chip).color,
+              };
+            }),
+          )
+        )[0]?.glyphs,
+    )
+    .toBe(1);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() =>
+            ["Empty", "Indexing"].map((label) => {
+              const chip = [...document.querySelectorAll('[data-slot="badge"]')].find((el) => el.textContent?.trim() === label);
+              return {
+                label,
+                glyphs: chip?.querySelectorAll("svg").length ?? -1,
+                color: chip === undefined ? "MISSING" : getComputedStyle(chip).color,
+              };
+            }),
+          )
+        )[1]?.glyphs,
+    )
+    .toBe(0);
   // The 2026-08-08 warning ruling is PRESERVED, not reverted: both are still the same amber.
-  expect(chips[0]?.color).toBe(chips[1]?.color);
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(() =>
+            ["Empty", "Indexing"].map((label) => {
+              const chip = [...document.querySelectorAll('[data-slot="badge"]')].find((el) => el.textContent?.trim() === label);
+              return {
+                label,
+                glyphs: chip?.querySelectorAll("svg").length ?? -1,
+                color: chip === undefined ? "MISSING" : getComputedStyle(chip).color,
+              };
+            }),
+          )
+        )[0]?.color,
+    )
+    .toBe(chips[1]?.color);
 });
 
 // THE MARK MUST RIDE THE LINE (side-eye 2026-08-19 N-1) — the regression the pin above could not see. It

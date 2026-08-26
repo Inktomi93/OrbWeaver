@@ -120,7 +120,24 @@ test("the colour readout's voice follows what it says — mono for the hex, sans
     return tokens;
   });
   // Guard the vacuous case where a theme happens to point both families at one stack.
-  expect(families.mono).not.toBe(families.sans);
+  await expect
+    .poll(
+      async () =>
+        (
+          await hex.evaluate(() => {
+            const probe = document.createElement("div");
+            document.body.append(probe);
+            const resolve = (token: string): string => {
+              probe.style.fontFamily = `var(${token})`;
+              return getComputedStyle(probe).fontFamily;
+            };
+            const tokens = { mono: resolve("--font-mono"), sans: resolve("--font-sans") };
+            probe.remove();
+            return tokens;
+          })
+        ).mono,
+    )
+    .not.toBe(families.sans);
   expect(await hex.evaluate((el) => getComputedStyle(el).fontFamily), "a hex IS a value — mono").toBe(families.mono);
   expect(await sentence.evaluate((el) => getComputedStyle(el).fontFamily), "an explanation is prose — sans").toBe(families.sans);
 });

@@ -259,7 +259,7 @@ test("BeatLine: long model-authored content WRAPS — no horizontal overflow (ow
   if (box === null) {
     throw new Error("beat line has no box");
   }
-  expect(box.height).toBeGreaterThan(30);
+  await expect.poll(async () => (await line.boundingBox()).height).toBeGreaterThan(30);
 });
 
 test("CastCard: a long model-authored mood WRAPS instead of overflowing the card (owner jank report 08-01)", async ({ mount, page }) => {
@@ -296,14 +296,14 @@ test("CastCard: a long model-authored mood WRAPS instead of overflowing the card
     throw new Error("mood rest button has no box");
   }
   // Wrapped = taller than a single text line (the label line-height is ~20px; two lines clear 30).
-  expect(box.height).toBeGreaterThan(30);
+  await expect.poll(async () => (await rest.boundingBox()).height).toBeGreaterThan(30);
   // And the mood slot never invades the identity half: the badge's box and the mood button's box are
   // horizontally disjoint (the owner screenshot showed the pill painted over by the mood label).
   const badge = await page.getByText("friend").boundingBox();
   if (badge === null) {
     throw new Error("relationship badge has no box");
   }
-  expect(box.x).toBeGreaterThanOrEqual(badge.x + badge.width);
+  await expect.poll(async () => (await rest.boundingBox()).x).toBeGreaterThanOrEqual(badge.x + badge.width);
 });
 
 // RV-11 — the standing guides. They were written richly by the extraction round every beat and rendered
@@ -336,7 +336,7 @@ test("CastCard guides: long model-authored guide prose WRAPS instead of widening
   if (box === null) {
     throw new Error("guide line has no box");
   }
-  expect(box.height).toBeGreaterThan(30); // wrapped past a single ~20px line
+  await expect.poll(async () => (await page.getByText(longOutfit).boundingBox()).height).toBeGreaterThan(30); // wrapped past a single ~20px line
 });
 
 test("CastCard guides editable: click-to-edit commits with (field, value)", async ({ mount, page }) => {

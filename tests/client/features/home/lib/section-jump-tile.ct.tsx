@@ -63,8 +63,38 @@ test("#102: the destinations are a WRAPPING PILL RAIL, and the teaching gloss is
   });
   // `rounded-full` resolves to a huge radius; the control step is a handful of px. Asserting "≥ half the
   // pill's own height" is the shape claim (a capsule) rather than a brittle 9999.
-  expect(rail.radius).toBeGreaterThanOrEqual(rail.height / 2);
-  expect(rail.wraps).toBe("wrap");
+  await expect
+    .poll(
+      async () =>
+        (
+          await tile.getByRole("button", { name: "Go to Chats" }).evaluate((el) => {
+            const s = globalThis.getComputedStyle(el);
+            const parent = el.parentElement;
+            return {
+              radius: Number.parseFloat(s.borderTopLeftRadius),
+              height: el.getBoundingClientRect().height,
+              wraps: parent === null ? "" : globalThis.getComputedStyle(parent).flexWrap,
+            };
+          })
+        ).radius,
+    )
+    .toBeGreaterThanOrEqual(rail.height / 2);
+  await expect
+    .poll(
+      async () =>
+        (
+          await tile.getByRole("button", { name: "Go to Chats" }).evaluate((el) => {
+            const s = globalThis.getComputedStyle(el);
+            const parent = el.parentElement;
+            return {
+              radius: Number.parseFloat(s.borderTopLeftRadius),
+              height: el.getBoundingClientRect().height,
+              wraps: parent === null ? "" : globalThis.getComputedStyle(parent).flexWrap,
+            };
+          })
+        ).wraps,
+    )
+    .toBe("wrap");
 });
 
 // ── RED-FIRST (#102 review F10): the insider names are not stranded ─────────────────────────────────
