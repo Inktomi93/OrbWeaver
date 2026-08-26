@@ -11891,6 +11891,60 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/issue-732-wal-safe-pre-migration-backup.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 61,
+      "bytes": 7107,
+      "sha256": "79554fc9bba68556bf6f69e27c796e17c9045cb1a20e2cec0d598d96e5dd89e7",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "complete",
+          "updated": "2026-08-26"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/issue-732-wal-safe-pre-migration-backup.md",
+        "assignedSha256": "79554fc9bba68556bf6f69e27c796e17c9045cb1a20e2cec0d598d96e5dd89e7",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "79554fc9bba68556bf6f69e27c796e17c9045cb1a20e2cec0d598d96e5dd89e7",
+        "verifiedCommit": "10268e08cdc7defb05daf354dbd0a8a54be8775a",
+        "verifiedAt": "2026-08-26",
+        "evidence": [
+          "docs/design/issue-732-wal-safe-pre-migration-backup.md read in full before implementation and re-read against the integrated tree at 10268e08c; implementation commit 8e952f5de",
+          "real WAL-resident row restoration and backup-failure-before-reset controls passed in the focused DB and boot suites: 38/38 tests",
+          "the normal integration hook at 10268e08c passed 15/16 static stages, including 229/229 structure gates; only the then-missing receipt/catalog stage failed"
+        ],
+        "summary": "Issue #732 implemented a WAL-consistent pre-migration snapshot through the live libSQL connection while preserving the existing backup naming, pinning, retention, and fail-before-reset contract.",
+        "claims": [
+          {
+            "claim": "A changing boot awaits one SQLite-consistent standalone backup before reset or migration, and a backup failure leaves the database untouched.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/db/src/client/index.ts:170"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/entry/boot/migrate.ts:57"
+              },
+              {
+                "kind": "issue",
+                "target": "#732"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/list-pane-projection-proposal.md",
       "lane": "design",
       "issue": 5,
