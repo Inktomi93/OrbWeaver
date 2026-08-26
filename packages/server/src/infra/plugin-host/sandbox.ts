@@ -192,7 +192,7 @@ export class Sandbox implements Disposable {
     const state: ResidentState = {
       chat: null,
       token: null,
-      inFlight: { count: 0 },
+      inFlight: { count: 0, controllers: new Set(), settlements: new Set() },
       tools: [],
       transforms: [],
       events: [],
@@ -350,6 +350,7 @@ export class Sandbox implements Disposable {
     const logs = this.log.drain();
     const wallMs = this.limits.cpuDeadlineMs + this.limits.settleGraceMs;
     this.drop(handle);
+    this.abortHostOperations();
     this.drainPending();
     return {
       ok: false,
@@ -368,6 +369,36 @@ export class Sandbox implements Disposable {
     this.state.pending.clear();
   }
 
+  /** Signal every still-running cooperative host operation. Controllers remain registered until their actual
+   *  implementations settle, so the per-instance in-flight count and process ownership stay truthful even for
+   *  a non-cancellable domain write that ignores the signal. */
+  private abortHostOperations(): void {
+    for (const controller of this.state.inFlight.controllers ?? []) {
+      controller.abort();
+    }
+  }
+
+  /** Begin cooperative teardown without freeing the QuickJS context underneath an active invocation. The port
+   *  calls this first, waits for its per-instance FIFO tail, then calls {@link dispose}. */
+  cancelHostOperations(): void {
+    this.abortHostOperations();
+  }
+
+  /** Number of host implementations that have started but not actually settled. */
+  get pendingHostOperations(): number {
+    return this.state.inFlight.settlements?.size ?? 0;
+  }
+
+  /** Join the currently-owned host implementations. Every barrier is non-rejecting; rejection was already
+   *  projected through the guest promise and still releases its in-flight slot. */
+  async settleHostOperations(): Promise<void> {
+    const settlements = this.state.inFlight.settlements;
+    if (settlements === undefined) {
+      return;
+    }
+    await Promise.all([...settlements]);
+  }
+
   /** Drive one guest computation (an eval or a resident-handler call) under the per-invocation budget: pump the
    *  promise bridge to settlement, project the result to a string, contain any throw/deadline/OOM as `ok:false`.
    *  Shared by `evalGuest` + `invokeHandler`. */
@@ -381,7 +412,8 @@ export class Sandbox implements Disposable {
     this.log.reset();
     // NOTE what is deliberately NOT reset here: `state.inFlight`. It counts host-fn IMPLEMENTATIONS that have
     // started and not settled, and those OUTLIVE an invocation (the host-fn deadline bounds a call without
-    // cancelling it, and an ENDED invocation leaves its impls running). Zeroing it here let a straggler's release
+    // signalling cancellation cannot tear a transactional write in two, so some impls may still run). Zeroing
+    // it here let a straggler's release
     // decrement a counter this invocation had already reset — the counter drifted NEGATIVE and admitted more than
     // `HOST_CALLS_IN_FLIGHT_MAX` concurrent host calls (measured 2026-08-24: 36 of a 40-call burst admitted). The
     // counter is per-INSTANCE and self-healing by construction (one release per acquisition); see
@@ -496,6 +528,7 @@ export class Sandbox implements Disposable {
     // shared WASM module (`list_empty(&rt->gc_obj_list)`) — a guest-REACHABLE host crash (fire a host call, never
     // await it, end the invocation). Disposing the deferred frees its promise + resolver handles so teardown is
     // clean; a late host-side settle is separately dropped by the `ctx.alive` guard in the membrane (attachAsync).
+    this.abortHostOperations();
     this.drainPending();
     for (const handle of this.state.handlers.values()) {
       handle.dispose();

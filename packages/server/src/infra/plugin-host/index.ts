@@ -20,6 +20,7 @@ export {
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
   PLUGIN_MEMORY_LIMIT_BYTES,
+  PLUGIN_RESIDENT_RUNTIME_MAX,
   SNIPPET_WALL_MS,
 } from "./budgets.ts";
 export { getPluginQuickJS } from "./module.ts";

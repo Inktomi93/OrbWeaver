@@ -7,6 +7,7 @@
 // budget + the cascade guard downstream in requestTurn, the n≤4 clamp + the ≤32 host-call cap for imagery.)
 
 import { historyFloor } from "@orb/contracts/chat";
+import type { PluginInvocationLiveness } from "@orb/contracts/plugin";
 import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
@@ -45,6 +46,7 @@ const NEEDS_PLUGIN_RE = /requires an installed plugin/u;
 const ONE_HOUR_MS = 3_600_000;
 /** A minimal valid `GenerateImageActionArgs` (the `generateImageActionArgsSchema` required fields). */
 const IMAGE_ARGS = { mode: "free", n: 1, useAvatarReference: false, reuse: "never", quiet: true } as const;
+const LIVE_LIVENESS: PluginInvocationLiveness = { aborted: false, onAbort: () => (): void => undefined };
 
 /** The REAL belts on a clock that never advances — inert for every test that is not ABOUT a belt (one notice
  *  per (plugin, chat) and the first few hourly calls are always admitted), and NOT permissive fakes: the belt
@@ -409,18 +411,48 @@ describe("buildPluginBridge — llm.quiet closes the installer over the call and
     const rec = quietOps();
     const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
 
-    const out = await bridge.llm.quiet("summarise the scene");
+    const out = await bridge.llm.quiet("summarise the scene", LIVE_LIVENESS);
 
     expect(out).toEqual({ text: "ok" });
     // The whole request the op receives — no connection, no model, no chat, and a funder the guest never named.
-    expect(rec.calls).toEqual([{ installerUserId: INSTALLER, prompt: "summarise the scene" }]);
+    expect(rec.calls).toEqual([{ installerUserId: INSTALLER, prompt: "summarise the scene", signal: expect.any(AbortSignal) }]);
   });
 
   test("a bridge built for one installer never spends another's credential", async () => {
     const rec = quietOps();
     const bridge = buildPluginBridge(rec.ops, OTHER, PLUGIN_REF, freeBelts());
-    await bridge.llm.quiet("x");
+    await bridge.llm.quiet("x", LIVE_LIVENESS);
     expect(rec.calls[0]?.installerUserId).toBe(OTHER);
+  });
+
+  test("invocation liveness is re-minted as the AbortSignal the provider door consumes", async () => {
+    const base = makeInertOps();
+    let providerSignal: AbortSignal | undefined;
+    const ops: PluginHostOps = {
+      ...base,
+      llm: {
+        quiet: (req) =>
+          new Promise((resolve) => {
+            providerSignal = req.signal;
+            req.signal.addEventListener("abort", () => resolve({ text: "cancelled" }), { once: true });
+          }),
+      },
+    };
+    const bridge = buildPluginBridge(ops, INSTALLER, PLUGIN_REF, freeBelts());
+    let abort!: () => void;
+    const liveness: PluginInvocationLiveness = {
+      aborted: false,
+      onAbort: (listener) => {
+        abort = listener;
+        return (): void => undefined;
+      },
+    };
+
+    const pending = bridge.llm.quiet("x", liveness);
+    expect(providerSignal?.aborted).toBe(false);
+    abort();
+    await expect(pending).resolves.toEqual({ text: "cancelled" });
+    expect(providerSignal?.aborted).toBe(true);
   });
 
   test("over the hourly ceiling the PAID CALL NEVER HAPPENS (the claim precedes the op)", async () => {
@@ -435,13 +467,13 @@ describe("buildPluginBridge — llm.quiet closes the installer over the call and
       beltsWith({ quietLlm: createPluginRateFloor(() => clock.now(), { capability: "llm.quiet", limit: 2 }) }),
     );
 
-    await bridge.llm.quiet("a");
-    await bridge.llm.quiet("b");
-    await expect(bridge.llm.quiet("c")).rejects.toThrow(QUIET_FLOOR_RE);
+    await bridge.llm.quiet("a", LIVE_LIVENESS);
+    await bridge.llm.quiet("b", LIVE_LIVENESS);
+    await expect(bridge.llm.quiet("c", LIVE_LIVENESS)).rejects.toThrow(QUIET_FLOOR_RE);
 
     expect(rec.calls.map((c) => c.prompt)).toEqual(["a", "b"]);
     clock.advance(ONE_HOUR_MS);
-    await bridge.llm.quiet("d");
+    await bridge.llm.quiet("d", LIVE_LIVENESS);
     expect(rec.calls.map((c) => c.prompt)).toEqual(["a", "b", "d"]);
   });
 
@@ -457,7 +489,7 @@ describe("buildPluginBridge — llm.quiet closes the installer over the call and
       beltsWith({ quietLlm: createPluginRateFloor(() => FROZEN_AT_MS, { capability: "llm.quiet", limit: 3 }) }),
     );
 
-    const burst = await Promise.allSettled(Array.from({ length: 12 }, (_, i) => bridge.llm.quiet(`p${i}`)));
+    const burst = await Promise.allSettled(Array.from({ length: 12 }, (_, i) => bridge.llm.quiet(`p${i}`, LIVE_LIVENESS)));
 
     expect(burst.filter((r) => r.status === "fulfilled")).toHaveLength(3);
     expect(rec.calls).toHaveLength(3);
@@ -495,7 +527,7 @@ describe("buildPluginBridge — admitEgress is the net.fetch hourly claim, keyed
     // this is the belt-and-braces layer under that.
     const snippet = buildPluginBridge(makeInertOps(), INSTALLER, null, freeBelts());
     expect(() => snippet.admitEgress()).toThrow(NEEDS_PLUGIN_RE);
-    return expect(snippet.llm.quiet("x")).rejects.toThrow(NEEDS_PLUGIN_RE);
+    return expect(snippet.llm.quiet("x", LIVE_LIVENESS)).rejects.toThrow(NEEDS_PLUGIN_RE);
   });
 });
 
