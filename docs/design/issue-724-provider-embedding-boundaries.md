@@ -1,7 +1,7 @@
 ---
 kind: design
-status: implemented
-issue: 724
+status: complete
+updated: 2026-08-26
 ---
 
 # Issue 724 — provider and embedding boundary hardening
@@ -12,7 +12,7 @@ The issue snapshot was cut at `290957684f63`; this lane starts from `5748ecbe5b9
 Each mechanism below was re-read from the complete source and its focused tests before mutation.
 
 | Arm | Current classification | Bounded sites | Chosen mechanism | Rejected alternative |
-| --- | --- | --- | --- | --- |
+| - | - | - | - | - |
 | Stored vector model identity | current defect | `domain/embeddings/verbs/store.ts`, `store-segments.ts` | Stamp the `EmbedResult.model` / `ImageEmbedResult.model` returned by the inference call and use that identity for the persisted space. | Snapshot getters are request-time hints and can change between parameter construction and the live role call. |
 | Seeded and tie ordering | current defect at orchestration boundary; pure k-means seed itself is already deterministic | `domain/discovery/verbs/archetypes.ts`, `projection.ts` | Canonically order model groups and card ids; make equal-size result ordering total. | SQL incidental row order and Map insertion order are not contracts. |
 | Archetype label uniqueness | current defect | `domain/discovery/verbs/archetypes.ts` | Deterministically suffix duplicate global labels after total ordering. | Client-only display disambiguation leaves the server contract ambiguous. |
