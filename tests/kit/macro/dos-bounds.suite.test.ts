@@ -138,6 +138,14 @@ test("an input past MAX_INPUT_BYTES is refused before parse — warns once and r
   expect(warnings.filter((w) => w.includes("input limit"))).toHaveLength(1);
 });
 
+test("the input belt measures UTF-8 bytes rather than UTF-16 code units", () => {
+  const oversized = "😀".repeat(500_001); // 2,000,004 UTF-8 bytes, 1,000,002 UTF-16 code units
+  const warnings: string[] = [];
+  const out = processMacros(oversized, opts({ onWarn: (m) => warnings.push(m) }));
+  expect(out).toBe("");
+  expect(warnings.filter((w) => w.includes("input limit 2000000 bytes"))).toHaveLength(1);
+});
+
 test("a legit 100 KB card-sized field passes the input belt untouched", () => {
   // The belt admits the real 100 KB ceiling — it stops megabytes, not cards. Plain prose (no macros) is
   // returned byte-identical, proving the belt did not short-circuit a legitimate large field.

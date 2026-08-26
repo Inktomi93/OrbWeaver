@@ -20,6 +20,15 @@ export function neutralizeMacros(s: string): string {
   return s.replace(/\{\{/g, `{${ZWSP}{`).replace(/\}\}/g, `}${ZWSP}}`);
 }
 
+/** UTF-8 byte length for the macro engine's input and output belts. `null` means the source contains
+ *  an unpaired surrogate and therefore has no well-formed UTF-8 encoding. */
+export function utf8ByteLength(source: string): number | null {
+  if (!source.isWellFormed()) {
+    return null;
+  }
+  return encodeURIComponent(source).replace(/%[0-9A-F]{2}/g, "_").length;
+}
+
 /** The two identity macros this helper substitutes. Exact `{{char}}`/`{{user}}` tokens (case-insensitive,
  *  NO whitespace-in-braces tolerance — that matches both original call sites and the card-format canon). */
 export interface IdentityMapping {
