@@ -65,6 +65,7 @@
     "baseRef": "head"
   },
   "permissions": {
+    "defaultMode": "default",
     "allow": [
       "Bash(pnpm check)",
       "Bash(pnpm check *)",
