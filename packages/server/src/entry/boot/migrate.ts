@@ -54,7 +54,7 @@ export async function runBootMigrations(deps: MigrateDeps): Promise<void> {
   }
   const willChange = baseline.status === "regenerated" || (await hasPendingMigrations(deps.db, folder));
   if (willChange) {
-    const backupPath = backupBeforeMigrate(deps.databaseUrl);
+    const backupPath = await backupBeforeMigrate(deps.db, deps.databaseUrl);
     if (backupPath !== undefined) {
       getLog().info({ backupPath }, "boot/migrate: backed up db before migrating");
     }
