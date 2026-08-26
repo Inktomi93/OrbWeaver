@@ -350,17 +350,17 @@ export function advanceAutoSleep(state: AutoSleepState, metrics: EngineMetrics |
   return { state: { prev: metrics, idleSince: shouldSleep ? null : idleSince }, shouldSleep };
 }
 
-/** GET /is_sleeping — true iff the engine reports asleep. Any failure ⇒ false (fail toward awake). */
-export async function getIsSleeping(engine: VllmEngine): Promise<boolean> {
+/** GET /is_sleeping — null means the engine's state could not be measured. */
+export async function getIsSleeping(engine: VllmEngine): Promise<boolean | null> {
   try {
     const res = await fetch(`${engineBaseUrl(engine)}/is_sleeping`, { signal: AbortSignal.timeout(HTTP_TIMEOUT_MS) });
     if (!res.ok) {
-      return false;
+      return null;
     }
     const body = (await res.json()) as { is_sleeping?: boolean };
-    return body.is_sleeping === true;
+    return typeof body.is_sleeping === "boolean" ? body.is_sleeping : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -374,7 +374,7 @@ export async function postWakeAndAwait(engine: VllmEngine, deps: { now: () => nu
   }
   const deadline = deps.now() + WAKE_READY_TIMEOUT_MS;
   while (deps.now() < deadline) {
-    if (!(await getIsSleeping(engine))) {
+    if ((await getIsSleeping(engine)) === false) {
       return true;
     }
     await deps.sleep(WAKE_POLL_INTERVAL_MS);
