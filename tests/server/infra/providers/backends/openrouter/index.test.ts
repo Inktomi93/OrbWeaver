@@ -178,16 +178,37 @@ describe("createOpenRouterBackend — surface", () => {
       throw new Error("openrouter backend must implement fetchCatalog");
     }
 
-    controller.abort(new Error("catalog cancelled"));
+    controller.abort(new Error("connection timeout requested by caller"));
     await Promise.resolve();
     const observedAbort = aborted;
     if (!observedAbort) {
       held.reject(new Error("held-request cleanup"));
     }
-    await expect(request).rejects.toBeInstanceOf(Error);
+    await expect(request).rejects.toMatchObject({ name: "ProviderError", kind: "aborted", retryable: false });
 
     expect(receivedSignal).toBe(controller.signal);
     expect(observedAbort).toBe(true);
+  });
+
+  test("an ordinary SDK timeout stays retryable server when the supplied caller signal was not aborted", async () => {
+    const upstreamTimeout = new Error("connection timeout from OpenRouter");
+    const getClient = (): OrClient =>
+      // FABRICATION-OK: hand-built vendor SDK client — this path only calls `models.list`.
+      ({
+        models: {
+          list: (): Promise<unknown> => Promise.reject(upstreamTimeout),
+        },
+      }) as unknown as OrClient;
+    const backend = createOpenRouterBackend({ now: () => FIXED_NOW, getClient });
+    const controller = new AbortController();
+
+    await expect(backend.fetchCatalog?.({ signal: controller.signal })).rejects.toMatchObject({
+      name: "ProviderError",
+      kind: "server",
+      retryable: true,
+      cause: upstreamTimeout,
+    });
+    expect(controller.signal.aborted).toBe(false);
   });
 });
 
