@@ -68,6 +68,7 @@ import type { SessionsService } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import type { WorldInfoService } from "#domain/world-info";
+import { superviseDetached } from "#foundation/observability";
 import { createPluginHost } from "#infra/plugin-host";
 import type { RoleClientsWithSignal } from "#infra/providers";
 import { publishAutomationEvent, publishNotification, publishUserEvent } from "../../transport/trpc/index.ts";
@@ -603,15 +604,19 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
             const argsJson = JSON.stringify(capFactContent(fact, PLUGIN_MESSAGE_CONTENT_CAP));
             // The event handler runs IN the fact's chat scope. `canWrite` = the installer is HOST; a chat-less
             // domain fact ⇒ no scope (`null`). The per-delivery host read + guest invokes are fire-and-forget.
-            void (async (): Promise<void> => {
+            superviseDetached(`plugin-event:${randomUUID()}`, "plugin.event.deliver", { eventType: fact.type }, async () => {
               let eventChat: InvocationChat | null = null;
               if (fact.chatId !== null) {
                 const factChatId = castId<ChatId>(fact.chatId);
                 const role = await loadPresentRole(db, factChatId, scope.installer.userId);
                 eventChat = { chatId: factChatId, canWrite: role === "host", automationDepth };
               }
-              await Promise.all(refs.map((handler) => invoke(handler, argsJson, eventChat).catch(() => undefined)));
-            })();
+              const outcomes = await Promise.allSettled(refs.map((handler) => invoke(handler, argsJson, eventChat)));
+              const failures = outcomes.flatMap((outcome) => (outcome.status === "rejected" ? [outcome.reason] : []));
+              if (failures.length > 0) {
+                throw new AggregateError(failures, "plugin event delivery failed");
+              }
+            });
           },
         });
         return { unregister };

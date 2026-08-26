@@ -25,6 +25,7 @@
 // `persistence-boundary`'s allowlist. Nothing else here touches browser storage directly.
 
 import type { UserId } from "@orb/kit/ids";
+import { notify } from "#lib";
 
 /** Where the last-bound identity is recorded, so a cold boot mints on the right namespace (see the header). */
 const ACTIVE_USER_KEY = "orb:active-user";
@@ -150,7 +151,8 @@ export function bindDurableLocalToUser(userId: UserId): void {
     }
     persist.setOptions({ name: key });
     if (!adopting) {
-      void persist.rehydrate();
+      const hydration = persist.rehydrate();
+      hydration?.catch(() => notify.error(`Couldn't restore device settings for ${entry.name}.`));
     }
   }
 }

@@ -98,7 +98,6 @@ async function pumpStream(
   const decoder = new TextDecoder();
   let buffer = "";
   for (;;) {
-    // biome-ignore lint/performance/noAwaitInLoops: SSE frames arrive sequentially — each read awaits the next network chunk by design.
     const { done, value } = await reader.read();
     if (done) {
       return;

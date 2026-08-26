@@ -83,7 +83,7 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
     };
 
   const applyPlacement = (placement: RegexPlacement[]): void => {
-    void setPlacement.mutateAsync({ scriptIds, placement }).then(report("updated"));
+    setPlacement.mutate({ scriptIds, placement }, { onSuccess: report("updated") });
     onClear();
   };
 
@@ -93,7 +93,7 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
         <Button
           intent="secondary"
           onClick={(): void => {
-            void setEnabled.mutateAsync({ scriptIds, enabled: true }).then(report("switched on"));
+            setEnabled.mutate({ scriptIds, enabled: true }, { onSuccess: report("switched on") });
             onClear();
           }}
           size="sm"
@@ -103,7 +103,7 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
         <Button
           intent="secondary"
           onClick={(): void => {
-            void setEnabled.mutateAsync({ scriptIds, enabled: false }).then(report("switched off"));
+            setEnabled.mutate({ scriptIds, enabled: false }, { onSuccess: report("switched off") });
             onClear();
           }}
           size="sm"
@@ -120,7 +120,7 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
             title: `Delete ${scriptCount(count)}?`,
             description: "Deleting these removes them from every preset, character, and room they're attached to. This can't be undone.",
             onConfirm: (): void => {
-              void remove.mutateAsync({ scriptIds }).then(report("deleted"));
+              remove.mutate({ scriptIds }, { onSuccess: report("deleted") });
               // Leave bulk mode entirely: the rows the mode was operating on are gone, so a still-armed mode
               // over an emptier list is a surface pointing at nothing.
               exitRegexBulkMode();
@@ -135,7 +135,7 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
           </MenuItem>
           <MenuItem
             onClick={(): void => {
-              void setGlobal.mutateAsync({ scriptIds, global: true }).then(report("now run in every chat"));
+              setGlobal.mutate({ scriptIds, global: true }, { onSuccess: report("now run in every chat") });
               onClear();
             }}
           >
@@ -144,7 +144,7 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
           </MenuItem>
           <MenuItem
             onClick={(): void => {
-              void setGlobal.mutateAsync({ scriptIds, global: false }).then(report("no longer run in every chat"));
+              setGlobal.mutate({ scriptIds, global: false }, { onSuccess: report("no longer run in every chat") });
               onClear();
             }}
           >

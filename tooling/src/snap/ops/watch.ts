@@ -19,7 +19,6 @@ export async function runWatchSeries(page: Page, opts: Args, out: string): Promi
   while (elapsed <= opts.watchMs) {
     const shotPath = shouldProduceShot(opts) ? out.replace(PNG_EXT_RE, `-t${elapsed}.png`) : null;
     // `--no-shot --watch` is the cheap state-series path: repeat evals without minting dozens of images.
-    // biome-ignore lint/performance/noAwaitInLoops: the series is INHERENTLY sequential — each tick observes the surface at a distinct wall-clock moment.
     const shotError = shotPath === null ? null : await page.screenshot({ path: shotPath, ...SHOT_BASE }).then(() => null, errorMessage);
     const evals = page0Evals.length > 0 ? await captureEvals(page, page0Evals) : [];
     ticks.push({ elapsedMs: elapsed, shot: shotPath, shotError, evals });

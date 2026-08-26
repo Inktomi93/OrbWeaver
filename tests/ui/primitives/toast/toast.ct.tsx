@@ -392,9 +392,7 @@ async function expectTypeGlyph(page: Page, button: string, type: string): Promis
 test("every meaning-bearing toast type carries a glyph, not just a tint", async ({ mount, page }) => {
   await mount(<ToastPlayground />);
 
-  // Sequential by necessity (each toast is dismissed before the next so the type locators stay unique),
-  // so this is three explicit awaits rather than a loop — `noAwaitInLoops` is right that a loop here
-  // would be the wrong shape to reach for.
+  // Each toast is dismissed before the next so the type locators stay unique.
   await expectTypeGlyph(page, "add error toast", "error");
   await expectTypeGlyph(page, "add success toast", "success");
   await expectTypeGlyph(page, "add warning toast", "warning");

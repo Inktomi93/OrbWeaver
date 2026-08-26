@@ -53,10 +53,6 @@ interface RatifiedRule {
  *  does NOT do: the EXCEED arm still REDs any marker past a file's committed budget, so ratifying a RULE
  *  absolves the decided set, never the next marker somebody writes under it. */
 const RATIFIED_RULES: Readonly<Record<string, RatifiedRule>> = {
-  "lint/performance/noAwaitInLoops": {
-    kind: "ruling",
-    why: "sequential-by-design awaits — each site names the ordering/locking invariant a Promise.all would race",
-  },
   "lint/style/useNamingConvention": {
     kind: "ruling",
     why: "wire vocabulary — the snake_case key IS the protocol/format (ST cards, OpenAI-compatible bodies, the mode literals); renaming forks the wire",

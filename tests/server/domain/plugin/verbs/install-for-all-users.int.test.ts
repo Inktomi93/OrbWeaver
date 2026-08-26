@@ -45,7 +45,6 @@ test("an admin publish lands a row for EVERY user — each disabled, granted not
 
   expect(result).toMatchObject({ slug: "house-style", name: "House Style", version: "1.0.0", applied: 3, skipped: [] });
   for (const member of members) {
-    // biome-ignore lint/performance/noAwaitInLoops: three per-user reads; sequential keeps the failure legible.
     const rows = await h.service.list({ caller: principalFor(member) });
     expect(
       rows.map((r) => r.slug),

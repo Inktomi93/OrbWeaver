@@ -227,7 +227,6 @@ export async function* parseOpenAiSse(body: ReadableStream<Uint8Array>): AsyncGe
   let buffer = "";
   try {
     for (;;) {
-      // biome-ignore lint/performance/noAwaitInLoops: a streaming read is inherently sequential — each chunk must be awaited before the next arrives.
       const { done, value } = await reader.read();
       if (done) {
         // Flush a final `data:` line the server never newline-terminated (spec-sloppy BYO endpoints).

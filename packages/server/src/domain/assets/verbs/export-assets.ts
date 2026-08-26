@@ -19,7 +19,6 @@ export function createExportAssets(ctx: AssetsPortabilityContext): PortableEntit
     }
 
     for (const id of ids) {
-      // biome-ignore lint/performance/noAwaitInLoops: export streams one blob at a time (bounded memory — the descriptor contract); the owner-gate read + CAS read are intentionally sequential per file.
       const meta = await loadOwnedAssetForExport(ctx.db, ownerId, id);
       if (meta === undefined) {
         continue;

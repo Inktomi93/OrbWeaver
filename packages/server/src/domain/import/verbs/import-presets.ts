@@ -69,7 +69,6 @@ export function createImportPresets(ctx: ImportContext): Pick<ImportService, "im
     const skippedPresets: ImportSkippedCard[] = [];
     const notes: ImportPresetNote[] = [];
     for (const p of input.presets) {
-      // biome-ignore lint/performance/noAwaitInLoops: presets are written sequentially during the one-time bulk import — each is one idempotent write, isolated per preset.
       const outcome = await importPreset({ ownerId: ctx.ownerId, bytes: ENC.encode(JSON.stringify(p.parsed.file)) });
       if (!outcome.ok) {
         skippedPresets.push({ file: p.sourceFile, reason: outcome.error ?? "the preset domain refused the file" });

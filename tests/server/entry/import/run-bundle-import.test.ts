@@ -50,7 +50,6 @@ async function packBundle(entries: readonly ZipEntry[]): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
   let total = 0;
   for (;;) {
-    // biome-ignore lint/performance/noAwaitInLoops: one awaited read per stream chunk.
     const { done, value } = await reader.read();
     if (done) {
       break;

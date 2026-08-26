@@ -185,7 +185,6 @@ describe("the notifications room — a failing durable replay is a TYPED per-roo
     publishUserEvent(RECIPIENT, { type: "tagsChanged" });
     frames.push(frameOf((await first).value));
     for (let i = 1; i < 5; i++) {
-      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
       const result = await iterator.next();
       frames.push(frameOf(result.value));
     }

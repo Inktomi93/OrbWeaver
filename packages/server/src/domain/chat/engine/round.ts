@@ -119,7 +119,6 @@ export async function driveRound(params: DriveRoundParams): Promise<TurnOutcome>
   for (const speaker of speakers) {
     const prep = buildSpeakerPrep(params.base, params.group, speaker, { multi, narratorMemberNames: params.narratorMemberNames });
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: per-speaker sequencing is the invariant, not a perf miss.
       const outcome = await params.engine.runTurn(prep);
       committed.push(...outcome.messages);
       if (outcome.aborted && outcome.abortReason !== undefined) {

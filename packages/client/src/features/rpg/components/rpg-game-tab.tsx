@@ -348,7 +348,7 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
           size="sm"
           disabled={busy}
           onClick={(): void => {
-            void onResync();
+            onResync().catch(() => undefined); // The sequence owns and surfaces mutation failure.
           }}
         >
           <Icon icon={RotateCcw} size="xs" />

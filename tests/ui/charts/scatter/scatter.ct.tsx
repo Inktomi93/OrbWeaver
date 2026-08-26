@@ -109,7 +109,6 @@ test("clicking a point fires onPointClick with that point's opaque id", async ({
   // authored points, proving the click → onPointClick → opaque-id decode path end to end.
   for (let i = 1; i < 20; i++) {
     for (let j = 1; j < 12; j++) {
-      // biome-ignore lint/performance/noAwaitInLoops: real user clicks are inherently sequential — each must land before the next; a Promise.all of clicks would race the pointer, not sweep the grid.
       await canvas.click({ position: { x: (width * i) / 20, y: (height * j) / 12 } });
     }
   }

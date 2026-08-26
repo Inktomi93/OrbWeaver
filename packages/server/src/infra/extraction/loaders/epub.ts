@@ -112,7 +112,6 @@ export async function loadEpub(bytes: Uint8Array): Promise<RawExtraction> {
     if (chapterBytes === undefined) {
       continue; // a spine reference to a missing file is skipped, not fatal (the doc is still readable)
     }
-    // biome-ignore lint/performance/noAwaitInLoops: chapters run through the html loader sequentially — spine order IS the reading order the join depends on, and each is independent light work.
     const extracted = await loadHtml(chapterBytes);
     chapters.push(extracted.text);
   }

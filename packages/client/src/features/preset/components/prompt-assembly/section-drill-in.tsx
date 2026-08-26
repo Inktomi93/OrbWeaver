@@ -48,7 +48,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { RowActionsMenu } from "#components";
 import type { AppFormInstance } from "#forms";
-import { useFocusOnSwap } from "#lib";
+import { notify, useFocusOnSwap } from "#lib";
 import {
   GENERATION_TYPE_ITEMS,
   hasRoleField,
@@ -379,7 +379,7 @@ function OverrideLocks({ form, section, index }: ClusterProps): ReactElement | n
 function SectionActionsMenu({ form, section, index, onBack }: ClusterProps & { readonly onBack: () => void }): ReactElement | null {
   const structural = isStructuralSection(section);
   const onDelete = (): void => {
-    void form.removeFieldValue("sections", index);
+    form.removeFieldValue("sections", index).catch(() => notify.error("Couldn't remove the section."));
     onBack();
   };
   return (
@@ -420,7 +420,7 @@ function SectionActionsMenu({ form, section, index, onBack }: ClusterProps & { r
  *  store driver persists it (D78 §3) — no call-site flush. */
 function duplicate(form: AssemblyForm, section: PromptSection, index: number): void {
   const clone: PromptSection = { ...section, id: globalThis.crypto.randomUUID() };
-  void form.insertFieldValue("sections", index + 1, clone);
+  form.insertFieldValue("sections", index + 1, clone).catch(() => notify.error("Couldn't duplicate the section."));
 }
 
 /** Move-to-zone — the sanctioned no-pointer / zone-jump echo of the drag (§16 row 17): crossing the pivot

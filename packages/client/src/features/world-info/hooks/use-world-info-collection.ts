@@ -60,9 +60,7 @@ export function useCreateWorldInfoMember(): () => void {
   const invalidation = useInvalidation();
   const create = useCreateWorldBook({ trpc, invalidation });
   return (): void => {
-    void create.mutateAsync({ input: { name: NEW_BOOK_NAME } }).then((created) => {
-      selectCollectionMember(WORLD_INFO_COLLECTION_ID, created.id);
-    });
+    create.mutate({ input: { name: NEW_BOOK_NAME } }, { onSuccess: (created): void => selectCollectionMember(WORLD_INFO_COLLECTION_ID, created.id) });
   };
 }
 

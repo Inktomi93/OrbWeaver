@@ -63,7 +63,6 @@ test("the 256-key cap: a NEW key past the ceiling is refused; an EXISTING-key ov
 
   // Fill to the ceiling.
   for (let i = 0; i < PLUGIN_KV_MAX_KEYS; i++) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential seed — a serialized fill is fine for the cap fixture.
     await storage.set(plugin, owner, `k${i}`, "v");
   }
   // A NEW key past the cap is refused (typed error, contained as guest errors-as-data upstream).

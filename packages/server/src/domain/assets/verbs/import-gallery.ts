@@ -46,7 +46,6 @@ export function createImportGallery(ctx: AssetsContext): (ownerId: UserId, file:
 
     let created = false;
     for (const item of parsed.value.items) {
-      // biome-ignore lint/performance/noAwaitInLoops: curation rows restore serially — each item's dedup existence-check + insert must not race a sibling row of the same (assetId, subjectCharacterId).
       const rowCreated = await restoreItem(ctx, ownerId, item);
       created = created || rowCreated;
     }

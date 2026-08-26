@@ -128,14 +128,12 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
   // (routing-coherence.ts): the resolver derives the engine's own model live, which is the truth.
   const chatRoleDefault = { source: "vllm" as const, api: "chat-completions" as const, model: "" };
   for (const p of [owner, second]) {
-    // biome-ignore lint/performance/noAwaitInLoops: two principals, ordered settings writes — serial is clearer than a race.
     await services.settings.updateUserSettingsSection({ principal: p, input: { section: "routing", patch: { roleDefaults: { chat: chatRoleDefault } } } });
   }
 
   // Resolve the boot-seeded default characters by handle.
   const handleToId = new Map<string, CharacterId>();
   for (const card of DEFAULT_CHARACTER_CARDS) {
-    // biome-ignore lint/performance/noAwaitInLoops: a handful of cards; serial lookups keep the mapping obvious.
     const ref = await services.character.findByHandle({ ownerId, handle: card.input.handle });
     if (ref !== null) {
       handleToId.set(card.input.handle, ref.characterId);

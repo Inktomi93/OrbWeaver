@@ -95,11 +95,11 @@ export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unkn
     const { hasNextPage, isFetching, fetchNextPage, refetch } = query;
     const onEndApproach = (): void => {
       if (hasNextPage && !isFetching) {
-        void fetchNextPage();
+        fetchNextPage().catch(() => undefined); // Query state owns the fetch error.
       }
     };
     const retry = (): void => {
-      void refetch();
+      refetch().catch(() => undefined); // Query state owns the retry error.
     };
 
     return {

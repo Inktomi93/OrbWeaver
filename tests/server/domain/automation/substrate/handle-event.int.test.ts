@@ -591,16 +591,15 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
     return { type: "messageCommitted", chatId: (post as { chatId: ChatId }).chatId, messageId: (post as { messageId: MessageId }).messageId };
   }
 
-  /** Feed each captured post's `messageCommitted` back into `handleEvent`, one at a time (recursion — the queue
-   *  grows as opted-in re-fires post deeper images). Returns the cursor once caught up, or bails at `ceiling`
-   *  (an unbounded self-loop would never let the cursor catch `posts.length`). Recursive, not a loop, to keep
-   *  the `noAwaitInLoops` gate green (the `fireOpenedN` precedent). */
+  /** Feed each captured post's `messageCommitted` back into `handleEvent`, one at a time. The queue grows as
+   * opted-in re-fires post deeper images; `ceiling` bounds an accidental self-loop. */
   async function drainPosts(svc: AutomationService, posts: readonly ChatBusEvent[], cursor: number, ceiling: number): Promise<number> {
-    if (cursor >= posts.length || cursor >= ceiling) {
-      return cursor;
+    let next = cursor;
+    while (next < posts.length && next < ceiling) {
+      await svc.handleEvent(messageCommittedEvent(posts[next] as ChatBusEvent));
+      next += 1;
     }
-    await svc.handleEvent(messageCommittedEvent(posts[cursor] as ChatBusEvent));
-    return drainPosts(svc, posts, cursor + 1, ceiling);
+    return next;
   }
 
   test("a non-opted `messageCommitted → generate_image` rule does NOT re-fire on its own posted image (self-loop closed)", async () => {
@@ -737,16 +736,15 @@ describe("W1 world-info-activation cascade guard (self-chain closed, #704)", () 
     return { type: "worldInfoActivated", chatId, entryIds: [mintTypeId(ID_PREFIX.worldEntry)], automationDepth: depth };
   }
 
-  /** Feed each captured re-activation back into `handleEvent`, one at a time (recursion — the queue grows as
-   *  opted-in re-fires raise deeper activations). Bails at `ceiling` (an unbounded self-chain would never let
-   *  the cursor catch `activations.length`). Recursive, not a loop, to keep `noAwaitInLoops` green (the N1
-   *  `drainPosts` precedent). */
+  /** Feed each captured re-activation back into `handleEvent`, one at a time. The queue grows as opted-in
+   * re-fires raise deeper activations; `ceiling` bounds an accidental self-chain. */
   async function drainActivations(svc: AutomationService, activations: readonly ChatBusEvent[], cursor: number, ceiling: number): Promise<number> {
-    if (cursor >= activations.length || cursor >= ceiling) {
-      return cursor;
+    let next = cursor;
+    while (next < activations.length && next < ceiling) {
+      await svc.handleEvent(activations[next] as ChatBusEvent);
+      next += 1;
     }
-    await svc.handleEvent(activations[cursor] as ChatBusEvent);
-    return drainActivations(svc, activations, cursor + 1, ceiling);
+    return next;
   }
 
   test("a non-opted `worldInfoActivated → trigger_turn` rule does NOT re-fire on its reaction turn's own re-activation (self-loop closed)", async () => {

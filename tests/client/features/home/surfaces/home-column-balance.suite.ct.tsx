@@ -219,15 +219,12 @@ test("#226 the shelf stops deciding the page's height — level columns wherever
   await expect(grid.getByText("Doc 0", { exact: true })).toBeVisible();
   await expect(grid.locator("[aria-busy]")).toHaveCount(0);
 
-  // SEQUENTIAL by construction: every cell mutates the same live page, so the states cannot be probed
-  // concurrently. Chained through `reduce` rather than an `await` in a loop body (biome
-  // `performance/noAwaitInLoops` — the rule's target is accidental serialization, which this is not).
-  const cells = await CELLS.reduce<Promise<Cell[]>>(async (pending, { width, arm }) => {
-    const rows = await pending;
+  // Every cell mutates the same live page, so each state must settle before the next is probed.
+  const cells: Cell[] = [];
+  for (const { width, arm } of CELLS) {
     await setState(page, width, arm);
-    rows.push({ width, arm, metrics: await measure(page) });
-    return rows;
-  }, Promise.resolve([]));
+    cells.push({ width, arm, metrics: await measure(page) });
+  }
 
   const matrix = cells.map(({ width, arm, metrics }) => {
     const short = metrics.hearth.contentBottom < metrics.shelf.contentBottom ? "hearth" : "shelf";

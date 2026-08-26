@@ -114,7 +114,6 @@ export async function runWithPreCommitRetry<T>(
       committed = true;
     };
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: a retry loop is inherently sequential — each attempt must await the prior outcome before deciding whether to retry.
       return await op(markCommitted);
     } catch (raw) {
       lastError = raw;

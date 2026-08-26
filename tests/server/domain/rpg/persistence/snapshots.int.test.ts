@@ -453,7 +453,6 @@ describe("the hand arm — a snapshot with no message", () => {
     // The flagship demo's authored setup: N consecutive hand writes on a committed head. Pre-D124 this was
     // N blank "Group" bubbles in the transcript and N `"mes":""` rows in every export.
     for (let i = 0; i < 8; i++) {
-      // biome-ignore lint/performance/noAwaitInLoops: the burst MUST be sequential — each write clone-forwards off the previous head, which is the property under test.
       await seedHandRow({ gameId, chatId, key: `burst_${i}`, location: `hand-${i}`, now: FROZEN_AT + i });
     }
 

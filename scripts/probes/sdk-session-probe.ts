@@ -182,7 +182,6 @@ async function runBaseline(): Promise<void> {
       },
     });
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: turns are sequential BY DESIGN — a resume must see the prior turn's session, and serial turns keep the spawn/cache attribution unambiguous.
       const r = await withWatchdog(
         consumeTurnStream(stream as AsyncIterable<SDKMessage>, {
           model: MODEL,
@@ -294,7 +293,6 @@ async function consumeHeldStream(stream: AsyncIterable<SDKMessage>, feed: Prompt
     // so cache/usage/ttft accounting is IDENTICAL to the baseline path (no bespoke accounting drift).
     // The watchdog aborts the WHOLE held-open query on a wedged turn, then rejects — so a stuck worker
     // can't grind quota and the verdict never prints a fabricated row.
-    // biome-ignore lint/performance/noAwaitInLoops: turns are sequential BY DESIGN — the next prompt is released only after this turn's `result` frame settles, keeping per-turn attribution clean.
     const r = await withWatchdog(sliceOneTurn(iterator, turn + 1), `held-open turn ${turn + 1}`, () => abortController.abort());
     push("held-open", turn + 1, Date.now() - t0, r);
   }
@@ -308,7 +306,6 @@ async function sliceOneTurn(iterator: AsyncIterator<SDKMessage>, turn: number): 
   const slice: SDKMessage[] = [];
   let sawResult = false;
   for (;;) {
-    // biome-ignore lint/performance/noAwaitInLoops: draining one turn's messages off a live stream is inherently sequential.
     const next = await iterator.next();
     if (next.done === true) {
       break;

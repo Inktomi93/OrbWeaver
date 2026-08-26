@@ -59,7 +59,7 @@ export function PresetListHeader(): ReactElement {
   const [importOpen, setImportOpen] = useState(false);
 
   const onCreate = (): void => {
-    void create.mutateAsync({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND }).then((created) => selectPresetFromList(created.id));
+    create.mutate({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND }, { onSuccess: (created): void => selectPresetFromList(created.id) });
   };
 
   /** The orb-native arm: resolves to the server's error message, or null once the row landed. */
@@ -103,10 +103,15 @@ export function PresetListHeader(): ReactElement {
         busy={create.isPending || importFile.isPending}
         onImportOrb={onImportOrb}
         onImportSt={({ name, config }): void => {
-          void create.mutateAsync({ name, kind: NEW_PRESET_KIND, config }).then((created) => {
-            setImportOpen(false);
-            selectPresetFromList(created.id);
-          });
+          create.mutate(
+            { name, kind: NEW_PRESET_KIND, config },
+            {
+              onSuccess: (created): void => {
+                setImportOpen(false);
+                selectPresetFromList(created.id);
+              },
+            },
+          );
         }}
         onOpenChange={setImportOpen}
         open={importOpen}

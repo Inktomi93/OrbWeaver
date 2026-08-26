@@ -471,7 +471,6 @@ const DRAIN_MAX_TURNS = 2000;
  *  wall-clock; each turn is one `setImmediate` macrotask). */
 async function drain(done: () => boolean): Promise<void> {
   for (let i = 0; i < DRAIN_MAX_TURNS && !done(); i += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: a deterministic bounded drain of fire-and-forget dispatch.
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
 }

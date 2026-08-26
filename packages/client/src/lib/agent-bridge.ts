@@ -108,11 +108,11 @@ export function installAppReadySignal(queryClient: QueryClient, routeResolution:
     }
   };
   const unsubscribe = cache.subscribe(check);
-  void ready.finally(unsubscribe);
+  ready.then(unsubscribe, unsubscribe);
   // A boot-critical dependent read clearing is the other event (besides a cache tick) that can unblock a
   // settle, so the signal re-checks when the gate changes — symmetric with the routeResolution subscription.
   const unsubscribeBootReads = bootReads.subscribe(check);
-  void ready.finally(unsubscribeBootReads);
+  ready.then(unsubscribeBootReads, unsubscribeBootReads);
   requestAnimationFrame(() => {
     requestAnimationFrame(check);
   });
@@ -142,7 +142,7 @@ export function installAppReadySignal(queryClient: QueryClient, routeResolution:
     armGrace();
     check();
   });
-  void ready.finally(unsubscribeRoute);
+  ready.then(unsubscribeRoute, unsubscribeRoute);
   armGrace();
   // The ceiling still guarantees "never hang a waiter", but it tells the truth about what it is handing over:
   // reads are STILL in flight, so the flag goes up as `degraded` and anything reading the value knows the

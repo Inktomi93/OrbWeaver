@@ -144,14 +144,7 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
     setRenameOpen(false);
   };
   const confirmDelete = (): void => {
-    void (async (): Promise<void> => {
-      try {
-        await deleteChat.mutateAsync({ chatId });
-        goToLanding();
-      } catch {
-        // The mutation's own errorToast already surfaced it; stay on the chat.
-      }
-    })();
+    deleteChat.mutate({ chatId }, { onSuccess: goToLanding });
   };
   return (
     <>

@@ -32,7 +32,6 @@ test("collectVirtualRows sweeps a transcript longer than the viewport and matche
   for (let i = 0; i < TURN_COUNT; i += 1) {
     // Sequential by necessity: each turn's context includes the prior ones (a real conversation), and
     // sendTurn awaits the full round-trip — there is nothing to parallelize.
-    // biome-ignore lint/performance/noAwaitInLoops: sequential real-turn seeding — each turn depends on the chat's prior state.
     await sendTurn(chatId, `Reply with exactly: sweep-probe-${i}`);
   }
 

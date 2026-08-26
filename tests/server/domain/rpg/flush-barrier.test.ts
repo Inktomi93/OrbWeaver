@@ -45,7 +45,7 @@ describe("rpg flush barrier", () => {
   test("awaitInFlight blocks until the registered flush settles, then releases", async () => {
     const barrier = createRpgFlushBarrier(() => undefined);
     const flush = deferred();
-    void registerFlush(barrier, flush.promise);
+    const registered = registerFlush(barrier, flush.promise);
 
     let released = false;
     const wait = barrier.awaitInFlight(CHAT).then(() => {
@@ -56,6 +56,7 @@ describe("rpg flush barrier", () => {
     expect(released).toBe(false); // still blocked on the in-flight flush
 
     flush.resolve();
+    await registered;
     await wait;
     expect(released).toBe(true);
   });
@@ -63,8 +64,9 @@ describe("rpg flush barrier", () => {
   test("a settled flush self-clears its entry (a later awaitInFlight is the fast path again)", async () => {
     const barrier = createRpgFlushBarrier(() => undefined);
     const flush = deferred();
-    void registerFlush(barrier, flush.promise);
+    const registered = registerFlush(barrier, flush.promise);
     flush.resolve();
+    await registered;
     await barrier.awaitInFlight(CHAT); // drains the entry
 
     // A microtask later the `.finally` cleanup has run — a fresh await is the immediate fast path.
@@ -79,10 +81,11 @@ describe("rpg flush barrier", () => {
   test("a REJECTING flush still settles the barrier (rejection swallowed, entry clears)", async () => {
     const barrier = createRpgFlushBarrier(() => undefined);
     const flush = deferred();
-    void registerFlush(barrier, flush.promise);
+    const registered = registerFlush(barrier, flush.promise);
     flush.reject(new Error("flush blew up"));
     // awaitInFlight must resolve (never reject) — the barrier gates on SETTLEMENT, not success.
     await expect(barrier.awaitInFlight(CHAT)).resolves.toBeUndefined();
+    await expect(registered).rejects.toThrow("flush blew up");
   });
 
   // S2 — the SET-not-latest hardening: two concurrent flushes on one chat (a barrier timeout left the older in
@@ -92,8 +95,8 @@ describe("rpg flush barrier", () => {
     const barrier = createRpgFlushBarrier(() => undefined);
     const older = deferred();
     const newer = deferred();
-    void registerFlush(barrier, older.promise);
-    void registerFlush(barrier, newer.promise); // a latest-only barrier would forget `older` here
+    const olderRegistered = registerFlush(barrier, older.promise);
+    const newerRegistered = registerFlush(barrier, newer.promise); // a latest-only barrier would forget `older` here
 
     let released = false;
     const wait = barrier.awaitInFlight(CHAT).then(() => {
@@ -107,6 +110,7 @@ describe("rpg flush barrier", () => {
     expect(released).toBe(false); // the older flush is still in flight — a set-not-latest barrier holds
 
     older.resolve();
+    await Promise.all([olderRegistered, newerRegistered]);
     await wait;
     expect(released).toBe(true); // both settled → released
   });
@@ -116,10 +120,11 @@ describe("rpg flush barrier", () => {
     const barrier = createRpgFlushBarrier(() => undefined);
     const a = deferred();
     const b = deferred();
-    void registerFlush(barrier, a.promise);
-    void registerFlush(barrier, b.promise);
+    const aRegistered = registerFlush(barrier, a.promise);
+    const bRegistered = registerFlush(barrier, b.promise);
     a.resolve();
     b.resolve();
+    await Promise.all([aRegistered, bRegistered]);
     await barrier.awaitInFlight(CHAT);
     await Promise.resolve(); // let both `.finally` cleanups run
     let released = false;
@@ -135,7 +140,7 @@ describe("rpg flush barrier", () => {
       const timeouts: { chatId: ChatId }[] = [];
       const barrier = createRpgFlushBarrier((info) => timeouts.push({ chatId: info.chatId }), 1000);
       const hung = deferred(); // never resolves — a black-holed state round
-      void registerFlush(barrier, hung.promise);
+      const registered = registerFlush(barrier, hung.promise);
 
       let released = false;
       const wait = barrier.awaitInFlight(CHAT).then(() => {
@@ -145,6 +150,8 @@ describe("rpg flush barrier", () => {
       await wait;
       expect(released).toBe(true); // the turn PROCEEDS on last-known state, not deadlocked
       expect(timeouts).toEqual([{ chatId: CHAT }]); // the timeout was logged
+      hung.resolve();
+      await registered;
     } finally {
       vi.useRealTimers();
     }
@@ -154,11 +161,11 @@ describe("rpg flush barrier", () => {
   // The round's signal comes from HERE, not from the character turn — by the time a round is running, the turn's
   // `activeTurns` registration has been released and can signal nobody.
 
-  test("cancel aborts the running round's OWN signal (the turn's registration is long gone by then)", () => {
+  test("cancel aborts the running round's OWN signal (the turn's registration is long gone by then)", async () => {
     const barrier = createRpgFlushBarrier(() => undefined);
     const gate = deferred();
     let seen: AbortSignal | undefined;
-    void barrier.register({
+    const registered = barrier.register({
       chatId: CHAT,
       ownerUserId: OWNER,
       turnSignal: undefined, // exactly the production shape: the turn's handle is already released
@@ -172,13 +179,14 @@ describe("rpg flush barrier", () => {
     expect(barrier.cancel(CHAT, OWNER)).toBe(1);
     expect(seen?.aborted).toBe(true);
     gate.resolve();
+    await registered;
   });
 
-  test("cancel is OWNER-SCOPED — another member's Stop cannot kill this round (mirrors activeTurns.abort)", () => {
+  test("cancel is OWNER-SCOPED — another member's Stop cannot kill this round (mirrors activeTurns.abort)", async () => {
     const barrier = createRpgFlushBarrier(() => undefined);
     const gate = deferred();
     let seen: AbortSignal | undefined;
-    void barrier.register({
+    const registered = barrier.register({
       chatId: CHAT,
       ownerUserId: OWNER,
       turnSignal: undefined,
@@ -195,6 +203,7 @@ describe("rpg flush barrier", () => {
     expect(barrier.cancel(CHAT, OWNER)).toBe(1);
     expect(seen?.aborted).toBe(true);
     gate.resolve();
+    await registered;
   });
 
   test("cancel on a chat with no in-flight round is an idempotent 0 (the no-op the abort verb reads)", () => {
@@ -205,12 +214,12 @@ describe("rpg flush barrier", () => {
   // The MULTI-SPEAKER overlap window — the one case the character turn's own signal DOES cover (every speaker
   // in a round shares one registration, so speaker 1's round is still reachable while speaker 2 generates).
   // Arm B must not lose it while replacing it: the turn signal is folded into the round's controller.
-  test("the character turn's signal is folded in — aborting it cancels the round (multi-speaker overlap)", () => {
+  test("the character turn's signal is folded in — aborting it cancels the round (multi-speaker overlap)", async () => {
     const barrier = createRpgFlushBarrier(() => undefined);
     const turn = new AbortController();
     const gate = deferred();
     let seen: AbortSignal | undefined;
-    void barrier.register({
+    const registered = barrier.register({
       chatId: CHAT,
       ownerUserId: OWNER,
       turnSignal: turn.signal,
@@ -224,6 +233,7 @@ describe("rpg flush barrier", () => {
     turn.abort();
     expect(seen?.aborted).toBe(true);
     gate.resolve();
+    await registered;
   });
 
   // A turn aborted BEFORE its flush was even registered (an earlier speaker's round queued behind a Stop): the
@@ -254,7 +264,7 @@ describe("rpg flush barrier", () => {
     const barrier = createRpgFlushBarrier(() => undefined);
     const turn = new AbortController();
     let seen: AbortSignal | undefined;
-    void barrier.register({
+    await barrier.register({
       chatId: CHAT,
       ownerUserId: OWNER,
       turnSignal: turn.signal,
@@ -279,7 +289,7 @@ describe("rpg flush barrier", () => {
   test("a CANCELLED round still holds the barrier until it actually settles", async () => {
     const barrier = createRpgFlushBarrier(() => undefined);
     const gate = deferred();
-    void registerFlush(barrier, gate.promise);
+    const registered = registerFlush(barrier, gate.promise);
     expect(barrier.cancel(CHAT, OWNER)).toBe(1);
 
     let released = false;
@@ -291,6 +301,7 @@ describe("rpg flush barrier", () => {
     expect(released).toBe(false); // cancelled ≠ settled — the unwinding round still gates the next turn
 
     gate.resolve();
+    await registered;
     await wait;
     expect(released).toBe(true);
   });

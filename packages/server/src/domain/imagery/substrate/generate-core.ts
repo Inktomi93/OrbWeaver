@@ -118,10 +118,7 @@ export async function runGeneration(ctx: ImageryContext, req: ImageGenerateReque
   const createdAt = ctx.now();
   const images: GeneratedPictureImage[] = [];
   for (const img of decoded) {
-    images.push(
-      // biome-ignore lint/performance/noAwaitInLoops: intentionally sequential — store-then-provenance ordering (the GC anchor).
-      await persistImage(ctx, prov, { model: result.model, costUsd: result.usage.costUsd, createdAt, img }),
-    );
+    images.push(await persistImage(ctx, prov, { model: result.model, costUsd: result.usage.costUsd, createdAt, img }));
   }
   await ctx.recordStats(buildDelta({ caller: prov.caller, model: result.model, costUsd: result.usage.costUsd, count: images.length, now: createdAt }));
   return { images, model: result.model, costUsd: result.usage.costUsd, warnings: result.warnings };

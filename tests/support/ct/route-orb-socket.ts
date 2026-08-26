@@ -147,7 +147,6 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
       // handler is async, so "not answering yet" IS a live stream from the client's point of view.
       const deadline = Date.now() + HANDSHAKE_TIMEOUT_MS;
       while (attached.length < awaitAttaches && Date.now() < deadline) {
-        // biome-ignore lint/performance/noAwaitInLoops: polling for the handshake is inherently sequential.
         await new Promise((resolve) => setTimeout(resolve, HANDSHAKE_POLL_MS));
       }
       // A dropped FIRST connection omits the `return` frame → EOF → the link reconnects (see the option).

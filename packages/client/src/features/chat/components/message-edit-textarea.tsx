@@ -86,7 +86,7 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
     }
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      void save();
+      save().catch(() => undefined); // save owns the mutation failure and preserves the draft.
     }
   };
 

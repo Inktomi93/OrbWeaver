@@ -349,7 +349,6 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     for (const name of ["room_a", "room_b", "room_c"]) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts in a test.
       const room = await seedChat(db, name);
       await seedParticipant(db, { chatId: room, key: `${name}_h`, userId: host, role: "host" });
       await seedParticipant(db, { chatId: room, key: `${name}_c`, characterId: aria });

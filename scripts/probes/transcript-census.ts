@@ -604,7 +604,6 @@ async function main(): Promise<void> {
 
   let done = 0;
   for (const f of files) {
-    // biome-ignore lint/performance/noAwaitInLoops: sequential BY DESIGN — a per-file pending Map bounds memory to one transcript at a time; parallel reads would multiply peak memory across a 4.5GB corpus.
     await processFile(f);
     done++;
     if (done % PROGRESS_EVERY_N_FILES === 0) {

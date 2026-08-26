@@ -107,19 +107,22 @@ async function seedHostGameChat(db: Db, key: string): Promise<{ chatId: ChatId; 
   return { chatId, hostId };
 }
 
-/** Collect rpg-bus events off the REAL singleton for a chat, until `signal` aborts. */
-function collectBus(chatId: ChatId, signal: AbortSignal): RpgBusEvent[] {
+/** Collect rpg-bus events off the REAL singleton for a chat, until `signal` aborts. The caller owns `done`
+ * so an unexpected iterator failure fails the test that started the collector. */
+function collectBus(chatId: ChatId, signal: AbortSignal): { readonly events: RpgBusEvent[]; readonly done: Promise<void> } {
   const seen: RpgBusEvent[] = [];
-  void (async (): Promise<void> => {
+  const done = (async (): Promise<void> => {
     try {
       for await (const event of subscribeRpgEvents(chatId, signal)) {
         seen.push(event);
       }
-    } catch {
-      // abort tears the iterator down — expected at test end.
+    } catch (err) {
+      if (!signal.aborted) {
+        throw err;
+      }
     }
   })();
-  return seen;
+  return { events: seen, done };
 }
 
 // 30s: the composed-real graph (full createServices) + a real tool turn is heavy under parallel load — this
@@ -131,7 +134,8 @@ test("CHEAP turn — createGame + a real tool turn flush lands state + the point
 }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "cheap");
   const bus = new AbortController();
-  const events = collectBus(chatId, bus.signal);
+  const collector = collectBus(chatId, bus.signal);
+  const { events } = collector;
 
   // createGame through the REAL service — writes the game row AND the opaque pointer via chat's real setRpgPointer.
   const created = await services.rpg.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
@@ -170,6 +174,7 @@ test("CHEAP turn — createGame + a real tool turn flush lands state + the point
   // The §4.9 emits fired through the REAL bus singleton: gameChanged (create + config) then snapshotPatched.
   await Promise.resolve(); // let the microtask-queued bus fan-out settle
   bus.abort();
+  await collector.done;
   expect(events.some((e) => e.type === "gameChanged")).toBe(true);
   expect(events.some((e) => e.type === "snapshotPatched")).toBe(true);
 });
@@ -2661,7 +2666,6 @@ test("VER-1b: the regen read is mode-INDEPENDENT — one gather, identical remin
 
   const reminders: string[] = [];
   for (const mode of ["folded", "cheap"] as const) {
-    // biome-ignore lint/performance/noAwaitInLoops: each pass flips the game's mode and re-gathers under it — inherently sequential.
     await compose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: mode });
     reminders.push(
       reminderText(

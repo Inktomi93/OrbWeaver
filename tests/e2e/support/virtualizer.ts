@@ -102,7 +102,6 @@ async function sweepOnce(page: Page): Promise<readonly SweptRow[]> {
     const previousTop = scrollState.scrollTop;
     // Advance by ~80% of one viewport so overlapping overscan windows never skip a row.
     const nextTop = previousTop + scrollState.clientHeight * 0.8;
-    // biome-ignore lint/performance/noAwaitInLoops: sequential scroll-sweep — each step depends on the previous scroll settling before the next read is meaningful.
     await scrollTo(page, nextTop);
     // Wait for the re-window to settle before reading — reading in the same tick as the scroll races the
     // virtualizer's async re-window and can drop a seam row (making back-to-back sweeps disagree).
@@ -141,7 +140,6 @@ export async function collectVirtualRows(page: Page): Promise<readonly SweptRow[
   let previous: readonly SweptRow[] = [];
   let previousSignature = "";
   for (let pass = 0; pass < MAX_CONVERGENCE_PASSES; pass += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: convergence passes are inherently sequential — each re-sweep observes whether the list grew/stabilized since the previous pass.
     const current = await sweepOnce(page);
     const signature = current.map((r) => r.id).join("|");
     if (signature === previousSignature) {

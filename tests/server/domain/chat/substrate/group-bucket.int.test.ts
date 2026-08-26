@@ -39,7 +39,6 @@ describe("group memory build↔recall round-trip (F1 regression)", () => {
     await seedParticipant(db, { chatId, key: "c2", characterId: c2 });
     // Four aged-out turns → two blocks (seq 1-2, 3-4) digest under blockSize 2 / verbatimWindow 0.
     for (let seq = 1; seq <= 4; seq += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts.
       await seedMessage(db, chatId, seq, {
         characterId: seq % 2 === 0 ? c2 : c1,
         content: `group turn ${seq}`,

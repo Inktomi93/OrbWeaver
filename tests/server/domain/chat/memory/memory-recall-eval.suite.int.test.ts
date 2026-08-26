@@ -96,7 +96,6 @@ beforeEach(async () => {
   await seedCharacter(db, owner, "group");
   chatId = await seedChat(db, "eval");
   for (const block of CORPUS) {
-    // biome-ignore lint/performance/noAwaitInLoops: ordered fixture inserts.
     await seedChatDigest(db, {
       chatId,
       scopedCharacterId: GROUP_CHAR,
@@ -206,7 +205,6 @@ describe("memory retrieval eval — deterministic fixture-vector tier (#251)", (
   test("recall@1 is 6/6 over the labeled set — the right scene ranks FIRST for every query", async () => {
     const misses: string[] = [];
     for (const q of LABELED) {
-      // biome-ignore lint/performance/noAwaitInLoops: the eval is a sequential sweep over the labeled set.
       const ranked = await rankedBlocks(q.probe);
       if (ranked.at(0) !== q.expectBlockIdx) {
         misses.push(`${q.probe} → ${String(ranked.at(0))} (want ${q.expectBlockIdx})`);
@@ -217,7 +215,6 @@ describe("memory retrieval eval — deterministic fixture-vector tier (#251)", (
 
   test("recall@3 keeps the right scene in the head even with a decoy leaning on a rival axis", async () => {
     for (const q of LABELED) {
-      // biome-ignore lint/performance/noAwaitInLoops: the eval is a sequential sweep over the labeled set.
       const ranked = await rankedBlocks(q.probe);
       expect(ranked.slice(0, 3)).toContain(q.expectBlockIdx);
     }

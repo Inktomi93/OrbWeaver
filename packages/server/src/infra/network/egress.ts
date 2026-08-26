@@ -2,7 +2,7 @@ import { lookup as dnsLookup } from "node:dns";
 import { isIP } from "node:net";
 import { Agent, buildConnector, setGlobalDispatcher } from "undici";
 import { env } from "#foundation/env";
-import { getLog, securityEvent } from "#foundation/observability";
+import { getLog, securityEvent, superviseDetached } from "#foundation/observability";
 import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges.ts";
 
 // SSRF egress firewall via undici.setGlobalDispatcher (swapping http.globalAgent doesn't work — Node's
@@ -41,6 +41,14 @@ const DEFAULT_MAX_REDIRECTS = 3;
 // S5: a total request deadline ALWAYS exists (a forgotten caller signal is no longer an unbounded hang).
 // Bounds connect + headers + the redirect chain; the streamed body read is bounded by maxBytes.
 const DEFAULT_DEADLINE_MS = 15_000;
+let cleanupSequence = 0;
+
+/** Teardown is intentionally unordered with the failing/disposed caller, but it is still owned: start the
+ * cleanup inside a detached trace and report rejection instead of throwing it away. */
+function superviseEgressCleanup(reason: string, operation: () => Promise<unknown>): void {
+  cleanupSequence += 1;
+  superviseDetached(`egress-cleanup:${String(cleanupSequence)}`, "egress.cleanup", { reason }, operation);
+}
 
 const TRAILING_DOT_RE = /\.$/;
 
@@ -321,10 +329,10 @@ export async function safeFetch(url: string | URL, options: SafeFetchOptions): P
     contentType = enforceContentType(response, options.allowedContentTypes);
   } catch (err) {
     clearTimeout(timer);
-    // @swallowed-ok(cancel): draining an ABANDONED response body back to the pool on an already-failing hop —
-    // there is no work to trace and no caller left to inform (the `throw err` below is the signal). Ends if
-    // stream teardown ever does traceable work of its own.
-    void response.body?.cancel().catch(() => undefined);
+    const body = response.body;
+    if (body !== null) {
+      superviseEgressCleanup("content-type-refusal", () => body.cancel());
+    }
     closeAgent(agent);
     throw err;
   }
@@ -363,9 +371,10 @@ export async function safeFetch(url: string | URL, options: SafeFetchOptions): P
         return;
       }
       settled = true;
-      // @swallowed-ok(cancel): the caller DISPOSED this stream — draining what is left back to the pool has
-      // no work to trace and nobody to inform. Ends if teardown ever does traceable work of its own.
-      void response.body?.cancel().catch(() => undefined);
+      const body = response.body;
+      if (body !== null) {
+        superviseEgressCleanup("caller-dispose", () => body.cancel());
+      }
       releaseAgent();
     },
   };
@@ -375,10 +384,7 @@ export async function safeFetch(url: string | URL, options: SafeFetchOptions): P
  *  owner-configured-endpoint class (no per-request agent; the global dispatcher is shared). */
 function closeAgent(agent: Agent | undefined): void {
   if (agent !== undefined) {
-    // @swallowed-ok(destroy): force-closing a per-request dispatcher whose hop is over — a socket that
-    // refuses to close has no consequence for any live caller and nothing worth a trace bucket. Ends if
-    // agent teardown ever gains a failure mode that matters.
-    void agent.destroy().catch(() => undefined);
+    superviseEgressCleanup("agent-close", () => agent.destroy());
   }
 }
 
@@ -585,7 +591,6 @@ async function followRedirects(start: URL, maxRedirects: number, options: SafeFe
   let hopHeaders: Record<string, string> | undefined = options.headers ? { ...options.headers } : undefined;
   for (let hop = 0; ; hop++) {
     validateUrl(current, options);
-    // biome-ignore lint/performance/noAwaitInLoops: redirect hops are inherently sequential — each hop's resolve→validate→pin must complete before its fetch, and each Location depends on the prior response.
     const agent = await resolveValidatePin(current, options);
     const res = await fetchHop(current, buildHopInit({ options, dispatcher: agent, signal, headers: hopHeaders, hop }), agent);
     const isRedirect = res.status >= REDIRECT_STATUS_MIN && res.status < REDIRECT_STATUS_MAX;
@@ -594,9 +599,10 @@ async function followRedirects(start: URL, maxRedirects: number, options: SafeFe
       return { response: res, agent };
     }
     // A redirect hop is done — drain its body back to the pool and CLOSE its pinned agent (spec D).
-    // @swallowed-ok(cancel): the hop's body is discarded by definition (we follow the Location instead) —
-    // no work to trace, no caller to inform. Ends if teardown ever does traceable work of its own.
-    void res.body?.cancel().catch(() => undefined);
+    const body = res.body;
+    if (body !== null) {
+      superviseEgressCleanup("redirect-hop", () => body.cancel());
+    }
     closeAgent(agent);
     if (hop >= maxRedirects) {
       blockEgress("too-many-redirects", normalizeHost(current.hostname), `redirect budget (${maxRedirects}) exceeded`);
@@ -624,13 +630,10 @@ async function readCapped(reader: ReadableStreamDefaultReader<Uint8Array>, maxBy
   while (!chunk.done) {
     total += chunk.value.byteLength;
     if (total > maxBytes) {
-      // @swallowed-ok(cancel): abandoning an over-cap stream — the `throw` below IS the report, and the
-      // cancel's own outcome changes nothing. Ends if teardown ever does traceable work of its own.
-      void reader.cancel().catch(() => undefined);
+      superviseEgressCleanup("body-over-cap", () => reader.cancel());
       throw new EgressBlockedError("too-large", `safeFetch: response exceeded maxBytes=${maxBytes}`);
     }
     chunks.push(chunk.value);
-    // biome-ignore lint/performance/noAwaitInLoops: stream chunks are inherently sequential — each read awaits the prior chunk resolving.
     chunk = await reader.read();
   }
   return concatChunks(chunks, total);

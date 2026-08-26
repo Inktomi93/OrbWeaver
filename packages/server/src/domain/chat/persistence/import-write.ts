@@ -586,7 +586,6 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
       // A second byte-identical file later in THIS run skips too — and it has nothing to heal, since the row
       // it would heal is the one this very run is about to write WITH whatever persona the mapper resolved.
       existing[ci.importHash] = { chatId, anchorPersonaId: ci.anchorPersonaId };
-      // biome-ignore lint/performance/noAwaitInLoops: per-chat by construction — the preconditions resolve against THIS chat's freshly minted id, at the same granularity as the atomic commit below.
       const { stmts, identity } = await planOneChat({ ctx, chatId, ci, ownerId, characterId });
       if (ci.parentRef !== null) {
         pendingParents.push({ chatId, parentRef: ci.parentRef, forkedAt: ci.createdAt });

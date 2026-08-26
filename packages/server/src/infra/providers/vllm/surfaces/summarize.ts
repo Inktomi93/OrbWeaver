@@ -153,7 +153,6 @@ async function runBatch(deps: VllmSummarizeDeps, req: BatchRequest): Promise<Sum
       if (input === undefined) {
         break;
       }
-      // biome-ignore lint/performance/noAwaitInLoops: the worker pulls items serially; concurrency is the worker COUNT.
       items[i] = await runBatchItem({ deps, req, input, index: i });
     }
   };

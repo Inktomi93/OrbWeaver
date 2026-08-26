@@ -814,7 +814,6 @@ async function runRecurseLoop(input: { readonly args: RunTurnPipelineArgs; reado
   let depth = 0;
   for (;;) {
     // Sequential by design: each recursion depends on the previous depth's executed results.
-    // biome-ignore lint/performance/noAwaitInLoops: the recurse loop is inherently sequential.
     const reduced = await reduceStream(args.runChatTurn({ ...input.request, history }), args);
     content += reduced.content;
     for (const code of reduced.warnings) {

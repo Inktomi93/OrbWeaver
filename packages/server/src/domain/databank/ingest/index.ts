@@ -86,7 +86,6 @@ async function ingestOne(ctx: DatabankContext, doc: LoadedDocument): Promise<Doc
   let chunksUpserted = 0;
   let chunksNoop = 0;
   for (const chunk of chunks) {
-    // biome-ignore lint/performance/noAwaitInLoops: chunk embeds are ordered + provider-serialized (one embed call per chunk); a parallel fan-out would only race the provider's own queue. Idempotent, so a mid-run failure is resumable.
     const stored = await ctx.embeddingsStore({
       kind: "document",
       lens: "chunk",
@@ -196,7 +195,6 @@ export function createDatabankIngest(ctx: DatabankContext): DatabankIngest {
           if (signal.aborted) {
             break;
           }
-          // biome-ignore lint/performance/noAwaitInLoops: documents reindex sequentially — one bad document must not fail the sweep, and the shared embed provider is serialized anyway. Cooperative abort between documents.
           await runDocument(id, mode, acc, touchedOwners);
         }
         return acc.result();

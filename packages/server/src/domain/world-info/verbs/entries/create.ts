@@ -57,7 +57,6 @@ export function createCreate(ctx: WorldInfoContext): WorldInfoService["createEnt
     const scope = resolveEntryScope(metadata, keys !== null && keys.length > 0);
     const chatIds = await listChatIdsForBook(ctx.db, bookId);
     for (const chatId of chatIds) {
-      // biome-ignore lint/performance/noAwaitInLoops: the chat bus assigns a monotonic seq per emit — fan-out emits are sequential so per-chat ordering stays deterministic (the start-chat.ts seeded-greetings precedent).
       await ctx.emitWiEvent({ type: "wiEntryAttached", chatId, surface: "chat", entryId, scope });
     }
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });

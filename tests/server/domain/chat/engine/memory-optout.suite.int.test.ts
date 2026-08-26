@@ -89,7 +89,6 @@ async function groupHarness(): Promise<{
   await seedParticipant(db, { chatId, key: "c2", characterId: c2 });
   // Three seeded turns → the engine's turn commits seq 4, aging out blocks [1-2],[3-4] under BUILD_CFG.
   for (let seq = 1; seq <= 3; seq += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts.
     await seedMessage(db, chatId, seq, {
       characterId: seq % 2 === 0 ? c2 : c1,
       content: `group turn ${seq}`,

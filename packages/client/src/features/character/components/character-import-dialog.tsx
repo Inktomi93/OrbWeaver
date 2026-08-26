@@ -54,9 +54,8 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
     if (accepted.length === 0) {
       return;
     }
-    void (async (): Promise<void> => {
-      try {
-        const result = await importCharacters(accepted);
+    importCharacters(accepted).then(
+      (result) => {
         const notice = importNotice(result);
         notify[notice.kind](notice.message);
         if (result.imported.length === 0) {
@@ -66,10 +65,9 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
         // A raw multipart POST (not a tRPC mutation) — fire the same user-bus path-invalidate manually.
         invalidation.invalidateUser({ type: "charactersChanged" });
         onOpenChange(false);
-      } catch {
-        notify.error("Couldn't import the card.");
-      }
-    })();
+      },
+      () => notify.error("Couldn't import the card."),
+    );
   };
 
   return (

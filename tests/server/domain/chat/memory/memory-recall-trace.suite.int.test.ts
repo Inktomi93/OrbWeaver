@@ -93,7 +93,6 @@ describe("memory/recall — the trace slice (#250)", () => {
   test("tiered: a tier-0 block covered by a surfaced consolidation reads 'bridge-covered'", async () => {
     const chatId = await seedChat(db, "tiered");
     for (let b = 0; b < 4; b += 1) {
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts.
       await seedDigest(db, { chatId, tier: 0, blockIdx: b, topicAnchor: `[t0.${b}]`, keywords: [] });
     }
     await seedDigest(db, { chatId, tier: 1, blockIdx: 0, topicAnchor: "[T1.0]", keywords: [] });

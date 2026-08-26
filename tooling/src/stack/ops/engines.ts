@@ -98,7 +98,6 @@ async function waitHealthy(engine: string, port: number, child: FullPriorityChil
       log(`ERROR — ${engine} exited before becoming healthy; see vllm-${engine}.log.`);
       return;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: a sequential health poll is inherently serial.
     if (await portHealthy(port)) {
       log(`${engine} up (:${port})`);
       return;

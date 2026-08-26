@@ -81,7 +81,7 @@ export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): 
       );
       // PD user-bus lane: a new image message moved chat-list recency → fan `chatsChanged` (list-only) to every
       // present human member (cross-device + multi-human).
-      void ctx.emitChatChanged(chatId);
+      await ctx.emitChatChanged(chatId);
       return view;
     },
   };

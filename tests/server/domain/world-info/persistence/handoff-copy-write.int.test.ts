@@ -31,7 +31,6 @@ async function seedBook(db: Db, ownerId: UserId, key: string, entries: readonly 
   const id = castId<WorldBookId>(`world_book_${key}`);
   await db.insert(worldBooks).values({ id, ownerId, name: key, description: null, createdAt: AT });
   for (const [i, content] of entries.entries()) {
-    // biome-ignore lint/performance/noAwaitInLoops: a tiny seed set, written in order so entry ids stay predictable.
     await db.insert(worldEntries).values({ id: castId<WorldEntryId>(`world_entry_${key}_${i}`), worldBookId: id, title: `t${i}`, content, createdAt: AT });
   }
   return id;

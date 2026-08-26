@@ -198,7 +198,6 @@ export function makePluginHarness(
   // Reference-aware reap (mirrors reapIfOrphan): only delete an asset row still unreferenced by any plugins row.
   const reapOrphans: PluginContext["assets"]["reapOrphans"] = async (assetIds) => {
     for (const assetId of assetIds) {
-      // biome-ignore lint/performance/noAwaitInLoops: tiny known id set (a single bundle asset per verb call).
       const refs = await db.select({ id: plugins.id }).from(plugins).where(eq(plugins.bundleAssetId, assetId)).limit(1);
       if (refs.length === 0) {
         storedBytes.delete(assetId);

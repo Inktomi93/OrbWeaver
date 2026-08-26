@@ -511,10 +511,9 @@ describe("the chat room — the LIVE-ONLY lane (durable-append-free fan)", () =>
     expect(settled).toBe(Withheld);
 
     await hostIt.return?.(undefined);
-    // NOT awaited for the kicked member, and that is the assertion's own consequence: an async generator
-    // queues `return()` BEHIND an outstanding `next()`, and this one is outstanding forever precisely
-    // because the gate withheld the frame. Awaiting it deadlocks the test (measured: a 5s timeout).
-    void memberIt.return?.(undefined);
+    // Do not enqueue `return()` for the kicked member: an async generator queues it BEHIND the outstanding
+    // `next()`, and this one is outstanding forever precisely because the gate withheld the frame. Awaiting
+    // it deadlocks the test (measured: a 5s timeout), while floating it only hides that no teardown happened.
   });
 
   // ── F-A: `chatDeleted` is the ONE gate-free member (design §4) ────────────────────────────────────────

@@ -37,7 +37,6 @@ export async function captureEvals(page: Page, exprs: readonly string[]): Promis
     let text: string;
     let failed = false;
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: evals are argv-ordered and independent — sequential to keep report order matching argv, same discipline as driveActions.
       const value: unknown = await page.evaluate(wrapEvalExpr(expr));
       text = value === undefined ? "undefined" : JSON.stringify(value, null, 2);
       text = capEvalText(text);
@@ -130,7 +129,6 @@ export async function runAssertions(page: Page, assertions: readonly Assertion[]
   const outcomes: AssertionOutcome[] = [];
   for (const assertion of assertions) {
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: assertions preserve argv order and may read focus/state established by the preceding assertion target.
       outcomes.push(await runAssertion(page, assertion, includeHidden));
     } catch (error) {
       outcomes.push({ line: `ASSERT ${assertion.kind}: ERROR ${errorMessage(error)}`, failed: true });

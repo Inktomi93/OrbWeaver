@@ -107,7 +107,7 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
   const filtered = needle === "" ? scripts : scripts.filter((script) => regexScriptTitle(script).toLowerCase().includes(needle));
 
   const onDuplicate = (id: RegexScriptId): void => {
-    void duplicate.mutateAsync({ scriptId: id }).then((created) => view.onSelect(created.id));
+    duplicate.mutate({ scriptId: id }, { onSuccess: (created): void => view.onSelect(created.id) });
   };
 
   const onDelete = (id: RegexScriptId): void => {

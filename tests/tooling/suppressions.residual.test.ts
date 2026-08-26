@@ -74,7 +74,7 @@ test("admitted counts the markers the budget ABSOLVED — capped by the live cou
 // recorded ruling / documented tool-FP made permanent — and the two halves are what every consumer prints.
 // The classification is DERIVED from the rule table, never taken from the row: a row DECLARING a partition
 // the tree does not earn is its own violation, which is what stops a hand-edit minting permanence.
-const RATIFIED_MARKER = "// biome-ignore lint/performance/noAwaitInLoops: sequential by design\nexport const a = 1;\n";
+const RATIFIED_MARKER = "// biome-ignore lint/style/noMagicNumbers: protocol sentinel\nexport const a = 1;\n";
 // DELIBERATELY SYNTHETIC rule id (#596): this fixture stands for "a rule the table does not list", so naming a
 // REAL rule couples it to the table's contents — the fixture used `noExcessiveCognitiveComplexity` and these
 // two controls flipped from red to green the day that rule was ratified. A rule id no linter emits can never

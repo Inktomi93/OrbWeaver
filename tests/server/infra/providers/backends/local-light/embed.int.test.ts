@@ -17,7 +17,6 @@ import { makeResolvedCredential } from "../../../../../support/factories/resolve
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 const RUN = process.env["ORB_LOCAL_LIGHT_E2E"] === "1";
-const suite = RUN ? describe : describe.skip;
 
 const CRED = makeResolvedCredential("local-light");
 const MODEL = DEFAULT_EMBED_MODEL as ModelId;
@@ -46,7 +45,7 @@ function requireVector(vec: Float32Array | null): Float32Array {
   return vec;
 }
 
-suite("local-light embed (real jina-clip-v2 ONNX inference)", () => {
+describe.skipIf(!RUN)("local-light embed (real jina-clip-v2 ONNX inference)", () => {
   test(
     "embeds to the unified 1024-dim space; identical text is self-similar; unrelated text differs",
     async () => {

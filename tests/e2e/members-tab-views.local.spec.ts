@@ -77,7 +77,6 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
   const api = ownerActor(origin);
   const characterIds: string[] = [];
   for (const card of CAST) {
-    // biome-ignore lint/performance/noAwaitInLoops: two sequential seeds against one live stack; parallelism buys nothing and muddies attribution.
     characterIds.push(await freshCharacter(api, card));
   }
 
@@ -106,7 +105,6 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
       // `visible` and still yields innerText, but screenshots as a ~2KB sliver (this is exactly what the
       // first run produced). Assert the panel is actually laid out before trusting the pixels.
       for (const panel of [hostPanel, memberPanel]) {
-        // biome-ignore lint/performance/noAwaitInLoops: two settled panels, measured sequentially.
         const box = await panel.boundingBox();
         expect(box?.width ?? 0).toBeGreaterThan(PANEL_MIN_WIDTH_PX);
         expect(box?.height ?? 0).toBeGreaterThan(PANEL_MIN_HEIGHT_PX);
@@ -119,7 +117,6 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
       await expect(memberPanel.getByRole("button", { name: HOST_ROW })).toBeVisible();
       await expect(memberPanel.getByRole("button", { name: MEMBER_VIEWER_ROW })).toBeVisible();
       for (const panel of [hostPanel, memberPanel]) {
-        // biome-ignore lint/performance/noAwaitInLoops: two settled panels, read sequentially.
         const text = await panel.innerText();
         expect(text).toContain(CAST_A.name);
         expect(text).toContain(CAST_B.name);
@@ -142,7 +139,6 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
     }
   } finally {
     for (const characterId of characterIds) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential teardown of two seeded cards.
       await api.mutation("character.remove", { characterId });
     }
   }

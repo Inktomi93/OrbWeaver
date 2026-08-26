@@ -295,7 +295,6 @@ test("the rider — selecting EVERY type reads and STORES as the every-generatio
   const fires = probe.getByRole("combobox", { name: "Fires on" });
   await fires.click();
   for (const option of ALL_GENERATION_TYPES) {
-    // biome-ignore lint/performance/noAwaitInLoops: real clicks in one open menu are inherently sequential — each check must land before the next, and a Promise.all would race the pointer.
     await page.getByRole("option", { name: option, exact: true }).click();
   }
   await page.keyboard.press("Escape");

@@ -1,6 +1,6 @@
 // Gate: detached-work-traced — fire-and-forget work whose FAILURE IS INVISIBLE. Two arms of ONE class that
 // recurred SIX times in this tree: statement-position work that absorbs its own error must open its own
-// DETACHED ROOT span (A1), and a catch inside such a span must not swallow, or the span seals `status:"ok"`
+// SUPERVISED DETACH boundary (A1), and a catch inside such a span must not swallow, or the span seals `status:"ok"`
 // on every failure (A2). The SPAN VOCABULARY IS DERIVED from the tracing module (zero hardcoded symbol
 // names) with a blindness tripwire. Escape: the two-sided `@swallowed-ok(<position>): <reason>` marker.
 //
@@ -8,14 +8,14 @@
 //   A1 untraced    — an ExpressionStatement (`void x.y().catch(() => undefined)`, or the same without `void`)
 //                    whose chain ends in a DISCARDING rejection handler — an empty/constant-returning arrow,
 //                    i.e. the error is thrown away and nothing at all happens — and whose statement calls NO
-//                    derived span opener. The request root has already sealed by the time this work runs, so
+//                    derived supervised-detach boundary. The request root has already sealed by the time this work runs, so
 //                    the failure reaches no log, no trace, and no caller: invisible by construction.
 //   A2 swallow     — INSIDE a derived span opener's callback: a CatchClause whose block does not RETHROW, or
 //                    a DISCARDING rejection handler. `withRequestSpan` seals OK unless the callback rejects,
 //                    so a warn+emit+return catch paints the trace dashboard green while the work fails — the
 //                    exact "looked done and silently wasn't" disease. Found riding on A1 in the memory +
-//                    compaction builds. The absorbing `.catch(() => undefined)` on the OUTSIDE of the opener
-//                    call is the CORRECT shape and passes: it protects the caller without blinding the span.
+//                    compaction builds. The supervisor's terminal catch is the CORRECT absorber: it records
+//                    a structured error after the detached root has recorded the rejection.
 //   A3 marker      — `// @swallowed-ok(<position>): <reason>` on the guarded line or the comment block above
 //                    it exempts that ONE named thing. The position is the A1 dispatch callee (`onUserCommit`,
 //                    `cancel`) or the A2 catch binding (`catch` when bindingless). The reason is REQUIRED
@@ -29,8 +29,9 @@
 //                    that stops resolving reports ✓ forever (GATE-AUTHORING §4.6).
 //
 // ── WHY THE DERIVATION, NOT THE NAME ────────────────────────────────────────────────────────────────────
-// An "opener" is an EXPORTED function of `foundation/observability/tracing.ts` that calls OTel's
-// `startActiveSpan` with `root: true`. `root: true` is the load-bearing bit (the ring seals a bucket only
+// A boundary is an EXPORTED function of `foundation/observability/tracing.ts` that calls OTel's
+// `startActiveSpan` with `root: true`, directly or through another derived boundary. `root: true` is the
+// load-bearing bit (the ring seals a bucket only
 // when a PARENTLESS span lands — a parented span dispatched from inside the request it outlives is dropped
 // as a late orphan), so the gate keys on the MECHANISM. Renaming `withRequestSpan` keeps the gate honest;
 // deleting the detach makes the derivation empty and A4 REDS.
@@ -40,7 +41,8 @@
 // visible), and so is a bare `void work()` with no handler at all (an unhandled rejection is loud). Only
 // STATEMENT position counts — an absorber nested inside an argument is not the class. "Traced" is satisfied
 // by ANY opener call anywhere in the statement (deliberately permissive: proving the opener wraps THE work
-// needs types this syntactic reader does not have). A2 reads only a syntactic `throw` that escapes the catch
+// needs types this syntactic reader does not have). The typed ESLint rule separately rejects every raw
+// `void promise`; this gate owns the stronger tracing/error-visibility contract. A2 reads only a syntactic `throw` that escapes the catch
 // block — a rethrow through a helper call is invisible to it. And the gate cannot prove a span is MEANINGFUL:
 // that its name, id, or attributes correlate to the work it wraps. It proves a root is opened and that errors
 // reach it; a wrong-but-present span passes.
@@ -90,11 +92,11 @@ const MESSAGE =
   "(packages/server/src/foundation/observability/tracing.ts).";
 
 const FIX =
-  "wrap the dispatch in its own DETACHED root — `void withRequestSpan(<ownRequestId>, <spanName>, <attrs>, " +
-  "() => work()).catch(() => undefined)` — keyed by its OWN id (never the HTTP request's; see " +
-  "`rpgRoundRequestId` in domain/chat/engine/engine.ts for the shape). Inside that callback, a catch that " +
-  "warns/emits must RETHROW afterwards so the span marks ERROR; the outer `.catch(() => undefined)` OUTSIDE " +
-  "the span is what keeps the caller unbroken. If the work genuinely has nothing to trace and no caller to " +
+  "prefer await/return so the caller owns completion and ordering. Only work that explicitly promises NO " +
+  "ordering may use `superviseDetached(<ownRequestId>, <spanName>, <attrs>, () => work())` — keyed by its OWN " +
+  "id, with an operation FACTORY so work starts inside the detached root. Inside that callback, a catch that " +
+  "warns/emits must RETHROW afterwards so the span marks ERROR; the supervisor owns the terminal rejection " +
+  "and emits its structured operator-visible error. If the work genuinely has nothing to trace and no caller to " +
   "inform (a stream teardown, a cache eviction), add " +
   "`// @swallowed-ok(<position>): <why it is invisible on purpose + what would end the exemption>` on the " +
   "line or the line above — the marker NAMES the position, so it cannot launder a second dispatch beside it.";
@@ -137,21 +139,35 @@ function opensDetachedRoot(call: CallExpression): boolean {
   });
 }
 
-/** The exported functions of the tracing module that open a DETACHED ROOT span. Derived, so a rename keeps
- *  the gate honest and a deleted detach makes A4 red instead of the gate going quietly green. */
+/** The exported functions of the tracing module that open or own a DETACHED ROOT span. The fixpoint makes
+ *  one-hop wrappers such as `superviseDetached` part of the vocabulary while preserving the `root: true`
+ *  mechanical anchor. A rename keeps the gate honest and a deleted detach makes A4 red. */
 export function deriveRootSpanOpeners(sourceFiles: readonly SourceFile[]): Set<string> {
   const out = new Set<string>();
-  for (const sf of sourceFiles) {
-    if (!sf.getFilePath().includes(TRACING_MODULE)) {
-      continue;
+  const exported = sourceFiles
+    .filter((sf) => sf.getFilePath().includes(TRACING_MODULE))
+    .flatMap((sf) => sf.getFunctions())
+    .filter((fn) => fn.isExported() && fn.getName() !== undefined);
+  for (const fn of exported) {
+    if (fn.getDescendantsOfKind(SyntaxKind.CallExpression).some(opensDetachedRoot)) {
+      out.add(fn.getNameOrThrow());
     }
-    for (const fn of sf.getFunctions()) {
-      const name = fn.getName();
-      if (name === undefined || !fn.isExported()) {
+  }
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const fn of exported) {
+      const name = fn.getNameOrThrow();
+      if (out.has(name)) {
         continue;
       }
-      if (fn.getDescendantsOfKind(SyntaxKind.CallExpression).some(opensDetachedRoot)) {
+      const wrapsBoundary = fn.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
+        const called = calleeName(call);
+        return called !== undefined && out.has(called);
+      });
+      if (wrapsBoundary) {
         out.add(name);
+        changed = true;
       }
     }
   }
@@ -494,14 +510,16 @@ export const gate: GateDescriptor = {
       files: {
         [TRACING_MODULE]:
           "export function withRequestSpan(id: string, name: string, attrs: A, fn: () => Promise<void>): Promise<void> {\n" +
-          "  return t.startActiveSpan(name, { attributes: attrs, root: true }, fn);\n}\n",
+          "  return t.startActiveSpan(name, { attributes: attrs, root: true }, fn);\n}\n" +
+          "export function superviseDetached(id: string, name: string, attrs: A, fn: () => Promise<void>): void {\n" +
+          "  withRequestSpan(id, name, attrs, fn).catch((err) => log.error({ err }));\n}\n",
         "packages/server/src/domain/chat/engine/engine.ts":
           "export function fire(deps: D): void {\n" +
-          "  void withRequestSpan(id, NAME, {}, async () => {\n" +
-          "    try {\n      await deps.build();\n    } catch (err) {\n      log.warn({ err }, 'failed');\n    }\n  }).catch(() => undefined);\n}\n",
+          "  superviseDetached(id, NAME, {}, async () => {\n" +
+          "    try {\n      await deps.build();\n    } catch (err) {\n      log.warn({ err }, 'failed');\n    }\n  });\n}\n",
       },
       expect: { count: 1, token: "err" },
-      why: "A2, the defect riding on A1 — the memory/compaction catch that warned and returned, sealing the span `ok` on every failure. The dashboard showed green while the build failed",
+      why: "A2 plus the wrapper-derivation plant: a swallowed rejection inside the supervised operation still seals the root `ok`; deriving only direct root openers would miss this fixture",
     },
     {
       files: {
@@ -566,24 +584,27 @@ export const gate: GateDescriptor = {
       files: {
         [TRACING_MODULE]:
           "export function withRequestSpan(id: string, name: string, attrs: A, fn: () => Promise<void>): Promise<void> {\n" +
-          "  return t.startActiveSpan(name, { attributes: attrs, root: true }, fn);\n}\n",
+          "  return t.startActiveSpan(name, { attributes: attrs, root: true }, fn);\n}\n" +
+          "export function superviseDetached(id: string, name: string, attrs: A, fn: () => Promise<void>): void {\n" +
+          "  withRequestSpan(id, name, attrs, fn).catch((err) => log.error({ err }));\n}\n",
         "packages/server/src/domain/chat/engine/engine.ts":
-          "export function fire(ctx: C): void {\n" +
-          "  void withRequestSpan(reqId(t), SPAN, { chatId }, () => ctx.rpg.onTurnAborted(c, t, r)).catch(() => undefined);\n}\n",
+          "export function fire(ctx: C): void {\n  superviseDetached(reqId(t), SPAN, { chatId }, () => ctx.rpg.onTurnAborted(c, t, r));\n}\n",
       },
-      why: "the SHAPE the fix asks for (OBSCLOSE's landed code): the detached root is opened INSIDE, and the absorbing `.catch` sits OUTSIDE it so the caller is never broken while the span still records the error",
+      why: "the explicit supervised-detach contract: the operation factory starts inside a detached root and the boundary owns the terminal rejection without raw `void promise`",
     },
     {
       files: {
         [TRACING_MODULE]:
           "export function withRequestSpan(id: string, name: string, attrs: A, fn: () => Promise<void>): Promise<void> {\n" +
-          "  return t.startActiveSpan(name, { attributes: attrs, root: true }, fn);\n}\n",
+          "  return t.startActiveSpan(name, { attributes: attrs, root: true }, fn);\n}\n" +
+          "export function superviseDetached(id: string, name: string, attrs: A, fn: () => Promise<void>): void {\n" +
+          "  withRequestSpan(id, name, attrs, fn).catch((err) => log.error({ err }));\n}\n",
         "packages/server/src/domain/chat/engine/engine.ts":
           "export function fire(deps: D): void {\n" +
-          "  void withRequestSpan(id, NAME, {}, async () => {\n" +
-          "    try {\n      await deps.build();\n    } catch (err) {\n      log.warn({ err }, 'failed');\n      throw err;\n    }\n  }).catch(() => undefined);\n}\n",
+          "  superviseDetached(id, NAME, {}, async () => {\n" +
+          "    try {\n      await deps.build();\n    } catch (err) {\n      log.warn({ err }, 'failed');\n      throw err;\n    }\n  });\n}\n",
       },
-      why: "the A2 fix: warn (or emit) and then RETHROW — the span marks ERROR, the outer absorb keeps it fire-and-forget. This is exactly the pair OBSCLOSE landed",
+      why: "the A2 fix: warn (or emit) and then RETHROW — the span marks ERROR and the supervisor owns the terminal rejection",
     },
     {
       files: {

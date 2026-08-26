@@ -196,7 +196,6 @@ async function spawnProdLocked(port: number, debug: boolean, overlay: Readonly<R
       result(`mode=prod status=boot-failed log=${plan.logPath}`);
       return EXIT.violations;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: a readiness poll is inherently serial.
     const observed = await observe(port);
     if (classifyInstance({ record, observed, recordProcessAlive: true }).verdict === "ours-healthy") {
       log("up — verified by identity and answering /healthz");
@@ -204,7 +203,6 @@ async function spawnProdLocked(port: number, debug: boolean, overlay: Readonly<R
       result(`mode=prod status=up pid=${pid} port=${port} debug=${debug} log=${plan.logPath}`);
       return EXIT.clean;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: same poll.
     await sleep(POLL_INTERVAL_MS);
   }
   log(`TIMEOUT after ${BOOT_POLL_MAX_MS / MS_PER_SECOND}s waiting for a verified-healthy instance — last log lines:`);

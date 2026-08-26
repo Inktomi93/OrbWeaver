@@ -359,7 +359,6 @@ const SUBMENU_OPEN_ATTEMPT_TIMEOUT_MS = 500;
  */
 async function hoverOpenSubmenu(trigger: Locator, submenu: Locator): Promise<void> {
   for (let attempt = 1; attempt <= SUBMENU_OPEN_RETRIES; attempt++) {
-    // biome-ignore lint/performance/noAwaitInLoops: each retry must observe the prior hover's outcome before re-hovering.
     await trigger.hover();
     try {
       await expect(submenu).toBeVisible({ timeout: SUBMENU_OPEN_ATTEMPT_TIMEOUT_MS });

@@ -83,7 +83,6 @@ export async function loadGateCorpus(root: string): Promise<GateCorpus> {
   for (const rel of files) {
     // Sequential-deterministic: a load/parse failure must attribute to its file, in sorted order — never
     // a Promise.all race that loses which module threw.
-    // biome-ignore lint/performance/noAwaitInLoops: deterministic per-file attribution is the requirement.
     const mod = (await import(pathToFileURL(`${root}/${rel}`).href)) as { gate?: unknown };
     if (mod.gate === undefined) {
       unregistered.push(rel); // not yet ported to the contract — RECORDED, not swallowed (#410)

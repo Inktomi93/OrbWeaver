@@ -214,7 +214,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
       // A real `chat.startChat` through the ONE shared creation seam (`#data`), which enters the room
       // itself; the section switch is this surface's own half.
       setActiveSection("chats");
-      void startChat({ characterIds: [characterId] });
+      startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.
       return;
     }
     selectChat(target);

@@ -70,7 +70,6 @@ export async function runAutoMode(params: AutoModeParams): Promise<AutoModeResul
     if (aborted()) {
       return stop("interrupt");
     }
-    // biome-ignore lint/performance/noAwaitInLoops: the chain is sequential — each turn re-arbitrates off the prior turn's committed canon; parallelism would defeat it.
     const r = await step(params, last);
     if ("done" in r) {
       return stop(r.done);

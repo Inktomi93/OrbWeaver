@@ -167,7 +167,6 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       const { seated, skipped } = resolveMembers(group, input.characterIdByCardFilename);
       skippedMembers.push(...skipped);
       unresolvedPins.push(...unresolvedPinnedPersonas(group.chats, profile.personaByUserName));
-      // biome-ignore lint/performance/noAwaitInLoops: groups import sequentially — one atomic isolated room per group, matching the per-bundle character wave.
       const outcome = await runGroup(group, input, profile, seated.length);
       if (!outcome.ok) {
         skippedGroups.push({ group: group.parsed.name, reason: outcome.reason });

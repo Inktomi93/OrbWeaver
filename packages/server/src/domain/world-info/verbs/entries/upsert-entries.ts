@@ -87,7 +87,6 @@ async function emitEntry(
   scope: WorldInfoScope,
 ): Promise<void> {
   for (const chatId of chatIds) {
-    // biome-ignore lint/performance/noAwaitInLoops: the chat bus assigns a monotonic seq per emit — sequential fan-out keeps per-chat ordering deterministic (the createEntry precedent).
     await emitWiEvent({ type: "wiEntryAttached", chatId, surface: "chat", entryId, scope });
   }
 }
@@ -106,7 +105,6 @@ export function createUpsertEntries(ctx: WorldInfoContext): WorldInfoService["up
     const counts = { inserted: 0, updated: 0, skippedHandEdited: 0 };
 
     for (const input of entries) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential per-entry upsert (≤ the caller's per-run cap) — a maintenance-time write, not a hot path.
       const { outcome, entryId, scope } = await upsertOne(ctx, { bookId, input, prior: byTitle.get(input.title), at });
       if (outcome === "skip") {
         counts.skippedHandEdited += 1;

@@ -22,9 +22,9 @@
 // (`result success-subtype flagged is_error`), which would burn unbounded tokens per speaker. Nothing here
 // touches a hosted credential.
 //
-// @live: skipped unless E2E_LIVE=1 (the config's `@live` grepInvert). Honest-bail (early return +
-// annotation, NEVER `test.skip(cond, …)` — the structure gate reads that as a stub declaration) when the
-// operator's stack has no local chat backend wired, so the run is never a FALSE PASS.
+// @live: skipped unless E2E_LIVE=1 (the config's `@live` grepInvert). Each arm uses Playwright's native
+// conditional skip when the operator's stack has no local chat backend, so unavailable evidence is never
+// recorded as a pass.
 //
 // SELF-SEEDING: each test mints its own 2–3 spec-owned characters and its own uniquely-titled chat with
 // `opening: "none"` — an empty canon means round 1 has NO last speaker, which is what makes the
@@ -74,7 +74,6 @@ interface Room {
 async function mintCast(count: number): Promise<readonly CharacterId[]> {
   const ids: CharacterId[] = [];
   for (const member of CAST.slice(0, count)) {
-    // biome-ignore lint/performance/noAwaitInLoops: mintFreshCharacter re-mints by handle (remove-then-create) — a parallel fan would race the same handle.
     ids.push(await mintFreshCharacter(member.handle, member.name, `${member.name} greeting.`));
   }
   return ids;
@@ -82,7 +81,6 @@ async function mintCast(count: number): Promise<readonly CharacterId[]> {
 
 async function dropCast(characterIds: readonly CharacterId[]): Promise<void> {
   for (const id of characterIds) {
-    // biome-ignore lint/performance/noAwaitInLoops: teardown is a best-effort sequence; a parallel fan would hide which removal failed.
     await removeCharacter(id).catch(() => null);
   }
 }
@@ -102,7 +100,7 @@ async function teardown(room: Room): Promise<void> {
 
 test.describe("group modes on the live local stack", () => {
   let originalRoute: ChatRoute | undefined;
-  /** Null ⇒ local turns work on this stack; a string ⇒ the honest bail reason every arm annotates with. */
+  /** Null ⇒ local turns work on this stack; a string ⇒ the unavailable reason every arm reports to the runner. */
   let bail: string | null = null;
 
   // The ENVIRONMENT probe, paid ONCE: pin the stateless local route and drive one throwaway turn on a
@@ -132,12 +130,13 @@ test.describe("group modes on the live local stack", () => {
     }
   });
 
+  function skipWhenBackendUnavailable(): void {
+    test.skip(bail !== null, bail === null ? "local chat backend available" : `no local chat backend on this stack: ${bail}`);
+  }
+
   test("per-speaker with three characters commits three separately-attributed, independently swipeable messages", { tag: "@live" }, async () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    if (bail !== null) {
-      test.info().annotations.push({ type: "skipped", description: `no local chat backend on this stack: ${bail}` });
-      return;
-    }
+    skipWhenBackendUnavailable();
     const room = await seedRoom("per-speaker", 3, { output: "per-speaker", policy: "list" });
     try {
       await sendGroupTurn(room.chatId, "Say hello.");
@@ -165,10 +164,7 @@ test.describe("group modes on the live local stack", () => {
 
   test("narrator voices the whole cast in exactly ONE message authored by a synthetic non-roster character", { tag: "@live" }, async () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    if (bail !== null) {
-      test.info().annotations.push({ type: "skipped", description: `no local chat backend on this stack: ${bail}` });
-      return;
-    }
+    skipWhenBackendUnavailable();
     // The SAME 3-character cast and the SAME `list` policy as the per-speaker arm — so the only variable
     // is `output`, and 3-rows-vs-1-row is attributable to the mode alone.
     const room = await seedRoom("narrator", 3, { output: "narrator", policy: "list" });
@@ -188,10 +184,7 @@ test.describe("group modes on the live local stack", () => {
 
   test("list policy walks the roster in order and every eligible seat speaks; pooled rotates across rounds", { tag: "@live" }, async () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    if (bail !== null) {
-      test.info().annotations.push({ type: "skipped", description: `no local chat backend on this stack: ${bail}` });
-      return;
-    }
+    skipWhenBackendUnavailable();
     const room = await seedRoom("pooled", 3, { output: "per-speaker", policy: "pooled" });
     try {
       const roster = room.seats.map((s) => s.characterId);
@@ -211,10 +204,7 @@ test.describe("group modes on the live local stack", () => {
 
   test("ban-last-speaker: with two characters the same one never speaks twice in a row", { tag: "@live" }, async () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    if (bail !== null) {
-      test.info().annotations.push({ type: "skipped", description: `no local chat backend on this stack: ${bail}` });
-      return;
-    }
+    skipWhenBackendUnavailable();
     const room = await seedRoom("ban-last", 2, { output: "per-speaker", policy: "list" });
     try {
       const [alpha, bravo] = room.seats.map((s) => s.characterId);
@@ -233,10 +223,7 @@ test.describe("group modes on the live local stack", () => {
 
   test("manual schedules nobody: a plain send commits no character turn, a forced turn does", { tag: "@live" }, async () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    if (bail !== null) {
-      test.info().annotations.push({ type: "skipped", description: `no local chat backend on this stack: ${bail}` });
-      return;
-    }
+    skipWhenBackendUnavailable();
     const room = await seedRoom("manual", 3, { output: "per-speaker", policy: "manual" });
     try {
       // THE manual fingerprint: the user's line commits, the AI round schedules NO ONE — zero assistant
@@ -256,10 +243,7 @@ test.describe("group modes on the live local stack", () => {
 
   test("@mention is a hard override: the mentioned character speaks even under manual policy", { tag: "@live" }, async () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    if (bail !== null) {
-      test.info().annotations.push({ type: "skipped", description: `no local chat backend on this stack: ${bail}` });
-      return;
-    }
+    skipWhenBackendUnavailable();
     // `manual` is the strongest possible contrast: the policy schedules nobody (proven in the arm above),
     // so ANY speaker here can only be the @mention override, applied BEFORE the policy.
     const room = await seedRoom("mention", 3, { output: "per-speaker", policy: "manual" });
@@ -274,10 +258,7 @@ test.describe("group modes on the live local stack", () => {
 
   test("a muted seat is skipped by arbitration but stays force-summonable; talkativeness 0 sorts behind a positive seat", { tag: "@live" }, async () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    if (bail !== null) {
-      test.info().annotations.push({ type: "skipped", description: `no local chat backend on this stack: ${bail}` });
-      return;
-    }
+    skipWhenBackendUnavailable();
     const muteRoom = await seedRoom("mute", 3, { output: "per-speaker", policy: "list" });
     try {
       const mutedSeat = muteRoom.seats[1];
@@ -313,10 +294,7 @@ test.describe("group modes on the live local stack", () => {
 
   test("auto-mode chains AI→AI turns after the human round and STOPS at autoModeMaxTurns", { tag: "@live" }, async () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    if (bail !== null) {
-      test.info().annotations.push({ type: "skipped", description: `no local chat backend on this stack: ${bail}` });
-      return;
-    }
+    skipWhenBackendUnavailable();
     // A SMALL bound keeps the arm cheap while still proving the stop: 2 characters × `list` makes the
     // human-triggered round exactly 2 rows, so anything past row 2 is the chain, and the chain is
     // single-speaker per iteration (ban-last, `allowSelfResponses` off) ⇒ it must alternate.

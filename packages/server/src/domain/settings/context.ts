@@ -15,13 +15,13 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
   function serializeUserWrite<T>(ownerId: UserId, run: () => Promise<T>): Promise<T> {
     const prev = userWriteChains.get(ownerId) ?? Promise.resolve();
     const next = prev.then(run, run);
-    const tail = next.catch(() => undefined);
-    userWriteChains.set(ownerId, tail);
-    void tail.finally(() => {
+    const settled = next.catch(() => undefined);
+    const tail = settled.finally(() => {
       if (userWriteChains.get(ownerId) === tail) {
         userWriteChains.delete(ownerId);
       }
     });
+    userWriteChains.set(ownerId, tail);
     return next;
   }
 

@@ -214,7 +214,7 @@ async function setup(setupOverrides: SetupOverrides = {}): Promise<Fixture> {
     backgroundsSet,
     quietCalls,
     seedBeats: async (count: number): Promise<void> => {
-      // Recursive, not a loop (the `noAwaitInLoops` discipline the sibling suites follow).
+      // Seed in order so deterministic ids match the expected positions.
       const step = async (remaining: number): Promise<void> => {
         if (remaining <= 0) {
           return;
