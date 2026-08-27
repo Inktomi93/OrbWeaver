@@ -17,7 +17,7 @@ import { resolveMirrors } from "../lib/mirror.ts";
 import { lineStarts, offsetOf } from "../lib/offsets.ts";
 import { classifySuiteExit } from "../lib/outcome.ts";
 import type { ReportMutant } from "../lib/report.ts";
-import { mutantsOf, survivorsOf } from "../lib/report.ts";
+import { mutantsOf, survivorsOf, totalMutants } from "../lib/report.ts";
 import { armStrandGuard, healStranded } from "../lib/stranded.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm mutation:probe");
@@ -205,6 +205,7 @@ export function probeMutants(options: ProbeOptions): ProbeSummary {
     specs,
     reportedSurvivors: survivors.length,
     reportedNoCoverage: uncovered.length,
+    reportedTotal: totalMutants(options.reportPath, options.sourceRel),
     measured: receipts.length,
     killed: receipts.filter((r) => r.killed).length,
     stillSurvived: receipts.filter((r) => !(r.killed || r.timedOut)).length,

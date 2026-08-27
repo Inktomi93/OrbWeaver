@@ -72,6 +72,7 @@ function main(): number {
     ["timedOut", summary.timedOut],
     ["noop", summary.noopReplacements],
     ["reportedNoCoverage", summary.reportedNoCoverage],
+    ["reportedTotal(completeness)", summary.reportedTotal],
     ["falselyUncovered", summary.falselyUncovered],
     ["receipts", summary.receiptsPath],
   ]);
