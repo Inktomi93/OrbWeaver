@@ -24,6 +24,18 @@ export default defineConfig({
   testMatch: "**/*.ct.tsx",
   outputDir: "reports/ct-results",
   fullyParallel: true,
+  // WORKERS ARE PINNED, and the value IS the load-safety rule — not a tuning preference (#766).
+  // Playwright's DEFAULT is CPU/2 = 12 workers on this 24-core box, each one a Chromium. The safe value
+  // used to live ONLY as a hand-typed `--workers=2` in .claude/rules/lane-standing-facts.md, so one
+  // forgotten flag reproduced the very failure that fact documents: at high load the CT default times out
+  // every test at `mount()` on pure contention — ZERO signal, indistinguishable from a real red — while
+  // the capped run came back green in 53s. `pnpm test` composes `pnpm test:ct --retries=2` with no worker
+  // flag, so the uncapped default reached `pnpm verify --push` too. Same defect class as the Stryker
+  // `concurrency` default fixed in 387ff771e: the shipped value was not the one the operating discipline
+  // assumed. 4 rather than 2 because the box is otherwise quiet at the gate and 2 doubles wall-clock; a
+  // CLI `--workers=N` still overrides UPWARD for a dedicated box. The co-hosted homelab shares this
+  // machine — a 2026-08-21 uncapped run drove load-avg to 103 and errored Authentik for the owner.
+  workers: 4,
   forbidOnly: process.env.CI !== undefined,
   // retries:0 is the DEFAULT (ad-hoc `pnpm test:ct` / scoped verify runs show a real flake raw while
   // debugging). The GATE lane retries instead of blocking — the drawer/chart/lightbox focus/ResizeObserver
