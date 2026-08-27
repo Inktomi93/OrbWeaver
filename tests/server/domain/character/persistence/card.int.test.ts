@@ -43,15 +43,18 @@ describe("persistence/card", () => {
     await expect(dup).rejects.toBeInstanceOf(CharacterOperationError);
   });
 
-  test("writeCardInPlace is owner-scoped (false for a foreign owner)", async () => {
+  test("writeCardInPlace is owner-scoped ('missing' for a foreign owner)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const id = castId<CharacterId>("character_1");
     await insertCharacter(db, makeRow(owner, "character_1", castId<CharacterHandle>("a")), bumpStatsCanonVersion);
 
-    expect(await writeCardInPlace(db, id, other, { name: "Hax" })).toBe(false);
-    expect(await writeCardInPlace(db, id, owner, { name: "Ok" })).toBe(true);
+    // The verb returns a three-state verdict, not a boolean (934fae273): a foreign owner is indistinguishable
+    // from an absent row ON PURPOSE — the leak-free collapse, so a scoped write can never be an existence
+    // oracle. `background-unavailable` is the third arm and is covered by its own test below.
+    expect(await writeCardInPlace(db, id, other, { name: "Hax" })).toBe("missing");
+    expect(await writeCardInPlace(db, id, owner, { name: "Ok" })).toBe("written");
     const rows = await db.select().from(characters).where(eq(characters.id, id));
     expect(rows[0]?.name).toBe("Ok");
   });

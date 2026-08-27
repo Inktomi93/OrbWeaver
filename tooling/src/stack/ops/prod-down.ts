@@ -21,9 +21,19 @@ function processIsGone(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "ESRCH";
 }
 
-export async function doDown(): Promise<ExitCode> {
+/** The two collaborators a failure test must steer — the ownership verdict and the liveness poll. Everything
+ *  else `doDown` reaches is real. An INJECTION SEAM, not a knob (`Spine-Testing.md` §3: internal modules are
+ *  injected, never `vi.mock`ed); production callers take the defaults and are unchanged. */
+export interface DownDeps {
+  readonly classify: typeof classify;
+  readonly processAlive: typeof processAlive;
+}
+
+const REAL_DOWN_DEPS: DownDeps = { classify, processAlive };
+
+export async function doDown(deps: DownDeps = REAL_DOWN_DEPS): Promise<ExitCode> {
   const port = resolvePort(readEnvFile());
-  const { record, classification } = await classify(port);
+  const { record, classification } = await deps.classify(port);
   const decision = decideDown(classification);
   if (decision.action === "noop") {
     log(`nothing to stop — ${decision.reason}.`);
@@ -48,7 +58,7 @@ export async function doDown(): Promise<ExitCode> {
     }
     log("the process vanished before the signal landed.");
   }
-  const outcome = await watchDrain(record, logSizeAtSignal);
+  const outcome = await watchDrain(record, logSizeAtSignal, deps.processAlive);
   if (outcome === "deadline-hit") {
     log("drain deadline hit — long-lived streams were force-closed (expected during a deploy; a client saw a truncated stream).");
   } else if (outcome === "complete") {
@@ -64,7 +74,7 @@ export async function doDown(): Promise<ExitCode> {
       }
     }
   }
-  await waitGone(record.pid);
+  await waitGone(record.pid, deps.processAlive);
   removePidfile();
   log(`stopped (pid ${record.pid}).`);
   result(`mode=prod status=stopped pid=${record.pid} port=${port} drain=${outcome}`);
@@ -73,14 +83,14 @@ export async function doDown(): Promise<ExitCode> {
 
 /** Watch the prod log from the byte offset at SIGTERM for the lifecycle's own shutdown lines. Reading the
  *  log (not just polling the pid) is what turns "tail -f and eyeball it" into a verdict. */
-async function watchDrain(record: ProdRecord, fromOffset: number): Promise<DrainOutcome> {
+async function watchDrain(record: ProdRecord, fromOffset: number, isAlive: DownDeps["processAlive"]): Promise<DrainOutcome> {
   const deadline = Date.now() + DRAIN_WATCH_MS;
   while (Date.now() < deadline) {
     const outcome = classifyDrainTail(readFrom(record.logPath, fromOffset));
     if (outcome !== "pending") {
       return outcome;
     }
-    if (!processAlive(record.pid)) {
+    if (!isAlive(record.pid)) {
       return classifyDrainTail(readFrom(record.logPath, fromOffset));
     }
     await sleep(POLL_INTERVAL_MS);
@@ -88,12 +98,12 @@ async function watchDrain(record: ProdRecord, fromOffset: number): Promise<Drain
   return "pending";
 }
 
-async function waitGone(pid: number): Promise<void> {
+async function waitGone(pid: number, isAlive: DownDeps["processAlive"]): Promise<void> {
   const deadline = Date.now() + DRAIN_WATCH_MS;
-  while (Date.now() < deadline && processAlive(pid)) {
+  while (Date.now() < deadline && isAlive(pid)) {
     await sleep(POLL_INTERVAL_MS);
   }
-  if (processAlive(pid)) {
+  if (isAlive(pid)) {
     throw new Error(`pid ${pid} remained live after the shutdown deadline`);
   }
 }

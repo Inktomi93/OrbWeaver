@@ -10,11 +10,12 @@
 import { DEFAULT_APPEARANCE_SETTINGS, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { userSettings } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { seedAsset } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
@@ -84,6 +85,11 @@ describe("updateUserSettingsSection — echo-stability fixed points (#16)", () =
     const stored = { assetId: mintTypeId(ID_PREFIX.asset), assetHash: "deadbeef", mime: "image/png" };
     const h = makeHarness(db, { materializeBackground: () => Promise.resolve({ ok: true, asset: stored }) });
     const p = principal(await seedUser(db, { id: "user_bg_fp" }), "user");
+    // The REAL materialize op writes the asset row; this harness fakes only the op, so seed the row it
+    // would have created. Since `934fae273` the settings write is FK-guarded against `assets` and refuses
+    // (`background_unavailable`) rather than storing a dangling reference — a fake that mints an id without
+    // the row is asking the server to persist a pointer to nothing.
+    await seedAsset(db, { id: castId<AssetId>(stored.assetId), ownerId: p.userId, hash: stored.assetHash, mime: stored.mime });
 
     // 1. Materialize a pasted URL into a ready library entry (the discrete verb — writes no settings).
     const entry = await h.svc.addExternalBackground({ principal: p, url: "https://cdn.example/wallpaper.png" });

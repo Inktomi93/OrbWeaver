@@ -1,8 +1,9 @@
 import { afterEach, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
-const tokenize = vi.hoisted(() => vi.fn<(selector: string) => readonly string[]>());
-vi.mock("@orb/kit/dead-css", () => ({ classTokensInSelector: tokenize, isDeadCssMarkerClass: () => false }));
+// INJECTED, never mocked: `definedClassTokens` takes its per-selector tokenizer as a parameter, so the
+// throwing arm below is supplied through the real seam instead of faking `@orb/kit/dead-css` (§3).
+const tokenize = vi.fn<(selector: string) => readonly string[]>();
 
 const { definedClassTokens } = await import("../../../packages/client/src/lib/motion-dead-class-flagger.ts");
 
@@ -25,7 +26,7 @@ test("cross-origin CSSOM SecurityError skips only that sheet", () => {
     ],
   });
   tokenize.mockReturnValue(["live"]);
-  expect([...definedClassTokens()]).toEqual(["live"]);
+  expect([...definedClassTokens(tokenize)]).toEqual(["live"]);
 });
 
 test("selector-tokenizer failure propagates instead of masquerading as cross-origin denial", () => {
@@ -35,5 +36,5 @@ test("selector-tokenizer failure propagates instead of masquerading as cross-ori
   tokenize.mockImplementation(() => {
     throw new Error("planted tokenizer failure");
   });
-  expect(() => definedClassTokens()).toThrow("planted tokenizer failure");
+  expect(() => definedClassTokens(tokenize)).toThrow("planted tokenizer failure");
 });

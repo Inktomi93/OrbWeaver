@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { EMBED_DIM, EMBED_MODEL, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
+import { EMBED_DIM, EMBED_MODEL, embedAs, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
 
 const OLD_MODEL = "old-embed-model-v1";
 
@@ -49,10 +49,14 @@ describe("pruneDocumentChunks (databank-design/05 §2.4)", () => {
 
   test("reclaims a retired (model) space regardless of keepCount", async () => {
     const db = await freshDb();
-    const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
+    const harness = makeStoreHarness(db);
+    const svc = createEmbeddingsService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const documentId = await seedDocument(db, owner);
+    // The retired space must come from the PROVIDER, not the params — see embedAs.
+    embedAs(harness, OLD_MODEL);
     await storeChunks(svc, documentId, 3, OLD_MODEL); // the old space
+    embedAs(harness, EMBED_MODEL);
     await storeChunks(svc, documentId, 3, EMBED_MODEL); // the active space
 
     // keepCount high enough to keep every active-space tail — only the retired space is reclaimed.

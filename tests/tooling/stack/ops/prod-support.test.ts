@@ -4,10 +4,6 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const fsFailure = vi.hoisted(() => ({ code: "", operation: "none" }));
 
-vi.mock("../../../../tooling/src/stack/lib/source-scan.ts", () => ({
-  newestSourceEntries: () => [{ path: "/source.ts", mtimeMs: 1 }],
-}));
-
 vi.mock("node:fs", async (importOriginal) => {
   const real = await importOriginal<typeof Fs>();
   return {

@@ -25,7 +25,7 @@
 
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { timeLib } from "#lib";
 import { bindDurableLocalToUser, durableLocalReadyFor, openModal, selectChat, useActiveChatId } from "#state";
 import { roomRegistry } from "./bus/room-registry.ts";
@@ -62,7 +62,7 @@ export function useSessionRecovery(): SessionRecoveryState {
   const [failedBind, setFailedBind] = useState<{ readonly attempt: number; readonly userId: UserId } | null>(null);
   const [bindAttempt, setBindAttempt] = useState(0);
   const durableReady = userId !== null && hydratedUserId === userId && durableLocalReadyFor(userId);
-  const retryBind = useCallback((): void => setBindAttempt((attempt) => attempt + 1), []);
+  const retryBind = (): void => setBindAttempt((attempt) => attempt + 1);
   // The host is page-lifecycle state, not render-derived state. Keep its identity mounted for the whole
   // authed route and refresh only the values its callbacks read: a terminal `sessions.me` error re-renders
   // this hook while QueryCache begins the ladder, and clearing the module host between effect generations
@@ -80,7 +80,7 @@ export function useSessionRecovery(): SessionRecoveryState {
         ownsCompletion = false;
       };
     }
-    // @orb-gate-ignore caught-failure-ownership(promise:bindDurableLocalToUser): rejection records failedBind; AppRoot renders Retry while durable writes remain gated. Ends if AppRoot stops owning failedBind.
+    // SWALLOW OWNERSHIP (promise:bindDurableLocalToUser) — rejection records failedBind; AppRoot renders Retry while durable writes remain gated. Ends if AppRoot stops owning failedBind.
     void bindDurableLocalToUser(userId)
       .then(() => {
         if (ownsCompletion && durableLocalReadyFor(userId)) {
