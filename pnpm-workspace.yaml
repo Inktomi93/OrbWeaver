@@ -84,6 +84,9 @@ catalog:
   "@stryker-mutator/typescript-checker": 10.0.0
   # api: the PLUGIN surface (declareValuePlugin / PluginKind / Ignorer). A direct dep only because we ship
   # our own ignore-plugin (scripts/mutation/arid-ignorer.ts); core/runner/checker pull it transitively.
+  # the babel parser Stryker instruments with — declared so the arid ignorer's REAL-AST pin can
+  # parse exactly what the mutator sees, instead of asserting against hand-built nodes.
+  "@babel/parser": 7.29.7
   "@stryker-mutator/api": 10.0.0
   # SECOND PATCH, same version-keying hazard as the sandbox one:
   # patches/@stryker-mutator__typescript-checker@10.0.0.patch is a ONE-LINE fix to the TypeScript 7 native
