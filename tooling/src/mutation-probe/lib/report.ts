@@ -53,6 +53,11 @@ function sortByLocation(mutants: readonly ReportMutant[]): readonly ReportMutant
   return mutants.toSorted((a, b) => a.location.start.line - b.location.start.line || a.location.start.column - b.location.start.column);
 }
 
+/** Every mutant the report holds for this file, whatever its status — the completeness sanity number. */
+export function totalMutants(reportPath: string, sourceRel: string): number {
+  return fileOf(reportPath, sourceRel).mutants.length;
+}
+
 /** Mutants of one status, sorted by location. No refusals — the caller composes them. */
 export function mutantsOf(reportPath: string, sourceRel: string, status: PlantableStatus): readonly ReportMutant[] {
   return sortByLocation(fileOf(reportPath, sourceRel).mutants.filter((m) => m.status === status));

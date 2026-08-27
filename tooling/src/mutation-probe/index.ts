@@ -7,7 +7,7 @@ export type { SourceLocation } from "./lib/offsets.ts";
 export { lineStarts, offsetOf } from "./lib/offsets.ts";
 export { classifySuiteExit } from "./lib/outcome.ts";
 export type { ReportFile, ReportMutant } from "./lib/report.ts";
-export { mutantsOf, survivorsOf } from "./lib/report.ts";
+export { mutantsOf, survivorsOf, totalMutants } from "./lib/report.ts";
 export type { StrandGuard } from "./lib/stranded.ts";
 export { armStrandGuard, healStranded } from "./lib/stranded.ts";
 export type { ProbeOptions, ProbeRange } from "./ops/probe.ts";

@@ -49,6 +49,14 @@ export interface ProbeSummary {
   readonly specs: readonly string[];
   readonly reportedSurvivors: number;
   readonly reportedNoCoverage: number;
+  /** Every mutant the report holds for this file, whatever its status. Printed because a Stryker report
+   *  carries NO completeness marker: a run killed mid-flight writes a PARTIAL report that simply OMITS
+   *  mutants rather than marking them pending, so a truncated population is byte-indistinguishable from a
+   *  complete one. Measured 2026-08-27: an interrupted gate run left assemble.ts holding 38 mutants where a
+   *  complete run holds 518, and none of this tool's refusals could tell. Surfacing the count lets a reader
+   *  compare against the population the gate config's calibration comment records (1,129 instrumented /
+   *  622 scored) and catch the truncation the JSON cannot declare. */
+  readonly reportedTotal: number;
   readonly measured: number;
   readonly killed: number;
   readonly stillSurvived: number;
