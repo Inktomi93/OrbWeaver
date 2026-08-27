@@ -101,6 +101,7 @@
     "verify": "nice -n 19 node tooling/src/verify/cli.ts run"
   },
   "devDependencies": {
+    "@babel/parser": "catalog:",
     "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@anthropic-ai/sdk": "catalog:",
     "@biomejs/biome": "catalog:",
