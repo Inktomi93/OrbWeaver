@@ -97,11 +97,18 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   prove by a quiet re-run, not a dismissal. The heap floor is WORKSPACE-WIDE: pnpm-workspace.yaml
   `nodeOptions: --max-old-space-size=16384` reaches every pnpm-run script (node's default self-cap is
   ~4GB even on the 128GB box); ts7.cjs carries the flag internally so bare `node scripts/ts7.cjs` gets
-  it too. Bare `npx depcruise`/`npx knip` spellings BYPASS the floor — invoke the pnpm rows — and so
-  does a bare `node tooling/src/<tool>/cli.ts …` (paid 2026-08-23: two exit-134 OOMs on a bare
-  structure run; the `pnpm check:structure` spelling picked up the floor and ran clean) — an OOM
-  under THAT ceiling is a real finding to report, never to rerun-until-green. Run-completeness
-  enforcement is #410.
+  it too. **`npx` NEVER carries the floor — that is the whole tool family, not a list of two.** MEASURED
+  2026-08-27 by printing `process.env.NODE_OPTIONS` in the child: bare `node` unset · `npx` **unset** ·
+  `pnpm exec` `--max-old-space-size=16384` · `pnpm run <script>` `--max-old-space-size=16384`. So
+  `npx biome`, `npx playwright`, `npx depcruise`, `npx knip` and friends all run at node's ~4GB
+  self-cap; so does a bare `node tooling/src/<tool>/cli.ts …` (paid 2026-08-23: two exit-134 OOMs on a
+  bare structure run; the `pnpm check:structure` spelling picked up the floor and ran clean). **The
+  spellings: a named pnpm script when one exists, else `pnpm exec <tool> …` — never `npx`.** Scoped
+  biome is `pnpm exec biome check <paths> --diagnostic-level=error`; scoped CT is
+  `pnpm ct:scoped <paths>` (it already carries BOTH the cache-clear and the nice — hand-rolling
+  `rm -rf playwright/.cache && npx playwright test -c …` reproduces the script badly AND drops the
+  floor). An OOM under THAT ceiling is a real finding to report, never to rerun-until-green.
+  Run-completeness enforcement is #410.
 - **A search, gate, or in-page sampler that reports nothing owes a PLANTED POSITIVE CONTROL in the same
   invocation**; a bare zero is "I couldn't measure", never "it isn't there".
 - **A point measurement never proves a range property.** Layout/balance fixes owe the width matrix
