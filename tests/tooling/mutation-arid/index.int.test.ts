@@ -10,13 +10,17 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "@babel/parser";
-import { shouldIgnoreArid } from "../../../../tooling/src/mutation-arid/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import { shouldIgnoreArid } from "../../../tooling/src/mutation-arid/index.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
 /** The canonical two-arm dispatcher: `domain/admin/guard.ts` is the `can()` kernel, and its two `default:`
  *  clauses are the house exhaustiveness shape (`const _exhaustive: never = …`). Measured with
  *  `pnpm mutation:probe` on 2026-08-26: 6 of its 8 planted survivors sat in exactly these two arms. */
 const SUBJECT = "packages/server/src/domain/admin/guard.ts";
+
+/** Babel attaches these back-references and position blobs to most nodes; walking them re-visits the same
+ *  subtree (and, for `loc`, adds nothing the predicate reads). */
+const SKIP_KEYS = new Set(["loc", "leadingComments", "trailingComments"]);
 
 interface Walked {
   readonly switchCases: number;
@@ -25,47 +29,65 @@ interface Walked {
   readonly matchedTypes: readonly string[];
 }
 
+/** The mutable half of `Walked`, threaded through the walk so the recursion stays a pure function of
+ *  (node, parent) instead of a closure over four captured counters. */
+interface Tally {
+  switchCases: number;
+  defaultArms: number;
+  readonly matchedLines: number[];
+  readonly matchedTypes: string[];
+}
+
+interface AstNode {
+  readonly type?: unknown;
+  readonly test?: unknown;
+  readonly loc?: { readonly start: { readonly line: number } };
+}
+
+/** Census one node: count the arm if it is a `SwitchCase`, and record it if the predicate claims it.
+ *  `path` is the duck-typed shape the Stryker plugin hands the rule — node plus its parent chain. */
+function census(n: AstNode, path: unknown, tally: Tally): void {
+  if (n.type === "SwitchCase") {
+    tally.switchCases += 1;
+    if (n.test === null || n.test === undefined) {
+      tally.defaultArms += 1;
+    }
+  }
+  if (shouldIgnoreArid(path as Parameters<typeof shouldIgnoreArid>[0]) !== undefined) {
+    const loc = n.loc;
+    tally.matchedLines.push(loc === undefined ? -1 : loc.start.line);
+    tally.matchedTypes.push(n.type as string);
+  }
+}
+
+function walk(node: unknown, parentPath: unknown, tally: Tally): void {
+  if (node === null || typeof node !== "object") {
+    return;
+  }
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      walk(child, parentPath, tally);
+    }
+    return;
+  }
+  const n = node as AstNode;
+  if (typeof n.type !== "string") {
+    return;
+  }
+  const path = { node, parentPath };
+  census(n, path, tally);
+  for (const key of Object.keys(node)) {
+    if (!SKIP_KEYS.has(key)) {
+      walk((node as Record<string, unknown>)[key], path, tally);
+    }
+  }
+}
+
 function walkReal(repoRoot: string): Walked {
   const ast = parse(readFileSync(join(repoRoot, SUBJECT), "utf8"), { sourceType: "module", plugins: ["typescript"] });
-  let switchCases = 0;
-  let defaultArms = 0;
-  const matchedLines: number[] = [];
-  const matchedTypes: string[] = [];
-  const walk = (node: unknown, parentPath: unknown): void => {
-    if (node === null || typeof node !== "object") {
-      return;
-    }
-    if (Array.isArray(node)) {
-      for (const child of node) {
-        walk(child, parentPath);
-      }
-      return;
-    }
-    const n = node as { readonly type?: unknown; readonly test?: unknown; readonly loc?: { readonly start: { readonly line: number } } };
-    if (typeof n.type !== "string") {
-      return;
-    }
-    const path = { node, parentPath };
-    if (n.type === "SwitchCase") {
-      switchCases += 1;
-      if (n.test === null || n.test === undefined) {
-        defaultArms += 1;
-      }
-    }
-    // The predicate reads the same duck-typed shape the Stryker plugin hands it.
-    if (shouldIgnoreArid(path as Parameters<typeof shouldIgnoreArid>[0]) !== undefined) {
-      matchedLines.push(n.loc?.start.line ?? -1);
-      matchedTypes.push(n.type);
-    }
-    for (const key of Object.keys(node)) {
-      if (key === "loc" || key === "leadingComments" || key === "trailingComments") {
-        continue;
-      }
-      walk((node as Record<string, unknown>)[key], path);
-    }
-  };
-  walk(ast.program, undefined);
-  return { switchCases, defaultArms, matchedLines, matchedTypes };
+  const tally: Tally = { switchCases: 0, defaultArms: 0, matchedLines: [], matchedTypes: [] };
+  walk(ast.program, undefined, tally);
+  return tally;
 }
 
 test("family (2) fires on the AST babel really emits — and only on the unreachable arms", ({ repoRoot }) => {

@@ -73,8 +73,8 @@
   "dryRunTimeoutMinutes": 45,
 
   "ignoreStatic": true,
-  "_concurrency_comment": "Box = 24 logical cores / 125GB. Stryker's own default is n-1 (=23); the old pinned 4 used a sixth of the box. 16 → ~8 checker + ~8 runner processes, leaving headroom for the OS + GPU engines / dev work. Bump toward 20 for a dedicated run.",
-  "concurrency": 16,
+  "_concurrency_comment": "Box = 24 logical cores / 125GB, and it is NOT ours alone — a co-hosted homelab shares it (2026-08-21: default worker counts drove load-avg to 103 and errored Authentik for the owner; 2026-08-27: a mutation run starved the session's own box to death). 6 is ALSO the concurrency every recorded calibration actually ran at — see the gate config's `_thresholds_comment`, where both the 55.14 and the 85.69 measurements were taken at `--concurrency 6` / single-process — so the shipped default now MATCHES the measured configuration instead of quadrupling it. Concurrency moves speed and timeout risk only, never the DENOMINATOR (which is set by the mutate list, the checker and the ignorer), so this is not a re-calibration trigger and `break` stays valid. Bump by CLI (`--concurrency 16`) only for a genuinely dedicated box with nothing else on it.",
+  "concurrency": 6,
   "timeoutMS": 10000,
 
   "incremental": true,
