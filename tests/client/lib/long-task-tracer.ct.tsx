@@ -69,6 +69,32 @@ function readMotion(page: Page): Promise<MotionRead> {
   return page.evaluate(() => (globalThis as unknown as { __motionRead: () => MotionRead }).__motionRead());
 }
 
+/** Poll the RING until it carries the evidence, then return that read.
+ *
+ *  The console channel and the in-page ring are fed by ONE observer but arrive on DIFFERENT clocks: a
+ *  `[frame]` line is a console message Playwright receives out-of-process, while `motion.loafs` is state
+ *  inside the page. Polling the channel and then reading the ring ONCE assumes the ring won that race —
+ *  true on a quiet box, false under contention. Measured at loadavg ~4.5 (10 busy workers): the
+ *  render-frame spec's own positive control ("the plant must produce a frame that RAN style/layout")
+ *  read an empty ring and failed the test for lacking its own evidence. Failing safe is right; racing
+ *  for it is not. Wait for the ring, then assert ON it. */
+async function motionWhen(page: Page, ready: (motion: MotionRead) => boolean): Promise<MotionRead> {
+  let last: MotionRead | undefined;
+  await expect
+    .poll(
+      async () => {
+        last = await readMotion(page);
+        return ready(last);
+      },
+      { intervals: [50, 100, 200, 250], timeout: 15_000 },
+    )
+    .toBe(true);
+  if (last === undefined) {
+    throw new Error("motionWhen resolved without a ring read");
+  }
+  return last;
+}
+
 test("a planted long frame is [frame]-flagged AND lands in the one shared LoAF ring", async ({ mount, page }) => {
   const frames = captureChannel(page, "[frame]");
   const component = await mount(<MotionFrameReflowStory />);
@@ -82,7 +108,7 @@ test("a planted long frame is [frame]-flagged AND lands in the one shared LoAF r
 
   // The ring half of the same P7 seam: the tracer's subscription and motion-stats' own ring are fed by ONE
   // observer, so a frame the console reported must also be readable through `__orb.motion()`.
-  const motion = await readMotion(page);
+  const motion = await motionWhen(page, (read) => read.loafs.some((loaf) => loaf.blockingDuration > 0));
   expect(
     motion.loafs.some((loaf) => loaf.blockingDuration > 0),
     "the published frame must also be in the LoAF ring",
@@ -101,7 +127,7 @@ test("a planted forced reflow adds the [reflow] diagnosis to its [frame] line", 
   expect(frames.length, "[reflow] is a diagnosis ON a long frame — it can never arrive alone").toBeGreaterThan(0);
   expect(reflows.join("\n"), "the line must carry the measured forced-layout cost, not merely the verdict").toMatch(FORCED_COST_PATTERN);
 
-  const motion = await readMotion(page);
+  const motion = await motionWhen(page, (read) => read.loafs.some((loaf) => forcedTotal(loaf) > 0));
   expect(
     motion.loafs.some((loaf) => forcedTotal(loaf) > 0),
     "the reflow verdict must be backed by a ring entry whose SCRIPTS really forced synchronous layout",
@@ -124,7 +150,7 @@ test("an ordinary long RENDER frame is [frame]-flagged with NO [reflow] accusati
   await component.getByRole("button", { name: "plant render frame" }).click();
   await expect.poll(() => frames.length, { intervals: [50, 100, 200, 250], timeout: 15_000 }).toBeGreaterThan(0);
 
-  const motion = await readMotion(page);
+  const motion = await motionWhen(page, (read) => read.loafs.some((loaf) => loaf.styleAndLayoutStart > 0));
   const rendering = motion.loafs.filter((loaf) => loaf.styleAndLayoutStart > 0);
   expect(rendering.length, "the plant must produce a frame that RAN style/layout — otherwise it proves nothing").toBeGreaterThan(0);
   expect(
