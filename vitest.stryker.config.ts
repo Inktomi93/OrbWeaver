@@ -66,7 +66,8 @@ cfg.test.projects = cfg.test.projects
     },
   }));
 
-// CRITICAL FIX: Stryker spins up 16 concurrent worker processes. If Vitest is allowed
+// CRITICAL FIX: Stryker spins up N concurrent worker processes (`concurrency` in stryker.config.json /
+// stryker.gate.config.json — 6 since 2026-08-27, the value every calibration was measured at). If Vitest is allowed
 // to parallelize internally (via fileParallelism / maxWorkers), you get NxM core explosion.
 // Force Vitest to run serially within each Stryker worker. BOTH knobs are the live v4 surface:
 // fileParallelism:false forces one file at a time, maxWorkers:1 caps the fork pool. (The former
