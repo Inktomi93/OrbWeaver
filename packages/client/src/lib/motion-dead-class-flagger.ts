@@ -39,14 +39,17 @@ function markMotionFlaggersSettled(): void {
 /** Every class token any loaded stylesheet DEFINES a rule for. Walks nested rules (Tailwind v4 emits
  * variants as nesting) and tolerates cross-origin sheets. The per-selector tokenizer is `@orb/kit`'s
  * (`dead-css`), shared with `pnpm snap --dead-css` so both scans mean the same thing by "dead". */
-/** @public Test-anchored CSSOM boundary: only cross-origin SecurityError is an unreadable-sheet skip. */
-export function definedClassTokens(): ReadonlySet<string> {
+/** @public Test-anchored CSSOM boundary: only cross-origin SecurityError is an unreadable-sheet skip.
+ *  `tokenize` is an INJECTION SEAM, not a knob: the rethrow-everything-but-SecurityError contract can only
+ *  be proven by a tokenizer that throws, and faking `@orb/kit/dead-css` wholesale would be the internal
+ *  mock `Spine-Testing.md` §3 bans. Production callers take the default and are unchanged. */
+export function definedClassTokens(tokenize: (selector: string) => readonly string[] = classTokensInSelector): ReadonlySet<string> {
   const defined = new Set<string>();
   const walk = (rules: CSSRuleList): void => {
     for (const rule of rules) {
       const selector = (rule as CSSStyleRule).selectorText;
       if (typeof selector === "string") {
-        for (const token of classTokensInSelector(selector)) {
+        for (const token of tokenize(selector)) {
           defined.add(token);
         }
       }
@@ -59,7 +62,7 @@ export function definedClassTokens(): ReadonlySet<string> {
   };
   for (const sheet of document.styleSheets) {
     let rules: CSSRuleList;
-    // @orb-gate-ignore caught-failure-ownership(empty:error): CSSOM SecurityError is the browser's cross-origin unreadable-sheet verdict; every tokenizer/walk failure rethrows. Ends if same-origin sheets can raise this name.
+    // SWALLOW OWNERSHIP (empty:error) — CSSOM SecurityError is the browser's cross-origin unreadable-sheet verdict; every tokenizer/walk failure rethrows. Ends if same-origin sheets can raise this name.
     try {
       rules = sheet.cssRules;
     } catch (error) {

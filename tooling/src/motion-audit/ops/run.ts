@@ -12,6 +12,49 @@ import { runAudit } from "./trace.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
 
+/** The two raw-string page programs. Raw because this tsconfig is DOM-less; named because a barrier reads
+ *  better than an inline program. */
+const SETTLE_FLAGGERS = `(() => {
+  if (typeof globalThis.__orb?.motionFlaggersSettled !== "function") throw new Error("__orb.motionFlaggersSettled is unavailable");
+  return globalThis.__orb.motionFlaggersSettled();
+})()`;
+
+/** Two rAFs so the reset lands AFTER Playwright's geometry reads, never inside the measured window. */
+const RESET_AFTER_GEOMETRY = `new Promise((resolve, reject) => {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      try {
+        if (typeof globalThis.__orb?.resetEvidence !== "function") {
+          reject(new Error("__orb.resetEvidence is unavailable"));
+          return;
+        }
+        globalThis.__orb.resetEvidence();
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+})`;
+
+/** The outcome of one ordered evidence barrier — a value, or the terminal instrument-error exit. */
+type Barrier<T> = { readonly ok: true; readonly value: T } | { readonly ok: false };
+
+/** Run one pre-measurement barrier, converting ANY throw into a TERMINAL instrument error.
+ *
+ *  The swallow is owned, not hidden: every caller returns `EXIT.toolError` on `ok: false`, so a failed
+ *  barrier ends the run instead of continuing into measurement. That is the whole point — a barrier that
+ *  failed leaves stale evidence behind, and measuring against stale evidence FABRICATES a verdict rather
+ *  than producing none. Ends if any caller stops terminating on a failed barrier. */
+async function barrier<T>(url: string, evidence: string, detail: (message: string) => string, step: () => Promise<T>): Promise<Barrier<T>> {
+  try {
+    return { ok: true, value: await step() };
+  } catch (error) {
+    reportInstrumentError(url, { evidence, detail: detail(error instanceof Error ? error.message : String(error)) });
+    return { ok: false };
+  }
+}
+
 export async function runMotionAudit(opts: Args): Promise<number> {
   const url = opts.url ?? buildUrl(opts.base, opts.route);
 
@@ -24,7 +67,6 @@ export async function runMotionAudit(opts: Args): Promise<number> {
     theme: opts.theme,
     localStorage: [],
   });
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one callback owns the ordered evidence barriers and their terminal instrument-error exits.
   return await withProbeSession(session, async () => {
     const { page } = session;
     const cdp = await session.context.newCDPSession(page);
@@ -54,70 +96,43 @@ export async function runMotionAudit(opts: Args): Promise<number> {
     }
 
     // Reach the surface FIRST (and reset the evidence it produced), then trace the measured window.
-    let reachFailures: number;
-    // @orb-gate-ignore caught-failure-ownership(empty:error): resetEvidence failure is reported as INSTRUMENT ERROR and returns tool-error before measurement. Ends if this catch can continue into measurement.
-    try {
-      reachFailures = await driveReach(page, opts.reach);
-    } catch (error) {
-      reportInstrumentError(url, {
-        evidence: "the post-reach evidence reset",
-        detail: `resetEvidence failed after reaching the surface — stale reach evidence could fabricate the verdict, so this run refuses: ${error instanceof Error ? error.message : String(error)}`,
-      });
+    const reach = await barrier(
+      url,
+      "the post-reach evidence reset",
+      (m) => `resetEvidence failed after reaching the surface — stale reach evidence could fabricate the verdict, so this run refuses: ${m}`,
+      () => driveReach(page, opts.reach),
+    );
+    if (!reach.ok) {
       return EXIT.toolError;
     }
     // The dead-class flagger's one full census is dev-instrument work. requestIdleCallback can postpone it
     // until the first later mutation, so explicitly settle it outside the product interaction window.
-    // @orb-gate-ignore caught-failure-ownership(empty:error): settle failure is reported as INSTRUMENT ERROR and returns tool-error before measurement. Ends if this catch can continue into measurement.
-    try {
-      await page.evaluate(
-        `(() => {
-          if (typeof globalThis.__orb?.motionFlaggersSettled !== "function") throw new Error("__orb.motionFlaggersSettled is unavailable");
-          return globalThis.__orb.motionFlaggersSettled();
-        })()`,
-      );
-    } catch (error) {
-      reportInstrumentError(url, {
-        evidence: "the motion flagger settle barrier",
-        detail: `motionFlaggersSettled failed before measurement — the dead-class census is incomplete, so this run refuses: ${error instanceof Error ? error.message : String(error)}`,
-      });
+    const settled = await barrier(
+      url,
+      "the motion flagger settle barrier",
+      (m) => `motionFlaggersSettled failed before measurement — the dead-class census is incomplete, so this run refuses: ${m}`,
+      () => page.evaluate(SETTLE_FLAGGERS),
+    );
+    if (!settled.ok) {
       return EXIT.toolError;
     }
     const measuredClick = await prepareMeasuredClick(page, opts.selector);
     if (opts.selector !== null) {
       // Preparation forced all Playwright geometry before this checkpoint. The next browser work is the
       // native click itself; no measurement-owned actionability/layout can enter the product window.
-      // Raw string (DOM-less tsconfig): two rAFs so the reset lands after Playwright's geometry reads.
-      // @orb-gate-ignore caught-failure-ownership(empty:error): resetEvidence failure is converted to INSTRUMENT ERROR and tool-error exit before measurement. Ends if reportInstrumentError stops terminating this run.
-      try {
-        await page.evaluate(
-          `new Promise((resolve, reject) => {
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              try {
-                if (typeof globalThis.__orb?.resetEvidence !== "function") {
-                  reject(new Error("__orb.resetEvidence is unavailable"));
-                  return;
-                }
-                globalThis.__orb.resetEvidence();
-                resolve();
-              } catch (error) {
-                reject(error);
-              }
-            });
-          });
-        })`,
-        );
-      } catch (error) {
-        reportInstrumentError(url, {
-          evidence: "the pre-measurement evidence reset",
-          detail: `resetEvidence failed before the measured click — stale reach evidence could fabricate the verdict, so this run refuses: ${error instanceof Error ? error.message : String(error)}`,
-        });
+      const reset = await barrier(
+        url,
+        "the pre-measurement evidence reset",
+        (m) => `resetEvidence failed before the measured click — stale reach evidence could fabricate the verdict, so this run refuses: ${m}`,
+        () => page.evaluate(RESET_AFTER_GEOMETRY),
+      );
+      if (!reset.ok) {
         return EXIT.toolError;
       }
     }
 
     const data = await runAudit(page, cdp, opts, measuredClick);
-    const withErrors: AuditData = { ...data, pageErrors: [...session.pageErrors], reachFailures };
+    const withErrors: AuditData = { ...data, pageErrors: [...session.pageErrors], reachFailures: reach.value };
     return report(url, opts, withErrors);
   });
 }

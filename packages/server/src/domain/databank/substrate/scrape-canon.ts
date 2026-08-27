@@ -42,7 +42,14 @@ export async function finalizeScrape(ctx: DatabankContext, write: ScrapeWrite): 
     return { document: toDocumentView(existing, counts.get(existing.id) ?? 0), outcome: "duplicate", ingest: "skipped" };
   }
 
-  const stored = await ctx.assetsStore({ principal: write.principal, bytes: write.bytes, kind: "document", mime: write.mime, enforceMagic: true });
+  // The blob rides its STORAGE mime (defaulting to the canon mime); `documents.mime` below keeps the truth.
+  const stored = await ctx.assetsStore({
+    principal: write.principal,
+    bytes: write.bytes,
+    kind: "document",
+    mime: write.storeMime ?? write.mime,
+    enforceMagic: true,
+  });
   const extracted = await ctx.extractText(write.bytes, write.mime);
   const name = resolveName(write.name, extracted.meta.title);
   const at = ctx.now();

@@ -1,6 +1,4 @@
-/** A loopback engine health probe distinguishes a refused connection (nothing listens, safe to spawn) from
- * an occupied-but-unproven port (timeout/protocol/tool failure, never permission to spawn a duplicate). */
-export type PortHealth = { readonly kind: "absent" } | { readonly kind: "healthy" } | { readonly kind: "unproven"; readonly reason: string };
+import type { PortHealth } from "../contract/types.ts";
 
 const HEALTH_PROBE_TIMEOUT_MS = 2000;
 

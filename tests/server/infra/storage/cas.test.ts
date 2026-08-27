@@ -67,6 +67,9 @@ test("non-ENOENT stat failure rejects existence and mtime instead of masqueradin
 
 test("non-ENOENT readdir failure rejects enumeration instead of reporting an incomplete empty tree", async () => {
   faults.readdir = true;
-  const owners = createCas(root).listOwners();
+  // `listOwners` is declared `AsyncIterable<string>` (cas.ts:33), so pull through the iterator door
+  // rather than the concrete generator's `.next` — a test that reaches past the declared contract would
+  // keep compiling the day the implementation stops being a generator.
+  const owners = createCas(root).listOwners()[Symbol.asyncIterator]();
   await expect(owners.next()).rejects.toThrow("planted directory read failure");
 });

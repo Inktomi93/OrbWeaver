@@ -86,13 +86,29 @@ describe("assets-backfill", () => {
 
   test("a character whose card blob is NOT in the CAS is skipped (no phantom candidate)", async () => {
     const characterId = await seedCharacter(db, ownerId, { id: "character_ghost", handle: castId<CharacterHandle>("ghost") });
-    await db.update(characters).set({ importHash: "deadbeef-not-in-cas" }).where(eq(characters.id, characterId));
+    // A WELL-FORMED hash that simply is not on disk — the state a real row holds. The old fixture used a
+    // malformed string, which since `ff581148a` throws out of `cas.exists` rather than answering false:
+    // that fail-loud behaviour is correct for corrupt data and is pinned by its own test below, but it is
+    // NOT what this test is about.
+    const absent = "f".repeat(64);
+    await db.update(characters).set({ importHash: absent }).where(eq(characters.id, characterId));
 
     const { assets, contributions } = build();
     const result = await contributions[0].run(ctxFor(ownerId), {}, vi.fn(), sig());
 
     expect(assets.backfillAvatars).not.toHaveBeenCalled();
     expect(result).toEqual({ scanned: 0, changed: 0, dryRun: false });
+  });
+
+  test("a MALFORMED card hash fails loud — a corrupt row is never silently skipped as absent", async () => {
+    // The other half of the contract `ff581148a` minted: "not in the CAS" answers false, but a value that
+    // is not a content hash at all is corruption, and treating it as a clean miss would let a backfill
+    // report `scanned: 0` over rows it never understood. Loud beats a phantom clean.
+    const characterId = await seedCharacter(db, ownerId, { id: "character_corrupt", handle: castId<CharacterHandle>("corrupt") });
+    await db.update(characters).set({ importHash: "deadbeef-not-a-hash" }).where(eq(characters.id, characterId));
+
+    const { contributions } = build();
+    await expect(contributions[0].run(ctxFor(ownerId), {}, vi.fn(), sig())).rejects.toThrow(/not a valid content hash/u);
   });
 
   test("dryRun is threaded to the verb AND echoed in the result", async () => {

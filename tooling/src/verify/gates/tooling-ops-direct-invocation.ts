@@ -5,8 +5,7 @@
 // call to the one entry runner — stack.sh's node halves). Both names are DERIVED from their `_shared` homes,
 // so a rename REDs (§4.6) instead of silently disarming the gate. Posture: comment-SAFE (statement nodes only).
 import { join } from "node:path";
-import type { Project, SourceFile } from "ts-morph";
-import { Node as TsNode } from "ts-morph";
+import { moduleScopeCallees, soleExportedFunction } from "../../_shared/ts-workspace.ts";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { repoRel } from "../lib/pass.ts";
 
@@ -44,43 +43,6 @@ const MISSING = (rel: string, guard: string): string =>
 let guardName: string | undefined;
 let runnerName: string | undefined;
 
-/** The ONE exported function declaration of a `_shared` home — the derived name, or undefined when the home
- *  is absent or no longer exports exactly one function (both are blindness, not silence). */
-function soleExportedFunction(project: Project, root: string, rel: string): string | undefined {
-  const sf = project.getSourceFile(join(root, rel));
-  if (sf === undefined) {
-    return;
-  }
-  const names = sf
-    .getFunctions()
-    .filter((f) => f.isExported())
-    .map((f) => f.getName())
-    .filter((n): n is string => n !== undefined);
-  return names.length === 1 ? names[0] : undefined;
-}
-
-/** Identifiers CALLED at module scope (`f(…)` / `await f(…)` as a top-level statement). AST-POSITIONAL on
- *  purpose: a text search for the guard matched it inside `new-gate.ts`'s scaffold TEMPLATE STRING once and
- *  reported an unarmed module as armed — a lying proof (#509). A statement node cannot live in a string. */
-function moduleScopeCallees(sf: SourceFile): ReadonlySet<string> {
-  const out = new Set<string>();
-  for (const st of sf.getStatements()) {
-    if (!TsNode.isExpressionStatement(st)) {
-      continue;
-    }
-    const expr = st.getExpression();
-    const call = TsNode.isAwaitExpression(expr) ? expr.getExpression() : expr;
-    if (!TsNode.isCallExpression(call)) {
-      continue;
-    }
-    const callee = call.getExpression();
-    if (TsNode.isIdentifier(callee)) {
-      out.add(callee.getText());
-    }
-  }
-  return out;
-}
-
 function reportBlindness(ctx: GateRunCtx): void {
   for (const [home, name] of [
     [GUARD_HOME, guardName],
@@ -104,8 +66,8 @@ export const gate: GateDescriptor = {
   scanRoot: (p) => OPS_RE.test(p),
 
   begin: (ctx) => {
-    guardName = soleExportedFunction(ctx.project, ctx.root, GUARD_HOME);
-    runnerName = soleExportedFunction(ctx.project, ctx.root, RUNNER_HOME);
+    guardName = soleExportedFunction(ctx.project, join(ctx.root, GUARD_HOME));
+    runnerName = soleExportedFunction(ctx.project, join(ctx.root, RUNNER_HOME));
   },
 
   visitFile: (sf, ctx) => {

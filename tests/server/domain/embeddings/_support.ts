@@ -171,6 +171,21 @@ export interface StoreHarnessSources {
   readonly assetBytes?: ReadonlyMap<AssetId, Uint8Array>;
 }
 
+/** Make `embed` report a DIFFERENT model until called again — the shape of rows written while the box ran
+ *  another embed model. Since `0fed0b3ee` the stored `model` column records what the provider ACTUALLY
+ *  returned rather than what the caller declared, so a retired-space fixture has to come from the provider;
+ *  that is also exactly how a real strand is created. Batch-scoped (not `once`) because the store paths
+ *  fan out concurrently, where per-call ordering is not something a fixture may assume. */
+export function embedAs(harness: StoreHarness, model: string): void {
+  harness.roleClients.embed.mockImplementation((input) =>
+    Promise.resolve({
+      vectors: (typeof input === "string" ? [input] : input).map((_, i) => fakeVector(EMBED_DIM, i + 1)),
+      model,
+      usage: { promptTokens: null, totalTokens: null },
+    }),
+  );
+}
+
 /** Build an `EmbeddingsContext` over a real db with deterministic clock/ids + a recording fake bundle.
  *  `sources` feeds the bulk-pass enumeration/canon-read fakes (recording `vi.fn`s, overridable per test). */
 export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}): StoreHarness {

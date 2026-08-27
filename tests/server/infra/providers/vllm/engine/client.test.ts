@@ -18,7 +18,35 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-const client = createVllmEngineClient();
+const GIB = 1_073_741_824;
+
+const freeGpus: GpuVram[] = [
+  { index: 0, totalBytes: 48 * GIB, freeBytes: 40 * GIB, tenants: [] },
+  { index: 1, totalBytes: 48 * GIB, freeBytes: 40 * GIB, tenants: [] },
+];
+
+function sleepingFleet(over: Partial<WakeGateDeps> = {}): WakeGateDeps {
+  return {
+    repoRoot: "/repo",
+    isSleeping: () => Promise.resolve(true),
+    reap: () => Promise.resolve([]),
+    queryGpu: () => Promise.resolve(freeGpus),
+    wakeAndAwait: () => Promise.resolve(true),
+    held: () => false,
+    now: () => 1000,
+    ...over,
+  };
+}
+
+/** An AWAKE fleet — the wake gate is a no-op, so these tests exercise the HTTP seam they are about.
+ *  Injected rather than defaulted since #751: the real probe answers `null` (unmeasurable) with no engine
+ *  running, and the gate now REFUSES dispatch on null instead of assuming awake, so a bare client would
+ *  make every seam test fail on the wake gate before it ever reaches `fetch`. */
+function awakeFleet(over: Partial<WakeGateDeps> = {}): WakeGateDeps {
+  return { ...sleepingFleet(), isSleeping: () => Promise.resolve(false), ...over };
+}
+
+const client = createVllmEngineClient(awakeFleet());
 
 describe("enginePost", () => {
   test("returns the parsed JSON on a 2xx response", async () => {
@@ -105,25 +133,7 @@ describe("enginePost", () => {
 // paused scheduler — so the gate must fire BEFORE dispatch, off the engine's own /is_sleeping answer, and a
 // wake it may not perform must fail LOUD instead of hanging.
 
-const GIB = 1_073_741_824;
-const freeGpus: GpuVram[] = [
-  { index: 0, totalBytes: 48 * GIB, freeBytes: 40 * GIB, tenants: [] },
-  { index: 1, totalBytes: 48 * GIB, freeBytes: 40 * GIB, tenants: [] },
-];
-
 /** Injected wake-gate I/O for a SLEEPING fleet — no subprocesses, no real engine. */
-function sleepingFleet(over: Partial<WakeGateDeps> = {}): WakeGateDeps {
-  return {
-    repoRoot: "/repo",
-    isSleeping: () => Promise.resolve(true),
-    reap: () => Promise.resolve([]),
-    queryGpu: () => Promise.resolve(freeGpus),
-    wakeAndAwait: () => Promise.resolve(true),
-    held: () => false,
-    now: () => 1000,
-    ...over,
-  };
-}
 
 describe("pre-dispatch auto-wake gate at the request seam", () => {
   test("the sleep probe asks /is_sleeping — never /health — before the request goes out", async () => {
@@ -132,6 +142,9 @@ describe("pre-dispatch auto-wake gate at the request seam", () => {
       calls.push(url);
       return Promise.resolve(new Response(JSON.stringify({ is_sleeping: false }), { status: 200 }));
     });
+    // REAL wake deps on purpose: this test is ABOUT the probe, and its fetch stub answers
+    // {is_sleeping:false}, so the honest probe resolves awake and the dispatch proceeds. Injecting a
+    // fleet here would bypass the very call the assertions below are checking for.
     await createVllmEngineClient().enginePost("gen", "/v1/chat/completions", {});
     expect(calls[0]).toContain("/is_sleeping");
     expect(calls.some((u) => u.includes("/health"))).toBe(false);

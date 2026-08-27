@@ -91,9 +91,10 @@ describe("ensureAwake — sleep detection is HONEST (the engine, not the supervi
     const d = deps({
       isSleeping: () => {
         probes += 1;
-        // Deliberately model the production probe's runtime null while remaining compilable against the
-        // old boolean-only dependency contract; the old gate treated this value as awake and cached it.
-        return Promise.resolve(null) as Promise<boolean>;
+        // The production probe returns `Promise<boolean | null>` (wake-gate.ts's WakeDeps) — null is the
+        // UNMEASURABLE state, which the old gate treated as awake and cached. No cast: the contract
+        // already admits it, and casting here would hide the day it stops admitting it.
+        return Promise.resolve(null);
       },
     });
 

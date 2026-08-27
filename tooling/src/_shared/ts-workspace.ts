@@ -13,7 +13,7 @@
 // forEachDescendant walk per file, dispatching each node only to the visitors subscribed to its kind.
 // Both the gate runner (pass.ts) and any multi-helper codemod consume this instead of N kind sweeps.
 import type { Node, SourceFile, SyntaxKind } from "ts-morph";
-import { Project } from "ts-morph";
+import { Project, Node as TsNode } from "ts-morph";
 
 export interface WorkspaceOptions {
   readonly root: string;
@@ -85,4 +85,47 @@ export function collectByKinds(files: readonly SourceFile[], byKind: ReadonlyMap
       }
     });
   }
+}
+
+/** Identifiers CALLED at module scope (`f(…)` / `await f(…)` as a top-level statement). AST-POSITIONAL on
+ *  purpose: a text search for a guard name matched it inside `new-gate.ts`'s scaffold TEMPLATE STRING once
+ *  and reported an unarmed module as armed — a lying proof (#509). A statement node cannot live in a string.
+ *
+ *  ONE HOME on purpose (2026-08-26): the `tooling-ops-direct-invocation` gate and its behavioural twin
+ *  `tests/tooling/_shared/entrypoint.int.test.ts` both ask "is this module a PROGRAM?", and when each kept
+ *  its own answer they drifted — the gate derived program-ness from the source while the test carried a
+ *  hand-kept name list, so `dev-identity-entry.ts` was born a program and only the test noticed. */
+export function moduleScopeCallees(sf: SourceFile): ReadonlySet<string> {
+  const out = new Set<string>();
+  for (const st of sf.getStatements()) {
+    if (!TsNode.isExpressionStatement(st)) {
+      continue;
+    }
+    const expr = st.getExpression();
+    const call = TsNode.isAwaitExpression(expr) ? expr.getExpression() : expr;
+    if (!TsNode.isCallExpression(call)) {
+      continue;
+    }
+    const callee = call.getExpression();
+    if (TsNode.isIdentifier(callee)) {
+      out.add(callee.getText());
+    }
+  }
+  return out;
+}
+
+/** The ONE exported function declaration of a module — the derived name, or undefined when the file is
+ *  absent or no longer exports exactly one function. BOTH are blindness, not silence: a caller keyed on a
+ *  name that stopped resolving would pass every file forever, so callers must treat undefined as RED. */
+export function soleExportedFunction(project: Project, path: string): string | undefined {
+  const sf = project.getSourceFile(path);
+  if (sf === undefined) {
+    return;
+  }
+  const names = sf
+    .getFunctions()
+    .filter((f) => f.isExported())
+    .map((f) => f.getName())
+    .filter((n): n is string => n !== undefined);
+  return names.length === 1 ? names[0] : undefined;
 }

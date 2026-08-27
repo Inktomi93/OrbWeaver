@@ -222,3 +222,7 @@ export interface EngineAdoptionEvidence {
  *  `unknown` = no answer at all. */
 const DEBUG_POSTURES = ["off", "token", "open", "unknown"] as const;
 export type DebugPosture = (typeof DEBUG_POSTURES)[number];
+
+/** A loopback engine health probe distinguishes a refused connection (nothing listens, safe to spawn) from
+ *  an occupied-but-unproven port (timeout/protocol/tool failure, never permission to spawn a duplicate). */
+export type PortHealth = { readonly kind: "absent" } | { readonly kind: "healthy" } | { readonly kind: "unproven"; readonly reason: string };

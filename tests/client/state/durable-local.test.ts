@@ -37,6 +37,18 @@ interface StoreDouble {
 }
 
 /** A store double: records every `setOptions` key and every `rehydrate`, over one shared storage map. */
+/** `persist` is OPTIONAL in production because zustand omits it when the resolved storage is falsy
+ *  (durable-local.ts's own note). The double ALWAYS installs one, so narrow in ONE place rather than
+ *  re-asserting at every call site — and throw rather than optional-chain, because a double that lost its
+ *  persist api would otherwise make these tests silently exercise nothing. */
+function persistOf(double: StoreDouble): NonNullable<DurableLocalPersistApi["persist"]> {
+  const { persist } = double.api;
+  if (persist === undefined) {
+    throw new Error("storeDouble must install a persist api");
+  }
+  return persist;
+}
+
 function storeDouble(map: Map<string, unknown>): StoreDouble {
   const storage: DurableLocalStorage = {
     getItem: (name): unknown => map.get(name) ?? null,
@@ -192,7 +204,7 @@ describe("bindDurableLocalToUser — the three arms", () => {
     ]);
     const shell = storeDouble(map);
     const drafts = storeDouble(map);
-    const draftStorage = drafts.api.persist.getOptions().storage;
+    const draftStorage = persistOf(drafts).getOptions().storage;
     let failOnce = true;
     if (draftStorage === undefined) {
       throw new Error("draft storage double must exist");
@@ -245,7 +257,7 @@ describe("bindDurableLocalToUser — the three arms", () => {
     ]);
     const shell = storeDouble(map);
     const drafts = storeDouble(map);
-    const draftStorage = drafts.api.persist.getOptions().storage;
+    const draftStorage = persistOf(drafts).getOptions().storage;
     if (draftStorage === undefined) {
       throw new Error("draft storage double must exist");
     }
@@ -255,8 +267,8 @@ describe("bindDurableLocalToUser — the three arms", () => {
       name: "character",
       api: {
         persist: {
-          setOptions: drafts.api.persist.setOptions,
-          rehydrate: drafts.api.persist.rehydrate,
+          setOptions: persistOf(drafts).setOptions,
+          rehydrate: persistOf(drafts).rehydrate,
           getOptions: () => ({
             storage: {
               ...draftStorage,
@@ -339,7 +351,7 @@ describe("bindDurableLocalToUser — the three arms", () => {
     ]);
     const shell = storeDouble(map);
     const drafts = storeDouble(map);
-    const draftStorage = drafts.api.persist.getOptions().storage;
+    const draftStorage = persistOf(drafts).getOptions().storage;
     let failOnce = true;
     if (draftStorage === undefined) {
       throw new Error("draft storage double must exist");
@@ -350,8 +362,8 @@ describe("bindDurableLocalToUser — the three arms", () => {
       name: "character",
       api: {
         persist: {
-          setOptions: drafts.api.persist.setOptions,
-          rehydrate: drafts.api.persist.rehydrate,
+          setOptions: persistOf(drafts).setOptions,
+          rehydrate: persistOf(drafts).rehydrate,
           getOptions: () => ({
             storage: {
               ...draftStorage,
@@ -396,7 +408,7 @@ describe("bindDurableLocalToUser — the three arms", () => {
     ]);
     const shell = storeDouble(map);
     const drafts = storeDouble(map);
-    const draftStorage = drafts.api.persist.getOptions().storage;
+    const draftStorage = persistOf(drafts).getOptions().storage;
     if (draftStorage === undefined) {
       throw new Error("draft storage double must exist");
     }
@@ -407,8 +419,8 @@ describe("bindDurableLocalToUser — the three arms", () => {
       name: "character",
       api: {
         persist: {
-          setOptions: drafts.api.persist.setOptions,
-          rehydrate: drafts.api.persist.rehydrate,
+          setOptions: persistOf(drafts).setOptions,
+          rehydrate: persistOf(drafts).rehydrate,
           getOptions: () => ({
             storage: {
               ...draftStorage,

@@ -159,6 +159,9 @@ test("no appearance flag = the account's real state (the shim is not installed a
 
 test("a failed real-response fallback rejects the appearance shim instead of reporting a usable route", async () => {
   let handler: ((route: Route) => Promise<void>) | undefined;
+  // FABRICATION-OK: Playwright's `BrowserContext` is a third-party interface with dozens of members and no
+  // public constructor, so a shim test can only supply the ONE door the code under test opens
+  // (`context.route`). Ends the day installSettingsShim's signature narrows to that structural surface.
   const context = {
     route: (_glob: string, registered: (route: Route) => Promise<void>) => {
       handler = registered;
@@ -168,6 +171,9 @@ test("a failed real-response fallback rejects the appearance shim instead of rep
   await installSettingsShim(context, { appearance: { reducedMotion: false }, theme: null });
 
   const fallbackFailure = new Error("planted fallback failure");
+  // FABRICATION-OK: same third-party-edge reason as the BrowserContext double above — `Route` is a Playwright
+  // interface with no constructor; this supplies only request/fetch/fallback, the members the fallback path
+  // under test actually calls.
   const route = {
     request: () => ({ url: () => "http://localhost/api/trpc/settings.getUserSettings?batch=1" }),
     fetch: async () => Promise.reject(new Error("planted primary failure")),

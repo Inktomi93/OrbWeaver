@@ -10,6 +10,7 @@
 import { spawnSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import { getWorkspace, moduleScopeCallees, soleExportedFunction } from "../../../tooling/src/_shared/ts-workspace.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget, spawnNodeWithBudget } from "../_load-budget.ts";
 
@@ -22,18 +23,36 @@ const CENSUS_TEST_BUDGET = scaledBudget(15_000, 4);
 const PER_CHILD_BUDGET = scaledBudget(5000, 4);
 
 const OPS_DIR = join("tooling", "src", "verify", "ops");
+const RUNNER_HOME = join("tooling", "src", "_shared", "run-tool.ts");
 const TOOLING_SRC = join("tooling", "src");
 const EXIT_TOOL_ERROR = 2;
 
-/** stack.sh / engines.sh's node halves: REAL programs (module-scope `runTool`), so running one does the
- *  work it exists for — booting the production server or the vLLM fleet. They are excluded by NAME here
- *  because running them in a test would do exactly that; the STRUCTURAL half of this law
- *  (gate `tooling-ops-direct-invocation`) is what proves each of them still enters through `runTool`. */
-const REAL_ENTRIES: ReadonlySet<string> = new Set([
-  join("tooling", "src", "stack", "ops", "prod-entry.ts"),
-  join("tooling", "src", "stack", "ops", "engines.ts"),
-  join("tooling", "src", "stack", "ops", "engines-ctl.ts"),
-]);
+/** REAL PROGRAMS are DERIVED, never listed. A module that enters through the one entry runner at module
+ *  scope IS a process entry: running it does the work it exists for (booting the production server, the
+ *  vLLM fleet, the dev-identity probe), so it must NOT be spawned here and cannot be expected to refuse.
+ *
+ *  The hand-kept name list this replaces went stale exactly once and cost a red main: `dev-identity-entry.ts`
+ *  was BORN a program in #751's stack work, the structural gate correctly passed it, this test correctly
+ *  failed it, and neither was wrong about its own rule — the two halves of one law simply kept separate
+ *  answers to "is this a program?". Both now read `moduleScopeCallees` + `soleExportedFunction` from
+ *  `_shared/ts-workspace.ts`, so they cannot disagree and there is no row to rot. */
+function realEntries(repoRoot: string, modules: readonly string[]): ReadonlySet<string> {
+  const project = getWorkspace({ root: repoRoot });
+  const runner = soleExportedFunction(project, join(repoRoot, RUNNER_HOME));
+  if (runner === undefined) {
+    // BLINDNESS, not silence: an unresolvable runner name would make every module look like a program,
+    // emptying the census and turning this test into a permanent false clean.
+    throw new Error(`${RUNNER_HOME} no longer exports exactly one function — the program derivation is blind`);
+  }
+  const entries = new Set<string>();
+  for (const rel of modules) {
+    const sf = project.getSourceFile(join(repoRoot, rel));
+    if (sf !== undefined && moduleScopeCallees(sf).has(runner)) {
+      entries.add(rel);
+    }
+  }
+  return entries;
+}
 
 function opsModules(repoRoot: string): readonly string[] {
   return readdirSync(join(repoRoot, OPS_DIR))
@@ -49,7 +68,7 @@ function allOpsModules(repoRoot: string): readonly string[] {
       const rel = join(dir, entry.name);
       if (entry.isDirectory()) {
         walk(rel);
-      } else if (entry.name.endsWith(".ts") && !REAL_ENTRIES.has(rel)) {
+      } else if (entry.name.endsWith(".ts")) {
         out.push(rel);
       }
     }
@@ -69,7 +88,11 @@ test("EVERY tooling ops module in the FLEET refuses when RUN — one law, sixtee
   // instance: running one printed nothing, wrote no baseline and exited 0, while four gate messages told the
   // reader to do exactly that. Spawn-based on purpose — the structural half is the gate; this is the half
   // that answers "does the process actually refuse?".
-  const modules = allOpsModules(repoRoot);
+  const all = allOpsModules(repoRoot);
+  const programs = realEntries(repoRoot, all);
+  // A fleet with NO derived program is the derivation silently failing, not a fleet of libraries.
+  expect(programs.size).toBeGreaterThan(0);
+  const modules = all.filter((rel) => !programs.has(rel));
   const bad = modules.filter((rel) => {
     const run = spawnSync("node", [rel], { cwd: repoRoot, encoding: "utf8" });
     return run.status !== EXIT_TOOL_ERROR || !run.stderr.includes("direct invocation") || run.stdout !== "";

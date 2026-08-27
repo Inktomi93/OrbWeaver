@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { generateTestBaselineManifest } from "../../../../tooling/src/verify/ops/gen/test-baseline-manifest.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import { generateTestBaselineManifest } from "../../../../../tooling/src/verify/ops/gen/test-baseline-manifest.ts";
+import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 test("a corrupt existing deletion ledger fails loud and is never reset by regeneration", () => {
   const root = mkdtempSync(join(tmpdir(), "orb-test-baseline-"));

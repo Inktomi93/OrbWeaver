@@ -56,7 +56,15 @@ export type ScrapeName = { readonly literal: string } | { readonly titleFallback
 export interface ScrapeWrite extends DatabankActorParams {
   readonly bytes: Uint8Array;
   readonly origin: DocOrigin;
+  /** The document's TRUE mime — the extraction contract. `ingest/index.ts` re-extracts with `doc.mime`, so
+   *  this is what picks the loader, now and for every future extractor version. */
   readonly mime: string;
+  /** The mime the raw bytes are STORED under, when it must differ from {@link mime}. The asset mime is a
+   *  SERVING concern; #709 refuses an active document/script type as a stored asset (stored-XSS), so a
+   *  scraper whose canon mime is one of those declares a neutral, magic-verifiable storage mime here.
+   *  Defaults to {@link mime}. Nothing is lost: the bytes are byte-identical and re-extraction reads the
+   *  document row, not the asset. */
+  readonly storeMime?: string;
   readonly name: ScrapeName;
   readonly sourceUrl: string;
   readonly auditAction: string;
