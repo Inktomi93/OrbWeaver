@@ -169,6 +169,11 @@ function stub(page: Page, tags: readonly unknown[] = MANY_TAGS): Promise<TrpcRec
     "worldInfo.getBook": () => ({ id: BOOK.id, name: "The Ninefold Reach", description: null, createdAt: 1 }),
     "worldInfo.listEntries": () => [],
     "worldInfo.listGlobal": () => [],
+    // The world-info CONTEXT arm's reverse roster — the `regex.listScriptUsage` precedent above, same
+    // rationale: this host proves the arm MOUNTS, and what the roster SAYS is pinned by the world-info
+    // feature's own CT. Fed rather than left unstubbed because an unfed read answers `null`, which is not
+    // a view — the pipeline would run inert here and a regression inside it would be invisible.
+    "worldInfo.listAttachmentsForBook": () => ({ characters: [], personaIds: [] }),
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
     "worldInfo.importFile": () => ({ created: true }),
