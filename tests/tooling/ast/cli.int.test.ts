@@ -17,11 +17,9 @@
 //
 // SLOW BY CONSTRUCTION: every row pays one real ts-morph workspace load (~11s). All rows use SYNTACTIC
 // verbs (the `harness-globs` arm) — the typed arm would triple it for no extra coverage of THIS seam.
-import type { SpawnSyncReturns } from "node:child_process";
-import { spawnSync } from "node:child_process";
-import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget, spawnNodeWithBudget } from "../_load-budget.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const AST_CLI = fileURLToPath(new URL("../../../tooling/src/ast/cli.ts", import.meta.url));
@@ -62,23 +60,22 @@ function parseEpilogue(stderr: string): Record<string, string> {
   return fields;
 }
 
-function runAst(argv: readonly string[], timeoutMs: number = SPAWN_TIMEOUT_MS): AstRun {
+function runAst(argv: readonly string[], baseTimeoutMs: number = SPAWN_TIMEOUT_MS): AstRun {
   // The TYPED whole-workspace verbs — `columns --all` above all — load the full type graph AND row-shape
   // scan every table; past ~86 tables (#273's `image_index_skips` landing) the sweep's peak exceeds node's
   // default old-space ceiling and aborts (SIGABRT → status null, ~5.6GB RSS). Raise the heap to match the
   // `pnpm ast` script; this harness spawns node DIRECTLY so it does not inherit that script's flag, and a
   // higher ceiling is harmless for the lighter syntactic rows (node allocates only what it uses).
-  // `SpawnSyncReturns<string | null>`, not node's `<string>`: a spawn that never STARTS returns
-  // null for both pipes, so the `?? ""` below is load-bearing and the annotation is what makes it
-  // provably so (the @types/node signature is the optimistic half of the contract).
-  const res: SpawnSyncReturns<string | null> = spawnSync(process.execPath, ["--max-old-space-size=8192", AST_CLI, ...argv], {
-    cwd: REPO_ROOT,
-    encoding: "utf8",
-    timeout: timeoutMs,
-  });
-  const stdout = res.stdout ?? "";
-  const stderr = res.stderr ?? "";
-  return { stdout, stderr, status: res.status, epilogue: parseEpilogue(stderr) };
+  //
+  // THROUGH THE LOAD BUDGET (#606), not a raw spawnSync: a child killed by its own wall clock returns
+  // `stdout: null → ""` and `status: null`, which is byte-identical to "the lens printed nothing" — the
+  // exact misread this suite exists to prevent one level down. Measured on a full `verify --push`: the
+  // zero-match row false-red as `expected '' to be 'RESULT …'` under contention. `spawnNodeWithBudget`
+  // scales the budget with the box and THROWS a self-identifying ORB-LOAD-KILL instead, so a contention
+  // kill is legible as exit-2 class rather than read as an assertion failure.
+  const budgetMs = scaledBudget(baseTimeoutMs);
+  const res = spawnNodeWithBudget(["--max-old-space-size=8192", AST_CLI, ...argv], REPO_ROOT, budgetMs, `pnpm ast ${argv.join(" ")}`);
+  return { stdout: res.stdout, stderr: res.stderr, status: res.status, epilogue: parseEpilogue(res.stderr) };
 }
 
 test(

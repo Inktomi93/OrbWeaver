@@ -37,7 +37,14 @@ const EXIT_TOOL_ERROR = 2;
  *  answers to "is this a program?". Both now read `moduleScopeCallees` + `soleExportedFunction` from
  *  `_shared/ts-workspace.ts`, so they cannot disagree and there is no row to rot. */
 function realEntries(repoRoot: string, modules: readonly string[]): ReadonlySet<string> {
-  const project = getWorkspace({ root: repoRoot });
+  // NARROW glob on purpose: the default workspace scope walks every package, which RACES a sibling suite
+  // that creates and removes a temp fixture dir mid-glob (ts-morph throws "Directory not found" on the
+  // vanished path — seen on a full `verify --push`). This census only ever needs the ops corpus plus the
+  // runner home, and scoping it is both race-free and faster.
+  const project = getWorkspace({
+    root: repoRoot,
+    globs: [`${repoRoot}/tooling/src/*/ops/**/*.ts`, `${repoRoot}/${RUNNER_HOME}`],
+  });
   const runner = soleExportedFunction(project, join(repoRoot, RUNNER_HOME));
   if (runner === undefined) {
     // BLINDNESS, not silence: an unresolvable runner name would make every module look like a program,
