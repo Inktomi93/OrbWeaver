@@ -50,6 +50,14 @@ const SERIAL_INT = [
   // into ts-morph (~11s each). Five of those in the parallel lane is a load bomb, and no parallel-lane
   // timeout covers them — the rows carry explicit 120s timeouts and run one at a time here.
   "tests/tooling/ast-observability.int.test.ts",
+  // CLASS 1 tree-writer: `mkdtempSync(… "packages/server/src/async-policy-fixture-")` puts a scratch dir
+  // INSIDE the globbed source tree (it must — the proof drives the REAL flat ESLint config, and the
+  // type-aware rules only reach files the server project includes). Every concurrent whole-tree ts-morph
+  // load then races its creation/removal: measured on `verify --push`, it killed the in-process census in
+  // `_shared/entrypoint.int.test.ts` ("Directory not found: …/async-policy-fixture-awpjwe") AND the spawned
+  // `pnpm ast` child in `ast/cli.int.test.ts`, whose empty stdout then read as a lens failure. One writer,
+  // two symptoms, neither reproducible in isolation.
+  "tests/tooling/async-policy-config.int.test.ts",
   "tests/support/fixtures.int.test.ts",
   "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
   "tests/server/entry/compose/chat.int.test.ts",
