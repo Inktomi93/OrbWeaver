@@ -4304,7 +4304,7 @@
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "appearance JSON parse returns null so the caller emits its option-specific refusal; no theme is applied. Ends if parse failure stops being a refusal.",
       "markerLine": 73
     },
     {
@@ -4317,7 +4317,7 @@
       "ordinal": 2,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "an unreadable optional appearance snapshot is represented as absent and the caller rebuilds from the live page. Ends if this snapshot becomes authoritative.",
       "markerLine": 181
     },
     {
@@ -4330,7 +4330,7 @@
       "ordinal": 3,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "an unreadable optional theme catalog entry is represented as absent and the caller reports the missing theme. Ends if absence stops reaching the operator.",
       "markerLine": 252
     },
     {
@@ -4343,7 +4343,7 @@
       "ordinal": 1,
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "the list-themes command emits the read failure through warn before returning no catalog. Ends if the warning stops carrying the failure.",
       "markerLine": 273
     },
     {
@@ -4356,7 +4356,7 @@
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "the primary route failure is owned by the awaited fallback route, whose own rejection propagates to the command. Ends if fallback becomes fire-and-forget.",
       "markerLine": 347
     },
     {
@@ -4421,7 +4421,7 @@
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed.",
       "markerLine": 21
     },
     {
@@ -4434,7 +4434,7 @@
       "ordinal": 2,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative.",
       "markerLine": 216
     },
     {
@@ -4577,7 +4577,7 @@
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "a failed health poll advances to the bounded retry whose timeout or process exit is the operator verdict. Ends if one poll becomes terminal.",
       "markerLine": 73
     },
     {
@@ -4590,7 +4590,7 @@
       "ordinal": 1,
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "the boot failure is warned and returned as an explicit failed variant row with error text. Ends if callers stop publishing that row.",
       "markerLine": 136
     },
     {
@@ -4603,7 +4603,7 @@
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "pgrep status 1 alone means no match; every execution or permission failure is rethrown. Ends if pgrep changes its no-match status.",
       "markerLine": 46
     },
     {
@@ -4629,7 +4629,7 @@
       "ordinal": 1,
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "prepare-click failure is printed as STEP FAILED and null prevents measurement from claiming a click. Ends if null can produce a clean verdict.",
       "markerLine": 35
     },
     {
@@ -4642,7 +4642,7 @@
       "ordinal": 1,
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "reach failure increments the authoritative failure counter and prints the selector. Ends if the final verdict stops reading failures.",
       "markerLine": 60
     },
     {
@@ -4655,7 +4655,7 @@
       "ordinal": 1,
       "snippet": "const ready = await page",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "false feeds apparatusGap, which emits INSTRUMENT ERROR instead of a motion verdict. Ends if readiness stops gating measurement.",
       "markerLine": 81
     },
     {
@@ -5123,7 +5123,7 @@
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "malformed identity JSON returns null and recordedDevStackVerdict refuses the existing file. Ends if null can authorize a signal.",
       "markerLine": 18
     },
     {
@@ -5136,7 +5136,7 @@
       "ordinal": 2,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "an unreadable identity returns null and the existing-path check produces a manual-cleanup refusal. Ends if null can authorize a signal.",
       "markerLine": 45
     },
     {
@@ -5149,7 +5149,7 @@
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "connection refusal is the only absent verdict; every other rejection becomes an unproven result that launchOneEngine refuses before headroom or spawn. Ends if unproven can authorize launch.",
       "markerLine": 17
     },
     {
@@ -5162,7 +5162,7 @@
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "malformed pidfile JSON returns null and identity classification refuses any unproven live process. Ends if null can authorize a signal.",
       "markerLine": 14
     },
     {
@@ -5175,7 +5175,7 @@
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ENOENT means this source vanished during the walk; every unreadable/unmeasurable error propagates so null cannot fabricate freshness. Ends if another absence code is supported.",
       "markerLine": 16
     },
     {
@@ -5188,7 +5188,7 @@
       "ordinal": 2,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ENOTDIR is a single-file leaf and ENOENT is a vanished optional root; every unreadable directory error propagates. Ends if callers add another explicitly optional filesystem state.",
       "markerLine": 31
     },
     {
@@ -5201,7 +5201,7 @@
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "kill-zero ESRCH proves absence and EPERM proves a live process; all other errors surface rather than permit lock theft. Ends if platform liveness semantics add another proved state.",
       "markerLine": 34
     },
     {
@@ -5214,7 +5214,7 @@
       "ordinal": 2,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "EEXIST alone means another lock holder; every other exclusive-create failure is rethrown. Ends if exclusive create changes its collision code.",
       "markerLine": 76
     },
     {
@@ -5227,7 +5227,7 @@
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ENOENT alone is the racing-release state and the following exclusive create decides ownership; other reads throw. Ends if no retry follows.",
       "markerLine": 92
     },
     {
@@ -5240,7 +5240,7 @@
       "ordinal": 2,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ENOENT alone means another launcher won the unlink race; the next exclusive create decides ownership. Ends if no retry follows.",
       "markerLine": 110
     },
     {
@@ -5253,7 +5253,7 @@
       "ordinal": 3,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ENOENT is idempotent release; every other unlink failure is rethrown. Ends if release gains an ownership-transfer acknowledgement.",
       "markerLine": 123
     },
     {
@@ -5266,7 +5266,7 @@
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ENOENT means the already-absent identity file needs no deletion; every other unlink failure surfaces and prevents a cleared verdict. Ends if another absence code is supported.",
       "markerLine": 67
     },
     {
@@ -5279,7 +5279,7 @@
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "a failed engine identity probe returns false and the caller refuses control of that process. Ends if false can authorize a signal.",
       "markerLine": 70
     },
     {
@@ -5292,7 +5292,7 @@
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ESRCH alone means the verified pid vanished before SIGTERM; every other signal error is rethrown. Ends if signal classification changes.",
       "markerLine": 52
     },
     {
@@ -5305,7 +5305,7 @@
       "ordinal": 2,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ESRCH alone means the verified group vanished before SIGKILL; every other signal error is rethrown. Ends if signal classification changes.",
       "markerLine": 68
     },
     {
@@ -5318,7 +5318,7 @@
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ENOENT alone means no env file; unreadable or malformed configuration now throws. Ends if the env file ceases to be optional.",
       "markerLine": 51
     },
     {
@@ -5331,7 +5331,7 @@
       "ordinal": 2,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ENOENT alone means debug is not armed; unreadable token errors now throw. Ends if token absence stops being valid posture.",
       "markerLine": 89
     },
     {
@@ -5344,7 +5344,7 @@
       "ordinal": 3,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ENOENT proc stat means the pid vanished; other read errors now throw. Ends if proc identity gains another absence code.",
       "markerLine": 153
     },
     {
@@ -5357,7 +5357,7 @@
       "ordinal": 4,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ESRCH means absent and EPERM means live; every other kill-zero error throws. Ends if platform liveness semantics change.",
       "markerLine": 165
     },
     {
@@ -5370,7 +5370,7 @@
       "ordinal": 5,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ENOENT alone means no pidfile; unreadable records now throw and malformed content remains an explicit null refusal. Ends if no-record stops being valid.",
       "markerLine": 195
     },
     {
@@ -5383,7 +5383,7 @@
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "health fetch failure is the explicit unhealthy observation consumed by identity classification. Ends if unhealthy can authorize ownership.",
       "markerLine": 73
     },
     {
@@ -5396,7 +5396,7 @@
       "ordinal": 2,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "credential-free debug probe failure returns unknown posture, which prevents token-bearing identity claims. Ends if unknown can authorize control.",
       "markerLine": 103
     },
     {
@@ -5409,7 +5409,7 @@
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "an unreadable optional log tail returns empty and status still reports the log path. Ends if log content becomes a control verdict.",
       "markerLine": 128
     },
     {
@@ -5422,7 +5422,7 @@
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ENOENT means the measured path is absent; every unreadable/unmeasurable stat failure propagates so null cannot fabricate a fresh build. Ends if another absence code is supported.",
       "markerLine": 43
     },
     {
@@ -5435,7 +5435,7 @@
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "an unreadable optional log renders the explicit no-log sentinel to the operator. Ends if missing logs become a clean shutdown claim.",
       "markerLine": 137
     },
     {
@@ -5448,7 +5448,7 @@
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ENOENT alone permits minting a first debug token; every existing-token read failure is rethrown. Ends if token rotation becomes explicit.",
       "markerLine": 80
     },
     {
@@ -5461,7 +5461,7 @@
       "ordinal": 2,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ENOENT alone is idempotent pidfile cleanup; every other unlink failure is rethrown. Ends if cleanup gains a separate operator result.",
       "markerLine": 113
     },
     {
@@ -5474,7 +5474,7 @@
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "probe JSON parse failure returns null and the caller reports the service as unverified. Ends if null can satisfy the served probe.",
       "markerLine": 53
     },
     {
@@ -5487,7 +5487,7 @@
       "ordinal": 2,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "probe request failure returns null and the caller reports the service as unreachable. Ends if null can satisfy the served probe.",
       "markerLine": 63
     },
     {
@@ -5760,7 +5760,7 @@
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": null,
+      "reason": "ENOENT is the only first-run baseline state; unreadable or invalid existing manifests throw rather than erase the version/hash witness. Ends if the manifest gains another explicit absence state.",
       "markerLine": 33
     },
     {

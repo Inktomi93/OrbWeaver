@@ -11,8 +11,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe } from "vitest";
+import { gate as danglingRefs } from "../../../../tooling/src/verify/gates/dangling-refs.ts";
 import type { Finding } from "../../../../tooling/src/verify/index.ts";
-import { loadGates, projectCtx, runPass } from "../../../../tooling/src/verify/index.ts";
+import { projectCtx, runPass } from "../../../../tooling/src/verify/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const GATE = "dangling-refs";
@@ -37,13 +38,14 @@ describe("dangling-refs — gitignored paths are absent by design, not phantoms"
     expect(existsSync(join(repoRoot, CITE)), "the cite that justifies the row must resolve").toBe(true);
   });
 
-  test("the real-tree run reports no phantom for the gitignored path, in a checkout that lacks it", async ({ repoRoot }) => {
-    const gates = await loadGates(repoRoot);
-    const result = runPass(gates, projectCtx(repoRoot));
+  test("the real-tree run reports no phantom for the gitignored path, in a checkout that lacks it", ({ repoRoot }) => {
+    // This gate is SELF-CONTAINED (it reads docs off disk and needs no sibling's verdict), so it runs alone
+    // — a whole-corpus pass here would cost minutes to prove one gate's arm.
+    const result = runPass([danglingRefs], projectCtx(repoRoot));
     expect(result.toolErrors).toEqual([]);
     const findings: readonly Finding[] = result.gates.find((g) => g.name === GATE)?.findings ?? [];
     // The point of the arm: this must hold whether or not the gitignored subtree is present on THIS checkout.
-    expect(findings.filter((f) => f.message.includes(ABSENT_PATH))).toEqual([]);
+    expect(findings.filter((f) => (f.message ?? "").includes(ABSENT_PATH))).toEqual([]);
     // And the row must not have gone silent by accident — the whole gate is still clean, so a NEW phantom
     // anywhere in the core docs still reds. (A green here that came from a broken scan is caught by the
     // gate's own zero-scan alarm at report scope.)
