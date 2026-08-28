@@ -20,13 +20,29 @@ Settings → Plugins → drop the zip → tick the capabilities → turn it on. 
 ## The manifest
 
 ```json
-"capabilities": ["chat.read", "chat.quick_reply", "storage.kv", "events.subscribe"]
+"capabilities": ["chat.read", "chat.quick_reply", "storage.kv", "events.subscribe", "plugin_events"]
 ```
 
 * `chat.quick_reply` — the chips themselves.
 * `chat.read` — for `chat.current()`, which mints the room handle the surface call takes.
 * `events.subscribe` — hearing `messageCommitted`.
-* `storage.kv` — the per-room cooldown stamp.
+* `storage.kv` — the per-room cooldown stamp (and the noted omen, below).
+* `plugin_events` — LISTENING to your other plugins (the composition demo, below).
+
+## Listening to a sibling (`pubsub.on`)
+
+Install the Oracle Deck too and the table starts playing together: the deck ANNOUNCES every draw on its
+private channel, this plugin subscribes (`host.pubsub.on("oracle-deck", "draw", …)`), notes the card in its
+own storage — and the next long beat offers a FOURTH door: *Follow the omen*. Three facts to copy correctly:
+
+* **Absence is free.** Naming an emitter slug that is not installed simply never fires — composing with a
+  sibling never makes it a dependency, and neither plugin knows or cares whether the other exists.
+* **A pubsub handler runs with NO chat scope.** No `chat.current()`, no room writes — it may only touch
+  per-install state. So the handler takes a NOTE (the card + when), and the room-scoped `messageCommitted`
+  handler decides later whether the note is still fresh (ten minutes, here — an hour-old omen steering
+  tonight's doors would read as a haunting).
+* **The payload is the whole message.** `{name, data}`, exactly what the emitter published — never a domain
+  event, never automation, never another user's plugins.
 
 ## The two things that decide the design
 
