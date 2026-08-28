@@ -76,6 +76,8 @@ function servesOwnPolicy(path: string): boolean {
 
 const SELF = "'self'";
 const NONE = "'none'";
+/** WebAssembly compilation ONLY — never JS eval, never inline, never a new load origin. See its use site. */
+const WASM_EVAL = "'wasm-unsafe-eval'";
 const BLOB = "blob:";
 const DATA = "data:";
 /** The external-media allowance. `https:` only — see the header's scope note. */
@@ -96,7 +98,28 @@ function policy(opts: { readonly dev: boolean; readonly external: boolean }): Mi
   return secureHeaders({
     contentSecurityPolicy: {
       defaultSrc: [SELF],
-      scriptSrc: opts.dev ? [SELF, "'unsafe-inline'", "'unsafe-eval'"] : [SELF],
+      // `'wasm-unsafe-eval'` — THE ONE APP-CSP DELTA the plugin UI plane asks for (plugin-ui-plane #679 §4.6 /
+      // §9 / seam 10), added deliberately and reviewed as its own change.
+      //
+      // WHAT IT PERMITS, exactly: compiling and instantiating WebAssembly. That is the whole keyword. It does
+      // NOT permit `eval`, it does NOT permit inline script, it does NOT widen where script may be LOADED from
+      // — `'self'` still decides that, so the srcdoc card-floor's script-death (pinned in this file's test) is
+      // untouched: a srcdoc has no origin to be "self", and a wasm keyword gives it no bytes to compile.
+      //
+      // WHY IT IS NEEDED: the Tier-C plugin guest is a QuickJS interpreter compiled to WASM, running in a Web
+      // Worker on this origin. A worker inherits the CSP of the response that served its script, which is this
+      // one, so without the keyword `WebAssembly.instantiate` throws and no scripted plugin surface can exist.
+      //
+      // THE REJECTED ALTERNATIVE, named so it is not re-proposed: host the interpreter in a sandboxed iframe to
+      // dodge the directive. That re-imports the whole frame arm the owner killed (§3-ARM-B) — token injection,
+      // no a11y floor, the #124 exfil class — in exchange for avoiding a keyword whose scope is narrow and
+      // auditable. The keyword is the smaller price and the honest one.
+      //
+      // BOTH ARMS carry it. Dev's `'unsafe-eval'` already subsumes wasm compilation, so naming it there changes
+      // nothing a browser does — but a directive that differs between dev and prod is a directive that gets
+      // debugged in the wrong environment, and the whole point of this pair is that they differ ONLY in the two
+      // HMR loosenings the test pins.
+      scriptSrc: opts.dev ? [SELF, "'unsafe-inline'", "'unsafe-eval'", WASM_EVAL] : [SELF, WASM_EVAL],
       // blob: workers/SharedWorkers fall back to script-src without an explicit worker-src (which lacks blob:).
       // Dev AND prod — the worker-backed feature runs in both.
       workerSrc: [SELF, BLOB],
