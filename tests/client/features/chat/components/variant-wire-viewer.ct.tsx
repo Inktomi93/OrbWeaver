@@ -21,6 +21,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { MessageRowStory } from "../_ct-stories.tsx";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 
 const WIRE_PROC = "chat.getVariantWire";
 const WIRE_ITEM = "View wire trace…";
@@ -68,7 +69,7 @@ function menuItem(page: Page, name: string): Locator {
 }
 
 test("a NON-HOST viewer gets no wire item at all — the host-only plane is never advertised", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { [WIRE_PROC]: () => WIRE_DATA });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, [WIRE_PROC]: () => WIRE_DATA });
   const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={false} />);
 
   // The ordinary member-plane datum still renders — nothing about the row is suppressed, only the host arm.
@@ -79,7 +80,7 @@ test("a NON-HOST viewer gets no wire item at all — the host-only plane is neve
 });
 
 test("the HOST gets the kebab item, but NO fetch fires until it is opened", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { [WIRE_PROC]: () => WIRE_DATA });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, [WIRE_PROC]: () => WIRE_DATA });
   const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
 
   await openActionsMenu(component);
@@ -89,7 +90,7 @@ test("the HOST gets the kebab item, but NO fetch fires until it is opened", asyn
 });
 
 test("WIREBTN — the METADATA row carries no wire affordance, even for the host (it is data only now)", async ({ mount, page }) => {
-  await routeTrpc(page, { [WIRE_PROC]: () => WIRE_DATA });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, [WIRE_PROC]: () => WIRE_DATA });
   const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
 
   const metadataRow = component.locator('[data-slot="message-metadata-row"]');
@@ -101,7 +102,7 @@ test("WIREBTN — the METADATA row carries no wire affordance, even for the host
 });
 
 test("opening fires exactly one fetch keyed by the shown swipe's variantId and renders both prompt halves", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { [WIRE_PROC]: () => WIRE_DATA });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, [WIRE_PROC]: () => WIRE_DATA });
   const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
 
   await openActionsMenu(component);
@@ -122,7 +123,11 @@ test("opening fires exactly one fetch keyed by the shown swipe's variantId and r
 });
 
 test("a variant that captured nothing says so — never a blank panel", async ({ mount, page }) => {
-  await routeTrpc(page, { [WIRE_PROC]: () => ({ variantId: "mv_ct_1", prompt: null, params: null, macroDraws: null }) });
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    [WIRE_PROC]: () => ({ variantId: "mv_ct_1", prompt: null, params: null, macroDraws: null }),
+  });
   const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
 
   await openActionsMenu(component);
@@ -135,7 +140,7 @@ test("a variant that captured nothing says so — never a blank panel", async ({
 });
 
 test("a deleted row's NOT_FOUND is a typed gone-arm, not a retry spinner or a thrown boundary", async ({ mount, page }) => {
-  await routeTrpc(page, { [WIRE_PROC]: () => trpcError({ code: "NOT_FOUND" }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, [WIRE_PROC]: () => trpcError({ code: "NOT_FOUND" }) });
   const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
 
   await openActionsMenu(component);
@@ -144,7 +149,7 @@ test("a deleted row's NOT_FOUND is a typed gone-arm, not a retry spinner or a th
 });
 
 test("a USER row offers no wire item even to the host — an authored message never generated a prompt", async ({ mount, page }) => {
-  await routeTrpc(page, { [WIRE_PROC]: () => WIRE_DATA });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, [WIRE_PROC]: () => WIRE_DATA });
   const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="user" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
 
   await openActionsMenu(component);
