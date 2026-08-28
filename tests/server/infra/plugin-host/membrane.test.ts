@@ -40,6 +40,8 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
     uiDialogs: string[];
     databankIngests: { name: string; text: string }[];
     characterIngests: Record<string, unknown>[];
+    cardDataWrites: { characterId: string; data: Record<string, unknown> }[];
+    cardDataReads: string[];
     pubsubEmits: { name: string; data: Record<string, unknown> }[];
   };
 } {
@@ -49,8 +51,23 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
   const uiDialogs: string[] = [];
   const databankIngests: { name: string; text: string }[] = [];
   const characterIngests: Record<string, unknown>[] = [];
+  const cardDataWrites: { characterId: string; data: Record<string, unknown> }[] = [];
+  const cardDataReads: string[] = [];
   const pubsubEmits: { name: string; data: Record<string, unknown> }[] = [];
-  const performed = { turns: 0, lore: 0, pictures: 0, chips: 0, uiSetState, uiToasts, uiDialogs, databankIngests, characterIngests, pubsubEmits };
+  const performed = {
+    turns: 0,
+    lore: 0,
+    pictures: 0,
+    chips: 0,
+    uiSetState,
+    uiToasts,
+    uiDialogs,
+    databankIngests,
+    characterIngests,
+    cardDataWrites,
+    cardDataReads,
+    pubsubEmits,
+  };
   const llm: { prompts: string[]; opts: (PluginQuietOptions | undefined)[] } = { prompts: [], opts: [] };
   const egress = { count: 0 };
   const suggested: { acts: PluginSuggestedAct[] } = { acts: [] };
@@ -135,6 +152,17 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
       ingest: (card) => {
         performed.characterIngests.push(card);
         return Promise.resolve({ characterId: `char_${performed.characterIngests.length}`, created: true });
+      },
+      // D148 per-card state — recorded so a test can prove the membrane forwarded the validated payload (and, by
+      // its absence, that an ungranted call never reaches the bridge). `getCardData` returns a canned blob so the
+      // read-forward path is observable.
+      setCardData: (characterId, data) => {
+        performed.cardDataWrites.push({ characterId, data });
+        return Promise.resolve();
+      },
+      getCardData: (characterId) => {
+        performed.cardDataReads.push(characterId);
+        return Promise.resolve({ echoed: characterId });
       },
     },
     pubsub: {
@@ -1391,6 +1419,77 @@ describe("attachMembrane — U8 databank.ingest / character.ingest are grant-gat
       expect(out).toContain("character-card object");
     });
     expect(performed.characterIngests).toEqual([]);
+  });
+});
+
+// ── U8 D148: the per-card state host fns (character.setCardData / getCardData) ──────────────────────────────────
+// The membrane's half of the D148 wall: each gates `character.card_state` (an ungranted call NEVER reaches the
+// bridge — the property proven by the `performed.cardData*` ABSENCE), needs NO chat scope and NO host authority
+// (`canWrite:false` — a write to your OWN character is not room state), and forwards a VALIDATED payload — the
+// guest names ONLY the characterId + data, never a slug (that is stamped domain-side) and never an owner. A
+// malformed arg is a typed rejection of the CALL, not a partial write. The slug-stamp + owner-scope + the
+// leak-free NOT_FOUND for a foreign character are the DOMAIN's walls (bridge.test.ts + the persistence int test).
+describe("attachMembrane — U8 character.setCardData / getCardData are grant-gated owner-writes (no chat, no host authority)", () => {
+  test("setCardData WITHOUT the grant rejects with the TYPED capability error — the bridge is never called", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost([], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.character.setCardData('char_x', { k: 1 }); return 'NO-THROW' } catch (e) { return e.name } })()",
+      );
+      expect(out).toBe("PluginCapabilityError");
+    });
+    expect(performed.cardDataWrites).toEqual([]);
+  });
+
+  test("setCardData WITH the grant forwards {characterId, data} — canWrite:false (a write to your own character is not room state)", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost(["character.card_state"], false, bridge, async (ctx) => {
+      await runAsync(ctx, "(async () => { await host.character.setCardData('char_abc', { mood: 'calm', n: 3 }); return 'ok' })()");
+    });
+    expect(performed.cardDataWrites).toEqual([{ characterId: "char_abc", data: { mood: "calm", n: 3 } }]);
+  });
+
+  test("setCardData with NON-object data (an array) is a typed rejection — nothing reaches the bridge", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost(["character.card_state"], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.character.setCardData('char_abc', ['nope']); return 'NO-THROW' } catch (e) { return 'caught:' + e.message } })()",
+      );
+      expect(out).toContain("data object");
+    });
+    expect(performed.cardDataWrites).toEqual([]);
+  });
+
+  test("setCardData with a non-string characterId is a typed rejection — nothing reaches the bridge", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost(["character.card_state"], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.character.setCardData(42, { k: 1 }); return 'NO-THROW' } catch (e) { return 'caught:' + e.message } })()",
+      );
+      expect(out).toContain("characterId string");
+    });
+    expect(performed.cardDataWrites).toEqual([]);
+  });
+
+  test("getCardData WITHOUT the grant rejects with the TYPED capability error — the bridge is never called", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost([], false, bridge, async (ctx) => {
+      const out = await runAsync(ctx, "(async () => { try { await host.character.getCardData('char_x'); return 'NO-THROW' } catch (e) { return e.name } })()");
+      expect(out).toBe("PluginCapabilityError");
+    });
+    expect(performed.cardDataReads).toEqual([]);
+  });
+
+  test("getCardData WITH the grant forwards the characterId + returns the stored blob (canWrite:false — own character)", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost(["character.card_state"], false, bridge, async (ctx) => {
+      const out = await runAsync(ctx, "(async () => { const r = await host.character.getCardData('char_read'); return r.echoed })()");
+      expect(out).toBe("char_read");
+    });
+    expect(performed.cardDataReads).toEqual(["char_read"]);
   });
 });
 

@@ -160,6 +160,19 @@ export const CAPABILITY_COPY_ROWS = [
     risk: true,
   },
   {
+    // U8 D148 — per-card plugin state. `risk`, on the `global_vars` / ingest-pair precedent: it writes durable
+    // PERSONAL state (data saved ON your character cards, which travels with the card when you export it), which
+    // is the reaches-past-its-own-private-store line the header draws — distinct from `storage.kv`'s invisible
+    // plugin-only box. NOT `spends` (no paid budget — a local metadata write). The consequence names the two walls
+    // a person should be able to see: it is namespaced to the plugin (never another plugin's data) and inert (it
+    // does not change what the character says or does).
+    id: "character.card_state",
+    label: "Store its own data on your characters",
+    consequence:
+      "Saves and reads its own private data on your character cards — its own data only, never another plugin's — and it never changes what the character says.",
+    risk: true,
+  },
+  {
     id: "events.subscribe",
     label: "Watch for things happening",
     consequence: "Runs its code when messages are committed, lore activates, and so on — only in rooms you are in.",

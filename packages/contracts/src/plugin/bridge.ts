@@ -183,6 +183,25 @@ export interface PluginBridge {
   readonly character: {
     // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     readonly ingest: (card: Record<string, unknown>) => Promise<{ readonly characterId: string; readonly created: boolean }>;
+    /** Store this plugin's per-card state under `data.extensions.plugin_<slug>` on one of the installer's OWN
+     *  characters (`host.character.setCardData`, capability `character.card_state` — D148). The membrane passes
+     *  ONLY the guest-supplied `characterId` + inert `data`; the domain builder closes over the INSTALLER (the
+     *  owner-scope predicate) AND the emitter's own un-forgeable manifest SLUG (the `pubsub.emit` precedent — a
+     *  guest names no slug, so it can target only its own key on the character), derives the reserved
+     *  `plugin_<slug>` key and MERGES it into the character's residual `extensions` touching that one key only. A
+     *  `characterId` the installer does not own writes nothing and rejects leak-free (the `PluginNotFoundError`
+     *  posture). METADATA, not content: the write does NOT bump `contentHash` or re-index the character (D148
+     *  clause d). NO chat scope, NO host authority (the `storage.kv` posture). Authority-agnostic like every
+     *  bridge op — infra holds no pluginId, slug, or Principal. */
+    // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
+    readonly setCardData: (characterId: string, data: Record<string, unknown>) => Promise<void>;
+    /** Read back this plugin's per-card state (`data.extensions.plugin_<slug>`) from one of the installer's OWN
+     *  characters (`host.character.getCardData`, capability `character.card_state`). Same installer-owner-scope +
+     *  host-stamped-slug walls as {@link setCardData}: a foreign/absent character rejects leak-free, and the read
+     *  targets only this plugin's own key. Returns the stored blob or `null` when none is stored on that owned
+     *  character. */
+    // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
+    readonly getCardData: (characterId: string) => Promise<Record<string, unknown> | null>;
   };
   /** Publish a PRIVATE plugin event (`host.pubsub.emit`, capability `plugin_events` — plugin-ui-plane §5a). The
    *  domain builder closes over the INSTALLER + the emitter's own manifest SLUG (both un-forgeable — a guest
