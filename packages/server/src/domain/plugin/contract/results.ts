@@ -206,7 +206,12 @@ export interface SnippetResult {
  *   - `update-available` — the remote is strictly newer; `newVersion` is the semver to offer.
  *   - `unreachable` — the source could not be fetched OR did not parse to a usable manifest, collapsed to ONE
  *     leak-free arm on purpose (the same no-SSRF-oracle posture as `PluginBundleFetchError`: distinguishing
- *     "blocked" from "404" from "garbage" would leak what the URL resolved to). */
+ *     "blocked" from "404" from "garbage" would leak what the URL resolved to).
+ *
+ *  @public-future: the plugin-row update-check renderer — the "Update to X" / muted "couldn't reach source"
+ *  affordance this JSDoc describes. The #788-2b update-check BACKEND (checkForUpdates / upgradeFromStoredUrl)
+ *  is built; the plugin-row status renderer that consumes this vocabulary is not yet wired. Scaffolded intent,
+ *  not dead residue — preserve until the renderer lands. */
 export const PLUGIN_UPDATE_STATUSES = ["up-to-date", "update-available", "unreachable"] as const;
 
 /** One plugin's update-check outcome. A discriminated union rather than a flat shape with an optional
