@@ -106,7 +106,7 @@ drift guarantee); (b) a module-kind `.d.ts` importing `@orb/contracts` (useless 
 whole point is an author WITHOUT the repo); (c) homing it in `packages/contracts` (the published artifact
 is part of the example-plugin SDK folder, and contracts' own file is the one true source it mirrors).
 
-**The conformance pin, AS BUILT** (`tests/contracts/plugin/published-sdk.test-d.ts` — renamed from the
+**The conformance pin, AS BUILT** (`tests/contracts/plugin/host-v1.test-d.ts` — renamed from the
 planned `host-v1-dts` spelling, see the dated repair below): brings the script-kind globals in via `///
 <reference path>` PLUS an explicit root-tsconfig include, then asserts per-NAMESPACE mutual assignability
 against the contract through a targeted brand-erasure walk (`ChatHandle|AssetId|CharacterId → string`) with
@@ -190,7 +190,7 @@ atlas README names the extension seam (one source object per hub).
   planted-control style: each new assertion first proven failable by driving the pre-upgrade bundle where
   applicable (red-first for the affinity guard fix: the ungranted-activation refusal reproduces on the
   pre-fix source).
-- `host-v1-dts.test-d.ts` (§4) with a planted control (a deliberately mis-typed member goes red) proven
+- `host-v1.test-d.ts` (§4) with a planted control (a deliberately mis-typed member goes red) proven
   during build, then removed.
 - Floors: per-package `pnpm typecheck` (owns `.test-d` via `types:testd` + any `.ct.tsx` — none planned),
   `types:graph` (sees `tests/`), scoped biome on touched files, `pnpm check:docs` (this file), the seed
@@ -208,7 +208,7 @@ atlas README names the extension seam (one source object per hub).
 10. `host-v1.d.ts` + pin · 11. the guide rewrite + READMEs · 12. int-test extension rides each row.
 
 **Status 2026-08-28: rows 1-11 BUILT and suite-green** (seed int-suite 13/13 over the real WASM host;
-ui.contract 43/43; bindings unit 4/4; the touched plugin CTs 16/16; published-sdk pin 5/5 with both-direction
+ui.contract 43/43; bindings unit 4/4; the touched plugin CTs 16/16; the host-v1 pin 5/5 with both-direction
 planted controls through ts7). ARM C landed per the ruling (append-only; three arms; the security-executor
 pass on the owner-scoped assetId seam is the orchestrator's follow-up). Residual: append #788's five read
 functions to `host-v1.d.ts` when it merges (the pin's keyof-equality arm reds on the re-sync and names them),
