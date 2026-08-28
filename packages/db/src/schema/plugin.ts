@@ -49,8 +49,15 @@ export const plugins = sqliteTable(
     grantedCapabilities: text("granted_capabilities", { mode: "json" }).$type<PluginCapability[]>().notNull(),
     // Enum narrows to the contract union; a tuple-built CHECK enforces it at the SQL level.
     status: text("status", { enum: PLUGIN_STATUSES }).notNull(),
-    // How the host obtained the bytes (reserved single-arm `upload`; `catalog` rides an additive member).
+    // How the host obtained the bytes (`upload` file install · `url` fetched through the egress guard; a
+    // future `catalog` rides an additive member — the CHECK derives from the ONE contract tuple).
     origin: text("origin", { enum: PLUGIN_ORIGINS }).notNull(),
+    // The URL a `url`-origin install was FETCHED FROM (plugin-ui-plane #679 U8 2b), remembered so the auto
+    // update-check re-fetches the manifest and the one-click upgrade re-fetches the bundle without the owner
+    // re-pasting it. NULL for an `upload` install (a handed-over file has no remembered source). It is not
+    // derivable from anything else — the bytes are in the CAS but the URL they came from is not — which is the
+    // whole reason it earns a column. Owner-scoped by the row it rides; a guest can name no other owner's row.
+    sourceUrl: text("source_url"),
     // THE SYSTEM'S OWN REFUSAL, recorded — set when an UPGRADE widened declared reach and forced the row
     // `disabled`, cleared when the owner re-consents to the whole ask (`setGrant`) and on a fresh install.
     // It is a stored EVENT, not a derivable state, and that is what earns it a column: "declared ⊄ granted"
@@ -95,6 +102,13 @@ export const plugins = sqliteTable(
     index("plugins_bundle_asset_idx").on(t.bundleAssetId),
     check("plugins_status_check", sql.raw(`status in (${STATUS_CHECK_LIST})`)),
     check("plugins_origin_check", sql.raw(`origin in (${ORIGIN_CHECK_LIST})`)),
+    // origin ⟺ source_url, at the physics tier (constitution §2.2 — push the invariant up the ladder; a
+    // coupling that lives only in the verbs' comments is a wish). `upload` is the ONE origin with no remembered
+    // URL; every non-upload origin (today `url`, tomorrow a `catalog` fetcher) MUST carry one, because the whole
+    // point of a non-upload origin is the source the update-check re-fetches. Written against `= 'upload'` rather
+    // than `<> 'url'` so a future URL-bearing member inherits the constraint by construction — the only thing
+    // that ever needs re-stating is which origins are URL-less, and there is exactly one.
+    check("plugins_source_url_check", sql.raw("(origin = 'upload' and source_url is null) or (origin <> 'upload' and source_url is not null)")),
     // The delta's lockstep with the flag, at the physics tier (constitution §2.2 — push enforcement up the
     // ladder; a lifecycle that lives only in the verbs' comments is a wish). A settled row cannot carry a
     // "New" mark for an ask nobody is being asked about. `json_array_length` rather than a `= '[]'` string

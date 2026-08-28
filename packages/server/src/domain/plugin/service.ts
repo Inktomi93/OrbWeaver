@@ -14,6 +14,7 @@ import { createCrashPolicy } from "./activation/crash-policy.ts";
 import { createDeactivate } from "./activation/deactivate.ts";
 import type { PluginContext, PluginDistributionDeps, PluginRegistry, PluginService } from "./contract/service.ts";
 import { createApplyDistributedPlugins } from "./verbs/apply-distributed-plugins.ts";
+import { createCheckForUpdates } from "./verbs/check-for-updates.ts";
 import { createGetFrameBody } from "./verbs/get-frame-body.ts";
 import { createGetPluginLog } from "./verbs/get-plugin-log.ts";
 import { createGetSurfaceState } from "./verbs/get-surface-state.ts";
@@ -38,6 +39,7 @@ import { createUiHostCall } from "./verbs/ui-host-call.ts";
 import { createUninstall } from "./verbs/uninstall.ts";
 import { createUninstallForAllUsers } from "./verbs/uninstall-for-all-users.ts";
 import { createUpgrade } from "./verbs/upgrade.ts";
+import { createUpgradeFromStoredUrl } from "./verbs/upgrade-from-stored-url.ts";
 import { createUpgradeFromUrl } from "./verbs/upgrade-from-url.ts";
 
 /** `distribution` is a SEPARATE parameter, never folded into {@link PluginContext} (D147 clause (a)): the
@@ -74,6 +76,10 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
     previewFromUrl: createPreviewFromUrl(ctx),
     installFromUrl: createInstallFromUrl(ctx, { install }),
     upgradeFromUrl: createUpgradeFromUrl(ctx, { upgrade }),
+    // U8 2b — the auto update-check + the true one-click upgrade (re-paste-free, from the STORED sourceUrl). Both
+    // ride `ctx.fetchBundle`; `upgradeFromStoredUrl` delegates to the SAME `upgrade` (keeping #615's wall).
+    checkForUpdates: createCheckForUpdates(ctx),
+    upgradeFromStoredUrl: createUpgradeFromStoredUrl(ctx, { upgrade }),
     setGrant,
     setEnabled: createSetEnabled(ctx, { activate, deactivate }),
     uninstall,

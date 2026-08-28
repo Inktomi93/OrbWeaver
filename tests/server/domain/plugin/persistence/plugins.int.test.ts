@@ -63,6 +63,7 @@ async function seedPlugin(db: Db, ownerId: UserId, id: string, slug = "test-plug
     grantedCapabilities: ["chat.read"],
     status: "disabled",
     origin: "upload",
+    sourceUrl: null,
     installedAt: AT,
     updatedAt: AT,
   });
@@ -109,6 +110,7 @@ test("listOwned returns the owner's plugins newest-installed first", async () =>
     grantedCapabilities: [],
     status: "disabled",
     origin: "upload",
+    sourceUrl: null,
     installedAt: AT + 100,
     updatedAt: AT + 100,
   });
@@ -225,6 +227,7 @@ test("a fresh install writes an EMPTY delta and a CLEARED flag — a new row nev
     grantedCapabilities: ["chat.read"],
     status: "disabled",
     origin: "upload",
+    sourceUrl: null,
     installedAt: AT,
     updatedAt: AT,
   });
@@ -252,6 +255,7 @@ test("deletePlugin removes the row; toPluginView lifts builtAgainst from the man
     grantedCapabilities: ["chat.read"],
     status: "disabled",
     origin: "upload",
+    sourceUrl: null,
     installedAt: AT,
     updatedAt: AT,
   });

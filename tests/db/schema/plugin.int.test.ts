@@ -5,7 +5,7 @@
 // CHECKs + pluginId CASCADE.
 
 import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
-import { PLUGIN_STATUSES, pluginManifestSchema } from "@orb/contracts/plugin";
+import { PLUGIN_ORIGINS, PLUGIN_STATUSES, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { assets, pluginKv, plugins, users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
@@ -105,6 +105,50 @@ test("plugins round-trips, unique(ownerId,slug) collides, status CHECK bites", a
       updatedAt: now,
     }),
   ).rejects.toSatisfy(isConstraintErr);
+});
+
+test("origin enum mirrors PLUGIN_ORIGINS (derives the tuple, never re-spells)", () => {
+  expect(plugins.origin.enumValues).toEqual([...PLUGIN_ORIGINS]);
+});
+
+test("the source_url CHECK pairs origin with source_url: upload ⟺ null, url ⟺ non-null (U8 2b)", async () => {
+  // The physics tier of the `origin ⟺ source_url` invariant. `upload` is the ONE origin with no remembered URL;
+  // every other origin (today `url`) MUST carry one, because the whole point of a non-upload origin is the source
+  // the auto update-check re-fetches. The CHECK makes the two broken combinations UNWRITABLE, so a future writer
+  // that records a `url` install with no URL (breaking the update-check) or an `upload` with a stray URL gets a
+  // constraint violation, not a silently-wrong row.
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_plugin_src" });
+  const bundleAssetId = await seedAsset(db, ownerId, "asset_plugin_src");
+  const base = {
+    ownerId,
+    name: "Src Plugin",
+    version: "1.0.0",
+    manifest: MANIFEST,
+    bundleAssetId,
+    grantedCapabilities: GRANTS,
+    status: "disabled" as const,
+    installedAt: 1000,
+    updatedAt: 1000,
+  };
+
+  // PLANTED POSITIVE CONTROLS — both broken combinations are refused.
+  await expect(
+    db.insert(plugins).values({ ...base, id: castId<PluginId>("plugin_src_bad1"), slug: "src-bad-1", origin: "url", sourceUrl: null }),
+  ).rejects.toSatisfy(isConstraintErr); // a `url` install with no remembered URL — the update-check would have nothing to fetch
+  await expect(
+    db.insert(plugins).values({ ...base, id: castId<PluginId>("plugin_src_bad2"), slug: "src-bad-2", origin: "upload", sourceUrl: "https://x.example/p.zip" }),
+  ).rejects.toSatisfy(isConstraintErr); // an `upload` install carrying a stray URL
+
+  // …and both legitimate shapes pass — so the CHECK is a pairing guard, not a blanket refusal.
+  await db.insert(plugins).values({ ...base, id: castId<PluginId>("plugin_src_upload"), slug: "src-upload", origin: "upload", sourceUrl: null });
+  await db.insert(plugins).values({ ...base, id: castId<PluginId>("plugin_src_url"), slug: "src-url", origin: "url", sourceUrl: "https://x.example/p.zip" });
+  const urlRows = await db
+    .select()
+    .from(plugins)
+    .where(eq(plugins.id, castId<PluginId>("plugin_src_url")));
+  expect(urlRows[0]?.origin).toBe("url");
+  expect(urlRows[0]?.sourceUrl).toBe("https://x.example/p.zip");
 });
 
 test("the widened-hosts CHECK refuses a SETTLED row that still carries a re-consent delta", async () => {

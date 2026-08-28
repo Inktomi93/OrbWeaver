@@ -39,6 +39,33 @@ export const useInstallPlugin = createEntityMutation<inferInput<Trpc["plugin"]["
   errorToast: serverReason("Couldn't install that plugin."),
 });
 
+/** PREVIEW a plugin bundle at a caller-supplied URL (plugin-ui-plane #679 U8, seam 15) — the server fetches
+ *  it THROUGH the egress guard and returns its MANIFEST, so the SAME consent/grant screen a file install shows
+ *  can be built from a URL the client never fetched itself. Reconciles NOTHING (`invalidates: () => []`): it is
+ *  a read-only probe that persists no row, exactly like `runSnippet`.
+ *
+ *  NO `errorToast`, DELIBERATELY — the URL arm must NOT forward the server's reason. `previewFromUrl` throws two
+ *  distinct shapes: `PluginBundleFetchError` (unreachable / refused / SSRF-blocked / non-2xx) and
+ *  `ManifestInvalidError` (fetched, but not a plugin). Surfacing which one fired would turn "did the fetch
+ *  reach?" into an SSRF ORACLE — so the install card catches the rejection and renders ONE fixed, leak-free
+ *  line for every failure, never `error.message` (`plugin-install-card.tsx`). */
+export const usePreviewPluginFromUrl = createEntityMutation<inferInput<Trpc["plugin"]["previewFromUrl"]>, inferOutput<Trpc["plugin"]["previewFromUrl"]>>({
+  options: (trpc) => trpc.plugin.previewFromUrl.mutationOptions(),
+  invalidates: () => [],
+});
+
+/** Install a plugin from a URL with a CONFIRMED grant subset (plugin-ui-plane #679 U8, seam 15). The server
+ *  re-fetches the bundle through the egress guard and runs it through the EXACT SAME funnel + consent checks a
+ *  file `install` takes, minting the caller's own `disabled` row — so this reconciles `plugin.list` on settle
+ *  just like `useInstallPlugin`. `errorToast` forwards the server's own sentence (`PluginBundleFetchError` and
+ *  `PluginAlreadyInstalledError` are both host-readable and leak-free at the install act), falling back to a
+ *  generic line only for an error that is not one of ours. */
+export const useInstallPluginFromUrl = createEntityMutation<inferInput<Trpc["plugin"]["installFromUrl"]>, inferOutput<Trpc["plugin"]["installFromUrl"]>>({
+  options: (trpc) => trpc.plugin.installFromUrl.mutationOptions(),
+  invalidates: (trpc) => [trpc.plugin.list.queryFilter()],
+  errorToast: serverReason("Couldn't install that plugin from that URL."),
+});
+
 /** Replace an installed plugin's bundle. The verb refuses a downgrade and a slug mismatch outright; a
  *  REACH-WIDENING upgrade succeeds but lands `disabled` pending re-confirmation, so the caller reads the
  *  returned `PluginView.status` rather than assuming the plugin kept running. Also invalidates the log —
@@ -47,6 +74,40 @@ export const useUpgradePlugin = createEntityMutation<inferInput<Trpc["plugin"]["
   options: (trpc) => trpc.plugin.upgrade.mutationOptions(),
   // `listSurfaces` too: a new bundle registers a different surface set (plugin-ui-plane #679 U1), and the
   // plugin lifecycle has no bus event — the write is the freshness driver.
+  invalidates: (trpc, vars) => [
+    trpc.plugin.list.queryFilter(),
+    trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),
+    trpc.plugin.listSurfaces.queryFilter(),
+    trpc.plugin.listCommands.queryFilter(),
+  ],
+  errorToast: serverReason("Couldn't update that plugin."),
+});
+
+/**
+ * U8 2b — the AUTO UPDATE-CHECK (the thing ST's loader does). A BATCH mutation (not a query) because the server
+ * verb triggers EGRESS to each url-origin plugin's remembered source, and a GET-shaped door onto egress is
+ * cacheable + outside the CSRF belt — the same reason `upgradeFromUrl`/`installFromUrl` are mutations. Takes no
+ * input (it walks the caller's OWN plugins) and reconciles NOTHING — a check writes nothing; the caller reads the
+ * per-plugin verdicts through `mutateAsync` and renders the "Update to X" / "up to date" / "couldn't reach" line.
+ */
+export const useCheckForUpdates = createEntityMutation<inferInput<Trpc["plugin"]["checkForUpdates"]>, inferOutput<Trpc["plugin"]["checkForUpdates"]>>({
+  options: (trpc) => trpc.plugin.checkForUpdates.mutationOptions(),
+  invalidates: () => [],
+  errorToast: serverReason("Couldn't check for updates."),
+});
+
+/**
+ * U8 2b — the TRUE one-click upgrade: re-fetch the plugin's REMEMBERED `sourceUrl` (re-paste-free) and upgrade in
+ * place through the SAME server `upgrade` verb `useUpgradePlugin` drives — so a REACH-WIDENING update lands the
+ * row `disabled` pending re-consent exactly the same way (never silent), and the caller reads the returned
+ * `PluginView.status`/`reconsentPending` rather than assuming it kept running. Same invalidations as the file
+ * upgrade: the new bundle can move the log, the surface set and the command set.
+ */
+export const useUpgradePluginFromStoredUrl = createEntityMutation<
+  inferInput<Trpc["plugin"]["upgradeFromStoredUrl"]>,
+  inferOutput<Trpc["plugin"]["upgradeFromStoredUrl"]>
+>({
+  options: (trpc) => trpc.plugin.upgradeFromStoredUrl.mutationOptions(),
   invalidates: (trpc, vars) => [
     trpc.plugin.list.queryFilter(),
     trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),

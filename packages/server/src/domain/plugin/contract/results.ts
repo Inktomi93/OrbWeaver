@@ -34,6 +34,11 @@ export interface PluginView {
   readonly version: string;
   readonly status: PluginStatus;
   readonly origin: PluginOrigin;
+  /** The URL a `url`-origin install was fetched from (plugin-ui-plane #679 U8 2b) — what the auto update-check
+   *  re-fetches and what the one-click upgrade re-uses, so neither needs the owner to re-paste it. `null` for an
+   *  `upload` install (the `origin ⟺ source_url` invariant: null exactly when `origin === "upload"`), which also
+   *  tells a management surface whether to offer the "check for updates / update" affordance at all. */
+  readonly sourceUrl: string | null;
   readonly grantedCapabilities: readonly PluginCapability[];
   /** What the persisted manifest DECLARES (the ask). Always present — `capabilities` is a required manifest
    *  array — and possibly empty; `grantedCapabilities ⊆ this` is the standing invariant every grant write holds. */
@@ -191,3 +196,25 @@ export interface SnippetResult {
   readonly errorKind?: "parse" | "runtime";
   readonly errorLine?: number;
 }
+
+/** The verdict of an auto update-check for ONE `url`-origin plugin (plugin-ui-plane #679 U8 2b — the thing
+ *  ST's loader does: fetch the remote manifest through the SAME egress guard the install rode and compare its
+ *  version). The ONE home for this axis (§5.5 dispatch discipline) — a client renders each arm's affordance off
+ *  it (nothing · an "Update to X" button · a muted "couldn't reach source"), so a new arm fails `tsc` at the
+ *  renderer rather than degrading into an unlabeled state.
+ *   - `up-to-date` — the remote version is ≤ the installed one.
+ *   - `update-available` — the remote is strictly newer; `newVersion` is the semver to offer.
+ *   - `unreachable` — the source could not be fetched OR did not parse to a usable manifest, collapsed to ONE
+ *     leak-free arm on purpose (the same no-SSRF-oracle posture as `PluginBundleFetchError`: distinguishing
+ *     "blocked" from "404" from "garbage" would leak what the URL resolved to). */
+export const PLUGIN_UPDATE_STATUSES = ["up-to-date", "update-available", "unreachable"] as const;
+export type PluginUpdateStatus = (typeof PLUGIN_UPDATE_STATUSES)[number];
+
+/** One plugin's update-check outcome. A discriminated union rather than a flat shape with an optional
+ *  `newVersion`, so `newVersion` is present EXACTLY on `update-available` — a version can be neither forgotten
+ *  on the arm that needs it nor invented on an arm that does not. A file-origin plugin (no `sourceUrl`) is never
+ *  in a batch result at all — there is nothing to check, which is distinct from "unreachable". */
+export type PluginUpdateCheck =
+  | { readonly pluginId: PluginId; readonly status: "up-to-date" }
+  | { readonly pluginId: PluginId; readonly status: "update-available"; readonly newVersion: string }
+  | { readonly pluginId: PluginId; readonly status: "unreachable" };

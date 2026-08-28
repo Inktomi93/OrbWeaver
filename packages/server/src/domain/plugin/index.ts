@@ -48,6 +48,7 @@ export {
   PluginCrashedError,
   PluginDowngradeRefusedError,
   PluginNetHostsUnacknowledgedError,
+  PluginNoSourceUrlError,
   PluginNotDistributedError,
   PluginNotFoundError,
   PluginSnippetBusyError,
@@ -101,10 +102,11 @@ export type {
   PluginLogView,
   PluginSurfaceState,
   PluginSurfaceView,
+  PluginUpdateCheck,
   PluginView,
   SnippetResult,
 } from "./contract/results.ts";
-export { PLUGIN_FANOUT_SKIP_REASONS } from "./contract/results.ts";
+export { PLUGIN_FANOUT_SKIP_REASONS, PLUGIN_UPDATE_STATUSES } from "./contract/results.ts";
 export type {
   CreateInstanceInput,
   CreateInstanceOutcome,
