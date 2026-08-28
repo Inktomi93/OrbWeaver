@@ -20,6 +20,7 @@
     "#*": "./src/*/index.ts"
   },
   "dependencies": {
+    "@jitl/quickjs-ng-wasmfile-release-sync": "catalog:",
     "@orb/contracts": "workspace:*",
     "@orb/kit": "workspace:*",
     "@orb/ui": "workspace:*",
@@ -29,6 +30,7 @@
     "@trpc/client": "catalog:",
     "@trpc/tanstack-react-query": "catalog:",
     "fflate": "catalog:",
+    "quickjs-emscripten-core": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "zod": "catalog:",

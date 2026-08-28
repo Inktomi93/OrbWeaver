@@ -630,6 +630,38 @@ module.exports = {
       to: { path: ["^tests/", TEST_FILES] },
     },
     {
+      // Overrides recommended-strict's `not-to-unresolvable`, per dep-cruiser's own prescription for
+      // intentional cases, and NARROWED to exactly one shape: a VITE ASSET-URL REQUEST for a `.wasm`.
+      //
+      // WHY IT IS NOT AN IMPORT AT ALL. `import url from "….wasm?url"` does not pull in a module: it asks the
+      // bundler to EMIT a binary and hand back its hashed URL string. There is no code behind the edge, no
+      // transitive graph, and nothing a layer/boundary rule could have an opinion about. depcruise cannot see
+      // that — enhanced-resolve carries the whole `?url` suffix into the package-`exports` lookup, finds
+      // nothing, and reports `couldNotResolve` while the file sits right there on disk (probed: its `resolved`
+      // is the raw specifier).
+      //
+      // THE THREE ALTERNATIVES WERE PROBED, ALL LOST (2026-08-28, plugin-ui-plane #679 U4 — the Tier-C QuickJS
+      // wasm): (1) `enhancedResolveOptions.alias` is REFUSED BY THE CONFIG SCHEMA ("must NOT have additional
+      // properties"); (2) `options.exclude.path` does NOT reach an unresolvable dependency node (the pattern
+      // matched its `resolved` string and the violation still fired); (3) dropping the suffix in favour of
+      // `assetsInclude: ["**/*.wasm"]` does not win — vite still applies its `?init` wasm transform and the
+      // worker bundle FAILS TO BUILD. And the suffix is load-bearing, not cosmetic: without an explicit
+      // `wasmLocation` the QuickJS variant derives its wasm path from `import.meta.url` at runtime, which
+      // resolves inside node_modules in dev and 404s from a hashed production chunk.
+      //
+      // SCOPE, deliberately tight, and the PATTERN IS EXACT rather than approximate: the request that reaches
+      // this rule is `@jitl/quickjs-ng-wasmfile-release-sync/wasm?url` — an `exports` SUBPATH named `wasm`, with
+      // no file extension, so the obvious `\\.wasm\\?url$` matches NOTHING and would have shipped a rule that
+      // silently did not apply (measured: it still fired). Every other unresolvable import — a `?raw`, a
+      // `.ts?url`, a genuinely missing package — still fires at ERROR, and this one fires again the day the
+      // wasm stops being real, because the BUILD is what proves it (`pnpm --filter @orb/client build` emits
+      // `assets/emscripten-module-*.wasm`).
+      name: "not-to-unresolvable",
+      severity: "error",
+      from: {},
+      to: { couldNotResolve: true, pathNot: ["wasm\\?url$"] },
+    },
+    {
       // Overrides recommended-strict's ERROR-severity rule, per dep-cruiser's own prescription for
       // intentional cases. WHY: react/react-dom are deliberately peer+dev in @orb/ui (peer = the
       // consumer provides the runtime copy; dev = local typecheck/CT — ui-package-design.md §1), and

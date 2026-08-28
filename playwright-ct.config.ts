@@ -100,6 +100,14 @@ export default defineConfig({
       esbuild: { target: "es2024", tsconfigRaw: { compilerOptions: { target: "es2024" } } },
       optimizeDeps: { esbuildOptions: { target: "es2024" } },
       resolve: { dedupe: ["react", "react-dom"] },
+      // MODULE WORKERS (plugin-ui-plane #679 U4). vite's default `worker.format` is `iife`, and an iife worker
+      // bundle CANNOT CODE-SPLIT — the Tier-C plugin guest's QuickJS variant dynamically imports its own FFI
+      // module, so the CT build failed outright: "Invalid value 'iife' for option 'worker.format' — UMD and
+      // IIFE output formats are not supported for code-splitting builds". `es` is also what the runtime already
+      // requires: the worker is constructed `{ type: "module" }`, which every browser this app supports
+      // understands. The app's own build (vite 8 / rolldown) defaults differently and never hit this; the CT
+      // harness pins vite 6, so the format has to be said out loud HERE or a Tier-C CT can never build.
+      worker: { format: "es" },
       build: {
         rollupOptions: {
           // Silence the advisory floods that drown the CT build output (~dozens of lines each): react-query's
