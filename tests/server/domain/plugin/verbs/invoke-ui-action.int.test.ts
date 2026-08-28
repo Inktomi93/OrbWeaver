@@ -15,7 +15,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 function instanceWith(surfaces: PluginInstance["surfaces"]): PluginInstance {
-  return { tools: [], transforms: [], events: [], surfaces, commands: [], displayTransforms: [], macros: [] };
+  return { tools: [], transforms: [], events: [], pubsub: [], surfaces, commands: [], displayTransforms: [], macros: [] };
 }
 
 const ROOM = castId<ChatId>("chat_0000000000000000000001");

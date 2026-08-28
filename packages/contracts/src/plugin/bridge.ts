@@ -184,6 +184,16 @@ export interface PluginBridge {
     // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     readonly ingest: (card: Record<string, unknown>) => Promise<{ readonly characterId: string; readonly created: boolean }>;
   };
+  /** Publish a PRIVATE plugin event (`host.pubsub.emit`, capability `plugin_events` — plugin-ui-plane §5a). The
+   *  domain builder closes over the INSTALLER + the emitter's own manifest SLUG (both un-forgeable — a guest
+   *  supplies only `name` + `data`), and the op publishes on the installer-scoped resident plugin-event bus. It
+   *  NEVER touches a domain/chat bus and the delivered payload is `{name, data}`, never a `TriggerFact` — the
+   *  forgery wall. `on` is NOT a bridge op: a subscription is a RESIDENT registration collected at the membrane
+   *  and wired through the registrar (the `events.on` pattern), not a runtime call. Authority-agnostic like every
+   *  bridge op — infra holds no pluginId, slug, or Principal. */
+  readonly pubsub: {
+    readonly emit: (name: string, data: Record<string, unknown>) => Promise<void>;
+  };
 }
 
 /** The admitted invocation chat + whether the acting principal is HOST of it (the write ceiling:

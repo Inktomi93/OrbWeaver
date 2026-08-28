@@ -11,7 +11,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 function instanceWithCommands(commands: PluginInstance["commands"]): PluginInstance {
-  return { tools: [], transforms: [], events: [], surfaces: [], commands, displayTransforms: [], macros: [] };
+  return { tools: [], transforms: [], events: [], pubsub: [], surfaces: [], commands, displayTransforms: [], macros: [] };
 }
 
 const DRAW: PluginInstance["commands"] = [{ name: "draw", describe: "Draw a card", onRun: castId<PluginHandlerRef>("plugin-handler-0") }];

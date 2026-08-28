@@ -34,6 +34,12 @@ function register(ctx: PluginContext, instance: PluginInstance, invoke: PluginIn
     if (instance.events.length > 0) {
       handles.push(ctx.ops.registrar.subscribeEvent(instance.events, invoke, scope));
     }
+    // U8 §5a — the private plugin-event subscriptions wire onto the INSTALLER-scoped resident bus (the events
+    // pattern, one plane over); a plugin with no `pubsub.on` registers nothing, and the deregistration handle
+    // drops exactly this plugin's subscriptions on deactivate.
+    if (instance.pubsub.length > 0) {
+      handles.push(ctx.ops.registrar.subscribePubsub(instance.pubsub, invoke, scope));
+    }
     // Macros aggregate the same way (ONE registry entry per plugin — the per-plugin ceiling and the per-turn
     // read are both per-plugin); a plugin with no `macros.register` registers nothing. DISPLAY transforms have
     // no registrar at all: like surfaces, they are read off the resident instance by their own verb.
@@ -94,7 +100,7 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
     // The bridge carries the plugin's IDENTITY (id + the manifest's display name) because a posture-2 card has
     // to say who is asking. The name is DERIVED from the re-validated manifest, never guest-runtime-supplied —
     // the same rule the slug and the netHosts allowlist follow.
-    const bridge = buildPluginBridge(ctx.ops, input.caller.userId, { id: input.pluginId, name: displayName }, ctx.belts);
+    const bridge = buildPluginBridge(ctx.ops, input.caller.userId, { id: input.pluginId, name: displayName, slug }, ctx.belts);
     const outcome = await ctx.host.createInstance({ mainJs, grants: input.grants, bridge, chat: null, ...(netHosts !== undefined ? { netHosts } : {}) });
     if (!outcome.ok) {
       await setStatus(ctx.db, input.pluginId, { status: "errored", lastError: outcome.error, updatedAt: ctx.now() });
