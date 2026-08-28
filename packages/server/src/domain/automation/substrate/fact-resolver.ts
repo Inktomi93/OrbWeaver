@@ -19,7 +19,7 @@ import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { AutomationOps, ResolvedTrigger } from "../contract/ops.ts";
 
 /** How each trigger's fact is shaped (the table below). A homed tuple → derived union (no re-spelled literals). */
-const FACT_SHAPES = ["chatScope", "message", "turn", "worldInfo", "persona", "character", "assetId", "personaId", "worldBookId"] as const;
+const FACT_SHAPES = ["chatScope", "message", "turn", "worldInfo", "persona", "reaction", "character", "assetId", "personaId", "worldBookId"] as const;
 type FactShape = (typeof FACT_SHAPES)[number];
 
 const FACT_SHAPE = {
@@ -36,6 +36,11 @@ const FACT_SHAPE = {
   turnAborted: "turn",
   worldInfoActivated: "worldInfo",
   personaSwitched: "persona",
+  // B6/MR0. NOT the `message` shape, deliberately: that shape re-reads canon for the reacted-to slot, and the
+  // reaction's own facts (which emoji, added or removed) live on the event and are the only things a
+  // reaction rule can actually select on. A rule that also wants the reacted-to PROSE has `message.id` here
+  // to reach it with — a widening, not a today-cost on every toggle.
+  reactionsChanged: "reaction",
   chatUpdated: "chatScope",
   wiEntryAttached: "chatScope",
   wiEntryDetached: "chatScope",
@@ -121,6 +126,13 @@ function resolveScalar(event: BusEvent): ResolvedTrigger {
   }
   if (event.type === "personaSwitched") {
     return { fact: { ...base, persona: { from: event.from, to: event.to } }, automationDepth: 0 };
+  }
+  if (event.type === "reactionsChanged") {
+    // Depth 0: a reaction is a HUMAN's concurrent act with no turn behind it (class-2-concurrent), so there
+    // is no generating turn whose cascade depth it could inherit. A turn a reaction rule fires is depth 1
+    // through the normal `requestTurn` stamp, exactly like a `chatOpened` rule's.
+    const reaction = { messageId: event.messageId, variantId: event.variantId, emoji: event.emoji, added: event.added };
+    return { fact: { ...base, reaction }, automationDepth: 0 };
   }
   if (event.type === "character.updated") {
     // `contentChanged` is CARRIED, not dropped (S7). The source event has always discriminated a real card

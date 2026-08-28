@@ -10,6 +10,7 @@
 import type { RoomEntityKind } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import type { InvalidateQueryFilters } from "@tanstack/react-query";
+import { roomRegistry } from "./bus/room-registry.ts";
 import type { Trpc } from "./trpc.ts";
 
 /** What the proxy's `.queryFilter()`/`.pathFilter()` return — accepted by `invalidateQueries`. */
@@ -90,6 +91,34 @@ export function promptPreviewReads(trpc: Trpc): readonly InvalidateFilter[] {
 // member-visible bus member with its full belt/coverage/CHECK price, which the needle's row does not buy.
 export function runtimeVariablesRead(trpc: Trpc): readonly InvalidateFilter[] {
   return [trpc.chat.getRuntimeVariables.pathFilter()];
+}
+
+/**
+ * Could this tab have MISSED a write to `chatId`'s room since its reads were filled? The room registry keeps
+ * the ledger (`liveEpoch`): `1` means the room is on its first live edge of this page load, so the reads that
+ * mounted with it ARE the fresh state and there is nothing for an attach-time heal to close (BOOT-4X, stated
+ * at room granularity in `bus/room-registry.ts`); `≥2` means it has been dark since — a reconnect, a re-open
+ * after a chat switch, or a shed — so a write that landed elsewhere in the meantime is unseen here.
+ *
+ * `0` (this room never attached in this page) answers HEAL, deliberately: the only callers that can see it
+ * are the ones holding an event for a room they never joined — a probe, a story, a unit test of this map —
+ * and an over-fire there costs one refetch where an under-fire would silently teach the seam to skip.
+ */
+export function roomWasDark(chatId: ChatId): boolean {
+  return roomRegistry.liveEpoch({ channel: "chat", chatId }) !== 1;
+}
+
+/** B6 — the pill row's ONE read (`chat.listReactions`): the room's bounded grouped reaction window, which
+ *  the client indexes by `variantId`.
+ *
+ *  NARROW ON PURPOSE, and this is the same argument the entity→room bridge made for not reusing
+ *  `chatUpdated`: `invalidateQueries` CANCELS AND RESTARTS an in-flight fetch, so routing a reaction through
+ *  `chatReads` would make every emoji click re-fetch the whole transcript on every attached member's device.
+ *  Exactly one query moves, because reactions are deliberately NOT part of `MessageView` — folding them in
+ *  would have put a per-variant join on every canon read and every bus view carrier, for an ornament most
+ *  rows never carry. */
+export function reactionsRead(trpc: Trpc): readonly InvalidateFilter[] {
+  return [trpc.chat.listReactions.pathFilter()];
 }
 
 // Canon reads plus the chat list, for non-terminal canon events the server fires no chatsChanged for. Every

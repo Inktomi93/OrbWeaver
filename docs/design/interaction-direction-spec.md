@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-08-25
+updated: 2026-08-28
 ---
 
 # THE INTERACTION DIRECTION — the one specification (substrate · platform · path · catalogue)
@@ -402,6 +402,17 @@ register into it (`registerPluginTool`, `domain/tool-use/contract/service.ts:22`
   tuple pin + the scope-Record entry + the SPEND entry. Ordinary merge.
 
 ### S7 — the trigger vocabulary (batched born-complete)
+
+> **BUILD-STATE TRUTH-REPAIR (2026-08-28, the B6 lane).** Three quarters of this section's batch was
+> already LANDED WITH C5 when B6 opened it, so the paragraph below reads as a plan for work that exists.
+> Receipts: `DOMAIN_TRIGGER_TYPES` carries all four live domain events and `LIVE_TRIGGERS` marks both new
+> ones live (`packages/contracts/src/automation/index.ts:51-58`, `:205-212`); the resolver CARRIES
+> `character.contentChanged` rather than dropping it (`domain/automation/substrate/fact-resolver.ts`, the
+> `character.updated` arm), so the "the resolver currently drops it" claim and its `:120-122` receipt are
+> dead. **B6's window added exactly ONE member — `reactionsChanged`** (tuple + `LIVE_TRIGGERS` row + a
+> `reaction` `TriggerFact` projection carrying `{messageId, variantId, emoji, added}` + the tuple-derived
+> CHECK, which its baseline squash carried anyway). The paragraph below is kept verbatim as the DESIGN;
+> only its build-state tense is corrected here.
 
 `CHAT_TRIGGER_TYPES` = 15; `DOMAIN_TRIGGER_TYPES` = 2 — but the domain event bus carries FOUR
 (`persona.updated`, `world-info.updated` unrepresented — `contracts/events/index.ts:31-37`).

@@ -91,7 +91,7 @@ CREATE TABLE `automation_rules` (
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "automation_rules_name_check" CHECK(length(name) <= 120),
 	CONSTRAINT "automation_rules_trigger_bus_check" CHECK(trigger_bus in ('chat', 'domain')),
-	CONSTRAINT "automation_rules_trigger_type_check" CHECK((trigger_bus = 'chat' AND trigger_type in ('chatOpened', 'messageCommitted', 'messageEdited', 'variantSelected', 'turnStarted', 'turnCompleted', 'turnAborted', 'worldInfoActivated', 'personaSwitched', 'chatCreated', 'messageHidden', 'messagesDeleted', 'chatUpdated', 'wiEntryAttached', 'wiEntryDetached')) OR (trigger_bus = 'domain' AND trigger_type in ('character.updated', 'asset.created', 'persona.updated', 'world-info.updated')))
+	CONSTRAINT "automation_rules_trigger_type_check" CHECK((trigger_bus = 'chat' AND trigger_type in ('chatOpened', 'messageCommitted', 'messageEdited', 'variantSelected', 'turnStarted', 'turnCompleted', 'turnAborted', 'worldInfoActivated', 'personaSwitched', 'chatCreated', 'reactionsChanged', 'messageHidden', 'messagesDeleted', 'chatUpdated', 'wiEntryAttached', 'wiEntryDetached')) OR (trigger_bus = 'domain' AND trigger_type in ('character.updated', 'asset.created', 'persona.updated', 'world-info.updated')))
 );
 --> statement-breakpoint
 CREATE INDEX `automation_rules_chat_enabled` ON `automation_rules` (`chat_id`,`enabled`,`trigger_type`);--> statement-breakpoint
@@ -180,7 +180,7 @@ CREATE TABLE `chat_events` (
 	`payload` text NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "chat_events_type_check" CHECK(type in ('delta', 'messageCommitted', 'messageEdited', 'messageHidden', 'variantSelected', 'messagesDeleted', 'messagesReordered', 'reasoningEdited', 'reasoningCleared', 'reasoningStreamDone', 'turnAccepted', 'turnStarted', 'turnCompleted', 'turnAborted', 'warning', 'worldInfoActivated', 'personaSwitched', 'wiBookAttached', 'wiBookDetached', 'wiEntryAttached', 'wiEntryDetached', 'wiEntryScopeChanged', 'chatCreated', 'chatOpened', 'historyTruncated', 'chatUpdated'))
+	CONSTRAINT "chat_events_type_check" CHECK(type in ('delta', 'messageCommitted', 'messageEdited', 'messageHidden', 'variantSelected', 'messagesDeleted', 'messagesReordered', 'reasoningEdited', 'reasoningCleared', 'reasoningStreamDone', 'turnAccepted', 'turnStarted', 'turnCompleted', 'turnAborted', 'warning', 'worldInfoActivated', 'personaSwitched', 'reactionsChanged', 'wiBookAttached', 'wiBookDetached', 'wiEntryAttached', 'wiEntryDetached', 'wiEntryScopeChanged', 'chatCreated', 'chatOpened', 'historyTruncated', 'chatUpdated'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chat_events_chat_seq_unique` ON `chat_events` (`chat_id`,`seq`);--> statement-breakpoint
@@ -334,6 +334,21 @@ CREATE TABLE `message_assets` (
 --> statement-breakpoint
 CREATE INDEX `message_assets_message_idx` ON `message_assets` (`message_id`);--> statement-breakpoint
 CREATE INDEX `message_assets_asset_idx` ON `message_assets` (`asset_id`);--> statement-breakpoint
+CREATE TABLE `message_reactions` (
+	`id` text PRIMARY KEY NOT NULL,
+	`variant_id` text NOT NULL,
+	`reactor_participant_id` text NOT NULL,
+	`emoji` text NOT NULL,
+	`emoji_image_asset_id` text,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`variant_id`) REFERENCES `message_variants`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`reactor_participant_id`) REFERENCES `chat_participants`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`emoji_image_asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE set null
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `message_reactions_variant_reactor_emoji_unique` ON `message_reactions` (`variant_id`,`reactor_participant_id`,`emoji`);--> statement-breakpoint
+CREATE INDEX `message_reactions_reactor_idx` ON `message_reactions` (`reactor_participant_id`);--> statement-breakpoint
+CREATE INDEX `message_reactions_emoji_asset_idx` ON `message_reactions` (`emoji_image_asset_id`);--> statement-breakpoint
 CREATE TABLE `message_variants` (
 	`id` text PRIMARY KEY NOT NULL,
 	`message_id` text NOT NULL,

@@ -22,6 +22,7 @@ import {
   galleryItems,
   imageryGenerations,
   messageAssets,
+  messageReactions,
   personas,
   plugins,
   userSettings,
@@ -41,6 +42,12 @@ export const ASSET_REFS: readonly AssetRef[] = [
 
   { table: imageryGenerations, column: imageryGenerations.assetId },
   { table: messageAssets, column: messageAssets.assetId },
+  // B6/MR0 — a CUSTOM reaction emoji's image. The column is born-and-typed and nothing writes it through
+  // MR0-MR2 (the wire is unicode-only), so this row retains nothing TODAY; it is here because a
+  // CAS-referencing column the registry cannot see is exactly how a live reference gets reaped, and the
+  // schema-introspection test enumerates every FK-to-`assets.id` column and REDs an unclassified one — so
+  // the alternative is not "add it later", it is a red gate now and a purged blob later.
+  { table: messageReactions, column: messageReactions.emojiImageAssetId },
 
   // A document's original uploaded bytes (SET NULL on purge — retaining while the row points at it).
   { table: documents, column: documents.sourceAssetId },
