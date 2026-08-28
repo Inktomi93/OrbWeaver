@@ -49,7 +49,8 @@ const SERIAL_INT = [
   // #751 — loads the WHOLE gate corpus and runs it over the WHOLE workspace, because `gate-ignore-inventory`
   // reaches a verdict on a marker only when a sibling gate was offered it in the SAME pass. Cold ts-morph
   // workspace load + a 233-gate single pass (~6 min), over the same tree `check-gates.int` writes fixtures
-  // into. (#775's sibling pin runs its ONE self-contained gate and stays in the parallel lane.)
+  // into. (#775's arm is pinned by tests/tooling/verify/gates/dangling-refs.int.test.ts, which runs its ONE
+  // self-contained gate in ~21s and stays in the parallel lane.)
   "tests/tooling/verify/gates/caught-failure-ownership.int.test.ts",
   // The `pnpm ast` audit-epilogue proof: every row SPAWNS the real CLI, which loads the whole workspace
   // into ts-morph (~11s each). Five of those in the parallel lane is a load bomb, and no parallel-lane
