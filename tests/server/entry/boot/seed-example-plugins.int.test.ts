@@ -344,10 +344,11 @@ test("the per-user seeder lands every example installed, disabled and UNGRANTED 
   expect(await h.service.list({ caller })).toHaveLength(EXAMPLE_PLUGIN_SLUGS.length);
 });
 
-/** The install-time refusals a copied example must not trip: the packer emits EXACTLY the two admitted entries,
- *  and every seeded manifest is one the real trust edge accepts. A third entry, an over-cap file or a manifest
- *  typo would be an install-time refusal for every user on their first request — and the SEEDER'S OWN TUPLE is
- *  the list under test, never a hand-written copy of it, so a sixth example is covered the day it is added. */
+/** The install-time refusals a copied example must not trip: the packer emits only ADMITTED entries, and every
+ *  seeded manifest is one the real trust edge accepts. An unknown entry, an over-cap file, a manifest typo — or
+ *  (since U4) a `ui.js` whose presence disagrees with its manifest's `uiEntry` in either direction — would be an
+ *  install-time refusal for every user on their first request. The SEEDER'S OWN TUPLE is the list under test,
+ *  never a hand-written copy of it, so a sixth example is covered the day it is added. */
 test("every seeded example packs to a bundle the real install verb accepts", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
@@ -361,4 +362,30 @@ test("every seeded example packs to a bundle the real install verb accepts", asy
     ids.push(row.id);
   }
   expect(ids).toHaveLength(EXAMPLE_PLUGIN_SLUGS.length);
+});
+
+/** THE TIER-C END-TO-END RECEIPT (plugin-ui-plane #679 U4). The shipped `affinity-tracker` carries a third
+ *  bundle entry, and this walks the whole path a browser walks: pack → the real install verb → the CAS → and
+ *  back out through `getUiBundle`, which re-parses the stored zip rather than trusting anything cached. If the
+ *  packer stops emitting `ui.js`, if the funnel stops admitting it, or if the verb stops finding it, the
+ *  scripted surface silently never boots and NOTHING else goes red — which is exactly why this is pinned on a
+ *  REAL example rather than a fixture. The sibling assertion is the other half of the same fact: an example
+ *  with no client half answers `null`, which is a normal answer and not an error. */
+test("the seeded scripted example round-trips its ui.js through install → CAS → getUiBundle", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+
+  const scripted = await packSeedPluginBundle("affinity-tracker");
+  const installed = await h.service.install({ caller, bundle: scripted as Uint8Array, grant: [] });
+  const source = await h.service.getUiBundle({ caller, pluginId: installed.id });
+  expect(source, "affinity-tracker ships a ui.js and it must survive the round trip").not.toBeNull();
+  // Not merely non-null: it is the REAL file. `orb.ui(1)` is the one door a scripted guest can open, so its
+  // presence is what distinguishes the shipped client half from any other text that could land here.
+  expect(source).toContain("orb.ui(1)");
+
+  // A Tier-S example answers `null` — an absence, not a failure.
+  const staticOnly = await packSeedPluginBundle("oracle-deck");
+  const staticRow = await h.service.install({ caller, bundle: staticOnly as Uint8Array, grant: [] });
+  expect(await h.service.getUiBundle({ caller, pluginId: staticRow.id })).toBeNull();
 });

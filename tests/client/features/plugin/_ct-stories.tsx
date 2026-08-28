@@ -117,6 +117,31 @@ export function PluginChatFlankRoomStory({ registered = true }: { readonly regis
   );
 }
 
+// ── U4: the TIER-C (scripted) story ────────────────────────────────────────────────────────────────────────
+// It mounts the REAL Plugins pane, exactly as `PluginsSurfaceStory` does, and differs ONLY in the data the CT
+// stubs: a `tier: "scripted"` registration instead of a `tier: "static"` one with a spec. That is deliberate —
+// the thing under test is that a scripted surface reaches the screen through the SAME production path (the pane
+// → the row → the surfaces panel → the labelled shell), driven by nothing but what `listSurfaces` says. A
+// dedicated harness component would have proved a component works; this proves the app does.
+//
+// Everything else the tier needs — the `ui.js` bytes over the owner-gated route, `plugin.uiHostCall`,
+// `plugin.reportUiCrash` — is stubbed by the CT at the NETWORK, so the worker, the interpreter, the wall-clock
+// timer and the publish guard are all the real ones.
+
+/** The Tier-C story: the same Plugins pane, with whatever scripted surface the CT's `listSurfaces` stub
+ *  declares. `width` matches the settings modal's real docked column. */
+export function PluginScriptedSurfaceStory({ width = SETTINGS_PANE_WIDTH }: { readonly width?: number }): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtSettingsSectionRegistry sections={pluginsSettingsSections}>
+        <div style={{ width }}>
+          <PluginsSettingsSurface />
+        </div>
+      </CtSettingsSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 /** The "This chat" tab with the REAL plugin-panel section grafted at the host band — the CT drives whether the
  *  caller has any `chat-settings-section` surface, and therefore whether the grafted Section paints at all. */
 export function PluginChatSettingsSectionStory({ width = CONTEXT_PANE_WIDTH }: { readonly width?: number }): ReactElement {
