@@ -197,6 +197,39 @@ export interface PluginHostV1 {
     quiet: (prompt: string, opts?: PluginQuietOptions) => Promise<string>;
   };
 
+  readonly databank: {
+    /** Ingest a text document into the INSTALLING PRINCIPAL's OWN databank (plugin-ui-plane §5.33/seam 15 —
+     *  the Data Bank scraper parity arm). A CANON WRITE into the installer's own library: the document lands
+     *  owner-scoped and the derived indexer auto-runs (the write enqueues the ingest workload). capability:
+     *  databank.ingest.
+     *
+     *  NO CHAT SCOPE, NO HOST AUTHORITY — and both absences are deliberate, mirroring `storage.kv`, not the
+     *  room-write capabilities. This writes the installer's OWN library, which is not room state, so gating it
+     *  on `canWrite` would claim a protection it does not need. The FUNDER/OWNER is the installer, closed over
+     *  host-side exactly as `llm.quiet`'s is — a guest supplies only the document and can name no other owner,
+     *  so a cross-owner write is not expressible. Deduped by content hash host-side (a re-ingest of the same
+     *  text is idempotent). Returns the new (or deduped) document id — the guest's OWN new content. */
+    // @foreign-id-ok(documentId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new document, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    ingest: (doc: { name: string; text: string }) => Promise<{ documentId: string }>;
+  };
+
+  readonly character: {
+    /** Ingest a V2/V3 character CARD (a plain JSON object) into the INSTALLING PRINCIPAL's OWN character
+     *  library (plugin-ui-plane §5 row 20 sibling / seam 17 — the hub-import scraper arm; the `ui.page`
+     *  hub-browser showcase's import verb). A CANON WRITE riding the import domain's ContentChanged-emitting
+     *  path (the same `importCharacter` funnel a file upload takes — byte-identical dedup, book/regex relink),
+     *  so the indexer auto-runs. capability: character.ingest.
+     *
+     *  Owner-scoped, grant-gated, no chat scope, no host authority — the `databank.ingest` posture verbatim
+     *  (a write into the installer's OWN library, not room state). `card` is the RAW card object as JSON-safe
+     *  data (the membrane cannot carry a live PNG across the marshalling boundary, and a scraped card is
+     *  structured JSON anyway); the host serializes + validates it through `parseCardJson`, so a malformed
+     *  card is a typed refusal of the CALL, never a partial write. Returns the new character id + whether it
+     *  was freshly created (`false` = a byte-identical re-ingest deduped by importHash). */
+    // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    ingest: (card: Record<string, unknown>) => Promise<{ characterId: string; created: boolean }>;
+  };
+
   readonly events: {
     /** Subscribe to the Tier-1 trigger taxonomy — the SAME closed union; plugins
      *  get no private event vocabulary. Handlers receive the resolved TriggerFact, never raw bus
@@ -414,6 +447,11 @@ export const HOST_FUNCTION_CAPABILITY = {
   "notifications.post": "notify",
   "imagery.generatePicture": "imagery.generate",
   "llm.quiet": "llm.quiet",
+  // U8 seams 15/17 — each is its OWN consent line (a canon write into the installer's own library is a distinct
+  // reach), keyed 1:1 to its capability. Owner-scoped writes, not room writes: the domain closes the installer
+  // over each op, so there is no `canWrite` gate here — the grant is the whole membrane-tier wall.
+  "databank.ingest": "databank.ingest",
+  "character.ingest": "character.ingest",
   "events.on": "events.subscribe",
   "tools.register": "tools.register",
   "transforms.register": "chat.transform",
@@ -487,6 +525,14 @@ export const HOST_FUNCTION_CAPABILITY = {
  *     (`bridge.suggest`). So their sanctioned route from a client guest is that SAME posture: raise an ask a
  *     host confirms, never a direct proxy that would have to re-derive host authority in a second place. A
  *     direct proxy is the arm this design refuses; the suggest-shaped arm is the one that is priced.
+ *   - `databank.ingest` / `character.ingest` (U8) — THE CANON-WRITE class, OUT. They are not room-authority
+ *     writes (no `canWrite` gate — a library write is the installer's own), but they are still WRITES that
+ *     mint durable rows + kick derived-index compute, and the Tier-C tuple is deliberately reads + the two KV
+ *     planes: §4.6 bought LATENCY for local-immediate interaction (filtering, hovering, form state), which
+ *     needs reads, not a canon-write relay. Nothing is lost — the plugin's SERVER guest ingests under the same
+ *     grant; a scripted surface that wants to trigger an ingest fires an `actionId` round-trip whose server
+ *     handler holds the grant, exactly as it would for any other write. Admitting them to the proxy tuple is a
+ *     §5a-shaped decision (a new proxyable member is a reviewable act), never a free entry.
  *
  *  Nothing here loses ABILITY: the plugin's SERVER guest reaches every excluded function under the same grant.
  *  What Tier C gives up is the LATENCY of those calls, which is not what §4.6 bought — it bought

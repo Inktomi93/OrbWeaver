@@ -164,6 +164,26 @@ export interface PluginBridge {
      *  cross-plugin open is not expressible (the outbox is keyed by the plugin the guest is). */
     readonly openDialog: (surfaceId: string) => Promise<void>;
   };
+  /** Ingest a text document into the installer's OWN databank (`host.databank.ingest`, capability
+   *  `databank.ingest` — plugin-ui-plane #679 U8 seam 15). The domain builder closes the INSTALLER over the op
+   *  (owner-scoped by construction — a guest names only the document), writes canon through databank's
+   *  `createFromText` and returns the new document id. NO chat scope + NO host authority, the `storage`/`llm`
+   *  posture: a library write is the installer's own reach, not room state. Authority-agnostic like every bridge
+   *  op — infra holds no principal. */
+  readonly databank: {
+    // @foreign-id-ok(documentId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new document; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    readonly ingest: (doc: { readonly name: string; readonly text: string }) => Promise<{ readonly documentId: string }>;
+  };
+  /** Ingest a V2/V3 character card object into the installer's OWN library (`host.character.ingest`, capability
+   *  `character.ingest` — plugin-ui-plane #679 U8 seam 17). The domain builder closes the installer over the op,
+   *  serializes the guest card to JSON bytes and runs the SAME `importCharacter` funnel a file upload takes (the
+   *  ContentChanged-emitting path — the indexer auto-runs), returning the new character id + whether it was
+   *  freshly created (a byte-identical re-ingest deduplicates). Same owner-scoped, no-chat, no-host posture as
+   *  `databank.ingest`. */
+  readonly character: {
+    // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    readonly ingest: (card: Record<string, unknown>) => Promise<{ readonly characterId: string; readonly created: boolean }>;
+  };
 }
 
 /** The admitted invocation chat + whether the acting principal is HOST of it (the write ceiling:

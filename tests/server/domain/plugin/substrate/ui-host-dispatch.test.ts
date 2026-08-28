@@ -60,6 +60,9 @@ function makeBridge(): PluginBridge {
     admitEgress: (): void => undefined,
     surfaceQuickReply: notProxied("surfaceQuickReply"),
     ui: { setState: notProxied("ui.setState"), toast: notProxied("ui.toast"), openDialog: notProxied("ui.openDialog") },
+    // U8 canon writes — NOT proxyable (the excluded set), so a Tier-C guest must never reach them.
+    databank: { ingest: notProxied("databank.ingest") },
+    character: { ingest: notProxied("character.ingest") },
   } satisfies PluginBridge;
   return bridge;
 }

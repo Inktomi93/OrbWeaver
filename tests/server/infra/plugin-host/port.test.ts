@@ -402,6 +402,8 @@ function fakeBridge(): {
       return Promise.resolve();
     },
     ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
+    databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
+    character: { ingest: () => Promise.resolve({ characterId: "char_test", created: true }) },
   };
   return { bridge, kv, store, notices, chips, writes, lore, pics, turns, quiets, egress, suggested };
 }

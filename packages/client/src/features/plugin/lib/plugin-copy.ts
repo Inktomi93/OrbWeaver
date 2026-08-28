@@ -143,6 +143,23 @@ export const CAPABILITY_COPY_ROWS = [
     spends: true,
   },
   {
+    // U8 seam 15. `risk`, on the `global_vars`/`worldinfo.write` precedent: it writes durable PERSONAL state
+    // (your own library), which is the reaches-past-its-own-sandbox line the header draws. NOT `spends`: it
+    // touches no paid model/image budget — only the box's own local indexing compute.
+    id: "databank.ingest",
+    label: "Add documents to your Data Bank",
+    consequence: "Saves text documents into your own Data Bank and indexes them for search — your library only, never another person's.",
+    risk: true,
+  },
+  {
+    // U8 seam 17 — the `databank.ingest` sibling, same consent grammar and the same `risk`/not-`spends`
+    // classification (a canon write into your own character library, no paid budget).
+    id: "character.ingest",
+    label: "Add characters to your library",
+    consequence: "Imports character cards into your own character library — your library only, never another person's.",
+    risk: true,
+  },
+  {
     id: "events.subscribe",
     label: "Watch for things happening",
     consequence: "Runs its code when messages are committed, lore activates, and so on — only in rooms you are in.",

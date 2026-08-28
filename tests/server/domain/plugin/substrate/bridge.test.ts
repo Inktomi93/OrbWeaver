@@ -579,3 +579,65 @@ describe("buildPluginBridge — imagery hands the guest ONLY the assetId (cost n
     expect("costUsd" in result).toBe(false);
   });
 });
+
+// U8 seams 15/17 — the OWNER-SCOPING proof for the two canon-write ops. The wall is structural, not a
+// foreign-id lookup: the guest supplies only the CONTENT (a document / a card) and NO owner, so the ONLY owner a
+// write can ever land under is the `installerUserId` the bridge was built with. A bridge built for OTHER writes
+// as OTHER — a guest holding a bridge can no more write another user's library than it can fund another user's
+// turn. This is the "no foreign owner is expressible" analog of the tRPC verbs' leak-free NOT_FOUND.
+describe("buildPluginBridge — the U8 ingest writes close over the installer (no foreign owner is expressible)", () => {
+  function ingestRecordingOps(): {
+    readonly ops: PluginHostOps;
+    readonly databankCalls: { installerUserId: UserId; name: string; text: string }[];
+    readonly characterCalls: { installerUserId: UserId; card: Record<string, unknown> }[];
+  } {
+    const databankCalls: { installerUserId: UserId; name: string; text: string }[] = [];
+    const characterCalls: { installerUserId: UserId; card: Record<string, unknown> }[] = [];
+    const base = makeInertOps();
+    const ops: PluginHostOps = {
+      ...base,
+      databank: {
+        ingest: (req) => {
+          databankCalls.push(req);
+          return Promise.resolve({ documentId: "doc_recorded000000000000000" });
+        },
+      },
+      character: {
+        ingest: (req) => {
+          characterCalls.push(req);
+          return Promise.resolve({ characterId: "char_recorded00000000000000", created: true });
+        },
+      },
+    };
+    return { ops, databankCalls, characterCalls };
+  }
+
+  test("databank.ingest closes the owner over the INSTALLER + forwards the document; the guest names no owner", async () => {
+    const rec = ingestRecordingOps();
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
+
+    const result = await bridge.databank.ingest({ name: "notes", text: "hello" });
+
+    expect(result).toEqual({ documentId: "doc_recorded000000000000000" });
+    expect(rec.databankCalls).toEqual([{ installerUserId: INSTALLER, name: "notes", text: "hello" }]);
+  });
+
+  test("a bridge built for OTHER writes the databank as OTHER — the installer is the owner, structurally", async () => {
+    const rec = ingestRecordingOps();
+    const bridge = buildPluginBridge(rec.ops, OTHER, PLUGIN_REF, freeBelts());
+
+    await bridge.databank.ingest({ name: "n", text: "t" });
+
+    expect(rec.databankCalls[0]?.installerUserId).toBe(OTHER);
+  });
+
+  test("character.ingest closes the owner over the INSTALLER + forwards the card object", async () => {
+    const rec = ingestRecordingOps();
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
+
+    const result = await bridge.character.ingest({ name: "Aria", spec: "chara_card_v2" });
+
+    expect(result).toEqual({ characterId: "char_recorded00000000000000", created: true });
+    expect(rec.characterCalls).toEqual([{ installerUserId: INSTALLER, card: { name: "Aria", spec: "chara_card_v2" } }]);
+  });
+});

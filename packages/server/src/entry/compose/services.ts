@@ -60,6 +60,7 @@ import { createCredentialsService } from "#domain/credentials";
 import type { DatabankIngest } from "#domain/databank";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
+import { createImportService } from "#domain/import";
 import { PersonaNotFoundError } from "#domain/persona";
 import { createPluginMacroRegistry } from "#domain/plugin";
 import { createCopyPresetToUser, PresetNotFoundError } from "#domain/preset";
@@ -108,6 +109,7 @@ import type { DefaultPersonaSeeder, DistributedPluginApplier, ExamplePluginSeede
 import { createDistributedPluginApplier, createExamplePluginSeeder } from "../boot/index.ts";
 import { packSeedPluginBundle, readSeedDemoChat } from "../boot/seed-assets/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
+import { buildImportContext } from "../import/index.ts";
 import { buildAdmin } from "./admin.ts";
 import { buildAssetsCharacter } from "./assets-character.ts";
 import { buildAutomationPlugin } from "./automation-plugin.ts";
@@ -872,6 +874,29 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     sessions,
     bindRoleClients,
     resolveUserPresetParams,
+    // #679 U8 seams 15/17 — the two canon-write ops the plugin membrane rides under the installer. databank's
+    // own createFromText content-addresses + dedups + enqueues the ingest workload (the indexer).
+    databankCreateFromText: databank.createFromText,
+    // Built PER-INSTALLER here because the import-context wiring (character/assets/tag/world-info/regex ports)
+    // lives at the root: resolve the installer's Principal by ROW READ, then run the SAME importCharacter funnel
+    // a file upload takes over the guest card serialized to JSON bytes — the ContentChanged-emitting path
+    // (byte-identical importHash dedup, book/regex relink, character.create's `contentChanged:true` emit).
+    ingestCharacterCard: async ({ installerUserId, card }) => {
+      const principal = await resolveOwnerPrincipal(installerUserId);
+      const importCtx = buildImportContext({
+        principal,
+        character,
+        storeAvatar: assets.store,
+        attachCardTag: tag.attachCardTagByName,
+        importLorebook: importWorldInfo.importLorebook,
+        linkCarriedBooks: importWorldInfo.linkCarriedBooks,
+        importCardScripts: regexCompose.importCardScripts,
+      });
+      const { characterId, created } = await createImportService(importCtx).importCharacter({
+        card: { bytes: new TextEncoder().encode(JSON.stringify(card)) },
+      });
+      return { characterId, created };
+    },
   });
 
   // ── portability + the workloads runner-env (the portability-runner seam) — built LAST.
