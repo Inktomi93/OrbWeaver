@@ -1,10 +1,23 @@
-// plugin-install-card — the install half of the Plugins pane: pick a bundle, READ WHAT IT ASKS FOR, confirm
-// the subset you allow, install.
+// plugin-install-card — the install half of the Plugins pane: pick a bundle (a FILE or a URL), READ WHAT IT
+// ASKS FOR, confirm the subset you allow, install.
 //
 // THE TWO-STEP IS THE FEATURE, not ceremony. `plugin.install` takes `{bundle, grant}` in ONE call and no
 // server verb projects a declared capability list from un-installed bytes — so the grant screen has to read
-// the manifest client-side first (`lib/plugin-bundle.ts`, which documents why that is a display read and not
-// a trust boundary). Without the pause there is no moment at which a person could have consented.
+// the manifest FIRST. A FILE install reads it client-side (`lib/plugin-bundle.ts`, which documents why that
+// is a display read and not a trust boundary); a URL install cannot (the client never fetches the bytes —
+// that is the whole SSRF point), so `plugin.previewFromUrl` fetches it THROUGH the server egress guard and
+// returns the manifest. Either way there is a pause at which a person could have consented — the ONE consent
+// surface below (`PluginGrantList` + the confirm block), never a second grant screen (§4.8: consent is
+// host-only, one surface).
+//
+// THE URL ARM IS LEAK-FREE BY CONSTRUCTION (plugin-ui-plane #679 U8, seam 15). A person pastes an arbitrary
+// URL, so the preview is a probe of a caller-named destination — and `previewFromUrl` can fail two ways
+// (`PluginBundleFetchError` for unreachable/refused/SSRF-blocked/non-2xx, `ManifestInvalidError` for
+// "reached it, but not a plugin"). Distinguishing those to the caller would be an SSRF ORACLE ("did my URL
+// resolve to something?"), so EVERY preview failure renders ONE fixed line here — never `error.message`,
+// which is exactly why `usePreviewPluginFromUrl` carries no `errorToast` (`plugin-mutations.ts`). The
+// INSTALL act forwards the server's own sentence, because by then the fetch has already succeeded once and
+// its refusals (already-installed, a re-fetch that now fails) are host-readable and leak-free.
 //
 // DEFAULT = EVERYTHING DECLARED, CHECKED. The design's own words: "the caller confirms; `granted_capabilities`
 // is stored as the confirmed SUBSET (a paranoid owner may grant less)". Defaulting to nothing would ship a
@@ -27,9 +40,11 @@
 // list is already resident by the time this card can render a confirm step. Without it a person fills in
 // the whole consent form for a plugin they already have and only learns that at the 409.
 
-import type { PluginCapability } from "@orb/contracts/plugin";
+import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
 import { Button } from "@orb/ui/button";
+import { Field } from "@orb/ui/field";
 import { FileDropzone } from "@orb/ui/file-dropzone";
+import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { scrollBehavior } from "@orb/ui/lib";
 import { Separator } from "@orb/ui/separator";
@@ -42,19 +57,27 @@ import { notify } from "#lib";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PLUGIN_BUNDLE_MAX_BYTES, PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
 import { builtAgainstLine, grantSummaryLine } from "../lib/plugin-copy.ts";
-import { useInstallPlugin } from "../lib/plugin-mutations.ts";
+import { useInstallPlugin, useInstallPluginFromUrl, usePreviewPluginFromUrl } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 
-/** The pick→confirm→install state. `preview` and `granted` travel together: a grant set is only meaningful
- *  against the manifest it was confirmed for. */
+/** The ONE leak-free line every URL-preview failure collapses to (file header): unreachable, refused, and
+ *  not-a-plugin are indistinguishable on purpose, so the surface never becomes an SSRF oracle. */
+const URL_FETCH_FAILED = "Couldn't fetch a plugin from that URL — it may be unreachable, refused, or not a plugin bundle.";
+
+/** WHERE a confirmed manifest came from — the two arms carry different install payloads (the file's raw bytes
+ *  vs the URL the server re-fetches), and `onInstall` dispatches on this. */
+type InstallSource = { readonly kind: "file"; readonly bytes: Uint8Array } | { readonly kind: "url"; readonly url: string };
+
+/** The pick→confirm→install state. `manifest`, `source` and `granted` travel together: a grant set is only
+ *  meaningful against the manifest it was confirmed for, and the source decides which verb installs it. */
 type InstallState =
   | { readonly step: "pick" }
   | { readonly step: "reading" }
-  | { readonly step: "confirm"; readonly preview: PluginBundlePreview; readonly granted: readonly PluginCapability[] }
+  | { readonly step: "confirm"; readonly manifest: PluginManifest; readonly source: InstallSource; readonly granted: readonly PluginCapability[] }
   | { readonly step: "rejected"; readonly message: string };
 
 /** The build-provenance line, when the manifest carried one — display/warn only, never an install gate. */
-function BuiltAgainstLine({ manifest }: { readonly manifest: PluginBundlePreview["manifest"] }): ReactElement | null {
+function BuiltAgainstLine({ manifest }: { readonly manifest: PluginManifest }): ReactElement | null {
   const line = builtAgainstLine(manifest.builtAgainst ?? null);
   return line === null ? null : (
     <Text prose={true} voice="gloss">
@@ -70,10 +93,78 @@ function GrantSummary({ granted }: { readonly granted: readonly PluginCapability
   return summary === null ? null : <Text voice="label">{summary}</Text>;
 }
 
+/** The URL arm (plugin-ui-plane #679 U8, seam 15) — paste a link, PREVIEW it through the server egress guard,
+ *  and hand the returned manifest UP so the ONE shared consent screen renders it. It owns nothing but its own
+ *  input + the leak-free failure line; the parent owns the confirm/install. `disabled` is raised while an
+ *  install is in flight so a person cannot start a second fetch mid-install. */
+function UrlInstallArm({
+  disabled,
+  onPreviewed,
+}: {
+  readonly disabled: boolean;
+  readonly onPreviewed: (manifest: PluginManifest, url: string) => void;
+}): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const previewFromUrl = usePreviewPluginFromUrl({ trpc, invalidation });
+  const [url, setUrl] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const trimmedUrl = url.trim();
+  const busy = previewFromUrl.isPending || disabled;
+
+  const onFetch = (): void => {
+    if (trimmedUrl === "") {
+      return;
+    }
+    setError(null);
+    previewFromUrl.mutateAsync({ url: trimmedUrl }).then(
+      (manifest) => onPreviewed(manifest, trimmedUrl),
+      // EVERY failure is the SAME fixed line (file header) — never `error.message`, which would name whether
+      // the fetch reached and turn this into an SSRF oracle.
+      () => setError(URL_FETCH_FAILED),
+    );
+  };
+
+  return (
+    <Stack gap="tight">
+      <Text voice="label">Install from a link</Text>
+      <Text prose={true} voice="gloss">
+        Paste a link to a plugin .zip. It's fetched on the server, and you confirm what it asks for the same way as a file.
+      </Text>
+      <Row align="end" gap="field">
+        <Stack className="flex-1">
+          <Field label="Plugin URL">
+            <Input
+              aria-label="Plugin URL"
+              disabled={busy}
+              onValueChange={(next): void => {
+                setUrl(next);
+                setError(null);
+              }}
+              placeholder="https://…"
+              type="url"
+              value={url}
+            />
+          </Field>
+        </Stack>
+        <Button disabled={trimmedUrl === "" || busy} intent="secondary" loading={previewFromUrl.isPending} onClick={onFetch}>
+          Fetch
+        </Button>
+      </Row>
+      {error === null ? null : (
+        <Text className="text-destructive" role="alert">
+          {error}
+        </Text>
+      )}
+    </Stack>
+  );
+}
+
 export function PluginInstallCard(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const install = useInstallPlugin({ trpc, invalidation });
+  const installFromUrl = useInstallPluginFromUrl({ trpc, invalidation });
   const [state, setState] = useState<InstallState>({ step: "pick" });
   const confirmRef = useRef<HTMLDivElement>(null);
 
@@ -82,7 +173,9 @@ export function PluginInstallCard(): ReactElement {
   // paint before that suspense has resolved, which cannot happen here (the confirm step this check gates
   // only exists after a user interaction, long after the installed section has settled).
   const { data: installed } = useQuery(trpc.plugin.list.queryOptions());
-  const alreadyInstalledName = state.step === "confirm" ? (installed?.find((row) => row.slug === state.preview.manifest.id)?.name ?? null) : null;
+  const alreadyInstalledName = state.step === "confirm" ? (installed?.find((row) => row.slug === state.manifest.id)?.name ?? null) : null;
+
+  const installing = install.isPending || installFromUrl.isPending;
 
   // Scroll the confirm block into view the instant it appears (file header). Keyed on `state.step` alone —
   // re-picking a SECOND bundle while already confirming the first one passes back through "reading" first
@@ -96,8 +189,8 @@ export function PluginInstallCard(): ReactElement {
   const onFile = (file: File): void => {
     setState({ step: "reading" });
     readPluginBundle(file).then(
-      (preview) => {
-        setState({ step: "confirm", preview, granted: preview.manifest.capabilities });
+      (preview: PluginBundlePreview) => {
+        setState({ step: "confirm", manifest: preview.manifest, source: { kind: "file", bytes: preview.bytes }, granted: preview.manifest.capabilities });
       },
       (error: unknown) => {
         setState({
@@ -106,6 +199,12 @@ export function PluginInstallCard(): ReactElement {
         });
       },
     );
+  };
+
+  // The URL rides into `source` so `onInstall` re-fetches server-side rather than uploading bytes the client
+  // never held (the whole SSRF point). The arm below owns the input + the leak-free failure line.
+  const onPreviewed = (manifest: PluginManifest, previewedUrl: string): void => {
+    setState({ step: "confirm", manifest, source: { kind: "url", url: previewedUrl }, granted: manifest.capabilities });
   };
 
   const onToggle = (capability: PluginCapability, next: boolean): void => {
@@ -123,14 +222,18 @@ export function PluginInstallCard(): ReactElement {
     if (state.step !== "confirm") {
       return;
     }
-    const name = state.preview.manifest.name;
-    install.mutateAsync({ bundleBase64: toBundleBase64(state.preview.bytes), grant: [...state.granted] }).then(
-      () => {
-        notify.success(`${name} is installed. It's off until you turn it on.`);
-        setState({ step: "pick" });
-      },
-      () => undefined,
-    );
+    const name = state.manifest.name;
+    const grant = [...state.granted];
+    const source = state.source;
+    const onDone = (): void => {
+      notify.success(`${name} is installed. It's off until you turn it on.`);
+      setState({ step: "pick" });
+    };
+    const settled =
+      source.kind === "file"
+        ? install.mutateAsync({ bundleBase64: toBundleBase64(source.bytes), grant })
+        : installFromUrl.mutateAsync({ url: source.url, grant });
+    settled.then(onDone, () => undefined);
   };
 
   return (
@@ -142,12 +245,14 @@ export function PluginInstallCard(): ReactElement {
       <FileDropzone
         accept=".zip"
         aria-label="Choose a plugin bundle"
-        disabled={state.step === "reading" || install.isPending}
+        disabled={state.step === "reading" || installing}
         hint="A .zip holding manifest.json and main.js"
         // The dropzone's OWN state changes the moment a bundle is staged (side-eye P1-4) — the confirm
         // block below it is the real signal, but a person's eye is still on the box they just dropped
         // into, and an unchanged box reads as "the drop did nothing" before the eye ever finds it.
-        instructions={state.step === "confirm" ? `${state.preview.manifest.name} — read what it's asking for below` : "Drop a plugin bundle"}
+        instructions={
+          state.step === "confirm" && state.source.kind === "file" ? `${state.manifest.name} — read what it's asking for below` : "Drop a plugin bundle"
+        }
         loading={state.step === "reading"}
         maxSizeBytes={PLUGIN_BUNDLE_MAX_BYTES}
         onFilesSelected={({ accepted }): void => {
@@ -156,7 +261,7 @@ export function PluginInstallCard(): ReactElement {
             onFile(file);
           }
         }}
-        success={state.step === "confirm"}
+        success={state.step === "confirm" && state.source.kind === "file"}
       />
 
       {state.step === "rejected" ? (
@@ -165,22 +270,28 @@ export function PluginInstallCard(): ReactElement {
         </Text>
       ) : null}
 
+      {/* THE URL ARM — the same consent screen, from a link instead of a file (plugin-ui-plane #679 U8). The
+          bytes are fetched on the SERVER (through the egress guard), so nothing here uploads; the arm previews
+          the manifest and hands it up to drive the ONE grant screen below. */}
+      <Separator />
+      <UrlInstallArm disabled={installing} onPreviewed={onPreviewed} />
+
       {state.step === "confirm" ? (
         <Stack gap="section" ref={confirmRef}>
           <Separator />
           <Stack gap="tight">
             <Text voice="promoted">
-              {state.preview.manifest.name} {state.preview.manifest.version}
+              {state.manifest.name} {state.manifest.version}
             </Text>
             <Text prose={true} voice="gloss">
-              {state.preview.manifest.description}
+              {state.manifest.description}
             </Text>
-            {state.preview.manifest.author === undefined ? null : (
+            {state.manifest.author === undefined ? null : (
               <Text prose={true} voice="gloss">
-                By {state.preview.manifest.author}
+                By {state.manifest.author}
               </Text>
             )}
-            <BuiltAgainstLine manifest={state.preview.manifest} />
+            <BuiltAgainstLine manifest={state.manifest} />
           </Stack>
 
           {alreadyInstalledName === null ? null : (
@@ -196,9 +307,9 @@ export function PluginInstallCard(): ReactElement {
             <Text voice="label">What it's asking for</Text>
             <PluginGrantList
               capabilitiesLabel="What it's asking for"
-              declared={state.preview.manifest.capabilities}
+              declared={state.manifest.capabilities}
               granted={state.granted}
-              netHosts={state.preview.manifest.netHosts ?? []}
+              netHosts={state.manifest.netHosts ?? []}
               onToggle={onToggle}
             />
           </Stack>
@@ -211,7 +322,7 @@ export function PluginInstallCard(): ReactElement {
                 back up to the button — the per-row marks above are what to READ, this is what to REMEMBER. */}
             <GrantSummary granted={state.granted} />
             <Row gap="field" justify="start">
-              <Button intent="primary" loading={install.isPending} onClick={onInstall}>
+              <Button intent="primary" loading={installing} onClick={onInstall}>
                 Install
               </Button>
               <Button
