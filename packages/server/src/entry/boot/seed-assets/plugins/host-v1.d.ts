@@ -8,7 +8,7 @@
 // IT IS A MIRROR, NOT A SOURCE. The one true contract lives in the application
 // (`@orb/contracts/plugin` — host-v1.ts, manifest.ts, ui.ts); this file re-states it for authors outside the
 // repository and is PINNED byte-for-meaning against it by a conformance test
-// (`tests/contracts/plugin/host-v1-dts.test-d.ts`) — a drifted mirror fails the application's own build. Two
+// (`tests/contracts/plugin/host-v1.test-d.ts`) — a drifted mirror fails the application's own build. Two
 // deliberate simplifications, both author-invisible: the app's BRANDED ids (`ChatHandle`, asset/character
 // ids) appear here as `string` with their semantics documented — a guest never constructs one, only passes
 // them back — and internal enforcement-map types are omitted (they gate the HOST side, not yours).

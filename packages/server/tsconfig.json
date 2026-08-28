@@ -7,7 +7,7 @@
   // PUBLISHED plugin-SDK declaration file (#774): a SCRIPT-kind .d.ts whose whole point is ambient globals
   // for a plugin AUTHOR's editor — compiled into THIS program it would inject `orb` + the Plugin* type names
   // as ambients across all of server src (an unimported name would silently resolve instead of erroring).
-  // It is not unchecked: `tests/contracts/plugin/host-v1-dts.test-d.ts` references it explicitly and pins it
+  // It is not unchecked: `tests/contracts/plugin/host-v1.test-d.ts` references it explicitly and pins it
   // against the real contract.
   "exclude": ["**/node_modules", "**/__g_*", "**/__g_*/**", "src/entry/boot/seed-assets/plugins/host-v1.d.ts"]
 }

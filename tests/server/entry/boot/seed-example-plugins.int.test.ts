@@ -19,7 +19,7 @@
 import { historyFloor } from "@orb/contracts/chat";
 import type { InvocationChat, PluginCapability, PluginHandlerRef } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
-import type { ChatId, Handle, MessageId, PluginId } from "@orb/kit/ids";
+import type { AssetId, ChatId, Handle, MessageId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 // The ALIASED front door, not a deep relative path: biome's type service cannot see through
 // `../../../../packages/server/src/...` into a branded type, and it then mis-fires `useAwaitThenable` /
@@ -537,7 +537,7 @@ test("story clocks: variables are the room-state plane, the tool ticks, and a hu
   // The ROOM-STATE fakes this archetype is about: a per-room chat-variable store the delta seam mutates, and
   // a `requestTurn` capture — both riding the exact op signatures compose wires.
   const roomVars = new Map<string, Record<string, string>>();
-  const turnRequests: { readonly chatId: string; readonly guided?: string }[] = [];
+  const turnRequests: { readonly chatId: ChatId; readonly guided?: string }[] = [];
   const ops: PluginHostOps = {
     ...recorded,
     chat: {
@@ -660,7 +660,7 @@ test("keepsake camera: the spend pipeline — structured quiet falls back, the p
   const db = await freshDb();
   const { ops: recorded, captured } = recordingOps(db, new Map());
   const paints: { readonly prompt: string; readonly quiet: boolean }[] = [];
-  const validAsset = "asset_01h455vb4pex5vsknk084sn02q";
+  const validAsset = castId<AssetId>("asset_01h455vb4pex5vsknk084sn02q");
   const ops: PluginHostOps = {
     ...recorded,
     chat: {
@@ -685,7 +685,7 @@ test("keepsake camera: the spend pipeline — structured quiet falls back, the p
         ]),
     },
     imagery: {
-      generatePicture: ({ args }): Promise<{ assetId: string }> => {
+      generatePicture: ({ args }): ReturnType<PluginHostOps["imagery"]["generatePicture"]> => {
         paints.push({ prompt: args.prompt ?? "", quiet: args.quiet });
         return Promise.resolve({ assetId: validAsset });
       },
@@ -726,7 +726,7 @@ test("keepsake camera: the spend pipeline — structured quiet falls back, the p
   // asset, on the browse stage.
   const album = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "album_page" });
   expect(album?.["stage"]).toBe("album");
-  const tiles = album?.["tiles"] as readonly { id: string; assetId: string }[];
+  const tiles = album?.["tiles"] as readonly { id: string; assetId: AssetId }[];
   expect(tiles).toHaveLength(1);
   expect(tiles[0]?.assetId).toBe(validAsset);
 
@@ -734,7 +734,7 @@ test("keepsake camera: the spend pipeline — structured quiet falls back, the p
   await h.service.invokeUiAction({ caller, pluginId, surfaceId: "album_page", actionId: "open", values: { tile: tiles[0]?.id ?? "" } });
   const opened = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "album_page" });
   expect(opened?.["stage"]).toBe("moment");
-  expect((opened?.["detail"] as { assetId: string }).assetId).toBe(validAsset);
+  expect((opened?.["detail"] as { assetId: AssetId }).assetId).toBe(validAsset);
 
   // …and `discard` forgets the album copy (the rooms keep their postcards) and returns home, empty.
   await h.service.invokeUiAction({ caller, pluginId, surfaceId: "album_page", actionId: "discard", values: {} });

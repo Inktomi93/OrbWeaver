@@ -17,7 +17,29 @@
 //    (a coincidental generic-pair match would need a homed contracts/kit tuple of the same two strings).
 import type { ArrayLiteralExpression, CallExpression, Expression, UnionTypeNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import { fileLoaded } from "../lib/pass.ts";
+
+/** FILE-CLASS exemptions (GATE-AUTHORING §3 "scan-and-allowlist beats scanRoot-exclusion"): whole files whose
+ *  CONTRACT is to re-spell homed axes. Two-sided via the finalize mode-(B) stale arm (a key the walk never
+ *  sees is RED), anchored on a real-tree file no example plants. */
+const FILE_CLASS_EXEMPT: ExemptionTable = {
+  "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts": {
+    why:
+      "the PUBLISHED plugin-SDK mirror (#774): a self-contained, script-kind .d.ts a plugin AUTHOR copies out " +
+      "of the repo — it cannot import the canonical tuples, so its unions re-spell them BY CONTRACT, and " +
+      "drift is pinned exactly (`toEqualTypeOf` per closed union) by tests/contracts/plugin/host-v1.test-d.ts. " +
+      "Ends if the mirror is retired or starts being imported by first-party code.",
+  },
+};
+/** Seen-set for the mode-(B) stale arm — populated only by a live scan hit on an exempted path. */
+const passExemptSeen = new Set<string>();
+const REAL_TREE_ANCHOR_UNION = "packages/db/src/schema/index.ts";
+const GATE_SELF_UNION = "tooling/src/verify/gates/no-inline-union-redecl.ts";
+const STALE_FILE_CLASS_UNION = (key: string): string =>
+  `FILE_CLASS_EXEMPT row \`${key}\` names a file this run never scanned — the mirror moved, was renamed, or ` +
+  "was retired. Delete the row (or re-key it): a path-keyed exemption that outlives its file is a silent " +
+  "grant to whatever lands at that path next. (GATE-AUTHORING.md §4.4a)";
 
 const ALIAS_MIN_MEMBERS = 3; // arm A floor (an inline union type-alias)
 const TUPLE_MIN_MEMBERS = 3; // arm B default registration floor
@@ -283,8 +305,17 @@ export const gate: GateDescriptor = {
     passTuples.clear();
     passCoDeclLocs.clear();
     passRespells.length = 0;
+    passExemptSeen.clear();
   },
   visit: (node, _sf, ctx) => {
+    // The FILE-CLASS exemption (the published-mirror table): its unions are re-spells BY CONTRACT, judged by
+    // their own drift pin, so neither arm reads the file — and nothing in it registers as a tuple or a
+    // candidate. `seen` keeps the row two-sided (the finalize stale arm reds a key the walk never claims).
+    const rel = relPath(ctx.root, _sf.getFilePath());
+    if (FILE_CLASS_EXEMPT[rel] !== undefined) {
+      passExemptSeen.add(rel);
+      return;
+    }
     // Collect canonical tuples (for arm B's finalize reconciliation).
     if (Node.isVariableDeclaration(node)) {
       registerTuple(node, ctx.root);
@@ -292,6 +323,18 @@ export const gate: GateDescriptor = {
     }
     visitAlias(node, ctx); // arm A (self-contained)
     visitRespellCandidate(node, ctx.root); // arm B (accumulate)
+  },
+  finalize: (ctx) => {
+    // Mode-(B) staleness for the file-class table (GATE-AUTHORING §4.4a), anchored on a real-tree file no
+    // example plants. A Finding literal is correct here — a stale-arm, file-level verdict (§1's table).
+    if (!fileLoaded(ctx, REAL_TREE_ANCHOR_UNION)) {
+      return;
+    }
+    for (const key of Object.keys(FILE_CLASS_EXEMPT)) {
+      if (!passExemptSeen.has(key)) {
+        ctx.report({ file: GATE_SELF_UNION, line: 1, column: 0, message: STALE_FILE_CLASS_UNION(key) });
+      }
+    }
   },
   // Arm B reconciles in `run`, NOT `finalize`, and that is LOAD-BEARING: it reports node-anchored findings
   // through the NODE overload, so a `@orb-gate-ignore` here is CONSUMED during the phase it is reported in.
@@ -360,8 +403,24 @@ export const gate: GateDescriptor = {
       expect: { count: 1, token: "re-spell MODES" },
       why: "blind spot (a) repaired: an `as const satisfies readonly X[]` tuple now registers, so a FOREIGN re-spell is caught — while its OWN satisfies co-declaration (Cfg.mode) is exempt (the next mustPass proves the exemption)",
     },
+    {
+      files: {
+        [REAL_TREE_ANCHOR_UNION]: "export const anchor = 1;\n",
+        "packages/contracts/src/some-home.ts": "export const AXIS = ['a', 'b', 'c'] as const;\n",
+      },
+      expect: { count: 1, messageIncludes: "FILE_CLASS_EXEMPT" },
+      why: "mode-(B) staleness for the file-class table (GATE-AUTHORING §4.4a): the anchor is loaded but the exempted mirror is NOT on the tree — the row names nothing and must red, or a rename carries the exemption silently to its grave",
+    },
   ],
   mustPass: [
+    {
+      files: {
+        [REAL_TREE_ANCHOR_UNION]: "export const anchor = 1;\n",
+        "packages/contracts/src/some-home.ts": "export const AXIS = ['a', 'b', 'c'] as const;\n",
+        "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts": "type Axis = 'a' | 'b' | 'c';\n",
+      },
+      why: "the FILE-CLASS exemption holds: the published SDK mirror re-spells homed axes BY CONTRACT (it cannot import them; its drift pin is the enforcement), and its presence also satisfies the mode-(B) stale arm",
+    },
     {
       files: "export type NodeEnv = 'development' | 'production';\n",
       at: "packages/contracts/src/y.ts",
