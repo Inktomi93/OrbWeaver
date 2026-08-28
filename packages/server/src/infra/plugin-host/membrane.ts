@@ -1082,6 +1082,46 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
       return await runtime.bridge.character.ingest(card as Record<string, unknown>);
     },
   });
+
+  // setCardData(characterId, data) — the D148 per-card state WRITE. The guest supplies ONLY the characterId
+  // string + an inert JSON object; the SLUG is stamped host-side (DOMAIN-side, the bridge) and the OWNER-SCOPE +
+  // the leak-free NOT_FOUND for a foreign character are the domain's — infra stays authority-blind, forwarding
+  // the admitted (validated-shape) payload. `data` must be a plain object (an array/scalar/null is not per-card
+  // state and is refused here, the `ingest` posture) so a guest cannot smuggle a scalar into the residual bag.
+  attachAsync(ctx, character, {
+    name: "setCardData",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "character.setCardData");
+      const characterId = args[0];
+      if (typeof characterId !== "string") {
+        throw new Error("plugin host: character.setCardData requires a characterId string");
+      }
+      const data = args[1];
+      if (typeof data !== "object" || data === null || Array.isArray(data)) {
+        throw new Error("plugin host: character.setCardData requires a data object");
+      }
+      await runtime.bridge.character.setCardData(characterId, data as Record<string, unknown>);
+      return null;
+    },
+  });
+
+  // getCardData(characterId) — the D148 per-card state READ. Same host-stamped-slug + owner-scope walls as the
+  // write; a foreign/absent character rejects leak-free DOMAIN-side. Returns the stored blob or null.
+  attachAsync(ctx, character, {
+    name: "getCardData",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "character.getCardData");
+      const characterId = args[0];
+      if (typeof characterId !== "string") {
+        throw new Error("plugin host: character.getCardData requires a characterId string");
+      }
+      return await runtime.bridge.character.getCardData(characterId);
+    },
+  });
   ctx.setProp(surface, "character", character);
 }
 
