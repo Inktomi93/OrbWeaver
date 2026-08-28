@@ -197,23 +197,6 @@ export interface SnippetResult {
   readonly errorLine?: number;
 }
 
-/** The verdict of an auto update-check for ONE `url`-origin plugin (plugin-ui-plane #679 U8 2b — the thing
- *  ST's loader does: fetch the remote manifest through the SAME egress guard the install rode and compare its
- *  version). The ONE home for this axis (§5.5 dispatch discipline) — a client renders each arm's affordance off
- *  it (nothing · an "Update to X" button · a muted "couldn't reach source"), so a new arm fails `tsc` at the
- *  renderer rather than degrading into an unlabeled state.
- *   - `up-to-date` — the remote version is ≤ the installed one.
- *   - `update-available` — the remote is strictly newer; `newVersion` is the semver to offer.
- *   - `unreachable` — the source could not be fetched OR did not parse to a usable manifest, collapsed to ONE
- *     leak-free arm on purpose (the same no-SSRF-oracle posture as `PluginBundleFetchError`: distinguishing
- *     "blocked" from "404" from "garbage" would leak what the URL resolved to).
- *
- *  @public-future: the plugin-row update-check renderer — the "Update to X" / muted "couldn't reach source"
- *  affordance this JSDoc describes. The #788-2b update-check BACKEND (checkForUpdates / upgradeFromStoredUrl)
- *  is built; the plugin-row status renderer that consumes this vocabulary is not yet wired. Scaffolded intent,
- *  not dead residue — preserve until the renderer lands. */
-export const PLUGIN_UPDATE_STATUSES = ["up-to-date", "update-available", "unreachable"] as const;
-
 /** One plugin's update-check outcome. A discriminated union rather than a flat shape with an optional
  *  `newVersion`, so `newVersion` is present EXACTLY on `update-available` — a version can be neither forgotten
  *  on the arm that needs it nor invented on an arm that does not. A file-origin plugin (no `sourceUrl`) is never

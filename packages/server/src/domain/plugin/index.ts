@@ -106,7 +106,7 @@ export type {
   PluginView,
   SnippetResult,
 } from "./contract/results.ts";
-export { PLUGIN_FANOUT_SKIP_REASONS, PLUGIN_UPDATE_STATUSES } from "./contract/results.ts";
+export { PLUGIN_FANOUT_SKIP_REASONS } from "./contract/results.ts";
 export type {
   CreateInstanceInput,
   CreateInstanceOutcome,
