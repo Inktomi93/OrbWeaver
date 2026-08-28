@@ -48,7 +48,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ConfirmDialog } from "#components";
-import { METER_DEFAULT_MAX, numFromValues, resolveNumber, resolveString } from "../lib/plugin-surface-bindings.ts";
+import { imageNodeAssetId, METER_DEFAULT_MAX, numFromValues, resolveNumber, resolveString } from "../lib/plugin-surface-bindings.ts";
 import { SurfaceGrid } from "./plugin-browse-nodes.tsx";
 
 /** The display leaves (no form state) and the form/action leaves — partition the non-container node union so
@@ -201,7 +201,12 @@ function DisplayLeaf({
     );
   }
   if (node.kind === "image") {
-    return <SurfaceImage node={node} url={imageUrls.get(node.assetId)} />;
+    // BOTH ARMS collapse through `imageNodeAssetId` (#774 ARM C): the declared `assetId`, or the `assetFrom`
+    // binding format-gated against state. A bound value that is not a well-formed asset id — or one the
+    // installer does not OWN (the map only ever holds owner-scoped resolutions) — is a `url` miss and paints
+    // the placeholder, never a foreign blob.
+    const effectiveId = imageNodeAssetId(node, state);
+    return <SurfaceImage node={node} url={effectiveId === undefined ? undefined : imageUrls.get(effectiveId)} />;
   }
   if (node.kind === "grid") {
     return <SurfaceGrid imageUrls={imageUrls} node={node} state={state} submit={submit} />;

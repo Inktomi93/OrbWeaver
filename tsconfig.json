@@ -54,6 +54,13 @@
     // imports this program pulls in TRANSITIVELY (ui/src/markdown/math.ts's katex CSS). Never enters a
     // per-package program, so no collision with ui's css-modules.d.ts / client's vite/client.
     "aggregator-assets.d.ts",
+    // The PUBLISHED plugin-SDK declaration file (#774) — script-kind, ambient by design (an author drops it
+    // next to their main.js). Included HERE, explicitly, because the per-package server program EXCLUDES it
+    // (its globals must not leak into server src — see packages/server/tsconfig.json) while the conformance
+    // pin `tests/contracts/plugin/host-v1.test-d.ts` needs its globals in THIS program (a /// reference
+    // from the test proved unreliable under the vitest typecheck lane — a stale referenced-file view
+    // survived cache clears; config-level inclusion resolves freshly).
+    "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts",
     "vitest.config.ts",
     "vitest.stryker.config.ts",
     "playwright.config.ts",
