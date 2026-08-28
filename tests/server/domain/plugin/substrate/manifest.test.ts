@@ -61,6 +61,68 @@ describe("parseBundle — strict entry allow-list (traversal impossible by const
   });
 });
 
+describe("parseBundle — the OPTIONAL third entry (plugin-ui-plane #679 U4)", () => {
+  const uiManifest = { ...VALID_MANIFEST, capabilities: ["chat.read", "ui.surface"], uiEntry: "ui.js" };
+  const uiSource = "orb.ui(1).render('panel', { kind: 'text', value: 'hi' });";
+
+  test("a declared + present ui.js is admitted and returned", () => {
+    const parsed = parseBundle(
+      makeBundle({ "manifest.json": strToU8(JSON.stringify(uiManifest)), "main.js": strToU8("const x = 1;"), "ui.js": strToU8(uiSource) }),
+    );
+    expect(parsed.manifest.uiEntry).toBe("ui.js");
+    expect(parsed.uiJs).toBe(uiSource);
+  });
+
+  test("a two-entry bundle still parses unchanged, with no uiJs — the field is ADDITIVE-optional", () => {
+    // The 01 §3 host-evolution law in practice: every plugin authored before U4 must install byte-for-byte the
+    // same way. If this ever goes red, the third entry stopped being optional.
+    const parsed = parseBundle(validBundle("const x = 1;"));
+    expect(parsed.uiJs).toBeUndefined();
+    expect(parsed.manifest.uiEntry).toBeUndefined();
+  });
+
+  test("BOTH halves of the biconditional are refused at the trust edge", () => {
+    // A declaration with no file: a scripted surface that could only ever fail at mount, AFTER the user granted
+    // `ui.surface` on the strength of the declaration.
+    expect(() => parseBundle(makeBundle({ "manifest.json": strToU8(JSON.stringify(uiManifest)), "main.js": strToU8("const x = 1;") }))).toThrow(
+      ManifestInvalidError,
+    );
+    // A file with no declaration: guest code inside the consent unit that nothing disclosed and nothing loads.
+    expect(() =>
+      parseBundle(makeBundle({ "manifest.json": strToU8(JSON.stringify(VALID_MANIFEST)), "main.js": strToU8("const x = 1;"), "ui.js": strToU8(uiSource) })),
+    ).toThrow(ManifestInvalidError);
+  });
+
+  test("uiEntry without the ui.surface capability is refused (the manifest's own refinement)", () => {
+    // Code that could never draw anything — `ui.register` is what a scripted surface is registered through, and
+    // the capability gates it. Refused at the schema, before the zip's third entry is even considered.
+    const noCapability = { ...VALID_MANIFEST, uiEntry: "ui.js" };
+    expect(() =>
+      parseBundle(makeBundle({ "manifest.json": strToU8(JSON.stringify(noCapability)), "main.js": strToU8("const x = 1;"), "ui.js": strToU8(uiSource) })),
+    ).toThrow(ManifestInvalidError);
+  });
+
+  test("the ui.js entry carries the SAME 1 MiB decompressed cap as main.js", () => {
+    const huge = "a".repeat(1024 * 1024 + 1);
+    expect(() =>
+      parseBundle(makeBundle({ "manifest.json": strToU8(JSON.stringify(uiManifest)), "main.js": strToU8("const x = 1;"), "ui.js": strToU8(huge) })),
+    ).toThrow(ManifestInvalidError);
+  });
+
+  test("a FOURTH entry is still refused — widening to three did not open the allow-list", () => {
+    expect(() =>
+      parseBundle(
+        makeBundle({
+          "manifest.json": strToU8(JSON.stringify(uiManifest)),
+          "main.js": strToU8("const x = 1;"),
+          "ui.js": strToU8(uiSource),
+          "evil.js": strToU8("steal()"),
+        }),
+      ),
+    ).toThrow(ManifestInvalidError);
+  });
+});
+
 describe("parseBundle — decompression-bomb guard", () => {
   test("a main.js whose DECOMPRESSED size exceeds the 1 MiB cap is refused before allocation", () => {
     // 'a' × (1 MiB + 1) compresses to a few KB, so the compressed bundle passes the input cap; the entry's

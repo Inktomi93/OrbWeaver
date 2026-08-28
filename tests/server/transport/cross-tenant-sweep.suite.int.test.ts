@@ -1127,6 +1127,16 @@ const PROBES: readonly Probe[] = [
     path: "plugin.invokeUiAction",
     call: (c, i) => c.plugin.invokeUiAction({ pluginId: i.pluginId, surfaceId: "probe_surface", actionId: "probe_action", values: {} }),
   },
+  // ── plugin.uiHostCall / plugin.reportUiCrash (plugin-ui-plane #679 U4) — the Tier-C pair, owner-scoped on the
+  //    SAME `getById(db, caller.userId, pluginId)` load as their four siblings above, and each is the worse
+  //    half of a different failure. `uiHostCall` would RUN a membrane op through A's bridge — the bridge closes
+  //    over the INSTALLER, so a dropped gate is not "read the wrong row", it is "execute a granted capability
+  //    with A's storage, A's global vars and A's canon reach, at a stranger's request". `reportUiCrash` writes
+  //    A's `consecutive_crashes`, so a dropped gate is a remote three-strike: three calls and a stranger has
+  //    disabled somebody else's plugin. Both probes carry A's REAL pluginId, and the arguments are inert (the
+  //    owner gate refuses before the fn tuple, the grant, the room, or the counter is ever consulted). ──
+  { path: "plugin.uiHostCall", call: (c, i) => c.plugin.uiHostCall({ pluginId: i.pluginId, fn: "storage.list", argsJson: "[]" }) },
+  { path: "plugin.reportUiCrash", call: (c, i) => c.plugin.reportUiCrash({ pluginId: i.pluginId, surfaceId: "probe_surface", reason: "probe" }) },
   // ── plugin.runSnippet (03 §1) takes owner A's chatId — the service gates on `resolveChatAuthority`
   //    (`loadPresentRole` under the caller): a stranger is not present ⇒ canRead=false ⇒ NOT_FOUND BEFORE the
   //    snippet ever runs (no read, no write, no execution against A's chat). Leak-free by the loadPresentRole

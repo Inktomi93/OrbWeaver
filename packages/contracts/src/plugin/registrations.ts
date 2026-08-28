@@ -14,6 +14,23 @@ import type { PluginSurfaceRegistrationMeta } from "./ui.ts";
  *  (never forges or inspects it — the membrane principle). */
 export type PluginHandlerRef = Branded<"PluginHandlerRef">;
 
+/** The JSON payload one handler invocation carries into the guest — either a FIXED string, or a BUILDER the
+ *  runtime calls with this invocation's opaque chat handle.
+ *
+ *  WHY THE BUILDER ARM EXISTS (row 777, and it is the only shape that works). A chat-scoped handler's argument
+ *  object is supposed to carry `chat: ChatHandle | null` (`PluginHostV1["ui"]["register"]`'s `onAction`), and
+ *  that handle is the per-invocation opaque token — which is MINTED INSIDE the runtime when the invocation's
+ *  chat scope is set, i.e. strictly after the domain has finished building its arguments. A domain caller
+ *  therefore cannot put the real handle in a string it hands down, and the two alternatives are both wrong: the
+ *  token cannot be handed UP (it is a security token whose whole point is that only the guest and the membrane
+ *  ever see it, and the membrane validates by identity), and passing `chat: null` into a room-scoped action
+ *  would hand the guest a lie it has no way to detect.
+ *
+ *  So the caller passes a function of the handle and the runtime applies it at the one moment the handle
+ *  exists. Every EXISTING caller keeps passing a plain string — the arm is additive, and a handler with no chat
+ *  scope is called with `null`. */
+export type PluginInvokeArgs = string | ((chatHandle: string | null) => string);
+
 /** A tool the guest registered via `host.tools.register` — collected at activation. `parameters` is the
  *  guest-supplied raw JSON Schema (lifted host-side at registration); `name` is the guest-local name the
  *  host namespaces to `plugin_<slug'>_<name>` before registering into the ONE tool-use registry. */

@@ -18,7 +18,7 @@
 // storage.kv are COMPOSED — the bridge closes the pluginId/installer over those ops domain-side.
 
 import { randomUUID } from "node:crypto";
-import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginLogLevel } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginInvokeArgs, PluginLogLevel } from "@orb/contracts/plugin";
 import { superviseDetached } from "#foundation/observability";
 import {
   EVENT_QUEUE_DEPTH,
@@ -205,7 +205,7 @@ interface SnippetRunOut {
  *  instance gets its own `QuickJSContext`. The returned shape is assigned to `PluginHostPort` at compose. */
 export function createPluginHost(seams: PluginHostSeamDeps): {
   readonly createInstance: (input: CreateInstanceInputIn) => Promise<CreateInstanceOutcomeOut>;
-  readonly invoke: (instance: PluginInstance, handler: PluginHandlerRef, argsJson: string, chat?: InvocationChat | null) => Promise<string>;
+  readonly invoke: (instance: PluginInstance, handler: PluginHandlerRef, argsJson: PluginInvokeArgs, chat?: InvocationChat | null) => Promise<string>;
   readonly runSnippet: (input: {
     readonly code: string;
     readonly grants: readonly PluginCapability[];
@@ -291,8 +291,11 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
         if (resident.disposing) {
           throw new Error("plugin host: invocation refused because the instance is disposing");
         }
-        resident.sandbox.setInvocationChat(chat ?? null);
-        const outcome = await resident.sandbox.invokeHandler(handler, argsJson);
+        // The token is minted HERE, inside the serialized queue slot, and consumed on the very next line — so an
+        // args builder always sees the handle of the scope this invoke just set, never a neighbour's (the
+        // per-instance FIFO is what makes that true; see the SERIALIZATION note above).
+        const chatHandle = resident.sandbox.setInvocationChat(chat ?? null);
+        const outcome = await resident.sandbox.invokeHandler(handler, typeof argsJson === "string" ? argsJson : argsJson(chatHandle));
         // RETAIN this invocation's drained lines (both arms — a crashing handler's last words are the ones an
         // operator most wants). The stamp is the injected clock at drain time, the same seam activation uses.
         retainLog(resident, outcome.logs, seams.nowEpochMs());

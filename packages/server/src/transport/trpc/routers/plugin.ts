@@ -20,13 +20,23 @@
 //
 // The UI-surface READ side (plugin-ui-plane #679 U1): `getSurfaceState`/`invokeUiAction` join the PROBED set
 // (both take a foreign pluginId; the service gates each on the owner-scoped `getById`); `listSurfaces` is
-// exempt like `list` (no input — the caller's own enabled plugins).
+// exempt like `list` (no input — the caller's own enabled plugins). Row 777 adds an optional `chatId` to the
+// first two: a SECOND foreign id on the same procs, gated by a SECOND leak-free check (the service resolves the
+// caller's own chat authority and refuses NOT_FOUND on the chat), so their sweep classification is unchanged
+// and strictly stronger.
+//
+// TIER C (U4): `uiHostCall` + `reportUiCrash` also take a foreign pluginId and join the PROBED set. The Tier-C
+// `ui.js` BYTES are deliberately NOT a proc — they ride an `entry/http` route so they can be served as inert
+// `application/octet-stream` (a tRPC reply is JSON, and a JSON string of guest source is a thing a `<script>`
+// tag could never load but also a thing nothing stops the client from `eval`ing; the route's MIME + `nosniff`
+// make "this is not script" a property of the response rather than of the caller's discipline).
 
 import {
   NET_HOSTS_MAX,
   PLUGIN_CAPABILITIES,
   PLUGIN_LOG_LIST_MAX_LIMIT,
   PLUGIN_SURFACE_ID_RE,
+  PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES,
   pluginNetHostSchema,
   pluginSlugSchema,
 } from "@orb/contracts/plugin";
@@ -52,6 +62,13 @@ const ACTION_ID_MAX = 64;
 const actionIdSchema = z.string().min(1).max(ACTION_ID_MAX);
 /** Inline-snippet source cap — a REPL line typed in the box, not a shipped bundle (which rides install). */
 const SNIPPET_CODE_MAX = 65_536;
+/** `uiHostCall`'s fn-NAME cap. The real gate is membership in `UI_PROXYABLE_HOST_FUNCTIONS` (service-side); this
+ *  bounds the string so an unbounded name never reaches a log line or an error message. The longest real member
+ *  is `chat.listMessages` (17), so 64 is generous headroom for a future namespace without being a hole. */
+const FN_NAME_MAX = 64;
+/** `reportUiCrash`'s reason cap — untrusted text from a realm that runs plugin code, landing in an
+ *  operator-facing column. The domain re-clamps it (belt + suspenders on an untrusted string). */
+const CRASH_REASON_MAX = 500;
 
 /** Decode the base64 bundle payload into the `Uint8Array` the install/upgrade verbs consume. */
 function decodeBundle(bundleBase64: string): Uint8Array {
@@ -133,11 +150,26 @@ export const pluginRouter = t.router({
   listSurfaces: authedProcedure.query(({ ctx }) => ctx.services.plugin.listSurfaces({ caller: ctx.auth })),
 
   getSurfaceState: authedProcedure
-    .input(z.object({ pluginId: pluginIdSchema, surfaceId: surfaceIdSchema }))
-    .query(({ ctx, input }) => ctx.services.plugin.getSurfaceState({ caller: ctx.auth, pluginId: input.pluginId, surfaceId: input.surfaceId })),
+    .input(z.object({ pluginId: pluginIdSchema, surfaceId: surfaceIdSchema, chatId: chatIdSchema.optional() }))
+    .query(({ ctx, input }) =>
+      ctx.services.plugin.getSurfaceState({
+        caller: ctx.auth,
+        pluginId: input.pluginId,
+        surfaceId: input.surfaceId,
+        ...(input.chatId === undefined ? {} : { chatId: input.chatId }),
+      }),
+    ),
 
   invokeUiAction: authedProcedure
-    .input(z.object({ pluginId: pluginIdSchema, surfaceId: surfaceIdSchema, actionId: actionIdSchema, values: uiActionValuesSchema }))
+    .input(
+      z.object({
+        pluginId: pluginIdSchema,
+        surfaceId: surfaceIdSchema,
+        actionId: actionIdSchema,
+        values: uiActionValuesSchema,
+        chatId: chatIdSchema.optional(),
+      }),
+    )
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.invokeUiAction({
         caller: ctx.auth,
@@ -145,6 +177,46 @@ export const pluginRouter = t.router({
         surfaceId: input.surfaceId,
         actionId: input.actionId,
         values: input.values,
+        ...(input.chatId === undefined ? {} : { chatId: input.chatId }),
       }),
+    ),
+
+  // ── TIER C (plugin-ui-plane #679 U4). `uiHostCall` is the client guest's ONE relay: it takes a FOREIGN
+  //    pluginId and joins the PROBED sweep set, and the service re-gates every call (owner scope → enabled →
+  //    the closed proxyable tuple → the STORED grant → membership on any claimed room → per-fn zod → the
+  //    per-plugin in-flight belt). It is a MUTATION, deliberately, even though most of its functions read: it
+  //    can WRITE (the KV arms), tRPC queries are GET-shaped and cacheable, and the CSRF belt on this router only
+  //    covers mutations — a read-shaped door onto a write op would be exactly the hole that belt exists for.
+  //    RATE: the authed per-user `general` bucket (`entry/rate-limit-gate.ts`) bounds calls per window, and the
+  //    domain's `UiHostCallGate` bounds how many run at once — the two together are the flood story (D46 P2-F).
+  //    `reportUiCrash` also takes a foreign id and is PROBED.
+  uiHostCall: authedProcedure
+    .input(
+      z.object({
+        pluginId: pluginIdSchema,
+        // The wire cap on the fn NAME. Lax on shape (the service checks membership in the closed tuple, which
+        // is the real gate) but bounded on size, because an unbounded string reaches the log and the error path.
+        fn: z.string().max(FN_NAME_MAX),
+        // Bounded BEFORE it is parsed — the whole reason the arguments cross as a string (see the contract's
+        // `PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES`): a byte cap on a JSON document costs nothing to enforce, a byte
+        // cap on a materialized object costs the materialization you were trying to avoid.
+        argsJson: z.string().max(PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES),
+        chatId: chatIdSchema.optional(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      ctx.services.plugin.uiHostCall({
+        caller: ctx.auth,
+        pluginId: input.pluginId,
+        fn: input.fn,
+        argsJson: input.argsJson,
+        ...(input.chatId === undefined ? {} : { chatId: input.chatId }),
+      }),
+    ),
+
+  reportUiCrash: authedProcedure
+    .input(z.object({ pluginId: pluginIdSchema, surfaceId: surfaceIdSchema, reason: z.string().max(CRASH_REASON_MAX) }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.plugin.reportUiCrash({ caller: ctx.auth, pluginId: input.pluginId, surfaceId: input.surfaceId, reason: input.reason }),
     ),
 });

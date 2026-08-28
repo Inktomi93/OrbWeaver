@@ -97,16 +97,35 @@ export const pluginBuiltAgainstSchema = z
   .describe("The engine version/commit the plugin was built against; display+warn provenance, not an install gate.");
 export type PluginBuiltAgainst = z.infer<typeof pluginBuiltAgainstSchema>;
 
+/** The zip's METADATA entry — the manifest itself. */
+export const PLUGIN_MANIFEST_ENTRY = "manifest.json";
+/** The zip's SERVER-guest entry (`manifest.entry`) — one pre-bundled ES script, no module loader. */
+export const PLUGIN_MAIN_ENTRY = "main.js";
+/** The zip's optional CLIENT-guest entry (`manifest.uiEntry`; plugin-ui-plane #679 U4, §4.6) — the Tier-C
+ *  `ui.js` that runs in the browser QuickJS worker. THREE names is the whole bundle vocabulary, and the three
+ *  constants are exported so the zip allow-list, the packer and the schema all derive from ONE home rather than
+ *  three "ui.js" literals that can drift apart (the allow-list IS the path-traversal wall: only exact names are
+ *  ever admitted, so a name that drifts silently un-admits a real entry or admits an unintended one). */
+export const PLUGIN_UI_ENTRY = "ui.js";
+
 /** The bundle manifest (`manifest.json` in the zip; the FULL validated copy is persisted for provenance and
  *  re-validated on load). `netHosts` ⟺ `net.fetch`: declaring the capability requires ≥ 1 host, and a
- *  host list is meaningless without the capability (the biconditional is the SSRF allowlist's integrity). */
+ *  host list is meaningless without the capability (the biconditional is the SSRF allowlist's integrity).
+ *  `uiEntry` ⇒ `ui.surface` is the SECOND biconditional half (see the field). */
 export const pluginManifestSchema = z
   .object({
     id: z.string().regex(SLUG_RE),
     name: z.string().min(1).max(NAME_MAX),
     version: z.string().regex(PLUGIN_SEMVER_RE),
     hostVersion: z.literal(1), // the membrane major — refused pre-run if unserved
-    entry: z.literal("main.js"), // ONE fixed entry file in the bundle (the guest has no module loader)
+    entry: z.literal(PLUGIN_MAIN_ENTRY), // ONE fixed entry file in the bundle (the guest has no module loader)
+    /** The OPTIONAL Tier-C client entry (plugin-ui-plane #679 U4, §4.6). Present ⇒ the bundle carries a third
+     *  zip entry, `ui.js`, which runs in the BROWSER's QuickJS worker for the plugin's `tier:"scripted"`
+     *  surfaces. Additive-optional by the 01 §3 host-evolution law: an existing two-entry bundle installs
+     *  unchanged, and a guest feature-detects the plane through `grants`, never through this field.
+     *  A fixed LITERAL, not a free path, for the same reason `entry` is: the zip allow-list admits exactly the
+     *  names it knows, so path traversal is not expressible rather than merely filtered. */
+    uiEntry: z.literal(PLUGIN_UI_ENTRY).optional(),
     description: z.string().max(DESCRIPTION_MAX),
     author: z.string().max(AUTHOR_MAX).optional(),
     capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)).max(PLUGIN_CAPABILITIES.length),
@@ -127,6 +146,14 @@ export const pluginManifestSchema = z
     }
     if (hasHosts && !declaresNet) {
       ctx.addIssue({ code: "custom", message: "netHosts requires the net.fetch capability", path: ["capabilities"] });
+    }
+    // `uiEntry` ⇒ `ui.surface`, one direction only — and the asymmetry is deliberate, unlike the netHosts
+    // biconditional above. A `ui.js` without the capability is code that could never draw anything (a scripted
+    // surface is registered through `ui.register`, which the capability gates), so admitting it would put an
+    // unreachable third entry through the trust edge — refuse it at the boundary. The CONVERSE is legitimate and
+    // common: a plugin with `ui.surface` and no `uiEntry` is every Tier-S plugin there is.
+    if (m.uiEntry !== undefined && !m.capabilities.includes("ui.surface")) {
+      ctx.addIssue({ code: "custom", message: "uiEntry requires the ui.surface capability", path: ["capabilities"] });
     }
   });
 export type PluginManifest = z.infer<typeof pluginManifestSchema>;

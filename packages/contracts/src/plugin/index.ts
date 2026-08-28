@@ -21,16 +21,28 @@ export type {
   PluginMessageView,
   PluginVariableOp,
   PluginWorldEntryUpsert,
+  UiProxyableHostFunction,
 } from "./host-v1.ts";
-export { HOST_FUNCTION_CAPABILITY, PLUGIN_LOG_LEVELS } from "./host-v1.ts";
+export { HOST_FUNCTION_CAPABILITY, isUiProxyableHostFunction, PLUGIN_LOG_LEVELS, UI_PROXYABLE_HOST_FUNCTIONS } from "./host-v1.ts";
 export type { PluginOrigin, PluginStatus } from "./lifecycle.ts";
 export { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "./lifecycle.ts";
 export type { PluginBuiltAgainst, PluginCapability, PluginManifest } from "./manifest.ts";
-export { NET_HOSTS_MAX, PLUGIN_CAPABILITIES, pluginBuiltAgainstSchema, pluginManifestSchema, pluginNetHostSchema, pluginSlugSchema } from "./manifest.ts";
+export {
+  NET_HOSTS_MAX,
+  PLUGIN_CAPABILITIES,
+  PLUGIN_MAIN_ENTRY,
+  PLUGIN_MANIFEST_ENTRY,
+  PLUGIN_UI_ENTRY,
+  pluginBuiltAgainstSchema,
+  pluginManifestSchema,
+  pluginNetHostSchema,
+  pluginSlugSchema,
+} from "./manifest.ts";
 export type {
   PluginEventSubscription,
   PluginHandlerRef,
   PluginInstance,
+  PluginInvokeArgs,
   PluginSurfaceRegistration,
   PluginToolRegistration,
   PluginTransformRegistration,
@@ -54,6 +66,7 @@ export type {
   PluginMeterNode,
   PluginNodeKind,
   PluginNumberFieldNode,
+  PluginRenderedTree,
   PluginRowNode,
   PluginSectionNode,
   PluginSelectNode,
@@ -86,6 +99,10 @@ export {
   PLUGIN_SURFACE_TITLE_MAX,
   PLUGIN_TEXT_MAX_BYTES,
   PLUGIN_TEXT_VOICES,
+  PLUGIN_UI_ENTRY_MAX_BYTES,
+  PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES,
+  PLUGIN_UI_HOST_CALL_RESULT_MAX_BYTES,
+  PLUGIN_UI_ROUTE,
   pluginSurfaceNodeSchema,
   pluginSurfaceRegistrationMetaSchema,
   pluginSurfaceSpecSchema,

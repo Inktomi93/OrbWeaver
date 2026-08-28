@@ -33,6 +33,7 @@ import {
   createPluginService,
   createPluginSurfaceStateStore,
   createSnippetGate,
+  createUiHostCallGate,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
 } from "../../../../packages/server/src/domain/plugin/index.ts";
@@ -239,6 +240,9 @@ export function makePluginHarness(
     // production does not have. `snippetConcurrency` narrows the ceiling so a test can reach it in two calls
     // instead of five.
     snippetGate: createSnippetGate(overrides.snippetConcurrency),
+    // The REAL Tier-C in-flight gate, for the same reason as the two above: a permissive fake would let a
+    // `uiHostCall` test prove a concurrency posture production does not have.
+    uiHostCallGate: createUiHostCallGate(),
   };
 
   // The SERVER-WIDE DISTRIBUTION deps (D147 clause (d)) — REAL, not permissive. `requireAdmin` is the
@@ -319,11 +323,17 @@ export interface BundleManifestOverrides {
   readonly capabilities?: readonly PluginCapability[];
   readonly netHosts?: readonly string[];
   readonly builtAgainst?: { readonly engineVersion: string; readonly engineCommit?: string };
+  /** DECLARE `uiEntry` in the manifest (plugin-ui-plane #679 U4). Independent of {@link makeBundle}'s `uiJs`
+   *  argument ON PURPOSE: the funnel's biconditional refuses a declaration with no file AND a file with no
+   *  declaration, and a fixture that could not express either half could not test either half. */
+  readonly uiEntry?: boolean;
 }
 
-/** Build a VALID plugin bundle (a zip of exactly `manifest.json` + `main.js`) for install/upgrade tests.
- *  Defaults to a capability-free `hostVersion:1` manifest + a hello `main.js`; override any field. */
-export function makeBundle(overrides: BundleManifestOverrides = {}, mainJs = "orb.host(1).log.info('hello');"): Uint8Array {
+/** Build a plugin bundle (a zip of `manifest.json` + `main.js`, plus `ui.js` when `uiJs` is given) for
+ *  install/upgrade tests. Defaults to a capability-free `hostVersion:1` manifest + a hello `main.js`; override
+ *  any field. Deliberately capable of building an INVALID bundle (declaration without file, or the reverse) —
+ *  the funnel's job is to refuse those, so the fixture must be able to hand it one. */
+export function makeBundle(overrides: BundleManifestOverrides = {}, mainJs = "orb.host(1).log.info('hello');", uiJs?: string): Uint8Array {
   const manifest = {
     id: overrides.id ?? "test-plugin",
     name: overrides.name ?? "Test Plugin",
@@ -334,10 +344,15 @@ export function makeBundle(overrides: BundleManifestOverrides = {}, mainJs = "or
     capabilities: overrides.capabilities ?? [],
     ...(overrides.netHosts !== undefined ? { netHosts: overrides.netHosts } : {}),
     ...(overrides.builtAgainst !== undefined ? { builtAgainst: overrides.builtAgainst } : {}),
+    ...(overrides.uiEntry === true ? { uiEntry: "ui.js" } : {}),
   };
   const encoder = new TextEncoder();
-  return zipSync({
+  const entries: Record<string, Uint8Array> = {
     "manifest.json": encoder.encode(JSON.stringify(manifest)),
     "main.js": encoder.encode(mainJs),
-  });
+  };
+  if (uiJs !== undefined) {
+    entries["ui.js"] = encoder.encode(uiJs);
+  }
+  return zipSync(entries);
 }

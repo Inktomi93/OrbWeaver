@@ -233,10 +233,13 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // membrane (`InvocationChat.canWrite`); the source stamps THIS plugin.
     surfaceQuickReply: (chatId, choices) => ops.quickReply.surface({ pluginId: requirePluginId("surfaceQuickReply"), chatId, choices }),
     // Publish a UI surface's state (`host.ui.setState`, ui.surface). The pluginId + installer are closed over
-    // here (a guest names only the surfaceId + state); the op writes the state row + emits the per-user poke.
-    // A transient snippet has no pluginId — and no `ui.surface` grant, so the capability gate never reaches this.
+    // here (a guest names only the surfaceId, the state, and — through an already-admitted opaque handle the
+    // membrane resolved — its room); the op writes the state row + emits the per-user poke. `chatId` arrives
+    // ADMITTED, so this file adds no gate of its own: the membrane's `resolveChat` is the whole authority story
+    // for the room dimension, exactly as it is for `listMessages`/`upsertEntry`. A transient snippet has no
+    // pluginId — and no `ui.surface` grant, so the capability gate never reaches this.
     ui: {
-      setState: (surfaceId, state) => ops.ui.setState(requirePluginId("ui.setState"), installerUserId, surfaceId, state),
+      setState: (surfaceId, state, chatId) => ops.ui.setState({ pluginId: requirePluginId("ui.setState"), installerUserId, surfaceId, chatId, state }),
     },
   };
 }
