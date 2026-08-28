@@ -291,6 +291,7 @@ export function makeInertOps(): PluginHostOps {
       // visibility verdict sees an empty read rather than a silently-unclamped one.
       resolveViewerVisibility: () => Promise.resolve(null),
       getVariables: () => Promise.resolve({}),
+      listRoster: () => Promise.resolve([]),
       applyVariableOps: () => Promise.resolve(),
       requestTurn: () => Promise.resolve(),
     },
@@ -300,7 +301,11 @@ export function makeInertOps(): PluginHostOps {
       // the attachment verdict sees a REFUSAL, never a silently-ungated write.
       isBookAttachedToChat: () => Promise.resolve(false),
       listEntryTitles: () => Promise.resolve([]),
+      listBooksForChat: () => Promise.resolve([]),
+      listEntries: () => Promise.resolve([]),
     },
+    // #788 seam-11 read half — inert (a bridge test that cares about owner-scoping injects a recording op).
+    assets: { read: () => Promise.resolve(null) },
     storage: {
       get: () => Promise.resolve(null),
       set: () => Promise.resolve(),

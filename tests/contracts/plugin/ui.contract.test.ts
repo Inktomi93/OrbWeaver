@@ -132,12 +132,23 @@ test("the EXCLUSIONS are excluded — residency, authority writes, spend, and eg
     // not something a browser worker relays through the read tuple.
     "pubsub.emit",
     "pubsub.on",
+    // #788 the READ gaps — ALL FOUR OUT, each a PRICED widening (never a free entry), for the reasons the tuple
+    // header records. `chat.listRoster` is the strongest future candidate (same class as the proxyable
+    // `listMessages` — a chat-scoped read a surface renders from, self-gating membership), but adding a member is
+    // a deliberate ordered-pin edit, not a lane's side effect. `worldInfo.listBooks`/`listEntries` are chat-scoped
+    // reads whose consumer is server-side indexing, weak latency want. `assets.read` is the `character.getCardData`
+    // shape one plane over — its owner-scope is per-ASSET, and a proxied call names an id the server would owe an
+    // ownership check on, a gate not built here.
+    "chat.listRoster",
+    "worldInfo.listBooks",
+    "worldInfo.listEntries",
+    "assets.read",
   ];
   for (const fn of excluded) {
     expect(isUiProxyableHostFunction(fn), fn).toBe(false);
   }
   // Together with the ordered pin above, these two tests are exhaustive over `HOST_FUNCTION_CAPABILITY`: 9 in,
-  // 26 out, 35 total.
+  // 30 out, 39 total.
   expect(UI_PROXYABLE_HOST_FUNCTIONS.length + excluded.length).toBe(Object.keys(HOST_FUNCTION_CAPABILITY).length);
 });
 

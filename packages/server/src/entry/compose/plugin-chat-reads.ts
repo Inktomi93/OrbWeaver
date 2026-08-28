@@ -10,12 +10,12 @@
 // unclamped case and `messages.seq` is 1-based, so the predicate is inert for the common (`full`) member and
 // this read is byte-identical to the pre-clamp one for them.
 
-import type { PluginMessageView } from "@orb/contracts/plugin";
+import type { PluginCharacterView, PluginMessageView } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
-import { characters, messages, messageVariants } from "@orb/db";
+import { characters, chatParticipants, messages, messageVariants } from "@orb/db";
 import { stripHiddenSpans } from "@orb/kit/content";
 import type { ChatId } from "@orb/kit/ids";
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gte, isNull } from "drizzle-orm";
 
 /** The per-message content cap crossing the realm boundary (the sandbox's 1 MiB whole-payload inbound cap is
  *  the coarse backstop; this is the per-row belt). */
@@ -72,4 +72,33 @@ export async function loadPluginMessages(
       };
     })
     .reverse();
+}
+
+/**
+ * The invocation chat's PRESENT CHARACTER roster, projected to the reduced {@link PluginCharacterView}
+ * (#788 F11 — the ST `context.characters` parity arm): id/name/avatar only, never a co-participant's full card.
+ *
+ * SCOPED TO THIS ROOM AND MEMBER-GATED UPSTREAM. This is a principal-free read of `chat_participants` for ONE
+ * `chatId`, exactly the `loadPluginMessages` posture: the caller (`domain/plugin/substrate/bridge`) resolves the
+ * installer's membership through chat's `resolveViewerVisibility` FIRST and short-circuits a non-member to `[]`,
+ * so a non-member never reaches this function and a plugin can only read the roster of a room it is in. The read
+ * itself carries no owner filter because a room's roster is the room's own state, member-visible — the same
+ * membership verdict that admits `listMessages` admits this.
+ *
+ * PRESENT CHARACTER SEATS ONLY: `kind = 'character'` (human seats are participants, not characters — the ST
+ * `getCharacters` surface is the character cast) and `left_seq IS NULL` (a departed seat is not present roster).
+ * `avatarAssetId` crosses as inert text a guest may hand to an `image` node or `assets.read`.
+ */
+export async function loadPluginRoster(db: Db, chatId: ChatId): Promise<readonly PluginCharacterView[]> {
+  const rows = await db
+    .select({
+      characterId: chatParticipants.characterId,
+      name: characters.name,
+      avatarAssetId: characters.avatarAssetId,
+    })
+    .from(chatParticipants)
+    .innerJoin(characters, eq(characters.id, chatParticipants.characterId))
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq)))
+    .orderBy(chatParticipants.joinSeq);
+  return rows.map((r) => ({ id: r.characterId ?? "", name: r.name, avatarAssetId: r.avatarAssetId }));
 }
