@@ -70,11 +70,18 @@ export type {
   PluginInstance,
   PluginInvokeArgs,
   PluginMacroRegistration,
+  PluginPubsubSubscription,
   PluginSurfaceRegistration,
   PluginToolRegistration,
   PluginTransformRegistration,
 } from "./registrations.ts";
-export { PLUGIN_TOOL_NAME_PREFIX, pluginToolWireName } from "./registrations.ts";
+export {
+  PLUGIN_PUBSUB_NAME_RE,
+  PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES,
+  PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX,
+  PLUGIN_TOOL_NAME_PREFIX,
+  pluginToolWireName,
+} from "./registrations.ts";
 export type { PluginSuggestedAct, PluginSuggestedActKind } from "./suggestion.ts";
 export { PLUGIN_SUGGESTED_ACT_KINDS, summarizePluginAct } from "./suggestion.ts";
 export type {

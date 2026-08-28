@@ -40,6 +40,7 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
     uiDialogs: string[];
     databankIngests: { name: string; text: string }[];
     characterIngests: Record<string, unknown>[];
+    pubsubEmits: { name: string; data: Record<string, unknown> }[];
   };
 } {
   const writes = { count: 0 };
@@ -48,7 +49,8 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
   const uiDialogs: string[] = [];
   const databankIngests: { name: string; text: string }[] = [];
   const characterIngests: Record<string, unknown>[] = [];
-  const performed = { turns: 0, lore: 0, pictures: 0, chips: 0, uiSetState, uiToasts, uiDialogs, databankIngests, characterIngests };
+  const pubsubEmits: { name: string; data: Record<string, unknown> }[] = [];
+  const performed = { turns: 0, lore: 0, pictures: 0, chips: 0, uiSetState, uiToasts, uiDialogs, databankIngests, characterIngests, pubsubEmits };
   const llm: { prompts: string[]; opts: (PluginQuietOptions | undefined)[] } = { prompts: [], opts: [] };
   const egress = { count: 0 };
   const suggested: { acts: PluginSuggestedAct[] } = { acts: [] };
@@ -135,6 +137,12 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
         return Promise.resolve({ characterId: `char_${performed.characterIngests.length}`, created: true });
       },
     },
+    pubsub: {
+      emit: (name, data) => {
+        performed.pubsubEmits.push({ name, data });
+        return Promise.resolve();
+      },
+    },
   };
   return { bridge, writes, llm, egress, suggested, performed };
 }
@@ -145,6 +153,7 @@ interface RuntimeExtras {
   readonly collectTool?: MembraneRuntime["collectTool"];
   readonly collectTransform?: MembraneRuntime["collectTransform"];
   readonly collectEvent?: MembraneRuntime["collectEvent"];
+  readonly collectPubsub?: MembraneRuntime["collectPubsub"];
   readonly collectSurface?: MembraneRuntime["collectSurface"];
   readonly collectCommand?: MembraneRuntime["collectCommand"];
   readonly collectDisplayTransform?: MembraneRuntime["collectDisplayTransform"];
@@ -165,6 +174,7 @@ function makeRuntime(grants: readonly PluginCapability[], canWrite: boolean, bri
     collectTool: extra.collectTool ?? ((): void => undefined),
     collectTransform: extra.collectTransform ?? ((): void => undefined),
     collectEvent: extra.collectEvent ?? ((): void => undefined),
+    collectPubsub: extra.collectPubsub ?? ((): void => undefined),
     collectSurface: extra.collectSurface ?? ((): void => undefined),
     collectCommand: extra.collectCommand ?? ((): void => undefined),
     collectDisplayTransform: extra.collectDisplayTransform ?? ((): void => undefined),
@@ -1381,5 +1391,90 @@ describe("attachMembrane — U8 databank.ingest / character.ingest are grant-gat
       expect(out).toContain("character-card object");
     });
     expect(performed.characterIngests).toEqual([]);
+  });
+});
+
+// ── U8 §5a: the PRIVATE plugin-event plane (pubsub.emit / pubsub.on) ───────────────────────────────────────────
+// The membrane's half of the forgery wall: both gate `plugin_events`, `emit` forwards a validated `{name, data}`
+// to the bridge (which stamps the emitter slug), and `on` collects a bounded subscription. A colon-carrying or
+// unbounded coordinate is refused at THIS boundary (it would inject into the bus's channel key). The bus-level
+// cross-user / no-domain-bus / no-TriggerFact walls are pinned in plugin-event-bus.test.ts.
+describe("attachMembrane — pubsub.emit / pubsub.on are grant-gated (plugin_events) with colon-free coordinates", () => {
+  test("pubsub.emit WITHOUT the grant rejects with the TYPED capability error — the bridge is never called", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost([], false, bridge, async (ctx) => {
+      const out = await runAsync(ctx, "(async () => { try { await host.pubsub.emit('found', { x: 1 }); return 'NO-THROW' } catch (e) { return e.name } })()");
+      expect(out).toBe("PluginCapabilityError");
+    });
+    expect(performed.pubsubEmits).toEqual([]);
+  });
+
+  test("pubsub.emit WITH the grant forwards the validated {name, data} to the bridge (which stamps the emitter slug)", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost(["plugin_events"], false, bridge, async (ctx) => {
+      await runAsync(ctx, "(async () => { await host.pubsub.emit('found', { url: 'x', n: 2 }); return 'ok' })()");
+    });
+    expect(performed.pubsubEmits).toEqual([{ name: "found", data: { url: "x", n: 2 } }]);
+  });
+
+  test("pubsub.emit with an invalid event name is a typed refusal — nothing reaches the bridge", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost(["plugin_events"], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.pubsub.emit('Bad Name!', {}); return 'NO-THROW' } catch (e) { return 'caught:' + e.message } })()",
+      );
+      expect(out).toContain("valid event name");
+    });
+    expect(performed.pubsubEmits).toEqual([]);
+  });
+
+  test("pubsub.on WITHOUT the grant throws the uniform capability refusal (nothing collected)", async () => {
+    const { bridge } = fakeBridge();
+    const collected: { emitterSlug: string; name: string }[] = [];
+    const runtime = makeRuntime([], false, bridge, { collectPubsub: (reg): void => void collected.push(reg) });
+    await withRuntime(runtime, (ctx) => {
+      const result = ctx.evalCode("try { host.pubsub.on('scraper', 'found', () => {}); 'NO-THROW' } catch (e) { e.name }");
+      expect(readString(ctx, result.error ?? result.value)).toBe("PluginCapabilityError");
+    });
+    expect(collected).toEqual([]);
+  });
+
+  test("a granted pubsub.on collects {emitterSlug, name} + keeps the handler handle", async () => {
+    const { bridge } = fakeBridge();
+    const collected: { emitterSlug: string; name: string }[] = [];
+    // This test owns disposal of the dup'd handler (no real Sandbox handlers map behind the direct attach) — an
+    // un-disposed guest handle aborts JS_FreeRuntime at teardown (the collectTransform/collectMacro precedent).
+    const runtime = makeRuntime(["plugin_events"], false, bridge, {
+      collectPubsub: (reg, handler): void => {
+        collected.push(reg);
+        handler.dispose();
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      const r = ctx.evalCode("host.pubsub.on('scraper', 'found', () => {})");
+      readString(ctx, r.error ?? r.value);
+    });
+    expect(collected).toEqual([{ emitterSlug: "scraper", name: "found" }]);
+  });
+
+  test("pubsub.on with a colon-carrying / malformed coordinate is a SOFT refusal (logged, nothing collected)", async () => {
+    const { bridge } = fakeBridge();
+    const collected: { emitterSlug: string; name: string }[] = [];
+    const warnings: string[] = [];
+    const runtime = makeRuntime(["plugin_events"], false, bridge, {
+      collectPubsub: (reg): void => void collected.push(reg),
+      logWarn: (m): void => void warnings.push(m),
+    });
+    await withRuntime(runtime, (ctx) => {
+      // A colon in the emitterSlug would inject into the bus's `installer:slug:name` key — refused at the edge.
+      const r1 = ctx.evalCode("host.pubsub.on('a:b', 'found', () => {})");
+      readString(ctx, r1.error ?? r1.value);
+      // An invalid event-name grammar is likewise refused.
+      const r2 = ctx.evalCode("host.pubsub.on('scraper', 'Bad Name', () => {})");
+      readString(ctx, r2.error ?? r2.value);
+    });
+    expect(collected).toEqual([]);
+    expect(warnings.length).toBe(2);
   });
 });

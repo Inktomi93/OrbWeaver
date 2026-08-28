@@ -54,7 +54,7 @@ import { runUiHostCall } from "../substrate/ui-host-dispatch.ts";
 async function authorize(
   ctx: PluginContext,
   { caller, pluginId, fn, chatId }: UiHostCallParams,
-): Promise<{ readonly name: string; readonly fn: UiProxyableHostFunction }> {
+): Promise<{ readonly name: string; readonly slug: string; readonly fn: UiProxyableHostFunction }> {
   // (1) OWNER SCOPE — leak-free NOT_FOUND for a plugin the caller does not own.
   const existing = await getById(ctx.db, caller.userId, pluginId);
   if (existing === undefined) {
@@ -78,13 +78,13 @@ async function authorize(
   if (chatId !== undefined && !(await ctx.resolveChatAuthority(caller, chatId)).canRead) {
     throw new DomainNotFoundError("chat", chatId);
   }
-  return { name: existing.name, fn };
+  return { name: existing.name, slug: existing.slug, fn };
 }
 
 export function createUiHostCall(ctx: PluginContext): PluginService["uiHostCall"] {
   return async (params: UiHostCallParams) => {
     const { caller, pluginId, argsJson, chatId } = params;
-    const { name, fn } = await authorize(ctx, params);
+    const { name, slug, fn } = await authorize(ctx, params);
     // (6) SHAPE — the byte cap was applied at the transport edge (the untrusted-input boundary); here the JSON
     // must at least BE json. A parse failure is a contained refusal, never a throw the client cannot read.
     let args: unknown;
@@ -100,7 +100,9 @@ export function createUiHostCall(ctx: PluginContext): PluginService["uiHostCall"
       // The bridge is built per (plugin, installer) exactly as activation builds it — the installer IS the
       // caller here (the v1 viewer==installer invariant, and the owner-scoped load above is what makes that
       // true rather than assumed), so global-vars, storage and the belts all close over the right principal.
-      const bridge = buildPluginBridge(ctx.ops, caller.userId, { id: pluginId, name }, ctx.belts);
+      // `slug` completes the identity (U8 §5a); the Tier-C relay never reaches `pubsub.emit` (it is EXCLUDED from
+      // the proxy tuple), so it is carried for type-honesty, not because a client guest can publish an event.
+      const bridge = buildPluginBridge(ctx.ops, caller.userId, { id: pluginId, name, slug }, ctx.belts);
       const value = await runUiHostCall(fn, bridge, args, chatId ?? null);
       // `undefined` is not JSON; a void op answers a literal `null` so the guest's promise resolves to a value
       // it can test rather than to a hole that stringifies away.

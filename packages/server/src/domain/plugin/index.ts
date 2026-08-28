@@ -56,6 +56,7 @@ export type {
   NotifyFloor,
   PluginActivationScope,
   PluginBelts,
+  PluginEventBus,
   PluginHostOps,
   PluginIdentity,
   PluginInvokeHandler,
@@ -118,6 +119,7 @@ export { isPluginEnabledFor } from "./persistence/plugins.ts";
 export { createPluginService } from "./service.ts";
 export { buildConfirmedActRunner } from "./substrate/confirmed-act.ts";
 export { createNotifyFloor } from "./substrate/notify-floor.ts";
+export { createPluginEventBus, createPluginEventEmitter } from "./substrate/plugin-event-bus.ts";
 export { createPluginMacroRegistry, PLUGIN_MACRO_RESOLVE_DEADLINE_MS, PLUGIN_MACROS_MAX, pluginMacroName } from "./substrate/plugin-macros.ts";
 export { createPluginRateFloor, PLUGIN_EGRESS_PER_HOUR, PLUGIN_QUIET_LLM_PER_HOUR } from "./substrate/rate-floor.ts";
 export { buildPluginPromptTransform, capFactContent } from "./substrate/registrar.ts";

@@ -88,7 +88,7 @@ function makeFakePort(): FakePort {
       const scripted = queue.shift();
       const outcome: CreateInstanceOutcome = scripted ?? {
         ok: true,
-        instance: { tools: [], transforms: [], events: [], surfaces: [], commands: [], displayTransforms: [], macros: [] },
+        instance: { tools: [], transforms: [], events: [], pubsub: [], surfaces: [], commands: [], displayTransforms: [], macros: [] },
       };
       if (outcome.ok) {
         logs.set(outcome.instance, []);
@@ -137,7 +137,7 @@ export function makeSandboxPort(seams: HostSeams): PluginHostPort {
         sandbox.dispose();
         return { ok: false, error: outcome.error?.message ?? "activation failed", log: toLog(outcome.logs) };
       }
-      const instance: PluginInstance = { tools: [], transforms: [], events: [], surfaces: [], commands: [], displayTransforms: [], macros: [] };
+      const instance: PluginInstance = { tools: [], transforms: [], events: [], pubsub: [], surfaces: [], commands: [], displayTransforms: [], macros: [] };
       sandboxes.set(instance, sandbox);
       logs.set(instance, toLog(outcome.logs));
       return { ok: true, instance };
@@ -323,11 +323,14 @@ export function makeInertOps(): PluginHostOps {
     character: { ingest: () => Promise.resolve({ characterId: "char_inert000000000000000000", created: false }) },
     imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_inert00000000000000000" }) },
     variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
+    // U8 §5a — inert private-event emit (a pubsub suite injects a recording bus).
+    pubsub: { emit: () => Promise.resolve() },
     registrar: {
       registerTool: () => registrationHandle,
       registerTransform: () => registrationHandle,
       registerMacros: () => registrationHandle,
       subscribeEvent: () => registrationHandle,
+      subscribePubsub: () => registrationHandle,
     },
   };
 }

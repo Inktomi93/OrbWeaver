@@ -28,6 +28,7 @@ import type {
   PluginEventSubscription,
   PluginHandlerRef,
   PluginMacroRegistration,
+  PluginPubsubSubscription,
   PluginSurfaceRegistration,
   PluginToolRegistration,
   PluginTransformRegistration,
@@ -159,6 +160,7 @@ interface ResidentState {
   readonly tools: PluginToolRegistration[];
   readonly transforms: PluginTransformRegistration[];
   readonly events: PluginEventSubscription[];
+  readonly pubsub: PluginPubsubSubscription[];
   readonly surfaces: PluginSurfaceRegistration[];
   readonly commands: PluginCommandRegistration[];
   readonly displayTransforms: PluginDisplayTransformRegistration[];
@@ -212,6 +214,7 @@ export class Sandbox implements Disposable {
       tools: [],
       transforms: [],
       events: [],
+      pubsub: [],
       surfaces: [],
       commands: [],
       displayTransforms: [],
@@ -245,6 +248,11 @@ export class Sandbox implements Disposable {
               const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
               state.handlers.set(ref, handler);
               state.events.push({ type: reg.type, handler: ref });
+            },
+            collectPubsub: (reg, handler): void => {
+              const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
+              state.handlers.set(ref, handler);
+              state.pubsub.push({ emitterSlug: reg.emitterSlug, name: reg.name, handler: ref });
             },
             collectDisplayTransform: (reg, handler): void => {
               const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
@@ -316,6 +324,13 @@ export class Sandbox implements Disposable {
    *  (disposed at teardown alongside tool/transform handlers). */
   get collectedEvents(): readonly PluginEventSubscription[] {
     return this.state.events;
+  }
+
+  /** The PRIVATE plugin-event subscriptions `main.js` collected at activation (plugin-ui-plane §5a) — the domain
+   *  wires each onto the INSTALLER-scoped resident plugin-event bus (delivery + unregister), never the automation
+   *  fan-out. The guest handler handles live in `handlers` (disposed at teardown alongside every other handler). */
+  get collectedPubsub(): readonly PluginPubsubSubscription[] {
+    return this.state.pubsub;
   }
 
   /** The UI surfaces `main.js` registered at activation (plugin-ui-plane #679 U1) — read directly by

@@ -237,6 +237,29 @@ export interface PluginHostV1 {
     on: (type: ChatTriggerType | DomainTriggerType, handler: (fact: TriggerFact) => void | Promise<void>) => void;
   };
 
+  /** THE PRIVATE PLUGIN-EVENT PLANE (plugin-ui-plane §5a, U8) — a namespaced installer-scoped pub-sub for
+   *  multi-plugin composition. It is a DELIBERATELY SEPARATE plane from `events` above, and the separation IS the
+   *  forgery wall (§5.24 — "a plugin-emitted DOMAIN event is a forged fact"):
+   *   - it NEVER enters a domain/chat bus (the emit reaches only the installer's own resident plugin-event bus);
+   *   - the delivered payload is a plain `{ name, data }`, NEVER a `TriggerFact` — so it cannot be laundered into
+   *     automation (automation reach is a FUTURE explicit `pluginEvent` trigger member, not this plane);
+   *   - it NEVER crosses to another user — the bus is keyed by the installing principal, so an emit reaches only
+   *     the SAME installer's plugins.
+   *  The channel is `plugin:<emitter-slug>:<name>`; the emitter's slug is STAMPED host-side (a guest supplies only
+   *  `name` + `data` to `emit`, so it cannot forge a publication on another plugin's channel). capability:
+   *  `plugin_events`. */
+  readonly pubsub: {
+    /** Publish a private event on THIS plugin's channel `plugin:<own-slug>:<name>` to every SAME-installer
+     *  plugin subscribed to it. `data` is inert JSON-safe data. Resolves when delivery is dispatched (the
+     *  subscribers' handlers run fire-and-forget under the invocation budget). capability: plugin_events. */
+    emit: (name: string, data: Record<string, unknown>) => Promise<void>;
+    /** Subscribe to `plugin:<emitterSlug>:<name>` on THIS installer's plane — `emitterSlug` names which of the
+     *  installer's plugins to listen to (its own manifest slug; a slug the installer does not have installed
+     *  simply never fires). The handler receives `{ name, data }` — a plain payload, never a `TriggerFact`.
+     *  Resident (collected at activation, dropped on disable), the `events.on` posture. capability: plugin_events. */
+    on: (emitterSlug: string, name: string, handler: (event: { name: string; data: Record<string, unknown> }) => void | Promise<void>) => void;
+  };
+
   readonly tools: {
     /** Register a tool into the ONE domain/tool-use registry (D48 source (b)). The host-side posture
      *  for the raw-JSON-Schema `parameters` field is the named decision against D79 (README truth table).
@@ -453,6 +476,11 @@ export const HOST_FUNCTION_CAPABILITY = {
   "databank.ingest": "databank.ingest",
   "character.ingest": "character.ingest",
   "events.on": "events.subscribe",
+  // U8 §5a — both the private-event emit and subscribe ride the ONE `plugin_events` grant (a single consent line
+  // covers "send and receive private events among your own plugins"). A plugin that may emit may subscribe and
+  // vice versa — the plane is symmetric and installer-private.
+  "pubsub.emit": "plugin_events",
+  "pubsub.on": "plugin_events",
   "tools.register": "tools.register",
   "transforms.register": "chat.transform",
   // U6 — both ride `chat.transform`: a DISPLAY transform is strictly narrower than the prompt transform that
@@ -533,6 +561,11 @@ export const HOST_FUNCTION_CAPABILITY = {
  *     grant; a scripted surface that wants to trigger an ingest fires an `actionId` round-trip whose server
  *     handler holds the grant, exactly as it would for any other write. Admitting them to the proxy tuple is a
  *     §5a-shaped decision (a new proxyable member is a reviewable act), never a free entry.
+ *   - `pubsub.on` / `pubsub.emit` (U8 §5a) — OUT. `pubsub.on` is a RESIDENT REGISTRATION (a subscriber handle
+ *     owned by the SERVER guest, the `events.on` class), and `pubsub.emit` is an EFFECT that fans out to resident
+ *     SERVER guests — neither is server-owned DATA a client guest lacks. A client UI guest holds `orb.ui(1)`, not
+ *     `orb.host(1)`, and the private-event plane is a SERVER-guest composition primitive; relaying it would put a
+ *     client guest into the installer's resident event graph, which is not what §4.6's read-latency purchase was.
  *
  *  Nothing here loses ABILITY: the plugin's SERVER guest reaches every excluded function under the same grant.
  *  What Tier C gives up is the LATENCY of those calls, which is not what §4.6 bought — it bought

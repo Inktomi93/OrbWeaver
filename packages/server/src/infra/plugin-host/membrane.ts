@@ -43,6 +43,8 @@ import type {
 import {
   HOST_FUNCTION_CAPABILITY,
   PLUGIN_FRAME_SURFACES_MAX,
+  PLUGIN_PUBSUB_NAME_RE,
+  PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX,
   PLUGIN_QUIET_IMAGES_MAX,
   PLUGIN_SURFACE_ID_RE,
   PLUGIN_TIER_REGISTRAR,
@@ -51,6 +53,7 @@ import {
   PluginSuggestedError,
   pluginCommandRegistrationMetaSchema,
   pluginFrameBodySchema,
+  pluginSlugSchema,
   pluginSurfaceRegistrationMetaSchema,
 } from "@orb/contracts/plugin";
 import type { VarOp } from "@orb/kit/macro";
@@ -152,6 +155,12 @@ export interface MembraneRuntime {
    *  the membrane never bypasses the automation-side delivery gates. `type` is validated to the closed Tier-1
    *  taxonomy at THIS boundary (a garbage type is refused at collection, never a dead subscription). */
   readonly collectEvent: (reg: { readonly type: ChatTriggerType | DomainTriggerType }, handler: QuickJSHandle) => void;
+  /** Collect a PRIVATE plugin-event subscription (`host.pubsub.on`, plugin-ui-plane §5a) — the `collectEvent`
+   *  mirror, one plane over. The guest handler HANDLE is kept alive; the DOMAIN wires each onto the
+   *  INSTALLER-scoped resident plugin-event bus at activation (`subscribePubsub`), never the automation fan-out.
+   *  `emitterSlug`/`name` are validated to bounded grammars at THIS boundary (an unbounded coordinate is an
+   *  unbounded bus-map key). */
+  readonly collectPubsub: (reg: { readonly emitterSlug: string; readonly name: string }, handler: QuickJSHandle) => void;
   /** Collect a UI surface registration — the SYNC activation-time mirror of `collectTool` (plugin-ui-plane #679
    *  U1, seam 4). `meta` is the ALREADY-VALIDATED serializable descriptor (`setUi` ran the zod schema — the host
    *  trust boundary); `onAction` is the guest handler HANDLE the Sandbox keeps alive keyed by a minted ref (`null`
@@ -249,6 +258,7 @@ export function attachMembrane(ctx: QuickJSContext, surface: QuickJSHandle, runt
   setTransforms(ctx, surface, runtime);
   setMacros(ctx, surface, runtime);
   setEvents(ctx, surface, runtime);
+  setPubsub(ctx, surface, runtime);
   setNet(ctx, surface, runtime);
   setUi(ctx, surface, runtime);
 }
@@ -1288,6 +1298,72 @@ function setEvents(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
   });
   ctx.setProp(events, "on", onFn);
   ctx.setProp(surface, "events", events);
+}
+
+/** THE PRIVATE PLUGIN-EVENT PLANE (`host.pubsub`, plugin-ui-plane §5a). `on` is a SYNC resident subscription
+ *  (the `events.on` mirror — collected + wired to the INSTALLER-scoped bus at activation, never the automation
+ *  fan-out); `emit` is an ASYNC runtime publish. Both gate `plugin_events`. The forgery wall's boundary half is
+ *  HERE: the channel coordinates are validated COLON-FREE — `name` against `PLUGIN_PUBSUB_NAME_RE`, and (for `on`)
+ *  the target `emitterSlug` against the manifest slug grammar — because a colon in a coordinate would inject into
+ *  the bus's `installer:slug:name` key and could ALIAS a different channel, so it is refused at the trust edge,
+ *  not sanitized downstream. The emit side stamps the emitter's OWN slug domain-side (the bridge), so a guest can
+ *  publish only on its own channel. */
+function setPubsub(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
+  using pubsub = ctx.newObject();
+  let subscribed = 0;
+  // on(emitterSlug, name, handler) — SYNC collect. A malformed subscription is a SOFT refusal (logged, absent),
+  // never activation-fatal (the §4.9 surface-refusal posture): a bad `pubsub.on` must not kill the plugin's
+  // tools/panels. The capability refusal above still THROWS (the uniform gate). The handler is a POSITIONAL arg
+  // (auto-disposed by quickjs-emscripten on return), so it is `dup()`'d on the COLLECT path and left untouched on
+  // every refuse path.
+  using onFn = ctx.newFunction("on", (slugHandle?: QuickJSHandle, nameHandle?: QuickJSHandle, handlerHandle?: QuickJSHandle) => {
+    requireCapability(runtime, "pubsub.on");
+    if (slugHandle === undefined || nameHandle === undefined || handlerHandle === undefined) {
+      throw new Error("plugin host: pubsub.on requires (emitterSlug, name, handler)");
+    }
+    const dumpedSlug = tryDumpGuestValue(ctx, slugHandle);
+    const dumpedName = tryDumpGuestValue(ctx, nameHandle);
+    if (!(dumpedSlug.ok && dumpedName.ok)) {
+      runtime.logWarn("pubsub.on refused a subscription: a coordinate is too deeply nested");
+      return ctx.undefined;
+    }
+    const emitterSlug = dumpedSlug.value;
+    const name = dumpedName.value;
+    if (typeof emitterSlug !== "string" || !pluginSlugSchema.safeParse(emitterSlug).success || typeof name !== "string" || !PLUGIN_PUBSUB_NAME_RE.test(name)) {
+      runtime.logWarn("pubsub.on refused a subscription: emitterSlug/name grammar (must be colon-free bounded idents)");
+      return ctx.undefined;
+    }
+    if (subscribed >= PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX) {
+      runtime.logWarn(`pubsub.on refused: at most ${PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX} subscriptions per plugin`);
+      return ctx.undefined;
+    }
+    subscribed += 1;
+    runtime.collectPubsub({ emitterSlug, name }, handlerHandle.dup());
+    return ctx.undefined;
+  });
+  ctx.setProp(pubsub, "on", onFn);
+
+  attachAsync(ctx, pubsub, {
+    name: "emit",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "pubsub.emit");
+      const name = args[0];
+      if (typeof name !== "string" || !PLUGIN_PUBSUB_NAME_RE.test(name)) {
+        throw new Error("plugin host: pubsub.emit requires a valid event name (/^[a-z][a-z0-9_]{0,40}$/)");
+      }
+      // A plain JSON object only — an array/scalar/null is an empty payload (fail-safe, no throw). The domain bus
+      // caps the serialized size; the arg-budget belt already bounded the inbound bytes.
+      const raw = args[1];
+      const data: Record<string, unknown> = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+      // The emitter's own slug is stamped DOMAIN-side (the bridge closes it over from the activation manifest),
+      // so a guest supplies ONLY name + data and can never publish on another plugin's `plugin:<slug>:<name>`.
+      await runtime.bridge.pubsub.emit(name, data);
+      return null;
+    },
+  });
+  ctx.setProp(surface, "pubsub", pubsub);
 }
 
 /** net.fetch — capability net.fetch. The host performs the fetch through the AUDITED SSRF guard (`safeFetch`,

@@ -101,6 +101,7 @@ function recordingOps(db: Db, globals: Map<string, string>): { ops: PluginHostOp
         captured.scope = scope;
         return noop;
       },
+      subscribePubsub: (): PluginRegistrationHandle => noop,
     },
   };
   return { ops, captured };

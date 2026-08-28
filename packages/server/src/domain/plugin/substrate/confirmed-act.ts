@@ -39,7 +39,10 @@ export function buildConfirmedActRunner(
     // DIRECTLY (the membrane, which is the only caller of `suggest`, is not in this stack), and an act that
     // already has host consent has nothing left to ask. So the name is empty here rather than fetched, and
     // that is a statement about reachability, not a missing lookup.
-    const identity: PluginIdentity = { id: pluginId, name: "" };
+    // `slug` is empty for the same reason `name` is: a confirmed S4 act re-enters only the write ops it was
+    // stashed for, never `pubsub.emit` (a private-event emit is not a host-confirmable act), so the emitter slug
+    // is never read here. Empty rather than fetched — one more field the confirm path has no use for.
+    const identity: PluginIdentity = { id: pluginId, name: "", slug: "" };
     const bridge = buildPluginBridge(ops, installerUserId, identity, belts);
     // Switched on a LOCAL binding of the CLEAN string union, not on `act.kind`, and each case narrows with an
     // `Extract<>` — the `summarizeSuggestibleArm` / `runArm` idiom. Biome's `noUnnecessaryConditions` cannot

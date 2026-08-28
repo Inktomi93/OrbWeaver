@@ -23,7 +23,7 @@ import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_
 const CHAT_ID = mintTypeId(ID_PREFIX.chat) as ChatId;
 
 function instanceWithCommands(commands: PluginInstance["commands"]): PluginInstance {
-  return { tools: [], transforms: [], events: [], surfaces: [], commands, displayTransforms: [], macros: [] };
+  return { tools: [], transforms: [], events: [], pubsub: [], surfaces: [], commands, displayTransforms: [], macros: [] };
 }
 
 const DRAW: PluginInstance["commands"] = [{ name: "draw", describe: "Draw a card", onRun: castId<PluginHandlerRef>("plugin-handler-0") }];
@@ -144,7 +144,7 @@ test("the UI OUTCOME is drained onto the result — and still drains when the ha
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
   // A toast queued BEFORE the throw (the guest raised it, then failed) — the real outbox is shared with the ctx.
-  h.ctx.uiOutbox.pushToast({ id: installed.id, name: "Oracle Deck" }, "warn", "couldn't reach the API");
+  h.ctx.uiOutbox.pushToast({ id: installed.id, name: "Oracle Deck", slug: "oracle-deck" }, "warn", "couldn't reach the API");
   await expect(h.service.invokeUiCommand({ caller, pluginId: installed.id, name: "draw", args: "", chatId: null })).rejects.toThrow(/the guest threw/u);
 
   // The rejection propagated (a crash must not read as a success with a sad toast) AND the outbox was drained,

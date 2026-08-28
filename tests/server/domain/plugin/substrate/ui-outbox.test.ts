@@ -21,8 +21,8 @@ import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 // TypeIDs are MINTED, never hand-written literals (the branded suffix is validated at runtime).
-const PLUGIN = { id: mintTypeId(ID_PREFIX.plugin), name: "Oracle Deck" };
-const OTHER = { id: mintTypeId(ID_PREFIX.plugin), name: "Scene Chips" };
+const PLUGIN = { id: mintTypeId(ID_PREFIX.plugin), name: "Oracle Deck", slug: "oracle-deck" };
+const OTHER = { id: mintTypeId(ID_PREFIX.plugin), name: "Scene Chips", slug: "scene-chips" };
 
 const COOLDOWN_MS = PLUGIN_TOAST_COOLDOWN_SECONDS * 1000;
 
@@ -38,7 +38,7 @@ function frozenClock(): { now: () => number; advance: (ms: number) => void } {
 }
 
 function instanceWith(surfaces: readonly PluginSurfaceRegistration[]): PluginInstance {
-  return { tools: [], transforms: [], events: [], surfaces, commands: [], displayTransforms: [], macros: [] };
+  return { tools: [], transforms: [], events: [], pubsub: [], surfaces, commands: [], displayTransforms: [], macros: [] };
 }
 
 describe("plugin UI outbox", () => {

@@ -115,12 +115,18 @@ test("the EXCLUSIONS are excluded — residency, authority writes, spend, and eg
     // handler holds the grant — the plugin's server guest ingests under the same grant, nothing is lost.
     "databank.ingest",
     "character.ingest",
+    // U8 §5a PRIVATE-EVENT plane — OUT. `pubsub.on` is a RESIDENT registration (a subscriber owned by the server
+    // guest, the `events.on` class); `pubsub.emit` is an EFFECT fanning out to resident server guests. Neither is
+    // server-owned DATA a client guest lacks — the private-event plane is a server-guest composition primitive,
+    // not something a browser worker relays through the read tuple.
+    "pubsub.emit",
+    "pubsub.on",
   ];
   for (const fn of excluded) {
     expect(isUiProxyableHostFunction(fn), fn).toBe(false);
   }
   // Together with the ordered pin above, these two tests are exhaustive over `HOST_FUNCTION_CAPABILITY`: 9 in,
-  // 22 out, 31 total.
+  // 24 out, 33 total.
   expect(UI_PROXYABLE_HOST_FUNCTIONS.length + excluded.length).toBe(Object.keys(HOST_FUNCTION_CAPABILITY).length);
 });
 

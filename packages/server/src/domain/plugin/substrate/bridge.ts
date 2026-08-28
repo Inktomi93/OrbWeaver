@@ -232,7 +232,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       // The name is DERIVED from the re-validated manifest at activation (never guest-supplied) and is what
       // makes the host's card say WHO is asking — a plugin ask is the one card class whose requester is not
       // a rule the host wrote themselves.
-      ops.suggestions.raise({ plugin: { id, name: plugin?.name ?? "" }, installerUserId, chatId, act });
+      ops.suggestions.raise({ plugin: { id, name: plugin?.name ?? "", slug: plugin?.slug ?? "" }, installerUserId, chatId, act });
       return await Promise.resolve();
     },
     // The `net.fetch` HOURLY egress claim. Infra performs the fetch (`safeFetch` is the audited SSRF guard and
@@ -272,6 +272,14 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     },
     character: {
       ingest: (card) => ops.character.ingest({ installerUserId, card }),
+    },
+    // The PRIVATE plugin-event EMIT (§5a). BOTH un-forgeable coordinates are closed over here: `installerUserId`
+    // (the plane is installer-scoped — an emit can never reach another user's plugins) and the emitter's own
+    // manifest `slug` (`requirePlugin("pubsub.emit").slug` — a guest supplies only `name` + `data`, so it cannot
+    // publish on another plugin's `plugin:<slug>:<name>` channel). It requires an installed plugin like `toast`
+    // does: a snippet has no identity AND no `plugin_events` grant, so the capability gate refuses first.
+    pubsub: {
+      emit: (name, data) => ops.pubsub.emit({ installerUserId, emitterSlug: requirePlugin("pubsub.emit").slug, name, data }),
     },
   };
 }

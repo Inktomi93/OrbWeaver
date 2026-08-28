@@ -27,6 +27,7 @@ function residentWithFrame(): PluginInstance {
     tools: [],
     transforms: [],
     events: [],
+    pubsub: [],
     displayTransforms: [],
     macros: [],
     commands: [],
