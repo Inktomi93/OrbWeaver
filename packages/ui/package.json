@@ -55,6 +55,7 @@
     "./macro-textarea": "./src/primitives/macro-textarea/index.ts",
     "./markdown": "./src/markdown/index.ts",
     "./media-grid": "./src/primitives/media-grid/index.ts",
+    "./media-tile-grid": "./src/primitives/media-tile-grid/index.ts",
     "./menu": "./src/primitives/menu/index.ts",
     "./message-list": "./src/primitives/message-list/index.ts",
     "./message-media": "./src/content/message-media/index.ts",

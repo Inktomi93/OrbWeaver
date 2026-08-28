@@ -242,6 +242,20 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   // model-visible one — the whole path a transcript needs to draw a house card instead of the generic block.
   expect(await h.service.listSurfaces({ caller })).toEqual([
     expect.objectContaining({ id: "draw_card", anchor: "tool-card", toolName: "draw", toolWireName: "plugin_oracle_deck_draw" }),
+    // …and the two U5 surfaces the same activation registered (#679 U5): the full-page deck behind the ONE
+    // Extensions rail entry, and the reveal DIALOG — which the deck opens only from its own page/command, never
+    // spontaneously. This is the end-to-end receipt that `page` and `dialog` survive a REAL activation over the
+    // WASM runtime, not just the schema.
+    expect.objectContaining({ id: "deck_page", anchor: "page", title: "The Deck" }),
+    expect.objectContaining({ id: "reveal_dialog", anchor: "dialog", title: "Reveal this session" }),
+  ]);
+
+  // The two COMMANDS the same activation registered — what `/plugin oracle-deck draw` and the Plugins wand menu
+  // both dispatch against. The SLUG is projected here (only this side knows it), which is the first token of the
+  // dispatch grammar.
+  expect(await h.service.listCommands({ caller })).toEqual([
+    { pluginId: installed.id, slug: "oracle-deck", pluginName: "Oracle Deck", name: "draw", describe: "Draw one card from the oracle deck" },
+    { pluginId: installed.id, slug: "oracle-deck", pluginName: "Oracle Deck", name: "reveal", describe: "Open the reveal dialog for this oracle session" },
   ]);
 
   // A tool call carries no chat scope of its own here (the deck never asks for one), exactly as a direct-drive

@@ -152,6 +152,28 @@ export interface InvokeUiActionParams {
   readonly values: Record<string, string>;
 }
 
+/** `listCommands` — the CALLER's OWN enabled plugins' registered commands (plugin-ui-plane #679 U5). No id, no
+ *  foreign scope: the `listSurfaces` posture exactly — the owner-scoped read of the caller's rows IS the gate. */
+export interface ListCommandsParams {
+  readonly caller: Principal;
+}
+
+/** `invokeUiCommand` — run one registered command (U5, §4.5). Owner-scoped on `pluginId` (leak-free NOT_FOUND);
+ *  re-enters `onRun` under the crash policy + the per-instance invoke queue, exactly like a UI action.
+ *
+ *  `args` is the RAW remainder after `/plugin <slug> <name>` (trimmed) — a command owns its own argument grammar
+ *  (the `SlashCommandRunner` contract, applied across the membrane). `chatId` is the room the person ran it in,
+ *  or `null` when there is none (the chrome menu outside a chat): it is gated as a real invocation chat scope,
+ *  so a command that reads the room needs the same authority any other guest read of that room does — a command
+ *  is not a back door around the chat-read admission. */
+export interface InvokeUiCommandParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+  readonly name: string;
+  readonly args: string;
+  readonly chatId: ChatId | null;
+}
+
 /** `listDisplayTransforms` — the caller's OWN enabled plugins' registered DISPLAY transforms (plugin-ui-plane
  *  seam 14, U6). Same shape and same gate as `listSurfaces`: no id, owner-scoped read. Its ONE job is the
  *  BYTE-IDENTITY gate — a viewer with no display transforms learns so in one query and their transcript makes
