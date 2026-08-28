@@ -21,17 +21,18 @@ import type { ChatId } from "@orb/kit/ids";
 import { Command, CommandAuxiliaryButton, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@orb/ui/command";
 import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useEffect, useRef } from "react";
+import { use, useEffect, useRef } from "react";
 
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
-import type { SlashCommandContribution, SlashCommandGroup } from "#lib";
+import type { CommandPaletteSource, SlashCommandContext, SlashCommandContribution, SlashCommandGroup } from "#lib";
 import { SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS, useFocusOnMount } from "#lib";
 import type { SectionId } from "#state";
-import { closeModal, selectChat, setActiveSection, useActiveChatId } from "#state";
+import { CommandPaletteSourceRegistryContext, closeModal, selectChat, setActiveSection, useActiveChatId } from "#state";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
 import { chatSummaryRowView } from "../lib/chat-summary-row.ts";
 
@@ -65,10 +66,16 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
   }, []);
   // The palette can be opened from anywhere, so the projection is the ACTIVE chat (null outside one) — a
   // command that needs a room says so through `unavailableReason` and renders disabled, never hidden.
-  const slash = useSlashCommands(useActiveChatId());
+  const chatId = useActiveChatId();
+  const slash = useSlashCommands(chatId);
+  // The dynamic palette sources (plugin commands, U8) share the SAME context projection as the slash commands.
+  // Read null-tolerantly: a build/CT with no Provider has zero sources and the palette shows only its native
+  // groups (byte-identical to before the seam).
+  const context: SlashCommandContext = { chatId };
+  const paletteSources = use(CommandPaletteSourceRegistryContext)?.list() ?? [];
 
-  const jumpToChat = (chatId: ChatId): void => {
-    selectChat(chatId);
+  const jumpToChat = (id: ChatId): void => {
+    selectChat(id);
     closeModal();
   };
   const jumpToSection = (id: SectionId): void => {
@@ -80,6 +87,13 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
   const runCommand = (id: string): void => {
     closeModal();
     slash.run(id);
+  };
+  // A dynamic-source row (a plugin command) carries its own bound runner; the palette owns the SAME
+  // close-before-run discipline the slash rows use (a command whose outcome opens a plugin dialog must not have
+  // this modal close it right back).
+  const runRow = (run: () => void): void => {
+    closeModal();
+    run();
   };
 
   return (
@@ -125,6 +139,12 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
               unavailableFor={slash.unavailableFor}
             />
           ))}
+
+          {/* The DYNAMIC palette sources (plugin commands, U8): each renders as its OWN component so its
+              `useRows` hook lives in its own fiber — never a hooks-in-a-loop here. */}
+          {paletteSources.map((source) => (
+            <PaletteSourceGroup context={context} key={source.id} onRun={runRow} source={source} />
+          ))}
         </CommandList>
       </Command>
     </Stack>
@@ -167,6 +187,45 @@ function CommandsGroup({ commands, group, onRun, unavailableFor }: CommandsGroup
           </CommandItem>
         );
       })}
+    </CommandGroup>
+  );
+}
+
+interface PaletteSourceGroupProps {
+  readonly source: CommandPaletteSource;
+  readonly context: SlashCommandContext;
+  readonly onRun: (run: () => void) => void;
+}
+
+/** One DYNAMIC palette source's rows (a plugin's registered commands, U8). A COMPONENT, not a `.map` callback,
+ *  precisely so the source's `useRows` hook lives in its own fiber (the slash `mount` pattern, applied to a
+ *  fanned source). Renders nothing when the source has no rows, so a caller with no granted-and-enabled plugin
+ *  commands sees exactly the native groups — byte-identical to a build without the source. */
+function PaletteSourceGroup({ source, context, onRun }: PaletteSourceGroupProps): ReactElement | null {
+  const rows = source.useRows(context);
+  if (rows.length === 0) {
+    return null;
+  }
+  return (
+    <CommandGroup heading={source.heading}>
+      {rows.map((row) => (
+        <CommandItem
+          key={row.id}
+          // cmdk scores value/keywords, never the children — the visible label, the describe, and the plugin
+          // name all ride keywords so typing any of them matches the row.
+          keywords={[row.label, row.describe, ...(row.badge === undefined ? [] : [row.badge]), ...(row.keywords ?? [])]}
+          onSelect={(): void => onRun(row.run)}
+          value={row.id}
+        >
+          {source.icon === undefined ? null : <Icon icon={source.icon} size="sm" />}
+          {row.label}
+          {row.badge === undefined ? null : (
+            <Text as="span" className="ml-auto" size="label" tone="muted">
+              {row.badge}
+            </Text>
+          )}
+        </CommandItem>
+      ))}
     </CommandGroup>
   );
 }
