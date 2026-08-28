@@ -1654,6 +1654,45 @@
         "full read 1-323 at re-attest (2026-08-22); typecheck:graph exit 0 proves every scripts/*.ts compiles (tsconfig includes scripts); pnpm ast blind to scripts/ so liveness used scoped literal search"
       ],
       "summary": "Research-zone assessment: three tool candidates ranked with effort, rpg-extraction identified as the delete shortlist, three classification challenges to scripts/README."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-28-st-extension-parity.md",
+      "assignedSha256": "e3de89b41240696774b55f13c2a734f4b43a4b010633cb62540c9b7d76dd4e43",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "e3de89b41240696774b55f13c2a734f4b43a4b010633cb62540c9b7d76dd4e43",
+      "verifiedCommit": "d43bfc4ac9da410200c06740728092727538e09c",
+      "verifiedAt": "2026-08-28",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-28-st-extension-parity.md:1 (full read; the audit written by the orchestrator's stickler lane)",
+        "committed as the ST-extension-parity audit of record"
+      ],
+      "summary": "Definitive ST 1.17.0-180 extension-parity audit vs orbweaver's full surface (plugin host + macro/CEL/regex engines + automation platform): match-or-exceed on ~41 of 48 abilities (15 BETTER, ~15 parity, 5 in-flight at U8, 6 real gaps, 8 deliberate refusals, 1 audio substrate). Carries the ranked actionable gap list.",
+      "claims": [
+        {
+          "claim": "orbweaver's plugin membrane is a capability-gated host surface (no raw DOM / getContext god-object), the structural basis for every BETTER verdict.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/plugin/host-v1.ts:1"
+            }
+          ]
+        },
+        {
+          "claim": "The remaining actionable ST-parity gaps (seam-11 CAS assets, worldInfo/character/search reads, token count) are tracked for post-U8; the audio-substrate residual is an owner decision.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#788"
+            },
+            {
+              "kind": "issue",
+              "target": "#789"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
