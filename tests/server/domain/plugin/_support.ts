@@ -306,6 +306,8 @@ export function makeInertOps(): PluginHostOps {
     },
     // #788 seam-11 read half — inert (a bridge test that cares about owner-scoping injects a recording op).
     assets: { read: () => Promise.resolve(null) },
+    // #788 F1 — inert search (a bridge test that cares about owner-scoping injects a recording op).
+    search: { documents: () => Promise.resolve([]) },
     storage: {
       get: () => Promise.resolve(null),
       set: () => Promise.resolve(),

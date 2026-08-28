@@ -348,6 +348,7 @@ function fakeBridge(): {
       listEntries: () => Promise.resolve([]),
     },
     assets: { read: () => Promise.resolve(null) },
+    search: { documents: () => Promise.resolve([]) },
     imagery: {
       generatePicture: () => {
         pics.count += 1;

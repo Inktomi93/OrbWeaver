@@ -51,6 +51,8 @@ function makeBridge(): PluginBridge {
     },
     // #788 seam-11 — the CAS asset read is NOT proxyable (excluded), so a Tier-C dispatch must throw.
     assets: { read: notProxied("assets.read") },
+    // #788 F1 — first-party retrieval is NOT proxyable (excluded, embedding-compute class), so a Tier-C dispatch must throw.
+    search: { documents: notProxied("search.documents") },
     imagery: { generatePicture: notProxied("imagery.generatePicture") },
     variables: {
       get: vi.fn(async (_key: string) => "v-user"),

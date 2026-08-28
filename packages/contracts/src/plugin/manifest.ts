@@ -32,6 +32,15 @@ export const PLUGIN_CAPABILITIES = [
   // (indistinguishable — no existence oracle). BENIGN band (neither spend nor risk): reading the installer's own
   // stored bytes touches no paid budget and leaves no sandbox, and the read is size-capped host-side.
   "assets.read",
+  // The first-party RETRIEVAL read (#788 F1 residual / gap #9). A guest runs semantic document search over the
+  // INSTALLER's OWN indexed corpus (the vectors-extension parity — plugins consume first-party RAG instead of
+  // hand-rolling it). Owner-scoped by construction: the bridge closes the installer's `ownerId` over the search
+  // scope, so a guest names only the query text and can search no other owner's library. BENIGN band (neither
+  // risk nor spend): it reaches nothing outside the installer's own data, and the query embedding is LOCAL box
+  // compute (the embeddings domain's own model), never a paid hosted credential — which is why it carries no
+  // hourly rate floor (owner ruling: plain, not spend-classed). It sits beside `assets.read` in the "read your
+  // own library" band.
+  "search.query",
   "notify",
   "ui.surface", // draw its own house-rendered panels/controls (plugin-ui-plane #679; NOT spend, NOT admin-gated — renders only for the installer)
   // The U7 ESCAPE HATCH, and the one UI capability that is RISK class: a `frame` surface runs the plugin's OWN

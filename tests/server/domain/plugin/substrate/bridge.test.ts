@@ -725,6 +725,7 @@ function readGapOps(over: { readonly visibility?: Awaited<ReturnType<PluginHostO
   readonly attachChecks: { readonly owner: UserId; readonly bookId: string }[];
   // @foreign-id-ok(assetId): the guest's untrusted wire string recorded verbatim — the `assets.read` op param is a bare `string` under the same marker (ops.ts); branding it here would diverge from the interface it mirrors.
   readonly assetReads: { readonly installerUserId: UserId; readonly assetId: string }[];
+  readonly searchReqs: { readonly installerUserId: UserId; readonly queryText: string }[];
   readonly viewers: UserId[];
 } {
   const rosterChats: ChatId[] = [];
@@ -733,6 +734,7 @@ function readGapOps(over: { readonly visibility?: Awaited<ReturnType<PluginHostO
   const attachChecks: { owner: UserId; bookId: string }[] = [];
   // @foreign-id-ok(assetId): the guest's untrusted wire string recorded verbatim (mirrors the bare-`string` op param in ops.ts).
   const assetReads: { installerUserId: UserId; assetId: string }[] = [];
+  const searchReqs: { installerUserId: UserId; queryText: string }[] = [];
   const viewers: UserId[] = [];
   const base = makeInertOps();
   const ops: PluginHostOps = {
@@ -769,8 +771,14 @@ function readGapOps(over: { readonly visibility?: Awaited<ReturnType<PluginHostO
         return Promise.resolve({ mime: "image/png", sizeBytes: 3, dataBase64: "AAAA" });
       },
     },
+    search: {
+      documents: (req) => {
+        searchReqs.push({ installerUserId: req.installerUserId, queryText: req.queryText });
+        return Promise.resolve([{ documentId: "doc_hit000000000000000000000", documentName: "Notes", content: "match", score: 0.9 }]);
+      },
+    },
   };
-  return { ops, rosterChats, bookChats, entryReads, attachChecks, assetReads, viewers };
+  return { ops, rosterChats, bookChats, entryReads, attachChecks, assetReads, searchReqs, viewers };
 }
 
 describe("buildPluginBridge — #788 READ gaps are owner-scoped + leak-free", () => {
@@ -869,5 +877,26 @@ describe("buildPluginBridge — #788 READ gaps are owner-scoped + leak-free", ()
     await otherBridge.assets.read("asset_target0000000000000000");
 
     expect(rec.assetReads).toEqual([{ installerUserId: OTHER, assetId: "asset_target0000000000000000" }]);
+  });
+
+  test("search.documents closes the INSTALLER over the search scope (a guest names only the query, never an owner)", async () => {
+    const rec = readGapOps({});
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
+
+    const hits = await bridge.search.documents("dragons", 5);
+
+    expect(hits).toEqual([{ documentId: "doc_hit000000000000000000000", documentName: "Notes", content: "match", score: 0.9 }]);
+    // The op received the installer the bridge was built for — the compose scope is `{ ownerId: installerUserId }`,
+    // so a cross-owner search is not expressible.
+    expect(rec.searchReqs).toEqual([{ installerUserId: INSTALLER, queryText: "dragons" }]);
+  });
+
+  test("search.documents for a DIFFERENT installer searches under THAT installer (owner-scope is structural)", async () => {
+    const rec = readGapOps({});
+    const otherBridge = buildPluginBridge(rec.ops, OTHER, PLUGIN_REF, freeBelts());
+
+    await otherBridge.search.documents("dragons", undefined);
+
+    expect(rec.searchReqs).toEqual([{ installerUserId: OTHER, queryText: "dragons" }]);
   });
 });

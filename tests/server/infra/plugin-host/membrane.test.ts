@@ -132,6 +132,8 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
     variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
     // #788 seam-11 — a canned owned-asset read so the gate + forward path is observable.
     assets: { read: () => Promise.resolve({ mime: "image/png", sizeBytes: 3, dataBase64: "AAAA" }) },
+    // #788 F1 — a canned search hit so the gate + forward path is observable.
+    search: { documents: () => Promise.resolve([{ documentId: "doc_hit000000000000000000000", documentName: "Notes", content: "match", score: 0.9 }]) },
     storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
     notifications: { post: () => Promise.resolve() },
     surfaceQuickReply: () => {
@@ -456,6 +458,22 @@ describe("attachMembrane — #788 READ gaps are gated on the CORRECT capability 
         "(async () => String((await host.worldInfo.listEntries(host.chat.current(), 'wbook_read00000000000000000')).length))()",
       );
       expect(entries).toBe("1");
+    });
+  });
+
+  test("search.documents WITHOUT search.query (but WITH every other grant) is refused — the gate keys on search.query alone", async () => {
+    const { bridge } = fakeBridge();
+    await withHost(allBut("search.query"), true, bridge, async (ctx) => {
+      const out = await runAsync(ctx, "(async () => { try { await host.search.documents('dragons'); return 'NO-THROW' } catch (e) { return e.name } })()");
+      expect(out).toBe("PluginCapabilityError");
+    });
+  });
+
+  test("search.documents WITH the grant searches the installer's own corpus (no chat scope required)", async () => {
+    const { bridge } = fakeBridge();
+    await withHost(["search.query"], false, bridge, async (ctx) => {
+      const out = await runAsync(ctx, "(async () => String((await host.search.documents('dragons')).length))()");
+      expect(out).toBe("1");
     });
   });
 });

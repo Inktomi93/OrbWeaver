@@ -15,6 +15,7 @@ import type {
   PluginCharacterView,
   PluginMessageView,
   PluginQuietOptions,
+  PluginSearchHit,
   PluginWorldBookView,
   PluginWorldEntryUpsert,
   PluginWorldEntryView,
@@ -97,6 +98,13 @@ export interface PluginBridge {
   readonly assets: {
     // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON string, owner-scope-gated by the domain read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
     readonly read: (assetId: string) => Promise<PluginAssetView | null>;
+  };
+  /** Semantic document search over the installer's OWN indexed corpus (`search.documents`, search.query — #788
+   *  F1). The membrane passes ONLY the guest-supplied query text + the (host-clamped) limit; the domain builder
+   *  closes the INSTALLER's ownerId over the search scope, so a guest searches no other owner's library. Returns
+   *  ranked reduced hits. Authority-agnostic like every bridge op — infra holds no principal. */
+  readonly search: {
+    readonly documents: (queryText: string, limit: number | undefined) => Promise<readonly PluginSearchHit[]>;
   };
   /** The plugin-PRIVATE KV (`storage.*`). Distinct from `variables` (the installing USER's namespace,
    *  shared with macros/CEL): `storage` is per plugin × installing owner (the `plugin_kv` plane). The domain

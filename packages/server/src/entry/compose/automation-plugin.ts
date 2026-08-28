@@ -74,6 +74,7 @@ import {
   PLUGIN_QUIET_LLM_PER_HOUR,
   PluginNotFoundError,
 } from "#domain/plugin";
+import type { SearchService } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
@@ -115,6 +116,9 @@ export interface AutomationPluginComposeDeps {
   readonly imagery: Pick<ImageryService, "generatePicture">;
   readonly settings: Pick<SettingsService, "getUserSettings">;
   readonly assets: Pick<AssetsService, "store" | "loadAssetBytes" | "assetCasRefById" | "reapIfOrphan" | "readOwnedAssetBytes">;
+  /** #788 F1 — first-party retrieval for the plugin `search.query` read. `documents` is the owner-scoped RAG
+   *  verb; the membrane rides it under `scope: { ownerId: installer }`, so a plugin searches only its own corpus. */
+  readonly search: Pick<SearchService, "documents">;
   /** The tool registry seam. `registerPluginTool` is the membrane's PL-A registrar; the other four are the
    *  `run_tool` arm's (D146): the direct-drive reachability predicate this seam re-checks itself, plus the
    *  resolve→execute pair every other tool consumer already funnels through. Deliberately still a `Pick` —
@@ -676,6 +680,23 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
           // `null`, indistinguishable from one another (no existence oracle for another owner's CAS).
           return null;
         }
+      },
+    },
+    // #788 F1 — first-party retrieval. `scope: { ownerId: installerUserId }` is the WHOLE owner gate: the
+    // installer's ownerId is closed over here, a guest names only the query, so a cross-owner search is not
+    // expressible (the databank/assets owner-closure). The query embedding is LOCAL box compute (no paid
+    // credential — the plain, no-belt ruling). The reduced projection withholds chunk plumbing and caps content
+    // like the message read; `limit` maps onto the domain's `k` (already clamped ≤ PLUGIN_SEARCH_RESULTS_MAX at
+    // the membrane).
+    search: {
+      documents: async ({ installerUserId, queryText, limit }) => {
+        const hits = await deps.search.documents({ scope: { ownerId: installerUserId }, queryText, ...(limit !== undefined ? { k: limit } : {}) });
+        return hits.map((hit) => ({
+          documentId: hit.documentId,
+          documentName: hit.documentName,
+          content: hit.content.length > PLUGIN_MESSAGE_CONTENT_CAP ? hit.content.slice(0, PLUGIN_MESSAGE_CONTENT_CAP) : hit.content,
+          score: hit.score,
+        }));
       },
     },
     // S4 POSTURE 2 — the SHARED suggestion inbox, reached from the plugin side. `raise` is automation's own

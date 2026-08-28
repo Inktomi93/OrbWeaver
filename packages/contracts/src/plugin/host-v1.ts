@@ -110,6 +110,22 @@ export interface PluginAssetView {
   readonly dataBase64: string | null;
 }
 
+/** The most results one `search.documents` call returns (#788 F1). A guest-supplied limit is clamped to this;
+ *  an unbounded page is an unbounded read of the installer's corpus per call (the `listMessages` limit posture). */
+export const PLUGIN_SEARCH_RESULTS_MAX = 20;
+
+/** One ranked hit from `search.documents` (#788 F1 — the first-party retrieval read). A REDUCED
+ *  `DocumentChunkHit`: the document's id + name, the matched chunk's content (host-capped), and the relevance
+ *  score. Chunk internals (chunkId/idx/contentHash) are withheld — a guest wants the text + provenance, not the
+ *  index plumbing. */
+export interface PluginSearchHit {
+  // @foreign-id-ok(documentId): the plugin SANDBOX wire DTO — a host-resolved document id handed to the guest as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+  readonly documentId: string;
+  readonly documentName: string;
+  readonly content: string;
+  readonly score: number;
+}
+
 /** The most images one `llm.quiet` call may attach (plugin-ui-plane §5.32, the captioning arm). Four is the
  *  `generateImageActionArgsSchema` fan-out clamp read from the other direction — a caption pass looks at a
  *  handful of pictures, and an unbounded list is an unbounded read of the installer's CAS per call. */
@@ -229,6 +245,15 @@ export interface PluginHostV1 {
      *  truncated read). capability: assets.read */
     // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, owner-scope-gated by the domain read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
     read: (assetId: string) => Promise<PluginAssetView | null>;
+  };
+
+  readonly search: {
+    /** Semantic document search over the INSTALLER's OWN indexed corpus (#788 F1 — the first-party RAG parity
+     *  arm the vectors extension hand-rolls). The guest supplies only the query text; the host closes the
+     *  installer's `ownerId` over the search scope, so a guest can search no other owner's library — a read of
+     *  the installer's own data, owner-scoped by construction. Results are ranked {@link PluginSearchHit}s,
+     *  clamped to {@link PLUGIN_SEARCH_RESULTS_MAX}. capability: search.query */
+    documents: (queryText: string, opts?: { limit?: number /* ≤ PLUGIN_SEARCH_RESULTS_MAX, default 10 */ }) => Promise<readonly PluginSearchHit[]>;
   };
 
   readonly variables: {
@@ -607,6 +632,9 @@ export const HOST_FUNCTION_CAPABILITY = {
   // #788 seam-11 read half — the CAS asset read, its OWN `assets.read` grant. Owner-scoped: a guest reads back
   // only assets in the installer's own CAS (the domain's owner-gated read), a foreign/absent id is leak-free null.
   "assets.read": "assets.read",
+  // #788 F1 — the first-party retrieval read, its OWN `search.query` grant. Owner-scoped: the bridge closes the
+  // installer's ownerId over the search scope, so a guest searches only its own corpus.
+  "search.documents": "search.query",
   "variables.get": "global_vars",
   "variables.set": "global_vars",
   "variables.delete": "global_vars",
@@ -746,6 +774,12 @@ export const HOST_FUNCTION_CAPABILITY = {
  *     owner-scope is per-ASSET and a proxied call names an `assetId` the server would owe an ownership check on
  *     before reading (the `chat.current`/row-777 `resolveChatAuthority` posture onto asset ownership). The bridge
  *     read already owner-gates, so the widening is small, but it is a widening — priced, never a free entry.
+ *   - `search.documents` (#788 F1) — OUT. It IS an owner-scoped read (the bridge closes the installer's ownerId
+ *     over the scope, so a proxied call would need no new ownership gate), but every call runs a QUERY EMBEDDING
+ *     (local box compute), and a client guest firing it at animation rate would hammer the embedder — the
+ *     compute-cost class the read tuple deliberately does not admit (§4.6 bought LATENCY for local-immediate
+ *     interaction over CHEAP reads, not for per-keystroke retrieval). A scripted surface that wants search fires
+ *     an `actionId` round-trip whose server guest runs it under the same grant. Priced, not a free entry.
  *
  *  Nothing here loses ABILITY: the plugin's SERVER guest reaches every excluded function under the same grant.
  *  What Tier C gives up is the LATENCY of those calls, which is not what §4.6 bought — it bought

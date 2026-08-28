@@ -46,6 +46,7 @@ import {
   PLUGIN_PUBSUB_NAME_RE,
   PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX,
   PLUGIN_QUIET_IMAGES_MAX,
+  PLUGIN_SEARCH_RESULTS_MAX,
   PLUGIN_SURFACE_ID_RE,
   PLUGIN_TIER_REGISTRAR,
   PLUGIN_TOAST_LEVELS,
@@ -250,6 +251,7 @@ export function attachMembrane(ctx: QuickJSContext, surface: QuickJSHandle, runt
   setImagery(ctx, surface, runtime);
   setVariables(ctx, surface, runtime);
   setAssets(ctx, surface, runtime);
+  setSearch(ctx, surface, runtime);
   setStorage(ctx, surface, runtime);
   setNotifications(ctx, surface, runtime);
   setLlm(ctx, surface, runtime);
@@ -924,6 +926,31 @@ function setAssets(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     },
   });
   ctx.setProp(surface, "assets", assets);
+}
+
+/** search.documents(queryText, opts?) — capability search.query (#788 F1). The guest supplies ONLY the query
+ *  string + an optional limit; the bridge closes the installer's ownerId over the search scope, so a guest
+ *  searches only its OWN corpus. NO chat scope, NO host authority (a read of the installer's own library, the
+ *  `assets`/`databank` posture). The limit is CLAMPED here to `PLUGIN_SEARCH_RESULTS_MAX` (an unbounded page is
+ *  an unbounded corpus read per call); a non-string query is refused rather than searched as garbage. */
+function setSearch(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
+  using search = ctx.newObject();
+  attachAsync(ctx, search, {
+    name: "documents",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "search.documents");
+      const queryText = args[0];
+      if (typeof queryText !== "string") {
+        throw new Error("plugin host: search.documents requires a queryText string");
+      }
+      const opts = args[1] as { limit?: unknown } | undefined;
+      const limit = typeof opts?.limit === "number" ? Math.min(Math.max(1, Math.trunc(opts.limit)), PLUGIN_SEARCH_RESULTS_MAX) : undefined;
+      return await runtime.bridge.search.documents(queryText, limit);
+    },
+  });
+  ctx.setProp(surface, "search", search);
 }
 
 /** imagery.generatePicture — capability imagery.generate + host authority (host-gated). Returns the

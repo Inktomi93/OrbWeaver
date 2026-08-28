@@ -116,6 +116,13 @@ export const CAPABILITY_COPY_ROWS = [
     consequence: "Reads back the contents of files in your own storage it has an id for — yours only, never another person's.",
   },
   {
+    // #788 F1 — first-party retrieval. BENIGN band (neither spend nor risk): it searches YOUR own indexed
+    // library and reaches nothing outside it; the search runs on your own box, not a paid model.
+    id: "search.query",
+    label: "Search your library",
+    consequence: "Runs a meaning-based search over your own documents and returns matching passages — your library only, never another person's.",
+  },
+  {
     id: "notify",
     label: "Send notifications",
     consequence: "Posts short notices to room participants, at most one a minute per room.",

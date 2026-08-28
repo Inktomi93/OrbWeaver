@@ -210,6 +210,13 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     assets: {
       read: (assetId) => ops.assets.read({ installerUserId, assetId }),
     },
+    // FIRST-PARTY RETRIEVAL (#788 F1). Closed over the INSTALLER only — the guest supplies the query text + the
+    // (already host-clamped) limit and can name no owner, so the compose op's `scope: { ownerId: installer }`
+    // makes a cross-owner search structurally impossible (the `assets`/`databank` owner-closure pattern). NO
+    // `requirePluginId`: the read keys nothing on the pluginId — it is the installer's own library reach.
+    search: {
+      documents: (queryText, limit) => ops.search.documents({ installerUserId, queryText, ...(limit !== undefined ? { limit } : {}) }),
+    },
     // Plugin-PRIVATE KV — closed over BOTH the pluginId AND the installer (owner), so a cross-plugin OR
     // cross-owner read is structurally impossible: the guest names only the key/prefix, never a scope.
     storage: {
