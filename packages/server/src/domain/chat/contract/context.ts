@@ -45,6 +45,7 @@ import type {
   Handle,
   MessageAssetId,
   MessageId,
+  MessageReactionId,
   MessageVariantId,
   PendingTurnId,
   PersonaId,
@@ -1126,6 +1127,7 @@ export interface ChatContext {
   readonly newMessageVariantId: () => MessageVariantId;
   readonly newParticipantId: () => ChatParticipantId;
   readonly newMessageAssetId: () => MessageAssetId;
+  readonly newMessageReactionId: () => MessageReactionId;
   readonly newInjectionId: () => ChatInjectionId;
   readonly newEventId: () => ChatEventId;
   readonly newStreamEventId: () => ChatStreamEventId;

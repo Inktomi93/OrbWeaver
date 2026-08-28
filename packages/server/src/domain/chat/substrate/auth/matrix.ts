@@ -162,6 +162,8 @@ export const CHAT_VERB_AUTHORITY = {
   declineInvite: "non-chat-scoped", // self/token: the invited user (may not be a member yet)
   kick: "host", // host-only
   setMemberHistoryVisibility: "host", // D16 — the host governs how much room canon each HUMAN member may read (the `joinHistoryVisibility` opt-in restriction; the enforcement floor is substrate/auth::resolveHistoryFloorSeq)
+  toggleReaction: "member", // B6 — reactions are room-public canon every SEATED member writes (the membership floor, the setVariables posture); the variant's own in-this-chat + D16-floor belt is inside the verb
+  listReactions: "member", // its read twin — the room's grouped reaction window, clamped to the caller's own D16 floor
   selfLeave: "member", // self: you must be a present member to leave your own membership
   nominateHostHandoff: "host", // host-only (step 1)
   acceptHostHandoff: "member", // the nominee (a member) accepts; the nominee-MATCH is a verb-level state check on the nomination
