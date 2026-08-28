@@ -48,16 +48,9 @@ import { useSendMessage } from "../hooks/use-send-message.ts";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
 import { useStopTurn } from "../hooks/use-stop-turn.ts";
 import { ATTACH_BUSY_MESSAGE, dropzoneRefusalMessage, triageAttachFiles } from "../lib/attach-media.ts";
-import { shouldSendOnEnter } from "../lib/composer-send-keys.ts";
+import { handleComposerKeyDown } from "../lib/composer-keydown.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
-import {
-  matchSlashCommands,
-  nextSlashHighlight,
-  resolveSlashHighlight,
-  resolveSlashKey,
-  slashArgsInProgress,
-  slashCompletionAria,
-} from "../lib/slash-command.ts";
+import { matchSlashCommands, resolveSlashHighlight, slashArgsInProgress, slashCompletionAria } from "../lib/slash-command.ts";
 import { ComposerArgHintStrip } from "./composer-arg-hint-strip.tsx";
 import { ComposerAttachmentStrip } from "./composer-attachment-strip.tsx";
 import { ActiveChatOptionsMenu } from "./composer-chat-options.tsx";
@@ -66,77 +59,6 @@ import { ComposerGuidedCluster } from "./composer-guided-cluster.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
 import { ComposerSlashStrip } from "./composer-slash-strip.tsx";
 import type { ComposerImageControls } from "./composer-utility-menu.tsx";
-
-// The composer's glue for the OPEN slash strip's combobox keys — kept at module scope (not a closure in the
-// component) so its branching does not inflate the component's cognitive complexity. Classification is the
-// pure `classifySlashKey`; this only translates the resulting action into effects and `preventDefault`, and
-// returns whether it consumed the event (the composer then skips its native send path). Called ONLY while the
-// strip is open, so a CLOSED-strip draft never reaches it and native cursor movement stays untouched.
-interface SlashStripKeyDeps {
-  readonly open: boolean;
-  readonly matches: readonly SlashCommandContribution[];
-  readonly highlighted: SlashCommandContribution | undefined;
-  readonly setHighlight: (updater: (prev: number) => number) => void;
-  /** Completes the draft to the picked command's token (the click path's effect). */
-  readonly pick: (command: SlashCommandContribution) => void;
-  readonly unavailableFor: (command: SlashCommandContribution) => string | null;
-  /** Surfaces an UNAVAILABLE offer's reason instead of completing it (the disabled-affordance law). */
-  readonly setNotice: (reason: string) => void;
-}
-// Complete a keyboard-selected offer, OR refuse an UNAVAILABLE one with its reason (never completing) — the
-// same law the click path gets from the Button's `disabled`; a keyboard user must not force what a click can't.
-function pickOrRefuse(command: SlashCommandContribution, deps: SlashStripKeyDeps): void {
-  const reason = deps.unavailableFor(command);
-  if (reason === null) {
-    deps.pick(command);
-  } else {
-    deps.setNotice(reason);
-  }
-}
-function handleSlashStripKey(event: KeyboardEvent<HTMLTextAreaElement>, deps: SlashStripKeyDeps): boolean {
-  if (!deps.open) {
-    return false;
-  }
-  // The pure lib resolves the key into an offer to complete and/or a highlight step (no exported union — §7.4).
-  // A completed offer consumes the event even if unavailable (pickOrRefuse surfaces its reason), so Tab/Enter
-  // never fall through to send.
-  const { pick, cycle } = resolveSlashKey(
-    { key: event.key, shiftKey: event.shiftKey, isComposing: event.nativeEvent.isComposing },
-    deps.matches,
-    deps.highlighted,
-  );
-  if (pick !== undefined) {
-    event.preventDefault();
-    pickOrRefuse(pick, deps);
-    return true;
-  }
-  if (cycle !== undefined) {
-    event.preventDefault();
-    deps.setHighlight((prev) => nextSlashHighlight(prev, cycle, deps.matches.length));
-    return true;
-  }
-  return false;
-}
-
-// The composer textarea's whole keydown policy — the strip's keys win first (when it's open), otherwise the
-// enterSends pref decides whether Enter submits. Kept at module scope so its branching stays out of the
-// component's cognitive-complexity budget.
-function handleComposerKeyDown(
-  event: KeyboardEvent<HTMLTextAreaElement>,
-  deps: { readonly strip: SlashStripKeyDeps; readonly enterSends: boolean; readonly submit: () => void },
-): void {
-  if (handleSlashStripKey(event, deps.strip)) {
-    return;
-  }
-  const sends = shouldSendOnEnter(
-    { key: event.key, shiftKey: event.shiftKey, metaKey: event.metaKey, ctrlKey: event.ctrlKey, isComposing: event.nativeEvent.isComposing },
-    deps.enterSends,
-  );
-  if (sends) {
-    event.preventDefault();
-    deps.submit();
-  }
-}
 
 // The placeholder teaches the empty-Enter affordance in play. On an assistant tail with continue-on-empty
 // live, an empty Enter continues; on a non-assistant tail with generate-on-empty live, an empty Enter

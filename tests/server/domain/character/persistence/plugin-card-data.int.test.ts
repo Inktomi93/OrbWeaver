@@ -18,10 +18,10 @@ import { seedUser } from "../_support.ts";
 const SLUG_A = "scraper-alpha";
 const SLUG_B = "scraper-beta";
 
-function makeRow(ownerId: UserId, id: string, handle: string, extensions?: Record<string, unknown>): typeof characters.$inferInsert {
+function makeRow(ownerId: UserId, id: CharacterId, handle: CharacterHandle, extensions?: Record<string, unknown>): typeof characters.$inferInsert {
   return {
-    id: castId<CharacterId>(id),
-    handle: castId<CharacterHandle>(handle),
+    id,
+    handle,
     ownerId,
     name: "X",
     contentHash: "content-hash-original",
@@ -40,7 +40,7 @@ describe("persistence/plugin-card-data", () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const id = castId<CharacterId>("character_1");
-    await insertCharacter(db, makeRow(owner, "character_1", "a"), bumpStatsCanonVersion);
+    await insertCharacter(db, makeRow(owner, id, castId<CharacterHandle>("a")), bumpStatsCanonVersion);
 
     const target = { characterId: id, ownerId: owner, slug: SLUG_A };
     expect(await writePluginCardData(db, target, { hp: 10, note: "ok" })).toBe(true);
@@ -57,7 +57,7 @@ describe("persistence/plugin-card-data", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const id = castId<CharacterId>("character_1");
-    await insertCharacter(db, makeRow(owner, "character_1", "a", { "plugin_scraper-alpha": { secret: "owner's" } }), bumpStatsCanonVersion);
+    await insertCharacter(db, makeRow(owner, id, castId<CharacterHandle>("a"), { "plugin_scraper-alpha": { secret: "owner's" } }), bumpStatsCanonVersion);
 
     // OTHER does not own the character: the write affects 0 rows (→ the caller raises the leak-free NOT_FOUND)…
     expect(await writePluginCardData(db, { characterId: id, ownerId: other, slug: SLUG_A }, { hax: true })).toBe(false);
@@ -76,7 +76,7 @@ describe("persistence/plugin-card-data", () => {
     // Two sibling plugin keys + a NON-plugin residual vendor key already on the card.
     await insertCharacter(
       db,
-      makeRow(owner, "character_1", "a", { "plugin_scraper-alpha": { a: 1 }, "plugin_scraper-beta": { b: 2 }, vendorKeep: { depth: 3 } }),
+      makeRow(owner, id, castId<CharacterHandle>("a"), { "plugin_scraper-alpha": { a: 1 }, "plugin_scraper-beta": { b: 2 }, vendorKeep: { depth: 3 } }),
       bumpStatsCanonVersion,
     );
 
@@ -97,7 +97,7 @@ describe("persistence/plugin-card-data", () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const id = castId<CharacterId>("character_1");
-    await insertCharacter(db, makeRow(owner, "character_1", "a"), bumpStatsCanonVersion);
+    await insertCharacter(db, makeRow(owner, id, castId<CharacterHandle>("a")), bumpStatsCanonVersion);
 
     await writePluginCardData(db, { characterId: id, ownerId: owner, slug: SLUG_A }, { anything: "here" });
 
@@ -113,7 +113,7 @@ describe("persistence/plugin-card-data", () => {
     const id = castId<CharacterId>("character_1");
     // A NULL extensions column (the common case for an app-authored card) — the write must coalesce it, and a
     // read before any write is `found:true, data:null`.
-    await insertCharacter(db, makeRow(owner, "character_1", "a"), bumpStatsCanonVersion);
+    await insertCharacter(db, makeRow(owner, id, castId<CharacterHandle>("a")), bumpStatsCanonVersion);
 
     expect(await readPluginCardData(db, { characterId: id, ownerId: owner, slug: SLUG_A })).toEqual({ found: true, data: null });
     // …and a first write coalesces NULL → {} and lands the key.
@@ -127,7 +127,7 @@ describe("persistence/plugin-card-data", () => {
     const id = castId<CharacterId>("character_1");
     // A plugin's own setCardData always stores an object; a hostile IMPORTED card could set the key to a scalar.
     // The read reports it as null rather than handing the plugin a non-Record where the contract promises one.
-    await insertCharacter(db, makeRow(owner, "character_1", "a", { "plugin_scraper-alpha": "not-an-object" }), bumpStatsCanonVersion);
+    await insertCharacter(db, makeRow(owner, id, castId<CharacterHandle>("a"), { "plugin_scraper-alpha": "not-an-object" }), bumpStatsCanonVersion);
     expect(await readPluginCardData(db, { characterId: id, ownerId: owner, slug: SLUG_A })).toEqual({ found: true, data: null });
   });
 });
