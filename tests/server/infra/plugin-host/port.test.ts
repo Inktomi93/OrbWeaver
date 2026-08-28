@@ -336,6 +336,7 @@ function fakeBridge(): {
         turns.args = [chatId, automationDepth, p];
         return Promise.resolve();
       },
+      listRoster: () => Promise.resolve([]),
     },
     worldInfo: {
       upsertEntry: (chatId) => {
@@ -343,7 +344,10 @@ function fakeBridge(): {
         lore.chatIds.push(chatId);
         return Promise.resolve();
       },
+      listBooks: () => Promise.resolve([]),
+      listEntries: () => Promise.resolve([]),
     },
+    assets: { read: () => Promise.resolve(null) },
     imagery: {
       generatePicture: () => {
         pics.count += 1;

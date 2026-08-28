@@ -40,8 +40,17 @@ function makeBridge(): PluginBridge {
       getVariables: vi.fn(async (_chatId: ChatId) => ({ mood: "calm" })),
       applyVariableOps: notProxied("chat.applyVariableOps"),
       requestTurn: notProxied("chat.requestTurn"),
+      // #788 F11 — the roster read is NOT proxyable (excluded, a priced widening), so a Tier-C dispatch must throw.
+      listRoster: notProxied("chat.listRoster"),
     },
-    worldInfo: { upsertEntry: notProxied("worldInfo.upsertEntry") },
+    // #788 F12 — the world-info reads are NOT proxyable (excluded), so a Tier-C dispatch of either must throw.
+    worldInfo: {
+      upsertEntry: notProxied("worldInfo.upsertEntry"),
+      listBooks: notProxied("worldInfo.listBooks"),
+      listEntries: notProxied("worldInfo.listEntries"),
+    },
+    // #788 seam-11 — the CAS asset read is NOT proxyable (excluded), so a Tier-C dispatch must throw.
+    assets: { read: notProxied("assets.read") },
     imagery: { generatePicture: notProxied("imagery.generatePicture") },
     variables: {
       get: vi.fn(async (_key: string) => "v-user"),

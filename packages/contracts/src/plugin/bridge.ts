@@ -10,7 +10,15 @@ import type { ChatId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { GenerateImageActionArgs } from "#imagery";
 import type { PluginNotificationRecipient } from "#notifications";
-import type { PluginMessageView, PluginQuietOptions, PluginWorldEntryUpsert } from "./host-v1.ts";
+import type {
+  PluginAssetView,
+  PluginCharacterView,
+  PluginMessageView,
+  PluginQuietOptions,
+  PluginWorldBookView,
+  PluginWorldEntryUpsert,
+  PluginWorldEntryView,
+} from "./host-v1.ts";
 import type { PluginSuggestedAct } from "./suggestion.ts";
 import type { PluginToastLevel } from "./ui.ts";
 
@@ -33,6 +41,12 @@ export interface PluginBridge {
   readonly chat: {
     readonly listMessages: (chatId: ChatId, limit: number | undefined) => Promise<readonly PluginMessageView[]>;
     readonly getVariables: (chatId: ChatId) => Promise<Record<string, string>>;
+    /** The invocation chat's present CHARACTER roster (`chat.listRoster`, chat.read — #788 F11). The membrane
+     *  passes the ALREADY-ADMITTED `chatId`; the domain builder resolves the installer's viewer visibility
+     *  (membership) before the read and short-circuits a non-member to `[]` (the `listMessages` viewer choke), so
+     *  a plugin sees only the roster of a room it is in. Reduced to id/name/avatar — never a co-participant's full
+     *  card. */
+    readonly listRoster: (chatId: ChatId) => Promise<readonly PluginCharacterView[]>;
     readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[]) => Promise<void>;
     /** Request an autonomous turn (`chat.requestTurn`, turn.trigger — SPEND). The membrane passes the
      *  ALREADY-ADMITTED `chatId` (the invocation-chat-context ran `can(installer,"host",chat)` → `canWrite`),
@@ -44,6 +58,16 @@ export interface PluginBridge {
     readonly requestTurn: (chatId: ChatId, automationDepth: number, p: { readonly speakerCharacterId?: string; readonly guided?: string }) => Promise<void>;
   };
   readonly worldInfo: {
+    /** List the books ATTACHED to the invocation chat (`worldInfo.listBooks`, worldinfo.read — #788 F12). The
+     *  membrane passes the ALREADY-ADMITTED `chatId`; the domain builder resolves the installer's Principal and
+     *  reads world-info's own member-gated attachment front door (`listForChat`), so a non-member/kicked caller
+     *  gets `[]` and a plugin sees only THIS room's lore. Reduced to `{id, name}`. */
+    readonly listBooks: (chatId: ChatId) => Promise<readonly PluginWorldBookView[]>;
+    /** List the entries of one attached book (`worldInfo.listEntries`, worldinfo.read — #788 F12). The membrane
+     *  passes the ADMITTED `chatId` + the guest-supplied `bookId`; the domain builder gates the book on ATTACHMENT
+     *  to this chat (the write path's own `isBookAttachedToChat`) before reading its entries, so a `bookId` not
+     *  attached to this room — even one the installer owns in another chat — resolves to `[]`, leak-free. */
+    readonly listEntries: (chatId: ChatId, bookId: string) => Promise<readonly PluginWorldEntryView[]>;
     /** Upsert one ATTACHED-book entry (`worldInfo.upsertEntry`). The entry carries its own guest-supplied
      *  `bookId`, so the ADMITTED `chatId` rides along as the domain's consent anchor: 02 §2 specifies this
      *  capability as "grant + host + book-attached-to-chat + the 64-entry cap", and only the domain can answer
@@ -63,6 +87,16 @@ export interface PluginBridge {
     readonly get: (key: string) => Promise<string | null>;
     readonly set: (key: string, value: string) => Promise<void>;
     readonly delete: (key: string) => Promise<void>;
+  };
+  /** Read one asset from the installer's OWN CAS (`assets.read`, assets.read — #788 seam-11 read half). The
+   *  membrane passes ONLY the guest-supplied `assetId`; the domain builder closes the INSTALLER over the op and
+   *  reads through the assets domain's OWNER-GATED front door (`readOwnedAssetBytes`), so a guest names an id but
+   *  can only ever read its own. A foreign/absent id is the leak-free `null` (indistinguishable — no existence
+   *  oracle), and an owned asset over the read cap returns metadata with `dataBase64: null`. Authority-agnostic
+   *  like every bridge op — infra holds no principal or CAS. */
+  readonly assets: {
+    // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON string, owner-scope-gated by the domain read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
+    readonly read: (assetId: string) => Promise<PluginAssetView | null>;
   };
   /** The plugin-PRIVATE KV (`storage.*`). Distinct from `variables` (the installing USER's namespace,
    *  shared with macros/CEL): `storage` is per plugin × installing owner (the `plugin_kv` plane). The domain

@@ -37,6 +37,8 @@ export {
 export type {
   ChatHandle,
   HostFunctionRef,
+  PluginAssetView,
+  PluginCharacterView,
   PluginHostV1,
   PluginInvocation,
   PluginLogLevel,
@@ -44,10 +46,19 @@ export type {
   PluginQuietOptions,
   PluginQuietSchema,
   PluginVariableOp,
+  PluginWorldBookView,
   PluginWorldEntryUpsert,
+  PluginWorldEntryView,
   UiProxyableHostFunction,
 } from "./host-v1.ts";
-export { HOST_FUNCTION_CAPABILITY, isUiProxyableHostFunction, PLUGIN_LOG_LEVELS, PLUGIN_QUIET_IMAGES_MAX, UI_PROXYABLE_HOST_FUNCTIONS } from "./host-v1.ts";
+export {
+  HOST_FUNCTION_CAPABILITY,
+  isUiProxyableHostFunction,
+  PLUGIN_ASSET_READ_MAX_BYTES,
+  PLUGIN_LOG_LEVELS,
+  PLUGIN_QUIET_IMAGES_MAX,
+  UI_PROXYABLE_HOST_FUNCTIONS,
+} from "./host-v1.ts";
 export type { PluginOrigin, PluginStatus } from "./lifecycle.ts";
 export { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "./lifecycle.ts";
 export type { PluginBuiltAgainst, PluginCapability, PluginManifest } from "./manifest.ts";
