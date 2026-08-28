@@ -194,7 +194,7 @@ async function installGrantEnable(args: {
   await h.service.setGrant({ caller, pluginId: installed.id, grant: [...grant], acknowledgedNetHosts: [...(args.netHosts ?? [])] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
   const [view] = await h.service.list({ caller });
-  expect(view?.status).toBe("enabled");
+  expect(view?.["status"]).toBe("enabled");
   expect(view?.grantedCapabilities).toEqual([...grant]);
   return installed.id;
 }
@@ -300,7 +300,7 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   const grant: readonly PluginCapability[] = ["storage.kv", "tools.register", "ui.surface", "chat.transform", "plugin_events"];
   await h.service.setGrant({ caller, pluginId: installed.id, grant: [...grant], acknowledgedNetHosts: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
-  expect((await h.service.list({ caller }))[0]?.status).toBe("enabled");
+  expect((await h.service.list({ caller }))[0]?.["status"]).toBe("enabled");
 
   // BOTH tools reached the registrar — the guest-local names the host then prefixes to `plugin_oracle_deck_*`.
   expect(captured.tools.map((t) => t.name)).toEqual(["draw", "reveal"]);
@@ -631,8 +631,8 @@ test("story clocks: variables are the room-state plane, the tool ticks, and a hu
   const opened = requireHandler(captured.events, 0, "event handler");
   await invoke(opened, JSON.stringify({ type: "chatOpened", bus: "chat", chatId: CHAT }), chatScope(CHAT, true));
   const state = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "clock_flank", chatId: CHAT });
-  expect(String(state?.line0)).toContain("the ritual");
-  expect(String(state?.line0)).toContain("4/4");
+  expect(String(state?.["line0"])).toContain("the ritual");
+  expect(String(state?.["line0"])).toContain("4/4");
 });
 
 test("pocket arcade: a one-capability frame plugin registers its document, and the bytes never reach the wire", async () => {
@@ -725,22 +725,22 @@ test("keepsake camera: the spend pipeline — structured quiet falls back, the p
   // The album published GLOBALLY (no chat key — a cross-room roll-up): one bound tile carrying the caught
   // asset, on the browse stage.
   const album = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "album_page" });
-  expect(album?.stage).toBe("album");
-  const tiles = album?.tiles as readonly { id: string; assetId: string }[];
+  expect(album?.["stage"]).toBe("album");
+  const tiles = album?.["tiles"] as readonly { id: string; assetId: string }[];
   expect(tiles).toHaveLength(1);
   expect(tiles[0]?.assetId).toBe(validAsset);
 
   // Stage navigation is ordinary published state: `open` flips to the detail stage with the picked moment…
   await h.service.invokeUiAction({ caller, pluginId, surfaceId: "album_page", actionId: "open", values: { tile: tiles[0]?.id ?? "" } });
   const opened = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "album_page" });
-  expect(opened?.stage).toBe("moment");
-  expect((opened?.detail as { assetId: string }).assetId).toBe(validAsset);
+  expect(opened?.["stage"]).toBe("moment");
+  expect((opened?.["detail"] as { assetId: string }).assetId).toBe(validAsset);
 
   // …and `discard` forgets the album copy (the rooms keep their postcards) and returns home, empty.
   await h.service.invokeUiAction({ caller, pluginId, surfaceId: "album_page", actionId: "discard", values: {} });
   const after = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "album_page" });
-  expect(after?.stage).toBe("album");
-  expect(after?.tiles).toEqual([]);
+  expect(after?.["stage"]).toBe("album");
+  expect(after?.["tiles"]).toEqual([]);
 });
 
 /** The flagship's CI slice, honest about its edge: like the familiar, the atlas's fetch arms (`safeFetch` has
@@ -773,8 +773,8 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
 
   // The activation publish: an empty atlas is a PUBLISHABLE state (bound specs render only once state lands).
   const initial = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "atlas_page" });
-  expect(initial?.stage).toBe("browse");
-  expect(initial?.tiles).toEqual([]);
+  expect(initial?.["stage"]).toBe("browse");
+  expect(initial?.["tiles"]).toEqual([]);
 
   // The no-network arms: an empty query is a toast, never a fetch; a stale tile (no session — e.g. a respawn
   // between search and click) folds into the status line, never a crash.
@@ -782,7 +782,7 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
   expect(captured.toasts.some((t) => t.message.includes("Type something"))).toBe(true);
   await h.service.invokeUiAction({ caller, pluginId, surfaceId: "atlas_page", actionId: "open_result", values: { tile: "r0" } });
   const stale = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "atlas_page" });
-  expect(String(stale?.status)).toContain("stale");
+  expect(String(stale?.["status"])).toContain("stale");
 });
 
 /** THE GRANT-GUARD RECEIPT (#774 comment 1). A user may tick some capabilities and leave `ui.surface`
