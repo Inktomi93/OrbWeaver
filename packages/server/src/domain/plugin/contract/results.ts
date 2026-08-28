@@ -208,7 +208,6 @@ export interface SnippetResult {
  *     leak-free arm on purpose (the same no-SSRF-oracle posture as `PluginBundleFetchError`: distinguishing
  *     "blocked" from "404" from "garbage" would leak what the URL resolved to). */
 export const PLUGIN_UPDATE_STATUSES = ["up-to-date", "update-available", "unreachable"] as const;
-export type PluginUpdateStatus = (typeof PLUGIN_UPDATE_STATUSES)[number];
 
 /** One plugin's update-check outcome. A discriminated union rather than a flat shape with an optional
  *  `newVersion`, so `newVersion` is present EXACTLY on `update-available` — a version can be neither forgotten

@@ -74,8 +74,22 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
   expect(nav.capabilities()).toEqual({
-    sections: ["home", "chats", "characters", "corpus", "config", "databank", "presets", "refinery", "analytics"],
-    modalSlots: ["theme", "settings", "account", "command", "newChat", "you", "addDocument", "reauth", "imagine", "imageDetail", "imageEdit"],
+    sections: ["home", "chats", "characters", "corpus", "config", "extensions", "databank", "presets", "refinery", "analytics"],
+    modalSlots: [
+      "theme",
+      "settings",
+      "account",
+      "command",
+      "newChat",
+      "you",
+      "addDocument",
+      "reauth",
+      "imagine",
+      "imageDetail",
+      "imageEdit",
+      "pluginDialog",
+      "pluginCommandArgs",
+    ],
     settingsCategories: ["personas", "appearance", "workloads", "backup", "chat-behavior", "connections", "automation", "plugins", "admin"],
     contextTabs: ["runs", "setup"],
     contextTabNames: [

@@ -93,7 +93,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
         intent="secondary"
         loading={check.isPending}
         onClick={(): void => {
-          void runCheck();
+          void runCheck().catch(() => undefined);
         }}
         size="sm"
       >
@@ -105,7 +105,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
           intent="primary"
           loading={upgradeStored.isPending}
           onClick={(): void => {
-            void applyStoredUpgrade();
+            void applyStoredUpgrade().catch(() => undefined);
           }}
           size="sm"
         >

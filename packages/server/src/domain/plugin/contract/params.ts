@@ -14,7 +14,7 @@ import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
  *  `{ origin:"url", sourceUrl:url }` so the row records the honest origin AND the URL the update-check re-fetches.
  *  The `origin ⟺ sourceUrl` pairing is enforced at the db CHECK, so this type carries both together rather than
  *  letting a caller set one without the other. */
-export interface PluginInstallSource {
+interface PluginInstallSource {
   readonly origin: PluginOrigin;
   readonly sourceUrl: string | null;
 }

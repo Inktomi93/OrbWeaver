@@ -150,8 +150,8 @@ test("the closed vocabularies are EXACT, not merely assignable", () => {
 });
 
 test("the node vocabulary round-trips whole (brands erased) — the mirror's specs are the contract's specs", () => {
-  expectTypeOf<DeepUnbrand<ContractNode>>().toMatchTypeOf<PluginSurfaceNode>();
-  expectTypeOf<PluginSurfaceNode>().toMatchTypeOf<DeepUnbrand<ContractNode>>();
+  expectTypeOf<DeepUnbrand<ContractNode>>().toExtend<PluginSurfaceNode>();
+  expectTypeOf<PluginSurfaceNode>().toExtend<DeepUnbrand<ContractNode>>();
 });
 
 test("the global door serves exactly the two guest surfaces at version 1", () => {

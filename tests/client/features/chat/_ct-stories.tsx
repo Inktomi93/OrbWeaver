@@ -123,6 +123,7 @@ import { ChatsTopbarHeader } from "../../../../packages/client/src/features/chat
 import { ChoiceSendProvider } from "../../../../packages/client/src/features/chat/components/choice-send-provider.tsx";
 import { CommittedMembersTab } from "../../../../packages/client/src/features/chat/components/committed-members-tab.tsx";
 import { CompactSummaryPeek } from "../../../../packages/client/src/features/chat/components/compact-summary-peek.tsx";
+import { ComposerArgHintStrip } from "../../../../packages/client/src/features/chat/components/composer-arg-hint-strip.tsx";
 import { ComposerAttachmentStrip } from "../../../../packages/client/src/features/chat/components/composer-attachment-strip.tsx";
 import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/composer-chat-options.tsx";
 import { DatabankSettingsSection } from "../../../../packages/client/src/features/chat/components/databank-settings-section.tsx";
@@ -160,6 +161,7 @@ import type { PendingAttachment } from "../../../../packages/client/src/features
 import { speakerThemesByName } from "../../../../packages/client/src/features/chat/lib/attribution.ts";
 import { useChatsSelectionTitle } from "../../../../packages/client/src/features/chat/lib/chats-selection-title.ts";
 import type { MemberCastRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows.ts";
+import type { SlashArgOffer } from "../../../../packages/client/src/lib/contribution-contracts.ts";
 import { CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures.ts";
 
@@ -2650,6 +2652,25 @@ export function ComposerAttachmentStripStory({ empty = false }: { readonly empty
     <div style={{ width: 420 }}>
       <ComposerAttachmentStrip attachments={attachments} onRemove={setRemoved} />
       <output data-testid="removed-index">{removed ?? "none"}</output>
+    </div>
+  );
+}
+
+/** The #791 arg-hint strip in isolation — the offers render as an inline listbox and picking one reports the
+ *  chosen offer through `onPick`. `empty` mounts the no-offers arm (the strip renders nothing). `insert`/
+ *  `describe` are supplied so the fixtures are real `SlashArgOffer`s, though this leaf reads only `id`/`label`. */
+export function ComposerArgHintStripStory({ empty = false }: { readonly empty?: boolean }): ReactElement {
+  const offers: readonly SlashArgOffer[] = empty
+    ? []
+    : [
+        { id: "tone", label: "tone", describe: "enum: ominous | playful", insert: "tone=" },
+        { id: "count", label: "count", describe: "number (1–12)", insert: "count=" },
+      ];
+  const [picked, setPicked] = useState<string>("none");
+  return (
+    <div style={{ width: 420 }}>
+      <ComposerArgHintStrip offers={offers} onPick={(offer): void => setPicked(offer.id)} />
+      <output data-testid="picked-offer">{picked}</output>
     </div>
   );
 }

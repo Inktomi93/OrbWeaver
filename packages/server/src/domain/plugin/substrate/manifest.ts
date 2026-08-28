@@ -20,7 +20,7 @@
 // refused HERE, at the trust edge, before anything is persisted.
 
 import type { PluginManifest } from "@orb/contracts/plugin";
-import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY, PLUGIN_UI_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
+import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY, PLUGIN_UI_ENTRY, PLUGIN_UI_ENTRY_MAX_BYTES, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { UnzipFileInfo } from "fflate";
 import { unzipSync } from "fflate";
 import { z } from "zod";
@@ -41,10 +41,11 @@ const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
 const MANIFEST_JSON_KIB = 64;
 /** The COMPRESSED bundle cap ("ship one file, ≤ 1 MiB") — the first bomb bound (bounds the input). */
 const MAX_BUNDLE_BYTES = BYTES_PER_MIB;
-/** The DECOMPRESSED `main.js` cap (a single pre-bundled ES script ≤ 1 MiB). The Tier-C `ui.js` carries the
- *  SAME ceiling (`PLUGIN_UI_ENTRY_MAX_BYTES` in contracts, pinned equal by the contract test): it is the same
- *  kind of artifact — one pre-bundled ES script for one guest — and giving the client entry a different budget
- *  would be a number with no reason behind it. */
+/** The DECOMPRESSED `main.js` cap (a single pre-bundled ES script ≤ 1 MiB) — server-internal, no client
+ *  reaches it. The Tier-C `ui.js` carries the SAME ceiling but CITES it from contracts
+ *  (`PLUGIN_UI_ENTRY_MAX_BYTES`, imported above and applied in {@link capFor}), so the guest-source route and
+ *  this unzip allow-list bound the one artifact by ONE number: it is the same kind of thing — one pre-bundled
+ *  ES script for one guest — and a divergent budget would be a number with no reason behind it. */
 const MAX_MAIN_JS_BYTES = BYTES_PER_MIB;
 /** The DECOMPRESSED `manifest.json` cap — a tiny metadata doc; 64 KiB is generous for the manifest shape. */
 const MAX_MANIFEST_JSON_BYTES = MANIFEST_JSON_KIB * BYTES_PER_KIB;
@@ -59,7 +60,13 @@ interface PluginBundle {
 }
 
 function capFor(entryName: string): number {
-  return entryName === MANIFEST_ENTRY ? MAX_MANIFEST_JSON_BYTES : MAX_MAIN_JS_BYTES;
+  if (entryName === MANIFEST_ENTRY) {
+    return MAX_MANIFEST_JSON_BYTES;
+  }
+  if (entryName === UI_ENTRY) {
+    return PLUGIN_UI_ENTRY_MAX_BYTES;
+  }
+  return MAX_MAIN_JS_BYTES;
 }
 
 /** Unzip the bundle under the hardening rules, returning the entries' raw bytes (`uiBytes` absent when the

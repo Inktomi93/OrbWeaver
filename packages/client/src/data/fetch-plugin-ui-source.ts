@@ -16,9 +16,9 @@ import type { PluginId } from "@orb/kit/ids";
 
 const NOT_FOUND = 404;
 
-/** GET one owned plugin's `ui.js` as TEXT, or `null` when the server has none to give. `credentials:
- *  "same-origin"` because the route is owner-gated on the session cookie; a non-404 failure throws, so a caller
- *  can tell "no client half" (null) from "the request itself broke" (a rejection). */
+/** GET one owned plugin's `ui.js` as TEXT, or `null` when the server has none to give.
+ *  `credentials: "same-origin"` because the route is owner-gated on the session cookie; a non-404 failure
+ *  throws, so a caller can tell "no client half" (null) from "the request itself broke" (a rejection). */
 export async function fetchPluginUiSource(pluginId: PluginId): Promise<string | null> {
   const response = await fetch(`${PLUGIN_UI_ROUTE}/${pluginId}`, { credentials: "same-origin" });
   if (response.status === NOT_FOUND) {

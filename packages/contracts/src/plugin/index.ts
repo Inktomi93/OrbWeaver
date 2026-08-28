@@ -127,7 +127,6 @@ export type {
   PluginNumberFieldNode,
   PluginPageStage,
   PluginPageStageKind,
-  PluginRenderedTree,
   PluginRowNode,
   PluginSearchBarNode,
   PluginSectionNode,
