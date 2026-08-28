@@ -20,6 +20,20 @@ export const PLUGIN_DISPLAY_TEXT_MAX_CHARS = 32_000;
 
 export type { InvocationChat, PluginBridge, PluginInvocationLiveness } from "./bridge.ts";
 export { HostVersionError, PluginCapabilityError, PluginSuggestedError } from "./errors.ts";
+export type { PluginFrameCall, PluginFrameMintRequest, PluginFrameMintResponse, PluginFrameResult } from "./frame.ts";
+export {
+  PLUGIN_FRAME_CALL_REFUSED,
+  PLUGIN_FRAME_CALLS_IN_FLIGHT_MAX,
+  PLUGIN_FRAME_DOC_PREFIX,
+  PLUGIN_FRAME_MINT_BODY_MAX_BYTES,
+  PLUGIN_FRAME_RESULT_KEY,
+  PLUGIN_FRAME_ROUTE,
+  parsePluginFrameCall,
+  pluginFrameMintRequestSchema,
+  pluginFrameMintResponseSchema,
+  pluginFrameResultMessage,
+  pluginFrameUrl,
+} from "./frame.ts";
 export type {
   ChatHandle,
   HostFunctionRef,
@@ -58,6 +72,7 @@ export type {
   PluginButtonNode,
   PluginButtonVariant,
   PluginConfirmButtonNode,
+  PluginFrameBody,
   PluginGapToken,
   PluginImageNode,
   PluginKeyValueNode,
@@ -82,6 +97,7 @@ export type {
   PluginTextFieldNode,
   PluginTextNode,
   PluginTextVoice,
+  PluginTierRegistrar,
   PluginToggleNode,
   PluginToolCardState,
 } from "./ui.ts";
@@ -92,6 +108,9 @@ export {
   PLUGIN_FOOTER_MAX_DEPTH,
   PLUGIN_FOOTER_MAX_NODES,
   PLUGIN_FOOTER_NODE_KIND_ALLOWED,
+  PLUGIN_FRAME_CSS_MAX_CHARS,
+  PLUGIN_FRAME_HTML_MAX_CHARS,
+  PLUGIN_FRAME_SURFACES_MAX,
   PLUGIN_GAP_TOKENS,
   PLUGIN_NODE_KINDS,
   PLUGIN_ROWS_MAX,
@@ -104,7 +123,10 @@ export {
   PLUGIN_SURFACE_TITLE_MAX,
   PLUGIN_TEXT_MAX_BYTES,
   PLUGIN_TEXT_VOICES,
+  PLUGIN_TIER_REGISTRAR,
+  PLUGIN_TIER_REGISTRARS,
   PLUGIN_TOOL_NAME_RE,
+  pluginFrameBodySchema,
   pluginSurfaceNodeSchema,
   pluginSurfaceRegistrationMetaSchema,
   pluginSurfaceSpecSchema,

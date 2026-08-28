@@ -243,14 +243,18 @@ export class Sandbox implements Disposable {
               state.handlers.set(ref, handler);
               state.macros.push({ name: reg.name, description: reg.description, handler: ref });
             },
-            collectSurface: (meta, onAction): void => {
+            collectSurface: (meta, onAction, frame): void => {
+              // U7: `frame` is the frame-tier DOCUMENT BODY. It rides the registration and NOT the meta, so it
+              // stays server-side — `PluginSurfaceView extends PluginSurfaceRegistrationMeta`, and a body on the
+              // meta would ship every frame document to the client through `listSurfaces`.
+              const body = frame === undefined ? {} : { frame };
               if (onAction === null) {
-                state.surfaces.push({ ...meta });
+                state.surfaces.push({ ...meta, ...body });
                 return;
               }
               const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
               state.handlers.set(ref, onAction);
-              state.surfaces.push({ ...meta, onAction: ref });
+              state.surfaces.push({ ...meta, ...body, onAction: ref });
             },
             logWarn: (message): void => {
               log.push("warn", message);

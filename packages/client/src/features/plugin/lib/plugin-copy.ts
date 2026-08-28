@@ -21,8 +21,9 @@
 // `spends` marks the three SPEND-class capabilities (`turn.trigger`, `imagery.generate`, `llm.quiet`) — the
 // ones that draw on the installer's model budget every time the plugin uses them. Money is the one consequence
 // a checkbox label must never bury, and the automation surface already names its spend arms the same way. The
-// three sit ADJACENT in `PLUGIN_CAPABILITIES` (positions 10-12, after `ui.surface`) so the badge and the reading order reinforce
-// each other on a screen whose scan question is "what can this cost me".
+// three sit ADJACENT in `PLUGIN_CAPABILITIES` (positions 11-13 since U7 inserted `ui.frame` at 10, after
+// `ui.surface`) so the badge and the reading order reinforce each other on a screen whose scan question is
+// "what can this cost me".
 //
 // A consequence line STATES ITS BOUND when the capability has one (`notify`'s minute, `storage.kv`'s 256 keys,
 // `worldinfo.write`'s 64 entries, and the two HOURLY floors on `net.fetch` and `llm.quiet`). The numbers are
@@ -38,7 +39,8 @@
 // read no louder than `storage.kv` (a private key/value box only the plugin itself can see). This is a
 // judgment call, not a formula — `chat.quick_reply`, `notify` and `events.subscribe` all touch a room too,
 // but only by SUGGESTING or WATCHING, never by silently rewriting what the person themselves said or by
-// leaving the sandbox.
+// leaving the sandbox. `ui.frame` (U7) is `risk` and `ui.surface` is not, and that pair is the clearest
+// statement of where the line sits: both draw, but only one of them can leave.
 
 import type { PluginBuiltAgainst, PluginCapability, PluginStatus } from "@orb/contracts/plugin";
 
@@ -107,6 +109,19 @@ export const CAPABILITY_COPY_ROWS = [
     label: "Show its own panels and controls",
     consequence:
       "Draws panels and controls the app renders itself, always inside a box labelled with the plugin's name — only for you, and it can't fake the app's own screens.",
+  },
+  {
+    // THE CONSENT LINE IS VERBATIM FROM plugin-ui-plane §6.2 and is a CONSENT ARTIFACT, not copy to tune. It
+    // names the #124 WebRTC/STUN class as a channel NO POLICY CLOSES, because that is the measured truth
+    // (`@orb/kit/card-frame` residual R1: `webrtc 'block'` is unrecognized by Chromium, so it is not emitted).
+    // Softening it — "runs in a secure sandbox", "isolated for your safety" — would make this the one row on the
+    // screen that under-states its own risk. `risk: true` for the same reason: this is the only UI capability
+    // that reaches past the plugin's own sandbox.
+    id: "ui.frame",
+    label: "Show its own screens in an isolated frame",
+    consequence:
+      "runs its own interface code in an isolated frame — it can draw anything inside its box, and an isolated frame can beacon out through browser channels no policy closes.",
+    risk: true,
   },
   {
     id: "turn.trigger",

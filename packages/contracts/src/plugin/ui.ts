@@ -33,10 +33,20 @@ import { z } from "zod";
 export const PLUGIN_SURFACE_ANCHORS = ["settings", "chat-flank", "chat-settings-section", "tool-card", "message-footer"] as const;
 export type PluginSurfaceAnchor = (typeof PLUGIN_SURFACE_ANCHORS)[number];
 
-/** The two rendering tiers sharing THIS one vocabulary: `static` (server-validated JSON, actions round-trip to
- *  the server guest) and `scripted` (an optional client-side QuickJS-WASM `ui.js` at native latency — U4). A
- *  `scripted` surface still produces this same declarative tree; the tier is who computes it, not what it is. */
-export const PLUGIN_SURFACE_TIERS = ["static", "scripted"] as const;
+/** How a surface's pixels are produced. The first TWO share this file's declarative vocabulary — `static`
+ *  (server-validated JSON, actions round-trip to the server guest) and `scripted` (an optional client-side
+ *  QuickJS-WASM `ui.js` at native latency — U4); a `scripted` surface still produces the same node tree, so the
+ *  tier is WHO COMPUTES it, not what it is.
+ *
+ *  `frame` (U7, §6.2) is the ESCAPE HATCH and is a different KIND of thing: it produces no node tree at all. It
+ *  is a document of the plugin's own HTML/JS served into an isolated (opaque-origin) iframe — the arbitrary-pixels
+ *  arm for the §6.1 rows the vocabulary cannot reach (canvas games, live2d/VRM, arbitrary card art). It is a
+ *  MEMBER of this tuple rather than a parallel axis precisely so every per-tier decision on the tree — most of
+ *  all {@link PLUGIN_ANCHOR_TIERS} — has to be re-taken FOR it instead of inheriting an answer by omission.
+ *
+ *  THE PRIORITY LAW STANDS (§6.2): a surface expressible in the vocabulary ships in the vocabulary. The frame is
+ *  the last resort, never a parallel UI system. */
+export const PLUGIN_SURFACE_TIERS = ["static", "scripted", "frame"] as const;
 export type PluginSurfaceTier = (typeof PLUGIN_SURFACE_TIERS)[number];
 
 /** The gap token subset a container node may name — a closed slice of the house intent-gap scale
@@ -114,14 +124,43 @@ export const PLUGIN_FOOTER_MAX_DEPTH = 2;
  *  the `ui.frame` hatch (U7, §6.2) cannot land at `message-footer` by omission — someone has to type
  *  `frame: false` here, which is exactly the decision plugin-ui-plane §4.5 says is permanent. */
 export const PLUGIN_ANCHOR_TIERS = {
-  settings: { static: true, scripted: true },
-  "chat-flank": { static: true, scripted: true },
-  "chat-settings-section": { static: true, scripted: true },
-  "tool-card": { static: true, scripted: true },
+  // `frame: true` — §6.1's "arbitrary-HTML settings look" row (§5.1) is HATCH-ELIGIBLE at U7: it is the
+  // installer's OWN settings screen, under their own grant, and the integrated form nodes remain the
+  // recommended authoring path.
+  settings: { static: true, scripted: true, frame: true },
+  // `frame: true` — the hatch's HEADLINE anchor (§6.2, and §8-U7's owner test is a chess board drawn here).
+  "chat-flank": { static: true, scripted: true, frame: true },
+  // `frame: false` — NOT an omission: §6.2 enumerates the hatch's anchors (`chat-flank`, the `dialog` kind,
+  // `tool-card`, `page`) and this band is not among them. It is the HOST-CONTROLS band, mounted under the
+  // host gate (`contribution-contracts.ts`), and a room's host controls are the one place the app's own
+  // grammar has to read as the app's. A frame there is a decision to take deliberately, not to inherit.
+  "chat-settings-section": { static: true, scripted: true, frame: false },
+  // `frame: true` — §6.1's arbitrary-card-ART row. LAZY at the mount (`loading="lazy"`, minted on mount), never
+  // per-row-eager: a tool card exists once per actual tool CALL, which is bounded by what the model did.
+  "tool-card": { static: true, scripted: true, frame: true },
   // PERMANENT (plugin-ui-plane §4.5, §6.2): a per-row interpreter is one guest context per transcript row, and
-  // a per-row frame is one document per transcript row. Neither is ever eligible here.
-  "message-footer": { static: true, scripted: false },
+  // a per-row frame is one document per transcript row. Neither is ever eligible here. This row is the whole
+  // reason the record is TOTAL — the `frame` tier could not land here by omission, someone had to type `false`.
+  "message-footer": { static: true, scripted: false, frame: false },
 } as const satisfies Record<PluginSurfaceAnchor, Record<PluginSurfaceTier, boolean>>;
+
+/** WHICH HOST FUNCTION MAY MINT WHICH TIER — the CAPABILITY fork, coded (U7).
+ *
+ *  The membrane gates at the FUNCTION, never at the argument (`HOST_FUNCTION_CAPABILITY`, host-v1.ts), so a tier
+ *  that needs a different capability needs a different function: `ui.register` (capability `ui.surface`) mints the
+ *  two declarative tiers, and `ui.registerFrame` (capability `ui.frame`) mints the frame tier and only it.
+ *  Without this fork a guest holding only `ui.surface` could pass `tier: "frame"` to `ui.register` and take the
+ *  hatch's tier without the hatch's consent — a wall that leaks by omission is not a wall.
+ *
+ *  TOTAL Record on purpose, the {@link PLUGIN_ANCHOR_TIERS} discipline one axis over: a new tier fails `tsc` here
+ *  until someone names the function — and therefore the capability, and therefore the consent line — that mints it. */
+export const PLUGIN_TIER_REGISTRARS = ["ui.register", "ui.registerFrame"] as const;
+export type PluginTierRegistrar = (typeof PLUGIN_TIER_REGISTRARS)[number];
+export const PLUGIN_TIER_REGISTRAR = {
+  static: "ui.register",
+  scripted: "ui.register",
+  frame: "ui.registerFrame",
+} as const satisfies Record<PluginSurfaceTier, PluginTierRegistrar>;
 
 /** WHICH NODE KINDS a `message-footer` spec may spell — the DSL-BADGES fidelity of §5.4 ("adjacent decoration,
  *  not in-bubble markup"), as a TOTAL record so a new {@link PLUGIN_NODE_KINDS} member must be decided FOR the
@@ -150,6 +189,51 @@ export const PLUGIN_FOOTER_NODE_KIND_ALLOWED = {
   button: false,
   confirmButton: false,
 } as const satisfies Record<PluginNodeKind, boolean>;
+
+// ── The `frame` tier's DOCUMENT BODY (U7, §6.2) ───────────────────────────────────────────────────────────────
+// The bytes a frame surface renders. They are the plugin's OWN code and pass through VERBATIM — the frame IS the
+// boundary, not a sanitizer (the `CardFrameContent` posture, `@orb/kit/card-frame`). What contains them is the
+// isolated document: opaque origin, `default-src 'none'` with NO `connect-src`, `sandbox allow-scripts` and never
+// `allow-same-origin`. What does NOT contain them is WebRTC (the measured, unclosable residual R1) — which is why
+// this tier needs its own capability and its own consent line rather than riding `ui.surface`.
+//
+// THESE BYTES NEVER ENTER THE PROJECTED WIRE SHAPE. The body hangs off `PluginSurfaceRegistration`
+// (registrations.ts), NOT off {@link PluginSurfaceRegistrationMeta} — and `PluginSurfaceView extends
+// PluginSurfaceRegistrationMeta`, so putting it here would have shipped every frame document to the client inside
+// `listSurfaces`. The client names a (pluginId, surfaceId); the SERVER assembles the document from bytes it holds.
+// That makes the plugin-frame doorway strictly NARROWER than the card-frame one it rides, whose mint carries the
+// card's bytes in the request: a client cannot mint an arbitrary document at our own origin here.
+
+/** A frame body's HTML cap. The card frame's own proven bound (`contracts/chat/card-frame.ts`), reused rather than
+ *  re-guessed: generous for self-contained interface code, and it bounds per-instance retention with the count cap
+ *  below. STATED LIMIT: a bundle-shipped BINARY asset (a live2d/VRM model) does not fit here and is not meant to —
+ *  large assets ride the bundle `ui/assets/` → installer-CAS route (seam 11), which is a later phase. */
+export const PLUGIN_FRAME_HTML_MAX_CHARS = 64_000;
+/** A frame body's CSS cap — the card frame's bound, same reasoning. */
+export const PLUGIN_FRAME_CSS_MAX_CHARS = 16_000;
+/** How many `frame` surfaces ONE resident instance may register. `ui.register` has no count cap today because a
+ *  declarative spec is already bounded to 32 KiB by {@link PLUGIN_SPEC_MAX_BYTES}; a frame body is 5× that, held for
+ *  the instance lifetime, and multiplied by `PLUGIN_RESIDENT_RUNTIME_MAX`. Eight bounds the worst case to a few
+ *  hundred KiB per plugin, and no honest plugin needs a ninth isolated document. */
+export const PLUGIN_FRAME_SURFACES_MAX = 8;
+
+/** The `frame` tier's document body — held server-side, assembled into the isolated document by the plugin-frame
+ *  doorway (`entry/http/plugin-frame.ts`) and never projected to a client. */
+export interface PluginFrameBody {
+  /** The plugin's own markup + inline scripts, verbatim. */
+  readonly html: string;
+  /** The plugin's own stylesheet, if it ships one. */
+  readonly css?: string | undefined;
+}
+
+/** The frame body's gate, applied host-side at registration (the trust boundary). It bounds SIZE only: the
+ *  CONTENT is deliberately unconstrained — arbitrary pixels is the whole point of the tier, and the isolation is
+ *  the response CSP, not a filter. Anything a filter here could plausibly catch is already reachable inside the
+ *  document, and pretending otherwise would teach the next reader that this is a sanitizer. */
+export const pluginFrameBodySchema = z.strictObject({
+  html: z.string().max(PLUGIN_FRAME_HTML_MAX_CHARS),
+  css: z.string().max(PLUGIN_FRAME_CSS_MAX_CHARS).optional(),
+});
 
 const LABEL_MAX = 200;
 const STATE_PATH_MAX = 128;
@@ -463,6 +547,12 @@ export const pluginSurfaceRegistrationMetaSchema = z
   .superRefine((meta, ctx) => {
     if (!PLUGIN_ANCHOR_TIERS[meta.anchor][meta.tier]) {
       ctx.addIssue({ code: "custom", message: `the '${meta.anchor}' anchor does not admit the '${meta.tier}' tier`, path: ["tier"] });
+    }
+    // U7: a `frame` surface produces a DOCUMENT, not a node tree. A spec alongside it would be a second, silently
+    // unrendered description of the same surface — and, worse, a `frame` registration that smuggled a spec past
+    // `ui.register` would render as a declarative surface for a plugin that never held `ui.surface`.
+    if (meta.tier === "frame" && meta.spec !== undefined) {
+      ctx.addIssue({ code: "custom", message: "a frame-tier surface renders its own document and names no `spec`", path: ["spec"] });
     }
     if (meta.anchor !== "message-footer" || meta.spec === undefined) {
       return;

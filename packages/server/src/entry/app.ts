@@ -51,6 +51,7 @@ import {
   registerImportChat,
   registerImportTree,
   registerJoin,
+  registerPluginFrame,
   registerSpa,
   registerUpload,
   resolveSpaDistDir,
@@ -324,6 +325,16 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // The deployment half of the html-trust ladder's TOP rung (#111 leg 3). Same live read the roster
     // resolver uses, applied a second time at the boundary that actually mints the policy.
     allowInteractiveCards: () => deps.services.settings.getEffectiveConfig().allowInteractiveCards,
+    now: deps.now,
+  });
+
+  // The PLUGIN-frame doorway (#679 U7). Same substrate, one authority: the owner-scoped `getFrameBody` read,
+  // which also re-checks the row's live `ui.frame` grant per mint. It takes NO deployment ceiling because its
+  // policy has no variable axis — a plugin frame is always the media floor plus the `data:` door (the reasoning
+  // is in `plugin-frame.ts`). `securityHeaders` skips the served-document path here for the same mechanical
+  // reason it skips the card frame's: `secure-headers` would otherwise overwrite the frame's own policy.
+  registerPluginFrame(app, {
+    surfaces: { getFrameBody: (params) => deps.services.plugin.getFrameBody(params) },
     now: deps.now,
   });
 

@@ -47,6 +47,19 @@ export interface SandboxFrameProps {
   /** Fill the parent instead of the fixed `heightPx` — the expanded/lightbox arm (the parent owns height). */
   readonly fill?: boolean;
   readonly className?: string;
+  /**
+   * An AUTHENTICATED message from the framed document — called for every `message` event whose sender is THIS
+   * frame's own window, AFTER the height fold, with the raw `event.data` and a `reply` closure that posts back
+   * to the frame. `undefined` (the card arm) means the frame speaks only its height and nothing listens for more.
+   *
+   * The window-identity check (`event.source === contentWindow`) lives HERE, in the sealed painter that owns the
+   * iframe ref, because it is the one authentication this channel can perform: every sandboxed document reports
+   * `event.origin === "null"`, so origin cannot tell OUR frame from any other opaque sender on the page. What the
+   * message MEANS is the caller's to decide — this component proves only WHO sent it. So the plugin bridge (U7)
+   * passes this to relay host calls, while the PARSE of those calls stays in the feature (`@orb/ui` cannot import
+   * `@orb/contracts`). One home for the identity rule; the meaning stays with the consumer.
+   */
+  readonly onHostMessage?: (data: unknown, reply: (message: unknown) => void) => void;
 }
 
 /**
@@ -81,6 +94,7 @@ export function SandboxFrame({
   heightPx = DEFAULT_HEIGHT_PX,
   fill = false,
   className,
+  onHostMessage,
 }: SandboxFrameProps): ReactElement {
   const frameRef = useRef<HTMLIFrameElement>(null);
   // The measurement is stored WITH the delivery it belongs to, so a re-mint (new `src`) is answered during
@@ -102,19 +116,25 @@ export function SandboxFrame({
       return;
     }
     const onMessage = (event: MessageEvent): void => {
-      if (event.source === null || event.source !== frameRef.current?.contentWindow) {
+      const frameWindow = frameRef.current?.contentWindow;
+      if (event.source === null || event.source !== frameWindow) {
         return;
       }
       setMeasured((current) => {
         const px = foldCardFrameHeight(current?.delivery === deliveryKey ? current.px : undefined, event.data);
         return px === undefined ? current : { delivery: deliveryKey, px };
       });
+      // The sender is proven to be THIS frame's window (`frameWindow` is non-null here — the guard above
+      // returned otherwise); the consumer decides what the message means. `reply` targets that same window
+      // (`"*"` because an opaque-origin document has no origin to name — the message still reaches exactly the
+      // one window handle captured here).
+      onHostMessage?.(event.data, (message) => frameWindow.postMessage(message, "*"));
     };
     window.addEventListener("message", onMessage);
     return (): void => {
       window.removeEventListener("message", onMessage);
     };
-  }, [fill, deliveryKey]);
+  }, [fill, deliveryKey, onHostMessage]);
 
   // `fill` = the lightbox arm, where the PARENT owns height and a self-report must not participate.
   const appliedPx = (measured?.delivery === deliveryKey ? measured.px : undefined) ?? heightPx;

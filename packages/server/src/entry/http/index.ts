@@ -37,6 +37,8 @@ export type { ImportTreeDeps } from "./import-tree.ts";
 export { registerImportTree } from "./import-tree.ts";
 export type { JoinDeps } from "./join.ts";
 export { registerJoin } from "./join.ts";
+export type { PluginFrameDeps, PluginFrameSurfacePort } from "./plugin-frame.ts";
+export { registerPluginFrame } from "./plugin-frame.ts";
 export { securityHeaders } from "./security-headers.ts";
 export type { SpaDeps } from "./spa.ts";
 export { registerSpa, resolveSpaDistDir } from "./spa.ts";

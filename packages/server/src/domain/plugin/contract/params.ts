@@ -139,6 +139,16 @@ export interface GetSurfaceStateParams {
   readonly surfaceId: string;
 }
 
+/** `getFrameBody` — the DOCUMENT BYTES of one owned `frame`-tier surface (plugin-ui-plane #679 U7, §6.2). Owner-
+ *  scoped on `pluginId` (leak-free NOT_FOUND) AND re-gated per call on the row's live `ui.frame` grant, because a
+ *  resident instance outlives a re-grant and a consent that cannot be withdrawn is not a consent. Its ONE caller
+ *  is the plugin-frame doorway; the bytes never reach a projected wire shape. */
+export interface GetFrameBodyParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+  readonly surfaceId: string;
+}
+
 /** `invokeUiAction` — the guest-action round-trip (plugin-ui-plane #679 U1). Owner-scoped on `pluginId`
  *  (leak-free NOT_FOUND); re-enters the surface's `onAction` handler under the crash policy + the per-instance
  *  invoke queue. `values` is the collected form-field bag (all strings on the wire); the guest may publish new
