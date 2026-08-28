@@ -24,8 +24,13 @@ import { z } from "zod";
 
 /** Where a plugin surface may MOUNT — each rides an EXISTING door-assembled family via ONE first-party
  *  contribution owned by `features/plugin` (plugin-ui-plane §4.5). `page` (the Extensions section) lands at
- *  U5 (seam 16), NOT here — an anchor with no first-party mount is the root-slot-lands-with-occupant concern. */
-export const PLUGIN_SURFACE_ANCHORS = ["settings", "chat-flank", "chat-settings-section", "tool-card"] as const;
+ *  U5 (seam 16), NOT here — an anchor with no first-party mount is the root-slot-lands-with-occupant concern.
+ *
+ *  `message-footer` (U6, §5.4) is the ONE PER-ROW anchor: it mounts once per COMMITTED transcript row, so its
+ *  cost multiplies by transcript length and it carries its own tighter bounds — {@link PLUGIN_ANCHOR_TIERS}
+ *  (static only, permanently), {@link PLUGIN_FOOTER_NODE_KIND_ALLOWED} (decoration kinds only) and the two
+ *  per-row caps below. Every one of those is a COMPILE-tier fact, not prose. */
+export const PLUGIN_SURFACE_ANCHORS = ["settings", "chat-flank", "chat-settings-section", "tool-card", "message-footer"] as const;
 export type PluginSurfaceAnchor = (typeof PLUGIN_SURFACE_ANCHORS)[number];
 
 /** The two rendering tiers sharing THIS one vocabulary: `static` (server-validated JSON, actions round-trip to
@@ -91,6 +96,60 @@ export const PLUGIN_SPEC_MAX_DEPTH = 8;
 export const PLUGIN_TEXT_MAX_BYTES = 2048;
 /** The rendered-row cap on `list` items, `keyValue` rows, and `select` options (plugin-ui-plane §4.3). */
 export const PLUGIN_ROWS_MAX = 64;
+
+// ── The `message-footer` per-ROW bounds (U6, §5.4) ────────────────────────────────────────────────────────────
+// Every other anchor mounts ONCE per open room; this one mounts once per COMMITTED transcript row, so its cost
+// is multiplied by transcript length. The design's three clamps are encoded here as compile-tier facts:
+
+/** Total nodes a `message-footer` spec may carry — an order of magnitude under the whole-tree
+ *  {@link PLUGIN_SPEC_MAX_NODES}, because this budget is spent once PER ROW. A badge strip, not a panel. */
+export const PLUGIN_FOOTER_MAX_NODES = 8;
+/** Container nesting a `message-footer` spec may carry (root = 1): one `row` wrapping its badges, nothing
+ *  deeper. Depth is where a per-row tree turns into layout. */
+export const PLUGIN_FOOTER_MAX_DEPTH = 2;
+
+/** WHICH TIERS MAY MOUNT AT WHICH ANCHOR — the permanent refusal of a scripted (and, at U7, a framed) surface
+ *  in the transcript, coded rather than written down. It is a TOTAL `Record<anchor, Record<tier, boolean>>` on
+ *  purpose: a new {@link PLUGIN_SURFACE_TIERS} member makes EVERY anchor row a missing key and fails `tsc`, so
+ *  the `ui.frame` hatch (U7, §6.2) cannot land at `message-footer` by omission — someone has to type
+ *  `frame: false` here, which is exactly the decision plugin-ui-plane §4.5 says is permanent. */
+export const PLUGIN_ANCHOR_TIERS = {
+  settings: { static: true, scripted: true },
+  "chat-flank": { static: true, scripted: true },
+  "chat-settings-section": { static: true, scripted: true },
+  "tool-card": { static: true, scripted: true },
+  // PERMANENT (plugin-ui-plane §4.5, §6.2): a per-row interpreter is one guest context per transcript row, and
+  // a per-row frame is one document per transcript row. Neither is ever eligible here.
+  "message-footer": { static: true, scripted: false },
+} as const satisfies Record<PluginSurfaceAnchor, Record<PluginSurfaceTier, boolean>>;
+
+/** WHICH NODE KINDS a `message-footer` spec may spell — the DSL-BADGES fidelity of §5.4 ("adjacent decoration,
+ *  not in-bubble markup"), as a TOTAL record so a new {@link PLUGIN_NODE_KINDS} member must be decided FOR the
+ *  transcript rather than inheriting admission from silence. The three exclusion classes, each argued:
+ *   - INTERACTIVE (`textField`/`numberField`/`toggle`/`select`/`slider`/`button`/`confirmButton`) — an action
+ *     round-trip per transcript row is the multiply-by-length hazard the anchor exists to bound.
+ *   - BULK (`list`/`keyValue`) — up to {@link PLUGIN_ROWS_MAX} rows each, under every message.
+ *   - PROSE (`markdown`, `section`, `stack`) — `markdown` is in-bubble markup by another name, and the two
+ *     block containers are panel grammar; a footer is one `row` of decorations. */
+export const PLUGIN_FOOTER_NODE_KIND_ALLOWED = {
+  stack: false,
+  row: true,
+  section: false,
+  text: true,
+  badge: true,
+  meter: true,
+  keyValue: false,
+  list: false,
+  image: true,
+  markdown: false,
+  textField: false,
+  numberField: false,
+  toggle: false,
+  select: false,
+  slider: false,
+  button: false,
+  confirmButton: false,
+} as const satisfies Record<PluginNodeKind, boolean>;
 
 const LABEL_MAX = 200;
 const STATE_PATH_MAX = 128;
@@ -375,11 +434,51 @@ export const PLUGIN_SURFACE_TITLE_MAX = 80;
  *  {@link PluginSurfaceRegistration}); `spec` is REQUIRED for a static-tier surface to render anything, but is
  *  optional at THIS schema because a scripted-tier (U4) surface computes its tree client-side. An invalid meta
  *  is a REGISTRATION refusal (surface absent + a plugin log line), never activation-fatal (plugin-ui-plane §4.9). */
-export const pluginSurfaceRegistrationMetaSchema = z.object({
-  id: z.string().regex(PLUGIN_SURFACE_ID_RE),
-  anchor: z.enum(PLUGIN_SURFACE_ANCHORS),
-  title: z.string().min(1).max(PLUGIN_SURFACE_TITLE_MAX),
-  tier: z.enum(PLUGIN_SURFACE_TIERS),
-  spec: pluginSurfaceSpecSchema.optional(),
-});
+export const pluginSurfaceRegistrationMetaSchema = z
+  .object({
+    id: z.string().regex(PLUGIN_SURFACE_ID_RE),
+    anchor: z.enum(PLUGIN_SURFACE_ANCHORS),
+    title: z.string().min(1).max(PLUGIN_SURFACE_TITLE_MAX),
+    tier: z.enum(PLUGIN_SURFACE_TIERS),
+    spec: pluginSurfaceSpecSchema.optional(),
+  })
+  // The PER-ANCHOR belt — the node schema above bounds ONE node and the spec schema bounds the whole tree, but
+  // neither knows WHERE the tree is about to mount. This is where the anchor's own law is enforced, so the
+  // `message-footer` clamps (§5.4) are a refusal at the registration trust boundary rather than a doc sentence.
+  .superRefine((meta, ctx) => {
+    if (!PLUGIN_ANCHOR_TIERS[meta.anchor][meta.tier]) {
+      ctx.addIssue({ code: "custom", message: `the '${meta.anchor}' anchor does not admit the '${meta.tier}' tier`, path: ["tier"] });
+    }
+    if (meta.anchor !== "message-footer" || meta.spec === undefined) {
+      return;
+    }
+    const { nodes, maxDepth } = surfaceStats(meta.spec, 1);
+    if (nodes > PLUGIN_FOOTER_MAX_NODES) {
+      ctx.addIssue({ code: "custom", message: `a message-footer spec exceeds ${PLUGIN_FOOTER_MAX_NODES} nodes`, path: ["spec"] });
+    }
+    if (maxDepth > PLUGIN_FOOTER_MAX_DEPTH) {
+      ctx.addIssue({ code: "custom", message: `a message-footer spec exceeds nesting depth ${PLUGIN_FOOTER_MAX_DEPTH}`, path: ["spec"] });
+    }
+    for (const kind of unallowedFooterKinds(meta.spec)) {
+      ctx.addIssue({ code: "custom", message: `the '${kind}' node is not spellable at the message-footer anchor (decoration kinds only)`, path: ["spec"] });
+    }
+  });
 export type PluginSurfaceRegistrationMeta = z.infer<typeof pluginSurfaceRegistrationMetaSchema>;
+
+/** Every DISTINCT node kind in `spec` that {@link PLUGIN_FOOTER_NODE_KIND_ALLOWED} refuses, in first-seen
+ *  order — one issue per offending KIND (not per occurrence), so a spec of forty buttons reports once. */
+function unallowedFooterKinds(spec: PluginSurfaceSpec): readonly PluginNodeKind[] {
+  const offenders = new Set<PluginNodeKind>();
+  const walk = (node: PluginSurfaceNode): void => {
+    if (!PLUGIN_FOOTER_NODE_KIND_ALLOWED[node.kind]) {
+      offenders.add(node.kind);
+    }
+    if (node.kind === "stack" || node.kind === "row" || node.kind === "section") {
+      for (const child of node.children) {
+        walk(child);
+      }
+    }
+  };
+  walk(spec);
+  return [...offenders];
+}

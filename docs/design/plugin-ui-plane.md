@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-08-24
+updated: 2026-08-28
 ---
 
 # The Plugin UI Plane — full-featured add-ons over the sealed membrane (#679)
@@ -79,7 +79,7 @@ import, style, or subclass it).
 | The plugin SERVER stack is BUILT and exposure-cleared: D46 review #605 and all seven findings CLOSED, security-verified; #24 out of Parked; remaining P3s #627 (runtime log) / #628 (residuals) non-blocking | `docs/design/interaction-direction-spec.md:518` (C7 row) |
 | The membrane surface is 14 capabilities / 21 gated host functions, completeness `tsc`-pinned both directions + vitest exact pins (ordered `toEqual`; `toHaveLength(21)`) | `packages/contracts/src/plugin/manifest.ts:13-28` · `packages/contracts/src/plugin/host-v1.ts:221-243` · `tests/contracts/plugin/manifest.contract.test.ts:26` · `tests/contracts/plugin/index.contract.test.ts:15` |
 | Plugins already reach the screen ONLY as data through host chrome: quick-reply chips (`chat.surfaceQuickReply`, `host-v1.ts:91-92`), S4 asks (posture 2, `02-manifest-capabilities-lifecycle.md:85-120`), notifications (`host-v1.ts:122-127`), tool calls in the generic `ToolCallBlock` | as cited |
-| A plugin CANNOT register a client ToolRenderer — the registry is first-party, door-assembled EMPTY; unknown names fall back to the generic block. The recorded gap this design closes | `docs/reviews/stickler/2026-08-24-plugin-automation-juice.md:197-203` (A2-F5) · `packages/client/src/compose/authed-app.tsx:187-190` · `packages/client/src/lib/contribution-contracts.ts:244-254` |
+| **HISTORICAL (closed 2026-08-28 by U3, `03480da00` / `21ebaf174`).** As-was: a plugin CANNOT register a client ToolRenderer — the registry was first-party, door-assembled EMPTY; unknown names fell back to the generic block. The `pluginToolRenderer` now claims `plugin_*` wire names through a closed match axis (exact-before-prefix). The row is kept, not deleted: it is the premise §4.5's `tool-card` row and §5.18 were written against | `docs/reviews/stickler/2026-08-24-plugin-automation-juice.md:197-203` (A2-F5) · `packages/client/src/compose/authed-app.tsx:187-190` · `packages/client/src/lib/contribution-contracts.ts:244-254` |
 | The contribution architecture (D70) gives the mount seams for free: chat surface anchors (`thread-flank`/`above-composer`/`message-footer`, `contribution-contracts.ts:29`), the "This chat" section family (already carrying `pluginSnippetConsoleSection`, `authed-app.tsx:146-149`), tool renderers, slash commands, settings panes/sections — all door-assembled, zero registrants ⇒ byte-identical | `docs/architecture/core/client-architecture-lockdown.md` §5-§6c |
 | The flank/band law: a silent contributor renders null and the anchor collapses (`empty:hidden`); data-gated widgets mount-and-render-null; no `useSuspenseQuery` at the flank (no boundary) | `packages/client/src/features/chat/surfaces/chat-room-surface.tsx:151,171` · the needle-meter precedent `authed-app.tsx:181-184` |
 | The client plugin feature EXISTS: Plugins settings pane (admin-`when`-gated today), install/grant/log/row surfaces, snippet console section | `packages/client/src/features/plugin/lib/plugins-pane.tsx:21-48` (`when: viewer.isAdmin` :27) · `surfaces/plugins-settings-surface.tsx` |
@@ -496,7 +496,7 @@ below is CMT with a phase, except the one substrate-blocked row, marked SUB).
 | 2 | Persistent extension settings (`extensionSettings` + save) | **PT** | `storage.kv` (`host-v1.ts:113-120`) — and BETTER: per-plugin-private, unlike ST's world-readable settings blob (ST's own docs warn plugins can read each other's) |
 | 3 | Top-bar / wand-menu buttons | **PD** | the first-party "Plugins" chrome menu + `/plugin` dispatch (§4.5); fidelity: inside one labeled menu, not arbitrary top-bar DOM — the chrome registry stays door-owned |
 | 4 | Message decorations (badges/annotations on rows) | **PD (v2)** | `message-footer` DSL badges, phase U6; per-row caps; fidelity: adjacent decoration, not in-bubble markup |
-| 5 | Message TEXT display-transform (formatting hooks / furigana class) | **CMT (U6)** | not a canon write (display-only), so no wall; a server-side display-transform seam registered like D50, applied at the render path with a per-message budget — the largest U6 item, priced as its own seam (§7.14). Interim: row 4 decorations |
+| 5 | Message TEXT display-transform (formatting hooks / furigana class) | **BUILT (U6, 2026-08-28)** | not a canon write (display-only), so no wall; a display-transform seam registered like D50, executed server-side (the guest lives there) under a per-message budget and APPLIED at the CLIENT render path via a round-trip — see the dated seam-14 repair for why the doc's original "applied at the render path" server-side reading was refuted |
 | 6 | Popups / confirm / input dialogs (`Popup.show`) | **PD** | `confirmButton` (house ConfirmDialog) + inline card nodes + the `dialog` surface kind (§4.5a, U5) — full function; the shell stays house-drawn, plugin-attributed (impersonation wall §4.8) |
 | 7 | Custom side panels / drawers | **PD** | `chat-flank` + `chat-settings-section` + `settings` anchors, Tier S/C |
 | 8 | Whole custom screens (chess, retro games, VN extras, hub browsers) | **CMT (U5/U7)** | house-vocabulary pages: `ui.page` in the Extensions section (§4.5b, U5); arbitrary-pixels screens: the `ui.frame` hatch (§6.2, U7) — the same page slot, frame-bodied |
@@ -598,10 +598,54 @@ is the arbitrary-pixels arm, not a parallel UI system.
 | 11 | Bundle UI assets (`ui/assets/` → installer CAS, `image` node source) | bundle funnel + assets kind + the `image` node's assetId-only rule | zod (no URL arm exists) + the CAS ownership reads |
 | 12 | Consent copy + grant screen | `features/plugin/components/plugin-grant-list.tsx` + the capability-order decision | review + side-eye (copy is a consent artifact) |
 | 13 | U7 — the `ui.frame` hatch | `ui.frame` tuple member (+ both vitest pins move) · consent line (§6.2) · the plugin-frame routed doorway (`entry/http`, the card-frame shape: per-user handles, own response CSP, floor on every arm) · the `PluginFrame` client component (window-identity listener, `sandbox-frame` posture) · the postMessage→`uiHostCall` bridge | the card-frame belt set (kit CSP builder + route tests + CT) + security-executor gate |
-| 14 | U6 — the display-transform seam | a D50-shaped display-transform registrar (server-side, per-message budget, applied at the render path) + its registration host fn + refusal postures (timeout ⇒ skip, D53's law) | the D50 seam's own tests + a per-message budget pin |
+| 14 | U6 — the display-transform seam — **BUILT 2026-08-28; see the dated repair below** | `host.transforms.registerDisplay` (capability `chat.transform`, no new member) · the resident-read `plugin.listDisplayTransforms` (the byte-identity gate) + `plugin.transformForDisplay` (the per-row round-trip) · `PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS` per transform, `PLUGIN_DISPLAY_TEXT_MAX_CHARS` at the transport boundary · timeout/throw ⇒ SKIP (D53) · the client's `usePluginDisplayText` gate + result cache | the verb's own int suite (`tests/server/domain/plugin/verbs/transform-for-display.int.test.ts`) + the membrane capability pins |
 | 15 | U8 — ecosystem verbs | URL install (fetch→same funnel+consent; egress-guarded) · update check + one-click `upgradePlugin` (#615 re-consent, never silent) · `databank.ingest` capability + host fn (D107 op) · card extension fields (`data.extensions.plugin_<slug>`, D-entry with the build) · the dynamic palette source for per-command rows | each verb's own sweep-class int tests + the capability pins + the egress wall |
 | 16 | U5 — `ui.page` + the Extensions section | `PLUGIN_SURFACE_ANCHORS` gains `page` · the tenth `SECTION_IDS` member `extensions` walking the FULL §6a playbook (`client-architecture-lockdown.md`): tuple + rail order · persisted-state sanitizers (`isSectionId`, `panelOverrides`) · the co-located `SectionDefinition` + front-door export + door row · the drill selection store (G27 mint) · `__orb.nav` vocabulary · the `ct-data-providers` door mirror · the mobile fate (`sheet`) · chrome self-derivation verified-not-edited · DISTINCT placeholder copy · the rail prose in `UI-Architecture-and-Layout.md` §4.1 — PLUS the page switcher + the page-scale shell + the teaching empty state + the BROWSE-GENRE vocabulary nodes (`grid` · `masterDetail` · `searchBar`/`filters`, §4.5b — incl. any new house media-tile composite they require) | tsc (total Record) + G1/G2/G8 + the placeholder-copy gate + `empty-state-has-action` + a CT on the switcher/empty + the exhaustive node-renderer Record |
 | 17 | U8 — `character.ingest` | capability member (sibling of `databank.ingest`, same consent grammar) + host fn over the character-create/import op (a canon write under the installer, riding the import domain's ContentChanged-emitting path so the indexer auto-runs — `AGENTS.md` §6 import row) + `HOST_FUNCTION_CAPABILITY` row + both vitest pins + its consent line | the capability pins + sweep-class int tests (installer-owned rows only) + the existing import-domain belts |
+
+### §7a DATED REPAIRS — premises this doc asserted that the tree refuted (never a silent rewrite)
+
+**2026-08-28 · seam 14's "applied at the render path" was a SERVER-side reading, and there is no server-side
+render path.** The house display pipeline is CLIENT-side and SYNCHRONOUS — `renderMessageForDisplay` at
+`packages/client/src/lib/message-render.ts:91` runs macros → DISPLAY regex → markdown-fix on the way to the
+DOM — and the server serves canon `MessageView.content` (`packages/contracts/src/chat/messages.ts:201`) with
+no rendering stage of its own. A plugin display transform is a GUEST INVOKE: async, and resident server-side.
+So it can be hooked into neither that sync function nor the D50 `PromptTransform` registry (which is
+prompt-side, two fixed points, and never touches served message text).
+
+**The ruling SURVIVES; its INPUT changed** (owner ruling 2026-08-28, ARM 2 approved). The seam is still a
+D50-shaped registration with a per-message budget and D53's timeout ⇒ SKIP posture. What moved is WHERE the
+text comes from: the viewer's client submits the row it has ALREADY rendered, the server runs that caller's own
+plugins' display transforms over it, and the answer goes straight to the markdown renderer.
+
+*Why that arm and not "the server re-reads canon and the client re-renders the result":* (a) laws 6/7 are
+satisfied BY CONSTRUCTION — the plugin's output never re-enters a macro plane, so no `neutralizeMacros` is
+needed and the row's own legitimate `{{char}}` is not collateral (the other arm would have had to neutralize
+the whole row); (b) it is strictly leak-free — a guest can only ever see text the installer's client already
+had on screen, which is NARROWER than the `chat.read` grant the plugin holds, and it needs no new cross-domain
+read op; (c) "applied at the render path" then becomes literally true.
+
+**THE ORDERING IS LAW, recorded here:** member macros → member DISPLAY regex → plugin display transforms →
+markdown. Stated consequence: **a member's own DISPLAY regex scripts cannot post-process a plugin annotation.**
+That is the recorded ordering, not an accident — a viewer's regex is about the canon they were shown, and a
+plugin's annotation is decoration layered on top of it.
+
+**The accepted costs, stated:** the submitted text is client-supplied (reflected ONLY to the same caller; no
+authority, no persistence and no other viewer's render derives from it, and it is byte-capped at the transport
+boundary), and a row paints untransformed for one round-trip before the annotation swaps in — the flank law's
+posture, content first and decoration when ready, which is also the failure posture. Byte-identity when off is
+kept by `plugin.listDisplayTransforms`: zero registrants means zero per-row calls. Result caching is the query
+key `(chatId, messageId, text)` — the TEXT is the content identity, so an edit/swipe gets a fresh transform and
+a virtual-scroll repaint of the same bytes does not.
+
+**2026-08-28 · §5.15's "a `macros.register` host fn whose handler is a guest invoke" needs one mechanical
+correction.** `MacroHandler` in `@orb/kit/macro` is SYNCHRONOUS by contract and a guest invoke is not, so the
+guest is invoked ONCE PER TURN before the render and its (neutralized) answer becomes the macro's BODY — which
+is exactly what "kit/macro stays the ONE engine; plugin macros are DATA registered into it" means once it is
+mechanised. The consequence, named rather than hidden: **a plugin macro takes no ARGUMENTS** (an arg-taking
+macro would need the engine to call back into the guest at substitution time — the async call it cannot make).
+That is ST's own `registerMacro(key, value)` shape, and an arg-taking variant is a separate design about making
+the engine async, not a widening of this row.
 
 ## §8 The phase plan (stop-anywhere; every row owner-testable)
 

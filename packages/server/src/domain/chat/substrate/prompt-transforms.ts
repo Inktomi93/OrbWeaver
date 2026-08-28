@@ -9,7 +9,15 @@
 // The registry is created ONCE at the composition root; its `apply` is injected as `ChatContext.promptTransforms`
 // (a chat with zero registered transforms is byte-identical to the seam being absent — the null-op precedent).
 
-import type { DurableChatBusEvent, PromptTransform, PromptTransformEnv, PromptTransformPoint } from "@orb/contracts/chat";
+import type {
+  DurableChatBusEvent,
+  PromptTransform,
+  PromptTransformEnv,
+  PromptTransformOutcome,
+  PromptTransformPoint,
+  PromptTransformResult,
+} from "@orb/contracts/chat";
+import { PROMPT_TRANSFORM_ABORT_REASON_MAX } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { PromptTransformRegistry } from "../contract/context.ts";
@@ -19,23 +27,39 @@ import type { PromptTransformRegistry } from "../contract/context.ts";
  *  admin floor (AppSettings.promptTransformDeadlineMs); compose injects a live getter, this is the fallback. */
 export const PROMPT_TRANSFORM_DEADLINE_MS = 250;
 
-/** Run ONE transform under the deadline. Resolves `{ ok: true, text }` on a clean in-time render, or
- *  `{ ok: false }` on a timeout OR a throw — both SKIP (the caller keeps the prior draft). The timer is
- *  always cleared so a fast render never leaves the event loop pinned. */
-async function applyBounded(
-  transform: PromptTransform,
-  draft: string,
-  env: PromptTransformEnv,
-  deadlineMs: number,
-): Promise<{ readonly ok: true; readonly text: string } | { readonly ok: false }> {
+/** One bounded apply's three outcomes — the shape that keeps "it didn't run" and "it said no" apart:
+ *   `ok`      — a clean in-time render; `text` is the new draft.
+ *   `skip`    — a timeout OR a throw (D53): the caller keeps the prior draft and warns.
+ *   `abort`   — the transform DELIBERATELY refused the generation (§5.14); the fold stops and the turn does. */
+type BoundedOutcome = { readonly kind: "ok"; readonly text: string } | { readonly kind: "skip" } | { readonly kind: "abort"; readonly reason: string };
+
+const SKIP: BoundedOutcome = { kind: "skip" };
+
+/** Classify a transform's raw answer. A plain string is the rewritten draft; a `{abort}` object is the typed
+ *  refusal, its reason capped here (it is untrusted text — a guest writes it — and it reaches a refusal
+ *  surface). Anything else is treated as a SKIP rather than trusted: a registrar that returns garbage has
+ *  malfunctioned, and a malfunction is exactly the D53 case, never an abort. */
+function classify(answer: PromptTransformOutcome): BoundedOutcome {
+  if (typeof answer === "string") {
+    return { kind: "ok", text: answer };
+  }
+  if (typeof answer.abort === "string") {
+    return { kind: "abort", reason: answer.abort.slice(0, PROMPT_TRANSFORM_ABORT_REASON_MAX) };
+  }
+  return SKIP;
+}
+
+/** Run ONE transform under the deadline. The timer is always cleared so a fast render never leaves the event
+ *  loop pinned. A timeout and a throw both resolve to `skip` — the deadline can never manufacture an abort. */
+async function applyBounded(transform: PromptTransform, draft: string, env: PromptTransformEnv, deadlineMs: number): Promise<BoundedOutcome> {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<{ readonly ok: false }>((resolve) => {
-    timer = setTimeout(() => resolve({ ok: false }), deadlineMs);
+  const deadline = new Promise<BoundedOutcome>((resolve) => {
+    timer = setTimeout(() => resolve(SKIP), deadlineMs);
   });
   try {
-    return await Promise.race([transform.apply(draft, env).then((text) => ({ ok: true, text }) as const), deadline]);
+    return await Promise.race([transform.apply(draft, env).then(classify), deadline]);
   } catch {
-    return { ok: false };
+    return SKIP;
   } finally {
     if (timer !== undefined) {
       clearTimeout(timer);
@@ -52,24 +76,32 @@ export function createPromptTransformRegistry(
 ): PromptTransformRegistry {
   const byId = new Map<string, PromptTransform>();
 
-  const apply = async (point: PromptTransformPoint, chatId: ChatId, draft: string, vars: Record<string, string>): Promise<string> => {
+  const apply = async (point: PromptTransformPoint, chatId: ChatId, draft: string, vars: Record<string, string>): Promise<PromptTransformResult> => {
     const ordered = [...byId.values()].filter((t) => t.point === point).sort((a, b) => a.order - b.order);
     if (ordered.length === 0) {
-      return draft;
+      return { aborted: false, text: draft };
     }
     const env: PromptTransformEnv = { chatId, vars };
     const skipped: string[] = [];
     // Fold the ordered transforms sequentially (each sees the prior's output — the ordered-step semantics 04 §6
     // pins). An async chain (not a for-await loop) so the inherently-sequential await needs no suppression;
     // depth = transform count (bounded — automation rules + a compose-static plugin set).
-    const foldFrom = async (index: number, current: string): Promise<string> => {
+    //
+    // AN ABORT STOPS THE FOLD, and that is the point: a later transform must never see (nor rewrite) the draft
+    // of a turn an earlier one already refused, and the caller must learn WHICH transform refused. The skip
+    // warnings collected before the abort are still emitted — they happened.
+    const foldFrom = async (index: number, current: string): Promise<PromptTransformResult> => {
       const transform = ordered[index];
       if (transform === undefined) {
-        return current;
+        return { aborted: false, text: current };
       }
       const result = await applyBounded(transform, current, env, deadlineMs());
-      if (result.ok) {
+      if (result.kind === "ok") {
         return foldFrom(index + 1, result.text);
+      }
+      if (result.kind === "abort") {
+        getLog().info({ chatId, transformId: transform.id, point }, "chat: prompt transform ABORTED the generation");
+        return { aborted: true, transformId: transform.id, reason: result.reason };
       }
       getLog().warn({ chatId, transformId: transform.id, point }, "chat: prompt transform SKIPPED (deadline/throw) — draft unchanged");
       skipped.push(transform.id);

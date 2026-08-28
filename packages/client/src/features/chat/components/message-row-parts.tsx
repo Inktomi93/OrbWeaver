@@ -85,6 +85,9 @@ export function resolveRowContent(args: {
       speakerThemes={args.speakerThemes}
       narratorVoiced={args.narratorVoiced}
       cardOrigin={{ chatId: args.message.chatId, characterId: args.message.characterId }}
+      // The COMMITTED row identity the plugin display seam needs (U6, seam 14). Only committed rows carry one:
+      // a ghost row has no settled `MessageView`, so it renders untransformed and always did.
+      pluginDisplayRow={{ chatId: args.message.chatId, messageId: args.message.id }}
     />
   );
 }

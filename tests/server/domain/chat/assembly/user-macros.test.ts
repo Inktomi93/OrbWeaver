@@ -245,3 +245,68 @@ describe("assembly/user-macros — preset + game defs (owner ruling #20 / the 20
     expect(render(b, "mood")).toBe("The game tone is hopeful.");
   });
 });
+
+// ── The THIRD definition home: PLUGIN macros (plugin-ui-plane §5.15, U6) ──────────────────────────────────
+// A plugin macro is a RESOLVED VALUE (the plugin plane invoked its guest once, under the assembly deadline)
+// handed to this builder as an ordinary `UserMacroDef` with a literal body. These pins own the two things the
+// builder decides about that home: that a plugin macro SUBSTITUTES (the owner's U6 test, at the engine), and
+// that it neither shadows nor is shadowed by the game↔preset rule it is deliberately outside of.
+
+/** A resolved plugin macro exactly as `PluginMacroRegistry.resolveForTurn` emits one: host-namespaced name,
+ *  no args, no inputs, the guest's (neutralized) answer as the body. */
+function pluginDrawDef(body = "Ace of Cups"): UserMacroDef {
+  return { name: "plugin_oracle_deck_draw", description: "a card", args: [], body, inputs: [], strict: false };
+}
+
+describe("assembly/user-macros — plugin macros (the third home, U6 §5.15)", () => {
+  test("a plugin macro SUBSTITUTES through the ONE engine and is attributed to the plugin source", () => {
+    const b = unwrap(
+      buildTurnUserMacros({ preset: { id: "preset-1", defs: [] }, plugin: { id: "chat_1", defs: [pluginDrawDef()] }, values: {}, prng: () => 0 }),
+    );
+    // THE OWNER TEST: the macro renders its resolved value at the same seam every preset/game macro uses.
+    expect(render(b, "plugin_oracle_deck_draw")).toBe("Ace of Cups");
+    // …and the browser tells the truth about where it came from (never "this preset").
+    expect(b.registry.getMetadata("plugin_oracle_deck_draw")?.source).toEqual({ kind: "plugin", id: "chat_1" });
+    expect(b.rejected).toEqual([]);
+  });
+
+  test("a PLUGIN-ONLY turn still builds a registry (the fast-path null is about having NO defs at all)", () => {
+    // Before U6 the null fast path keyed on preset+game alone; a turn whose only macros are a plugin's must
+    // not fall back to the process singleton, or the macro would render as raw `{{…}}` bytes in the prompt.
+    expect(buildTurnUserMacros({ preset: { id: "preset-1", defs: [] }, values: {}, prng: () => 0 })).toBeNull();
+    expect(
+      buildTurnUserMacros({ preset: { id: "preset-1", defs: [] }, plugin: { id: "chat_1", defs: [pluginDrawDef()] }, values: {}, prng: () => 0 }),
+    ).not.toBeNull();
+  });
+
+  test("plugin macros register LAST — an author who deliberately spells the same name keeps their own def", () => {
+    // The namespace makes a collision essentially impossible, but the ORDER is the ruling when it happens:
+    // kit refuses a name already taken, so the human author's definition is the one that renders.
+    const authored: UserMacroDef = { name: "plugin_oracle_deck_draw", description: "mine", args: [], body: "MY OWN", inputs: [], strict: false };
+    const b = unwrap(
+      buildTurnUserMacros({
+        preset: { id: "preset-1", defs: [authored] },
+        plugin: { id: "chat_1", defs: [pluginDrawDef()] },
+        values: {},
+        prng: () => 0,
+      }),
+    );
+    expect(render(b, "plugin_oracle_deck_draw")).toBe("MY OWN");
+    expect(b.registry.getMetadata("plugin_oracle_deck_draw")?.source).toEqual({ kind: "preset", id: "preset-1" });
+  });
+
+  test("a plugin macro is OUTSIDE the game↔preset shadow rule — all three homes coexist", () => {
+    const b = unwrap(
+      buildTurnUserMacros({
+        preset: { id: "preset-1", defs: [greetingDef()] },
+        game: { id: "chat_1", defs: [gameMoodDef()] },
+        plugin: { id: "chat_1", defs: [pluginDrawDef()] },
+        values: {},
+        prng: () => 0,
+      }),
+    );
+    expect(b.registry.get("greeting")).toBeDefined();
+    expect(b.registry.get("mood")).toBeDefined();
+    expect(render(b, "plugin_oracle_deck_draw")).toBe("Ace of Cups");
+  });
+});

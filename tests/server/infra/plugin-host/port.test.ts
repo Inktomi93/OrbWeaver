@@ -1274,7 +1274,7 @@ describe("membrane — host-operation liveness cancellation", () => {
       bridge: {
         ...base,
         llm: {
-          quiet: (_prompt, liveness) =>
+          quiet: (_prompt, _opts, liveness) =>
             new Promise<{ readonly text: string }>((resolve, reject) => {
               witness.started += 1;
               const timer = setTimeout(() => {

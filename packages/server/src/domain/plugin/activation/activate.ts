@@ -34,6 +34,12 @@ function register(ctx: PluginContext, instance: PluginInstance, invoke: PluginIn
     if (instance.events.length > 0) {
       handles.push(ctx.ops.registrar.subscribeEvent(instance.events, invoke, scope));
     }
+    // Macros aggregate the same way (ONE registry entry per plugin — the per-plugin ceiling and the per-turn
+    // read are both per-plugin); a plugin with no `macros.register` registers nothing. DISPLAY transforms have
+    // no registrar at all: like surfaces, they are read off the resident instance by their own verb.
+    if (instance.macros.length > 0) {
+      handles.push(ctx.ops.registrar.registerMacros(instance.macros, invoke, scope));
+    }
   } catch (err) {
     for (const handle of handles) {
       handle.unregister();

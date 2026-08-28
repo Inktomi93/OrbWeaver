@@ -78,11 +78,14 @@ export type MacroCategory = (typeof MACRO_CATEGORIES)[number];
 export const MACRO_ARG_TYPES = ["string", "number", "boolean"] as const;
 export type MacroArgType = (typeof MACRO_ARG_TYPES)[number];
 
-/** Where a non-builtin macro came from — the macro browser names it.
- *  Absent on a metadata record ⇒ a builtin. `id` is the owning preset id / game chat id as a string
- *  (kit stays below the branded-id homes). */
+/** Where a non-builtin macro came from — the macro browser names it. Absent on a metadata record ⇒ a builtin.
+ *  `id` is the owning preset id / game chat id / plugin slug as a string (kit stays below the branded-id homes).
+ *  `plugin` joined at U6 (plugin-ui-plane §5.15): a plugin macro is authored by neither a preset nor a game, and
+ *  labelling it as either would tell a person to edit a surface that does not contain it. */
+export const MACRO_SOURCE_KINDS = ["preset", "game", "plugin"] as const;
+export type MacroSourceKind = (typeof MACRO_SOURCE_KINDS)[number];
 export interface MacroSourceRef {
-  readonly kind: "preset" | "game";
+  readonly kind: MacroSourceKind;
   readonly id: string;
 }
 

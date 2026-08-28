@@ -25,12 +25,13 @@
 import {
   NET_HOSTS_MAX,
   PLUGIN_CAPABILITIES,
+  PLUGIN_DISPLAY_TEXT_MAX_CHARS,
   PLUGIN_LOG_LIST_MAX_LIMIT,
   PLUGIN_SURFACE_ID_RE,
   pluginNetHostSchema,
   pluginSlugSchema,
 } from "@orb/contracts/plugin";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, MessageId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
@@ -39,6 +40,9 @@ const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
 // Lax like the chat router's chatId (leak-free gating is the service's `resolveChatAuthority`, not a strict
 // TypeID parse that would distinguish malformed-vs-not-found).
 const chatIdSchema = brandedId<ChatId>();
+// Same laxity, same reason: the display round-trip never READS the row, so a strict TypeID parse would only
+// distinguish malformed-from-absent for an id the guest merely sees as its `env`.
+const messageIdSchema = brandedId<MessageId>();
 const grantSchema = z.array(z.enum(PLUGIN_CAPABILITIES));
 /** A surface / action id — the plugin-local ident grammar (`host.ui.register`'s id, §4.2). Defense-in-depth at
  *  the wire edge; the verb still resolves the surface/handler's actual existence off the caller's own instance. */
@@ -146,5 +150,18 @@ export const pluginRouter = t.router({
         actionId: input.actionId,
         values: input.values,
       }),
+    ),
+
+  // ── The DISPLAY-transform round-trip (plugin-ui-plane seam 14, U6). Both are sweep-EXEMPT for the SAME
+  //    reason `listSurfaces` is: neither takes a foreign id. `transformForDisplay` takes a chatId + messageId,
+  //    but it READS nothing with them — they are handed to the guest as its `env`, and the only text in play is
+  //    text the caller's own client supplied and only the caller receives back. Nothing is persisted, and no
+  //    authority is derived from any input; the gate is the owner-scoped read of the caller's own plugin rows.
+  listDisplayTransforms: authedProcedure.query(({ ctx }) => ctx.services.plugin.listDisplayTransforms({ caller: ctx.auth })),
+
+  transformForDisplay: authedProcedure
+    .input(z.object({ chatId: chatIdSchema, messageId: messageIdSchema, text: z.string().max(PLUGIN_DISPLAY_TEXT_MAX_CHARS) }))
+    .query(({ ctx, input }) =>
+      ctx.services.plugin.transformForDisplay({ caller: ctx.auth, chatId: input.chatId, messageId: input.messageId, text: input.text }),
     ),
 });
