@@ -68,6 +68,7 @@ import {
   extensionsSection,
   pluginChatFlankSurface,
   pluginChatSettingsSection,
+  pluginCommandPaletteSource,
   pluginCommandsChrome,
   pluginDialogModal,
   pluginDistributeSection,
@@ -111,6 +112,7 @@ import type {
   ChatSettingsSectionContribution,
   ChatSurfaceContribution,
   CollectionContribution,
+  CommandPaletteSource,
   ContextRegionDef,
   ContextTabDef,
   MessageToolsRenderer,
@@ -123,6 +125,7 @@ import {
   assembleChrome,
   assertSettingsKeyPartition,
   ChromeRegistryProvider,
+  CommandPaletteSourceRegistryProvider,
   MessageToolsRendererRegistryProvider,
   MODAL_SLOT_IDS,
   ModalRegistryProvider,
@@ -250,6 +253,12 @@ const slashCommands = createContributorRegistry<SlashCommandContribution>("slash
   // plugin claims a top-level token and the door never grows per install.
   ...pluginSlashCommands,
 ]);
+
+// U8 (#679, §4.5/§5 row 9): the DYNAMIC palette sources — first-party contributors that fan RUNTIME-derived
+// rows (a plugin's registered commands, read per-caller) into first-class command-palette rows. One member
+// today; like every contributor family, the door does not grow when a person installs a plugin (the per-plugin
+// fan lives inside the source's `useRows` off the caller's own `plugin.listCommands`).
+const commandPaletteSources = createContributorRegistry<CommandPaletteSource>("command-palette-sources", [pluginCommandPaletteSource]);
 
 // The character-detail contributor seam (§6c): EMPTY but typed — the door → factory → editor-body anchor
 // path is compiled and exercised with zero contributions; the agents feature appends its card-evolution
@@ -424,7 +433,9 @@ export function AuthedApp(): ReactElement {
             <SettingsSectionRegistryProvider value={settingsSections}>
               <MessageToolsRendererRegistryProvider value={messageToolsRenderers}>
                 <SlashCommandRegistryProvider value={slashCommands}>
-                  <AppRoot />
+                  <CommandPaletteSourceRegistryProvider value={commandPaletteSources}>
+                    <AppRoot />
+                  </CommandPaletteSourceRegistryProvider>
                 </SlashCommandRegistryProvider>
               </MessageToolsRendererRegistryProvider>
             </SettingsSectionRegistryProvider>
