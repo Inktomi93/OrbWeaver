@@ -20,6 +20,7 @@ import { createGetSurfaceState } from "./verbs/get-surface-state.ts";
 import { createGetUiBundle } from "./verbs/get-ui-bundle.ts";
 import { createInstall } from "./verbs/install.ts";
 import { createInstallForAllUsers } from "./verbs/install-for-all-users.ts";
+import { createInstallFromUrl } from "./verbs/install-from-url.ts";
 import { createInvokeUiAction } from "./verbs/invoke-ui-action.ts";
 import { createInvokeUiCommand } from "./verbs/invoke-ui-command.ts";
 import { createListCommands } from "./verbs/list-commands.ts";
@@ -27,6 +28,7 @@ import { createListDisplayTransforms } from "./verbs/list-display-transforms.ts"
 import { createListDistributedPlugins } from "./verbs/list-distributed-plugins.ts";
 import { createListPlugins } from "./verbs/list-plugins.ts";
 import { createListSurfaces } from "./verbs/list-surfaces.ts";
+import { createPreviewFromUrl } from "./verbs/preview-from-url.ts";
 import { createReportUiCrash } from "./verbs/report-ui-crash.ts";
 import { createRunSnippet } from "./verbs/run-snippet.ts";
 import { createSetEnabled } from "./verbs/set-enabled.ts";
@@ -36,6 +38,7 @@ import { createUiHostCall } from "./verbs/ui-host-call.ts";
 import { createUninstall } from "./verbs/uninstall.ts";
 import { createUninstallForAllUsers } from "./verbs/uninstall-for-all-users.ts";
 import { createUpgrade } from "./verbs/upgrade.ts";
+import { createUpgradeFromUrl } from "./verbs/upgrade-from-url.ts";
 
 /** `distribution` is a SEPARATE parameter, never folded into {@link PluginContext} (D147 clause (a)): the
  *  per-row verbs must keep having no privilege seam at all, and the two admin distribution verbs must have
@@ -55,12 +58,22 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
   // distributed copy is never a second install path: same trust edge, same consent posture, same owner-scoped
   // uninstall — only the CALLER differs, and it is always the recipient themselves.
   const install = createInstall(ctx);
+  // Hoisted (was inline) so the URL-install/upgrade verbs can DELEGATE to it — the verb-to-verb precedent: a
+  // URL install/upgrade is the SAME funnel + consent + owner-scoped upgrade a file one is, only the byte source
+  // differs (a fetch through the egress guard). No second install path, no second consent story.
+  const upgrade = createUpgrade(ctx, { activate, deactivate });
   const setGrant = createSetGrant(ctx, { activate, deactivate });
   const uninstall = createUninstall(ctx, { deactivate });
   const fanout = { ...distribution, install, setGrant };
   return {
     install,
-    upgrade: createUpgrade(ctx, { activate, deactivate }),
+    upgrade,
+    // U8 seam 15 — the URL-install/update funnel. `previewFromUrl` fetches+parses (the consent-screen + update-
+    // version primitive); `installFromUrl`/`upgradeFromUrl` fetch through the egress guard then delegate to the
+    // funnel above (upgrade keeps #615's reach-widening→disabled wall). All three ride `ctx.fetchBundle`.
+    previewFromUrl: createPreviewFromUrl(ctx),
+    installFromUrl: createInstallFromUrl(ctx, { install }),
+    upgradeFromUrl: createUpgradeFromUrl(ctx, { upgrade }),
     setGrant,
     setEnabled: createSetEnabled(ctx, { activate, deactivate }),
     uninstall,

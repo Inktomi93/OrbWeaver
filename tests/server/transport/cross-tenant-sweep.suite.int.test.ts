@@ -1122,6 +1122,14 @@ const PROBES: readonly Probe[] = [
   //    the returned view). setGrant asks for the widest reach; setEnabled would BOOT A's guest code under the
   //    stranger's principal, which is the confused-deputy case D147 exists to close. ──
   { path: "plugin.upgrade", call: (c, i) => c.plugin.upgrade({ pluginId: i.pluginId, bundleBase64: hostileBundleBase64("alpha-plugin") }) },
+  // ── plugin.upgradeFromUrl (plugin-ui-plane #679 U8, seam 15) — the URL-upgrade twin, owner-scoped the SAME
+  //    way and PROBED for the SAME reason: a stranger holding A's REAL pluginId must NOT_FOUND. The security
+  //    ordering the verb enforces is exactly what this probe pins — the owner-scoped row load runs BEFORE any
+  //    fetch, so a stranger gets NOT_FOUND and the `url` here is NEVER fetched (a dropped pre-check would instead
+  //    make the server fetch on a stranger's behalf AND expose A's row to the #615 upgrade path). The url points
+  //    at an unreachable `.invalid` host precisely to prove it is never reached: if the ownership gate regressed,
+  //    this probe would surface a `plugin_bundle_fetch_failed` (a distinguishable non-NOT_FOUND) and go RED. ──
+  { path: "plugin.upgradeFromUrl", call: (c, i) => c.plugin.upgradeFromUrl({ pluginId: i.pluginId, url: "https://plugins.example.invalid/alpha.zip" }) },
   {
     path: "plugin.setGrant",
     call: (c, i) => c.plugin.setGrant({ pluginId: i.pluginId, grant: ["chat.read", "net.fetch"], acknowledgedNetHosts: ["api.vendor.example"] }),
@@ -1563,6 +1571,10 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // stranger and A's row. Four of the five are therefore PROBED above with A's real pluginId. Only the two
   // that take no foreign id remain exempt:
   "plugin.install": "self-scoped: install mints the CALLER's own row (ownerId = caller.userId) from bytes it was handed — there is no foreign id to probe",
+  "plugin.previewFromUrl":
+    "self-scoped (U8 seam 15): fetches a CALLER-named URL through the egress guard and returns its manifest — READ-ONLY, no owned id, touches no row; the wall is safeFetch's SSRF/private-range denial, not a tenant axis (a stranger can only ever preview a URL they themselves named)",
+  "plugin.installFromUrl":
+    "self-scoped (U8 seam 15): fetches a CALLER-named URL through the egress guard then DELEGATES to install, which mints the CALLER's own row (ownerId = caller.userId) — no foreign id, exactly the self-authority of plugin.install one byte-source over",
   "plugin.list": "self-scoped: takes NO input at all; listOwned filters WHERE owner_id = caller.userId, so there is no id a stranger could aim",
   "plugin.listSurfaces":
     "self-scoped: takes NO input; listOwned filters WHERE owner_id = caller.userId and only the caller's OWN resident instances are consulted, so a stranger's surfaces are never in the result (plugin-ui-plane #679 U1)",

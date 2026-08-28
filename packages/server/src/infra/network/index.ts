@@ -13,6 +13,7 @@ export {
   ANY_HOST,
   EgressBlockedError,
   fetchImageBytes,
+  fetchPluginBundle,
   fetchWebDocument,
   installEgressFirewall,
   privateEgressRanges,
