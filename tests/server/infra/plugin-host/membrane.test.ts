@@ -48,6 +48,7 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
     uiDialogs: string[];
     databankIngests: { name: string; text: string }[];
     characterIngests: Record<string, unknown>[];
+    // @foreign-id-ok(characterId): the fake bridge records the guest's untrusted wire string verbatim (the PluginBridge.character.setCardData param is a bare `string` under the same marker); branding it would diverge from the interface it mirrors.
     cardDataWrites: { characterId: string; data: Record<string, unknown> }[];
     cardDataReads: string[];
     pubsubEmits: { name: string; data: Record<string, unknown> }[];
@@ -59,6 +60,7 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
   const uiDialogs: string[] = [];
   const databankIngests: { name: string; text: string }[] = [];
   const characterIngests: Record<string, unknown>[] = [];
+  // @foreign-id-ok(characterId): the fake bridge records the guest's untrusted wire string verbatim (the PluginBridge.character.setCardData param is a bare `string` under the same marker); branding it would diverge from the interface it mirrors.
   const cardDataWrites: { characterId: string; data: Record<string, unknown> }[] = [];
   const cardDataReads: string[] = [];
   const pubsubEmits: { name: string; data: Record<string, unknown> }[] = [];

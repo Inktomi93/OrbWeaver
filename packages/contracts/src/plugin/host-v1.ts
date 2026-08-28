@@ -246,12 +246,14 @@ export interface PluginHostV1 {
      *  `create`/`update`. NO chat scope, NO host authority — the `storage.kv` posture: a write to the installer's
      *  OWN character is the installer's own reach, not room state, so gating it on `canWrite` would claim a
      *  protection it does not need. */
+    // @foreign-id-ok(characterId): the guest SANDBOX wire surface — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
     setCardData: (characterId: string, data: Record<string, unknown>) => Promise<void>;
     /** Read back this plugin's OWN per-card state (`data.extensions.plugin_<slug>`) from one of the INSTALLER's
      *  OWN characters. capability: `character.card_state`. Same host-stamped-slug + owner-scope walls as
      *  {@link setCardData}: a foreign/absent character rejects leak-free, and a plugin reads only its own key —
      *  never another plugin's `plugin_<otherslug>` field. Returns the stored blob, or `null` when this plugin has
      *  written none on that (owned) character. */
+    // @foreign-id-ok(characterId): the guest SANDBOX wire surface — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
     getCardData: (characterId: string) => Promise<Record<string, unknown> | null>;
   };
 
