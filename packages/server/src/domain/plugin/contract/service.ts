@@ -19,6 +19,7 @@ import type {
   InstallForAllUsersParams,
   InstallPluginParams,
   InvokeUiActionParams,
+  ListDisplayTransformsParams,
   ListDistributedPluginsParams,
   ListPluginsParams,
   ListSurfacesParams,
@@ -26,6 +27,7 @@ import type {
   RunSnippetParams,
   SetPluginEnabledParams,
   SetPluginGrantParams,
+  TransformForDisplayParams,
   UiHostCallParams,
   UninstallForAllUsersParams,
   UninstallPluginParams,
@@ -34,6 +36,7 @@ import type {
 import type {
   DistributedPluginApplication,
   DistributedPluginView,
+  PluginDisplayTransformView,
   PluginFanoutResult,
   PluginLogView,
   PluginSurfaceState,
@@ -343,4 +346,13 @@ export interface PluginService {
    *  the SAME `consecutive_crashes` counter a throwing server handler drives. Owner-scoped (leak-free), so the
    *  worst a caller can do with it is disable their own plugin — which `setEnabled` already lets them do. */
   readonly reportUiCrash: (params: ReportUiCrashParams) => Promise<void>;
+  /** The caller's OWN enabled plugins' registered DISPLAY transforms (plugin-ui-plane seam 14, U6) —
+   *  owner-scoped, no foreign id. The per-row round-trip's BYTE-IDENTITY gate: an empty answer means the
+   *  viewer's transcript makes no `transformForDisplay` calls at all. */
+  readonly listDisplayTransforms: (params: ListDisplayTransformsParams) => Promise<readonly PluginDisplayTransformView[]>;
+  /** Annotate ONE rendered row through the caller's own plugins' display transforms, in order, each under
+   *  `PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS`. A transform that throws or overruns is SKIPPED (D53) — the row
+   *  keeps the text it had, so this verb can never blank or block a message. The submitted text is reflected
+   *  ONLY to this caller; nothing is persisted and no authority derives from it. */
+  readonly transformForDisplay: (params: TransformForDisplayParams) => Promise<{ readonly text: string }>;
 }

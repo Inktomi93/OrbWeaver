@@ -34,7 +34,7 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
-import { Code, Copy, Cpu, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, Undo2 } from "@orb/ui/icons";
+import { Code, Copy, Cpu, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, SmilePlus, Undo2 } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
@@ -44,7 +44,10 @@ import { HIDE_AT_COARSE, ROW_ACTION_INLINE, RowActionsMenu } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { cn, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { startEditingMessage } from "#state";
+import { useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
+import { useToggleReactionMutation } from "../lib/reaction-mutations.ts";
+import { ReactionPicker } from "./reaction-picker.tsx";
 import { VariantWireViewer } from "./variant-wire-viewer.tsx";
 
 interface HideVars {
@@ -186,6 +189,13 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
   const undoContinue = useUndoContinueMutation({ trpc, invalidation });
   const revertContinue = useRevertContinueMutation({ trpc, invalidation });
   const [wireOpen, setWireOpen] = useState(false);
+  // B6 — the reaction picker's open state lives HERE, beside `wireOpen`, for the reason that comment block
+  // gives: a `MenuItem` click closes the menu, so a popup rendered inside the popup would unmount in the
+  // same tick it was asked to open. Both doors below set this one flag.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const toggleReaction = useToggleReactionMutation({ trpc, invalidation });
+  const reactionGroups = useReactionsForVariant(message.chatId, message.selectedVariantId);
+  const viewerSeatId = useViewerSeatId(message.chatId);
   const clusterRef = useRef<HTMLDivElement | null>(null);
 
   const { chatId, id: messageId, role, content, excludedFromPrompt, hasContinuation } = message;
@@ -274,6 +284,14 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
   return (
     <Row ref={clusterRef} gap="field" align="center" justify="end" data-slot="message-actions-row" className={messageActionsRevealClass(messageActions)}>
       {renderModelCredit(modelCredit)}
+      {/* B6 — the FINE door. `ROW_ACTION_INLINE` stands it down at a coarse pointer, where its `MenuItem`
+          twin below is the one door (the #220 coarse collapse, exactly as Edit/Fork use it). Present on
+          EVERY committed row, not only editable ones: reacting to a system notice is legal and harmless,
+          and the applicability question a reaction asks ("is this canon?") is already answered by the row
+          being rendered at all. */}
+      <Button aria-label="Add a reaction" className={ROW_ACTION_INLINE} intent="ghost" onClick={(): void => setPickerOpen(true)} size="icon">
+        <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={SmilePlus} size="sm" />
+      </Button>
       {editable ? (
         // #220 THE COARSE COLLAPSE (row-reveal.ts). At a touch pointer `REVEAL_AT_COARSE` pins this whole
         // cluster ON, and every icon button is a ≥44px box by token construction — measured on --mobile,
@@ -320,6 +338,13 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
             {excludedFromPrompt ? "Unhide from AI" : "Hide from AI"}
           </MenuItem>
         ) : null}
+        {/* B6 — the COARSE door, and by the mirror-parity ruling it is present at EVERY pointer (a
+            coarse-only twin would put the verb in the menu on touch and nowhere on desktop the moment the
+            inline arm is reworked — the same argument the Edit/Fork items above carry). */}
+        <MenuItem onClick={(): void => setPickerOpen(true)}>
+          <Icon icon={SmilePlus} size="sm" />
+          Add a reaction
+        </MenuItem>
         <MenuItem onClick={(): void => void onCopy()}>
           <Icon icon={Copy} size="sm" />
           Copy
@@ -348,6 +373,22 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
       {/* Mounted only once opened — an unopened row builds no query key and no dialog subtree (the viewer's
           own read is `enabled: open`, so this is belt-and-braces on the same gate). */}
       {wireOpen ? <VariantWireViewer chatId={chatId} variantId={message.selectedVariantId} open={wireOpen} onOpenChange={setWireOpen} /> : null}
+      {/* Same mount discipline as the wire viewer: an unopened row builds no picker subtree. */}
+      {pickerOpen ? (
+        <ReactionPicker
+          chatId={chatId}
+          groups={reactionGroups}
+          onOpenChange={setPickerOpen}
+          onPick={(emoji): void => {
+            if (!toggleReaction.isPending) {
+              toggleReaction.mutate({ chatId, variantId: message.selectedVariantId, emoji });
+            }
+          }}
+          open={pickerOpen}
+          variantId={message.selectedVariantId}
+          viewerSeatId={viewerSeatId}
+        />
+      ) : null}
     </Row>
   );
 }

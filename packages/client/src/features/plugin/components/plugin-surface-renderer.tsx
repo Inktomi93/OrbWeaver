@@ -141,6 +141,7 @@ export function PluginSurfaceRenderer({
   spec,
   chatId,
   sink,
+  state: boundState,
 }: {
   readonly pluginId: PluginId;
   readonly surfaceId: string;
@@ -150,6 +151,11 @@ export function PluginSurfaceRenderer({
   readonly chatId?: ChatId;
   /** Tier C only — see {@link PluginSurfaceSink}. */
   readonly sink?: PluginSurfaceSink;
+  /** The binding root to resolve `{ $state }` against, when the surface HAS one that is not the plugin's
+   *  published state — the `tool-card` anchor (U3), whose root is the persisted `ToolCallRecord` of the call
+   *  being rendered (`PluginToolCardState`). Omitted ⇒ the published `getSurfaceState` plane, which is the
+   *  right root for every anchor whose surface is per-(plugin, surface) rather than per-CALL. */
+  readonly state?: Record<string, unknown> | undefined;
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -163,13 +169,16 @@ export function PluginSurfaceRenderer({
   }
   const { data: refs } = useQuery({ ...trpc.assets.resolveBlobRefs.queryOptions({ assetIds: imageIds }), enabled: imageIds.length > 0 });
   const imageUrls = new Map((refs ?? []).map((ref) => [ref.assetId, blobUrl(ref.hash)] as const));
-  // The Tier-S state read. `enabled: sink === undefined` is what keeps the ZERO-NETWORK claim honest for Tier C:
-  // a scripted surface's state lives in its guest, so the server read must not fire at all — not merely be
-  // ignored. (The hook itself is unconditional; only its `enabled` moves, per the rules of hooks.)
-  const { data: state } = useQuery({
+  // The published-plane state read. It fires ONLY for a surface that has NEITHER its own binding root (a
+  // tool-card, U3 — `boundState`) NOR a client-side guest (Tier C, U4 — `sink`): a scripted surface's state lives
+  // in its guest and a card's lives in its call record, so for both the server read must not fire at all — not
+  // merely be ignored. `enabled` disables it (keeping the Tier-C ZERO-NETWORK claim honest and a card query-free),
+  // and `chatId` (row 777) scopes a room-anchored read. (The hook is unconditional; only `enabled` moves.)
+  const { data: publishedState } = useQuery({
     ...trpc.plugin.getSurfaceState.queryOptions({ pluginId, surfaceId, ...(chatId === undefined ? {} : { chatId }) }),
-    enabled: sink === undefined,
+    enabled: sink === undefined && boundState === undefined,
   });
+  const state = boundState ?? publishedState;
   const [values, setValues] = useState<Record<string, string>>(() => {
     const out: Record<string, string> = {};
     if (parsed.success) {

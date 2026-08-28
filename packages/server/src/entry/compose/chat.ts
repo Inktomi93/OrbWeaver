@@ -330,6 +330,11 @@ export interface ChatComposeInput {
    *  registry to chat's own contribution alone (byte-identical no-op, the `rpg`/`expressions` precedent).
    *  Chat's own contributor is ALWAYS present, which is why the ctx field itself is not nullable. */
   readonly teaching?: ChatContext["teaching"] | undefined;
+  /** The per-turn PLUGIN-MACRO resolve (plugin-ui-plane §5.15, U6) — OPTIONAL; absent wires
+   *  `ChatContext.pluginMacros` to null (byte-identical no-op, the `rpg`/`expressions` precedent). Minted at the
+   *  composition root as the plugin-macro registry's `resolveForTurn`, so chat and the plugin plane share ONE
+   *  registry without either importing the other. */
+  readonly pluginMacros?: ChatContext["pluginMacros"] | undefined;
 }
 
 /** The chat compose product: the service + the bus's durable-first emit, surfaced for other producers that
@@ -852,6 +857,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     newMessageId: minter(ID_PREFIX.message),
     newMessageVariantId: minter(ID_PREFIX.messageVariant),
     newMessageAssetId: minter(ID_PREFIX.messageAsset),
+    newMessageReactionId: minter(ID_PREFIX.messageReaction),
     newParticipantId: minter(ID_PREFIX.chatParticipant),
     newInjectionId: minter(ID_PREFIX.chatInjection),
     newEventId: minter(ID_PREFIX.chatEvent),
@@ -1275,6 +1281,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     teaching: [...createChatTeachingContributions(), ...(input.teaching ?? [])],
     // The D50 PromptTransform apply op — the registry's `apply`. Zero registrants ⇒ byte-identical.
     promptTransforms: promptTransformRegistry.apply,
+    // The per-turn plugin-macro resolve (U6). Null ⇒ no plugin host wired (byte-identical no-op).
+    pluginMacros: input.pluginMacros ?? null,
   };
 
   // The budget WINDOW is a live admin knob (nonOwnerLocalComputeBudgetWindowMs) — read per debit so a retune

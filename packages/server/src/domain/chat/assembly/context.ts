@@ -33,6 +33,7 @@ import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
 import type { ApplyRegexReplaceOp, TestRegexKeyOp } from "../contract/context.ts";
+import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { ResolvedPersonas } from "../contract/foreign.ts";
 import type { GuidedSteer } from "../contract/params.ts";
 import { BEFORE_HISTORY_DEPTH, renderInjection } from "./injections.ts";
@@ -777,7 +778,14 @@ async function runSendAuthorTransforms(
   // BEFORE the USER_INPUT regex. Rewrites the draft the WI haystack + the persisted row both see (author-
   // side transform order — D51). Null op / zero registrants ⇒ byte-identical.
   if (ctx.promptTransforms !== null) {
-    text = await ctx.promptTransforms("user_input", input.chatId, text, base.variableValues ?? {});
+    const transformed = await ctx.promptTransforms("user_input", input.chatId, text, base.variableValues ?? {});
+    // §5.14 — a transform may REFUSE the generation rather than rewrite it. Thrown as the coded chat refusal
+    // (not swallowed like a D53 skip): the turn does not happen and the author is told, in the transform's
+    // own words, which is the whole difference between "it said no" and "it timed out".
+    if (transformed.aborted) {
+      throw new ChatOperationError(CHAT_OP_CODES.promptTransformAborted, `a prompt transform aborted this turn: ${transformed.reason}`);
+    }
+    text = transformed.text;
   }
   if (hostScripts.length > 0) {
     // `{{char}}` HERE IS THE ROOM'S, NOT A SPEAKER'S — and that is correct, not a divergence to repair.

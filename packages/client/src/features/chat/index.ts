@@ -40,6 +40,8 @@ export { chatTempChatTile } from "./lib/home-temp-chat-tile.tsx";
 export { imageryTemplatesSection } from "./lib/imagery-templates-section.tsx";
 export { clearJoinParam, readJoinToken } from "./lib/join-token.ts";
 export { memorySettingsSection } from "./lib/memory-settings-section.tsx";
+// B6 — the per-row reaction pills, mounted through chat's own `message-footer` anchor at the door.
+export { chatMessageReactionsSurface } from "./lib/message-reactions-surface.tsx";
 export { newChatModal } from "./lib/new-chat-modal.tsx";
 export { proseSettingsSection } from "./lib/prose-settings-section.tsx";
 export type { ChatLandingSurfaceProps } from "./surfaces/chat-landing-surface.tsx";

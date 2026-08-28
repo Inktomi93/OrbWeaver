@@ -26,6 +26,7 @@ import {
   generateProseBaseline,
   generateSuppressionsBaseline,
   generateTestBaselineManifest,
+  generateTestPresenceBaseline,
   parse,
   runBootChunkRatchet,
   runDbBaselineParity,
@@ -52,6 +53,7 @@ const BASELINES: Readonly<Record<string, (root: string) => number>> = {
   prose: generateProseBaseline,
   suppressions: generateSuppressionsBaseline,
   "test-baseline-manifest": generateTestBaselineManifest,
+  "test-presence": generateTestPresenceBaseline,
 };
 
 const VERBS = [
