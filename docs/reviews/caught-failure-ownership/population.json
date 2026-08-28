@@ -4,11 +4,11 @@
   "totals": {
     "sites": 378,
     "enforced": 375,
-    "reported": 344,
+    "reported": 337,
     "byVerdict": {
-      "deliberate-absorb": 31,
+      "deliberate-absorb": 38,
       "detached-owned": 3,
-      "unproven": 344
+      "unproven": 337
     },
     "byGrammar": {
       "promise": 105,
@@ -1736,15 +1736,15 @@
     {
       "siteId": "packages/server/src/domain/credentials/verbs/test-health.ts::default:catch::1",
       "path": "packages/server/src/domain/credentials/verbs/test-health.ts",
-      "line": 116,
+      "line": 117,
       "column": 7,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "the comment above is the contract — a malformed baseUrl cannot reach `ctx.probeEndpoint` either (its own URL parse fails identically), so `false` here just routes to the normal strike path where the dial reports the real failure. This branch only classifies local-vs-remote; it never decides the health verdict. Ends if the local/LAN classification gains an effect the strike path does not cover.",
+      "markerLine": 114
     },
     {
       "siteId": "packages/server/src/domain/databank/ingest/index.ts::empty:error::1",
@@ -2295,28 +2295,28 @@
     {
       "siteId": "packages/server/src/entry/auth/seam.ts::default:catch::1",
       "path": "packages/server/src/entry/auth/seam.ts",
-      "line": 110,
+      "line": 111,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "a cookie value that fails to percent-decode is not a session token, and `null` here means exactly \"no cookie session\" — the caller's unauthenticated path. A client-supplied malformed header is not an operator event. Ends if a malformed cookie should be distinguished from an absent one.",
+      "markerLine": 108
     },
     {
       "siteId": "packages/server/src/entry/auth/seam.ts::default:catch::2",
       "path": "packages/server/src/entry/auth/seam.ts",
-      "line": 380,
+      "line": 382,
       "column": 7,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 2,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED, and this function's own JSDoc above is the contract — a transport/db fault resolves to `false` so a misbehaving seam can never OPEN the debug gate. Propagating here would turn an infra blip into a 500 on a gate whose only correct failure mode is \"denied\". Ends if the debug gate gains a distinct unavailable state.",
+      "markerLine": 374
     },
     {
       "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::1",
@@ -2737,54 +2737,54 @@
     {
       "siteId": "packages/server/src/infra/auth/config.ts::default:catch::1",
       "path": "packages/server/src/infra/auth/config.ts",
-      "line": 39,
+      "line": 40,
       "column": 7,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed OIDC_ISSUER yields an EMPTY allowlist, which this function's own contract makes FAIL-CLOSED at the resolver — no trusted key source means the signed path is refused, and `jwks_rejected(off-allowlist)` is the operator-visible surface. Widening on a bad URL would be the dangerous arm. Ends if the allowlist stops being fail-closed when empty.",
+      "markerLine": 37
     },
     {
       "siteId": "packages/server/src/infra/auth/password.ts::default:catch::1",
       "path": "packages/server/src/infra/auth/password.ts",
-      "line": 104,
+      "line": 105,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — an undecodable stored hash returns `false` from verify(), which is the same answer as a wrong password, so a malformed row can never authenticate. Distinguishing the two for the caller would be a credential oracle. Ends if verify() gains a typed \"stored credential is corrupt\" arm for an operator surface.",
+      "markerLine": 101
     },
     {
       "siteId": "packages/server/src/infra/crypto/key.ts::default:catch::1",
       "path": "packages/server/src/infra/crypto/key.ts",
-      "line": 79,
+      "line": 81,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED at boot by design — any filesystem fault (permission, read-only, corrupt keyfile) returns null so `createSecretBox(null)` yields a DISABLED box rather than a partial crypto state that could overwrite the only decryption recovery path. The operator sees it as credentials being unavailable, never as silent re-keying. Ends if boot gains a channel that can refuse startup on a crypto fault.",
+      "markerLine": 63
     },
     {
       "siteId": "packages/server/src/infra/crypto/key.ts::empty:catch::1",
       "path": "packages/server/src/infra/crypto/key.ts",
-      "line": 42,
+      "line": 43,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "a non-decodable key is INDISTINGUISHABLE from a wrong-length one here, and both must reach the same null — the 32-byte check below is the validator and the file header states the contract (degrade to a DISABLED box, never throw at boot). Ends if decode gains a failure the caller must report separately.",
+      "markerLine": 37
     },
     {
       "siteId": "packages/server/src/infra/extraction/loaders/pdf.ts::empty:catch::1",
