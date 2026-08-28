@@ -7,8 +7,10 @@
 // Flow: `parseBundle` (unzip+validate the untrusted bytes — throws `ManifestInvalidError` on a bad
 // zip/bomb/manifest) → the grant ⊆ declared check → per-owner slug-collision check → store the WHOLE bundle
 // in the caller's CAS (kind `"plugin"`) → insert a `disabled` row (enabling is a second explicit act, like
-// rules). The row lands `origin:"upload"` (the reserved single-arm — a future catalog fetcher feeds the SAME
-// bundle funnel).
+// rules). The bundle funnel is SOURCE-AGNOSTIC: the CALLING verb states where the bytes came from (`source`,
+// U8 2b) and this verb records it verbatim — absent ⇒ a file upload (`origin:"upload"`, no `sourceUrl`);
+// `installFromUrl` passes `{ origin:"url", sourceUrl }` so a URL install records an HONEST origin + the URL the
+// update-check re-fetches. The db CHECK enforces the `origin ⟺ sourceUrl` pairing.
 
 import { CapabilityNotGrantedError, PluginAlreadyInstalledError } from "../contract/errors.ts";
 import type { InstallPluginParams } from "../contract/params.ts";
@@ -18,7 +20,10 @@ import { normalizeGrant, ungrantableCapabilities } from "../substrate/grants.ts"
 import { PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
 
 export function createInstall(ctx: PluginContext): PluginService["install"] {
-  return async ({ caller, bundle, grant }: InstallPluginParams) => {
+  return async ({ caller, bundle, grant, source }: InstallPluginParams) => {
+    // Where the bytes came from. Absent ⇒ a file upload (the transport `install` proc + the admin fan-out);
+    // `installFromUrl` passes `{ origin:"url", sourceUrl:url }`. The pairing is the db CHECK's to enforce.
+    const { origin, sourceUrl } = source ?? { origin: "upload" as const, sourceUrl: null };
     const { manifest } = parseBundle(bundle);
 
     const ungrantable = ungrantableCapabilities(manifest.capabilities, grant);
@@ -48,7 +53,8 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
       bundleAssetId: stored.assetId,
       grantedCapabilities: granted,
       status: "disabled" as const,
-      origin: "upload" as const,
+      origin,
+      sourceUrl,
       // Nothing to re-consent TO: the owner just chose this grant against this manifest — so no refusal is
       // recorded and there is no host delta to mark. This is also the arm that keeps a REINSTALL honest:
       // uninstall deletes the row, so installing the same slug again mints a fresh one, and the delta has to

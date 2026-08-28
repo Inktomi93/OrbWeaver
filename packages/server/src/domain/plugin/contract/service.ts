@@ -24,6 +24,7 @@ import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { PluginBelts, PluginHostOps, PluginIdentity, PluginInvokeHandler, PluginRegistrationHandle, SnippetGate, UiHostCallGate } from "./ops.ts";
 import type {
   ApplyDistributedPluginsParams,
+  CheckForUpdatesParams,
   GetFrameBodyParams,
   GetPluginLogParams,
   GetSurfaceStateParams,
@@ -47,6 +48,7 @@ import type {
   UiHostCallParams,
   UninstallForAllUsersParams,
   UninstallPluginParams,
+  UpgradeFromStoredUrlParams,
   UpgradeFromUrlParams,
   UpgradePluginParams,
 } from "./params.ts";
@@ -59,6 +61,7 @@ import type {
   PluginLogView,
   PluginSurfaceState,
   PluginSurfaceView,
+  PluginUpdateCheck,
   PluginView,
   SnippetResult,
 } from "./results.ts";
@@ -362,6 +365,16 @@ export interface PluginService {
    *  — #615's re-consent wall applies (reach-widening ⇒ DISABLED). Owner-scoped: a foreign pluginId is a
    *  leak-free NOT_FOUND checked BEFORE any fetch, so a stranger never triggers server egress. NEVER silent. */
   readonly upgradeFromUrl: (params: UpgradeFromUrlParams) => Promise<PluginView>;
+  /** AUTO UPDATE-CHECK (U8 2b — the thing ST's loader does): for the caller's OWN `url`-origin plugins, re-fetch
+   *  each remote manifest through the same egress guard and compare versions. BATCH + SELF-scoped (no id); a
+   *  file install is absent from the result (nothing to check), a fetch/parse failure is a leak-free
+   *  `unreachable`. Read-only — nothing persists. */
+  readonly checkForUpdates: (params: CheckForUpdatesParams) => Promise<readonly PluginUpdateCheck[]>;
+  /** TRUE ONE-CLICK UPGRADE (U8 2b): re-fetch from the plugin's REMEMBERED `source_url` (re-paste-free) and run
+   *  it through {@link upgrade} — #615's reach-widening→disabled wall applies, NEVER silent. Owner-scoped: a
+   *  foreign pluginId is a leak-free NOT_FOUND checked BEFORE any fetch; a file (`upload`) install has no source
+   *  and is a typed `PluginNoSourceUrlError`. */
+  readonly upgradeFromStoredUrl: (params: UpgradeFromStoredUrlParams) => Promise<PluginView>;
   /** RE-CONSENT: replace the confirmed capability subset (⊆ the PERSISTED manifest's declared set). The
    *  explicit act that lets an owner allow a newly-declared capability after an upgrade WITHOUT uninstalling.
    *  Never enables a disabled plugin; a resident instance is restarted so the running grants match the row. */

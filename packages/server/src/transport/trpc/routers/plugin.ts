@@ -120,6 +120,22 @@ export const pluginRouter = t.router({
     .input(z.object({ pluginId: pluginIdSchema, url: bundleUrlSchema }))
     .mutation(({ ctx, input }) => ctx.services.plugin.upgradeFromUrl({ caller: ctx.auth, pluginId: input.pluginId, url: input.url })),
 
+  // ── AUTO UPDATE-CHECK + TRUE ONE-CLICK UPGRADE (plugin-ui-plane #679 U8 2b). BOTH are MUTATIONS for the same
+  //    reason `previewFromUrl`/`upgradeFromUrl` are: each triggers SERVER EGRESS to a plugin's remembered URL,
+  //    and a GET-shaped door onto egress is cacheable + outside the CSRF belt (which covers mutations only).
+  //
+  //    `checkForUpdates` takes NO input — it walks the CALLER's own `url`-origin plugins (`listOwned` filters
+  //    owner_id = caller) and re-fetches each remote manifest through `ctx.fetchBundle` — so it is sweep-EXEMPT
+  //    like `list`/`listSurfaces` (no foreign id). `upgradeFromStoredUrl` takes a FOREIGN pluginId and joins the
+  //    PROBED sweep set exactly like `upgradeFromUrl`: the service loads the owner-scoped row and NOT_FOUNDs a
+  //    stranger BEFORE any fetch (a stranger never triggers egress on someone else's stored URL), and #615's
+  //    reach-widening→disabled re-consent wall applies to the re-fetched bundle unchanged (never a silent update).
+  checkForUpdates: authedProcedure.mutation(({ ctx }) => ctx.services.plugin.checkForUpdates({ caller: ctx.auth })),
+
+  upgradeFromStoredUrl: authedProcedure
+    .input(z.object({ pluginId: pluginIdSchema }))
+    .mutation(({ ctx, input }) => ctx.services.plugin.upgradeFromStoredUrl({ caller: ctx.auth, pluginId: input.pluginId })),
+
   // RE-CONSENT. `grant` is the WHOLE new confirmed subset (not a delta) and `acknowledgedNetHosts` is the
   // caller's echo of the exact `PluginView.netHosts` it displayed — the anti-TOCTOU pin the service refuses on
   // when `net.fetch` is in the grant. Validated with the manifest's OWN hostname grammar (`pluginNetHostSchema`)
