@@ -1931,15 +1931,23 @@ export interface ChatSurfaceContributorStoryProps {
    *  applicability is DATA (automation's needle meter asks "does this room carry a tension score?", which a
    *  sync `when` cannot answer), and the case the flank stack's `empty:hidden` collapse exists for. */
   readonly silent?: boolean;
+  /** A GREEDY contributor: the body is a long single line of prose instead of a two-word stub. The flank
+   *  column's own tenants are content-small (a meter card), so an unbounded column never showed — but the
+   *  seam is open to any feature and, since #679 U2, to third-party plugin surfaces whose text a plugin
+   *  author writes. #776 pins that such a body cannot crush the reading column. */
+  readonly greedy?: boolean;
 }
 
 const CT_SURFACE_CONTRIBUTION_ID = "ct-fake-surface-contribution";
+/** One long, wrappable line — the shape of a caption a contributor is free to write. */
+const CT_GREEDY_BODY =
+  "This contributor writes a long single line of prose into the flank, the way a plugin caption or a wordy status readout does, and it must not be allowed to take the room away from the transcript beside it.";
 
 /** The chat-surface-anchor contributor seam (§6c/M8) LIVE: a single fake `ChatSurfaceContribution` at the
  *  given anchor, registered at a `CtChatContributorSectionRegistry` door in place of the empty registry,
  *  mounted through the REAL `chats` section's `content()` → `ChatContent` → `ChatRoomSurface`/`MessageRow`
  *  anchor-consumer path (chat-room-surface.tsx / message-row.tsx). */
-export function ChatSurfaceContributorStory({ anchor, visible, silent = false }: ChatSurfaceContributorStoryProps): ReactElement {
+export function ChatSurfaceContributorStory({ anchor, visible, silent = false, greedy = false }: ChatSurfaceContributorStoryProps): ReactElement {
   useEffect(() => {
     selectChat(CHAT_ID);
   }, []);
@@ -1955,7 +1963,7 @@ export function ChatSurfaceContributorStory({ anchor, visible, silent = false }:
           id: CT_SURFACE_CONTRIBUTION_ID,
           anchor,
           when: () => visible,
-          body: (): ReactElement | null => (silent ? null : <div data-testid="ct-fake-surface-contribution">fake {anchor}</div>),
+          body: (): ReactElement | null => (silent ? null : <div data-testid="ct-fake-surface-contribution">{greedy ? CT_GREEDY_BODY : `fake ${anchor}`}</div>),
         };
   const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [fakeContribution]);
   return (
