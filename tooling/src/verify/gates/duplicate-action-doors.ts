@@ -94,21 +94,18 @@ function repoRel(sf: SourceFile, root: string): string {
   return abs.startsWith(`${root}/`) ? abs.slice(root.length + 1) : abs;
 }
 
-/** One derivation per Project, not per caller. `run` needs the plane map three times (blindness, census,
- *  exemptions) and each derivation walks every source file; on the real tree that is five whole-workspace
- *  scans for one verdict, and it pushed gate-conformance past its 30s budget. Keyed on the Project object so
- *  a new run (or a conformance mini-project) never reads another run's answer. */
-const PLANE_CACHE = new WeakMap<Project, ReadonlyMap<string, string>>();
-
-/** The memoized plane map for this run. */
-function planesFor(project: Project, root: string): ReadonlyMap<string, string> {
-  const cached = PLANE_CACHE.get(project);
-  if (cached !== undefined) {
-    return cached;
-  }
-  const derived = deriveSectionPlanes(project, root, readSectionIds(project, root));
-  PLANE_CACHE.set(project, derived);
-  return derived;
+/** ONE derivation per PASS, threaded — not memoized. `run` needs the plane map three times (blindness,
+ *  census, exemptions) and each derivation walks every source file; on the real tree that is five
+ *  whole-workspace scans for one verdict, and it pushed gate-conformance past its 30s budget. So it is
+ *  computed once at the top of `run` and passed down.
+ *
+ *  A `WeakMap<Project, …>` memo sat here until 2026-08-28 and was REMOVED (#780, GATE-AUTHORING §12): it was
+ *  correct only because the conformance substrate happened to build a fresh Project per example. That
+ *  substrate now reuses ONE Project across every in-memory example, so a Project-keyed memo would serve a
+ *  PREVIOUS example's plane map — with the gate still passing its own proofs while judging the wrong facts.
+ *  The pass has no identity to key on and needs none: the value's lifetime IS the call. */
+function derivePlanes(project: Project, root: string): ReadonlyMap<string, string> {
+  return deriveSectionPlanes(project, root, readSectionIds(project, root));
 }
 
 /** feature directory → the rail SectionId it owns. Derived from the co-located definitions: a `SectionDefinition`
@@ -147,8 +144,11 @@ function railSectionId(sf: SourceFile, vocab: ReadonlySet<string>): string | und
 
 /** `<plane>::<procedure>` → the distinct component files that invoke it. The ONE derivation; the generator
  *  imports it so the baseline can never be computed by a second spelling. */
-export function doorCensus(project: Project, root: string): ReadonlyMap<string, ReadonlySet<string>> {
-  const planes = planesFor(project, root);
+export function doorCensus(
+  project: Project,
+  root: string,
+  planes: ReadonlyMap<string, string> = derivePlanes(project, root),
+): ReadonlyMap<string, ReadonlySet<string>> {
   const census = new Map<string, Set<string>>();
   for (const sf of project.getSourceFiles()) {
     const rel = repoRel(sf, root);
@@ -192,7 +192,7 @@ function readBaseline(root: string): ReadonlyMap<string, RatchetRow> {
 /** §4.6 — a gate keyed on an exact NAME must detect its own blindness. Both derivations are name-keyed
  *  (`SECTION_IDS`, the `rail`-carrying definition), and either coming back empty would silently regroup
  *  every door under its feature directory while still reporting ✓. Real-tree anchored (§4.5). */
-function judgeBlindness(ctx: GateRunCtx): void {
+function judgeBlindness(ctx: GateRunCtx, planes: ReadonlyMap<string, string>): void {
   if (!fileLoaded(ctx, REAL_TREE_ANCHOR)) {
     return;
   }
@@ -201,7 +201,7 @@ function judgeBlindness(ctx: GateRunCtx): void {
     ctx.report({ file: GATE_SELF, line: 1, column: 0, message: BLIND_VOCAB });
     return;
   }
-  if (planesFor(ctx.project, ctx.root).size === 0) {
+  if (planes.size === 0) {
     ctx.report({ file: GATE_SELF, line: 1, column: 0, message: BLIND_SECTIONS });
   }
 }
@@ -255,8 +255,7 @@ function judgeShrink(ctx: GateRunCtx, census: ReadonlyMap<string, ReadonlySet<st
 }
 
 /** The EXEMPT_PROCEDURES stale arm: a row that no longer absolves a real dual is a loaded gun. */
-function judgeExemptions(ctx: GateRunCtx): void {
-  const planes = planesFor(ctx.project, ctx.root);
+function judgeExemptions(ctx: GateRunCtx, planes: ReadonlyMap<string, string>): void {
   const perPair = new Map<string, Set<string>>();
   for (const sf of ctx.project.getSourceFiles()) {
     const rel = repoRel(sf, ctx.root);
@@ -296,8 +295,10 @@ export const gate: GateDescriptor = {
   fix: FIX,
   scanRoot: (p) => p.startsWith(FEATURES_PREFIX) || p === SECTION_IDS_HOME,
   run: (ctx) => {
-    judgeBlindness(ctx);
-    const census = doorCensus(ctx.project, ctx.root);
+    // ONE plane derivation for the whole pass, threaded to every arm that needs it (see `derivePlanes`).
+    const planes = derivePlanes(ctx.project, ctx.root);
+    judgeBlindness(ctx, planes);
+    const census = doorCensus(ctx.project, ctx.root, planes);
     const baseline = readBaseline(ctx.root);
     const admission = judgeGrowth(ctx, census, baseline);
     ctx.scan({ admitted: admission.admitted, admittedRatified: admission.ratified });
@@ -305,7 +306,7 @@ export const gate: GateDescriptor = {
       return;
     }
     judgeShrink(ctx, census, baseline);
-    judgeExemptions(ctx);
+    judgeExemptions(ctx, planes);
   },
   mustFlag: [
     {
