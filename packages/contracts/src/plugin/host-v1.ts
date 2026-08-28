@@ -217,8 +217,19 @@ export interface PluginHostV1 {
       onAction?: (a: { actionId: string; values: Record<string, string>; chat: ChatHandle | null }) => void | Promise<void>;
     }) => void;
     /** Publish surface STATE (the data the spec's `$state` bindings resolve against). ≤ 16 KiB JSON; replaces
-     *  the whole state; emits the per-user freshness poke. capability: ui.surface */
-    setState: (surfaceId: string, state: Record<string, unknown>) => Promise<void>;
+     *  the whole state; emits the per-user freshness poke. capability: ui.surface
+     *
+     *  `chat` is the OPTIONAL ROOM DIMENSION (plugin-ui-plane #679 row 777, §4.4). Omitted, the state row is
+     *  keyed `(pluginId, surfaceId)` and every room shows the same publication — the U1 shape, and still the
+     *  right one for a settings panel or a cross-room roll-up. Supplied, the row is keyed
+     *  `(pluginId, surfaceId, chatId)` and a room-anchored surface reads only ITS room's row, which is what
+     *  makes a per-room widget say something true about the room you are looking at.
+     *
+     *  It takes a {@link ChatHandle}, NOT a chat id string, for the same reason every other room-scoped host fn
+     *  does: the handle is the host-minted opaque token of the ADMITTED invocation chat, so a guest can only
+     *  name a room this invocation was already admitted to and a forged/stale token fails resolution at the
+     *  membrane. A guest that wants the current room writes `host.ui.setState(id, state, host.chat.current())`. */
+    setState: (surfaceId: string, state: Record<string, unknown>, chat?: ChatHandle) => Promise<void>;
   };
 }
 
@@ -267,3 +278,75 @@ export const HOST_FUNCTION_CAPABILITY = {
   "ui.register": "ui.surface",
   "ui.setState": "ui.surface",
 } as const satisfies Record<HostFunctionRef, PluginCapability>;
+
+// ── The Tier-C PROXY SUBSET (plugin-ui-plane #679 U4, §4.6) ─────────────────────────────────────────────────
+/** The host functions a CLIENT-side scripted guest (`ui.js`, the Tier-C QuickJS worker) may reach, relayed
+ *  through the ONE `plugin.uiHostCall` proc and RE-GATED server-side per call
+ *  (`fn ∈ UI_PROXYABLE_HOST_FUNCTIONS ∩ the caller's own stored grant`). It is a SUBSET of
+ *  {@link HostFunctionRef} — `satisfies` pins every member to a real gated host function, so a renamed or
+ *  removed function fails `tsc` HERE and cannot leave a dangling proxy name behind.
+ *
+ *  WHAT IS IN, and why these: the two canon READS a surface renders from, the installing user's global KV, and
+ *  the plugin's own private KV. Every one is already bounded by a per-call check the server performs anyway
+ *  (owner scope, the KV size/count ceilings, the D16 viewer clamp on canon), and — the load-bearing property —
+ *  every one is reachable through the `PluginBridge` the domain already holds, so proxying them adds a CALLER
+ *  and not one line of new authority.
+ *
+ *  WHAT IS OUT, stated as PRICED WIDENINGS rather than a silent omission (the §5a enablement-sheet idiom) —
+ *  each names what it would cost to admit, so the absence is a decision surface a reviewer can audit:
+ *   - `tools.register` / `transforms.register` / `events.on` / `ui.register` / `ui.setState` — RESIDENT
+ *     REGISTRATIONS. These mint process-lifetime state owned by the SERVER guest (a registry row, a transform
+ *     band slot, a subscriber, a surface record). A client guest is per-mount and terminable; letting it
+ *     register would create residency with no activation to rebuild it from and no deactivate to reap it.
+ *     Not purchasable in this shape at any price — the server half is where residency belongs (§4.6 names the
+ *     first three explicitly).
+ *   - `chat.current` — nothing to resolve: it returns the ADMITTED INVOCATION's chat token, and a proxied call
+ *     has no invocation. The client names its room as `chatId` on the proc instead, and the server verifies
+ *     MEMBERSHIP rather than trusting the claim.
+ *   - `notifications.post` — THE MOST LIKELY FIRST WIDENING. Its per-call bounds already exist (the 60 s
+ *     per-(plugin, chat) notify floor, the domain-side recipient resolve, the 200-char cap); what it lacked
+ *     until row 777 was a membership-verified room for a CLIENT-claimed `chatId`. Row 777's
+ *     `resolveChatAuthority` gate is exactly that, so the sanctioned shape is: admit the claimed chat, then
+ *     call the bridge op under the existing floor. Priced, not built — it is an EFFECT, and this lane's
+ *     tuple is deliberately reads + KV + belted egress.
+ *   - `net.fetch` — OUT ON A STRUCTURAL RECEIPT, not a judgment call, and the receipt is worth stating because
+ *     the natural reading of "already-safe effect fns" includes it. THE FETCH IS NOT ON THE BRIDGE: `safeFetch`
+ *     is the audited SSRF guard and it lives in `infra/network`, which a domain may not import, so `infra`
+ *     PERFORMS every plugin fetch and the bridge carries only the hourly admission (`PluginBridge.admitEgress`,
+ *     whose own header states exactly this division). A proxied `net.fetch` would therefore need a NEW injected
+ *     egress op wired at compose — i.e. a SECOND egress path beside the membrane's, with its own copy of the
+ *     manifest-allowlist plumbing. That is a new trust boundary, and this lane refuses to improvise one. Its
+ *     sanctioned shape, if it is ever wanted, is to widen `PluginBridge` so infra's ONE guarded fetch is
+ *     reachable by both callers — never a parallel path.
+ *   - `chat.applyVariableOps` / `chat.surfaceQuickReply` / `chat.requestTurn` / `worldInfo.upsertEntry` /
+ *     `imagery.generatePicture` / `llm.quiet` — THE AUTHORITY-WRITE CLASS. Each is gated on
+ *     `InvocationChat.canWrite` (the installer must HOST the room), and the membrane's answer when they hold
+ *     the grant but not the authority is NOT a refusal — it is the S4 propose/confirm inbox
+ *     (`bridge.suggest`). So their sanctioned route from a client guest is that SAME posture: raise an ask a
+ *     host confirms, never a direct proxy that would have to re-derive host authority in a second place. A
+ *     direct proxy is the arm this design refuses; the suggest-shaped arm is the one that is priced.
+ *
+ *  Nothing here loses ABILITY: the plugin's SERVER guest reaches every excluded function under the same grant.
+ *  What Tier C gives up is the LATENCY of those calls, which is not what §4.6 bought — it bought
+ *  local-immediate INTERACTION (filtering, hovering, form state), and that needs reads, not writes. */
+export const UI_PROXYABLE_HOST_FUNCTIONS = [
+  "chat.listMessages",
+  "chat.getVariables",
+  "variables.get",
+  "variables.set",
+  "variables.delete",
+  "storage.get",
+  "storage.set",
+  "storage.delete",
+  "storage.list",
+] as const satisfies readonly HostFunctionRef[];
+
+/** One proxyable host-function reference — the `fn` field of `plugin.uiHostCall`. */
+export type UiProxyableHostFunction = (typeof UI_PROXYABLE_HOST_FUNCTIONS)[number];
+
+/** Is this client-supplied string a proxyable host function? The FIRST of the two re-gates
+ *  (`fn ∈ UI_PROXYABLE`); the second is `HOST_FUNCTION_CAPABILITY[fn] ∈ the caller's own stored grant`. Both
+ *  run server-side per call — the client's view of either set is display-only. */
+export function isUiProxyableHostFunction(fn: string): fn is UiProxyableHostFunction {
+  return (UI_PROXYABLE_HOST_FUNCTIONS as readonly string[]).includes(fn);
+}

@@ -16,15 +16,18 @@ import type { PluginContext, PluginDistributionDeps, PluginRegistry, PluginServi
 import { createApplyDistributedPlugins } from "./verbs/apply-distributed-plugins.ts";
 import { createGetPluginLog } from "./verbs/get-plugin-log.ts";
 import { createGetSurfaceState } from "./verbs/get-surface-state.ts";
+import { createGetUiBundle } from "./verbs/get-ui-bundle.ts";
 import { createInstall } from "./verbs/install.ts";
 import { createInstallForAllUsers } from "./verbs/install-for-all-users.ts";
 import { createInvokeUiAction } from "./verbs/invoke-ui-action.ts";
 import { createListDistributedPlugins } from "./verbs/list-distributed-plugins.ts";
 import { createListPlugins } from "./verbs/list-plugins.ts";
 import { createListSurfaces } from "./verbs/list-surfaces.ts";
+import { createReportUiCrash } from "./verbs/report-ui-crash.ts";
 import { createRunSnippet } from "./verbs/run-snippet.ts";
 import { createSetEnabled } from "./verbs/set-enabled.ts";
 import { createSetGrant } from "./verbs/set-grant.ts";
+import { createUiHostCall } from "./verbs/ui-host-call.ts";
 import { createUninstall } from "./verbs/uninstall.ts";
 import { createUninstallForAllUsers } from "./verbs/uninstall-for-all-users.ts";
 import { createUpgrade } from "./verbs/upgrade.ts";
@@ -68,5 +71,12 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
     listSurfaces: createListSurfaces(ctx, registry),
     getSurfaceState: createGetSurfaceState(ctx),
     invokeUiAction: createInvokeUiAction(ctx, registry),
+    // TIER C (U4). `uiHostCall` needs NO registry — it re-gates and calls the bridge directly, so a proxied read
+    // works whether or not the plugin's server guest happens to be mid-invocation. `reportUiCrash` closes over
+    // the SAME `crashPolicy` the resident invoke loop drives, which is what makes a client-side death and a
+    // server-side throw one counter rather than two.
+    uiHostCall: createUiHostCall(ctx),
+    getUiBundle: createGetUiBundle(ctx),
+    reportUiCrash: createReportUiCrash(ctx, crashPolicy),
   };
 }

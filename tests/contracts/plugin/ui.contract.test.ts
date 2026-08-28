@@ -6,6 +6,8 @@
 
 import type { PluginSurfaceSpec } from "@orb/contracts/plugin";
 import {
+  HOST_FUNCTION_CAPABILITY,
+  isUiProxyableHostFunction,
   PLUGIN_NODE_KINDS,
   PLUGIN_ROWS_MAX,
   PLUGIN_SPEC_MAX_BYTES,
@@ -14,6 +16,7 @@ import {
   PLUGIN_SURFACE_ANCHORS,
   PLUGIN_SURFACE_TIERS,
   pluginSurfaceSpecSchema,
+  UI_PROXYABLE_HOST_FUNCTIONS,
 } from "@orb/contracts/plugin";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -25,6 +28,68 @@ test("PLUGIN_SURFACE_ANCHORS is the pinned U0 anchor set — `page` is DEFERRED 
 
 test("PLUGIN_SURFACE_TIERS is the two-tier axis [static, scripted]", () => {
   expect(PLUGIN_SURFACE_TIERS).toEqual(["static", "scripted"]);
+});
+
+// ── Tier C (U4, §4.6) — the PROXY SUBSET, pinned by VALUE ────────────────────────────────────────────────────
+// `satisfies readonly HostFunctionRef[]` makes every member a real host function at compile time, but it says
+// nothing about which ones are in the set — and the membership IS the security property (§9's "capability
+// escalation" row). An ordered `toEqual` is what makes ADDING a member a deliberate, reviewable act rather than
+// a one-line diff nobody notices, which is exactly the reason `PLUGIN_CAPABILITIES` carries the same pin.
+test("UI_PROXYABLE_HOST_FUNCTIONS is the pinned U4 subset — reads + the two KV planes, and nothing else", () => {
+  expect(UI_PROXYABLE_HOST_FUNCTIONS).toEqual([
+    "chat.listMessages",
+    "chat.getVariables",
+    "variables.get",
+    "variables.set",
+    "variables.delete",
+    "storage.get",
+    "storage.set",
+    "storage.delete",
+    "storage.list",
+  ]);
+});
+
+test("the EXCLUSIONS are excluded — residency, authority writes, spend, and egress are unspellable from a client guest", () => {
+  // Named individually rather than asserted as "not in the list", because each is a different refusal with a
+  // different reason recorded at the tuple, and a future widening should have to delete a NAMED line here.
+  const excluded = [
+    // Resident registrations — process-lifetime state owned by the SERVER guest (§4.6 names the first three).
+    "tools.register",
+    "transforms.register",
+    "events.on",
+    "ui.register",
+    "ui.setState",
+    // No invocation to resolve.
+    "chat.current",
+    // The AUTHORITY-WRITE class — each gated on `InvocationChat.canWrite`, whose sanctioned client-side route is
+    // the S4 propose/confirm posture, never a direct proxy.
+    "chat.applyVariableOps",
+    "chat.surfaceQuickReply",
+    "chat.requestTurn",
+    "worldInfo.upsertEntry",
+    "imagery.generatePicture",
+    "llm.quiet",
+    "notifications.post",
+    // STRUCTURAL, not a judgment call: the fetch is not on the `PluginBridge` at all (infra performs it behind
+    // the SSRF guard; the bridge carries only the hourly admission), so proxying it would require a SECOND
+    // egress path. See the tuple's header.
+    "net.fetch",
+  ];
+  for (const fn of excluded) {
+    expect(isUiProxyableHostFunction(fn), fn).toBe(false);
+  }
+  // Together with the ordered pin above, these two tests are exhaustive over `HOST_FUNCTION_CAPABILITY`: 9 in,
+  // 14 out, 23 total.
+  expect(UI_PROXYABLE_HOST_FUNCTIONS.length + excluded.length).toBe(Object.keys(HOST_FUNCTION_CAPABILITY).length);
+});
+
+test("every proxyable fn names a capability — the re-gate has something to check", () => {
+  // The `uiHostCall` grant rung is `HOST_FUNCTION_CAPABILITY[fn] ∈ the stored grant`. A member with no row in
+  // that map would make the lookup `undefined` and the `includes` check silently false-y — this pins that the
+  // situation cannot arise.
+  for (const fn of UI_PROXYABLE_HOST_FUNCTIONS) {
+    expect(HOST_FUNCTION_CAPABILITY[fn], fn).toBeDefined();
+  }
 });
 
 test("PLUGIN_NODE_KINDS is the pinned 17-kind vocabulary in §4.3 order", () => {

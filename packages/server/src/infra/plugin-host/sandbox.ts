@@ -290,8 +290,14 @@ export class Sandbox implements Disposable {
 
   /** Admit an invocation chat (mints a fresh opaque handle token) or clear the scope (`null`). Called before
    *  each resident handler invoke + once for a snippet run; the DOMAIN pre-gated the chat's read authority and
-   *  set `canWrite` from the host-authority check. */
-  setInvocationChat(chat: InvocationChat | null): void {
+   *  set `canWrite` from the host-authority check.
+   *
+   *  RETURNS the minted token (`null` for a cleared scope) so the caller can put it in the invocation's ARGUMENT
+   *  object — the row-777 `onAction({…, chat})` shape. It is handed to exactly one place, `port.invoke`'s
+   *  args-builder application, which drops it into a string that goes straight into the guest; it is never
+   *  returned to a domain, never logged, and never stored. That is the same containment the token already had:
+   *  only the guest and the membrane's `resolveChat` compare it. */
+  setInvocationChat(chat: InvocationChat | null): string | null {
     this.state.chat = chat;
     // The opaque handle token is a SECURITY token — minted from a dedicated CSPRNG (node:crypto randomUUID),
     // NOT the guest id seam (`seams.mintId` backs the guest-callable `orb.host(1).ids.mint()`). A security token
@@ -299,6 +305,7 @@ export class Sandbox implements Disposable {
     // (a test seam, a "reproducible ids" mode) must never make a handle token predictable (INFO-3). Non-load-
     // bearing today (single chat per invocation), but the boundary is the point.
     this.state.token = chat === null ? null : randomUUID();
+    return this.state.token;
   }
 
   private take(handle: QuickJSHandle): QuickJSHandle {

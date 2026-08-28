@@ -7,23 +7,27 @@
 
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginInvokeArgs } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
+import type { UiHostCallGate } from "../substrate/ui-host-call-gate.ts";
 import type { PluginBelts, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle, SnippetGate } from "./ops.ts";
 import type {
   ApplyDistributedPluginsParams,
   GetPluginLogParams,
   GetSurfaceStateParams,
+  GetUiBundleParams,
   InstallForAllUsersParams,
   InstallPluginParams,
   InvokeUiActionParams,
   ListDistributedPluginsParams,
   ListPluginsParams,
   ListSurfacesParams,
+  ReportUiCrashParams,
   RunSnippetParams,
   SetPluginEnabledParams,
   SetPluginGrantParams,
+  UiHostCallParams,
   UninstallForAllUsersParams,
   UninstallPluginParams,
   UpgradePluginParams,
@@ -92,7 +96,7 @@ export interface PluginHostPort {
   /** Invoke a collected guest handler (a tool/transform/event callback) with JSON-encoded args under the
    *  per-invocation budget. `chat` sets the handler's invocation-chat scope (a resident tool runs in the
    *  chat it was called from — the domain resolves read/host authority before threading it; `null` = no scope). */
-  readonly invoke: (instance: PluginInstance, handler: PluginHandlerRef, argsJson: string, chat: InvocationChat | null) => Promise<string>;
+  readonly invoke: (instance: PluginInstance, handler: PluginHandlerRef, argsJson: PluginInvokeArgs, chat: InvocationChat | null) => Promise<string>;
   /** Run an inline snippet: a FRESH transient instance, run once as the caller under the 5 s wall, then
    *  disposed — no residency. The fixed capability profile + the admitted chat scope are the domain's; the port
    *  returns the drained log + a contained `error` (a snippet crash is data, never a resident-crash counter). */
@@ -173,15 +177,24 @@ export type PluginRegistry = Map<PluginId, ResidentPlugin>;
  *  plugin-ui-plane #679 U1). Minted ONCE per service at compose (the resident-registry / suggestion-store
  *  precedent), `ASSUMES(single-replica)`, respawn wipes. The FACTORY (`createPluginSurfaceStateStore`) lives in
  *  `substrate/surface-state.ts` (the SnippetGate/NotifyFloor convention: seam TYPE in contract, factory in
- *  substrate). Keyed by pluginId + surfaceId; cleared per-plugin on deactivate. */
+ *  substrate). Keyed by pluginId + surfaceId + the OPTIONAL chatId (row 777 — the room dimension); cleared
+ *  per-plugin on deactivate.
+ *
+ *  THE `chatId` AXIS IS A KEY, NOT A FILTER. `null` and a chat id name DIFFERENT rows, and neither falls back
+ *  to the other: a plugin that publishes room-wide and a plugin that publishes per-room are making different
+ *  statements ("this is my latest reading" vs "this is this room's reading"), and silently serving the shared
+ *  row to a room-scoped read would make the second statement a lie the moment a plugin did both. A read that
+ *  finds nothing returns `null`, which the anchored fan-out already treats as "stay silent" (§4.9). */
 export interface PluginSurfaceStateStore {
-  /** Replace the whole state for one surface. THROWS over the 16 KiB serialized cap (a rejected guest promise
-   *  upstream) rather than storing a truncated object the renderer would bind by path. */
-  readonly set: (pluginId: PluginId, surfaceId: string, state: Record<string, unknown>) => void;
-  /** The surface's published state, or `null` when nothing has been published (the renderer binds `null` to
-   *  each node's fallback). */
-  readonly get: (pluginId: PluginId, surfaceId: string) => Record<string, unknown> | null;
-  /** Drop every surface's state for one plugin — the deactivate/uninstall sweep (no ghost state). */
+  /** Replace the whole state for one surface (`chatId: null` = the plugin-wide row). THROWS over the 16 KiB
+   *  serialized cap (a rejected guest promise upstream) rather than storing a truncated object the renderer
+   *  would bind by path, and THROWS over the per-plugin key cap (see the factory). */
+  readonly set: (pluginId: PluginId, surfaceId: string, chatId: ChatId | null, state: Record<string, unknown>) => void;
+  /** The surface's published state for that exact key, or `null` when nothing has been published (the renderer
+   *  binds `null` to each node's fallback; the room fan-out renders nothing at all). */
+  readonly get: (pluginId: PluginId, surfaceId: string, chatId: ChatId | null) => Record<string, unknown> | null;
+  /** Drop every surface's state for one plugin, ACROSS EVERY ROOM — the deactivate/uninstall sweep (no ghost
+   *  state; a per-room row is still that plugin's row). */
   readonly clearForPlugin: (pluginId: PluginId) => void;
 }
 
@@ -226,6 +239,11 @@ export interface PluginContext {
    *  It is the ONLY belt on the member-reachable path that speaks in CONCURRENCY; the transport bucket speaks in
    *  requests-per-minute and cannot bound how many contexts one member pins at once. */
   readonly snippetGate: SnippetGate;
+  /** The per-plugin CONCURRENCY belt on `plugin.uiHostCall` (U4) — process-wide state, minted ONCE at compose
+   *  (`createUiHostCallGate`) exactly like the snippet gate and the notify floor. It mirrors the server guest's
+   *  `HOST_CALLS_IN_FLIGHT_MAX`: the transport's rate bucket bounds calls per WINDOW and structurally cannot
+   *  bound how many are RUNNING, which is what a re-rendering scripted surface can turn into a flood. */
+  readonly uiHostCallGate: UiHostCallGate;
 }
 
 /** The deps the SERVER-WIDE DISTRIBUTION verbs close over — a SEPARATE bundle from {@link PluginContext},
@@ -314,4 +332,16 @@ export interface PluginService {
   /** Re-enter a surface's `onAction` under the crash policy (owner-scoped, leak-free). Void — the state update
    *  the handler may publish rides the `pluginSurfaceStateChanged` bus poke to the caller's own client. */
   readonly invokeUiAction: (params: InvokeUiActionParams) => Promise<void>;
+  /** TIER C (U4). The client guest's ONE relay into the membrane: re-gated per call (owner scope → enabled →
+   *  `fn ∈ UI_PROXYABLE_HOST_FUNCTIONS` → the STORED grant → membership on any claimed room → per-fn zod → the
+   *  per-plugin in-flight belt), then run through the SAME `PluginBridge` a server guest's call rides. Returns
+   *  the result as an INERT JSON string (the marshal law at a second boundary). */
+  readonly uiHostCall: (params: UiHostCallParams) => Promise<{ readonly resultJson: string }>;
+  /** TIER C (U4). One owned plugin's `ui.js` source, re-parsed out of the stored bundle through the ONE unzip
+   *  funnel; `null` when the plugin ships no client guest. Owner-scoped twice (the row AND the CAS read). */
+  readonly getUiBundle: (params: GetUiBundleParams) => Promise<string | null>;
+  /** TIER C (U4, §4.9). The client half of the 3-strike crash policy: a terminated/failed client guest feeds
+   *  the SAME `consecutive_crashes` counter a throwing server handler drives. Owner-scoped (leak-free), so the
+   *  worst a caller can do with it is disable their own plugin — which `setEnabled` already lets them do. */
+  readonly reportUiCrash: (params: ReportUiCrashParams) => Promise<void>;
 }

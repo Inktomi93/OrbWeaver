@@ -138,10 +138,14 @@ export interface PluginBridge {
    *  builder closes over the `pluginId` + installer, writes the per-`(pluginId, surfaceId)` in-memory state row
    *  (the S4-suggestion-store precedent — respawn wipes; durable state is the plugin's own `storage.kv` job) and
    *  emits the per-user freshness poke (`pluginSurfaceStateChanged`) so the installer's own client refetches.
-   *  NO chat scope: a v1 surface renders only for its installer, so the state plane is keyed by the plugin the
-   *  guest is, never a room. Authority-agnostic like every bridge op — infra holds no pluginId or Principal. */
+   *
+   *  `chatId` is the ROOM DIMENSION (row 777): `null` ⇒ the plugin-wide row every room shares; a chat id ⇒ the
+   *  per-room row a room-anchored surface reads. It arrives ALREADY ADMITTED, like every other chat-scoped
+   *  bridge op — the membrane resolved the guest's opaque `ChatHandle` against the invocation's one admitted
+   *  token before calling, so infra stays authority-blind and a guest can never name a room it was not admitted
+   *  to. Authority-agnostic like every bridge op — infra holds no pluginId or Principal. */
   readonly ui: {
-    readonly setState: (surfaceId: string, state: Record<string, unknown>) => Promise<void>;
+    readonly setState: (surfaceId: string, state: Record<string, unknown>, chatId: ChatId | null) => Promise<void>;
   };
 }
 

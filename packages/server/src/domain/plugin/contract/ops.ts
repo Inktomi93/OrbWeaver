@@ -17,6 +17,7 @@ import type {
   InvocationChat,
   PluginEventSubscription,
   PluginHandlerRef,
+  PluginInvokeArgs,
   PluginMessageView,
   PluginSuggestedAct,
   PluginToolRegistration,
@@ -31,7 +32,7 @@ import type { ResolveViewerVisibility } from "#domain/chat";
  *  handler's invocation-chat scope — a resident tool runs in the chat it was called from, with the caller's
  *  read/host authority resolved into `canWrite` by the registrar (`null` = no chat scope). The string in/out is
  *  the JSON-safe membrane boundary; the closure also drives the crash counter. */
-export type PluginInvokeHandler = (handler: PluginHandlerRef, argsJson: string, chat: InvocationChat | null) => Promise<string>;
+export type PluginInvokeHandler = (handler: PluginHandlerRef, argsJson: PluginInvokeArgs, chat: InvocationChat | null) => Promise<string>;
 
 /** The deregistration handle a registrar returns — `deactivate`/`uninstall` calls `unregister` so no ghost
  *  tools/transforms/subscriptions survive a disabled/removed plugin. */
@@ -213,15 +214,26 @@ export interface PluginHostOps {
     readonly voidForPlugin: VoidPluginSuggestions;
   };
   /** The declarative UI-surface state seam (`host.ui.setState`, capability `ui.surface` — plugin-ui-plane #679
-   *  U1). `setState` publishes a surface's whole replacement state: the compose op writes the per-(pluginId,
-   *  surfaceId) in-memory state row (the S4-suggestion-store precedent — respawn wipes; durable state is the
-   *  plugin's own `storage.kv` job) and emits the per-user `pluginSurfaceStateChanged` freshness poke so the
-   *  INSTALLER's own client refetches. Keyed by BOTH `pluginId` AND `installerUserId` (the store guard + the
-   *  emit channel), closed over the installer domain-side — a guest names only the surfaceId + state. NO chat
-   *  scope: a v1 surface renders only for its installer. The read half (`plugin.getSurfaceState`) lands with U1's
-   *  read verbs. Wired at compose. */
+   *  U1; the chatId dimension is row 777). `setState` publishes a surface's whole replacement state: the compose
+   *  op writes the per-(pluginId, surfaceId, chatId?) in-memory state row (the S4-suggestion-store precedent —
+   *  respawn wipes; durable state is the plugin's own `storage.kv` job) and emits the per-user
+   *  `pluginSurfaceStateChanged` freshness poke so the INSTALLER's own client refetches. Keyed by `pluginId` AND
+   *  `installerUserId` (the store guard + the emit channel) AND the optional `chatId`; the first two are closed
+   *  over the installer domain-side — a guest names only the surfaceId, the state, and (through an ADMITTED
+   *  opaque handle the membrane resolves) its room. A named bag rather than five positionals: the
+   *  `notifications.post` / `imagery.generatePicture` precedent above — a seam that gains a dimension must not
+   *  gain arity. The read half (`plugin.getSurfaceState`) lands with U1's read verbs. Wired at compose. */
   readonly ui: {
-    readonly setState: (pluginId: PluginId, installerUserId: UserId, surfaceId: string, state: Record<string, unknown>) => Promise<void>;
+    readonly setState: (req: {
+      readonly pluginId: PluginId;
+      readonly installerUserId: UserId;
+      readonly surfaceId: string;
+      /** `null` = the plugin-wide row every room shares; a chat id = that room's own row (row 777). ALREADY
+       *  ADMITTED — the membrane resolved the guest's opaque handle against the invocation's one token, so the
+       *  domain never re-derives which rooms a guest may name. */
+      readonly chatId: ChatId | null;
+      readonly state: Record<string, unknown>;
+    }) => Promise<void>;
   };
   /** The runtime registrar seams (PL-A tool-use, D50 transform, event subscribe). Each takes a collected
    *  registration + the per-handler invoker + the per-activation {@link PluginActivationScope} (slug for

@@ -383,3 +383,38 @@ export const pluginSurfaceRegistrationMetaSchema = z.object({
   spec: pluginSurfaceSpecSchema.optional(),
 });
 export type PluginSurfaceRegistrationMeta = z.infer<typeof pluginSurfaceRegistrationMetaSchema>;
+
+// ── Tier C — the `plugin.uiHostCall` WIRE bounds (U4, §4.6/§9) ────────────────────────────────────────────────
+//
+// The client guest's ONE wire is a relay: it hands the server a function NAME plus its arguments as an INERT
+// JSON STRING, and gets an inert JSON string back. That marshalling is not a stylistic choice — it is the
+// `infra/plugin-host/marshal.ts` "nothing live crosses" law reused at a second boundary, and a string is what
+// makes the size bound EXACT (a structured `unknown` on the wire can only be bounded after it is materialized,
+// which is the allocation the bound exists to prevent). Both caps below sit at the SAME 1 MiB the server
+// membrane uses for its own inbound args / outbound results (`HOST_FN_ARGS_MAX_BYTES` /
+// `HOST_FN_RESULT_CAP_BYTES`); they are re-declared here rather than imported because `infra` is above
+// `contracts` in the cake and a client cannot reach it — the numbers are pinned equal by
+// `tests/contracts/plugin/ui.contract.test.ts`, not by hope.
+
+/** Max serialized bytes of ONE `plugin.uiHostCall` argument payload (the client→server direction). */
+export const PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES = 1_048_576;
+/** Max serialized bytes of ONE `plugin.uiHostCall` result payload (the server→client direction). */
+export const PLUGIN_UI_HOST_CALL_RESULT_MAX_BYTES = 1_048_576;
+/** Max bytes of a `ui.js` bundle entry — the SAME ceiling `main.js` carries (one pre-bundled ES script per
+ *  guest, `domain/plugin/substrate/manifest.ts`). Declared here so the bytes ROUTE and the unzip allow-list
+ *  cite one number. */
+export const PLUGIN_UI_ENTRY_MAX_BYTES = 1_048_576;
+
+/** The owner-gated route serving a plugin's `ui.js` as INERT BYTES: `GET /api/plugin-ui/:pluginId` (the
+ *  `BLOB_ROUTE` precedent — the path is a contract, not a client-side string, so the route and its one caller
+ *  cannot drift). The response is `application/octet-stream` + `nosniff`, so a `<script src>` pointed at it is
+ *  MIME-REFUSED by the browser: the client fetches it as TEXT and hands it to the interpreter, and "these bytes
+ *  are not script" is a property of the RESPONSE rather than of the caller remembering to be careful. */
+export const PLUGIN_UI_ROUTE = "/api/plugin-ui";
+
+/** The TREE a scripted guest publishes through `orb.ui(1).render(surfaceId, tree)` — the SAME closed
+ *  vocabulary a static surface's `spec` uses, so there is exactly one node union in the system and the
+ *  first-party renderer is the same code for both tiers. Re-validated CLIENT-side before mount
+ *  (`pluginSurfaceSpecSchema`): the guest is untrusted in the browser exactly as it is on the server, and the
+ *  worker boundary is not a validation. */
+export type PluginRenderedTree = PluginSurfaceSpec;

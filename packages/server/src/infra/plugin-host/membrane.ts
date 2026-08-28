@@ -393,7 +393,16 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       // op caps the serialized size; the arg-budget belt already bounded the inbound bytes.
       const raw = args[1];
       const state: Record<string, unknown> = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
-      await runtime.bridge.ui.setState(surfaceId, state);
+      // THE OPTIONAL ROOM DIMENSION (row 777). ABSENT (`undefined`/`null`) ⇒ the plugin-wide row every room
+      // shares — the U1 shape, unchanged, so every existing guest keeps working byte-for-byte. PRESENT ⇒ it must
+      // be the ADMITTED invocation's opaque chat handle, resolved by the SAME `resolveChat` every other
+      // room-scoped host fn uses: a forged, stale, or out-of-scope token throws here rather than silently
+      // publishing into a room this invocation was never admitted to. Deliberately NOT "coerce a non-string to
+      // no-chat": that would turn a typo'd handle into a silent cross-room write to the shared row, which is the
+      // failure mode a guest cannot see.
+      const chatArg = args[2];
+      const chatId = chatArg === undefined || chatArg === null ? null : resolveChat(runtime, chatArg).chatId;
+      await runtime.bridge.ui.setState(surfaceId, state, chatId);
       return null;
     },
   });

@@ -137,6 +137,59 @@ export interface GetSurfaceStateParams {
   readonly caller: Principal;
   readonly pluginId: PluginId;
   readonly surfaceId: string;
+  /** The ROOM the read is scoped to (row 777). Absent ⇒ the plugin-wide row. Present ⇒ a CLIENT CLAIM, and it
+   *  is verified: the verb resolves the caller's own chat authority and refuses NOT_FOUND when they cannot read
+   *  the room, so a claimed chatId can never turn this into a probe for rooms the caller is not in. */
+  readonly chatId?: ChatId;
+}
+
+/** `uiHostCall` — the Tier-C client guest's ONE relay to the membrane (plugin-ui-plane #679 U4, §4.6). A
+ *  scripted `ui.js` running in the browser worker has NO network of its own; when it needs host data it names a
+ *  proxyable host function and this verb performs it SERVER-side through the same `PluginBridge` every
+ *  server-guest call rides, under the installer.
+ *
+ *  NOTHING THE CLIENT SENDS IS TRUSTED, and the gate order is the security story:
+ *   1. OWNER SCOPE — the owner-scoped `getById` load; a foreign pluginId is a leak-free NOT_FOUND.
+ *   2. PROXYABILITY — `fn ∈ UI_PROXYABLE_HOST_FUNCTIONS` (the closed contracts tuple), so a client cannot name
+ *      a resident registrar or an authority write however it spells the string.
+ *   3. GRANT — `HOST_FUNCTION_CAPABILITY[fn] ∈ the STORED grant on the caller's own row`. Re-read per call from
+ *      the row, never from anything the client sent: the client's view of its grants is display-only.
+ *   4. ARGS — a per-fn zod parse of the decoded `argsJson` (the membrane's own per-fn validation, reused).
+ *   5. ROOM — a chat-scoped fn's `chatId` is membership-verified exactly like `getSurfaceState`'s. */
+export interface UiHostCallParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+  /** The host-function reference, as the client spelled it — validated against the closed proxyable tuple. */
+  readonly fn: string;
+  /** The call's arguments as an INERT JSON string (the marshal discipline: nothing live, and a string is what
+   *  makes the byte cap exact — see `PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES`). */
+  readonly argsJson: string;
+  /** The room a chat-scoped fn runs against — a CLIENT CLAIM, membership-verified before use. */
+  readonly chatId?: ChatId;
+}
+
+/** `reportUiCrash` — the client half of the 3-strike crash policy (plugin-ui-plane §4.9). A Tier-C guest that
+ *  hangs past its wall-clock deadline, fails to boot, or publishes an unparseable tree is TERMINATED in the
+ *  browser and the surface collapses to null; this verb feeds that fact into the SAME `consecutive_crashes`
+ *  counter a throwing server handler drives, so a UI half that dies every mount auto-disables like a server half
+ *  that throws. Owner-scoped on `pluginId` (leak-free NOT_FOUND) — the counter is on the caller's own row, so a
+ *  stranger can neither read nor advance it. */
+/** `getUiBundle` — the `ui.js` SOURCE for a plugin the caller OWNS (plugin-ui-plane #679 U4, seam 8), re-parsed
+ *  out of the stored bundle so the bytes always come through the ONE unzip funnel. `null` when the plugin ships
+ *  no client guest, which is a normal answer (every Tier-S plugin), not an error. Owner-scoped on `pluginId`
+ *  (leak-free NOT_FOUND) AND owner-scoped again at the CAS read — a bundle is a user's own uploaded file. */
+export interface GetUiBundleParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+}
+
+export interface ReportUiCrashParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+  /** Which surface died — the caller's own plugin, so a plain refusal on a miss reveals nothing foreign. */
+  readonly surfaceId: string;
+  /** A bounded, operator-facing reason for the plugin log ("wall-clock deadline", "invalid tree"). */
+  readonly reason: string;
 }
 
 /** `invokeUiAction` — the guest-action round-trip (plugin-ui-plane #679 U1). Owner-scoped on `pluginId`
@@ -150,4 +203,11 @@ export interface InvokeUiActionParams {
   readonly surfaceId: string;
   readonly actionId: string;
   readonly values: Record<string, string>;
+  /** The ROOM the action was taken in (row 777). Absent ⇒ the handler runs with no chat scope and receives
+   *  `chat: null` (the U1 settings-panel shape, unchanged). Present ⇒ a CLIENT CLAIM that is MEMBERSHIP-VERIFIED
+   *  before it becomes an invocation scope: the verb resolves the caller's own chat authority (leak-free
+   *  NOT_FOUND when they cannot read it) and hands the guest the host-minted opaque handle for exactly that
+   *  room, with `canWrite` set from the caller's HOST authority — so a room-anchored action reaches the room a
+   *  person is actually looking at, and only that one. */
+  readonly chatId?: ChatId;
 }

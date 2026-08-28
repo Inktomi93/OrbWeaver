@@ -60,6 +60,7 @@ import {
   createPluginSurfaceStateStore,
   createSnippetGate,
   createSurfaceStatePublisher,
+  createUiHostCallGate,
   isPluginEnabledFor,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
@@ -662,7 +663,13 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // The per-user concurrent-snippet ceiling — same posture as the notify floor: process-wide state minted ONCE
       // here. `runSnippet` is the one plugin verb a plain member reaches and each call pins a QuickJSContext.
       snippetGate: createSnippetGate(),
-      // The snippet AUTHORITY seam: the caller's leak-free read/host authority for a chat.
+      // The Tier-C proxy's CONCURRENCY belt (U4) — same posture again: process-wide state minted ONCE here,
+      // keyed per PLUGIN. `uiHostCall` is the second member-reachable door onto the host ops, and the only one a
+      // surface can drive at re-render rate, so it gets its own in-flight ceiling from birth (P2-F).
+      uiHostCallGate: createUiHostCallGate(),
+      // The snippet AUTHORITY seam: the caller's leak-free read/host authority for a chat. It serves THREE
+      // callers now — `runSnippet`, and (row 777 / U4) the membership verification behind every client-claimed
+      // `chatId` on `getSurfaceState` / `invokeUiAction` / `uiHostCall`.
       resolveChatAuthority: async (caller, chatId) => {
         const role = await loadPresentRole(db, chatId, caller.userId);
         return { canRead: role !== null, canWrite: role === "host" };

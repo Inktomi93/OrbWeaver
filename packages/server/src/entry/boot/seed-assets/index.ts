@@ -6,6 +6,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY, PLUGIN_UI_ENTRY } from "@orb/contracts/plugin";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { zipSync } from "fflate";
 
@@ -41,9 +42,10 @@ export function readSeedGalleryPiece(handle: CharacterHandle): Promise<SeedAsset
   return readBundled(join("gallery", `${handle}-gallery.webp`), SEED_GALLERY_MIME);
 }
 
-/** The two — and only two — entries a plugin bundle may contain (`domain/plugin/substrate/manifest.ts`
- *  refuses a third, so the packer must never grow one). */
-const PLUGIN_BUNDLE_ENTRIES = ["manifest.json", "main.js"] as const;
+/** The two REQUIRED entries of a plugin bundle, from the ONE home (`@orb/contracts/plugin` — the same
+ *  constants the unzip allow-list and the manifest schema use, so the packer cannot drift out of step with the
+ *  funnel that will reject it). */
+const PLUGIN_BUNDLE_ENTRIES = [PLUGIN_MANIFEST_ENTRY, PLUGIN_MAIN_ENTRY] as const;
 
 /** A FIXED mtime for every packed entry, so `packSeedPluginBundle` is a PURE function of the two source
  *  files. Without it fflate stamps `Date.now()` and the same sources pack to different bytes on every call —
@@ -56,11 +58,30 @@ const PLUGIN_BUNDLE_ENTRIES = ["manifest.json", "main.js"] as const;
  *  Six months of slack makes the stamp timezone-proof. */
 const PLUGIN_BUNDLE_MTIME_MS = 331_257_600_000;
 
-/** Pack an EXAMPLE PLUGIN's source directory into the installable bundle: a zip of exactly `manifest.json` +
- *  `main.js`, the shape `parseBundle` admits. The sources live beside this module (`plugins/<slug>/…`) so they
- *  ride the same `packages/server/src` COPY the image already makes — a repo-root `examples/` directory would
- *  not exist at runtime. `null` when the pack ships no such slug, so a missing example skips ONE seed instead
- *  of failing the whole seed (the `readSeedDemoChat` posture).
+/** Read one OPTIONAL bundle entry — `undefined` when the example ships none. Distinct from the required-entry
+ *  read below, and the distinction is the point: a missing `manifest.json` means "no such example" (skip the
+ *  slug), a missing `ui.js` means "this example is Tier-S" (pack two entries). Collapsing them would make a
+ *  typo'd `ui.js` filename silently ship a plugin with no client guest. */
+async function readOptionalEntry(slug: string, entry: string): Promise<Buffer | null> {
+  try {
+    return await readFile(join(HERE, "plugins", slug, entry));
+  } catch {
+    return null; // `null` (not `undefined`) — the `readBundled`/`readSeedDemoChat` absence spelling in this file.
+  }
+}
+
+/** Pack an EXAMPLE PLUGIN's source directory into the installable bundle: a zip of `manifest.json` + `main.js`,
+ *  PLUS `ui.js` when the example ships a Tier-C client guest (plugin-ui-plane #679 U4) — the shape `parseBundle`
+ *  admits. The sources live beside this module (`plugins/<slug>/…`) so they ride the same `packages/server/src`
+ *  COPY the image already makes — a repo-root `examples/` directory would not exist at runtime. `null` when the
+ *  pack ships no such slug, so a missing example skips ONE seed instead of failing the whole seed (the
+ *  `readSeedDemoChat` posture).
+ *
+ *  THE OPTIONAL ENTRY IS PACKED WHENEVER IT EXISTS ON DISK, and the funnel is what judges that: `parseBundle`
+ *  refuses a bundle whose `ui.js` presence disagrees with its manifest's `uiEntry`, in BOTH directions. So a
+ *  half-authored example (a `ui.js` the manifest forgot to declare, or a declaration with no file) fails LOUDLY
+ *  at seed time instead of installing a plugin whose scripted surface can never mount. The packer deliberately
+ *  does not read the manifest to decide — one authority for that pairing, and it is the trust edge.
  *
  *  ONE SOURCE, TWO CONSUMERS: the per-user seeder calls this at seed time, and `scripts/pack-plugin.ts` calls
  *  it to emit a distributable `.zip` for a hand install. There is no committed zip artifact to drift. */
@@ -75,10 +96,14 @@ export async function packSeedPluginBundle(slug: string): Promise<Uint8Array | n
     // "example missing", which is the shape of a caller that never learns its instrument is broken.
     return null;
   }
+  const uiSource = await readOptionalEntry(slug, PLUGIN_UI_ENTRY);
   const entries: Record<string, [Uint8Array, { mtime: number }]> = {};
   PLUGIN_BUNDLE_ENTRIES.forEach((entry, i) => {
     entries[entry] = [new Uint8Array(read[i] as Buffer), { mtime: PLUGIN_BUNDLE_MTIME_MS }];
   });
+  if (uiSource !== null) {
+    entries[PLUGIN_UI_ENTRY] = [new Uint8Array(uiSource), { mtime: PLUGIN_BUNDLE_MTIME_MS }];
+  }
   return zipSync(entries);
 }
 
