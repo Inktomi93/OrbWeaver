@@ -106,15 +106,25 @@ drift guarantee); (b) a module-kind `.d.ts` importing `@orb/contracts` (useless 
 whole point is an author WITHOUT the repo); (c) homing it in `packages/contracts` (the published artifact
 is part of the example-plugin SDK folder, and contracts' own file is the one true source it mirrors).
 
-**The conformance pin** (`tests/contracts/plugin/host-v1-dts.test-d.ts`, rides the `types:testd` stage of
-`pnpm check`): references the published file by `/// <reference path>` (script-kind globals), then asserts
-equality against the contract THROUGH a targeted brand-erasure mapped type (`ChatHandle|AssetId|CharacterId
-→ string`, applied recursively over functions/promises/arrays/objects) — literal unions (capabilities,
-node kinds, trigger types) stay exact, so a widened tuple, a renamed method, a changed signature, or a NEW
-brand entering the surface all go red. Both directions asserted (growth AND removal). The no-inline-types
-gate treats `entry/` as a non-scanned home for this file iff its scanRoot says so — verified at build; if
-the gate REDs it, that is a fork back to the orchestrator (a published-artifact exemption is an owner-visible
-gate edit), not a silent allowlist row.
+**The conformance pin, AS BUILT** (`tests/contracts/plugin/published-sdk.test-d.ts` — renamed from the
+planned `host-v1-dts` spelling, see the dated repair below): brings the script-kind globals in via `///
+<reference path>` PLUS an explicit root-tsconfig include, then asserts per-NAMESPACE mutual assignability
+against the contract through a targeted brand-erasure walk (`ChatHandle|AssetId|CharacterId → string`) with
+plain typed accept-functions, plus exact `toEqualTypeOf` pins on every closed union and the namespace key
+set. Two instrument shapes were tried and REFUTED by planted controls before this one (whole-host
+comparisons `any`-bail at TS's instantiation depth over the recursive spec union — a pin that cannot fail);
+the landed shape's plants fire BOTH directions through ts7 with member-exact TS2345 diagnostics. The
+`no-inline-types` gate passes the file by its own rules (script-kind = nothing exported); the SERVER
+per-package program excludes it (ambient hygiene — `packages/server/tsconfig.json`'s commented exclude row).
+
+**DATED REPAIR 2026-08-28 — the vitest typecheck lane serves STALE verdicts for /// -referenced files.**
+Measured, not argued: a planted wrong return type in the referenced `.d.ts` went red (correct); after a
+byte-verified restore the lane stayed red WITH THE PLANTED TEXT through repeat runs, `--no-cache`,
+`rm -rf node_modules/.vite/vitest`, and `touch`, while the same checker + config invoked directly
+(`node node_modules/ts7/bin/tsc -p tsconfig.json`) judged the tree correctly every time; RENAMING the test
+file purged the ghost instantly. Consequence folded into the design: `types:graph` is the pin's
+authoritative enforcement tier (it compiles the same file — planted control proven there); the vitest lane
+is a belt; the staleness itself is filed with the orchestrator as a fix-tools row.
 
 ## §5 The authoring guide + per-plugin READMEs
 
@@ -196,3 +206,11 @@ atlas README names the extension seam (one source object per hub).
 (typed args, macro, pubsub, footer, README) · 4. scene-chips subscriber · 5. research-familiar clip arm ·
 6. story-clocks · 7. keepsake-camera · 8. pocket-arcade · 9. card-atlas (+ fork-6.1 arm unless overridden) ·
 10. `host-v1.d.ts` + pin · 11. the guide rewrite + READMEs · 12. int-test extension rides each row.
+
+**Status 2026-08-28: rows 1-11 BUILT and suite-green** (seed int-suite 13/13 over the real WASM host;
+ui.contract 43/43; bindings unit 4/4; the touched plugin CTs 16/16; published-sdk pin 5/5 with both-direction
+planted controls through ts7). ARM C landed per the ruling (append-only; three arms; the security-executor
+pass on the owner-scoped assetId seam is the orchestrator's follow-up). Residual: append #788's five read
+functions to `host-v1.d.ts` when it merges (the pin's keyof-equality arm reds on the re-sync and names them),
+final re-sync, and the acceptance drives (the live side-eye + code-quality read) which are the
+orchestrator's.
