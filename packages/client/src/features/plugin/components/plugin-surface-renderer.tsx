@@ -104,22 +104,27 @@ export function PluginSurfaceRenderer({
   // No manual memoization — the React Compiler memoizes compiled files. `safeParse`/the walk/the Map are pure
   // functions of their inputs, so the Compiler caches them across renders on its own.
   const parsed = pluginSurfaceSpecSchema.safeParse(spec);
-  const imageIds: AssetId[] = [];
-  if (parsed.success) {
-    collectImageAssetIds(parsed.data, imageIds);
-  }
-  const { data: refs } = useQuery({ ...trpc.assets.resolveBlobRefs.queryOptions({ assetIds: imageIds }), enabled: imageIds.length > 0 });
-  const imageUrls = new Map((refs ?? []).map((ref) => [ref.assetId, blobUrl(ref.hash)] as const));
   // The published-plane state read. It fires ONLY for a surface that has NEITHER its own binding root (a
   // tool-card, U3 — `boundState`) NOR a client-side guest (Tier C, U4 — `sink`): a scripted surface's state lives
   // in its guest and a card's lives in its call record, so for both the server read must not fire at all — not
   // merely be ignored. `enabled` disables it (keeping the Tier-C ZERO-NETWORK claim honest and a card query-free),
   // and `chatId` (row 777) scopes a room-anchored read. (The hook is unconditional; only `enabled` moves.)
+  // It reads ABOVE the image sweep because the sweep now takes the state (#774 ARM C): a bound grid's covers
+  // and a bound image's asset live in state, and ids the sweep never saw would never paint.
   const { data: publishedState } = useQuery({
     ...trpc.plugin.getSurfaceState.queryOptions({ pluginId, surfaceId, ...(chatId === undefined ? {} : { chatId }) }),
     enabled: sink === undefined && boundState === undefined,
   });
   const state = boundState ?? publishedState;
+  // The SAME effective state the render ctx binds against — one derivation, so the sweep and the renderer can
+  // never disagree about which state a binding resolves in.
+  const effectiveState = sink === undefined ? (state ?? {}) : sink.state;
+  const imageIds: AssetId[] = [];
+  if (parsed.success) {
+    collectImageAssetIds(parsed.data, effectiveState, imageIds);
+  }
+  const { data: refs } = useQuery({ ...trpc.assets.resolveBlobRefs.queryOptions({ assetIds: imageIds }), enabled: imageIds.length > 0 });
+  const imageUrls = new Map((refs ?? []).map((ref) => [ref.assetId, blobUrl(ref.hash)] as const));
   const [values, setValues] = useState<Record<string, string>>(() => {
     const out: Record<string, string> = {};
     if (parsed.success) {
@@ -139,7 +144,7 @@ export function PluginSurfaceRenderer({
   const ctx: RenderCtx = {
     // Tier C binds against the GUEST's state (the server read did not even fire); Tier S binds against the
     // published row, with `{}` for "nothing published yet" so every binding falls back rather than throwing.
-    state: sink === undefined ? (state ?? {}) : sink.state,
+    state: effectiveState,
     values,
     setValue: (name, value) => {
       setValues((current) => ({ ...current, [name]: value }));

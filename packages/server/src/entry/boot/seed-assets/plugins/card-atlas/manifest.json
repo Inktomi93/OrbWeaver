@@ -1,0 +1,11 @@
+{
+  "id": "card-atlas",
+  "name": "Card Atlas",
+  "version": "1.0.0",
+  "hostVersion": 1,
+  "entry": "main.js",
+  "description": "Browse the community's character cards without leaving the app: search Character Tavern and RisuRealm, read a card properly, and summon it straight into your library — provenance-stamped, dedupe-aware.",
+  "author": "Orbweaver",
+  "capabilities": ["storage.kv", "ui.surface", "net.fetch", "character.ingest", "character.card_state"],
+  "netHosts": ["character-tavern.com", "realm.risuai.net"]
+}

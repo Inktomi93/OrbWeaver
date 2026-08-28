@@ -41,10 +41,27 @@
 // limit `injected-op-caller-param` writes down for its param scan.
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { Finding, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import type { ExemptionTable, Finding, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 const IDS_MODULE = "packages/kit/src/ids/index.ts";
+
+/** FILE-CLASS exemptions (GATE-AUTHORING §3 "scan-and-allowlist beats scanRoot-exclusion"): whole files whose
+ *  CONTRACT is to spell branded positions as bare `string`, scanned but not judged. Two-sided: a key whose
+ *  file the walk never sees goes RED in `finalize` (the mode-(B) stale arm), so a moved/renamed/retired
+ *  mirror deletes its row instead of carrying a silent exemption to its grave. Per-line `@foreign-id-ok`
+ *  markers remain the right tool for a foreign position INSIDE a normal file — this table exists for the one
+ *  class where the marker answer would be dozens of internal-enforcement comments inside an artifact whose
+ *  AUDIENCE is outside the repo. */
+const FILE_CLASS_EXEMPT: ExemptionTable = {
+  "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts": {
+    why:
+      "the PUBLISHED plugin-SDK mirror (#774): a self-contained, script-kind .d.ts a plugin AUTHOR copies out " +
+      "of the repo — brands are deliberately flattened to documented `string` (a guest never constructs one), " +
+      "and drift is pinned by tests/contracts/plugin/host-v1.test-d.ts. Ends if the mirror is retired or " +
+      "starts being imported by first-party code.",
+  },
+};
 /** The real-tree ANCHOR for the whole-tree arms. Deliberately NOT the ids module: the conformance examples
  *  PLANT that file (they must — it is the derivation source), so anchoring there would fire the stale/blind
  *  arms inside every mini-project and red the gate's own self-proof (GATE-AUTHORING §4.5). */
@@ -268,6 +285,13 @@ function inScope(path: string): boolean {
 }
 
 let passPositions: ReadonlyMap<string, string> = new Map();
+/** File-class exemption keys the walk actually SAW this pass — the seen-set the mode-(B) stale arm judges. */
+let passExemptSeen: Set<string> = new Set();
+
+const STALE_FILE_CLASS = (key: string): string =>
+  `FILE_CLASS_EXEMPT row \`${key}\` names a file this run never scanned — the mirror moved, was renamed, or ` +
+  "was retired. Delete the row (or re-key it): a path-keyed exemption that outlives its file is a silent " +
+  "grant to whatever lands at that path next. (GATE-AUTHORING.md §4.4a)";
 
 export const gate: GateDescriptor = {
   name: "brand-in-name-position",
@@ -281,9 +305,16 @@ export const gate: GateDescriptor = {
   scanRoot: inScope,
   begin: (ctx: GateRunCtx) => {
     passPositions = deriveBrandPositions(ctx.project.getSourceFiles());
+    passExemptSeen = new Set();
   },
   visitFile: (sf, ctx) => {
     const rel = repoRel(sf.getFilePath());
+    // The FILE-CLASS exemption (the published-mirror table): scanned, seen, not judged — and `seen` is what
+    // keeps the row two-sided (the finalize stale arm reds a key the walk never claims).
+    if (FILE_CLASS_EXEMPT[rel] !== undefined) {
+      passExemptSeen.add(rel);
+      return;
+    }
     // The stale-MARKER arm: an exemption that guards nothing is a lie to delete, never debt.
     for (const finding of staleMarkerFindings(sf, rel, passPositions)) {
       ctx.report(finding);
@@ -300,6 +331,12 @@ export const gate: GateDescriptor = {
     }
     if (passPositions.size === 0) {
       ctx.report({ file: GATE_SELF, line: 1, column: 0, message: BLIND });
+    }
+    // Mode-(B) staleness for the file-class table: a key the walk never SAW names nothing.
+    for (const key of Object.keys(FILE_CLASS_EXEMPT)) {
+      if (!passExemptSeen.has(key)) {
+        ctx.report({ file: GATE_SELF, line: 1, column: 0, message: STALE_FILE_CLASS(key) });
+      }
     }
   },
 
@@ -372,8 +409,24 @@ export const gate: GateDescriptor = {
       expect: { count: 1 },
       why: "tests/ is IN scope, deliberately: a hand-written id fixture is exactly where an unbranded string gets minted by hand instead of `mintTypeId`",
     },
+    {
+      files: {
+        [IDS_MODULE]: 'export type ChatId = TypeIdOf<"chat">;\n',
+        [REAL_TREE_ANCHOR]: "export const anchor = 1;\n",
+      },
+      expect: { count: 1, messageIncludes: "FILE_CLASS_EXEMPT" },
+      why: "mode-(B) staleness for the file-class table (GATE-AUTHORING §4.4a): the anchor is loaded but the exempted mirror is NOT on the tree — the row names nothing and must red, or a rename carries the exemption silently to its grave",
+    },
   ],
   mustPass: [
+    {
+      files: {
+        [IDS_MODULE]: 'export type ChatId = TypeIdOf<"chat">;\n',
+        [REAL_TREE_ANCHOR]: "export const anchor = 1;\n",
+        "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts": "interface PluginMessageView {\n  readonly chatId: string;\n}\n",
+      },
+      why: "the FILE-CLASS exemption holds: the published SDK mirror spells branded positions as documented `string` BY CONTRACT (its drift pin is the enforcement), and its presence also satisfies the mode-(B) stale arm",
+    },
     {
       files: {
         [IDS_MODULE]: 'export type ChatId = TypeIdOf<"chat">;\n',

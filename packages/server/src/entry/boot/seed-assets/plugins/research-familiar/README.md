@@ -35,7 +35,7 @@ that guesses where to write is a plugin that writes somewhere you did not mean.
 ## The manifest
 
 ```json
-"capabilities": ["chat.read", "worldinfo.write", "global_vars", "storage.kv", "events.subscribe", "net.fetch"],
+"capabilities": ["chat.read", "worldinfo.write", "global_vars", "storage.kv", "events.subscribe", "net.fetch", "databank.ingest"],
 "netHosts": ["en.wikipedia.org"]
 ```
 
@@ -43,11 +43,27 @@ that guesses where to write is a plugin that writes somewhere you did not mean.
 * `net.fetch` — the outbound request. **Requires `netHosts`**, and that list is the wall: the host pins every
   request and every redirect hop to it. The guest cannot widen it, and `en.wikipedia.org` is the only place
   this plugin can ever reach.
-* `worldinfo.write` — the entry it files.
+* `worldinfo.write` — the `((lookup: …))` entry it files.
+* `databank.ingest` — the `((clip: …))` document it keeps (below).
 * `chat.read` — needed for `chat.current()`, which mints the room handle every room-scoped call takes. Worth
   knowing when you are trimming a grant list: you cannot write to a room without being able to name it.
 * `global_vars` — reading the configured book id.
 * `storage.kv` — its private memory of what it has already looked up.
+
+## Two verbs, two destinations — the capability lesson
+
+The same fetch has two honest homes, and the difference between them is worth internalizing before you
+design your own writes:
+
+* **`((lookup: Term))` → a LORE BOOK** (`worldInfo.upsertEntry`). Room state: injected into every later
+  prompt, so the excerpt is CUT short (a 4 KB entry taxes every turn forever); host-authority gated; needs a
+  configured destination.
+* **`((clip: Term))` → YOUR DATABANK** (`databank.ingest`). Your own library: the WHOLE summary, indexed for
+  retrieval, deduped by content hash host-side (re-clipping identical text returns the same document). No
+  destination to configure and no host authority to ask — a write into your own shelves is your own reach.
+
+Each verb feature-detects its own grant at the moment of use: a marker for an unticked capability logs one
+clear warning and stays silent, never a throw (a throw is a strike against the three-crash auto-disable).
 
 ## How it works
 

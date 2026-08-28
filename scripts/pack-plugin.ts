@@ -1,10 +1,11 @@
 // Pack a plugin source directory into an installable bundle — `pnpm plugin:pack <slug> [outDir]`.
 //
-// A bundle is a zip of EXACTLY `manifest.json` + `main.js` (`domain/plugin/substrate/manifest.ts` refuses a
-// third entry, an over-cap entry, or a manifest that fails `pluginManifestSchema`). This script exists so a
-// plugin author can produce that zip without owning a build pipeline, and so the SAME packer the per-user
-// seeder uses produces the file you hand someone — one function, `packSeedPluginBundle`, no second spelling
-// that could drift from what actually gets installed.
+// A bundle is a zip of `manifest.json` + `main.js` — plus `ui.js` when the manifest declares `uiEntry`
+// (`domain/plugin/substrate/manifest.ts` refuses any OTHER entry, an over-cap entry, a manifest that fails
+// `pluginManifestSchema`, or a `ui.js` whose presence disagrees with `uiEntry` in either direction). This
+// script exists so a plugin author can produce that zip without owning a build pipeline, and so the SAME
+// packer the per-user seeder uses produces the file you hand someone — one function, `packSeedPluginBundle`,
+// no second spelling that could drift from what actually gets installed.
 //
 // It validates before it writes: a bundle that would be refused at install is refused HERE, with the same
 // message, rather than at the far end of someone else's upload.

@@ -356,8 +356,16 @@ export interface PluginListNode {
 export interface PluginImageNode {
   readonly kind: "image";
   /** An asset in the INSTALLER's CAS ONLY — a well-formed asset id (the `typeIdSchema` rejects a URL: the
-   *  seam-11 "no URL arm exists" wall). The FORMAT is validated here; the CAS OWNERSHIP resolve is server-side. */
-  readonly assetId: AssetId;
+   *  seam-11 "no URL arm exists" wall). The FORMAT is validated here; the CAS OWNERSHIP resolve is server-side.
+   *  Exactly ONE of `assetId`/`assetFrom` (the spec-level belt enforces it): declared for an asset the SPEC
+   *  knows, bound for one the STATE carries. */
+  readonly assetId?: AssetId | undefined;
+  /** THE BOUND ARM (#774 ARM C): resolve the asset id from published state (`{ $state: "path" }`) — for an
+   *  image whose subject is DATA, not structure (a photo plugin's detail view; a generated cover). The
+   *  resolved value is UNTRUSTED STATE: it is format-validated at resolve (a non-TypeID string paints
+   *  nothing) and then rides the SAME owner-scoped server resolve every declared `assetId` rides — a foreign
+   *  owner's id yields no ref and the node renders its placeholder, NEVER another user's blob. */
+  readonly assetFrom?: PluginStateBinding | undefined;
   readonly alt?: string | undefined;
   /** Reserve a fixed RATIO box (U5) — a token-named ratio, never a pixel. See {@link PLUGIN_IMAGE_ASPECTS}. */
   readonly aspect?: PluginImageAspect | undefined;
@@ -453,15 +461,46 @@ export interface PluginGridTile {
 
 /** A media-forward TILE GRID (U5) — the browse shape that replaces results-as-rows. Renders through the house
  *  `MediaTileGrid` composite in `@orb/ui` (the §4.3 shelf-exposure rule: a browse-genre gap in the shelf is what
- *  failure 1 WAS, so the composite lands in the shelf and benefits the whole app, never in the plugin feature). */
+ *  failure 1 WAS, so the composite lands in the shelf and benefits the whole app, never in the plugin feature).
+ *
+ *  TWO TILE ARMS, exactly one per grid (the spec-level belt enforces it):
+ *   - `tiles` — DECLARED: the tile set is spec structure, fixed at registration; per-tile fields may still
+ *     bind values. Right when the collection is known up front (a fixed set of slots, a menu).
+ *   - `tilesFrom` (#774 ARM C) — BOUND: the tile set is PUBLISHED STATE (`{ $state: "path" }` naming an array
+ *     of {@link PluginBoundGridTile}), so its CARDINALITY is data. This is the browse-genre arm — a search's
+ *     results, a gallery that grows — which a registration-fixed tile count structurally cannot express (a
+ *     12-slot grid with 3 results is 9 ghost tiles; the mined §4.5b failure list one shape over). Resolved by
+ *     {@link resolvePluginBoundTiles}: entries are UNTRUSTED STATE, so each is schema-validated (malformed ⇒
+ *     dropped) and the count is clamped to {@link PLUGIN_GRID_TILES_MAX}; covers ride the SAME owner-scoped
+ *     server resolve declared tiles ride. `tileAction` names ONE round-trip for every bound tile (the clicked
+ *     tile's id rides as `values.tile`) — per-tile actions are a declared-arm affair. */
 export interface PluginGridNode {
   readonly kind: "grid";
-  readonly tiles: readonly PluginGridTile[];
+  readonly tiles?: readonly PluginGridTile[] | undefined;
+  readonly tilesFrom?: PluginStateBinding | undefined;
+  /** The bound arm's ONE actionId (ident grammar), fired with `values.tile = <clicked tile id>`. Absent ⇒ a
+   *  display-only bound grid. Only legal WITH `tilesFrom` (the belt refuses it beside `tiles`). */
+  readonly tileAction?: string | undefined;
   /** The tile cover's reserved ratio — one decision for the whole grid, so tiles cannot shear. @defaultValue "portrait" */
   readonly aspect?: PluginImageAspect | undefined;
   /** What the grid says when it has no tiles — the three-states law reaching INTO the vocabulary. Absent ⇒ the
    *  host's own neutral line; a plugin that names one gets a teaching empty for free. */
   readonly empty?: string | undefined;
+}
+
+/** ONE tile of a BOUND grid (`tilesFrom`) as the plugin PUBLISHES it in state. The declared-tile shape minus
+ *  the binding arms (state inside state would be a hall of mirrors) and minus `actionId` (the grid-level
+ *  `tileAction` owns the round-trip). It crosses as published state, so it is validated at RESOLVE, not at
+ *  registration — {@link pluginBoundGridTileSchema} is that gate. */
+export interface PluginBoundGridTile {
+  readonly id: string;
+  readonly title: string;
+  readonly subtitle?: string | undefined;
+  readonly badge?: string | undefined;
+  /** A cover in the INSTALLER's CAS — the `image` node's wall, one home: format-validated here, ownership
+   *  resolved server-side (foreign ⇒ no ref ⇒ placeholder). */
+  readonly assetId?: AssetId | undefined;
+  readonly alt?: string | undefined;
 }
 
 /** ONE stage of a {@link PluginMasterDetailNode}. A `detail` stage renders its `hero` above a reading-width
@@ -560,7 +599,8 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
     z.object({ kind: z.literal("list"), items: z.array(boundString(LABEL_MAX)).max(PLUGIN_ROWS_MAX) }),
     z.object({
       kind: z.literal("image"),
-      assetId: typeIdSchema(ID_PREFIX.asset),
+      assetId: typeIdSchema(ID_PREFIX.asset).optional(),
+      assetFrom: stateBindingSchema.optional(),
       alt: z.string().max(LABEL_MAX).optional(),
       aspect: z.enum(PLUGIN_IMAGE_ASPECTS).optional(),
     }),
@@ -622,7 +662,10 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
             actionId: identSchema.optional(),
           }),
         )
-        .max(PLUGIN_GRID_TILES_MAX),
+        .max(PLUGIN_GRID_TILES_MAX)
+        .optional(),
+      tilesFrom: stateBindingSchema.optional(),
+      tileAction: identSchema.optional(),
       aspect: z.enum(PLUGIN_IMAGE_ASPECTS).optional(),
       empty: z.string().max(LABEL_MAX).optional(),
     }),
@@ -706,6 +749,27 @@ function countSearchBars(node: PluginSurfaceNode): number {
   return count;
 }
 
+/** The DECLARED-vs-BOUND exactly-one-of belts (#774 ARM C), collected in one walk. They live at the SPEC
+ *  level rather than on the node schemas because a `z.discriminatedUnion` member must be a plain object
+ *  schema (`.refine` would make it a ZodEffects and the union refuses it) — the same reason the per-anchor
+ *  belts live on the registration meta. One issue per offending node, in walk order. */
+function collectArmViolations(node: PluginSurfaceNode, out: string[]): void {
+  if (node.kind === "grid") {
+    if ((node.tiles === undefined) === (node.tilesFrom === undefined)) {
+      out.push("a grid names exactly one of `tiles` (declared) or `tilesFrom` (bound)");
+    }
+    if (node.tileAction !== undefined && node.tilesFrom === undefined) {
+      out.push("`tileAction` belongs to the bound arm — a declared tile carries its own `actionId`");
+    }
+  }
+  if (node.kind === "image" && (node.assetId === undefined) === (node.assetFrom === undefined)) {
+    out.push("an image names exactly one of `assetId` (declared) or `assetFrom` (bound)");
+  }
+  for (const child of pluginChildNodes(node)) {
+    collectArmViolations(child, out);
+  }
+}
+
 /** The SPEC schema: a node tree plus the whole-tree global bounds (node count, nesting depth, serialized
  *  size). This is the schema a registration/mount validates against — the per-node schema alone bounds each
  *  node but never the aggregate, which is exactly the DoS surface the caps close. */
@@ -726,7 +790,78 @@ export const pluginSurfaceSpecSchema: z.ZodType<PluginSurfaceSpec> = pluginSurfa
   if (countSearchBars(spec) > 1) {
     ctx.addIssue({ code: "custom", message: "a surface spec may declare at most one searchBar" });
   }
+  // The declared-vs-bound belts (#774 ARM C) — see `collectArmViolations` for why they live here.
+  const armViolations: string[] = [];
+  collectArmViolations(spec, armViolations);
+  for (const message of armViolations) {
+    ctx.addIssue({ code: "custom", message });
+  }
 });
+
+// ── BOUND-TILE resolution (#774 ARM C — the `tilesFrom` arm's trust gate) ────────────────────────────────────
+
+/** ONE bound tile as published state, validated at RESOLVE — the registration gate cannot see state, so this
+ *  schema is where an untrusted entry is judged. `assetId` is FORMAT-validated exactly like the `image` node's
+ *  (a URL or garbage is unspellable); OWNERSHIP is the server resolve's job, same as everywhere. */
+export const pluginBoundGridTileSchema = z.object({
+  id: z.string().regex(IDENT_RE),
+  title: z.string().max(LABEL_MAX),
+  subtitle: z.string().max(LABEL_MAX).optional(),
+  badge: z.string().max(LABEL_MAX).optional(),
+  assetId: typeIdSchema(ID_PREFIX.asset).optional(),
+  alt: z.string().max(LABEL_MAX).optional(),
+});
+
+/** Resolve a grid's `tilesFrom` binding against published state: read the path, validate EVERY entry, clamp
+ *  the count. The three postures, each deliberate:
+ *   - a missing/non-array path resolves to NO tiles (the binding-miss posture every `$state` slot has — the
+ *     grid renders its `empty` line, never a crash);
+ *   - a malformed ENTRY is DROPPED, not fatal (one bad row must not blank a whole results page — the D53
+ *     skip posture applied to data);
+ *   - the count clamps to {@link PLUGIN_GRID_TILES_MAX} (the same cap the declared arm's schema enforces —
+ *     state must not be a loophole past a registration bound; past-cap results are the plugin's paging
+ *     problem, exactly as they are for declared tiles).
+ *  Pure + isomorphic: the client renderer resolves with it, and a test can drive it with no DOM. The
+ *  aggregate payload is already bounded upstream by the `ui.setState` 16 KiB cap. */
+export function resolvePluginBoundTiles(state: Record<string, unknown>, binding: PluginStateBinding): readonly PluginBoundGridTile[] {
+  let cursor: unknown = state;
+  for (const segment of binding.$state.split(".")) {
+    if (typeof cursor !== "object" || cursor === null) {
+      return [];
+    }
+    cursor = (cursor as Record<string, unknown>)[segment];
+  }
+  if (!Array.isArray(cursor)) {
+    return [];
+  }
+  const out: PluginBoundGridTile[] = [];
+  for (const entry of cursor) {
+    if (out.length >= PLUGIN_GRID_TILES_MAX) {
+      break;
+    }
+    const parsed = pluginBoundGridTileSchema.safeParse(entry);
+    if (parsed.success) {
+      out.push(parsed.data);
+    }
+  }
+  return out;
+}
+
+/** Resolve an image's `assetFrom` binding: the path's value IFF it is a well-formed asset id — the same
+ *  format wall the declared `assetId` passes at registration, applied at resolve because state cannot be
+ *  judged earlier. Anything else (missing path, wrong type, malformed id) is `undefined` ⇒ the node paints
+ *  its placeholder. Ownership is the server resolve's, as everywhere. */
+export function resolvePluginBoundAssetId(state: Record<string, unknown>, binding: PluginStateBinding): AssetId | undefined {
+  let cursor: unknown = state;
+  for (const segment of binding.$state.split(".")) {
+    if (typeof cursor !== "object" || cursor === null) {
+      return;
+    }
+    cursor = (cursor as Record<string, unknown>)[segment];
+  }
+  const parsed = typeIdSchema(ID_PREFIX.asset).safeParse(cursor);
+  return parsed.success ? parsed.data : undefined;
+}
 
 // ── Registration metadata (U1, seam 4 — the guest's `host.ui.register` def MINUS the `onAction` handle) ───────
 

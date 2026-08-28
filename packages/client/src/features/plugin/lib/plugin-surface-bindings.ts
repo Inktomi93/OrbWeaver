@@ -11,8 +11,8 @@
 // owner-scoped url, a filter field never getting its default. One seam, and the same seam the spec's own DoS
 // caps count through.
 
-import type { PluginBoundNumber, PluginBoundString, PluginSurfaceNode } from "@orb/contracts/plugin";
-import { pluginChildNodes } from "@orb/contracts/plugin";
+import type { PluginBoundNumber, PluginBoundString, PluginGridTile, PluginSurfaceNode } from "@orb/contracts/plugin";
+import { pluginChildNodes, resolvePluginBoundAssetId, resolvePluginBoundTiles } from "@orb/contracts/plugin";
 import type { AssetId } from "@orb/kit/ids";
 
 /** A `meter` with no explicit `max` scales to 100 (the house percentage default). */
@@ -85,11 +85,18 @@ function ownBinding(node: PluginSurfaceNode): boolean {
     return node.items.some((item) => isBinding(item));
   }
   // The U5 browse kinds bind too, and they must be listed or a page whose entire content is a state-bound grid
-  // would read as "purely static" and render its empty fallbacks as room chrome (the §4.9 silence rule).
+  // would read as "purely static" and render its empty fallbacks as room chrome (the §4.9 silence rule). A
+  // BOUND grid (`tilesFrom`, #774 ARM C) and a bound image (`assetFrom`) are bindings by construction.
   if (node.kind === "grid") {
-    return node.tiles.some(
-      (tile) => isBinding(tile.title) || (tile.subtitle !== undefined && isBinding(tile.subtitle)) || (tile.badge !== undefined && isBinding(tile.badge)),
+    return (
+      node.tilesFrom !== undefined ||
+      (node.tiles ?? []).some(
+        (tile) => isBinding(tile.title) || (tile.subtitle !== undefined && isBinding(tile.subtitle)) || (tile.badge !== undefined && isBinding(tile.badge)),
+      )
     );
+  }
+  if (node.kind === "image") {
+    return node.assetFrom !== undefined;
   }
   if (node.kind === "masterDetail") {
     return (node.active !== undefined && isBinding(node.active)) || node.stages.some((stage) => stage.title !== undefined && isBinding(stage.title));
@@ -108,28 +115,58 @@ function isBinding(value: PluginBoundString | PluginBoundNumber): boolean {
 /** Collect every asset id the spec paints — `image` nodes, `grid` tile covers and `masterDetail` stage heroes
  *  (resolved once, owner-scoped, at the top of the render; an id the installer does not own simply yields no
  *  ref and the node renders its placeholder). Every SITE that can name an asset is listed here, and the
- *  recursion is the shared seam, so a cover buried in a detail stage resolves like any other. */
-export function collectImageAssetIds(node: PluginSurfaceNode, out: AssetId[]): void {
+ *  recursion is the shared seam, so a cover buried in a detail stage resolves like any other.
+ *
+ *  IT TAKES THE STATE (#774 ARM C) because two of the sites are BOUND — a grid's `tilesFrom` covers and an
+ *  image's `assetFrom` live in published state, not in the spec — and a sweep that only read the spec would
+ *  go silently blind to them (the collected id set feeds the ONE owner-scoped `resolveBlobRefs` read, so a
+ *  bound cover that never entered it would never paint). The resolvers are the contracts-side trust gates:
+ *  every state-sourced id is FORMAT-validated before it joins the set, and the server's owner-scoped resolve
+ *  then judges ownership for spec-declared and state-bound ids identically — a foreign id yields no ref and
+ *  the node paints its placeholder, never another owner's blob. */
+export function collectImageAssetIds(node: PluginSurfaceNode, state: Record<string, unknown>, out: AssetId[]): void {
   if (node.kind === "image") {
-    out.push(node.assetId);
+    pushDefined(out, imageNodeAssetId(node, state));
   }
   if (node.kind === "grid") {
-    for (const tile of node.tiles) {
-      if (tile.assetId !== undefined) {
-        out.push(tile.assetId);
-      }
+    for (const tile of gridTiles(node, state)) {
+      pushDefined(out, tile.assetId);
     }
   }
   if (node.kind === "masterDetail") {
     for (const stage of node.stages) {
-      if (stage.hero !== undefined) {
-        out.push(stage.hero.assetId);
-      }
+      pushDefined(out, stage.hero?.assetId);
     }
   }
   for (const child of pluginChildNodes(node)) {
-    collectImageAssetIds(child, out);
+    collectImageAssetIds(child, state, out);
   }
+}
+
+function pushDefined(out: AssetId[], id: AssetId | undefined): void {
+  if (id !== undefined) {
+    out.push(id);
+  }
+}
+
+/** An `image` node's effective asset id — the declared arm, or the bound arm resolved (format-gated) against
+ *  state. The exactly-one-of belt means at most one arm is present. */
+export function imageNodeAssetId(node: Extract<PluginSurfaceNode, { kind: "image" }>, state: Record<string, unknown>): AssetId | undefined {
+  if (node.assetId !== undefined) {
+    return node.assetId;
+  }
+  return node.assetFrom === undefined ? undefined : resolvePluginBoundAssetId(state, node.assetFrom);
+}
+
+/** A grid's effective tile list — declared tiles verbatim, or the bound arm resolved (validated + clamped)
+ *  against state. The ONE place both arms collapse to the common shape (`PluginGridTile` — a bound tile is a
+ *  strict subset: plain strings, no per-tile `actionId`), shared by the sweep above and the renderer, so they
+ *  can never disagree about what a grid shows. */
+export function gridTiles(node: Extract<PluginSurfaceNode, { kind: "grid" }>, state: Record<string, unknown>): readonly PluginGridTile[] {
+  if (node.tiles !== undefined) {
+    return node.tiles;
+  }
+  return node.tilesFrom === undefined ? [] : resolvePluginBoundTiles(state, node.tilesFrom);
 }
 
 /** Stringify a primitive form default. Concretely typed so the toString is the primitive's own, never a

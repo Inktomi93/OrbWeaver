@@ -29,7 +29,11 @@ Settings → Plugins → drop the zip → tick the capabilities → turn it on. 
 * `storage.kv` — the per-room counter and the last reading.
 * `notify` — telling the installer when it moves.
 * `events.subscribe` — hearing `messageCommitted`.
-* `ui.surface` — the two surfaces below (the settings panel and the room widget).
+* `ui.surface` — the surfaces below. Every `host.ui.*` call in `main.js` sits behind
+  `host.grants.includes("ui.surface")` — the FEATURE-DETECT idiom. A user may tick `llm.quiet` and leave
+  `ui.surface` unticked; their call, and the tracker still works headless. An UNGUARDED registration would
+  throw at activation and take the whole plugin down (no readings, no notices) over a decoration — guard
+  every activation-time registration, always.
 
 ## Its two surfaces
 

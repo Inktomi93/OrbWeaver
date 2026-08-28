@@ -34,9 +34,17 @@ const host = orb.host(1);
 // write is a plugin that writes somewhere you did not mean.
 const BOOK_ID_VAR = "familiar_book_id";
 
-/** `((lookup: Term))` — an EXPLICIT, human-typed marker. Scanning prose for "interesting nouns" would make
- *  every message an egress candidate; a marker makes the room's members the rate limiter. */
+/** `((lookup: Term))` / `((clip: Term))` — EXPLICIT, human-typed markers. Scanning prose for "interesting
+ *  nouns" would make every message an egress candidate; a marker makes the room's members the rate limiter.
+ *  TWO verbs because the same fetch has two honest destinations, and the difference is the lesson:
+ *   - `lookup` files a SHORT excerpt into a LORE BOOK (`worldInfo.upsertEntry`) — room state, injected into
+ *     every later prompt, host-authority-gated, and it needs a configured destination (the book id below);
+ *   - `clip` files the WHOLE summary into YOUR DATABANK (`databank.ingest`) — your own library, owner-scoped
+ *     by construction, indexed for retrieval, no destination to configure and no host authority to ask:
+ *     a write into your own shelves is your own reach.
+ *  One marker per message, first match wins — `lookup` is checked first only because it came first. */
 const LOOKUP_RE = /\(\(\s*lookup:\s*([^)]{2,80}?)\s*\)\)/i;
+const CLIP_RE = /\(\(\s*clip:\s*([^)]{2,80}?)\s*\)\)/i;
 
 /** The smallest gap between two live fetches, in ms. The SECOND debounce layer: the per-term memory below
  *  stops repeats, this stops a burst of ten distinct markers pasted at once. */
@@ -57,23 +65,31 @@ const EXTRACT_MAX_CHARS = 600;
 
 // ── storage keys (the plugin-private KV: per plugin × installing owner, ≤ 256 keys, ≤ 64 KiB per value) ─────
 const LAST_FETCH_KEY = "lastFetchAtMs";
-const seenKey = (term) => `seen:${term.toLowerCase()}`;
+/** Per-VERB memory: a term already filed as lore may still be clipped, and vice versa — two destinations,
+ *  two memories. (The databank additionally dedupes clips by content hash host-side; this key just saves
+ *  the fetch.) */
+const seenKey = (verb, term) => `${verb}:${term.toLowerCase()}`;
 
-/** Extract the marker's term, or `null`. Kept pure + tiny: the guest CPU deadline is per invocation, and a
- *  regex over an arbitrarily long message is the one place a handler can accidentally spend it. */
-function readLookupTerm(fact) {
+/** Extract the message's marker as `{verb, term}`, or `null`. Kept pure + tiny: the guest CPU deadline is
+ *  per invocation, and a regex over an arbitrarily long message is the one place a handler can accidentally
+ *  spend it. One marker per message; `lookup` wins when both appear. */
+function readMarker(fact) {
   const content = fact?.message ? fact.message.content : "";
   if (typeof content !== "string" || content.length === 0) {
     return null;
   }
-  const match = LOOKUP_RE.exec(content);
-  return match === null ? null : match[1].trim();
+  const lookup = LOOKUP_RE.exec(content);
+  if (lookup !== null) {
+    return { verb: "lookup", term: lookup[1].trim() };
+  }
+  const clip = CLIP_RE.exec(content);
+  return clip === null ? null : { verb: "clip", term: clip[1].trim() };
 }
 
-/** Has this term already been filed? The FIRST debounce layer, and the one that matters: without it every
- *  re-read of a scrollback message would re-fetch. */
-async function alreadyFiled(term) {
-  return (await host.storage.get(seenKey(term))) !== null;
+/** Has this term already been handled BY THIS VERB? The FIRST debounce layer, and the one that matters:
+ *  without it every re-read of a scrollback message would re-fetch. */
+async function alreadyFiled(verb, term) {
+  return (await host.storage.get(seenKey(verb, term))) !== null;
 }
 
 /** Is the global fetch gap satisfied? `host.clock.nowEpochMs()` is the injected clock — the guest realm has no
@@ -87,9 +103,11 @@ async function gapElapsed() {
   return !Number.isFinite(last) || host.clock.nowEpochMs() - last >= MIN_FETCH_GAP_MS;
 }
 
-/** Fetch one summary. Returns the extract text, or `null` for EVERY failure shape — an off-allowlist refusal,
- *  a 404 for a term nobody wrote an article about, a 5 s deadline, a body that is not the JSON we expected.
- *  Silence is the correct behaviour for all of them: the room should never see the familiar fail. */
+/** Fetch one summary. Returns `{title, extract}` UNCUT, or `null` for EVERY failure shape — an off-allowlist
+ *  refusal, a 404 for a term nobody wrote an article about, a 5 s deadline, a body that is not the JSON we
+ *  expected. Silence is the correct behaviour for all of them: the room should never see the familiar fail.
+ *  The CALLERS decide how much to keep — `lookup` cuts to `EXTRACT_MAX_CHARS` (a lore entry taxes every
+ *  prompt), `clip` keeps the whole thing (a databank document is indexed, not injected). */
 async function fetchSummary(term) {
   try {
     // `net.fetch` returns JSON-safe primitives only — `{status, body}`. There is no `Response` object, no
@@ -99,13 +117,17 @@ async function fetchSummary(term) {
       host.log.info(`no article for "${term}" (status ${res.status})`);
       return null;
     }
-    const extract = JSON.parse(res.body).extract;
-    return typeof extract === "string" && extract.length > 0 ? extract.slice(0, EXTRACT_MAX_CHARS) : null;
+    const parsed = JSON.parse(res.body);
+    const extract = parsed.extract;
+    if (typeof extract !== "string" || extract.length === 0) {
+      return null;
+    }
+    return { title: typeof parsed.title === "string" && parsed.title.length > 0 ? parsed.title : term, extract };
   } catch (err) {
     // Includes the host's own refusals (an allowlist miss, the hourly egress floor). Logged, never rethrown.
     // `String(err)` rather than `err.message`: it never throws (a guest realm can `throw null`) and an Error
     // stringifies to `Name: message`, which is exactly what a log line wants.
-    host.log.warn(`lookup for "${term}" failed: ${String(err)}`);
+    host.log.warn(`fetch for "${term}" failed: ${String(err)}`);
     return null;
   }
 }
@@ -129,18 +151,35 @@ async function fileEntry(chat, bookId, term, extract) {
  *  bottom is the cheapest way to copy this plugin correctly. Returns the work to do, or `null` to stay silent.
  *
  *  Order is not cosmetic: the marker test is a local regex, the two memory reads are plugin-private KV, and
- *  the config read is a db round-trip. A busy room runs the first line thousands of times and stops there. */
+ *  the config read is a db round-trip. A busy room runs the first line thousands of times and stops there.
+ *
+ *  The PER-VERB tail is the capability lesson: `clip` needs only its grant (your databank is your own —
+ *  nothing to configure), while `lookup` needs its grant AND a configured destination book. Feature-detect
+ *  with `host.grants` at the moment of use — a marker for an ungranted verb logs once and stays silent, it
+ *  never throws. */
 async function admit(fact) {
-  const term = readLookupTerm(fact);
-  if (term === null) {
+  const marker = readMarker(fact);
+  if (marker === null) {
     return null; // The overwhelmingly common path. Cheap, silent, no host call at all.
   }
-  if (await alreadyFiled(term)) {
-    host.log.info(`"${term}" is already filed — skipping`);
+  const { verb, term } = marker;
+  if (await alreadyFiled(verb, term)) {
+    host.log.info(`"${term}" is already ${verb === "lookup" ? "filed" : "clipped"} — skipping`);
     return null;
   }
   if (!(await gapElapsed())) {
     host.log.info(`"${term}" deferred — inside the ${MIN_FETCH_GAP_MS} ms fetch gap`);
+    return null;
+  }
+  if (verb === "clip") {
+    if (!host.grants.includes("databank.ingest")) {
+      host.log.warn("a ((clip: …)) marker needs the databank.ingest capability granted (Settings → Plugins)");
+      return null;
+    }
+    return { verb, term, bookId: null };
+  }
+  if (!host.grants.includes("worldinfo.write")) {
+    host.log.warn("a ((lookup: …)) marker needs the worldinfo.write capability granted (Settings → Plugins)");
     return null;
   }
   const bookId = await host.variables.get(BOOK_ID_VAR);
@@ -148,7 +187,7 @@ async function admit(fact) {
     host.log.warn(`no lore book configured — set {{setglobalvar::${BOOK_ID_VAR}::<book id>}} to switch me on`);
     return null;
   }
-  return { term, bookId };
+  return { verb, term, bookId };
 }
 
 /** RULE 1's implementation. Two named host shapes get a friendlier line; everything else is still swallowed,
@@ -173,31 +212,53 @@ function logFailure(err) {
 // yet. The type must be a member of the host's own trigger taxonomy — plugins get no private event vocabulary.
 // Delivery is filtered host-side BEFORE your handler runs: you receive a fact only for a chat the INSTALLER
 // can see (membership plus the history floor plus hidden-span stripping), and only at cascade depth 0 unless
-// the manifest opts into `matchAutomationEvents`.
-host.events.on("messageCommitted", async (fact) => {
-  try {
-    const work = await admit(fact);
-    if (work === null) {
-      return;
+// the manifest opts into `matchAutomationEvents`. Guarded like every activation-time registration: an
+// ungranted host call THROWS, and a throw at activation takes the whole plugin down.
+if (host.grants.includes("events.subscribe")) {
+  host.events.on("messageCommitted", async (fact) => {
+    try {
+      const work = await admit(fact);
+      if (work === null) {
+        return;
+      }
+
+      // Claim the gap BEFORE the fetch, not after: two deliveries can be in flight at once, and a gap stamped
+      // on success would let both through.
+      await host.storage.set(LAST_FETCH_KEY, String(host.clock.nowEpochMs()));
+
+      const summary = await fetchSummary(work.term);
+      if (summary === null) {
+        return;
+      }
+
+      if (work.verb === "clip") {
+        // THE DATABANK ARM. A canon write into the INSTALLER's OWN library: owner-scoped by construction (a
+        // guest can name no other owner), indexed automatically (the write enqueues the ingest workload), and
+        // deduped by content hash host-side — re-clipping identical text returns the SAME document id, so
+        // even a lost `clipped:` memory cannot fan your library out. Note what is NOT here: no chat handle
+        // (a library write is not room state) and no host authority (your shelves are yours).
+        const { documentId } = await host.databank.ingest({
+          name: `Wikipedia — ${summary.title}`,
+          text: `${summary.extract}\n\n(Clipped from the Wikipedia summary of "${summary.title}".)`,
+        });
+        await host.storage.set(seenKey("clip", work.term), String(host.clock.nowEpochMs()));
+        host.log.info(`clipped "${summary.title}" into the databank (${documentId})`);
+        return;
+      }
+
+      // THE LORE ARM. `chat.current()` resolves the invocation's chat. It throws outside a chat scope — a
+      // domain-bus fact (`character.updated`) carries no room — so it is called only after we know we have
+      // work to do. The excerpt is CUT here: a lore entry is injected into prompts, and a 4 KB one is a tax
+      // on every turn forever.
+      await fileEntry(host.chat.current(), work.bookId, work.term, summary.extract.slice(0, EXTRACT_MAX_CHARS));
+      await host.storage.set(seenKey("lookup", work.term), String(host.clock.nowEpochMs()));
+      host.log.info(`filed "${work.term}"`);
+    } catch (err) {
+      logFailure(err);
     }
-
-    // Claim the gap BEFORE the fetch, not after: two deliveries can be in flight at once, and a gap stamped on
-    // success would let both through.
-    await host.storage.set(LAST_FETCH_KEY, String(host.clock.nowEpochMs()));
-
-    const extract = await fetchSummary(work.term);
-    if (extract === null) {
-      return;
-    }
-
-    // `chat.current()` resolves the invocation's chat. It throws outside a chat scope — a domain-bus fact
-    // (`character.updated`) carries no room — so it is called only after we know we have work to do.
-    await fileEntry(host.chat.current(), work.bookId, work.term, extract);
-    await host.storage.set(seenKey(work.term), String(host.clock.nowEpochMs()));
-    host.log.info(`filed "${work.term}"`);
-  } catch (err) {
-    logFailure(err);
-  }
-});
+  });
+} else {
+  host.log.warn("research familiar is dormant: the events.subscribe capability is not granted (Settings → Plugins)");
+}
 
 host.log.info(`research familiar ready (grants: ${host.grants.join(", ") || "none"})`);
