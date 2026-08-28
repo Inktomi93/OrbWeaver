@@ -28,7 +28,7 @@ const BASE = {
 // question, answered with an isolated frame that can beacon over a channel no policy closes), so a reader
 // weighing one has the other in the same glance. It is RISK class where `ui.surface` is not — the only UI
 // capability that reaches past the plugin's own sandbox. Moving a member is a UX decision, not a refactor.
-test("PLUGIN_CAPABILITIES is the pinned 16-member axis (02 §1; ui.surface + ui.frame #679) in confirm-dialog order", () => {
+test("PLUGIN_CAPABILITIES is the pinned 18-member axis (02 §1; ui.surface + ui.frame #679; U8 ingest pair) in confirm-dialog order", () => {
   expect(PLUGIN_CAPABILITIES).toEqual([
     "chat.read",
     "chat.variables.write",
@@ -43,6 +43,15 @@ test("PLUGIN_CAPABILITIES is the pinned 16-member axis (02 §1; ui.surface + ui.
     "turn.trigger",
     "imagery.generate",
     "llm.quiet",
+    // U8 seams 15/17 — the two CANON-WRITE-INTO-YOUR-OWN-LIBRARY capabilities. Placed directly AFTER the spend
+    // block deliberately: they are not `net.fetch`/`llm.quiet`-class SPEND (no paid credential, no external
+    // host — only the box's own local write + derived-index compute, so no hourly floor, the `storage.kv`
+    // posture), but they DO cost compute and mint durable rows, so a reader scanning "what can this do to my
+    // stuff" meets them right after the money block and before the passive `events.subscribe`. Each is its OWN
+    // consent line (a canon write is a distinct reach), which is exactly what the HOST_FUNCTION_CAPABILITY 1:1
+    // keys and the coverage loop below make checkable.
+    "databank.ingest",
+    "character.ingest",
     "events.subscribe",
     "tools.register",
     "net.fetch",

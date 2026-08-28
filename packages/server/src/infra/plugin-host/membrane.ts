@@ -243,6 +243,8 @@ export function attachMembrane(ctx: QuickJSContext, surface: QuickJSHandle, runt
   setStorage(ctx, surface, runtime);
   setNotifications(ctx, surface, runtime);
   setLlm(ctx, surface, runtime);
+  setDatabank(ctx, surface, runtime);
+  setCharacter(ctx, surface, runtime);
   setTools(ctx, surface, runtime);
   setTransforms(ctx, surface, runtime);
   setMacros(ctx, surface, runtime);
@@ -1021,6 +1023,56 @@ function setLlm(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
     },
   });
   ctx.setProp(surface, "llm", llm);
+}
+
+/** databank.ingest — capability databank.ingest (plugin-ui-plane §5.33/seam 15). Ingest a text document into
+ *  the INSTALLER's OWN databank. NO chat scope + NO host authority — deliberately, the `storage`/`llm` posture:
+ *  a library write is the installer's own reach, not room state, so gating on `canWrite` would claim a
+ *  protection it does not provide. The installer is closed over DOMAIN-side (the bridge), so a guest supplies
+ *  ONLY `{name, text}` and can name no other owner; the domain content-addresses + dedups the text and enqueues
+ *  the ingest workload (the indexer auto-runs). The guest gets back its OWN new document id. */
+function setDatabank(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
+  using databank = ctx.newObject();
+  attachAsync(ctx, databank, {
+    name: "ingest",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "databank.ingest");
+      const doc = (typeof args[0] === "object" && args[0] !== null ? args[0] : {}) as { name?: unknown; text?: unknown };
+      if (typeof doc.name !== "string" || typeof doc.text !== "string") {
+        throw new Error("plugin host: databank.ingest requires { name: string, text: string }");
+      }
+      return await runtime.bridge.databank.ingest({ name: doc.name, text: doc.text });
+    },
+  });
+  ctx.setProp(surface, "databank", databank);
+}
+
+/** character.ingest — capability character.ingest (plugin-ui-plane §5 row 20 / seam 17). Ingest a V2/V3
+ *  character CARD (a plain JSON object) into the INSTALLER's OWN library through the ContentChanged-emitting
+ *  import funnel. Same owner-scoped, no-chat, no-host posture as {@link setDatabank}. The guest supplies the raw
+ *  card object; the domain serializes + validates it through `parseCardJson`, so a non-object arg (an array /
+ *  scalar / null) or a card that does not parse is a typed refusal of the CALL, never a partial write. Returns
+ *  the new character id + whether it was freshly created (a byte-identical re-ingest deduplicates). */
+function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
+  using character = ctx.newObject();
+  attachAsync(ctx, character, {
+    name: "ingest",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "character.ingest");
+      const card = args[0];
+      // A card is a JSON OBJECT — an array/scalar/null is not a card and is refused here rather than serialized
+      // into a shape `parseCardJson` would reject downstream with a less legible error.
+      if (typeof card !== "object" || card === null || Array.isArray(card)) {
+        throw new Error("plugin host: character.ingest requires a character-card object");
+      }
+      return await runtime.bridge.character.ingest(card as Record<string, unknown>);
+    },
+  });
+  ctx.setProp(surface, "character", character);
 }
 
 /** Project the guest-supplied `llm.quiet` options bag (U6 — plugin-ui-plane §5.16/§5.32) to the JSON-safe

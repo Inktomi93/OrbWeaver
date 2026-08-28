@@ -260,6 +260,28 @@ export interface PluginHostOps {
      *  the resident instance, so an unknown id costs nothing and a cross-plugin open is not expressible. */
     readonly openDialog: (pluginId: PluginId, surfaceId: string) => Promise<void>;
   };
+  /** The `databank.ingest` capability's write op (plugin-ui-plane #679 U8 seam 15). Ingest a text document
+   *  into the INSTALLER's OWN databank — wired at compose to databank's `createFromText` under the installer's
+   *  Principal (resolved by ROW READ, so a `UserId` arriving here carries no authority), which content-addresses
+   *  + dedups the text and ENQUEUES the ingest workload (the indexer auto-runs). Owner-scoped by construction:
+   *  the bridge closes the installer over this, a guest names only the document. Returns the new document id. */
+  readonly databank: {
+    // @foreign-id-ok(documentId): the injected-op result id for the installer's own new document; the domain minted it under the installer, and it crosses back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
+    readonly ingest: (req: { readonly installerUserId: UserId; readonly name: string; readonly text: string }) => Promise<{ readonly documentId: string }>;
+  };
+  /** The `character.ingest` capability's write op (plugin-ui-plane #679 U8 seam 17). Ingest a V2/V3 character
+   *  CARD into the INSTALLER's OWN library — wired at compose to a per-installer `importCharacter` (the
+   *  ContentChanged-emitting import path: byte-identical dedup, book/regex relink, and `character.create`'s own
+   *  `contentChanged:true` emit drives the indexer). Owner-scoped by construction. `card` is the raw JSON-safe
+   *  card object; compose serializes it to bytes and runs the SAME funnel a file upload takes. Returns the new
+   *  character id + whether it was freshly created (`false` = a byte-identical re-ingest deduped by importHash). */
+  readonly character: {
+    // @foreign-id-ok(characterId): the injected-op result id for the installer's own new character, minted under the installer and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
+    readonly ingest: (req: {
+      readonly installerUserId: UserId;
+      readonly card: Record<string, unknown>;
+    }) => Promise<{ readonly characterId: string; readonly created: boolean }>;
+  };
   /** The runtime registrar seams (PL-A tool-use, D50 transform, event subscribe). Each takes a collected
    *  registration + the per-handler invoker + the per-activation {@link PluginActivationScope} (slug for
    *  namespacing, installer for the PL-C ceiling) and returns an `unregister` handle. `registerTool` is wired

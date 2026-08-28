@@ -312,6 +312,9 @@ export function makeInertOps(): PluginHostOps {
     // verb does with the outbox (`ctx.uiOutbox` is the real one), not what a compose-side op wired to it does.
     // A test that wants to observe a queued toast pushes through the real outbox directly.
     ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
+    // U8 canon writes — inert here (a bridge test that cares about ownership scoping injects a recording op).
+    databank: { ingest: () => Promise.resolve({ documentId: "doc_inert0000000000000000000" }) },
+    character: { ingest: () => Promise.resolve({ characterId: "char_inert000000000000000000", created: false }) },
     imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_inert00000000000000000" }) },
     variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
     registrar: {

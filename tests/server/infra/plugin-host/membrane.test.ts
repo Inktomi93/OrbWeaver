@@ -38,13 +38,17 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
     uiSetState: { surfaceId: string; state: Record<string, unknown>; chatId: ChatId | null }[];
     uiToasts: { level: PluginToastLevel; message: string }[];
     uiDialogs: string[];
+    databankIngests: { name: string; text: string }[];
+    characterIngests: Record<string, unknown>[];
   };
 } {
   const writes = { count: 0 };
   const uiSetState: { surfaceId: string; state: Record<string, unknown>; chatId: ChatId | null }[] = [];
   const uiToasts: { level: PluginToastLevel; message: string }[] = [];
   const uiDialogs: string[] = [];
-  const performed = { turns: 0, lore: 0, pictures: 0, chips: 0, uiSetState, uiToasts, uiDialogs };
+  const databankIngests: { name: string; text: string }[] = [];
+  const characterIngests: Record<string, unknown>[] = [];
+  const performed = { turns: 0, lore: 0, pictures: 0, chips: 0, uiSetState, uiToasts, uiDialogs, databankIngests, characterIngests };
   const llm: { prompts: string[]; opts: (PluginQuietOptions | undefined)[] } = { prompts: [], opts: [] };
   const egress = { count: 0 };
   const suggested: { acts: PluginSuggestedAct[] } = { acts: [] };
@@ -115,6 +119,20 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
       openDialog: (surfaceId) => {
         performed.uiDialogs.push(surfaceId);
         return Promise.resolve();
+      },
+    },
+    // U8 canon-write ops — recorded so a test can prove the membrane forwarded the validated payload (and, by
+    // its absence, that an ungranted call never reaches the bridge at all).
+    databank: {
+      ingest: (doc) => {
+        performed.databankIngests.push(doc);
+        return Promise.resolve({ documentId: `doc_${performed.databankIngests.length}` });
+      },
+    },
+    character: {
+      ingest: (card) => {
+        performed.characterIngests.push(card);
+        return Promise.resolve({ characterId: `char_${performed.characterIngests.length}`, created: true });
       },
     },
   };
@@ -1286,5 +1304,82 @@ describe("attachMembrane — macros.register (U6 §5.15; plugin macros are DATA 
       expect(readString(ctx, result.error ?? result.value)).toContain("name, description, resolve");
     });
     expect(collected).toEqual([]);
+  });
+});
+
+// ── U8 seams 15/17: the two CANON-WRITE host fns (databank.ingest / character.ingest) ─────────────────────────
+// The security shape under test: each is capability-gated (an ungranted call NEVER reaches the bridge), needs
+// NO chat scope and NO host authority (a non-host installer — `canWrite:false` — ingests their OWN library), and
+// forwards a VALIDATED payload (a malformed arg is a typed rejection of the CALL, not a partial write). The
+// `performed.*Ingests` capture proves the "never reaches the bridge" half by ABSENCE, which is the property a
+// capability wall is: the refusal happens before any owning-domain op runs.
+describe("attachMembrane — U8 databank.ingest / character.ingest are grant-gated owner-writes (no chat, no host authority)", () => {
+  test("databank.ingest WITHOUT the grant rejects with the TYPED capability error — the bridge is never called", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost([], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.databank.ingest({ name: 'x', text: 'y' }); return 'NO-THROW' } catch (e) { return e.name } })()",
+      );
+      expect(out).toBe("PluginCapabilityError");
+    });
+    expect(performed.databankIngests).toEqual([]);
+  });
+
+  test("databank.ingest WITH the grant forwards {name,text} + returns the id — canWrite:false (a library write is not room state)", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost(["databank.ingest"], false, bridge, async (ctx) => {
+      const out = await runAsync(ctx, "(async () => { const r = await host.databank.ingest({ name: 'notes', text: 'hello' }); return r.documentId })()");
+      expect(out).toBe("doc_1");
+    });
+    expect(performed.databankIngests).toEqual([{ name: "notes", text: "hello" }]);
+  });
+
+  test("databank.ingest with a malformed payload (no text) is a typed rejection — nothing reaches the bridge", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost(["databank.ingest"], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.databank.ingest({ name: 'x' }); return 'NO-THROW' } catch (e) { return 'caught:' + e.message } })()",
+      );
+      expect(out).toContain("name: string, text: string");
+    });
+    expect(performed.databankIngests).toEqual([]);
+  });
+
+  test("character.ingest WITHOUT the grant rejects with the TYPED capability error — the bridge is never called", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost([], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.character.ingest({ name: 'Aria' }); return 'NO-THROW' } catch (e) { return e.name } })()",
+      );
+      expect(out).toBe("PluginCapabilityError");
+    });
+    expect(performed.characterIngests).toEqual([]);
+  });
+
+  test("character.ingest WITH the grant forwards the card object + returns the id (canWrite:false — own library)", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost(["character.ingest"], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { const r = await host.character.ingest({ name: 'Aria', spec: 'chara_card_v2' }); return r.characterId })()",
+      );
+      expect(out).toBe("char_1");
+    });
+    expect(performed.characterIngests).toEqual([{ name: "Aria", spec: "chara_card_v2" }]);
+  });
+
+  test("character.ingest with a NON-object (an array) is a typed rejection — a card is an object, nothing reaches the bridge", async () => {
+    const { bridge, performed } = fakeBridge();
+    await withHost(["character.ingest"], false, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.character.ingest(['not', 'a', 'card']); return 'NO-THROW' } catch (e) { return 'caught:' + e.message } })()",
+      );
+      expect(out).toContain("character-card object");
+    });
+    expect(performed.characterIngests).toEqual([]);
   });
 });
