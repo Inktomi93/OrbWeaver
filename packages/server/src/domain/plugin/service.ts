@@ -21,12 +21,14 @@ import { createInstallForAllUsers } from "./verbs/install-for-all-users.ts";
 import { createInvokeUiAction } from "./verbs/invoke-ui-action.ts";
 import { createInvokeUiCommand } from "./verbs/invoke-ui-command.ts";
 import { createListCommands } from "./verbs/list-commands.ts";
+import { createListDisplayTransforms } from "./verbs/list-display-transforms.ts";
 import { createListDistributedPlugins } from "./verbs/list-distributed-plugins.ts";
 import { createListPlugins } from "./verbs/list-plugins.ts";
 import { createListSurfaces } from "./verbs/list-surfaces.ts";
 import { createRunSnippet } from "./verbs/run-snippet.ts";
 import { createSetEnabled } from "./verbs/set-enabled.ts";
 import { createSetGrant } from "./verbs/set-grant.ts";
+import { createTransformForDisplay } from "./verbs/transform-for-display.ts";
 import { createUninstall } from "./verbs/uninstall.ts";
 import { createUninstallForAllUsers } from "./verbs/uninstall-for-all-users.ts";
 import { createUpgrade } from "./verbs/upgrade.ts";
@@ -75,5 +77,8 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
     // drained UI outcome.
     listCommands: createListCommands(ctx, registry),
     invokeUiCommand: createInvokeUiCommand(ctx, registry),
+    // The DISPLAY-transform read side (U6, seam 14) — the same resident registry, the same owner-scoped read.
+    listDisplayTransforms: createListDisplayTransforms(ctx, registry),
+    transformForDisplay: createTransformForDisplay(ctx, registry),
   };
 }

@@ -213,15 +213,39 @@ export interface PromptTransformEnv {
   readonly vars: Record<string, string>;
 }
 
+/** The maximum length of a transform's ABORT reason — the string a refused turn tells its author. Capped
+ *  because it is untrusted text (a guest writes it) that reaches a refusal surface. */
+export const PROMPT_TRANSFORM_ABORT_REASON_MAX = 200;
+
+/** A transform's deliberate ABORT of the generation (plugin-ui-plane §5.14, U6). It is NOT the D53 skip:
+ *  a skip means "this transform did not run, keep the draft"; an abort means "this transform ran and says
+ *  the turn must not happen". The two are different outcomes and the shape makes them un-confusable — a
+ *  timeout can never be mistaken for a refusal, and a transform can never abort by returning nothing. */
+export interface PromptTransformAbort {
+  /** The author-facing reason, capped at {@link PROMPT_TRANSFORM_ABORT_REASON_MAX}. */
+  readonly abort: string;
+}
+
+/** What ONE transform's `apply` may answer: the rewritten draft, or an abort. */
+export type PromptTransformOutcome = string | PromptTransformAbort;
+
+/** What the REGISTRY's fold answers for a whole point — the transformed text, or the first abort with the
+ *  id of the transform that raised it (the fold stops there; later transforms never see an aborted turn). */
+export type PromptTransformResult =
+  | { readonly aborted: false; readonly text: string }
+  | { readonly aborted: true; readonly transformId: string; readonly reason: string };
+
 /** An ordered, bounded, synchronous-per-call transform over a turn's draft text. Registered at
  *  `entry/compose` into the pipeline's transform list; applied in ascending `order` (automation registers
  *  0–999, plugins 1000+ — host policy wraps guest). Each `apply` is deadline-bounded by the CALLER (250 ms);
- *  a timeout or throw SKIPS it (draft unchanged) + emits a `prompt_transform_skipped` warning (D53). */
+ *  a timeout or throw SKIPS it (draft unchanged) + emits a `prompt_transform_skipped` warning (D53). A
+ *  transform that instead returns a {@link PromptTransformAbort} REFUSES the generation — the deliberate
+ *  outcome, distinct from the skip in both shape and consequence. */
 export interface PromptTransform {
   readonly id: string;
   readonly point: PromptTransformPoint;
   readonly order: number;
-  readonly apply: (draft: string, env: PromptTransformEnv) => Promise<string>;
+  readonly apply: (draft: string, env: PromptTransformEnv) => Promise<PromptTransformOutcome>;
 }
 
 /** The entity kinds whose OWNER-PLANE edits reach a room's member-visible projections (the entity→room

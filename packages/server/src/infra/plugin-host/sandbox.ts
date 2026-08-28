@@ -20,8 +20,10 @@ import { performance } from "node:perf_hooks";
 import type {
   PluginCapability,
   PluginCommandRegistration,
+  PluginDisplayTransformRegistration,
   PluginEventSubscription,
   PluginHandlerRef,
+  PluginMacroRegistration,
   PluginSurfaceRegistration,
   PluginToolRegistration,
   PluginTransformRegistration,
@@ -153,6 +155,8 @@ interface ResidentState {
   readonly events: PluginEventSubscription[];
   readonly surfaces: PluginSurfaceRegistration[];
   readonly commands: PluginCommandRegistration[];
+  readonly displayTransforms: PluginDisplayTransformRegistration[];
+  readonly macros: PluginMacroRegistration[];
   readonly handlers: Map<PluginHandlerRef, QuickJSHandle>;
   /** Host-call deferreds still UNSETTLED (a fire-and-forget guest promise still in flight). MUST be disposed
    *  before `ctx.dispose()` — an unsettled guest Promise left in the heap aborts `JS_FreeRuntime`. The
@@ -200,6 +204,8 @@ export class Sandbox implements Disposable {
       events: [],
       surfaces: [],
       commands: [],
+      displayTransforms: [],
+      macros: [],
       handlers: new Map(),
       pending: new Set(),
     };
@@ -229,6 +235,16 @@ export class Sandbox implements Disposable {
               const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
               state.handlers.set(ref, handler);
               state.events.push({ type: reg.type, handler: ref });
+            },
+            collectDisplayTransform: (reg, handler): void => {
+              const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
+              state.handlers.set(ref, handler);
+              state.displayTransforms.push({ name: reg.name, handler: ref });
+            },
+            collectMacro: (reg, handler): void => {
+              const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
+              state.handlers.set(ref, handler);
+              state.macros.push({ name: reg.name, description: reg.description, handler: ref });
             },
             collectSurface: (meta, onAction): void => {
               if (onAction === null) {
@@ -302,6 +318,20 @@ export class Sandbox implements Disposable {
    *  No external registrar, for the same reason a surface has none: a command is instance-resident data. */
   get collectedCommands(): readonly PluginCommandRegistration[] {
     return this.state.commands;
+  }
+
+  /** The DISPLAY transforms `main.js` registered at activation (plugin-ui-plane seam 14) — read directly by the
+   *  display round-trip verb, like `collectedSurfaces`; each `apply` handle lives in `handlers`. No external
+   *  registrar: a display transform is instance-resident data, not a process registry entry. */
+  get collectedDisplayTransforms(): readonly PluginDisplayTransformRegistration[] {
+    return this.state.displayTransforms;
+  }
+
+  /** The macros `main.js` registered at activation (plugin-ui-plane §5.15) — the domain namespaces each name
+   *  and re-enters its `resolve` handle once per turn. Names here are GUEST-LOCAL (un-namespaced): infra holds
+   *  no manifest slug and never invents one. */
+  get collectedMacros(): readonly PluginMacroRegistration[] {
+    return this.state.macros;
   }
 
   /** Admit an invocation chat (mints a fresh opaque handle token) or clear the scope (`null`). Called before

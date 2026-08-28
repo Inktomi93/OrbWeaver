@@ -18,6 +18,8 @@ function instanceWith(surfaceId: string): PluginInstance {
     transforms: [],
     events: [],
     commands: [],
+    displayTransforms: [],
+    macros: [],
     surfaces: [
       {
         id: surfaceId,
@@ -38,6 +40,8 @@ function instanceWithToolCard(toolName: string): PluginInstance {
     transforms: [],
     events: [],
     commands: [],
+    displayTransforms: [],
+    macros: [],
     surfaces: [{ id: "draw_card", anchor: "tool-card", title: "Draw", tier: "static", toolName, spec: { kind: "text", value: "drawn" } }],
   };
 }

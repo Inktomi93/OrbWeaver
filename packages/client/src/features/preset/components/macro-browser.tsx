@@ -6,7 +6,7 @@
 
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
-import type { MacroMetadata, UserMacroRegistration } from "@orb/kit/macro";
+import type { MacroMetadata, MacroSourceKind, UserMacroRegistration } from "@orb/kit/macro";
 import { createDefaultRegistry, MACRO_FLAG_DEFS, queryMacros, registerUserMacros } from "@orb/kit/macro";
 import { Badge } from "@orb/ui/badge";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -81,6 +81,15 @@ export function MacroBrowser({ userMacros, presetId }: MacroBrowserProps): React
 }
 
 /** One macro row: name + category/volatile/strict/source badges + description + the arg signature. */
+/** The source badge's copy, keyed by `MacroSourceKind` — a total Record, so a new authoring home fails `tsc`
+ *  here instead of inheriting a neighbour's label. (The prior ternary silently read every non-preset source as
+ *  "game", which is exactly what a plugin macro must not be called.) */
+const MACRO_SOURCE_LABELS: Record<MacroSourceKind, string> = {
+  preset: "this preset",
+  game: "game",
+  plugin: "plugin",
+};
+
 function MacroRow({ meta }: { readonly meta: MacroMetadata }): ReactElement {
   const signature = argSignature(meta);
   return (
@@ -102,7 +111,7 @@ function MacroRow({ meta }: { readonly meta: MacroMetadata }): ReactElement {
         ) : null}
         {meta.source !== undefined ? (
           <Badge intent="info" size="sm">
-            {meta.source.kind === "preset" ? "this preset" : "game"}
+            {MACRO_SOURCE_LABELS[meta.source.kind]}
           </Badge>
         ) : null}
       </Row>

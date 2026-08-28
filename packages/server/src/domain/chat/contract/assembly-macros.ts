@@ -32,6 +32,12 @@ export interface BuildTurnUserMacrosArgs {
   /** The GAME's authored macro defs (`rpg_games.config.userMacros`, via `ChatRpgOps.resolveUserMacros`) +
    *  the game's chat id. Absent ⇒ a non-game chat (byte-identical to preset-only). */
   readonly game?: UserMacroDefGroup | undefined;
+  /** The turn AUTHOR's PLUGIN macros (plugin-ui-plane §5.15, U6), already resolved to values by the plugin
+   *  plane (`ChatContext.pluginMacros`). A THIRD authoring home, and the only one whose names are HOST-assigned
+   *  (`plugin_<slug'>_<name>`), which is why it needs no shadow policy: it cannot collide with a builtin, and a
+   *  preset/game def that deliberately spells the same name simply wins by registering first. Absent ⇒ a chat
+   *  with no plugin macros, byte-identical to preset+game only. */
+  readonly plugin?: UserMacroDefGroup | undefined;
   /** The per-chat input picks bag — macro NAME → input name → pick. `{}` is fully functional (unpicked
    *  inputs resolve their per-kind defaults; a random-pick pool falls back to ALL options). Keyed by NAME,
    *  never by source: a pick made while the PRESET owned `{{mood}}` keeps applying when a game def shadows

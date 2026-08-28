@@ -54,6 +54,7 @@ export type {
   MacroRegisterOptions,
   MacroRegistry,
   MacroResolveOptions,
+  MacroSourceKind,
   MacroSourceRef,
   MacroSpan,
   TextNode,
@@ -61,7 +62,7 @@ export type {
 } from "./types.ts";
 // MACRO_FLAG_DEFS: the ONE reserved-flags vocabulary — the parser derives from it, the macro
 // browser documents from it.
-export { MACRO_ARG_TYPES, MACRO_CATEGORIES, MACRO_FLAG_DEFS } from "./types.ts";
+export { MACRO_ARG_TYPES, MACRO_CATEGORIES, MACRO_FLAG_DEFS, MACRO_SOURCE_KINDS } from "./types.ts";
 // The #24 typed-input fold: preset/game-authored user macros as first-class registry entries + the typed
 // choice-block input vocabulary and its pure values-bag resolution (random-pick draws freeze-at-commit).
 export {

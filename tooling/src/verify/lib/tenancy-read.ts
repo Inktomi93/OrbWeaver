@@ -65,15 +65,6 @@ function repoRel(path: string): string {
   return idx === -1 ? path.replace(LEADING_SLASH_RE, "") : path.slice(idx + 1);
 }
 
-/** Resolve an identifier used as a drizzle table argument back to a derived schema-table name. The returned
- *  name stays LOCAL because the WHERE/conflict predicate is written against that binding. */
-export function ownerScopedTableBinding(node: Node | undefined, ownerTableIdents: ReadonlySet<string>): string | undefined {
-  if (node?.isKind(SyntaxKind.Identifier) !== true) {
-    return;
-  }
-  return tracedTable(node, ownerTableIdents, new Set(), 0) === undefined ? undefined : node.getText();
-}
-
 /** Classify a drizzle table argument: trace it ONCE against the FULL schema table set, then read its class
  *  off the (a)-class set. The full set is the denominator that separates "reads fine, simply not (a)-class"
  *  from "I could not read this at all" — without it every non-(a) write would look identical to a bypass. */

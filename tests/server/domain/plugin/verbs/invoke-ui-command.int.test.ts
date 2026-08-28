@@ -23,7 +23,7 @@ import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_
 const CHAT_ID = mintTypeId(ID_PREFIX.chat) as ChatId;
 
 function instanceWithCommands(commands: PluginInstance["commands"]): PluginInstance {
-  return { tools: [], transforms: [], events: [], surfaces: [], commands };
+  return { tools: [], transforms: [], events: [], surfaces: [], commands, displayTransforms: [], macros: [] };
 }
 
 const DRAW: PluginInstance["commands"] = [{ name: "draw", describe: "Draw a card", onRun: castId<PluginHandlerRef>("plugin-handler-0") }];

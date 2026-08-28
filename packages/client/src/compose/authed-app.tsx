@@ -71,6 +71,7 @@ import {
   pluginCommandsChrome,
   pluginDialogModal,
   pluginDistributeSection,
+  pluginMessageFooterSurface,
   pluginSlashCommands,
   pluginSnippetConsoleSection,
   pluginsPane,
@@ -217,6 +218,8 @@ const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContributio
   // plugin). It carries no `when` — "does this person have a chat-flank surface?" is DATA the seam's sync
   // predicate cannot see — so it mounts in every room and renders null where it does not apply.
   pluginChatFlankSurface,
+  // U6 (#679, §5.4): the ONE plugin `message-footer` tenant — the per-ROW decoration strip, LAST so the
+  pluginMessageFooterSurface, // house's own per-row disclosures read above third-party decoration.
 ]);
 
 // The per-tool renderer seam (§6c). Its FIRST tenant (plugin-ui-plane #679 U3) is the plugin plane's card

@@ -257,6 +257,8 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
           events: [...sandbox.collectedEvents],
           surfaces: [...sandbox.collectedSurfaces],
           commands: [...sandbox.collectedCommands],
+          displayTransforms: [...sandbox.collectedDisplayTransforms],
+          macros: [...sandbox.collectedMacros],
         };
         const resident: Resident = { sandbox, releaseAdmission, log: [], chars: 0, tail: Promise.resolve(), queueDepth: 0, disposing: false };
         retainLog(resident, outcome.logs, at);
