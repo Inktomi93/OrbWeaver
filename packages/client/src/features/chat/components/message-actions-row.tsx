@@ -284,14 +284,6 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
   return (
     <Row ref={clusterRef} gap="field" align="center" justify="end" data-slot="message-actions-row" className={messageActionsRevealClass(messageActions)}>
       {renderModelCredit(modelCredit)}
-      {/* B6 — the FINE door. `ROW_ACTION_INLINE` stands it down at a coarse pointer, where its `MenuItem`
-          twin below is the one door (the #220 coarse collapse, exactly as Edit/Fork use it). Present on
-          EVERY committed row, not only editable ones: reacting to a system notice is legal and harmless,
-          and the applicability question a reaction asks ("is this canon?") is already answered by the row
-          being rendered at all. */}
-      <Button aria-label="Add a reaction" className={ROW_ACTION_INLINE} intent="ghost" onClick={(): void => setPickerOpen(true)} size="icon">
-        <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={SmilePlus} size="sm" />
-      </Button>
       {editable ? (
         // #220 THE COARSE COLLAPSE (row-reveal.ts). At a touch pointer `REVEAL_AT_COARSE` pins this whole
         // cluster ON, and every icon button is a ≥44px box by token construction — measured on --mobile,
@@ -308,6 +300,15 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
           </Button>
         </Row>
       ) : null}
+      {/* B6 — the FINE door. `ROW_ACTION_INLINE` stands it down at a coarse pointer, where its `MenuItem`
+          twin below is the one door (the #220 coarse collapse, exactly as Edit/Fork use it). Present on
+          EVERY committed row, not only editable ones: reacting to a system notice is legal and harmless,
+          and the applicability question a reaction asks ("is this canon?") is already answered by the row
+          being rendered at all. Ordered AFTER the Edit/Fork primary actions (#786, owner ruling): a row's
+          roving Tab stop must reach "Edit message" before "Add a reaction". */}
+      <Button aria-label="Add a reaction" className={ROW_ACTION_INLINE} intent="ghost" onClick={(): void => setPickerOpen(true)} size="icon">
+        <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={SmilePlus} size="sm" />
+      </Button>
       <RowActionsMenu
         label="More message actions"
         destructive={{
