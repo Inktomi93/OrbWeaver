@@ -50,6 +50,38 @@ export function numFromValues(values: Record<string, string>, name: string, fall
   return raw === undefined || raw === "" ? fallback : Number(raw);
 }
 
+/** Does this spec bind ANY value to published state (`{ $state }`)? The SILENCE test for a room-anchored
+ *  surface (plugin-ui-plane #679 U2, §4.9): a bound spec whose plugin has published nothing yet would render
+ *  its fallbacks — an empty meter, blank rows — as room chrome, which is exactly the "broken frame" §4.9
+ *  refuses. A surface that binds nothing is PURELY STATIC and always has something to say, so it renders on
+ *  sight. Pure + recursive over the same three container kinds every walk here uses. */
+export function specBindsState(node: PluginSurfaceNode): boolean {
+  if (node.kind === "stack" || node.kind === "row" || node.kind === "section") {
+    return node.children.some((child) => specBindsState(child));
+  }
+  if (node.kind === "text" || node.kind === "markdown" || node.kind === "meter") {
+    return isBinding(node.value);
+  }
+  if (node.kind === "badge") {
+    return isBinding(node.text);
+  }
+  if (node.kind === "keyValue") {
+    return node.rows.some((row) => isBinding(row.value));
+  }
+  if (node.kind === "list") {
+    return node.items.some((item) => isBinding(item));
+  }
+  // The seven form/action kinds carry no bindable value (their values are client-transient until an action
+  // submits them), so a form-only surface is static by construction.
+  return false;
+}
+
+/** A bindable slot holds either a primitive literal or the `{ $state }` object — so "is it bound" is "is it
+ *  the object arm". */
+function isBinding(value: PluginBoundString | PluginBoundNumber): boolean {
+  return typeof value !== "string" && typeof value !== "number";
+}
+
 /** Collect every `image` node's assetId (resolved once, owner-scoped, at the top of the render). */
 export function collectImageAssetIds(node: PluginSurfaceNode, out: AssetId[]): void {
   if (node.kind === "image") {
