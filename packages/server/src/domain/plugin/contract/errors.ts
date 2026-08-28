@@ -21,6 +21,30 @@ export class ManifestInvalidError extends DomainOperationError {
   }
 }
 
+/** A URL install/upgrade/preview could not FETCH the bundle bytes (plugin-ui-plane #679 U8, seam 15 —
+ *  `installFromUrl`/`upgradeFromUrl`/`previewFromUrl`). It is deliberately ONE generic, LEAK-FREE error for
+ *  EVERY fetch failure — an SSRF block (the URL resolved to a private/reserved address), a scheme/redirect
+ *  refusal, a non-2xx, or a network error — and that is the security property, not laziness: `safeFetch`'s own
+ *  `EgressBlockedError.reason` distinguishes "private-address" from "host-not-allowed", and surfacing that
+ *  distinction to the caller would turn this into an SSRF ORACLE (an attacker learns their URL resolved private).
+ *  The domain never imports `#infra/network` to branch on the reason (the `fetchWebDocument`→`ScrapeFailedError`
+ *  precedent — infra performs the guarded fetch and THROWS; the verb collapses every throw here). The message
+ *  names the caller-supplied URL and nothing about what it resolved to. Thrown BEFORE anything persists.
+ *  Maps to BAD_REQUEST. */
+// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see `ManifestInvalidError`
+// below (same host-side lifecycle taxonomy, a CALLER sees it, never the guest-observable membrane error).
+export class PluginBundleFetchError extends DomainOperationError {
+  constructor(url: string, options?: { readonly cause?: unknown }) {
+    super("plugin_bundle_fetch_failed", `could not fetch a plugin bundle from ${url} (unreachable, refused, or not a permitted destination)`);
+    // The cause is forwarded for SERVER-SIDE observability only (safeFetch's `EgressBlockedError` carries the
+    // block reason). It never reaches the client: the tRPC error formatter serializes `{message, code, data}`,
+    // never `cause` — so the leak-free MESSAGE above is what a caller sees while the reason stays in the logs.
+    if (options?.cause !== undefined) {
+      this.cause = options.cause;
+    }
+  }
+}
+
 /** The manifest pins a `hostVersion` this build does not serve. Separate from a generic manifest
  *  fault so the caller can be told to rebuild against the served major, not "fix your manifest".
  *

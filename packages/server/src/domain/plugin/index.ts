@@ -44,6 +44,7 @@ export {
   HostVersionUnservedError,
   ManifestInvalidError,
   PluginAlreadyInstalledError,
+  PluginBundleFetchError,
   PluginCrashedError,
   PluginDowngradeRefusedError,
   PluginNetHostsUnacknowledgedError,
