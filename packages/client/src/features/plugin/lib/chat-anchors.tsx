@@ -11,8 +11,13 @@
 // has a plugin with a `chat-flank` surface is DATA, so there is deliberately NO `when` here — the contribution
 // mounts in every room and its body returns `null` (never an empty wrapper) where it does not apply, which the
 // flank column's `empty:hidden` collapse renders identically to not being mounted at all. A plugin surface also
-// needs no committed room: its state plane is keyed by (plugin, surface), not by chat, so a draft room is not
-// a reason to withhold it.
+// needs no committed room: a plugin may publish plugin-wide state (keyed by (plugin, surface) alone), so a
+// draft room is not a reason to withhold it.
+//
+// THE ROOM RIDES THROUGH (row 777). Both anchors hand the fan-out their `chatId`, which is what lets a plugin
+// publish PER-ROOM state and a room-anchored action run in the room a person is actually looking at. The flank's
+// `chatId` is nullable (a draft room has none); the fan-out treats `null` as "plugin-wide only", which is
+// exactly right — there is no room for a room-keyed row to belong to yet.
 
 import type { ReactElement } from "react";
 import type { ChatSettingsSectionContribution, ChatSurfaceContribution } from "#lib";
@@ -22,7 +27,7 @@ import { PluginAnchoredSurfaces } from "../components/plugin-anchored-surfaces.t
 export const pluginChatFlankSurface: ChatSurfaceContribution = {
   id: "pluginChatFlank",
   anchor: "thread-flank",
-  body: (): ReactElement | null => <PluginAnchoredSurfaces anchor="chat-flank" />,
+  body: ({ chatId }): ReactElement | null => <PluginAnchoredSurfaces anchor="chat-flank" {...(chatId === null ? {} : { chatId })} />,
 };
 
 /** The `chat-settings-section` anchor: plugin panels inside the "This chat" tab's HOST-ONLY band. Host-gated by
@@ -37,5 +42,5 @@ export const pluginChatSettingsSection: ChatSettingsSectionContribution = {
   id: "pluginChatSurfaces",
   anchor: "host-controls",
   kicker: "Plugin panels",
-  body: (): ReactElement | null => <PluginAnchoredSurfaces anchor="chat-settings-section" />,
+  body: ({ chatId }): ReactElement | null => <PluginAnchoredSurfaces anchor="chat-settings-section" chatId={chatId} />,
 };

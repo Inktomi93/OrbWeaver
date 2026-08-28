@@ -515,6 +515,9 @@ importers:
 
   packages/client:
     dependencies:
+      '@jitl/quickjs-ng-wasmfile-release-sync':
+        specifier: 'catalog:'
+        version: 0.32.0
       '@orb/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -542,6 +545,9 @@ importers:
       fflate:
         specifier: 'catalog:'
         version: 0.8.3
+      quickjs-emscripten-core:
+        specifier: 'catalog:'
+        version: 0.32.0
       react:
         specifier: 'catalog:'
         version: 19.2.7

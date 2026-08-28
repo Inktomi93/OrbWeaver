@@ -184,7 +184,7 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
 
       {/* The plugin's OWN settings surfaces (plugin-ui-plane #679 U1) — rendered inside the first-party
           labelled shell, per §4.5. Renders nothing when the plugin is disabled or ships no settings surface. */}
-      <PluginSurfacesPanel pluginId={plugin.id} pluginName={plugin.name} />
+      <PluginSurfacesPanel grants={plugin.grantedCapabilities} pluginId={plugin.id} pluginName={plugin.name} />
 
       {plugin.reconsentPending ? (
         <ReConsentNotice

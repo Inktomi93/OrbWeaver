@@ -128,8 +128,31 @@ export const useWithdrawPlugin = createEntityMutation<inferInput<Trpc["plugin"][
  *  state immediately, so the panel repaints on the round-trip without waiting for the bus round-trip. */
 export const useInvokeUiAction = createEntityMutation<inferInput<Trpc["plugin"]["invokeUiAction"]>, inferOutput<Trpc["plugin"]["invokeUiAction"]>>({
   options: (trpc) => trpc.plugin.invokeUiAction.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.plugin.getSurfaceState.queryFilter({ pluginId: vars.pluginId, surfaceId: vars.surfaceId })],
+  // The filter carries the ROOM too (row 777): a room-anchored action publishes into that room's state row, and
+  // a filter that named only (pluginId, surfaceId) would refetch the plugin-wide row instead — the panel would
+  // sit stale until the bus poke arrived, which is exactly the same-tab lag this belt exists to remove.
+  invalidates: (trpc, vars) => [
+    trpc.plugin.getSurfaceState.queryFilter({
+      pluginId: vars.pluginId,
+      surfaceId: vars.surfaceId,
+      ...(vars.chatId === undefined ? {} : { chatId: vars.chatId }),
+    }),
+  ],
   errorToast: serverReason("That plugin action couldn't run."),
+});
+
+/** Report a Tier-C client-guest crash (plugin-ui-plane #679 U4, §4.9) — a hung guest the host `terminate()`d, a
+ *  `ui.js` that failed to boot, or a tree the client schema refused. It feeds the SAME `consecutive_crashes`
+ *  3-strike policy a throwing server handler drives, so a UI half that dies every mount auto-disables like a
+ *  server half that throws.
+ *
+ *  NO ERROR TOAST, and that is the §4.9 posture rather than an omission: a crashed surface renders NOTHING, and
+ *  the person's answer to "why is my widget gone" is the Plugins pane's log, not a toast interrupting whatever
+ *  they were actually doing. It invalidates `list` because the third strike flips the row to `errored` — the
+ *  pane has to stop saying the plugin is enabled. */
+export const useReportUiCrash = createEntityMutation<inferInput<Trpc["plugin"]["reportUiCrash"]>, inferOutput<Trpc["plugin"]["reportUiCrash"]>>({
+  options: (trpc) => trpc.plugin.reportUiCrash.mutationOptions(),
+  invalidates: (trpc) => [trpc.plugin.list.queryFilter()],
 });
 
 /** Run one inline snippet as the caller in one chat. Reconciles nothing — a snippet is transient and

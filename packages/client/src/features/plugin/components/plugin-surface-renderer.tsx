@@ -39,7 +39,7 @@ import type {
   PluginToggleNode,
 } from "@orb/contracts/plugin";
 import { PLUGIN_SPEC_MAX_DEPTH, pluginSurfaceSpecSchema } from "@orb/contracts/plugin";
-import type { AssetId, PluginId } from "@orb/kit/ids";
+import type { AssetId, ChatId, PluginId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
@@ -112,16 +112,44 @@ function BoundText({
   return <Text prose={true}>{text}</Text>;
 }
 
+/** The TIER-C SINK — where a scripted surface's interactions go instead of the server (plugin-ui-plane #679 U4).
+ *  Absent (the Tier-S default) the renderer owns everything: it reads `getSurfaceState` for the `$state`
+ *  bindings and submits actions through `invokeUiAction`. Present, the OWNER owns both: the tree came from a
+ *  client guest that holds its own state, and an interaction is delivered INTO that guest with no network in
+ *  the path — which is the entire latency claim §4.6 makes.
+ *
+ *  ONE renderer for both tiers, deliberately: the vocabulary, the caps, the a11y floor and the impersonation
+ *  walls are identical, so a second renderer would be a second place for them to drift. What differs between
+ *  the tiers is only WHERE an event goes, which is exactly the size of this seam. */
+export interface PluginSurfaceSink {
+  /** Deliver a button/confirm action. Fire-and-forget — the RESULT is whatever tree the guest publishes next. */
+  readonly submit: (actionId: string, values: Record<string, string>) => void;
+  /** Deliver a field edit LIVE, as it is typed. This is the keystroke path: a Tier-S surface holds its draft
+   *  client-side until an action submits it, but a scripted filter box has to see each character to filter. */
+  readonly onFieldChange: (name: string, value: string) => void;
+  /** The state the `$state` bindings resolve against — the guest's, not the server's. A scripted guest usually
+   *  inlines its values in the tree it publishes and passes `{}` here; the binding path stays available so the
+   *  SAME spec works at either tier. */
+  readonly state: Record<string, unknown>;
+}
+
 /** The renderer entry: validate the spec (caps), resolve owner-scoped image urls + surface state, hold the form
  *  draft, render the root node. */
 export function PluginSurfaceRenderer({
   pluginId,
   surfaceId,
   spec,
+  chatId,
+  sink,
 }: {
   readonly pluginId: PluginId;
   readonly surfaceId: string;
   readonly spec: PluginSurfaceNode;
+  /** The ROOM this surface is mounted in (row 777). Threaded into the state read and the action round-trip so a
+   *  room-anchored surface sees its own room's publication and acts in the room a person is looking at. */
+  readonly chatId?: ChatId;
+  /** Tier C only — see {@link PluginSurfaceSink}. */
+  readonly sink?: PluginSurfaceSink;
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -135,7 +163,13 @@ export function PluginSurfaceRenderer({
   }
   const { data: refs } = useQuery({ ...trpc.assets.resolveBlobRefs.queryOptions({ assetIds: imageIds }), enabled: imageIds.length > 0 });
   const imageUrls = new Map((refs ?? []).map((ref) => [ref.assetId, blobUrl(ref.hash)] as const));
-  const { data: state } = useQuery(trpc.plugin.getSurfaceState.queryOptions({ pluginId, surfaceId }));
+  // The Tier-S state read. `enabled: sink === undefined` is what keeps the ZERO-NETWORK claim honest for Tier C:
+  // a scripted surface's state lives in its guest, so the server read must not fire at all — not merely be
+  // ignored. (The hook itself is unconditional; only its `enabled` moves, per the rules of hooks.)
+  const { data: state } = useQuery({
+    ...trpc.plugin.getSurfaceState.queryOptions({ pluginId, surfaceId, ...(chatId === undefined ? {} : { chatId }) }),
+    enabled: sink === undefined,
+  });
   const [values, setValues] = useState<Record<string, string>>(() => {
     const out: Record<string, string> = {};
     if (parsed.success) {
@@ -153,11 +187,27 @@ export function PluginSurfaceRenderer({
   }
 
   const ctx: RenderCtx = {
-    state: state ?? {},
+    // Tier C binds against the GUEST's state (the server read did not even fire); Tier S binds against the
+    // published row, with `{}` for "nothing published yet" so every binding falls back rather than throwing.
+    state: sink === undefined ? (state ?? {}) : sink.state,
     values,
-    setValue: (name, value) => setValues((current) => ({ ...current, [name]: value })),
-    submit: (actionId) => invoke.mutate({ pluginId, surfaceId, actionId, values }),
-    submitting: invoke.isPending,
+    setValue: (name, value) => {
+      setValues((current) => ({ ...current, [name]: value }));
+      // TIER C: the keystroke also goes INTO the guest, immediately. The local draft is still kept so the input
+      // stays controlled and responsive even while the guest is mid-event — the guest's next published tree is
+      // what actually changes what is displayed.
+      sink?.onFieldChange(name, value);
+    },
+    submit: (actionId) => {
+      if (sink !== undefined) {
+        sink.submit(actionId, values);
+        return;
+      }
+      invoke.mutate({ pluginId, surfaceId, actionId, values, ...(chatId === undefined ? {} : { chatId }) });
+    },
+    // A Tier-C action never has a pending network leg, so there is nothing to spin: `submitting` is false and
+    // the guest's re-render IS the feedback.
+    submitting: sink === undefined && invoke.isPending,
     imageUrls,
   };
   return <SurfaceNode ctx={ctx} depth={1} node={parsed.data} />;
