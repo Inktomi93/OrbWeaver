@@ -9,8 +9,14 @@
 // time jump) must never be able to disable the DoS kill — so the interrupt reads real monotonic time, the
 // guest reads the seam.
 
-/** Per-invocation guest CPU budget (installed plugin handler/tool/transform). Enforced by the QuickJS
- *  interrupt handler comparing REAL wall-time against the invocation deadline. */
+/** Guest CPU budget for ONE SPAN of guest execution (installed plugin handler/tool/transform). Enforced by the
+ *  QuickJS interrupt handler comparing REAL wall-time against the open window.
+ *
+ *  A SPAN, not an invocation: the same number bounds the invocation AND each POST-invocation job pump, because
+ *  a guest continuation resumed when a fire-and-forget host call settles is guest bytecode too — and a pump
+ *  that ran it with no handler installed was #781, a whole-process DoS. `cpu-guard.ts` states the window
+ *  mechanics (one context-lifetime handler, nested windows narrow and restore). The aggregate is therefore
+ *  bounded by `HOST_CALLS_IN_FLIGHT_MAX` × this, not by this alone. */
 export const PLUGIN_INVOCATION_CPU_MS = 1000;
 
 /** Inline snippet total wall-clock run — the whole snippet, not per-call. */

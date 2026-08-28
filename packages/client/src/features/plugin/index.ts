@@ -15,8 +15,11 @@
 export { SnippetConsole } from "./components/snippet-console.tsx";
 // The two U2 CHAT-anchor contributions (plugin-ui-plane #679 seam 7) — assembled into chat's surface + section
 // registries at the door, never imported by chat itself.
-export { pluginChatFlankSurface, pluginChatSettingsSection } from "./lib/chat-anchors.tsx";
+export { pluginChatFlankSurface, pluginChatSettingsSection, pluginMessageFooterSurface } from "./lib/chat-anchors.tsx";
 export { pluginDistributeSection } from "./lib/plugin-distribute-section.tsx";
 export { pluginsPane } from "./lib/plugins-pane.tsx";
 export { pluginSnippetConsoleSection } from "./lib/snippet-console-section.tsx";
+// The U3 TOOL-CARD contribution (plugin-ui-plane #679 seam 7) — one member of chat's `toolRenderers` registry,
+// claiming the `plugin_` tool namespace; chat imports nothing from here.
+export { pluginToolRenderer } from "./lib/tool-card.tsx";
 export { PluginsSettingsSurface } from "./surfaces/plugins-settings-surface.tsx";

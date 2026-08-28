@@ -100,6 +100,10 @@ const TRACKED_KEYS = [
   // arm, the analysis arm's gated score write), it re-folds along the SELECTED lineage (hence the swipe),
   // and `clearVariables` empties it on the `chatUpdated` catch-all.
   "runtimeVariables",
+  // B6 — the room's bounded reaction WINDOW (`chat.listReactions`), the pill row's only read. Its ONE driver
+  // is `reactionsChanged`, which is what makes the owner's test ("react; the second tab sees it live") true:
+  // at `staleTime: Infinity` a member's transcript would otherwise hold the pre-toggle chips forever.
+  "reactions",
 ] as const;
 type TrackedKey = (typeof TRACKED_KEYS)[number];
 
@@ -160,6 +164,10 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   chatUpdated: [...CHAT_READS, "getChat", "getGroupConfig", "listChatInjections"],
   // Room + the prompt preview: a re-anchored persona rewrites `{{user}}` in the next turn's prompt.
   personaSwitched: ["getChat", "previewAssembly", "getShapeTrace"],
+  // B6 — NARROW on purpose (the `roomEntityChanged` argument): the pill row is its own read, so exactly one
+  // query moves. Widening this to `chatReads` would make every emoji click cancel-and-restart the whole
+  // transcript's in-flight fetches for every attached member.
+  reactionsChanged: ["reactions"],
   // The attach/resume signal — the room read, PLUS the member card as the LIVE-ONLY LANE'S HEAL: a
   // `roomEntityChanged` is never replayed, and `chatOpened` re-fires on every (re)attach, so this is where a
   // device that was dark through a card edit catches up (bridge §3.4).
@@ -225,6 +233,7 @@ describe("invalidation — the bus half (invalidate)", () => {
         listChatInjections: trpc.chat.listChatInjections.queryKey({ chatId: CHAT_ID }),
         getMemberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
         runtimeVariables: trpc.chat.getRuntimeVariables.queryKey({ chatId: CHAT_ID }),
+        reactions: trpc.chat.listReactions.queryKey({ chatId: CHAT_ID }),
       };
       seedReads(queryClient, Object.values(keys));
 

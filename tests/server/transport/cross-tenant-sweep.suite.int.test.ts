@@ -812,6 +812,23 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.chat.getRuntimeVariables({ chatId: i.chatId }),
   },
   {
+    // B6/MR0 — the reaction toggle. A WRITE that lands attributed canon in the room, so a dropped
+    // `requireParticipant` would let a stranger put their name under a message in someone else's chat (and
+    // fire that room's `reactionsChanged` rules). Two foreign-id surfaces, and the chatId gate is the one
+    // that must bite: `requireParticipant` refuses BEFORE the seat or the variant is ever loaded. The
+    // `variantId` half carries its OWN belt for the member case (`loadVariantSlotInChat` — in this chat AND
+    // at or above the caller's D16 floor), pinned separately in the verb's int suite, which is why a fake
+    // variant id is the right probe here: it must never get far enough for the id to matter.
+    path: "chat.toggleReaction",
+    call: (c, i) => c.chat.toggleReaction({ chatId: i.chatId, variantId: FAKE.variantId, emoji: "👍" }),
+  },
+  {
+    // Its read twin — the room's grouped reaction window. Refused BEFORE the window loads: the groups name
+    // A's participant seats, so a leak here hands a stranger part of A's roster.
+    path: "chat.listReactions",
+    call: (c, i) => c.chat.listReactions({ chatId: i.chatId }),
+  },
+  {
     // Probed with the D121-G `presetOverride` ON, so the sweep exercises the SAME two-foreign-id shape the
     // preset editor's bound Prompt readout sends. Identical verdict to `previewActionTemplates` below: the
     // chatId gate (`requireHost`) is the one that must bite, and the override needs no probe of its own
@@ -1540,6 +1557,10 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "plugin.list": "self-scoped: takes NO input at all; listOwned filters WHERE owner_id = caller.userId, so there is no id a stranger could aim",
   "plugin.listSurfaces":
     "self-scoped: takes NO input; listOwned filters WHERE owner_id = caller.userId and only the caller's OWN resident instances are consulted, so a stranger's surfaces are never in the result (plugin-ui-plane #679 U1)",
+  "plugin.listDisplayTransforms":
+    "self-scoped: takes NO input; the exact listSurfaces shape (listOwned filters WHERE owner_id = caller.userId; only the caller's OWN resident instances are consulted) (plugin-ui-plane seam 14, U6)",
+  "plugin.transformForDisplay":
+    "self-scoped: takes a chatId + messageId but READS NOTHING with them — they are handed to the caller's own guest as its `env`. The only text in play is text the CALLER's client supplied, returned only to that caller; nothing is persisted and no authority derives from any input. The transforms run are exactly the caller's own (listOwned + the caller's own resident instances), so there is no foreign row a stranger could reach (plugin-ui-plane seam 14, U6)",
   // ── SERVER-WIDE DISTRIBUTION (D147 clause (d), added 2026-08-24). All three are `adminProcedure` + a domain
   //    `requireAdmin` re-check, so the sweep's plain-user stranger is refused FORBIDDEN at LAYER 1 before any
   //    lookup — the `admin.*` role-gate pattern, tested by the admin-gate matrix, not IDOR. None takes a

@@ -61,6 +61,7 @@ import type { DatabankIngest } from "#domain/databank";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { PersonaNotFoundError } from "#domain/persona";
+import { createPluginMacroRegistry } from "#domain/plugin";
 import { createCopyPresetToUser, PresetNotFoundError } from "#domain/preset";
 import type { RpgTraceRecorder } from "#domain/rpg";
 import { createExportRpgGame, createRpgTraceRecorder } from "#domain/rpg";
@@ -706,11 +707,19 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // holding a bounded number of already-built objects — and an observability lens that first requires a
   // restart with a flag set does not answer "why did memory surface that".
   const recallRecorder = createMemoryRecallRecorder({ now });
+  // The PLUGIN-MACRO registry (plugin-ui-plane §5.15, U6) — ONE process-wide instance, minted HERE rather than
+  // inside the plugin plane because chat composes FIRST and both sides need the same object: chat reads it per
+  // turn (`ChatContext.pluginMacros`), the plugin plane writes it at activation. Minting it at the shared root
+  // is what keeps this out of the late-bind shape the S4 confirmed-act runner had to take.
+  const pluginMacros = createPluginMacroRegistry();
   const chatCompose = buildChatService({
     toolUse,
     db,
     now,
     recallRecorder,
+    // U6 §5.15 — the per-turn plugin-macro resolve, off the registry minted just above (the plugin plane below
+    // registers into the SAME instance at activation).
+    pluginMacros: pluginMacros.resolveForTurn,
     emitChatEvent,
     emitChatEventChecked,
     prepareChatCreationEvent,
@@ -846,6 +855,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     db,
     now,
     chatCompose,
+    pluginMacros,
     resolveViewerVisibility,
     worldInfo,
     notifications,

@@ -85,7 +85,10 @@ function makeFakePort(): FakePort {
     createInstance: (input: CreateInstanceInput): Promise<CreateInstanceOutcome> => {
       created.push(input);
       const scripted = queue.shift();
-      const outcome: CreateInstanceOutcome = scripted ?? { ok: true, instance: { tools: [], transforms: [], events: [], surfaces: [] } };
+      const outcome: CreateInstanceOutcome = scripted ?? {
+        ok: true,
+        instance: { tools: [], transforms: [], events: [], surfaces: [], displayTransforms: [], macros: [] },
+      };
       if (outcome.ok) {
         logs.set(outcome.instance, []);
       }
@@ -133,7 +136,7 @@ export function makeSandboxPort(seams: HostSeams): PluginHostPort {
         sandbox.dispose();
         return { ok: false, error: outcome.error?.message ?? "activation failed", log: toLog(outcome.logs) };
       }
-      const instance: PluginInstance = { tools: [], transforms: [], events: [], surfaces: [] };
+      const instance: PluginInstance = { tools: [], transforms: [], events: [], surfaces: [], displayTransforms: [], macros: [] };
       sandboxes.set(instance, sandbox);
       logs.set(instance, toLog(outcome.logs));
       return { ok: true, instance };
@@ -307,6 +310,7 @@ export function makeInertOps(): PluginHostOps {
     registrar: {
       registerTool: () => registrationHandle,
       registerTransform: () => registrationHandle,
+      registerMacros: () => registrationHandle,
       subscribeEvent: () => registrationHandle,
     },
   };

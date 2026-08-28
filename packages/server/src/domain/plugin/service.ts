@@ -20,6 +20,7 @@ import { createGetUiBundle } from "./verbs/get-ui-bundle.ts";
 import { createInstall } from "./verbs/install.ts";
 import { createInstallForAllUsers } from "./verbs/install-for-all-users.ts";
 import { createInvokeUiAction } from "./verbs/invoke-ui-action.ts";
+import { createListDisplayTransforms } from "./verbs/list-display-transforms.ts";
 import { createListDistributedPlugins } from "./verbs/list-distributed-plugins.ts";
 import { createListPlugins } from "./verbs/list-plugins.ts";
 import { createListSurfaces } from "./verbs/list-surfaces.ts";
@@ -27,6 +28,7 @@ import { createReportUiCrash } from "./verbs/report-ui-crash.ts";
 import { createRunSnippet } from "./verbs/run-snippet.ts";
 import { createSetEnabled } from "./verbs/set-enabled.ts";
 import { createSetGrant } from "./verbs/set-grant.ts";
+import { createTransformForDisplay } from "./verbs/transform-for-display.ts";
 import { createUiHostCall } from "./verbs/ui-host-call.ts";
 import { createUninstall } from "./verbs/uninstall.ts";
 import { createUninstallForAllUsers } from "./verbs/uninstall-for-all-users.ts";
@@ -78,5 +80,8 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
     uiHostCall: createUiHostCall(ctx),
     getUiBundle: createGetUiBundle(ctx),
     reportUiCrash: createReportUiCrash(ctx, crashPolicy),
+    // The DISPLAY-transform read side (U6, seam 14) — the same resident registry, the same owner-scoped read.
+    listDisplayTransforms: createListDisplayTransforms(ctx, registry),
+    transformForDisplay: createTransformForDisplay(ctx, registry),
   };
 }

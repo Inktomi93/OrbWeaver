@@ -106,6 +106,13 @@ test("ChatBusEvent's key vocabulary is CLOSED (a new member's free-text field is
     // text or a secret, so the D16 anchor allowlist is preserved.
     | "phase"
     | "count"
+    // B6 reactions: the reacted VARIANT, the emoji, and the direction. `emoji` is the CLOSED `ReactionEmoji`
+    // union — a string-literal union does not satisfy `string extends T`, so it stays out of the raw-string
+    // pin below BY CONSTRUCTION (the `entity`/`phase` precedent) rather than by an exemption. `added` is a
+    // boolean, `variantId` a branded id; no reactor id (D19 — and the grouped re-read answers "who").
+    | "variantId"
+    | "emoji"
+    | "added"
   >();
 });
 

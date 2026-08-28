@@ -30,6 +30,8 @@ import type {
   PluginBridge,
   PluginCapability,
   PluginInvocationLiveness,
+  PluginQuietOptions,
+  PluginQuietSchema,
   PluginSuggestedAct,
   PluginSurfaceRegistrationMeta,
   PluginTransformRegistration,
@@ -37,6 +39,7 @@ import type {
 } from "@orb/contracts/plugin";
 import {
   HOST_FUNCTION_CAPABILITY,
+  PLUGIN_QUIET_IMAGES_MAX,
   PLUGIN_SURFACE_ID_RE,
   PluginCapabilityError,
   PluginSuggestedError,
@@ -58,6 +61,7 @@ import {
   PLUGIN_NET_MAX_BYTES,
   PLUGIN_QUIET_PROMPT_MAX_CHARS,
 } from "./budgets.ts";
+import { pumpGuestJobs } from "./cpu-guard.ts";
 import { jsToHandle } from "./marshal.ts";
 
 export type { InvocationChat, PluginBridge } from "@orb/contracts/plugin";
@@ -124,6 +128,14 @@ export interface MembraneRuntime {
    *  budget, and unregisters on deactivate. Infra cannot import that domain registry (the cake) — it only
    *  collects; the band + apply-under-budget + unregister live domain-side. */
   readonly collectTransform: (reg: { readonly name: string; readonly point: TransformPoint }, handler: QuickJSHandle) => void;
+  /** Collect a DISPLAY transform registration (plugin-ui-plane seam 14) — the sibling of `collectTransform`
+   *  with NO external registrar: like a surface, it is read directly off the resident instance by the display
+   *  round-trip verb and re-entered through the port's `invoke`. Infra only collects + keeps the handle alive. */
+  readonly collectDisplayTransform: (reg: { readonly name: string }, handler: QuickJSHandle) => void;
+  /** Collect a MACRO registration (plugin-ui-plane §5.15). Infra collects the guest-LOCAL name; the DOMAIN
+   *  namespaces it `plugin_<slug'>_<name>` from the re-validated manifest at activation, for the same reason it
+   *  namespaces a tool: the slug is host knowledge and a guest must not be able to name its own prefix. */
+  readonly collectMacro: (reg: { readonly name: string; readonly description: string }, handler: QuickJSHandle) => void;
   /** Collect an event subscription — the SYNC activation-time mirror of `collectTool`. The guest
    *  `handler` HANDLE is kept alive (keyed by a minted ref) + a `PluginEventSubscription` is recorded on the
    *  instance. The DOMAIN wires each onto the automation plugin-subscriber fan-out at activation (`subscribeEvent`):
@@ -218,6 +230,7 @@ export function attachMembrane(ctx: QuickJSContext, surface: QuickJSHandle, runt
   setLlm(ctx, surface, runtime);
   setTools(ctx, surface, runtime);
   setTransforms(ctx, surface, runtime);
+  setMacros(ctx, surface, runtime);
   setEvents(ctx, surface, runtime);
   setNet(ctx, surface, runtime);
   setUi(ctx, surface, runtime);
@@ -325,6 +338,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     using titleH = ctx.getProp(defHandle, "title");
     using tierH = ctx.getProp(defHandle, "tier");
     using specH = ctx.getProp(defHandle, "spec");
+    using toolNameH = ctx.getProp(defHandle, "toolName");
     const onAction = ctx.getProp(defHandle, "onAction");
     // The materialize + parse runs under a BELT: ANY throw (a residual `RangeError` the pre-walk did not pre-empt,
     // a marshalling failure) becomes the §4.9 SOFT refusal, never an activation-fatal throw. `safeParse` catches
@@ -337,7 +351,10 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       const title = tryDumpGuestValue(ctx, titleH);
       const tier = tryDumpGuestValue(ctx, tierH);
       const spec = tryDumpGuestValue(ctx, specH);
-      if (!(id.ok && anchor.ok && title.ok && tier.ok && spec.ok)) {
+      // U3: the `tool-card` linkage. Absent ⇒ `undefined`, which the schema's optional `toolName` accepts for
+      // every other anchor and REFUSES for `tool-card` (the biconditional in `ui.ts`).
+      const toolName = tryDumpGuestValue(ctx, toolNameH);
+      if (!(id.ok && anchor.ok && title.ok && tier.ok && spec.ok && toolName.ok)) {
         throw new Error("metadata is too deeply nested or too large to validate");
       }
       const meta = {
@@ -346,6 +363,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
         title: title.value,
         tier: tier.value,
         spec: spec.value,
+        toolName: toolName.value,
       };
       parsed = pluginSurfaceRegistrationMetaSchema.safeParse(meta);
     } catch (err) {
@@ -790,11 +808,55 @@ function setLlm(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
       if (prompt.length > PLUGIN_QUIET_PROMPT_MAX_CHARS) {
         throw new Error(`plugin host: llm.quiet prompt exceeds the ${PLUGIN_QUIET_PROMPT_MAX_CHARS}-character cap`);
       }
-      const { text } = await runtime.bridge.llm.quiet(prompt, invocationLiveness(signal));
+      const { text } = await runtime.bridge.llm.quiet(prompt, buildQuietOptions(args[1]), invocationLiveness(signal));
       return text;
     },
   });
   ctx.setProp(surface, "llm", llm);
+}
+
+/** Project the guest-supplied `llm.quiet` options bag (U6 — plugin-ui-plane §5.16/§5.32) to the JSON-safe
+ *  `PluginQuietOptions` shape. The whole function is the fail-safe projection posture `buildTurnHints` and
+ *  `buildQuickReplyChoices` already use: a malformed arm is DROPPED (the call proceeds as a plain quiet
+ *  generation) rather than coerced or thrown — a guest typo must not turn a working call into an error, and a
+ *  half-understood structured ask must never reach a wire.
+ *
+ *  What is REFUSED here rather than dropped: nothing. What is BOUNDED here: the image list, clamped to
+ *  {@link PLUGIN_QUIET_IMAGES_MAX} (an unbounded list is an unbounded read of the installer's CAS per call).
+ *  What is NOT decided here: whether the schema is liftable and whether those assets exist and belong to the
+ *  installer — infra holds neither the projection rule's trust boundary nor a CAS, so both are the DOMAIN's. */
+function buildQuietOptions(raw: unknown): PluginQuietOptions | undefined {
+  if (typeof raw !== "object" || raw === null) {
+    return;
+  }
+  const bag = raw as { schema?: unknown; imageAssetIds?: unknown };
+  const schema = buildQuietSchema(bag.schema);
+  const ids = Array.isArray(bag.imageAssetIds) ? bag.imageAssetIds.filter((id): id is string => typeof id === "string").slice(0, PLUGIN_QUIET_IMAGES_MAX) : [];
+  if (schema === undefined && ids.length === 0) {
+    return;
+  }
+  return {
+    ...(schema !== undefined ? { schema } : {}),
+    ...(ids.length > 0 ? { imageAssetIds: ids } : {}),
+  };
+}
+
+/** The structured-output arm of {@link buildQuietOptions}: a `{name, schema}` pair or nothing. `schema` crosses
+ *  as the guest's RAW JSON-Schema record — the domain lifts + re-projects it (D79), so no unprojected blob can
+ *  reach a wire no matter what a guest writes here. */
+function buildQuietSchema(raw: unknown): PluginQuietSchema | undefined {
+  if (typeof raw !== "object" || raw === null) {
+    return;
+  }
+  const bag = raw as { name?: unknown; description?: unknown; schema?: unknown };
+  if (typeof bag.name !== "string" || typeof bag.schema !== "object" || bag.schema === null || Array.isArray(bag.schema)) {
+    return;
+  }
+  return {
+    name: bag.name,
+    schema: bag.schema as Record<string, unknown>,
+    ...(typeof bag.description === "string" ? { description: bag.description } : {}),
+  };
 }
 
 /** tools.register — SYNC, activation-time. Captures the guest handler HANDLE for the resident-handler
@@ -871,7 +933,67 @@ function setTransforms(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Mem
     return ctx.undefined;
   });
   ctx.setProp(transforms, "register", registerFn);
+
+  // registerDisplay — the seam-14 sibling. SYNC, activation-time, the same handle-ownership split; it collects
+  // only a NAME (there is no `point` axis: a display transform has exactly one application site, the viewer's
+  // own rendered row). Gated by the SAME `chat.transform` capability, so a plugin that may rewrite the prompt
+  // may annotate its installer's screen and one that may not, may not.
+  using registerDisplayFn = ctx.newFunction("registerDisplay", (defHandle?: QuickJSHandle) => {
+    requireCapability(runtime, "transforms.registerDisplay");
+    if (defHandle === undefined) {
+      throw new Error("plugin host: transforms.registerDisplay requires a definition object");
+    }
+    using nameHandle = ctx.getProp(defHandle, "name");
+    const apply = ctx.getProp(defHandle, "apply");
+    const dumpedName = tryDumpGuestValue(ctx, nameHandle);
+    if (!dumpedName.ok) {
+      apply.dispose();
+      throw new Error("plugin host: transforms.registerDisplay metadata is too deeply nested");
+    }
+    if (typeof dumpedName.value !== "string" || ctx.typeof(apply) !== "function") {
+      apply.dispose();
+      throw new Error("plugin host: transforms.registerDisplay definition must be { name, apply }");
+    }
+    runtime.collectDisplayTransform({ name: dumpedName.value }, apply);
+    return ctx.undefined;
+  });
+  ctx.setProp(transforms, "registerDisplay", registerDisplayFn);
   ctx.setProp(surface, "transforms", transforms);
+}
+
+/** macros.register — SYNC, activation-time, the macro mirror of `tools.register` (plugin-ui-plane §5.15).
+ *  Collects `{name, description}` + the guest `resolve` HANDLE; the DOMAIN namespaces the name and resolves the
+ *  handler ONCE per turn into that turn's macro registry. Capability-gated `chat.transform` through the SAME
+ *  uniform gate. Infra assigns no name and evaluates nothing — it only collects, exactly as it does for tools. */
+function setMacros(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
+  using macros = ctx.newObject();
+  using registerFn = ctx.newFunction("register", (defHandle?: QuickJSHandle) => {
+    requireCapability(runtime, "macros.register");
+    if (defHandle === undefined) {
+      throw new Error("plugin host: macros.register requires a definition object");
+    }
+    // Same ownership split as `setTools`: metadata handles are scope-owned; `resolve`'s ownership TRANSFERS to
+    // `collectMacro` on success and is hand-disposed only on the reject path.
+    using nameHandle = ctx.getProp(defHandle, "name");
+    using descHandle = ctx.getProp(defHandle, "description");
+    const resolve = ctx.getProp(defHandle, "resolve");
+    const dumpedName = tryDumpGuestValue(ctx, nameHandle);
+    const dumpedDescription = tryDumpGuestValue(ctx, descHandle);
+    if (!(dumpedName.ok && dumpedDescription.ok)) {
+      resolve.dispose();
+      throw new Error("plugin host: macros.register metadata is too deeply nested");
+    }
+    const name = dumpedName.value;
+    const description = dumpedDescription.value;
+    if (typeof name !== "string" || typeof description !== "string" || ctx.typeof(resolve) !== "function") {
+      resolve.dispose();
+      throw new Error("plugin host: macros.register definition must be { name, description, resolve }");
+    }
+    runtime.collectMacro({ name, description }, resolve);
+    return ctx.undefined;
+  });
+  ctx.setProp(macros, "register", registerFn);
+  ctx.setProp(surface, "macros", macros);
 }
 
 /** events.on — SYNC, activation-time, the event-subscription mirror of tools.register. `on(type, handler)`:
@@ -1028,8 +1150,9 @@ function chargeValue(value: unknown, pending: unknown[]): number {
 }
 
 /** Build + attach ONE async host function: guest args via `ctx.dump`, the impl races a real-time deadline, the
- *  JSON-safe result crosses back via `jsToHandle` (size-capped), and settled guest jobs are pumped (bounded by
- *  the invocation deadline). ≤ 32 concurrent host calls per instance — call 33 rejects (back-pressure).
+ *  JSON-safe result crosses back via `jsToHandle` (size-capped), and settled guest jobs are pumped under their
+ *  own guest-CPU window (`cpu-guard.ts` — the pump runs guest continuations, so it is bounded like an
+ *  invocation is). ≤ 32 concurrent host calls per instance — call 33 rejects (back-pressure).
  *  A thrown/rejected impl (a capability/handle/host-authority refusal, or a bridge error) rejects the guest
  *  promise — errors-as-data, never a host crash.
  *
@@ -1147,11 +1270,15 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
         clearTimeout(timer);
       });
 
+    // THE POST-INVOCATION PUMP (#781). When this host call settles LATER than the invocation that fired it,
+    // the guest's `.then` continuation runs HERE — bytecode outside any invocation, which until the
+    // context-lifetime CPU guard landed executed with NO interrupt handler installed at all: one
+    // `h.storage.get(k).then(function () { while (true) {} })` in `main.js` wedged the Node MAIN THREAD
+    // permanently. `pumpGuestJobs` opens a fresh CPU window around the pump and owns the `ctx.alive` guard for
+    // the late-settle case (the instance can be torn down before this call lands).
     superviseDetached(`plugin-host:${name}:${randomUUID()}`, "plugin.host.pending-jobs", { hostFunction: name }, () =>
       deferred.settled.then(() => {
-        if (ctx.alive) {
-          ctx.runtime.executePendingJobs();
-        }
+        pumpGuestJobs(ctx);
       }),
     );
     return deferred.handle;

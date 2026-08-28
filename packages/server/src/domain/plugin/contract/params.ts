@@ -6,7 +6,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PluginCapability } from "@orb/contracts/plugin";
-import type { ChatId, PluginId } from "@orb/kit/ids";
+import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
 
 /** `installPlugin` — unzip+validate the bundle, store its bytes in the CAS, insert a `disabled` row.
  *  `grant` is the confirmed capability subset (⊆ the manifest's declared set — `CapabilityNotGrantedError`
@@ -210,4 +210,30 @@ export interface InvokeUiActionParams {
    *  room, with `canWrite` set from the caller's HOST authority — so a room-anchored action reaches the room a
    *  person is actually looking at, and only that one. */
   readonly chatId?: ChatId;
+}
+
+/** `listDisplayTransforms` — the caller's OWN enabled plugins' registered DISPLAY transforms (plugin-ui-plane
+ *  seam 14, U6). Same shape and same gate as `listSurfaces`: no id, owner-scoped read. Its ONE job is the
+ *  BYTE-IDENTITY gate — a viewer with no display transforms learns so in one query and their transcript makes
+ *  no per-row calls at all. */
+export interface ListDisplayTransformsParams {
+  readonly caller: Principal;
+}
+
+/** `transformForDisplay` — the per-row display round-trip (plugin-ui-plane seam 14, U6).
+ *
+ *  THE TRUST POSTURE, IN ONE LINE: `text` is CLIENT-SUPPLIED and is reflected ONLY to the same caller — no
+ *  authority, no persistence and no other viewer's render derives from it, so the server neither re-derives it
+ *  nor needs to. That is what makes the round-trip narrower than the `chat.read` grant the plugin already
+ *  holds: a guest can only ever see text the installer's own client already had on screen.
+ *
+ *  `chatId`/`messageId` are passed to the guest as its `env` (a display transform routinely keys off which row
+ *  it is annotating); they are ids the caller already holds, and nothing is READ with them. */
+export interface TransformForDisplayParams {
+  readonly caller: Principal;
+  readonly chatId: ChatId;
+  readonly messageId: MessageId;
+  /** The row as this viewer's client has ALREADY rendered it (macros → DISPLAY regex → this). Capped at
+   *  `PLUGIN_DISPLAY_TEXT_MAX_CHARS` at the transport boundary. */
+  readonly text: string;
 }

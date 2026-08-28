@@ -22,7 +22,7 @@
 // prior turn's frozen draw for the same name — one question per name, whoever owns it this turn.
 
 import type { UserMacroDraws } from "@orb/contracts/chat";
-import type { MacroRegistry, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
+import type { MacroRegistry, MacroSourceKind, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
 import { createDefaultRegistry, createVolatileOnlyRegistry, registerUserMacros, resolveUserMacroInputs } from "@orb/kit/macro";
 import type { BuildTurnUserMacrosArgs, TurnUserMacros, UserMacroDefGroup } from "../contract/assembly-macros.ts";
 import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
@@ -35,7 +35,7 @@ import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
 function registerGroup(
   registries: { readonly render: MacroRegistry; readonly freeze: MacroRegistry },
   group: UserMacroDefGroup,
-  kind: "preset" | "game",
+  kind: MacroSourceKind,
   inputBindings: Readonly<Record<string, Record<string, string>>>,
 ): readonly RejectedUserMacro[] {
   const opts = { source: { kind, id: group.id } as const, inputBindings };
@@ -51,7 +51,11 @@ function registerGroup(
 export function buildTurnUserMacros(args: BuildTurnUserMacrosArgs): TurnUserMacros | null {
   const gameDefs = args.game?.defs ?? [];
   const presetDefs = shadowPresetUserMacros(args.preset.defs, gameDefs);
-  if (gameDefs.length === 0 && presetDefs.length === 0) {
+  // The PLUGIN group (U6) is deliberately NOT in the shadow computation: its names are host-assigned
+  // (`plugin_<slug'>_<name>`), so it cannot clash with a builtin, and the game↔preset shadow rule is about two
+  // AUTHORING homes competing for one name — a namespace is not a competitor.
+  const pluginDefs = args.plugin?.defs ?? [];
+  if (gameDefs.length === 0 && presetDefs.length === 0 && pluginDefs.length === 0) {
     return null;
   }
   // Resolve every EFFECTIVE macro's typed inputs ONCE — the bindings the handlers splice + the draw record.
@@ -59,7 +63,7 @@ export function buildTurnUserMacros(args: BuildTurnUserMacrosArgs): TurnUserMacr
   // turn's prng and write a ghost entry into the persisted record for a macro nothing can reference.
   const inputBindings: Record<string, Record<string, string>> = {};
   const draws: UserMacroDraws = {};
-  for (const def of [...gameDefs, ...presetDefs]) {
+  for (const def of [...gameDefs, ...presetDefs, ...pluginDefs]) {
     resolveDefInputs(def, args, inputBindings, draws);
   }
 
@@ -71,6 +75,10 @@ export function buildTurnUserMacros(args: BuildTurnUserMacrosArgs): TurnUserMacr
   const rejected = [
     ...(args.game !== undefined ? registerGroup(registries, args.game, "game", inputBindings) : []),
     ...registerGroup(registries, { id: args.preset.id, defs: presetDefs }, "preset", inputBindings),
+    // Plugin macros register LAST: kit refuses a name already taken, so an author who deliberately spells a
+    // `plugin_*` name keeps their own definition. Their source attribution is the THIRD `MacroSourceKind`
+    // member — the macro browser must not tell a person to edit a preset that does not contain the macro.
+    ...(args.plugin !== undefined && pluginDefs.length > 0 ? registerGroup(registries, args.plugin, "plugin", inputBindings) : []),
   ];
 
   return { registry, freezeRegistry, draws, rejected };

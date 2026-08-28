@@ -426,15 +426,15 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 370,
-      "bytes": 179863,
-      "sha256": "e534a60d0299585480642e726bae73a84bc59b77244f04c1e53517aad75d0d91",
+      "bytes": 180338,
+      "sha256": "d1bd62e4505ed6393b65fb720196268d8c4a56bbda2a50ca7f696be033ab6f65",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-24"
+          "updated": "2026-08-28"
         },
         "errors": []
       },
@@ -444,8 +444,8 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "e534a60d0299585480642e726bae73a84bc59b77244f04c1e53517aad75d0d91",
-        "verifiedCommit": "b287ab649bdb4c355d4c645ad5980d0f21cb312f",
+        "verifiedSha256": "d1bd62e4505ed6393b65fb720196268d8c4a56bbda2a50ca7f696be033ab6f65",
+        "verifiedCommit": "f54644386fe554e92adbead60c2461d2e3fcace0",
         "verifiedAt": "2026-08-27",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -1132,16 +1132,16 @@
       "path": "docs/architecture/core/Spine-Testing.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 247,
-      "bytes": 27329,
-      "sha256": "95ee9177df90ea35be8b28d27f1942df9ab0914caa8e32c4fdd2e1ca3954fd57",
+      "lines": 258,
+      "bytes": 28455,
+      "sha256": "816d54d473eafa460ba7304030813b7704c94c171cc1e5cd91b574ae4f3099f8",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-22"
+          "updated": "2026-08-28"
         },
         "errors": []
       },
@@ -1151,8 +1151,8 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "95ee9177df90ea35be8b28d27f1942df9ab0914caa8e32c4fdd2e1ca3954fd57",
-        "verifiedCommit": "6c01bf1112c9ac80a3cd203f8efa0056ce916bfe",
+        "verifiedSha256": "816d54d473eafa460ba7304030813b7704c94c171cc1e5cd91b574ae4f3099f8",
+        "verifiedCommit": "b52fd38d4ab7bef2aa482e0c1c75505565d13c19",
         "verifiedAt": "2026-08-26",
         "evidence": [
           "docs/architecture/core/Spine-Testing.md:1 (full read; header/status evaluated)",
@@ -11571,16 +11571,16 @@
       "path": "docs/design/interaction-direction-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 631,
-      "bytes": 64889,
-      "sha256": "19765fe58b934826b76349e6dd604c39760f6345be0ad6dbf93d70be7bef2c53",
+      "lines": 642,
+      "bytes": 65876,
+      "sha256": "09b5ad5f85de936dabf9728bb26d9a1f95a7eb7ba1472bcee0561af0bb16e8b3",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-08-25"
+          "updated": "2026-08-28"
         },
         "errors": []
       },
@@ -11590,8 +11590,8 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "19765fe58b934826b76349e6dd604c39760f6345be0ad6dbf93d70be7bef2c53",
-        "verifiedCommit": "b1b76f2602a38c24a300cfa987094d911668b772",
+        "verifiedSha256": "09b5ad5f85de936dabf9728bb26d9a1f95a7eb7ba1472bcee0561af0bb16e8b3",
+        "verifiedCommit": "99b6ba2c619329ecb2bbc84ef68c6b1aa18a1644",
         "verifiedAt": "2026-08-25",
         "evidence": [
           "docs/design/interaction-direction-spec.md read in full by the orchestrator before commit (1a7f20ed3); the needle ruling folded at both sites by the orchestrator after the owner's 2026-08-24 call",
@@ -12905,35 +12905,36 @@
       "path": "docs/design/plugin-ui-plane.md",
       "lane": "design",
       "issue": 5,
-      "lines": 704,
-      "bytes": 71660,
-      "sha256": "72fa5a20f6042a9b70e64f35b420153503db3db47219bb3614532f844ea8b9d9",
+      "lines": 748,
+      "bytes": 76191,
+      "sha256": "2c6071d6688a469a2f34b232e73974cdf54e1602e3d036fa920720c44d809a0d",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-08-24"
+          "updated": "2026-08-28"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/plugin-ui-plane.md",
-        "assignedSha256": "72fa5a20f6042a9b70e64f35b420153503db3db47219bb3614532f844ea8b9d9",
+        "assignedSha256": "2c6071d6688a469a2f34b232e73974cdf54e1602e3d036fa920720c44d809a0d",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "72fa5a20f6042a9b70e64f35b420153503db3db47219bb3614532f844ea8b9d9",
-        "verifiedCommit": "2b09d3c00623756f3c7c698b0be1de8e297c2e9d",
-        "verifiedAt": "2026-08-24",
+        "verifiedSha256": "2c6071d6688a469a2f34b232e73974cdf54e1602e3d036fa920720c44d809a0d",
+        "verifiedCommit": "2c08ac4203dbbeb1e5942b901cb7782d667d1844",
+        "verifiedAt": "2026-08-28",
         "evidence": [
           "born-reviewed by its authoring lane (cb-plugui-design, #679): every build-state claim tree-verified 2026-08-24 with path:line receipts before commit 766525006",
           "designed against the full commissioned reading set: plugin-design 01-04, the D46 security review (docs/reviews/security/2026-08-24-d46-membrane-review.md), client-architecture-lockdown (D70), interaction-direction-spec §1/§3/§7-C7a, plugin-automation-juice (A2-F5), contribution-contracts.ts, the card-frame substrate (kit + entry/http + ui sandbox-frame), and issues #675/#677/#124",
           "four owner steers folded verbatim (capability-first; ST-parity register; integrated-not-iframe primary; the open dep budget resolved to the live QuickJS family at infra/plugin-host/module.ts:12-14)",
           "the ST parity register (§5) built from Core-SillyTavern-Feature-Map.md + Core-ST-Feature-Gap-Register.md plus the live ST extension-authoring docs fetched raw per the web-fetching rule 2026-08-24",
           "revision 9bc1cd142 (same lane, same day): the full-parity ruling folded — every deferred parity row committed and phase-slotted (U5-U8), the ui.frame hatch committed as scheduled phase U7 (security-executor-gated), §6.1 arbitrary-pixels rows resolved to the hatch, §5a converted to the enablement price sheet per the follow-up steer ('some of those features I could be convinced to enable'), the five original open questions resolved against the ruling, residual owner ask reduced to TTS/STT (substrate)",
-          "addendum 2b09d3c00 (steer 7 + owner provenance correction): ui.page surface kind + the ONE house Extensions rail entry (§4.5b — the full §6a SECTION_IDS playbook priced as seam 16, empty state argued visible-with-teaching against hide-by-default), character.ingest joins U8 as databank.ingest's sibling (seam 17), and the hub-browser showcase — the prior hub verified as THIS repo's own house-UI section (built cc6b7db38/8d95cad08, purged f6c5c588e 2026-07-22, read from history this session) and mined for the four-item failure list that now constrains the page grammar (grid/masterDetail/searchBar browse-genre nodes)"
+          "addendum 2b09d3c00 (steer 7 + owner provenance correction): ui.page surface kind + the ONE house Extensions rail entry (§4.5b — the full §6a SECTION_IDS playbook priced as seam 16, empty state argued visible-with-teaching against hide-by-default), character.ingest joins U8 as databank.ingest's sibling (seam 17), and the hub-browser showcase — the prior hub verified as THIS repo's own house-UI section (built cc6b7db38/8d95cad08, purged f6c5c588e 2026-07-22, read from history this session) and mined for the four-item failure list that now constrains the page grammar (grid/masterDetail/searchBar browse-genre nodes)",
+          "U6 build + dated truth-repair (lane executor-u6-server-seams, #679): §7a records the seam-14 repair (the doc's \"applied at the render path\" asserted a SERVER-side render path that does not exist — renderMessageForDisplay is client-side and sync at packages/client/src/lib/message-render.ts:91; owner ruling 2026-08-28 approved the client-submits-rendered-text arm, and the recorded ordering member macros → member DISPLAY regex → plugin display transforms → markdown), the §5.15 macros mechanical correction (kit's MacroHandler is sync, so a plugin macro is a per-turn resolved VALUE and takes no arguments), the §5.5 + seam-14 rows marked BUILT, and the §2 ground-truth ToolRenderer row marked HISTORICAL (closed by U3, 03480da00 / 21ebaf174). Verified at this lane's own build commit 2c08ac420 (the commit that introduced the §7a repair; if the branch is rebased at merge this sha orphans and the entry needs a re-stamp — the known self-referencing-receipt hazard); the passages NOT touched by this lane were not re-read and their prior attestation stands."
         ],
         "claims": [
           {

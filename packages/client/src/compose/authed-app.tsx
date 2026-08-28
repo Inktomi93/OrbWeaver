@@ -46,6 +46,7 @@ import {
   chatAlsoOpenTile,
   chatMastheadTile,
   chatMessageHandlingSection,
+  chatMessageReactionsSurface,
   chatQuickPicksTile,
   chatRecentsTile,
   chatSlashCommands,
@@ -68,7 +69,15 @@ import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "#feature
 import { imageDetailModal, imageEditModal, imagerySlashCommands, imagineModal } from "#features/imagery";
 import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
-import { pluginChatFlankSurface, pluginChatSettingsSection, pluginDistributeSection, pluginSnippetConsoleSection, pluginsPane } from "#features/plugin";
+import {
+  pluginChatFlankSurface,
+  pluginChatSettingsSection,
+  pluginDistributeSection,
+  pluginMessageFooterSurface,
+  pluginSnippetConsoleSection,
+  pluginsPane,
+  pluginToolRenderer,
+} from "#features/plugin";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexCollection } from "#features/regex";
@@ -186,6 +195,11 @@ const chatControlSources = createContributorRegistry<ChatControlSource>("chat-co
 
 const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [
   rpgTurnToolCallsSurface,
+  // B6 — the reaction pill row. Chat's own tenant on its own anchor, and deliberately so: the anchor mounts
+  // once per COMMITTED row, which is what makes "reactions only exist on canon" structural rather than a
+  // predicate. Silent (and layout-neutral, the footer band being `empty:hidden`) on every row nobody has
+  // reacted to, which is most rows in most rooms.
+  chatMessageReactionsSurface,
   // The ONE above-composer control mount, consuming the registry above.
   makeChatControlsContribution(chatControlSources),
   // …and the seam's THIRD tenant + first `thread-flank` one (#16): automation's needle meter, rendering the
@@ -202,12 +216,18 @@ const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContributio
   // plugin). It carries no `when` — "does this person have a chat-flank surface?" is DATA the seam's sync
   // predicate cannot see — so it mounts in every room and renders null where it does not apply.
   pluginChatFlankSurface,
+  // U6 (#679, §5.4): the ONE plugin `message-footer` tenant — the per-ROW decoration strip, LAST so the
+  pluginMessageFooterSurface, // house's own per-row disclosures read above third-party decoration.
 ]);
 
-// The per-tool-name renderer seam (§6c): EMPTY but typed — zero contributions ⇒ every persisted tool record
-// renders through the generic @orb/ui `ToolCallBlock` fallback, so today's transcript is byte-identical to a
-// build with no renderers; an automation/plugin feature appends array members later without importing chat.
-const toolRenderers = createContributorRegistry<ToolRenderer>("tool-renderers", []);
+// The per-tool renderer seam (§6c). Its FIRST tenant (plugin-ui-plane #679 U3) is the plugin plane's card
+// renderer, and it claims a NAMESPACE rather than a name: a plugin tool's wire name is `plugin_<slug'>_<name>`,
+// so which names exist depends on who installed what and could never be listed here. ONE member claims
+// `plugin_*` and fans per-plugin inside its own body off `plugin.listSurfaces` — the door does not grow per
+// plugin (G8). A tool with no claiming renderer still renders the generic @orb/ui `ToolCallBlock`, and so does
+// a `plugin_*` tool whose owner registered no card: the fallback is the null state for a tool call, because a
+// call is canon and the transcript owes the reader a record of it.
+const toolRenderers = createContributorRegistry<ToolRenderer>("tool-renderers", [pluginToolRenderer]);
 
 // The WHOLE-MESSAGE tool-renderer seam (§6c): the per-message override that renders ALL of a message's tool
 // records together so a contributor can AGGREGATE across them (the per-tool registry above cannot see across

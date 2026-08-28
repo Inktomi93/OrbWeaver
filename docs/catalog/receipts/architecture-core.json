@@ -151,8 +151,8 @@
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "e534a60d0299585480642e726bae73a84bc59b77244f04c1e53517aad75d0d91",
-      "verifiedCommit": "b287ab649bdb4c355d4c645ad5980d0f21cb312f",
+      "verifiedSha256": "d1bd62e4505ed6393b65fb720196268d8c4a56bbda2a50ca7f696be033ab6f65",
+      "verifiedCommit": "f54644386fe554e92adbead60c2461d2e3fcace0",
       "verifiedAt": "2026-08-27",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -592,8 +592,8 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "95ee9177df90ea35be8b28d27f1942df9ab0914caa8e32c4fdd2e1ca3954fd57",
-      "verifiedCommit": "6c01bf1112c9ac80a3cd203f8efa0056ce916bfe",
+      "verifiedSha256": "816d54d473eafa460ba7304030813b7704c94c171cc1e5cd91b574ae4f3099f8",
+      "verifiedCommit": "b52fd38d4ab7bef2aa482e0c1c75505565d13c19",
       "verifiedAt": "2026-08-26",
       "evidence": [
         "docs/architecture/core/Spine-Testing.md:1 (full read; header/status evaluated)",

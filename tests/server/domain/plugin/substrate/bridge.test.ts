@@ -411,17 +411,43 @@ describe("buildPluginBridge — llm.quiet closes the installer over the call and
     const rec = quietOps();
     const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
 
-    const out = await bridge.llm.quiet("summarise the scene", LIVE_LIVENESS);
+    const out = await bridge.llm.quiet("summarise the scene", undefined, LIVE_LIVENESS);
 
     expect(out).toEqual({ text: "ok" });
     // The whole request the op receives — no connection, no model, no chat, and a funder the guest never named.
+    // `opts` is ABSENT (not `undefined`) on a plain call, so a plain quiet generation stays byte-identical to
+    // what it was before the U6 widening.
     expect(rec.calls).toEqual([{ installerUserId: INSTALLER, prompt: "summarise the scene", signal: expect.any(AbortSignal) }]);
+  });
+
+  test("the U6 opts bag rides the SAME op and the SAME hourly floor — never a second quiet path", async () => {
+    // interaction-spec §3-S5.1's law, at the seam that would have been the place to break it: the structured
+    // and vision arms are pass-through fields on the ONE declared-generic quiet op. The lift/projection (D79)
+    // and the CAS resolve happen at compose — this substrate forwards the raw bag and closes the installer.
+    const rec = quietOps();
+    const clock = createFrozenClock(FROZEN_AT_MS);
+    const bridge = buildPluginBridge(
+      rec.ops,
+      INSTALLER,
+      PLUGIN_REF,
+      beltsWith({ quietLlm: createPluginRateFloor(() => clock.now(), { capability: "llm.quiet", limit: 2 }) }),
+    );
+    const opts = { schema: { name: "draw", schema: { type: "object" } }, imageAssetIds: ["asset_x"] } as const;
+
+    await bridge.llm.quiet("caption this", opts, LIVE_LIVENESS);
+
+    expect(rec.calls).toEqual([{ installerUserId: INSTALLER, prompt: "caption this", signal: expect.any(AbortSignal), opts }]);
+    // …and it consumed the SAME hourly ceiling a PLAIN call would have: one lane, one budget. The second call
+    // below is a plain one, so the third's refusal proves the two arms share a counter rather than each
+    // getting their own (which is exactly what a second quiet path would have produced).
+    await bridge.llm.quiet("plain", undefined, LIVE_LIVENESS);
+    await expect(bridge.llm.quiet("again", opts, LIVE_LIVENESS)).rejects.toThrow(QUIET_FLOOR_RE);
   });
 
   test("a bridge built for one installer never spends another's credential", async () => {
     const rec = quietOps();
     const bridge = buildPluginBridge(rec.ops, OTHER, PLUGIN_REF, freeBelts());
-    await bridge.llm.quiet("x", LIVE_LIVENESS);
+    await bridge.llm.quiet("x", undefined, LIVE_LIVENESS);
     expect(rec.calls[0]?.installerUserId).toBe(OTHER);
   });
 
@@ -448,7 +474,7 @@ describe("buildPluginBridge — llm.quiet closes the installer over the call and
       },
     };
 
-    const pending = bridge.llm.quiet("x", liveness);
+    const pending = bridge.llm.quiet("x", undefined, liveness);
     expect(providerSignal?.aborted).toBe(false);
     abort();
     await expect(pending).resolves.toEqual({ text: "cancelled" });
@@ -467,13 +493,13 @@ describe("buildPluginBridge — llm.quiet closes the installer over the call and
       beltsWith({ quietLlm: createPluginRateFloor(() => clock.now(), { capability: "llm.quiet", limit: 2 }) }),
     );
 
-    await bridge.llm.quiet("a", LIVE_LIVENESS);
-    await bridge.llm.quiet("b", LIVE_LIVENESS);
-    await expect(bridge.llm.quiet("c", LIVE_LIVENESS)).rejects.toThrow(QUIET_FLOOR_RE);
+    await bridge.llm.quiet("a", undefined, LIVE_LIVENESS);
+    await bridge.llm.quiet("b", undefined, LIVE_LIVENESS);
+    await expect(bridge.llm.quiet("c", undefined, LIVE_LIVENESS)).rejects.toThrow(QUIET_FLOOR_RE);
 
     expect(rec.calls.map((c) => c.prompt)).toEqual(["a", "b"]);
     clock.advance(ONE_HOUR_MS);
-    await bridge.llm.quiet("d", LIVE_LIVENESS);
+    await bridge.llm.quiet("d", undefined, LIVE_LIVENESS);
     expect(rec.calls.map((c) => c.prompt)).toEqual(["a", "b", "d"]);
   });
 
@@ -489,7 +515,7 @@ describe("buildPluginBridge — llm.quiet closes the installer over the call and
       beltsWith({ quietLlm: createPluginRateFloor(() => FROZEN_AT_MS, { capability: "llm.quiet", limit: 3 }) }),
     );
 
-    const burst = await Promise.allSettled(Array.from({ length: 12 }, (_, i) => bridge.llm.quiet(`p${i}`, LIVE_LIVENESS)));
+    const burst = await Promise.allSettled(Array.from({ length: 12 }, (_, i) => bridge.llm.quiet(`p${i}`, undefined, LIVE_LIVENESS)));
 
     expect(burst.filter((r) => r.status === "fulfilled")).toHaveLength(3);
     expect(rec.calls).toHaveLength(3);
@@ -527,7 +553,7 @@ describe("buildPluginBridge — admitEgress is the net.fetch hourly claim, keyed
     // this is the belt-and-braces layer under that.
     const snippet = buildPluginBridge(makeInertOps(), INSTALLER, null, freeBelts());
     expect(() => snippet.admitEgress()).toThrow(NEEDS_PLUGIN_RE);
-    return expect(snippet.llm.quiet("x", LIVE_LIVENESS)).rejects.toThrow(NEEDS_PLUGIN_RE);
+    return expect(snippet.llm.quiet("x", undefined, LIVE_LIVENESS)).rejects.toThrow(NEEDS_PLUGIN_RE);
   });
 });
 
