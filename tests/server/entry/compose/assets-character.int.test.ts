@@ -15,9 +15,9 @@
 // force must gate BOTH, or the deployment owner is the one user who never gets asked.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { PersonaId, UserId } from "@orb/kit/ids";
+import type { PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { createPersonaSeedLatch } from "../../../../packages/server/src/entry/compose/assets-character.ts";
 import { seedUser } from "../../../support/factories/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -119,5 +119,45 @@ describe("createPersonaSeedLatch — the seeder never relitigates a persona pick
 
     await services.persona.create({ principal, input: { name: "Traveler", description: "the seeded one", metadata: { seededDefault: true } } });
     expect(await latch.ownsSeededDefault(principal)).toBe(true);
+  });
+});
+
+// ── #759 — resolveGreetingTemplate's preset-read catch narrows to PresetNotFoundError, END TO END ──────────
+// `resolveGreetingTemplate` (compose/assets-character.ts) reads the caller's default-preset guided-action
+// template BEFORE the bounded side-LLM completion runs — reachable through `character.generateGreeting`.
+// `app.roleClients`/`services.preset` are the SAME instances the composed `AssetsCharacterComposeDeps`
+// closes over (compose-observe-via-service-spyon), so spying on them intercepts the real injected reads.
+describe("compose/assets-character.ts — resolveGreetingTemplate narrows to PresetNotFoundError (#759)", () => {
+  const fakeSummary = { items: [{ text: "a fake greeting", usage: { tokensIn: null, tokensOut: null, costUsd: null } }], model: "test-model" };
+
+  test("a non-not-found preset rejection PROPAGATES before any completion runs", async ({ db, app, services }) => {
+    const owner = (await seedUser(db, { handle: castId("greethost1") })).id;
+    const principal = principalOf(owner);
+    const created = await services.character.create({ principal, input: { handle: castId("aria-greet1"), name: "Aria", description: "a card" } });
+    await services.settings.updateUserSettingsSection({
+      principal,
+      input: { section: "seeds", patch: { defaultPresetId: castId<PresetId>("preset_greet_will_error") } },
+    });
+    const dbDown = new Error("preset store unreachable");
+    vi.spyOn(services.preset, "get").mockRejectedValueOnce(dbDown);
+    const summarizeSpy = vi.spyOn(app.roleClients, "summarize").mockResolvedValue(fakeSummary);
+
+    await expect(services.character.generateGreeting({ principal, characterId: created.id, steer: "cheerful" })).rejects.toBe(dbDown);
+    // The propagation happened BEFORE the completion — the fallback-and-continue defect would have reached it.
+    expect(summarizeSpy).not.toHaveBeenCalled();
+  });
+
+  test("a genuinely stale/unowned default preset id still degrades to the contract default template", async ({ db, app, services }) => {
+    const owner = (await seedUser(db, { handle: castId("greethost2") })).id;
+    const principal = principalOf(owner);
+    const created = await services.character.create({ principal, input: { handle: castId("bryn-greet2"), name: "Bryn", description: "a card" } });
+    await services.settings.updateUserSettingsSection({
+      principal,
+      input: { section: "seeds", patch: { defaultPresetId: castId<PresetId>("preset_greet_gone_forever") } },
+    });
+    vi.spyOn(app.roleClients, "summarize").mockResolvedValue(fakeSummary);
+
+    const result = await services.character.generateGreeting({ principal, characterId: created.id, steer: "cheerful" });
+    expect(result.text).toBe(fakeSummary.items.at(0)?.text);
   });
 });

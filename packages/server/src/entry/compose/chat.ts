@@ -77,7 +77,9 @@ import { createHandoffRestampStatements } from "#domain/embeddings";
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
 import type { PersonaService, ResolvePersonasForRoster } from "#domain/persona";
+import { PersonaNotFoundError } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
+import { PresetNotFoundError } from "#domain/preset";
 import type { ResolveRegexSources } from "#domain/regex";
 import type { SearchService } from "#domain/search";
 import { createTokenHasher } from "#domain/sessions";
@@ -708,8 +710,13 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         id: castId<PresetId>(defaultPresetId),
       });
       return detail.config;
-    } catch {
-      return DEFAULT_PROMPT_CONFIG;
+    } catch (err) {
+      // Only a genuinely stale/unowned/missing preset id degrades to the system default — a database,
+      // I/O, or program failure must surface, never run the turn with the wrong prompt (#759).
+      if (err instanceof PresetNotFoundError) {
+        return DEFAULT_PROMPT_CONFIG;
+      }
+      throw err;
     }
   };
 
@@ -726,8 +733,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     if (presetOverride !== undefined) {
       try {
         return { config: (await input.preset.get({ userId: runAsUserId, id: presetOverride })).config, presetId: presetOverride };
-      } catch {
-        // A bad/unowned override falls through to the host's normal default (the lenient-id rule).
+      } catch (err) {
+        // Only a genuinely stale/unowned/missing override falls through to the host's normal default (the
+        // lenient-id rule) — a database, I/O, or program failure must surface (#759).
+        if (!(err instanceof PresetNotFoundError)) {
+          throw err;
+        }
       }
     }
     const config = await resolvePromptConfigFor(runAsUserId, defaultPresetId);
@@ -1093,8 +1104,13 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
           personaId: castId<PersonaId>(raw),
         });
         return persona.id;
-      } catch {
-        return null;
+      } catch (err) {
+        // Only a genuinely stale/deleted persona id is optional — a database, I/O, or program failure
+        // must surface, never silently seat the room with no active persona (#760).
+        if (err instanceof PersonaNotFoundError) {
+          return null;
+        }
+        throw err;
       }
     },
     resolveCurrentPersona: async (userId) => {
@@ -1109,8 +1125,13 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
           personaId: castId<PersonaId>(raw),
         });
         return persona.id;
-      } catch {
-        return null;
+      } catch (err) {
+        // Only a genuinely stale/deleted persona id is optional — a database, I/O, or program failure
+        // must surface, never silently seat the room with no active persona (#760).
+        if (err instanceof PersonaNotFoundError) {
+          return null;
+        }
+        throw err;
       }
     },
     // Absent/foreign ⇒ false (leak-free).
