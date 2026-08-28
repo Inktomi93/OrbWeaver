@@ -199,8 +199,16 @@ export const pluginRouter = t.router({
         fn: z.string().max(FN_NAME_MAX),
         // Bounded BEFORE it is parsed — the whole reason the arguments cross as a string (see the contract's
         // `PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES`): a byte cap on a JSON document costs nothing to enforce, a byte
-        // cap on a materialized object costs the materialization you were trying to avoid.
-        argsJson: z.string().max(PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES),
+        // cap on a materialized object costs the materialization you were trying to avoid. The bound is BYTES, as
+        // the constant names it — `.max()` measures UTF-16 code UNITS, which under-counts a multi-byte document
+        // (a cap of N code units admits up to ~3N bytes), so it is only the cheap coarse pre-bound and the
+        // `refine` is the true byte cap. (`ui-host-call.ts` calls this "the byte cap at the transport edge".)
+        argsJson: z
+          .string()
+          .max(PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES)
+          .refine((s) => Buffer.byteLength(s, "utf8") <= PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES, {
+            message: `argsJson exceeds the ${PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES}-byte cap`,
+          }),
         chatId: chatIdSchema.optional(),
       }),
     )

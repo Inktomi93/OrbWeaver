@@ -17,7 +17,7 @@
 // from a browser. (2) A REFUSAL IS A DIFFERENT OUTCOME FROM AN EMPTY RESULT: a `storage.get` with a non-string
 // key must reject, not answer `null`, or a plugin author debugging a typo sees "no value" forever.
 //
-// CHAT SCOPE. Two of the ten functions need a room, and they take it from the VERB's already-verified `chatId`
+// CHAT SCOPE. Two of the nine functions need a room, and they take it from the VERB's already-verified `chatId`
 // rather than from the argument bag — a room is authority, and authority never rides in a payload the client
 // composed. A chat-scoped function called with no admitted room is a refusal, not a silent no-op.
 

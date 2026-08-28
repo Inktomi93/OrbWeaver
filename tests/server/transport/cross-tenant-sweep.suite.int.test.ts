@@ -1137,6 +1137,20 @@ const PROBES: readonly Probe[] = [
   //    owner gate refuses before the fn tuple, the grant, the room, or the counter is ever consulted). ──
   { path: "plugin.uiHostCall", call: (c, i) => c.plugin.uiHostCall({ pluginId: i.pluginId, fn: "storage.list", argsJson: "[]" }) },
   { path: "plugin.reportUiCrash", call: (c, i) => c.plugin.reportUiCrash({ pluginId: i.pluginId, surfaceId: "probe_surface", reason: "probe" }) },
+  // ── plugin Tier-C SECOND SCOPE (the room, plugin-ui-plane #679 U4 row 777) — getSurfaceState / invokeUiAction /
+  //    uiHostCall each grew an OPTIONAL `chatId`, so by the cross-tenant-sweep-no-id-is-not-exempt SECOND-SCOPE
+  //    rule they are PROBED AGAIN carrying owner A's REAL chatId: the no-chatId arms above exercise only the shape
+  //    that names no room. The owner gate (`getById(db, caller.userId, pluginId)`) still refuses FIRST — a
+  //    stranger holding A's plugin never reaches the room gate — so the tell is that supplying a valid-looking
+  //    foreign room opens no NEW oracle: the outcome is the SAME leak-free NOT_FOUND, neither the plugin's
+  //    existence nor A's chat membership readable through the added parameter. (Same duplicate-path shape as the
+  //    C5 automation second-scope arms above.) ──
+  { path: "plugin.getSurfaceState", call: (c, i) => c.plugin.getSurfaceState({ pluginId: i.pluginId, surfaceId: "probe_surface", chatId: i.chatId }) },
+  {
+    path: "plugin.invokeUiAction",
+    call: (c, i) => c.plugin.invokeUiAction({ pluginId: i.pluginId, surfaceId: "probe_surface", actionId: "probe_action", values: {}, chatId: i.chatId }),
+  },
+  { path: "plugin.uiHostCall", call: (c, i) => c.plugin.uiHostCall({ pluginId: i.pluginId, fn: "storage.list", argsJson: "[]", chatId: i.chatId }) },
   // ── plugin.runSnippet (03 §1) takes owner A's chatId — the service gates on `resolveChatAuthority`
   //    (`loadPresentRole` under the caller): a stranger is not present ⇒ canRead=false ⇒ NOT_FOUND BEFORE the
   //    snippet ever runs (no read, no write, no execution against A's chat). Leak-free by the loadPresentRole
