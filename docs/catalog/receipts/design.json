@@ -1429,6 +1429,46 @@
       ]
     },
     {
+      "path": "docs/design/plugin-showcase-set.md",
+      "assignedSha256": "a7e33eb3a51530563d093963fec369d0c3246e06f72b94190ab265952a02ef1d",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "a7e33eb3a51530563d093963fec369d0c3246e06f72b94190ab265952a02ef1d",
+      "verifiedCommit": "690d2c6ecc73c992c9e7f9eee6a9481a88a14d94",
+      "verifiedAt": "2026-08-28",
+      "evidence": [
+        "docs/design/plugin-showcase-set.md:1-224 (full read; #774 showcase design-of-record, status rows 1-11 built + suite-green, #788 surface-growth append reconciled)",
+        "git log --oneline -1 -- docs/design/plugin-showcase-set.md: 690d2c6ec feat(#774): mirror the #788 surface growth into the published SDK — 23 caps, tokens namespace, five reads",
+        "GitHub issue #774 (the showcase commission — nine seeded plugins as developer teaching material)"
+      ],
+      "summary": "The plugin SHOWCASE set (#774): nine seeded example plugins collectively exercising the landed plugin capability/surface API as developer teaching material, plus the published host-v1.d.ts SDK types and its conformance pin. Design-of-record; rows 1-11 built and suite-green per §8, with the #788 surface-growth append reconciled. Born-reviewed at merge (full read 2026-08-28).",
+      "claims": [
+        {
+          "claim": "The set's target capability vocabulary is the closed PLUGIN_CAPABILITIES tuple in contracts — the design's 20/20 coverage bar (grown to 23 by #788, reconciled in §8's append).",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/plugin/manifest.ts:13"
+            },
+            {
+              "kind": "issue",
+              "target": "#774"
+            }
+          ]
+        },
+        {
+          "claim": "The developer-facing published SDK types (the U1 carry-forward — host-v1.d.ts declaring PluginUiV1) are built beside the seeded example plugins, as §4 specifies.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts:716"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/plugin-ui-plane.md",
       "assignedSha256": "2c6071d6688a469a2f34b232e73974cdf54e1602e3d036fa920720c44d809a0d",
       "disposition": "current",

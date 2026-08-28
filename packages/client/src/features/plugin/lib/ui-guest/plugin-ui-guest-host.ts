@@ -171,7 +171,7 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
       return;
     }
     if (message.kind === "hostCall") {
-      void handleHostCall(message.callId, message.fn, message.argsJson);
+      void handleHostCall(message.callId, message.fn, message.argsJson).catch(() => undefined);
       return;
     }
     if (message.kind === "ready") {

@@ -15,8 +15,10 @@ import type { ReactElement } from "react";
 import type { SlashArgOffer } from "#lib";
 import { CHAT_TRACK } from "../lib/chat-track.ts";
 
-/** The listbox id the arg strip carries — distinct from the token strip's, so the two never collide. */
-export const SLASH_ARG_LISTBOX_ID = "composer-slash-arg-listbox";
+/** The listbox id the arg strip carries — distinct from the token strip's, so the two never collide. Module
+ *  local: only this strip reads it (as its OptionStrip `id`). A future combobox wiring — the composer input's
+ *  `aria-controls` in arg mode — is the follow-up in the file header; that lane exports it when it needs it. */
+const SLASH_ARG_LISTBOX_ID = "composer-slash-arg-listbox";
 
 export interface ComposerArgHintStripProps {
   /** The command's arg offers for the current partial args (arg-name hints, or enum values). Empty ⇒ nothing. */

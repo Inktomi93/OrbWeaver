@@ -119,7 +119,7 @@ export function PluginScriptedSurface({ pluginId, surfaceId, surfaceIds, grants,
         },
       });
     };
-    void boot();
+    void boot().catch(() => undefined);
     return (): void => {
       cancelled = true;
       guestRef.current?.dispose();

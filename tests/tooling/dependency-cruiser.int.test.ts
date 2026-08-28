@@ -162,6 +162,14 @@ function writeAllFixtures(): void {
   // db's runtime drizzle-orm resolves as `npm` (not `npm-dev`) so it would NOT fire — only pure devDeps do.
   fx("packages/db/src/__dc/devdep.ts", `import { defineConfig } from "drizzle-kit";\nexport const x = defineConfig;\n`);
 
+  // not-to-unresolvable (plugin-ui-plane #679 U4 override): the config reds on EVERY unresolvable import
+  // except the one whitelisted `@jitl/quickjs-ng-wasmfile-release-sync/wasm?url` vite asset request. A
+  // genuinely-missing package is the canonical firing case the rule's own comment names. The override rule
+  // shipped (2026-08-28, plugin train) without this fixture, so the anti-drift `test.each(ACTIVE_RULES)`
+  // case had nothing to fire it and the suite was RED — the domain-teaching / tooling-no-provider-families
+  // precedents above.
+  fx(`${S}/foundation/__dc/unresolvable.ts`, `import "__dc-nonexistent-package";\nexport const u = 1;\n`);
+
   // ── @orb/ui (the frontend cake leaf — ui-package-design.md §8) ──
   // ui-cake: a deep relative escape into contracts (the resolver can't see relative paths).
   fx("packages/contracts/src/__dc/target.ts", VAL);

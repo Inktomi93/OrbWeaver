@@ -961,13 +961,6 @@ export const PLUGIN_UI_ENTRY_MAX_BYTES = 1_048_576;
  *  are not script" is a property of the RESPONSE rather than of the caller remembering to be careful. */
 export const PLUGIN_UI_ROUTE = "/api/plugin-ui";
 
-/** The TREE a scripted guest publishes through `orb.ui(1).render(surfaceId, tree)` — the SAME closed
- *  vocabulary a static surface's `spec` uses, so there is exactly one node union in the system and the
- *  first-party renderer is the same code for both tiers. Re-validated CLIENT-side before mount
- *  (`pluginSurfaceSpecSchema`): the guest is untrusted in the browser exactly as it is on the server, and the
- *  worker boundary is not a validation. */
-export type PluginRenderedTree = PluginSurfaceSpec;
-
 // ── COMMANDS (U5, §4.5) — `host.ui.registerCommand` ──────────────────────────────────────────────────────────
 // A plugin command is NOT a slash-command contribution: the door assembles ONE static `/plugin` dispatcher and
 // a first-party "Plugins" chrome menu, and both fan per-plugin off `plugin.listCommands`. The door therefore
