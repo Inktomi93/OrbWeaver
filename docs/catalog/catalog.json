@@ -621,8 +621,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 509,
-      "bytes": 269982,
-      "sha256": "c31044f9070489205f8cf866f8d998887ae2c66143bf848f4b974f29bec7c9c8",
+      "bytes": 270753,
+      "sha256": "1ab90d6a34d2f9c2d994f4936d7fd578cb45243867e6dce447849e9d51de7369",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -639,8 +639,8 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "c31044f9070489205f8cf866f8d998887ae2c66143bf848f4b974f29bec7c9c8",
-        "verifiedCommit": "b435a687a8a5b5e68e271a2a4540d3cd3ed2023c",
+        "verifiedSha256": "1ab90d6a34d2f9c2d994f4936d7fd578cb45243867e6dce447849e9d51de7369",
+        "verifiedCommit": "34fcf91847a8bbddbf920113ba161e243c058f9d",
         "verifiedAt": "2026-08-25",
         "evidence": [
           "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
@@ -25787,6 +25787,55 @@
             ]
           }
         ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-28-juice-optional-completeness.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 268,
+      "bytes": 27904,
+      "sha256": "9e53ae20b669712d06a0dfd2027f0e7891f8fb437d945a3ffdd7dfd92f84af0f",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-28"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-28-juice-optional-completeness.md",
+        "assignedSha256": "9e53ae20b669712d06a0dfd2027f0e7891f8fb437d945a3ffdd7dfd92f84af0f",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "9e53ae20b669712d06a0dfd2027f0e7891f8fb437d945a3ffdd7dfd92f84af0f",
+        "verifiedCommit": "aa45d92011a26732832721900a300294b1e1d050",
+        "verifiedAt": "2026-08-28",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-28-juice-optional-completeness.md:1 (full read; the completeness audit written by the orchestrator's stickler lane)",
+          "committed as the juice/optional completeness audit of record"
+        ],
+        "claims": [
+          {
+            "claim": "Essentially all the juice + optional plugin/automation features landed (15/15 juice survivors, 20/20 preset catalogue rows, 9/9 plugin phases); the one MEDIUM gap is the missing URL-install client surface.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/server/src/transport/trpc/routers/plugin.ts:111"
+              },
+              {
+                "kind": "issue",
+                "target": "#792"
+              }
+            ]
+          }
+        ],
+        "summary": "Completeness audit vs our own plan (juice doc + plugin-ui-plane + interaction-spec catalogue): 15/15 juice survivors, 20/20 presets, 9/9 plugin phases, 0/13 graveyarded rebuilt, 1/5 §5a purchased (plugin_events). Findings: R1 URL-install client surface missing (#792, MEDIUM), R3 seed exercisers (#774), R4 /vote optional. No completeness lies; three stale doc tenses."
       },
       "receiptCurrent": true
     },

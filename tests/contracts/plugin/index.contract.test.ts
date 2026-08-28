@@ -13,7 +13,7 @@ test("PLUGIN_ORIGINS is [upload, url] — the file arm + the URL-install arm (U8
   expect(PLUGIN_ORIGINS).toEqual(["upload", "url"]);
 });
 
-test("HOST_FUNCTION_CAPABILITY maps 33 gated functions, every value a real capability, every capability covered", () => {
+test("HOST_FUNCTION_CAPABILITY maps 35 gated functions, every value a real capability, every capability covered", () => {
   const entries = Object.entries(HOST_FUNCTION_CAPABILITY);
   // 23 → 25 at U6: `transforms.registerDisplay` + `macros.register`, both riding the EXISTING `chat.transform`
   // capability (plugin-ui-plane §5.5/§5.15) — a widened surface with no new consent line. 25 → 28 at U5:
@@ -28,7 +28,10 @@ test("HOST_FUNCTION_CAPABILITY maps 33 gated functions, every value a real capab
   // into the installer's own library is a distinct consent line, unlike the U5/U6 fns that rode existing grants.
   // 31 → 33 at U8 §5a: `pubsub.emit` + `pubsub.on`, both riding the ONE `plugin_events` grant (a symmetric
   // installer-private plane — the send and receive halves are one consent line).
-  expect(entries).toHaveLength(33);
+  // 33 → 35 at U8 D148: `character.setCardData` + `character.getCardData`, both keyed to the ONE
+  // `character.card_state` grant (symmetric like `pubsub` — "store its own data on your characters" covers reading
+  // it back). Two functions, one capability: the same 1:many the coverage loop below tolerates.
+  expect(entries).toHaveLength(35);
 
   const values = new Set(Object.values(HOST_FUNCTION_CAPABILITY));
   // Every mapped capability is a member of the axis.

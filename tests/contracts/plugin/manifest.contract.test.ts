@@ -28,7 +28,7 @@ const BASE = {
 // question, answered with an isolated frame that can beacon over a channel no policy closes), so a reader
 // weighing one has the other in the same glance. It is RISK class where `ui.surface` is not — the only UI
 // capability that reaches past the plugin's own sandbox. Moving a member is a UX decision, not a refactor.
-test("PLUGIN_CAPABILITIES is the pinned 19-member axis (02 §1; ui.surface + ui.frame #679; U8 ingest pair + plugin_events) in confirm-dialog order", () => {
+test("PLUGIN_CAPABILITIES is the pinned 20-member axis (02 §1; ui.surface + ui.frame #679; U8 ingest pair + card_state + plugin_events) in confirm-dialog order", () => {
   expect(PLUGIN_CAPABILITIES).toEqual([
     "chat.read",
     "chat.variables.write",
@@ -52,6 +52,11 @@ test("PLUGIN_CAPABILITIES is the pinned 19-member axis (02 §1; ui.surface + ui.
     // keys and the coverage loop below make checkable.
     "databank.ingest",
     "character.ingest",
+    // U8 D148 — per-card plugin state (the ST `writeExtensionField` parity arm). Its OWN consent line ("store its
+    // own data on your characters"), placed right after the two library-write capabilities: a reader scanning
+    // "what can this do to my characters" meets all three together. BENIGN band and even cheaper than the ingest
+    // pair (owner-scoped metadata to an EXISTING owned character, no re-embed — D148 clause d).
+    "character.card_state",
     "events.subscribe",
     // U8 §5a — the private plugin-event plane. BENIGN band (neither spend nor risk — installer-scoped, no
     // chat/other-user/internet reach), placed beside `events.subscribe` (both are event reach).

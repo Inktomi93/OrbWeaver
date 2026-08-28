@@ -40,6 +40,18 @@ export const PLUGIN_CAPABILITIES = [
   // line: a canon write is a distinct reach a person weighs separately from "show its own panels".
   "databank.ingest", // ingest a text document into the installer's OWN databank (a Data Bank scraper)
   "character.ingest", // ingest a V2/V3 card into the installer's OWN character library (a hub-import scraper)
+  // U8 seam — PER-CARD PLUGIN STATE (D148, the ST `writeExtensionField`/V2-card-`extensions`-object parity arm).
+  // A plugin stores + reads its OWN blob under the RESERVED `data.extensions.plugin_<slug>` key on one of the
+  // installer's OWN characters (`host.character.setCardData`/`getCardData`). Its OWN consent line ("store its own
+  // data on your characters"): the reach is a distinct one a person weighs apart from "ingest a card" — this
+  // MUTATES an EXISTING character the installer already owns, not a fresh import. BENIGN band, and even cheaper
+  // than the two ingest capabilities beside it: owner-scoped by construction (the bridge stamps the slug + closes
+  // the installer over the write, so no other owner and no other plugin's `plugin_<otherslug>` key is
+  // expressible), it touches no paid credential, no external host, and it is METADATA not content — the write
+  // never recomputes `contentHash` or re-indexes the character (D148 clause d). It sits right after the two
+  // library-write capabilities because a reader scanning "what can this do to my characters" meets all three
+  // together.
+  "character.card_state",
   "events.subscribe",
   // U8 §5a — the PRIVATE plugin-event plane: emit + subscribe to `plugin:<slug>:<name>` events among the SAME
   // installer's plugins. BENIGN band (neither spend nor risk): it is installer-scoped, never touches a domain/

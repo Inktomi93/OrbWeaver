@@ -48,6 +48,7 @@ import {
   createSuggestionStore,
   resolveNotificationRecipients,
 } from "#domain/automation";
+import { readPluginCardData, writePluginCardData } from "#domain/character";
 import { loadPresentRole } from "#domain/chat";
 import type { DatabankService } from "#domain/databank";
 import type { ImageryService } from "#domain/imagery";
@@ -71,6 +72,7 @@ import {
   isPluginEnabledFor,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
+  PluginNotFoundError,
 } from "#domain/plugin";
 import type { SessionsService } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
@@ -662,6 +664,28 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     },
     character: {
       ingest: ({ installerUserId, card }) => deps.ingestCharacterCard({ installerUserId, card }),
+      // U8 D148 — the per-card state WRITE/READ. Owner-scoped by the persistence `WHERE owner_id` predicate (NO
+      // principal resolve — a residual-extensions merge is the installer's OWN reach, the `storage.kv` posture,
+      // not the `ingest` import funnel that needs a Principal). The `slug` arrived host-stamped from the bridge,
+      // so `writePluginCardData` derives ONLY `plugin_<slug>` — a guest can target no other key. A character the
+      // installer does not own is 0 rows written / an absent read → the leak-free `PluginNotFoundError` (a foreign
+      // and an absent character are indistinguishable, the owned-verb posture, D148 clause b). The `characterId`
+      // is the guest's untrusted wire string, cast under the owner-scope guard.
+      setCardData: async ({ installerUserId, slug, characterId, data }) => {
+        // @foreign-id-ok(characterId): the guest's untrusted wire string — the owner-scope predicate is the guard, not the brand.
+        const written = await writePluginCardData(db, { characterId: castId<CharacterId>(characterId), ownerId: installerUserId, slug }, data);
+        if (!written) {
+          throw new PluginNotFoundError(characterId);
+        }
+      },
+      getCardData: async ({ installerUserId, slug, characterId }) => {
+        // @foreign-id-ok(characterId): the guest's untrusted wire string — the owner-scope predicate is the guard, not the brand.
+        const read = await readPluginCardData(db, { characterId: castId<CharacterId>(characterId), ownerId: installerUserId, slug });
+        if (!read.found) {
+          throw new PluginNotFoundError(characterId);
+        }
+        return read.data;
+      },
     },
     // U8 §5a — the PRIVATE plugin-event emit, straight onto the installer-scoped bus (no principal resolve, no
     // db: an event is transient in-RAM signalling). The bus has no domain/chat-bus sink — the forgery wall.

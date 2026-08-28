@@ -115,6 +115,12 @@ test("the EXCLUSIONS are excluded — residency, authority writes, spend, and eg
     // handler holds the grant — the plugin's server guest ingests under the same grant, nothing is lost.
     "databank.ingest",
     "character.ingest",
+    // U8 D148 per-card state — BOTH OUT. `setCardData` is a WRITE (the canon-write class above). `getCardData` IS
+    // a read, but its owner-scope is per-CHARACTER and a proxied call names a `characterId` the server would owe an
+    // ownership check on (the `chat.current`/row-777 shape, one plane over) — a gate that does not exist yet, so it
+    // is a PRICED widening, never a free proxyable entry (the tuple header states this).
+    "character.setCardData",
+    "character.getCardData",
     // U8 §5a PRIVATE-EVENT plane — OUT. `pubsub.on` is a RESIDENT registration (a subscriber owned by the server
     // guest, the `events.on` class); `pubsub.emit` is an EFFECT fanning out to resident server guests. Neither is
     // server-owned DATA a client guest lacks — the private-event plane is a server-guest composition primitive,
@@ -126,7 +132,7 @@ test("the EXCLUSIONS are excluded — residency, authority writes, spend, and eg
     expect(isUiProxyableHostFunction(fn), fn).toBe(false);
   }
   // Together with the ordered pin above, these two tests are exhaustive over `HOST_FUNCTION_CAPABILITY`: 9 in,
-  // 24 out, 33 total.
+  // 26 out, 35 total.
   expect(UI_PROXYABLE_HOST_FUNCTIONS.length + excluded.length).toBe(Object.keys(HOST_FUNCTION_CAPABILITY).length);
 });
 

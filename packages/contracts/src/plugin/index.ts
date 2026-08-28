@@ -80,6 +80,7 @@ export {
   PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES,
   PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX,
   PLUGIN_TOOL_NAME_PREFIX,
+  pluginCardStateKey,
   pluginToolWireName,
 } from "./registrations.ts";
 export type { PluginSuggestedAct, PluginSuggestedActKind } from "./suggestion.ts";

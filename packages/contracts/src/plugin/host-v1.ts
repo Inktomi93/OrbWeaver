@@ -228,6 +228,31 @@ export interface PluginHostV1 {
      *  was freshly created (`false` = a byte-identical re-ingest deduped by importHash). */
     // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     ingest: (card: Record<string, unknown>) => Promise<{ characterId: string; created: boolean }>;
+    /** Store this plugin's OWN per-card state on one of the INSTALLER's OWN characters (D148 — the ST
+     *  `writeExtensionField` parity arm). capability: `character.card_state`.
+     *
+     *  IT WRITES EXACTLY ONE RESERVED KEY, `data.extensions.plugin_<slug>`, and that is the whole security story.
+     *  The `<slug>` is STAMPED HOST-SIDE from the re-validated manifest (never guest input — the `pubsub.emit`
+     *  precedent), so a plugin can name only its OWN namespace: it can never read or overwrite another plugin's
+     *  `plugin_<otherslug>` field because it can never spell another slug, and the persistence merge touches only
+     *  that one key (sibling plugin keys stay byte-identical). The character is OWNER-SCOPED — the write lands
+     *  only WHERE the installer owns the row, so a `characterId` for a character this installer does not own
+     *  writes nothing and rejects leak-free (the `character.ingest` / owned-verb posture: a foreign and an absent
+     *  character are indistinguishable). `data` is inert JSON-safe data: it rides the residual-extensions
+     *  passthrough that makes per-card plugin state PORTABLE (import→store→export→re-import unchanged, D148 clause
+     *  a), and a `depth_prompt`/`regex_scripts` nested inside it stays inert data under this key — it can never
+     *  promote to the card's typed columns (D148 clause c). The write is METADATA, not card content: it does NOT
+     *  recompute the card's `contentHash` and does NOT re-index the character (D148 clause d), the opposite of a
+     *  `create`/`update`. NO chat scope, NO host authority — the `storage.kv` posture: a write to the installer's
+     *  OWN character is the installer's own reach, not room state, so gating it on `canWrite` would claim a
+     *  protection it does not need. */
+    setCardData: (characterId: string, data: Record<string, unknown>) => Promise<void>;
+    /** Read back this plugin's OWN per-card state (`data.extensions.plugin_<slug>`) from one of the INSTALLER's
+     *  OWN characters. capability: `character.card_state`. Same host-stamped-slug + owner-scope walls as
+     *  {@link setCardData}: a foreign/absent character rejects leak-free, and a plugin reads only its own key —
+     *  never another plugin's `plugin_<otherslug>` field. Returns the stored blob, or `null` when this plugin has
+     *  written none on that (owned) character. */
+    getCardData: (characterId: string) => Promise<Record<string, unknown> | null>;
   };
 
   readonly events: {
@@ -475,6 +500,12 @@ export const HOST_FUNCTION_CAPABILITY = {
   // over each op, so there is no `canWrite` gate here — the grant is the whole membrane-tier wall.
   "databank.ingest": "databank.ingest",
   "character.ingest": "character.ingest",
+  // U8 D148 — the per-card plugin-state write + read, BOTH keyed to the ONE `character.card_state` grant (a
+  // symmetric consent line: "store its own data on your characters" covers reading back what it stored). Owner-
+  // scoped metadata writes to the installer's OWN characters, not room writes: no `canWrite` gate, the grant is
+  // the whole membrane-tier wall (the `storage.kv` posture, one plane over onto the card's residual extensions).
+  "character.setCardData": "character.card_state",
+  "character.getCardData": "character.card_state",
   "events.on": "events.subscribe",
   // U8 §5a — both the private-event emit and subscribe ride the ONE `plugin_events` grant (a single consent line
   // covers "send and receive private events among your own plugins"). A plugin that may emit may subscribe and
@@ -561,6 +592,17 @@ export const HOST_FUNCTION_CAPABILITY = {
  *     grant; a scripted surface that wants to trigger an ingest fires an `actionId` round-trip whose server
  *     handler holds the grant, exactly as it would for any other write. Admitting them to the proxy tuple is a
  *     §5a-shaped decision (a new proxyable member is a reviewable act), never a free entry.
+ *   - `character.setCardData` / `character.getCardData` (U8 D148) — BOTH OUT, for two DIFFERENT reasons worth
+ *     stating separately. `setCardData` is a WRITE (the U8 canon-write reasoning above — mints/mutates a durable
+ *     row, and the Tier-C tuple is deliberately reads + KV). `getCardData` is the more interesting exclusion: it
+ *     IS a read, and a scripted surface reading its OWN per-card state to render a widget is a plausible LATENCY
+ *     want — the class §4.6 bought. It is OUT anyway because its owner-scope is per-CHARACTER, and a proxied call
+ *     has no invocation character the way it has no invocation chat (`chat.current`'s exclusion): the client would
+ *     name a `characterId`, and the server would then owe a membership/ownership check on that CLAIM before the
+ *     read — exactly the `notifications.post`/row-777 `resolveChatAuthority` shape, one plane over onto character
+ *     ownership. That gate does not exist yet, so this is a PRICED widening (build the owned-character admission,
+ *     then proxy the read under it), never a free entry — and until then a scripted surface reads its own card
+ *     state through the server guest's own `getCardData` on an `actionId` round-trip, losing latency, nothing else.
  *   - `pubsub.on` / `pubsub.emit` (U8 §5a) — OUT. `pubsub.on` is a RESIDENT REGISTRATION (a subscriber handle
  *     owned by the SERVER guest, the `events.on` class), and `pubsub.emit` is an EFFECT that fans out to resident
  *     SERVER guests — neither is server-owned DATA a client guest lacks. A client UI guest holds `orb.ui(1)`, not
