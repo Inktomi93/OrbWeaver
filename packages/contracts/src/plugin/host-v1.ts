@@ -46,10 +46,12 @@ export interface PluginMessageView {
  *  is the invocation chat's present CHARACTER seats only, member-visible, D16-clamped by the same viewer verdict
  *  `listMessages` resolves. Human seats are excluded (this is the CHARACTER roster). */
 export interface PluginCharacterView {
-  // @foreign-id-ok(id): the plugin SANDBOX wire DTO — a host-resolved character id handed to the guest as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+  // `id`/`avatarAssetId` are guest-wire DTO fields (inert text a guest may key off or pass to `assets.read`), but
+  // neither NAME is the lowerCamel of a kit brand (`characterId`/`assetId` are; these are not), so the
+  // brand-in-name gate does not flag them and no foreign-id exemption is owed (a marker on a non-brand position
+  // is itself stale-RED).
   readonly id: string;
   readonly name: string;
-  // @foreign-id-ok(avatarAssetId): same DTO, same reason — the avatar CAS id crosses as inert text a guest may pass to an `image` node or `assets.read`; nothing on this side reads it back as one of ours. Ends if the bridge starts parsing to brands at the membrane.
   readonly avatarAssetId: string | null;
 }
 
@@ -70,7 +72,8 @@ export interface PluginWorldEntryUpsert {
 /** A REDUCED world-book projection (`worldInfo.listBooks`, #788 F12). The room's own lore books — those ATTACHED
  *  to the invocation chat, member-visible. `id` is what the guest passes back to `worldInfo.listEntries`. */
 export interface PluginWorldBookView {
-  // @foreign-id-ok(id): the plugin SANDBOX wire DTO — a host-resolved book id handed to the guest as inert text it keys `listEntries` off; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+  // `id` is a guest-wire DTO field (inert text the guest keys `listEntries` off); its name is not a kit brand
+  // lowerCamel (`worldBookId` is), so the brand-in-name gate does not flag it and no marker is owed.
   readonly id: string;
   readonly name: string;
 }
@@ -79,7 +82,8 @@ export interface PluginWorldBookView {
  *  `PluginWorldEntryUpsert`: the keys + content of ONE entry in an attached book, for the lore-indexing class
  *  (the vectors extension consumes exactly these). Content is host-capped like `PluginMessageView.content`. */
 export interface PluginWorldEntryView {
-  // @foreign-id-ok(id): the plugin SANDBOX wire DTO — a host-resolved entry id handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+  // `id` is a guest-wire DTO field (inert text); its name is not a kit brand lowerCamel (`worldEntryId` is), so
+  // the brand-in-name gate does not flag it and no marker is owed.
   readonly id: string;
   readonly keys: readonly string[];
   readonly content: string;
