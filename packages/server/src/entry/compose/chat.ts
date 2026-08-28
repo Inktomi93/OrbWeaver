@@ -852,6 +852,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     newMessageId: minter(ID_PREFIX.message),
     newMessageVariantId: minter(ID_PREFIX.messageVariant),
     newMessageAssetId: minter(ID_PREFIX.messageAsset),
+    newMessageReactionId: minter(ID_PREFIX.messageReaction),
     newParticipantId: minter(ID_PREFIX.chatParticipant),
     newInjectionId: minter(ID_PREFIX.chatInjection),
     newEventId: minter(ID_PREFIX.chatEvent),

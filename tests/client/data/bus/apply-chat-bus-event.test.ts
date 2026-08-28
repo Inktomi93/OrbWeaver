@@ -16,7 +16,7 @@ import type { TurnSlot } from "@orb/client/state";
 import { chatStream, subscribeTurnSlot } from "@orb/client/state";
 import type { ChatBusEvent, ChatDeltaEvent, ChatWarningCode, TurnIntent } from "@orb/contracts/chat";
 import { CHAT_BUS_EVENT_TYPES } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, MessageId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -109,6 +109,7 @@ function freshChatId(): ChatId {
 }
 
 const MESSAGE_ID = castId<MessageId>("message_test_bus_0001");
+const VARIANT_ID = castId<MessageVariantId>("message_variant_bus_1");
 const CHARACTER_ID = castId<CharacterId>("character_test_bus_01");
 const PERSONA_ID = castId<PersonaId>("persona_test_bus_0001");
 const WORLD_BOOK_ID = castId<WorldBookId>("world_book_test_bus01");
@@ -448,6 +449,10 @@ function buildCanonEvent(type: CanonEventType, chatId: ChatId): ChatBusEvent {
       return { type, chatId, entryIds: [WORLD_ENTRY_ID], automationDepth: 0 };
     case "personaSwitched":
       return { type, chatId, from: null, to: PERSONA_ID };
+    // B6 — the reaction plane's canon member. Invalidate-only like its neighbours; the emoji/direction
+    // scalars ride the event for the automation trigger fact, never for this reducer.
+    case "reactionsChanged":
+      return { type, chatId, messageId: MESSAGE_ID, variantId: VARIANT_ID, emoji: "👍", added: true };
     case "wiBookAttached":
     case "wiBookDetached":
       return { type, chatId, surface: "chat", bookId: WORLD_BOOK_ID };

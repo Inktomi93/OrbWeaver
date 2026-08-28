@@ -46,6 +46,7 @@ import {
   chatAlsoOpenTile,
   chatMastheadTile,
   chatMessageHandlingSection,
+  chatMessageReactionsSurface,
   chatQuickPicksTile,
   chatRecentsTile,
   chatSlashCommands,
@@ -193,6 +194,11 @@ const chatControlSources = createContributorRegistry<ChatControlSource>("chat-co
 
 const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [
   rpgTurnToolCallsSurface,
+  // B6 — the reaction pill row. Chat's own tenant on its own anchor, and deliberately so: the anchor mounts
+  // once per COMMITTED row, which is what makes "reactions only exist on canon" structural rather than a
+  // predicate. Silent (and layout-neutral, the footer band being `empty:hidden`) on every row nobody has
+  // reacted to, which is most rows in most rooms.
+  chatMessageReactionsSurface,
   // The ONE above-composer control mount, consuming the registry above.
   makeChatControlsContribution(chatControlSources),
   // …and the seam's THIRD tenant + first `thread-flank` one (#16): automation's needle meter, rendering the
