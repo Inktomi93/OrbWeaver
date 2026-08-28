@@ -249,6 +249,7 @@ export function attachMembrane(ctx: QuickJSContext, surface: QuickJSHandle, runt
   setWorldInfo(ctx, surface, runtime);
   setImagery(ctx, surface, runtime);
   setVariables(ctx, surface, runtime);
+  setAssets(ctx, surface, runtime);
   setStorage(ctx, surface, runtime);
   setNotifications(ctx, surface, runtime);
   setLlm(ctx, surface, runtime);
@@ -716,6 +717,19 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     },
   });
 
+  // listRoster(chat) — the present CHARACTER roster of the ADMITTED chat (#788 F11). The bridge resolves the
+  // installer's membership and returns `[]` for a non-member; a forged/stale handle fails `resolveChat` first.
+  attachAsync(ctx, chat, {
+    name: "listRoster",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "chat.listRoster");
+      const { chatId } = resolveChat(runtime, args[0]);
+      return await runtime.bridge.chat.listRoster(chatId);
+    },
+  });
+
   attachAsync(ctx, chat, {
     name: "applyVariableOps",
     inFlight: runtime.inFlight,
@@ -836,6 +850,35 @@ function buildTurnHints(raw: unknown): { readonly speakerCharacterId?: string; r
  *  lore writer under the installer. */
 function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using worldInfo = ctx.newObject();
+  // listBooks(chat) — the books ATTACHED to the admitted chat (#788 F12, worldinfo.read). The bridge resolves
+  // the installer + member-gates the attachment list; a non-member gets `[]`.
+  attachAsync(ctx, worldInfo, {
+    name: "listBooks",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "worldInfo.listBooks");
+      const { chatId } = resolveChat(runtime, args[0]);
+      return await runtime.bridge.worldInfo.listBooks(chatId);
+    },
+  });
+  // listEntries(chat, bookId) — the entries of ONE attached book (#788 F12, worldinfo.read). The guest supplies
+  // the bookId; the bridge applies the ATTACHMENT gate before the read, so a book not attached to THIS chat
+  // resolves to `[]`, leak-free. A non-string bookId is refused here rather than serialized into a bad query.
+  attachAsync(ctx, worldInfo, {
+    name: "listEntries",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "worldInfo.listEntries");
+      const { chatId } = resolveChat(runtime, args[0]);
+      const bookId = args[1];
+      if (typeof bookId !== "string") {
+        throw new Error("plugin host: worldInfo.listEntries requires a bookId string");
+      }
+      return await runtime.bridge.worldInfo.listEntries(chatId, bookId);
+    },
+  });
   attachAsync(ctx, worldInfo, {
     name: "upsertEntry",
     inFlight: runtime.inFlight,
@@ -858,6 +901,29 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     },
   });
   ctx.setProp(surface, "worldInfo", worldInfo);
+}
+
+/** assets.read(assetId) — capability assets.read (#788 seam-11 read half). The guest supplies ONLY the assetId
+ *  string; the bridge closes the installer over the read and reaches the assets domain's OWNER-GATED front door,
+ *  so a guest can only read its OWN CAS and a foreign/absent id is the leak-free `null`. NO chat scope, NO host
+ *  authority (a read of the installer's own store, the `storage`/`databank` posture). A non-string assetId is
+ *  refused here rather than serialized into a bad lookup. */
+function setAssets(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
+  using assets = ctx.newObject();
+  attachAsync(ctx, assets, {
+    name: "read",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "assets.read");
+      const assetId = args[0];
+      if (typeof assetId !== "string") {
+        throw new Error("plugin host: assets.read requires an assetId string");
+      }
+      return await runtime.bridge.assets.read(assetId);
+    },
+  });
+  ctx.setProp(surface, "assets", assets);
 }
 
 /** imagery.generatePicture — capability imagery.generate + host authority (host-gated). Returns the

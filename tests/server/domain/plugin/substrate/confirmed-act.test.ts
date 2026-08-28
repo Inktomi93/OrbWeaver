@@ -66,6 +66,7 @@ function recordingOps(over: { readonly attached?: boolean; readonly titles?: rea
         },
       },
       worldInfo: {
+        ...base.worldInfo,
         upsertEntries: (req): Promise<{ inserted: number; updated: number; skippedHandEdited: number }> => {
           lore.push(req);
           return Promise.resolve({ inserted: 1, updated: 0, skippedHandEdited: 0 });
