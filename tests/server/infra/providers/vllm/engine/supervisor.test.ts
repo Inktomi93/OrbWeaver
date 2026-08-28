@@ -457,6 +457,91 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
     }
   });
 
+  // #761: pendingSpawn was a single shared boolean on EngineState. Two same-engine operations queued
+  // back-to-back (admin restart isn't gated by decideTick's pendingSpawn check, so a caller CAN queue two)
+  // chain sequentially through the one spawn mutex — but the FIRST operation's `finally` cleared the flag
+  // even while the SECOND was still genuinely in flight. A monitor tick landing in that window then read
+  // "nothing pending" and admitted a third, unintended restart (double-charging the breaker and — once the
+  // real second spawn completed — getting itself superseded, which relabels the engine 'adopted' instead of
+  // leaving it 'owned'). The fix counts queued/running operations per engine instead of clobbering a bool.
+  test("two concurrent same-engine admin restarts: the first's completion must not admit a monitor-tick third operation (#761)", async () => {
+    const parked: Array<() => void> = [];
+    let parkAll = false;
+    // ORPHAN_REAP_SETTLE_MS (3000ms) backs off BOTH the admin-restart backoff and the post-kill settle —
+    // park every >=3000ms wait once armed; health-poll (2000ms) sleeps always resolve immediately.
+    const sleep = (ms: number): Promise<void> => (parkAll && ms >= 3000 ? new Promise<void>((resolve) => parked.push(resolve)) : Promise.resolve());
+    const release = async (): Promise<void> => {
+      const next = parked.shift();
+      expect(next).toBeDefined();
+      next?.();
+      await settle();
+    };
+
+    const stop = startVllmEngines({
+      repoRoot: "/repo",
+      now: (): number => fixedNow,
+      sleep,
+      triggerSpawn,
+      portOwnerPid: () => Promise.resolve(7331),
+      signalEngineProcess: (engine, _listenerPid, _signal) => {
+        io.healthy.delete(engine);
+        return { verdict: "signaled", pgid: 7331 };
+      },
+    });
+    try {
+      await settle();
+      expect(getEngineStatus("embed")?.status).toBe("owned");
+      const triggersAfterBoot = io.triggers.length;
+
+      const controller = getVllmEngineController();
+      parkAll = true;
+      const p1 = controller?.restart("embed");
+      const p2 = controller?.restart("embed");
+      await settle();
+      expect(parked.length).toBe(1); // op1 parked at its backoff; op2 is queued behind it, not yet running
+
+      await release(); // op1's backoff → op1 kills the (already-owned) port → parks at the kill-settle sleep
+      expect(parked.length).toBe(1);
+      await release(); // op1's kill-settle → op1 re-triggers the detached spawn and re-adopts owned
+      await p1;
+      expect(getEngineStatus("embed")?.status).toBe("owned");
+      expect(io.triggers.length).toBe(triggersAfterBoot + 1);
+
+      // op2 now starts (chained after op1) and parks at ITS own initial backoff.
+      expect(parked.length).toBe(1);
+      await release(); // op2's backoff → op2 kills the port AGAIN → parks at its own kill-settle sleep
+      expect(parked.length).toBe(1);
+      expect(getEngineStatus("embed")?.status).toBe("owned"); // still owned — op2 hasn't re-triggered yet
+
+      // op2 is genuinely still in flight right now (parked mid-operation, port freed, not yet re-spawned).
+      // THE TELL: under the shared-boolean bug, op1's completion above already cleared pendingSpawn, so
+      // this tick reads "owned engine, port free, not our spawn yet" and admits an unintended THIRD
+      // operation — `requestRestart` fires immediately (charging the breaker) and marks the engine 'down'
+      // before op2 ever gets a chance to bring it back up. The fix's per-engine count is still >0 (op2 is
+      // still queued/running), so decideTick short-circuits to none and the engine stays 'owned'.
+      await vi.advanceTimersByTimeAsync(monitorIntervalMs);
+      await settle();
+      expect(getEngineStatus("embed")?.status).toBe("owned");
+
+      await release(); // op2's kill-settle → op2 re-triggers the detached spawn and re-adopts owned
+      await p2;
+      await settle();
+
+      // The bogus third operation (if queued) sits BEHIND op2 in the one spawn mutex and only starts once
+      // op2 resolves — so its own backoff wait shows up here as a stray parked entry, and once it runs it
+      // finds the port already healthy (op2 beat it there) and gets superseded via `skipSupersededSpawn`,
+      // which relabels the engine 'adopted' — exactly the mislabel this file's own header warns against.
+      expect(parked.length).toBe(0); // no bogus third operation queued behind the two real restarts
+      expect(io.triggers.length).toBe(triggersAfterBoot + 2); // exactly the two REAL admin restarts
+      expect(getEngineStatus("embed")?.status).toBe("owned"); // never mislabeled 'adopted' by a phantom third
+    } finally {
+      for (const resolve of parked) {
+        resolve(); // drain any stray parked wait (a still-live bug) so the interval/promise chain settle
+      }
+      stop();
+    }
+  });
+
   // THE HMR-TOPOLOGY INVARIANT PIN (#14): a healthy responding port at boot is ADOPTED, never respawned —
   // the watched server must never re-trigger a fleet the standalone launcher already brought up (the old
   // constant-restart hell). The ownership inversion changed the spawn MECHANISM, never this topology.
