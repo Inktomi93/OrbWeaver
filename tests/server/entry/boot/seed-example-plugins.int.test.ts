@@ -255,8 +255,15 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   // both dispatch against. The SLUG is projected here (only this side knows it), which is the first token of the
   // dispatch grammar.
   expect(await h.service.listCommands({ caller })).toEqual([
-    { pluginId: installed.id, slug: "oracle-deck", pluginName: "Oracle Deck", name: "draw", describe: "Draw one card from the oracle deck" },
-    { pluginId: installed.id, slug: "oracle-deck", pluginName: "Oracle Deck", name: "reveal", describe: "Open the reveal dialog for this oracle session" },
+    { pluginId: installed.id, slug: "oracle-deck", pluginName: "Oracle Deck", name: "draw", describe: "Draw one card from the oracle deck", args: [] },
+    {
+      pluginId: installed.id,
+      slug: "oracle-deck",
+      pluginName: "Oracle Deck",
+      name: "reveal",
+      describe: "Open the reveal dialog for this oracle session",
+      args: [],
+    },
   ]);
 
   // A tool call carries no chat scope of its own here (the deck never asks for one), exactly as a direct-drive
