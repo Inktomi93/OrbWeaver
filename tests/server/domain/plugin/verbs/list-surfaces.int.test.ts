@@ -32,6 +32,18 @@ function instanceWith(surfaceId: string): PluginInstance {
   };
 }
 
+/** A resident carrying one `tool-card` surface, linked to a guest-local tool name (#679 U3). */
+function instanceWithToolCard(toolName: string): PluginInstance {
+  return {
+    tools: [],
+    transforms: [],
+    events: [],
+    displayTransforms: [],
+    macros: [],
+    surfaces: [{ id: "draw_card", anchor: "tool-card", title: "Draw", tier: "static", toolName, spec: { kind: "text", value: "drawn" } }],
+  };
+}
+
 test("lists the caller's OWN enabled plugin's surfaces, projected to meta + pluginId (no onAction handle)", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
@@ -51,6 +63,36 @@ test("lists the caller's OWN enabled plugin's surfaces, projected to meta + plug
       spec: { kind: "stack", children: [{ kind: "text", value: "hi" }] },
     },
   ]);
+});
+
+test("a tool-card surface is projected with the MODEL-VISIBLE wire name (slug hyphens become underscores)", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  h.port.script({ ok: true, instance: instanceWithToolCard("draw") });
+  // A HYPHENATED slug is the load-bearing case: the model-visible name has no hyphen in it, so a projection
+  // that forwarded the raw slug would never match a persisted `ToolCallRecord.name` and the card would be
+  // silently unreachable — which reads exactly like "this plugin registered no card".
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+
+  const [surface] = await h.service.listSurfaces({ caller });
+  expect(surface?.toolName).toBe("draw");
+  expect(surface?.toolWireName).toBe("plugin_oracle_deck_draw");
+});
+
+test("a non-tool-card surface carries NO wire name (the linkage is the tool-card anchor's alone)", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  h.port.script({ ok: true, instance: instanceWith("panel") });
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+
+  const [surface] = await h.service.listSurfaces({ caller });
+  // Non-vacuous: an empty result would satisfy an `undefined` pin while proving nothing.
+  expect(surface?.id).toBe("panel");
+  expect(surface?.toolWireName).toBeUndefined();
 });
 
 test("a DISABLED plugin (no resident instance) contributes no surfaces", async () => {

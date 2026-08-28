@@ -36,6 +36,9 @@ const ALLOWLIST: ExemptionTable = {
     why: "the /join preview→confirm landing (loading/invalid/ready states) — a multi-state flow, not a form; chat lane.",
   },
   "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx": { why: "a character-gallery picker surface (owns its Dialog root); chat lane." },
+  "packages/client/src/features/chat/components/reaction-picker.tsx": {
+    why: "B6 — the emoji PICKER, the species this gate's own header names first (`galleries/pickers`) and the `character-gallery-dialog` shape exactly: a grid of one-press cells over a closed contracts vocabulary, no bound fields, no submit, dismissed by the pick itself. It owns its Dialog root because BOTH row doors open it — an anchored popover is unavailable to the coarse door, whose trigger is `display:none` (`ROW_ACTION_INLINE`) and so has no box to position against.",
+  },
   "packages/client/src/features/chat/components/member-card-viewer.tsx": {
     why: "the D22 read-only, level-clamped member card VIEWER (getMemberCard) — a content-display species like character-gallery-dialog/readable-overlay: no bound fields, a single Close, owns its Dialog root.",
   },

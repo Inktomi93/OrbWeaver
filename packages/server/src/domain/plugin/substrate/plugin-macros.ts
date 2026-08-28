@@ -29,7 +29,7 @@ import type { InvocationChat, PluginMacroRegistration } from "@orb/contracts/plu
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
 import { neutralizeMacros } from "@orb/kit/macro";
-import type { PluginInvokeHandler, PluginRegistrationHandle } from "../contract/ops.ts";
+import type { PluginInvokeHandler, PluginMacroRegistry, PluginRegistrationHandle } from "../contract/ops.ts";
 
 /** The wall-clock bound on ONE turn's whole plugin-macro resolution (every registered macro, in parallel). It
  *  is the ASSEMBLY deadline the design names, and it is deliberately larger than the 250 ms per-transform
@@ -48,27 +48,6 @@ interface RegisteredMacro {
   readonly name: string;
   readonly description: string;
   readonly resolve: (chat: InvocationChat | null) => Promise<string>;
-}
-
-/** The process-wide plugin-macro registry. One instance minted at compose (the `pluginSubscribers` /
- *  `surfaceState` precedent) — the plugin domain WRITES it at activation and chat READS it per turn through
- *  an injected op, so neither domain imports the other. */
-export interface PluginMacroRegistry {
-  /** Register one plugin's whole collected macro set for `installer`. Returns the deregistration handle
-   *  activation stores (deactivate/uninstall calls it, so a disabled plugin's macros vanish from the next
-   *  turn). Re-registering the same plugin REPLACES its prior set (an upgrade re-activates). */
-  readonly register: (req: {
-    readonly installer: UserId;
-    /** The manifest slug — UNIQUE PER INSTALLING OWNER (`manifest.ts`'s own contract), which is exactly the
-     *  key an installer-scoped registry needs. It is also what the namespace is built from, so keying on it
-     *  keeps "which entry owns `plugin_oracle_*`" answerable without a second identifier. */
-    readonly slug: string;
-    readonly macros: readonly PluginMacroRegistration[];
-    readonly invoke: PluginInvokeHandler;
-  }) => PluginRegistrationHandle;
-  /** Resolve every macro `authorUserId`'s enabled plugins registered, as kit `UserMacroDef`s ready to hand to
-   *  `buildTurnUserMacros`. `[]` when that author has none — the byte-identical arm chat's turn path leans on. */
-  readonly resolveForTurn: (authorUserId: UserId, chatId: ChatId) => Promise<readonly UserMacroDef[]>;
 }
 
 /** The host namespace a plugin macro's name lands in — the `plugin_<slug'>_<name>` rule `registerTool` uses,

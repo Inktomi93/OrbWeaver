@@ -77,8 +77,9 @@ export interface PluginQuietOptions {
   /** Present ⇒ a schema-CONSTRAINED generation on the `structured` role; the result is the model's JSON text. */
   readonly schema?: PluginQuietSchema;
   /** Assets in the INSTALLER's own CAS to attach to the user turn — at most {@link PLUGIN_QUIET_IMAGES_MAX}.
-   *  Vision-capable families attach them; text-only families ignore them (the no-op knob doctrine). */
-  // @foreign-id-ok(imageAssetIds): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+   *  UNBRANDED by the same rule the rest of this file follows: a guest's JSON is untrusted until the DOMAIN
+   *  resolves it (here, through the owner-gated CAS read), and branding the wire type would claim a validation
+   *  this boundary has not performed. Vision-capable families attach them; text-only families ignore them. */
   readonly imageAssetIds?: readonly string[];
 }
 
@@ -245,6 +246,7 @@ export interface PluginHostV1 {
     registerDisplay: (def: {
       name: string;
       // @foreign-id-ok(chatId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+      // @foreign-id-ok(messageId): same DTO, same reason — the row id crosses INTO the guest as inert text it may key off, and nothing on this side reads it back as one of ours. Ends if the bridge starts parsing to brands at the membrane.
       apply: (input: { text: string; env: { chatId: string; messageId: string } }) => Promise<string>;
     }) => void;
   };

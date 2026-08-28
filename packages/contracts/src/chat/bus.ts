@@ -9,10 +9,11 @@
 //     branded ids, enum literals, plain scalars, and `MessageView` — credentials/secrets/baseUrls are
 //     TYPE-LEVEL UNREPRESENTABLE (no member declares a field to carry one).
 
-import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { ChatApi, CredentialSource } from "#connection";
 import type { WiBusEvent } from "#world-info";
 import type { MessageView } from "./messages.ts";
+import type { ReactionEmoji } from "./reactions.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE CHAT STREAM DELTA + THE CHAT BUS UNION
@@ -380,6 +381,28 @@ export type ChatBusEvent =
   //    DEPTH, not attribution — no caller id, no secret (the allowlist bans those, not a counter).
   | { type: "worldInfoActivated"; chatId: ChatId; entryIds: WorldEntryId[]; automationDepth: number }
   | { type: "personaSwitched"; chatId: ChatId; from: PersonaId | null; to: PersonaId | null }
+  // ── A message reaction was added or removed (B6/MR0). CANON, not per-viewer: every member of the room sees
+  //    the same reaction set, so a toggle by one member must reach every other member's open transcript —
+  //    which is the whole reason this member exists rather than the writing tab reconciling alone (MA-2 §5).
+  //    DURABLE (absent from `LIVE_ONLY_CHAT_EVENT_TYPES`): the reaction it announces is canon that survives
+  //    the fan, so a device dark through the toggle must learn about it on replay like any other canon
+  //    mutation — the `roomEntityChanged` live-only ECONOMY argument does not apply, because there is no
+  //    attach synthesis that re-reads reactions.
+  //    Emitted AFTER the durable write commits (durable-first, the `createChatBus` discipline).
+  //    NO VIEW CARRIER, deliberately: the pill row is a SEPARATE bounded room-scoped read the client indexes
+  //    by `variantId` (`chat.listReactions`), not a field of `MessageView` — folding reactions into the view
+  //    would put a join on every canon read and every bus carrier for an ornament most rows never carry.
+  //    `emoji` + `added` ride the event so an automation predicate can say WHAT happened without a re-read
+  //    (the `reactionsChanged` trigger's fact projects exactly these). `emoji` is the CLOSED `ReactionEmoji`
+  //    union, not a raw `string`, and that is load-bearing rather than cosmetic: `index.test-d.ts` pins that
+  //    the ONLY raw-string keys on this bus are `turnStarted.model` and the seq-anchored `delta.memberText`
+  //    ("adding a THIRD raw-string key must clear the same bar: name the anchor, or don't ship it"). A
+  //    string-literal union does not satisfy `string extends T`, so this member stays outside that pin BY
+  //    CONSTRUCTION — the `roomEntityChanged.entity` / `memoryRecall.phase` precedent — allowlist-clean
+  //    (Part III inv §11): branded ids, a plain string, a boolean, and no caller id (D19 — the REACTOR is a
+  //    participant SEAT, which is room-public roster data, not a caller identity; it is deliberately absent
+  //    here anyway, because the grouped re-read is what tells a client who reacted).
+  | { type: "reactionsChanged"; chatId: ChatId; messageId: MessageId; variantId: MessageVariantId; emoji: ReactionEmoji; added: boolean }
   // ── World-info attachment changes (chat-surface only; embedded from #world-info) ──
   | WiBusEvent
   | { type: "chatCreated"; chatId: ChatId }
@@ -447,6 +470,7 @@ export const CHAT_BUS_EVENT_TYPES = {
   warning: true,
   worldInfoActivated: true,
   personaSwitched: true,
+  reactionsChanged: true,
   wiBookAttached: true,
   wiBookDetached: true,
   wiEntryAttached: true,

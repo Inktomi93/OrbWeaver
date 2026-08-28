@@ -24,6 +24,7 @@ import { createFork } from "./verbs/fork.ts";
 import { createGenerateImage } from "./verbs/generate-image.ts";
 import { createInvites } from "./verbs/invites.ts";
 import { createQuietGenerate } from "./verbs/quiet-generate.ts";
+import { createReactions } from "./verbs/reactions.ts";
 import { createRead } from "./verbs/read.ts";
 import { createRoster } from "./verbs/roster.ts";
 import { createStartChat } from "./verbs/start-chat.ts";
@@ -154,6 +155,9 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
   const startChat = createStartChat(ctx, { emit: deps.emit, prepareCreationEvent: deps.prepareCreationEvent, loadParticipantViews });
   const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, emitLive: deps.emitLive, activeTurns: deps.activeTurns, claimChat });
   const roster = createRoster(ctx, { emit: deps.emitChecked, claimChat });
+  // B6 — the reaction plane. NO `claimChat`: a reaction is a read-adjacent act on canon that already exists,
+  // so it cannot be the first activity in a room (a husk has no committed variant to react to).
+  const reactions = createReactions(ctx, { emit: deps.emit });
 
   return {
     service: {
@@ -166,6 +170,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
       ...startChat,
       ...chatLifecycle,
       ...roster,
+      ...reactions,
       compact,
     },
     requestTurn,

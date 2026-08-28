@@ -17,10 +17,10 @@
 //   than no claim.
 //
 // WHAT A PLUGIN TOOL CANNOT DO, stated so you do not design around a surface that is not there:
-//   * NO CUSTOM RENDERING. The client's tool-renderer registry is first-party and assembled at build time; a
-//     plugin cannot register one. Your tool's call and its result render in the GENERIC tool block. Bespoke
-//     card art is a real gap, not an exercise for the reader — design your result STRING to read well as
-//     plain text, because plain text is what the room gets.
+//   * NO ARBITRARY PIXELS. You can draw a real card for your tool — this plugin does, at the bottom of the
+//     file — but out of the app's OWN components, declared as data, inside a frame that names you. Bespoke
+//     card ART (an image per card, a canvas) is not expressible in that vocabulary; a structured card is.
+//     Design your result as a DOCUMENT (see `drawResult`), because both the model and the card read it.
 //   * NO STABLE ROOM IDENTITY. The chat handle a tool invocation can obtain is a fresh opaque token each time,
 //     so a tool handler cannot key state per room. This deck is therefore ONE deck per install, shared across
 //     your rooms. (An event handler is different — its fact carries the chat id.)
@@ -148,6 +148,33 @@ function clampCount(raw) {
   return Math.min(n, MAX_DRAW);
 }
 
+/** THE RESULT DOCUMENT `draw` returns — and the reason it is JSON rather than a sentence.
+ *
+ *  A tool result is TWO audiences at once. The model reads it (so every field has to read as plain language),
+ *  and — once your plugin registers a `tool-card` surface, below — the CARD binds it: a card's
+ *  `{ $state: "result.<field>" }` paths resolve against this object. A handler that returns prose can only
+ *  ever be bound as one blob; a handler that returns a document can be drawn as a real card.
+ *
+ *  EVERY FIELD IS ALWAYS PRESENT, deliberately. A binding whose path is missing renders empty, so a field
+ *  that appears only sometimes is a card that is sometimes half-blank. The spent-deck arm below therefore
+ *  returns the same shape with zero cards, not a different one. */
+function drawResult(session, taken, narration) {
+  return JSON.stringify({
+    // What the model reads first, and what the card's markdown node draws.
+    drawn: narration,
+    cards: taken,
+    // The public commitment: safe to show every time (only the SEED is secret), which is what lets the card
+    // carry it as a stable row instead of a sometimes-line.
+    commitment: commitmentFor(session.seed),
+    dealt: session.dealt,
+    deckSize: DECK.length,
+    // Pre-rendered count language, because a card's vocabulary has no arithmetic and no pluralization — the
+    // plugin owns the sentence, the app owns the drawing.
+    countLabel: taken.length === 1 ? "1 card" : `${taken.length} cards`,
+    remainingLabel: `${DECK.length - session.dealt} left in the deck`,
+  });
+}
+
 // ── the tools ──────────────────────────────────────────────────────────────────────────────────────────────
 // `tools.register` is activation-time and synchronous. The host namespaces each name to
 // `plugin_<slug>_<name>` (so this pair lands as `plugin_oracle_deck_draw` / `plugin_oracle_deck_reveal`) and
@@ -174,15 +201,17 @@ host.tools.register({
     const cards = shuffleFor(session.seed);
 
     if (session.dealt >= cards.length) {
-      return "The deck is spent. Call reveal to verify this session, then draw again for a fresh shuffle.";
+      return drawResult(session, [], "The deck is spent. Call reveal to verify this session, then draw again for a fresh shuffle.");
     }
     const taken = cards.slice(session.dealt, session.dealt + count);
     await host.storage.set(SESSION_KEY, JSON.stringify({ seed: session.seed, dealt: session.dealt + taken.length }));
 
     const drawn = taken.map((card, i) => `${session.dealt + i + 1}. ${card}`).join("\n");
-    // The commitment rides only on the FIRST draw — that is the moment it means something, and repeating it
-    // every draw would train everyone to skip the line that matters.
-    return existing === null ? `Commitment ${commitmentFor(session.seed)} (verify after reveal)\n${drawn}` : drawn;
+    // The commitment rides in the RESULT on every draw (it is public by construction — only the seed is
+    // secret), but the model is TOLD about it only on the first, because that is the moment it means
+    // something and repeating it every draw would train everyone to skip the line that matters.
+    const lead = existing === null ? `Commitment ${commitmentFor(session.seed)} — verify it after reveal.` : "";
+    return drawResult({ seed: session.seed, dealt: session.dealt + taken.length }, taken, `${lead ? `${lead}\n\n` : ""}${drawn}`);
   },
 });
 
@@ -202,5 +231,55 @@ host.tools.register({
     return `Seed: ${session.seed}\nCommitment: ${commitmentFor(session.seed)}\nCards dealt: ${session.dealt}\nFull order: ${order}`;
   },
 });
+
+// ── THE CARD (ui.surface at the `tool-card` anchor) ────────────────────────────────────────────────────────
+//
+// What a `draw` looks like in the transcript. Without this, a plugin tool call renders in the app's GENERIC
+// tool block — the raw name, arguments and result, the same for every tool. With it, the app draws YOUR
+// card, out of its own components, inside a frame that names this plugin.
+//
+// THE THREE THINGS TO KNOW:
+//  1. `toolName` is the LINKAGE, and it is your OWN name for the tool — `draw`, exactly as `tools.register`
+//     took it. The app resolves the model-visible `plugin_oracle_deck_draw` on its side; you never spell
+//     that, and a card that named it would break the day your slug changed.
+//  2. THE BINDING ROOT IS THE CALL, not `setState`. `{ $state: "result.commitment" }` reads the result
+//     document of THE CALL BEING DRAWN, so an old draw in the scrollback keeps showing the cards it drew.
+//     (`args.*`, `isError` and `durationMs` are there too.) A tool card publishes no state and needs none.
+//  3. IT IS PER TOOL, AND OPTIONAL. `reveal` registers no card, so a reveal renders in the generic block —
+//     which is exactly what a plugin gets for free, and always the fallback when a card cannot be drawn. A
+//     tool call is part of the conversation's record; the app never renders NOTHING for one.
+//
+// FEATURE-DETECT THE GRANT, don't assume it. A user may tick `tools.register` and leave `ui.surface`
+// unticked — their call, and the deck still works without a card. Calling a host fn you were not granted
+// THROWS, and this one runs at activation, so an unguarded call would take the whole plugin down (no tools,
+// no deck) over a decoration. `host.grants` is the guest-readable grant set for exactly this.
+if (host.grants.includes("ui.surface")) {
+  host.ui.register({
+    id: "draw_card",
+    anchor: "tool-card",
+    toolName: "draw",
+    title: "Draw",
+    tier: "static",
+    spec: {
+      kind: "section",
+      kicker: "Oracle draw",
+      children: [
+        {
+          kind: "row",
+          gap: "field",
+          children: [
+            { kind: "badge", intent: "info", text: { $state: "result.countLabel" } },
+            { kind: "badge", intent: "neutral", text: { $state: "result.remainingLabel" } },
+          ],
+        },
+        // The narration the model also read — through the app's own markdown renderer, so the card and the
+        // transcript speak in one voice.
+        { kind: "markdown", value: { $state: "result.drawn" } },
+        { kind: "keyValue", rows: [{ key: "Commitment", value: { $state: "result.commitment" } }] },
+        { kind: "meter", label: "Dealt", max: DECK.length, value: { $state: "result.dealt" } },
+      ],
+    },
+  });
+}
 
 host.log.info(`oracle deck ready — ${DECK.length} cards (grants: ${host.grants.join(", ") || "none"})`);

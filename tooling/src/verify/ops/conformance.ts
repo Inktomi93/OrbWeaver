@@ -63,18 +63,36 @@ function runGateStandalone(gate: GateDescriptor, project: Project, root: string)
   });
 }
 
+/** The TS source extensions the fs-backed substrate loads into the Project. An example may materialize a
+ *  `.md` / `.css` / `.json` too (dangling-refs plants docs, over-art-plate-arm a stylesheet, a ratchet gate
+ *  its baseline) — those are on DISK for the gate's own `readFileSync` and must stay OUT of the project, so
+ *  the filter is part of the contract, not an optimisation detail. */
+const TS_SOURCE_RE = /\.tsx?$/u;
+
 /** Run an `fsBacked` gate's example by materializing its files into a real auto-cleaned temp dir and
- *  loading a real-fs Project rooted there, so its readdirSync/existsSync/readFileSync calls see real disk. */
+ *  loading a real-fs Project rooted there, so its readdirSync/existsSync/readFileSync calls see real disk.
+ *
+ *  RESOLVE ONCE (#779). This used to re-DISCOVER the files it had just written, with
+ *  `addSourceFilesAtPaths([root/**\/*.ts, root/**\/*.tsx])` — a recursive glob per example, measured at
+ *  **50.7ms** against **0.7ms** for adding the known paths directly (10-iteration means, 3-file example, on
+ *  the same loaded box). Nothing else in the substrate is close: mkdtemp+write 0.8ms, `new Project` 0.9ms,
+ *  the gate's own `run` 0.2ms. Across the 330 fs-backed examples that glob WAS the bite-proof's runtime, and
+ *  it grew with every example any gate added — which is how a 30s proof reached 43s against a 45s budget
+ *  while every individual gate stayed cheap. The writer already knows every path; asking the filesystem to
+ *  find them again is the resolve-twice. Verified identical project file sets across both doors, including
+ *  the non-TS files the filter must exclude. */
 function runFsBackedExample(gate: GateDescriptor, ex: GateExample): PassResult {
   const root = mkdtempSync(join(tmpdir(), "orb-conformance-"));
   try {
+    const project = new Project({ skipAddingFilesFromTsConfig: true });
     for (const [rel, text] of Object.entries(exampleFiles(ex, gate))) {
       const abs = join(root, rel);
       mkdirSync(dirname(abs), { recursive: true });
       writeFileSync(abs, text);
+      if (TS_SOURCE_RE.test(rel)) {
+        project.addSourceFileAtPath(abs);
+      }
     }
-    const project = new Project({ skipAddingFilesFromTsConfig: true });
-    project.addSourceFilesAtPaths([`${root}/**/*.ts`, `${root}/**/*.tsx`]);
     return runGateStandalone(gate, project, root);
   } finally {
     rmSync(root, { recursive: true, force: true });

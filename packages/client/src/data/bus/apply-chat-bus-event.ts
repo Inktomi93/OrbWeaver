@@ -107,6 +107,10 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
     case "reasoningEdited":
     case "reasoningCleared":
     case "personaSwitched":
+    // B6 — a reaction landed/was withdrawn in this room. Invalidate-only: the pill row's own read is what
+    // carries the reaction set, and it is deliberately NOT part of `MessageView`, so there is no client
+    // state to reconcile here (the `roomEntityChanged` posture, one read narrower).
+    case "reactionsChanged":
     case "worldInfoActivated":
     // The five WiBusEvent members are real (tsc proves them); biome's resolver can't follow the
     // #world-info subpath ChatBusEvent embeds them through, so it calls them unreachable.

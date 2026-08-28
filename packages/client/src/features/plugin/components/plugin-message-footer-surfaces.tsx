@@ -11,7 +11,7 @@
 //     `useQueries` state pass (see the state gate below).
 //     MEASURED, not assumed: the CT's byte-identity arms mount a real transcript and the unfed-read ratchet
 //     names exactly which procedures the tree asks for.
-//   • GRAMMAR — a footer is a decoration STRIP, not a panel: it renders at the shell's `inline` density (glyph
+//   • GRAMMAR — a footer is a decoration STRIP, not a panel: it renders at the shell's `inline` chrome (glyph
 //     + plugin name + the badges, one line, no box). The attribution wall is unchanged; only the box is.
 //
 // The vocabulary bounds that make this safe are COMPILE- and REGISTRATION-tier, not conventions held here:
@@ -71,7 +71,7 @@ export function PluginMessageFooterSurfaces(): ReactElement | null {
   return (
     <Row align="center" className="flex-wrap" gap="block">
       {visible.map((surface) => (
-        <PluginSurfaceShell density="inline" key={`${surface.pluginId}:${surface.surfaceId}`} pluginName={surface.pluginName} title={surface.title}>
+        <PluginSurfaceShell chrome="inline" key={`${surface.pluginId}:${surface.surfaceId}`} pluginName={surface.pluginName} title={surface.title}>
           <PluginSurfaceRenderer pluginId={surface.pluginId} spec={surface.spec} surfaceId={surface.surfaceId} />
         </PluginSurfaceShell>
       ))}
