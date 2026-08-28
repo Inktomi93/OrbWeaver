@@ -16,11 +16,12 @@
 import { utimes } from "node:fs/promises";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { assets, characters, chats, userSettings } from "@orb/db";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterHandle, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import type { Cas } from "@orb/server/infra/storage";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
@@ -411,6 +412,68 @@ describe("collectGarbage", () => {
         backgroundOverride: { kind: "none", seededId: "", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" },
       })
       .where(eq(characters.id, characterId));
+    await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
+
+    const result = await svc.collectGarbage({});
+
+    expect(result.reclaimed).toBe(1);
+    expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(0);
+    expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(false);
+  });
+
+  // #757 — a corrupt (present but unreadable) appearance.backgroundLibrary must NOT be read as "no library",
+  // because that under-inclusion feeds the live-reference set collectGarbage sweeps against: an empty read
+  // would authorize reaping an asset the corrupt library still (unreadably) points at. Both arms seed a blob
+  // that is old enough and unreferenced by any OTHER live-source, so a wrongly-permissive read would reap it
+  // — the surviving row + blob is the proof the rejection landed BEFORE any destructive sweep, not just that
+  // something threw.
+  test("rejects the sweep (does not reap) when backgroundLibrary is present but not valid JSON (#757)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(21), kind: "background", mime: PNG });
+    // Seed a normal (parseable) library row first, then corrupt it past the type system — mirroring the
+    // regex-scripts precedent (queries.int.test.ts) for "a row a hand-edit / bug wrote, not the app".
+    await seedBackgroundLibrary(db, owner, [{ assetId: stored.assetId, assetHash: stored.hash }]);
+    await db.run(sql`update user_settings set config = json_set(config, '$.appearance.backgroundLibrary', '{not json') where user_id = ${owner}`);
+    await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
+
+    await expect(svc.collectGarbage({})).rejects.toBeInstanceOf(DomainOperationError);
+
+    expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(1);
+    expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(true);
+  });
+
+  test("rejects the sweep (does not reap) when backgroundLibrary is present but not an array (#757)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(22), kind: "background", mime: PNG });
+    await seedBackgroundLibrary(db, owner, [{ assetId: stored.assetId, assetHash: stored.hash }]);
+    // Valid JSON, but the wrong shape — an object instead of an array.
+    await db.run(
+      sql`update user_settings set config = json_set(config, '$.appearance.backgroundLibrary', json('{"assetId":"not-an-array"}')) where user_id = ${owner}`,
+    );
+    await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
+
+    await expect(svc.collectGarbage({})).rejects.toBeInstanceOf(DomainOperationError);
+
+    expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(1);
+    expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(true);
+  });
+
+  test("still reaps normally when backgroundLibrary is genuinely absent (no regression from the fail-closed change)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(23), kind: "background", mime: PNG });
+    // No user_settings row at all — the documented no-settings-yet state.
     await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
 
     const result = await svc.collectGarbage({});
