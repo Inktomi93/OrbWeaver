@@ -7,15 +7,26 @@
 // rpg `_ct-stories` precedent), so a CT that called the component would be testing a path `main.tsx` does
 // not use — and would silently keep passing if the contribution were unregistered or misanchored.
 //
-// EVERYTHING COMES THROUGH THE `@orb/client/*` FRONT DOORS. A relative import into the package gets a
-// DIFFERENT React context instance from the one `CtDataProviders` mounts, and the component renders blank.
+// IMPORT PATHS, stated precisely (this header used to say "everything through the `@orb/client/*` front
+// doors, a relative import renders blank", which is not what the rule is and this file already broke it).
+// The hazard is a component reaching a DIFFERENT copy of a CONTEXT than the one `CtDataProviders` mounts —
+// so anything the PROVIDERS also touch comes through the front door, and the shared registries/providers
+// above do. A FEATURE-INTERNAL leaf the front door does not re-export comes in by relative path (the
+// `_ct-stories` precedent: `MessageRow`, `MessageActionsRow`), which resolves through the same alias to the
+// same module instance — proven by these CTs, whose subjects all read `useTRPC` and render.
 
+import { useInvalidation, useTRPC } from "@orb/client/data";
 import { chatMessageReactionsSurface } from "@orb/client/features/chat";
 import type { ChatSurfaceContribution } from "@orb/client/lib";
+import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
-// The leaf ACTION ROW is a feature internal the front door does not re-export — the `_ct-stories`
-// precedent for a leaf component (`MessageRow`/`MessageActionsRow` both come in this way).
+import { useState } from "react";
+// The leaf ACTION ROW, the PICKER and the reaction hooks are feature internals the front door does not
+// re-export — the `_ct-stories` precedent for a leaf (`MessageRow`/`MessageActionsRow` both come in this way).
 import { MessageActionsRow } from "../../../../packages/client/src/features/chat/components/message-actions-row.tsx";
+import { ReactionPicker } from "../../../../packages/client/src/features/chat/components/reaction-picker.tsx";
+import { useReactionsForVariant, useViewerSeatId } from "../../../../packages/client/src/features/chat/hooks/use-message-reactions.ts";
+import { useToggleReactionMutation } from "../../../../packages/client/src/features/chat/lib/reaction-mutations.ts";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 import { makeMessageView } from "./fixtures.ts";
 
@@ -59,6 +70,58 @@ export function MessageActionsDoorsStory(): ReactElement {
     <CtDataProviders>
       <div data-testid="actions-host" style={{ width: 320 }}>
         <MessageActionsRow message={FOOTER_STATE.message} messageActions="expanded" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The picker's own wiring, lifted from `message-actions-row.tsx` verbatim — controlled `open`, the row's
+ *  live groups + seat, and the REAL toggle mutation. Lifting it (rather than passing a spy `onPick`) is what
+ *  makes the round-trip arm honest: the pick travels the production hook to the production proc, so the CT
+ *  can assert the WIRE VARS off `routeTrpc`'s recorder instead of a callback nobody ships. */
+function ReactionPickerHarness(): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const toggle = useToggleReactionMutation({ trpc, invalidation });
+  const [open, setOpen] = useState(false);
+  const { chatId, selectedVariantId } = FOOTER_STATE.message;
+  const groups = useReactionsForVariant(chatId, selectedVariantId);
+  const viewerSeatId = useViewerSeatId(chatId);
+  return (
+    <>
+      <Button intent="ghost" onClick={(): void => setOpen(true)}>
+        Open the picker
+      </Button>
+      {open ? (
+        <ReactionPicker
+          chatId={chatId}
+          groups={groups}
+          onOpenChange={setOpen}
+          onPick={(emoji): void => {
+            if (!toggle.isPending) {
+              toggle.mutate({ chatId, variantId: selectedVariantId, emoji });
+            }
+          }}
+          open={open}
+          variantId={selectedVariantId}
+          viewerSeatId={viewerSeatId}
+        />
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * The PICKER as its own subject (the component-presence ratchet's direct-CT decision). It mounts CLOSED
+ * behind a plain trigger so one story can drive the whole lifecycle the row does — open → read the grid →
+ * pick (which writes and closes) → reopen → dismiss without writing. A story that mounted it already-open
+ * could pin the grid but neither of the two ways it CLOSES, which is half of what a dialog is.
+ */
+export function ReactionPickerStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div data-testid="picker-host" style={{ width: 320 }}>
+        <ReactionPickerHarness />
       </div>
     </CtDataProviders>
   );
