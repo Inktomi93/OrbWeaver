@@ -1,4 +1,9 @@
-// The PERMANENT PIN for the conformance harness's fs-backed SUBSTRATE (#779). The substrate used to
+// The PERMANENT PIN for BOTH of the conformance harness's substrates — the fs-backed door (#779, first
+// half) and the amortized in-memory door (#780, second half). One file because they are one contract: what
+// project a gate's example is proven against.
+//
+// ── #779, the fs-backed substrate ──────────────────────────────────────────────────────────────────────
+// The substrate used to
 // re-DISCOVER the files it had just written with a recursive glob per example — measured 50.7ms against
 // 0.7ms for the known-path door — and across 330 fs-backed examples that glob WAS the bite-proof's runtime
 // (43s against its 45s budget). The resolve-once rewrite is only safe if the project it hands a gate is the
@@ -7,9 +12,38 @@
 // stays on DISK and OUT of it (dangling-refs plants `.md`, over-art-plate-arm a stylesheet, a ratchet gate
 // its baseline — each read through the gate's own `readFileSync`, and each a parse error if it were added).
 // Driven through the REAL `verifyGateProofs`, with a synthetic descriptor that records what it was fed.
-import type { GateDescriptor, GateRunCtx } from "../../../../tooling/src/verify/contract/gate.ts";
-import { verifyGateProofs } from "../../../../tooling/src/verify/ops/conformance.ts";
+//
+// ── #780, the in-memory substrate ──────────────────────────────────────────────────────────────────────
+// That door used to build a FRESH ts-morph `Project` per example; ~105ms of every one of the ~1500 in-memory
+// examples was TypeScript parsing lib.d.ts on that project's first type query. It now reuses ONE Project,
+// giving each example its own virtual root (`ops/conformance.ts#loadInMemoryExample`).
+//
+// WHY A PIN AND NOT A ONE-SHOT MEASUREMENT. "Conformance still passes" is NOT evidence that an amortized
+// substrate is equivalent: a contaminated run can satisfy every mustFlag/mustPass by accident. Only a
+// FINDING-level comparison catches it, and it caught two distinct corruption classes:
+//
+//   1. PATH REUSE (the one that bit). Removing a file and re-creating the next example at the SAME virtual
+//      path makes ts-morph's language service serve the PREVIOUS document's snapshot — a re-created
+//      SourceFile restarts its script version, so `Identifier.getDefinitionNodes()` comes back empty or
+//      pointing at stale positions, and every gate that resolves declarations through the LS silently
+//      changes verdict. Measured on baseui-portal-container-seam: fresh `defs=[BindingElement@L6]`,
+//      reused-path `defs=[]`. The unique root per example is the fix, and `pathReusingLoad` below is the
+//      pre-fix spelling kept as a POSITIVE CONTROL: it must still corrupt, or this pin proves nothing.
+//   2. A GATE CACHING ON PROJECT IDENTITY (GATE-AUTHORING §12). A `WeakMap<Project, …>` memo is only ever
+//      correct because the substrate happened to throw the key away every example; on the shared Project it
+//      serves a previous example's derivation (#751's `detached-work-traced` was a real one).
+//      `projectKeyedGate` below plants that class as the second positive control.
+//
+// The #780 half is also the integration guard for #751: when that branch's `caught-failure-ownership` gate
+// lands, its examples join the corpus sweep here automatically — no coupled edit.
+import { join } from "node:path";
+import { Project, SyntaxKind } from "ts-morph";
+import type { GateDescriptor, GateExample, GateRunCtx } from "../../../../tooling/src/verify/contract/gate.ts";
+import { loadGates } from "../../../../tooling/src/verify/index.ts";
+import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
+import { loadInMemoryExample, verifyGateProofs } from "../../../../tooling/src/verify/ops/conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 /** Every file an example materializes: TS sources the gate must SEE, and the sidecars it must not. */
 const EXAMPLE_FILES: Readonly<Record<string, string>> = {
@@ -77,3 +111,237 @@ test("a gate that DOES flag still bites in the fs-backed substrate — the resol
 
   expect(verifyGateProofs([biting])).toEqual([]);
 });
+
+// ── #780: the in-memory substrate equivalence sweep ────────────────────────────────────────────────────
+
+const ROOT = join(import.meta.dirname, "..", "..", "..", "..");
+const VROOT = "/repo";
+const DEFAULT_EXAMPLE_PATH = "packages/ui/src/x/x.tsx";
+const EXAMPLE_PATH_CANDIDATES: readonly string[] = [
+  DEFAULT_EXAMPLE_PATH,
+  "packages/client/src/features/x/components/x.tsx",
+  "packages/server/src/domain/x/x.ts",
+  "packages/db/src/schema/x.ts",
+  "tests/tooling/x.ts",
+];
+
+/** The example's file map, resolving the single-snippet form to its `at`. Restated rather than imported:
+ *  this pin is the SECOND opinion on `ops/conformance.ts`, so sharing its resolution would make the
+ *  reference side of the comparison circular. Only the LOADER under test is imported. */
+function filesOf(ex: GateExample, gate: GateDescriptor): Record<string, string> {
+  if (typeof ex.files !== "string") {
+    return { ...ex.files };
+  }
+  const fallback =
+    gate.scanRoot === undefined ? DEFAULT_EXAMPLE_PATH : (EXAMPLE_PATH_CANDIDATES.find((p) => gate.scanRoot?.(p) === true) ?? DEFAULT_EXAMPLE_PATH);
+  return { [ex.at ?? fallback]: ex.files };
+}
+
+/** One example's full verdict — every finding spelled out, plus tool errors. Pass/fail is exactly what a
+ *  contaminated run can satisfy by accident, so the comparison is made on this instead. */
+function verdictOf(gate: GateDescriptor, project: Project, root: string): string {
+  const asActive: GateDescriptor = gate.status === "active" ? gate : { ...gate, status: "active" };
+  const result = runPass([asActive], {
+    root,
+    project,
+    scope: { kind: "project" },
+    files: project.getSourceFiles(),
+    checker: () => project.getTypeChecker(),
+  });
+  const own = result.gates.find((g) => g.name === gate.name);
+  const body = JSON.stringify({
+    toolErrors: result.toolErrors.map((e) => `${e.phase}:${e.message}`).sort(),
+    findings: (own?.findings ?? []).map((f) => `${f.file}|${f.line}|${f.column}|${f.token ?? ""}|${f.message ?? ""}`).sort(),
+  });
+  // The root differs by construction on the amortized side; normalize it so the comparison is about the
+  // VERDICT, never about which virtual directory the example happened to land in.
+  return body.split(root).join(VROOT);
+}
+
+/** The reference substrate: a fresh Project per example, exactly as the harness worked before #780. */
+function freshVerdict(gate: GateDescriptor, files: Readonly<Record<string, string>>): string {
+  const project = new Project({ useInMemoryFileSystem: true });
+  for (const [rel, text] of Object.entries(files)) {
+    project.createSourceFile(`${VROOT}/${rel}`, text);
+  }
+  return verdictOf(gate, project, VROOT);
+}
+
+/** THE POSITIVE CONTROL for corruption class 1 — the pre-#780 amortization: one Project, previous files
+ *  removed, every example re-created at the SAME virtual path. Kept here so the language-service
+ *  stale-snapshot behaviour that made that unsafe stays PROVEN rather than remembered. */
+function pathReusingLoad(project: Project, files: Readonly<Record<string, string>>): string {
+  for (const previous of project.getSourceFiles()) {
+    project.removeSourceFile(previous);
+  }
+  for (const [rel, text] of Object.entries(files)) {
+    project.createSourceFile(`${VROOT}/${rel}`, text);
+  }
+  return VROOT;
+}
+
+/** Run every in-memory example of `gates` on both substrates and return the examples whose FINDINGS differ.
+ *  `load` is the amortized loader under test — the shipped one, or a control. */
+function sweep(
+  gates: readonly GateDescriptor[],
+  load: (project: Project, files: Readonly<Record<string, string>>) => string,
+): { readonly compared: number; readonly mismatches: readonly string[] } {
+  const shared = new Project({ useInMemoryFileSystem: true });
+  const mismatches: string[] = [];
+  let compared = 0;
+  for (const gate of gates) {
+    if (gate.fsBacked === true) {
+      continue;
+    }
+    for (const [arm, examples] of [
+      ["mustFlag", gate.mustFlag],
+      ["mustPass", gate.mustPass],
+    ] as const) {
+      for (const [i, ex] of examples.entries()) {
+        const files = filesOf(ex, gate);
+        const before = freshVerdict(gate, files);
+        const after = verdictOf(gate, shared, load(shared, files));
+        compared += 1;
+        if (before !== after) {
+          mismatches.push(`${gate.name} ${arm}[${i}] fresh=${before} amort=${after}`);
+        }
+      }
+    }
+  }
+  return { compared, mismatches };
+}
+
+// ── the two planted corruption classes ─────────────────────────────────────────────────────────────────
+
+const PROBE_AT = "packages/server/src/domain/probe/substrate/probe.ts";
+
+/** The four sources are a REDUCTION of `baseui-portal-container-seam`'s own example sequence — the one
+ *  measured to corrupt. The corruption is not reproduced by a two-line snippet: it needs a run of examples
+ *  at one path whose text shifts the positions the stale snapshot is indexed by, which is why the control
+ *  keeps a sequence rather than a pair. Measured on the pre-#780 loader: examples 0-2 agree, example 3
+ *  reports 3 unresolved `container` identifiers against 0 on a fresh Project. */
+const CONTAINER_SEQUENCE: readonly string[] = [
+  'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface Props {\n  className?: string;\n}\nexport const P = (_p: Props) => <BaseDialog.Portal />;\n',
+  'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface Props {\n  container?: unknown;\n}\nexport const P = (_p: Props) => <BaseDialog.Portal />;\n',
+  'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface Props {\n  container?: unknown;\n}\nexport const P = ({ container }: Props) => <BaseDialog.Portal container={container} />;\nexport const Q = (_p: Props) => <BaseDialog.Portal />;\n',
+  'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nimport type { DialogPortalProps as BasePortalProps } from "@base-ui/react/dialog";\nexport interface Props {\n  container?: BasePortalProps["container"];\n}\nexport const P = ({ container }: Props) => (\n  <BaseDialog.Portal container={container}>\n    <BaseDialog.Popup />\n  </BaseDialog.Portal>\n);\n',
+];
+
+const PROBE_TSX_AT = "packages/ui/src/primitives/dialog/probe-dialog.tsx";
+
+/** A gate whose verdict rides `getDefinitionNodes` — the language-service dependence that path reuse
+ *  corrupts. It flags a `container` identifier that resolves to NOTHING, which is exactly what a stale
+ *  snapshot produces and what a correct substrate never does for these examples. */
+function definitionResolvingGate(): GateDescriptor {
+  return {
+    name: "probe-definition-resolver",
+    docRow: "GATE-AUTHORING.md §6",
+    status: "active",
+    scopeSafety: "incremental-safe",
+    message: "a `container` identifier resolved to no declaration (tests/tooling/verify/ops/conformance.int.test.ts).",
+    run: (ctx: GateRunCtx): void => {
+      for (const sf of ctx.project.getSourceFiles()) {
+        for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
+          if (id.getText() === "container" && id.getDefinitionNodes().length === 0) {
+            ctx.report(id);
+          }
+        }
+      }
+    },
+    mustFlag: [],
+    mustPass: CONTAINER_SEQUENCE.map((files, i) => ({
+      files,
+      at: PROBE_TSX_AT,
+      why: `control step ${i} — every \`container\` reference resolves on a correct substrate; on a path-reusing one the language service answers from an earlier step's document`,
+    })),
+  };
+}
+
+/** A gate memoizing a derivation on PROJECT IDENTITY — correct only while the substrate throws the key away
+ *  every example, which is precisely the assumption #780 retired. */
+function projectKeyedGate(): GateDescriptor {
+  const memo = new WeakMap<Project, number>();
+  return {
+    name: "probe-project-keyed-cache",
+    docRow: "GATE-AUTHORING.md §6",
+    status: "active",
+    scopeSafety: "whole-project",
+    message: "the memoized declaration count is odd (tests/tooling/verify/ops/conformance.int.test.ts).",
+    run: (ctx: GateRunCtx): void => {
+      let count = memo.get(ctx.project);
+      if (count === undefined) {
+        count = ctx.project.getSourceFiles().reduce((n, sf) => n + sf.getVariableDeclarations().length, 0);
+        memo.set(ctx.project, count);
+      }
+      if (count % 2 === 1) {
+        ctx.report({ file: PROBE_AT, line: count, column: 0 });
+      }
+    },
+    mustFlag: [],
+    mustPass: [
+      { files: "export const a = 1;\n", at: PROBE_AT, why: "one declaration — the odd arm, so this example legitimately flags on either substrate" },
+      {
+        files: "export const c = 1;\nexport const d = 2;\n",
+        at: PROBE_AT,
+        why: "two declarations — even, so a correct substrate flags nothing and a stale memo still says odd",
+      },
+    ],
+  };
+}
+
+// ── the pins ───────────────────────────────────────────────────────────────────────────────────────────
+
+test("the in-memory substrate reuses ONE Project and never re-creates a virtual path", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const first = loadInMemoryExample(project, { [PROBE_AT]: "export const a = 1;\n" });
+  const firstFiles = project.getSourceFiles().map((sf) => sf.getFilePath());
+  const second = loadInMemoryExample(project, { [PROBE_AT]: "export const b = 2;\n", "packages/ui/src/probe/probe.tsx": "export const P = () => null;\n" });
+
+  expect(first).not.toEqual(second);
+  expect(firstFiles).toEqual([`${first}/${PROBE_AT}`]);
+  // The previous example's files are GONE — a gate reads exactly its own example's corpus.
+  expect(
+    project
+      .getSourceFiles()
+      .map((sf) => sf.getFilePath())
+      .sort(),
+  ).toEqual([`${second}/${PROBE_AT}`, `${second}/packages/ui/src/probe/probe.tsx`].sort());
+});
+
+test("PATH REUSE corrupts a language-service gate, and the shipped loader does not", () => {
+  const gate = definitionResolvingGate();
+
+  // The control must BITE: this is the pre-#780 substrate, and it must still change the verdict.
+  const control = sweep([gate], pathReusingLoad);
+  expect(control.compared).toBe(CONTAINER_SEQUENCE.length);
+  expect(control.mismatches.length).toBeGreaterThan(0);
+
+  // The shipped loader, over the same examples, must be equivalent to a fresh Project per example.
+  expect(sweep([gate], loadInMemoryExample)).toEqual({ compared: CONTAINER_SEQUENCE.length, mismatches: [] });
+});
+
+test("a gate caching on PROJECT IDENTITY is caught by the equivalence sweep", () => {
+  const caught = sweep([projectKeyedGate()], loadInMemoryExample);
+
+  expect(caught.compared).toBe(2);
+  // Conformance alone would NOT see this: the stale memo happens to keep the first example passing too.
+  expect(caught.mismatches.length).toBeGreaterThan(0);
+});
+
+// LOAD-HONEST BUDGET, same lever as the bite-proof's (#606): the sweep runs every in-memory example TWICE
+// (~24s solo — the fresh reference side is the expensive half and is the whole point), so the budget scales
+// with contention rather than false-timing-out under multi-lane load.
+const SWEEP_BUDGET = scaledBudget(90_000, 4);
+
+test(
+  "every in-memory conformance example yields IDENTICAL findings on the amortized substrate",
+  async () => {
+    const gates = await loadGates(ROOT);
+    const result = sweep(gates, loadInMemoryExample);
+
+    // A bare zero is "I could not measure": the corpus must actually have been walked.
+    expect(result.compared).toBeGreaterThan(1000);
+    expect(result.mismatches).toEqual([]);
+  },
+  SWEEP_BUDGET,
+);
