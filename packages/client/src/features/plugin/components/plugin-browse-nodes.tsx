@@ -21,7 +21,7 @@ import { MediaTileGrid } from "@orb/ui/media-tile-grid";
 import { MessageMedia } from "@orb/ui/message-media";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { resolveString } from "../lib/plugin-surface-bindings.ts";
+import { gridTiles, resolveString } from "../lib/plugin-surface-bindings.ts";
 
 /**
  * The MEDIA-FORWARD TILE GRID (§4.5b failure 1) — through the sealed `@orb/ui` `MediaTileGrid` composite, which
@@ -43,14 +43,18 @@ export function SurfaceGrid({
   readonly imageUrls: ReadonlyMap<string, string>;
   readonly submit: (actionId: string, extra?: Record<string, string>) => void;
 }): ReactElement {
-  if (node.tiles.length === 0) {
+  // BOTH ARMS collapse through the shared `gridTiles` seam (#774 ARM C): declared tiles verbatim, or the
+  // `tilesFrom` binding resolved against published state (validated + clamped in contracts — untrusted state
+  // never reaches this map unjudged). Everything below is arm-blind.
+  const tiles = gridTiles(node, state);
+  if (tiles.length === 0) {
     return (
       <Text prose={true} voice="gloss">
         {node.empty ?? "Nothing here yet."}
       </Text>
     );
   }
-  const items = node.tiles.map((tile) => ({
+  const items = tiles.map((tile) => ({
     id: tile.id,
     title: resolveString(tile.title, state),
     ...(tile.subtitle === undefined ? {} : { subtitle: resolveString(tile.subtitle, state) }),
@@ -58,14 +62,20 @@ export function SurfaceGrid({
     ...(tile.assetId === undefined ? {} : { imageUrl: imageUrls.get(tile.assetId) }),
     ...(tile.alt === undefined ? {} : { alt: tile.alt }),
   }));
-  const allActionable = node.tiles.every((tile) => tile.actionId !== undefined);
-  // ONE `onActivate` for the grid, dispatching to the CLICKED tile's own `actionId`. The round-trip carries the
+  // The bound arm's ONE `tileAction` covers every tile; the declared arm is interactive only when EVERY tile
+  // names an action — a grid where some tiles respond and others do not is a control that lies about itself.
+  const allActionable = node.tileAction !== undefined || tiles.every((tile) => tile.actionId !== undefined);
+  // ONE `onActivate` for the grid, dispatching to the CLICKED tile's action. The round-trip carries the
   // tile id in `values.tile` — a tile is not a form field a person edits, so it rides as an extra rather than
   // living in the draft bag.
   const activate = (id: string): void => {
-    const tile = node.tiles.find((candidate) => candidate.id === id);
-    if (tile?.actionId !== undefined) {
-      submit(tile.actionId, { tile: tile.id });
+    const tile = tiles.find((candidate) => candidate.id === id);
+    if (tile === undefined) {
+      return;
+    }
+    const actionId = node.tileAction ?? tile.actionId;
+    if (actionId !== undefined) {
+      submit(actionId, { tile: tile.id });
     }
   };
   return <MediaTileGrid aspect={node.aspect ?? "portrait"} items={items} {...(allActionable ? { onActivate: activate } : {})} />;
