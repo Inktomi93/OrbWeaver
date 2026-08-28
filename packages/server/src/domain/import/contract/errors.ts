@@ -31,3 +31,22 @@ export class ProfileImportLimitError extends DomainOperationError {
     this.name = this.constructor.name;
   }
 }
+
+/** A filesystem/tooling failure (EACCES/EIO/ELOOP/…) while collecting a staged profile — NEVER the
+ *  collector's documented "missing" (ENOENT) or "corrupt-format" (unparseable JSON) fallback (#763). Those
+ *  two ARE best-effort by design (a profile legitimately may not carry `settings.json`, or ST may have
+ *  written a truncated one); an infrastructure fault reading a file that DOES exist is not the same claim —
+ *  folding it into the same "treat as absent" path produces an import that silently drops data and still
+ *  reports success. Carries the affected `path` + `operation` (never just "collection failed") and the
+ *  original fs error as `cause`. */
+export class ImportInfraFailureError extends DomainOperationError {
+  readonly path: string;
+  readonly operation: string;
+  constructor(operation: string, path: string, cause: unknown) {
+    super("import_infra_failure", `${operation} failed for ${path}: ${cause instanceof Error ? cause.message : String(cause)}`);
+    this.name = this.constructor.name;
+    this.path = path;
+    this.operation = operation;
+    this.cause = cause;
+  }
+}

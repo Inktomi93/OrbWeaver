@@ -26,6 +26,7 @@ import {
   plugins,
   userSettings,
 } from "@orb/db";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, exists, isNotNull, not, or, sql } from "drizzle-orm";
@@ -90,9 +91,15 @@ async function selectSettingsReferencedAssetIds(db: Db): Promise<Set<AssetId>> {
   return live;
 }
 
-/** Parse the `backgroundLibrary` JSON array (or null) and yield each entry's non-empty `assetId`. A
- *  malformed blob or a non-array simply yields nothing (over/under-inclusion posture: a dropped id here
- *  only risks a reap, which is why the SHAPE stays lenient rather than throwing on a bad blob). */
+/** Parse the `backgroundLibrary` JSON array (or null) and yield each entry's non-empty `assetId`. Genuinely
+ *  ABSENT (`null`/empty string) yields nothing — that is the documented no-library state, safe to treat as
+ *  empty. A PRESENT-but-unreadable value (invalid JSON, or valid JSON that isn't an array) throws instead of
+ *  silently yielding `[]`: this function's whole reason to exist is closing an under-inclusion reap (see the
+ *  module header), and `[]` on a present-but-corrupt value would re-open exactly that hole — a corrupt
+ *  settings row would silently DROP its library's ids from the live set, and `collectGarbage` would then
+ *  reap a still-referenced asset + blob out from under it (#757). Corrupt settings are deliberately
+ *  preserved for repair rather than normalized (never silently discarded here) — this function fails the
+ *  READ, not the settings row. */
 function libraryAssetIds(libraryJson: string | null): AssetId[] {
   if (libraryJson === null || libraryJson.length === 0) {
     return [];
@@ -100,11 +107,16 @@ function libraryAssetIds(libraryJson: string | null): AssetId[] {
   let parsed: unknown;
   try {
     parsed = JSON.parse(libraryJson);
-  } catch {
-    return [];
+  } catch (cause) {
+    const error = new DomainOperationError(
+      "asset_refs_unmeasurable",
+      "appearance.backgroundLibrary is present but not valid JSON — refusing to treat it as empty",
+    );
+    error.cause = cause;
+    throw error;
   }
   if (!Array.isArray(parsed)) {
-    return [];
+    throw new DomainOperationError("asset_refs_unmeasurable", "appearance.backgroundLibrary is present but not an array — refusing to treat it as empty");
   }
   const ids: AssetId[] = [];
   for (const entry of parsed) {
