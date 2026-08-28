@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 449,
-    "enforced": 446,
-    "reported": 403,
+    "sites": 442,
+    "enforced": 439,
+    "reported": 396,
     "byVerdict": {
       "deliberate-absorb": 43,
       "detached-owned": 3,
-      "unproven": 403
+      "unproven": 396
     },
     "byGrammar": {
       "promise": 107,
-      "default": 148,
-      "empty": 194
+      "default": 142,
+      "empty": 193
     }
   },
   "rows": [
@@ -1942,19 +1942,6 @@
       "markerLine": null
     },
     {
-      "siteId": "packages/server/src/domain/credentials/substrate/decrypt.ts::empty:catch::1",
-      "path": "packages/server/src/domain/credentials/substrate/decrypt.ts",
-      "line": 20,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/server/src/domain/credentials/verbs/probe-key-decrypt.ts::default:error::1",
       "path": "packages/server/src/domain/credentials/verbs/probe-key-decrypt.ts",
       "line": 40,
@@ -3268,19 +3255,6 @@
       "markerLine": null
     },
     {
-      "siteId": "packages/server/src/infra/auth/backchannel.ts::default:catch::1",
-      "path": "packages/server/src/infra/auth/backchannel.ts",
-      "line": 80,
-      "column": 9,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/server/src/infra/auth/config.ts::default:catch::1",
       "path": "packages/server/src/infra/auth/config.ts",
       "line": 39,
@@ -3288,45 +3262,6 @@
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/infra/auth/jwks.ts::default:catch::1",
-      "path": "packages/server/src/infra/auth/jwks.ts",
-      "line": 106,
-      "column": 7,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/infra/auth/jwks.ts::default:catch::2",
-      "path": "packages/server/src/infra/auth/jwks.ts",
-      "line": 114,
-      "column": 7,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 2,
-      "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/infra/auth/jwks.ts::default:catch::3",
-      "path": "packages/server/src/infra/auth/jwks.ts",
-      "line": 163,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 3,
       "snippet": "} catch {",
       "verdict": "unproven",
       "reason": null,
@@ -3587,32 +3522,6 @@
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 2,
-      "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/infra/providers/backends/agent-sdk/host-token.ts::default:catch::3",
-      "path": "packages/server/src/infra/providers/backends/agent-sdk/host-token.ts",
-      "line": 127,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 3,
-      "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/infra/providers/backends/agent-sdk/host-token.ts::default:catch::4",
-      "path": "packages/server/src/infra/providers/backends/agent-sdk/host-token.ts",
-      "line": 152,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 4,
       "snippet": "} catch {",
       "verdict": "unproven",
       "reason": null,
