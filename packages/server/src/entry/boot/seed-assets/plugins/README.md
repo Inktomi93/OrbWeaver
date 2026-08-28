@@ -100,7 +100,7 @@ Caps: `manifest.json` ≤ 64 KiB, `main.js` and `ui.js` ≤ 1 MiB each, the zip 
 
 ---
 
-## Capabilities: the twenty things a plugin can ask for
+## Capabilities: the twenty-three things a plugin can ask for
 
 Nothing is ambient. Every host function is gated at the **function**, by name, against the set the user
 actually allowed — which can be narrower than what you declared. Feature-detect with
@@ -108,10 +108,11 @@ actually allowed — which can be narrower than what you declared. Feature-detec
 
 | Capability | Unlocks | Notes |
 | - | - | - |
-| `chat.read` | `chat.current()`, `chat.listMessages()`, `chat.getVariables()` | Needed for `current()` even if all you want is the handle. Reads are clamped to what the INSTALLER may see. |
+| `chat.read` | `chat.current()`, `chat.listMessages()`, `chat.getVariables()`, `chat.listRoster()` | Needed for `current()` even if all you want is the handle. Reads are clamped to what the INSTALLER may see. `listRoster` is the room's present CHARACTER seats (id/name/avatar) — never humans, never full cards. |
 | `chat.variables.write` | `chat.applyVariableOps()` | The room's member-visible plane (macros/CEL/rules read it). Host authority required — flat refusal without it. |
 | `chat.quick_reply` | `chat.surfaceQuickReply()` | Host authority required. Always compose-mode. |
 | `chat.transform` | `transforms.register()`, `transforms.registerDisplay()`, `macros.register()` | One capability, three seams: prompt (250 ms, host-only rooms), display (your own screen), and value macros. |
+| `worldinfo.read` | `worldInfo.listBooks()`, `worldInfo.listEntries()` | The room's ATTACHED lore, member-gated. A book id that is not attached (or not visible to you) answers `[]` — indistinguishable from an empty book, by design. A separate consent line from the write. |
 | `worldinfo.write` | `worldInfo.upsertEntry()` | Host authority → otherwise a confirm card. Attached books only; 64 entries per book per plugin. |
 | `global_vars` | `variables.get/set/delete()` | The installing user's `{{getglobalvar}}` namespace. |
 | `storage.kv` | `storage.get/set/delete/list()` | Your private KV: ≤ 256 keys, ≤ 64 KiB per value, per plugin × owner. |
@@ -120,8 +121,10 @@ actually allowed — which can be narrower than what you declared. Feature-detec
 | `ui.frame` | `ui.registerFrame()` | The escape hatch: your own pixels in an isolated frame. Its consent line names the WebRTC residual out loud. See pocket-arcade. |
 | `turn.trigger` | `chat.requestTurn()` | **Spend.** Host authority → otherwise a confirm card. |
 | `imagery.generate` | `imagery.generatePicture()` | **Spend.** Host authority → otherwise a confirm card. Same args vocabulary as the automation `generate_image` arm. |
+| `assets.read` | `assets.read(assetId)` | Read back one of the installer's OWN CAS assets (e.g. the id `generatePicture` just returned) as base64 + mime. Foreign/absent → `null`, leak-free; owned-but-over-1-MiB → metadata with `dataBase64: null`, never a truncated read. |
 | `llm.quiet` | `llm.quiet(prompt, opts?)` | **Spend.** 30 calls/hour per plugin. `opts.schema` = structured output on the `structured` role (see keepsake-camera); `opts.imageAssetIds` attaches your installer's own CAS images for vision-capable models. Writes nothing — you get a string. |
 | `databank.ingest` | `databank.ingest({name, text})` | A canon write into the installer's OWN databank. Content-hash deduped; the indexer auto-runs. No host authority — your shelves are yours. |
+| `search.query` | `search.documents(queryText, opts?)` | Semantic search over the installer's OWN indexed corpus — including what your `databank.ingest` wrote (ingest, then retrieve: first-party RAG). Ranked hits, ≤ 20 per call (default 10). |
 | `character.ingest` | `character.ingest(card)` | Import a V2/V3 card (plain JSON) into the installer's OWN library. Byte-identical re-ingests dedupe (`created: false`). |
 | `character.card_state` | `character.setCardData()`, `getCardData()` | Your plugin's OWN portable blob on one of the installer's OWN characters (`data.extensions.plugin_<slug>` — host-stamped, unforgeable, survives export→import). |
 | `events.subscribe` | `events.on(type, handler)` | The closed trigger taxonomy (`messageCommitted`, `chatOpened`, `turnCompleted`, …). Installed plugins only. |
@@ -165,7 +168,9 @@ and when nothing is granted, log ONE clear dormant line so the person can find o
 and **no `Date`**: `new Date()`, `Date.now()`, `Math.random` and `performance.now` all **throw**. Time and
 entropy arrive as injected seams (`host.clock.nowEpochMs()`, `host.random.next()`, `host.ids.mint()`), so the
 same plugin under the same inputs behaves identically every run — which is what makes plugin behavior
-testable. Need a date caption? Arithmetic over epoch ms (see keepsake-camera's `ago()`).
+testable. Need a date caption? Arithmetic over epoch ms (see keepsake-camera's `ago()`). The free band also
+carries `host.tokens.count(text)` — the host's own token-count estimator, synchronous, no capability, same
+answer in both realms (a budgeting heuristic, not the model's tokenizer).
 
 Budgets you cannot see but will meet:
 

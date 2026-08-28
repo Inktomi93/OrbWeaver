@@ -39,6 +39,7 @@ type PluginCapability =
   | "chat.variables.write"
   | "chat.quick_reply"
   | "chat.transform"
+  | "worldinfo.read"
   | "worldinfo.write"
   | "global_vars"
   | "storage.kv"
@@ -47,8 +48,10 @@ type PluginCapability =
   | "ui.frame"
   | "turn.trigger"
   | "imagery.generate"
+  | "assets.read"
   | "llm.quiet"
   | "databank.ingest"
+  | "search.query"
   | "character.ingest"
   | "character.card_state"
   | "events.subscribe"
@@ -76,6 +79,14 @@ interface PluginMessageView {
   readonly content: string;
 }
 
+/** What `chat.listRoster` answers: the room's present CHARACTER seats (never humans, never full cards) —
+ *  id, resolved display name, avatar asset id. Member-visible room state only, this room only. */
+interface PluginCharacterView {
+  readonly id: string;
+  readonly name: string;
+  readonly avatarAssetId: string | null;
+}
+
 /** One runtime-variable mutation — the SAME delta vocabulary automation's `set_variable` arm uses. */
 type PluginVariableOp =
   | { readonly op: "set"; readonly key: string; readonly value: string }
@@ -91,6 +102,41 @@ interface PluginWorldEntryUpsert {
   readonly keys: readonly string[];
   readonly contentTemplate: string;
   readonly position: "before" | "after";
+}
+
+/** One lore book ATTACHED to the invocation chat (`worldInfo.listBooks`). `id` is what you pass to
+ *  `worldInfo.listEntries`. */
+interface PluginWorldBookView {
+  readonly id: string;
+  readonly name: string;
+}
+
+/** One entry of an attached book (`worldInfo.listEntries`) — the read symmetry of the upsert: keys +
+ *  content + enabled, content host-capped like a message body. */
+interface PluginWorldEntryView {
+  readonly id: string;
+  readonly keys: readonly string[];
+  readonly content: string;
+  readonly enabled: boolean;
+}
+
+/** What `assets.read` answers for an asset in the INSTALLER's OWN CAS. Bytes cross as base64 (there are no
+ *  bytes in the realm); an owned asset over 1 MiB returns its metadata with `dataBase64: null` (never a
+ *  truncated read — you must not mistake a clipped image for the whole one). A foreign or absent id is the
+ *  call answering `null` instead of this shape. */
+interface PluginAssetView {
+  readonly mime: string;
+  readonly sizeBytes: number;
+  readonly dataBase64: string | null;
+}
+
+/** One ranked hit from `search.documents` — the matched chunk's text plus its document provenance and the
+ *  relevance score. Index plumbing (chunk ids, hashes) is deliberately withheld. */
+interface PluginSearchHit {
+  readonly documentId: string;
+  readonly documentName: string;
+  readonly content: string;
+  readonly score: number;
 }
 
 /** The structured-output ask on `llm.quiet` — your JSON Schema, host-validated, run on the installer's
@@ -454,6 +500,13 @@ interface PluginHostV1 {
     error: (msg: string) => void;
   };
 
+  /** Token-count ESTIMATION over your own text — free (no capability), synchronous, deterministic: the same
+   *  estimator the host budgets prompts with, available in BOTH realms at native latency. An estimate, not
+   *  the model's tokenizer — treat it as a budgeting heuristic, not an exact count. */
+  readonly tokens: {
+    count: (text: string) => number;
+  };
+
   readonly chat: {
     /** The invocation's admitted room. THROWS outside a chat scope (a domain fact, the chrome menu on a
      *  non-chat screen) — the honest answer, not a synthesized room. capability: chat.read */
@@ -463,6 +516,9 @@ interface PluginHostV1 {
     listMessages: (chat: ChatHandle, opts?: { limit?: number }) => Promise<readonly PluginMessageView[]>;
     /** The room's runtime variable fold (read). capability: chat.read */
     getVariables: (chat: ChatHandle) => Promise<Record<string, string>>;
+    /** The room's present CHARACTER roster (never humans, never full cards) — this room only, member-gated:
+     *  a room you are not in answers `[]`, not an error. capability: chat.read */
+    listRoster: (chat: ChatHandle) => Promise<readonly PluginCharacterView[]>;
     /** Room-state write, HOST AUTHORITY required (flat refusal elsewhere). capability: chat.variables.write */
     applyVariableOps: (chat: ChatHandle, ops: readonly PluginVariableOp[]) => Promise<void>;
     /** Quick-reply chips (≤ 4), always compose-mode, host authority required. capability: chat.quick_reply */
@@ -473,9 +529,29 @@ interface PluginHostV1 {
   };
 
   readonly worldInfo: {
+    /** The books attached to THIS room, member-gated (a room you are not in answers `[]`).
+     *  capability: worldinfo.read */
+    listBooks: (chat: ChatHandle) => Promise<readonly PluginWorldBookView[]>;
+    /** One attached book's entries. A `bookId` not attached to this room (or not yours to see) answers `[]`
+     *  — indistinguishable from an empty book, by design (no existence oracle). capability: worldinfo.read */
+    listEntries: (chat: ChatHandle, bookId: string) => Promise<readonly PluginWorldEntryView[]>;
     /** Attached-book-only, `entryKey`-idempotent, 64 entries/book/plugin; without host authority it becomes
      *  a confirm card (`PluginSuggestedError`). capability: worldinfo.write */
     upsertEntry: (chat: ChatHandle, e: PluginWorldEntryUpsert) => Promise<void>;
+  };
+
+  readonly assets: {
+    /** Read back one asset from the INSTALLER's OWN CAS — e.g. the id `imagery.generatePicture` just
+     *  returned. A foreign or absent id answers `null` (leak-free, no existence oracle); an owned asset over
+     *  1 MiB answers its metadata with `dataBase64: null`. capability: assets.read */
+    read: (assetId: string) => Promise<PluginAssetView | null>;
+  };
+
+  readonly search: {
+    /** Semantic search over the INSTALLER's OWN indexed corpus (their databank shelves — including what your
+     *  `databank.ingest` wrote). Ranked hits, ≤ 20 per call (default 10). No chat scope needed.
+     *  capability: search.query */
+    documents: (queryText: string, opts?: { limit?: number }) => Promise<readonly PluginSearchHit[]>;
   };
 
   /** The installing user's global `{{getglobalvar}}` namespace. capability: global_vars */
@@ -647,6 +723,11 @@ interface PluginUiV1 {
     info: (msg: string) => void;
     warn: (msg: string) => void;
     error: (msg: string) => void;
+  };
+  /** The SAME free token-count estimator as `orb.host(1).tokens` — computed locally in this realm, no
+   *  round-trip, no capability. */
+  readonly tokens: {
+    count: (text: string) => number;
   };
   /** Publish a WHOLE tree (same vocabulary as a static spec) for one of YOUR registered scripted surfaces.
    *  Retained-mode: the app diffs; a render for a surface you did not register is dropped with a log line. */
