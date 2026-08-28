@@ -58,7 +58,7 @@ type PublishedOrb = typeof orb;
 
 test("the namespace SET is exact — a namespace added to or removed from the contract goes red by NAME", () => {
   expectTypeOf<keyof PublishedHost>().toEqualTypeOf<keyof ContractHost>();
-  expectTypeOf<keyof PublishedUi>().toEqualTypeOf<"version" | "grants" | "clock" | "random" | "log" | "render" | "onEvent" | "host">();
+  expectTypeOf<keyof PublishedUi>().toEqualTypeOf<"version" | "grants" | "clock" | "random" | "log" | "tokens" | "render" | "onEvent" | "host">();
 });
 
 /** THE PIN MECHANISM, hardened by its own planted controls (2026-08-28). Two instruments were tried and
@@ -100,10 +100,16 @@ test("every namespace of the published mirror is mutually assignable with the co
   acceptErased<"ids">(mirrorHost.ids);
   acceptMirror<"log">(erased.log);
   acceptErased<"log">(mirrorHost.log);
+  acceptMirror<"tokens">(erased.tokens);
+  acceptErased<"tokens">(mirrorHost.tokens);
   acceptMirror<"chat">(erased.chat);
   acceptErased<"chat">(mirrorHost.chat);
   acceptMirror<"worldInfo">(erased.worldInfo);
   acceptErased<"worldInfo">(mirrorHost.worldInfo);
+  acceptMirror<"assets">(erased.assets);
+  acceptErased<"assets">(mirrorHost.assets);
+  acceptMirror<"search">(erased.search);
+  acceptErased<"search">(mirrorHost.search);
   acceptMirror<"variables">(erased.variables);
   acceptErased<"variables">(mirrorHost.variables);
   acceptMirror<"storage">(erased.storage);

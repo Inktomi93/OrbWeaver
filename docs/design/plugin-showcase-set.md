@@ -210,7 +210,15 @@ atlas README names the extension seam (one source object per hub).
 **Status 2026-08-28: rows 1-11 BUILT and suite-green** (seed int-suite 13/13 over the real WASM host;
 ui.contract 43/43; bindings unit 4/4; the touched plugin CTs 16/16; the host-v1 pin 5/5 with both-direction
 planted controls through ts7). ARM C landed per the ruling (append-only; three arms; the security-executor
-pass on the owner-scoped assetId seam is the orchestrator's follow-up). Residual: append #788's five read
-functions to `host-v1.d.ts` when it merges (the pin's keyof-equality arm reds on the re-sync and names them),
-final re-sync, and the acceptance drives (the live side-eye + code-quality read) which are the
-orchestrator's.
+pass on the owner-scoped assetId seam is the orchestrator's follow-up). Residual: the acceptance drives
+(the live side-eye + code-quality read), which are the orchestrator's.
+
+**#788 append, 2026-08-28 (post-merge of 569afb596):** the surface grew past this design's 20-capability
+snapshot — the axis is now 23 (`worldinfo.read`, `assets.read`, `search.query`) plus the FREE `tokens`
+namespace (`tokens.count`, both realms) and three gated members on existing namespaces (`chat.listRoster`,
+`worldInfo.listBooks`/`listEntries`). The pin tripped exactly as designed on the re-sync (5 ts7 errors
+naming every gap by namespace/member), and the mirror, pin rows, and authoring-guide capability table were
+extended to match, with fresh planted controls on the NEW rows (`tokens`, `search`) red in both directions.
+The dated 20/20 coverage receipts above remain true of their date AND of the seed set: the nine plugins
+exercise the original 20; the three new read capabilities and `tokens.count` are documented (SDK + guide)
+but not yet exercised by a seed plugin — a follow-up candidate, deliberately not bolted on at merge time.
