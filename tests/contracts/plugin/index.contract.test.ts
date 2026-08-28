@@ -10,9 +10,9 @@ test("PLUGIN_ORIGINS is the reserved single-arm [upload] (catalog rides an addit
   expect(PLUGIN_ORIGINS).toEqual(["upload"]);
 });
 
-test("HOST_FUNCTION_CAPABILITY maps 23 gated functions, every value a real capability, every capability covered", () => {
+test("HOST_FUNCTION_CAPABILITY maps 26 gated functions, every value a real capability, every capability covered", () => {
   const entries = Object.entries(HOST_FUNCTION_CAPABILITY);
-  expect(entries).toHaveLength(23);
+  expect(entries).toHaveLength(26);
   const values = new Set(Object.values(HOST_FUNCTION_CAPABILITY));
   // Every mapped capability is a member of the axis.
   for (const cap of values) {

@@ -18,6 +18,10 @@ export function createDeactivate(ctx: PluginContext, registry: PluginRegistry): 
     // state must not linger (a re-enable rebuilds surfaces from a fresh activation; a stale state row would
     // paint the pre-disable panel for a beat before the fresh publish).
     ctx.surfaceState.clearForPlugin(pluginId);
+    // …and its pending HOST-MEDIATED chrome (U5): a toast or a dialog-open a disabled plugin queued must never
+    // arrive later, and a dialog-open in particular would name a surface that no longer exists. Same
+    // unconditional placement, same reason.
+    ctx.uiOutbox.clearForPlugin(pluginId);
     const resident = registry.get(pluginId);
     if (resident === undefined) {
       return;

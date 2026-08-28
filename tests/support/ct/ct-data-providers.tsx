@@ -54,7 +54,7 @@ import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "@orb/cli
 import { imageDetailModal, imageEditModal, imagineModal } from "@orb/client/features/imagery";
 import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
-import { pluginDistributeSection, pluginsPane, pluginToolRenderer } from "@orb/client/features/plugin";
+import { extensionsSection, pluginDialogModal, pluginDistributeSection, pluginsPane, pluginToolRenderer } from "@orb/client/features/plugin";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import { regexCollection } from "@orb/client/features/regex";
@@ -220,6 +220,9 @@ const REAL: Record<SectionId, SectionDefinition> = {
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
   config: makeConfigSection(configCollections),
+  // U5 (#679): the REAL Extensions section, so a shell CT landing anywhere sees the true rail roster and a CT
+  // ON this section exercises the production switcher/page panes rather than a stand-in.
+  extensions: extensionsSection,
   databank: databankSection,
   presets: presetsSection,
   refinery: refinerySection,
@@ -244,6 +247,7 @@ const REAL_MODALS: Record<ModalSlotId, ModalDefinition> = {
   imagine: imagineModal,
   imageDetail: imageDetailModal,
   imageEdit: imageEditModal,
+  pluginDialog: pluginDialogModal,
 };
 
 const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefinition>("modals", MODAL_SLOT_IDS, REAL_MODALS);

@@ -19,6 +19,8 @@ import { createGetSurfaceState } from "./verbs/get-surface-state.ts";
 import { createInstall } from "./verbs/install.ts";
 import { createInstallForAllUsers } from "./verbs/install-for-all-users.ts";
 import { createInvokeUiAction } from "./verbs/invoke-ui-action.ts";
+import { createInvokeUiCommand } from "./verbs/invoke-ui-command.ts";
+import { createListCommands } from "./verbs/list-commands.ts";
 import { createListDistributedPlugins } from "./verbs/list-distributed-plugins.ts";
 import { createListPlugins } from "./verbs/list-plugins.ts";
 import { createListSurfaces } from "./verbs/list-surfaces.ts";
@@ -68,5 +70,10 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
     listSurfaces: createListSurfaces(ctx, registry),
     getSurfaceState: createGetSurfaceState(ctx),
     invokeUiAction: createInvokeUiAction(ctx, registry),
+    // …and the U5 COMMAND pair (§4.5), the same two shapes over the same registry: an owner-scoped list the
+    // `/plugin` dispatcher + the Plugins chrome menu both read, and a crash-policy'd round-trip that returns the
+    // drained UI outcome.
+    listCommands: createListCommands(ctx, registry),
+    invokeUiCommand: createInvokeUiCommand(ctx, registry),
   };
 }

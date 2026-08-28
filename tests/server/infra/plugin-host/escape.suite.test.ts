@@ -190,7 +190,7 @@ describe("escape — the guest→host argument boundary is inert (no callable/li
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
-      ui: { setState: () => Promise.resolve() },
+      ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
     };
     return { bridge, captured };
   }
@@ -275,7 +275,7 @@ describe("escape — a stale chat handle cannot read a prior/other chat (single-
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
-      ui: { setState: () => Promise.resolve() },
+      ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
     };
     // First call stashes the token into the resident guest global; second call replays the STALE token.
     const main = `
@@ -356,7 +356,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
-      ui: { setState: () => Promise.resolve() },
+      ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
     };
     // Fire 40 gated host calls in ONE invocation; the gate never settles during it. 32 are admitted (stay pending),
     // calls 33–40 reject synchronously with the back-pressure error → exactly 8 rejections.
@@ -421,7 +421,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
-      ui: { setState: () => Promise.resolve() },
+      ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
     };
     const main = `
       const h = orb.host(1);
@@ -493,7 +493,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
-      ui: { setState: () => Promise.resolve() },
+      ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
     };
     const main = `
       const h = orb.host(1);
@@ -546,7 +546,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
-      ui: { setState: () => Promise.resolve() },
+      ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
     };
     // The guest passes a MALICIOUS 3rd+ arg (a forged funder) + a spoofed depth field on the hints — all ignored.
     const main =

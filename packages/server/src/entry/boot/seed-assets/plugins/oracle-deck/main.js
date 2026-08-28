@@ -282,4 +282,147 @@ if (host.grants.includes("ui.surface")) {
   });
 }
 
+// ── THE U5 SURFACES: a COMMAND, a PAGE, and a DIALOG (plugin-ui-plane §4.5/§4.5a/§4.5b) ────────────────────
+//
+// The card above is what a tool call looks like. These are what a PERSON reaches for directly, without asking
+// the model for anything:
+//
+//  * `registerCommand` — the deck, from the composer or the Plugins wand menu. The app routes
+//    `/plugin oracle-deck draw` and a menu item to this handler; you never claim a top-level slash token, so
+//    two plugins can both have a `draw` and neither shadows the other (or a house command).
+//  * `ui.page` — a FULL-PAGE surface, listed in the app's one "Extensions" rail entry. This is the home for a
+//    plugin with more to show than a panel holds; the app draws the switcher and the attributed page band.
+//  * `dialog` — a house modal, opened ONLY from your own surface or command (`host.ui.openDialog`). There is
+//    no way to open one spontaneously, which is the point: a modal a plugin could raise unprompted is the
+//    most convincing thing it could ever fake.
+//
+// `host.ui.toast` is the third host-mediated affordance: a house toast, prefixed with THIS plugin's name (the
+// app stamps it — you supply only the sentence), rate-floored, and delivered on the round-trip you raised it
+// from. It is transient feedback; anything that must survive being missed rides `notifications.post`.
+//
+// All four ride the SAME `ui.surface` grant as the card, so the same feature-detect guard covers them.
+if (host.grants.includes("ui.surface")) {
+  /** The page's published state — the deck's own dashboard. `setState` replaces it whole. */
+  const publishDeckState = async () => {
+    const session = await loadSession();
+    await host.ui.setState("deck_page", {
+      status: session === null ? "No session open" : `Session open · ${session.dealt} dealt`,
+      commitment: session === null ? "—" : commitmentFor(session.seed),
+      dealt: session === null ? 0 : session.dealt,
+      deckSize: DECK.length,
+    });
+  };
+
+  host.ui.registerCommand({
+    name: "draw",
+    describe: "Draw one card from the oracle deck",
+    onRun: async () => {
+      const existing = await loadSession();
+      const session = existing ?? (await startSession());
+      const cards = shuffleFor(session.seed);
+      if (session.dealt >= cards.length) {
+        await host.ui.toast("warn", "The deck is spent — reveal it to start a fresh shuffle.");
+        return;
+      }
+      const card = cards[session.dealt];
+      await host.storage.set(SESSION_KEY, JSON.stringify({ seed: session.seed, dealt: session.dealt + 1 }));
+      await publishDeckState();
+      // The toast is the ANSWER to the command: a command that runs and says nothing reads as broken, and the
+      // person who typed it is right there, which is exactly the audience a transient notice is for.
+      await host.ui.toast("info", `${card} (${session.dealt + 1} of ${cards.length})`);
+    },
+  });
+
+  host.ui.registerCommand({
+    name: "reveal",
+    describe: "Open the reveal dialog for this oracle session",
+    onRun: async () => {
+      const session = await loadSession();
+      await host.ui.setState("reveal_dialog", {
+        seed: session === null ? "—" : session.seed,
+        commitment: session === null ? "—" : commitmentFor(session.seed),
+        order: session === null ? "No session is open." : shuffleFor(session.seed).join(", "),
+      });
+      // The one way a plugin opens a modal: as the OUTCOME of the act the person just performed.
+      await host.ui.openDialog("reveal_dialog");
+    },
+  });
+
+  host.ui.register({
+    id: "deck_page",
+    anchor: "page",
+    title: "The Deck",
+    tier: "static",
+    spec: {
+      kind: "stack",
+      gap: "block",
+      children: [
+        { kind: "text", value: { $state: "status" }, voice: "label" },
+        { kind: "keyValue", rows: [{ key: "Commitment", value: { $state: "commitment" } }] },
+        { kind: "meter", label: "Dealt", max: DECK.length, value: { $state: "dealt" } },
+        { kind: "button", actionId: "draw_one", label: "Draw a card", variant: "outline" },
+        { kind: "button", actionId: "reveal_now", label: "Reveal the session", variant: "neutral" },
+      ],
+    },
+    onAction: async (action) => {
+      if (action.actionId === "draw_one") {
+        const existing = await loadSession();
+        const session = existing ?? (await startSession());
+        const cards = shuffleFor(session.seed);
+        if (session.dealt < cards.length) {
+          await host.storage.set(SESSION_KEY, JSON.stringify({ seed: session.seed, dealt: session.dealt + 1 }));
+          await host.ui.toast("info", `${cards[session.dealt]} (${session.dealt + 1} of ${cards.length})`);
+        } else {
+          await host.ui.toast("warn", "The deck is spent — reveal it to start a fresh shuffle.");
+        }
+        await publishDeckState();
+        return;
+      }
+      const session = await loadSession();
+      await host.ui.setState("reveal_dialog", {
+        seed: session === null ? "—" : session.seed,
+        commitment: session === null ? "—" : commitmentFor(session.seed),
+        order: session === null ? "No session is open." : shuffleFor(session.seed).join(", "),
+      });
+      await host.ui.openDialog("reveal_dialog");
+    },
+  });
+
+  host.ui.register({
+    id: "reveal_dialog",
+    anchor: "dialog",
+    title: "Reveal this session",
+    tier: "static",
+    spec: {
+      kind: "stack",
+      gap: "block",
+      children: [
+        {
+          kind: "keyValue",
+          rows: [
+            { key: "Seed", value: { $state: "seed" } },
+            { key: "Commitment", value: { $state: "commitment" } },
+          ],
+        },
+        { kind: "text", value: { $state: "order" }, voice: "gloss" },
+        {
+          kind: "confirmButton",
+          actionId: "retire",
+          label: "Retire this deck",
+          confirmTitle: "Retire the deck?",
+          confirmBody: "The next draw starts a fresh shuffle.",
+        },
+      ],
+    },
+    onAction: async (action) => {
+      if (action.actionId !== "retire") {
+        return;
+      }
+      await host.storage.delete(SESSION_KEY);
+      await publishDeckState();
+      await host.ui.toast("success", "Deck retired — the next draw starts a fresh shuffle.");
+    },
+  });
+}
+
 host.log.info(`oracle deck ready — ${DECK.length} cards (grants: ${host.grants.join(", ") || "none"})`);

@@ -43,15 +43,10 @@ import {
   appearanceMessageDetailsSection,
   appearanceMessageStyleSection,
   ChatsWithCharacterPane,
-  chatAlsoOpenTile,
-  chatMastheadTile,
   chatMessageHandlingSection,
   chatMessageReactionsSurface,
-  chatQuickPicksTile,
-  chatRecentsTile,
   chatSlashCommands,
   chatStreamingSection,
-  chatTempChatTile,
   commandModal,
   databankSettingsSection,
   imageryTemplatesSection,
@@ -63,16 +58,20 @@ import {
 } from "#features/chat";
 import { makeConfigSection } from "#features/config";
 import { connectionsPane } from "#features/credentials";
-import { addDocumentModal, databankDocumentsTile, databankSection } from "#features/databank";
+import { addDocumentModal, databankSection } from "#features/databank";
 import { corpusSection } from "#features/discovery";
-import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "#features/home";
+import { makeHomeSection } from "#features/home";
 import { imageDetailModal, imageEditModal, imagerySlashCommands, imagineModal } from "#features/imagery";
 import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
 import {
+  extensionsSection,
   pluginChatFlankSurface,
   pluginChatSettingsSection,
+  pluginCommandsChrome,
+  pluginDialogModal,
   pluginDistributeSection,
+  pluginSlashCommands,
   pluginSnippetConsoleSection,
   pluginsPane,
   pluginToolRenderer,
@@ -118,7 +117,7 @@ import type {
   ToolRenderer,
 } from "#lib";
 import { createContributorRegistry, createRegistry } from "#lib";
-import type { HomeTileContribution, SettingsSectionContribution } from "#state";
+import type { SettingsSectionContribution } from "#state";
 import {
   assembleChrome,
   assertSettingsKeyPartition,
@@ -135,6 +134,9 @@ import {
 } from "#state";
 import { AppRoot } from "../routes/app-root.tsx";
 import { queryClient, trpcProxy } from "./app-singletons.ts";
+// The home-tile registry, assembled in its own `compose/` sibling (§7 + `client-compose-door-only`): still ONE
+// assembly, still door-owned — it moved for `component-size`, not for architecture. See that file's header.
+import { homeTiles } from "./home-tiles.ts";
 
 // The chat-context contributor seam (§6c): the rpg takeover's four LITE game tabs (Context-Panel-Program
 // §4.4) — the FIRST real consumer of this seam. rpg exports the SELF-CONTAINED factory `makeRpgContextTabs`
@@ -241,37 +243,15 @@ const slashCommands = createContributorRegistry<SlashCommandContribution>("slash
   ...chatSlashCommands,
   ...characterSlashCommands,
   ...imagerySlashCommands,
+  // U5 (#679, §4.5): the ONE `/plugin <slug> <cmd> …` dispatcher — it fans per-plugin INSIDE its mount, so no
+  // plugin claims a top-level token and the door never grows per install.
+  ...pluginSlashCommands,
 ]);
 
 // The character-detail contributor seam (§6c): EMPTY but typed — the door → factory → editor-body anchor
 // path is compiled and exercised with zero contributions; the agents feature appends its card-evolution
 // review section later (crew 07-client-ui §4.2), grafting into the editor WITHOUT importing character.
 const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
-
-// The HOME-TILE contributor seam (§6c / home-section-spec §3.2) — the SIXTH contributor registry, and the
-// whole point of the home section: a feature raises a tile, home skims it. Adding "future stuff" to home is
-// ONE co-located file in the OWNING feature plus ONE array member HERE — home is never edited. Canonical
-// `(order, id)` at the door: chat's masthead line is order 0, its recents hero 10, its also-open list 15,
-// the face shelf 20 and temp chat 30; home's own "Elsewhere in the house" rail is 40; databank's tile 50;
-// the buddy dormant doorway 80 (automation's dormant tile 90 was RETIRED with B3 — its own contract said it
-// stays "until B3", and B3's chips now consume the channel it stood for). WHICH COLUMN each lands in is the
-// tile's own `region`, never a list here. Home consumes the registry BLIND through `makeHomeSection`.
-const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [
-  chatMastheadTile,
-  chatRecentsTile,
-  chatAlsoOpenTile,
-  chatQuickPicksTile,
-  chatTempChatTile,
-  databankDocumentsTile,
-  buddyDormantTile,
-];
-
-const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [
-  ...HOME_TILE_CONTRIBUTIONS,
-  // LAST, and built FROM the list above: its rows are the section registry minus home minus every section
-  // a tile beside it already subsumes (`sectionId`).
-  makeSectionJumpTile(HOME_TILE_CONTRIBUTIONS),
-]);
 
 // The COLLECTION contributor seam (config-rail-spec.md · review §4) — the ELEVENTH contributor family and
 // the Configuration workspace's whole content: the DOOR ARRAY IS THE ROSTER, in group order. Moving a
@@ -296,6 +276,8 @@ const sections = createRegistry("sections", SECTION_IDS, {
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
   config: makeConfigSection(configCollections),
+  // U5 (#679, seam 16): ONE rail entry for every plugin's `ui.page` surfaces; its switcher does the fan.
+  extensions: extensionsSection,
   databank: databankSection,
   presets: presetsSection,
   refinery: refinerySection,
@@ -320,6 +302,9 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   imagine: imagineModal,
   imageDetail: imageDetailModal,
   imageEdit: imageEditModal,
+  // U5 (#679, §4.5a): the ONE house modal a plugin `dialog` surface renders inside — opened ONLY by a round-trip
+  // outcome, never an affordance, so a spontaneous plugin modal is unspellable.
+  pluginDialog: pluginDialogModal,
 });
 
 // The ONE chrome assembly (shell-chrome-unification.md §A/§D/§E-2, G8): `assembleChrome` DERIVES the rail
@@ -332,7 +317,8 @@ const chrome = createContributorRegistry(
   assembleChrome({
     sections: sections.list(),
     modals: modals.list(),
-    widgets: [notificationsChrome, fullscreenChrome, contextToggleChrome, personaChrome],
+    // U5 (#679, §4.5): the "Plugins" wand — SILENT when a person's plugins register no commands.
+    widgets: [notificationsChrome, pluginCommandsChrome, fullscreenChrome, contextToggleChrome, personaChrome],
   }),
 );
 

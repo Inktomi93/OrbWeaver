@@ -17,6 +17,7 @@ function instanceWith(surfaceId: string): PluginInstance {
     tools: [],
     transforms: [],
     events: [],
+    commands: [],
     surfaces: [
       {
         id: surfaceId,
@@ -36,6 +37,7 @@ function instanceWithToolCard(toolName: string): PluginInstance {
     tools: [],
     transforms: [],
     events: [],
+    commands: [],
     surfaces: [{ id: "draw_card", anchor: "tool-card", title: "Draw", tier: "static", toolName, spec: { kind: "text", value: "drawn" } }],
   };
 }

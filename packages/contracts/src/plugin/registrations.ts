@@ -7,7 +7,7 @@
 import type { Branded } from "@orb/kit/ids";
 import type { ChatTriggerType, DomainTriggerType } from "#automation";
 import type { PromptTransformPoint } from "#chat";
-import type { PluginSurfaceRegistrationMeta } from "./ui.ts";
+import type { PluginCommandRegistrationMeta, PluginSurfaceRegistrationMeta } from "./ui.ts";
 
 /** An opaque ref to a guest-registered callback, minted host-side during activation and carried on a collected
  *  registration. The port's `invoke` resolves it back into the resident guest; the domain treats it as opaque
@@ -69,13 +69,23 @@ export type PluginSurfaceRegistration = PluginSurfaceRegistrationMeta & {
   readonly onAction?: PluginHandlerRef;
 };
 
+/** A COMMAND the guest registered via `host.ui.registerCommand` — collected at activation (plugin-ui-plane #679
+ *  U5, §4.5). Like a surface it needs NO external registrar: it is read directly off the resident instance by
+ *  `plugin.listCommands` (which the `/plugin` dispatcher and the Plugins chrome menu both fan off) and re-entered
+ *  by `plugin.invokeUiCommand` through the port's `invoke`. `onRun` is REQUIRED — unlike a surface, a command
+ *  with nothing to run is not a display-only affordance, it is a dead menu row. */
+export type PluginCommandRegistration = PluginCommandRegistrationMeta & {
+  readonly onRun: PluginHandlerRef;
+};
+
 /** A resident guest instance's collected registrations — what `main.js` registered at activation. The
  *  concrete runtime carries the guest handles + log ring internally (opaque to the domain, read via the port);
  *  the domain reads only these registration records to hand to the registrar ops (tools/transforms/events) or,
- *  for `surfaces`, to project directly to the client + re-enter on an action. */
+ *  for `surfaces`/`commands`, to project directly to the client + re-enter on an action. */
 export interface PluginInstance {
   readonly tools: readonly PluginToolRegistration[];
   readonly transforms: readonly PluginTransformRegistration[];
   readonly events: readonly PluginEventSubscription[];
   readonly surfaces: readonly PluginSurfaceRegistration[];
+  readonly commands: readonly PluginCommandRegistration[];
 }

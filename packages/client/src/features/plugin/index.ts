@@ -16,7 +16,15 @@ export { SnippetConsole } from "./components/snippet-console.tsx";
 // The two U2 CHAT-anchor contributions (plugin-ui-plane #679 seam 7) — assembled into chat's surface + section
 // registries at the door, never imported by chat itself.
 export { pluginChatFlankSurface, pluginChatSettingsSection } from "./lib/chat-anchors.tsx";
+// The U5 set (plugin-ui-plane #679 §4.5/§4.5a/§4.5b, seam 16): the tenth rail SECTION (the platform's full-page
+// home), the ONE `/plugin` slash contribution, the "Plugins" wand chrome widget, and the ONE house modal a
+// plugin `dialog` surface renders inside. Four door members for the whole platform — none of them grows when a
+// person installs a plugin, because every per-plugin fan happens INSIDE a body off the caller's own reads.
+export { extensionsSection } from "./lib/extensions-section.tsx";
+export { pluginCommandsChrome } from "./lib/plugin-commands-chrome.tsx";
+export { pluginDialogModal } from "./lib/plugin-dialog-modal.tsx";
 export { pluginDistributeSection } from "./lib/plugin-distribute-section.tsx";
+export { pluginSlashCommands } from "./lib/plugin-slash-commands.ts";
 export { pluginsPane } from "./lib/plugins-pane.tsx";
 export { pluginSnippetConsoleSection } from "./lib/snippet-console-section.tsx";
 // The U3 TOOL-CARD contribution (plugin-ui-plane #679 seam 7) — one member of chat's `toolRenderers` registry,

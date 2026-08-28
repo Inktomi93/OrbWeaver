@@ -19,6 +19,7 @@ import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import type {
   PluginCapability,
+  PluginCommandRegistration,
   PluginEventSubscription,
   PluginHandlerRef,
   PluginSurfaceRegistration,
@@ -151,6 +152,7 @@ interface ResidentState {
   readonly transforms: PluginTransformRegistration[];
   readonly events: PluginEventSubscription[];
   readonly surfaces: PluginSurfaceRegistration[];
+  readonly commands: PluginCommandRegistration[];
   readonly handlers: Map<PluginHandlerRef, QuickJSHandle>;
   /** Host-call deferreds still UNSETTLED (a fire-and-forget guest promise still in flight). MUST be disposed
    *  before `ctx.dispose()` — an unsettled guest Promise left in the heap aborts `JS_FreeRuntime`. The
@@ -197,6 +199,7 @@ export class Sandbox implements Disposable {
       transforms: [],
       events: [],
       surfaces: [],
+      commands: [],
       handlers: new Map(),
       pending: new Set(),
     };
@@ -235,6 +238,11 @@ export class Sandbox implements Disposable {
               const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
               state.handlers.set(ref, onAction);
               state.surfaces.push({ ...meta, onAction: ref });
+            },
+            collectCommand: (meta, onRun): void => {
+              const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
+              state.handlers.set(ref, onRun);
+              state.commands.push({ ...meta, onRun: ref });
             },
             logWarn: (message): void => {
               log.push("warn", message);
@@ -286,6 +294,14 @@ export class Sandbox implements Disposable {
    *  registry entry. */
   get collectedSurfaces(): readonly PluginSurfaceRegistration[] {
     return this.state.surfaces;
+  }
+
+  /** The UI COMMANDS `main.js` registered at activation (plugin-ui-plane #679 U5) — read directly by
+   *  `plugin.listCommands` (which the `/plugin` dispatcher and the Plugins chrome menu both fan off); each
+   *  command's `onRun` handle lives in `handlers` (disposed at teardown alongside every other resident handler).
+   *  No external registrar, for the same reason a surface has none: a command is instance-resident data. */
+  get collectedCommands(): readonly PluginCommandRegistration[] {
+    return this.state.commands;
   }
 
   /** Admit an invocation chat (mints a fresh opaque handle token) or clear the scope (`null`). Called before
