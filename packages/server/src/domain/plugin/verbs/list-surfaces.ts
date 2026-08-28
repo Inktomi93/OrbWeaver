@@ -6,10 +6,29 @@
 // serializable meta (the `onAction` handle stays server-side, re-entered only by `invokeUiAction`) tagged with
 // its `pluginId` so the client joins to the plugin's own name/glyph for the labeled shell.
 
+import type { PluginSurfaceRegistration } from "@orb/contracts/plugin";
+import { pluginToolWireName } from "@orb/contracts/plugin";
+import type { PluginId } from "@orb/kit/ids";
 import type { ListSurfacesParams } from "../contract/params.ts";
 import type { PluginSurfaceView } from "../contract/results.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { listOwned } from "../persistence/plugins.ts";
+
+/** One collected registration → its client view. The `tool-card` LINKAGE is resolved to the MODEL-VISIBLE name
+ *  HERE (U3): the guest named its own tool (`toolName`), and only this side knows the install's slug. One mint,
+ *  in contracts — the client matches the projected string against `ToolCallRecord.name` and never re-derives
+ *  the namespacing rule. */
+function toView(pluginId: PluginId, slug: string, surface: PluginSurfaceRegistration): PluginSurfaceView {
+  return {
+    pluginId,
+    id: surface.id,
+    anchor: surface.anchor,
+    title: surface.title,
+    tier: surface.tier,
+    ...(surface.spec !== undefined ? { spec: surface.spec } : {}),
+    ...(surface.toolName !== undefined ? { toolName: surface.toolName, toolWireName: pluginToolWireName(slug, surface.toolName) } : {}),
+  };
+}
 
 export function createListSurfaces(ctx: PluginContext, registry: PluginRegistry): PluginService["listSurfaces"] {
   return async ({ caller }: ListSurfacesParams) => {
@@ -21,14 +40,7 @@ export function createListSurfaces(ctx: PluginContext, registry: PluginRegistry)
         continue;
       }
       for (const surface of resident.instance.surfaces) {
-        views.push({
-          pluginId: row.id,
-          id: surface.id,
-          anchor: surface.anchor,
-          title: surface.title,
-          tier: surface.tier,
-          ...(surface.spec !== undefined ? { spec: surface.spec } : {}),
-        });
+        views.push(toView(row.id, row.slug, surface));
       }
     }
     return views;
