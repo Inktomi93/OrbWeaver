@@ -45,6 +45,7 @@ export type {
   PluginMessageView,
   PluginQuietOptions,
   PluginQuietSchema,
+  PluginSearchHit,
   PluginVariableOp,
   PluginWorldBookView,
   PluginWorldEntryUpsert,
@@ -57,6 +58,7 @@ export {
   PLUGIN_ASSET_READ_MAX_BYTES,
   PLUGIN_LOG_LEVELS,
   PLUGIN_QUIET_IMAGES_MAX,
+  PLUGIN_SEARCH_RESULTS_MAX,
   UI_PROXYABLE_HOST_FUNCTIONS,
 } from "./host-v1.ts";
 export type { PluginOrigin, PluginStatus } from "./lifecycle.ts";

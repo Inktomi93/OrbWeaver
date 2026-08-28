@@ -13,7 +13,7 @@ test("PLUGIN_ORIGINS is [upload, url] — the file arm + the URL-install arm (U8
   expect(PLUGIN_ORIGINS).toEqual(["upload", "url"]);
 });
 
-test("HOST_FUNCTION_CAPABILITY maps 39 gated functions, every value a real capability, every capability covered", () => {
+test("HOST_FUNCTION_CAPABILITY maps 40 gated functions, every value a real capability, every capability covered", () => {
   const entries = Object.entries(HOST_FUNCTION_CAPABILITY);
   // 23 → 25 at U6: `transforms.registerDisplay` + `macros.register`, both riding the EXISTING `chat.transform`
   // capability (plugin-ui-plane §5.5/§5.15) — a widened surface with no new consent line. 25 → 28 at U5:
@@ -36,7 +36,9 @@ test("HOST_FUNCTION_CAPABILITY maps 39 gated functions, every value a real capab
   // both key to the ONE NEW `worldinfo.read` grant (a symmetric "read your lore" line, distinct from the write);
   // `assets.read` keys to the ONE NEW `assets.read` grant. Four functions, two new capabilities — the read
   // symmetry of the write surfaces, each owner-scoped + leak-free.
-  expect(entries).toHaveLength(39);
+  // 39 → 40 at #788 F1: `search.documents` keys to the ONE NEW `search.query` grant — first-party retrieval over
+  // the installer's OWN corpus, owner-scoped (the bridge closes ownerId over the scope), plain (no rate floor).
+  expect(entries).toHaveLength(40);
 
   const values = new Set(Object.values(HOST_FUNCTION_CAPABILITY));
   // Every mapped capability is a member of the axis.

@@ -143,12 +143,16 @@ test("the EXCLUSIONS are excluded — residency, authority writes, spend, and eg
     "worldInfo.listBooks",
     "worldInfo.listEntries",
     "assets.read",
+    // #788 F1 — first-party retrieval. An owner-scoped read (needs no new ownership gate to proxy), but every
+    // call runs a query embedding (local box compute), so it is the COMPUTE-COST class the read tuple keeps out
+    // (§4.6 bought latency over cheap reads, not per-keystroke retrieval). Priced widening, never a free entry.
+    "search.documents",
   ];
   for (const fn of excluded) {
     expect(isUiProxyableHostFunction(fn), fn).toBe(false);
   }
   // Together with the ordered pin above, these two tests are exhaustive over `HOST_FUNCTION_CAPABILITY`: 9 in,
-  // 30 out, 39 total.
+  // 31 out, 40 total.
   expect(UI_PROXYABLE_HOST_FUNCTIONS.length + excluded.length).toBe(Object.keys(HOST_FUNCTION_CAPABILITY).length);
 });
 

@@ -24,6 +24,7 @@ import type {
   PluginMessageView,
   PluginPubsubSubscription,
   PluginQuietOptions,
+  PluginSearchHit,
   PluginSuggestedAct,
   PluginToastLevel,
   PluginToolRegistration,
@@ -157,6 +158,14 @@ export interface PluginHostOps {
   readonly assets: {
     // @foreign-id-ok(assetId): the guest's untrusted wire string, owner-scope-gated by the domain read, cast at compose — branding here would claim a validation this boundary has not performed.
     readonly read: (req: { readonly installerUserId: UserId; readonly assetId: string }) => Promise<PluginAssetView | null>;
+  };
+  /** The `search.query` capability's READ op (#788 F1). Semantic document search over the INSTALLER's OWN
+   *  corpus — wired at compose to search's `documents` with `scope: { ownerId: installerUserId }`, so a guest
+   *  searches only its own library (owner-scoped by construction — a guest names only the query + limit). The
+   *  limit is clamped to `PLUGIN_SEARCH_RESULTS_MAX` at the membrane. Returns ranked reduced hits (content
+   *  host-capped). No principal resolve — the ownerId in the scope IS the owner gate. */
+  readonly search: {
+    readonly documents: (req: { readonly installerUserId: UserId; readonly queryText: string; readonly limit?: number }) => Promise<readonly PluginSearchHit[]>;
   };
   /** The plugin-PRIVATE KV plane (`storage.*`; the `plugin_kv` table) — per plugin × installing
    *  owner. DIVERGES from automation (no automation analog): every op is keyed by BOTH `pluginId` AND `ownerId`

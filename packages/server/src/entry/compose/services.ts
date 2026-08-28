@@ -864,6 +864,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     imagery,
     settings,
     assets,
+    // #788 F1 — the owner-scoped RAG verb the plugin `search.query` read rides (search over the installer's own corpus).
+    search,
     toolUse,
     // The fan-out's RECIPIENT enumeration (D147 clause (d)) — the admin verb, so the list is read under the
     // acting admin's own authority and re-gated there rather than swept off `users` by a domain that may not
