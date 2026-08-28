@@ -15,13 +15,16 @@ import { describe } from "vitest";
 import type { TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import { resolveTurnNarrative } from "../../../../../packages/server/src/domain/chat/engine/recover-narrative.ts";
-import type { ToolCallInput, WireTool } from "../../../../../packages/server/src/domain/tool-use/contract/params.ts";
+import type { ToolCallInput } from "../../../../../packages/server/src/domain/tool-use/contract/params.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { makeModelCapability, makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 type PipelineArgs = Parameters<typeof runTurnPipeline>[0];
 type PipelineResult = Awaited<ReturnType<typeof runTurnPipeline>>;
+/** DERIVED from the pipeline's own terminal channel — `WireTool` is sealed inside `#infra/providers` and the
+ *  domain never re-spells it (Tier-3b-Providers.md). */
+type TerminalTool = NonNullable<PipelineArgs["terminalTools"]>[number];
 
 const CHAT_ID = castId<ChatId>("chat_recovery");
 const FIXTURE_HUMAN = castId<UserId>("user_fixture_human");
@@ -41,14 +44,16 @@ const CONNECTION: ResolvedConnection = {
   capability: CAPABILITY,
 };
 
-const TERMINAL_TOOL: WireTool = { name: "rpg_apply_state", description: "record the beat's state changes", parameters: { type: "object" } };
+const TERMINAL_TOOL: TerminalTool = { name: "rpg_apply_state", description: "record the beat's state changes", parameters: { type: "object" } };
 const TERMINAL_CALL: ToolCallInput = { toolCallId: "call_beat_1", name: "rpg_apply_state", arguments: '{"hp":-2}' };
 
 const RECOVERY_ASK = resolveProseText("chat.recovery.narrativeContinuation", {});
 
 /** A canon row double — the pipeline reads only these fields off one (see pipeline's header). */
-const userRow = (content: string): MessageView =>
-  ({
+function userRow(content: string): MessageView {
+  // FABRICATION-OK: the slim-double judgment `pipeline.test.ts` records for its own canon rows — a full
+  // `MessageView` carries a dozen read-model fields no code on this path reads.
+  return {
     id: "message_fixture_1",
     role: "user",
     kind: "standard",
@@ -57,7 +62,8 @@ const userRow = (content: string): MessageView =>
     characterId: null,
     personaId: null,
     authorUserId: FIXTURE_HUMAN,
-  }) as unknown as MessageView;
+  } as unknown as MessageView;
+}
 
 function ctxOf(): AssembleContext {
   return {
@@ -66,7 +72,7 @@ function ctxOf(): AssembleContext {
     activePersona: { name: "Alex", description: "the user" },
     triggerUserId: FIXTURE_HUMAN,
     recentMessages: [],
-  } as AssembleContext;
+  };
 }
 
 /** The injected provider seam, scripted PER PASS: call N of the turn replays script N. A pass the script does
