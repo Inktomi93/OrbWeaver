@@ -13,8 +13,8 @@
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
+import type { TableTarget } from "../contract/tenancy.ts";
 import { fileLoaded } from "../lib/pass.ts";
-import type { TableTarget } from "../lib/tenancy-read.ts";
 import {
   isDrizzleWriteStatement,
   markedFunctions,
