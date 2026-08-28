@@ -651,8 +651,8 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "19765fe58b934826b76349e6dd604c39760f6345be0ad6dbf93d70be7bef2c53",
-      "verifiedCommit": "b1b76f2602a38c24a300cfa987094d911668b772",
+      "verifiedSha256": "09b5ad5f85de936dabf9728bb26d9a1f95a7eb7ba1472bcee0561af0bb16e8b3",
+      "verifiedCommit": "99b6ba2c619329ecb2bbc84ef68c6b1aa18a1644",
       "verifiedAt": "2026-08-25",
       "evidence": [
         "docs/design/interaction-direction-spec.md read in full by the orchestrator before commit (1a7f20ed3); the needle ruling folded at both sites by the orchestrator after the owner's 2026-08-24 call",
