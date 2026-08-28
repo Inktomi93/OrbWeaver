@@ -1535,16 +1535,16 @@
       "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 434,
-      "bytes": 55365,
-      "sha256": "9f621987b67252c498c5a2b1cee1c90a85eadf2cafb2f52adf1ac4c8eb34eecc",
+      "lines": 440,
+      "bytes": 56668,
+      "sha256": "ef1249f61eb8d296ebfd2e51be4f5e7c566e981dd842f0ff6a279d0b9236db29",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-14"
+          "updated": "2026-08-28"
         },
         "errors": []
       },
@@ -1554,8 +1554,8 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "9f621987b67252c498c5a2b1cee1c90a85eadf2cafb2f52adf1ac4c8eb34eecc",
-        "verifiedCommit": "68c8f42d6071812eadf86c493405a58b5c72a584",
+        "verifiedSha256": "ef1249f61eb8d296ebfd2e51be4f5e7c566e981dd842f0ff6a279d0b9236db29",
+        "verifiedCommit": "89e541e87821e40e8262bcce841c1ee2471fbc43",
         "verifiedAt": "2026-08-21",
         "evidence": [
           "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
@@ -12905,9 +12905,9 @@
       "path": "docs/design/plugin-ui-plane.md",
       "lane": "design",
       "issue": 5,
-      "lines": 748,
-      "bytes": 76191,
-      "sha256": "2c6071d6688a469a2f34b232e73974cdf54e1602e3d036fa920720c44d809a0d",
+      "lines": 860,
+      "bytes": 86375,
+      "sha256": "7e47a49d459bcab1f87c11913145e5f773404bacc21c69fe11fdb2b97947321b",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12924,8 +12924,8 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "2c6071d6688a469a2f34b232e73974cdf54e1602e3d036fa920720c44d809a0d",
-        "verifiedCommit": "2c08ac4203dbbeb1e5942b901cb7782d667d1844",
+        "verifiedSha256": "7e47a49d459bcab1f87c11913145e5f773404bacc21c69fe11fdb2b97947321b",
+        "verifiedCommit": "c49bbbb49bedd4cd2a2d06a5004e8ae338569bd4",
         "verifiedAt": "2026-08-28",
         "evidence": [
           "born-reviewed by its authoring lane (cb-plugui-design, #679): every build-state claim tree-verified 2026-08-24 with path:line receipts before commit 766525006",
