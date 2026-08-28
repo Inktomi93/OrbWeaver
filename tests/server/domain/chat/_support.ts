@@ -484,6 +484,8 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // The S2 teaching registry, wired EXACTLY as the composition root wires it: chat's own contributor #0
     // (the rpg-gather projection). A suite that registers a foreign contribution overrides this with
     // `[...createChatTeachingContributions(), <its own>]`.
+    // U6 §5.15 — no plugin host in a chat-domain test (byte-identical no-op).
+    pluginMacros: null,
     teaching: createChatTeachingContributions(),
     // Default = null ⇒ no PromptTransform registrar wired (byte-identical no-op — automation-design/04 §6). A
     // transform test overrides with a `createPromptTransformRegistry(...).apply`.

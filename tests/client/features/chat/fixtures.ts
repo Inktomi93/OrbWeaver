@@ -123,6 +123,11 @@ export const CHAT_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // (`await client.stream.attach.mutate(…)` discards it), so feeding `{}` changes nothing observable — it
   // simply stops a real mutation riding the lenient null fulfil.
   "stream.attach": {},
+  // The plugin DISPLAY-transform gate (plugin-ui-plane seam 14, U6) — read once per room by every committed
+  // row's `MessageContent`. EMPTY is the honest default (a fresh viewer has no plugins), and an empty ARRAY
+  // exercises the real gate path (`hasTransforms === false` ⇒ zero per-row calls) where `null` would only
+  // exercise the defensive arm.
+  "plugin.listDisplayTransforms": [],
 };
 
 /**

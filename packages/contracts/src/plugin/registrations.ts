@@ -32,6 +32,28 @@ export interface PluginTransformRegistration {
   readonly handler: PluginHandlerRef;
 }
 
+/** A DISPLAY transform the guest registered via `host.transforms.registerDisplay` — collected at activation
+ *  (plugin-ui-plane §5.5/§5.29, seam 14). Unlike its D50 sibling it needs NO external registrar: it is read
+ *  directly off the resident instance by the display round-trip verb and re-entered through the port's
+ *  `invoke`, exactly as a `PluginSurfaceRegistration`'s `onAction` is. Order among a plugin's own display
+ *  transforms is REGISTRATION order (the collected array's order) — the same "the guest declared it first"
+ *  rule the D50 plugin band uses, and the only ordering a per-viewer fold can honestly claim. */
+export interface PluginDisplayTransformRegistration {
+  readonly name: string;
+  readonly handler: PluginHandlerRef;
+}
+
+/** A macro the guest registered via `host.macros.register` — collected at activation (plugin-ui-plane §5.15).
+ *  `name` is the HOST-NAMESPACED spelling (`plugin_<slug'>_<name>`, assigned domain-side from the re-validated
+ *  manifest slug — never guest-supplied), so a plugin macro can shadow neither a builtin nor another plugin's.
+ *  `handler` is re-entered ONCE PER TURN by the assembly pre-pass, and its (neutralized) answer is registered
+ *  as that turn's value for the macro — plugin macros are DATA into the ONE kit engine, never a second one. */
+export interface PluginMacroRegistration {
+  readonly name: string;
+  readonly description: string;
+  readonly handler: PluginHandlerRef;
+}
+
 /** An event subscription the guest registered via `host.events.on` — the type is the SAME closed
  *  Tier-1 trigger taxonomy the automation watcher reads (plugins get no private event vocabulary). */
 export interface PluginEventSubscription {
@@ -59,4 +81,8 @@ export interface PluginInstance {
   readonly transforms: readonly PluginTransformRegistration[];
   readonly events: readonly PluginEventSubscription[];
   readonly surfaces: readonly PluginSurfaceRegistration[];
+  /** U6 seam 14 — read directly off the instance by the display round-trip (no registrar), like `surfaces`. */
+  readonly displayTransforms: readonly PluginDisplayTransformRegistration[];
+  /** U6 §5.15 — handed to the macro registrar, which resolves each ONCE per turn into the turn's registry. */
+  readonly macros: readonly PluginMacroRegistration[];
 }

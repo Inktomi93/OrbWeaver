@@ -14,6 +14,7 @@ import {
   pluginChatFlankSurface,
   pluginChatSettingsSection,
   pluginDistributeSection,
+  pluginMessageFooterSurface,
   SnippetConsole,
 } from "@orb/client/features/plugin";
 import type { ChatSettingsSectionContribution, ChatSurfaceContribution } from "@orb/client/lib";
@@ -125,6 +126,28 @@ export function PluginChatSettingsSectionStory({ width = CONTEXT_PANE_WIDTH }: {
       <div style={{ width }}>
         <CommittedSettingsTab background={null} chatId={CHAT_ID} isHost={true} roomOverrides={{}} sections={pluginChatSections} showGroup={false} />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The REAL `message-footer` contribution, registered exactly as the door registers it (U6, §5.4). */
+const pluginFooterContributors: ReturnType<typeof createContributorRegistry<ChatSurfaceContribution>> = createContributorRegistry<ChatSurfaceContribution>(
+  "chat-surface",
+  [pluginMessageFooterSurface],
+);
+
+/** The room with (or, at `registered: false`, without) the plugin `message-footer` contribution at the door.
+ *  Same harness as the flank story and for the same reason: the per-row strip must be measured inside a REAL
+ *  transcript, because "does a plugin-less row grow a footer?" is a question about the row's own layout. */
+export function PluginMessageFooterRoomStory({ registered = true }: { readonly registered?: boolean }): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtDataProviders>
+      <CtChatContributorSectionRegistry surfaceContributors={registered ? pluginFooterContributors : noContributors}>
+        <ChatRoomHarness />
+      </CtChatContributorSectionRegistry>
     </CtDataProviders>
   );
 }

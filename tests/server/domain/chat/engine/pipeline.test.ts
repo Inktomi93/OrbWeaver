@@ -17,6 +17,7 @@ import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
 import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
 import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
+import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { HistoryMacroNames, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { __spanToWirePartForTest, runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
@@ -258,7 +259,7 @@ describe("runTurnPipeline — the D50 assembled_dynamic PromptTransform point (a
       applyPromptTransforms: (point, _chatId, draft) => {
         seenPoint = point;
         seenDraft = draft;
-        return Promise.resolve(`${draft}[DYN]`);
+        return Promise.resolve({ aborted: false, text: `${draft}[DYN]` });
       },
     });
     const result = await runTurnPipeline(args);
@@ -272,10 +273,27 @@ describe("runTurnPipeline — the D50 assembled_dynamic PromptTransform point (a
   });
 
   test("an absent op leaves the assembled prompt byte-identical (the null-op no-op)", async () => {
-    const withOp = await runTurnPipeline(baseArgs({ applyPromptTransforms: (_p, _c, draft) => Promise.resolve(draft) }).args);
+    const withOp = await runTurnPipeline(baseArgs({ applyPromptTransforms: (_p, _c, draft) => Promise.resolve({ aborted: false, text: draft }) }).args);
     const without = await runTurnPipeline(baseArgs().args);
     expect(withOp.request.prompt.dynamic).toBe(without.request.prompt.dynamic);
     expect(withOp.request.prompt.static).toBe(without.request.prompt.static);
+  });
+
+  test("an ABORT outcome ends the generation as the CODED chat refusal — typed, never a swallowed skip", async () => {
+    // The owner's U6 test ("a transform aborts a generation typed"), at the BUILD-side call site. The D53 skip
+    // is the opposite outcome and is pinned in the registry's own suite: a slow/broken transform leaves the
+    // draft alone and the turn proceeds, while this one stops it and names why.
+    const { args } = baseArgs({
+      applyPromptTransforms: () => Promise.resolve({ aborted: true, transformId: "plugin:oracle:veto:0", reason: "the scene is closed" }),
+    });
+    const failure = await runTurnPipeline(args).then(
+      () => null,
+      (err: unknown) => err,
+    );
+    expect(failure).toBeInstanceOf(ChatOperationError);
+    expect((failure as ChatOperationError).code).toBe(CHAT_OP_CODES.promptTransformAborted);
+    // The transform's own words reach the author — that is what makes a refusal actionable.
+    expect((failure as ChatOperationError).message).toContain("the scene is closed");
   });
 });
 

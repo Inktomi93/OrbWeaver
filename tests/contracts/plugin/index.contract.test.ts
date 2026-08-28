@@ -10,9 +10,12 @@ test("PLUGIN_ORIGINS is the reserved single-arm [upload] (catalog rides an addit
   expect(PLUGIN_ORIGINS).toEqual(["upload"]);
 });
 
-test("HOST_FUNCTION_CAPABILITY maps 23 gated functions, every value a real capability, every capability covered", () => {
+test("HOST_FUNCTION_CAPABILITY maps 25 gated functions, every value a real capability, every capability covered", () => {
   const entries = Object.entries(HOST_FUNCTION_CAPABILITY);
-  expect(entries).toHaveLength(23);
+  // 23 → 25 at U6: `transforms.registerDisplay` + `macros.register`, both riding the EXISTING `chat.transform`
+  // capability (plugin-ui-plane §5.5/§5.15) — a widened surface with no new consent line, which is exactly the
+  // claim this count plus the coverage loop below makes checkable.
+  expect(entries).toHaveLength(25);
   const values = new Set(Object.values(HOST_FUNCTION_CAPABILITY));
   // Every mapped capability is a member of the axis.
   for (const cap of values) {

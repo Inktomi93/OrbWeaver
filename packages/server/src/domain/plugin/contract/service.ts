@@ -18,12 +18,14 @@ import type {
   InstallForAllUsersParams,
   InstallPluginParams,
   InvokeUiActionParams,
+  ListDisplayTransformsParams,
   ListDistributedPluginsParams,
   ListPluginsParams,
   ListSurfacesParams,
   RunSnippetParams,
   SetPluginEnabledParams,
   SetPluginGrantParams,
+  TransformForDisplayParams,
   UninstallForAllUsersParams,
   UninstallPluginParams,
   UpgradePluginParams,
@@ -31,6 +33,7 @@ import type {
 import type {
   DistributedPluginApplication,
   DistributedPluginView,
+  PluginDisplayTransformView,
   PluginFanoutResult,
   PluginLogView,
   PluginSurfaceState,
@@ -314,4 +317,13 @@ export interface PluginService {
   /** Re-enter a surface's `onAction` under the crash policy (owner-scoped, leak-free). Void — the state update
    *  the handler may publish rides the `pluginSurfaceStateChanged` bus poke to the caller's own client. */
   readonly invokeUiAction: (params: InvokeUiActionParams) => Promise<void>;
+  /** The caller's OWN enabled plugins' registered DISPLAY transforms (plugin-ui-plane seam 14, U6) —
+   *  owner-scoped, no foreign id. The per-row round-trip's BYTE-IDENTITY gate: an empty answer means the
+   *  viewer's transcript makes no `transformForDisplay` calls at all. */
+  readonly listDisplayTransforms: (params: ListDisplayTransformsParams) => Promise<readonly PluginDisplayTransformView[]>;
+  /** Annotate ONE rendered row through the caller's own plugins' display transforms, in order, each under
+   *  `PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS`. A transform that throws or overruns is SKIPPED (D53) — the row
+   *  keeps the text it had, so this verb can never blank or block a message. The submitted text is reflected
+   *  ONLY to this caller; nothing is persisted and no authority derives from it. */
+  readonly transformForDisplay: (params: TransformForDisplayParams) => Promise<{ readonly text: string }>;
 }

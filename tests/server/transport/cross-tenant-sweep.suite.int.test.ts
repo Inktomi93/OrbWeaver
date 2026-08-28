@@ -1516,6 +1516,10 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "plugin.list": "self-scoped: takes NO input at all; listOwned filters WHERE owner_id = caller.userId, so there is no id a stranger could aim",
   "plugin.listSurfaces":
     "self-scoped: takes NO input; listOwned filters WHERE owner_id = caller.userId and only the caller's OWN resident instances are consulted, so a stranger's surfaces are never in the result (plugin-ui-plane #679 U1)",
+  "plugin.listDisplayTransforms":
+    "self-scoped: takes NO input; the exact listSurfaces shape (listOwned filters WHERE owner_id = caller.userId; only the caller's OWN resident instances are consulted) (plugin-ui-plane seam 14, U6)",
+  "plugin.transformForDisplay":
+    "self-scoped: takes a chatId + messageId but READS NOTHING with them — they are handed to the caller's own guest as its `env`. The only text in play is text the CALLER's client supplied, returned only to that caller; nothing is persisted and no authority derives from any input. The transforms run are exactly the caller's own (listOwned + the caller's own resident instances), so there is no foreign row a stranger could reach (plugin-ui-plane seam 14, U6)",
   // ── SERVER-WIDE DISTRIBUTION (D147 clause (d), added 2026-08-24). All three are `adminProcedure` + a domain
   //    `requireAdmin` re-check, so the sweep's plain-user stranger is refused FORBIDDEN at LAYER 1 before any
   //    lookup — the `admin.*` role-gate pattern, tested by the admin-gate matrix, not IDOR. None takes a

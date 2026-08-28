@@ -17,7 +17,9 @@ import type {
   InvocationChat,
   PluginEventSubscription,
   PluginHandlerRef,
+  PluginMacroRegistration,
   PluginMessageView,
+  PluginQuietOptions,
   PluginSuggestedAct,
   PluginToolRegistration,
   PluginTransformRegistration,
@@ -195,7 +197,18 @@ export interface PluginHostOps {
    *  generation (the `summarizeQuiet` convention — the caller treats "" as "no answer"). Cost never crosses
    *  the realm boundary; cost VISIBILITY rides the stats domain off the generation itself. */
   readonly llm: {
-    readonly quiet: (req: { readonly installerUserId: UserId; readonly prompt: string; readonly signal: AbortSignal }) => Promise<{ readonly text: string }>;
+    /** `opts` is the U6 widening (plugin-ui-plane §5.16/§5.32) — the guest's RAW structured-output schema and
+     *  the asset ids it wants attached. Both are resolved at COMPOSE, and both resolutions are the reason the
+     *  raw bag travels this far rather than being pre-digested: the schema must go through the ONE projection
+     *  rule (`liftJsonSchema` → `projectJsonSchema`, D79) which no domain owns, and the image bytes come from
+     *  the INSTALLER's own CAS through the owner-gated asset read. An unliftable schema or an asset the
+     *  installer does not own is a typed refusal of the CALL — never a silent drop, and never the plugin. */
+    readonly quiet: (req: {
+      readonly installerUserId: UserId;
+      readonly prompt: string;
+      readonly signal: AbortSignal;
+      readonly opts?: PluginQuietOptions;
+    }) => Promise<{ readonly text: string }>;
   };
   /** The installing user's per-user global KV — fetchOwned under the installer, so cross-user reads are
    *  structurally impossible. `capability: global_vars`. */
@@ -232,6 +245,15 @@ export interface PluginHostOps {
   readonly registrar: {
     readonly registerTool: (reg: PluginToolRegistration, invoke: PluginInvokeHandler, scope: PluginActivationScope) => PluginRegistrationHandle;
     readonly registerTransform: (reg: PluginTransformRegistration, invoke: PluginInvokeHandler, scope: PluginActivationScope) => PluginRegistrationHandle;
+    /** Wire the plugin's COLLECTED macros into the process-wide plugin-macro registry (plugin-ui-plane §5.15).
+     *  Handed the WHOLE set (not one macro) for the same reason `subscribeEvent` is: one plugin's macros are
+     *  registered, ceilinged and unregistered together, and the per-turn read wants them as a unit. The
+     *  registrar assigns the `plugin_<slug'>_<name>` namespace from `scope.slug` — never the guest's spelling. */
+    readonly registerMacros: (
+      macros: readonly PluginMacroRegistration[],
+      invoke: PluginInvokeHandler,
+      scope: PluginActivationScope,
+    ) => PluginRegistrationHandle;
     /** Wire the plugin's COLLECTED event subscriptions onto the automation fan-out as ONE `PluginTriggerSubscriber`
      *  per instance (aggregating every `events.on(type,…)` — declaredEvents = the union of the collected types,
      *  the deliver closure routes each fact to the matching handler[s]). Handed the WHOLE collection (not one

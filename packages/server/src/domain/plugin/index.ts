@@ -28,9 +28,11 @@
 // live in `@orb/contracts/plugin` (the cake — infra mints them without importing a domain); re-exported here
 // so the domain front door stays the one import for a plugin consumer.
 export type {
+  PluginDisplayTransformRegistration,
   PluginEventSubscription,
   PluginHandlerRef,
   PluginInstance,
+  PluginMacroRegistration,
   PluginSurfaceRegistration,
   PluginToolRegistration,
   PluginTransformRegistration,
@@ -69,12 +71,14 @@ export type {
   InstallForAllUsersParams,
   InstallPluginParams,
   InvokeUiActionParams,
+  ListDisplayTransformsParams,
   ListDistributedPluginsParams,
   ListPluginsParams,
   ListSurfacesParams,
   RunSnippetParams,
   SetPluginEnabledParams,
   SetPluginGrantParams,
+  TransformForDisplayParams,
   UninstallForAllUsersParams,
   UninstallPluginParams,
   UpgradePluginParams,
@@ -82,6 +86,7 @@ export type {
 export type {
   DistributedPluginApplication,
   DistributedPluginView,
+  PluginDisplayTransformView,
   PluginFanoutResult,
   PluginFanoutSkip,
   PluginFanoutSkipReason,
@@ -105,8 +110,11 @@ export { isPluginEnabledFor } from "./persistence/plugins.ts";
 export { createPluginService } from "./service.ts";
 export { buildConfirmedActRunner } from "./substrate/confirmed-act.ts";
 export { createNotifyFloor } from "./substrate/notify-floor.ts";
+export type { PluginMacroRegistry } from "./substrate/plugin-macros.ts";
+export { createPluginMacroRegistry, PLUGIN_MACRO_RESOLVE_DEADLINE_MS, PLUGIN_MACROS_MAX, pluginMacroName } from "./substrate/plugin-macros.ts";
 export { createPluginRateFloor, PLUGIN_EGRESS_PER_HOUR, PLUGIN_QUIET_LLM_PER_HOUR } from "./substrate/rate-floor.ts";
 export { buildPluginPromptTransform, capFactContent } from "./substrate/registrar.ts";
 export { createSnippetGate } from "./substrate/snippet-gate.ts";
 export { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "./substrate/storage.ts";
 export { createPluginSurfaceStateStore, createSurfaceStatePublisher, PLUGIN_SURFACE_STATE_MAX_KEYS } from "./substrate/surface-state.ts";
+export { PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS } from "./verbs/transform-for-display.ts";

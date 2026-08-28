@@ -68,7 +68,14 @@ import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "#feature
 import { imageDetailModal, imageEditModal, imagerySlashCommands, imagineModal } from "#features/imagery";
 import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
-import { pluginChatFlankSurface, pluginChatSettingsSection, pluginDistributeSection, pluginSnippetConsoleSection, pluginsPane } from "#features/plugin";
+import {
+  pluginChatFlankSurface,
+  pluginChatSettingsSection,
+  pluginDistributeSection,
+  pluginMessageFooterSurface,
+  pluginSnippetConsoleSection,
+  pluginsPane,
+} from "#features/plugin";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexCollection } from "#features/regex";
@@ -202,6 +209,11 @@ const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContributio
   // plugin). It carries no `when` — "does this person have a chat-flank surface?" is DATA the seam's sync
   // predicate cannot see — so it mounts in every room and renders null where it does not apply.
   pluginChatFlankSurface,
+  // U6 (#679, §5.4): the ONE plugin `message-footer` tenant — the per-ROW decoration strip. LAST at that anchor
+  // too, and for the same reason: the house's own per-row disclosures (rpg's tool-call row, the reaction bar)
+  // read above third-party decoration. It carries no `when` (the anchor's own mount already excludes the ghost
+  // and the pre-commit greeting) and renders null where it does not apply.
+  pluginMessageFooterSurface,
 ]);
 
 // The per-tool-name renderer seam (§6c): EMPTY but typed — zero contributions ⇒ every persisted tool record

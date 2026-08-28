@@ -90,6 +90,7 @@ function recordingOps(db: Db, globals: Map<string, string>): { ops: PluginHostOp
         captured.scope = scope;
         return noop;
       },
+      registerMacros: (): PluginRegistrationHandle => noop,
       subscribeEvent: (subscriptions, invoke, scope): PluginRegistrationHandle => {
         for (const sub of subscriptions) {
           captured.events.push({ type: sub.type, handler: sub.handler });

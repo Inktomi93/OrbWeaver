@@ -4,7 +4,7 @@
 // priority, operator intent spared), WI position routing, and the immutable/pure ctx (§5 — two calls equal).
 import type { CharacterCard } from "@orb/contracts/character";
 import { cardDepthPromptSchema } from "@orb/contracts/character";
-import type { ChatInjection, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatInjection, PromptTransformResult, RoomOverrides } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, promptConfigSchema } from "@orb/contracts/preset";
@@ -229,7 +229,8 @@ describe("buildAssembleContext — the D50 user_input PromptTransform point (aut
     const chatId = await seedChat(db, "u");
     const charId = await seedCharacter(db, host, "aria");
     // The transform INSERTS "SECRET"; only fires at the user_input point.
-    const apply = (point: string, _chatId: unknown, draft: string): Promise<string> => Promise.resolve(point === "user_input" ? `${draft} SECRET` : draft);
+    const apply = (point: string, _chatId: unknown, draft: string): Promise<PromptTransformResult> =>
+      Promise.resolve({ aborted: false, text: point === "user_input" ? `${draft} SECRET` : draft });
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")), promptTransforms: apply as ChatContext["promptTransforms"] });
     const out: { sendUserText?: string } = {};
     // A USER_INPUT regex that redacts SECRET — it can only bite if the transform (which inserts SECRET) ran first.

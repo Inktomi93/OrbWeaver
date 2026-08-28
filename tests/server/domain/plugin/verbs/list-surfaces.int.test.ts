@@ -17,6 +17,8 @@ function instanceWith(surfaceId: string): PluginInstance {
     tools: [],
     transforms: [],
     events: [],
+    displayTransforms: [],
+    macros: [],
     surfaces: [
       {
         id: surfaceId,
