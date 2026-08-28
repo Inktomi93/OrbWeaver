@@ -292,6 +292,20 @@ export function reConsentLine(addedCapabilities: readonly PluginCapability[], ad
   return `This update changed what this plugin can reach, ${tail}`;
 }
 
+/** U8 2b — the auto update-check vocabulary, ONE home so the row and its CT read the same words. A `url`-origin
+ *  plugin remembers where it was fetched from, so the app can re-check the source and offer a re-paste-free
+ *  one-click update; a file (`upload`) install has no source and never shows these. `CHECK_FOR_UPDATES_LABEL`
+ *  triggers the check; the three verdicts map 1:1 to the `PluginUpdateCheck` arms. */
+export const CHECK_FOR_UPDATES_LABEL = "Check for updates";
+/** The settled `up-to-date` line. */
+export const UPDATE_UP_TO_DATE_LINE = "Up to date — this is the latest version from its source.";
+/** The settled `unreachable` line — leak-free by design (the server never says WHY, so neither do we). */
+export const UPDATE_UNREACHABLE_LINE = "Couldn't reach its source to check for updates.";
+/** The one-click affordance's label — names the version to move to, so the act is legible before the click. */
+export function updateAvailableLabel(newVersion: string): string {
+  return `Update to ${newVersion}`;
+}
+
 /** The one canonical explanation of what removing a plugin does — the row's overflow menu and the
  *  re-consent notice's escape action (P1-3) both trigger the SAME irreversible act, so they read the SAME
  *  sentence rather than two hand-written paraphrases drifting apart. */

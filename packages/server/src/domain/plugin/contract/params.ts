@@ -5,8 +5,19 @@
 // is the inline-mode input — TYPE HOME ONLY here; the verb implementation lives with the other verbs.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { PluginCapability, PluginCommandArgValue } from "@orb/contracts/plugin";
+import type { PluginCapability, PluginCommandArgValue, PluginOrigin } from "@orb/contracts/plugin";
 import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
+
+/** WHERE an install got its bytes — the honest origin + the URL to remember (plugin-ui-plane #679 U8 2b). The
+ *  install verb is source-agnostic (`substrate/manifest.ts`); the CALLING verb states the source, never the
+ *  client. Absent ⇒ a file upload (`origin:"upload"`, no `sourceUrl`); `installFromUrl` passes
+ *  `{ origin:"url", sourceUrl:url }` so the row records the honest origin AND the URL the update-check re-fetches.
+ *  The `origin ⟺ sourceUrl` pairing is enforced at the db CHECK, so this type carries both together rather than
+ *  letting a caller set one without the other. */
+export interface PluginInstallSource {
+  readonly origin: PluginOrigin;
+  readonly sourceUrl: string | null;
+}
 
 /** `installPlugin` — unzip+validate the bundle, store its bytes in the CAS, insert a `disabled` row.
  *  `grant` is the confirmed capability subset (⊆ the manifest's declared set — `CapabilityNotGrantedError`
@@ -16,6 +27,10 @@ export interface InstallPluginParams {
   readonly caller: Principal;
   readonly bundle: Uint8Array;
   readonly grant: readonly PluginCapability[];
+  /** Where the bytes came from (U8 2b). Absent ⇒ a file upload (`origin:"upload"`, no `sourceUrl`) — the shape
+   *  the transport `install` proc and the admin fan-out both take. `installFromUrl` sets it so the row records a
+   *  `url` origin + the remembered URL. See {@link PluginInstallSource}. */
+  readonly source?: PluginInstallSource;
 }
 
 /** `upgradePlugin` — replace an installed plugin's bundle. The new manifest's `id` MUST match the
@@ -59,6 +74,26 @@ export interface UpgradeFromUrlParams {
   readonly caller: Principal;
   readonly pluginId: PluginId;
   readonly url: string;
+}
+
+/** `checkForUpdates` — the auto update-check (plugin-ui-plane #679 U8 2b, the thing ST's loader does: check every
+ *  URL-installed extension's version). BATCH + SELF-scoped: no id, like `list`/`listSurfaces` — it walks the
+ *  caller's OWN plugins, checks only the `url`-origin ones (a file install has no source to check, so it is
+ *  simply absent from the result, never a dishonest "unreachable"), and re-fetches each remote manifest through
+ *  the SAME egress guard the install rode (`ctx.fetchBundle`). No foreign id ⇒ sweep-EXEMPT. */
+export interface CheckForUpdatesParams {
+  readonly caller: Principal;
+}
+
+/** `upgradeFromStoredUrl` — the TRUE one-click upgrade (plugin-ui-plane #679 U8 2b): re-fetch from the URL the
+ *  plugin was installed from (`plugins.source_url`) and run it through the EXISTING `upgrade` verb, so #615's
+ *  reach-widening→disabled re-consent wall applies UNCHANGED — never a silent auto-update. Owner-scoped: the
+ *  plugin's OWN row is loaded (foreign/missing ⇒ leak-free NOT_FOUND) BEFORE any fetch, exactly like
+ *  {@link UpgradeFromUrlParams}; the difference is the URL is the REMEMBERED one, not a caller echo, so the
+ *  affordance needs no re-paste. A file-install row (no `sourceUrl`) is a typed `PluginNoSourceUrlError`. */
+export interface UpgradeFromStoredUrlParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
 }
 
 /** `setPluginGrant` — the RE-CONSENT act, and the half the upgrade path was missing. `upgrade` intersects the

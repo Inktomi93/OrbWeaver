@@ -54,8 +54,25 @@ import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC 
 import { notify } from "#lib";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
-import { builtAgainstLine, grantSummaryLine, REMOVE_PLUGIN_DESCRIPTION, reConsentLine, statusCopy } from "../lib/plugin-copy.ts";
-import { useSetPluginEnabled, useSetPluginGrant, useUninstallPlugin, useUpgradePlugin } from "../lib/plugin-mutations.ts";
+import {
+  builtAgainstLine,
+  CHECK_FOR_UPDATES_LABEL,
+  grantSummaryLine,
+  REMOVE_PLUGIN_DESCRIPTION,
+  reConsentLine,
+  statusCopy,
+  UPDATE_UNREACHABLE_LINE,
+  UPDATE_UP_TO_DATE_LINE,
+  updateAvailableLabel,
+} from "../lib/plugin-copy.ts";
+import {
+  useCheckForUpdates,
+  useSetPluginEnabled,
+  useSetPluginGrant,
+  useUninstallPlugin,
+  useUpgradePlugin,
+  useUpgradePluginFromStoredUrl,
+} from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 import { PluginLogPanel } from "./plugin-log-panel.tsx";
 import { PluginSurfacesPanel } from "./plugin-surfaces-panel.tsx";
@@ -182,6 +199,12 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
         </Text>
       )}
 
+      {/* U8 2b — the auto update-check + one-click upgrade, ONLY for a `url`-origin install (it remembers where
+          it was fetched from). A file install has no remembered source, so it keeps only the manual "Update"
+          bundle upload above. The one-click upgrade rides the SAME server upgrade verb, so a reach-widening
+          update lands `disabled` and the ReConsentNotice below renders — never silent. */}
+      {plugin.origin === "url" ? <UpdateCheckRow plugin={plugin} /> : null}
+
       {/* The plugin's OWN settings surfaces (plugin-ui-plane #679 U1) — rendered inside the first-party
           labelled shell, per §4.5. Renders nothing when the plugin is disabled or ships no settings surface. */}
       <PluginSurfacesPanel grants={plugin.grantedCapabilities} pluginId={plugin.id} pluginName={plugin.name} />
@@ -257,6 +280,100 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
         </CollapsiblePanel>
       </Collapsible>
     </Stack>
+  );
+}
+
+/** The auto update-check's local verdict for ONE row (U8 2b). Local, not server state: the check writes
+ *  nothing, so its result is transient UI feedback until the person acts on it (a one-click upgrade is what
+ *  makes a DURABLE change, and that rides the list refetch). `idle` before the first check. */
+type UpdateVerdict = { readonly kind: "idle" | "up-to-date" | "unreachable" } | { readonly kind: "available"; readonly newVersion: string };
+
+/** The update-check + one-click upgrade affordance for a `url`-origin plugin (U8 2b — the thing ST's loader
+ *  does). "Check for updates" runs the server batch check and shows this row's verdict; when a newer version is
+ *  available, "Update to X" re-fetches the REMEMBERED source and upgrades in place through the SAME server
+ *  upgrade verb the file upload uses — so a reach-widening update lands the row `disabled` and the parent's
+ *  ReConsentNotice renders (never silent). The verdict resets after a successful one-click: the list refetch
+ *  carries the new version/consent state, which is the durable truth. */
+function UpdateCheckRow({ plugin }: PluginRowProps): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const check = useCheckForUpdates({ trpc, invalidation });
+  const upgradeStored = useUpgradePluginFromStoredUrl({ trpc, invalidation });
+  const [verdict, setVerdict] = useState<UpdateVerdict>({ kind: "idle" });
+
+  const runCheck = async (): Promise<void> => {
+    const results = await check.mutateAsync(undefined).catch(() => undefined);
+    if (results === undefined) {
+      return;
+    }
+    const mine = results.find((result) => result.pluginId === plugin.id);
+    // A file-origin plugin (or a since-uninstalled one) is simply absent from the batch — treat that like
+    // "couldn't determine". `unreachable` is the leak-free arm the server hands back for a blocked/404/garbage
+    // source, and it carries no reason by design, so neither does this line.
+    if (mine === undefined || mine.status === "unreachable") {
+      setVerdict({ kind: "unreachable" });
+      return;
+    }
+    if (mine.status === "update-available") {
+      setVerdict({ kind: "available", newVersion: mine.newVersion });
+      return;
+    }
+    setVerdict({ kind: "up-to-date" });
+  };
+
+  const applyStoredUpgrade = async (): Promise<void> => {
+    const updated = await upgradeStored.mutateAsync({ pluginId: plugin.id }).catch(() => undefined);
+    if (updated === undefined) {
+      return;
+    }
+    // The durable truth is now on the refetched row (new version, and `reconsentPending` if it widened reach) —
+    // drop the transient verdict. The toast reads the SERVER's own `reconsentPending`, so it can never disagree
+    // with the ReConsentNotice the parent renders from the same flag.
+    setVerdict({ kind: "idle" });
+    if (updated.reconsentPending) {
+      notify.info(`${plugin.name} stayed off — this update asks for more than you've allowed. Check below.`);
+      return;
+    }
+    notify.success(`${plugin.name} is now ${updated.version}.`);
+  };
+
+  return (
+    <Row align="center" gap="field" justify="start">
+      <Button
+        aria-label={`Check ${plugin.name} for updates`}
+        intent="secondary"
+        loading={check.isPending}
+        onClick={(): void => {
+          void runCheck();
+        }}
+        size="sm"
+      >
+        {CHECK_FOR_UPDATES_LABEL}
+      </Button>
+      {verdict.kind === "available" ? (
+        <Button
+          aria-label={`Update ${plugin.name} to ${verdict.newVersion}`}
+          intent="primary"
+          loading={upgradeStored.isPending}
+          onClick={(): void => {
+            void applyStoredUpgrade();
+          }}
+          size="sm"
+        >
+          {updateAvailableLabel(verdict.newVersion)}
+        </Button>
+      ) : null}
+      {verdict.kind === "up-to-date" ? (
+        <Text prose={true} voice="gloss">
+          {UPDATE_UP_TO_DATE_LINE}
+        </Text>
+      ) : null}
+      {verdict.kind === "unreachable" ? (
+        <Text prose={true} voice="gloss">
+          {UPDATE_UNREACHABLE_LINE}
+        </Text>
+      ) : null}
+    </Row>
   );
 }
 

@@ -34,6 +34,7 @@ async function seedPlugin(db: Db, ownerId: UserId, id: string, slug: string): Pr
     grantedCapabilities: [],
     status: "disabled",
     origin: "upload",
+    sourceUrl: null,
     installedAt: AT,
     updatedAt: AT,
   });

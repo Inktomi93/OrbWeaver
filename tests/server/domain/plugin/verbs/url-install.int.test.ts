@@ -89,10 +89,28 @@ test("installFromUrl mints the CALLER's own disabled row through the same funnel
   const view = await h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, grant: ["chat.read"] });
 
   expect(view.status).toBe("disabled");
-  const [row] = await db.select({ ownerId: plugins.ownerId, origin: plugins.origin }).from(plugins).where(eq(plugins.id, view.id));
+  // U8 2b — the origin is HONEST now ("url", not the 2a "upload" placeholder) and the fetch URL is REMEMBERED, so
+  // the auto update-check + one-click upgrade can re-fetch it. The projected view carries both.
+  expect(view.origin).toBe("url");
+  expect(view.sourceUrl).toBe(URL);
+  const [row] = await db
+    .select({ ownerId: plugins.ownerId, origin: plugins.origin, sourceUrl: plugins.sourceUrl })
+    .from(plugins)
+    .where(eq(plugins.id, view.id));
   expect(row?.ownerId).toBe(owner);
-  // Origin stays "upload" — the bundle funnel is source-agnostic (design-sanctioned; a URL is just another byte source).
-  expect(row?.origin).toBe("upload");
+  expect(row?.origin).toBe("url");
+  expect(row?.sourceUrl).toBe(URL);
+});
+
+test("a FILE install records origin 'upload' and NO sourceUrl (the update-check has nothing to re-fetch)", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+  const view = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "filed", capabilities: [] }), grant: [] });
+
+  expect(view.origin).toBe("upload");
+  expect(view.sourceUrl).toBeNull();
 });
 
 test("installFromUrl grant ⊄ declared is refused by install's own consent check (CapabilityNotGrantedError)", async () => {
