@@ -114,6 +114,10 @@ host.events.on("messageCommitted", async (fact) => {
     }
     host.log.info(`affinity reading for ${chatId}: ${score}`);
     await announceIfMoved(chat, chatId, score);
+    // …and push the same reading onto the ROOM SURFACE (the chat-flank widget registered below). This is the
+    // whole shape of a live plugin widget: a room event lands, you compute, you `setState`, and the app
+    // repaints the surface for you. Nothing here draws anything — the spec below is the drawing.
+    await publishFlank(score);
   } catch (err) {
     // A handler must never throw — three consecutive rejections auto-disable the plugin. The two failures
     // this one actually meets are the hourly `llm.quiet` floor and a model provider having a bad minute;
@@ -206,6 +210,47 @@ host.ui.register({
       await publishSummary();
     }
   },
+});
+
+// ── THE ROOM WIDGET (ui.surface at the `chat-flank` anchor) ──────────────────────────────────────────────
+//
+// The SAME vocabulary as the settings panel, mounted beside the transcript instead of in the settings screen.
+// The app draws it in a labelled frame that names this plugin — you cannot draw the room's own chrome, and
+// you never have to: what you get for free is the room's theme, spacing, focus order and a11y.
+//
+// THE TWO RULES THAT MATTER AT THIS ANCHOR:
+//  1. SILENT UNTIL YOU HAVE SOMETHING TO SAY. A flank surface whose values are `{ $state }` bindings renders
+//     NOTHING until you have published state, and a room that shows no widget is byte-identical to a room
+//     with no plugin at all. So do not publish a placeholder — publish when you have a reading.
+//  2. STATE IS PER (plugin, surface) — NOT per room. `setState` replaces the whole object, and every room
+//     shows the same published state, so say what the number IS ("your latest reading") rather than implying
+//     it belongs to the room you happen to be looking at.
+const AFFINITY_FLANK_SPEC = {
+  kind: "stack",
+  gap: "field",
+  children: [
+    { kind: "meter", label: "Warmth", max: SCORE_MAX, value: { $state: "score" } },
+    { kind: "text", voice: "gloss", value: { $state: "caption" } },
+  ],
+};
+
+/** Publish the latest reading to the room widget. Called from the event handler — that is what makes the
+ *  widget LIVE: the app is told the surface changed and repaints it wherever it is on screen. */
+async function publishFlank(score) {
+  await host.ui.setState("affinity_flank", {
+    score,
+    caption: `Your latest warmth reading, ${score} of ${SCORE_MAX}, taken every ${SCORE_EVERY} messages.`,
+  });
+}
+
+host.ui.register({
+  id: "affinity_flank",
+  anchor: "chat-flank",
+  title: "Warmth",
+  tier: "static",
+  spec: AFFINITY_FLANK_SPEC,
+  // No `onAction`: this surface is a READOUT. A surface with no actions is a perfectly good surface — it is
+  // the cheapest thing to build and the least that can go wrong in a room.
 });
 
 host.log.info(`affinity tracker ready — scoring every ${SCORE_EVERY} messages (grants: ${host.grants.join(", ") || "none"})`);
