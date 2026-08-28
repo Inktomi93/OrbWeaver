@@ -51,6 +51,8 @@ function chatTriggerLabel(type: ChatTriggerType): string {
       return "when a message is hidden";
     case "messagesDeleted":
       return "when messages are deleted";
+    case "reactionsChanged":
+      return "when someone reacts to a message";
     case "chatUpdated":
       return "when this chat's settings change";
     case "wiEntryAttached":

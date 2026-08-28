@@ -1,5 +1,6 @@
-// schema/chat — the chat cluster (producer: domain/chat; the biggest, most intricate slice). Twelve tables:
-// chats · messages · message_variants · chat_participants · chat_invites · pending_turns · chat_events ·
+// schema/chat — the chat cluster (producer: domain/chat; the biggest, most intricate slice). Fourteen tables:
+// chats · messages · message_variants · message_assets · message_reactions · chat_participants ·
+// chat_invites · pending_turns · chat_events ·
 // chat_stream_events · chat_injections · chat_locks · chat_import_claims · chat_handoff_resumptions. Built
 // WHOLE (no feature-phasing — ledger D16); the authoritative spec is `core/Tier-1-DB.md`.
 //
@@ -75,6 +76,7 @@ import type {
   ChatStreamEventId,
   MessageAssetId,
   MessageId,
+  MessageReactionId,
   MessageVariantId,
   PendingTurnId,
   PersonaId,
@@ -624,6 +626,79 @@ export const chatParticipants = sqliteTable(
     check("chat_participants_kind_check", sql.raw(`kind in (${checkList(PARTICIPANT_KINDS)})`)),
     check("chat_participants_role_check", sql.raw(`role in (${checkList(PARTICIPANT_ROLES)})`)),
     check("chat_participants_join_visibility_check", sql.raw(`join_history_visibility in (${checkList(JOIN_HISTORY_VISIBILITIES)})`)),
+  ],
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// message_reactions — B6/MR0, one row per (variant, reactor seat, emoji). CANON, membership-visible, and
+// deliberately NOT a JSON blob on the variant: reactions are MULTI-USER, and two members toggling the same
+// message on a stored array is a lost-update race (a read-modify-write of the whole list). A junction makes
+// every toggle ONE statement — an `INSERT … ON CONFLICT DO NOTHING` or a keyed `DELETE` — so it needs no turn
+// lock and no arbitration (the whole write path, MA-2 §4/§5). Marinara's `extra.reactions` array is a
+// single-user pattern and does not port.
+//
+// ANCHORED TO THE VARIANT, NOT THE SLOT (MA-2 Open-Q A, ruled variant-level). Content is
+// `message_variants`-owned (D26): a swipe is a distinct generation with its own text, so "a reaction to this
+// reply" only means anything against one swipe. A fresh regeneration starts with an empty set; swiping back
+// shows that swipe's own reactions; the FK CASCADE drops them with the variant.
+//
+// THE REACTOR IS A SEAT (`chat_participants.id`, D80) — the five-plane unifier. One column covers a human
+// member, a character (B7's `react` tool), and the reserved agent kind with no `reactorKind` discriminant,
+// and a NON-MEMBER cannot react at all because they have no seat (D18). The reactor's identity is DATA, not
+// the ownership key: scope DERIVES variantId → messages → chats → the roster (D23 derive-don't-stamp — the
+// `gallery_items`/`character_tags` class), so there is no `ownerId` and no `chatId` here.
+//
+// NO SEGMENT COLUMNS YET. MR0-MR2 is whole-message; B7's segment anchor lands ADDITIVELY (a nullable index
+// PLUS the captured speaker beside it, because a speaker-span index is not edit-stable — a stale pair must
+// DEGRADE to whole-message rather than mis-attach). Nothing here forecloses that: the UNIQUE below widens by
+// adding the index column to it, which is the same baseline squash any new column costs.
+//
+// `emoji` IS PLAIN TEXT WITH NO CHECK, and that is a decision (see `@orb/contracts/chat/reactions`): the
+// vocabulary is OPEN BY DESIGN — Open-Q D ruled CUSTOM (CAS-backed) emoji ship — so a tuple-derived CHECK
+// would make the widening a second baseline squash. Validation is the wire enum + the verb's own re-parse.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const messageReactions = sqliteTable(
+  "message_reactions",
+  {
+    id: text("id").$type<MessageReactionId>().primaryKey(),
+    // The ANCHOR (see the header). CASCADE: a deleted swipe takes its reactions with it, and a message/chat
+    // delete reaches here through the variant's own cascade.
+    variantId: text("variant_id")
+      .$type<MessageVariantId>()
+      .notNull()
+      .references(() => messageVariants.id, { onDelete: "cascade" }),
+    // WHO reacted, as a roster seat (D80). CASCADE: a member who is hard-deleted (or a character removed
+    // from the roster) takes their reactions with them — unlike a MESSAGE, a reaction carries no authored
+    // prose worth preserving past its author, so this is a CASCADE where `messages` uses SET NULL.
+    reactorParticipantId: text("reactor_participant_id")
+      .$type<ChatParticipantId>()
+      .notNull()
+      .references(() => chatParticipants.id, { onDelete: "cascade" }),
+    // The unicode emoji, or (when custom emoji land) a `:name:` token. Plain TEXT — see the header.
+    emoji: text("emoji").notNull(),
+    // The custom-emoji image (D21 CAS) — BORN AND TYPED, written by nothing through MR0-MR2 (the wire is
+    // unicode-only). It exists now because the pre-launch schema is baseline-SQUASHED: adding a column later
+    // costs a whole merge window, and Open-Q D already ruled custom emoji ship. Registered RETAINING in
+    // `domain/assets/persistence/asset-refs.ts` — a CAS column the ref registry cannot see is a blob the GC
+    // reaps out from under a live reaction. SET NULL (never CASCADE): losing the art degrades the chip to
+    // its token, it must not delete somebody's reaction.
+    emojiImageAssetId: text("emoji_image_asset_id")
+      .$type<AssetId>()
+      .references(() => assets.id, { onDelete: "set null" }),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    // ONE reactor · ONE emoji · ONE target. This is what makes the toggle idempotent as PHYSICS rather than
+    // as writer discipline: a double-add is an `ON CONFLICT DO NOTHING` no-op and a remove is a keyed DELETE,
+    // so two racing members cannot corrupt the set (§2.3 — the enforcer is the index, not a comment).
+    uniqueIndex("message_reactions_variant_reactor_emoji_unique").on(t.variantId, t.reactorParticipantId, t.emoji),
+    // The pill row's own read ("this variant's reactions") AND the variant CASCADE parent — the unique above
+    // already LEADS with `variantId`, so SQLite serves both from it; this index would be redundant. The two
+    // FKs that do NOT lead an index each get one (`fk-columns-indexed` gate): a participant delete and an
+    // asset delete would otherwise scan the whole table to apply their rule.
+    index("message_reactions_reactor_idx").on(t.reactorParticipantId),
+    index("message_reactions_emoji_asset_idx").on(t.emojiImageAssetId),
   ],
 );
 

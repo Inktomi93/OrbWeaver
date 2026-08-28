@@ -171,6 +171,10 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
     scope: "parent",
     why: "S5 (C1) the run_analysis arm's plot state — scope derives ruleId → automation_rules (ownerId, chatId); D23-clean, no member/plugin read surface (interaction-direction-spec §3-S5.2).",
   },
+  message_reactions: {
+    scope: "parent",
+    why: "B6/MR0 — scope derives variantId → message_variants → messages → chats → the roster (D23 derive-don't-stamp). It is NOT `junction`: both FKs land in the SAME room, so there is no second independently-scoped parent to reach; and NOT `membership`, because the row carries no chatId of its own. `reactorParticipantId` is DATA (which seat reacted, D80), never the read key (MA-2 §3/§4).",
+  },
   character_embeddings: {
     scope: "parent",
     why: "derived vectors for a character — scope is `characters.ownerId` via the FK (embeddings stamps no owner, D23).",
