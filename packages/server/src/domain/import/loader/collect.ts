@@ -12,7 +12,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { parseChatJsonl } from "#kit/serde/chat";
-import { ProfileImportLimitError } from "../contract/errors.ts";
+import { ImportInfraFailureError, ProfileImportLimitError } from "../contract/errors.ts";
 import type {
   CollectedBackground,
   CollectedCard,
@@ -127,6 +127,31 @@ async function listDir(fs: ImportFsPort, dir: string): Promise<{ name: string; k
 function rethrowProfileLimit(error: unknown): void {
   if (error instanceof ProfileImportLimitError) {
     throw error;
+  }
+}
+
+/** True when `error` carries a Node fs `.code` other than `ENOENT` — the documented "missing" shape every
+ *  best-effort collector below is allowed to fold into its no-value fallback. `ENOENT` and a `.code`-less
+ *  error (a `JSON.parse` `SyntaxError` — the corrupt-FORMAT case) both stay swallowed; anything else
+ *  (`EACCES`, `EISDIR`, `EIO`, `ELOOP`, a permission/hardware/mount fault) is an INFRASTRUCTURE failure. */
+function isInfraFailure(error: unknown): boolean {
+  if (!(error instanceof Error && "code" in error)) {
+    return false;
+  }
+  const code = (error as NodeJS.ErrnoException).code;
+  return typeof code === "string" && code !== "ENOENT";
+}
+
+/** The shared catch-arm guard for every best-effort staged-file read below (#763): a `ProfileImportLimitError`
+ *  always rethrows (pre-existing), and now an fs INFRASTRUCTURE failure rethrows too — tagged with the
+ *  affected `path` + `operation` so the caller sees WHERE the import broke instead of silently continuing
+ *  with an incomplete result that still reports success. A genuinely missing file or an unparseable
+ *  (corrupt-format) one falls through unchanged — the caller's existing "treat as absent/default" fallback
+ *  is the documented behavior for THOSE two cases, and this function must not touch it. */
+function rethrowInfraFailure(error: unknown, path: string, operation: string): void {
+  rethrowProfileLimit(error);
+  if (isInfraFailure(error)) {
+    throw new ImportInfraFailureError(operation, path, error);
   }
 }
 
@@ -321,11 +346,12 @@ async function collectBackgrounds(fs: ImportFsPort, profileDir: string, state: C
  *  settings.json contributes nothing (the same best-effort posture as tags/personas). */
 async function collectSettingsPreset(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
   let settingsRaw: unknown;
+  const settingsPath = fs.join(profileDir, "settings.json");
   try {
-    const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
+    const bytes = await fs.readFile(settingsPath);
     settingsRaw = JSON.parse(new TextDecoder().decode(bytes));
   } catch (error) {
-    rethrowProfileLimit(error);
+    rethrowInfraFailure(error, settingsPath, "readFile");
     return;
   }
   const parsed = parseStSettingsPreset(settingsRaw);
@@ -359,7 +385,7 @@ async function collectGroupChats(args: {
       }
       bytes = await fs.readFile(filePath);
     } catch (error) {
-      rethrowProfileLimit(error);
+      rethrowInfraFailure(error, filePath, "readFile");
       missingChatLeaves.push(fileName);
       continue;
     }
@@ -410,8 +436,9 @@ async function collectUnhandled(fs: ImportFsPort, profileDir: string, state: Col
       state.unhandled.push(ent.kind === "directory" ? `${ent.name}/` : ent.name);
     }
   }
+  const settingsPath = fs.join(profileDir, "settings.json");
   try {
-    const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
+    const bytes = await fs.readFile(settingsPath);
     const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
     if (typeof parsed === "object" && parsed !== null) {
       for (const key of Object.keys(parsed)) {
@@ -421,7 +448,7 @@ async function collectUnhandled(fs: ImportFsPort, profileDir: string, state: Col
       }
     }
   } catch (error) {
-    rethrowProfileLimit(error);
+    rethrowInfraFailure(error, settingsPath, "readFile");
     // No/corrupt settings.json — nothing to report from it (personas collection records its own absence).
   }
 }
@@ -429,11 +456,12 @@ async function collectUnhandled(fs: ImportFsPort, profileDir: string, state: Col
 /** Best-effort: the orb `appearance` patch this profile's `power_user` section carries (the VIEWER half of
  *  what ST bundles into a theme file). A missing/corrupt settings.json yields `{}` — nothing is patched. */
 async function collectAppearance(fs: ImportFsPort, profileDir: string): Promise<Record<string, unknown>> {
+  const settingsPath = fs.join(profileDir, "settings.json");
   try {
-    const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
+    const bytes = await fs.readFile(settingsPath);
     return stAppearancePatch(JSON.parse(new TextDecoder().decode(bytes)));
   } catch (error) {
-    rethrowProfileLimit(error);
+    rethrowInfraFailure(error, settingsPath, "readFile");
     return {};
   }
 }
@@ -454,11 +482,12 @@ function descend(raw: unknown, ...keys: string[]): unknown {
 /** Best-effort settings.json read shared by the two side-collectors below (tags/personas already own their
  *  copies of this posture): null on a missing/corrupt file, never a throw. */
 async function readSettingsJson(fs: ImportFsPort, profileDir: string): Promise<unknown> {
+  const settingsPath = fs.join(profileDir, "settings.json");
   try {
-    const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
+    const bytes = await fs.readFile(settingsPath);
     return JSON.parse(new TextDecoder().decode(bytes));
   } catch (error) {
-    rethrowProfileLimit(error);
+    rethrowInfraFailure(error, settingsPath, "readFile");
     return null;
   }
 }
@@ -546,11 +575,12 @@ async function countUserPlanes(fs: ImportFsPort, profileDir: string): Promise<{ 
 // A missing/corrupt settings.json yields an empty map. The driver attaches these to each imported character
 // by matching the card filename against the map key (ST's `tag_map[character.avatar]`).
 async function collectTags(fs: ImportFsPort, profileDir: string): Promise<ReadonlyMap<string, readonly string[]>> {
+  const settingsPath = fs.join(profileDir, "settings.json");
   try {
-    const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
+    const bytes = await fs.readFile(settingsPath);
     return parseStTags(JSON.parse(new TextDecoder().decode(bytes))).byEntityKey;
   } catch (error) {
-    rethrowProfileLimit(error);
+    rethrowInfraFailure(error, settingsPath, "readFile");
     return new Map();
   }
 }
@@ -558,11 +588,12 @@ async function collectTags(fs: ImportFsPort, profileDir: string): Promise<Readon
 // Best-effort: a missing/corrupt settings.json yields []; a missing avatar yields an avatar-less persona.
 async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<CollectedPersona[]> {
   let settingsRaw: unknown;
+  const settingsPath = fs.join(profileDir, "settings.json");
   try {
-    const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
+    const bytes = await fs.readFile(settingsPath);
     settingsRaw = JSON.parse(new TextDecoder().decode(bytes));
   } catch (error) {
-    rethrowProfileLimit(error);
+    rethrowInfraFailure(error, settingsPath, "readFile");
     return [];
   }
   const { personas } = parseStPersonas(settingsRaw);
@@ -570,10 +601,11 @@ async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<Co
   const out: CollectedPersona[] = [];
   for (const parsed of personas) {
     let avatarBytes: Uint8Array | undefined;
+    const avatarPath = fs.join(avatarsDir, parsed.avatarFile);
     try {
-      avatarBytes = await fs.readFile(fs.join(avatarsDir, parsed.avatarFile));
+      avatarBytes = await fs.readFile(avatarPath);
     } catch (error) {
-      rethrowProfileLimit(error);
+      rethrowInfraFailure(error, avatarPath, "readFile");
       avatarBytes = undefined;
     }
     out.push(avatarBytes !== undefined ? { parsed, avatarBytes } : { parsed });
