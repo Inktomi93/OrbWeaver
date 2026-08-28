@@ -6,9 +6,11 @@
 //
 // IT DELEGATES TO `install` verbatim (the verb-to-verb precedent), which is the whole safety story: the grant ⊆
 // declared check, the per-owner slug-collision check, the CAS store under the caller, and the `disabled` insert
-// all run unchanged, and the origin stays `"upload"` (the bundle funnel is source-agnostic — a URL is just
-// another byte source). SELF-authority: `install` stamps `ownerId: caller.userId`, so a URL install grants the
-// caller authority over nothing but their own new row (no foreign id — the sweep classifies it EXEMPT).
+// all run unchanged. The ONE thing it adds is the honest SOURCE (U8 2b): `{ origin:"url", sourceUrl:url }`, so
+// the row records where the bytes came from and the auto update-check + one-click upgrade can re-fetch it
+// re-paste-free (2a recorded `"upload"` as a source-agnostic-funnel placeholder; 2b makes the origin truthful).
+// SELF-authority: `install` stamps `ownerId: caller.userId`, so a URL install grants the caller authority over
+// nothing but their own new row (no foreign id — the sweep classifies it EXEMPT).
 //
 // The fetch rides `ctx.fetchBundle` (the compose-wired `safeFetch` ANY_HOST guard — SSRF/private-range denial +
 // byte cap, NEVER a bare fetch of an attacker-named URL); `fetchBundleThroughGuard` collapses any fetch failure
@@ -21,6 +23,6 @@ import { fetchBundleThroughGuard } from "../substrate/manifest.ts";
 export function createInstallFromUrl(ctx: PluginContext, deps: { readonly install: PluginService["install"] }): PluginService["installFromUrl"] {
   return async ({ caller, url, grant }: InstallFromUrlParams) => {
     const bundle = await fetchBundleThroughGuard(ctx.fetchBundle, url);
-    return deps.install({ caller, bundle, grant });
+    return deps.install({ caller, bundle, grant, source: { origin: "url", sourceUrl: url } });
   };
 }

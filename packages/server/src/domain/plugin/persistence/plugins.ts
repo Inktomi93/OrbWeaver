@@ -30,6 +30,7 @@ export function toPluginView(row: PluginRow): PluginView {
     version: row.version,
     status: row.status,
     origin: row.origin,
+    sourceUrl: row.sourceUrl,
     grantedCapabilities: row.grantedCapabilities,
     declaredCapabilities: row.manifest.capabilities,
     netHosts: row.manifest.netHosts ?? null,
@@ -56,6 +57,8 @@ interface InsertPluginRow {
   readonly grantedCapabilities: readonly PluginCapability[];
   readonly status: PluginStatus;
   readonly origin: PluginOrigin;
+  /** The remembered fetch URL (U8 2b) — NULL for a file (`upload`) install; the db CHECK pairs it with `origin`. */
+  readonly sourceUrl: string | null;
   readonly installedAt: number;
   readonly updatedAt: number;
 }
@@ -72,6 +75,7 @@ export async function insertPlugin(db: Db, row: InsertPluginRow): Promise<void> 
     grantedCapabilities: [...row.grantedCapabilities],
     status: row.status,
     origin: row.origin,
+    sourceUrl: row.sourceUrl,
     // A fresh install has nothing to re-consent TO: the owner just chose this grant against this manifest.
     // Written explicitly rather than left to the column default so the insert states the whole row. The
     // empty delta rides with it — and it is the reinstall arm that makes this load-bearing rather than

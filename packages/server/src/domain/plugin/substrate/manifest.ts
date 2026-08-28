@@ -181,6 +181,13 @@ export function isVersionDowngrade(candidate: string, installed: string): boolea
   return compareSemver(candidate, installed) < 0;
 }
 
+/** True when a REMOTE version is strictly newer than the INSTALLED one — the auto update-check's verdict
+ *  (plugin-ui-plane #679 U8 2b, `checkForUpdates`). The exact complement of a downgrade is NOT this (equal
+ *  versions are neither), so it is its own predicate: an equal remote is `up-to-date`, not `update-available`. */
+export function isVersionNewer(remote: string, installed: string): boolean {
+  return compareSemver(remote, installed) > 0;
+}
+
 /** The OTHER half of the URL-install funnel (plugin-ui-plane #679 U8, seam 15): fetch a bundle's bytes through
  *  the injected egress-guarded fetch (`ctx.fetchBundle` → `infra/network`'s `fetchPluginBundle` — `safeFetch`
  *  ANY_HOST: https-only, per-hop private-range/IP-literal denial, redirect budget, byte cap), then hand them to
