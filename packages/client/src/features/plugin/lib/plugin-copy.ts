@@ -83,6 +83,14 @@ export const CAPABILITY_COPY_ROWS = [
     risk: true,
   },
   {
+    // #788 F12 — the read symmetry of `worldinfo.write` below. BENIGN band (neither spend nor risk): a read of
+    // lore the room already renders, scoped to books attached to rooms the person is in — it reaches nothing
+    // outside its own sandbox, unlike the write that adds durable room state.
+    id: "worldinfo.read",
+    label: "Read this room's lorebooks",
+    consequence: "Reads the lorebook entries attached to rooms you are in — the room's own lore, never another room's or another person's.",
+  },
+  {
     id: "worldinfo.write",
     label: "Write lorebook entries",
     consequence: "Adds and updates entries in lorebooks already attached to the room, up to 64 entries.",
@@ -98,6 +106,21 @@ export const CAPABILITY_COPY_ROWS = [
     id: "storage.kv",
     label: "Keep its own private storage",
     consequence: "A key/value store only this plugin can see, up to 256 keys.",
+  },
+  {
+    // #788 seam-11 read half. BENIGN band (neither spend nor risk): reading back the bytes of a file in YOUR own
+    // storage that the plugin already has an id for (e.g. an image it just made) — your library only, no paid
+    // budget, and it never leaves the sandbox to the internet.
+    id: "assets.read",
+    label: "Read your saved images and files",
+    consequence: "Reads back the contents of files in your own storage it has an id for — yours only, never another person's.",
+  },
+  {
+    // #788 F1 — first-party retrieval. BENIGN band (neither spend nor risk): it searches YOUR own indexed
+    // library and reaches nothing outside it; the search runs on your own box, not a paid model.
+    id: "search.query",
+    label: "Search your library",
+    consequence: "Runs a meaning-based search over your own documents and returns matching passages — your library only, never another person's.",
   },
   {
     id: "notify",

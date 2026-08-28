@@ -13,6 +13,7 @@
 
 import type { PluginLogLevel } from "@orb/contracts/plugin";
 import { HostVersionError, PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
+import { estimateTokens } from "@orb/kit/tokens";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION } from "./budgets.ts";
 import type { MembraneRuntime } from "./membrane.ts";
@@ -131,6 +132,17 @@ function buildHostSurface(ctx: QuickJSContext, seams: HostSeams, log: LogRing, m
     ctx.setProp(logObj, level, fn);
   }
   ctx.setProp(surface, "log", logObj);
+
+  // tokens.count(text) — a FREE (always-granted) namespace: the pure, isomorphic `estimateTokens` engine
+  // computed host-side (#788 F13). Zero reach — a deterministic function of the guest's OWN string — so it needs
+  // no capability and sits beside `log` in the determinism/utility floor. A non-string arg is estimated as the
+  // empty string (0), the fail-safe projection the rest of this realm uses rather than a throw.
+  using tokens = ctx.newObject();
+  using countFn = ctx.newFunction("count", (textHandle?: QuickJSHandle) =>
+    ctx.newNumber(estimateTokens(textHandle === undefined || ctx.typeof(textHandle) !== "string" ? "" : ctx.getString(textHandle))),
+  );
+  ctx.setProp(tokens, "count", countFn);
+  ctx.setProp(surface, "tokens", tokens);
 
   if (membrane !== undefined) {
     attachMembrane(ctx, surface, membrane);

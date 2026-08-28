@@ -15,6 +15,8 @@ import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
 import type { NotificationEvent, PluginNotificationRecipient } from "@orb/contracts/notifications";
 import type {
   InvocationChat,
+  PluginAssetView,
+  PluginCharacterView,
   PluginEventSubscription,
   PluginHandlerRef,
   PluginInvokeArgs,
@@ -22,10 +24,13 @@ import type {
   PluginMessageView,
   PluginPubsubSubscription,
   PluginQuietOptions,
+  PluginSearchHit,
   PluginSuggestedAct,
   PluginToastLevel,
   PluginToolRegistration,
   PluginTransformRegistration,
+  PluginWorldBookView,
+  PluginWorldEntryView,
 } from "@orb/contracts/plugin";
 import type { ChatId, PluginId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
@@ -92,6 +97,13 @@ export interface PluginHostOps {
      *  room-state, not transcript (every member plays against it and post-join turns render it into text via
      *  `{{getvar}}`), so it is NOT floor-clamped — the read-visibility ruling's activity plane. */
     readonly getVariables: (chatId: ChatId) => Promise<Record<string, string>>;
+    /** The invocation chat's PRESENT CHARACTER roster, projected to the reduced `PluginCharacterView`
+     *  (`chat.listRoster`, capability `chat.read` — #788 F11). PRINCIPAL-FREE, the `listMessages` posture: the
+     *  bridge resolves the installer's membership via `resolveViewerVisibility` FIRST and short-circuits a
+     *  non-member to `[]`, so this read is reached only for a member of THIS room and carries no owner filter (a
+     *  room's roster is the room's own member-visible state). Wired at compose to the principal-free
+     *  `loadPluginRoster` reader. Reduced to id/name/avatar — never a co-participant's full card. */
+    readonly listRoster: (chatId: ChatId) => Promise<readonly PluginCharacterView[]>;
     /** The standalone runtime-variable write — the SAME delta seam automation's `set_variable` arm rides.
      *  `capability: chat.variables.write`. */
     readonly applyVariableOps: AutomationOps["chat"]["applyVariableOps"];
@@ -126,6 +138,34 @@ export interface PluginHostOps {
     /** The book's existing entry TITLES, for the per-plugin entry ceiling (a looping guest fills a book
      *  otherwise). Wired at compose to world-info's owner-gated `listEntryIndex`. */
     readonly listEntryTitles: (ownerId: UserId, bookId: WorldBookId) => Promise<readonly string[]>;
+    /** The `worldinfo.read` READ half (#788 F12): the books ATTACHED to the invocation chat, reduced to
+     *  `PluginWorldBookView`. Wired at compose to world-info's member-gated `listForChat` under the installer's
+     *  Principal — so a non-member/kicked caller gets `[]` and only books attached to THIS room are ever named.
+     *  Owner-scoped by construction: the installer's own attached books. */
+    readonly listBooksForChat: (ownerId: UserId, chatId: ChatId) => Promise<readonly PluginWorldBookView[]>;
+    /** The `worldinfo.read` entry read (#788 F12): the entries of ONE book, reduced to `PluginWorldEntryView`.
+     *  Wired at compose to world-info's OWNER-gated `listEntries`. The ATTACHMENT gate is applied by the bridge
+     *  BEFORE this op (the write path's own `isBookAttachedToChat`), so a `bookId` not attached to the invocation
+     *  chat never reaches here — this op reads only an already-attachment-verified, installer-owned book. */
+    readonly listEntries: (ownerId: UserId, bookId: WorldBookId) => Promise<readonly PluginWorldEntryView[]>;
+  };
+  /** The `assets.read` capability's READ op (#788 seam-11 read half). Read one asset from the INSTALLER's OWN
+   *  CAS — wired at compose to the assets domain's OWNER-GATED `readOwnedAssetBytes` under the installer's
+   *  Principal (resolved by ROW READ, so a `UserId` arriving here carries no authority). Owner-scoped by
+   *  construction: a guest names only the id and can read only its own. A foreign/absent id is the leak-free
+   *  `null` (the compose wiring collapses the domain's not-found to `null` — indistinguishable, no existence
+   *  oracle); an owned asset over the read cap returns metadata with `dataBase64: null`. */
+  readonly assets: {
+    // @foreign-id-ok(assetId): the guest's untrusted wire string, owner-scope-gated by the domain read, cast at compose — branding here would claim a validation this boundary has not performed.
+    readonly read: (req: { readonly installerUserId: UserId; readonly assetId: string }) => Promise<PluginAssetView | null>;
+  };
+  /** The `search.query` capability's READ op (#788 F1). Semantic document search over the INSTALLER's OWN
+   *  corpus — wired at compose to search's `documents` with `scope: { ownerId: installerUserId }`, so a guest
+   *  searches only its own library (owner-scoped by construction — a guest names only the query + limit). The
+   *  limit is clamped to `PLUGIN_SEARCH_RESULTS_MAX` at the membrane. Returns ranked reduced hits (content
+   *  host-capped). No principal resolve — the ownerId in the scope IS the owner gate. */
+  readonly search: {
+    readonly documents: (req: { readonly installerUserId: UserId; readonly queryText: string; readonly limit?: number }) => Promise<readonly PluginSearchHit[]>;
   };
   /** The plugin-PRIVATE KV plane (`storage.*`; the `plugin_kv` table) — per plugin × installing
    *  owner. DIVERGES from automation (no automation analog): every op is keyed by BOTH `pluginId` AND `ownerId`
