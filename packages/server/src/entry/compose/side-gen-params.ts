@@ -17,6 +17,7 @@ import type { ChatId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import type { PresetService } from "#domain/preset";
+import { PresetNotFoundError } from "#domain/preset";
 import type { SettingsService } from "#domain/settings";
 
 export interface SideGenParamsResolvers {
@@ -42,8 +43,13 @@ export function buildSideGenParams(deps: SideGenParamsDeps): SideGenParamsResolv
     }
     try {
       return (await deps.preset.get({ userId, id: castId<PresetId>(defaultPresetId) })).config.params;
-    } catch {
-      return DEFAULT_PROMPT_CONFIG.params;
+    } catch (err) {
+      // Only a genuinely stale/unowned/missing preset id degrades — a database/I/O/program failure must
+      // surface, not silently replace the caller's configured sampling (#759).
+      if (err instanceof PresetNotFoundError) {
+        return DEFAULT_PROMPT_CONFIG.params;
+      }
+      throw err;
     }
   };
 

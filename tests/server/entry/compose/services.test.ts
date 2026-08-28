@@ -8,12 +8,13 @@ import { automationActionSchema } from "@orb/contracts/automation";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, characterTags, chatParticipants, chats, tags, workloads } from "@orb/db";
-import type { CharacterHandle, ChatParticipantId, Handle, SessionId, SocketId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatParticipantId, Handle, PersonaId, SessionId, SocketId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
 import type { CharacterService } from "@orb/server/domain/character";
 import { CARD_PACK_VERSION, createCharacterService, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
+import { DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "@orb/server/domain/chat";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsIndexer } from "@orb/server/domain/embeddings";
 import { createDomainEventBus, createServices } from "@orb/server/entry/compose";
@@ -977,5 +978,51 @@ describe("automation generate_image forwards diffusion params through the compos
     const reqParams = spy.mock.calls[0]?.[0];
     expect(reqParams?.mode).toBe("free");
     expect(reqParams?.prompt).toBe("a lighthouse");
+  });
+});
+
+// ── #760 — demoChatSeeder's `resolveSeatPersona` catch narrows to PersonaNotFoundError, END TO END ──────────
+// The seeder's `ensureSeeded` documents "never throws" (its own outer `.catch` just logs) — so this proves
+// the catch NOT by rejection, but by the side effect the old catch-all defect actually produces: an infra
+// failure used to be swallowed to `null` and the seed ran to completion anyway, permanently stamping
+// `demoChatsSeeded` with the WRONG identity (never retried, since `markSeeded` had already landed). The fix
+// makes `seed()` itself throw, which the outer catch logs WITHOUT calling `markSeeded` — so a database/I/O
+// failure now leaves the pack unseeded (retryable) instead of silently wrong.
+describe("compose/services — demoChatSeeder.resolveSeatPersona narrows to PersonaNotFoundError (#760)", () => {
+  test("a non-not-found persona rejection leaves the pack UNSEEDED (never silently stamps the wrong identity)", async ({ db, app, services }) => {
+    const owner = await seedUser(db, { handle: castId<Handle>("demoseedhost1") });
+    const actor = principal(owner);
+    // The example pack casts against the shipped default characters — without them every demo's
+    // `resolveSeats` comes back null and seeds nothing, which would mask the catch under test.
+    await app.characterSeeder.ensureSeeded(actor);
+    await services.settings.updateUserSettingsSection({
+      principal: actor,
+      input: { section: "seeds", patch: { defaultPersonaId: castId<PersonaId>("persona_demo_will_error") } },
+    });
+    const dbDown = new Error("persona store unreachable");
+    vi.spyOn(services.persona, "get").mockRejectedValueOnce(dbDown);
+
+    await app.demoChatSeeder.ensureSeeded(actor); // never throws — logs and returns
+
+    const onboarding = (await services.settings.getUserSettings({ principal: actor })).config.onboarding;
+    expect(onboarding.demoChatsSeeded).toBe(false);
+    expect((await services.chat.listChats({ principal: actor })).items).toHaveLength(0);
+  });
+
+  test("a genuinely stale/unowned defaultPersonaId still seeds the full pack (fallback preserved)", async ({ db, app, services }) => {
+    const owner = await seedUser(db, { handle: castId<Handle>("demoseedhost2") });
+    const actor = principal(owner);
+    await app.characterSeeder.ensureSeeded(actor);
+    await services.settings.updateUserSettingsSection({
+      principal: actor,
+      input: { section: "seeds", patch: { defaultPersonaId: castId<PersonaId>("persona_demo_gone_forever") } },
+    });
+
+    await app.demoChatSeeder.ensureSeeded(actor);
+
+    const onboarding = (await services.settings.getUserSettings({ principal: actor })).config.onboarding;
+    expect(onboarding.demoChatsSeeded).toBe(true);
+    expect(onboarding.demoChatsPackVersion).toBe(DEMO_CHAT_PACK_VERSION);
+    expect((await services.chat.listChats({ principal: actor })).items).toHaveLength(DEMO_CHATS.length);
   });
 });
