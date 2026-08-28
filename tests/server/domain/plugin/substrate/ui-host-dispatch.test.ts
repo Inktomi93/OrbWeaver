@@ -63,6 +63,7 @@ function makeBridge(): PluginBridge {
     // U8 canon writes — NOT proxyable (the excluded set), so a Tier-C guest must never reach them.
     databank: { ingest: notProxied("databank.ingest") },
     character: { ingest: notProxied("character.ingest") },
+    pubsub: { emit: notProxied("pubsub.emit") },
   } satisfies PluginBridge;
   return bridge;
 }

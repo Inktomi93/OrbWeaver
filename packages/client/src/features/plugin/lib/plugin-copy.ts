@@ -165,6 +165,13 @@ export const CAPABILITY_COPY_ROWS = [
     consequence: "Runs its code when messages are committed, lore activates, and so on — only in rooms you are in.",
   },
   {
+    // U8 §5a. BENIGN band (neither spend nor risk): the plane is private to YOUR plugins — it never reaches a
+    // chat, another person, or the internet. It is what lets two of your plugins cooperate.
+    id: "plugin_events",
+    label: "Talk to your other plugins",
+    consequence: "Sends and receives private signals among your own installed plugins — never reaches a chat, another person, or the internet.",
+  },
+  {
     id: "tools.register",
     label: "Add tools",
     consequence: "Registers tools a character or a rule can call. They run with your permissions, never more.",

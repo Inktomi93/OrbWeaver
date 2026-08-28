@@ -97,6 +97,32 @@ export interface PluginEventSubscription {
   readonly handler: PluginHandlerRef;
 }
 
+/** A PRIVATE plugin-event subscription the guest registered via `host.pubsub.on` (plugin-ui-plane §5a). This is
+ *  a DIFFERENT plane from {@link PluginEventSubscription} and the difference is the whole forgery wall: the
+ *  Tier-1 trigger taxonomy is the DOMAIN's closed vocabulary (a plugin-emitted one would be a forged fact,
+ *  §5.24), whereas this plane is INSTALLER-PRIVATE and plugin-authored — `emitterSlug`/`name` are free-text
+ *  channel coordinates, never a `TriggerFact`, never entering a domain/chat bus, and never crossing to another
+ *  user. `emitterSlug` names WHICH of the installer's plugins to listen to (the emitter stamps its own slug
+ *  host-side, so a subscriber can listen but never forge a publication). */
+export interface PluginPubsubSubscription {
+  readonly emitterSlug: string;
+  readonly name: string;
+  readonly handler: PluginHandlerRef;
+}
+
+/** A private-event channel NAME — the surface-id ident grammar (a bounded programmatic key, never arbitrary
+ *  text): a channel coordinate keys the resident bus map, so an unbounded one is an unbounded-key DoS. */
+export const PLUGIN_PUBSUB_NAME_RE = /^[a-z][a-z0-9_]{0,40}$/;
+/** How many `host.pubsub.on` subscriptions ONE resident plugin may register. Each pins a guest handler handle for
+ *  the instance lifetime + a resident bus map entry; bounding the count keeps the bus map bounded (the count is
+ *  small because a plugin listens to a handful of sibling channels, not hundreds). Extra subscriptions past the
+ *  cap are a REGISTRATION refusal (logged, the subscription absent), never activation-fatal. */
+export const PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX = 32;
+/** The per-emit `data` serialized-size ceiling — a private plugin event is a SIGNAL, not a document (the
+ *  `ui.setState` 16 KiB posture). It bounds the fan-out cost: one emit is re-delivered to every subscriber, so a
+ *  tight per-emit cap is what keeps a fan-out bounded. Over cap is a REFUSAL (a rejected guest promise). */
+export const PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES = 16_384;
+
 /** A UI surface the guest registered via `host.ui.register` — collected at activation (plugin-ui-plane #679
  *  U1, seam 4). Unlike tools/transforms/events, a surface needs NO external registrar: it is READ directly off
  *  the resident instance by `plugin.listSurfaces`, and its `onAction` handler is re-entered by
@@ -137,4 +163,7 @@ export interface PluginInstance {
   readonly displayTransforms: readonly PluginDisplayTransformRegistration[];
   /** U6 §5.15 — handed to the macro registrar, which resolves each ONCE per turn into the turn's registry. */
   readonly macros: readonly PluginMacroRegistration[];
+  /** U8 §5a — the private plugin-event subscriptions, handed to the pubsub registrar (the `events` pattern),
+   *  which wires each onto the INSTALLER-scoped resident plugin-event bus. Never the domain fan-out. */
+  readonly pubsub: readonly PluginPubsubSubscription[];
 }

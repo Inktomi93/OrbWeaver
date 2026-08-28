@@ -59,6 +59,8 @@ import {
   buildPluginStorage,
   capFactContent,
   createNotifyFloor,
+  createPluginEventBus,
+  createPluginEventEmitter,
   createPluginRateFloor,
   createPluginService,
   createPluginSurfaceStateStore,
@@ -455,6 +457,11 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   // The UI-surface STATE plane (plugin-ui-plane #679 U1) — ONE per process, shared by the `ui.setState` write
   // op below, the `getSurfaceState` read verb (via `ctx.surfaceState`), and the deactivate sweep. Respawn wipes.
   const pluginSurfaceState = createPluginSurfaceStateStore();
+  // The PRIVATE plugin-event bus (plugin-ui-plane §5a, U8) — ONE per process, installer-scoped, shared by the
+  // `pubsub.emit` write op below + the `subscribePubsub` registrar. It has NO domain/chat-bus sink: the forgery
+  // wall is that this instance is the only thing an emit can reach, and it only ever fans out to resident sibling
+  // handlers. Respawn wipes (an event is transient; durable state is the plugin's own `storage.kv`).
+  const pluginEventBus = createPluginEventBus();
   // The UI OUTBOX (plugin-ui-plane #679 U5) — the surface-state plane's sibling: ONE per process, shared by the
   // `ui.toast`/`ui.openDialog` write ops below, the two invoke verbs that DRAIN it (via `ctx.uiOutbox`), and the
   // deactivate sweep. Its `now` is the same injected clock every other belt reads, so a suite advances the toast
@@ -656,6 +663,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     character: {
       ingest: ({ installerUserId, card }) => deps.ingestCharacterCard({ installerUserId, card }),
     },
+    // U8 §5a — the PRIVATE plugin-event emit, straight onto the installer-scoped bus (no principal resolve, no
+    // db: an event is transient in-RAM signalling). The bus has no domain/chat-bus sink — the forgery wall.
+    pubsub: { emit: createPluginEventEmitter(pluginEventBus) },
     registrar: {
       // PL-A: a plugin tool namespaces `plugin_<slug'>_<name>` and lands in the ONE tool-use registry.
       registerTool: (reg, invoke, scope) =>
@@ -729,6 +739,12 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         });
         return { unregister };
       },
+      // U8 §5a — the PRIVATE plugin-event subscriptions onto the installer-scoped bus, keyed by the subscriber's
+      // own slug (from the re-validated manifest at activation, never guest-supplied) for the deactivate sweep.
+      // The bus fans an emit only to SAME-installer subscribers of the exact channel — never the automation
+      // fan-out above, never a domain event.
+      subscribePubsub: (subscriptions, invoke, scope) =>
+        pluginEventBus.register({ installer: scope.installer.userId, subscriberSlug: scope.slug, subscriptions, invoke }),
     },
   };
   // The late bind announced above: automation's S4 plugin arm executes through the PLUGIN's bridge, which

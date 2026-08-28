@@ -20,6 +20,7 @@ import type {
   PluginInvokeArgs,
   PluginMacroRegistration,
   PluginMessageView,
+  PluginPubsubSubscription,
   PluginQuietOptions,
   PluginSuggestedAct,
   PluginToastLevel,
@@ -282,6 +283,20 @@ export interface PluginHostOps {
       readonly card: Record<string, unknown>;
     }) => Promise<{ readonly characterId: string; readonly created: boolean }>;
   };
+  /** The `plugin_events` capability's EMIT op (plugin-ui-plane §5a). Publish a private event on the
+   *  INSTALLER-scoped resident plugin-event bus, on the channel `plugin:<emitterSlug>:<name>`. The `installerUserId`
+   *  + `emitterSlug` are closed over DOMAIN-side (both un-forgeable — the bridge stamps the emitter's own slug), so
+   *  a guest names only `name` + `data`. Wired at compose to the process-wide `PluginEventBus.emit`. Returns void:
+   *  delivery to subscribers is fire-and-forget under the invocation budget. It NEVER reaches a domain/chat bus and
+   *  the delivered payload is `{name, data}`, never a `TriggerFact` — the forgery wall. */
+  readonly pubsub: {
+    readonly emit: (req: {
+      readonly installerUserId: UserId;
+      readonly emitterSlug: string;
+      readonly name: string;
+      readonly data: Record<string, unknown>;
+    }) => Promise<void>;
+  };
   /** The runtime registrar seams (PL-A tool-use, D50 transform, event subscribe). Each takes a collected
    *  registration + the per-handler invoker + the per-activation {@link PluginActivationScope} (slug for
    *  namespacing, installer for the PL-C ceiling) and returns an `unregister` handle. `registerTool` is wired
@@ -309,6 +324,16 @@ export interface PluginHostOps {
       invoke: PluginInvokeHandler,
       scope: PluginActivationScope,
     ) => PluginRegistrationHandle;
+    /** Wire the plugin's COLLECTED private-event subscriptions onto the INSTALLER-scoped resident plugin-event bus
+     *  (plugin-ui-plane §5a). The `subscribeEvent` shape exactly, one plane over — handed the WHOLE collection so
+     *  one plugin's subscriptions register + unregister together, keyed by `(installer, subscriberSlug)` for the
+     *  deactivate sweep. Wired at compose to `PluginEventBus.register`; the bus fans an emit to the matching
+     *  handlers via `invoke`, never onto the automation fan-out. */
+    readonly subscribePubsub: (
+      subscriptions: readonly PluginPubsubSubscription[],
+      invoke: PluginInvokeHandler,
+      scope: PluginActivationScope,
+    ) => PluginRegistrationHandle;
   };
 }
 
@@ -333,6 +358,28 @@ export interface PluginMacroRegistry {
   readonly resolveForTurn: (authorUserId: UserId, chatId: ChatId) => Promise<readonly UserMacroDef[]>;
 }
 
+/** The process-wide PRIVATE plugin-event bus (plugin-ui-plane §5a) — ONE instance minted at compose (the
+ *  `PluginMacroRegistry` / surface-state precedent), `ASSUMES(single-replica)`, respawn wipes. It IS the forgery
+ *  wall's home, and the wall is structural: it is keyed by the INSTALLING PRINCIPAL, so an emit can only ever
+ *  reach the SAME installer's subscribers; it has NO domain/chat-bus sink at all (the only thing an emit does is
+ *  fan out to resident SIBLING handlers via `invoke`); and it carries no automation vocabulary, so nothing it
+ *  delivers is a `TriggerFact`. The domain WRITES it at activation (`register`) and the emit op READS it (`emit`);
+ *  the FACTORY lives in `substrate/plugin-event-bus.ts` (the SnippetGate/NotifyFloor convention — seam TYPE here). */
+export interface PluginEventBus {
+  /** Register one plugin's WHOLE collected subscription set for `installer`, keyed by `(installer, subscriberSlug)`
+   *  so `deactivate`/`uninstall`'s `unregister` drops exactly this plugin's subscriptions. Returns the handle. */
+  readonly register: (req: {
+    readonly installer: UserId;
+    readonly subscriberSlug: string;
+    readonly subscriptions: readonly PluginPubsubSubscription[];
+    readonly invoke: PluginInvokeHandler;
+  }) => PluginRegistrationHandle;
+  /** Publish `data` on `plugin:<emitterSlug>:<name>` for `installer` — fan out to every SAME-installer subscriber
+   *  of that EXACT channel, delivering `{name, data}` (never a TriggerFact) through its `invoke`. A cross-installer
+   *  or cross-channel subscriber is never reached (the key is installer + emitterSlug + name). Fire-and-forget. */
+  readonly emit: (req: { readonly installer: UserId; readonly emitterSlug: string; readonly name: string; readonly data: Record<string, unknown> }) => void;
+}
+
 /** WHO a bridge is built for. The bridge was keyed by `pluginId` alone until posture 2 needed to render a
  *  host-facing question — and a card that does not say WHICH plugin is asking is a card a host cannot answer
  *  responsibly (a plugin ask is the one class whose requester is not a rule the host wrote themselves). The
@@ -340,6 +387,11 @@ export interface PluginMacroRegistry {
 export interface PluginIdentity {
   readonly id: PluginId;
   readonly name: string;
+  /** The manifest SLUG (unique per installing owner) — DERIVED from the re-validated manifest at activation,
+   *  never guest-runtime-supplied. It is the emitter's un-forgeable identity on the private plugin-event plane
+   *  (`host.pubsub.emit` publishes on `plugin:<slug>:<name>`, plugin-ui-plane §5a). Empty on the two paths that
+   *  never emit — a confirmed S4 act and a snippet — for the same reason `name` is empty there. */
+  readonly slug: string;
 }
 
 /** POSTURE 2 — raise a plugin's ask into the SHARED S4 inbox. Declared HERE (the consumer declares the type)

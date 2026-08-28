@@ -255,6 +255,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
           tools: [...sandbox.collectedTools],
           transforms: [...sandbox.collectedTransforms],
           events: [...sandbox.collectedEvents],
+          pubsub: [...sandbox.collectedPubsub],
           surfaces: [...sandbox.collectedSurfaces],
           commands: [...sandbox.collectedCommands],
           displayTransforms: [...sandbox.collectedDisplayTransforms],
