@@ -1,18 +1,30 @@
 // Gate: owner-scoped-writes — the WRITE half of `owner-scoped-reads`. An `update`/`delete` of an
 // `ownerId`-class table (table-scoping-class (a)) must put the owner IN THE WHERE, or carry an
-// `// @owner-scope-write-ok: <reason>` marker naming WHO authorized the id. Two shapes bite: a by-id write
-// (`eq(T.id, …)`/`inArray(T.id, …)` with no owner predicate) and an UNBOUNDED write (no `.where` at all — a
-// whole-table mutation, which on a tenant table is every owner's rows). TWO-SIDED: a marker guarding no
-// unscoped write is RED. DECLARED LIMITS: no post-fetch arm (a write's guard sits in the CALLER's control
-// flow, which is unprovable structurally — that is what the marker records), and an `onConflictDoUpdate`
-// upsert is out of scope HERE because the sibling `owner-scoped-upserts` owns it (its collision is a UNIQUE
-// -index question, not a WHERE predicate — a third gate with its own `@owner-scope-upsert-ok:` vocabulary).
+// `// @owner-scope-write-ok: <reason>` marker naming WHO authorized the id. THREE shapes bite: a by-id write
+// (`eq(T.id, …)`/`inArray(T.id, …)` with no owner predicate), an UNBOUNDED write (no `.where` at all — a
+// whole-table mutation, which on a tenant table is every owner's rows), and an UNRESOLVABLE target (an
+// identifier tracing to no declared table — an unreadable target is unproven, so it reports instead of
+// exempting). TWO-SIDED: a marker guarding none of them is RED. DECLARED LIMITS: no post-fetch arm (a
+// write's guard sits in the CALLER's control flow, which is unprovable structurally — that is what the
+// marker records); a CHAIN-FREE unresolvable statement is out of the third arm (`cache.delete(key)` is the
+// same AST as `db.delete(T)`, `isDrizzleWriteStatement` is the fence); and an `onConflictDoUpdate` upsert is
+// out of scope HERE because the sibling `owner-scoped-upserts` owns it (its collision is a UNIQUE-index
+// question, not a WHERE predicate — a third gate with its own `@owner-scope-upsert-ok:` vocabulary).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
-import { markedFunctions, markerKeyFor, ownerScopedTableBinding, predicatesOwnId, predicatesTableColumn, whereArgOf } from "../lib/tenancy-read.ts";
-import { ownerScopedTableIdents } from "./table-scoping-class.ts";
+import type { TableTarget } from "../lib/tenancy-read.ts";
+import {
+  isDrizzleWriteStatement,
+  markedFunctions,
+  markerKeyFor,
+  predicatesOwnId,
+  predicatesTableColumn,
+  tableTargetOf,
+  whereArgOf,
+} from "../lib/tenancy-read.ts";
+import { ownerScopedTableIdents, schemaTableIdents } from "./table-scoping-class.ts";
 
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
 const SERVER_SRC = "packages/server/src/";
@@ -29,12 +41,23 @@ const WRITE_VERBS = new Set(["update", "delete"]);
 const MARKER_RE = /@owner-scope-write-ok:\s*\S/u;
 const MARKER = "@owner-scope-write-ok";
 
+/** The finding token of the third arm — a stable CLASS token (the `table-scoping-class` idiom), so the arm
+ *  is nameable by an `@orb-gate-ignore` and never collides with the by-id/unbounded arms, whose token is the
+ *  binding itself. */
+const UNRESOLVABLE = "unresolvable-target";
+
 const MESSAGE =
   "an update/delete of an ownerId-scoped table with NO owner predicate — this is the cross-tenant WRITE " +
   "hole: whatever id the caller supplies gets mutated, whoever owns it (and with no `.where` at all, EVERY " +
   "owner's rows do). An owner-scoped table (table-scoping-class class (a)) resolves tenancy through its " +
   "`ownerId`, so the write has to say so — or say who already proved it. The owner-scoped read this pairs " +
-  "with is packages/db/src/kit/fetch-owned.ts";
+  "with is packages/db/src/kit/fetch-owned.ts. A `" +
+  UNRESOLVABLE +
+  ' "<ident>"` token is the THIRD arm: the write target is an identifier that traces to no table this ' +
+  "schema declares (a parameter, a reassigned binding, an alias chain past the depth cap or through a " +
+  "cycle), so the gate cannot tell whether it is an ownerId-class table at all — and an unreadable target " +
+  "is an UNPROVEN one, not a clean one. Reporting it is the whole point: the silent version of this branch " +
+  "is how one `let table = characters` walked the write halves for an era (#769).";
 
 const FIX =
   "pick the arm that fits: (1) put the owner IN THE WHERE — `and(eq(T.id, id), eq(T.ownerId, ownerId))` (a " +
@@ -43,7 +66,12 @@ const FIX =
   "verb loaded the row owned first, a host/roster rung (D18) that is STRICTER than the stamp already passed, " +
   `or the ids are the engine's own (D20 un-principal) — mark it \`// ${MARKER}: <reason>\` on the function. ` +
   "The reason must name WHO authorized the id and what would end the exemption. A marker is not a shrug: it " +
-  "is the promise the next caller inherits, and it goes RED the day the write it guards disappears.";
+  "is the promise the next caller inherits, and it goes RED the day the write it guards disappears. For the " +
+  "`" +
+  UNRESOLVABLE +
+  "` arm the first arm is different: NAME THE TABLE AT THE STATEMENT (pass the row's id, not the table, " +
+  "into a helper — a table-generic write cannot carry a tenancy predicate anyone can read), or, if the " +
+  "indirection is deliberate, mark the function and say who proved the target is the caller's.";
 
 const STALE = (fn: string, file: string): string =>
   `\`${MARKER}\` marker on \`${fn}\` (${file}) guards NO unscoped write any more — delete the stale marker. ` +
@@ -57,14 +85,16 @@ const BLIND =
 
 /** The (a)-class drizzle table identifiers, derived per run by `table-scoping-class`. */
 let ownerTableIdents = new Set<string>();
+/** EVERY declared table identifier — the denominator that tells a non-(a) write from an unreadable one. */
+let allTableIdents = new Set<string>();
 /** Functions carrying the marker → their (file, name), for the stale arm. */
 const markedFns = new Map<string, { readonly fn: string; readonly file: string }>();
 /** Marker keys that actually guarded an unscoped write. */
 const markersUsed = new Set<string>();
 
-/** The (a)-class table this call mutates — `db.update(T)` / `db.delete(T)` / the same on a `tx` receiver —
- *  or undefined for every other call. */
-function writeTargetIdent(node: Node): string | undefined {
+/** How this call's write target resolved — `db.update(T)` / `db.delete(T)` / the same on a `tx` receiver —
+ *  or undefined for every other call (and for a target that is not a BINDING at all). */
+function writeTarget(node: Node): TableTarget | undefined {
   if (!node.isKind(SyntaxKind.CallExpression)) {
     return;
   }
@@ -72,7 +102,7 @@ function writeTargetIdent(node: Node): string | undefined {
   if (!(callee.isKind(SyntaxKind.PropertyAccessExpression) && WRITE_VERBS.has(callee.getName()))) {
     return;
   }
-  return ownerScopedTableBinding(node.getArguments()[0], ownerTableIdents);
+  return tableTargetOf(node.getArguments()[0], ownerTableIdents, allTableIdents);
 }
 
 export const gate: GateDescriptor = {
@@ -89,13 +119,30 @@ export const gate: GateDescriptor = {
     markedFns.clear();
     markersUsed.clear();
     ownerTableIdents = ownerScopedTableIdents(ctx);
+    allTableIdents = schemaTableIdents(ctx);
   },
 
   visit: (node, sf, ctx) => {
-    const ident = writeTargetIdent(node);
-    if (ident === undefined) {
+    const target = writeTarget(node);
+    if (target === undefined || target.kind === "other-table") {
       return;
     }
+    if (target.kind === "unresolvable") {
+      // The fence, not a shrug: `cache.delete(key)` and `db.delete(T)` are one AST shape, so only a chained
+      // drizzle builder proves this statement is a write at all. A chain-free unresolvable call is the
+      // declared limit (a mustPass row carries it), NOT a silent exemption of a readable one.
+      if (!isDrizzleWriteStatement(node)) {
+        return;
+      }
+      const unresolvableMarker = markerKeyFor(node, sf, MARKER_RE);
+      if (unresolvableMarker !== undefined) {
+        markersUsed.add(unresolvableMarker);
+        return;
+      }
+      ctx.report(node, { token: `${UNRESOLVABLE} "${target.ident}"`, offset: 0 });
+      return;
+    }
+    const ident = target.ident;
     const where = whereArgOf(node);
     // NO WHERE AT ALL is the widest form of the hole, not an exemption: on a read it is a list, on a write it
     // is every owner's rows. BY-ID is the read half's shape — whatever id the caller supplies gets written.
@@ -216,6 +263,42 @@ export const gate: GateDescriptor = {
       files: {
         "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/character/persistence/card.ts":
+          'import { characters } from "@orb/db";\nlet table = characters;\nexport async function renameCard(db: Db, id: string, name: string) {\n  return db.update(table).set({ name }).where(eq(table.id, id));\n}\n',
+      },
+      expect: { count: 1, token: "table" },
+      why: "#769 — the DECLARATION KIND is irrelevant to what a binding names. `let` resolved to nothing while `const` resolved fine, so one keyword silently walked every by-id write past the tenancy check while the const control proved the gate 'worked'",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { characters } from "@orb/db";\nvar table = characters;\nexport async function dropCard(db: Db, id: string) {\n  return db.delete(table).where(eq(table.id, id));\n}\n',
+      },
+      expect: { count: 1, token: "table" },
+      why: "#769's `var` twin on the DELETE arm — the destructive half of the same bypass. Proving only `let` would leave the older keyword as a live hole",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          "export async function renameAny(db: Db, table: AnyTable, id: string, name: string) {\n  return db.update(table).set({ name }).where(eq(table.id, id));\n}\n",
+      },
+      expect: { count: 1, token: 'unresolvable-target "table"' },
+      why: "the UNRESOLVABLE arm — a table-generic write. The gate cannot see whether this is an (a)-class table, and an unreadable target is UNPROVEN, not clean: returning silently here is the same failure mode #769 shipped, one indirection further out",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { characters } from "@orb/db";\nconst a = b;\nconst b = a;\nexport async function renameCard(db: Db, id: string, name: string) {\n  return db.update(a).set({ name }).where(eq(a.id, id));\n}\n',
+      },
+      expect: { count: 1, token: 'unresolvable-target "a"' },
+      why: "the CYCLE/depth refusal REPORTS rather than exempts (the gate-family review's remaining half): the resolver's `seen` set makes an alias cycle terminate, and terminating with 'I could not read it' must not read as 'nothing here'",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
           'import { characters } from "@orb/db";\nexport async function renameCard(db: Db, id: string, ownerId: string, name: string) {\n  return db.update(characters).set({ name }).where(and(eq(characters.id, id), eq(ownerId, ownerId)));\n}\n',
       },
       expect: { count: 1, token: "characters" },
@@ -286,6 +369,37 @@ export const gate: GateDescriptor = {
           'import { characters } from "@orb/db";\nconst table = characters;\nexport async function renameOwned(db: Db, id: string, ownerId: string, name: string) {\n  return db.update(table).set({ name }).where(and(eq(table.id, id), eq(table.ownerId, ownerId)));\n}\n',
       },
       why: "the local canonical-table alias is safe when the WHERE structurally predicates that same binding's owner column",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { characters } from "@orb/db";\nlet table = characters;\nexport async function renameOwned(db: Db, id: string, ownerId: string, name: string) {\n  return db.update(table).set({ name }).where(and(eq(table.id, id), eq(table.ownerId, ownerId)));\n}\n',
+      },
+      why: "the #769 widening is two-sided: resolving a `let` alias must ACCEPT the guarded write as readily as it reds the unguarded one. A widening that only ever added findings would be a different (louder) lie",
+    },
+    {
+      files: {
+        "packages/db/src/schema/chat.ts": 'export const chats = sqliteTable("chats", { id: text("id") });\n',
+        "packages/server/src/domain/chat/persistence/canon-write.ts":
+          'import { chats } from "@orb/db";\nlet table = chats;\nexport async function touch(db: Db, id: string) {\n  return db.update(table).set({ updatedAt: 1 }).where(eq(table.id, id));\n}\n',
+      },
+      why: "the DENOMINATOR arm: an alias of a (b) table READS fine and is simply out of scope — it must not fall into the unresolvable arm. Without the full schema-ident set, 'not (a)-class' and 'unreadable' would be the same answer and every non-(a) write in the tree would red",
+    },
+    {
+      files: {
+        "packages/server/src/domain/credentials/health/cache.ts":
+          "export function evict(cache: Map<string, E>, oldest: string) {\n  return cache.delete(oldest);\n}\n",
+      },
+      why: "DECLARED LIMIT: a CHAIN-FREE unresolvable call is out of the third arm. `cache.delete(key)` / `hash.update(bytes)` are byte-identical in AST to an unbounded `db.delete(T)`, and the pure-AST harness builds no type graph to separate them — 72 such calls live in packages/server/src (measured 2026-08-27), all chain-free, so the drizzle-builder chain is the fence",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          "// @owner-scope-write-ok: the caller resolved the row owned and passes the table only to share one UPDATE body. Ends the day this helper takes an id it did not load.\nexport async function renameAny(db: Db, table: AnyTable, id: string, name: string) {\n  return db.update(table).set({ name }).where(eq(table.id, id));\n}\n",
+      },
+      why: "ONE vocabulary per gate: the unresolvable arm answers the same question the by-id arm does ('who authorized this write'), so it takes the SAME marker rather than minting a fourth. It also feeds the SAME used-key set, so a marker guarding only this arm is not reported stale",
     },
   ],
 };

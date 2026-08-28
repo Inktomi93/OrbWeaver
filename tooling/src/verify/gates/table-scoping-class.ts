@@ -257,13 +257,25 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
  *  keeps its OWN blindness tripwire (an empty set means the derivation went blind, never that the tree is
  *  clean). */
 export function ownerScopedTableIdents(ctx: GateRunCtx): Set<string> {
+  return tableIdents(ctx, (sqlName) => sqlName !== undefined && TABLE_SCOPING_CLASSES[sqlName]?.scope === "ownerId");
+}
+
+/** EVERY drizzle table identifier the schema declares, regardless of class — the DENOMINATOR the tenancy
+ *  write halves need. Without it "this identifier is not an (a) table" and "I could not read this identifier
+ *  at all" are the same answer, and the second one is a bypass wearing the first one's clothes. Same
+ *  derivation, same home: a table that stops being declared leaves both sets at once. */
+export function schemaTableIdents(ctx: GateRunCtx): Set<string> {
+  return tableIdents(ctx, () => true);
+}
+
+function tableIdents(ctx: GateRunCtx, keep: (sqlName: string | undefined) => boolean): Set<string> {
   const idents = new Set<string>();
   for (const sf of ctx.project.getSourceFiles()) {
     if (!repoRel(sf.getFilePath()).includes(SCHEMA_DIR)) {
       continue;
     }
     for (const table of schemaTables(sf)) {
-      if (table.sqlName !== undefined && TABLE_SCOPING_CLASSES[table.sqlName]?.scope === "ownerId") {
+      if (keep(table.sqlName)) {
         idents.add(table.variableName);
       }
     }
