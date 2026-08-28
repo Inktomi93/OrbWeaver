@@ -13,12 +13,17 @@ export type {
   DistVerdict,
   DrainOutcome,
   EngineAdoptionEvidence,
+  EngineLaunchAction,
+  EngineLaunchDecision,
+  EngineLaunchModels,
+  EngineLaunchProbes,
   EngineRole,
   InstanceClassification,
   InstanceVerdict,
   LockHolder,
   ObservedInstance,
   ObservedStackProcess,
+  PortHealth,
   ProdRecord,
   ProdSpawnPlan,
   ProdSpawnPlanOpts,
@@ -32,7 +37,7 @@ export type {
   StackVerb,
   UpAction,
 } from "./contract/types.ts";
-export { DEBUG_ENV_KEYS, STACK_MODES, STACK_VERBS } from "./contract/types.ts";
+export { DEBUG_ENV_KEYS, ENGINE_LAUNCH_ACTIONS, STACK_MODES, STACK_VERBS } from "./contract/types.ts";
 export { formatDispatch, parseStackArgv, STACK_USAGE } from "./lib/argv.ts";
 export { debugConflictMessage, resolveDebugArming, stripDebugEnv } from "./lib/debug-env.ts";
 export {
@@ -44,7 +49,8 @@ export {
   verifyDevStackIdentity,
   writeDevStackIdentity,
 } from "./lib/dev-process-identity.ts";
-export { engineAdoptionMismatch } from "./lib/engine-adoption.ts";
+export { engineAdoptionMismatch, probeEngineAdoption } from "./lib/engine-adoption.ts";
+export { decideEngineLaunch, ENGINE_LAUNCH_IDENTITY_FAILURE, expectedAdoptionModels } from "./lib/engine-launch.ts";
 export { classifyInstance, decideDown, decideUp } from "./lib/identity.ts";
 export { parseListenerPid, parseProcStartTicks } from "./lib/proc-parse.ts";
 export { decideSpawnLock, lockHolderText, mayRemovePidfile, parseLockHolder, parseProdRecord, serializeProdRecord } from "./lib/prod-record.ts";

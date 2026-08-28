@@ -20,6 +20,13 @@
  * SEQUENTIAL BOOT: vLLM's memory profiler reads device-wide free-memory deltas, so two engines must never
  * profile at once (concurrent boots gave embed a NEGATIVE KV budget → death). Each finishes before the next;
  * a /health timeout is non-fatal (later engines still get their turn).
+ *
+ * THE DECISION IS NOT HERE (#764): adopt / refuse / skip / spawn — and the operator line each prints — is
+ * `lib/engine-launch.ts`, which takes its three I/O edges injected (`launchProbes` below wires the real
+ * ones). This file is a PROGRAM (`await runTool(main)` at the bottom), so anything left inline here is
+ * only reachable from a test that neuters the entry runner; the health-refusal arm lost its coverage that
+ * way once already. What stays here is orchestration and I/O: lock, reap, spawn, health-wait, identity
+ * capture, pidfile, detach/foreground hold.
  */
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -48,15 +55,15 @@ import { EXIT } from "../../_shared/exit-contract.ts";
 import type { FullPriorityChild } from "../../_shared/proc.ts";
 import { spawnFullPriorityChild } from "../../_shared/proc.ts";
 import { runTool } from "../../_shared/run-tool.ts";
-import type { EngineRole } from "../contract/types.ts";
-import { engineAdoptionMismatch } from "../lib/engine-adoption.ts";
+import type { EngineLaunchProbes } from "../contract/types.ts";
+import { probeEngineAdoption } from "../lib/engine-adoption.ts";
+import { decideEngineLaunch, ENGINE_LAUNCH_IDENTITY_FAILURE } from "../lib/engine-launch.ts";
 import { probePortHealth } from "../lib/port-health.ts";
 import { acquireSpawnLock, pidIsAlive, releaseSpawnLock } from "../lib/spawn-lock.ts";
 
 const REPO_ROOT = process.cwd();
 const HEALTH_POLL_MAX = 180;
 const HEALTH_POLL_INTERVAL_MS = 2000;
-const HEALTH_TIMEOUT_MS = 2000;
 const MS_PER_SECOND = 1000;
 // `--detach`: boot the fleet, record engine pgids to the pidfile, then EXIT (no foreground hold, no
 // kill-trap) — the detached fleet model (A.4). Each engine is its own setsid group leader, so they survive
@@ -80,39 +87,6 @@ function shouldSkip(): boolean {
     return true;
   }
   return false;
-}
-
-/** One /health probe — also the pre-spawn adopt-in-place check (an answering port = an engine that is
- *  already serving; spawning another is the duplicate-fleet defect, 2026-08-03). */
-function expectedModels(engine: EngineRole, launch: EngineLaunchConfig): readonly string[] {
-  if (engine === "embed") {
-    return [launch.embedModel];
-  }
-  if (engine === "rerank") {
-    return [launch.rerankModel];
-  }
-  return [launch.genModel.split("/").pop() ?? launch.genModel, launch.genModel];
-}
-
-async function adoptionMismatch(engine: EngineRole, port: number, launch: EngineLaunchConfig): Promise<string | null> {
-  // @orb-gate-ignore caught-failure-ownership(empty:error): the returned identity-probe failure is printed as a tool error and refuses adoption/spawn. Ends if this string can be treated as a successful identity verdict.
-  try {
-    const [modelsResponse, openapiResponse] = await Promise.all([
-      fetch(`http://127.0.0.1:${port}/v1/models`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) }),
-      fetch(`http://127.0.0.1:${port}/openapi.json`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) }),
-    ]);
-    if (!(modelsResponse.ok && openapiResponse.ok)) {
-      return `identity endpoints failed (/v1/models=${modelsResponse.status}, /openapi.json=${openapiResponse.status})`;
-    }
-    const models = (await modelsResponse.json()) as { data?: readonly { id?: string }[] };
-    const openapi = (await openapiResponse.json()) as { paths?: Record<string, unknown> };
-    return engineAdoptionMismatch(engine, expectedModels(engine, launch), {
-      modelIds: (models.data ?? []).flatMap((model) => (typeof model.id === "string" ? [model.id] : [])),
-      paths: Object.keys(openapi.paths ?? {}),
-    });
-  } catch (error) {
-    return `identity probe failed (${error instanceof Error ? error.message : String(error)})`;
-  }
 }
 
 async function waitHealthy(engine: string, port: number, child: FullPriorityChild): Promise<void> {
@@ -160,17 +134,14 @@ function utilFractions(): EngineUtilFractions {
   };
 }
 
-/** The cold-start headroom gate (B.6): vLLM's memory profiler OOMs mid-boot into insufficient free VRAM
- *  (the 0.28-era coexistence pain). The SAME budget check the wake gate runs — refuse loudly, name the
- *  holders, and skip the boot rather than OOM. Returns false to skip this engine's boot. Reconcile has
- *  already run, so a held GPU is a REAL foreign tenant, never our own corpse. */
-async function headroomOk(engine: (typeof VLLM_ENGINES)[number], gpuCount: number): Promise<boolean> {
-  const verdict = decideWakeBudget(engine, engineVramNeed(engine, gpuCount, utilFractions()), await queryGpuVram());
-  if (!verdict.ok) {
-    log(`${engine}: BOOT REFUSED — ${verdict.message}`);
-    return false;
-  }
-  return true;
+/** The launcher's real I/O edges, handed to the (pure) launch decision. The headroom edge is the SAME
+ *  budget check the in-server wake gate runs, read from the launch-floor util fractions. */
+function launchProbes(gpuCount: number): EngineLaunchProbes {
+  return {
+    health: probePortHealth,
+    adoption: probeEngineAdoption,
+    headroom: async (engine) => decideWakeBudget(engine, engineVramNeed(engine, gpuCount, utilFractions()), await queryGpuVram()),
+  };
 }
 
 /** The adopt-window boot lock (2026-08-03 duplicate-fleet audit): two adopters racing the same boot
@@ -240,27 +211,17 @@ async function launchOneEngine(opts: {
   readonly launch: EngineLaunchConfig;
   readonly deployment: ReturnType<typeof engineDeploymentEnv>;
   readonly gpuCount: number;
+  readonly probes: EngineLaunchProbes;
   readonly baseEnv: NodeJS.ProcessEnv;
 }): Promise<EngineLaunchResult> {
-  const { engine, port, launch, deployment, gpuCount, baseEnv } = opts;
-  const health = await probePortHealth(port);
-  if (health.kind === "healthy") {
-    const mismatch = await adoptionMismatch(engine, port, launch);
-    if (mismatch !== null) {
-      log(`${engine}: ADOPTION REFUSED on :${port} — ${mismatch}; occupied listener left untouched.`);
-      return { identityFailed: true };
-    }
-    log(`${engine} already serving (:${port}) — adopted in place, no spawn.`);
-    return { identityFailed: false };
+  const { engine, port, launch, deployment, gpuCount, probes, baseEnv } = opts;
+  const decision = await decideEngineLaunch({ engine, port, launch, probes });
+  log(decision.message);
+  // Every non-spawn verdict ends this engine's turn; whether it also fails the FLEET (exit toolError) is
+  // the decision tier's mapped Record, so a new action cannot be added without ruling on that consequence.
+  if (decision.action !== "spawn") {
+    return { identityFailed: ENGINE_LAUNCH_IDENTITY_FAILURE[decision.action] };
   }
-  if (health.kind === "unproven") {
-    log(`${engine}: ADOPTION REFUSED on :${port} — health probe failed (${health.reason}); occupied listener state is unproven and no duplicate will spawn.`);
-    return { identityFailed: true };
-  }
-  if (!(await headroomOk(engine, gpuCount))) {
-    return { identityFailed: false };
-  }
-  log(`starting ${engine} :${port}`);
   const spec = buildEngineSpawnSpec(engine, launch, { repoRoot: REPO_ROOT, gpuCount, deployment, baseEnv });
   const child = spawnEngine(engine, spec);
   await waitHealthy(engine, port, child);
@@ -285,9 +246,10 @@ async function launchFleet(launch: EngineLaunchConfig, deployment: ReturnType<ty
     gen: launch.ports.gen,
   };
   const baseEnv = processEnvSnapshot();
+  const probes = launchProbes(gpuCount);
   await VLLM_ENGINES.reduce<Promise<void>>(async (prior, engine) => {
     await prior;
-    const result = await launchOneEngine({ engine, port: portOf[engine], launch, deployment, gpuCount, baseEnv });
+    const result = await launchOneEngine({ engine, port: portOf[engine], launch, deployment, gpuCount, probes, baseEnv });
     if (result.child !== undefined) {
       children.push(result.child);
     }

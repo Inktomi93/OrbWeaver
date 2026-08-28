@@ -2,6 +2,8 @@
 // `scripts/dev/_kit/stack-mode.ts` at the #393 P5 move. Every decision the launcher makes is typed here;
 // the imperative half (spawn/kill/poll/probe) lives in ops/, and the dev half is stack.sh.
 
+import type { EngineLaunchConfig, WakeBudgetVerdict } from "@orb/server/infra/providers/vllm/engine";
+
 // ── The spawner census ───────────────────────────────────────────────────────────────────────────────
 
 /** One thing on this box that can bind a server and/or a vite port. Keeping this as DATA is what lets
@@ -226,3 +228,36 @@ export type DebugPosture = (typeof DEBUG_POSTURES)[number];
 /** A loopback engine health probe distinguishes a refused connection (nothing listens, safe to spawn) from
  *  an occupied-but-unproven port (timeout/protocol/tool failure, never permission to spawn a duplicate). */
 export type PortHealth = { readonly kind: "absent" } | { readonly kind: "healthy" } | { readonly kind: "unproven"; readonly reason: string };
+
+// ── The per-engine launch decision (`lib/engine-launch.ts`) ─────────────────────────────────────────
+
+/** The launch-config slice the adoption decision reads — the three served model names. Derived from the
+ *  server's `EngineLaunchConfig`, never re-spelled, so a renamed field reds here too. */
+export type EngineLaunchModels = Pick<EngineLaunchConfig, "embedModel" | "genModel" | "rerankModel">;
+
+/** The three I/O edges the decision consults, injected so the decision itself stays pure and directly
+ *  testable — the launcher (`ops/engines.ts`) wires the real loopback/GPU probes, a test wires its own. */
+export interface EngineLaunchProbes {
+  /** `GET /health` on the engine's port. */
+  readonly health: (port: number) => Promise<PortHealth>;
+  /** The identity proof a HEALTHY listener must pass before it may be adopted: `null` = adoptable, a
+   *  string = the mismatch to refuse with. */
+  readonly adoption: (engine: EngineRole, port: number, expectedModels: readonly string[]) => Promise<string | null>;
+  /** The cold-start VRAM headroom budget — read only when the port is ABSENT and a spawn is on the table. */
+  readonly headroom: (engine: EngineRole) => Promise<WakeBudgetVerdict>;
+}
+
+/** What to do with one engine's port, in decision order:
+ *    `adopt`  — a healthy listener proved its identity; leave it alone, spawn nothing.
+ *    `refuse` — the port is occupied and NOT provably ours (mismatched identity, or health unproven).
+ *               Never spawn a duplicate, never touch the incumbent — and the launcher exits toolError.
+ *    `skip`   — nothing listens but there is not enough free VRAM to boot; refuse loudly, exit clean.
+ *    `spawn`  — nothing listens and the budget is there. */
+export const ENGINE_LAUNCH_ACTIONS = ["adopt", "refuse", "skip", "spawn"] as const;
+export type EngineLaunchAction = (typeof ENGINE_LAUNCH_ACTIONS)[number];
+
+export interface EngineLaunchDecision {
+  readonly action: EngineLaunchAction;
+  /** The operator line the launcher prints for this decision — one per engine, always. */
+  readonly message: string;
+}
