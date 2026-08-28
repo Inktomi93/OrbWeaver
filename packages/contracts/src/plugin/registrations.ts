@@ -24,6 +24,25 @@ export interface PluginToolRegistration {
   readonly handler: PluginHandlerRef;
 }
 
+/** THE ONE MINT of a plugin tool's MODEL-VISIBLE wire name, `plugin_<slug'>_<name>` (`slug'` = the install
+ *  slug with `-` → `_`, because the OpenAI/MCP function-name charset has no hyphen).
+ *
+ *  WHY IT IS A FUNCTION AND NOT A TEMPLATE LITERAL AT THE REGISTRAR (U3): two call sites now need the same
+ *  answer — `entry/compose` mints it when it registers the guest's tool, and `plugin.listSurfaces` derives it
+ *  so a `tool-card` surface can be MATCHED to a persisted `ToolCallRecord.name` on the client. A second
+ *  spelling of the rule would silently unmatch every card the day either changed. It lives in `contracts`
+ *  because both callers are above it and the format is part of what a plugin author is promised.
+ *
+ *  The client never derives this: it consumes the projected name (the slug is not part of the surface wire
+ *  shape, and a client-side re-spelling would be a third home). What the client DOES take from here is
+ *  {@link PLUGIN_TOOL_NAME_PREFIX} — the namespace the first-party `pluginToolRenderer` claims — so the prefix
+ *  it matches on and the prefix this mint emits are the same string by construction. */
+export const PLUGIN_TOOL_NAME_PREFIX = "plugin_";
+
+export function pluginToolWireName(slug: string, name: string): string {
+  return `${PLUGIN_TOOL_NAME_PREFIX}${slug.replaceAll("-", "_")}_${name}`;
+}
+
 /** A D50 prompt transform the guest registered via `host.transforms.register` — collected at
  *  activation. Occupies the plugin band (order 1000+, assigned by activation order). */
 export interface PluginTransformRegistration {

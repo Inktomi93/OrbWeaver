@@ -325,6 +325,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     using titleH = ctx.getProp(defHandle, "title");
     using tierH = ctx.getProp(defHandle, "tier");
     using specH = ctx.getProp(defHandle, "spec");
+    using toolNameH = ctx.getProp(defHandle, "toolName");
     const onAction = ctx.getProp(defHandle, "onAction");
     // The materialize + parse runs under a BELT: ANY throw (a residual `RangeError` the pre-walk did not pre-empt,
     // a marshalling failure) becomes the §4.9 SOFT refusal, never an activation-fatal throw. `safeParse` catches
@@ -337,7 +338,10 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       const title = tryDumpGuestValue(ctx, titleH);
       const tier = tryDumpGuestValue(ctx, tierH);
       const spec = tryDumpGuestValue(ctx, specH);
-      if (!(id.ok && anchor.ok && title.ok && tier.ok && spec.ok)) {
+      // U3: the `tool-card` linkage. Absent ⇒ `undefined`, which the schema's optional `toolName` accepts for
+      // every other anchor and REFUSES for `tool-card` (the biconditional in `ui.ts`).
+      const toolName = tryDumpGuestValue(ctx, toolNameH);
+      if (!(id.ok && anchor.ok && title.ok && tier.ok && spec.ok && toolName.ok)) {
         throw new Error("metadata is too deeply nested or too large to validate");
       }
       const meta = {
@@ -346,6 +350,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
         title: title.value,
         tier: tier.value,
         spec: spec.value,
+        toolName: toolName.value,
       };
       parsed = pluginSurfaceRegistrationMetaSchema.safeParse(meta);
     } catch (err) {

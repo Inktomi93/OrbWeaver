@@ -14,15 +14,18 @@ import {
   pluginChatFlankSurface,
   pluginChatSettingsSection,
   pluginDistributeSection,
+  pluginToolRenderer,
   SnippetConsole,
 } from "@orb/client/features/plugin";
-import type { ChatSettingsSectionContribution, ChatSurfaceContribution } from "@orb/client/lib";
+import type { ChatSettingsSectionContribution, ChatSurfaceContribution, ToolRenderer } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { SettingsSectionContribution } from "@orb/client/state";
 import { selectChat, useSectionRegistry } from "@orb/client/state";
+import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
+import { MessageToolCalls } from "../../../../packages/client/src/features/chat/components/message-tool-calls.tsx";
 // The "This chat" tab as the component it is — the same relative-into-the-package import chat's own story
 // module takes for it (a story legitimately composes feature internals the front door does not re-export).
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
@@ -124,6 +127,41 @@ export function PluginChatSettingsSectionStory({ width = CONTEXT_PANE_WIDTH }: {
     <CtDataProviders>
       <div style={{ width }}>
         <CommittedSettingsTab background={null} chatId={CHAT_ID} isHost={true} roomOverrides={{}} sections={pluginChatSections} showGroup={false} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+// ── U3: the TOOL-CARD story (plugin-ui-plane #679, seam 7 — closes A2-F5) ──────────────────────────────────
+// The subject is chat's own `MessageToolCalls` over the REAL door member (`pluginToolRenderer`), never a test
+// double: what is pinned is the production path a person gets — a persisted `ToolCallRecord` → the `plugin_`
+// namespace claim → `plugin.listSurfaces` → the labelled shell, or the generic block when no card claims it.
+
+/** A transcript column at a realistic reading width. */
+const TRANSCRIPT_WIDTH = 640;
+
+/** The tool-renderer registry AS THE DOOR ASSEMBLES IT — one member, claiming the `plugin_` namespace. */
+const realToolRenderers: ReturnType<typeof createContributorRegistry<ToolRenderer>> = createContributorRegistry<ToolRenderer>("tool-renderers", [
+  pluginToolRenderer,
+]);
+/** The BASELINE arm: a build with NO plugin contribution — the generic-block rendering every byte-identity
+ *  pin below compares against. */
+const noToolRenderers: ReturnType<typeof createContributorRegistry<ToolRenderer>> = createContributorRegistry<ToolRenderer>("tool-renderers", []);
+
+/** A message's tool block, with (or, at `registered: false`, without) the plugin plane's card renderer at the
+ *  door. The CT drives the DATA (`plugin.listSurfaces`), so the arms differ only in what the plugin feature
+ *  has to say — which is exactly the property under test. */
+export function PluginToolCardStory({
+  records,
+  registered = true,
+}: {
+  readonly records: readonly ToolCallRecord[];
+  readonly registered?: boolean;
+}): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: TRANSCRIPT_WIDTH }}>
+        <MessageToolCalls records={records} renderers={registered ? realToolRenderers : noToolRenderers} />
       </div>
     </CtDataProviders>
   );
