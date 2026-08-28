@@ -260,5 +260,18 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       toast: (level, message) => ops.ui.toast(requirePlugin("ui.toast"), level, message),
       openDialog: (surfaceId) => ops.ui.openDialog(requirePluginId("ui.openDialog"), surfaceId),
     },
+    // The two U8 CANON-WRITE ops (seams 15/17). Closed over the INSTALLER only — the guest names the content
+    // and can name no owner, so a cross-owner write is structurally impossible (the `variables`/`storage`
+    // pattern). NO `requirePluginId`: unlike storage/notify these key nothing on the pluginId (no per-plugin
+    // belt — a library write into the installer's own store is not a rate-floored external spend, see the
+    // capability header), so `installerUserId` is the whole scope. The capability gate is the membrane-tier
+    // wall; a transient snippet's fixed grant profile omits both capabilities, so neither closure is reachable
+    // from a snippet regardless.
+    databank: {
+      ingest: (doc) => ops.databank.ingest({ installerUserId, name: doc.name, text: doc.text }),
+    },
+    character: {
+      ingest: (card) => ops.character.ingest({ installerUserId, card }),
+    },
   };
 }

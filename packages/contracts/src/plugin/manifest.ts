@@ -30,6 +30,16 @@ export const PLUGIN_CAPABILITIES = [
   "turn.trigger", // SPEND
   "imagery.generate", // SPEND
   "llm.quiet", // SPEND — a non-canon generation on the installer's own summarize-role connection; writes NOTHING
+  // The two CANON-WRITE-INTO-YOUR-OWN-LIBRARY capabilities (plugin-ui-plane #679 U8, seams 15/17). A scraper
+  // plugin ingests into the INSTALLER's own databank / character library — owner-scoped by construction (the
+  // bridge closes the installer over the write op; a guest can name no other owner), so past the grant the risk
+  // is the installing user's own, exactly like `storage.kv`. They are NOT `net.fetch`/`llm.quiet`-class SPEND:
+  // they touch no paid credential and no external host, only the box's own local write + derived-index compute,
+  // which is why neither carries an hourly rate floor (the ≤32-in-flight cap + the workload system's own bounds
+  // + importHash dedup are the ceiling — the same posture `storage.kv` writes take). Each gets its OWN consent
+  // line: a canon write is a distinct reach a person weighs separately from "show its own panels".
+  "databank.ingest", // ingest a text document into the installer's OWN databank (a Data Bank scraper)
+  "character.ingest", // ingest a V2/V3 card into the installer's OWN character library (a hub-import scraper)
   "events.subscribe",
   "tools.register", // D48 tool-use registry, source (b)
   "net.fetch", // requires netHosts

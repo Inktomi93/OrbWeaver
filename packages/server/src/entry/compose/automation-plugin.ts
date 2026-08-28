@@ -49,6 +49,7 @@ import {
   resolveNotificationRecipients,
 } from "#domain/automation";
 import { loadPresentRole } from "#domain/chat";
+import type { DatabankService } from "#domain/databank";
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
 import type { PluginBelts, PluginHostOps, PluginHostPort, PluginMacroRegistry, PluginService } from "#domain/plugin";
@@ -132,6 +133,18 @@ export interface AutomationPluginComposeDeps {
   readonly pluginMacros: PluginMacroRegistry;
   /** The author's default-preset generation params (the side-gen sampling ladder's middle rung — /autobg). */
   readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
+  /** #679 U8 seam 15 — databank's canon-write op (`createFromText`), narrowed. The membrane's `databank.ingest`
+   *  host fn rides it under the installer (compose resolves the Principal): a scraper plugin ingests into the
+   *  installer's OWN library and the derived indexer auto-runs (the write enqueues the ingest workload). */
+  readonly databankCreateFromText: DatabankService["createFromText"];
+  /** #679 U8 seam 17 — the character canon-write op, pre-built PER-INSTALLER at the composition root (it needs
+   *  the import-context wiring the root holds). Serializes the guest card to JSON bytes + runs the SAME
+   *  `importCharacter` funnel a file upload takes (the ContentChanged-emitting path). Owner-scoped: the root
+   *  resolves the installer's Principal and the import funnel re-gates ownership. */
+  readonly ingestCharacterCard: (req: {
+    readonly installerUserId: UserId;
+    readonly card: Record<string, unknown>;
+  }) => Promise<{ readonly characterId: string; readonly created: boolean }>;
 }
 
 /** The automation+plugin compose product. */
@@ -625,6 +638,22 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         pluginUiOutbox.requestDialog(pluginId, surfaceId);
         return Promise.resolve();
       },
+    },
+    // U8 seams 15/17 — the two CANON-WRITE ops. Each resolves the INSTALLER's Principal by ROW READ (a `UserId`
+    // arriving here carries no authority) and writes the installer's OWN library through the owning domain's own
+    // funnel: databank's `createFromText` (content-address + dedup + enqueue the ingest workload) and a per-owner
+    // `importCharacter` (byte-identical dedup, book/regex relink, and `character.create`'s `contentChanged:true`
+    // emit — both drive the indexer). Owner-scoped by construction: the bridge closes the installer over these,
+    // and the domain funnels re-gate on that Principal's ownership, so a cross-owner write is impossible.
+    databank: {
+      ingest: async ({ installerUserId, name, text }) => {
+        const principal = await resolveOwnerPrincipal(installerUserId);
+        const { document } = await deps.databankCreateFromText({ principal, name, text });
+        return { documentId: document.id };
+      },
+    },
+    character: {
+      ingest: ({ installerUserId, card }) => deps.ingestCharacterCard({ installerUserId, card }),
     },
     registrar: {
       // PL-A: a plugin tool namespaces `plugin_<slug'>_<name>` and lands in the ONE tool-use registry.

@@ -108,12 +108,19 @@ test("the EXCLUSIONS are excluded — residency, authority writes, spend, and eg
     // the SSRF guard; the bridge carries only the hourly admission), so proxying it would require a SECOND
     // egress path. See the tuple's header.
     "net.fetch",
+    // U8 CANON-WRITE class — OUT. Not room-authority writes (no `canWrite` gate — a library write is the
+    // installer's own), but WRITES all the same that mint durable rows + kick derived-index compute; the Tier-C
+    // tuple is deliberately reads + the two KV planes (§4.6 bought LATENCY for local-immediate interaction,
+    // which needs reads). A scripted surface that wants an ingest fires an `actionId` round-trip whose SERVER
+    // handler holds the grant — the plugin's server guest ingests under the same grant, nothing is lost.
+    "databank.ingest",
+    "character.ingest",
   ];
   for (const fn of excluded) {
     expect(isUiProxyableHostFunction(fn), fn).toBe(false);
   }
   // Together with the ordered pin above, these two tests are exhaustive over `HOST_FUNCTION_CAPABILITY`: 9 in,
-  // 20 out, 29 total.
+  // 22 out, 31 total.
   expect(UI_PROXYABLE_HOST_FUNCTIONS.length + excluded.length).toBe(Object.keys(HOST_FUNCTION_CAPABILITY).length);
 });
 
