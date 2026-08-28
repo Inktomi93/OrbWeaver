@@ -110,6 +110,34 @@ const INSTALLED_ROW = {
   updatedAt: A_PAST_INSTANT,
 };
 
+/** A `url`-ORIGIN installed row (U8 2b): fetched from a remembered `sourceUrl`, so the pane offers the auto
+ *  update-check + one-click upgrade. Kept deliberately simple (one granted capability, no netHosts) so the
+ *  reach-widening assertion below is crisp. */
+const URL_INSTALLED_ROW = {
+  ...INSTALLED_ROW,
+  id: "plugin_ct0000000000000000010",
+  slug: "url-teller",
+  name: "URL Teller",
+  origin: "url",
+  sourceUrl: "https://plugins.example.com/url-teller.zip",
+  declaredCapabilities: ["chat.read"],
+  grantedCapabilities: ["chat.read"],
+  netHosts: null,
+};
+
+/** What the one-click upgrade's server verb returns for a REACH-WIDENING update: the NEW version, `disabled`,
+ *  `reconsentPending: true`, and a newly-declared capability the prior grant never confirmed — so the SAME
+ *  ReConsentNotice the file upgrade drives renders from the refetched row. Origin/sourceUrl carry forward (the
+ *  upgrade never changes where it was installed from). */
+const URL_WIDENED_ROW = {
+  ...URL_INSTALLED_ROW,
+  version: "2.0.0",
+  declaredCapabilities: ["chat.read", "worldinfo.write"],
+  grantedCapabilities: ["chat.read"],
+  reconsentPending: true,
+  widenedNetHosts: [],
+};
+
 /** Drop a bundle into the install card's dropzone through the picker feeder. */
 async function pickBundle(page: Page, manifest: ManifestFixture): Promise<void> {
   await page.locator(DROPZONE_INPUT).setInputFiles({ name: `${manifest.id}.zip`, mimeType: "application/zip", buffer: bundle(manifest) });
@@ -498,6 +526,67 @@ test("a PARTIAL re-consent records exactly the narrower subset, and the notice k
     grant: ["chat.read", "net.fetch", "worldinfo.write"],
     acknowledgedNetHosts: upgradedRow.netHosts,
   });
+});
+
+test("url plugin one-click update; a widening one lands disabled pending re-consent (U8 2b)", async ({ mount, page }) => {
+  // The one-click path: "Check for updates" runs the server batch check; a newer version surfaces "Update to X";
+  // clicking it re-fetches the REMEMBERED source (the input names NO url) through the SAME upgrade verb the file
+  // path uses — so a reach-widening update lands the row `disabled` and the SAME ReConsentNotice renders. Never
+  // silent. The list is stateful so the barrier is the SETTLED widened row, not an in-flight flash.
+  let upgraded = false;
+  const recorder: TrpcRecorder = await routeTrpc(page, {
+    "plugin.list": () => [upgraded ? URL_WIDENED_ROW : URL_INSTALLED_ROW],
+    "plugin.checkForUpdates": () => [{ pluginId: URL_INSTALLED_ROW.id, status: "update-available", newVersion: "2.0.0" }],
+    "plugin.upgradeFromStoredUrl": () => {
+      upgraded = true;
+      return URL_WIDENED_ROW;
+    },
+    "plugin.getLog": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  await expect(page.getByText("URL Teller")).toBeVisible();
+  await page.getByRole("button", { name: "Check URL Teller for updates" }).click();
+
+  // SETTLED: the one-click affordance appears only once the check's response has rendered, and it NAMES the
+  // target version — the act is legible before the click.
+  const updateButton = page.getByRole("button", { name: "Update URL Teller to 2.0.0" });
+  await expect(updateButton).toBeVisible();
+
+  await updateButton.click();
+
+  // SETTLED: the re-consent notice (the SAME consent surface the file upgrade drives) appears from the refetched
+  // widened row — the update did NOT silently apply.
+  const notice = page.getByRole("alert").filter({ hasText: "stayed off" });
+  await expect(notice).toBeVisible();
+  await expect(page.getByText("Off — asked for more than you allowed")).toBeVisible();
+  // What widened — the new capability by its own plain-English name (never the wire spelling).
+  await expect(notice).toContainText("Write lorebook entries");
+
+  // ONESHOT-OK: the notice settle above proves the mutation completed. The one-click input names ONLY the
+  // pluginId — no url — because the server re-fetches the remembered `sourceUrl` (the whole point of 2b).
+  expect(recorder.lastInput("plugin.upgradeFromStoredUrl")).toEqual({ pluginId: URL_INSTALLED_ROW.id });
+});
+
+test("an up-to-date url plugin says so; a file plugin offers no update check (U8 2b)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    // A url plugin (checkable) beside a file plugin (INSTALLED_ROW, origin "upload" — no remembered source).
+    "plugin.list": () => [URL_INSTALLED_ROW, INSTALLED_ROW],
+    "plugin.checkForUpdates": () => [{ pluginId: URL_INSTALLED_ROW.id, status: "up-to-date" }],
+    "plugin.getLog": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  // The FILE install has no source to re-fetch, so it exposes NO update-check affordance at all.
+  await expect(page.getByRole("button", { name: "Check Weather Teller for updates" })).toHaveCount(0);
+
+  // The URL install offers it; checking reports up-to-date in the person's own words.
+  await page.getByRole("button", { name: "Check URL Teller for updates" }).click();
+  await expect(page.getByText("Up to date", { exact: false })).toBeVisible();
 });
 
 test("the snippet console shows what a run logged, and shows a contained failure instead of hanging", async ({ mount, page }) => {

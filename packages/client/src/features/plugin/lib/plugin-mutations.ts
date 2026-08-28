@@ -57,6 +57,40 @@ export const useUpgradePlugin = createEntityMutation<inferInput<Trpc["plugin"]["
 });
 
 /**
+ * U8 2b — the AUTO UPDATE-CHECK (the thing ST's loader does). A BATCH mutation (not a query) because the server
+ * verb triggers EGRESS to each url-origin plugin's remembered source, and a GET-shaped door onto egress is
+ * cacheable + outside the CSRF belt — the same reason `upgradeFromUrl`/`installFromUrl` are mutations. Takes no
+ * input (it walks the caller's OWN plugins) and reconciles NOTHING — a check writes nothing; the caller reads the
+ * per-plugin verdicts through `mutateAsync` and renders the "Update to X" / "up to date" / "couldn't reach" line.
+ */
+export const useCheckForUpdates = createEntityMutation<inferInput<Trpc["plugin"]["checkForUpdates"]>, inferOutput<Trpc["plugin"]["checkForUpdates"]>>({
+  options: (trpc) => trpc.plugin.checkForUpdates.mutationOptions(),
+  invalidates: () => [],
+  errorToast: serverReason("Couldn't check for updates."),
+});
+
+/**
+ * U8 2b — the TRUE one-click upgrade: re-fetch the plugin's REMEMBERED `sourceUrl` (re-paste-free) and upgrade in
+ * place through the SAME server `upgrade` verb `useUpgradePlugin` drives — so a REACH-WIDENING update lands the
+ * row `disabled` pending re-consent exactly the same way (never silent), and the caller reads the returned
+ * `PluginView.status`/`reconsentPending` rather than assuming it kept running. Same invalidations as the file
+ * upgrade: the new bundle can move the log, the surface set and the command set.
+ */
+export const useUpgradePluginFromStoredUrl = createEntityMutation<
+  inferInput<Trpc["plugin"]["upgradeFromStoredUrl"]>,
+  inferOutput<Trpc["plugin"]["upgradeFromStoredUrl"]>
+>({
+  options: (trpc) => trpc.plugin.upgradeFromStoredUrl.mutationOptions(),
+  invalidates: (trpc, vars) => [
+    trpc.plugin.list.queryFilter(),
+    trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),
+    trpc.plugin.listSurfaces.queryFilter(),
+    trpc.plugin.listCommands.queryFilter(),
+  ],
+  errorToast: serverReason("Couldn't update that plugin."),
+});
+
+/**
  * The RE-CONSENT act (#650 P1-1/P1-3) — grants a NEW subset against the currently-installed manifest. `grant`
  * is the WHOLE new set, not a delta (the verb's own contract: a consent surface shows the complete
  * asked-vs-allowed picture and sends back exactly what it displayed). This is what turns the re-consent
