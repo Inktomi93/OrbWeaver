@@ -82,8 +82,20 @@ function judge(
   if (markerLine === undefined) {
     return { verdict: "unproven", reason: null, markerLine: null };
   }
-  const marker = parseGateIgnoreMarker(lines[markerLine - 1] ?? "");
-  return { verdict: "deliberate-absorb", reason: marker === undefined ? null : marker.reason, markerLine };
+  // `parseGateIgnoreMarker` is ANCHORED at `^//` (the mention fence) and the suppressor feeds it the COMMENT
+  // node's own text; a source LINE carries the indentation in front of it, so an un-trimmed line parses as
+  // "not a marker" and the reason comes back empty. That is the reader failing, never a reasonless marker —
+  // `findGateIgnore` only returns a line it already matched a WELL-FORMED marker on, so REFUSE rather than
+  // record a null and let the census read as a bare exemption.
+  const marker = parseGateIgnoreMarker((lines[markerLine - 1] ?? "").trimStart());
+  if (marker === undefined || marker.reason.length === 0) {
+    throw new Error(
+      `caught-failure-population: the suppressor honoured a marker at line ${markerLine} that this reader could not parse — ` +
+        "the census cannot record a reason it did not read. Re-derive the marker read in " +
+        "tooling/src/verify/ops/gen/caught-failure-population.ts.",
+    );
+  }
+  return { verdict: "deliberate-absorb", reason: marker.reason, markerLine };
 }
 
 /** Re-derive the whole census from the tree. ONE producer — the same `caughtFailureReviewSites` the gate
