@@ -166,6 +166,20 @@ export interface PluginHostV1 {
     error: (msg: string) => void;
   };
 
+  /** Token-count ESTIMATION over the guest's OWN text (#788 F13, the ST `getTokenCountAsync` parity arm). A FREE
+   *  namespace — capability: none (always granted) — and that is the correct classification, not a shortcut: it is
+   *  the kit `estimateTokens` engine (`@orb/kit/tokens`, the SAME estimator `clampToTokenBudget`/`splitToTokenBudget`
+   *  build on), a PURE deterministic function of the input string with ZERO reach — no tenant data, no DB, no I/O,
+   *  no spend, no effect, no owner scope. A capability exists to let a person weigh a REACH; this has none, so a
+   *  consent row would be meaningless noise. It sits in the free band beside `log` (the precedent: a zero-reach
+   *  utility, "always granted"). SYNC like `clock`/`ids` (the estimator is synchronous), and because it is
+   *  isomorphic kit it is computed LOCALLY in BOTH realms — the server guest (`orb.host(1)`) and the client Tier-C
+   *  guest (`orb.ui(1)`) each estimate host-side with no round-trip, so it is reachable at native latency on both
+   *  without a bridge op or a proxy-tuple entry. */
+  readonly tokens: {
+    count: (text: string) => number;
+  };
+
   readonly chat: {
     /** Resolve the invocation's chat. Throws outside a chat scope. capability: chat.read */
     current: () => ChatHandle;
@@ -556,7 +570,7 @@ export interface PluginHostV1 {
 /** Namespaces reachable with NO capability: the determinism/id floor + the version/feature-detect surface.
  *  The ONE tuple (derive, never re-spell — §7.5); a `satisfies` pins every member to a real `PluginHostV1` key,
  *  so a renamed/removed free namespace fails `tsc` here. */
-const PLUGIN_FREE_NAMESPACES = ["version", "grants", "clock", "random", "ids", "log"] as const satisfies readonly (keyof PluginHostV1)[];
+const PLUGIN_FREE_NAMESPACES = ["version", "grants", "clock", "random", "ids", "log", "tokens"] as const satisfies readonly (keyof PluginHostV1)[];
 type FreeNamespace = (typeof PLUGIN_FREE_NAMESPACES)[number];
 /** Every namespace whose functions are capability-gated. */
 type GatedNamespace = Exclude<keyof PluginHostV1, FreeNamespace>;

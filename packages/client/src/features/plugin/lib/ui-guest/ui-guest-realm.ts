@@ -12,6 +12,7 @@
 
 import type { PluginLogLevel } from "@orb/contracts/plugin";
 import { PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
+import { estimateTokens } from "@orb/kit/tokens";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 import type { UiGuestBootMessage, UiGuestOutbound } from "#lib";
 import { UI_GUEST_BUDGETS } from "#lib";
@@ -185,6 +186,17 @@ function buildSurface(deps: RealmDeps): QuickJSHandle {
     ctx.setProp(logObj, level, fn);
   }
   ctx.setProp(surface, "log", logObj);
+
+  // tokens.count(text) — the FREE token-count estimator (#788 F13), the client mirror of the server realm's
+  // `orb.host(1).tokens.count`. `estimateTokens` is isomorphic kit, so the Tier-C guest estimates its OWN text
+  // LOCALLY (host-side of the worker) with no round-trip — a pure, zero-reach utility that needs no capability and
+  // no proxy, exactly like `clock`/`log`. A non-string arg estimates the empty string (0), the realm's fail-safe.
+  using tokens = ctx.newObject();
+  using countFn = ctx.newFunction("count", (textHandle?: QuickJSHandle) =>
+    ctx.newNumber(estimateTokens(textHandle === undefined || ctx.typeof(textHandle) !== "string" ? "" : ctx.getString(textHandle))),
+  );
+  ctx.setProp(tokens, "count", countFn);
+  ctx.setProp(surface, "tokens", tokens);
 
   // render(surfaceId, tree) — RETAINED MODE. The guest publishes a WHOLE tree; the host applies it behind a
   // content-equality publish guard so a re-render loop cannot form. A surfaceId this plugin did not register is

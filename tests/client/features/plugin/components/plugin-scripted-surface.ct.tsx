@@ -22,6 +22,7 @@
 
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { estimateTokens } from "@orb/kit/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
@@ -240,11 +241,16 @@ const BOOT_LOOP_GUEST = `
 /** THE REALM PROBE (#784 F3) — it enumerates its OWN guest `globalThis` and renders the sorted list into a text
  *  node the CT reads back, so the closed allow-list is asserted against the REAL worker guest (the production
  *  path: the real wasm, the real `installRealm`). Wrapped in a marker so the CT can locate exactly this node. */
+/** The string the client realm probe estimates — asserted against the SAME isomorphic `estimateTokens` the guest ran. */
+const TOKENS_SAMPLE = "The quick brown fox jumps over the lazy dog.";
+
 const REALM_PROBE_GUEST = `
   const ui = orb.ui(1);
   const names = Object.getOwnPropertyNames(globalThis).sort().join(",");
   ui.render("browser", { kind: "stack", children: [
     { kind: "text", voice: "label", value: "REALM_GLOBALS[" + names + "]" },
+    // #788 F13 — prove the FREE token estimator is on the client realm floor and computes LOCALLY (no host round-trip).
+    { kind: "text", voice: "label", value: "TOKENS[" + ui.tokens.count(${JSON.stringify(TOKENS_SAMPLE)}) + "]" },
   ]});
 `;
 
@@ -461,4 +467,9 @@ test("THE F3 PIN — the client guest global object is an EXACT allow-list (a ne
   // `orb` is the one installed entry and the enumeration is non-trivial.
   expect(actual).toContain("orb");
   expect(actual.length).toBeGreaterThan(40);
+
+  // #788 F13 — the FREE token estimator on the client realm floor: the guest computed `orb.ui(1).tokens.count`
+  // LOCALLY (no proxied host call) and it returns the SAME isomorphic `estimateTokens` value the host would.
+  const tokensMarker = page.getByText(/^TOKENS\[/);
+  await expect(tokensMarker).toHaveText(`TOKENS[${estimateTokens(TOKENS_SAMPLE)}]`);
 });
