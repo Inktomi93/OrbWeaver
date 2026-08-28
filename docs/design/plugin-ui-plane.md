@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-08-24
+updated: 2026-08-28
 ---
 
 # The Plugin UI Plane — full-featured add-ons over the sealed membrane (#679)
@@ -401,6 +401,29 @@ have native latency because they run in the page. The owner opened the dep budge
 - **Recommendation: ADOPT — this is the load-bearing dep class the owner named, and it is zero-to-one
   NEW packages** (worst case one sibling variant package from the already-trusted family).
 
+> **BUILT 2026-08-28 (U4) — the dep row resolves to ZERO new packages, and the wasm-loading mechanism is
+> pinned.** `@jitl/quickjs-ng-wasmfile-release-sync@0.32.0` — already installed, already catalog-pinned,
+> already a `packages/server` dependency — declares `"browser": "./dist/index.mjs"` and an
+> `./emscripten-module` export with a `browser` condition, plus a `"./wasm"` subpath. No sibling variant
+> package exists or is needed; the client half is the catalog entry added to `packages/client/package.json`
+> and nothing more. Receipts: that package's own `package.json` exports map; `newVariant` +
+> `CustomizeVariantOptions.wasmLocation` at `quickjs-emscripten-core` `dist/index.d.ts:1910`/`:1870`.
+>
+> **The wasm must be an EXPLICIT asset URL** (`import wasmUrl from "…/wasm?url"` → `newVariant(base,
+> { wasmLocation: wasmUrl })`). Without it the variant's loader derives its path from `import.meta.url` at
+> runtime, which resolves inside `node_modules` in dev and 404s from a hashed production chunk — a scripted
+> surface that works for every developer and for no user. Two alternatives were probed and both lost:
+> `assetsInclude: ["**/*.wasm"]` with a plain specifier does not win (vite still applies its `?init`
+> transform; the worker bundle fails to build), and dependency-cruiser cannot be taught the `?url` suffix
+> through `enhancedResolveOptions.alias` (schema-refused) or `options.exclude` (does not reach an
+> unresolvable node) — so its `not-to-unresolvable` carries a narrowed override for `wasm?url` alone.
+>
+> **Boot-split receipt** (`pnpm --filter @orb/client build`): `assets/emscripten-module-*.wasm` emitted as
+> a hashed asset (528 kB), `plugin-ui-guest-host-*.js` its own 1.9 kB chunk, `ui-guest.worker-*.js` its own
+> bundle, and **zero** occurrences of `quickjs` in the boot chunk. `playwright-ct.config.ts` needs
+> `worker: { format: "es" }`: an iife worker bundle cannot code-split, and the variant dynamically imports
+> its own FFI module.
+
 **The shape:**
 
 - The bundle gains an optional second entry: `manifest.uiEntry: "ui.js"` (additive-optional field;
@@ -427,6 +450,22 @@ have native latency because they run in the page. The owner opened the dep budge
   `PluginHostOps` bridge under the installer. The client's claim is never trusted — the server
   resolves the caller's own row and the grant, per call (the membrane's own per-call posture,
   `01:36-40`).
+
+  > **BUILT 2026-08-28 — the tuple is NINE members, and `net.fetch` is out on a STRUCTURAL receipt rather
+  > than a judgment call.** In: `chat.listMessages`, `chat.getVariables`, `variables.{get,set,delete}`,
+  > `storage.{get,set,delete,list}`. The design's "already-safe effect fns" reads as including `net.fetch`,
+  > and it cannot be: **the fetch is not on `PluginBridge` at all.** `safeFetch` is the audited SSRF guard
+  > and lives in `infra/network`, which a domain may not import, so INFRA performs every plugin fetch and
+  > the bridge carries only the hourly admission (`PluginBridge.admitEgress`, whose own header states this
+  > division). Proxying it would need a NEW injected egress op wired at compose — a SECOND egress path
+  > beside the membrane's, with its own copy of the allow-list plumbing. This lane refused to improvise
+  > that; the sanctioned shape, if it is ever wanted, is to widen `PluginBridge` so infra's ONE guarded
+  > fetch is reachable by both callers. The AUTHORITY-WRITE class (`chat.applyVariableOps`,
+  > `chat.surfaceQuickReply`, `chat.requestTurn`, `worldInfo.upsertEntry`, `imagery.generatePicture`,
+  > `llm.quiet`) and `notifications.post` are also out, each with its priced enablement shape recorded at
+  > the tuple in `@orb/contracts/plugin/host-v1.ts`. Nothing loses ABILITY — the plugin's SERVER guest
+  > reaches every excluded function under the same grant; Tier C gives up only their LATENCY, which is not
+  > what §4.6 bought.
 - Rendering is retained-mode: the guest publishes a whole tree; the host renderer applies it behind
   a content-equality publish guard (the `ChatControlSourceMountProps` guard shape,
   `contribution-contracts.ts:179-191`) so a re-render loop cannot form.
