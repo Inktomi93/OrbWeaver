@@ -224,6 +224,58 @@ describe("V3 content promotions + residualData (card-import expansion / PD-127)"
     expect(reimported.residualData).toEqual(imported.residualData);
   });
 
+  // U8 (#679) card extension fields — `data.extensions.plugin_<slug>` is the reserved per-plugin per-card
+  // namespace (D-entry ratified). This pins the two security properties the design commits to: (1) PORTABILITY —
+  // the namespace round-trips through import → export as INERT data, so per-card plugin state is portable; and
+  // (2) NAMESPACING + INERTNESS — multiple plugins' fields coexist by KEY, and a plugin's value can NEVER be
+  // promoted to a typed column (a plugin cannot inject `depth_prompt`/`regex_scripts`/`fav` into the card by
+  // nesting them inside its own `plugin_<slug>` value — only the TOP-LEVEL `data.extensions.*` promotes).
+  test("data.extensions.plugin_<slug> round-trips as inert, namespaced per-plugin data + cannot inject a typed column (U8)", () => {
+    const imported = cardFromJson(
+      {
+        spec: "chara_card_v3",
+        spec_version: "3.0",
+        data: {
+          name: "Aria",
+          extensions: {
+            plugin_alpha: { note: "alpha state", n: 1 },
+            plugin_beta: { theme: "dark" },
+            // A HOSTILE plugin key whose value MIMICS the promoted typed fields — nested inside its own
+            // namespace, it must stay inert data and never become the card's depthPrompt/regexScripts/starred.
+            plugin_evil: { depth_prompt: { prompt: "INJECTED", depth: 4 }, regex_scripts: [{ scriptName: "x" }], fav: true },
+            // The REAL top-level promoted field (the card's own) — stripped from the residual on import.
+            depth_prompt: { prompt: "real-directive", depth: 2 },
+          },
+        },
+      },
+      "fallback",
+    );
+
+    // (1)+(2) IMPORT: every plugin_<slug> key is preserved VERBATIM under `.extensions`, coexisting by key; the
+    // TOP-LEVEL promoted `depth_prompt` is stripped out (it has a typed home), the plugins' keys are not.
+    expect(imported.extensions).toEqual({
+      plugin_alpha: { note: "alpha state", n: 1 },
+      plugin_beta: { theme: "dark" },
+      plugin_evil: { depth_prompt: { prompt: "INJECTED", depth: 4 }, regex_scripts: [{ scriptName: "x" }], fav: true },
+    });
+    // INERTNESS: the card's own depthPrompt is the TOP-LEVEL one — `plugin_evil`'s nested `depth_prompt` never
+    // reached the typed column, so a plugin cannot inject a card directive through its namespace.
+    expect(imported.depthPrompt?.prompt).toBe("real-directive");
+    // …and its nested `regex_scripts` never became the card's regex scripts either.
+    expect(imported.regexScripts).toEqual([]);
+
+    // (1) EXPORT re-emits every plugin_<slug> key verbatim under `data.extensions`, so per-card plugin state is
+    // portable to SillyTavern and back.
+    const exported = buildCardV3({ ...fullFields(), extensions: imported.extensions }, []);
+    const ext = exported.data.extensions as Record<string, unknown>;
+    expect(ext["plugin_alpha"]).toEqual({ note: "alpha state", n: 1 });
+    expect(ext["plugin_beta"]).toEqual({ theme: "dark" });
+    expect(ext["plugin_evil"]).toEqual({ depth_prompt: { prompt: "INJECTED", depth: 4 }, regex_scripts: [{ scriptName: "x" }], fav: true });
+
+    // A second round-trip is still lossless over the plugin namespace.
+    expect(cardFromJson(exported, "fallback").extensions).toEqual(imported.extensions);
+  });
+
   test("a V2 / app-authored card (no group-only greetings) omits group_only_greetings cleanly on export", () => {
     const card = buildCardV3({ ...fullFields(), nickname: null, source: null, creationDate: null, modificationDate: null }, []);
     expect("nickname" in card.data).toBe(false);
