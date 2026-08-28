@@ -354,3 +354,53 @@ export interface SlashCommandContribution {
    *  at the render site) — it may use hooks. */
   readonly mount: (props: SlashCommandMountProps) => ReactNode;
 }
+
+/** ONE dynamic row a {@link CommandPaletteSource} fans into the command palette (§6c). A plain,
+ *  pre-resolved row — NOT a {@link SlashCommandContribution}: a static contribution is one declaration = one
+ *  row, assembled at the door, and cannot express rows that only exist at runtime (a plugin's registered
+ *  commands, read per-caller off a query). The mount/runner indirection is deliberately absent too: a
+ *  dynamic source owns ONE runner hook for its whole set (the rows share a resolver), so per-row fibers would
+ *  buy nothing the source's own hook does not already give. `run` is the row's action; the HOST dismisses
+ *  the palette around it (a command that opens another modal must not have this one close it back). */
+export interface PaletteCommandRow {
+  /** The cmdk `value` — a stable key unique across the source's rows (cmdk scores `value`/`keywords`, never
+   *  the rendered children, so the visible text also rides `keywords`). */
+  readonly id: string;
+  /** The row's title — the visible, matched command name. */
+  readonly label: string;
+  /** One-line help — carried as a search term (the palette does not paint it, matching every other command
+   *  row: describe is for finding, not display). */
+  readonly describe: string;
+  /** The owning entity's display name, rendered as a trailing row label AND folded into the accessible name
+   *  (the disambiguator when two entities register a same-named command — the extensions-switcher precedent). */
+  readonly badge?: string;
+  /** Extra cmdk search terms beyond label/describe/badge. */
+  readonly keywords?: readonly string[];
+  /** Run the row. Fire-and-forget; the host closes the palette first. */
+  readonly run: () => void;
+}
+
+/** A DYNAMIC command-palette SOURCE (§6c; §12 row 4 — the contributor channel) — a feature grafts a set of
+ *  RUNTIME-derived rows onto the command palette without either feature importing the other. Assembled at the
+ *  door into a `ContributorRegistry<CommandPaletteSource>` exactly like the static contributor families; the
+ *  palette knows nothing about who contributes.
+ *
+ *  The difference from {@link SlashCommandContribution} is the whole reason this exists: a slash contribution
+ *  is fixed vocabulary (its rows are known at door-assembly and it can never fan), while a source produces its
+ *  rows from LIVE data inside its own fiber, so the count and content change with the caller's own state. That
+ *  is what turns each plugin-registered command into its OWN first-class, searchable palette row rather than a
+ *  single `/plugin <slug> <cmd>` sub-dispatch (plugin-ui-plane #679 U8, §4.5/§5 row 9).
+ *
+ *  `useRows` is a HOOK — the host renders each source as its own component so the hook lives in its own fiber
+ *  (never a hooks-in-a-loop at the palette). It runs unconditionally; an empty return renders no group, so a
+ *  build/caller with nothing to contribute is byte-identical to one without the source. */
+export interface CommandPaletteSource {
+  /** Names the source (the registry key). */
+  readonly id: string;
+  /** The heading the source's rows render under. */
+  readonly heading: string;
+  /** A glyph rendered as each row's leading icon. */
+  readonly icon?: LucideIcon;
+  /** The source's live rows for the palette's context. A hook — runs in the source's own fiber. */
+  readonly useRows: (context: SlashCommandContext) => readonly PaletteCommandRow[];
+}

@@ -105,6 +105,9 @@ export { CHROME_ZONES, mobileBarCuration, sheetOverflowChrome } from "./chrome-r
 export type { ChromeRegistry } from "./chrome-registry-context.ts";
 export { useChromeRegistry } from "./chrome-registry-context.ts";
 export { ChromeRegistryProvider } from "./chrome-registry-provider.tsx";
+export type { CommandPaletteSourceRegistry } from "./command-palette-source-registry-context.ts";
+export { CommandPaletteSourceRegistryContext } from "./command-palette-source-registry-context.ts";
+export { CommandPaletteSourceRegistryProvider } from "./command-palette-source-registry-provider.tsx";
 export {
   __readComposerDraftsForTest,
   __resetComposerDrafts,

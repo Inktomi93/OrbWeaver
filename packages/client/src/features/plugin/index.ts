@@ -22,6 +22,10 @@ export { pluginChatFlankSurface, pluginChatSettingsSection, pluginMessageFooterS
 // plugin `dialog` surface renders inside. Four door members for the whole platform — none of them grows when a
 // person installs a plugin, because every per-plugin fan happens INSIDE a body off the caller's own reads.
 export { extensionsSection } from "./lib/extensions-section.tsx";
+// U8 (plugin-ui-plane #679 §4.5/§5 row 9): the DYNAMIC command-palette SOURCE — one first-party contributor
+// that fans the caller's registered plugin commands into first-class, searchable palette rows. Assembled into
+// the palette-source registry at the door; the palette imports nothing from here.
+export { pluginCommandPaletteSource } from "./lib/plugin-command-palette-source.ts";
 export { pluginCommandsChrome } from "./lib/plugin-commands-chrome.tsx";
 export { pluginDialogModal } from "./lib/plugin-dialog-modal.tsx";
 export { pluginDistributeSection } from "./lib/plugin-distribute-section.tsx";
