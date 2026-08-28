@@ -4,14 +4,16 @@
 // caller's insert COLLIDE with a foreign row's unique key and overwrite it. The owner must appear in the
 // `target`/`targetWhere`/`setWhere`, or an `// @owner-scope-upsert-ok: <reason>` marker must name who proved
 // the target values are the caller's. TWO-SIDED: a marker guarding no ownerless-target upsert is RED.
-// DECLARED LIMITS: an unreadable config (a spread/identifier, or drizzle's DEPRECATED ambiguous `where:`)
-// fails CLOSED, and `onConflictDoNothing` is out of scope (it overwrites nothing).
+// An UNRESOLVABLE insert target (an identifier tracing to no declared table) reports too — an unreadable
+// target is unproven. DECLARED LIMITS: an unreadable config (a spread/identifier, or drizzle's DEPRECATED
+// ambiguous `where:`) fails CLOSED, and `onConflictDoNothing` is out of scope (it overwrites nothing).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
-import { markedFunctions, markerKeyFor, ownerScopedTableBinding, predicatesTableColumn, upsertConfigOf } from "../lib/tenancy-read.ts";
-import { ownerScopedTableIdents } from "./table-scoping-class.ts";
+import type { TableTarget } from "../lib/tenancy-read.ts";
+import { markedFunctions, markerKeyFor, predicatesTableColumn, tableTargetOf, upsertConfigOf } from "../lib/tenancy-read.ts";
+import { ownerScopedTableIdents, schemaTableIdents } from "./table-scoping-class.ts";
 
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
 const SERVER_SRC = "packages/server/src/";
@@ -32,6 +34,11 @@ const GUARD_PROPS = ["target", "targetWhere", "setWhere"] as const;
 const MARKER_RE = /@owner-scope-upsert-ok:\s*\S/u;
 const MARKER = "@owner-scope-upsert-ok";
 
+/** The finding token of the unresolvable arm — a stable CLASS token (the `table-scoping-class` idiom), so
+ *  the arm is nameable by an `@orb-gate-ignore` and never collides with the ownerless-target arm, whose
+ *  token is the binding itself. */
+const UNRESOLVABLE = "unresolvable-target";
+
 const MESSAGE =
   "an `onConflictDoUpdate` upsert of an ownerId-scoped table whose conflict target does not resolve the " +
   "owner — this is the cross-tenant UPSERT hole: an upsert is an UPDATE in disguise, and the row it updates " +
@@ -41,7 +48,13 @@ const MESSAGE =
   "owner-filtered read afterwards). An owner-scoped table (table-scoping-class class (a)) resolves tenancy " +
   "through its `ownerId`, so the collision has to say so — or say who already proved the target is the " +
   "caller's. The sibling halves judge the `.where` of a read and of a write; the owner-scoped fetch they " +
-  "all pair with is packages/db/src/kit/fetch-owned.ts";
+  "all pair with is packages/db/src/kit/fetch-owned.ts. A `" +
+  UNRESOLVABLE +
+  ' "<ident>"` token is the SECOND arm: the insert target is an identifier that traces to no table this ' +
+  "schema declares (a parameter, a reassigned binding, an alias chain past the depth cap or through a " +
+  "cycle), so the gate cannot tell whether it is an ownerId-class table at all — and an unreadable target " +
+  "is an UNPROVEN one, not a clean one. The `onConflictDoUpdate` in the chain is what proves this is a " +
+  "drizzle statement, so no further fence is needed here (#769).";
 
 const FIX =
   "pick the arm that fits: (1) put the owner IN THE CONFLICT TARGET — `target: [T.ownerId, T.key]`, which " +
@@ -53,7 +66,11 @@ const FIX =
   `the target values are the engine's own constants (D20 un-principal) — mark it \`// ${MARKER}: <reason>\` ` +
   "on the function. The reason must name WHO proved the target values are the caller's and what would end " +
   "the exemption. Note that assigning `ownerId` inside `set` is NOT a fix: it restamps the row that already " +
-  "lost the collision, which converts an overwrite into a theft.";
+  "lost the collision, which converts an overwrite into a theft. For the `" +
+  UNRESOLVABLE +
+  "` arm the first answer is different: NAME THE TABLE AT THE STATEMENT — a table-generic upsert helper " +
+  "cannot carry a conflict guard anyone can read — or, if the indirection is deliberate, mark the function " +
+  "and say who proved the target values are the caller's.";
 
 const STALE = (fn: string, file: string): string =>
   `\`${MARKER}\` marker on \`${fn}\` (${file}) guards NO ownerless-target upsert any more — delete the stale ` +
@@ -67,14 +84,16 @@ const BLIND =
 
 /** The (a)-class drizzle table identifiers, derived per run by `table-scoping-class`. */
 let ownerTableIdents = new Set<string>();
+/** EVERY declared table identifier — the denominator that tells a non-(a) upsert from an unreadable one. */
+let allTableIdents = new Set<string>();
 /** Functions carrying the marker → their (file, name), for the stale arm. */
 const markedFns = new Map<string, { readonly fn: string; readonly file: string }>();
 /** Marker keys that actually guarded an ownerless-target upsert. */
 const markersUsed = new Set<string>();
 
-/** The (a)-class table this call inserts into — `db.insert(T)` / the same on a `tx` receiver — or undefined
- *  for every other call. */
-function insertTargetIdent(node: Node): string | undefined {
+/** How this call's insert target resolved — `db.insert(T)` / the same on a `tx` receiver — or undefined for
+ *  every other call (and for a target that is not a BINDING at all). */
+function insertTarget(node: Node): TableTarget | undefined {
   if (!node.isKind(SyntaxKind.CallExpression)) {
     return;
   }
@@ -82,7 +101,7 @@ function insertTargetIdent(node: Node): string | undefined {
   if (!(callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getName() === INSERT_VERB)) {
     return;
   }
-  return ownerScopedTableBinding(node.getArguments()[0], ownerTableIdents);
+  return tableTargetOf(node.getArguments()[0], ownerTableIdents, allTableIdents);
 }
 
 /** Does the upsert config constrain the DO UPDATE to THIS table's own owner column? Requires the qualified
@@ -113,17 +132,30 @@ export const gate: GateDescriptor = {
     markedFns.clear();
     markersUsed.clear();
     ownerTableIdents = ownerScopedTableIdents(ctx);
+    allTableIdents = schemaTableIdents(ctx);
   },
 
   visit: (node, sf, ctx) => {
-    const ident = insertTargetIdent(node);
-    if (ident === undefined) {
+    const target = insertTarget(node);
+    if (target === undefined || target.kind === "other-table") {
       return;
     }
     const config = upsertConfigOf(node);
     if (config === undefined) {
       return; // a plain insert or an `onConflictDoNothing` — neither overwrites a row that already exists
     }
+    if (target.kind === "unresolvable") {
+      // The `onConflictDoUpdate` above already proved this is a drizzle statement, so the target being
+      // unreadable is the whole finding: no conflict guard can be verified against a table nobody named.
+      const unresolvableMarker = markerKeyFor(node, sf, MARKER_RE);
+      if (unresolvableMarker !== undefined) {
+        markersUsed.add(unresolvableMarker);
+        return;
+      }
+      ctx.report(node, { token: `${UNRESOLVABLE} "${target.ident}"`, offset: 0 });
+      return;
+    }
+    const ident = target.ident;
     if (guardsOwner(config, ident)) {
       return; // arm 1 — the owner is in the conflict target, the targetWhere, or the setWhere
     }
@@ -241,6 +273,42 @@ export const gate: GateDescriptor = {
       expect: { count: 1, token: "table" },
       why: "a same-file immutable alias retains the canonical table's owner-scoped identity at an upsert target",
     },
+    {
+      files: {
+        "packages/db/src/schema/plugin.ts": 'export const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          'import { pluginKv } from "@orb/db";\nlet table = pluginKv;\nexport async function putKv(db: Db, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: [table.pluginId, table.key], set: { value: entry.value } });\n}\n',
+      },
+      expect: { count: 1, token: "table" },
+      why: "#769 — the DECLARATION KIND is irrelevant to what a binding names. `let` resolved to nothing while `const` resolved fine, so one keyword silently walked every ownerless-target upsert past this gate",
+    },
+    {
+      files: {
+        "packages/db/src/schema/plugin.ts": 'export const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          'import { pluginKv } from "@orb/db";\nvar table = pluginKv;\nexport async function putKv(db: Db, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: table.key, set: { value: entry.value } });\n}\n',
+      },
+      expect: { count: 1, token: "table" },
+      why: "#769's `var` twin — proving only `let` would leave the older keyword as a live hole on the upsert half too",
+    },
+    {
+      files: {
+        "packages/db/src/schema/plugin.ts": 'export const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          "export async function putAny(db: Db, table: AnyTable, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: table.key, set: { value: entry.value } });\n}\n",
+      },
+      expect: { count: 1, token: 'unresolvable-target "table"' },
+      why: "the UNRESOLVABLE arm — a table-generic upsert helper. The `onConflictDoUpdate` proves this is a drizzle statement, and a conflict guard cannot be verified against a table nobody named: unreadable is UNPROVEN, not clean",
+    },
+    {
+      files: {
+        "packages/db/src/schema/plugin.ts": 'export const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          'import { pluginKv } from "@orb/db";\nconst a = b;\nconst b = a;\nexport async function putKv(db: Db, entry: E) {\n  return db.insert(a).values(entry).onConflictDoUpdate({ target: a.key, set: { value: entry.value } });\n}\n',
+      },
+      expect: { count: 1, token: 'unresolvable-target "a"' },
+      why: "the CYCLE/depth refusal REPORTS rather than exempts: terminating the alias walk with 'I could not read it' must not read as 'nothing here'",
+    },
   ],
   mustPass: [
     {
@@ -323,6 +391,30 @@ export const gate: GateDescriptor = {
           'import { pluginKv } from "@orb/db";\nconst table = pluginKv;\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: [table.pluginId, table.key], setWhere: eq(table.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
       },
       why: "a local canonical-table alias is safe when the conflict guard structurally uses that same binding's owner column",
+    },
+    {
+      files: {
+        "packages/db/src/schema/plugin.ts": 'export const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          'import { pluginKv } from "@orb/db";\nlet table = pluginKv;\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: [table.pluginId, table.key], setWhere: eq(table.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
+      },
+      why: "the #769 widening is two-sided: resolving a `let` alias must ACCEPT the guarded upsert as readily as it reds the unguarded one",
+    },
+    {
+      files: {
+        "packages/db/src/schema/chat.ts": 'export const chatLocks = sqliteTable("chat_locks", { chatId: text("chat_id") });\n',
+        "packages/server/src/domain/chat/persistence/lock.ts":
+          'import { chatLocks } from "@orb/db";\nlet table = chatLocks;\nexport async function take(db: Db, row: R) {\n  return db.insert(table).values(row).onConflictDoUpdate({ target: table.chatId, set: { holder: row.holder } });\n}\n',
+      },
+      why: "the DENOMINATOR arm: an alias of a (b) table READS fine and is simply out of scope — it must not fall into the unresolvable arm. Without the full schema-ident set, 'not (a)-class' and 'unreadable' would be one answer and every non-(a) upsert in the tree would red",
+    },
+    {
+      files: {
+        "packages/db/src/schema/plugin.ts": 'export const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          "// @owner-scope-upsert-ok: the caller resolved the parent owned and passes the table only to share one upsert body. Ends the day this helper takes values it did not prove.\nexport async function putAny(db: Db, table: AnyTable, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: table.key, set: { value: entry.value } });\n}\n",
+      },
+      why: "ONE vocabulary per gate: the unresolvable arm answers the same question the ownerless-target arm does, so it takes the SAME marker rather than minting another. It feeds the SAME used-key set, so a marker guarding only this arm is not reported stale",
     },
   ],
 };
