@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 442,
-    "enforced": 439,
-    "reported": 396,
+    "sites": 378,
+    "enforced": 375,
+    "reported": 344,
     "byVerdict": {
-      "deliberate-absorb": 43,
+      "deliberate-absorb": 31,
       "detached-owned": 3,
-      "unproven": 396
+      "unproven": 344
     },
     "byGrammar": {
-      "promise": 107,
-      "default": 142,
-      "empty": 193
+      "promise": 105,
+      "default": 111,
+      "empty": 162
     }
   },
   "rows": [
@@ -1058,19 +1058,6 @@
       "markerLine": null
     },
     {
-      "siteId": "packages/client/src/lib/motion-dead-class-flagger.ts::empty:error::1",
-      "path": "packages/client/src/lib/motion-dead-class-flagger.ts",
-      "line": 68,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/client/src/lib/perf-marks.ts::empty:catch::1",
       "path": "packages/client/src/lib/perf-marks.ts",
       "line": 16,
@@ -1222,19 +1209,6 @@
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/contracts/src/refinery/schema-authoring.ts::empty:err::1",
-      "path": "packages/contracts/src/refinery/schema-authoring.ts",
-      "line": 209,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
       "verdict": "unproven",
       "reason": null,
       "markerLine": null
@@ -1591,19 +1565,6 @@
       "markerLine": null
     },
     {
-      "siteId": "packages/server/src/domain/character/verbs/mint-synthetic-group-character.ts::empty:err::1",
-      "path": "packages/server/src/domain/character/verbs/mint-synthetic-group-character.ts",
-      "line": 56,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:err::1",
       "path": "packages/server/src/domain/chat/bus.ts",
       "line": 142,
@@ -1638,19 +1599,6 @@
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/domain/chat/engine/auto-mode.ts::empty:err::1",
-      "path": "packages/server/src/domain/chat/engine/auto-mode.ts",
-      "line": 49,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
       "verdict": "unproven",
       "reason": null,
       "markerLine": null
@@ -1695,58 +1643,6 @@
       "markerLine": null
     },
     {
-      "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:err::1",
-      "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1637,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:err::2",
-      "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1798,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 2,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/domain/chat/engine/engine.ts::promise:attempt::1",
-      "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 593,
-      "column": 22,
-      "grammar": "promise",
-      "position": "promise:attempt",
-      "ordinal": 1,
-      "snippet": "const view = await attempt(nextSeq).catch(async (err: unknown) => {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/domain/chat/engine/round.ts::empty:err::1",
-      "path": "packages/server/src/domain/chat/engine/round.ts",
-      "line": 127,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/server/src/domain/chat/engine/smart-arbitrate.ts::empty:catch::1",
       "path": "packages/server/src/domain/chat/engine/smart-arbitrate.ts",
       "line": 116,
@@ -1786,32 +1682,6 @@
       "markerLine": null
     },
     {
-      "siteId": "packages/server/src/domain/chat/persistence/import-write.ts::empty:err::1",
-      "path": "packages/server/src/domain/chat/persistence/import-write.ts",
-      "line": 632,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/domain/chat/substrate/auth/decide.ts::default:err::1",
-      "path": "packages/server/src/domain/chat/substrate/auth/decide.ts",
-      "line": 42,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/server/src/domain/chat/verbs/claim-chat.ts::promise:incumbent::1",
       "path": "packages/server/src/domain/chat/verbs/claim-chat.ts",
       "line": 178,
@@ -1820,19 +1690,6 @@
       "position": "promise:incumbent",
       "ordinal": 1,
       "snippet": "await incumbent.catch(() => claim(chatId));",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/domain/chat/verbs/generate-image.ts::empty:err::1",
-      "path": "packages/server/src/domain/chat/verbs/generate-image.ts",
-      "line": 87,
-      "column": 11,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
       "verdict": "unproven",
       "reason": null,
       "markerLine": null
@@ -1864,45 +1721,6 @@
       "markerLine": null
     },
     {
-      "siteId": "packages/server/src/domain/chat/verbs/turn.ts::promise:attempt::1",
-      "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 725,
-      "column": 22,
-      "grammar": "promise",
-      "position": "promise:attempt",
-      "ordinal": 1,
-      "snippet": "const view = await attempt().catch((err: unknown) => {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/domain/connection/verbs/check-chat-availability.ts::empty:error::1",
-      "path": "packages/server/src/domain/connection/verbs/check-chat-availability.ts",
-      "line": 55,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/domain/connection/verbs/get-models-for-source.ts::default:err::1",
-      "path": "packages/server/src/domain/connection/verbs/get-models-for-source.ts",
-      "line": 51,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/server/src/domain/connection/verbs/get-models-for-source.ts::empty:err::1",
       "path": "packages/server/src/domain/connection/verbs/get-models-for-source.ts",
       "line": 119,
@@ -1911,45 +1729,6 @@
       "position": "empty:err",
       "ordinal": 1,
       "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/domain/connection/verbs/refresh-agent-sdk-catalog.ts::empty:err::1",
-      "path": "packages/server/src/domain/connection/verbs/refresh-agent-sdk-catalog.ts",
-      "line": 21,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/domain/connection/verbs/refresh-catalog.ts::empty:err::1",
-      "path": "packages/server/src/domain/connection/verbs/refresh-catalog.ts",
-      "line": 20,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/domain/credentials/verbs/probe-key-decrypt.ts::default:error::1",
-      "path": "packages/server/src/domain/credentials/verbs/probe-key-decrypt.ts",
-      "line": 40,
-      "column": 7,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
       "verdict": "unproven",
       "reason": null,
       "markerLine": null
@@ -2028,19 +1807,6 @@
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/domain/export/verbs/export-character.ts::empty:err::1",
-      "path": "packages/server/src/domain/export/verbs/export-character.ts",
-      "line": 62,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
       "verdict": "unproven",
       "reason": null,
       "markerLine": null
@@ -2241,19 +2007,6 @@
       "markerLine": null
     },
     {
-      "siteId": "packages/server/src/domain/refinery/substrate/schema-forge.ts::empty:err::1",
-      "path": "packages/server/src/domain/refinery/substrate/schema-forge.ts",
-      "line": 219,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/server/src/domain/refinery/verbs/score-sweep.ts::default:catch::1",
       "path": "packages/server/src/domain/refinery/verbs/score-sweep.ts",
       "line": 285,
@@ -2288,19 +2041,6 @@
       "position": "promise:flush",
       "ordinal": 1,
       "snippet": "entry.tracked = flush",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/domain/rpg/guard.ts::default:err::1",
-      "path": "packages/server/src/domain/rpg/guard.ts",
-      "line": 60,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
       "verdict": "unproven",
       "reason": null,
       "markerLine": null
@@ -2451,24 +2191,11 @@
     {
       "siteId": "packages/server/src/domain/tool-use/verbs/register.ts::empty:err::1",
       "path": "packages/server/src/domain/tool-use/verbs/register.ts",
-      "line": 43,
-      "column": 9,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/domain/tool-use/verbs/register.ts::empty:err::2",
-      "path": "packages/server/src/domain/tool-use/verbs/register.ts",
       "line": 53,
       "column": 9,
       "grammar": "empty",
       "position": "empty:err",
-      "ordinal": 2,
+      "ordinal": 1,
       "snippet": "} catch (err) {",
       "verdict": "unproven",
       "reason": null,
@@ -2553,19 +2280,6 @@
       "markerLine": null
     },
     {
-      "siteId": "packages/server/src/domain/workloads/engine/schedule-tick.ts::default:err::1",
-      "path": "packages/server/src/domain/workloads/engine/schedule-tick.ts",
-      "line": 27,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/server/src/domain/workloads/persistence/queries.ts::empty:catch::1",
       "path": "packages/server/src/domain/workloads/persistence/queries.ts",
       "line": 145,
@@ -2644,32 +2358,6 @@
       "markerLine": null
     },
     {
-      "siteId": "packages/server/src/entry/boot/seed-credential.ts::default:err::1",
-      "path": "packages/server/src/entry/boot/seed-credential.ts",
-      "line": 32,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/assets-character.ts::empty:err::1",
-      "path": "packages/server/src/entry/compose/assets-character.ts",
-      "line": 307,
-      "column": 9,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
       "line": 442,
@@ -2691,32 +2379,6 @@
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/chat.ts::default:err::1",
-      "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1108,
-      "column": 9,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/chat.ts::default:err::2",
-      "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1129,
-      "column": 9,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 2,
-      "snippet": "} catch (err) {",
       "verdict": "unproven",
       "reason": null,
       "markerLine": null
@@ -2763,24 +2425,11 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:err::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 713,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/chat.ts::empty:err::2",
-      "path": "packages/server/src/entry/compose/chat.ts",
       "line": 736,
       "column": 9,
       "grammar": "empty",
       "position": "empty:err",
-      "ordinal": 2,
+      "ordinal": 1,
       "snippet": "} catch (err) {",
       "verdict": "unproven",
       "reason": null,
@@ -2813,45 +2462,6 @@
       "markerLine": null
     },
     {
-      "siteId": "packages/server/src/entry/compose/portability-runner.ts::default:err::1",
-      "path": "packages/server/src/entry/compose/portability-runner.ts",
-      "line": 119,
-      "column": 7,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/portability-runner.ts::default:err::2",
-      "path": "packages/server/src/entry/compose/portability-runner.ts",
-      "line": 142,
-      "column": 7,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 2,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/provider-credential.ts::empty:error::1",
-      "path": "packages/server/src/entry/compose/provider-credential.ts",
-      "line": 24,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/server/src/entry/compose/rpg.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/rpg.ts",
       "line": 1021,
@@ -2867,8 +2477,8 @@
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::empty:err::1",
       "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 272,
-      "column": 5,
+      "line": 783,
+      "column": 7,
       "grammar": "empty",
       "position": "empty:err",
       "ordinal": 1,
@@ -2880,63 +2490,11 @@
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::empty:err::2",
       "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 783,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 2,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/rpg.ts::empty:err::3",
-      "path": "packages/server/src/entry/compose/rpg.ts",
       "line": 1246,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
-      "ordinal": 3,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/rpg.ts::empty:err::4",
-      "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 1470,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 4,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/rpg.ts::empty:err::5",
-      "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 1623,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 5,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/rpg.ts::empty:err::6",
-      "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 1877,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 6,
+      "ordinal": 2,
       "snippet": "} catch (err) {",
       "verdict": "unproven",
       "reason": null,
@@ -2956,45 +2514,6 @@
       "markerLine": null
     },
     {
-      "siteId": "packages/server/src/entry/compose/services.ts::default:err::1",
-      "path": "packages/server/src/entry/compose/services.ts",
-      "line": 772,
-      "column": 7,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/services.ts::default:err::2",
-      "path": "packages/server/src/entry/compose/services.ts",
-      "line": 1004,
-      "column": 9,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 2,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/side-gen-params.ts::empty:err::1",
-      "path": "packages/server/src/entry/compose/side-gen-params.ts",
-      "line": 46,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::default:catch::1",
       "path": "packages/server/src/entry/http/auth-routes.ts",
       "line": 204,
@@ -3003,32 +2522,6 @@
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/http/auth-routes.ts::empty:err::1",
-      "path": "packages/server/src/entry/http/auth-routes.ts",
-      "line": 361,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/http/auth-routes.ts::empty:err::2",
-      "path": "packages/server/src/entry/http/auth-routes.ts",
-      "line": 384,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 2,
-      "snippet": "} catch (err) {",
       "verdict": "unproven",
       "reason": null,
       "markerLine": null
@@ -3076,19 +2569,6 @@
       "siteId": "packages/server/src/entry/http/import-tree.ts::empty:err::1",
       "path": "packages/server/src/entry/http/import-tree.ts",
       "line": 311,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/http/import.ts::empty:err::1",
-      "path": "packages/server/src/entry/http/import.ts",
-      "line": 94,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3918,97 +3398,6 @@
       "markerLine": null
     },
     {
-      "siteId": "packages/server/src/infra/providers/vllm/surfaces/embed.ts::empty:err::1",
-      "path": "packages/server/src/infra/providers/vllm/surfaces/embed.ts",
-      "line": 124,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/infra/providers/vllm/surfaces/image-embed.ts::empty:err::1",
-      "path": "packages/server/src/infra/providers/vllm/surfaces/image-embed.ts",
-      "line": 77,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/infra/storage/cas.ts::default:err::1",
-      "path": "packages/server/src/infra/storage/cas.ts",
-      "line": 213,
-      "column": 9,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/infra/storage/cas.ts::default:error::1",
-      "path": "packages/server/src/infra/storage/cas.ts",
-      "line": 63,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/infra/storage/cas.ts::default:error::2",
-      "path": "packages/server/src/infra/storage/cas.ts",
-      "line": 111,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 2,
-      "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/infra/storage/cas.ts::default:error::3",
-      "path": "packages/server/src/infra/storage/cas.ts",
-      "line": 142,
-      "column": 7,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 3,
-      "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/infra/storage/cas.ts::default:error::4",
-      "path": "packages/server/src/infra/storage/cas.ts",
-      "line": 153,
-      "column": 7,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 4,
-      "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/server/src/infra/storage/cas.ts::empty:err::1",
       "path": "packages/server/src/infra/storage/cas.ts",
       "line": 200,
@@ -4074,19 +3463,6 @@
       "markerLine": null
     },
     {
-      "siteId": "packages/server/src/transport/jobs/catalog-refresh-scheduler.ts::default:err::1",
-      "path": "packages/server/src/transport/jobs/catalog-refresh-scheduler.ts",
-      "line": 81,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/server/src/transport/rate-limit.ts::promise:where::1",
       "path": "packages/server/src/transport/rate-limit.ts",
       "line": 90,
@@ -4104,32 +3480,6 @@
       "path": "packages/server/src/transport/trpc/stream/socket.ts",
       "line": 105,
       "column": 7,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/transport/trpc/stream/sources/chat.ts::default:err::1",
-      "path": "packages/server/src/transport/trpc/stream/sources/chat.ts",
-      "line": 257,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/transport/trpc/stream/sources/rpg.ts::default:err::1",
-      "path": "packages/server/src/transport/trpc/stream/sources/rpg.ts",
-      "line": 40,
-      "column": 5,
       "grammar": "default",
       "position": "default:err",
       "ordinal": 1,
@@ -4492,7 +3842,7 @@
     {
       "siteId": "tooling/src/model-ab/ops/serve.ts::empty:catch::1",
       "path": "tooling/src/model-ab/ops/serve.ts",
-      "line": 79,
+      "line": 78,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4500,12 +3850,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a failed health poll advances to the bounded retry whose timeout or process exit is the operator verdict. Ends if one poll becomes terminal.",
-      "markerLine": 73
+      "markerLine": 72
     },
     {
       "siteId": "tooling/src/model-ab/ops/serve.ts::empty:e::1",
       "path": "tooling/src/model-ab/ops/serve.ts",
-      "line": 145,
+      "line": 144,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -4513,20 +3863,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "the boot failure is warned and returned as an explicit failed variant row with error text. Ends if callers stop publishing that row.",
-      "markerLine": 136
-    },
-    {
-      "siteId": "tooling/src/model-ab/ops/serve.ts::empty:error::1",
-      "path": "tooling/src/model-ab/ops/serve.ts",
-      "line": 50,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "pgrep status 1 alone means no match; every execution or permission failure is rethrown. Ends if pgrep changes its no-match status.",
-      "markerLine": 46
+      "markerLine": 135
     },
     {
       "siteId": "tooling/src/motion-audit/lib/verdicts.ts::empty:catch::1",
@@ -5088,61 +4425,9 @@
       "markerLine": 14
     },
     {
-      "siteId": "tooling/src/stack/lib/source-scan.ts::default:error::1",
-      "path": "tooling/src/stack/lib/source-scan.ts",
-      "line": 19,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT means this source vanished during the walk; every unreadable/unmeasurable error propagates so null cannot fabricate freshness. Ends if another absence code is supported.",
-      "markerLine": 16
-    },
-    {
-      "siteId": "tooling/src/stack/lib/source-scan.ts::default:error::2",
-      "path": "tooling/src/stack/lib/source-scan.ts",
-      "line": 34,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 2,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOTDIR is a single-file leaf and ENOENT is a vanished optional root; every unreadable directory error propagates. Ends if callers add another explicitly optional filesystem state.",
-      "markerLine": 31
-    },
-    {
-      "siteId": "tooling/src/stack/lib/spawn-lock.ts::default:error::1",
-      "path": "tooling/src/stack/lib/spawn-lock.ts",
-      "line": 38,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "kill-zero ESRCH proves absence and EPERM proves a live process; all other errors surface rather than permit lock theft. Ends if platform liveness semantics add another proved state.",
-      "markerLine": 34
-    },
-    {
-      "siteId": "tooling/src/stack/lib/spawn-lock.ts::default:error::2",
-      "path": "tooling/src/stack/lib/spawn-lock.ts",
-      "line": 80,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 2,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "EEXIST alone means another lock holder; every other exclusive-create failure is rethrown. Ends if exclusive create changes its collision code.",
-      "markerLine": 76
-    },
-    {
       "siteId": "tooling/src/stack/lib/spawn-lock.ts::empty:error::1",
       "path": "tooling/src/stack/lib/spawn-lock.ts",
-      "line": 95,
+      "line": 93,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5150,12 +4435,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ENOENT alone is the racing-release state and the following exclusive create decides ownership; other reads throw. Ends if no retry follows.",
-      "markerLine": 92
+      "markerLine": 90
     },
     {
       "siteId": "tooling/src/stack/lib/spawn-lock.ts::empty:error::2",
       "path": "tooling/src/stack/lib/spawn-lock.ts",
-      "line": 113,
+      "line": 111,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5163,12 +4448,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ENOENT alone means another launcher won the unlink race; the next exclusive create decides ownership. Ends if no retry follows.",
-      "markerLine": 110
+      "markerLine": 108
     },
     {
       "siteId": "tooling/src/stack/lib/spawn-lock.ts::empty:error::3",
       "path": "tooling/src/stack/lib/spawn-lock.ts",
-      "line": 126,
+      "line": 124,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5176,7 +4461,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ENOENT is idempotent release; every other unlink failure is rethrown. Ends if release gains an ownership-transfer acknowledgement.",
-      "markerLine": 123
+      "markerLine": 121
     },
     {
       "siteId": "tooling/src/stack/ops/dev-identity-entry.ts::empty:error::1",
@@ -5231,74 +4516,9 @@
       "markerLine": 68
     },
     {
-      "siteId": "tooling/src/stack/ops/prod-state.ts::default:error::1",
-      "path": "tooling/src/stack/ops/prod-state.ts",
-      "line": 54,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT alone means no env file; unreadable or malformed configuration now throws. Ends if the env file ceases to be optional.",
-      "markerLine": 51
-    },
-    {
-      "siteId": "tooling/src/stack/ops/prod-state.ts::default:error::2",
-      "path": "tooling/src/stack/ops/prod-state.ts",
-      "line": 93,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 2,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT alone means debug is not armed; unreadable token errors now throw. Ends if token absence stops being valid posture.",
-      "markerLine": 89
-    },
-    {
-      "siteId": "tooling/src/stack/ops/prod-state.ts::default:error::3",
-      "path": "tooling/src/stack/ops/prod-state.ts",
-      "line": 156,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 3,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT proc stat means the pid vanished; other read errors now throw. Ends if proc identity gains another absence code.",
-      "markerLine": 153
-    },
-    {
-      "siteId": "tooling/src/stack/ops/prod-state.ts::default:error::4",
-      "path": "tooling/src/stack/ops/prod-state.ts",
-      "line": 169,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 4,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH means absent and EPERM means live; every other kill-zero error throws. Ends if platform liveness semantics change.",
-      "markerLine": 165
-    },
-    {
-      "siteId": "tooling/src/stack/ops/prod-state.ts::default:error::5",
-      "path": "tooling/src/stack/ops/prod-state.ts",
-      "line": 198,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 5,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT alone means no pidfile; unreadable records now throw and malformed content remains an explicit null refusal. Ends if no-record stops being valid.",
-      "markerLine": 195
-    },
-    {
       "siteId": "tooling/src/stack/ops/prod-state.ts::empty:catch::1",
       "path": "tooling/src/stack/ops/prod-state.ts",
-      "line": 81,
+      "line": 80,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5306,12 +4526,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "health fetch failure is the explicit unhealthy observation consumed by identity classification. Ends if unhealthy can authorize ownership.",
-      "markerLine": 73
+      "markerLine": 72
     },
     {
       "siteId": "tooling/src/stack/ops/prod-state.ts::empty:catch::2",
       "path": "tooling/src/stack/ops/prod-state.ts",
-      "line": 107,
+      "line": 105,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5319,12 +4539,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "credential-free debug probe failure returns unknown posture, which prevents token-bearing identity claims. Ends if unknown can authorize control.",
-      "markerLine": 103
+      "markerLine": 101
     },
     {
       "siteId": "tooling/src/stack/ops/prod-support.ts::default:catch::1",
       "path": "tooling/src/stack/ops/prod-support.ts",
-      "line": 131,
+      "line": 130,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5332,25 +4552,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable optional log tail returns empty and status still reports the log path. Ends if log content becomes a control verdict.",
-      "markerLine": 128
-    },
-    {
-      "siteId": "tooling/src/stack/ops/prod-support.ts::default:error::1",
-      "path": "tooling/src/stack/ops/prod-support.ts",
-      "line": 46,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT means the measured path is absent; every unreadable/unmeasurable stat failure propagates so null cannot fabricate a fresh build. Ends if another absence code is supported.",
-      "markerLine": 43
+      "markerLine": 127
     },
     {
       "siteId": "tooling/src/stack/ops/prod-support.ts::empty:catch::1",
       "path": "tooling/src/stack/ops/prod-support.ts",
-      "line": 140,
+      "line": 139,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5358,12 +4565,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable optional log renders the explicit no-log sentinel to the operator. Ends if missing logs become a clean shutdown claim.",
-      "markerLine": 137
+      "markerLine": 136
     },
     {
       "siteId": "tooling/src/stack/ops/prod-support.ts::empty:error::1",
       "path": "tooling/src/stack/ops/prod-support.ts",
-      "line": 86,
+      "line": 85,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5371,12 +4578,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ENOENT alone permits minting a first debug token; every existing-token read failure is rethrown. Ends if token rotation becomes explicit.",
-      "markerLine": 80
+      "markerLine": 79
     },
     {
       "siteId": "tooling/src/stack/ops/prod-support.ts::empty:error::2",
       "path": "tooling/src/stack/ops/prod-support.ts",
-      "line": 116,
+      "line": 115,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5384,7 +4591,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ENOENT alone is idempotent pidfile cleanup; every other unlink failure is rethrown. Ends if cleanup gains a separate operator result.",
-      "markerLine": 113
+      "markerLine": 112
     },
     {
       "siteId": "tooling/src/stack/ops/served-probe.ts::default:catch::1",
@@ -5673,19 +4880,6 @@
       "markerLine": null
     },
     {
-      "siteId": "tooling/src/verify/ops/gen/prose.ts::default:error::1",
-      "path": "tooling/src/verify/ops/gen/prose.ts",
-      "line": 38,
-      "column": 7,
-      "grammar": "default",
-      "position": "default:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT is the only first-run baseline state; unreadable or invalid existing manifests throw rather than erase the version/hash witness. Ends if the manifest gains another explicit absence state.",
-      "markerLine": 33
-    },
-    {
       "siteId": "tooling/src/verify/ops/orphan-export-ratchet.ts::empty:err::1",
       "path": "tooling/src/verify/ops/orphan-export-ratchet.ts",
       "line": 240,
@@ -5712,19 +4906,6 @@
       "markerLine": null
     },
     {
-      "siteId": "tooling/src/workboard/cli.ts::empty:error::1",
-      "path": "tooling/src/workboard/cli.ts",
-      "line": 18,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "tooling/src/workboard/ops/gh.ts::empty:catch::1",
       "path": "tooling/src/workboard/ops/gh.ts",
       "line": 31,
@@ -5746,19 +4927,6 @@
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "tooling/src/workboard/ops/project.ts::empty:error::1",
-      "path": "tooling/src/workboard/ops/project.ts",
-      "line": 58,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
       "verdict": "unproven",
       "reason": null,
       "markerLine": null

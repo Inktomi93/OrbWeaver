@@ -43,7 +43,6 @@ export { SERVED_NAME };
 export function busyGpuOwners(): string[] {
   const owners: string[] = [];
   for (const [pattern, label] of GPU_OWNER_PATTERNS) {
-    // @orb-gate-ignore caught-failure-ownership(empty:error): pgrep status 1 alone means no match; every execution or permission failure is rethrown. Ends if pgrep changes its no-match status.
     try {
       execNicedSync("pgrep", ["-f", pattern]);
       owners.push(label);
