@@ -64,3 +64,9 @@ export interface ListCharactersResult {
    *  only number available was "loaded so far"; this is the honest one, so it can print again. */
   readonly totalCount: number;
 }
+
+/** The D148 plugin card-state read verdict (`persistence/plugin-card-data.ts`): `found:false` ⇒ no such OWNED
+ *  character (foreign or absent — leak-free, the caller maps it to the plugin domain's NOT_FOUND); `found:true`
+ *  ⇒ the installer owns it, `data` is the stored blob or `null` when this plugin has written none on that
+ *  character. Homed HERE per no-inline-types §7.4. */
+export type PluginCardDataRead = { readonly found: false } | { readonly found: true; readonly data: Record<string, unknown> | null };

@@ -277,10 +277,10 @@ export interface PluginHostOps {
    *  card object; compose serializes it to bytes and runs the SAME funnel a file upload takes. Returns the new
    *  character id + whether it was freshly created (`false` = a byte-identical re-ingest deduped by importHash). */
   readonly character: {
-    // @foreign-id-ok(characterId): the injected-op result id for the installer's own new character, minted under the installer and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
     readonly ingest: (req: {
       readonly installerUserId: UserId;
       readonly card: Record<string, unknown>;
+      // @foreign-id-ok(characterId): the injected-op result id for the installer's own new character, minted under the installer and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
     }) => Promise<{ readonly characterId: string; readonly created: boolean }>;
     /** The `character.card_state` capability's WRITE op (D148). Merge this plugin's per-card state under the
      *  reserved `plugin_<slug>` key on the INSTALLER-OWNED character — wired at compose to character's
@@ -291,12 +291,13 @@ export interface PluginHostOps {
      *  its own key). A guest supplies ONLY the `characterId` + inert `data`. METADATA, not content: the merge
      *  does NOT recompute `contentHash` or re-index (D148 clause d). Owner-scoped by construction — no principal
      *  resolve (the `storage.kv` posture, not the `ingest` import funnel). Returns void; the compose wiring maps a
-     *  not-found (installer does not own the character) to the leak-free `PluginNotFoundError`.
-     *  @foreign-id-ok(characterId): the guest's untrusted wire string, owner-scope-gated at the persistence
-     *  predicate, cast at compose — branding here would claim a validation this boundary has not performed. */
+     *  not-found (installer does not own the character) to the leak-free `PluginNotFoundError`. The
+     *  `characterId` is the guest's untrusted wire string (owner-scope-gated at the persistence predicate, cast
+     *  at compose), so it stays a bare `string` under the foreign-id exemption marker below. */
     readonly setCardData: (req: {
       readonly installerUserId: UserId;
       readonly slug: string;
+      // @foreign-id-ok(characterId): the guest's untrusted wire string, owner-scope-gated at the persistence predicate, cast at compose — branding here would claim a validation this boundary has not performed.
       readonly characterId: string;
       readonly data: Record<string, unknown>;
     }) => Promise<void>;
@@ -304,12 +305,13 @@ export interface PluginHostOps {
      *  (`plugin_<slug>`) from the INSTALLER-OWNED character — wired at compose to character's `readPluginCardData`
      *  under the same owner-scope + host-stamped-slug walls. Returns the stored blob, or `null` when this plugin
      *  has written none on that owned character; the compose wiring maps a not-found (foreign/absent character) to
-     *  the leak-free `PluginNotFoundError`.
-     *  @foreign-id-ok(characterId): the guest's untrusted wire string, owner-scope-gated at the persistence
-     *  predicate, cast at compose — branding here would claim a validation this boundary has not performed. */
+     *  the leak-free `PluginNotFoundError`. The `characterId` is the guest's untrusted wire string (owner-scope-gated
+     *  at the persistence predicate, cast at compose), so it stays a bare `string` under the foreign-id exemption
+     *  marker below. */
     readonly getCardData: (req: {
       readonly installerUserId: UserId;
       readonly slug: string;
+      // @foreign-id-ok(characterId): the guest's untrusted wire string, owner-scope-gated at the persistence predicate, cast at compose — branding here would claim a validation this boundary has not performed.
       readonly characterId: string;
     }) => Promise<Record<string, unknown> | null>;
   };

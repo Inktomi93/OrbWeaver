@@ -8,7 +8,7 @@
 // LITERALS (the deleted `YOU_MODAL_IDS` shape — same drift, spelled as ids not `{id:…}` objects, which arm
 // (2) can't see since it has zero object elements). Derive from the registry, never re-declare — a DERIVED
 // map (`registry.list().filter…`) has no literal keys/type, so it passes (the load-bearing false-positive
-// check). The vocabulary TUPLES themselves (`SECTION_IDS` in section-ids.ts, `MODAL_SLOT_IDS` in shell-store.ts) are bare
+// check). The vocabulary TUPLES themselves (`SECTION_IDS` in section-ids.ts, `MODAL_SLOT_IDS` in modal-slot-ids.ts) are bare
 // all-ids string arrays too — they're the sanctioned ONE home, allowlisted like every other arm.
 //
 // (5) the CHROME arm (shell-chrome-unification.md §D/§E-7): chrome has NO id vocabulary — it's a
@@ -20,7 +20,7 @@
 //
 // SCOPE: the SectionId, ModalSlotId, AND SettingsCategoryId vocabularies (all LIVE — the SettingsCategoryId
 // arm lands at M6.1; its allowlist mirrors the modal arm: the TUPLE HOMES (`TUPLE_HOME_SUFFIXES` below —
-// section-ids.ts/shell-store.ts/settings-categories.ts), the door, and its own co-located *-pane.tsx defs)
+// section-ids.ts/shell-store.ts/settings-categories.ts/modal-slot-ids.ts), the door, and its own co-located *-pane.tsx defs)
 // PLUS the zone-keyed chrome-entry array (arm 5, its own allowlist).
 import type { Expression, ObjectLiteralExpression, Project, SourceFile, Node as TsMorphNode, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
@@ -144,7 +144,7 @@ function readVocabs(project: Project): readonly Vocab[] {
  *  re-wrapped the tuple and REDDED that gate). Note the gate reads the tuples BY SYMBOL — `readTuple`,
  *  the path-keyed-gates-die-on-rename discipline — so a tuple that moves stays
  *  VISIBLE; only this allowlist has to learn its new home. */
-const TUPLE_HOME_SUFFIXES: readonly string[] = ["/state/shell-store.ts", "/state/section-ids.ts", "/state/settings-categories.ts"];
+const TUPLE_HOME_SUFFIXES: readonly string[] = ["/state/shell-store.ts", "/state/section-ids.ts", "/state/settings-categories.ts", "/state/modal-slot-ids.ts"];
 
 /** The sanctioned homes for a vocab-keyed map: a vocabulary TUPLE HOME + the door (main.tsx, shared by
  *  every vocab) and the vocab's own co-located definition files. */

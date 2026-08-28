@@ -149,6 +149,7 @@ export interface AutomationPluginComposeDeps {
   readonly ingestCharacterCard: (req: {
     readonly installerUserId: UserId;
     readonly card: Record<string, unknown>;
+    // @foreign-id-ok(characterId): the result id for the installer's own new character, minted under the installer by the import funnel and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
   }) => Promise<{ readonly characterId: string; readonly created: boolean }>;
 }
 
@@ -672,14 +673,12 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // and an absent character are indistinguishable, the owned-verb posture, D148 clause b). The `characterId`
       // is the guest's untrusted wire string, cast under the owner-scope guard.
       setCardData: async ({ installerUserId, slug, characterId, data }) => {
-        // @foreign-id-ok(characterId): the guest's untrusted wire string — the owner-scope predicate is the guard, not the brand.
         const written = await writePluginCardData(db, { characterId: castId<CharacterId>(characterId), ownerId: installerUserId, slug }, data);
         if (!written) {
           throw new PluginNotFoundError(characterId);
         }
       },
       getCardData: async ({ installerUserId, slug, characterId }) => {
-        // @foreign-id-ok(characterId): the guest's untrusted wire string — the owner-scope predicate is the guard, not the brand.
         const read = await readPluginCardData(db, { characterId: castId<CharacterId>(characterId), ownerId: installerUserId, slug });
         if (!read.found) {
           throw new PluginNotFoundError(characterId);
