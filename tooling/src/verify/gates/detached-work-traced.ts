@@ -50,7 +50,7 @@
 // block — a rethrow through a helper call is invisible to it. And the gate cannot prove a span is MEANINGFUL:
 // that its name, id, or attributes correlate to the work it wraps. It proves a root is opened and that errors
 // reach it; a wrong-but-present span passes.
-import type { Block, CallExpression, Node, Project, SourceFile } from "ts-morph";
+import type { Block, CallExpression, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
@@ -481,14 +481,20 @@ export function hasLiveDetachedSwallowOwner(node: Node, position: string): boole
   if (!inScope(sf.getFilePath())) {
     return false;
   }
-  // RESOLVE ONCE per Project. The derivation filters EVERY source file in the workspace, and a sibling gate
-  // asks this per candidate SITE — deriving it inline turned one whole-corpus scan into hundreds of them.
-  const project = sf.getProject();
-  let openers = openersByProject.get(project);
-  if (openers === undefined) {
-    openers = deriveRootSpanOpeners(project.getSourceFiles());
-    openersByProject.set(project, openers);
-  }
+  // RESOLVE ONCE PER PASS, via this gate's own `begin`-derived vocabulary. The derivation walks every source
+  // file, and a sibling gate asks this per candidate SITE, so it must not be inline — but the cache lifetime
+  // is the PASS, never the Project.
+  //
+  // A Project-keyed memo was tried and REJECTED (2026-08-28). Project identity is only stable-per-example
+  // because conformance happens to build a fresh Project each time; measured against a prototype that
+  // amortizes that substrate (a 14.5x win the harness may well take), a Project-keyed memo served a
+  // PREVIOUS example's vocabulary and three of this gate's own conformance rows silently changed verdict.
+  // A cache whose correctness depends on how often its key happens to be thrown away is a trap for whoever
+  // optimises the substrate. `begin` fires once per pass, which is exactly this value's valid lifetime.
+  //
+  // When this gate did not run in the caller's pass (conformance runs ONE gate standalone), the vocabulary
+  // is empty and we derive directly — correct, and cheap on a mini-project.
+  const openers = passOpeners.size > 0 ? passOpeners : deriveRootSpanOpeners(sf.getProject().getSourceFiles());
   if (openers.size === 0) {
     return false;
   }
@@ -548,10 +554,10 @@ export function inScope(path: string): boolean {
   return path.includes("packages/server/src/");
 }
 
+/** The opener vocabulary for THIS pass, re-derived in `begin`. Its lifetime is the PASS, never a Project,
+ *  which is what makes it safe for the sibling-gate reader above to ride (see the rejection of a
+ *  Project-keyed memo there). */
 let passOpeners: ReadonlySet<string> = new Set<string>();
-/** Per-Project memo for the SIBLING-gate reader below. Keyed on the Project object so a conformance
- *  mini-project and the real workspace can never share a vocabulary. */
-const openersByProject = new WeakMap<Project, Set<string>>();
 
 export const gate: GateDescriptor = {
   name: "detached-work-traced",
