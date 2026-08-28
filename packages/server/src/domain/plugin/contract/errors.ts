@@ -45,6 +45,23 @@ export class PluginBundleFetchError extends DomainOperationError {
   }
 }
 
+/** A one-click `upgradeFromStoredUrl` on a plugin that has NO remembered source URL — a file (`upload`-origin)
+ *  install (plugin-ui-plane #679 U8 2b). DISTINCT from `PluginNotFoundError`: the plugin exists and is the
+ *  caller's own; what is absent is a URL to re-fetch from, and the honest answer is "this one was installed from a
+ *  file — upload a new bundle to update it", not "not found". Thrown AFTER the owner-scoped load (so it never
+ *  leaks across tenants — a stranger gets NOT_FOUND first) and BEFORE any fetch. Maps to BAD_REQUEST. */
+// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see `ManifestInvalidError`
+// above (same host-side lifecycle taxonomy, a CALLER sees it, never the guest-observable membrane error).
+export class PluginNoSourceUrlError extends DomainOperationError {
+  // @foreign-id-ok(pluginId): echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
+  constructor(pluginId: string) {
+    super(
+      "plugin_no_source_url",
+      `plugin ${pluginId} was installed from a file, not a URL — upload a new bundle to update it (there is no remembered source to re-fetch)`,
+    );
+  }
+}
+
 /** The manifest pins a `hostVersion` this build does not serve. Separate from a generic manifest
  *  fault so the caller can be told to rebuild against the served major, not "fix your manifest".
  *

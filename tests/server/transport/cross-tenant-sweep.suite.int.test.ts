@@ -1130,6 +1130,14 @@ const PROBES: readonly Probe[] = [
   //    at an unreachable `.invalid` host precisely to prove it is never reached: if the ownership gate regressed,
   //    this probe would surface a `plugin_bundle_fetch_failed` (a distinguishable non-NOT_FOUND) and go RED. ──
   { path: "plugin.upgradeFromUrl", call: (c, i) => c.plugin.upgradeFromUrl({ pluginId: i.pluginId, url: "https://plugins.example.invalid/alpha.zip" }) },
+  // ── plugin.upgradeFromStoredUrl (plugin-ui-plane #679 U8 2b) — the one-click-from-remembered-URL twin, owner-
+  //    scoped the SAME way and PROBED for the SAME reason: a stranger holding A's REAL pluginId must NOT_FOUND
+  //    BEFORE the owner-scoped row load hands the verb A's `source_url` to fetch. A dropped pre-check would make
+  //    the server fetch A's remembered URL on a stranger's behalf AND expose A's row to the #615 upgrade path;
+  //    the tell would be a distinguishable non-NOT_FOUND (a fetch failure, or worse a mutated view) instead of
+  //    the leak-free NOT_FOUND this probe pins. (A's seeded plugin is `upload`-origin, so even past the gate
+  //    there is no URL to fetch — the ownership refusal is what this asserts, before origin is ever consulted.) ──
+  { path: "plugin.upgradeFromStoredUrl", call: (c, i) => c.plugin.upgradeFromStoredUrl({ pluginId: i.pluginId }) },
   {
     path: "plugin.setGrant",
     call: (c, i) => c.plugin.setGrant({ pluginId: i.pluginId, grant: ["chat.read", "net.fetch"], acknowledgedNetHosts: ["api.vendor.example"] }),
@@ -1575,6 +1583,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
     "self-scoped (U8 seam 15): fetches a CALLER-named URL through the egress guard and returns its manifest — READ-ONLY, no owned id, touches no row; the wall is safeFetch's SSRF/private-range denial, not a tenant axis (a stranger can only ever preview a URL they themselves named)",
   "plugin.installFromUrl":
     "self-scoped (U8 seam 15): fetches a CALLER-named URL through the egress guard then DELEGATES to install, which mints the CALLER's own row (ownerId = caller.userId) — no foreign id, exactly the self-authority of plugin.install one byte-source over",
+  "plugin.checkForUpdates":
+    "self-scoped (U8 2b): takes NO input; the auto update-check walks listOwned WHERE owner_id = caller.userId and re-fetches only the CALLER's OWN plugins' remembered source URLs — there is no foreign id a stranger could aim, and the egress it triggers only ever hits the caller's own rows' URLs (the plugin.list posture, one egress step over)",
   "plugin.list": "self-scoped: takes NO input at all; listOwned filters WHERE owner_id = caller.userId, so there is no id a stranger could aim",
   "plugin.listSurfaces":
     "self-scoped: takes NO input; listOwned filters WHERE owner_id = caller.userId and only the caller's OWN resident instances are consulted, so a stranger's surfaces are never in the result (plugin-ui-plane #679 U1)",

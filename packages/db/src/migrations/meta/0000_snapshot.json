@@ -5264,6 +5264,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "source_url": {
+          "name": "source_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "pending_reconsent": {
           "name": "pending_reconsent",
           "type": "integer",
@@ -5351,7 +5358,11 @@
         },
         "plugins_origin_check": {
           "name": "plugins_origin_check",
-          "value": "origin in ('upload')"
+          "value": "origin in ('upload', 'url')"
+        },
+        "plugins_source_url_check": {
+          "name": "plugins_source_url_check",
+          "value": "(origin = 'upload' and source_url is null) or (origin <> 'upload' and source_url is not null)"
         },
         "plugins_widened_hosts_check": {
           "name": "plugins_widened_hosts_check",
