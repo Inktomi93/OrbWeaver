@@ -680,6 +680,8 @@ function writeFixtures(): void {
     "packages/server/src/domain/__g_detached/__g_detached.ts",
     "export function gFire(ctx: C): void {\n  void ctx.rpg.onUserCommit(a, b).catch(() => undefined);\n}\n",
   );
+  // caught-failure-ownership: a reasonless empty catch is syntactically handled and names no runtime owner.
+  fx("packages/server/src/domain/__g_caught/__g_caught.ts", "export function gCaught(): void {\n  try { risky(); } catch {}\n}\n");
   // no-untyped-soft-ref: a `*Id` column with NO `.references()` FK (not in SOFT_REF_ALLOWLIST).
   fx(
     "packages/db/src/schema/__g_softref.ts",
