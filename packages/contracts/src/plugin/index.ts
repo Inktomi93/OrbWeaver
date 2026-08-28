@@ -47,6 +47,7 @@ export type {
   PluginToolRegistration,
   PluginTransformRegistration,
 } from "./registrations.ts";
+export { PLUGIN_TOOL_NAME_PREFIX, pluginToolWireName } from "./registrations.ts";
 export type { PluginSuggestedAct, PluginSuggestedActKind } from "./suggestion.ts";
 export { PLUGIN_SUGGESTED_ACT_KINDS, summarizePluginAct } from "./suggestion.ts";
 export type {
@@ -82,6 +83,7 @@ export type {
   PluginTextNode,
   PluginTextVoice,
   PluginToggleNode,
+  PluginToolCardState,
 } from "./ui.ts";
 export {
   PLUGIN_ANCHOR_TIERS,
@@ -102,6 +104,7 @@ export {
   PLUGIN_SURFACE_TITLE_MAX,
   PLUGIN_TEXT_MAX_BYTES,
   PLUGIN_TEXT_VOICES,
+  PLUGIN_TOOL_NAME_RE,
   pluginSurfaceNodeSchema,
   pluginSurfaceRegistrationMetaSchema,
   pluginSurfaceSpecSchema,

@@ -742,6 +742,34 @@ describe("host.ui — declarative surface registration + state publish (plugin-u
     expect(warned).toHaveLength(1); // logged
   });
 
+  test("a tool-card surface carries its `toolName` through — and one WITHOUT it is the same soft refusal (#679 U3)", async () => {
+    const collected: unknown[] = [];
+    const warned: string[] = [];
+    const { bridge } = fakeBridge();
+    const runtime = makeRuntime(uiGrants, false, bridge, { collectSurface: (meta) => collected.push(meta), logWarn: (msg) => warned.push(msg) });
+    await withRuntime(runtime, (ctx) => {
+      const card = `anchor: "tool-card", title: "Draw", tier: "static", spec: { kind: "text", value: "drawn" }`;
+      // The linkage names the plugin's OWN tool name; the host derives the model-visible one. A card with no
+      // linkage is unreachable — no tool call could ever match it — so it is refused at the SAME soft tier as
+      // a bad spec: absent + logged, and the tools this activation also registered survive.
+      const res = ctx.evalCode(
+        `host.ui.register({ id: "draw_card", ${card}, toolName: "draw" });
+         let threw = false;
+         try { host.ui.register({ id: "orphan_card", ${card} }); } catch { threw = true; }
+         threw ? "threw" : "survived"`,
+      );
+      if (res.error) {
+        throw new Error(readString(ctx, res.error));
+      }
+      expect(ctx.getString(res.value)).toBe("survived");
+      res.value.dispose();
+    });
+    expect(collected).toEqual([
+      { id: "draw_card", anchor: "tool-card", title: "Draw", tier: "static", spec: { kind: "text", value: "drawn" }, toolName: "draw" },
+    ]);
+    expect(warned).toHaveLength(1);
+  });
+
   test("host.ui.setState publishes the whole state through the bridge (the domain writes + emits)", async () => {
     const { bridge, performed } = fakeBridge();
     const runtime = makeRuntime(uiGrants, false, bridge);

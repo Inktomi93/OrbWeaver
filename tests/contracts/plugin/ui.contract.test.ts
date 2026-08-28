@@ -17,8 +17,11 @@ import {
   PLUGIN_SPEC_MAX_NODES,
   PLUGIN_SURFACE_ANCHORS,
   PLUGIN_SURFACE_TIERS,
+  PLUGIN_TOOL_NAME_PREFIX,
+  PLUGIN_TOOL_NAME_RE,
   pluginSurfaceRegistrationMetaSchema,
   pluginSurfaceSpecSchema,
+  pluginToolWireName,
 } from "@orb/contracts/plugin";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -210,4 +213,36 @@ test("PLUGIN_FOOTER_NODE_KIND_ALLOWED is TOTAL over the node vocabulary — a ne
   for (const kind of PLUGIN_NODE_KINDS) {
     expect(typeof PLUGIN_FOOTER_NODE_KIND_ALLOWED[kind]).toBe("boolean");
   }
+});
+
+// ── U3: the `tool-card` LINKAGE (plugin-ui-plane §4.5's tool-card row) ────────────────────────────────────
+// A card names WHICH tool it draws, and the name it uses is the plugin's OWN (`host.tools.register`'s), never
+// the namespaced wire name. The two halves below are the same registration refusal (§4.9): a stale linkage
+// costs the generic tool block and a log line, never the plugin's activation.
+
+test("a tool-card surface MUST name its tool, and only a tool-card surface may name one", () => {
+  const spec = { kind: "text", value: "drawn" } as const;
+  const base = { id: "draw_card", title: "Draw", tier: "static", spec } as const;
+
+  // The well-formed card.
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse({ ...base, anchor: "tool-card", toolName: "draw" }).success).toBe(true);
+  // A card with NO linkage is a card nobody can reach — no tool call could ever match it.
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse({ ...base, anchor: "tool-card" }).success).toBe(false);
+  // …and a linkage on any OTHER anchor is a claim the renderer would never honour.
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse({ ...base, anchor: "settings", toolName: "draw" }).success).toBe(false);
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse({ ...base, anchor: "settings" }).success).toBe(true);
+
+  // The name is the GUEST-LOCAL grammar — arbitrary display text is not a legal `toolName`, and the wire name
+  // the server derives from one is itself well-formed in the same charset (nothing here re-derives it).
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse({ ...base, anchor: "tool-card", toolName: "Draw Card" }).success).toBe(false);
+  expect(PLUGIN_TOOL_NAME_RE.test("draw")).toBe(true);
+});
+
+test("pluginToolWireName is the ONE mint: hyphens in the slug become underscores, and it carries the claimed prefix", () => {
+  // The charset half: the OpenAI/MCP function-name grammar has no hyphen, so the slug is transliterated. A
+  // second spelling of this rule anywhere would silently unmatch every registered card.
+  expect(pluginToolWireName("oracle-deck", "draw")).toBe("plugin_oracle_deck_draw");
+  expect(pluginToolWireName("mood", "read")).toBe("plugin_mood_read");
+  // …and the prefix the client's ONE `pluginToolRenderer` claims is the prefix this mint emits.
+  expect(pluginToolWireName("oracle-deck", "draw").startsWith(PLUGIN_TOOL_NAME_PREFIX)).toBe(true);
 });

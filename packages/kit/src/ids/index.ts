@@ -34,6 +34,10 @@ export const ID_PREFIX = {
   theme: "theme",
   asset: "asset",
   messageVariant: "message_variant",
+  // B6/MR0 — one reactor's one emoji on one variant (`message_reactions`). Keyed to the VARIANT, not the
+  // slot: a segment index is only meaningful against one swipe's rendered content (MA-2 §2, Open-Q A ruled
+  // variant-level), and a fresh swipe legitimately starts with an empty reaction set.
+  messageReaction: "message_reaction",
   chatEvent: "chat_event",
   chatStreamEvent: "chat_stream_event",
   sessionEntry: "session_entry",
@@ -139,6 +143,11 @@ export type MessageId = TypeIdOf<"message">;
 export type MessageVariantId = TypeIdOf<"message_variant">;
 /** #67 — the structural chat-message ↔ asset link row (`message_assets`; inline-attachment GC retention). */
 export type MessageAssetId = TypeIdOf<"message_asset">;
+/** B6/MR0 — ONE reactor's ONE emoji on ONE variant (`message_reactions`). The Discord-style grouped chip a
+ *  reader sees is a READ PROJECTION over these rows (`MessageReactionGroup`), never a stored array: two
+ *  members toggling the same emoji concurrently would lose-update a JSON blob, while a junction toggle is one
+ *  INSERT or one DELETE under a UNIQUE (MA-2 §4). */
+export type MessageReactionId = TypeIdOf<"message_reaction">;
 export type ChatEventId = TypeIdOf<"chat_event">;
 export type ChatStreamEventId = TypeIdOf<"chat_stream_event">;
 export type SessionEntryId = TypeIdOf<"session_entry">;

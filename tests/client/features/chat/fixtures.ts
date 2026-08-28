@@ -123,6 +123,11 @@ export const CHAT_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // (`await client.stream.attach.mutate(…)` discards it), so feeding `{}` changes nothing observable — it
   // simply stops a real mutation riding the lenient null fulfil.
   "stream.attach": {},
+  // B6's per-row reaction WINDOW — read by every COMMITTED row's action strip, so it is ambient to any CT that
+  // mounts a transcript rather than a fact about reactions. EMPTY is the honest default (a fresh room has no
+  // reactions), and an empty ARRAY runs the grouping path for real where `null` would skip it. A CT whose
+  // SUBJECT is reactions overrides it after the spread (message-reactions.ct.tsx does exactly that).
+  "chat.listReactions": [],
   // The plugin DISPLAY-transform gate (plugin-ui-plane seam 14, U6) — read once per room by every committed
   // row's `MessageContent`. EMPTY is the honest default (a fresh viewer has no plugins), and an empty ARRAY
   // exercises the real gate path (`hasTransforms === false` ⇒ zero per-row calls) where `null` would only

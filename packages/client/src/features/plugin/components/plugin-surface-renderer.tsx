@@ -118,10 +118,16 @@ export function PluginSurfaceRenderer({
   pluginId,
   surfaceId,
   spec,
+  state: boundState,
 }: {
   readonly pluginId: PluginId;
   readonly surfaceId: string;
   readonly spec: PluginSurfaceNode;
+  /** The binding root to resolve `{ $state }` against, when the surface HAS one that is not the plugin's
+   *  published state — the `tool-card` anchor (U3), whose root is the persisted `ToolCallRecord` of the call
+   *  being rendered (`PluginToolCardState`). Omitted ⇒ the published `getSurfaceState` plane, which is the
+   *  right root for every anchor whose surface is per-(plugin, surface) rather than per-CALL. */
+  readonly state?: Record<string, unknown> | undefined;
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -135,7 +141,11 @@ export function PluginSurfaceRenderer({
   }
   const { data: refs } = useQuery({ ...trpc.assets.resolveBlobRefs.queryOptions({ assetIds: imageIds }), enabled: imageIds.length > 0 });
   const imageUrls = new Map((refs ?? []).map((ref) => [ref.assetId, blobUrl(ref.hash)] as const));
-  const { data: state } = useQuery(trpc.plugin.getSurfaceState.queryOptions({ pluginId, surfaceId }));
+  // A surface with its OWN binding root (a tool card) never reads the published plane: the read is disabled,
+  // not merely ignored, so a card costs no query and cannot repaint every historical call in the transcript
+  // when the plugin publishes something new.
+  const { data: publishedState } = useQuery({ ...trpc.plugin.getSurfaceState.queryOptions({ pluginId, surfaceId }), enabled: boundState === undefined });
+  const state = boundState ?? publishedState;
   const [values, setValues] = useState<Record<string, string>>(() => {
     const out: Record<string, string> = {};
     if (parsed.success) {

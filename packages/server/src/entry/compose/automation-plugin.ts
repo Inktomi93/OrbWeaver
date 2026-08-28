@@ -22,6 +22,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { InvocationChat, PluginHandlerRef, PluginQuietSchema } from "@orb/contracts/plugin";
+import { pluginToolWireName } from "@orb/contracts/plugin";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ImageInput, ResponseFormat } from "@orb/contracts/role-clients";
 import { listSeededBackgrounds } from "@orb/contracts/theme";
@@ -608,7 +609,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // PL-A: a plugin tool namespaces `plugin_<slug'>_<name>` and lands in the ONE tool-use registry.
       registerTool: (reg, invoke, scope) =>
         deps.toolUse.registerPluginTool({
-          name: `plugin_${scope.slug.replaceAll("-", "_")}_${reg.name}`,
+          name: pluginToolWireName(scope.slug, reg.name),
           description: reg.description,
           parameters: reg.parameters,
           installer: scope.installer,

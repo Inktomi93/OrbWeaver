@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a8411166-5fe4-4492-bae7-a541fc538b30",
+  "id": "b4c502f1-f5a5-43ac-8c06-d72ce8ae6910",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -625,7 +625,7 @@
         },
         "automation_rules_trigger_type_check": {
           "name": "automation_rules_trigger_type_check",
-          "value": "(trigger_bus = 'chat' AND trigger_type in ('chatOpened', 'messageCommitted', 'messageEdited', 'variantSelected', 'turnStarted', 'turnCompleted', 'turnAborted', 'worldInfoActivated', 'personaSwitched', 'chatCreated', 'messageHidden', 'messagesDeleted', 'chatUpdated', 'wiEntryAttached', 'wiEntryDetached')) OR (trigger_bus = 'domain' AND trigger_type in ('character.updated', 'asset.created', 'persona.updated', 'world-info.updated'))"
+          "value": "(trigger_bus = 'chat' AND trigger_type in ('chatOpened', 'messageCommitted', 'messageEdited', 'variantSelected', 'turnStarted', 'turnCompleted', 'turnAborted', 'worldInfoActivated', 'personaSwitched', 'chatCreated', 'reactionsChanged', 'messageHidden', 'messagesDeleted', 'chatUpdated', 'wiEntryAttached', 'wiEntryDetached')) OR (trigger_bus = 'domain' AND trigger_type in ('character.updated', 'asset.created', 'persona.updated', 'world-info.updated'))"
         }
       }
     },
@@ -1197,7 +1197,7 @@
       "checkConstraints": {
         "chat_events_type_check": {
           "name": "chat_events_type_check",
-          "value": "type in ('delta', 'messageCommitted', 'messageEdited', 'messageHidden', 'variantSelected', 'messagesDeleted', 'messagesReordered', 'reasoningEdited', 'reasoningCleared', 'reasoningStreamDone', 'turnAccepted', 'turnStarted', 'turnCompleted', 'turnAborted', 'warning', 'worldInfoActivated', 'personaSwitched', 'wiBookAttached', 'wiBookDetached', 'wiEntryAttached', 'wiEntryDetached', 'wiEntryScopeChanged', 'chatCreated', 'chatOpened', 'historyTruncated', 'chatUpdated')"
+          "value": "type in ('delta', 'messageCommitted', 'messageEdited', 'messageHidden', 'variantSelected', 'messagesDeleted', 'messagesReordered', 'reasoningEdited', 'reasoningCleared', 'reasoningStreamDone', 'turnAccepted', 'turnStarted', 'turnCompleted', 'turnAborted', 'warning', 'worldInfoActivated', 'personaSwitched', 'reactionsChanged', 'wiBookAttached', 'wiBookDetached', 'wiEntryAttached', 'wiEntryDetached', 'wiEntryScopeChanged', 'chatCreated', 'chatOpened', 'historyTruncated', 'chatUpdated')"
         }
       }
     },
@@ -2158,6 +2158,103 @@
           "columnsFrom": ["asset_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "message_reactions": {
+      "name": "message_reactions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reactor_participant_id": {
+          "name": "reactor_participant_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "emoji": {
+          "name": "emoji",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "emoji_image_asset_id": {
+          "name": "emoji_image_asset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "message_reactions_variant_reactor_emoji_unique": {
+          "name": "message_reactions_variant_reactor_emoji_unique",
+          "columns": ["variant_id", "reactor_participant_id", "emoji"],
+          "isUnique": true
+        },
+        "message_reactions_reactor_idx": {
+          "name": "message_reactions_reactor_idx",
+          "columns": ["reactor_participant_id"],
+          "isUnique": false
+        },
+        "message_reactions_emoji_asset_idx": {
+          "name": "message_reactions_emoji_asset_idx",
+          "columns": ["emoji_image_asset_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "message_reactions_variant_id_message_variants_id_fk": {
+          "name": "message_reactions_variant_id_message_variants_id_fk",
+          "tableFrom": "message_reactions",
+          "tableTo": "message_variants",
+          "columnsFrom": ["variant_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "message_reactions_reactor_participant_id_chat_participants_id_fk": {
+          "name": "message_reactions_reactor_participant_id_chat_participants_id_fk",
+          "tableFrom": "message_reactions",
+          "tableTo": "chat_participants",
+          "columnsFrom": ["reactor_participant_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "message_reactions_emoji_image_asset_id_assets_id_fk": {
+          "name": "message_reactions_emoji_image_asset_id_assets_id_fk",
+          "tableFrom": "message_reactions",
+          "tableTo": "assets",
+          "columnsFrom": ["emoji_image_asset_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

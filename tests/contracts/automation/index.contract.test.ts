@@ -25,7 +25,7 @@ import {
 import { DOMAIN_EVENT_TYPES } from "@orb/contracts/events";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("CHAT_TRIGGER_TYPES is the pinned 15-member chat-bus subset (v1 + reserved, 01 §1)", () => {
+test("CHAT_TRIGGER_TYPES is the pinned 16-member chat-bus subset (v1 + reserved, 01 §1)", () => {
   expect(CHAT_TRIGGER_TYPES).toEqual([
     "chatOpened",
     "messageCommitted",
@@ -37,6 +37,8 @@ test("CHAT_TRIGGER_TYPES is the pinned 15-member chat-bus subset (v1 + reserved,
     "worldInfoActivated",
     "personaSwitched",
     "chatCreated",
+    // S7 (wired with B6) — the reaction plane. LIVE, not reserved.
+    "reactionsChanged",
     "messageHidden",
     "messagesDeleted",
     "chatUpdated",
@@ -112,6 +114,7 @@ const CHAT_SEEN: Record<ChatTriggerType, true> = {
   worldInfoActivated: true,
   personaSwitched: true,
   chatCreated: true,
+  reactionsChanged: true,
   messageHidden: true,
   messagesDeleted: true,
   chatUpdated: true,

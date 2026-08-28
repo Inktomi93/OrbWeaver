@@ -84,7 +84,10 @@ function makeFakePort(): FakePort {
     createInstance: (input: CreateInstanceInput): Promise<CreateInstanceOutcome> => {
       created.push(input);
       const scripted = queue.shift();
-      const outcome: CreateInstanceOutcome = scripted ?? { ok: true, instance: { tools: [], transforms: [], events: [], surfaces: [], displayTransforms: [], macros: [] } };
+      const outcome: CreateInstanceOutcome = scripted ?? {
+        ok: true,
+        instance: { tools: [], transforms: [], events: [], surfaces: [], displayTransforms: [], macros: [] },
+      };
       if (outcome.ok) {
         logs.set(outcome.instance, []);
       }

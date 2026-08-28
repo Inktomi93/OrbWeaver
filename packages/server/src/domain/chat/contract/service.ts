@@ -10,7 +10,7 @@
 // one participant-insert chokepoint AND the only public human-join path — there is no standalone `join`
 // verb. The two-party host handoff is modelled as two verbs (nominate + accept).
 
-import type { GroupConfig, MemberCardView, RoomOverrides } from "@orb/contracts/chat";
+import type { GroupConfig, MemberCardView, MessageReactionGroup, RoomOverrides } from "@orb/contracts/chat";
 import type { ChatSendAvailability } from "@orb/contracts/connection";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -61,6 +61,7 @@ import type {
   ListMessagesParams,
   ListMessageVariantsParams,
   ListParticipantsParams,
+  ListReactionsParams,
   MoveMessageParams,
   NominateHostHandoffParams,
   PeekPromptParams,
@@ -101,6 +102,7 @@ import type {
   StartChatParams,
   StreamEventBoundsParams,
   SwipeParams,
+  ToggleReactionParams,
   UndoContinueParams,
   UpdateTitleParams,
 } from "./params.ts";
@@ -299,6 +301,18 @@ export interface ChatService {
    *  (S5 §4; B9's clock widget consumes it; the plugin membrane's `getVariables` reads the same column
    *  through its own admission). Invalidation rides the existing turn-commit/swipe chat-bus events. */
   readonly getRuntimeVariables: (params: GetRuntimeVariablesParams) => Promise<Record<string, string>>;
+
+  // ── reactions (B6/MR0 — class-2-CONCURRENT canon: attributed, no turn slot, no chat lock) ─────────────
+  /** Toggle ONE emoji on ONE variant as the caller's own participant seat. Member-gated (the membership
+   *  floor — reactions are room-public canon, not a host surface) and floor-clamped: a variant that is not
+   *  in this chat, or is below the caller's D16 read floor, is a leak-free NOT_FOUND. Idempotent in BOTH
+   *  directions by the `(variantId, seat, emoji)` UNIQUE — a repeat add and a repeat remove each write
+   *  nothing and emit nothing. Returns the resulting state for THIS seat (`true` = the reaction now
+   *  exists), so a client can settle its own control without waiting for the bus. */
+  readonly toggleReaction: (params: ToggleReactionParams) => Promise<boolean>;
+  /** The room's grouped reaction window (member-gated, floor-clamped) — one bounded read the client indexes
+   *  by `variantId`, so swiping a row re-targets data it already holds. */
+  readonly listReactions: (params: ListReactionsParams) => Promise<readonly MessageReactionGroup[]>;
 
   // ── chat-row ──────────────────────────────────────────────────────────────────
   /** Delete the chat (host-only; cascades messages/roster/invites/etc.). */

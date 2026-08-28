@@ -163,6 +163,7 @@ test("a MALFORMED answer (neither string nor {abort}) is a SKIP, never an abort 
   const { emit, warnings } = recorder();
   const reg = createPromptTransformRegistry(emit);
   // A guest returning `{}` has malfunctioned; a malfunction is exactly the D53 case.
+  // FABRICATION-OK: the SUBJECT is a malformed guest answer — the double-cast IS the invalid input under test, and a typed factory could not produce it.
   reg.register({ id: "junk", point: "user_input", order: 0, apply: () => Promise.resolve({} as unknown as string) });
   expect(await reg.apply("user_input", CHAT, "kept", {})).toEqual({ aborted: false, text: "kept" });
   expect(warnings).toEqual([{ type: "warning", chatId: CHAT, code: "prompt_transform_skipped" }]);

@@ -46,6 +46,7 @@ import type {
   Handle,
   MessageAssetId,
   MessageId,
+  MessageReactionId,
   MessageVariantId,
   PendingTurnId,
   PersonaId,
@@ -537,7 +538,9 @@ export type ApplyPromptTransformsOp = (
  *  IT IS AN INJECTED OP AND THAT IS THE WHOLE POINT: chat never imports `domain/plugin`, and the plugin domain
  *  never imports chat. Chat asks "what macros does this author have this turn?" and receives DATA; whose plugin,
  *  which guest, and what budget it ran under are all the other side's business. */
-export type ResolvePluginMacrosOp = (authorUserId: UserId, chatId: ChatId) => Promise<readonly UserMacroDef[]>;
+// Not exported (the `ResolveChatUserMacroDefsOp` precedent above): its only consumers are `ChatContext` here
+// and compose, which reaches it as `ChatContext["pluginMacros"]` — an export nothing imports is a false public.
+type ResolvePluginMacrosOp = (authorUserId: UserId, chatId: ChatId) => Promise<readonly UserMacroDef[]>;
 
 /** The D50 PromptTransform registrar surface — created ONCE at the composition root
  *  (`createPromptTransformRegistry`). Its `apply` is injected as {@link ApplyPromptTransformsOp}
@@ -1148,6 +1151,7 @@ export interface ChatContext {
   readonly newMessageVariantId: () => MessageVariantId;
   readonly newParticipantId: () => ChatParticipantId;
   readonly newMessageAssetId: () => MessageAssetId;
+  readonly newMessageReactionId: () => MessageReactionId;
   readonly newInjectionId: () => ChatInjectionId;
   readonly newEventId: () => ChatEventId;
   readonly newStreamEventId: () => ChatStreamEventId;

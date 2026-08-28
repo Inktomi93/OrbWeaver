@@ -14,6 +14,7 @@
 //   • listing.ts        — the `listChats` KEYSET cursor (`chatListCursorSchema`)
 //   • bulk-import.ts    — the chat-owned bulk-import op shapes (D34)
 //   • prose.ts          — the PROSE-1 app-tier slot table (the side-generation prompts' shipped defaults)
+//   • reactions.ts      — the B6 reaction emoji vocabulary + the grouped read projection (MA-2)
 //   • visible-rooms.ts  — the leak-safe reverse-room read every usage roster shares (`VisibleRoomRef` +
 //                         `ResolveVisibleRoomsOp`, D18)
 //
@@ -216,6 +217,9 @@ export {
 } from "./producers.ts";
 // The PROSE-1 app-tier slot table (census 74-81) — `#prose` imports it to compose `PROSE_SLOTS`.
 export { CHAT_PROSE_SLOTS } from "./prose.ts";
+// B6/MR0 — the message-reaction vocabulary + the grouped read projection (MA-2).
+export type { MessageReactionGroup, ReactionEmoji } from "./reactions.ts";
+export { CHAT_REACTION_SLOT_WINDOW, REACTION_EMOJIS, reactionEmojiSchema } from "./reactions.ts";
 export type {
   AcceptInviteInput,
   CarriedAppearanceCast,
