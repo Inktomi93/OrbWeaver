@@ -29,6 +29,7 @@ export type {
   ListCharactersParams,
   ListSnapshotsParams,
   MintGroupCharParams,
+  PluginCardDataTarget,
   RemoveCharacterParams,
   RestoreParams,
   RewriteGreetingParams,
@@ -48,6 +49,7 @@ export type {
   CharacterRef,
   GeneratedGreeting,
   ListCharactersResult,
+  PluginCardDataRead,
   SnapshotRef,
   SnapshotSummary,
 } from "./contract/results.ts";
@@ -60,7 +62,6 @@ export type {
 export type { CharacterDetail, CharacterSummary } from "./contract/views.ts";
 export { createLinkCharacterAvatars } from "./persistence/avatar-link-write.ts";
 export { createCopyHandoffCards } from "./persistence/handoff-copy-write.ts";
-export type { PluginCardDataRead, PluginCardDataTarget } from "./persistence/plugin-card-data.ts";
 export { readPluginCardData, writePluginCardData } from "./persistence/plugin-card-data.ts";
 export { createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "./persistence/refinery-ops.ts";
 export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeededCardContent } from "./seeder/index.ts";

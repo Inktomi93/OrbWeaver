@@ -65,12 +65,12 @@ test("the palette search matches a plugin command by name (cmdk scores it like a
 });
 
 test("picking a plugin command RUNS the guest-handler dispatch and surfaces its outcome", async ({ mount, page }) => {
-  let invoked: { pluginId: string; name: string } | null = null;
+  let invoked: { pluginId: PluginId; name: string } | null = null;
   await routeTrpc(page, {
     ...TWO_COMMANDS,
     // The SAME `/plugin <slug> <cmd>` round-trip the U5 dispatch uses — the palette is a surfacing layer over it.
     "plugin.invokeUiCommand": (input: unknown): unknown => {
-      const { pluginId, name } = input as { pluginId: string; name: string };
+      const { pluginId, name } = input as { pluginId: PluginId; name: string };
       invoked = { pluginId, name };
       return { toasts: [{ level: "success", message: "Oracle Deck: drew the Tower" }] };
     },

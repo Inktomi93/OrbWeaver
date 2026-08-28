@@ -221,6 +221,8 @@ export { MODAL_TRIGGER_PLACEMENTS } from "./modal-registry.ts";
 export type { ModalRegistry } from "./modal-registry-context.ts";
 export { useModalRegistry } from "./modal-registry-context.ts";
 export { ModalRegistryProvider } from "./modal-registry-provider.tsx";
+export type { ModalSlotId } from "./modal-slot-ids.ts";
+export { MODAL_SLOT_IDS } from "./modal-slot-ids.ts";
 export { publishNoticeBand, useNoticeBand } from "./notice-band-store.ts";
 export type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.ts";
 export { PANEL_MODES, resolvePanelMode } from "./panel-resolve.ts";
@@ -362,13 +364,12 @@ export {
 export type { SettingsSectionRegistry } from "./settings-section-registry-context.ts";
 export { useSettingsSectionRegistry, useSettingsSections } from "./settings-section-registry-context.ts";
 export { SettingsSectionRegistryProvider } from "./settings-section-registry-provider.tsx";
-export type { ModalSlotId, PublishedContextTab } from "./shell-store.ts";
+export type { PublishedContextTab } from "./shell-store.ts";
 export {
   closeModal,
   getAvailableContextTabIds,
   getAvailableContextTabs,
   getContextTab,
-  MODAL_SLOT_IDS,
   openModal,
   openSettingsTo,
   publishContextTabIds,

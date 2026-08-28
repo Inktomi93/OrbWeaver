@@ -650,10 +650,14 @@ describe("buildPluginBridge — the U8 ingest writes close over the installer (n
 describe("buildPluginBridge — the U8 D148 card-state ops stamp the plugin's own slug + close over the installer", () => {
   function cardStateRecordingOps(): {
     readonly ops: PluginHostOps;
+    // @foreign-id-ok(characterId): the recorder mirrors PluginHostOps.character.setCardData, whose characterId is a bare `string` under the same marker (the guest's untrusted wire id, owner-scope-gated at persistence).
     readonly setCalls: { installerUserId: UserId; slug: string; characterId: string; data: Record<string, unknown> }[];
+    // @foreign-id-ok(characterId): the recorder mirrors PluginHostOps.character.getCardData, whose characterId is a bare `string` under the same marker (the guest's untrusted wire id, owner-scope-gated at persistence).
     readonly getCalls: { installerUserId: UserId; slug: string; characterId: string }[];
   } {
+    // @foreign-id-ok(characterId): the recorder mirrors PluginHostOps.character.setCardData, whose characterId is a bare `string` under the same marker (the guest's untrusted wire id, owner-scope-gated at persistence).
     const setCalls: { installerUserId: UserId; slug: string; characterId: string; data: Record<string, unknown> }[] = [];
+    // @foreign-id-ok(characterId): the recorder mirrors PluginHostOps.character.getCardData, whose characterId is a bare `string` under the same marker (the guest's untrusted wire id, owner-scope-gated at persistence).
     const getCalls: { installerUserId: UserId; slug: string; characterId: string }[] = [];
     const base = makeInertOps();
     const ops: PluginHostOps = {
