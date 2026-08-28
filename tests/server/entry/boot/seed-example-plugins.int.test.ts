@@ -18,7 +18,7 @@
 
 import type { InvocationChat, PluginCapability, PluginHandlerRef } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
-import type { ChatId, Handle, PluginId } from "@orb/kit/ids";
+import type { ChatId, Handle, MessageId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 // The ALIASED front door, not a deep relative path: biome's type service cannot see through
 // `../../../../packages/server/src/...` into a branded type, and it then mis-fires `useAwaitThenable` /
@@ -56,6 +56,12 @@ interface Captured {
   readonly events: { readonly type: string; readonly handler: PluginHandlerRef }[];
   readonly tools: { readonly name: string; readonly handler: PluginHandlerRef }[];
   readonly transforms: { readonly name: string; readonly point: string; readonly handler: PluginHandlerRef }[];
+  /** The collected VALUE macros (plugin-ui-plane §5.15) — guest-local names; the registrar namespaces them. */
+  readonly macros: { readonly name: string; readonly handler: PluginHandlerRef }[];
+  /** The collected private-event subscriptions (§5a) — `(emitterSlug, name)` channel coordinates. */
+  readonly pubsubSubs: { readonly emitterSlug: string; readonly name: string; readonly handler: PluginHandlerRef }[];
+  /** Every `pubsub.emit` the guests fired, in order — the announce half of the composition demo. */
+  readonly pubsubEmits: { readonly emitterSlug: string; readonly name: string; readonly data: Record<string, unknown> }[];
   /** Each `surfaceQuickReply` emission, in order — the room-visible half of the chip archetype. */
   readonly chips: (readonly { readonly label: string; readonly sendText: string }[])[];
   /** The per-activation invoke closure (crash-policy wrapped) — how a delivery/tool call actually re-enters. */
@@ -68,7 +74,7 @@ interface Captured {
 function recordingOps(db: Db, globals: Map<string, string>): { ops: PluginHostOps; captured: Captured } {
   const base = makeInertOps();
   const noop: PluginRegistrationHandle = { unregister: (): void => undefined };
-  const captured: Captured = { events: [], tools: [], transforms: [], chips: [], invoke: null, scope: null };
+  const captured: Captured = { events: [], tools: [], transforms: [], macros: [], pubsubSubs: [], pubsubEmits: [], chips: [], invoke: null, scope: null };
   const ops: PluginHostOps = {
     ...base,
     storage: buildPluginStorage(db, () => FROZEN_AT_MS),
@@ -76,6 +82,12 @@ function recordingOps(db: Db, globals: Map<string, string>): { ops: PluginHostOp
     quickReply: {
       surface: ({ choices }): Promise<void> => {
         captured.chips.push(choices);
+        return Promise.resolve();
+      },
+    },
+    pubsub: {
+      emit: ({ emitterSlug, name, data }): Promise<void> => {
+        captured.pubsubEmits.push({ emitterSlug, name, data });
         return Promise.resolve();
       },
     },
@@ -92,7 +104,14 @@ function recordingOps(db: Db, globals: Map<string, string>): { ops: PluginHostOp
         captured.scope = scope;
         return noop;
       },
-      registerMacros: (): PluginRegistrationHandle => noop,
+      registerMacros: (macros, invoke, scope): PluginRegistrationHandle => {
+        for (const macro of macros) {
+          captured.macros.push({ name: macro.name, handler: macro.handler });
+        }
+        captured.invoke = invoke;
+        captured.scope = scope;
+        return noop;
+      },
       subscribeEvent: (subscriptions, invoke, scope): PluginRegistrationHandle => {
         for (const sub of subscriptions) {
           captured.events.push({ type: sub.type, handler: sub.handler });
@@ -101,7 +120,14 @@ function recordingOps(db: Db, globals: Map<string, string>): { ops: PluginHostOp
         captured.scope = scope;
         return noop;
       },
-      subscribePubsub: (): PluginRegistrationHandle => noop,
+      subscribePubsub: (subscriptions, invoke, scope): PluginRegistrationHandle => {
+        for (const sub of subscriptions) {
+          captured.pubsubSubs.push({ emitterSlug: sub.emitterSlug, name: sub.name, handler: sub.handler });
+        }
+        captured.invoke = invoke;
+        captured.scope = scope;
+        return noop;
+      },
     },
   };
   return { ops, captured };
@@ -228,16 +254,19 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   const bundle = await packSeedPluginBundle("oracle-deck");
   expect(bundle).not.toBeNull();
   const installed = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
-  const grant: readonly PluginCapability[] = ["storage.kv", "tools.register", "ui.surface"];
+  const grant: readonly PluginCapability[] = ["storage.kv", "tools.register", "ui.surface", "chat.transform", "plugin_events"];
   await h.service.setGrant({ caller, pluginId: installed.id, grant: [...grant], acknowledgedNetHosts: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
   expect((await h.service.list({ caller }))[0]?.status).toBe("enabled");
 
   // BOTH tools reached the registrar — the guest-local names the host then prefixes to `plugin_oracle_deck_*`.
   expect(captured.tools.map((t) => t.name)).toEqual(["draw", "reveal"]);
+  // …and so did the OMEN value macro (§5.15) — guest-local name here; the registrar namespaces it.
+  expect(captured.macros.map((m) => m.name)).toEqual(["omen"]);
   const invoke = requireInvoke(captured);
   const draw = requireHandler(captured.tools, 0, "tool");
   const reveal = requireHandler(captured.tools, 1, "tool");
+  const omen = requireHandler(captured.macros, 0, "macro");
 
   // …and so did the `draw` CARD (#679 U3), linked to the guest-local tool name and PROJECTED to the
   // model-visible one — the whole path a transcript needs to draw a house card instead of the generic block.
@@ -249,15 +278,27 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
     // WASM runtime, not just the schema.
     expect.objectContaining({ id: "deck_page", anchor: "page", title: "The Deck" }),
     expect.objectContaining({ id: "reveal_dialog", anchor: "dialog", title: "Reveal this session" }),
+    // …and the U6 per-row mark — the smallest legal `message-footer` occupant (one static badge).
+    expect.objectContaining({ id: "table_mark", anchor: "message-footer", tier: "static" }),
   ]);
 
   // The two COMMANDS the same activation registered — what `/plugin oracle-deck draw` and the Plugins wand menu
   // both dispatch against. The SLUG is projected here (only this side knows it), which is the first token of the
-  // dispatch grammar.
-  expect(await h.service.listCommands({ caller })).toEqual([
-    { pluginId: installed.id, slug: "oracle-deck", pluginName: "Oracle Deck", name: "draw", describe: "Draw one card from the oracle deck" },
-    { pluginId: installed.id, slug: "oracle-deck", pluginName: "Oracle Deck", name: "reveal", describe: "Open the reveal dialog for this oracle session" },
+  // dispatch grammar. `draw` declares the #791 TYPED ARGS (projected so both client surfaces can collect +
+  // autocomplete them); `reveal` declares none, so its `args` projects EMPTY — the two shapes side by side.
+  const commands = await h.service.listCommands({ caller });
+  expect(commands).toEqual([
+    expect.objectContaining({ pluginId: installed.id, slug: "oracle-deck", pluginName: "Oracle Deck", name: "draw" }),
+    expect.objectContaining({ pluginId: installed.id, slug: "oracle-deck", pluginName: "Oracle Deck", name: "reveal", args: [] }),
   ]);
+  expect(commands[0]?.args).toEqual([
+    expect.objectContaining({ name: "count", type: "number" }),
+    expect.objectContaining({ name: "spread", type: "enum", enumValues: ["single", "past_present_future"] }),
+  ]);
+
+  // The macro BEFORE any draw: an open question resolves to "" — the macro plane's degrade-to-empty idiom,
+  // never a throw and never placeholder text a prompt would then carry.
+  expect(await invoke(omen, "{}", null)).toBe("");
 
   // A tool call carries no chat scope of its own here (the deck never asks for one), exactly as a direct-drive
   // invocation would. The handler's STRING return is what the model reads, verbatim — a JSON DOCUMENT here,
@@ -279,6 +320,16 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
     .filter((card): card is string => card !== undefined);
   expect(drawn).toEqual(first.cards);
   expect(drawn).toHaveLength(2);
+
+  // The macro AFTER a draw: the omen is the MOST RECENT card dealt — the same truth the result document told
+  // the model. One draw, one truth, three readers (model, card, macro).
+  expect(await invoke(omen, "{}", null)).toBe(first.cards[1]);
+
+  // The draw was ANNOUNCED on the private plugin-event plane (§5a): the composition half scene-chips listens
+  // to. The payload carries everything a subscriber needs (a pubsub handler runs with NO chat scope).
+  expect(captured.pubsubEmits).toEqual([
+    { emitterSlug: "oracle-deck", name: "draw", data: { cards: first.cards, dealt: 2, commitment: first.commitment, deckSize: 22 } },
+  ]);
 
   // THE FAIRNESS CHECK, performed the way a suspicious player would: reveal the seed, then confirm the cards
   // that were dealt really are the first cards of the order that seed produces.
@@ -318,16 +369,40 @@ test("draft polish: the real bundle registers a user_input transform that tidies
   expect(await invoke(apply, optedOut, null)).toBe("leave  me   alone...");
 });
 
+test("draft polish: the DISPLAY transform typesets the viewer's own screen and leaves code spans alone", async () => {
+  const db = await freshDb();
+  const { ops } = recordingOps(db, new Map());
+  const h = makePluginHarness(db, { port: realHost(), ops });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+
+  await installGrantEnable({ h, caller, slug: "draft-polish", grant: ["chat.transform"] });
+
+  // The REAL per-row round-trip (seam 14): the caller submits the text their client already rendered, the
+  // resident's `registerDisplay` handler runs under the deadline, and the annotated text comes back. Smart
+  // quotes + em dash + ellipsis prove the display seam is BOLDER than the prompt seam (which never curls a
+  // quote) — and the backtick span survives byte-for-byte, because pre-markdown text is what this seam sees.
+  const result = await h.service.transformForDisplay({
+    caller,
+    chatId: castId<ChatId>("chat_1"),
+    messageId: castId<MessageId>("msg_1"),
+    text: 'She said "wait..." -- then ran `echo "hi"` twice.',
+  });
+  expect(result).toEqual({ text: 'She said “wait…”—then ran `echo "hi"` twice.' });
+});
+
 test("scene chips: the real bundle offers chips on a long narrator beat, once per cooldown", async () => {
   const db = await freshDb();
   const { ops, captured } = recordingOps(db, new Map());
   const h = makePluginHarness(db, { port: realHost(), ops });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
 
-  await installGrantEnable({ h, caller, slug: "scene-chips", grant: ["chat.read", "chat.quick_reply", "storage.kv", "events.subscribe"] });
+  await installGrantEnable({ h, caller, slug: "scene-chips", grant: ["chat.read", "chat.quick_reply", "storage.kv", "events.subscribe", "plugin_events"] });
   const invoke = requireInvoke(captured);
   const handler = requireHandler(captured.events, 0, "event handler");
   const beat = "The vault door groans open. ".repeat(20); // Past the plugin's 400-char long-beat floor.
+
+  // The private-event subscription was collected: `(oracle-deck, draw)` — the composition demo's listening half.
+  expect(captured.pubsubSubs.map((s) => ({ emitterSlug: s.emitterSlug, name: s.name }))).toEqual([{ emitterSlug: "oracle-deck", name: "draw" }]);
 
   // A short member line is not a stall: no chips.
   await invoke(handler, messageFact(CHAT, "ok", "user"), chatScope(CHAT, true));
@@ -342,6 +417,17 @@ test("scene chips: the real bundle offers chips on a long narrator beat, once pe
   // no host-side rate belt at all.
   await invoke(handler, messageFact(CHAT, beat, "assistant"), chatScope(CHAT, true));
   expect(captured.chips).toHaveLength(1);
+
+  // THE COMPOSITION PAYOFF: an oracle draw arrives on the private plane — delivered EXACTLY as the bus does
+  // it, `{name, data}` with a NULL chat scope (a pubsub handler has no room) — and the NEXT long beat offers a
+  // FOURTH, omen-flavored door. A second room dodges the per-room cooldown the second beat above just claimed.
+  const pubsubHandler = requireHandler(captured.pubsubSubs, 0, "pubsub subscription");
+  await invoke(pubsubHandler, JSON.stringify({ name: "draw", data: { cards: ["The Storm"], dealt: 1, commitment: "0000000001", deckSize: 22 } }), null);
+  const otherRoom = castId<ChatId>("chat_2");
+  await invoke(handler, messageFact(otherRoom, beat, "assistant"), chatScope(otherRoom, true));
+  expect(captured.chips).toHaveLength(2);
+  expect(captured.chips[1]?.map((c) => c.label)).toEqual(["Continue", "Time skip", "New scene", "Follow the omen"]);
+  expect(captured.chips[1]?.at(-1)?.sendText).toContain("The Storm");
 });
 
 test("the per-user seeder lands every example installed, disabled and UNGRANTED — and re-runs are a no-op", async () => {
@@ -400,6 +486,34 @@ test("every seeded example packs to a bundle the real install verb accepts", asy
     ids.push(row.id);
   }
   expect(ids).toHaveLength(EXAMPLE_PLUGIN_SLUGS.length);
+});
+
+/** THE GRANT-GUARD RECEIPT (#774 comment 1). A user may tick some capabilities and leave `ui.surface`
+ *  unticked — their call, and the plugin must DEGRADE TO HEADLESS, not die at activation: an unguarded
+ *  `host.ui.register` throws `PluginCapabilityError` while `main.js` evaluates, which takes the WHOLE plugin
+ *  down (no event handler, no tools) over a decoration. The correct idiom is the oracle's feature-detect
+ *  (`host.grants.includes("ui.surface")`), and this pin holds every UI-registering example to it: activation
+ *  under a UI-less grant must still collect the plugin's non-UI registrations and reach its ready line.
+ *  (Red-first: the pre-fix affinity-tracker failed exactly here — enable succeeded but the guest crashed
+ *  before `events.on`, so `captured.events` came back EMPTY.) */
+test("affinity tracker: a grant without ui.surface still activates headless — the guard idiom", async () => {
+  const db = await freshDb();
+  const { ops, captured } = recordingOps(db, new Map());
+  const h = makePluginHarness(db, { port: realHost(), ops });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+
+  const headlessGrant: readonly PluginCapability[] = ["chat.read", "storage.kv", "notify", "llm.quiet", "events.subscribe"];
+  await installGrantEnable({ h, caller, slug: "affinity-tracker", grant: headlessGrant });
+
+  // The non-UI half survived: the messageCommitted subscription was collected and the guest reached its
+  // ready line (which prints AFTER every registration in the file — so it doubles as "nothing above threw").
+  expect(captured.events.map((e) => e.type)).toEqual(["messageCommitted"]);
+  const invoke = requireInvoke(captured);
+  const handler = requireHandler(captured.events, 0, "event handler");
+  // One delivery through the real guest proves the handler is live (the debounce swallows it silently).
+  await invoke(handler, messageFact(CHAT, "hello there"), chatScope(CHAT, true));
+  const log = await h.service.getLog({ caller, pluginId: (await h.service.list({ caller }))[0]?.id as PluginId });
+  expect(log.some((line) => line.message.includes("affinity tracker ready"))).toBe(true);
 });
 
 /** THE TIER-C END-TO-END RECEIPT (plugin-ui-plane #679 U4). The shipped `affinity-tracker` carries a third

@@ -1,10 +1,10 @@
 {
   "id": "draft-polish",
   "name": "Draft Polish",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "hostVersion": 1,
   "entry": "main.js",
-  "description": "Tidies typographic scruff in a draft on its way to the model — smart quotes, real ellipses, collapsed whitespace. Pure, local, and fast enough for the transform deadline.",
+  "description": "Typographic care on both sides of the wire: tidies a draft on its way to the model (ellipses, stray spaces), and typesets what your own screen shows (curly quotes, em dashes) without touching canon.",
   "author": "Orbweaver",
   "capabilities": ["chat.transform"]
 }
