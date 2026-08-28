@@ -20,23 +20,31 @@ const BASE = {
 // wearing a list's clothes — it is the consent screen's reading order, and the client's `CAPABILITY_COPY_ROWS`
 // is written to match it. `llm.quiet` sits at position 13: it is SPEND class, and the three spend capabilities
 // (`turn.trigger`, `imagery.generate`, `llm.quiet`) sit adjacent so the "Costs money" badge and the reading
-// order reinforce each other on a screen whose scan question is "what can this cost me". `ui.surface` (#679)
-// was inserted at position 9 — after `notify`, BEFORE the spend block — deliberately: it is neither spend nor
-// risk (it renders only for the installer, house-drawn, and cannot impersonate host chrome), so it reads in the
-// benign band and does not split the three adjacent spend rows. `ui.frame` (U7) follows it at position 10, and
-// that adjacency is the point: it is the ESCALATION of the row above it (the same "may this plugin draw"
-// question, answered with an isolated frame that can beacon over a channel no policy closes), so a reader
-// weighing one has the other in the same glance. It is RISK class where `ui.surface` is not — the only UI
-// capability that reaches past the plugin's own sandbox. Moving a member is a UX decision, not a refactor.
-test("PLUGIN_CAPABILITIES is the pinned 20-member axis (02 §1; ui.surface + ui.frame #679; U8 ingest pair + card_state + plugin_events) in confirm-dialog order", () => {
+// order reinforce each other on a screen whose scan question is "what can this cost me". The two spend/benign
+// bands are unchanged by #788, which inserted THREE BENIGN READ capabilities in the read band (`worldinfo.read`
+// before its write, `assets.read` + `search.query` after `storage.kv`) — reads that reach nothing outside their
+// own sandbox, so they belong before the risk/spend rows and do NOT split the three adjacent spend rows (now at
+// positions 14-16, shifted +3 by the three inserted reads). `ui.surface` (#679) reads in the benign band — after `notify`,
+// BEFORE the spend block — deliberately: it renders only for the installer, house-drawn, cannot impersonate host
+// chrome. `ui.frame` (U7) follows it and that adjacency is the point: it is the ESCALATION of the row above it
+// (the same "may this plugin draw" question, answered with an isolated frame that can beacon over a channel no
+// policy closes), so a reader weighing one has the other in the same glance. It is RISK class where `ui.surface`
+// is not — the only UI capability that reaches past the plugin's own sandbox. Moving a member is a UX decision.
+test("PLUGIN_CAPABILITIES is the pinned 23-member axis (02 §1; ui.surface + ui.frame #679; U8 ingest pair + card_state + plugin_events; #788 worldinfo.read + assets.read + search.query) in confirm-dialog order", () => {
   expect(PLUGIN_CAPABILITIES).toEqual([
     "chat.read",
     "chat.variables.write",
     "chat.quick_reply",
     "chat.transform",
+    // #788 F12 — the benign world-info READ half, placed before its write (read then write, benign before risk).
+    "worldinfo.read",
     "worldinfo.write",
     "global_vars",
     "storage.kv",
+    // #788 seam-11 — the benign CAS asset READ, placed after `storage.kv` (both "read your own private data").
+    "assets.read",
+    // #788 F1 — the benign first-party RETRIEVAL read, placed beside `assets.read` (both "read your own library").
+    "search.query",
     "notify",
     "ui.surface",
     "ui.frame",

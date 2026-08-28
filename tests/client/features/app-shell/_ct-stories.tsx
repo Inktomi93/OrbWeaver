@@ -49,7 +49,7 @@ import { CustomThemeStyle } from "../../../../packages/client/src/features/app-s
 import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail.tsx";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
-import type { ModalSlotId } from "../../../../packages/client/src/state/shell-store.ts";
+import type { ModalSlotId } from "../../../../packages/client/src/state/modal-slot-ids.ts";
 import { openModal, setActiveSection, useActiveSection, useContextTab } from "../../../../packages/client/src/state/shell-store.ts";
 import "../../../../packages/client/src/styles/globals.css";
 import {

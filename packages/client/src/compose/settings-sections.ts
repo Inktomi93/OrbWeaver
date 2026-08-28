@@ -45,8 +45,9 @@ import {
 } from "#features/user-admin";
 import { workloadsJobsSection, workloadsSchedulesSection, workloadsTuningSection } from "#features/workloads";
 import { worldInfoSettingsSection } from "#features/world-info";
+import { createContributorRegistry } from "#lib";
 import type { SettingsSectionContribution } from "#state";
-import { assertSettingsKeyPartition, createContributorRegistry } from "#state";
+import { assertSettingsKeyPartition } from "#state";
 
 export const settingsSections = createContributorRegistry<SettingsSectionContribution>("settings-sections", [
   // chat-behavior ← the DECOMPOSED chat-behavior pane (SET-SEAMS stage 2) leading, then the sections that

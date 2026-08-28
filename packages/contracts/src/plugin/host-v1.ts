@@ -39,6 +39,22 @@ export interface PluginMessageView {
   readonly content: string;
 }
 
+/** A REDUCED roster projection (`chat.listRoster`, #788 F11 — the ST `context.characters` parity arm). The read
+ *  floor is what EVERY member already sees in the transcript: a character seat's id, its resolved display name,
+ *  and its avatar asset id. Deliberately NOT the full card — a member plugin reading another participant's
+ *  description/personality/scenario would be a leak of a co-participant's private character definition; the roster
+ *  is the invocation chat's present CHARACTER seats only, member-visible, D16-clamped by the same viewer verdict
+ *  `listMessages` resolves. Human seats are excluded (this is the CHARACTER roster). */
+export interface PluginCharacterView {
+  // `id`/`avatarAssetId` are guest-wire DTO fields (inert text a guest may key off or pass to `assets.read`), but
+  // neither NAME is the lowerCamel of a kit brand (`characterId`/`assetId` are; these are not), so the
+  // brand-in-name gate does not flag them and no foreign-id exemption is owed (a marker on a non-brand position
+  // is itself stale-RED).
+  readonly id: string;
+  readonly name: string;
+  readonly avatarAssetId: string | null;
+}
+
 /** The same `set`/`add`/`inc`/`dec`/`delete` op vocabulary the delta model defines — the ONE home is the kit
  *  `VarOp` (aliased, never re-spelled); a guest write rides the SAME delta seam actions use. */
 export type PluginVariableOp = VarOp;
@@ -51,6 +67,63 @@ export interface PluginWorldEntryUpsert {
   readonly keys: readonly string[];
   readonly contentTemplate: string;
   readonly position: EntryPosition;
+}
+
+/** A REDUCED world-book projection (`worldInfo.listBooks`, #788 F12). The room's own lore books — those ATTACHED
+ *  to the invocation chat, member-visible. `id` is what the guest passes back to `worldInfo.listEntries`. */
+export interface PluginWorldBookView {
+  // `id` is a guest-wire DTO field (inert text the guest keys `listEntries` off); its name is not a kit brand
+  // lowerCamel (`worldBookId` is), so the brand-in-name gate does not flag it and no marker is owed.
+  readonly id: string;
+  readonly name: string;
+}
+
+/** A REDUCED world-entry projection (`worldInfo.listEntries`, #788 F12) — the read symmetry of
+ *  `PluginWorldEntryUpsert`: the keys + content of ONE entry in an attached book, for the lore-indexing class
+ *  (the vectors extension consumes exactly these). Content is host-capped like `PluginMessageView.content`. */
+export interface PluginWorldEntryView {
+  // `id` is a guest-wire DTO field (inert text); its name is not a kit brand lowerCamel (`worldEntryId` is), so
+  // the brand-in-name gate does not flag it and no marker is owed.
+  readonly id: string;
+  readonly keys: readonly string[];
+  readonly content: string;
+  readonly enabled: boolean;
+}
+
+/** The most bytes one `assets.read` call returns (#788 seam-11 read half). A bounded read of the installer's own
+ *  CAS: the membrane already caps a serialized RESULT (`HOST_FN_RESULT_CAP_BYTES`), and base64 inflates ~4/3, so
+ *  the byte ceiling here is the honest pre-encode bound — an asset over it is a typed refusal of the CALL, not a
+ *  truncated read (a guest must not mistake a clipped image for the whole one). 1 MiB mirrors `net.fetch`'s
+ *  response cap: the two "read external/own bytes into the guest" surfaces carry the same bound. */
+export const PLUGIN_ASSET_READ_MAX_BYTES = 1_048_576;
+
+/** What `assets.read` hands back for an asset in the INSTALLER's OWN CAS (#788 seam-11 read half). Bytes as
+ *  base64 (the membrane boundary is JSON-safe — a `Uint8Array` cannot cross it) + the mime + the pre-encode byte
+ *  size. A foreign/absent asset is the leak-free `null` the read returns instead of this — indistinguishable, no
+ *  existence oracle. */
+export interface PluginAssetView {
+  readonly mime: string;
+  readonly sizeBytes: number;
+  /** The asset's bytes, base64-encoded. Present only when `sizeBytes ≤ PLUGIN_ASSET_READ_MAX_BYTES`; an
+   *  over-cap owned asset returns its metadata with `dataBase64: null`, so a guest still learns its own asset
+   *  exists + how big it is without the membrane carrying an over-budget blob. */
+  readonly dataBase64: string | null;
+}
+
+/** The most results one `search.documents` call returns (#788 F1). A guest-supplied limit is clamped to this;
+ *  an unbounded page is an unbounded read of the installer's corpus per call (the `listMessages` limit posture). */
+export const PLUGIN_SEARCH_RESULTS_MAX = 20;
+
+/** One ranked hit from `search.documents` (#788 F1 — the first-party retrieval read). A REDUCED
+ *  `DocumentChunkHit`: the document's id + name, the matched chunk's content (host-capped), and the relevance
+ *  score. Chunk internals (chunkId/idx/contentHash) are withheld — a guest wants the text + provenance, not the
+ *  index plumbing. */
+export interface PluginSearchHit {
+  // @foreign-id-ok(documentId): the plugin SANDBOX wire DTO — a host-resolved document id handed to the guest as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+  readonly documentId: string;
+  readonly documentName: string;
+  readonly content: string;
+  readonly score: number;
 }
 
 /** The most images one `llm.quiet` call may attach (plugin-ui-plane §5.32, the captioning arm). Four is the
@@ -109,6 +182,20 @@ export interface PluginHostV1 {
     error: (msg: string) => void;
   };
 
+  /** Token-count ESTIMATION over the guest's OWN text (#788 F13, the ST `getTokenCountAsync` parity arm). A FREE
+   *  namespace — capability: none (always granted) — and that is the correct classification, not a shortcut: it is
+   *  the kit `estimateTokens` engine (`@orb/kit/tokens`, the SAME estimator `clampToTokenBudget`/`splitToTokenBudget`
+   *  build on), a PURE deterministic function of the input string with ZERO reach — no tenant data, no DB, no I/O,
+   *  no spend, no effect, no owner scope. A capability exists to let a person weigh a REACH; this has none, so a
+   *  consent row would be meaningless noise. It sits in the free band beside `log` (the precedent: a zero-reach
+   *  utility, "always granted"). SYNC like `clock`/`ids` (the estimator is synchronous), and because it is
+   *  isomorphic kit it is computed LOCALLY in BOTH realms — the server guest (`orb.host(1)`) and the client Tier-C
+   *  guest (`orb.ui(1)`) each estimate host-side with no round-trip, so it is reachable at native latency on both
+   *  without a bridge op or a proxy-tuple entry. */
+  readonly tokens: {
+    count: (text: string) => number;
+  };
+
   readonly chat: {
     /** Resolve the invocation's chat. Throws outside a chat scope. capability: chat.read */
     current: () => ChatHandle;
@@ -117,6 +204,12 @@ export interface PluginHostV1 {
     listMessages: (chat: ChatHandle, opts?: { limit?: number /* ≤ 50, default 20 */ }) => Promise<readonly PluginMessageView[]>;
     /** The runtime variable fold cache (read) — capability: chat.read */
     getVariables: (chat: ChatHandle) => Promise<Record<string, string>>;
+    /** The invocation chat's present CHARACTER roster, reduced to {@link PluginCharacterView} (id/name/avatar —
+     *  #788 F11, the ST `context.characters` parity arm). SCOPED TO THIS ROOM: the characters seated in the chat
+     *  this invocation was admitted to, never a global "all your characters" list and never a character from a
+     *  chat the caller isn't in — a non-member resolves to `[]` (the `listMessages` viewer choke, member-gated).
+     *  capability: chat.read */
+    listRoster: (chat: ChatHandle) => Promise<readonly PluginCharacterView[]>;
     /** Variable writes ride the SAME delta seam actions use — capability: chat.variables.write */
     applyVariableOps: (chat: ChatHandle, ops: readonly PluginVariableOp[]) => Promise<void>;
     /** Surface quick-reply chips (the automation bus event) — capability: chat.quick_reply */
@@ -128,9 +221,39 @@ export interface PluginHostV1 {
   };
 
   readonly worldInfo: {
+    /** The books ATTACHED to the invocation chat, reduced to {@link PluginWorldBookView} (#788 F12). SCOPED TO
+     *  THIS ROOM: only books attached to the chat this invocation was admitted to (the write path's own
+     *  `isBookAttachedToChat` gate, one plane over), member-gated — a non-member resolves to `[]`. Owner-scoped by
+     *  construction (the bridge resolves the installer's Principal). capability: worldinfo.read */
+    listBooks: (chat: ChatHandle) => Promise<readonly PluginWorldBookView[]>;
+    /** The entries of ONE attached book, reduced to {@link PluginWorldEntryView} (#788 F12 — the read symmetry of
+     *  `upsertEntry`). Leak-free: a `bookId` not attached to THIS chat (or not owned) resolves to `[]`,
+     *  indistinguishable from an attached-but-empty book — no existence oracle for another room's or owner's
+     *  books. capability: worldinfo.read */
+    listEntries: (chat: ChatHandle, bookId: string) => Promise<readonly PluginWorldEntryView[]>;
     /** Same op + idempotency semantics as the insert_world_info_entry action — attached-book-only,
      *  entryKey-updatable, 64-entries-per-owner cap. capability: worldinfo.write */
     upsertEntry: (chat: ChatHandle, e: PluginWorldEntryUpsert) => Promise<void>;
+  };
+
+  readonly assets: {
+    /** Read back one asset from the INSTALLER's OWN CAS (#788 seam-11 read half). The guest names an `assetId`
+     *  (e.g. one `imagery.generatePicture` just returned); the host resolves the installer's Principal and reads
+     *  through the assets domain's OWNER-GATED front door, so a guest can only ever read its own. A foreign or
+     *  absent id is the leak-free `null` — indistinguishable, no existence oracle for another owner's CAS. An
+     *  owned asset over {@link PLUGIN_ASSET_READ_MAX_BYTES} returns its metadata with `dataBase64: null` (never a
+     *  truncated read). capability: assets.read */
+    // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, owner-scope-gated by the domain read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
+    read: (assetId: string) => Promise<PluginAssetView | null>;
+  };
+
+  readonly search: {
+    /** Semantic document search over the INSTALLER's OWN indexed corpus (#788 F1 — the first-party RAG parity
+     *  arm the vectors extension hand-rolls). The guest supplies only the query text; the host closes the
+     *  installer's `ownerId` over the search scope, so a guest can search no other owner's library — a read of
+     *  the installer's own data, owner-scoped by construction. Results are ranked {@link PluginSearchHit}s,
+     *  clamped to {@link PLUGIN_SEARCH_RESULTS_MAX}. capability: search.query */
+    documents: (queryText: string, opts?: { limit?: number /* ≤ PLUGIN_SEARCH_RESULTS_MAX, default 10 */ }) => Promise<readonly PluginSearchHit[]>;
   };
 
   readonly variables: {
@@ -472,7 +595,7 @@ export interface PluginHostV1 {
 /** Namespaces reachable with NO capability: the determinism/id floor + the version/feature-detect surface.
  *  The ONE tuple (derive, never re-spell — §7.5); a `satisfies` pins every member to a real `PluginHostV1` key,
  *  so a renamed/removed free namespace fails `tsc` here. */
-const PLUGIN_FREE_NAMESPACES = ["version", "grants", "clock", "random", "ids", "log"] as const satisfies readonly (keyof PluginHostV1)[];
+const PLUGIN_FREE_NAMESPACES = ["version", "grants", "clock", "random", "ids", "log", "tokens"] as const satisfies readonly (keyof PluginHostV1)[];
 type FreeNamespace = (typeof PLUGIN_FREE_NAMESPACES)[number];
 /** Every namespace whose functions are capability-gated. */
 type GatedNamespace = Exclude<keyof PluginHostV1, FreeNamespace>;
@@ -492,10 +615,26 @@ export const HOST_FUNCTION_CAPABILITY = {
   "chat.current": "chat.read",
   "chat.listMessages": "chat.read",
   "chat.getVariables": "chat.read",
+  // #788 F11 — the character roster read rides the SAME `chat.read` grant its sibling reads do: the present
+  // roster (id/name/avatar) is member-visible room state at the exact tier `listMessages`/`getVariables` read,
+  // so it is not a distinct consent line (a reader agreeing to "read this room's messages" already agrees to see
+  // who is in the room).
+  "chat.listRoster": "chat.read",
   "chat.applyVariableOps": "chat.variables.write",
   "chat.surfaceQuickReply": "chat.quick_reply",
   "chat.requestTurn": "turn.trigger",
+  // #788 F12 — the world-info READ half, its OWN `worldinfo.read` grant (a distinct consent line from the write:
+  // "read the room's lore" is a reach a person weighs apart from "write lore"). Both read functions ride the one
+  // grant — listing the books and reading their entries is one symmetric "read your lore" consent.
+  "worldInfo.listBooks": "worldinfo.read",
+  "worldInfo.listEntries": "worldinfo.read",
   "worldInfo.upsertEntry": "worldinfo.write",
+  // #788 seam-11 read half — the CAS asset read, its OWN `assets.read` grant. Owner-scoped: a guest reads back
+  // only assets in the installer's own CAS (the domain's owner-gated read), a foreign/absent id is leak-free null.
+  "assets.read": "assets.read",
+  // #788 F1 — the first-party retrieval read, its OWN `search.query` grant. Owner-scoped: the bridge closes the
+  // installer's ownerId over the search scope, so a guest searches only its own corpus.
+  "search.documents": "search.query",
   "variables.get": "global_vars",
   "variables.set": "global_vars",
   "variables.delete": "global_vars",
@@ -619,6 +758,28 @@ export const HOST_FUNCTION_CAPABILITY = {
  *     SERVER guests — neither is server-owned DATA a client guest lacks. A client UI guest holds `orb.ui(1)`, not
  *     `orb.host(1)`, and the private-event plane is a SERVER-guest composition primitive; relaying it would put a
  *     client guest into the installer's resident event graph, which is not what §4.6's read-latency purchase was.
+ *   - `chat.listRoster` (#788 F11) — OUT, but the STRONGEST future proxy candidate: it is the same class as the
+ *     proxyable `chat.listMessages`/`getVariables` (a chat-scoped canon read a surface renders from, self-gating
+ *     membership → `[]` for a non-member), and a scripted sprite/expression surface swapping art per speaker is
+ *     exactly the local-immediate latency want §4.6 bought. It is OUT of THIS lane only because the tuple is an
+ *     ORDERED, reviewable pin ("reads + the two KV planes, and nothing else") and adding a member is a deliberate
+ *     act, not a lane's side effect — a PRICED widening (add it to the tuple + its pin, no new gate needed), never
+ *     a silent entry. Until then a scripted surface reads the roster through its server guest on an `actionId`
+ *     round-trip, losing latency, nothing else.
+ *   - `worldInfo.listBooks` / `worldInfo.listEntries` (#788 F12) — OUT. Chat-scoped reads that self-gate
+ *     (attachment + membership), so like `listRoster` they COULD be proxied under the same membership-on-claimed-
+ *     `chatId` shape `listMessages` already uses — but the lore-read consumer is the server-side indexing class,
+ *     not a per-frame surface render, so the latency want is weak; a PRICED widening, not this lane's tuple edit.
+ *   - `assets.read` (#788 seam-11) — OUT, the `character.getCardData` shape one plane over: it IS a read, but its
+ *     owner-scope is per-ASSET and a proxied call names an `assetId` the server would owe an ownership check on
+ *     before reading (the `chat.current`/row-777 `resolveChatAuthority` posture onto asset ownership). The bridge
+ *     read already owner-gates, so the widening is small, but it is a widening — priced, never a free entry.
+ *   - `search.documents` (#788 F1) — OUT. It IS an owner-scoped read (the bridge closes the installer's ownerId
+ *     over the scope, so a proxied call would need no new ownership gate), but every call runs a QUERY EMBEDDING
+ *     (local box compute), and a client guest firing it at animation rate would hammer the embedder — the
+ *     compute-cost class the read tuple deliberately does not admit (§4.6 bought LATENCY for local-immediate
+ *     interaction over CHEAP reads, not for per-keystroke retrieval). A scripted surface that wants search fires
+ *     an `actionId` round-trip whose server guest runs it under the same grant. Priced, not a free entry.
  *
  *  Nothing here loses ABILITY: the plugin's SERVER guest reaches every excluded function under the same grant.
  *  What Tier C gives up is the LATENCY of those calls, which is not what §4.6 bought — it bought

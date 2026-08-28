@@ -15,9 +15,32 @@ export const PLUGIN_CAPABILITIES = [
   "chat.variables.write",
   "chat.quick_reply",
   "chat.transform", // D50 PromptTransform registration
+  // The world-info READ half (#788 F12) — the benign read-symmetry of `worldinfo.write` below. It lists the
+  // books ATTACHED to the invocation chat + their entries: the room's own lore, member-visible, owner-scoped by
+  // construction (the bridge resolves the installer's Principal, the attachment gate is the write path's own
+  // `isBookAttachedToChat`). BENIGN band (neither spend nor risk): a read of lore the room already renders, never
+  // a write and never reaching a book the invocation was not admitted to. It sits BEFORE `worldinfo.write` so a
+  // reader scanning "what can this do with my lorebooks" meets the read then the write — benign before risk.
+  "worldinfo.read",
   "worldinfo.write",
   "global_vars", // the installing user's {{getglobalvar}} namespace
   "storage.kv", // plugin-private KV
+  // The CAS asset READ (#788 seam-11 read half). A guest reads back the bytes + mime of an asset in the
+  // INSTALLER's OWN CAS (e.g. an image it just generated via `imagery.generate`). Owner-scoped by construction:
+  // the bridge resolves the installer's Principal and calls the assets domain's OWNER-GATED `readOwnedAssetBytes`,
+  // so a guest names an id but can only ever read its own; a foreign/absent id is the leak-free `null`
+  // (indistinguishable — no existence oracle). BENIGN band (neither spend nor risk): reading the installer's own
+  // stored bytes touches no paid budget and leaves no sandbox, and the read is size-capped host-side.
+  "assets.read",
+  // The first-party RETRIEVAL read (#788 F1 residual / gap #9). A guest runs semantic document search over the
+  // INSTALLER's OWN indexed corpus (the vectors-extension parity — plugins consume first-party RAG instead of
+  // hand-rolling it). Owner-scoped by construction: the bridge closes the installer's `ownerId` over the search
+  // scope, so a guest names only the query text and can search no other owner's library. BENIGN band (neither
+  // risk nor spend): it reaches nothing outside the installer's own data, and the query embedding is LOCAL box
+  // compute (the embeddings domain's own model), never a paid hosted credential — which is why it carries no
+  // hourly rate floor (owner ruling: plain, not spend-classed). It sits beside `assets.read` in the "read your
+  // own library" band.
+  "search.query",
   "notify",
   "ui.surface", // draw its own house-rendered panels/controls (plugin-ui-plane #679; NOT spend, NOT admin-gated — renders only for the installer)
   // The U7 ESCAPE HATCH, and the one UI capability that is RISK class: a `frame` surface runs the plugin's OWN

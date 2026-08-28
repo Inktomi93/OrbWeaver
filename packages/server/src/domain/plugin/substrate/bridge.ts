@@ -36,7 +36,7 @@
 // BEFORE the first `await` — the membrane admits up to 32 concurrent host calls per instance, and a
 // check-then-await-then-record would let a burst of 32 all observe the pre-burst count and pass.
 
-import type { PluginBridge, PluginMessageView } from "@orb/contracts/plugin";
+import type { PluginBridge, PluginCharacterView, PluginMessageView, PluginWorldBookView, PluginWorldEntryView } from "@orb/contracts/plugin";
 import type { PluginId, UserId, WorldBookId } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
 import type { PluginBelts, PluginHostOps, PluginIdentity } from "../contract/ops.ts";
@@ -110,6 +110,18 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         });
       },
       getVariables: (chatId) => ops.chat.getVariables(chatId),
+      // THE ROSTER READ (#788 F11) — the SAME viewer choke `listMessages` uses. Resolve the installer's
+      // membership FIRST; a non-member (a chat that raced a kick/leave between admission and this call) ⇒ `[]`,
+      // never a read of a room the caller is no longer in. Membership confirmed, the read is the room's own
+      // present character seats (reduced to id/name/avatar) — the room's member-visible state, so no owner filter
+      // is needed past membership. The op is principal-free (`loadPluginRoster`); this file owns the gate.
+      listRoster: async (chatId): Promise<readonly PluginCharacterView[]> => {
+        const visibility = await ops.chat.resolveViewerVisibility(chatId, installerUserId);
+        if (visibility === null) {
+          return [];
+        }
+        return await ops.chat.listRoster(chatId);
+      },
       applyVariableOps: (chatId, varOps) => ops.chat.applyVariableOps(chatId, varOps),
       // The FUNDER is closed over the installer (never infra/guest-supplied) — the membrane passes only the
       // admitted chatId + child depth + guest speaker/guided hints; `initiator:"plugin"` + the room-host box +
@@ -125,6 +137,22 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         }),
     },
     worldInfo: {
+      // THE LORE READ (#788 F12) — the read symmetry of the write below, owner-scoped + attachment-gated the
+      // SAME way. `listBooks` reads world-info's own MEMBER-gated `listForChat` under the installer, so a
+      // non-member gets `[]` and only books attached to THIS room are named.
+      listBooks: (chatId): Promise<readonly PluginWorldBookView[]> => ops.worldInfo.listBooksForChat(installerUserId, chatId),
+      // `listEntries` meets the SAME attachment gate the WRITE does (the room's consent to a book's content),
+      // BEFORE any entry crosses the realm boundary: a guest-named `bookId` not attached to this chat — even one
+      // the installer owns in another room — resolves to `[]`, leak-free (indistinguishable from an empty book,
+      // no existence oracle for another room's/owner's lore). Only past the attachment gate is the owner-gated
+      // entry read reached.
+      listEntries: async (chatId, bookId): Promise<readonly PluginWorldEntryView[]> => {
+        const id = bookId as WorldBookId;
+        if (!(await ops.worldInfo.isBookAttachedToChat(installerUserId, chatId, id))) {
+          return [];
+        }
+        return await ops.worldInfo.listEntries(installerUserId, id);
+      },
       // THE PLUGIN LORE WRITE — three domain gates the membrane cannot express (it holds no db), in the order
       // a hostile guest meets them. See the file header for why each exists.
       upsertEntry: async (chatId, entry): Promise<void> => {
@@ -173,6 +201,21 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       get: (key) => ops.variables.get(installerUserId, key),
       set: (key, value) => ops.variables.set(installerUserId, key, value),
       delete: (key) => ops.variables.delete(installerUserId, key),
+    },
+    // THE CAS ASSET READ (#788 seam-11 read half). Closed over the INSTALLER only — a guest names an id and can
+    // name no owner, so a cross-owner read is structurally impossible (the `variables`/`storage` pattern). The
+    // compose op reads through the assets domain's OWNER-GATED front door and collapses a foreign/absent id to
+    // the leak-free `null`; NO `requirePluginId` (the read keys nothing on the pluginId — it is the installer's
+    // own reach, the `databank`/`variables` posture). The capability gate is the membrane-tier wall.
+    assets: {
+      read: (assetId) => ops.assets.read({ installerUserId, assetId }),
+    },
+    // FIRST-PARTY RETRIEVAL (#788 F1). Closed over the INSTALLER only — the guest supplies the query text + the
+    // (already host-clamped) limit and can name no owner, so the compose op's `scope: { ownerId: installer }`
+    // makes a cross-owner search structurally impossible (the `assets`/`databank` owner-closure pattern). NO
+    // `requirePluginId`: the read keys nothing on the pluginId — it is the installer's own library reach.
+    search: {
+      documents: (queryText, limit) => ops.search.documents({ installerUserId, queryText, ...(limit !== undefined ? { limit } : {}) }),
     },
     // Plugin-PRIVATE KV — closed over BOTH the pluginId AND the installer (owner), so a cross-plugin OR
     // cross-owner read is structurally impossible: the guest names only the key/prefix, never a scope.
