@@ -11,12 +11,16 @@
 // `new Promise(() => {})`, an await that never resumes — which the interrupt is structurally blind to. On
 // expiry the invocation returns `PluginInvocationEnded` and the hung guest is left INERT (see `endInvocation`).
 //
+// The BYTECODE bound is not invocation-scoped: it is a context-lifetime interrupt over a mutable window
+// (`cpu-guard.ts`), because guest bytecode also runs in the POST-invocation job pumps — `runToSettlement` opens
+// the invocation's window, and every pump opens its own. A pump that executed guest code with no handler
+// installed was #781, a whole-process DoS.
+//
 // Ownership discipline (the sharp edge quickjs-emscripten demands): EVERY handle the host mints must be
 // disposed. Per-invocation handles are disposed at end-of-invocation and counted (`pendingHandles`) so a leak
 // is a failing assertion; the realm/handler handles live for the sandbox lifetime and die with `dispose()`.
 
 import { randomUUID } from "node:crypto";
-import { performance } from "node:perf_hooks";
 import type {
   PluginCapability,
   PluginDisplayTransformRegistration,
@@ -37,6 +41,7 @@ import {
   PLUGIN_INVOKE_ARGS_MAX_BYTES,
   PLUGIN_MEMORY_LIMIT_BYTES,
 } from "./budgets.ts";
+import { installCpuGuard, openCpuWindow, pumpGuestJobs } from "./cpu-guard.ts";
 import type { InFlightCounter, InvocationChat, MembraneRuntime, PluginBridge } from "./membrane.ts";
 import { getPluginQuickJS } from "./module.ts";
 import type { HostSeams } from "./realm.ts";
@@ -44,8 +49,9 @@ import { installRealm, LogRing } from "./realm.ts";
 
 /** Per-instance DoS limits. All default to the shared budget constants; a snippet passes a wider wall. */
 export interface SandboxLimits {
-  /** Per-invocation guest CPU deadline (real wall-time), ms — enforced by the QuickJS interrupt handler, which
-   *  preempts guest BYTECODE only. */
+  /** Guest CPU window (real wall-time), ms — enforced by the QuickJS interrupt handler, which preempts guest
+   *  BYTECODE only. It bounds the invocation AND each post-invocation job pump: one window per span of guest
+   *  execution, never a bound on their sum (`cpu-guard.ts`). */
   readonly cpuDeadlineMs: number;
   /** WASM memory cap for the whole instance, bytes. */
   readonly memoryLimitBytes: number;
@@ -191,6 +197,10 @@ export class Sandbox implements Disposable {
     // MANDATORY (see GUEST_MAX_STACK_BYTES): without an explicit soft stack ceiling a recursive guest crashes
     // the host and leaves the runtime un-disposable. This turns deep recursion into a clean contained RangeError.
     ctx.runtime.setMaxStackSize(GUEST_MAX_STACK_BYTES);
+    // The guest-CPU interrupt, installed BEFORE any guest source can run and kept for the context's lifetime.
+    // It is INERT until a span opens a window — but it must be in place before the first pump, because a pump
+    // is precisely where an un-installed handler let guest bytecode run unbounded (#781).
+    installCpuGuard(ctx, resolved.cpuDeadlineMs);
     const log = new LogRing();
 
     const state: ResidentState = {
@@ -451,9 +461,11 @@ export class Sandbox implements Disposable {
     // The DoS deadline reads a MONOTONIC real clock (performance.now), NOT the guest's injected seam: the
     // interrupt must fire in real time regardless of a frozen test clock. It preempts guest BYTECODE only —
     // host calls self-bound separately (membrane's attachAsync), and the whole invocation is bounded by the
-    // settlement race below (the interrupt cannot see a guest that has stopped executing).
-    const startMs = performance.now();
-    this.ctx.runtime.setInterruptHandler(() => performance.now() - startMs > this.limits.cpuDeadlineMs);
+    // settlement race below (the interrupt cannot see a guest that has stopped executing). The handler itself
+    // is installed for the CONTEXT's lifetime (`cpu-guard.ts`); this only opens THIS invocation's window, so
+    // the post-invocation job pumps — which used to run guest bytecode with no handler at all (#781) — are
+    // bounded by the same mechanism instead of by nothing.
+    const closeCpuWindow = openCpuWindow(this.ctx);
     try {
       const result = produce();
       if (result.error) {
@@ -463,7 +475,7 @@ export class Sandbox implements Disposable {
       }
       const handle = this.take(result.value);
       const native = this.ctx.resolvePromise(handle);
-      this.ctx.runtime.executePendingJobs();
+      pumpGuestJobs(this.ctx);
       const settled = await this.raceSettlement(native);
       if (settled === ENDED) {
         return this.endInvocation(handle);
@@ -481,10 +493,10 @@ export class Sandbox implements Disposable {
       this.drop(wrapped);
       return { ok: true, value, logs: this.log.drain() };
     } finally {
-      // Unguarded on purpose: the ENDED arm leaves the context ALIVE (it frees the guest promise handle + the
-      // invocation's deferreds, it does not tear the realm down — see `endInvocation`), so no path inside this
-      // method can reach here with a dead runtime.
-      this.ctx.runtime.removeInterruptHandler();
+      // Restore the enclosing window (`Infinity` at the top level) rather than removing the handler: the
+      // handler is the CONTEXT's, and a later pump reopens its own window off it. Unguarded on purpose — this
+      // touches no runtime, only the guard's own state, so a dead context is harmless here too.
+      closeCpuWindow();
     }
   }
 
@@ -647,11 +659,12 @@ export function boundHostFn(
         },
       )
       .finally(() => clearTimeout(timer));
+    // The guest continuation this pump resumes is BYTECODE running outside any invocation — bounded by the
+    // pump's own CPU window, and by nothing at all before #781. `pumpGuestJobs` owns the `ctx.alive` guard for
+    // the late-settle case (the context can be disposed before this host call lands).
     superviseDetached(`plugin-sandbox:${randomUUID()}`, "plugin.sandbox.pending-jobs", {}, () =>
       deferred.settled.then(() => {
-        if (ctx.alive) {
-          ctx.runtime.executePendingJobs();
-        }
+        pumpGuestJobs(ctx);
       }),
     );
     return deferred.handle;
