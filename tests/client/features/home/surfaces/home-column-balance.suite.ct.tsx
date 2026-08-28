@@ -114,7 +114,16 @@ const AIR_GAP_BUDGET_PX = 160;
  *  already at the sub-pixel floor. What changed for the WORSE: nothing. What this does NOT close: the
  *  1280/1440 open-regime residual is still hundreds of px and is still #226's open owner fork — the fold
  *  roughly halves it (396 → 223 on defaults), it does not resolve it.
- *  Measured on this instrument at the folding commit; `VOID_BUDGET_PX` and `AIR_GAP_BUDGET_PX` untouched. */
+ *  Measured on this instrument at the folding commit; `VOID_BUDGET_PX` and `AIR_GAP_BUDGET_PX` untouched.
+ *
+ *  RE-BASELINED 2026-08-28, UPWARD, ONE cell (1920/defaults 11 → 49) — a COST being recorded, not a fence
+ *  loosened. The plugin-ui-plane train added the `extensions` section to `SECTION_IDS`, and the home
+ *  landing's `SectionJumpRail` renders one pill PER registry section (minus home + tile-claimed) — so the
+ *  flex-wrap rail gained a pill, and at 1920/defaults (pane 1864px) that pill tips the rail to a second row,
+ *  +38px on the HEARTH's `home.jump` block (91px, vs 53px at the wider 2560 pane where it still fits one
+ *  row). The cell stays in the CLOSED regime (footTracks === 2) and 49px is well inside `VOID_BUDGET_PX`
+ *  (≤120px), so the columns still end level by the bar this fence states — only the never-regress row is
+ *  stale, because the shipped registry it measures against is now one section longer. */
 const BASELINE_VOID_PX: Readonly<Record<string, number>> = {
   "1280/defaults": 223,
   "1280/reading": 540,
@@ -122,7 +131,7 @@ const BASELINE_VOID_PX: Readonly<Record<string, number>> = {
   "1440/defaults": 223,
   "1440/reading": 540,
   "1440/compact": 273,
-  "1920/defaults": 11,
+  "1920/defaults": 49,
   "1920/reading": 328,
   "1920/compact": 3,
   "2560/defaults": 11,

@@ -680,14 +680,19 @@ export function MessageContentSpansStory({
           participants.filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null).map((p) => [p.characterId, p] as const),
         ),
   );
+  // Wrapped in <CtDataProviders> because `MessageContent` now reads the plugin DISPLAY-transform seam
+  // (`usePluginDisplayText` → `useTRPC` + `useQuery`, #679 U6). With no registered transform the hook is
+  // inert and returns its input byte-identically, but it still needs the Query + tRPC providers to mount.
   return (
-    <MessageContent
-      content={content}
-      render={storyRenderPolicy(trust, allowExternal, lenientHtmlCards)}
-      renderContext={renderContext}
-      speakerThemes={speakerThemes}
-      narratorVoiced={narratorVoiced}
-    />
+    <CtDataProviders>
+      <MessageContent
+        content={content}
+        render={storyRenderPolicy(trust, allowExternal, lenientHtmlCards)}
+        renderContext={renderContext}
+        speakerThemes={speakerThemes}
+        narratorVoiced={narratorVoiced}
+      />
+    </CtDataProviders>
   );
 }
 
@@ -706,13 +711,15 @@ const CHOICES_BODY = "The corridor forks.\n:::choices\n1. Draw your blade.\n2. S
 function MessageContentChoicesStoryInner({ mode }: { readonly mode: "live" | "busy" | "none" }): ReactElement {
   const [sent, setSent] = useState<readonly string[]>([]);
   const value = mode === "none" ? null : { choose: (text: string): void => setSent((prev) => [...prev, text]), busy: mode === "busy" };
+  // <CtDataProviders> for the same reason MessageContentSpansStory needs it: `MessageContent`'s
+  // `usePluginDisplayText` seam (#679 U6) reads tRPC through Query, inert but provider-bound.
   return (
-    <>
+    <CtDataProviders>
       <ChoiceSendContext value={value}>
         <MessageContent content={CHOICES_BODY} render={storyRenderPolicy("untrusted", false, false)} />
       </ChoiceSendContext>
       <p data-testid="sent-choices">{sent.join("|")}</p>
-    </>
+    </CtDataProviders>
   );
 }
 
