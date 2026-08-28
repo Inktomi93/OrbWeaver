@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-22
+updated: 2026-08-28
 ---
 
 # Orbweaver — Spine: Testing (one centralized tree, suffix-selected lanes, Playwright for browser)
@@ -91,9 +91,20 @@ tests/
 | every `domain/<f>/verbs/*.ts` | ≥1 `.test.ts` or `.int.test.ts` at its mirror (the verb IS the behavior; the service façade is covered transitively) |
 | every `contract/*.ts` exporting a zod schema | a `.contract.test.ts` (parse + round-trip) |
 | every `persistence/*.ts` | a `.int.test.ts` against `freshDb` (queries are only "correct" against a real db) |
+| **every OTHER `domain/**` file with runtime logic** — `substrate/`, a named subsystem (`engine/`, `assembly/`, `memory/`, `themes/`…), `guard.ts`, a sanctioned feature-root singleton, a `contract/` file carrying real logic | a `.test.ts` or `.int.test.ts` |
 | infra/foundation files with runtime logic | a `.test.ts` or `.int.test.ts` (security belts, adapters, dispatchers) |
 
-Exempt by nature: `index.ts` barrels, `context.ts` type-interfaces, pure-type `contract/` files. Browser lanes are not presence-gated.
+The domain arm is DEMAND-BY-DEFAULT (#767, 2026-08-28): it was an enumerated slot list, the template outgrew
+it, and 127 files with runtime logic — 54 in `substrate/`, the second-largest slot in the tree — sat outside
+the demand with no violation and no exemption record. The demand is now the RESIDUAL, so a slot the template
+grows is demanded the day it appears. The residual population that widening exposed rides a shrink-only DEBT
+ratchet (`tooling/src/verify/gates/test-presence.baseline.json`, enumerable with `pnpm debt`); it is another
+lane's named burn-down, never a permanent pass.
+
+Exempt by nature — all detected on SHAPE, never a path list, so a file that grows logic loses the exemption:
+`index.ts` barrels, the zero-logic `service.ts` composition root and `context.ts` DI bundle at a feature root,
+a `contract/` file declaring only error classes (and a pure-type one, which carries no runtime logic at all),
+and a D58 no-op stub runner. Browser lanes are not presence-gated.
 
 **`test-presence` checks EXISTENCE, not coverage:** it confirms a store's mirror `.ct.tsx` EXISTS — NOT
 that new actions are ASSERTED. Adding an action to an existing store passes presence WITHOUT covering it.
