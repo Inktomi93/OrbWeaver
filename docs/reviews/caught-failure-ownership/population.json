@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 448,
-    "enforced": 445,
-    "reported": 402,
+    "sites": 449,
+    "enforced": 446,
+    "reported": 403,
     "byVerdict": {
       "deliberate-absorb": 43,
       "detached-owned": 3,
-      "unproven": 402
+      "unproven": 403
     },
     "byGrammar": {
       "promise": 107,
       "default": 148,
-      "empty": 193
+      "empty": 194
     }
   },
   "rows": [
@@ -189,7 +189,7 @@
     {
       "siteId": "packages/client/src/data/invalidation.ts::promise:invalidateQueries::1",
       "path": "packages/client/src/data/invalidation.ts",
-      "line": 407,
+      "line": 401,
       "column": 7,
       "grammar": "promise",
       "position": "promise:invalidateQueries",
@@ -436,7 +436,7 @@
     {
       "siteId": "packages/client/src/features/chat/components/message-actions-row.tsx::empty:catch::1",
       "path": "packages/client/src/features/chat/components/message-actions-row.tsx",
-      "line": 246,
+      "line": 256,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -689,6 +689,19 @@
       "position": "promise:mutateAsync",
       "ordinal": 1,
       "snippet": "runSnippet.mutateAsync({ chatId, code }).then(setResult, () => undefined);",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/plugin-tool-card-state.ts::empty:catch::1",
+      "path": "packages/client/src/features/plugin/lib/plugin-tool-card-state.ts",
+      "line": 19,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
       "verdict": "unproven",
       "reason": null,
       "markerLine": null
@@ -1255,7 +1268,7 @@
     {
       "siteId": "packages/kit/src/ids/index.ts::empty:err::1",
       "path": "packages/kit/src/ids/index.ts",
-      "line": 274,
+      "line": 283,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -2672,7 +2685,7 @@
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 441,
+      "line": 442,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2685,7 +2698,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 953,
+      "line": 954,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -2698,7 +2711,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:err::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1107,
+      "line": 1108,
       "column": 9,
       "grammar": "default",
       "position": "default:err",
@@ -2711,7 +2724,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:err::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1128,
+      "line": 1129,
       "column": 9,
       "grammar": "default",
       "position": "default:err",
@@ -2724,7 +2737,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 901,
+      "line": 902,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2737,7 +2750,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 983,
+      "line": 984,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2750,7 +2763,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::3",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1016,
+      "line": 1017,
       "column": 11,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3426,7 +3439,7 @@
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::empty:err::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 351,
+      "line": 356,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3439,7 +3452,7 @@
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:race::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1103,
+      "line": 1108,
       "column": 10,
       "grammar": "promise",
       "position": "promise:race",
@@ -3452,7 +3465,7 @@
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:running::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1100,
+      "line": 1105,
       "column": 18,
       "grammar": "promise",
       "position": "promise:running",
@@ -5740,7 +5753,7 @@
     {
       "siteId": "tooling/src/verify/ops/debt.ts::default:catch::1",
       "path": "tooling/src/verify/ops/debt.ts",
-      "line": 161,
+      "line": 168,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
