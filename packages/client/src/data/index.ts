@@ -83,6 +83,8 @@ export type { UseOpenRefineryResult } from "./use-open-refinery.ts";
 export { useOpenRefinery } from "./use-open-refinery.ts";
 export type { PluginDisplayRow } from "./use-plugin-display-text.ts";
 export { usePluginDisplayText } from "./use-plugin-display-text.ts";
+export type { PluginFrameRequest } from "./use-plugin-frame.ts";
+export { mintPluginFrame, pluginFrameMintBody, usePluginFrameSrc } from "./use-plugin-frame.ts";
 export { usePromptMacroSuggestions } from "./use-prompt-macro-suggestions.ts";
 export type { SessionRecoveryState } from "./use-session-recovery.ts";
 export { useSessionRecovery } from "./use-session-recovery.ts";

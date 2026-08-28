@@ -54,24 +54,37 @@
 // `script-src`, and the srcdoc floor stays script-dead on both postures.
 
 import { CARD_FRAME_ROUTE } from "@orb/contracts/chat";
+import { PLUGIN_FRAME_DOC_PREFIX } from "@orb/contracts/plugin";
 import type { MiddlewareHandler } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 
-// THE ONE EXEMPTION, and it is a MECHANICAL necessity, not a policy carve-out: `hono/secure-headers` sets
-// its headers AFTER `next()` with `.set()`, so it OVERWRITES whatever a handler wrote. The card-frame
-// DOCUMENT (`GET /api/card-frame/<id>`) exists precisely to carry its own, TIGHTER policy — a routed
-// document does not inherit ours, which is the only way a per-character trust grant can widen `img-src`
-// for a card (see `@orb/kit/card-frame`). Leaving this middleware on that path would silently replace the
-// frame policy with the APP policy: the frame would become a document with `script-src 'self'` and no
-// `sandbox` directive, i.e. the exact opposite of the intent, with nothing red.
+// THE EXEMPTION LIST, and it is a MECHANICAL necessity, not a policy carve-out: `hono/secure-headers` sets
+// its headers AFTER `next()` with `.set()`, so it OVERWRITES whatever a handler wrote. A ROUTED FRAME
+// DOCUMENT exists precisely to carry its own, TIGHTER policy — a routed document does not inherit ours,
+// which is the only way a per-document grant can differ from the app's at all (see `@orb/kit/card-frame`).
+// Leaving this middleware on such a path would silently replace the frame policy with the APP policy: the
+// frame would become a document with `script-src 'self'` and no `sandbox` directive, i.e. the exact
+// opposite of the intent, with nothing red.
 //
-// The exemption is the DOCUMENT path only — the `POST /api/card-frame` MINT is a JSON reply and keeps the
-// full app header set. The exempted responses are never un-policied: every return path in `card-frame.ts`
-// builds its headers from `frameHeaders()`, including the 401/404 arms.
+// TWO MEMBERS, one class. `GET /api/card-frame/<id>` (D44/#91 — a per-character trust grant widening
+// `img-src` for a model-authored card) and, since #679 U7, `GET /api/plugin-frame/<id>` (the plugin-UI
+// escape hatch — a plugin's own interface code in an isolated document). NOTHING ABOUT THE APP POLICY
+// ITSELF CHANGED when the second member landed: not one directive was added, removed or widened, and the
+// frames are same-origin so the `frame-src 'self'` belt below already admitted them. What changed is which
+// paths this middleware steps aside for, which is the mechanism this exemption has always been.
+//
+// The exemption is the DOCUMENT path only — each route's `POST` MINT is a JSON reply and keeps the full app
+// header set. The exempted responses are never un-policied: every return path in `card-frame.ts` and
+// `plugin-frame.ts` builds its headers from that file's own frame-header builder, 401 and 404 arms included,
+// and `tests/server/entry/http/{card,plugin}-frame.test.ts` pin the ACTUAL served header on both.
+//
+// Each prefix is DERIVED from its route's own contract constant, never re-typed here: a drifted copy would
+// not fail loudly, it would silently serve that document under the app policy.
 const CARD_FRAME_DOC_PREFIX = `${CARD_FRAME_ROUTE}/`;
+const OWN_POLICY_DOC_PREFIXES = [CARD_FRAME_DOC_PREFIX, PLUGIN_FRAME_DOC_PREFIX] as const;
 
 function servesOwnPolicy(path: string): boolean {
-  return path.startsWith(CARD_FRAME_DOC_PREFIX);
+  return OWN_POLICY_DOC_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
 const SELF = "'self'";

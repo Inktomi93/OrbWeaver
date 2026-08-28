@@ -31,6 +31,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { specBindsState } from "../lib/plugin-surface-bindings.ts";
+import { PluginFrame } from "./plugin-frame.tsx";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
 import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
 
@@ -39,14 +40,18 @@ export interface PluginAnchoredSurfacesProps {
   readonly anchor: PluginSurfaceAnchor;
 }
 
-/** One renderable registration: the surface's own meta narrowed to "has a spec", joined to its plugin's name.
- *  Local to this fan-out (a rendering partition, not a cross-boundary shape — the wire type is the router's). */
+/** One renderable registration, joined to its plugin's name. Local to this fan-out (a rendering partition, not
+ *  a cross-boundary shape — the wire type is the router's).
+ *
+ *  `spec` is `undefined` for a U7 `frame`-tier surface, which renders a DOCUMENT rather than a node tree: the
+ *  two arms are distinguished here rather than by two components, because everything else about them — the
+ *  attribution shell, the silent-by-default rule, the labelled-or-absent rule — is identical and must stay so. */
 interface RenderableSurface {
   readonly pluginId: PluginId;
   readonly pluginName: string;
   readonly surfaceId: string;
   readonly title: string;
-  readonly spec: PluginSurfaceSpec;
+  readonly spec: PluginSurfaceSpec | undefined;
 }
 
 /** Every surface the caller's enabled plugins registered at `anchor`, each in its attribution shell. `null`
@@ -63,12 +68,21 @@ export function PluginAnchoredSurfaces({ anchor }: PluginAnchoredSurfacesProps):
   const candidates: RenderableSurface[] = [];
   for (const surface of surfaces ?? []) {
     const pluginName = names.get(surface.pluginId);
-    // A `spec`-less registration is a scripted-tier (U4) surface — nothing to draw yet; an unnamed plugin is a
-    // shell we could not label, and an unlabelled plugin surface is the one thing §4.8 forbids.
-    if (surface.anchor !== anchor || surface.spec === undefined || pluginName === undefined) {
+    // TWO renderable shapes, and everything else is skipped. A `frame`-tier registration draws a document and
+    // legitimately carries NO spec (U7); every other tier needs one — a spec-less `scripted` surface is a U4
+    // surface with nothing computed yet. An unnamed plugin is a shell we could not label, and an unlabelled
+    // plugin surface is the one thing §4.8 forbids, so it waits on both arms alike.
+    const renderable = surface.tier === "frame" || surface.spec !== undefined;
+    if (surface.anchor !== anchor || !renderable || pluginName === undefined) {
       continue;
     }
-    candidates.push({ pluginId: surface.pluginId, pluginName, surfaceId: surface.id, title: surface.title, spec: surface.spec });
+    candidates.push({
+      pluginId: surface.pluginId,
+      pluginName,
+      surfaceId: surface.id,
+      title: surface.title,
+      spec: surface.tier === "frame" ? undefined : surface.spec,
+    });
   }
 
   // ONE hook over N rows (never a hook per row): the published state each candidate's silence test needs.
@@ -79,18 +93,37 @@ export function PluginAnchoredSurfaces({ anchor }: PluginAnchoredSurfacesProps):
       throwOnError: false,
     })),
   });
-  const visible = candidates.filter((candidate, index) => !specBindsState(candidate.spec) || (states[index]?.data ?? null) !== null);
+  // THE STATE GATE APPLIES TO THE DECLARATIVE ARM ONLY. It exists because a spec binding `{ $state }` renders
+  // its fallbacks — blank rows, an empty meter — until the plugin publishes, i.e. a broken frame in the room. A
+  // `frame` surface has no bindings and no published-state plane at all: its own document is its content, and
+  // its "nothing yet" state is the mint not having resolved, which `PluginFrame` answers with `null`.
+  const visible = candidates.filter(
+    (candidate, index) => candidate.spec === undefined || !specBindsState(candidate.spec) || (states[index]?.data ?? null) !== null,
+  );
 
   if (visible.length === 0) {
     return null;
   }
   return (
     <Stack gap="block">
-      {visible.map((surface) => (
-        <PluginSurfaceShell key={`${surface.pluginId}:${surface.surfaceId}`} pluginName={surface.pluginName} title={surface.title}>
-          <PluginSurfaceRenderer pluginId={surface.pluginId} spec={surface.spec} surfaceId={surface.surfaceId} />
-        </PluginSurfaceShell>
-      ))}
+      {visible.map((surface) =>
+        // The FRAME arm draws its OWN shell (`plugin-frame.tsx` explains why: an un-minted frame must render
+        // nothing AT ALL, chrome included, and the §4.8 label must have no opt-out). The declarative arm's shell
+        // stays here, where the state gate above has already proven it has something to draw.
+        surface.spec === undefined ? (
+          <PluginFrame
+            key={`${surface.pluginId}:${surface.surfaceId}`}
+            pluginId={surface.pluginId}
+            pluginName={surface.pluginName}
+            surfaceId={surface.surfaceId}
+            title={surface.title}
+          />
+        ) : (
+          <PluginSurfaceShell key={`${surface.pluginId}:${surface.surfaceId}`} pluginName={surface.pluginName} title={surface.title}>
+            <PluginSurfaceRenderer pluginId={surface.pluginId} spec={surface.spec} surfaceId={surface.surfaceId} />
+          </PluginSurfaceShell>
+        ),
+      )}
     </Stack>
   );
 }

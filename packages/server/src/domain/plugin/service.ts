@@ -14,6 +14,7 @@ import { createCrashPolicy } from "./activation/crash-policy.ts";
 import { createDeactivate } from "./activation/deactivate.ts";
 import type { PluginContext, PluginDistributionDeps, PluginRegistry, PluginService } from "./contract/service.ts";
 import { createApplyDistributedPlugins } from "./verbs/apply-distributed-plugins.ts";
+import { createGetFrameBody } from "./verbs/get-frame-body.ts";
 import { createGetPluginLog } from "./verbs/get-plugin-log.ts";
 import { createGetSurfaceState } from "./verbs/get-surface-state.ts";
 import { createInstall } from "./verbs/install.ts";
@@ -69,6 +70,9 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
     // registry the lifecycle owns; getSurfaceState reads the shared surface-state plane off the context.
     listSurfaces: createListSurfaces(ctx, registry),
     getSurfaceState: createGetSurfaceState(ctx),
+    // U7 — the frame doorway's ONE read. Same registry, same owner-scoped gate, plus a per-call re-check of the
+    // row's live `ui.frame` grant (a resident instance outlives a re-grant).
+    getFrameBody: createGetFrameBody(ctx, registry),
     invokeUiAction: createInvokeUiAction(ctx, registry),
     // The DISPLAY-transform read side (U6, seam 14) — the same resident registry, the same owner-scoped read.
     listDisplayTransforms: createListDisplayTransforms(ctx, registry),

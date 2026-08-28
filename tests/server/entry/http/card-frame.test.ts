@@ -21,7 +21,7 @@ import { CARD_FRAME_HEIGHT_SCRIPT, CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH } from "@or
 import type { CharacterId, ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CardFrameDeps, PrincipalEnv } from "@orb/server/entry/http";
-import { registerCardFrame } from "@orb/server/entry/http";
+import { registerCardFrame, securityHeaders } from "@orb/server/entry/http";
 import { Hono } from "hono";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -87,6 +87,9 @@ function harness(
      *  its SHIPPED floor is false, and the ceiling's own tests pass it explicitly. */
     readonly deployInteractive?: boolean;
     readonly roster?: () => Promise<readonly ParticipantView[]>;
+    /** Mount the APP's own `securityHeaders` above the route, exactly as `entry/app.ts` does — the arm that
+     *  proves the served document keeps ITS policy rather than the app's (added 2026-08-28 with #679 U7). */
+    readonly withAppHeaders?: boolean;
   } = {},
 ): Harness {
   let actor: Principal | null = ALICE;
@@ -97,6 +100,9 @@ function harness(
     now: () => 1_000_000,
   };
   const app = new Hono<PrincipalEnv>();
+  if (overrides.withAppHeaders === true) {
+    app.use("*", securityHeaders({ dev: false, allowExternalMedia: () => overrides.deployExternal ?? true }));
+  }
   app.use("*", async (c, next) => {
     c.set("principal", actor);
     await next();
@@ -256,6 +262,28 @@ describe("card-frame — the served document", () => {
     expect(res.status).toBe(404);
     expect(res.headers.get("content-security-policy") ?? "").toContain("sandbox allow-scripts;");
     expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
+  });
+
+  // ADDED 2026-08-28 (with #679 U7, which gave this exemption a second member). Every assertion above ran
+  // WITHOUT the app's `securityHeaders` mounted, so none of them touched the mechanism that actually lets this
+  // document keep its own policy: `hono/secure-headers` writes AFTER the handler with `.set()`, and only the
+  // path exemption in `security-headers.ts` stops it overwriting everything the tests above assert. Same
+  // mechanism, same blindness, so the sibling gets the same pin.
+  test("with the APP middleware mounted above it, the document STILL carries the frame policy — not the app's", async () => {
+    const h = harness({ withAppHeaders: true });
+    const res = await h.serve(await mintUrl(h));
+    const csp = res.headers.get("content-security-policy") ?? "";
+    expect(csp.startsWith("sandbox allow-scripts;")).toBe(true);
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).toContain("frame-ancestors 'self'");
+    // The app policy's own fingerprints are what a lost exemption would substitute in.
+    expect(csp).not.toContain("default-src 'self'");
+    expect(csp).not.toContain("script-src 'self'");
+    expect(csp).not.toContain("frame-ancestors 'none'");
+    // …and the MINT (a JSON reply, not a document) is NOT exempted — it keeps the full app header set.
+    const mint = await h.mint(CARD);
+    expect(mint.status).toBe(200);
+    expect(mint.headers.get("content-security-policy")).toContain("default-src 'self'");
   });
 
   test("hostile theme tokens are re-clamped SERVER-side — the client's clamp is not why the document is safe", async () => {

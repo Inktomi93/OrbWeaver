@@ -7,12 +7,13 @@
 
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginBridge, PluginCapability, PluginFrameBody, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { PluginBelts, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle, SnippetGate } from "./ops.ts";
 import type {
   ApplyDistributedPluginsParams,
+  GetFrameBodyParams,
   GetPluginLogParams,
   GetSurfaceStateParams,
   InstallForAllUsersParams,
@@ -314,6 +315,11 @@ export interface PluginService {
   readonly listSurfaces: (params: ListSurfacesParams) => Promise<readonly PluginSurfaceView[]>;
   /** One owned surface's published state (`null` if nothing published). Owner-scoped on `pluginId` (leak-free). */
   readonly getSurfaceState: (params: GetSurfaceStateParams) => Promise<PluginSurfaceState | null>;
+  /** One owned `frame`-tier surface's DOCUMENT BYTES (plugin-ui-plane #679 U7). Owner-scoped on `pluginId`
+   *  (leak-free NOT_FOUND) and re-gated per call on the row's live `ui.frame` grant. `null` for every other arm —
+   *  disabled, no resident, unknown surface, wrong tier — so the doorway serves one identical miss. Its ONE
+   *  caller is `entry/http/plugin-frame.ts`; nothing projects these bytes to a client. */
+  readonly getFrameBody: (params: GetFrameBodyParams) => Promise<PluginFrameBody | null>;
   /** Re-enter a surface's `onAction` under the crash policy (owner-scoped, leak-free). Void — the state update
    *  the handler may publish rides the `pluginSurfaceStateChanged` bus poke to the caller's own client. */
   readonly invokeUiAction: (params: InvokeUiActionParams) => Promise<void>;

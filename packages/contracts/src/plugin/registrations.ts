@@ -7,7 +7,7 @@
 import type { Branded } from "@orb/kit/ids";
 import type { ChatTriggerType, DomainTriggerType } from "#automation";
 import type { PromptTransformPoint } from "#chat";
-import type { PluginSurfaceRegistrationMeta } from "./ui.ts";
+import type { PluginFrameBody, PluginSurfaceRegistrationMeta } from "./ui.ts";
 
 /** An opaque ref to a guest-registered callback, minted host-side during activation and carried on a collected
  *  registration. The port's `invoke` resolves it back into the resident guest; the domain treats it as opaque
@@ -89,6 +89,12 @@ export interface PluginEventSubscription {
  *  display-only surface with no actions). `anchor`/`tier`/`spec` are the U0 vocabulary (`ui.ts`). */
 export type PluginSurfaceRegistration = PluginSurfaceRegistrationMeta & {
   readonly onAction?: PluginHandlerRef;
+  /** U7 (§6.2) — a `frame`-tier surface's DOCUMENT BODY, present exactly when `tier === "frame"` (minted only by
+   *  `host.ui.registerFrame` under the `ui.frame` capability). It lives HERE and not on
+   *  {@link PluginSurfaceRegistrationMeta} because `PluginSurfaceView extends` that meta: the projected wire shape
+   *  would otherwise ship every frame document to the client. Only the plugin-frame doorway reads it, server-side,
+   *  and only for the OWNER of the row. */
+  readonly frame?: PluginFrameBody;
 };
 
 /** A resident guest instance's collected registrations — what `main.js` registered at activation. The

@@ -43,9 +43,11 @@
 // link an attacker crafts resolves in nobody's store but the victim's — and a foreign or unknown id is
 // indistinguishable from an expired one (the `/api/blob` no-existence-leak precedent). Nothing persists:
 // model-authored bytes never reach disk through this route.
+//
+// That store is `frame-handle-store.ts` — the ONE home since U7 gave it a second doorway (the plugin frame).
+// Its behaviour here is unchanged: same 128-bit ids, same count AND byte ceilings, same oldest-first eviction,
+// same sliding 30-minute TTL, same owner check as the last word. This file's own tests are the proof of that.
 
-import { Buffer } from "node:buffer";
-import { randomBytes } from "node:crypto";
 import type { ParticipantView } from "@orb/contracts/chat";
 import {
   allowsInteractiveCards,
@@ -58,11 +60,12 @@ import {
 import type { Principal } from "@orb/contracts/identity";
 import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
 import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR } from "@orb/kit/card-frame";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { hasCsrfHeader } from "#infra/auth";
 import type { PrincipalEnv } from "./blob.ts";
+import { createFrameHandleStore, FRAME_HANDLE_SHAPE, FRAME_HANDLE_TTL_MS } from "./frame-handle-store.ts";
 
 const OK = 200;
 const UNAUTHORIZED = 401;
@@ -71,31 +74,7 @@ const NOT_FOUND = 404;
 const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
 
-/** A handle lives 30 minutes, SLIDING on each serve — a transcript left open re-frames a card on remount
- *  (lazy iframes refetch) and must not find a hole where its card was. Nothing here is durable, so the
- *  slide costs a timestamp write and bounds retention to "the tab that is looking at it". */
-const MS_PER_MINUTE = 60_000;
-const TTL_MINUTES = 30;
-const TTL_MS = TTL_MINUTES * MS_PER_MINUTE;
-/** Retention ceilings. Both are enforced (count AND bytes) because a card's size varies by two orders of
- *  magnitude: a count-only cap would let 256 max-size cards pin ~20 MiB, a byte-only cap would let a flood
- *  of tiny cards pin an unbounded map. Oldest-first eviction; a victim of eviction re-mints. */
-const BYTES_PER_MIB = 1_048_576;
-const MAX_TOTAL_MIB = 8;
-const MAX_ENTRIES = 256;
-const MAX_TOTAL_BYTES = MAX_TOTAL_MIB * BYTES_PER_MIB;
-const ID_BYTES = 16;
-const ID_SHAPE = /^[0-9a-f]{32}$/u;
-
 const HTML_MIME = "text/html; charset=utf-8";
-
-interface FrameEntry {
-  readonly userId: UserId;
-  readonly doc: string;
-  readonly csp: string;
-  readonly bytes: number;
-  expiresAt: number;
-}
 
 /** The membership-gated roster read — the ONE authority for a card's render policy. Structural port so
  *  `entry/http` states exactly the slice it consumes (the `BlobAssetsPort` precedent). */
@@ -193,61 +172,9 @@ async function resolvePolicy(
   };
 }
 
-/** The per-process handle store. Created per registrar call, so a test gets a clean one. */
-function createStore(now: () => number): {
-  readonly put: (entry: Omit<FrameEntry, "bytes">) => string;
-  readonly take: (id: string, userId: UserId) => FrameEntry | undefined;
-} {
-  const entries = new Map<string, FrameEntry>();
-  let totalBytes = 0;
-
-  const drop = (id: string): void => {
-    const found = entries.get(id);
-    if (found !== undefined) {
-      totalBytes -= found.bytes;
-      entries.delete(id);
-    }
-  };
-
-  return {
-    put: (entry): string => {
-      const bytes = Buffer.byteLength(entry.doc, "utf8");
-      const id = randomBytes(ID_BYTES).toString("hex");
-      entries.set(id, { ...entry, bytes });
-      totalBytes += bytes;
-      // Map iteration is insertion-ordered, so `keys().next()` IS the oldest handle.
-      while (entries.size > MAX_ENTRIES || totalBytes > MAX_TOTAL_BYTES) {
-        const oldest = entries.keys().next().value;
-        if (oldest === undefined || oldest === id) {
-          break;
-        }
-        drop(oldest);
-      }
-      return id;
-    },
-    take: (id, userId): FrameEntry | undefined => {
-      const found = entries.get(id);
-      if (found === undefined) {
-        return;
-      }
-      if (found.expiresAt <= now()) {
-        drop(id);
-        return;
-      }
-      // The owner check is the LAST word and never falls through to a different answer: a foreign id is
-      // treated exactly like a missing one.
-      if (found.userId !== userId) {
-        return;
-      }
-      found.expiresAt = now() + TTL_MS;
-      return found;
-    },
-  };
-}
-
 /** Register `POST /api/card-frame` (mint) + `GET /api/card-frame/:id` (serve) on `app`. */
 export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps): void {
-  const store = createStore(deps.now);
+  const store = createFrameHandleStore(deps.now);
 
   app.post(CARD_FRAME_ROUTE, bodyLimit({ maxSize: CARD_FRAME_MINT_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
     const principal = c.get("principal");
@@ -283,11 +210,11 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       userId: principal.userId,
       doc,
       csp: buildCardFrameCsp(policy.media, "document", policy.posture),
-      expiresAt: deps.now() + TTL_MS,
+      expiresAt: deps.now() + FRAME_HANDLE_TTL_MS,
     });
     return c.json({
       url: cardFrameUrl(id),
-      expiresInMs: TTL_MS,
+      expiresInMs: FRAME_HANDLE_TTL_MS,
       granted: { externalMedia: policy.media.allowExternalMedia, inlineData: policy.media.allowInlineData, interactive: policy.posture === "interactive" },
     });
   });
@@ -298,7 +225,7 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       return c.body(null, UNAUTHORIZED);
     }
     const id = c.req.param("id");
-    const entry = ID_SHAPE.test(id) ? store.take(id, principal.userId) : undefined;
+    const entry = FRAME_HANDLE_SHAPE.test(id) ? store.take(id, principal.userId) : undefined;
     if (entry === undefined) {
       return c.body(MISS_DOC, NOT_FOUND, frameHeaders(FLOOR_CSP));
     }

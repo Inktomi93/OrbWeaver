@@ -305,6 +305,34 @@ export interface PluginHostV1 {
     /** Publish surface STATE (the data the spec's `$state` bindings resolve against). ≤ 16 KiB JSON; replaces
      *  the whole state; emits the per-user freshness poke. capability: ui.surface */
     setState: (surfaceId: string, state: Record<string, unknown>) => Promise<void>;
+    /** THE ESCAPE HATCH (U7, plugin-ui-plane §6.2). Register a `frame`-tier surface: the plugin's OWN interface
+     *  code, served as a document into an isolated iframe. capability: **ui.frame** — deliberately NOT
+     *  `ui.surface`.
+     *
+     *  IT IS A SECOND FUNCTION RATHER THAN A `tier` ARGUMENT ON `register`, and that is the whole gate. The
+     *  membrane gates at the FUNCTION (`HOST_FUNCTION_CAPABILITY`), so a tier needing a different consent needs a
+     *  different door; `PLUGIN_TIER_REGISTRAR` (ui.ts) records the fork as a total Record, and `ui.register`
+     *  refuses `tier: "frame"` outright. Otherwise a guest holding only `ui.surface` could take the hatch by
+     *  naming its tier.
+     *
+     *  WHAT THE FRAME REACHES, honestly: nothing of the app. The served document is opaque-origin
+     *  (`sandbox allow-scripts`, never `allow-same-origin`), `default-src 'none'` with NO `connect-src` — so
+     *  fetch/XHR/WebSocket/EventSource/sendBeacon are all refused — and it can touch neither the session, nor
+     *  storage, nor the app DOM, nor a sibling frame. It has NO network of its own: every host call rides the
+     *  postMessage bridge to the SAME re-gated relay the scripted tier uses. What it CAN do, and what its consent
+     *  line says out loud, is beacon over WebRTC/STUN — residual R1 in `@orb/kit/card-frame`, measured, and not
+     *  closeable by any directive Chromium recognizes.
+     *
+     *  `anchor` is bounded by {@link PluginSurfaceAnchor} ∩ the `frame` column of `PLUGIN_ANCHOR_TIERS` —
+     *  `message-footer` is refused PERMANENTLY (one document per transcript row). An invalid def is a REGISTRATION
+     *  refusal (logged, surface absent), never activation-fatal — the `ui.register` posture (§4.9). */
+    registerFrame: (def: {
+      id: string; // /^[a-z][a-z0-9_]{0,40}$/, unique per plugin (shares the surface-id namespace)
+      anchor: PluginSurfaceAnchor;
+      title: string; // the shell label line (≤ 80 chars)
+      html: string; // the document body, verbatim — the frame is the boundary, not a sanitizer
+      css?: string;
+    }) => void;
   };
 }
 
@@ -357,4 +385,8 @@ export const HOST_FUNCTION_CAPABILITY = {
   "net.fetch": "net.fetch",
   "ui.register": "ui.surface",
   "ui.setState": "ui.surface",
+  // U7 — the ONE function claiming `ui.frame`, and the reason the hatch is a separate door at all: a capability
+  // is enforced per FUNCTION, so the tier that needs a louder consent line gets its own function. Moving this
+  // value to `ui.surface` would silently fold the hatch's consent into the panel row's.
+  "ui.registerFrame": "ui.frame",
 } as const satisfies Record<HostFunctionRef, PluginCapability>;
