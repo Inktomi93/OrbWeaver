@@ -270,8 +270,8 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "979ccb192c1174b05d452f85b38a7e3743ca06b7dcbec176c28e4d41647da334",
-      "verifiedCommit": "0a2789a00834abe892bfa92839e8dec3c30a97af",
+      "verifiedSha256": "c31044f9070489205f8cf866f8d998887ae2c66143bf848f4b974f29bec7c9c8",
+      "verifiedCommit": "b435a687a8a5b5e68e271a2a4540d3cd3ed2023c",
       "verifiedAt": "2026-08-25",
       "evidence": [
         "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
