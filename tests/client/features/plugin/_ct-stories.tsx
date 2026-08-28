@@ -9,19 +9,21 @@
 // and the declared list comes from a client-side manifest read of the uploaded bytes — a story that passed
 // the capability list in as a prop would prove nothing about the path that actually produces it.
 
+import { CommandPaletteSurface } from "@orb/client/features/chat";
 import {
   PluginsSettingsSurface,
   pluginChatFlankSurface,
   pluginChatSettingsSection,
+  pluginCommandPaletteSource,
   pluginDistributeSection,
   pluginMessageFooterSurface,
   pluginToolRenderer,
   SnippetConsole,
 } from "@orb/client/features/plugin";
-import type { ChatSettingsSectionContribution, ChatSurfaceContribution, ToolRenderer } from "@orb/client/lib";
+import type { ChatSettingsSectionContribution, ChatSurfaceContribution, CommandPaletteSource, ToolRenderer } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { SettingsSectionContribution } from "@orb/client/state";
-import { clearPluginPage, selectChat, selectPluginPage, useSectionRegistry } from "@orb/client/state";
+import { CommandPaletteSourceRegistryProvider, clearPluginPage, selectChat, selectPluginPage, useSectionRegistry } from "@orb/client/state";
 import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -31,6 +33,7 @@ import { MessageToolCalls } from "../../../../packages/client/src/features/chat/
 // module takes for it (a story legitimately composes feature internals the front door does not re-export).
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
 import { CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry, CtSettingsSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID } from "../chat/fixtures.ts";
 
 /** The settings modal's content column at its real docked width — the narrowest REAL host for this pane. */
@@ -277,4 +280,26 @@ function ExtensionsContentHarness(): ReactElement {
     throw new Error("ct-stories: the extensions section content is a planned stub, not a body");
   }
   return <>{content()}</>;
+}
+
+/** The command palette wired to the U8 DYNAMIC plugin-command source (plugin-ui-plane #679 §4.5/§5 row 9).
+ *  `sourced` toggles whether the first-party `pluginCommandPaletteSource` is registered: `true` proves a
+ *  plugin's registered commands become first-class, searchable palette rows; `false` (an EMPTY source
+ *  registry) proves the byte-identical absence — a build/caller with no plugin commands shows only the native
+ *  groups. Wrapped in `CtToastSurface` so a picked row's SUCCESS OUTCOME (`applyPluginUiOutcome` →
+ *  `notify.success`, the guest-handler round-trip's user-visible result) reaches a real Toaster. */
+export function PluginCommandPaletteStory({ sourced = true }: { readonly sourced?: boolean }): ReactElement {
+  const sources: readonly CommandPaletteSource[] = sourced ? [pluginCommandPaletteSource] : [];
+  const registry = createContributorRegistry<CommandPaletteSource>("command-palette-sources", sources);
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <CommandPaletteSourceRegistryProvider value={registry}>
+          <div style={{ height: 480, width: 560 }}>
+            <CommandPaletteSurface goToSections={[]} />
+          </div>
+        </CommandPaletteSourceRegistryProvider>
+      </CtToastSurface>
+    </CtDataProviders>
+  );
 }

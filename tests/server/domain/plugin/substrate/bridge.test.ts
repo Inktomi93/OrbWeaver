@@ -603,6 +603,7 @@ describe("buildPluginBridge — the U8 ingest writes close over the installer (n
         },
       },
       character: {
+        ...base.character,
         ingest: (req) => {
           characterCalls.push(req);
           return Promise.resolve({ characterId: "char_recorded00000000000000", created: true });
@@ -639,5 +640,71 @@ describe("buildPluginBridge — the U8 ingest writes close over the installer (n
 
     expect(result).toEqual({ characterId: "char_recorded00000000000000", created: true });
     expect(rec.characterCalls).toEqual([{ installerUserId: INSTALLER, card: { name: "Aria", spec: "chara_card_v2" } }]);
+  });
+});
+
+// D148 — the per-card state write/read close over TWO un-forgeable coordinates: the installer (the owner-scope
+// predicate) and the emitter's OWN manifest SLUG (a guest supplies only the characterId + data, so it can target
+// only its own `plugin_<slug>` key — the whole slug-isolation wall). A bridge for OTHER stamps OTHER's slug and
+// owner; the guest holding a bridge has no lever on either, exactly as with `pubsub.emit` and the ingest funder.
+describe("buildPluginBridge — the U8 D148 card-state ops stamp the plugin's own slug + close over the installer", () => {
+  function cardStateRecordingOps(): {
+    readonly ops: PluginHostOps;
+    readonly setCalls: { installerUserId: UserId; slug: string; characterId: string; data: Record<string, unknown> }[];
+    readonly getCalls: { installerUserId: UserId; slug: string; characterId: string }[];
+  } {
+    const setCalls: { installerUserId: UserId; slug: string; characterId: string; data: Record<string, unknown> }[] = [];
+    const getCalls: { installerUserId: UserId; slug: string; characterId: string }[] = [];
+    const base = makeInertOps();
+    const ops: PluginHostOps = {
+      ...base,
+      character: {
+        ...base.character,
+        setCardData: (req) => {
+          setCalls.push(req);
+          return Promise.resolve();
+        },
+        getCardData: (req) => {
+          getCalls.push(req);
+          return Promise.resolve({ read: "back", for: req.characterId });
+        },
+      },
+    };
+    return { ops, setCalls, getCalls };
+  }
+
+  test("setCardData stamps THIS plugin's slug (guest names none) + the installer owner + forwards {characterId, data}", async () => {
+    const rec = cardStateRecordingOps();
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
+
+    await bridge.character.setCardData("char_target0000000000000000", { hp: 10, note: "ok" });
+
+    expect(rec.setCalls).toEqual([
+      // The slug is the plugin's OWN manifest slug — never guest-supplied — so the write can target only
+      // `plugin_bridge-test-plugin`, never another plugin's key.
+      { installerUserId: INSTALLER, slug: "bridge-test-plugin", characterId: "char_target0000000000000000", data: { hp: 10, note: "ok" } },
+    ]);
+  });
+
+  test("a bridge for OTHER (a different installer AND a different plugin) stamps OTHER's slug + owner — both structural", async () => {
+    const rec = cardStateRecordingOps();
+    const otherBridge = buildPluginBridge(rec.ops, OTHER, OTHER_PLUGIN_REF, freeBelts());
+
+    await otherBridge.character.setCardData("char_target0000000000000000", { x: 1 });
+
+    // The guest has NO lever on either coordinate: a bridge built for OTHER + other-plugin can write only
+    // other-plugin's key on OTHER's own characters.
+    expect(rec.setCalls[0]?.installerUserId).toBe(OTHER);
+    expect(rec.setCalls[0]?.slug).toBe("other-plugin");
+  });
+
+  test("getCardData stamps THIS plugin's slug + the installer + returns the read blob", async () => {
+    const rec = cardStateRecordingOps();
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
+
+    const result = await bridge.character.getCardData("char_target0000000000000000");
+
+    expect(result).toEqual({ read: "back", for: "char_target0000000000000000" });
+    expect(rec.getCalls).toEqual([{ installerUserId: INSTALLER, slug: "bridge-test-plugin", characterId: "char_target0000000000000000" }]);
   });
 });
