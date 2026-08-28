@@ -239,15 +239,44 @@ describe("the raw SSE parser", () => {
     }).rejects.toThrow(SSE_LIMIT_ERROR);
   });
 
-  test("yields JSON payloads, skips comments/events/blanks/bad-json, stops at [DONE]", async () => {
-    const text = `${[": a keepalive comment", 'data: {"n":1}', "", "event: ping", "data: not-json-here", 'data: {"n":2}', "data: [DONE]", 'data: {"n":3}'].join(
-      "\n",
-    )}\n`;
+  test("yields JSON payloads, skips comments/events/blanks, stops at [DONE]", async () => {
+    const text = `${[": a keepalive comment", 'data: {"n":1}', "", "event: ping", 'data: {"n":2}', "data: [DONE]", 'data: {"n":3}'].join("\n")}\n`;
     const out: unknown[] = [];
     for await (const item of parseOpenAiSse(sseBody(text))) {
       out.push(item);
     }
     expect(out).toEqual([{ n: 1 }, { n: 2 }]);
+  });
+
+  // #758: a malformed `data:` payload can carry content/error/terminal semantics — silently dropping it
+  // (the superseded contract, moved out of the test above) let the reducer return a partial/empty
+  // ChatResult as a SUCCESS. Only a RESULT-BEARING `data:` line that fails JSON.parse is a protocol
+  // error; blank lines, SSE comments, and non-data fields (proven above) stay skippable.
+  test("throws a contextual error instead of silently dropping a malformed `data:` JSON payload (#758)", async () => {
+    const text = `${['data: {"n":1}', "data: not-json-here", 'data: {"n":2}'].join("\n")}\n`;
+    const out: unknown[] = [];
+    await expect(async () => {
+      for await (const item of parseOpenAiSse(sseBody(text))) {
+        out.push(item);
+      }
+    }).rejects.toThrow(/SSE.*data payload.*not valid JSON/i);
+    // The valid chunk BEFORE the malformed line was already yielded — only the malformed one stops the stream.
+    expect(out).toEqual([{ n: 1 }]);
+  });
+
+  // The full pipe (#758's actual reproduction): a valid content chunk, a malformed `data:` line, then a
+  // terminal chunk. The old behavior skipped the malformed payload and let the remaining stream complete
+  // as a SUCCESS — a truncated reply with no error. The fix must reject instead of returning that partial
+  // ChatResult as success, and a fully-valid stream (the reducer's other tests) must remain unchanged.
+  test("a malformed data: payload rejects the reducer instead of completing as a partial success (#758)", async () => {
+    const text = `${[
+      'data: {"choices":[{"delta":{"content":"Hello"}}]}',
+      "data: not-json-here",
+      'data: {"choices":[{"finishReason":"stop"}]}',
+      "data: [DONE]",
+    ].join("\n")}\n`;
+    const stream = parseOpenAiSse(sseBody(text)) as AsyncGenerator<ChatCompletionStreamChunk>;
+    await expect(reduceChatCompletionStream(stream)).rejects.toThrow(/SSE.*data payload.*not valid JSON/i);
   });
 
   test("flushes a final unterminated `data:` line at EOF (no trailing newline)", async () => {
