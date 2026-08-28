@@ -10,6 +10,7 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import type { CaughtFailurePopulation, CaughtFailureRow, CaughtFailureVerdict } from "../../contract/caught-failure.ts";
 import { caughtFailureReviewSites, gate } from "../../gates/caught-failure-ownership.ts";
 import { findGateIgnore, parseGateIgnoreMarker } from "../../lib/gate-ignore.ts";
 // NOT `harness.ts`'s `getProject` — MEASURED 2026-08-28: its fileset is deliberately narrower than
@@ -21,42 +22,6 @@ import { projectCtx } from "../../lib/pass.ts";
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline caught-failure-population");
 
 export const POPULATION_REL = "docs/reviews/caught-failure-ownership/population.json";
-
-/** How a site's failure is owned TODAY. A partition, derived every run — never a stored opinion. */
-export type CaughtFailureVerdict = "deliberate-absorb" | "detached-owned" | "unproven";
-
-export interface CaughtFailureRow {
-  /** Stable across line moves: path + reported position + the nth occurrence of that pair in the file. */
-  readonly siteId: string;
-  readonly path: string;
-  readonly line: number;
-  readonly column: number;
-  /** `promise` | `empty` | `default` — the detector arm. */
-  readonly grammar: string;
-  /** The exact token the finding reports and a marker must name. */
-  readonly position: string;
-  /** Multiplicity: the 1-based occurrence of (path, position) in file order. */
-  readonly ordinal: number;
-  readonly snippet: string;
-  readonly verdict: CaughtFailureVerdict;
-  /** The FULL adjacent reason, verbatim — null for `unproven`, and for `detached-owned` (whose reason lives
-   *  in its `@swallowed-ok` marker, two-sided by `detached-work-traced`). */
-  readonly reason: string | null;
-  readonly markerLine: number | null;
-}
-
-export interface CaughtFailurePopulation {
-  readonly gate: string;
-  readonly generatedBy: string;
-  readonly totals: {
-    readonly sites: number;
-    readonly enforced: number;
-    readonly reported: number;
-    readonly byVerdict: Readonly<Record<CaughtFailureVerdict, number>>;
-    readonly byGrammar: Readonly<Record<string, number>>;
-  };
-  readonly rows: readonly CaughtFailureRow[];
-}
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;

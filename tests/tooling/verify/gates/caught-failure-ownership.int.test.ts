@@ -19,8 +19,15 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe } from "vitest";
-import type { CaughtFailurePopulation, CaughtFailureRow } from "../../../../tooling/src/verify/index.ts";
-import { deriveCaughtFailurePopulation, loadGates, POPULATION_REL, projectCtx, runPass } from "../../../../tooling/src/verify/index.ts";
+import type { CaughtFailurePopulation, CaughtFailureRow, CaughtFailureVerdict } from "../../../../tooling/src/verify/index.ts";
+import {
+  CAUGHT_FAILURE_VERDICTS,
+  deriveCaughtFailurePopulation,
+  loadGates,
+  POPULATION_REL,
+  projectCtx,
+  runPass,
+} from "../../../../tooling/src/verify/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const GATE = "caught-failure-ownership";
@@ -56,7 +63,9 @@ describe("caught-failure-ownership — census bijection and exemption hygiene", 
     // property the WIP's `(path,line,grammar)` Set lacked.
     expect(new Set(census.rows.map((row) => row.siteId)).size).toBe(census.rows.length);
 
-    const byVerdict = { "deliberate-absorb": 0, "detached-owned": 0, unproven: 0 };
+    // Seeded from the homed tuple, so a fourth verdict cannot be recomputed into existence by this test
+    // while the census still counts three.
+    const byVerdict = Object.fromEntries(CAUGHT_FAILURE_VERDICTS.map((v) => [v, 0])) as Record<CaughtFailureVerdict, number>;
     const byGrammar: Record<string, number> = {};
     for (const row of census.rows) {
       byVerdict[row.verdict] += 1;
