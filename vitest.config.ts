@@ -46,6 +46,12 @@ const SERIAL_INT = [
   "tests/server/entry/lifecycle.int.test.ts",
   // 2. whole-tree scanners + heavy full-composition files (flaked on 5s timeout under fork contention)
   "tests/tooling/gate-conformance.int.test.ts",
+  // #751/#775 — both load the WHOLE gate corpus and run it over the WHOLE workspace (the shared marker
+  // inventory reaches a verdict only in a full pass), so each pays a cold ts-morph workspace load plus a
+  // 233-gate single pass. Two of those in the parallel lane is a load bomb, and they scan the same tree
+  // `check-gates.int` writes fixtures into.
+  "tests/tooling/verify/gates/caught-failure-ownership.int.test.ts",
+  "tests/tooling/verify/gates/dangling-refs-absent-by-design.int.test.ts",
   // The `pnpm ast` audit-epilogue proof: every row SPAWNS the real CLI, which loads the whole workspace
   // into ts-morph (~11s each). Five of those in the parallel lane is a load bomb, and no parallel-lane
   // timeout covers them — the rows carry explicit 120s timeouts and run one at a time here.
