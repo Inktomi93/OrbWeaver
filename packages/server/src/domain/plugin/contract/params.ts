@@ -28,6 +28,39 @@ export interface UpgradePluginParams {
   readonly bundle: Uint8Array;
 }
 
+/** `previewFromUrl` — fetch a bundle at a caller-supplied URL through the egress guard and return its MANIFEST
+ *  for the consent screen (plugin-ui-plane #679 U8, seam 15). READ-ONLY: nothing persists, no owned id. It is
+ *  the primitive behind both "show the same consent screen a file install shows" and the update-version check
+ *  (the client compares the previewed `version` to the installed one). SELF-authority: any authenticated
+ *  principal — the fetch spends the server's egress, so it is authed, but it touches no owned row. */
+export interface PreviewFromUrlParams {
+  readonly caller: Principal;
+  readonly url: string;
+}
+
+/** `installFromUrl` — fetch a bundle at a caller-supplied URL through the egress guard, then run it through the
+ *  EXACT SAME funnel + consent/grant checks a file install takes (plugin-ui-plane #679 U8, seam 15). The
+ *  distinct-from-runtime-loading arm: this is an INSTALL ACT under the user's eyes (they picked the URL and
+ *  confirmed the grant), not code loaded at runtime (row 23, refused). Origin stays `"upload"` — the bundle
+ *  funnel is source-agnostic (a URL is just another byte source; `substrate/manifest.ts`'s own header). */
+export interface InstallFromUrlParams {
+  readonly caller: Principal;
+  readonly url: string;
+  readonly grant: readonly PluginCapability[];
+}
+
+/** `upgradeFromUrl` — fetch a NEW bundle at a caller-supplied URL through the egress guard, then upgrade the
+ *  owned plugin through the EXISTING `upgrade` verb, so #615's re-consent wall applies UNCHANGED: an upgrade
+ *  that WIDENS reach (a new capability / a new `netHosts` entry) lands the row DISABLED pending re-consent, and
+ *  a narrowing carries forward silently. NEVER a silent auto-update. Owner-scoped: the plugin's OWN row is
+ *  loaded (foreign/missing pluginId ⇒ leak-free NOT_FOUND) BEFORE any fetch — a stranger never causes the
+ *  server to fetch on their behalf, and the cross-tenant sweep probes exactly that ordering. */
+export interface UpgradeFromUrlParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+  readonly url: string;
+}
+
 /** `setPluginGrant` — the RE-CONSENT act, and the half the upgrade path was missing. `upgrade` intersects the
  *  prior grant with the newly-declared set, so a newly-declared capability lands NOT granted, and `setEnabled`
  *  activates with the STORED grant and never recomputes one — so before this verb the only way to allow a

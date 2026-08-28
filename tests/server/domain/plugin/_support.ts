@@ -171,6 +171,9 @@ export function makePluginHarness(
     readonly port?: PluginHostPort;
     readonly ops?: PluginHostOps;
     readonly resolveChatAuthority?: PluginContext["resolveChatAuthority"];
+    /** The URL-install bundle fetch (U8 seam 15). Default REJECTS — a URL-install/upgrade suite injects its own
+     *  (returning a bundle, or throwing to simulate an SSRF block), and every other suite never reaches it. */
+    readonly fetchBundle?: PluginContext["fetchBundle"];
     /** Narrow the per-user concurrent-snippet ceiling (default: the production constant). */
     readonly snippetConcurrency?: number;
     /** Narrow the two HOURLY per-plugin ceilings (default: the production constants) so a suite can reach one
@@ -219,6 +222,9 @@ export function makePluginHarness(
     now: () => clock.now(),
     newPluginId: () => castId<PluginId>(ids.next("plugin")),
     assets: { store, readBytes, reapOrphans },
+    // The URL-install bundle fetch (U8 seam 15). Default REJECTS: a suite exercising previewFromUrl/installFromUrl/
+    // upgradeFromUrl injects its own (a bundle, or a throw simulating an SSRF block), and no other suite reaches it.
+    fetchBundle: overrides.fetchBundle ?? (() => Promise.reject(new Error("test: fetchBundle not wired"))),
     host: overrides.port ?? fakePort,
     ops: overrides.ops ?? makeInertOps(),
     // The REAL surface-state store — the write op + the read verb + the deactivate sweep share ONE instance, so

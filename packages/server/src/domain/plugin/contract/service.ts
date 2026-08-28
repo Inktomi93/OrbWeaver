@@ -15,6 +15,7 @@ import type {
   PluginHandlerRef,
   PluginInstance,
   PluginInvokeArgs,
+  PluginManifest,
   PluginToastLevel,
   PluginUiOutcome,
 } from "@orb/contracts/plugin";
@@ -28,6 +29,7 @@ import type {
   GetSurfaceStateParams,
   GetUiBundleParams,
   InstallForAllUsersParams,
+  InstallFromUrlParams,
   InstallPluginParams,
   InvokeUiActionParams,
   InvokeUiCommandParams,
@@ -36,6 +38,7 @@ import type {
   ListDistributedPluginsParams,
   ListPluginsParams,
   ListSurfacesParams,
+  PreviewFromUrlParams,
   ReportUiCrashParams,
   RunSnippetParams,
   SetPluginEnabledParams,
@@ -44,6 +47,7 @@ import type {
   UiHostCallParams,
   UninstallForAllUsersParams,
   UninstallPluginParams,
+  UpgradeFromUrlParams,
   UpgradePluginParams,
 } from "./params.ts";
 import type {
@@ -256,6 +260,14 @@ export interface PluginContext {
     readonly readBytes: (caller: Principal, assetId: AssetId) => Promise<{ readonly bytes: Uint8Array; readonly mime: string }>;
     readonly reapOrphans: (assetIds: readonly AssetId[]) => Promise<void>;
   };
+  /** Fetch a plugin bundle's bytes at a caller-supplied URL through the EGRESS GUARD (plugin-ui-plane #679 U8,
+   *  seam 15 — the URL-install funnel). Wired at compose to `infra/network`'s `fetchPluginBundle`: `safeFetch`
+   *  with the arbitrary-URL (`ANY_HOST`) posture — https-only, per-hop private-range/IP-literal denial (the SSRF
+   *  wall), a redirect budget, and a byte cap that bounds the download BEFORE `parseBundle` ever sees it. NEVER a
+   *  bare `fetch`. It THROWS on any refusal/non-2xx/network error (the domain never imports infra to branch —
+   *  the `fetchWebDocument`→`ScrapeFailedError` precedent); the URL verbs collapse every throw to a single
+   *  leak-free {@link PluginBundleFetchError}, so no SSRF oracle crosses the boundary. */
+  readonly fetchBundle: (url: string) => Promise<Uint8Array>;
   readonly host: PluginHostPort;
   readonly ops: PluginHostOps;
   /** The UI-surface state plane (plugin-ui-plane #679 U1) — the read verb (`getSurfaceState`) reads it and
@@ -339,6 +351,17 @@ export interface PluginService {
   readonly install: (params: InstallPluginParams) => Promise<PluginView>;
   /** Replace the bundle for an installed plugin (slug must match; downgrade refused; new caps ⇒ disabled). */
   readonly upgrade: (params: UpgradePluginParams) => Promise<PluginView>;
+  /** Fetch a bundle at a URL through the egress guard and return its MANIFEST for the consent screen
+   *  (plugin-ui-plane #679 U8, seam 15). Read-only; SELF-authority; a fetch failure is a leak-free
+   *  {@link PluginBundleFetchError}, a bad zip a `ManifestInvalidError` — same funnel as a file install. */
+  readonly previewFromUrl: (params: PreviewFromUrlParams) => Promise<PluginManifest>;
+  /** Fetch a bundle at a URL through the egress guard, then run it through the SAME funnel + consent as a file
+   *  install (delegates to {@link install}). SELF-authority — mints the caller's own row. */
+  readonly installFromUrl: (params: InstallFromUrlParams) => Promise<PluginView>;
+  /** Fetch a NEW bundle at a URL through the egress guard, then upgrade the OWNED plugin through {@link upgrade}
+   *  — #615's re-consent wall applies (reach-widening ⇒ DISABLED). Owner-scoped: a foreign pluginId is a
+   *  leak-free NOT_FOUND checked BEFORE any fetch, so a stranger never triggers server egress. NEVER silent. */
+  readonly upgradeFromUrl: (params: UpgradeFromUrlParams) => Promise<PluginView>;
   /** RE-CONSENT: replace the confirmed capability subset (⊆ the PERSISTED manifest's declared set). The
    *  explicit act that lets an owner allow a newly-declared capability after an upgrade WITHOUT uninstalling.
    *  Never enables a disabled plugin; a resident instance is restarted so the running grants match the row. */

@@ -75,6 +75,7 @@ import type { SettingsService } from "#domain/settings";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import type { WorldInfoService } from "#domain/world-info";
 import { superviseDetached } from "#foundation/observability";
+import { fetchPluginBundle } from "#infra/network";
 import { createPluginHost } from "#infra/plugin-host";
 import type { RoleClientsWithSignal } from "#infra/providers";
 import { publishAutomationEvent, publishNotification, publishUserEvent } from "../../transport/trpc/index.ts";
@@ -758,6 +759,11 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       },
       host: pluginHost,
       ops: pluginHostOps,
+      // U8 seam 15 — the URL-install bundle fetch. Wired to infra/network's `fetchPluginBundle` (the audited
+      // `safeFetch` ANY_HOST guard: https-only, per-hop private-range/IP-literal denial, redirect budget, 1 MiB
+      // byte cap — NEVER a bare fetch). The domain calls it authority-blind and collapses any throw to a
+      // leak-free `PluginBundleFetchError`; infra performs the guarded egress, the same division as `net.fetch`.
+      fetchBundle: fetchPluginBundle,
       // The UI-surface state plane — the SAME store `ops.ui.setState` writes above (getSurfaceState reads it,
       // deactivate clears it). Shared by construction, so a publish is visible to the very next read.
       surfaceState: pluginSurfaceState,

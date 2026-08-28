@@ -81,6 +81,12 @@ function decodeBundle(bundleBase64: string): Uint8Array {
   return new Uint8Array(Buffer.from(bundleBase64, "base64"));
 }
 
+/** A plugin-bundle source URL (plugin-ui-plane #679 U8, seam 15). The wire edge bounds it to a well-formed URL
+ *  string; the REAL SSRF wall is the server-side egress guard (`safeFetch` ANY_HOST — https-only + private-range
+ *  denial + byte cap), never this parse. The length cap keeps an unbounded string out of the log/error path. */
+const URL_MAX = 2048;
+const bundleUrlSchema = z.url().max(URL_MAX);
+
 export const pluginRouter = t.router({
   install: authedProcedure
     .input(z.object({ bundleBase64: z.string(), grant: grantSchema }))
@@ -89,6 +95,30 @@ export const pluginRouter = t.router({
   upgrade: authedProcedure
     .input(z.object({ pluginId: pluginIdSchema, bundleBase64: z.string() }))
     .mutation(({ ctx, input }) => ctx.services.plugin.upgrade({ caller: ctx.auth, pluginId: input.pluginId, bundle: decodeBundle(input.bundleBase64) })),
+
+  // ── URL INSTALL / UPDATE (plugin-ui-plane #679 U8, seam 15 — the security-review subject). All three are
+  //    MUTATIONS, not queries, and that is deliberate the same way `uiHostCall` is: each triggers SERVER EGRESS
+  //    to a caller-supplied URL, and a GET-shaped door onto egress is both cacheable and outside the CSRF belt
+  //    (which covers mutations only) — exactly the shape that belt exists to close. The URL is bounded at the
+  //    wire; the SSRF wall is the service's `ctx.fetchBundle` (safeFetch ANY_HOST — https + private-range denial
+  //    + byte cap), and the fetched bytes ride the SAME `parseBundle` funnel + consent a file install does.
+  //
+  //    `previewFromUrl` fetches+parses and returns the MANIFEST (the consent-screen + update-version primitive):
+  //    no owned id, SELF-authority ⇒ sweep-EXEMPT. `installFromUrl` mints the CALLER's own row (no foreign id ⇒
+  //    EXEMPT). `upgradeFromUrl` takes a FOREIGN pluginId and joins the PROBED sweep set: the service loads the
+  //    owner-scoped row and NOT_FOUNDs a stranger BEFORE any fetch (a stranger never triggers egress), and #615's
+  //    reach-widening→disabled re-consent wall applies to the fetched bundle unchanged (never a silent update).
+  previewFromUrl: authedProcedure
+    .input(z.object({ url: bundleUrlSchema }))
+    .mutation(({ ctx, input }) => ctx.services.plugin.previewFromUrl({ caller: ctx.auth, url: input.url })),
+
+  installFromUrl: authedProcedure
+    .input(z.object({ url: bundleUrlSchema, grant: grantSchema }))
+    .mutation(({ ctx, input }) => ctx.services.plugin.installFromUrl({ caller: ctx.auth, url: input.url, grant: input.grant })),
+
+  upgradeFromUrl: authedProcedure
+    .input(z.object({ pluginId: pluginIdSchema, url: bundleUrlSchema }))
+    .mutation(({ ctx, input }) => ctx.services.plugin.upgradeFromUrl({ caller: ctx.auth, pluginId: input.pluginId, url: input.url })),
 
   // RE-CONSENT. `grant` is the WHOLE new confirmed subset (not a delta) and `acknowledgedNetHosts` is the
   // caller's echo of the exact `PluginView.netHosts` it displayed — the anti-TOCTOU pin the service refuses on

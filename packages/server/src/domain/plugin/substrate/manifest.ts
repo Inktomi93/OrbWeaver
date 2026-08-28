@@ -24,7 +24,7 @@ import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY, PLUGIN_UI_ENTRY, pluginManife
 import type { UnzipFileInfo } from "fflate";
 import { unzipSync } from "fflate";
 import { z } from "zod";
-import { ManifestInvalidError } from "../contract/errors.ts";
+import { ManifestInvalidError, PluginBundleFetchError } from "../contract/errors.ts";
 
 /** The stored bundle is the whole zip (re-parsed + re-validated on activation load); the CAS row's
  *  mime records that. install/upgrade store under this; the ONE home so the two verbs don't drift. */
@@ -179,4 +179,23 @@ function compareSemver(a: string, b: string): number {
  *  install/upgrade verb refuses it with `PluginDowngradeRefusedError`. Equal versions are a legal re-install. */
 export function isVersionDowngrade(candidate: string, installed: string): boolean {
   return compareSemver(candidate, installed) < 0;
+}
+
+/** The OTHER half of the URL-install funnel (plugin-ui-plane #679 U8, seam 15): fetch a bundle's bytes through
+ *  the injected egress-guarded fetch (`ctx.fetchBundle` → `infra/network`'s `fetchPluginBundle` — `safeFetch`
+ *  ANY_HOST: https-only, per-hop private-range/IP-literal denial, redirect budget, byte cap), then hand them to
+ *  `parseBundle`. The two-line body is a SECURITY choke: it collapses EVERY fetch failure — an SSRF block, a
+ *  scheme/redirect refusal, a non-2xx, a network error — to ONE leak-free {@link PluginBundleFetchError}. The
+ *  original `cause` is deliberately DROPPED rather than attached: `safeFetch`'s own error carries the block
+ *  REASON (`"private-address"` vs `"host-not-allowed"`), and a serialized cause would re-leak exactly the SSRF
+ *  oracle the collapse exists to close. The domain never imports `#infra/network` to branch (the
+ *  `fetchWebDocument`→`ScrapeFailedError` precedent) — infra performs the guarded fetch and throws; this catches. */
+export async function fetchBundleThroughGuard(fetchBundle: (url: string) => Promise<Uint8Array>, url: string): Promise<Uint8Array> {
+  try {
+    return await fetchBundle(url);
+  } catch (cause) {
+    // `cause` is forwarded to the SERVER LOG only (never the client — see the error class): the client sees the
+    // generic leak-free message, so the SSRF block REASON the cause carries is not an oracle a caller can read.
+    throw new PluginBundleFetchError(url, { cause });
+  }
 }
