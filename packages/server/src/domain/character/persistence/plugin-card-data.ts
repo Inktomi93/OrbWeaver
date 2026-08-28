@@ -28,30 +28,15 @@
 import { pluginCardStateKey } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
-
-/** WHOSE per-card state, on WHICH owned character — the three coordinates every read/merge carries. `characterId`
- *  is guest-supplied (owner-scope-gated, never trusted); `ownerId` is the installer the bridge closed over;
- *  `slug` is the emitter's own manifest slug, stamped host-side (never guest input) and the ONLY thing that
- *  decides which `plugin_<slug>` key is touched. Bundled so the merge stays within the 4-param house cap and the
- *  read/merge cannot drift apart on their scope. */
-export interface PluginCardDataTarget {
-  readonly characterId: CharacterId;
-  readonly ownerId: UserId;
-  readonly slug: string;
-}
+import type { PluginCardDataTarget } from "../contract/params.ts";
+import type { PluginCardDataRead } from "../contract/results.ts";
 
 /** The SQLite JSON path for a plugin's reserved card-state key. Quoted (`$."…"`) because a slug may contain `-`,
  *  which a bare path label would terminate on — the quoted form is exact for the full `plugin_<slug>` key. */
 function cardStatePath(slug: string): string {
   return `$."${pluginCardStateKey(slug)}"`;
 }
-
-/** The read verdict: `found:false` ⇒ no such OWNED character (foreign or absent — leak-free, the caller maps it
- *  to the plugin domain's NOT_FOUND); `found:true` ⇒ the installer owns it, `data` is the stored blob or `null`
- *  when this plugin has written none on that character. */
-export type PluginCardDataRead = { readonly found: false } | { readonly found: true; readonly data: Record<string, unknown> | null };
 
 /** Read one plugin's per-card state (`data.extensions.plugin_<slug>`) from an INSTALLER-OWNED character. See the
  *  file header for the owner-scope + slug-isolation walls.

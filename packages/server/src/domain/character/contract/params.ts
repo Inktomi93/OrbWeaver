@@ -184,3 +184,15 @@ export interface CharacterListFilter {
   readonly includeTagIds?: readonly TagId[] | undefined;
   readonly excludeTagIds?: readonly TagId[] | undefined;
 }
+
+/** WHOSE per-card state, on WHICH owned character — the three coordinates every D148 plugin card-state
+ *  read/merge carries (`persistence/plugin-card-data.ts`). `characterId` is guest-supplied (owner-scope-gated,
+ *  never trusted); `ownerId` is the installer the bridge closed over; `slug` is the emitter's own manifest slug,
+ *  stamped host-side (never guest input) and the ONLY thing that decides which `plugin_<slug>` key is touched.
+ *  Bundled so the merge stays within the 4-param house cap and the read/merge cannot drift apart on their scope.
+ *  Homed HERE per no-inline-types §7.4 (the `CharacterListFilter` precedent above). */
+export interface PluginCardDataTarget {
+  readonly characterId: CharacterId;
+  readonly ownerId: UserId;
+  readonly slug: string;
+}
