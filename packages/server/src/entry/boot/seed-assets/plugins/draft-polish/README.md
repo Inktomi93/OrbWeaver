@@ -1,11 +1,12 @@
 # Draft Polish
 
-**Archetype: prompt transform.** Rewrites text on its way to the model — pure, local, and fast. Start here if
-your idea begins with "before the model sees it…".
+**Archetype: the text pipeline.** One capability, two seams: rewrites what the MODEL reads (a prompt
+transform) and typesets what YOUR SCREEN shows (a display transform). Start here if your idea begins with
+"before the model sees it…" or "when this text renders…".
 
-It tidies typographic scruff in the draft you are about to send: `...` becomes a real ellipsis, doubled
-spaces collapse, a space stranded before a comma disappears. The room still shows what you typed; the model
-reads the tidied version.
+It tidies typographic scruff in the draft you are about to send — `...` becomes a real ellipsis, doubled
+spaces collapse — and, on the display side, curls your quotes and sets your em dashes. The room's CANON stays
+exactly what was typed; one seam changes what the model reads, the other what you see.
 
 ## Copy me
 
@@ -50,6 +51,26 @@ called and the draft passes through untouched. You cannot detect this and must n
 
 Everything in `polish()` is a pure string function: testable in isolation, trivially inside the deadline, and
 impossible to give an accidental side effect.
+
+## The DISPLAY seam (`transforms.registerDisplay`)
+
+The same capability's second registration, and a DIFFERENT contract — the two side by side are this
+example's real lesson:
+
+|              | prompt transform                       | display transform                       |
+| ------------ | -------------------------------------- | --------------------------------------- |
+| reaches      | the MODEL (and only the model)         | the INSTALLER's screen (and only it)    |
+| input        | `{draft, env:{chatId, vars}}`          | `{text, env:{chatId, messageId}}`       |
+| scope gate   | rooms you host                         | none — it is your own screen            |
+| risk if wrong| the model answers unwritten words      | a glyph looks odd until you disable it  |
+
+That last row is why the display side is BOLDER (smart quotes, em dashes) while the prompt side stays timid.
+A throw or an overrun SKIPS a display transform — the row keeps the text it had, never a spinner.
+
+Two mechanics worth copying: display text arrives BEFORE markdown renders, so `typeset()` splits out backtick
+code spans and typesets only the prose between them (curling quotes inside `` `code` `` changes what the code
+says); and the shared rules live in `tidy()` while trailing-space stripping stays PROMPT-only — its `$`
+anchor eats the space before a code span when run on a segment, a bug this plugin's own test caught.
 
 ## Turning it off per room
 

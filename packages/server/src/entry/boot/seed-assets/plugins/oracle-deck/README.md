@@ -21,12 +21,14 @@ Settings → Plugins → drop the zip → tick the capabilities → turn it on. 
 ## The manifest
 
 ```json
-"capabilities": ["storage.kv", "tools.register", "ui.surface"]
+"capabilities": ["storage.kv", "tools.register", "ui.surface", "chat.transform", "plugin_events"]
 ```
 
-Three capabilities and no network, no model, no room writes — which is the point of this archetype. A tool
-provider is usually the cheapest thing you can build and the easiest one for a user to say yes to. `ui.surface`
-is what lets it draw its own card for a draw (below); drop it and the tool still works, in the generic block.
+No network, no model spend, no room writes — the deck's core is still the cheapest archetype there is.
+`ui.surface` draws the whole UI plane (the card, the page, the dialog, the command, the footer mark); drop it
+and the tools still work, in the generic block. `chat.transform` carries the omen MACRO (a macro substitutes
+into the prompt, which is that capability's reach), and `plugin_events` lets the deck ANNOUNCE its draws to
+your other plugins. Every registration feature-detects its grant, so any subset of ticks still activates.
 
 ## How it works
 
@@ -54,6 +56,31 @@ That is the whole trick: a shuffle drawn from the host PRNG could never be re-de
 because the verifier has no access to that stream. The host seam mints the SECRET; plain arithmetic turns the
 secret into the ORDER. Both functions are five lines each so a suspicious player can re-implement them.
 
+## The whole UI plane, in one plugin
+
+Beyond the tool card, this file is the tour of every person-facing affordance a plugin has — each a few
+lines, each labeled in `main.js`:
+
+* **A command with TYPED ARGS** — `/plugin oracle-deck draw count=2` or `draw spread=past_present_future`.
+  Declaring `args` (name/type/enum/required) buys the platform half free: the palette shows typed inputs, the
+  composer autocompletes `name=value`, both sides validate before your code runs, and `onRun` receives a
+  well-typed `values` bag. `reveal` declares none — the two shapes side by side.
+* **A PAGE** (`anchor: "page"`) — the deck's dashboard behind the app's one Extensions rail entry.
+* **A DIALOG** (`anchor: "dialog"`) — the reveal, opened only by `host.ui.openDialog` from the deck's OWN
+  command or page action. A plugin structurally cannot open a modal spontaneously.
+* **TOASTS** — the answer to every command (`host.ui.toast`), app-stamped with the plugin's name,
+  rate-floored (10 s per plugin — two toasts inside the floor deliver one).
+* **The OMEN MACRO** — `{{plugin_oracle_deck_omen}}` substitutes the session's most recent card anywhere
+  macros run. A plugin macro is a VALUE (no arguments — the engine is synchronous and a guest is not),
+  resolved once per turn, host-namespaced, and it degrades to `""` rather than ever throwing.
+* **The DRAW ANNOUNCEMENT** — `host.pubsub.emit("draw", {...})` on the deck's private channel. Any of YOUR
+  plugins can subscribe (`pubsub.on("oracle-deck", "draw", …)`) — the seeded scene-chips does, and offers an
+  omen-flavored door after a draw. Emitting to nobody is free; put everything a listener needs IN the payload
+  (a subscriber runs with no chat scope).
+* **The FOOTER MARK** (`anchor: "message-footer"`) — the smallest legal per-row occupant: one static badge.
+  Footers are static-only decoration (no bindings, no buttons, ≤ 8 nodes) repeated under every committed
+  message — say one thing, quietly, or say nothing.
+
 ## Adapting it
 
 * **A different deck** — replace `DECK`. Note that this is a breaking change to every commitment already
@@ -66,12 +93,12 @@ secret into the ORDER. Both functions are five lines each so a suspicious player
 
 ## Honest gaps
 
-* **No arbitrary pixels.** You *can* draw a card for your tool — `ui.register({anchor: "tool-card", toolName:
-  "draw", spec})` at the bottom of `main.js`, and the app draws it out of its own components inside a frame
-  that names you. What you cannot do is draw ARBITRARY ones: an image per card, a canvas, a layout of your
-  own. Bespoke card art stays a real gap. Note also that a card is **optional and per tool** — `reveal`
-  registers none, so a reveal still renders in the generic block, which is also the fallback whenever a card
-  cannot be drawn (a tool call is part of the record; the app never renders nothing for one).
+* **No arbitrary pixels in the VOCABULARY.** The card is house components declared as data — an image per
+  card or a canvas is not spellable there. (Bespoke pixels DO exist now, behind their own consent line: the
+  `ui.frame` hatch — see the pocket-arcade example — and `tool-card` is a frame-eligible anchor. The
+  declarative card remains the recommended shape; the hatch is the last resort.) A card is **optional and per
+  tool** — `reveal` registers none, so a reveal renders in the generic block, which is also the fallback
+  whenever a card cannot be drawn (a tool call is part of the record; the app never renders nothing for one).
 * **No stable room identity.** The chat handle a tool invocation can obtain is a fresh opaque token each
   time, so a tool handler cannot key state per room. This deck is therefore ONE deck per install, shared
   across your rooms. (Event handlers do not have this problem — their fact carries the chat id.)
