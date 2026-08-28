@@ -841,27 +841,28 @@ export const gate: GateDescriptor = {
       why: "the UNPROVABLE arm: the writer carries an OPEN-typed value end to end, so nothing in the tree can say whether `artStyle` is ever produced — the exact shape that let the founding defect exist. Reported at the schema column, where CLOSING THE TYPE fixes it",
     },
     {
-      // THE DRIZZLE-SQL WRITE FENCE (D148 #679 U8). A `.set({ col: sql`json_set(…)` })` write (or any value
-      // TYPED as drizzle `SQL`) stores an UNKNOWABLE key set — the raw fragment is opaque to the checker. On the
-      // REAL tree `typeKeys` harvested the drizzle `SQL` class's PROTOTYPE members (getSQL/queryChunks/…) as a
-      // fake, non-opaque vocabulary, which turned every ST-residue read off `characters.extensions` into a
-      // per-key PARITY violation and staled that column's whole-column DOORWAY (5 open-json reds after U8's
-      // `writePluginCardData` landed; 0 after this fence) — the same failure the `namesNoKey` guard already
-      // heads off for String/Array. This case pins the CORRECT post-fence outcome: an sql-written open column
-      // read by a literal key is the UNPROVABLE arm, reported at the whole column, never a per-key claim.
-      // NOTE: the conformance mini-project resolves an inline `SQL`-typed param to `any`, so it cannot
-      // reproduce the prototype harvest (both arms report the whole-column token) — the red-first evidence for
-      // this fix is the real-tree `check:structure` (revert the fence → the 5 open-json reds return).
+      // THE DRIZZLE-SQL WRITE FENCE (D148 #679 U8, RED-FIRST discriminating). A `.set({ col: sql`…` })` write
+      // (or any value TYPED as drizzle `SQL`) stores an UNKNOWABLE key set — the raw fragment is opaque to the
+      // checker. Without the fence, `typeKeys` harvests the `SQL` interface's members (getSQL/queryChunks/…) as
+      // a fake, NON-opaque vocabulary: the reader key then misses it and the gate emits a per-key PARITY token
+      // `widgets.residue:someKey`, so this row (expecting the whole-column UNPROVABLE token) goes RED. With the
+      // fence the write is opaque, the read is the UNPROVABLE arm, and the token is `widgets.residue` — the same
+      // treatment `namesNoKey` already gives String/Array to keep their prototypes out of the vocabulary. On the
+      // REAL tree this is exactly what U8's `writePluginCardData` `.set({ extensions: sql`json_set(…)` })`
+      // triggered: 5 open-json reds off `characters.extensions` + a staled DOORWAY, all 0 after the fence.
+      // The column here is a SYNTHETIC `widgets.residue` on purpose — the real `characters.extensions` is a
+      // DOORWAY row, so its UNPROVABLE token is exempted and the finding is swallowed (0, not 1); a fresh
+      // non-exempt column is what lets the pin actually observe the flip.
       files: {
-        "packages/db/src/schema/character.ts":
-          'export const characters = sqliteTable("characters", {\n  extensions: text("extensions", { mode: "json" }).$type<Record<string, unknown>>(),\n});\n',
-        "packages/server/src/domain/character/persistence/plugin-card-data.ts":
-          "interface SQL { getSQL(): void; queryChunks: unknown[] }\nexport async function writeState(db, frag: SQL) {\n  await db.update(characters).set({ extensions: frag });\n}\n",
-        "packages/server/src/kit/serde/card/index.ts":
-          "export function readState(db) {\n  return db.all(sql`SELECT id FROM characters c WHERE json_extract(c.extensions, '$.regex_scripts') IS NOT NULL`);\n}\n",
+        "packages/db/src/schema/widget.ts":
+          'export const widgets = sqliteTable("widgets", {\n  residue: text("residue", { mode: "json" }).$type<Record<string, unknown>>(),\n});\n',
+        "packages/server/src/domain/widget/persistence/write.ts":
+          "interface SQL { getSQL(): void; queryChunks: unknown[] }\nexport async function writeState(db, frag: SQL) {\n  await db.update(widgets).set({ residue: frag });\n}\n",
+        "packages/server/src/domain/widget/read.ts":
+          "export function readState(db) {\n  return db.all(sql`SELECT id FROM widgets w WHERE json_extract(w.residue, '$.someKey') IS NOT NULL`);\n}\n",
       },
-      expect: { count: 1, token: "characters.extensions" },
-      why: "the drizzle-SQL write fence: an `SQL`-typed write is UNKNOWABLE (opaque), never the SQL class's prototype methods — so an sql-written open column read by a literal key is the UNPROVABLE arm (token = the whole column), not a fake-vocabulary per-key parity claim. On the real tree the fence is what took open-json from 5 reds (U8's `writePluginCardData` sql json_set flipping the ST-residue reads and staling the `characters.extensions` DOORWAY) to 0; the harness resolves the inline `SQL` param to `any` so it pins the post-fence outcome rather than the harvest.",
+      expect: { count: 1, token: "widgets.residue" },
+      why: "the drizzle-SQL write fence, red-first: WITHOUT it `typeKeys` harvests the `SQL` interface's prototype members as a fake vocabulary and the reader key misses it, emitting the per-key parity token `widgets.residue:someKey` (this row, expecting the whole-column UNPROVABLE token, then fails); WITH it the write is opaque, so the read is UNPROVABLE and the token is `widgets.residue`. A synthetic non-DOORWAY column is used because the real `characters.extensions` (the U8 carrier) is exempt and would swallow the finding.",
     },
   ],
   mustPass: [
