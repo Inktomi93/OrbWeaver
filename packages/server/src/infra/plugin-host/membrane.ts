@@ -61,6 +61,7 @@ import {
   PLUGIN_NET_MAX_BYTES,
   PLUGIN_QUIET_PROMPT_MAX_CHARS,
 } from "./budgets.ts";
+import { pumpGuestJobs } from "./cpu-guard.ts";
 import { jsToHandle } from "./marshal.ts";
 
 export type { InvocationChat, PluginBridge } from "@orb/contracts/plugin";
@@ -1140,8 +1141,9 @@ function chargeValue(value: unknown, pending: unknown[]): number {
 }
 
 /** Build + attach ONE async host function: guest args via `ctx.dump`, the impl races a real-time deadline, the
- *  JSON-safe result crosses back via `jsToHandle` (size-capped), and settled guest jobs are pumped (bounded by
- *  the invocation deadline). ≤ 32 concurrent host calls per instance — call 33 rejects (back-pressure).
+ *  JSON-safe result crosses back via `jsToHandle` (size-capped), and settled guest jobs are pumped under their
+ *  own guest-CPU window (`cpu-guard.ts` — the pump runs guest continuations, so it is bounded like an
+ *  invocation is). ≤ 32 concurrent host calls per instance — call 33 rejects (back-pressure).
  *  A thrown/rejected impl (a capability/handle/host-authority refusal, or a bridge error) rejects the guest
  *  promise — errors-as-data, never a host crash.
  *
@@ -1259,11 +1261,15 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
         clearTimeout(timer);
       });
 
+    // THE POST-INVOCATION PUMP (#781). When this host call settles LATER than the invocation that fired it,
+    // the guest's `.then` continuation runs HERE — bytecode outside any invocation, which until the
+    // context-lifetime CPU guard landed executed with NO interrupt handler installed at all: one
+    // `h.storage.get(k).then(function () { while (true) {} })` in `main.js` wedged the Node MAIN THREAD
+    // permanently. `pumpGuestJobs` opens a fresh CPU window around the pump and owns the `ctx.alive` guard for
+    // the late-settle case (the instance can be torn down before this call lands).
     superviseDetached(`plugin-host:${name}:${randomUUID()}`, "plugin.host.pending-jobs", { hostFunction: name }, () =>
       deferred.settled.then(() => {
-        if (ctx.alive) {
-          ctx.runtime.executePendingJobs();
-        }
+        pumpGuestJobs(ctx);
       }),
     );
     return deferred.handle;
