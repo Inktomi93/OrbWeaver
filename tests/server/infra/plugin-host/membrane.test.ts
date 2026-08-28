@@ -16,7 +16,7 @@ import type {
   PluginSuggestedAct,
   PluginToastLevel,
 } from "@orb/contracts/plugin";
-import { PLUGIN_FRAME_HTML_MAX_CHARS, PLUGIN_FRAME_SURFACES_MAX } from "@orb/contracts/plugin";
+import { PLUGIN_CAPABILITIES, PLUGIN_FRAME_HTML_MAX_CHARS, PLUGIN_FRAME_SURFACES_MAX } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { getPluginQuickJS, HOST_FN_DEADLINE_MS } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
@@ -103,6 +103,8 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
     chat: {
       listMessages: () => Promise.resolve([]),
       getVariables: () => Promise.resolve({ tension: "4" }),
+      // #788 F11 — a canned roster so the gate + forward path is observable; a `null` avatar keeps it minimal.
+      listRoster: () => Promise.resolve([{ id: "char_seat0000000000000000000", name: "Seat", avatarAssetId: null }]),
       applyVariableOps: () => {
         writes.count += 1;
         return Promise.resolve();
@@ -117,6 +119,9 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
         performed.lore += 1;
         return Promise.resolve();
       },
+      // #788 F12 — canned reads so the gate + forward path is observable.
+      listBooks: () => Promise.resolve([{ id: "wbook_read00000000000000000", name: "Room Lore" }]),
+      listEntries: () => Promise.resolve([{ id: "wentry_read0000000000000000", keys: ["k"], content: "lore", enabled: true }]),
     },
     imagery: {
       generatePicture: () => {
@@ -125,6 +130,8 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
       },
     },
     variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
+    // #788 seam-11 — a canned owned-asset read so the gate + forward path is observable.
+    assets: { read: () => Promise.resolve({ mime: "image/png", sizeBytes: 3, dataBase64: "AAAA" }) },
     storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
     notifications: { post: () => Promise.resolve() },
     surfaceQuickReply: () => {
@@ -380,6 +387,75 @@ describe("attachMembrane — the capability refusal crosses the boundary as a TY
     await withHost([], false, bridge, async (ctx) => {
       const out = await runAsync(ctx, "(async () => { try { await host.chat.getVariables('any'); return 'NO-THROW' } catch (e) { return e.name } })()");
       expect(out).toBe("PluginCapabilityError");
+    });
+  });
+});
+
+describe("attachMembrane — #788 READ gaps are gated on the CORRECT capability (a mis-wired ref would leak)", () => {
+  // Grant EVERY capability except the one under test: the strongest wrong-ref proof. `requireCapability` keys the
+  // gate on `HOST_FUNCTION_CAPABILITY[ref]`, so a handler wired to the WRONG (but valid) ref would gate on some
+  // OTHER capability — which this all-but-target grant HOLDS — and the call would slip through. A rejection here
+  // means the handler names its own capability and nothing else opens the door.
+  const allBut = (cap: string): readonly PluginCapability[] => PLUGIN_CAPABILITIES.filter((c) => c !== cap);
+
+  test("assets.read WITHOUT assets.read (but WITH every other grant) is refused — the gate keys on assets.read alone", async () => {
+    const { bridge } = fakeBridge();
+    await withHost(allBut("assets.read"), true, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.assets.read('asset_x0000000000000000000000'); return 'NO-THROW' } catch (e) { return e.name } })()",
+      );
+      expect(out).toBe("PluginCapabilityError");
+    });
+  });
+
+  test("assets.read WITH the grant reads the installer's own asset (mime forwarded from the bridge)", async () => {
+    const { bridge } = fakeBridge();
+    await withHost(["assets.read"], false, bridge, async (ctx) => {
+      const out = await runAsync(ctx, "(async () => (await host.assets.read('asset_x0000000000000000000000')).mime)()");
+      expect(out).toBe("image/png");
+    });
+  });
+
+  test("chat.listRoster WITHOUT chat.read is refused (the same grant its sibling reads ride)", async () => {
+    const { bridge } = fakeBridge();
+    await withHost(allBut("chat.read"), true, bridge, async (ctx) => {
+      const out = await runAsync(ctx, "(async () => { try { await host.chat.listRoster('any'); return 'NO-THROW' } catch (e) { return e.name } })()");
+      expect(out).toBe("PluginCapabilityError");
+    });
+  });
+
+  test("chat.listRoster WITH chat.read returns the invocation chat's roster", async () => {
+    const { bridge } = fakeBridge();
+    await withHost(["chat.read"], false, bridge, async (ctx) => {
+      const out = await runAsync(ctx, "(async () => String((await host.chat.listRoster(host.chat.current())).length))()");
+      expect(out).toBe("1");
+    });
+  });
+
+  test("worldInfo.listBooks / listEntries WITHOUT worldinfo.read are refused — the read half is its OWN grant", async () => {
+    const { bridge } = fakeBridge();
+    await withHost(allBut("worldinfo.read"), true, bridge, async (ctx) => {
+      const books = await runAsync(ctx, "(async () => { try { await host.worldInfo.listBooks('any'); return 'NO-THROW' } catch (e) { return e.name } })()");
+      expect(books).toBe("PluginCapabilityError");
+      const entries = await runAsync(
+        ctx,
+        "(async () => { try { await host.worldInfo.listEntries('any', 'wbook_x'); return 'NO-THROW' } catch (e) { return e.name } })()",
+      );
+      expect(entries).toBe("PluginCapabilityError");
+    });
+  });
+
+  test("worldInfo.listBooks / listEntries WITH worldinfo.read read the room's attached lore", async () => {
+    const { bridge } = fakeBridge();
+    await withHost(["chat.read", "worldinfo.read"], false, bridge, async (ctx) => {
+      const books = await runAsync(ctx, "(async () => String((await host.worldInfo.listBooks(host.chat.current())).length))()");
+      expect(books).toBe("1");
+      const entries = await runAsync(
+        ctx,
+        "(async () => String((await host.worldInfo.listEntries(host.chat.current(), 'wbook_read00000000000000000')).length))()",
+      );
+      expect(entries).toBe("1");
     });
   });
 });

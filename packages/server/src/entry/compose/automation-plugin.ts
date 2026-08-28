@@ -22,7 +22,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { InvocationChat, PluginHandlerRef, PluginQuietSchema } from "@orb/contracts/plugin";
-import { pluginToolWireName } from "@orb/contracts/plugin";
+import { PLUGIN_ASSET_READ_MAX_BYTES, pluginToolWireName } from "@orb/contracts/plugin";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ImageInput, ResponseFormat } from "@orb/contracts/role-clients";
 import { listSeededBackgrounds } from "@orb/contracts/theme";
@@ -86,7 +86,7 @@ import { publishAutomationEvent, publishNotification, publishUserEvent } from ".
 import { createAutomationOps } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
 import { minter } from "./minter.ts";
-import { loadPluginMessages } from "./plugin-chat-reads.ts";
+import { loadPluginMessages, loadPluginRoster } from "./plugin-chat-reads.ts";
 
 // (The /autobg SYSTEM line moved to `domain/automation/engine/arm-executors.ts` when `summarizeQuiet`
 // generalized at C1 — the domain owns its prompt text; this seam owns only the wire.)
@@ -110,7 +110,7 @@ export interface AutomationPluginComposeDeps {
   readonly resolveViewerVisibility: PluginHostOps["chat"]["resolveViewerVisibility"];
   /** The shared machine writer + the two reads the plugin `worldinfo.write` gates gate on (attachment =
    *  the room's consent; the entry index = the per-plugin cap's counter). */
-  readonly worldInfo: Pick<WorldInfoService, "upsertEntries" | "listForChat" | "listEntryIndex">;
+  readonly worldInfo: Pick<WorldInfoService, "upsertEntries" | "listForChat" | "listEntryIndex" | "listEntries">;
   readonly notifications: Pick<NotificationsService, "record">;
   readonly imagery: Pick<ImageryService, "generatePicture">;
   readonly settings: Pick<SettingsService, "getUserSettings">;
@@ -479,6 +479,10 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       listMessages: (chatId, opts) => loadPluginMessages(db, chatId, opts),
       // The bridge asks this BEFORE `listMessages` and hands the resolved floor down (a non-member ⇒ `[]`).
       resolveViewerVisibility: deps.resolveViewerVisibility,
+      // #788 F11 — the present CHARACTER roster (id/name/avatar), the `loadPluginMessages` principal-free
+      // precedent: the bridge resolves membership via `resolveViewerVisibility` and short-circuits a non-member
+      // to `[]` BEFORE this read, so a plugin sees only the roster of a room it is in.
+      listRoster: (chatId) => loadPluginRoster(db, chatId),
       getVariables: automationOps.chat.readVariables,
       applyVariableOps: automationOps.chat.applyVariableOps,
       // turn.trigger → chat's principal-free `requestTurn`. `initiator:"plugin"` is HARDCODED.
@@ -512,6 +516,34 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       listEntryTitles: async (ownerId, bookId) => {
         const rows = await worldInfo.listEntryIndex({ principal: await resolveOwnerPrincipal(ownerId), bookId });
         return rows.map((row) => row.title);
+      },
+      // #788 F12 — the READ half. `listBooksForChat` reads the SAME member-gated attachment front door
+      // `isBookAttachedToChat` above uses, projecting to the reduced `{id, name}`; fail-CLOSED to `[]` on a
+      // refusal (kicked between admission and read), so a non-member never learns the room's book list.
+      listBooksForChat: async (ownerId, chatId) => {
+        try {
+          const books = await worldInfo.listForChat({ principal: await resolveOwnerPrincipal(ownerId), chatId });
+          return books.map((book) => ({ id: book.id, name: book.name }));
+        } catch {
+          return [];
+        }
+      },
+      // The entry read — owner-gated on the book by world-info itself (the `listEntryTitles` precedent), so the
+      // installer reads only their OWN book's entries (symmetric with the owner-gated write); the ATTACHMENT gate
+      // ran in the bridge first. Fail-CLOSED to `[]` if the installer does not own the book (leak-free — a book
+      // owned by another host is indistinguishable from an empty one). Content is capped like the message read.
+      listEntries: async (ownerId, bookId) => {
+        try {
+          const entries = await worldInfo.listEntries({ principal: await resolveOwnerPrincipal(ownerId), bookId });
+          return entries.map((entry) => ({
+            id: entry.id,
+            keys: entry.keys ?? [],
+            content: entry.content.length > PLUGIN_MESSAGE_CONTENT_CAP ? entry.content.slice(0, PLUGIN_MESSAGE_CONTENT_CAP) : entry.content,
+            enabled: entry.enabled,
+          }));
+        } catch {
+          return [];
+        }
       },
     },
     // storage.kv — the plugin-PRIVATE KV.
@@ -619,6 +651,32 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         await automation.setGlobalVariable({ principal: await resolveOwnerPrincipal(ownerId), key, value });
       },
       delete: async (ownerId, key) => automation.deleteGlobalVariable({ principal: await resolveOwnerPrincipal(ownerId), key }),
+    },
+    // #788 seam-11 read half — read one asset from the INSTALLER's OWN CAS through the OWNER-GATED
+    // `readOwnedAssetBytes` (the SAME front door `resolveQuietImages` uses — "a guest can name an id but it can
+    // only ever read its own"). The Principal is resolved by ROW READ, so a `UserId` here carries no authority.
+    // LEAK-FREE: `readOwnedAssetBytes` collapses "not the caller's" and "does not exist" into ONE throw
+    // (`AssetNotFoundError`, no foreign-existence oracle); this wiring maps that — and any unreadable asset — to
+    // `null`, so a foreign id and an absent id are indistinguishable to the guest (the `isBookAttachedToChat`
+    // fail-closed idiom). An owned asset over the read cap returns metadata with `dataBase64: null` (never a
+    // truncated read a guest could mistake for the whole asset).
+    assets: {
+      read: async ({ installerUserId, assetId }) => {
+        const caller = await resolveOwnerPrincipal(installerUserId);
+        try {
+          const owned = await assets.readOwnedAssetBytes(caller, castId<AssetId>(assetId));
+          const sizeBytes = owned.bytes.length;
+          return {
+            mime: owned.mime,
+            sizeBytes,
+            dataBase64: sizeBytes > PLUGIN_ASSET_READ_MAX_BYTES ? null : Buffer.from(owned.bytes).toString("base64"),
+          };
+        } catch {
+          // Leak-free: a foreign/absent id (`AssetNotFoundError`) — and any unreadable asset — collapses to
+          // `null`, indistinguishable from one another (no existence oracle for another owner's CAS).
+          return null;
+        }
+      },
     },
     // S4 POSTURE 2 — the SHARED suggestion inbox, reached from the plugin side. `raise` is automation's own
     // raiser (it mints the id, renders + caps the question, stamps the same TTL and emits the same host-only

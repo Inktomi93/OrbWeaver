@@ -221,6 +221,7 @@ function loreOps(over: { readonly attached?: boolean; readonly titles?: readonly
   const ops: PluginHostOps = {
     ...base,
     worldInfo: {
+      ...base.worldInfo,
       upsertEntries: (req) => {
         writes.push(req);
         return Promise.resolve({ inserted: 1, updated: 0, skippedHandEdited: 0 });
@@ -710,5 +711,161 @@ describe("buildPluginBridge — the U8 D148 card-state ops stamp the plugin's ow
 
     expect(result).toEqual({ read: "back", for: "char_target0000000000000000" });
     expect(rec.getCalls).toEqual([{ installerUserId: INSTALLER, slug: "bridge-test-plugin", characterId: "char_target0000000000000000" }]);
+  });
+});
+
+/** An ops bundle recording the #788 READ-gap seams, with injectable membership + attachment verdicts. The
+ *  recorded owner ids are the load-bearing assertion: every read must close the INSTALLER the bridge was built
+ *  for over the op, so a guest can name no other owner and a foreign read is not expressible. */
+function readGapOps(over: { readonly visibility?: Awaited<ReturnType<PluginHostOps["chat"]["resolveViewerVisibility"]>>; readonly attached?: boolean }): {
+  readonly ops: PluginHostOps;
+  readonly rosterChats: ChatId[];
+  readonly bookChats: { readonly owner: UserId; readonly chatId: ChatId }[];
+  readonly entryReads: { readonly owner: UserId; readonly bookId: string }[];
+  readonly attachChecks: { readonly owner: UserId; readonly bookId: string }[];
+  readonly assetReads: { readonly installerUserId: UserId; readonly assetId: string }[];
+  readonly viewers: UserId[];
+} {
+  const rosterChats: ChatId[] = [];
+  const bookChats: { owner: UserId; chatId: ChatId }[] = [];
+  const entryReads: { owner: UserId; bookId: string }[] = [];
+  const attachChecks: { owner: UserId; bookId: string }[] = [];
+  const assetReads: { installerUserId: UserId; assetId: string }[] = [];
+  const viewers: UserId[] = [];
+  const base = makeInertOps();
+  const ops: PluginHostOps = {
+    ...base,
+    chat: {
+      ...base.chat,
+      resolveViewerVisibility: (_chatId, userId) => {
+        viewers.push(userId);
+        return Promise.resolve(over.visibility ?? null);
+      },
+      listRoster: (chatId) => {
+        rosterChats.push(chatId);
+        return Promise.resolve([{ id: "char_seat0000000000000000000", name: "Seat", avatarAssetId: null }]);
+      },
+    },
+    worldInfo: {
+      ...base.worldInfo,
+      isBookAttachedToChat: (owner, _chatId, bookId) => {
+        attachChecks.push({ owner, bookId });
+        return Promise.resolve(over.attached ?? false);
+      },
+      listBooksForChat: (owner, chatId) => {
+        bookChats.push({ owner, chatId });
+        return Promise.resolve([{ id: BOOK, name: "Room Lore" }]);
+      },
+      listEntries: (owner, bookId) => {
+        entryReads.push({ owner, bookId });
+        return Promise.resolve([{ id: "wentry_000000000000000000000", keys: ["k"], content: "lore", enabled: true }]);
+      },
+    },
+    assets: {
+      read: (req) => {
+        assetReads.push(req);
+        return Promise.resolve({ mime: "image/png", sizeBytes: 3, dataBase64: "AAAA" });
+      },
+    },
+  };
+  return { ops, rosterChats, bookChats, entryReads, attachChecks, assetReads, viewers };
+}
+
+describe("buildPluginBridge — #788 READ gaps are owner-scoped + leak-free", () => {
+  test("listRoster resolves the INSTALLER's own membership and short-circuits a NON-MEMBER to [] (the leak-free choke bites)", async () => {
+    const rec = readGapOps({ visibility: null }); // not a present member
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
+
+    const roster = await bridge.chat.listRoster(CHAT);
+
+    expect(roster).toEqual([]);
+    // The membership was resolved FOR THE INSTALLER (structural — never a guest-supplied id)…
+    expect(rec.viewers).toEqual([INSTALLER]);
+    // …and the roster op was NEVER reached: a non-member cannot read a room's roster (red-first — the choke, not
+    // a post-filter, withholds it).
+    expect(rec.rosterChats).toEqual([]);
+  });
+
+  test("listRoster for a MEMBER reads the invocation chat's roster (member-gated, this room only)", async () => {
+    const rec = readGapOps({ visibility: { role: "member", historyFloorSeq: historyFloor(0), readsHidden: false } });
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
+
+    const roster = await bridge.chat.listRoster(CHAT);
+
+    expect(roster).toEqual([{ id: "char_seat0000000000000000000", name: "Seat", avatarAssetId: null }]);
+    expect(rec.viewers).toEqual([INSTALLER]);
+    expect(rec.rosterChats).toEqual([CHAT]); // scoped to the ADMITTED invocation chat, no other
+  });
+
+  test("listRoster's membership is resolved for whichever INSTALLER the bridge was built for (cross-owner is structural)", async () => {
+    const rec = readGapOps({ visibility: null });
+    const otherBridge = buildPluginBridge(rec.ops, OTHER, PLUGIN_REF, freeBelts());
+
+    await otherBridge.chat.listRoster(CHAT);
+
+    expect(rec.viewers).toEqual([OTHER]); // the guest has no lever on whose membership is checked
+  });
+
+  test("listBooks closes the INSTALLER over the attachment-list read (a guest names no owner)", async () => {
+    const rec = readGapOps({});
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
+
+    const books = await bridge.worldInfo.listBooks(CHAT);
+
+    expect(books).toEqual([{ id: BOOK, name: "Room Lore" }]);
+    expect(rec.bookChats).toEqual([{ owner: INSTALLER, chatId: CHAT }]);
+  });
+
+  test("listBooks for a DIFFERENT installer reads under THAT installer (owner-scope is structural)", async () => {
+    const rec = readGapOps({});
+    const otherBridge = buildPluginBridge(rec.ops, OTHER, PLUGIN_REF, freeBelts());
+
+    await otherBridge.worldInfo.listBooks(CHAT);
+
+    expect(rec.bookChats).toEqual([{ owner: OTHER, chatId: CHAT }]);
+  });
+
+  test("listEntries on a book NOT attached to this chat returns [] WITHOUT reading entries (the attachment gate bites — red-first)", async () => {
+    const rec = readGapOps({ attached: false });
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
+
+    const entries = await bridge.worldInfo.listEntries(CHAT, BOOK);
+
+    expect(entries).toEqual([]);
+    // The attachment was checked under the INSTALLER…
+    expect(rec.attachChecks).toEqual([{ owner: INSTALLER, bookId: BOOK }]);
+    // …and the entry read was NEVER reached: a book attached only to another room (even one the installer owns)
+    // leaks nothing — [] is indistinguishable from an attached-but-empty book.
+    expect(rec.entryReads).toEqual([]);
+  });
+
+  test("listEntries on an ATTACHED book reads its entries, closing the installer over BOTH the gate and the read", async () => {
+    const rec = readGapOps({ attached: true });
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
+
+    const entries = await bridge.worldInfo.listEntries(CHAT, BOOK);
+
+    expect(entries).toEqual([{ id: "wentry_000000000000000000000", keys: ["k"], content: "lore", enabled: true }]);
+    expect(rec.attachChecks).toEqual([{ owner: INSTALLER, bookId: BOOK }]);
+    expect(rec.entryReads).toEqual([{ owner: INSTALLER, bookId: BOOK }]);
+  });
+
+  test("assets.read closes the INSTALLER over the CAS read (a guest names an id, never an owner)", async () => {
+    const rec = readGapOps({});
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
+
+    const asset = await bridge.assets.read("asset_target0000000000000000");
+
+    expect(asset).toEqual({ mime: "image/png", sizeBytes: 3, dataBase64: "AAAA" });
+    expect(rec.assetReads).toEqual([{ installerUserId: INSTALLER, assetId: "asset_target0000000000000000" }]);
+  });
+
+  test("assets.read for a DIFFERENT installer reads under THAT installer (cross-owner is not expressible)", async () => {
+    const rec = readGapOps({});
+    const otherBridge = buildPluginBridge(rec.ops, OTHER, PLUGIN_REF, freeBelts());
+
+    await otherBridge.assets.read("asset_target0000000000000000");
+
+    expect(rec.assetReads).toEqual([{ installerUserId: OTHER, assetId: "asset_target0000000000000000" }]);
   });
 });
