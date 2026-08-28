@@ -117,7 +117,7 @@ host.events.on("messageCommitted", async (fact) => {
     // …and push the same reading onto the ROOM SURFACE (the chat-flank widget registered below). This is the
     // whole shape of a live plugin widget: a room event lands, you compute, you `setState`, and the app
     // repaints the surface for you. Nothing here draws anything — the spec below is the drawing.
-    await publishFlank(score);
+    await publishFlank(chat, score);
   } catch (err) {
     // A handler must never throw — three consecutive rejections auto-disable the plugin. The two failures
     // this one actually meets are the hourly `llm.quiet` floor and a model provider having a bad minute;
@@ -222,9 +222,12 @@ host.ui.register({
 //  1. SILENT UNTIL YOU HAVE SOMETHING TO SAY. A flank surface whose values are `{ $state }` bindings renders
 //     NOTHING until you have published state, and a room that shows no widget is byte-identical to a room
 //     with no plugin at all. So do not publish a placeholder — publish when you have a reading.
-//  2. STATE IS PER (plugin, surface) — NOT per room. `setState` replaces the whole object, and every room
-//     shows the same published state, so say what the number IS ("your latest reading") rather than implying
-//     it belongs to the room you happen to be looking at.
+//  2. STATE CAN BE PER-ROOM, AND HERE IT SHOULD BE. `setState` takes an optional third argument: the CHAT
+//     HANDLE of the room the reading belongs to. Pass it and the widget in that room shows that room's number;
+//     omit it and every room shows the same publication. A warmth reading is a fact about ONE conversation, so
+//     it is passed. (Omitting it is still right for something genuinely cross-room — the settings panel's
+//     roll-up below publishes with no handle for exactly that reason.) You can only name a room this
+//     invocation was admitted to: the handle comes from `host.chat.current()` and a forged one is refused.
 const AFFINITY_FLANK_SPEC = {
   kind: "stack",
   gap: "field",
@@ -234,13 +237,10 @@ const AFFINITY_FLANK_SPEC = {
   ],
 };
 
-/** Publish the latest reading to the room widget. Called from the event handler — that is what makes the
- *  widget LIVE: the app is told the surface changed and repaints it wherever it is on screen. */
-async function publishFlank(score) {
-  await host.ui.setState("affinity_flank", {
-    score,
-    caption: `Your latest warmth reading, ${score} of ${SCORE_MAX}, taken every ${SCORE_EVERY} messages.`,
-  });
+/** Publish the latest reading to the room widget, keyed to THIS ROOM. Called from the event handler — that is
+ *  what makes the widget LIVE: the app is told the surface changed and repaints it wherever it is on screen. */
+async function publishFlank(chat, score) {
+  await host.ui.setState("affinity_flank", { score, caption: `This room's warmth, ${score} of ${SCORE_MAX}, read every ${SCORE_EVERY} messages.` }, chat);
 }
 
 host.ui.register({
@@ -251,6 +251,28 @@ host.ui.register({
   spec: AFFINITY_FLANK_SPEC,
   // No `onAction`: this surface is a READOUT. A surface with no actions is a perfectly good surface — it is
   // the cheapest thing to build and the least that can go wrong in a room.
+});
+
+// ── THE SCRIPTED SURFACE (tier: "scripted" — the Tier-C half, drawn by `ui.js`) ──────────────────────────
+//
+// The registration is the SAME `host.ui.register` call, with two differences and no third: `tier` is
+// `"scripted"`, and there is NO `spec` — because the tree is not a constant here, it is whatever `ui.js`
+// computes IN THE BROWSER and publishes with `orb.ui(1).render`. That is the entire declaration; everything
+// else about the surface (its label, its anchor, its shell) works exactly as it does for a static one.
+//
+// WHY THIS SURFACE IS SCRIPTED AND THE OTHER TWO ARE NOT — the honest rule for choosing a tier: this one has a
+// FILTER BOX. A static surface's every keystroke would be a round-trip through `onAction`, which is both slow
+// and wrong (a filter is not an action). The panel above and the room widget below have no local interaction at
+// all — they display what the server published — so making them scripted would buy nothing and cost a WASM
+// interpreter. Reach for the scripted tier when a surface has to THINK between clicks; stay static otherwise.
+//
+// There is no `onAction` either: a scripted surface's events go to its own `onEvent` handler in `ui.js`, not
+// back to this file.
+host.ui.register({
+  id: "affinity_browser",
+  anchor: "settings",
+  title: "Browse readings",
+  tier: "scripted",
 });
 
 host.log.info(`affinity tracker ready — scoring every ${SCORE_EVERY} messages (grants: ${host.grants.join(", ") || "none"})`);

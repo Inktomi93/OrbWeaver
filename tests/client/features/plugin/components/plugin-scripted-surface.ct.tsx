@@ -1,0 +1,262 @@
+// CT: the TIER-C scripted plugin surface (plugin-ui-plane #679 U4, §4.6/§4.9) — the REAL QuickJS-WASM guest, in
+// a REAL Web Worker, mounted through the REAL Plugins pane over a stubbed network. Nothing here is a double
+// except the wire: the interpreter, the realm stripping, the wall-clock timer, the publish guard and the schema
+// re-validation are all production code.
+//
+// THE THREE THINGS THIS FILE EXISTS TO PROVE, and each is a claim the design makes that nothing else checks:
+//
+//  1. ZERO NETWORK ON KEYSTROKE — the owner's own U4 done-criterion. A scripted surface filters a list as you
+//     type, and the request count does not move. This is the ENTIRE reason Tier C exists; a Tier-S surface
+//     would fire `invokeUiAction` per character. The count is taken AFTER a settled rendered barrier (the
+//     narrowed list), never as a bare number — a node-side count is not a browser-side settle.
+//  2. A HUNG GUEST COLLAPSES TO NULL WITHIN THE DEADLINE — the D46 review's P1-A lesson, inherited from birth.
+//     A `while(true)` in an event handler cannot be preempted by the in-guest interrupt once it stops yielding,
+//     so the HOST's wall-clock timer plus `worker.terminate()` is the only bound that holds. The surface must
+//     disappear, and the crash must reach the 3-strike counter (`plugin.reportUiCrash`).
+//  3. THE PUBLISH GUARD REFUSES A RE-RENDER LOOP — a guest that republishes an IDENTICAL tree on every event
+//     must not re-mount the surface, or a `render`-in-`onEvent` guest becomes an infinite paint loop.
+//
+// WHY THE GUEST SOURCES ARE INLINE STRINGS: they are the untrusted input under test. A fixture file would be
+// compiled/linted as if it were ours, and the hostile arms (an infinite loop, a tree that fails the schema) are
+// precisely the shapes a linter would refuse to let us write.
+
+import type { PluginId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { PluginScriptedSurfaceStory } from "../_ct-stories.tsx";
+
+const A_PAST_INSTANT = 1_760_000_000_000;
+const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" };
+const SCRIPTED_ID = castId<PluginId>("plugin_ct_scripted00001");
+/** The WALL is `eventCpuMs + hostCallDeadlineMs` = 6 s (ui-guest-protocol.ts). The hung arm has to outlive it,
+ *  plus the worker boot, so its barrier gets real room — a tighter timeout would flake on a cold WASM load
+ *  rather than measuring the deadline. */
+const HUNG_COLLAPSE_TIMEOUT_MS = 20_000;
+/** Booting a WASM interpreter is not instant, and under CT contention it is less instant still. */
+const GUEST_BOOT_TIMEOUT_MS = 15_000;
+
+/** An enabled installed row carrying the `ui.surface` grant — the row a scripted surface mounts inside. */
+function enabledRow(id: PluginId, name: string): Record<string, unknown> {
+  return {
+    id,
+    slug: "scripted-demo",
+    name,
+    version: "1.0.0",
+    status: "enabled",
+    origin: "upload",
+    declaredCapabilities: ["ui.surface", "storage.kv"],
+    grantedCapabilities: ["ui.surface", "storage.kv"],
+    netHosts: null,
+    reconsentPending: false,
+    widenedNetHosts: [],
+    builtAgainst: null,
+    consecutiveCrashes: 0,
+    lastError: null,
+    installedAt: A_PAST_INSTANT,
+    updatedAt: A_PAST_INSTANT,
+  };
+}
+
+/** A `listSurfaces` row at the SCRIPTED tier: no `spec`, because the tree is computed in the browser. */
+function scriptedSurface(pluginId: PluginId, id: string): Record<string, unknown> {
+  return { pluginId, id, anchor: "settings", title: "Browse readings", tier: "scripted" };
+}
+
+/** Serve `ui.js` from the owner-gated bytes route, with the REAL response typing the route sets — the client
+ *  fetches it as text, so an `octet-stream` body is exactly what production hands it. */
+async function routeUiBundle(page: Parameters<typeof routeTrpc>[0], source: string): Promise<{ readonly hits: () => number }> {
+  let hits = 0;
+  await page.route("**/api/plugin-ui/**", async (route) => {
+    hits += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/octet-stream",
+      headers: { "X-Content-Type-Options": "nosniff" },
+      body: source,
+    });
+  });
+  return { hits: (): number => hits };
+}
+
+/** THE FILTER DEMO — the shipped affinity-tracker's shape, reduced to what the assertion needs: one host read
+ *  at startup, then a local filter. This IS the `ui.js` pattern the seeded example teaches. */
+const FILTER_GUEST = `
+  const ui = orb.ui(1);
+  let rooms = [];
+  let query = "";
+  function draw() {
+    const needle = query.trim().toLowerCase();
+    const matches = rooms.filter((r) => needle === "" || r.toLowerCase().includes(needle));
+    ui.render("browser", {
+      kind: "stack",
+      children: [
+        { kind: "textField", name: "q", label: "Filter rooms", value: query },
+        { kind: "list", items: matches },
+        { kind: "text", voice: "label", value: matches.length + " of " + rooms.length + " rooms" },
+      ],
+    });
+  }
+  ui.onEvent((e) => {
+    if (e.event.type === "field" && e.event.name === "q") { query = e.event.value; draw(); }
+  });
+  draw();
+  ui.host.storage.list("score:").then((keys) => { rooms = keys.map((k) => k.slice(6)); draw(); });
+`;
+
+// THE TWO HANG SHAPES, and they are NOT the same test — this file originally had only the first and it passed
+// while proving the wrong thing (measured 2026-08-28: the reported reason was `InternalError: interrupted`,
+// i.e. the IN-GUEST budget, with the host's wall-clock timer never involved). They are kept apart because they
+// are contained by two different mechanisms, and only one of them is the P1-A lesson:
+//
+//  A. CPU-BOUND (`while(true)`) — still EXECUTING BYTECODE, so the QuickJS interrupt handler preempts it at
+//     `eventCpuMs`. Fast, contained in-thread, and the cheap common case (a plugin author's accidental loop).
+//  B. NON-EXECUTING (`await new Promise(() => {})`) — the guest has STOPPED running bytecode entirely, so the
+//     interrupt handler is STRUCTURALLY BLIND to it (it only ever fires between instructions). Nothing inside
+//     the worker can end this. The ONLY bound is the host's wall-clock timer on another thread plus
+//     `worker.terminate()` — which is the whole reason the interpreter is in a worker, and the whole reason
+//     `HOST_FN_DEADLINE_MS`-style settlement walls exist on the server half too.
+
+/** A. The CPU-bound wedge — contained by the in-guest interrupt. */
+const CPU_HUNG_GUEST = `
+  const ui = orb.ui(1);
+  ui.render("browser", { kind: "stack", children: [{ kind: "button", actionId: "go", label: "Wedge it" }] });
+  ui.onEvent(() => { while (true) {} });
+`;
+
+/** B. The NON-EXECUTING wedge — the interrupt handler cannot see it; only the host's wall-clock kill ends it. */
+const PARKED_HUNG_GUEST = `
+  const ui = orb.ui(1);
+  ui.render("browser", { kind: "stack", children: [{ kind: "button", actionId: "go", label: "Park it" }] });
+  ui.onEvent(() => new Promise(() => {}));
+`;
+
+/** THE LOOPING PUBLISHER — it republishes an IDENTICAL tree on every event. Without a content-equality guard
+ *  this is an unbounded paint loop; with one it is a no-op after the first publish. */
+const REPUBLISH_GUEST = `
+  const ui = orb.ui(1);
+  const tree = { kind: "stack", children: [{ kind: "text", value: "steady" }, { kind: "textField", name: "q", label: "Type here" }] };
+  ui.onEvent(() => { ui.render("browser", tree); });
+  ui.render("browser", tree);
+`;
+
+test("THE U4 DONE-CRITERION — a scripted surface filters a list with ZERO network on keystroke", async ({ mount, page }) => {
+  const recorder: TrpcRecorder = await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(SCRIPTED_ID, "Scripted Demo")],
+    "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+    // The ONE host call this guest makes, and it makes it exactly once — at startup.
+    "plugin.uiHostCall": () => ({ resultJson: JSON.stringify(["score:aurora", "score:beacon", "score:cinder"]) }),
+  });
+  await routeUiBundle(page, FILTER_GUEST);
+  await mount(<PluginScriptedSurfaceStory />);
+
+  // SETTLED BARRIER 1: the guest booted, made its read, and published a tree carrying all three rooms. The
+  // count line is the honest barrier — it exists only after the startup read landed AND was re-published.
+  await expect(page.getByText("3 of 3 rooms")).toBeVisible({ timeout: GUEST_BOOT_TIMEOUT_MS });
+  await expect(page.getByText("aurora")).toBeVisible();
+
+  // THE MEASUREMENT. Taken AFTER a settled state, so it is a count of a finished world, not a race.
+  const before = recorder.count("plugin.uiHostCall") + recorder.count("plugin.invokeUiAction") + recorder.count("plugin.getSurfaceState");
+
+  // Type. Every character is a `postMessage` into the worker and nothing else.
+  await page.getByRole("textbox", { name: "Filter rooms" }).fill("bea");
+
+  // SETTLED BARRIER 2: the guest filtered LOCALLY and republished. "1 of 3 rooms" cannot exist unless the
+  // keystroke reached the interpreter and its new tree came back through the schema and mounted.
+  await expect(page.getByText("1 of 3 rooms")).toBeVisible();
+  await expect(page.getByText("beacon")).toBeVisible();
+  await expect(page.getByText("aurora")).toBeHidden();
+
+  // THE CLAIM: not one request moved. This is what Tier C bought.
+  const after = recorder.count("plugin.uiHostCall") + recorder.count("plugin.invokeUiAction") + recorder.count("plugin.getSurfaceState");
+  expect(after, "a keystroke must not touch the network").toBe(before);
+  // …and the POSITIVE CONTROL that the counter can move at all: the startup read DID happen, so a zero above
+  // is a real "nothing more fired" rather than a recorder that was never wired.
+  expect(recorder.count("plugin.uiHostCall")).toBe(1);
+});
+
+/** Both hang arms share everything but the guest and the expected reason — the wiring, the boot barrier, the
+ *  collapse barrier and the crash-report shape are the SAME contract, so they are asserted once. Returns the
+ *  reported reason for the arm-specific assertion. */
+async function drivesHangToCollapse(
+  fixture: { mount: (el: React.ReactElement) => Promise<unknown>; page: Parameters<typeof routeTrpc>[0] },
+  guest: string,
+  label: string,
+): Promise<string> {
+  const { mount, page } = fixture;
+  let crashes = 0;
+  const recorder: TrpcRecorder = await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(SCRIPTED_ID, "Wedging Demo")],
+    "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+    "plugin.reportUiCrash": () => {
+      crashes += 1;
+      return null;
+    },
+  });
+  await routeUiBundle(page, guest);
+  await mount(<PluginScriptedSurfaceStory />);
+
+  // It BOOTS FINE — which is the point of both arms: the failure under test is not "a broken plugin never
+  // appeared", it is "a working plugin wedged", and only the second shape exercises a containment mechanism.
+  const wedge = page.getByRole("button", { name: label });
+  await expect(wedge).toBeVisible({ timeout: GUEST_BOOT_TIMEOUT_MS });
+
+  await wedge.click();
+
+  // THE COLLAPSE (§4.9): no spinner, no error card, no frozen widget — the surface is simply GONE. This also
+  // proves the main thread survived: the same guest on the UI thread would have frozen the page and this
+  // assertion could never have run at all.
+  await expect(wedge).toBeHidden({ timeout: HUNG_COLLAPSE_TIMEOUT_MS });
+
+  // …and the death was REPORTED, into the same counter a throwing server handler drives. A silent collapse
+  // would leave a plugin that dies every mount flickering forever instead of auto-disabling.
+  await expect.poll(() => crashes, { timeout: HUNG_COLLAPSE_TIMEOUT_MS }).toBeGreaterThan(0);
+  const reported = recorder.lastInput("plugin.reportUiCrash") as { pluginId: string; surfaceId: string; reason: string };
+  expect(reported.pluginId).toBe(SCRIPTED_ID);
+  expect(reported.surfaceId).toBe("browser");
+  return reported.reason;
+}
+
+test("a CPU-BOUND hang is preempted by the in-guest budget, and the surface collapses to null", async ({ mount, page }) => {
+  const reason = await drivesHangToCollapse({ mount, page }, CPU_HUNG_GUEST, "Wedge it");
+  // The QuickJS INTERRUPT handler fired — this arm never reaches the host's wall-clock timer, and naming that
+  // in the assertion is what keeps the two arms from silently becoming one test that proves half the story.
+  expect(reason, "a bytecode-executing loop is caught in-guest, not by the host wall").toContain("interrupted");
+});
+
+test("THE P1-A LESSON — a NON-EXECUTING hang is killed by the HOST's wall-clock timer, which the in-guest budget cannot see", async ({ mount, page }) => {
+  // `new Promise(() => {})` stops running bytecode entirely, so the interrupt handler is structurally blind to
+  // it: nothing inside the worker can end this. Only the host's timer + `worker.terminate()` does — the exact
+  // gap the D46 review's P1-A finding named on the server half, inherited here from birth.
+  const reason = await drivesHangToCollapse({ mount, page }, PARKED_HUNG_GUEST, "Park it");
+  expect(reason, "only the OUT-OF-THREAD wall can end a guest that stopped executing").toContain("did not respond");
+});
+
+test("the publish guard refuses a re-render loop — an identical republish is a no-op, and the surface stays alive", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(SCRIPTED_ID, "Republishing Demo")],
+    "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await routeUiBundle(page, REPUBLISH_GUEST);
+  await mount(<PluginScriptedSurfaceStory />);
+
+  const field = page.getByRole("textbox", { name: "Type here" });
+  await expect(field).toBeVisible({ timeout: GUEST_BOOT_TIMEOUT_MS });
+
+  // Drive a burst of events, each of which republishes the SAME tree. Without the content-equality guard every
+  // one re-mounts the tree, and a controlled input that re-mounts loses its own value mid-typing — so the
+  // assertion below is not a proxy for the guard, it is the guard's user-visible consequence.
+  await field.fill("abcdefgh");
+  await expect(field).toHaveValue("abcdefgh");
+  await expect(page.getByText("steady")).toBeVisible();
+});
