@@ -171,11 +171,15 @@ test("THE U4 DONE-CRITERION — a scripted surface filters a list with ZERO netw
   await expect(page.getByText("beacon")).toBeVisible();
   await expect(page.getByText("aurora")).toBeHidden();
 
-  // THE CLAIM: not one request moved. This is what Tier C bought.
+  // THE CLAIM: not one request moved. This is what Tier C bought. Both counts sit BETWEEN two settled rendered
+  // barriers ("3 of 3 rooms" and "1 of 3 rooms"), so the world is provably finished at each read — and the
+  // assertion is that nothing moved between them, which a retrying poll structurally cannot express (it would
+  // happily wait for a request to arrive, which is the opposite of the property).
   const after = recorder.count("plugin.uiHostCall") + recorder.count("plugin.invokeUiAction") + recorder.count("plugin.getSurfaceState");
   expect(after, "a keystroke must not touch the network").toBe(before);
-  // …and the POSITIVE CONTROL that the counter can move at all: the startup read DID happen, so a zero above
-  // is a real "nothing more fired" rather than a recorder that was never wired.
+  // …and the POSITIVE CONTROL that the counter can move at all: the startup read DID happen, so a zero delta
+  // above is a real "nothing more fired" rather than a recorder that was never wired.
+  // ONESHOT-OK: the "3 of 3 rooms" barrier cannot render before that startup read completed.
   expect(recorder.count("plugin.uiHostCall")).toBe(1);
 });
 
@@ -218,8 +222,12 @@ async function drivesHangToCollapse(
   // …and the death was REPORTED, into the same counter a throwing server handler drives. A silent collapse
   // would leave a plugin that dies every mount flickering forever instead of auto-disabling.
   await expect.poll(() => crashes, { timeout: HUNG_COLLAPSE_TIMEOUT_MS }).toBeGreaterThan(0);
-  const reported = recorder.lastInput("plugin.reportUiCrash") as { pluginId: string; surfaceId: string; reason: string };
+  // The poll above settled on `crashes > 0`, so the recorder provably HOLDS this call: the two reads below are
+  // of a FINISHED record, not of a race.
+  const reported = recorder.lastInput("plugin.reportUiCrash") as { pluginId: PluginId; surfaceId: string; reason: string };
+  // ONESHOT-OK: the `crashes > 0` poll above proves the call was recorded before this read.
   expect(reported.pluginId).toBe(SCRIPTED_ID);
+  // ONESHOT-OK: same settled poll — the record exists and is final.
   expect(reported.surfaceId).toBe("browser");
   return reported.reason;
 }

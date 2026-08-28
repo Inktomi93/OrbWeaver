@@ -43,10 +43,13 @@ const oneKey = z.tuple([kvKey]);
 const keyAndValue = z.tuple([kvKey, z.string()]);
 const optionalPrefix = z.tuple([z.string().max(KV_KEY_MAX).optional()]);
 
-/** Thrown when a chat-scoped proxy is called without an admitted room. A distinct message because the two
+/** Thrown when a chat-scoped proxy is called without an admitted room. A distinct MESSAGE because the two
  *  failures a plugin author hits here are genuinely different: "you did not pass the room" (this) versus "you
- *  passed a room you cannot read" (the verb's leak-free NOT_FOUND). */
-export class UiHostCallScopeError extends Error {
+ *  passed a room you cannot read" (the verb's leak-free NOT_FOUND). Module-private on purpose — it is a named
+ *  message, not a taxonomy member: nothing branches on the class, the transport maps it like any other domain
+ *  throw, and exporting it would invite a caller to start branching on a distinction that only exists to make
+ *  the sentence right. */
+class UiHostCallScopeError extends Error {
   constructor(fn: string) {
     super(`plugin host: ${fn} needs a chat scope — pass the surface's room id with the call`);
     this.name = "UiHostCallScopeError";

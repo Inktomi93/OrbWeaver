@@ -30,11 +30,11 @@ const PANEL_WITH_ACTION: PluginInstance["surfaces"] = [
  *  scope. The args arm is `PluginInvokeArgs` now (row 777) — a string OR a builder over the invocation's opaque
  *  chat handle — so the recorder APPLIES the builder exactly as the runtime does, with a stand-in token. That
  *  substitution is the point of the seam and is what these tests are able to observe. */
-function makeRecordingPort(recorded: { argsJson: string; chat: InvocationChat | null }[], handle: string): PluginHostPort {
+function makeRecordingPort(recorded: { argsJson: string; chat: InvocationChat | null }[], chatToken: string): PluginHostPort {
   return {
     createInstance: (): Promise<CreateInstanceOutcome> => Promise.resolve({ ok: true, instance: instanceWith(PANEL_WITH_ACTION) }),
     invoke: (_instance, _handler, args, chat): Promise<string> => {
-      recorded.push({ argsJson: typeof args === "string" ? args : args(chat === null || chat === undefined ? null : handle), chat: chat ?? null });
+      recorded.push({ argsJson: typeof args === "string" ? args : args(chat === null || chat === undefined ? null : chatToken), chat: chat ?? null });
       return Promise.resolve("");
     },
     runSnippet: () => Promise.reject(new Error("runSnippet is not exercised here")),

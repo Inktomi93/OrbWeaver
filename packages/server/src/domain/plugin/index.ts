@@ -60,6 +60,7 @@ export type {
   PluginRegistrationHandle,
   RaisePluginSuggestion,
   SnippetGate,
+  UiHostCallGate,
   VoidPluginSuggestions,
 } from "./contract/ops.ts";
 export type {
@@ -113,5 +114,4 @@ export { buildPluginPromptTransform, capFactContent } from "./substrate/registra
 export { createSnippetGate } from "./substrate/snippet-gate.ts";
 export { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "./substrate/storage.ts";
 export { createPluginSurfaceStateStore, createSurfaceStatePublisher, PLUGIN_SURFACE_STATE_MAX_KEYS } from "./substrate/surface-state.ts";
-export type { UiHostCallGate } from "./substrate/ui-host-call-gate.ts";
 export { createUiHostCallGate, UI_HOST_CALLS_IN_FLIGHT_MAX } from "./substrate/ui-host-call-gate.ts";

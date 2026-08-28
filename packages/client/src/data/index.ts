@@ -36,6 +36,7 @@ export type {
 export { createCollectionSurface } from "./create-collection-surface.ts";
 export type { EntityMutationConfig, EntityMutationResult } from "./create-entity-mutation.ts";
 export { createEntityMutation } from "./create-entity-mutation.ts";
+export { fetchPluginUiSource } from "./fetch-plugin-ui-source.ts";
 export { throwHttpError } from "./http-error.ts";
 export type { BundleImportStarted } from "./import-bundle.ts";
 export { importBundle } from "./import-bundle.ts";

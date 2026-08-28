@@ -14,8 +14,8 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import { PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
-import type { PluginId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { Handle, PluginId, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { PrincipalEnv } from "@orb/server/entry/http";
 import { registerPluginUi } from "@orb/server/entry/http";
 import { Hono } from "hono";
@@ -31,9 +31,16 @@ const OK = 200;
 const NOT_FOUND = 404;
 const UNAUTHORIZED = 401;
 
-/** A stand-in principal — the route only ever passes it through to the domain verb, which is where every
- *  authority decision lives (this file tests the TRANSPORT half). */
-const PRINCIPAL = { userId: "user_a000000000000000000001", role: "member" } as unknown as Principal;
+/** A REAL `Principal`, spelled out (the `blob.test.ts` sibling's shape) rather than double-cast: the route only
+ *  passes it through to the domain verb, but a fabricated one would survive `Principal` gaining a field and
+ *  quietly stop representing what the route actually receives. */
+const PRINCIPAL: Principal = {
+  userId: castId<UserId>("usr_plugin_owner"),
+  role: "owner",
+  handle: castId<Handle>("plugin_user"),
+  externalId: null,
+  via: "fallback",
+};
 
 interface AppOpts {
   readonly principal?: Principal | null;
