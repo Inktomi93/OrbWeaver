@@ -24,7 +24,7 @@ import { castId } from "@orb/kit/ids";
 // `../../../../packages/server/src/...` into a branded type, and it then mis-fires `useAwaitThenable` /
 // `noUnnecessaryConditions` on perfectly typed code.
 import type { PluginActivationScope, PluginHostOps, PluginHostPort, PluginInvokeHandler, PluginRegistrationHandle } from "@orb/server/domain/plugin";
-import { buildPluginStorage } from "@orb/server/domain/plugin";
+import { buildPluginStorage, createSurfaceStatePublisher } from "@orb/server/domain/plugin";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
 import { packSeedPluginBundle } from "../../../../packages/server/src/entry/boot/seed-assets/index.ts";
 import { createExamplePluginSeeder, EXAMPLE_PLUGIN_SLUGS } from "../../../../packages/server/src/entry/boot/seed-example-plugins.ts";
@@ -64,6 +64,9 @@ interface Captured {
   readonly pubsubEmits: { readonly emitterSlug: string; readonly name: string; readonly data: Record<string, unknown> }[];
   /** Each `surfaceQuickReply` emission, in order — the room-visible half of the chip archetype. */
   readonly chips: (readonly { readonly label: string; readonly sendText: string }[])[];
+  /** Every `host.ui.toast` the guests asked for, at the OP seam (the compose-wired outbox is a compose
+   *  concern; the drive asserts what the guest SAID, not how chrome delivers it). */
+  readonly toasts: { readonly level: string; readonly message: string }[];
   /** The per-activation invoke closure (crash-policy wrapped) — how a delivery/tool call actually re-enters. */
   invoke: PluginInvokeHandler | null;
   scope: PluginActivationScope | null;
@@ -74,7 +77,18 @@ interface Captured {
 function recordingOps(db: Db, globals: Map<string, string>): { ops: PluginHostOps; captured: Captured } {
   const base = makeInertOps();
   const noop: PluginRegistrationHandle = { unregister: (): void => undefined };
-  const captured: Captured = { events: [], tools: [], transforms: [], macros: [], pubsubSubs: [], pubsubEmits: [], chips: [], invoke: null, scope: null };
+  const captured: Captured = {
+    events: [],
+    tools: [],
+    transforms: [],
+    macros: [],
+    pubsubSubs: [],
+    pubsubEmits: [],
+    chips: [],
+    toasts: [],
+    invoke: null,
+    scope: null,
+  };
   const ops: PluginHostOps = {
     ...base,
     storage: buildPluginStorage(db, () => FROZEN_AT_MS),
@@ -88,6 +102,13 @@ function recordingOps(db: Db, globals: Map<string, string>): { ops: PluginHostOp
     pubsub: {
       emit: ({ emitterSlug, name, data }): Promise<void> => {
         captured.pubsubEmits.push({ emitterSlug, name, data });
+        return Promise.resolve();
+      },
+    },
+    ui: {
+      ...base.ui,
+      toast: (_plugin, level, message): Promise<void> => {
+        captured.toasts.push({ level, message });
         return Promise.resolve();
       },
     },
@@ -198,7 +219,15 @@ function messageFact(chatId: ChatId, content: string, role = "user"): string {
   });
 }
 
-const FAMILIAR_GRANT: readonly PluginCapability[] = ["chat.read", "worldinfo.write", "global_vars", "storage.kv", "events.subscribe", "net.fetch"];
+const FAMILIAR_GRANT: readonly PluginCapability[] = [
+  "chat.read",
+  "worldinfo.write",
+  "global_vars",
+  "storage.kv",
+  "events.subscribe",
+  "net.fetch",
+  "databank.ingest",
+];
 
 test("research familiar: the real bundle installs consent-first, and its messageCommitted handler actually fires", async () => {
   const db = await freshDb();
@@ -220,9 +249,14 @@ test("research familiar: the real bundle installs consent-first, and its message
   expect(seeded?.declaredCapabilities).toEqual([...FAMILIAR_GRANT]);
   expect(seeded?.netHosts).toEqual(["en.wikipedia.org"]);
 
-  // Consent, then run.
-  await h.service.setGrant({ caller, pluginId: installed.id, grant: [...FAMILIAR_GRANT], acknowledgedNetHosts: ["en.wikipedia.org"] });
-  expect((await h.service.list({ caller }))[0]?.reconsentPending).toBe(false);
+  // Consent — to everything EXCEPT `databank.ingest`, deliberately: the clip drive below proves the per-verb
+  // grant gate, and a full grant would send the clip arm to a LIVE fetch (see the file header). A PARTIAL
+  // grant leaves the consent ask STANDING (`refusalAfterGrant` — the unanswered capability keeps the row's
+  // reconsent raised), and the plugin still runs under what WAS granted: consent is per-capability, not
+  // all-or-nothing. Then run.
+  const granted = FAMILIAR_GRANT.filter((cap) => cap !== "databank.ingest");
+  await h.service.setGrant({ caller, pluginId: installed.id, grant: granted, acknowledgedNetHosts: ["en.wikipedia.org"] });
+  expect((await h.service.list({ caller }))[0]?.reconsentPending).toBe(true);
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
   // ACTIVATION COLLECTED THE SUBSCRIPTION — the half the harness's fake ports never exercise.
@@ -243,6 +277,14 @@ test("research familiar: the real bundle installs consent-first, and its message
   await invoke(handler, messageFact(CHAT, "we ride north ((lookup: Aurora borealis))"), chatScope(CHAT, true));
   const log = await h.service.getLog({ caller, pluginId: installed.id });
   expect(log.some((line) => line.level === "warn" && line.message.includes("familiar_book_id"))).toBe(true);
+
+  // The CLIP verb's per-verb grant gate: `databank.ingest` was deliberately left out of the grant above, so
+  // the marker is admitted through the same debounce chain and then refused BY NAME — a warn log, never a
+  // throw (a throw here would be a strike against the auto-disable counter over a capability the user simply
+  // has not ticked). This is also the seam immediately before the outbound fetch, for the same CI reason.
+  await invoke(handler, messageFact(CHAT, "keep the whole article ((clip: Aurora borealis))"), chatScope(CHAT, true));
+  const afterClip = await h.service.getLog({ caller, pluginId: installed.id });
+  expect(afterClip.some((line) => line.level === "warn" && line.message.includes("databank.ingest"))).toBe(true);
 });
 
 test("oracle deck: the real bundle registers both tools and a draw is verifiable against the reveal", async () => {
@@ -486,6 +528,131 @@ test("every seeded example packs to a bundle the real install verb accepts", asy
     ids.push(row.id);
   }
   expect(ids).toHaveLength(EXAMPLE_PLUGIN_SLUGS.length);
+});
+
+test("story clocks: variables are the room-state plane, the tool ticks, and a human fill asks for a turn", async () => {
+  const db = await freshDb();
+  const { ops: recorded, captured } = recordingOps(db, new Map());
+  // The ROOM-STATE fakes this archetype is about: a per-room chat-variable store the delta seam mutates, and
+  // a `requestTurn` capture — both riding the exact op signatures compose wires.
+  const roomVars = new Map<string, Record<string, string>>();
+  const turnRequests: { readonly chatId: string; readonly guided?: string }[] = [];
+  const ops: PluginHostOps = {
+    ...recorded,
+    chat: {
+      ...recorded.chat,
+      getVariables: (chatId): Promise<Record<string, string>> => Promise.resolve({ ...(roomVars.get(chatId) ?? {}) }),
+      applyVariableOps: (chatId, varOps): Promise<void> => {
+        const vars = roomVars.get(chatId) ?? {};
+        for (const op of varOps) {
+          if (op.op === "set") {
+            vars[op.key] = op.value;
+          } else if (op.op === "delete") {
+            delete vars[op.key];
+          }
+        }
+        roomVars.set(chatId, vars);
+        return Promise.resolve();
+      },
+      requestTurn: (req): Promise<void> => {
+        turnRequests.push({ chatId: req.chatId, ...(req.guided === undefined ? {} : { guided: req.guided }) });
+        return Promise.resolve();
+      },
+    },
+    // The REAL state-plane publisher over the harness's OWN store (late-bound: the store is minted inside
+    // `makePluginHarness`), so `host.ui.setState` lands where `getSurfaceState` reads — the compose wiring,
+    // reproduced with the compose factory rather than a hand-rolled fake.
+    ui: {
+      ...recorded.ui,
+      setState: (req): Promise<void> => publishState(req),
+    },
+  };
+  const h = makePluginHarness(db, { port: realHost(), ops });
+  const publishState = createSurfaceStatePublisher(h.ctx.surfaceState, () => undefined);
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+
+  const pluginId = await installGrantEnable({
+    h,
+    caller,
+    slug: "story-clocks",
+    grant: ["chat.read", "chat.variables.write", "turn.trigger", "events.subscribe", "tools.register", "ui.surface"],
+  });
+
+  // The collected shape: one verb tool, the chatOpened hydration, and the two room surfaces — a read-only
+  // flank and the HOST-band panel (the anchor the host-controls family mounts host-gated).
+  expect(captured.tools.map((t) => t.name)).toEqual(["advance_clock"]);
+  expect(captured.events.map((e) => e.type)).toEqual(["chatOpened"]);
+  expect(await h.service.listSurfaces({ caller })).toEqual([
+    expect.objectContaining({ id: "clock_flank", anchor: "chat-flank", tier: "static" }),
+    expect.objectContaining({ id: "clock_panel", anchor: "chat-settings-section", tier: "static" }),
+  ]);
+
+  // THE MODEL'S PATH: `advance_clock` starts a clock on first mention, and the write lands in the ROOM'S OWN
+  // variable plane — the same store {{getvar}} macros and CEL predicates read.
+  const invoke = requireInvoke(captured);
+  const tool = requireHandler(captured.tools, 0, "tool");
+  expect(await invoke(tool, JSON.stringify({ name: "The Ritual", segments: 4 }), chatScope(CHAT, true))).toContain('Started the clock "the ritual" at 1/4');
+  expect(roomVars.get(CHAT)?.["clock:the_ritual"]).toBe("1/4");
+
+  // Ticks advance; the MODEL filling a clock reports the fill IN PROSE and does NOT request a turn (the model
+  // is already narrating — the requestTurn arm belongs to the human path only).
+  await invoke(tool, JSON.stringify({ name: "the ritual" }), chatScope(CHAT, true));
+  await invoke(tool, JSON.stringify({ name: "the ritual" }), chatScope(CHAT, true));
+  const full = await invoke(tool, JSON.stringify({ name: "the ritual" }), chatScope(CHAT, true));
+  expect(full).toContain("FULL");
+  expect(roomVars.get(CHAT)?.["clock:the_ritual"]).toBe("4/4");
+  expect(turnRequests).toHaveLength(0);
+
+  // THE HUMAN'S PATH: the host-band panel's actions, through the REAL `invokeUiAction` round-trip (the room is
+  // a verified claim; the handler receives its opaque handle). Start a second clock, tick it to the fill…
+  const act = (actionId: string, values: Record<string, string>): ReturnType<typeof h.service.invokeUiAction> =>
+    h.service.invokeUiAction({ caller, pluginId, surfaceId: "clock_panel", actionId, values, chatId: CHAT });
+  await act("start", { name: "The Omen", segments: "4" });
+  expect(roomVars.get(CHAT)?.["clock:the_omen"]).toBe("0/4");
+  // Every action ANSWERS with a toast — asserted at the op seam (the guest's ask; chrome delivery is a
+  // compose concern this harness fakes).
+  expect(captured.toasts.some((t) => t.message.includes("starts at 0/4"))).toBe(true);
+  for (let i = 0; i < 3; i += 1) {
+    await act("tick", { name: "the omen", segments: "4" });
+  }
+  await act("tick", { name: "the omen", segments: "4" });
+  // …and the FILL asks the narrator to land it: ONE requestTurn, guided by the clock's name.
+  expect(roomVars.get(CHAT)?.["clock:the_omen"]).toBe("4/4");
+  expect(turnRequests).toHaveLength(1);
+  expect(turnRequests[0]?.guided).toContain("the omen");
+
+  // `clear` deletes the variable — room state, so gone for every reader at once.
+  await act("clear", { name: "the omen", segments: "4" });
+  expect(roomVars.get(CHAT)?.["clock:the_omen"]).toBeUndefined();
+
+  // THE HYDRATION IDIOM: `chatOpened` publishes the room's clocks to the PER-ROOM state plane, and the read
+  // verb serves them back for exactly that room.
+  const opened = requireHandler(captured.events, 0, "event handler");
+  await invoke(opened, JSON.stringify({ type: "chatOpened", bus: "chat", chatId: CHAT }), chatScope(CHAT, true));
+  const state = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "clock_flank", chatId: CHAT });
+  expect(String(state?.line0)).toContain("the ritual");
+  expect(String(state?.line0)).toContain("4/4");
+});
+
+test("pocket arcade: a one-capability frame plugin registers its document, and the bytes never reach the wire", async () => {
+  const db = await freshDb();
+  const { ops } = recordingOps(db, new Map());
+  const h = makePluginHarness(db, { port: realHost(), ops });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+
+  await installGrantEnable({ h, caller, slug: "pocket-arcade", grant: ["ui.frame"] });
+
+  // The frame surface is REGISTERED and projected — tier `frame`, no `spec` (a frame renders its own
+  // document, never a node tree).
+  const surfaces = await h.service.listSurfaces({ caller });
+  expect(surfaces).toEqual([expect.objectContaining({ id: "arcade_2048", anchor: "chat-flank", tier: "frame", title: "2048" })]);
+
+  // THE BYTES-LEAK WALL: the document body hangs off the RESIDENT registration, never off the projected
+  // meta — `PluginSurfaceView extends` the meta, so anything on the meta would ship to every listSurfaces
+  // caller. Asserted the blunt way: the serialized projection contains none of the document's markup.
+  const wire = JSON.stringify(surfaces);
+  expect(wire).not.toContain("2048 board");
+  expect(wire).not.toContain("<script>");
 });
 
 /** THE GRANT-GUARD RECEIPT (#774 comment 1). A user may tick some capabilities and leave `ui.surface`

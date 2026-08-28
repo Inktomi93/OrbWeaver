@@ -33,9 +33,23 @@ import { getLog } from "#foundation/observability";
 
 /** The seeded examples, by bundle slug — the directory names under `boot/seed-assets/plugins/`. ONE per
  *  ARCHETYPE, which is what makes the set a menu rather than a demo: event reactor (research-familiar), tool
- *  provider (oracle-deck), quiet thinker (affinity-tracker), prompt transform (draft-polish), room surface
- *  (scene-chips). Adding a sixth is this tuple plus its source directory; nothing else here is per-plugin. */
-export const EXAMPLE_PLUGIN_SLUGS = ["research-familiar", "oracle-deck", "affinity-tracker", "draft-polish", "scene-chips"] as const;
+ *  provider + the whole UI plane (oracle-deck), quiet thinker + Tier-C (affinity-tracker), text pipeline
+ *  (draft-polish), room surface + composition subscriber (scene-chips), room mechanics over chat variables
+ *  (story-clocks), the ui.frame escape hatch (pocket-arcade), spend pipeline — quiet LLM + imagery
+ *  (keepsake-camera), and the hub browser flagship (card-atlas). Adding a tenth is this tuple plus its
+ *  source directory; nothing else here is per-plugin. The set's design + coverage matrix:
+ *  `docs/design/plugin-showcase-set.md` (#774). */
+export const EXAMPLE_PLUGIN_SLUGS = [
+  "research-familiar",
+  "oracle-deck",
+  "affinity-tracker",
+  "draft-polish",
+  "scene-chips",
+  "story-clocks",
+  "pocket-arcade",
+  "keepsake-camera",
+  "card-atlas",
+] as const;
 
 export interface ExamplePluginSeederDeps {
   /** Pack one example's source directory into installable bundle bytes; `null` when the pack ships no such
