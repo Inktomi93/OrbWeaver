@@ -220,7 +220,7 @@ function PaletteSourceGroup({ source, context, onRun }: PaletteSourceGroupProps)
           {source.icon === undefined ? null : <Icon icon={source.icon} size="sm" />}
           {row.label}
           {row.badge === undefined ? null : (
-            <Text as="span" className="ml-auto" size="label" tone="muted">
+            <Text as="span" className="ml-auto" voice="gloss">
               {row.badge}
             </Text>
           )}

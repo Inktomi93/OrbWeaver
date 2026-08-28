@@ -5,7 +5,7 @@
 import type { Registry } from "#lib";
 import { createRegistryContext } from "#lib";
 import type { ModalDefinition } from "./modal-registry.ts";
-import type { ModalSlotId } from "./shell-store.ts";
+import type { ModalSlotId } from "./modal-slot-ids.ts";
 
 export type ModalRegistry = Registry<ModalSlotId, ModalDefinition>;
 

@@ -284,6 +284,7 @@ test("installing from a URL previews the manifest on the server, shows the SAME 
   // The install went through the LINK verb (no bytes uploaded — `plugin.install` was never called), carrying
   // the URL and the full confirmed grant.
   await expect.poll(async () => recorder.lastInput("plugin.installFromUrl")).toEqual({ url: WEATHER_URL, grant: ["chat.read", "turn.trigger", "net.fetch"] });
+  // ONESHOT-OK: the installFromUrl lastInput poll + the visible row above prove the URL path SETTLED, so the mutually-exclusive `plugin.install` (byte-upload) count is final at read-time.
   expect(recorder.count("plugin.install")).toBe(0);
 });
 
@@ -313,6 +314,7 @@ test("an unreachable or blocked URL shows one leak-free line, and never forwards
   await expect(page.getByText("not a permitted destination")).toHaveCount(0);
   // No consent screen and nothing installed: a failed probe costs no install.
   await expect(page.getByText("What it's asking for")).toHaveCount(0);
+  // ONESHOT-OK: the leak-free alert + the absent consent screen above prove the preview FAILED and settled, so no install could have followed — the `plugin.installFromUrl` count is final at read-time.
   expect(recorder.count("plugin.installFromUrl")).toBe(0);
 });
 
@@ -641,8 +643,7 @@ test("url plugin one-click update; a widening one lands disabled pending re-cons
   // What widened — the new capability by its own plain-English name (never the wire spelling).
   await expect(notice).toContainText("Write lorebook entries");
 
-  // ONESHOT-OK: the notice settle above proves the mutation completed. The one-click input names ONLY the
-  // pluginId — no url — because the server re-fetches the remembered `sourceUrl` (the whole point of 2b).
+  // ONESHOT-OK: the notice settle above proves the mutation completed; the one-click input names ONLY the pluginId (no url) because the server re-fetches the remembered `sourceUrl` (the whole point of 2b).
   expect(recorder.lastInput("plugin.upgradeFromStoredUrl")).toEqual({ pluginId: URL_INSTALLED_ROW.id });
 });
 
