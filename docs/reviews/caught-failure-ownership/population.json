@@ -4,11 +4,11 @@
   "totals": {
     "sites": 378,
     "enforced": 375,
-    "reported": 337,
+    "reported": 333,
     "byVerdict": {
-      "deliberate-absorb": 38,
+      "deliberate-absorb": 42,
       "detached-owned": 3,
-      "unproven": 337
+      "unproven": 333
     },
     "byGrammar": {
       "promise": 105,
@@ -2516,54 +2516,54 @@
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::default:catch::1",
       "path": "packages/server/src/entry/http/auth-routes.ts",
-      "line": 204,
+      "line": 205,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "`null` is the DOCUMENTED degraded arm this function's JSDoc above describes — an unreachable IdP discovery means we send no end-session param and the user lands on our own `/login` instead of the IdP's logged-out page. The LOCAL logout has already happened either way, so this can only cost a redirect, never a session. Ends if end-session becomes required for correct logout.",
+      "markerLine": 201
     },
     {
       "siteId": "packages/server/src/entry/http/blob.ts::empty:catch::1",
       "path": "packages/server/src/entry/http/blob.ts",
-      "line": 120,
+      "line": 121,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "a LEAK-FREE COLLAPSE, stated in this function's own JSDoc — a torn CAS entry and a foreign/missing blob must return the identical 404, or the response distinguishes \"exists but unreadable\" from \"not yours\" and becomes an existence oracle. The ownership gate above already ran. Ends if torn-blob repair gains an operator surface that can be told apart from a miss.",
+      "markerLine": 117
     },
     {
       "siteId": "packages/server/src/entry/http/card-frame.ts::empty:catch::1",
       "path": "packages/server/src/entry/http/card-frame.ts",
-      "line": 167,
+      "line": 168,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "a LEAK-FREE COLLAPSE to the SAFE FLOOR, stated in the comment below — a non-participant throwing out of the membership gate and an unknown character must land on the identical restrictive policy, or the frame's permissiveness reveals chat membership. Every failure arm here tightens, never widens. Ends if the floor stops being the safe posture.",
+      "markerLine": 165
     },
     {
       "siteId": "packages/server/src/entry/http/card-frame.ts::empty:catch::2",
       "path": "packages/server/src/entry/http/card-frame.ts",
-      "line": 265,
+      "line": 267,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 2,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "the CLIENT is the owner and the 400 is the surface — an unparseable request body is the caller's error, answered with `invalid JSON body`, exactly as the schema-parse failure two lines below is. A malformed inbound payload is not an operator event. Ends if body decoding gains a server-side fault worth distinguishing from bad input.",
+      "markerLine": 264
     },
     {
       "siteId": "packages/server/src/entry/http/import-tree.ts::empty:err::1",
