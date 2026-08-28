@@ -60,6 +60,24 @@ export function pluginToolWireName(slug: string, name: string): string {
   return `${PLUGIN_TOOL_NAME_PREFIX}${slug.replaceAll("-", "_")}_${name}`;
 }
 
+/** THE ONE MINT of a plugin's PER-CARD state key inside a character card's `data.extensions` object —
+ *  `plugin_<slug>` (D148). The RESERVED residual-extensions namespace a plugin's `host.character.setCardData` /
+ *  `getCardData` writes and reads (the write host-fn D148 clause b/d governs). It is a sibling of
+ *  {@link pluginToolWireName}, and homed here for the SAME reason: the slug is host knowledge (the bridge stamps
+ *  it from the re-validated manifest, never guest input), the format is part of what a plugin author is
+ *  promised (a portable, ST-`writeExtensionField`-shaped per-card blob that survives import↔export), and both
+ *  the persistence write op and any reader must derive the exact same key or silently target the wrong field.
+ *
+ *  UNLIKE `pluginToolWireName` it does NOT `-`→`_` the slug: a card extensions object key is a JSON string with
+ *  no charset restriction (the OpenAI/MCP function-name charset that forces the tool-name substitution does not
+ *  apply), so D148's `plugin_<slug>` uses the RAW slug verbatim. That is unambiguous because a slug can never
+ *  contain `_` (`SLUG_RE` is `[a-z0-9][a-z0-9-]{1,63}`), so the ONE `_` in the key is always the separator — and
+ *  the key can collide with no promoted-to-column field (`depth_prompt`/`regex_scripts`/`fav` do not start with
+ *  `plugin_`), which is the structural half of D148's inertness wall. */
+export function pluginCardStateKey(slug: string): string {
+  return `${PLUGIN_TOOL_NAME_PREFIX}${slug}`;
+}
+
 /** A D50 prompt transform the guest registered via `host.transforms.register` — collected at
  *  activation. Occupies the plugin band (order 1000+, assigned by activation order). */
 export interface PluginTransformRegistration {
