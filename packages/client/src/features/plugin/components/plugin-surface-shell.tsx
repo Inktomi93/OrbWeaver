@@ -17,6 +17,19 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { testId } from "#lib";
 
+/** The shell's two CHROME SCALES — one wall, two shapes (plugin-ui-plane §4.8 + §5.4). `panel` is the boxed
+ *  attribution card every room-level anchor uses. `inline` is the TRANSCRIPT shape: the same glyph + name +
+ *  title, on one line, with no box — because a `message-footer` surface mounts once per COMMITTED ROW, and a
+ *  bordered card under every message is chrome the transcript cannot carry. The attribution itself is NOT
+ *  reduced: the glyph and the plugin's name are visible on both arms, and the group region is named on both.
+ *  What `inline` drops is the BOX, which is decoration; what it keeps is the wall.
+ *
+ *  It is NOT the `density` axis and must not be spelled as one: `data-density` is the app's global reading-
+ *  comfort attribute (UI-Architecture §4b) and a component prop by that name is the layout-context anti-pattern
+ *  the container model replaced. This names which CHROME the shell draws — a decision the anchor makes once. */
+const SHELL_CHROMES = ["panel", "inline"] as const;
+type PluginShellChrome = (typeof SHELL_CHROMES)[number];
+
 interface PluginSurfaceShellProps {
   /** The owning plugin's display name — the attribution line, never plugin-supplied chrome. */
   readonly pluginName: string;
@@ -27,10 +40,14 @@ interface PluginSurfaceShellProps {
   readonly scale?: "panel" | "page";
   /** The rendered surface body (the declarative tree). */
   readonly children: ReactNode;
+  /** Which chrome the shell draws (see {@link SHELL_CHROMES}). Default `panel`. */
+  readonly chrome?: PluginShellChrome | undefined;
 }
 
 /** Wrap a rendered plugin surface in its first-party attribution chrome. */
-export function PluginSurfaceShell({ pluginName, title, scale = "panel", children }: PluginSurfaceShellProps): ReactElement {
+export function PluginSurfaceShell({ pluginName, title, scale = "panel", children, chrome = "panel" }: PluginSurfaceShellProps): ReactElement {
+  // PAGE scale (U5, §9): the biggest impersonation canvas in the design gets the pinned attribution BAND above a
+  // scrolling body. Checked first — a `page` surface is never also `inline`.
   if (scale === "page") {
     return (
       <Stack className="h-full min-h-0" data-plugin-surface-scale="page">
@@ -56,6 +73,18 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
           {children}
         </Stack>
       </Stack>
+    );
+  }
+  // INLINE chrome (U6, §5.4): the per-row transcript shape — same wall (glyph + name + named region), no box.
+  if (chrome === "inline") {
+    return (
+      <Row align="center" className="flex-wrap" gap="field">
+        <Icon icon={Blocks} size="sm" />
+        <Text voice="label">{pluginName}</Text>
+        <Row align="center" aria-label={`${pluginName} — ${title}`} className="flex-wrap" gap="tight" role="group">
+          {children}
+        </Row>
+      </Row>
     );
   }
   return (

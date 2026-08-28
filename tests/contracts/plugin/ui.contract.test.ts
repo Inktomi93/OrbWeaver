@@ -7,7 +7,11 @@
 
 import type { PluginSurfaceSpec } from "@orb/contracts/plugin";
 import {
+  PLUGIN_ANCHOR_TIERS,
   PLUGIN_COMMAND_DESCRIBE_MAX,
+  PLUGIN_FOOTER_MAX_DEPTH,
+  PLUGIN_FOOTER_MAX_NODES,
+  PLUGIN_FOOTER_NODE_KIND_ALLOWED,
   PLUGIN_GRID_TILES_MAX,
   PLUGIN_NODE_KINDS,
   PLUGIN_ROWS_MAX,
@@ -26,8 +30,8 @@ import {
 } from "@orb/contracts/plugin";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("PLUGIN_SURFACE_ANCHORS carries the U5 pair — `page` (the Extensions switcher) and `dialog` (the house modal)", () => {
-  expect(PLUGIN_SURFACE_ANCHORS).toEqual(["settings", "chat-flank", "chat-settings-section", "tool-card", "page", "dialog"]);
+test("PLUGIN_SURFACE_ANCHORS is the merged anchor set — U6's `message-footer`, then U5's `page` + `dialog`", () => {
+  expect(PLUGIN_SURFACE_ANCHORS).toEqual(["settings", "chat-flank", "chat-settings-section", "tool-card", "message-footer", "page", "dialog"]);
 });
 
 test("PLUGIN_SURFACE_TIERS is the two-tier axis [static, scripted]", () => {
@@ -143,6 +147,78 @@ test("the SPEC-root global caps close what a per-node schema cannot: node count,
   // …and a modest, well-formed tree of the same shape passes all three.
   const ok: PluginSurfaceSpec = { kind: "stack", children: [{ kind: "text", value: "small" }] };
   expect(pluginSurfaceSpecSchema.safeParse(ok).success).toBe(true);
+});
+
+// ── The `message-footer` PER-ROW anchor (U6, §5.4) — the three clamps, each at the tier that enforces it ─────
+// This anchor mounts once per COMMITTED transcript row, so its cost multiplies by transcript length. The design
+// bans a scripted (and, at U7, a framed) tier there PERMANENTLY, caps the tree hard, and admits decoration
+// kinds only. These pins are what make those sentences facts rather than prose.
+
+/** One well-formed footer registration, minus whatever the caller overrides. */
+function footerMeta(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return { id: "badges", anchor: "message-footer", title: "Badges", tier: "static", spec: { kind: "badge", text: "seen" }, ...over };
+}
+
+test("message-footer admits the STATIC tier and refuses SCRIPTED permanently (a per-row interpreter is unspellable)", () => {
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(footerMeta()).success).toBe(true);
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(footerMeta({ tier: "scripted" })).success).toBe(false);
+  // …and the same tier IS admitted at a room-level anchor, so the refusal is the ANCHOR's, not a global ban.
+  const flank = { id: "panel", anchor: "chat-flank", title: "Panel", tier: "scripted" };
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(flank).success).toBe(true);
+});
+
+test("PLUGIN_ANCHOR_TIERS is TOTAL over both axes — a new tier cannot inherit message-footer admission by silence", () => {
+  // The table is the compile-tier half of the same refusal (a new `PLUGIN_SURFACE_TIERS` member makes every
+  // anchor row a missing key). This runtime mirror asserts the shape the `satisfies` guarantees.
+  for (const anchor of PLUGIN_SURFACE_ANCHORS) {
+    for (const tier of PLUGIN_SURFACE_TIERS) {
+      expect(typeof PLUGIN_ANCHOR_TIERS[anchor][tier]).toBe("boolean");
+    }
+  }
+  expect(PLUGIN_ANCHOR_TIERS["message-footer"].scripted).toBe(false);
+});
+
+test(`a message-footer spec is capped at ${PLUGIN_FOOTER_MAX_NODES} nodes and depth ${PLUGIN_FOOTER_MAX_DEPTH} — far under the whole-tree caps`, () => {
+  const badges = Array.from({ length: PLUGIN_FOOTER_MAX_NODES }, () => ({ kind: "badge", text: "b" }) as const);
+  const over = { kind: "row", children: badges } as const; // row + N badges = MAX + 1 nodes
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(footerMeta({ spec: over })).success).toBe(false);
+  // The same tree is fine at a ROOM-level anchor: the cap belongs to the per-row anchor, not to the vocabulary.
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse({ id: "p", anchor: "settings", title: "P", tier: "static", spec: over }).success).toBe(true);
+
+  const tooDeep = { kind: "row", children: [{ kind: "row", children: [{ kind: "badge", text: "b" }] }] } as const;
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(footerMeta({ spec: tooDeep })).success).toBe(false);
+});
+
+test("message-footer admits DECORATION kinds only — interactive, bulk and prose kinds are refused at registration", () => {
+  // The three exclusion classes of §5.4, one probe each: an action round-trip per row, a 64-row list under
+  // every message, and in-bubble markup by another name.
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(footerMeta({ spec: { kind: "button", actionId: "go", label: "Go" } })).success).toBe(false);
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(footerMeta({ spec: { kind: "list", items: ["a"] } })).success).toBe(false);
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(footerMeta({ spec: { kind: "markdown", value: "**hi**" } })).success).toBe(false);
+  // A refused kind nested inside an admitted container is caught too (the walk is over the whole tree).
+  const nested = {
+    kind: "row",
+    children: [
+      { kind: "badge", text: "ok" },
+      { kind: "toggle", name: "t", label: "T" },
+    ],
+  } as const;
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(footerMeta({ spec: nested })).success).toBe(false);
+  // …and the admitted set renders: row / text / badge / meter / image are the decoration grammar.
+  const strip = {
+    kind: "row",
+    children: [
+      { kind: "badge", text: "seen" },
+      { kind: "text", value: "3s", voice: "gloss" },
+    ],
+  } as const;
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(footerMeta({ spec: strip })).success).toBe(true);
+});
+
+test("PLUGIN_FOOTER_NODE_KIND_ALLOWED is TOTAL over the node vocabulary — a new kind must be decided FOR the transcript", () => {
+  for (const kind of PLUGIN_NODE_KINDS) {
+    expect(typeof PLUGIN_FOOTER_NODE_KIND_ALLOWED[kind]).toBe("boolean");
+  }
 });
 
 // ── U3: the `tool-card` LINKAGE (plugin-ui-plane §4.5's tool-card row) ────────────────────────────────────

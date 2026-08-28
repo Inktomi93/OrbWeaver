@@ -37,6 +37,7 @@ import { parseReasoningTags } from "@orb/server/kit/reasoning";
 import { getLog } from "#foundation/observability";
 import type { ToolCallInput, WarningCode, WireTool } from "#infra/providers";
 import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context.ts";
+import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type {
   HistoryMacroNames,
@@ -490,7 +491,13 @@ async function applyDynamicTransform(args: RunTurnPipelineArgs, built: Assembled
   // `Promise.resolve` wrap: biome's nursery `useAwaitThenable` mis-resolves the cross-package
   // `ApplyPromptTransformsOp` return as non-thenable (the documented `@orb/contracts` alias false positive);
   // the wrap makes the await unambiguously thenable without a suppression (a no-op on an already-Promise).
-  const dynamic: string = await Promise.resolve(apply("assembled_dynamic", args.chatId, built.dynamic, args.assembleContext.variableValues ?? {}));
+  const outcome = await Promise.resolve(apply("assembled_dynamic", args.chatId, built.dynamic, args.assembleContext.variableValues ?? {}));
+  // §5.14 — the BUILD-side half of the typed abort (the SEND-side half is `assembly/context.ts`). Same coded
+  // refusal, thrown rather than swallowed: a D53 skip keeps the draft and the turn, an abort ends both.
+  if (outcome.aborted) {
+    throw new ChatOperationError(CHAT_OP_CODES.promptTransformAborted, `a prompt transform aborted this turn: ${outcome.reason}`);
+  }
+  const dynamic: string = outcome.text;
   return dynamic === built.dynamic ? built : { ...built, dynamic };
 }
 

@@ -11,7 +11,7 @@ import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { EntryPosition } from "@orb/kit/world-info";
 import type { ChatTriggerType, DomainTriggerType, TriggerFact } from "#automation";
-import type { PromptTransformPoint } from "#chat";
+import type { PromptTransformOutcome, PromptTransformPoint } from "#chat";
 import type { GenerateImageActionArgs } from "#imagery";
 import type { PluginNotificationRecipient } from "#notifications";
 import type { PluginCapability } from "./manifest.ts";
@@ -51,6 +51,36 @@ export interface PluginWorldEntryUpsert {
   readonly keys: readonly string[];
   readonly contentTemplate: string;
   readonly position: EntryPosition;
+}
+
+/** The most images one `llm.quiet` call may attach (plugin-ui-plane §5.32, the captioning arm). Four is the
+ *  `generateImageActionArgsSchema` fan-out clamp read from the other direction — a caption pass looks at a
+ *  handful of pictures, and an unbounded list is an unbounded read of the installer's CAS per call. */
+export const PLUGIN_QUIET_IMAGES_MAX = 4;
+
+/** The structured-output ask on `llm.quiet` (plugin-ui-plane §5.16 — the xgrammar lever). `schema` is a RAW
+ *  JSON Schema in the `LIFTABLE_JSON_SCHEMA` subset (`@orb/kit/json-schema`), the SAME untrusted-blob posture
+ *  `tools.register`'s `parameters` carries: the host lifts it to zod and re-projects it through the ONE
+ *  projection rule, so a guest can never hand a wire an unprojected schema (D79). An unliftable schema is a
+ *  typed refusal of the CALL, not of the plugin. */
+export interface PluginQuietSchema {
+  /** The schema name the wire carries (OpenAI `json_schema.name`). */
+  readonly name: string;
+  readonly description?: string;
+  /** JSON Schema — validated + projected host-side. */
+  readonly schema: Record<string, unknown>;
+}
+
+/** The optional second argument of `llm.quiet` — the U6 widening, both arms optional and independent (a
+ *  captioning call passes images and no schema; a structured call the reverse; both together is legal). */
+export interface PluginQuietOptions {
+  /** Present ⇒ a schema-CONSTRAINED generation on the `structured` role; the result is the model's JSON text. */
+  readonly schema?: PluginQuietSchema;
+  /** Assets in the INSTALLER's own CAS to attach to the user turn — at most {@link PLUGIN_QUIET_IMAGES_MAX}.
+   *  UNBRANDED by the same rule the rest of this file follows: a guest's JSON is untrusted until the DOMAIN
+   *  resolves it (here, through the owner-gated CAS read), and branding the wire type would claim a validation
+   *  this boundary has not performed. Vision-capable families attach them; text-only families ignore them. */
+  readonly imageAssetIds?: readonly string[];
 }
 
 /** What a handler/entry receives about ITS invocation context.
@@ -153,8 +183,18 @@ export interface PluginHostV1 {
      *  gating it on host would be a ceiling that does not describe what the call does.
      *
      *  The FUNDER is the installer and is closed over host-side; a guest cannot name a different one, exactly
-     *  as with `chat.requestTurn`. No chat scope is required (the call carries no room context at all). */
-    quiet: (prompt: string) => Promise<string>;
+     *  as with `chat.requestTurn`. No chat scope is required (the call carries no room context at all).
+     *
+     *  THE U6 WIDENING (plugin-ui-plane §5.16/§5.32) IS TWO OPTIONAL INPUTS ON THIS ONE OP, never a second
+     *  quiet path — the interaction spec's §3-S5.1 law: `summarizeQuiet` was already declared the generic
+     *  quiet-LLM op, so the structured variant and the vision variant are pass-through fields on the lane that
+     *  exists. `opts.schema` routes the call to the `structured` role (D109-4 — its firewall row excludes the
+     *  metered sub, so hosted-cred laundering stays structurally closed) and the answer is the model's JSON as
+     *  TEXT (the guest parses it — a parsed object would cross the marshalling boundary as an unbounded graph
+     *  for no gain). `opts.imageAssetIds` attaches images from the INSTALLER's OWN CAS — the same
+     *  assetId-only wall the `image` DSL node carries (`ui.ts`): no URL, no path, no bytes are spellable, so a
+     *  guest can neither exfiltrate through an image reference nor read a foreign owner's asset. */
+    quiet: (prompt: string, opts?: PluginQuietOptions) => Promise<string>;
   };
 
   readonly events: {
@@ -187,7 +227,53 @@ export interface PluginHostV1 {
        *  shape). `input.draft` is the working text; `input.env` = `{chatId, vars}` for a sync read inside the
        *  250 ms transform deadline (no host round-trip needed). Return the transformed draft. */
       // @foreign-id-ok(chatId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-      apply: (input: { draft: string; env: { chatId: string; vars: Record<string, string> } }) => Promise<string>;
+      apply: (input: { draft: string; env: { chatId: string; vars: Record<string, string> } }) => Promise<PromptTransformOutcome>;
+    }) => void;
+    /** Register a DISPLAY transform (plugin-ui-plane §5.5/§5.29, seam 14) — the ST message-formatting-hook
+     *  parity arm. capability: chat.transform.
+     *
+     *  IT IS A DIFFERENT SEAM FROM `register` ABOVE, and the difference is the whole safety story. A D50 prompt
+     *  transform rewrites the text going TO THE MODEL; this rewrites only what the INSTALLER'S OWN SCREEN shows,
+     *  after their macros and their DISPLAY regex have run (the recorded ordering: member macros → member
+     *  DISPLAY regex → plugin display transforms → markdown, so a member's regex cannot post-process a plugin
+     *  annotation). It writes no canon, reaches no other viewer, and cannot abort anything — which is why it
+     *  needs no new capability and no host authority: it is strictly narrower than the prompt transform
+     *  `chat.transform` already buys.
+     *
+     *  `input.text` is what that viewer's client has ALREADY rendered for the row; the return replaces it. A
+     *  throw or a deadline overrun SKIPS this transform (D53) — the row keeps the text it had, never a spinner
+     *  and never a blocked message. */
+    registerDisplay: (def: {
+      name: string;
+      // @foreign-id-ok(chatId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+      // @foreign-id-ok(messageId): same DTO, same reason — the row id crosses INTO the guest as inert text it may key off, and nothing on this side reads it back as one of ours. Ends if the bridge starts parsing to brands at the membrane.
+      apply: (input: { text: string; env: { chatId: string; messageId: string } }) => Promise<string>;
+    }) => void;
+  };
+
+  readonly macros: {
+    /** Register a MACRO into the ONE kit macro engine (plugin-ui-plane §5.15). capability: chat.transform —
+     *  a macro substitutes text into the assembled prompt, which is exactly the reach that capability names.
+     *
+     *  PLUGIN MACROS ARE DATA, NOT A SECOND ENGINE, and the shape follows from a fact about the engine rather
+     *  than from taste: `MacroHandler` in `@orb/kit/macro` is SYNCHRONOUS, and a guest invoke is not. So the
+     *  host resolves each registered macro ONCE per turn — `resolve()` runs in the guest under the assembly
+     *  deadline (the D50 transform precedent for mid-pipeline guest calls) — and registers the RESULT as a
+     *  per-turn value on the turn's own registry. One engine, one evaluation order, one budget.
+     *
+     *  A VALUE MACRO, therefore: it declares no arguments, because arguments would require the engine to call
+     *  back into the guest at substitution time, which is the async call the engine cannot make. That is the
+     *  bound, stated; it is also ST's own `registerMacro(key, value)` shape.
+     *
+     *  `name` is guest-local and host-namespaced to `plugin_<slug'>_<name>` (the `tools.register` rule), so a
+     *  plugin can never shadow a builtin macro or another plugin's. A throw or an overrun resolves the macro
+     *  to "" for that turn (the degrade-never-throw law the whole macro plane obeys) — a broken plugin macro
+     *  renders empty, it does not eat the turn. The returned text is `neutralizeMacros`'d before it is
+     *  registered: plugin-authored text entering a macro-EXECUTION plane obeys interaction-spec §2 law 7. */
+    register: (def: {
+      name: string; // /^[a-z][a-z0-9_]{0,40}$/; host prefixes to "plugin_<slug'>_<name>"
+      description: string;
+      resolve: () => Promise<string>;
     }) => void;
   };
 
@@ -292,6 +378,11 @@ export const HOST_FUNCTION_CAPABILITY = {
   "events.on": "events.subscribe",
   "tools.register": "tools.register",
   "transforms.register": "chat.transform",
+  // U6 — both ride `chat.transform`: a DISPLAY transform is strictly narrower than the prompt transform that
+  // capability already buys (installer's own screen, no canon, no other viewer), and a macro substitutes into
+  // the assembled prompt, which is that capability's own reach. Neither is a new consent line.
+  "transforms.registerDisplay": "chat.transform",
+  "macros.register": "chat.transform",
   "net.fetch": "net.fetch",
   "ui.register": "ui.surface",
   "ui.setState": "ui.surface",

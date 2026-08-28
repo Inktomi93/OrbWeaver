@@ -10,7 +10,7 @@ import type { ChatId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { GenerateImageActionArgs } from "#imagery";
 import type { PluginNotificationRecipient } from "#notifications";
-import type { PluginMessageView, PluginWorldEntryUpsert } from "./host-v1.ts";
+import type { PluginMessageView, PluginQuietOptions, PluginWorldEntryUpsert } from "./host-v1.ts";
 import type { PluginSuggestedAct } from "./suggestion.ts";
 import type { PluginToastLevel } from "./ui.ts";
 
@@ -94,7 +94,12 @@ export interface PluginBridge {
    *  so a check that awaited before recording would let a burst straight through the gap). Returns raw text;
    *  the guest never sees cost (cost VISIBILITY rides the stats domain off the generation itself). */
   readonly llm: {
-    readonly quiet: (prompt: string, liveness: PluginInvocationLiveness) => Promise<{ readonly text: string }>;
+    /** `opts` is the U6 widening (plugin-ui-plane §5.16/§5.32) travelling as inert JSON-safe data: a RAW
+     *  structured-output schema the DOMAIN lifts + projects (a guest can never hand a wire an unprojected
+     *  schema — D79) and asset ids the DOMAIN resolves to bytes under the INSTALLER's own ownership gate.
+     *  Infra performs neither resolution: it holds no principal and no CAS, which is exactly why both arms
+     *  cross as ids/blobs rather than as anything live. */
+    readonly quiet: (prompt: string, opts: PluginQuietOptions | undefined, liveness: PluginInvocationLiveness) => Promise<{ readonly text: string }>;
   };
   /** POSTURE 2 — stash `act` as a SUGGESTION for the ADMITTED chat's host to confirm, instead of performing
    *  it. Called by the membrane on exactly the arm that used to be a flat refusal: the installer holds the

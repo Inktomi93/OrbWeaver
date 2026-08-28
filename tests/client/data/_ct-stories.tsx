@@ -18,6 +18,7 @@ import {
   useInvalidation,
   useOnlineStatus,
   useOpenRefinery,
+  usePluginDisplayText,
   usePromptMacroSuggestions,
   useSessionRecovery,
   useSettingsViewerView,
@@ -40,7 +41,7 @@ import {
 } from "@orb/client/state";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
-import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -1069,6 +1070,31 @@ export function HuskReaperStory(): ReactElement {
   return (
     <CtDataProviders>
       <HuskReaperProbe />
+    </CtDataProviders>
+  );
+}
+
+// ── The plugin DISPLAY-transform seam (plugin-ui-plane #679 U6, seam 14) ──────────────────────────────────
+// `usePluginDisplayText` is the last step of the row render: it takes what the house pipeline produced and
+// hands back what the viewer's own plugins made of it. Its two load-bearing properties are BOTH about cost
+// and silence, so the story renders the ANSWER and the `.ct.tsx` drives the DATA:
+//   • zero registrants ⇒ the input string comes straight back and NO per-row request is made at all;
+//   • a registrant ⇒ the annotated text replaces it, after one round-trip.
+
+const DISPLAY_TRANSFORM_CHAT = castId<ChatId>("chat_ct_display0000000000000");
+const DISPLAY_TRANSFORM_MESSAGE = castId<MessageId>("msg_ct_display00000000000000");
+
+/** The hook's answer for one row, rendered as text so a CT can read it without a transcript. */
+function PluginDisplayTextBody({ text }: { readonly text: string }): ReactElement {
+  const shown = usePluginDisplayText(text, { chatId: DISPLAY_TRANSFORM_CHAT, messageId: DISPLAY_TRANSFORM_MESSAGE });
+  return <p data-slot="plugin-display-text">{shown}</p>;
+}
+
+/** `usePluginDisplayText` in isolation, at a real row identity. */
+export function PluginDisplayTextStory({ text = "a rendered line" }: { readonly text?: string }): ReactElement {
+  return (
+    <CtDataProviders>
+      <PluginDisplayTextBody text={text} />
     </CtDataProviders>
   );
 }

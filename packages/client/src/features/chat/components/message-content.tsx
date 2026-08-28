@@ -13,6 +13,8 @@ import { Markdown } from "@orb/ui/markdown";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
+import type { PluginDisplayRow } from "#data";
+import { usePluginDisplayText } from "#data";
 import type { MessageRenderContext, RowRenderPolicy } from "#lib";
 import { renderMessageForDisplay } from "#lib";
 import { toContentBlocks } from "../lib/content-blocks.ts";
@@ -113,6 +115,10 @@ export interface MessageContentProps {
   /** The room + author this body was written in — the card-frame doorway selector (see {@link CardOrigin}).
    *  Absent (a story/preview mount with no room) ⇒ every tierB card renders the srcdoc floor. */
   readonly cardOrigin?: CardOrigin | undefined;
+  /** The COMMITTED row this body belongs to — the plugin DISPLAY-transform seam (plugin-ui-plane seam 14, U6).
+   *  Absent (a ghost row, a preview, a story mount) ⇒ no transform runs, byte-identical. Present ⇒ the viewer's
+   *  OWN plugins may annotate the rendered text, after macros and after DISPLAY regex, before markdown. */
+  readonly pluginDisplayRow?: PluginDisplayRow | undefined;
 }
 
 export function MessageContent({
@@ -124,8 +130,12 @@ export function MessageContent({
   speakerThemes,
   narratorVoiced = false,
   cardOrigin,
+  pluginDisplayRow,
 }: MessageContentProps): ReactElement {
-  const resolvedContent = renderContext === undefined ? content : renderMessageForDisplay(content, renderContext, rowCharacterId, rowPersonaId);
+  const rendered = renderContext === undefined ? content : renderMessageForDisplay(content, renderContext, rowCharacterId, rowPersonaId);
+  // The LAST step before markup (§5.5/§5.29): the viewer's own plugins annotate what the house pipeline
+  // produced. Inert without a row or without a registered transform — same string in, same string out.
+  const resolvedContent = usePluginDisplayText(rendered, pluginDisplayRow);
   const castNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CAST_NAMES;
   const spans = parseSpeakerSpans(resolvedContent, castNames);
 

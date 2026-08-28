@@ -81,6 +81,8 @@ export { useInvalidation } from "./use-invalidation.ts";
 export { useOnlineStatus } from "./use-online-status.ts";
 export type { UseOpenRefineryResult } from "./use-open-refinery.ts";
 export { useOpenRefinery } from "./use-open-refinery.ts";
+export type { PluginDisplayRow } from "./use-plugin-display-text.ts";
+export { usePluginDisplayText } from "./use-plugin-display-text.ts";
 export { usePromptMacroSuggestions } from "./use-prompt-macro-suggestions.ts";
 export type { SessionRecoveryState } from "./use-session-recovery.ts";
 export { useSessionRecovery } from "./use-session-recovery.ts";

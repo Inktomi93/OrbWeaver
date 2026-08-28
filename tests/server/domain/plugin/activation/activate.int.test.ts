@@ -47,6 +47,7 @@ function recordingOps(overrides: { readonly failToolAt?: number } = {}): {
         registered.push(reg.name);
         return handleFor(reg.name);
       },
+      registerMacros: base.registrar.registerMacros,
       subscribeEvent: base.registrar.subscribeEvent,
     },
   };
@@ -75,6 +76,8 @@ test("collected registrations are handed to the registrar; disable unregisters e
       events: [],
       surfaces: [],
       commands: [],
+      displayTransforms: [],
+      macros: [],
     },
   });
 
@@ -133,6 +136,8 @@ test("a registrar refusal discards the whole activation atomically (rollback + e
       events: [],
       surfaces: [],
       commands: [],
+      displayTransforms: [],
+      macros: [],
     },
   });
 

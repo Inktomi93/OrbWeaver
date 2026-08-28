@@ -27,7 +27,12 @@ import { z } from "zod";
 /** Where a plugin surface may MOUNT — each rides an EXISTING door-assembled family via ONE first-party
  *  contribution owned by `features/plugin` (plugin-ui-plane §4.5).
  *
- *  U5 (seam 16) added the last two, and they are different in KIND from the first four, which is worth saying
+ *  `message-footer` (U6, §5.4) is the ONE PER-ROW anchor: it mounts once per COMMITTED transcript row, so its
+ *  cost multiplies by transcript length and it carries its own tighter bounds — {@link PLUGIN_ANCHOR_TIERS}
+ *  (static only, permanently), {@link PLUGIN_FOOTER_NODE_KIND_ALLOWED} (decoration kinds only) and the two
+ *  per-row caps below. Every one of those is a COMPILE-tier fact, not prose.
+ *
+ *  U5 (seam 16) added the last two, and they are different in KIND from the first five, which is worth saying
  *  because the doc calls `dialog` "a fifth surface KIND (not an anchor)":
  *   - `page` IS a mount point — the Extensions rail section's page switcher (§4.5b) renders it in CONTENT.
  *   - `dialog` mounts NOWHERE by itself: it is a house modal a plugin OPENS during a client-initiated round-trip
@@ -35,7 +40,7 @@ import { z } from "zod";
  *     ran — §4.5a). A spontaneous open is therefore unspellable rather than merely refused. It shares this tuple
  *     because it shares the REGISTRATION vocabulary: it is registered, titled, tiered and spec'd exactly like
  *     every other surface, and a second axis for one member would be the parallel map the house kills. */
-export const PLUGIN_SURFACE_ANCHORS = ["settings", "chat-flank", "chat-settings-section", "tool-card", "page", "dialog"] as const;
+export const PLUGIN_SURFACE_ANCHORS = ["settings", "chat-flank", "chat-settings-section", "tool-card", "message-footer", "page", "dialog"] as const;
 export type PluginSurfaceAnchor = (typeof PLUGIN_SURFACE_ANCHORS)[number];
 
 /** The two rendering tiers sharing THIS one vocabulary: `static` (server-validated JSON, actions round-trip to
@@ -126,6 +131,71 @@ export const PLUGIN_GRID_TILES_MAX = 64;
 /** The stage cap on a `masterDetail` node (U5) — a page arrangement, not a router. Two is the shape the genre
  *  needs (browse → detail); the headroom is for a plugin that splits browse by source. */
 export const PLUGIN_PAGE_STAGES_MAX = 8;
+
+// ── The `message-footer` per-ROW bounds (U6, §5.4) ────────────────────────────────────────────────────────────
+// Every other anchor mounts ONCE per open room; this one mounts once per COMMITTED transcript row, so its cost
+// is multiplied by transcript length. The design's three clamps are encoded here as compile-tier facts:
+
+/** Total nodes a `message-footer` spec may carry — an order of magnitude under the whole-tree
+ *  {@link PLUGIN_SPEC_MAX_NODES}, because this budget is spent once PER ROW. A badge strip, not a panel. */
+export const PLUGIN_FOOTER_MAX_NODES = 8;
+/** Container nesting a `message-footer` spec may carry (root = 1): one `row` wrapping its badges, nothing
+ *  deeper. Depth is where a per-row tree turns into layout. */
+export const PLUGIN_FOOTER_MAX_DEPTH = 2;
+
+/** WHICH TIERS MAY MOUNT AT WHICH ANCHOR — the permanent refusal of a scripted (and, at U7, a framed) surface
+ *  in the transcript, coded rather than written down. It is a TOTAL `Record<anchor, Record<tier, boolean>>` on
+ *  purpose: a new {@link PLUGIN_SURFACE_TIERS} member makes EVERY anchor row a missing key and fails `tsc`, so
+ *  the `ui.frame` hatch (U7, §6.2) cannot land at `message-footer` by omission — someone has to type
+ *  `frame: false` here, which is exactly the decision plugin-ui-plane §4.5 says is permanent. */
+export const PLUGIN_ANCHOR_TIERS = {
+  settings: { static: true, scripted: true },
+  "chat-flank": { static: true, scripted: true },
+  "chat-settings-section": { static: true, scripted: true },
+  "tool-card": { static: true, scripted: true },
+  // PERMANENT (plugin-ui-plane §4.5, §6.2): a per-row interpreter is one guest context per transcript row, and
+  // a per-row frame is one document per transcript row. Neither is ever eligible here.
+  "message-footer": { static: true, scripted: false },
+  // U5 (§4.5b/§4.5a): a full page and a house dialog both admit the scripted tier — a page IS the surface a
+  // "lots of bits and bobs" extension needs client-immediate interaction on (U4 lands its guest), and a dialog
+  // is a page-scale body in a modal shell. Neither multiplies per row.
+  page: { static: true, scripted: true },
+  dialog: { static: true, scripted: true },
+} as const satisfies Record<PluginSurfaceAnchor, Record<PluginSurfaceTier, boolean>>;
+
+/** WHICH NODE KINDS a `message-footer` spec may spell — the DSL-BADGES fidelity of §5.4 ("adjacent decoration,
+ *  not in-bubble markup"), as a TOTAL record so a new {@link PLUGIN_NODE_KINDS} member must be decided FOR the
+ *  transcript rather than inheriting admission from silence. The three exclusion classes, each argued:
+ *   - INTERACTIVE (`textField`/`numberField`/`toggle`/`select`/`slider`/`button`/`confirmButton`) — an action
+ *     round-trip per transcript row is the multiply-by-length hazard the anchor exists to bound.
+ *   - BULK (`list`/`keyValue`) — up to {@link PLUGIN_ROWS_MAX} rows each, under every message.
+ *   - PROSE (`markdown`, `section`, `stack`) — `markdown` is in-bubble markup by another name, and the two
+ *     block containers are panel grammar; a footer is one `row` of decorations. */
+export const PLUGIN_FOOTER_NODE_KIND_ALLOWED = {
+  stack: false,
+  row: true,
+  section: false,
+  text: true,
+  badge: true,
+  meter: true,
+  keyValue: false,
+  list: false,
+  image: true,
+  markdown: false,
+  textField: false,
+  numberField: false,
+  toggle: false,
+  select: false,
+  slider: false,
+  button: false,
+  confirmButton: false,
+  // U5 browse-genre kinds (§4.5b) — all REFUSED at the footer: a `grid` is a whole browse surface, and
+  // `masterDetail`/`searchBar` are page arrangements. A per-row transcript decoration is one `row` of badges,
+  // never a page under every message.
+  grid: false,
+  masterDetail: false,
+  searchBar: false,
+} as const satisfies Record<PluginNodeKind, boolean>;
 
 const LABEL_MAX = 200;
 const STATE_PATH_MAX = 128;
@@ -591,7 +661,11 @@ export const PLUGIN_SURFACE_TITLE_MAX = 80;
  *  `host.tools.register` took it. It is a BICONDITIONAL with the anchor — a `tool-card` without a `toolName`
  *  could never be matched to a call (a card nobody can reach), and a `toolName` on any other anchor is a claim
  *  the renderer would never honour. Both halves are the same registration refusal, so a stale linkage costs the
- *  generic tool block and a log line, never the plugin's activation. */
+ *  generic tool block and a log line, never the plugin's activation.
+ *
+ *  The two PER-ANCHOR belts below (U3's `toolName` biconditional and U6's `message-footer` clamps) are the same
+ *  class of rule and deliberately live at the same seam: the node schema bounds ONE node and the spec schema
+ *  bounds the whole tree, but neither knows WHERE the tree is about to mount. */
 export const pluginSurfaceRegistrationMetaSchema = z
   .object({
     id: z.string().regex(PLUGIN_SURFACE_ID_RE),
@@ -600,6 +674,26 @@ export const pluginSurfaceRegistrationMetaSchema = z
     tier: z.enum(PLUGIN_SURFACE_TIERS),
     spec: pluginSurfaceSpecSchema.optional(),
     toolName: z.string().regex(PLUGIN_TOOL_NAME_RE).optional(),
+  })
+  // THE PER-ANCHOR BELTS, in one place. `superRefine` (the U6 message-footer clamps) precedes the U3
+  // `tool-card` biconditional; both run, and a spec that violates both reports both.
+  .superRefine((meta, ctx) => {
+    if (!PLUGIN_ANCHOR_TIERS[meta.anchor][meta.tier]) {
+      ctx.addIssue({ code: "custom", message: `the '${meta.anchor}' anchor does not admit the '${meta.tier}' tier`, path: ["tier"] });
+    }
+    if (meta.anchor !== "message-footer" || meta.spec === undefined) {
+      return;
+    }
+    const { nodes, maxDepth } = surfaceStats(meta.spec, 1);
+    if (nodes > PLUGIN_FOOTER_MAX_NODES) {
+      ctx.addIssue({ code: "custom", message: `a message-footer spec exceeds ${PLUGIN_FOOTER_MAX_NODES} nodes`, path: ["spec"] });
+    }
+    if (maxDepth > PLUGIN_FOOTER_MAX_DEPTH) {
+      ctx.addIssue({ code: "custom", message: `a message-footer spec exceeds nesting depth ${PLUGIN_FOOTER_MAX_DEPTH}`, path: ["spec"] });
+    }
+    for (const kind of unallowedFooterKinds(meta.spec)) {
+      ctx.addIssue({ code: "custom", message: `the '${kind}' node is not spellable at the message-footer anchor (decoration kinds only)`, path: ["spec"] });
+    }
   })
   .refine((meta) => (meta.anchor === "tool-card") === (meta.toolName !== undefined), {
     message: "a tool-card surface must name its `toolName`, and only a tool-card surface may name one",
@@ -683,6 +777,25 @@ export interface PluginToast {
 export interface PluginUiOutcome {
   readonly toasts: readonly PluginToast[];
   readonly openDialog?: string;
+}
+
+/** Every DISTINCT node kind in `spec` that {@link PLUGIN_FOOTER_NODE_KIND_ALLOWED} refuses, in first-seen
+ *  order — one issue per offending KIND (not per occurrence), so a spec of forty buttons reports once. */
+function unallowedFooterKinds(spec: PluginSurfaceSpec): readonly PluginNodeKind[] {
+  const offenders = new Set<PluginNodeKind>();
+  const walk = (node: PluginSurfaceNode): void => {
+    if (!PLUGIN_FOOTER_NODE_KIND_ALLOWED[node.kind]) {
+      offenders.add(node.kind);
+    }
+    // The U5 recursion seam (`pluginChildNodes`) rather than the 3-container list: `masterDetail`/`searchBar`
+    // carry children under non-`children` fields, and although the footer refuses those container kinds
+    // outright at the node itself, the walk stays honest about the whole subtree it descends.
+    for (const child of pluginChildNodes(node)) {
+      walk(child);
+    }
+  };
+  walk(spec);
+  return [...offenders];
 }
 
 // ── The tool-card BINDING ROOT (U3, seam 7 — plugin-ui-plane §4.5's `tool-card` row) ─────────────────────────

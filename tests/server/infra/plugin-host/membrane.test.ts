@@ -7,7 +7,7 @@
 // hand-built, i.e. here; the cross-invocation half of that invariant is the escape suite's (it needs a Sandbox).
 // The full end-to-end runtime lives in port.test.ts; this is the module's own-seam mirror.
 
-import type { InvocationChat, PluginBridge, PluginCapability, PluginSuggestedAct, PluginToastLevel } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginBridge, PluginCapability, PluginQuietOptions, PluginSuggestedAct, PluginToastLevel } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { getPluginQuickJS, HOST_FN_DEADLINE_MS } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
@@ -26,7 +26,7 @@ const TOKEN = "opaque-token-abc";
 function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
   bridge: PluginBridge;
   writes: { count: number };
-  llm: { prompts: string[] };
+  llm: { prompts: string[]; opts: (PluginQuietOptions | undefined)[] };
   egress: { count: number };
   suggested: { acts: PluginSuggestedAct[] };
   performed: {
@@ -44,13 +44,14 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
   const uiToasts: { level: PluginToastLevel; message: string }[] = [];
   const uiDialogs: string[] = [];
   const performed = { turns: 0, lore: 0, pictures: 0, chips: 0, uiSetState, uiToasts, uiDialogs };
-  const llm: { prompts: string[] } = { prompts: [] };
+  const llm: { prompts: string[]; opts: (PluginQuietOptions | undefined)[] } = { prompts: [], opts: [] };
   const egress = { count: 0 };
   const suggested: { acts: PluginSuggestedAct[] } = { acts: [] };
   const bridge: PluginBridge = {
     llm: {
-      quiet: (prompt) => {
+      quiet: (prompt, quietOpts) => {
         llm.prompts.push(prompt);
+        llm.opts.push(quietOpts);
         return Promise.resolve({ text: `answered:${prompt.length}` });
       },
     },
@@ -125,6 +126,8 @@ interface RuntimeExtras {
   readonly collectEvent?: MembraneRuntime["collectEvent"];
   readonly collectSurface?: MembraneRuntime["collectSurface"];
   readonly collectCommand?: MembraneRuntime["collectCommand"];
+  readonly collectDisplayTransform?: MembraneRuntime["collectDisplayTransform"];
+  readonly collectMacro?: MembraneRuntime["collectMacro"];
   readonly logWarn?: MembraneRuntime["logWarn"];
 }
 
@@ -143,6 +146,8 @@ function makeRuntime(grants: readonly PluginCapability[], canWrite: boolean, bri
     collectEvent: extra.collectEvent ?? ((): void => undefined),
     collectSurface: extra.collectSurface ?? ((): void => undefined),
     collectCommand: extra.collectCommand ?? ((): void => undefined),
+    collectDisplayTransform: extra.collectDisplayTransform ?? ((): void => undefined),
+    collectMacro: extra.collectMacro ?? ((): void => undefined),
     logWarn: extra.logWarn ?? ((): void => undefined),
   };
 }
@@ -977,5 +982,136 @@ describe("host.ui — declarative surface registration + state publish (plugin-u
     // Nothing reached the bridge: an ungranted plugin raises no chrome at all.
     expect(performed.uiToasts).toEqual([]);
     expect(performed.uiDialogs).toEqual([]);
+  });
+});
+
+describe("attachMembrane — the U6 llm.quiet widening (§5.16/§5.32: ONE op, two optional arms)", () => {
+  test("a structured ask crosses as the guest's RAW schema — the membrane projects nothing (the domain owns D79)", async () => {
+    const { bridge, llm } = fakeBridge();
+    const runtime: MembraneRuntime = { ...makeRuntime(["llm.quiet"], false, bridge), currentChat: () => null, currentToken: () => null };
+    await withRuntime(runtime, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => host.llm.quiet('x', { schema: { name: 'draw', schema: { type: 'object', properties: { card: { type: 'string' } } } } }))()",
+      );
+      expect(out).toBe("answered:1");
+    });
+    expect(llm.opts).toEqual([{ schema: { name: "draw", schema: { type: "object", properties: { card: { type: "string" } } } } }]);
+  });
+
+  test("image asset ids cross as IDS and are clamped to the per-call ceiling (never an unbounded CAS read)", async () => {
+    const { bridge, llm } = fakeBridge();
+    const runtime: MembraneRuntime = { ...makeRuntime(["llm.quiet"], false, bridge), currentChat: () => null, currentToken: () => null };
+    await withRuntime(runtime, async (ctx) => {
+      await runAsync(ctx, "(async () => host.llm.quiet('x', { imageAssetIds: ['a','b','c','d','e','f'] }))()");
+    });
+    expect(llm.opts).toEqual([{ imageAssetIds: ["a", "b", "c", "d"] }]);
+  });
+
+  test("a MALFORMED opts bag is DROPPED, not thrown — the call proceeds as a plain quiet generation", async () => {
+    // The fail-safe projection posture `buildTurnHints`/`buildQuickReplyChoices` already use: a guest typo must
+    // not convert a working call into an error, and a half-understood structured ask must never reach a wire.
+    const { bridge, llm } = fakeBridge();
+    const runtime: MembraneRuntime = { ...makeRuntime(["llm.quiet"], false, bridge), currentChat: () => null, currentToken: () => null };
+    await withRuntime(runtime, async (ctx) => {
+      await runAsync(ctx, "(async () => host.llm.quiet('x', { schema: { schema: {} }, imageAssetIds: 'not-an-array' }))()");
+    });
+    expect(llm.opts).toEqual([undefined]);
+  });
+});
+
+describe("attachMembrane — transforms.registerDisplay (U6 seam 14; the ST message-formatting-hook parity arm)", () => {
+  test("a granted registerDisplay collects {name} + keeps the apply handle", async () => {
+    const { bridge } = fakeBridge();
+    const collected: { name: string }[] = [];
+    const runtime = makeRuntime(["chat.transform"], false, bridge, {
+      collectDisplayTransform: (reg, handler): void => {
+        collected.push({ name: reg.name });
+        handler.dispose(); // this test owns disposal (no Sandbox handlers map behind the direct attach)
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      const result = ctx.evalCode("host.transforms.registerDisplay({ name: 'furigana', apply: async (i) => i.text + '!' })");
+      if (result.error) {
+        throw new Error(`guest threw: ${readString(ctx, result.error)}`);
+      }
+      result.value.dispose();
+    });
+    expect(collected).toEqual([{ name: "furigana" }]);
+  });
+
+  test("registerDisplay rides the SAME chat.transform capability — without it, the uniform refusal, nothing collected", async () => {
+    // The capability REUSE is the design claim (a display transform is strictly narrower than the prompt
+    // transform that grant already buys), so this pin is what makes "no new consent line" a fact.
+    const { bridge } = fakeBridge();
+    const collected: unknown[] = [];
+    const runtime = makeRuntime([], false, bridge, { collectDisplayTransform: (reg): void => void collected.push(reg) });
+    await withRuntime(runtime, (ctx) => {
+      const result = ctx.evalCode(
+        "try { host.transforms.registerDisplay({ name: 'x', apply: async (i) => i.text }); 'NO-THROW' } catch (e) { 'caught:' + e.message }",
+      );
+      expect(readString(ctx, result.error ?? result.value)).toContain("chat.transform");
+    });
+    expect(collected).toEqual([]);
+  });
+
+  test("a registerDisplay def with no apply FUNCTION is refused (nothing collected)", async () => {
+    const { bridge } = fakeBridge();
+    const collected: unknown[] = [];
+    const runtime = makeRuntime(["chat.transform"], false, bridge, { collectDisplayTransform: (reg): void => void collected.push(reg) });
+    await withRuntime(runtime, (ctx) => {
+      const result = ctx.evalCode(
+        "try { host.transforms.registerDisplay({ name: 'x', apply: 'not-a-function' }); 'NO-THROW' } catch (e) { 'caught:' + e.message }",
+      );
+      expect(readString(ctx, result.error ?? result.value)).toContain("name, apply");
+    });
+    expect(collected).toEqual([]);
+  });
+});
+
+describe("attachMembrane — macros.register (U6 §5.15; plugin macros are DATA into the ONE kit engine)", () => {
+  test("a granted macros.register collects {name, description} + keeps the resolve handle — un-namespaced", async () => {
+    // The name that crosses is the GUEST-LOCAL one: infra holds no manifest slug and must never invent a
+    // namespace, so `plugin_<slug'>_` is assigned domain-side (the `registerTool` rule).
+    const { bridge } = fakeBridge();
+    const collected: { name: string; description: string }[] = [];
+    const runtime = makeRuntime(["chat.transform"], false, bridge, {
+      collectMacro: (reg, handler): void => {
+        collected.push({ name: reg.name, description: reg.description });
+        handler.dispose();
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      const result = ctx.evalCode("host.macros.register({ name: 'draw', description: 'a card', resolve: async () => 'Ace of Cups' })");
+      if (result.error) {
+        throw new Error(`guest threw: ${readString(ctx, result.error)}`);
+      }
+      result.value.dispose();
+    });
+    expect(collected).toEqual([{ name: "draw", description: "a card" }]);
+  });
+
+  test("macros.register WITHOUT chat.transform throws the uniform capability refusal (nothing collected)", async () => {
+    const { bridge } = fakeBridge();
+    const collected: unknown[] = [];
+    const runtime = makeRuntime([], false, bridge, { collectMacro: (reg): void => void collected.push(reg) });
+    await withRuntime(runtime, (ctx) => {
+      const result = ctx.evalCode(
+        "try { host.macros.register({ name: 'x', description: '', resolve: async () => '' }); 'NO-THROW' } catch (e) { 'caught:' + e.message }",
+      );
+      expect(readString(ctx, result.error ?? result.value)).toContain("chat.transform");
+    });
+    expect(collected).toEqual([]);
+  });
+
+  test("a macros.register def with no resolve FUNCTION is refused (nothing collected)", async () => {
+    const { bridge } = fakeBridge();
+    const collected: unknown[] = [];
+    const runtime = makeRuntime(["chat.transform"], false, bridge, { collectMacro: (reg): void => void collected.push(reg) });
+    await withRuntime(runtime, (ctx) => {
+      const result = ctx.evalCode("try { host.macros.register({ name: 'x', description: '', resolve: 42 }); 'NO-THROW' } catch (e) { 'caught:' + e.message }");
+      expect(readString(ctx, result.error ?? result.value)).toContain("name, description, resolve");
+    });
+    expect(collected).toEqual([]);
   });
 });

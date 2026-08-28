@@ -21,14 +21,16 @@ import { randomUUID } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
-import type { InvocationChat, PluginHandlerRef } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginHandlerRef, PluginQuietSchema } from "@orb/contracts/plugin";
 import { pluginToolWireName } from "@orb/contracts/plugin";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import type { ImageInput, ResponseFormat } from "@orb/contracts/role-clients";
 import { listSeededBackgrounds } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
@@ -49,7 +51,7 @@ import {
 import { loadPresentRole } from "#domain/chat";
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
-import type { PluginBelts, PluginHostOps, PluginHostPort, PluginService } from "#domain/plugin";
+import type { PluginBelts, PluginHostOps, PluginHostPort, PluginMacroRegistry, PluginService } from "#domain/plugin";
 import {
   buildConfirmedActRunner,
   buildPluginPromptTransform,
@@ -105,7 +107,7 @@ export interface AutomationPluginComposeDeps {
   readonly notifications: Pick<NotificationsService, "record">;
   readonly imagery: Pick<ImageryService, "generatePicture">;
   readonly settings: Pick<SettingsService, "getUserSettings">;
-  readonly assets: Pick<AssetsService, "store" | "loadAssetBytes" | "assetCasRefById" | "reapIfOrphan">;
+  readonly assets: Pick<AssetsService, "store" | "loadAssetBytes" | "assetCasRefById" | "reapIfOrphan" | "readOwnedAssetBytes">;
   /** The tool registry seam. `registerPluginTool` is the membrane's PL-A registrar; the other four are the
    *  `run_tool` arm's (D146): the direct-drive reachability predicate this seam re-checks itself, plus the
    *  resolve→execute pair every other tool consumer already funnels through. Deliberately still a `Pick` —
@@ -122,6 +124,11 @@ export interface AutomationPluginComposeDeps {
    *  itself is the only standing fact left to re-prove per fire. */
   readonly sessions: Pick<SessionsService, "loadUserById">;
   readonly bindRoleClients: (ownerId: UserId) => Promise<RoleClientsWithSignal>;
+  /** The process-wide PLUGIN-MACRO registry (plugin-ui-plane §5.15, U6) — minted at the composition ROOT and
+   *  handed to BOTH this plane (which writes it at activation) and chat's compose (which reads it per turn as
+   *  `ChatContext.pluginMacros`). Minted there rather than here purely because chat composes FIRST: one shared
+   *  instance and no late bind, which is the shape the S4 store had to work around. */
+  readonly pluginMacros: PluginMacroRegistry;
   /** The author's default-preset generation params (the side-gen sampling ladder's middle rung — /autobg). */
   readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
 }
@@ -132,8 +139,35 @@ export interface AutomationPluginComposeResult {
   readonly plugin: PluginService;
 }
 
+/** The structured-output arm of the U6 `llm.quiet` widening: the guest's RAW JSON Schema through the ONE
+ *  projection rule (D79). `liftJsonSchema` REFUSES anything outside `LIFTABLE_JSON_SCHEMA` — that throw is the
+ *  point, not an inconvenience: a silently-loosened constraint would let the model return a shape the plugin
+ *  then parses as its answer, which is worse than a refused call. `projectJsonSchema` is the only mint of
+ *  `WireReady`, so nothing unprojected can reach a wire from here by construction. */
+function buildQuietResponseFormat(schema: PluginQuietSchema): ResponseFormat {
+  const lifted = liftJsonSchema(schema.schema);
+  return {
+    name: schema.name,
+    schema: projectJsonSchema(lifted),
+    ...(schema.description !== undefined ? { description: schema.description } : {}),
+  };
+}
+
 export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): Promise<AutomationPluginComposeResult> {
-  const { db, now, chatCompose, worldInfo, notifications, imagery, settings, assets, admin, resolveOwnerPrincipal, bindRoleClients } = deps;
+  const { db, now, chatCompose, worldInfo, notifications, imagery, settings, assets, admin, resolveOwnerPrincipal, bindRoleClients, pluginMacros } = deps;
+  /** The VISION arm of the U6 `llm.quiet` widening: guest-named asset ids → bytes, read under the INSTALLER's
+   *  OWN Principal (`readOwnedAssetBytes`), which is the whole wall — a guest can name an id but it can only
+   *  ever reach an asset its installer owns, and a foreign/absent id THROWS rather than being dropped (a
+   *  silently imageless captioning call would be answered confidently about nothing). Absent/empty ⇒ `[]`, the
+   *  byte-identical arm every text-only quiet call takes. */
+  const resolveQuietImages = async (installerUserId: UserId, assetIds: readonly string[] | undefined): Promise<ImageInput[]> => {
+    if (assetIds === undefined || assetIds.length === 0) {
+      return [];
+    }
+    const caller = await resolveOwnerPrincipal(installerUserId);
+    const owned = await Promise.all(assetIds.map((id) => assets.readOwnedAssetBytes(caller, castId<AssetId>(id))));
+    return owned.map((asset) => asset.bytes);
+  };
   const { service: chat } = chatCompose;
 
   // Automation (D46) — built AFTER its action-op collaborators (chat/world-info/imagery/notifications +
@@ -531,11 +565,25 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // non-creative call) under the installer's own default-preset params, exactly like /autobg. Deliberately
     // NOT a new `SIDE_GEN_KINDS` member: this IS a quiet generation, and minting a parallel posture would add
     // a coupled tuple site to say the same thing.
+    //
+    // THE U6 WIDENING (plugin-ui-plane §5.16/§5.32) LANDS HERE AND ONLY HERE, because this is the one tier that
+    // holds both resolutions the guest's raw bag needs: the ONE projection rule (`liftJsonSchema` →
+    // `projectJsonSchema`, D79 — so a guest can never hand a wire an unprojected schema) and the OWNER-GATED
+    // asset read (`readOwnedAssetBytes` under the installer's own Principal — so `imageAssetIds` can only ever
+    // name the installer's own CAS). A schema outside the liftable subset, or an asset the installer does not
+    // own, THROWS — a typed refusal of the CALL that reaches the guest as a rejected promise, never a silent
+    // downgrade to an unconstrained/imageless generation the plugin would then mis-read as its answer.
     llm: {
-      quiet: async ({ installerUserId, prompt, signal }) => {
+      quiet: async ({ installerUserId, prompt, signal, opts }) => {
         const rc = await bindRoleClients(installerUserId);
         const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.quiet_generate, await deps.resolveUserPresetParams(installerUserId));
-        const res = await rc.summarize([{ systemPrompt: PLUGIN_QUIET_SYSTEM, userPrompt: prompt }], { ...toSummarizeOptions(posture), signal });
+        const images = await resolveQuietImages(installerUserId, opts?.imageAssetIds);
+        const responseFormat = opts?.schema === undefined ? undefined : buildQuietResponseFormat(opts.schema);
+        const res = await rc.summarize([{ systemPrompt: PLUGIN_QUIET_SYSTEM, userPrompt: prompt, ...(images.length > 0 ? { images } : {}) }], {
+          ...toSummarizeOptions(posture),
+          signal,
+          ...(responseFormat !== undefined ? { responseFormat } : {}),
+        });
         return { text: (res.items[0]?.text ?? "").trim() };
       },
     },
@@ -605,6 +653,14 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         chatCompose.promptTransforms.register(transform);
         return { unregister: () => chatCompose.promptTransforms.unregister(id) };
       },
+      // §5.15 — the plugin MACRO plane: one registry entry per plugin, namespaced from the manifest slug.
+      registerMacros: (macros, invoke, scope) =>
+        pluginMacros.register({
+          installer: scope.installer.userId,
+          slug: scope.slug,
+          macros,
+          invoke,
+        }),
       // The plugin `events.on` fan-out: ONE PluginTriggerSubscriber per instance.
       subscribeEvent: (subscriptions, invoke, scope) => {
         const refsByType = new Map<string, PluginHandlerRef[]>();

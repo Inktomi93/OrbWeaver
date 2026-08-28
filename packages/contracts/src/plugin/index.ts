@@ -10,6 +10,14 @@
  *  BAD_REQUEST rather than an unbounded log fetch (the #45 class). */
 export const PLUGIN_LOG_LIST_MAX_LIMIT = 500;
 
+/** The `plugin.transformForDisplay` input CEILING (plugin-ui-plane seam 14, U6) — the longest rendered row a
+ *  viewer's client may submit for display transformation, enforced at the transport trust boundary. It is
+ *  generous against real prose (a very long message is a few thousand characters) and it exists because the
+ *  round-trip is PER ROW: without it a transcript render is an unbounded upload per visible message. A row over
+ *  the cap is a BAD_REQUEST, and the client's fallback is the text it already has — the same degrade a skipped
+ *  transform produces, so an over-long row renders un-annotated rather than not at all. */
+export const PLUGIN_DISPLAY_TEXT_MAX_CHARS = 32_000;
+
 export type { InvocationChat, PluginBridge, PluginInvocationLiveness } from "./bridge.ts";
 export { HostVersionError, PluginCapabilityError, PluginSuggestedError } from "./errors.ts";
 export type {
@@ -19,19 +27,23 @@ export type {
   PluginInvocation,
   PluginLogLevel,
   PluginMessageView,
+  PluginQuietOptions,
+  PluginQuietSchema,
   PluginVariableOp,
   PluginWorldEntryUpsert,
 } from "./host-v1.ts";
-export { HOST_FUNCTION_CAPABILITY, PLUGIN_LOG_LEVELS } from "./host-v1.ts";
+export { HOST_FUNCTION_CAPABILITY, PLUGIN_LOG_LEVELS, PLUGIN_QUIET_IMAGES_MAX } from "./host-v1.ts";
 export type { PluginOrigin, PluginStatus } from "./lifecycle.ts";
 export { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "./lifecycle.ts";
 export type { PluginBuiltAgainst, PluginCapability, PluginManifest } from "./manifest.ts";
 export { NET_HOSTS_MAX, PLUGIN_CAPABILITIES, pluginBuiltAgainstSchema, pluginManifestSchema, pluginNetHostSchema, pluginSlugSchema } from "./manifest.ts";
 export type {
   PluginCommandRegistration,
+  PluginDisplayTransformRegistration,
   PluginEventSubscription,
   PluginHandlerRef,
   PluginInstance,
+  PluginMacroRegistration,
   PluginSurfaceRegistration,
   PluginToolRegistration,
   PluginTransformRegistration,
@@ -86,11 +98,15 @@ export type {
   PluginUiOutcome,
 } from "./ui.ts";
 export {
+  PLUGIN_ANCHOR_TIERS,
   PLUGIN_BADGE_INTENTS,
   PLUGIN_BUTTON_VARIANTS,
   PLUGIN_COMMAND_ARGS_MAX,
   PLUGIN_COMMAND_DESCRIBE_MAX,
   PLUGIN_COMMAND_NAME_RE,
+  PLUGIN_FOOTER_MAX_DEPTH,
+  PLUGIN_FOOTER_MAX_NODES,
+  PLUGIN_FOOTER_NODE_KIND_ALLOWED,
   PLUGIN_GAP_TOKENS,
   PLUGIN_GRID_TILES_MAX,
   PLUGIN_IMAGE_ASPECTS,

@@ -38,7 +38,7 @@ function frozenClock(): { now: () => number; advance: (ms: number) => void } {
 }
 
 function instanceWith(surfaces: readonly PluginSurfaceRegistration[]): PluginInstance {
-  return { tools: [], transforms: [], events: [], surfaces, commands: [] };
+  return { tools: [], transforms: [], events: [], surfaces, commands: [], displayTransforms: [], macros: [] };
 }
 
 describe("plugin UI outbox", () => {

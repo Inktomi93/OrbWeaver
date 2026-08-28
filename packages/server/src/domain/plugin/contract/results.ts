@@ -96,6 +96,16 @@ export interface PluginCommandView {
   readonly describe: string;
 }
 
+/** One registered DISPLAY transform as the caller's client sees it (`listDisplayTransforms` — plugin-ui-plane
+ *  seam 14, U6). Deliberately NOT the handler and NOT the apply: this projection exists so a viewer's client can
+ *  answer ONE question — "does anything transform my rows?" — and skip every per-row round-trip when the answer
+ *  is no (the byte-identity-when-off law, applied to a per-row cost). `name` is the plugin's own label for it,
+ *  carried so a diagnostic surface can say WHICH transform is annotating a row. */
+export interface PluginDisplayTransformView {
+  readonly pluginId: PluginId;
+  readonly name: string;
+}
+
 /** One published plugin as the DISTRIBUTE surface sees it (D147 clause (d)) — the `admin_distributed_plugins`
  *  row projected. It describes the deployment's POLICY, never anyone's install: no status, no grant, no
  *  crash counter, because the record is a bundle the server publishes and every actual copy is an ordinary

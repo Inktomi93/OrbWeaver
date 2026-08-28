@@ -11,6 +11,7 @@ import type {
   LiveOnlyChatBusEvent,
   PromptTransform,
   PromptTransformPoint,
+  PromptTransformResult,
   RenderPolicy,
   RoomOverrides,
   ToolCallRecord,
@@ -53,6 +54,7 @@ import type {
   RpgGameId,
   UserId,
 } from "@orb/kit/ids";
+import type { UserMacroDef } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { RegexReplacer } from "@orb/kit/regex";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
@@ -515,8 +517,30 @@ export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
  *  precedent). Applies every registered transform for `point` in ascending `order`, each under a 250 ms
  *  deadline; a timeout or throw SKIPS that transform (the draft passes through UNCHANGED) + emits a
  *  `prompt_transform_skipped` warning — a broken transform never eats a turn (D53). Chat learns nothing about
- *  WHO registers: it invokes the two fixed points, the registry owns the ordering + deadline discipline. */
-export type ApplyPromptTransformsOp = (point: PromptTransformPoint, chatId: ChatId, draft: string, vars: Record<string, string>) => Promise<string>;
+ *  WHO registers: it invokes the two fixed points, the registry owns the ordering + deadline discipline.
+ *
+ *  The result is a UNION, not a string, because a transform has TWO legitimate answers and collapsing them
+ *  would make them indistinguishable at the call site: `{aborted:false,text}` is the rewritten draft, and
+ *  `{aborted:true,…}` is a DELIBERATE refusal of the generation (plugin-ui-plane §5.14). A broken transform
+ *  still SKIPS (D53) and never reaches the abort arm — "it timed out" and "it said no" are different turns. */
+export type ApplyPromptTransformsOp = (
+  point: PromptTransformPoint,
+  chatId: ChatId,
+  draft: string,
+  vars: Record<string, string>,
+) => Promise<PromptTransformResult>;
+
+/** The PLUGIN-MACRO resolve op (plugin-ui-plane §5.15, U6) — the per-turn read of the TURN AUTHOR's own
+ *  enabled plugins' registered macros, already resolved (each guest invoked once, under the plugin plane's
+ *  assembly deadline) into kit `UserMacroDef`s the turn's macro registry takes as DATA. `ChatContext.pluginMacros`
+ *  is `null` when no plugin host is wired — the byte-identical no-op the `rpg`/`expressions`/`tools` seams use.
+ *
+ *  IT IS AN INJECTED OP AND THAT IS THE WHOLE POINT: chat never imports `domain/plugin`, and the plugin domain
+ *  never imports chat. Chat asks "what macros does this author have this turn?" and receives DATA; whose plugin,
+ *  which guest, and what budget it ran under are all the other side's business. */
+// Not exported (the `ResolveChatUserMacroDefsOp` precedent above): its only consumers are `ChatContext` here
+// and compose, which reaches it as `ChatContext["pluginMacros"]` — an export nothing imports is a false public.
+type ResolvePluginMacrosOp = (authorUserId: UserId, chatId: ChatId) => Promise<readonly UserMacroDef[]>;
 
 /** The D50 PromptTransform registrar surface — created ONCE at the composition root
  *  (`createPromptTransformRegistry`). Its `apply` is injected as {@link ApplyPromptTransformsOp}
@@ -1234,6 +1258,8 @@ export interface ChatContext {
   /** The D50 PromptTransform apply op (automation-design/04 §6). Null when no registrar is wired —
    *  byte-identical no-op (a chat with zero transforms assembles + streams identically). */
   readonly promptTransforms: ApplyPromptTransformsOp | null;
+  /** The per-turn plugin-macro resolve (U6, §5.15) — `null` when no plugin host is wired (byte-identical). */
+  readonly pluginMacros: ResolvePluginMacrosOp | null;
   readonly resolveDefaultPersona: ResolveDefaultPersonaOp;
   readonly resolveCurrentPersona: ResolveCurrentPersonaOp;
   readonly resolveConnectedPersona: ResolveConnectedPersonaOp;
