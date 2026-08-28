@@ -817,6 +817,7 @@ CREATE TABLE `plugins` (
 	`granted_capabilities` text NOT NULL,
 	`status` text NOT NULL,
 	`origin` text NOT NULL,
+	`source_url` text,
 	`pending_reconsent` integer DEFAULT false NOT NULL,
 	`widened_net_hosts` text DEFAULT '[]' NOT NULL,
 	`consecutive_crashes` integer DEFAULT 0 NOT NULL,
@@ -826,7 +827,8 @@ CREATE TABLE `plugins` (
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`bundle_asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE restrict,
 	CONSTRAINT "plugins_status_check" CHECK(status in ('disabled', 'enabled', 'errored')),
-	CONSTRAINT "plugins_origin_check" CHECK(origin in ('upload')),
+	CONSTRAINT "plugins_origin_check" CHECK(origin in ('upload', 'url')),
+	CONSTRAINT "plugins_source_url_check" CHECK((origin = 'upload' and source_url is null) or (origin <> 'upload' and source_url is not null)),
 	CONSTRAINT "plugins_widened_hosts_check" CHECK(pending_reconsent = 1 or json_array_length(widened_net_hosts) = 0)
 );
 --> statement-breakpoint
