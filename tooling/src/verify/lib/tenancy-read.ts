@@ -5,18 +5,23 @@
 // they exist to enforce (`tooling/src/_shared/schema-read.ts` is the same call for what a `sqliteTable(...)` DECLARES). The
 // (a)-class table set they cross this with is derived by `gates/table-scoping-class.ts`.
 import type { CallExpression, Node, SourceFile } from "ts-morph";
-import { SyntaxKind, VariableDeclarationKind } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
 
 const LEADING_SLASH_RE = /^\/+/u;
 const MAX_ALIAS_DEPTH = 8;
+/** The chained calls only a drizzle statement can carry. The DISCRIMINATOR for the unresolvable arm: an
+ *  identifier the resolver cannot trace is a finding only when the statement is provably a drizzle write —
+ *  `cache.delete(key)` / `hash.update(bytes)` are the SAME AST shape, and 72 of them live in
+ *  `packages/server/src` (measured 2026-08-27), every one of them chain-free. */
+const DRIZZLE_WRITE_CHAIN = new Set(["set", "values", "returning", "where", "onConflictDoUpdate", "onConflictDoNothing"]);
 
-function constAliasInitializers(identifier: Node): readonly Node[] {
+/** Same-file variable aliases of this identifier (`const t = characters` / `let t = characters`).
+ *  DECLARATION KIND IS IRRELEVANT — it says how the binding may be REASSIGNED, never what it names, and
+ *  keying on `const` alone let `let table = characters` / `var table = characters` walk both write halves
+ *  straight past the tenancy check (#769; measured through the real descriptors with a const control). */
+function localAliasInitializers(identifier: Node): readonly Node[] {
   return (identifier.getSymbol()?.getDeclarations() ?? []).flatMap((declaration) => {
-    if (
-      declaration.getSourceFile() !== identifier.getSourceFile() ||
-      !declaration.isKind(SyntaxKind.VariableDeclaration) ||
-      declaration.getVariableStatement()?.getDeclarationKind() !== VariableDeclarationKind.Const
-    ) {
+    if (declaration.getSourceFile() !== identifier.getSourceFile() || !declaration.isKind(SyntaxKind.VariableDeclaration)) {
       return [];
     }
     const initializer = declaration.getInitializer();
@@ -24,18 +29,33 @@ function constAliasInitializers(identifier: Node): readonly Node[] {
   });
 }
 
-function resolvesOwnerTable(identifier: Node, ownerTableIdents: ReadonlySet<string>, seen: Set<number>, depth: number): boolean {
+/** The DECLARED table name this identifier traces to, or undefined when the walk cannot reach one. ONE walk
+ *  answers both questions the write halves ask ("is it (a)-class" and "is it readable at all") — resolving
+ *  twice, once per set, doubles the language-service work on every write in the tree and cost ~12s of the
+ *  whole-corpus conformance budget when it was written that way. */
+function tracedTable(identifier: Node, tableIdents: ReadonlySet<string>, seen: Set<number>, depth: number): string | undefined {
   if (!identifier.isKind(SyntaxKind.Identifier) || depth > MAX_ALIAS_DEPTH || seen.has(identifier.getStart())) {
-    return false;
+    return;
   }
   seen.add(identifier.getStart());
-  if (ownerTableIdents.has(identifier.getText()) || identifier.getDefinitions().some((definition) => ownerTableIdents.has(definition.getName()))) {
-    return true;
+  const own = identifier.getText();
+  if (tableIdents.has(own)) {
+    return own;
   }
-  const importedOwner = (identifier.getSymbol()?.getDeclarations() ?? []).some(
-    (declaration) => declaration.isKind(SyntaxKind.ImportSpecifier) && ownerTableIdents.has(declaration.getNameNode().getText()),
-  );
-  return importedOwner || constAliasInitializers(identifier).some((initializer) => resolvesOwnerTable(initializer, ownerTableIdents, seen, depth + 1));
+  const defined = identifier.getDefinitions().find((definition) => tableIdents.has(definition.getName()));
+  if (defined !== undefined) {
+    return defined.getName();
+  }
+  for (const declaration of identifier.getSymbol()?.getDeclarations() ?? []) {
+    if (declaration.isKind(SyntaxKind.ImportSpecifier) && tableIdents.has(declaration.getNameNode().getText())) {
+      return declaration.getNameNode().getText();
+    }
+  }
+  // A binding declares at most one initializer here, so mapping the (0-or-1-element) alias list and taking
+  // the first hit costs nothing and keeps every path an expression return.
+  return localAliasInitializers(identifier)
+    .map((initializer) => tracedTable(initializer, tableIdents, seen, depth + 1))
+    .find((traced) => traced !== undefined);
 }
 
 /** Absolute ts-morph path → the repo-relative jump-link path (conformance mini-projects are rooted at `/repo`). */
@@ -50,7 +70,46 @@ export function ownerScopedTableBinding(node: Node | undefined, ownerTableIdents
   if (node?.isKind(SyntaxKind.Identifier) !== true) {
     return;
   }
-  return resolvesOwnerTable(node, ownerTableIdents, new Set(), 0) ? node.getText() : undefined;
+  return tracedTable(node, ownerTableIdents, new Set(), 0) === undefined ? undefined : node.getText();
+}
+
+/** What a drizzle statement's table argument resolved to. The three READ verdicts a tenancy gate must judge
+ *  differently — the fourth state (the argument is not an identifier at all) is `undefined`, because a
+ *  property access / call / literal is not a BINDING and this reader makes no claim about it. */
+export type TableTarget =
+  /** Traced to an (a)-class table — `ident` is the LOCAL binding the predicate must name. */
+  | { readonly kind: "owner-scoped"; readonly ident: string }
+  /** Traced to a schema table of some other scoping class — legitimately out of the (a) gates' scope. */
+  | { readonly kind: "other-table" }
+  /** An identifier the resolver could NOT trace to any declared table: a parameter, a reassigned binding, an
+   *  alias chain past `MAX_ALIAS_DEPTH` or through a cycle, or an initializer shape it cannot read. NOT a
+   *  clean answer — an unreadable target is an unproven one, so the gates report it rather than exempt it. */
+  | { readonly kind: "unresolvable"; readonly ident: string };
+
+/** Classify a drizzle table argument: trace it ONCE against the FULL schema table set, then read its class
+ *  off the (a)-class set. The full set is the denominator that separates "reads fine, simply not (a)-class"
+ *  from "I could not read this at all" — without it every non-(a) write would look identical to a bypass. */
+export function tableTargetOf(node: Node | undefined, ownerTableIdents: ReadonlySet<string>, schemaTableIdents: ReadonlySet<string>): TableTarget | undefined {
+  if (node?.isKind(SyntaxKind.Identifier) !== true) {
+    return;
+  }
+  const traced = tracedTable(node, schemaTableIdents, new Set(), 0);
+  if (traced === undefined) {
+    return { kind: "unresolvable", ident: node.getText() };
+  }
+  return ownerTableIdents.has(traced) ? { kind: "owner-scoped", ident: node.getText() } : { kind: "other-table" };
+}
+
+/** Is the statement this table anchor starts provably a DRIZZLE write? The fence the unresolvable arm needs:
+ *  `db.delete(T)` and `cache.delete(key)` are one AST shape, so only the chained drizzle-only builders
+ *  (`.set` / `.values` / `.where` / `.returning` / `.onConflict…`) can tell them apart without a type graph
+ *  the pure-AST harness does not build. DECLARED LIMIT: a CHAIN-FREE statement (`db.delete(T);` unbounded)
+ *  is indistinguishable from a `Map.delete` and stays out of the unresolvable arm. */
+export function isDrizzleWriteStatement(anchor: Node): boolean {
+  return chainCalls(anchor).some((call) => {
+    const callee = call.getExpression();
+    return callee.isKind(SyntaxKind.PropertyAccessExpression) && DRIZZLE_WRITE_CHAIN.has(callee.getName());
+  });
 }
 
 /** Does this predicate name the exact local table binding's column? Text elsewhere in the expression is not

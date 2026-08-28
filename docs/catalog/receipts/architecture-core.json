@@ -147,13 +147,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "b1096aac374baec26cb6fc2f8d9d75a228bbfd516ed7b0725af25d6b70f7369e",
+      "assignedSha256": "e534a60d0299585480642e726bae73a84bc59b77244f04c1e53517aad75d0d91",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "b1096aac374baec26cb6fc2f8d9d75a228bbfd516ed7b0725af25d6b70f7369e",
-      "verifiedCommit": "f14031737983003b738092b3f1e26efe8e942111",
-      "verifiedAt": "2026-08-26",
+      "verifiedSha256": "e534a60d0299585480642e726bae73a84bc59b77244f04c1e53517aad75d0d91",
+      "verifiedCommit": "b287ab649bdb4c355d4c645ad5980d0f21cb312f",
+      "verifiedAt": "2026-08-27",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -179,7 +179,8 @@
         "delta re-verify 2026-08-25 (#712, commits b4abe5069 + a2113d4eb): three narrow active rows (untrusted-regex-safe-exec, public-route-body-cap, plugin-dump-guard) and count 229->232 were re-read against their descriptors, mustFlag/mustPass controls, and paired product migrations. E3 requires cap middleware to precede the body-reading handler; E4 binds the unsafe-return guard to the same QuickJS context and handle as the dump. Gate conformance passed 8/8 after both adversarial decoys landed; the authoritative anti-drift run proved all three new fixtures fired and no active gate was blind. Its only final failure was the pre-existing user-bus-coverage fixture, not a #712 gate.",
         "integration re-attestation 2026-08-25 (commit fac181a77): the merged route preserves both the OIDC back-channel body cap and the fail-closed sid-only rejection; all three new diagnostics now point to the #712 design, and the review-mirror contract derives its five-way pending classification from one tuple.",
         "delta re-attestation 2026-08-26 (#730, commit 4b727cf44): monotonic-tests now rejects pseudo-skip annotations while accepting genuine runner outcomes, and test-no-stubs distinguishes those runtime guards from skipped test declarations; suppressions records the retired noAwaitInLoops ceremony and the measured 159-row fully-ratified floor. The design and changed rows were read in full; focused gate conformance passed 8/8 and suppression/monotonic residuals passed 15/15 on the lane bytes.",
-        "delta re-attestation 2026-08-26 (#750, commit 92011ffcf): the suppressions row now matches the shared governed typed-source predicate, exact directive-token detector, foreign-runtime fence, derived classification, and both-ways controls. useTopLevelRegex was removed from Layer 1. The full document and descriptor were re-read; focused gate conformance passed 8/8, residual/config tests passed 19/19, and the standalone real gate scanned 3,645 governed files clean with 310 ratified sites."
+        "delta re-attestation 2026-08-26 (#750, commit 92011ffcf): the suppressions row now matches the shared governed typed-source predicate, exact directive-token detector, foreign-runtime fence, derived classification, and both-ways controls. useTopLevelRegex was removed from Layer 1. The full document and descriptor were re-read; focused gate conformance passed 8/8, residual/config tests passed 19/19, and the standalone real gate scanned 3,645 governed files clean with 310 ratified sites.",
+        "delta re-verify 2026-08-27 (#769, lane fix-e1-alias, content commit b287ab649): the owner-scoped-writes and owner-scoped-upserts rows changed only where the landed descriptors did — the writes row now states THREE biting shapes (the third being the unresolvable target and its chain-free declared limit) and the upserts row its second shape, and both record the full schema-ident denominator plus the declaration-kind-agnostic alias resolver. Every changed clause re-read against the descriptors; red-first against HEAD failed 8/8 on the let/var/unresolvable arms with their const controls passing, whole-corpus gate conformance passed 8/8 (30.1s, down from 45.5s at HEAD under comparable load), the two permanent pins passed 17/17, and both gates ran the real 1,394-file tree with ZERO findings before planted let/var/parameter bypasses produced four."
       ],
       "claims": [
         {
