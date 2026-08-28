@@ -67,6 +67,11 @@ export interface PluginView {
  *  `pluginId` it belongs to (the client joins to the plugin's own name/glyph for the labeled shell). */
 export interface PluginSurfaceView extends PluginSurfaceRegistrationMeta {
   readonly pluginId: PluginId;
+  /** A `tool-card` surface's MODEL-VISIBLE tool name — `pluginToolWireName(row.slug, meta.toolName)`, derived
+   *  HERE because the slug is the installing row's and the client has no business re-spelling the namespacing
+   *  rule (plugin-ui-plane #679 U3). Present exactly when `anchor === "tool-card"` (the meta biconditional):
+   *  it is what the first-party `pluginToolRenderer` matches a persisted `ToolCallRecord.name` against. */
+  readonly toolWireName?: string;
 }
 
 /** A surface's published state (`getSurfaceState` — plugin-ui-plane #679 U1): the whole JSON map the renderer
