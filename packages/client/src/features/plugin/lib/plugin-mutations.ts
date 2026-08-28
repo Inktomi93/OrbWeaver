@@ -39,6 +39,33 @@ export const useInstallPlugin = createEntityMutation<inferInput<Trpc["plugin"]["
   errorToast: serverReason("Couldn't install that plugin."),
 });
 
+/** PREVIEW a plugin bundle at a caller-supplied URL (plugin-ui-plane #679 U8, seam 15) — the server fetches
+ *  it THROUGH the egress guard and returns its MANIFEST, so the SAME consent/grant screen a file install shows
+ *  can be built from a URL the client never fetched itself. Reconciles NOTHING (`invalidates: () => []`): it is
+ *  a read-only probe that persists no row, exactly like `runSnippet`.
+ *
+ *  NO `errorToast`, DELIBERATELY — the URL arm must NOT forward the server's reason. `previewFromUrl` throws two
+ *  distinct shapes: `PluginBundleFetchError` (unreachable / refused / SSRF-blocked / non-2xx) and
+ *  `ManifestInvalidError` (fetched, but not a plugin). Surfacing which one fired would turn "did the fetch
+ *  reach?" into an SSRF ORACLE — so the install card catches the rejection and renders ONE fixed, leak-free
+ *  line for every failure, never `error.message` (`plugin-install-card.tsx`). */
+export const usePreviewPluginFromUrl = createEntityMutation<inferInput<Trpc["plugin"]["previewFromUrl"]>, inferOutput<Trpc["plugin"]["previewFromUrl"]>>({
+  options: (trpc) => trpc.plugin.previewFromUrl.mutationOptions(),
+  invalidates: () => [],
+});
+
+/** Install a plugin from a URL with a CONFIRMED grant subset (plugin-ui-plane #679 U8, seam 15). The server
+ *  re-fetches the bundle through the egress guard and runs it through the EXACT SAME funnel + consent checks a
+ *  file `install` takes, minting the caller's own `disabled` row — so this reconciles `plugin.list` on settle
+ *  just like `useInstallPlugin`. `errorToast` forwards the server's own sentence (`PluginBundleFetchError` and
+ *  `PluginAlreadyInstalledError` are both host-readable and leak-free at the install act), falling back to a
+ *  generic line only for an error that is not one of ours. */
+export const useInstallPluginFromUrl = createEntityMutation<inferInput<Trpc["plugin"]["installFromUrl"]>, inferOutput<Trpc["plugin"]["installFromUrl"]>>({
+  options: (trpc) => trpc.plugin.installFromUrl.mutationOptions(),
+  invalidates: (trpc) => [trpc.plugin.list.queryFilter()],
+  errorToast: serverReason("Couldn't install that plugin from that URL."),
+});
+
 /** Replace an installed plugin's bundle. The verb refuses a downgrade and a slug mismatch outright; a
  *  REACH-WIDENING upgrade succeeds but lands `disabled` pending re-confirmation, so the caller reads the
  *  returned `PluginView.status` rather than assuming the plugin kept running. Also invalidates the log —
