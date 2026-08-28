@@ -7,9 +7,12 @@
 
 import type { PluginSurfaceSpec } from "@orb/contracts/plugin";
 import {
+  coercePluginCommandArgs,
   HOST_FUNCTION_CAPABILITY,
   isUiProxyableHostFunction,
   PLUGIN_ANCHOR_TIERS,
+  PLUGIN_COMMAND_ARG_TYPES,
+  PLUGIN_COMMAND_ARGS_DECLARED_MAX,
   PLUGIN_COMMAND_DESCRIBE_MAX,
   PLUGIN_FOOTER_MAX_DEPTH,
   PLUGIN_FOOTER_MAX_NODES,
@@ -29,6 +32,8 @@ import {
   PLUGIN_TOAST_LEVELS,
   PLUGIN_TOOL_NAME_PREFIX,
   PLUGIN_TOOL_NAME_RE,
+  pluginCommandArgSpecSchema,
+  pluginCommandArgsSchema,
   pluginCommandRegistrationMetaSchema,
   pluginFrameBodySchema,
   pluginSurfaceRegistrationMetaSchema,
@@ -486,6 +491,67 @@ test("a plugin COMMAND's name is the guest-local ident grammar and its help is r
   expect(pluginCommandRegistrationMetaSchema.safeParse({ name: "Draw Card", describe: "Draw a card" }).success).toBe(false);
   expect(pluginCommandRegistrationMetaSchema.safeParse({ name: "draw", describe: "" }).success).toBe(false);
   expect(pluginCommandRegistrationMetaSchema.safeParse({ name: "draw", describe: "x".repeat(PLUGIN_COMMAND_DESCRIBE_MAX + 1) }).success).toBe(false);
+});
+
+// ── #791: the TYPED-ARG grammar ────────────────────────────────────────────────────────────────────────────────
+
+test("PLUGIN_COMMAND_ARG_TYPES is the clean closed set [string, number, enum, boolean]", () => {
+  expect(PLUGIN_COMMAND_ARG_TYPES).toEqual(["string", "number", "enum", "boolean"]);
+});
+
+test("#791: a declared arg enforces the enum BICONDITIONAL — enumValues iff type is enum", () => {
+  expect(pluginCommandArgSpecSchema.safeParse({ name: "suit", type: "enum", enumValues: ["cups", "wands"] }).success).toBe(true);
+  // enum without values, and values on a non-enum, are both refused.
+  expect(pluginCommandArgSpecSchema.safeParse({ name: "suit", type: "enum" }).success).toBe(false);
+  expect(pluginCommandArgSpecSchema.safeParse({ name: "n", type: "number", enumValues: ["1"] }).success).toBe(false);
+  // the name is the values-bag ident grammar.
+  expect(pluginCommandArgSpecSchema.safeParse({ name: "Suit", type: "string" }).success).toBe(false);
+});
+
+test("#791: a command's declared args cap out and reject duplicate names", () => {
+  const spec = (name: string): unknown => ({ name, type: "string" });
+  expect(pluginCommandRegistrationMetaSchema.safeParse({ name: "cast", describe: "x", args: [spec("a"), spec("b")] }).success).toBe(true);
+  expect(pluginCommandRegistrationMetaSchema.safeParse({ name: "cast", describe: "x", args: [spec("dup"), spec("dup")] }).success).toBe(false);
+  expect(
+    pluginCommandRegistrationMetaSchema.safeParse({
+      name: "cast",
+      describe: "x",
+      args: Array.from({ length: PLUGIN_COMMAND_ARGS_DECLARED_MAX + 1 }, (_v, i) => spec(`a${i}`)),
+    }).success,
+  ).toBe(false);
+});
+
+test("#791: coercePluginCommandArgs types raw strings and reports a human error per offending arg", () => {
+  const specs = [
+    { name: "suit", type: "enum" as const, required: true, enumValues: ["cups", "wands"] },
+    { name: "count", type: "number" as const },
+    { name: "loud", type: "boolean" as const },
+  ];
+  // The happy path: enum stays a string, number becomes a number, boolean becomes a boolean.
+  expect(coercePluginCommandArgs(specs, { suit: "cups", count: "3", loud: "true" })).toEqual({
+    values: { suit: "cups", count: 3, loud: true },
+    errors: [],
+  });
+  // A missing required, an off-enum, a non-number — each a sentence; the valid ones still coerce.
+  const bad = coercePluginCommandArgs(specs, { count: "lots" });
+  expect(bad.values).toEqual({});
+  expect(bad.errors).toHaveLength(2); // suit required + count not a number
+});
+
+test("#791: pluginCommandArgsSchema is the MEMBRANE re-validation over an already-typed bag", () => {
+  const specs = [
+    { name: "suit", type: "enum" as const, required: true, enumValues: ["cups", "wands"] },
+    { name: "count", type: "number" as const },
+  ];
+  const schema = pluginCommandArgsSchema(specs);
+  expect(schema.safeParse({ suit: "cups", count: 2 }).success).toBe(true);
+  // required missing, off-enum, and a mistyped number are all refused; an extra key is STRIPPED (the guest sees
+  // only declared args).
+  expect(schema.safeParse({ count: 2 }).success).toBe(false);
+  expect(schema.safeParse({ suit: "swords" }).success).toBe(false);
+  expect(schema.safeParse({ suit: "cups", count: "2" }).success).toBe(false);
+  const stripped = schema.safeParse({ suit: "cups", extra: "dropped" });
+  expect(stripped.success && stripped.data).toEqual({ suit: "cups" });
 });
 
 test("PLUGIN_TOAST_LEVELS is the HOUSE notify vocabulary — a plugin gets no severity the app cannot render", () => {

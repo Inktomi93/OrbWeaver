@@ -139,6 +139,9 @@ const EMPTY_MATCHES: readonly SlashCommandContribution[] = [];
 const SLASH_COMMAND_RE = /^\/([a-z][a-z0-9-]*)(?:\s+([\s\S]*))?$/i;
 /** The in-progress command token: a leading slash then ONLY token characters (no whitespace yet). */
 const SLASH_COMPLETION_RE = /^\/([a-z0-9-]*)$/i;
+/** A command that has moved PAST its token into arguments: `/<id> <args…>`, at least one whitespace typed. The
+ *  args group is UNTRIMMED (a trailing space is the "starting a fresh argument" signal an arg completer reads). */
+const SLASH_ARGS_RE = /^\/([a-z][a-z0-9-]*)\s+([\s\S]*)$/i;
 const ESCAPE_PREFIX = "//";
 
 /** Classify a composer draft. Pure — no registry knowledge: whether the named command EXISTS is the
@@ -169,6 +172,19 @@ export function slashCompletionToken(text: string): string | null {
 export function matchSlashCommands(commands: readonly SlashCommandContribution[], text: string): readonly SlashCommandContribution[] {
   const token = slashCompletionToken(text);
   return token === null ? EMPTY_MATCHES : commands.filter((c) => c.id.startsWith(token));
+}
+
+/** The command + its RAW args remainder when the draft is a command that has moved PAST the token into its
+ *  arguments (`/<id> <args…>`, at least one space typed). `argsText` is UNTRIMMED — a trailing space is the
+ *  signal that the person is starting a fresh argument, which an arg completer reads. Null when the draft is not
+ *  a command-with-args-in-progress (a bare token, the `//` escape, or a plain message). Drives the composer's
+ *  #791 arg-hint strip, a separate question from {@link slashCompletionToken} (which owns the TOKEN completion). */
+export function slashArgsInProgress(text: string): { readonly commandId: string; readonly argsText: string } | null {
+  if (text.startsWith(ESCAPE_PREFIX)) {
+    return null;
+  }
+  const match = SLASH_ARGS_RE.exec(text);
+  return match === null ? null : { commandId: (match[1] ?? "").toLowerCase(), argsText: match[2] ?? "" };
 }
 
 /** The refusal copy for a `/command` no feature registered — names BOTH escape hatches (the completion

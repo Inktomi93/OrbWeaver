@@ -18,7 +18,7 @@
 
 import { Blocks } from "@orb/ui/icons";
 import type { CommandPaletteSource, PaletteCommandRow, SlashCommandContext } from "#lib";
-import { usePluginCommandRunner, usePluginCommands } from "../hooks/use-plugin-commands.ts";
+import { usePluginCommands, useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
 
 /** The heading the plugin command rows render under in the palette. */
 const HEADING = "Plugin commands";
@@ -30,7 +30,7 @@ const HEADING = "Plugin commands";
  *  build without the source. */
 function usePluginPaletteRows(context: SlashCommandContext): readonly PaletteCommandRow[] {
   const commands = usePluginCommands();
-  const run = usePluginCommandRunner(context.chatId);
+  const runCommand = useRunPluginCommand(context.chatId);
   return commands.map((command) => ({
     // The wire-owned `(pluginId, name)` pair is the row's identity — unique across the caller's installs even
     // when two plugins register a same-named command (the slug is the disambiguator a person types, but the id
@@ -41,7 +41,9 @@ function usePluginPaletteRows(context: SlashCommandContext): readonly PaletteCom
     badge: command.pluginName,
     // The `/plugin` spelling is a real search term — a person who knows the dispatch grammar finds the row by it.
     keywords: [command.pluginName, command.slug, `/plugin ${command.slug} ${command.name}`],
-    run: (): void => run(command.slug, command.name, ""),
+    // #791 — the shared collect-or-run: a command that DECLARES typed args opens the args-collection modal, else
+    // it dispatches directly (the U8 shape, unchanged). One home so the palette and the wand menu cannot drift.
+    run: (): void => runCommand(command),
   }));
 }
 

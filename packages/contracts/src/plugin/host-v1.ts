@@ -15,7 +15,7 @@ import type { PromptTransformOutcome, PromptTransformPoint } from "#chat";
 import type { GenerateImageActionArgs } from "#imagery";
 import type { PluginNotificationRecipient } from "#notifications";
 import type { PluginCapability } from "./manifest.ts";
-import type { PluginSurfaceAnchor, PluginSurfaceSpec, PluginSurfaceTier, PluginToastLevel } from "./ui.ts";
+import type { PluginCommandArgSpec, PluginCommandArgValue, PluginSurfaceAnchor, PluginSurfaceSpec, PluginSurfaceTier, PluginToastLevel } from "./ui.ts";
 
 // ── Opaque handles (branded strings; minted host-side; forged values fail resolution) ──────────────────────
 export type ChatHandle = Branded<"PluginChatHandle">;
@@ -409,11 +409,20 @@ export interface PluginHostV1 {
      *  transform or event handler does. The opaque handle has ONE mint and one accessor; handing a second copy
      *  in through the args bag would be a second spelling of the same token. Run outside a room (the chrome menu
      *  on a non-chat screen), `chat.current()` throws — the honest answer, not a synthesized room.
-     *  capability: ui.surface */
+     *
+     *  THE #791 TYPED-ARG GRAMMAR: a command MAY declare `args` (the ST `SlashCommandArgument` core —
+     *  named/typed/enum/required). When it does, the platform COLLECTS + TYPES + VALIDATES + AUTOCOMPLETES them at
+     *  both surfaces (the palette's typed input strip, the composer's `name=value` completion) before `onRun`
+     *  runs, and hands the guest the typed `values` bag ALONGSIDE the raw `args` remainder (unchanged — a command
+     *  with no declared args keeps its own opaque argument grammar, and `values` is then `{}`). The values are
+     *  re-validated host-side at the membrane against these same specs (a client is untrusted), so `onRun` sees
+     *  only well-typed, in-enum, required-present values. capability: ui.surface (a declared arg is metadata on a
+     *  command a plugin could already register — no new capability). */
     registerCommand: (def: {
       name: string; // /^[a-z][a-z0-9_]{0,40}$/, unique per plugin
       describe: string; // the palette/menu one-liner (≤ 200 chars)
-      onRun: (a: { args: string }) => void | Promise<void>;
+      args?: readonly PluginCommandArgSpec[]; // the declared typed args (≤ 16); absent ⇒ one opaque `args` remainder
+      onRun: (a: { args: string; values: Record<string, PluginCommandArgValue> }) => void | Promise<void>;
     }) => void;
     /** Raise a HOUSE toast, prefixed with the plugin's name (stamped host-side — a guest-supplied prefix is the
      *  impersonation the attribution exists to prevent). Length-capped and RATE-FLOORED per plugin

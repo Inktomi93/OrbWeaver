@@ -14,7 +14,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { ReactNode } from "react";
 import { use, useRef } from "react";
-import type { SlashCommandContext, SlashCommandContribution, SlashCommandRunner } from "#lib";
+import type { SlashArgCompleter, SlashArgOffer, SlashCommandContext, SlashCommandContribution, SlashCommandRunner } from "#lib";
 import { SlashCommandRegistryContext } from "#state";
 import { commandNotReadyNotice, parseSlashDraft, unknownCommandNotice } from "../lib/slash-command.ts";
 
@@ -31,19 +31,24 @@ export function useSlashCommands(chatId: ChatId | null): {
   readonly unavailableFor: (command: SlashCommandContribution) => string | null;
   readonly dispatch: (value: string) => SlashDispatch;
   readonly run: (id: string) => void;
+  readonly argOffers: (commandId: string, argsText: string) => readonly SlashArgOffer[];
 } {
   const registry = use(SlashCommandRegistryContext);
   const commands = registry?.list() ?? [];
   const context: SlashCommandContext = { chatId };
   const runnersRef = useRef<Map<string, SlashCommandRunner>>(new Map());
+  // The #791 arg completers, published by the same mounts (a command with a declared arg grammar publishes one),
+  // read at composer keystroke time — the runners-in-a-ref pattern, for the same reason (event-time, never render).
+  const completersRef = useRef<Map<string, SlashArgCompleter>>(new Map());
   // Stable per-command register callbacks (the compiler caches this map on the command list) → each mount's
   // publish effect runs ONCE, never re-registering on every keystroke in the host above it.
   const registers = new Map(commands.map((c) => [c.id, (runner: SlashCommandRunner): void => void runnersRef.current.set(c.id, runner)] as const));
+  const argRegisters = new Map(commands.map((c) => [c.id, (complete: SlashArgCompleter): void => void completersRef.current.set(c.id, complete)] as const));
 
   const mounts = commands.map((c) => {
     const Mount = c.mount;
     const onRunner = registers.get(c.id);
-    return onRunner === undefined ? null : <Mount key={c.id} context={context} onRunner={onRunner} />;
+    return onRunner === undefined ? null : <Mount key={c.id} context={context} onArgComplete={argRegisters.get(c.id)} onRunner={onRunner} />;
   });
 
   const unavailableFor = (command: SlashCommandContribution): string | null => command.unavailableReason?.(context) ?? null;
@@ -82,5 +87,9 @@ export function useSlashCommands(chatId: ChatId | null): {
     }
   };
 
-  return { commands, mounts, unavailableFor, dispatch, run };
+  // The #791 arg offers for a command whose draft is mid-arguments — read the command's published completer at
+  // event time (never render). No completer (a command with no declared arg grammar) ⇒ no offers ⇒ no arg strip.
+  const argOffers = (commandId: string, argsText: string): readonly SlashArgOffer[] => completersRef.current.get(commandId)?.(argsText) ?? [];
+
+  return { commands, mounts, unavailableFor, dispatch, run, argOffers };
 }

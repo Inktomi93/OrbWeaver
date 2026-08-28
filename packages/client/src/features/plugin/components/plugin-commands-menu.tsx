@@ -18,7 +18,7 @@ import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuTrigger } fro
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useActiveChatId } from "#state";
-import { usePluginCommandRunner, usePluginCommands } from "../hooks/use-plugin-commands.ts";
+import { usePluginCommands, useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
 
 /** Group the flat command list by plugin, preserving the hook's (plugin, command) order. */
 function groupByPlugin(commands: ReturnType<typeof usePluginCommands>): readonly { readonly pluginName: string; readonly commands: typeof commands }[] {
@@ -39,7 +39,7 @@ export function PluginCommandsMenu({ presentation }: { readonly presentation: "b
   // The ROOM the command runs in, when there is one. A command run from a non-chat screen carries `null` and
   // the server admits no chat scope — `chat.current()` throws in the guest, which is the honest answer.
   const chatId = useActiveChatId();
-  const run = usePluginCommandRunner(chatId);
+  const runCommand = useRunPluginCommand(chatId);
   if (commands.length === 0) {
     return null;
   }
@@ -50,7 +50,7 @@ export function PluginCommandsMenu({ presentation }: { readonly presentation: "b
     return (
       <>
         {commands.map((command) => (
-          <Button intent="ghost" key={`${command.pluginId}:${command.name}`} onClick={(): void => run(command.slug, command.name, "")} size="sm">
+          <Button intent="ghost" key={`${command.pluginId}:${command.name}`} onClick={(): void => runCommand(command)} size="sm">
             <Text voice="label">{`${command.pluginName} · ${command.name}`}</Text>
           </Button>
         ))}
@@ -73,7 +73,7 @@ export function PluginCommandsMenu({ presentation }: { readonly presentation: "b
                 plugin that registered it, so the menu can never present a plugin's command as the app's own. */}
             <MenuGroupLabel>{group.pluginName}</MenuGroupLabel>
             {group.commands.map((command) => (
-              <MenuItem key={`${command.pluginId}:${command.name}`} onClick={(): void => run(command.slug, command.name, "")}>
+              <MenuItem key={`${command.pluginId}:${command.name}`} onClick={(): void => runCommand(command)}>
                 {command.describe}
               </MenuItem>
             ))}

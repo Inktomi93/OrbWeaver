@@ -4,7 +4,15 @@
 // host.log ring. `SnippetResult` is the inline-mode return — TYPE HOME ONLY here; the
 // `runSnippet` verb that produces it lives with the other verbs.
 
-import type { PluginBuiltAgainst, PluginCapability, PluginLogLevel, PluginOrigin, PluginStatus, PluginSurfaceRegistrationMeta } from "@orb/contracts/plugin";
+import type {
+  PluginBuiltAgainst,
+  PluginCapability,
+  PluginCommandArgSpec,
+  PluginLogLevel,
+  PluginOrigin,
+  PluginStatus,
+  PluginSurfaceRegistrationMeta,
+} from "@orb/contracts/plugin";
 import type { PluginId, UserId } from "@orb/kit/ids";
 
 /** One installed plugin as its owner sees it — the `plugins` row projected, minus the bundle bytes
@@ -94,6 +102,10 @@ export interface PluginCommandView {
   readonly pluginName: string;
   readonly name: string;
   readonly describe: string;
+  /** The command's DECLARED typed args (#791), projected verbatim off the registration meta — empty when the
+   *  command declared none (its own opaque `args` grammar). BOTH consuming surfaces read it: the palette to build
+   *  its typed input strip, the composer to parse/complete `name=value`. */
+  readonly args: readonly PluginCommandArgSpec[];
 }
 
 /** One registered DISPLAY transform as the caller's client sees it (`listDisplayTransforms` — plugin-ui-plane

@@ -28,6 +28,22 @@ function instanceWithCommands(commands: PluginInstance["commands"]): PluginInsta
 
 const DRAW: PluginInstance["commands"] = [{ name: "draw", describe: "Draw a card", onRun: castId<PluginHandlerRef>("plugin-handler-0") }];
 
+/** A command that DECLARES typed args (#791): a required enum + an optional number. The verb re-validates the
+ *  client's `values` against exactly these specs before the guest re-entry (the membrane trust boundary). */
+const CAST: PluginInstance["commands"] = [
+  {
+    name: "cast",
+    describe: "Cast a spell",
+    args: [
+      { name: "suit", type: "enum", required: true, enumValues: ["cups", "wands"] },
+      { name: "count", type: "number" },
+    ],
+    onRun: castId<PluginHandlerRef>("plugin-handler-1"),
+  },
+];
+
+const INVALID_ARGS_RE = /invalid arguments for command 'cast'/u;
+
 const NOT_ENABLED_RE = /not enabled/u;
 const NO_COMMAND_RE = /no command 'ghost'/u;
 
@@ -64,10 +80,63 @@ test("re-enters onRun with ONE {args} object, and the room rides as the invocati
   if (first === undefined) {
     throw new Error("expected exactly one invoke");
   }
-  // The args bag carries the guest's own grammar VERBATIM and nothing else — one mint, one accessor for the
-  // opaque chat handle.
-  expect(JSON.parse(first.argsJson)).toEqual({ args: "two of cups" });
+  // The args bag carries the guest's own grammar VERBATIM plus the #791 typed `values` (empty for a command that
+  // declared no args) — one mint, one accessor for the opaque chat handle.
+  expect(JSON.parse(first.argsJson)).toEqual({ args: "two of cups", values: {} });
   expect(first.chatId).toBe(CHAT_ID);
+});
+
+test("#791: a command's DECLARED typed args reach the guest COERCED (enum string, number as a number)", async () => {
+  const db = await freshDb();
+  const invokes: { argsJson: string; chatId: ChatId | null }[] = [];
+  const h = makePluginHarness(db, { port: recordingPort(invokes, CAST) });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+
+  await h.service.invokeUiCommand({ caller, pluginId: installed.id, name: "cast", args: "", values: { suit: "cups", count: 3 }, chatId: null });
+
+  expect(invokes).toHaveLength(1);
+  const first = invokes[0];
+  if (first === undefined) {
+    throw new Error("expected exactly one invoke");
+  }
+  // The guest receives the TYPED bag — `count` is a number, not the string a wire naively carries.
+  expect(JSON.parse(first.argsJson)).toEqual({ args: "", values: { suit: "cups", count: 3 } });
+});
+
+test("#791: a MISSING required arg is refused at the membrane BEFORE any guest re-entry (red-first)", async () => {
+  const db = await freshDb();
+  const invokes: { argsJson: string; chatId: ChatId | null }[] = [];
+  const h = makePluginHarness(db, { port: recordingPort(invokes, CAST) });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+
+  // No `suit` (required). The guest must never run with a required arg absent.
+  await expect(h.service.invokeUiCommand({ caller, pluginId: installed.id, name: "cast", args: "", values: { count: 1 }, chatId: null })).rejects.toThrow(
+    INVALID_ARGS_RE,
+  );
+  expect(invokes).toHaveLength(0);
+});
+
+test("#791: an OFF-ENUM value and a MISTYPED value are both refused before re-entry", async () => {
+  const db = await freshDb();
+  const invokes: { argsJson: string; chatId: ChatId | null }[] = [];
+  const h = makePluginHarness(db, { port: recordingPort(invokes, CAST) });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+
+  // `suit: "swords"` is not one of the declared enum values.
+  await expect(h.service.invokeUiCommand({ caller, pluginId: installed.id, name: "cast", args: "", values: { suit: "swords" }, chatId: null })).rejects.toThrow(
+    INVALID_ARGS_RE,
+  );
+  // `count` declared `number`, but the client sent a string — the wire union permits the shape, the membrane refuses the value.
+  await expect(
+    h.service.invokeUiCommand({ caller, pluginId: installed.id, name: "cast", args: "", values: { suit: "cups", count: "lots" }, chatId: null }),
+  ).rejects.toThrow(INVALID_ARGS_RE);
+  expect(invokes).toHaveLength(0);
 });
 
 test("a command run OUTSIDE a room carries no scope — `chat.current()` throws in the guest, honestly", async () => {

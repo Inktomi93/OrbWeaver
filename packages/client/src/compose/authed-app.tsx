@@ -68,6 +68,7 @@ import {
   extensionsSection,
   pluginChatFlankSurface,
   pluginChatSettingsSection,
+  pluginCommandArgsModal,
   pluginCommandPaletteSource,
   pluginCommandsChrome,
   pluginDialogModal,
@@ -317,6 +318,9 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   // U5 (#679, §4.5a): the ONE house modal a plugin `dialog` surface renders inside — opened ONLY by a round-trip
   // outcome, never an affordance, so a spontaneous plugin modal is unspellable.
   pluginDialog: pluginDialogModal,
+  // #791: the ONE house modal that collects a plugin command's DECLARED typed args when it is picked from the
+  // command palette — opened by `openPluginCommandArgs` (the palette source's row `run`), never an affordance.
+  pluginCommandArgs: pluginCommandArgsModal,
 });
 
 // The ONE chrome assembly (shell-chrome-unification.md §A/§D/§E-2, G8): `assembleChrome` DERIVES the rail

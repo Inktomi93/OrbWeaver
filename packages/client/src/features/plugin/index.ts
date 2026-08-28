@@ -25,6 +25,7 @@ export { extensionsSection } from "./lib/extensions-section.tsx";
 // U8 (plugin-ui-plane #679 §4.5/§5 row 9): the DYNAMIC command-palette SOURCE — one first-party contributor
 // that fans the caller's registered plugin commands into first-class, searchable palette rows. Assembled into
 // the palette-source registry at the door; the palette imports nothing from here.
+export { pluginCommandArgsModal } from "./lib/plugin-command-args-modal.tsx";
 export { pluginCommandPaletteSource } from "./lib/plugin-command-palette-source.ts";
 export { pluginCommandsChrome } from "./lib/plugin-commands-chrome.tsx";
 export { pluginDialogModal } from "./lib/plugin-dialog-modal.tsx";

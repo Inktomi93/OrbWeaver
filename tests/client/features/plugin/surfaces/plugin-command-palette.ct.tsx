@@ -24,9 +24,10 @@ const CHIPS_ID = castId<PluginId>("plugin_ct_chips000000001");
  *  slug and plugin name only this side knows — the projection the palette row is built from. */
 const TWO_COMMANDS: Readonly<Record<string, unknown>> = {
   "chat.listChats": () => ({ items: [], nextCursor: null }),
+  // `args: []` — these commands declare NO typed args (the U8 shape); a picked row dispatches directly.
   "plugin.listCommands": () => [
-    { pluginId: ORACLE_ID, slug: "oracle-deck", pluginName: "Oracle Deck", name: "draw", describe: "Draw a card from the deck" },
-    { pluginId: CHIPS_ID, slug: "scene-chips", pluginName: "Scene Chips", name: "shuffle", describe: "Shuffle the scene chips" },
+    { pluginId: ORACLE_ID, slug: "oracle-deck", pluginName: "Oracle Deck", name: "draw", describe: "Draw a card from the deck", args: [] },
+    { pluginId: CHIPS_ID, slug: "scene-chips", pluginName: "Scene Chips", name: "shuffle", describe: "Shuffle the scene chips", args: [] },
   ],
 };
 

@@ -70,6 +70,12 @@ export const MODAL_SLOT_IDS = [
   // affordance. ONE slot for the platform, never one per plugin: the shell owns the modal grammar, the plugin
   // supplies only the attributed title and the DSL body.
   "pluginDialog",
+  // `pluginCommandArgs` is the ONE house modal that collects a plugin command's DECLARED typed args (#791) when
+  // it is picked from the command palette — the `pluginDialog` posture exactly: a CONTENT-triggered slot opened
+  // by a `#state` action (`openPluginCommandArgs`) carrying WHICH command + its arg specs through the
+  // plugin-command-args store, never a chrome affordance. ONE slot for the platform; the per-command fan is the
+  // subject. The composer collects the same args inline (`name=value`), so this slot is the palette half only.
+  "pluginCommandArgs",
 ] as const;
 export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
 
