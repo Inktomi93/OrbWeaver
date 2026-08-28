@@ -44,7 +44,12 @@ describe("securityHeaders", () => {
     const csp = await cspFor(false);
     expect(csp).toContain("default-src 'self'");
     expect(csp).toContain("script-src 'self'");
-    expect(csp).not.toContain("unsafe-eval");
+    // `'wasm-unsafe-eval'` is present and `'unsafe-eval'` is NOT — and the assertion has to say that as two
+    // distinct facts, because the former CONTAINS the latter as a substring. The old line here was a bare
+    // `not.toContain("unsafe-eval")`, which would now fail on the wasm keyword and would have hidden a real
+    // `'unsafe-eval'` behind it if anyone had "fixed" it by loosening the string.
+    expect(csp).toContain("'wasm-unsafe-eval'");
+    expect(csp).not.toContain(" 'unsafe-eval'");
     expect(csp).toContain("style-src 'self' 'unsafe-inline'"); // deliberate — Tailwind + Base UI inline styles
     expect(csp).toContain("img-src 'self' blob:");
     expect(csp).not.toContain("img-src 'self' data:"); // D44: no data-URI images
@@ -68,10 +73,18 @@ describe("securityHeaders", () => {
   // with nothing else red. Enforcing the header comment's prose boundary (§"`script-src` is `'self'`-only"):
   // if an anti-FOUC inline script ever lands, it rides a boot-time HASH allowlist, NEVER any of these
   // keywords. (Dev's HMR loosening is the intentional, dev-only exception, pinned by the dev test below.)
+  // THE ONE DELIBERATE WIDENING, and this test is where it is bought (plugin-ui-plane #679 U4, seam 10).
+  // `'wasm-unsafe-eval'` permits WebAssembly compilation and NOTHING ELSE — it is not eval, not inline, and not
+  // a new load origin — which is why the srcdoc card-floor invariant below survives it unchanged: a srcdoc has
+  // no origin to be "self", so it still cannot LOAD anything, and a keyword that only lets you compile wasm
+  // gives it no bytes to compile. What buys it: the Tier-C plugin guest is a QuickJS interpreter compiled to
+  // WASM running in a same-origin worker, which inherits this policy; without the keyword no scripted plugin
+  // surface can exist at all. The rejected alternative (host the interpreter in a sandboxed iframe) re-imports
+  // the whole frame arm the owner killed, for a directive whose scope is this narrow.
   test("prod script-src grants no script-execution escape — the srcdoc card-floor's script-death rides this", async () => {
     const tokens = directiveTokens(await cspFor(false), "script-src");
-    // The EXACT allowed shape today. A future inline need is met with a hash token, not a keyword.
-    expect(tokens).toEqual(["'self'"]);
+    // The EXACT allowed shape today. A future INLINE need is met with a hash token, not a keyword.
+    expect(tokens).toEqual(["'self'", "'wasm-unsafe-eval'"]);
     // …and, named so the invariant reads at the assertion: none of the escapes a srcdoc could ride.
     for (const forbidden of ["'unsafe-inline'", "'unsafe-eval'", "'strict-dynamic'", "*", "https:", "http:"]) {
       expect(tokens, forbidden).not.toContain(forbidden);
@@ -130,7 +143,7 @@ describe("securityHeaders", () => {
 
     // A plaintext subresource stays barred in BOTH arms (no HSTS here — see security-headers.ts).
     expect(allowed).not.toContain("http:");
-    expect(allowed).toContain("script-src 'self';");
+    expect(allowed).toContain("script-src 'self' 'wasm-unsafe-eval';");
     expect(allowed).toContain("connect-src 'self';");
     expect(allowed).toContain("font-src 'self';");
     expect(allowed).toContain("object-src 'none'");
