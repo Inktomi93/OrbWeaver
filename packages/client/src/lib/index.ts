@@ -35,6 +35,8 @@ export type {
   CommandPaletteSource,
   MessageToolsRenderer,
   PaletteCommandRow,
+  SlashArgCompleter,
+  SlashArgOffer,
   SlashCommandContext,
   SlashCommandContribution,
   SlashCommandGroup,

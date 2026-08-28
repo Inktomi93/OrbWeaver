@@ -10,6 +10,7 @@ import {
   parseSlashDraft,
   resolveSlashHighlight,
   SLASH_LISTBOX_ID,
+  slashArgsInProgress,
   slashCompletionAria,
   slashCompletionToken,
   slashOptionId,
@@ -144,4 +145,16 @@ test("resolveSlashHighlight: yields the highlighted command and its option id; -
 test("slashCompletionAria: relates the textbox to the listbox only while open without invalid expanded metadata", () => {
   expect(slashCompletionAria(true)).toEqual({ "aria-controls": SLASH_LISTBOX_ID });
   expect(slashCompletionAria(false)).toEqual({ "aria-controls": undefined });
+});
+
+test("slashArgsInProgress (#791): a command PAST its token into arguments, with the untrimmed remainder", () => {
+  // A bare token (no space) is NOT args-in-progress — that is the token-completion question.
+  expect(slashArgsInProgress("/plugin")).toBeNull();
+  // A trailing space after the token means arguments have begun; the remainder is UNTRIMMED (the trailing space
+  // is the "starting a new argument" signal an arg completer reads).
+  expect(slashArgsInProgress("/plugin oracle draw ")).toEqual({ commandId: "plugin", argsText: "oracle draw " });
+  expect(slashArgsInProgress("/plugin oracle draw suit=cu")).toEqual({ commandId: "plugin", argsText: "oracle draw suit=cu" });
+  // The `//` escape and a plain message are never args-in-progress.
+  expect(slashArgsInProgress("//plugin x")).toBeNull();
+  expect(slashArgsInProgress("just a message")).toBeNull();
 });

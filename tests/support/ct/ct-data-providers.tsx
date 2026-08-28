@@ -54,7 +54,14 @@ import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "@orb/cli
 import { imageDetailModal, imageEditModal, imagineModal } from "@orb/client/features/imagery";
 import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
-import { extensionsSection, pluginDialogModal, pluginDistributeSection, pluginsPane, pluginToolRenderer } from "@orb/client/features/plugin";
+import {
+  extensionsSection,
+  pluginCommandArgsModal,
+  pluginDialogModal,
+  pluginDistributeSection,
+  pluginsPane,
+  pluginToolRenderer,
+} from "@orb/client/features/plugin";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import { regexCollection } from "@orb/client/features/regex";
@@ -248,6 +255,7 @@ const REAL_MODALS: Record<ModalSlotId, ModalDefinition> = {
   imageDetail: imageDetailModal,
   imageEdit: imageEditModal,
   pluginDialog: pluginDialogModal,
+  pluginCommandArgs: pluginCommandArgsModal,
 };
 
 const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefinition>("modals", MODAL_SLOT_IDS, REAL_MODALS);

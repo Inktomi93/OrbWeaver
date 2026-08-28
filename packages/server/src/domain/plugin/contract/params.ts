@@ -5,7 +5,7 @@
 // is the inline-mode input — TYPE HOME ONLY here; the verb implementation lives with the other verbs.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { PluginCapability } from "@orb/contracts/plugin";
+import type { PluginCapability, PluginCommandArgValue } from "@orb/contracts/plugin";
 import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
 
 /** `installPlugin` — unzip+validate the bundle, store its bytes in the CAS, insert a `disabled` row.
@@ -274,6 +274,12 @@ export interface InvokeUiCommandParams {
   readonly pluginId: PluginId;
   readonly name: string;
   readonly args: string;
+  /** The TYPED arg bag (#791) the surfaces collected against the command's declared `args` — `{}` (or absent, the
+   *  U5 raw-remainder callers) for a command that declared none. The verb RE-VALIDATES these against the RESIDENT
+   *  command's own specs at the membrane (a client is untrusted): a bag missing a required arg, mistyping one, or
+   *  naming an off-enum value is a typed refusal BEFORE the guest runs, never a malformed value handed to `onRun`.
+   *  Optional so a raw-remainder caller (`args` only) needs no empty-bag ceremony; the verb normalizes absent to `{}`. */
+  readonly values?: Record<string, PluginCommandArgValue>;
   readonly chatId: ChatId | null;
 }
 

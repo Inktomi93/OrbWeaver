@@ -22,16 +22,35 @@
 // receives ONE `{ args, chat }` object (the single-arg host→guest seam); its return is DISCARDED — a command's
 // effect is the state it publishes and the chrome it asks for, never a value the client renders unlabelled.
 
-import type { InvocationChat, PluginUiOutcome } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginCommandArgSpec, PluginCommandArgValue, PluginUiOutcome } from "@orb/contracts/plugin";
+import { pluginCommandArgsSchema } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
+import { z } from "zod";
 import { PluginNotFoundError } from "../contract/errors.ts";
 import type { InvokeUiCommandParams } from "../contract/params.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { getById } from "../persistence/plugins.ts";
 import { resolveUiOutcome } from "../substrate/ui-outbox.ts";
 
+/** RE-VALIDATE the client's typed `values` (#791) against the RESIDENT command's OWN declared specs — the
+ *  membrane trust boundary: a bag missing a required arg, mistyping one, or naming an off-enum value is a typed
+ *  refusal, so `onRun` only ever sees well-typed, in-enum, required-present values. A command that declared no
+ *  args validates an empty schema (extra keys stripped) and receives `{}`. Throws on refusal; returns the parsed,
+ *  stripped bag on success. */
+function validateCommandValues(
+  name: string,
+  specs: readonly PluginCommandArgSpec[],
+  values: Record<string, PluginCommandArgValue> | undefined,
+): Record<string, PluginCommandArgValue> {
+  const parsed = pluginCommandArgsSchema(specs).safeParse(values ?? {});
+  if (!parsed.success) {
+    throw new Error(`plugin host: invalid arguments for command '${name}' — ${z.prettifyError(parsed.error)}`);
+  }
+  return parsed.data;
+}
+
 export function createInvokeUiCommand(ctx: PluginContext, registry: PluginRegistry): PluginService["invokeUiCommand"] {
-  return async ({ caller, pluginId, name, args, chatId }: InvokeUiCommandParams) => {
+  return async ({ caller, pluginId, name, args, values, chatId }: InvokeUiCommandParams) => {
     // (1) OWNER SCOPE — leak-free NOT_FOUND for a plugin the caller does not own (the cross-tenant gate).
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
@@ -47,6 +66,8 @@ export function createInvokeUiCommand(ctx: PluginContext, registry: PluginRegist
     if (command === undefined) {
       throw new Error(`plugin host: no command '${name}' on this plugin`);
     }
+    // (3a) TYPED ARGS (#791) — the membrane trust boundary, re-derived from the resident command's OWN specs.
+    const typedValues = validateCommandValues(name, command.args ?? [], values);
     // (4) CHAT SCOPE — admitted leak-free, exactly as the snippet gate does it. A room the caller cannot read is
     // indistinguishable from one that does not exist.
     let chat: InvocationChat | null = null;
@@ -65,7 +86,7 @@ export function createInvokeUiCommand(ctx: PluginContext, registry: PluginRegist
       // ONE `{ args }` object (the single-arg host→guest seam). The ROOM is not in the bag: it is the
       // invocation's chat SCOPE, which the guest reads through `chat.current()`'s opaque handle — one mint, one
       // accessor (see `registerCommand`'s contract).
-      await resident.invoke(command.onRun, JSON.stringify({ args }), chat);
+      await resident.invoke(command.onRun, JSON.stringify({ args, values: typedValues }), chat);
     } finally {
       outcome = resolveUiOutcome(ctx.uiOutbox.drain(pluginId), resident.instance);
     }

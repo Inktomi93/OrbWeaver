@@ -849,14 +849,185 @@ export const PLUGIN_COMMAND_DESCRIBE_MAX = 200;
  *  is a control affordance, not a paste target — a plugin that needs a document takes it through its own surface. */
 export const PLUGIN_COMMAND_ARGS_MAX = 2000;
 
+// ── TYPED ARG GRAMMAR (#791) — the deep half of the ST SlashCommandParser, cut to the CLEAN core ────────────────
+// U5 gave a command ONE opaque `args` remainder ("a command owns its own argument grammar"). #791 lets a command
+// DECLARE its arguments so the platform can collect + type + validate + AUTOCOMPLETE them at both surfaces (the
+// palette's typed input strip, the composer's `name=value` completion) before the guest ever runs. This is the
+// ST `SlashCommandArgument` ability — named/typed/enum/required args — carried on the SAME registration def and
+// keyed to the SAME `ui.surface` grant (no new capability: a declared arg is metadata on a command a plugin could
+// already register). ST's exotic grammar (closures, macro-in-arg substitution, `acceptsMultiple`, `range`, the
+// `varname`/`dictionary`/`list`/`subcommand` types, `enumProvider`) is DELIBERATELY OUT — a command that needs
+// them keeps taking the raw `args` remainder, which is untouched and still delivered alongside the typed values.
+
+/** The CLOSED type set a declared command arg may carry (§5.5 axis, so a member is a compile-tier fact): the four
+ *  ST types with a clean, non-executable client input (string→text, number→numeric, enum→select, boolean→toggle).
+ *  A new member fails `tsc` at {@link coercePluginCommandArgs}' dispatch AND the client's input renderer. */
+export const PLUGIN_COMMAND_ARG_TYPES = ["string", "number", "enum", "boolean"] as const;
+export type PluginCommandArgType = (typeof PLUGIN_COMMAND_ARG_TYPES)[number];
+
+/** How many args ONE command may declare — a control affordance's argument list is short by nature, and the bound
+ *  keeps the collected `values` bag and the completion fan small. Over-cap is a REGISTRATION refusal. */
+export const PLUGIN_COMMAND_ARGS_DECLARED_MAX = 16;
+/** How many values an `enum` arg may offer — the `select` option cap ({@link PLUGIN_ROWS_MAX} posture). */
+export const PLUGIN_COMMAND_ENUM_VALUES_MAX = 64;
+/** A declared arg's `name` grammar — the values-bag key AND the `name=value` token a person types, so a bounded
+ *  programmatic identifier (the form-field `name` spirit), never arbitrary text. */
+export const PLUGIN_COMMAND_ARG_NAME_RE = /^[a-z][a-z0-9_]{0,40}$/;
+
+/** ONE declared command argument (the ST `SlashCommandNamedArgument` core). `enumValues` is present IFF
+ *  `type === "enum"` — a biconditional the schema enforces (an enum with no options is unpickable; options on a
+ *  non-enum is a claim the input renderer would never honour). `describe` is the one-line hint the completion
+ *  strip and the palette input label show. A declared arg with no `required` defaults to optional. */
+export interface PluginCommandArgSpec {
+  readonly name: string;
+  readonly type: PluginCommandArgType;
+  readonly required?: boolean | undefined;
+  readonly describe?: string | undefined;
+  /** The accepted values — REQUIRED for `type: "enum"`, forbidden otherwise. */
+  readonly enumValues?: readonly string[] | undefined;
+}
+
+/** A TYPED arg value — what the surfaces collect and the guest receives (the ST-parity typed bag). The three
+ *  JSON-safe scalars the four arg types coerce to (`enum` is a constrained `string`). The ONE home for the axis;
+ *  the wire (`invokeUiCommand`), the server validator and the guest payload all speak it. */
+export type PluginCommandArgValue = string | number | boolean;
+
+/** A declared arg spec, validated host-side at registration. The enum biconditional lives here so a malformed
+ *  arg is a REGISTRATION refusal (the command absent, a log line), never activation-fatal. */
+export const pluginCommandArgSpecSchema = z
+  .object({
+    name: z.string().regex(PLUGIN_COMMAND_ARG_NAME_RE),
+    type: z.enum(PLUGIN_COMMAND_ARG_TYPES),
+    required: z.boolean().optional(),
+    describe: z.string().min(1).max(PLUGIN_COMMAND_DESCRIBE_MAX).optional(),
+    enumValues: z.array(z.string().min(1).max(LABEL_MAX)).min(1).max(PLUGIN_COMMAND_ENUM_VALUES_MAX).optional(),
+  })
+  .superRefine((arg, ctx) => {
+    if ((arg.type === "enum") !== (arg.enumValues !== undefined)) {
+      ctx.addIssue({ code: "custom", message: "an enum arg must name its enumValues, and only an enum arg may", path: ["enumValues"] });
+    }
+  });
+
 /** The SERIALIZABLE part of a `host.ui.registerCommand` def — validated host-side at collection (the trust
  *  boundary) and the exact descriptor `plugin.listCommands` projects to the client. The `onRun` handler is NOT
- *  here (it is a guest function kept as an opaque `PluginHandlerRef` on the collected registration). */
-export const pluginCommandRegistrationMetaSchema = z.object({
-  name: z.string().regex(PLUGIN_COMMAND_NAME_RE),
-  describe: z.string().min(1).max(PLUGIN_COMMAND_DESCRIBE_MAX),
-});
+ *  here (it is a guest function kept as an opaque `PluginHandlerRef` on the collected registration).
+ *
+ *  `args` is the #791 TYPED-ARG grammar (absent ⇒ the U5 shape, a command with one opaque `args` remainder). Arg
+ *  NAMES must be unique within a command (a duplicate would make the values bag ambiguous) — a superRefine, the
+ *  registration-refusal posture. */
+export const pluginCommandRegistrationMetaSchema = z
+  .object({
+    name: z.string().regex(PLUGIN_COMMAND_NAME_RE),
+    describe: z.string().min(1).max(PLUGIN_COMMAND_DESCRIBE_MAX),
+    args: z.array(pluginCommandArgSpecSchema).max(PLUGIN_COMMAND_ARGS_DECLARED_MAX).optional(),
+  })
+  .superRefine((meta, ctx) => {
+    if (meta.args === undefined) {
+      return;
+    }
+    const seen = new Set<string>();
+    for (const arg of meta.args) {
+      if (seen.has(arg.name)) {
+        ctx.addIssue({ code: "custom", message: `duplicate command arg name '${arg.name}'`, path: ["args"] });
+      }
+      seen.add(arg.name);
+    }
+  });
 export type PluginCommandRegistrationMeta = z.infer<typeof pluginCommandRegistrationMetaSchema>;
+
+/** Coerce a bag of RAW STRING inputs — the composer's parsed `name=value` map, or the palette's typed-field
+ *  strings — into the typed {@link PluginCommandArgValue} bag per `specs`, collecting a human error per offending
+ *  arg (missing-required, non-number, off-enum). Pure + isomorphic: it runs CLIENT-side for UX (block dispatch on
+ *  an error, show the sentence), and the SERVER independently re-validates the typed result at the membrane
+ *  ({@link pluginCommandArgsSchema}) — a client is untrusted on both ends of this boundary. Keys not naming a
+ *  declared arg are DROPPED (a command receives only what it declared). */
+export function coercePluginCommandArgs(
+  specs: readonly PluginCommandArgSpec[],
+  raw: Readonly<Record<string, string>>,
+): { readonly values: Record<string, PluginCommandArgValue>; readonly errors: readonly string[] } {
+  const values: Record<string, PluginCommandArgValue> = {};
+  const errors: string[] = [];
+  for (const spec of specs) {
+    const input = raw[spec.name];
+    if (input === undefined || input === "") {
+      if (spec.required === true) {
+        errors.push(`${spec.name} is required`);
+      }
+      continue;
+    }
+    const coerced = coerceArgValue(spec, input);
+    if (coerced.ok) {
+      values[spec.name] = coerced.value;
+    } else {
+      errors.push(`${spec.name}: ${coerced.error}`);
+    }
+  }
+  return { values, errors };
+}
+
+/** One raw input, coerced to its declared type. The `type` dispatch is exhaustive via `assertNever`, so a new
+ *  {@link PLUGIN_COMMAND_ARG_TYPES} member fails `tsc` here until it is given a coercion. */
+function coerceArgValue(
+  spec: PluginCommandArgSpec,
+  input: string,
+): { readonly ok: true; readonly value: PluginCommandArgValue } | { readonly ok: false; readonly error: string } {
+  switch (spec.type) {
+    case "string":
+      return { ok: true, value: input };
+    case "number": {
+      const n = Number(input);
+      return Number.isFinite(n) ? { ok: true, value: n } : { ok: false, error: `'${input}' is not a number` };
+    }
+    case "boolean": {
+      if (input === "true") {
+        return { ok: true, value: true };
+      }
+      if (input === "false") {
+        return { ok: true, value: false };
+      }
+      return { ok: false, error: `'${input}' is not true or false` };
+    }
+    case "enum":
+      return (spec.enumValues ?? []).includes(input)
+        ? { ok: true, value: input }
+        : { ok: false, error: `'${input}' is not one of ${(spec.enumValues ?? []).join(", ")}` };
+    default:
+      return assertNever(spec.type);
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`unhandled plugin command arg type: ${String(value)}`);
+}
+
+/** The WIRE/MEMBRANE validator: a zod schema BUILT from a command's declared `specs` that parses the typed
+ *  `values` bag the client sent. This is the trust boundary — the server re-derives it from the RESIDENT command's
+ *  own specs (never anything the client claimed) and rejects a bag that omits a required arg, mistypes one, or
+ *  names an off-enum value. Unknown keys are STRIPPED (the guest receives only declared args). */
+export function pluginCommandArgsSchema(specs: readonly PluginCommandArgSpec[]): z.ZodType<Record<string, PluginCommandArgValue>> {
+  const shape: Record<string, z.ZodType<PluginCommandArgValue> | z.ZodOptional<z.ZodType<PluginCommandArgValue>>> = {};
+  for (const spec of specs) {
+    const base = argValueSchema(spec);
+    shape[spec.name] = spec.required === true ? base : base.optional();
+  }
+  return z.object(shape) as z.ZodType<Record<string, PluginCommandArgValue>>;
+}
+
+/** One declared arg's value schema — the exhaustive `type` dispatch, matching {@link coerceArgValue}. */
+function argValueSchema(spec: PluginCommandArgSpec): z.ZodType<PluginCommandArgValue> {
+  switch (spec.type) {
+    case "string":
+      return z.string() as z.ZodType<PluginCommandArgValue>;
+    case "number":
+      return z.number().refine((n) => Number.isFinite(n), { message: "must be a finite number" }) as z.ZodType<PluginCommandArgValue>;
+    case "boolean":
+      return z.boolean() as z.ZodType<PluginCommandArgValue>;
+    case "enum":
+      return z.enum((spec.enumValues ?? [""]) as [string, ...string[]]) as z.ZodType<PluginCommandArgValue>;
+    default:
+      return assertNever(spec.type);
+  }
+}
 
 // ── TOASTS + DIALOG OPENS (U5, §4.5a) — the HOST-MEDIATED affordances ────────────────────────────────────────
 // Both are host chrome a plugin ASKS for, never draws: a toast is the house toast prefixed with the plugin's

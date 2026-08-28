@@ -34,6 +34,8 @@
 import {
   NET_HOSTS_MAX,
   PLUGIN_CAPABILITIES,
+  PLUGIN_COMMAND_ARG_NAME_RE,
+  PLUGIN_COMMAND_ARGS_DECLARED_MAX,
   PLUGIN_COMMAND_ARGS_MAX,
   PLUGIN_COMMAND_NAME_RE,
   PLUGIN_DISPLAY_TEXT_MAX_CHARS,
@@ -277,6 +279,13 @@ export const pluginRouter = t.router({
         pluginId: pluginIdSchema,
         name: z.string().regex(PLUGIN_COMMAND_NAME_RE),
         args: z.string().max(PLUGIN_COMMAND_ARGS_MAX),
+        // The #791 TYPED-ARG bag — a COARSE shape gate here (the ident-key grammar, the scalar union, the declared
+        // arg-count cap); the SEMANTIC gate (required/type/enum against the resident command's own specs) is the
+        // service's `pluginCommandArgsSchema` re-validation. Defaulted so a caller sending only `args` is unchanged.
+        values: z
+          .record(z.string().regex(PLUGIN_COMMAND_ARG_NAME_RE), z.union([z.string().max(PLUGIN_COMMAND_ARGS_MAX), z.number(), z.boolean()]))
+          .refine((v) => Object.keys(v).length <= PLUGIN_COMMAND_ARGS_DECLARED_MAX, { message: "too many command arguments" })
+          .default({}),
         chatId: chatIdSchema.nullable(),
       }),
     )
@@ -286,6 +295,7 @@ export const pluginRouter = t.router({
         pluginId: input.pluginId,
         name: input.name,
         args: input.args,
+        values: input.values,
         chatId: input.chatId,
       }),
     ),

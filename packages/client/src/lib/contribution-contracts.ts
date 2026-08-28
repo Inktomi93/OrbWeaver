@@ -314,12 +314,38 @@ export interface SlashCommandContext {
  *  field on the contribution; this runner signature is what it would describe, never replace. */
 export type SlashCommandRunner = (args: string) => void;
 
+/** ONE arg-completion offer a command's arg completer yields (#791) — a hint the composer shows below the draft
+ *  while the person is typing `/<id> <args…>`, and a click-to-complete affordance. This is the composer half of
+ *  the typed-arg grammar the plugin plane's `/plugin <slug> <cmd> name=value` dispatch parses: a command that
+ *  declares typed args publishes a completer so the composer can HINT the arg names and AUTOCOMPLETE enum values,
+ *  without chat importing the owning feature. */
+export interface SlashArgOffer {
+  /** A stable render/match key, unique within the offered set. */
+  readonly id: string;
+  /** The shown hint (an arg name, or an enum value). */
+  readonly label: string;
+  /** A one-line gloss (the arg's type / requiredness / describe). */
+  readonly describe?: string;
+  /** The FULL args remainder (everything after `/<id> `) the draft becomes when this offer is picked — the
+   *  completer owns the reconstruction, so the composer stays a dumb `/<id> <insert>` setter with no token math. */
+  readonly insert: string;
+}
+
+/** A command's ARG completer (#791) — resolves the offers for the CURRENT partial args string (everything after
+ *  `/<id> `). Published by the command's mount (like its runner), so a completer that needs hooks — a plugin's
+ *  per-caller command list, read off a query — lives in its own fiber. Absent ⇒ the command declares no arg
+ *  grammar and the composer shows no arg strip for it (byte-identical to before this seam). */
+export type SlashArgCompleter = (argsText: string) => readonly SlashArgOffer[];
+
 /** What a slash-command mount is handed. It receives the whole {@link SlashCommandContext} (not a bare
  *  `chatId`) precisely so a later context field reaches every command with zero call-site churn. */
 export interface SlashCommandMountProps {
   readonly context: SlashCommandContext;
   /** Publish this command's runner. Called from an effect in the mount's OWN fiber. */
   readonly onRunner: (run: SlashCommandRunner) => void;
+  /** OPTIONAL (#791) — publish this command's arg completer, for the composer's live arg hinting/enum
+   *  completion. A command with no declared arg grammar never calls it, and the composer shows no arg strip. */
+  readonly onArgComplete?: ((complete: SlashArgCompleter) => void) | undefined;
 }
 
 /** A SLASH COMMAND (§6c) — the ONE source of truth a command is declared in: the chat composer dispatches

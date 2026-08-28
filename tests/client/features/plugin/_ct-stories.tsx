@@ -23,15 +23,25 @@ import {
 import type { ChatSettingsSectionContribution, ChatSurfaceContribution, CommandPaletteSource, ToolRenderer } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { SettingsSectionContribution } from "@orb/client/state";
-import { CommandPaletteSourceRegistryProvider, clearPluginPage, selectChat, selectPluginPage, useSectionRegistry } from "@orb/client/state";
+import {
+  __resetPluginCommandArgs,
+  CommandPaletteSourceRegistryProvider,
+  clearPluginPage,
+  openPluginCommandArgs,
+  selectChat,
+  selectPluginPage,
+  useSectionRegistry,
+} from "@orb/client/state";
 import type { ToolCallRecord } from "@orb/contracts/chat";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, PluginId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { MessageToolCalls } from "../../../../packages/client/src/features/chat/components/message-tool-calls.tsx";
 // The "This chat" tab as the component it is — the same relative-into-the-package import chat's own story
 // module takes for it (a story legitimately composes feature internals the front door does not re-export).
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
+import { PluginCommandArgsBody } from "../../../../packages/client/src/features/plugin/components/plugin-command-args-body.tsx";
 import { CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry, CtSettingsSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID } from "../chat/fixtures.ts";
@@ -299,6 +309,39 @@ export function PluginCommandPaletteStory({ sourced = true }: { readonly sourced
             <CommandPaletteSurface goToSections={[]} />
           </div>
         </CommandPaletteSourceRegistryProvider>
+      </CtToastSurface>
+    </CtDataProviders>
+  );
+}
+
+const ARGS_PLUGIN_ID = castId<PluginId>("plugin_ct_argmodal0000001");
+
+/** The #791 command-args modal BODY over the stubbed network — seeds the intent store with a command that
+ *  declares a required enum arg, then mounts the real body so a CT drives the production collect → coerce →
+ *  dispatch path (typed input renders, submit sends the TYPED value, a missing required blocks with a message).
+ *  The `plugin.listCommands` route must carry the same command so the shared runner can resolve + dispatch it. */
+function ArgsModalSeed(): ReactElement {
+  useEffect(() => {
+    openPluginCommandArgs({
+      pluginId: ARGS_PLUGIN_ID,
+      slug: "oracle-deck",
+      name: "cast",
+      describe: "Cast a spell",
+      args: [{ name: "suit", type: "enum", required: true, enumValues: ["cups", "wands"] }],
+      chatId: null,
+    });
+    return (): void => __resetPluginCommandArgs();
+  }, []);
+  return <PluginCommandArgsBody />;
+}
+
+export function PluginCommandArgsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <div style={{ width: 420 }}>
+          <ArgsModalSeed />
+        </div>
       </CtToastSurface>
     </CtDataProviders>
   );

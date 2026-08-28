@@ -7,7 +7,15 @@
 // hand-built, i.e. here; the cross-invocation half of that invariant is the escape suite's (it needs a Sandbox).
 // The full end-to-end runtime lives in port.test.ts; this is the module's own-seam mirror.
 
-import type { InvocationChat, PluginBridge, PluginCapability, PluginQuietOptions, PluginSuggestedAct, PluginToastLevel } from "@orb/contracts/plugin";
+import type {
+  InvocationChat,
+  PluginBridge,
+  PluginCapability,
+  PluginCommandRegistrationMeta,
+  PluginQuietOptions,
+  PluginSuggestedAct,
+  PluginToastLevel,
+} from "@orb/contracts/plugin";
 import { PLUGIN_FRAME_HTML_MAX_CHARS, PLUGIN_FRAME_SURFACES_MAX } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { getPluginQuickJS, HOST_FN_DEADLINE_MS } from "@orb/server/infra/plugin-host";
@@ -992,6 +1000,69 @@ describe("host.ui — declarative surface registration + state publish (plugin-u
       out.value.dispose();
     });
     expect(collected).toEqual([{ name: "draw", describe: "Draw a card" }]);
+  });
+
+  test("#791: host.ui.registerCommand parses the DECLARED typed args off the def", async () => {
+    const { bridge } = fakeBridge();
+    const collected: PluginCommandRegistrationMeta[] = [];
+    const runtime = makeRuntime(uiGrants, false, bridge, {
+      collectCommand: (meta, onRun): void => {
+        collected.push(meta);
+        onRun.dispose();
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      const out = ctx.evalCode(
+        `host.ui.registerCommand({
+           name: "cast", describe: "Cast a spell",
+           args: [{ name: "suit", type: "enum", required: true, enumValues: ["cups", "wands"] }, { name: "count", type: "number" }],
+           onRun: () => {},
+         }); "ok"`,
+      );
+      if (out.error) {
+        throw new Error(readString(ctx, out.error));
+      }
+      out.value.dispose();
+    });
+    expect(collected).toEqual([
+      {
+        name: "cast",
+        describe: "Cast a spell",
+        args: [
+          { name: "suit", type: "enum", required: true, enumValues: ["cups", "wands"] },
+          { name: "count", type: "number" },
+        ],
+      },
+    ]);
+  });
+
+  test("#791: an enum arg missing its enumValues is a SOFT refusal (the biconditional), never activation-fatal", async () => {
+    const { bridge } = fakeBridge();
+    const collected: string[] = [];
+    const warnings: string[] = [];
+    const runtime = makeRuntime(uiGrants, false, bridge, {
+      collectCommand: (meta, onRun): void => {
+        collected.push(meta.name);
+        onRun.dispose();
+      },
+      logWarn: (message): void => {
+        warnings.push(message);
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      const out = ctx.evalCode(
+        `host.ui.registerCommand({ name: "bad", describe: "x", args: [{ name: "suit", type: "enum" }], onRun: () => {} });
+         host.ui.registerCommand({ name: "good", describe: "x", args: [{ name: "n", type: "number" }], onRun: () => {} });
+         "survived"`,
+      );
+      if (out.error) {
+        throw new Error(readString(ctx, out.error));
+      }
+      expect(ctx.getString(out.value)).toBe("survived");
+      out.value.dispose();
+    });
+    expect(collected).toEqual(["good"]);
+    expect(warnings).toHaveLength(1);
   });
 
   test("a malformed command is a SOFT refusal — logged and skipped, never activation-fatal (§4.9)", async () => {

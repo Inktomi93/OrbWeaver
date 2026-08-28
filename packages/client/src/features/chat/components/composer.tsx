@@ -34,7 +34,7 @@ import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useState } from "react";
 import { useUploadCaps } from "#data";
-import type { SlashCommandContribution } from "#lib";
+import type { SlashArgOffer, SlashCommandContribution } from "#lib";
 import { IMAGE_GEN_NEEDS_TEXT, notify, testId } from "#lib";
 import { openImagine, setComposerDraft, useComposerDraft } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
@@ -50,7 +50,15 @@ import { useStopTurn } from "../hooks/use-stop-turn.ts";
 import { ATTACH_BUSY_MESSAGE, dropzoneRefusalMessage, triageAttachFiles } from "../lib/attach-media.ts";
 import { shouldSendOnEnter } from "../lib/composer-send-keys.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
-import { matchSlashCommands, nextSlashHighlight, resolveSlashHighlight, resolveSlashKey, slashCompletionAria } from "../lib/slash-command.ts";
+import {
+  matchSlashCommands,
+  nextSlashHighlight,
+  resolveSlashHighlight,
+  resolveSlashKey,
+  slashArgsInProgress,
+  slashCompletionAria,
+} from "../lib/slash-command.ts";
+import { ComposerArgHintStrip } from "./composer-arg-hint-strip.tsx";
 import { ComposerAttachmentStrip } from "./composer-attachment-strip.tsx";
 import { ActiveChatOptionsMenu } from "./composer-chat-options.tsx";
 import { ComposerDropTarget } from "./composer-drop-target.tsx";
@@ -249,6 +257,19 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
   // The completion offer: the commands whose id extends the token the user is mid-way through typing
   // (a bare "/" matches them all). Empty when the draft isn't a command-in-progress.
   const slashMatches = matchSlashCommands(slash.commands, value);
+  // #791 — the ARG-hint offers, once the draft has moved past the command token into a declared arg grammar
+  // (`/plugin <slug> <cmd> …`). Mutually exclusive with `slashMatches` by construction (that set is non-empty only
+  // while the token is unfinished, before any space); empty for a command with no declared arg grammar.
+  const argInProgress = slashArgsInProgress(value);
+  const argOffers: readonly SlashArgOffer[] = argInProgress === null ? [] : slash.argOffers(argInProgress.commandId, argInProgress.argsText);
+  // Complete the draft to the picked offer — the completer reconstructed the whole remainder, so this stays a
+  // dumb `/<id> <insert>` setter (no token-boundary math in the composer). The next keystroke retires any notice.
+  const pickArg = (offer: SlashArgOffer): void => {
+    if (argInProgress !== null) {
+      setSlashNotice(null);
+      onChange(`/${argInProgress.commandId} ${offer.insert}`);
+    }
+  };
 
   // Completes the draft to `/<id> ` and clears any highlight/notice. The click path only ever reaches this for
   // an AVAILABLE row (the Button is `disabled` otherwise); the keyboard path re-checks availability itself
@@ -381,6 +402,8 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
           highlightIndex={slashHighlight}
           onPick={pickCommand}
         />
+        {/* #791 — the arg-hint strip, shown once the draft moves past the token into `/plugin <slug> <cmd> …`. */}
+        <ComposerArgHintStrip offers={argOffers} onPick={pickArg} />
         {/* The strip's APPEARANCE, announced (the macro-textarea status-line pattern): with `aria-expanded`
             invalid on a `textbox`, `aria-controls` alone is a relationship, not an event — this polite count
             is what tells a non-sighted user that typing `/` surfaced offers. The primitive stays mounted so

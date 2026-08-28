@@ -575,15 +575,20 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     // to the Sandbox on the collect path and is hand-disposed on every other, so it is never `using`.
     using nameH = ctx.getProp(defHandle, "name");
     using describeH = ctx.getProp(defHandle, "describe");
+    // #791 — the DECLARED typed args (absent ⇒ the U5 opaque-remainder shape). Dumped through the SAME deep-nesting
+    // belt as every other guest def value; the schema (enum biconditional, unique names, the arg caps) is what
+    // turns a malformed arg into a REGISTRATION refusal rather than a live-value surprise at invoke time.
+    using argsH = ctx.getProp(defHandle, "args");
     const onRun = ctx.getProp(defHandle, "onRun");
     let parsed: ReturnType<typeof pluginCommandRegistrationMetaSchema.safeParse>;
     try {
       const name = tryDumpGuestValue(ctx, nameH);
       const describe = tryDumpGuestValue(ctx, describeH);
-      if (!(name.ok && describe.ok)) {
+      const args = tryDumpGuestValue(ctx, argsH);
+      if (!(name.ok && describe.ok && args.ok)) {
         throw new Error("metadata is too deeply nested or too large to validate");
       }
-      parsed = pluginCommandRegistrationMetaSchema.safeParse({ name: name.value, describe: describe.value });
+      parsed = pluginCommandRegistrationMetaSchema.safeParse({ name: name.value, describe: describe.value, args: args.value });
     } catch (err) {
       onRun.dispose();
       runtime.logWarn(`ui.registerCommand refused a command: ${err instanceof Error ? err.message : String(err)}`);
