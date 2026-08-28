@@ -366,6 +366,11 @@ export const pluginSurfaceSpecSchema: z.ZodType<PluginSurfaceSpec> = pluginSurfa
 /** A surface's `id` grammar (`host.ui.register`'s `id`; plugin-ui-plane §4.2) — unique per plugin, a bounded
  *  programmatic identifier (the values-bag / registry key discipline), never arbitrary text. */
 export const PLUGIN_SURFACE_ID_RE = /^[a-z][a-z0-9_]{0,40}$/;
+/** The GUEST-LOCAL tool name a `tool-card` surface names (`host.tools.register`'s `name` — the grammar
+ *  `host-v1.ts` documents for it, before the host namespaces it to `plugin_<slug'>_<name>`). A surface names
+ *  the tool the way its own `main.js` registered it; the WIRE name is derived host-side and never guessed
+ *  client-side (`pluginToolWireName`, `registrations.ts` — the ONE mint). */
+export const PLUGIN_TOOL_NAME_RE = /^[a-z][a-z0-9_]{0,40}$/;
 /** The shell label line cap (`host.ui.register`'s `title`; plugin-ui-plane §4.2). */
 export const PLUGIN_SURFACE_TITLE_MAX = 80;
 
@@ -374,12 +379,51 @@ export const PLUGIN_SURFACE_TITLE_MAX = 80;
  *  here (it is a guest function, kept as an opaque `PluginHandlerRef` on the collected
  *  {@link PluginSurfaceRegistration}); `spec` is REQUIRED for a static-tier surface to render anything, but is
  *  optional at THIS schema because a scripted-tier (U4) surface computes its tree client-side. An invalid meta
- *  is a REGISTRATION refusal (surface absent + a plugin log line), never activation-fatal (plugin-ui-plane §4.9). */
-export const pluginSurfaceRegistrationMetaSchema = z.object({
-  id: z.string().regex(PLUGIN_SURFACE_ID_RE),
-  anchor: z.enum(PLUGIN_SURFACE_ANCHORS),
-  title: z.string().min(1).max(PLUGIN_SURFACE_TITLE_MAX),
-  tier: z.enum(PLUGIN_SURFACE_TIERS),
-  spec: pluginSurfaceSpecSchema.optional(),
-});
+ *  is a REGISTRATION refusal (surface absent + a plugin log line), never activation-fatal (plugin-ui-plane §4.9).
+ *
+ *  `toolName` is the `tool-card` LINKAGE (U3): which of the plugin's OWN tools this card renders, named the way
+ *  `host.tools.register` took it. It is a BICONDITIONAL with the anchor — a `tool-card` without a `toolName`
+ *  could never be matched to a call (a card nobody can reach), and a `toolName` on any other anchor is a claim
+ *  the renderer would never honour. Both halves are the same registration refusal, so a stale linkage costs the
+ *  generic tool block and a log line, never the plugin's activation. */
+export const pluginSurfaceRegistrationMetaSchema = z
+  .object({
+    id: z.string().regex(PLUGIN_SURFACE_ID_RE),
+    anchor: z.enum(PLUGIN_SURFACE_ANCHORS),
+    title: z.string().min(1).max(PLUGIN_SURFACE_TITLE_MAX),
+    tier: z.enum(PLUGIN_SURFACE_TIERS),
+    spec: pluginSurfaceSpecSchema.optional(),
+    toolName: z.string().regex(PLUGIN_TOOL_NAME_RE).optional(),
+  })
+  .refine((meta) => (meta.anchor === "tool-card") === (meta.toolName !== undefined), {
+    message: "a tool-card surface must name its `toolName`, and only a tool-card surface may name one",
+    path: ["toolName"],
+  });
 export type PluginSurfaceRegistrationMeta = z.infer<typeof pluginSurfaceRegistrationMetaSchema>;
+
+// ── The tool-card BINDING ROOT (U3, seam 7 — plugin-ui-plane §4.5's `tool-card` row) ─────────────────────────
+
+/** What a `tool-card` spec's `{ $state: "…" }` paths resolve against — the persisted `ToolCallRecord` of the
+ *  call being rendered, projected. It is the ONE thing a card binds: a tool card has no `host.ui.setState`
+ *  plane (a card is per-CALL, and published state is per-(plugin, surface) — binding a card to it would make
+ *  every historical call in the transcript repaint with the latest draw).
+ *
+ *  - `args` — the model's arguments, JSON-parsed; the raw string when it does not parse (a model can emit
+ *    malformed JSON, and the record is provenance-faithful).
+ *  - `result` — the handler's returned document, JSON-parsed; the raw string when it is not JSON (the guest's
+ *    return flows back verbatim, so a plugin that returns prose gets prose here). `null` = not executed.
+ *  - `isError` / `durationMs` — the record's own outcome facts, so a card can badge a failure without the
+ *    plugin having to encode it into its result.
+ *
+ *  A plugin authoring a card therefore binds `{ $state: "result.<field>" }` — which is why the seeded
+ *  oracle-deck returns a JSON document rather than a sentence.
+ *
+ *  The client builds it as a `satisfies PluginToolCardState` OBJECT LITERAL rather than an annotated value:
+ *  the renderer resolves paths against a `Record<string, unknown>`, and an interface-typed value has no
+ *  implicit index signature (an annotation here would force a cast at the seam). */
+export interface PluginToolCardState {
+  readonly args: unknown;
+  readonly result: unknown;
+  readonly isError: boolean;
+  readonly durationMs: number | null;
+}

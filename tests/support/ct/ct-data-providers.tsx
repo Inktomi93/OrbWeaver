@@ -54,7 +54,7 @@ import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "@orb/cli
 import { imageDetailModal, imageEditModal, imagineModal } from "@orb/client/features/imagery";
 import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
-import { pluginDistributeSection, pluginsPane } from "@orb/client/features/plugin";
+import { pluginDistributeSection, pluginsPane, pluginToolRenderer } from "@orb/client/features/plugin";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import { regexCollection } from "@orb/client/features/regex";
@@ -178,8 +178,11 @@ const chatContextContributors = createContributorRegistry<ContextTabDef<ChatCont
 const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContextState>>("chat-context-regions", []);
 const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
 const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
-// The per-tool-name renderer seam, empty as at the real door — every tool record falls back to `ToolCallBlock`.
-const chatToolRenderers = createContributorRegistry<ToolRenderer>("tool-renderers", []);
+// The per-tool renderer seam, MIRRORING the real door (#679 U3): its one member claims the `plugin_` tool
+// namespace and fans per-plugin inside its body. Every non-`plugin_` tool record still falls back to
+// `ToolCallBlock`, and so does a `plugin_*` one whose owner registered no card — so a CT that stubs no plugin
+// routes sees exactly the generic block it always did.
+const chatToolRenderers = createContributorRegistry<ToolRenderer>("tool-renderers", [pluginToolRenderer]);
 // The "This chat" SECTION seam (#616), empty here: a shell CT proves the tab's OWN sections, and the
 // automation graft is proved by its own CT, which wires this registry itself.
 const chatSettingsSections = createContributorRegistry<ChatSettingsSectionContribution>("chat-settings-sections", []);
