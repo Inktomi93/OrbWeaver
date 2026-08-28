@@ -24,6 +24,7 @@ import type {
   PluginBoundString,
   PluginButtonNode,
   PluginConfirmButtonNode,
+  PluginGridNode,
   PluginImageNode,
   PluginKeyValueNode,
   PluginListNode,
@@ -60,11 +61,24 @@ import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useInvokeUiAction } from "../lib/plugin-mutations.ts";
 import { collectDefaults, collectImageAssetIds, METER_DEFAULT_MAX, numFromValues, resolveNumber, resolveString } from "../lib/plugin-surface-bindings.ts";
+import { applyPluginUiOutcome } from "../lib/plugin-ui-outcome.ts";
+import { MasterDetail, SurfaceGrid, SurfaceSearchBar } from "./plugin-browse-nodes.tsx";
 
-/** The seven display leaves (no form state) and the seven form/action leaves — partition the non-container node
- *  union so each leaf renderer stays over a SMALL union (a new kind still fails `tsc`). Local to the renderer:
- *  these are rendering partitions, not a cross-boundary contract shape. */
-type DisplayNode = PluginTextNode | PluginBadgeNode | PluginMeterNode | PluginKeyValueNode | PluginListNode | PluginImageNode | PluginMarkdownNode;
+/** The display leaves (no form state) and the form/action leaves — partition the non-container node union so
+ *  each leaf renderer stays over a SMALL union (a new kind still fails `tsc`). Local to the renderer: these are
+ *  rendering partitions, not a cross-boundary contract shape.
+ *
+ *  `grid` is a DISPLAY leaf even though a tile can carry an `actionId`: it holds no draft state of its own — a
+ *  tile click submits the surface's current `values` bag plus the tile's id, exactly as a `button` does. */
+type DisplayNode =
+  | PluginTextNode
+  | PluginBadgeNode
+  | PluginMeterNode
+  | PluginKeyValueNode
+  | PluginListNode
+  | PluginImageNode
+  | PluginMarkdownNode
+  | PluginGridNode;
 type FormNode =
   | PluginTextFieldNode
   | PluginNumberFieldNode
@@ -85,7 +99,9 @@ interface RenderCtx {
   readonly state: Record<string, unknown>;
   readonly values: Record<string, string>;
   readonly setValue: (name: string, value: string) => void;
-  readonly submit: (actionId: string) => void;
+  /** Submit `actionId` with the current draft, plus any EXTRA values the affordance carries (a grid tile's
+   *  `tile` id — the round-trip has to say WHICH tile, and a tile is not a form field a person edits). */
+  readonly submit: (actionId: string, extra?: Record<string, string>) => void;
   readonly submitting: boolean;
   /** assetId → owner-scoped blob url. Absent = the installer does not own it (or it is gone) ⇒ placeholder. */
   readonly imageUrls: ReadonlyMap<string, string>;
@@ -166,7 +182,16 @@ export function PluginSurfaceRenderer({
     state: state ?? {},
     values,
     setValue: (name, value) => setValues((current) => ({ ...current, [name]: value })),
-    submit: (actionId) => invoke.mutate({ pluginId, surfaceId, actionId, values }),
+    // `mutateAsync` (not `mutate`) because U5 gave the round-trip a RESULT: the host-mediated toasts + at most
+    // one dialog-open the guest asked for while it ran (§4.5a). The `catch` is not a swallow of the failure —
+    // the mutation's own `errorToast` already told the person — it is what keeps a handled rejection from
+    // surfacing as an unhandled one on this fire-and-forget path.
+    submit: (actionId, extra) => {
+      void invoke
+        .mutateAsync({ pluginId, surfaceId, actionId, values: extra === undefined ? values : { ...values, ...extra } })
+        .then((outcome) => applyPluginUiOutcome(pluginId, outcome))
+        .catch(() => undefined);
+    },
     submitting: invoke.isPending,
     imageUrls,
   };
@@ -202,6 +227,35 @@ function SurfaceNode({ node, depth, ctx }: { readonly node: PluginSurfaceNode; r
         <Text voice="kicker">{node.kicker}</Text>
         {renderChildren(node.children, depth, ctx)}
       </Stack>
+    );
+  }
+  // `masterDetail` and `searchBar` are the FOURTH and FIFTH containers (U5) — they recurse through fields that
+  // are not called `children` (stage bodies, the filter tail). They dispatch HERE with the other containers,
+  // never from a leaf renderer, for one reason: the depth guard above has to reach their children, and the
+  // schema's own cap walk counts them through the same `pluginChildNodes` seam. The renderers themselves live
+  // in `plugin-browse-nodes.tsx` and take the recursion as a callback, so this file stays the walk's one owner.
+  if (node.kind === "masterDetail") {
+    return (
+      <MasterDetail
+        depth={depth}
+        imageUrls={ctx.imageUrls}
+        node={node}
+        renderNode={(child, childDepth): ReactNode => <SurfaceNode ctx={ctx} depth={childDepth} node={child} />}
+        state={ctx.state}
+      />
+    );
+  }
+  if (node.kind === "searchBar") {
+    return (
+      <SurfaceSearchBar
+        depth={depth}
+        node={node}
+        renderChildren={(children, childDepth): ReactNode => renderChildren(children, childDepth, ctx)}
+        setValue={ctx.setValue}
+        submit={ctx.submit}
+        submitting={ctx.submitting}
+        values={ctx.values}
+      />
     );
   }
   return isFormNode(node) ? <FormLeaf ctx={ctx} node={node} /> : <DisplayLeaf ctx={ctx} node={node} />;
@@ -263,6 +317,9 @@ function DisplayLeaf({ node, ctx }: { readonly node: DisplayNode; readonly ctx: 
   if (node.kind === "image") {
     return <SurfaceImage node={node} url={ctx.imageUrls.get(node.assetId)} />;
   }
+  if (node.kind === "grid") {
+    return <SurfaceGrid imageUrls={ctx.imageUrls} node={node} state={ctx.state} submit={ctx.submit} />;
+  }
   // Untrusted plugin markdown — the sealed Streamdown renderer's `untrusted` tier (Tier-A allowlist + url gate),
   // the same posture model output takes; never `trusted`. Last in the chain, so it is also the safe fallback.
   return (
@@ -287,7 +344,7 @@ function SurfaceImage({ node, url }: { readonly node: PluginImageNode; readonly 
   return <MessageMedia alt={node.alt ?? ""} media="image" src={{ kind: "asset", url }} />;
 }
 
-/** The seven FORM/ACTION leaves. Values are client-transient until an action submits the whole bag. An if-chain,
+/** The FORM/ACTION leaves. Values are client-transient until an action submits the whole bag. An if-chain,
  *  not a switch: each guard narrows `node`, and the final `confirmButton` return doubles as the safe fallback. */
 function FormLeaf({ node, ctx }: { readonly node: FormNode; readonly ctx: RenderCtx }): ReactElement {
   if (node.kind === "textField") {

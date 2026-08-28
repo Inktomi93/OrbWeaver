@@ -10,12 +10,15 @@ test("PLUGIN_ORIGINS is the reserved single-arm [upload] (catalog rides an addit
   expect(PLUGIN_ORIGINS).toEqual(["upload"]);
 });
 
-test("HOST_FUNCTION_CAPABILITY maps 25 gated functions, every value a real capability, every capability covered", () => {
+test("HOST_FUNCTION_CAPABILITY maps 28 gated functions, every value a real capability, every capability covered", () => {
   const entries = Object.entries(HOST_FUNCTION_CAPABILITY);
   // 23 → 25 at U6: `transforms.registerDisplay` + `macros.register`, both riding the EXISTING `chat.transform`
-  // capability (plugin-ui-plane §5.5/§5.15) — a widened surface with no new consent line, which is exactly the
-  // claim this count plus the coverage loop below makes checkable.
-  expect(entries).toHaveLength(25);
+  // capability (plugin-ui-plane §5.5/§5.15) — a widened surface with no new consent line. 25 → 28 at U5:
+  // `ui.registerCommand` + `ui.toast` + `ui.openDialog`, all three riding the EXISTING `ui.surface` grant
+  // (§4.5/§4.5a) — a command in the app's own menu, a toast in its own slot, a dialog in its own modal shell
+  // are all already described by the surface consent line. That "no new consent for the U5/U6 additions" claim
+  // is exactly what this count plus the coverage loop below makes checkable.
+  expect(entries).toHaveLength(28);
   const values = new Set(Object.values(HOST_FUNCTION_CAPABILITY));
   // Every mapped capability is a member of the axis.
   for (const cap of values) {

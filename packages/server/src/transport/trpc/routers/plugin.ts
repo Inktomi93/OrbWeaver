@@ -25,6 +25,8 @@
 import {
   NET_HOSTS_MAX,
   PLUGIN_CAPABILITIES,
+  PLUGIN_COMMAND_ARGS_MAX,
+  PLUGIN_COMMAND_NAME_RE,
   PLUGIN_DISPLAY_TEXT_MAX_CHARS,
   PLUGIN_LOG_LIST_MAX_LIMIT,
   PLUGIN_SURFACE_ID_RE,
@@ -149,6 +151,32 @@ export const pluginRouter = t.router({
         surfaceId: input.surfaceId,
         actionId: input.actionId,
         values: input.values,
+      }),
+    ),
+
+  // ── The U5 COMMAND pair (plugin-ui-plane §4.5). `listCommands` takes no input (the caller's own enabled
+  //    plugins' commands — sweep-EXEMPT like `list`/`listSurfaces`). `invokeUiCommand` takes a FOREIGN pluginId
+  //    AND a foreign chatId, so it is PROBED by the cross-tenant sweep on BOTH: the service gates the plugin on
+  //    the owner-scoped `getById` and the chat through the same leak-free `resolveChatAuthority` the snippet
+  //    gate uses (a chat the caller cannot read ⇒ NOT_FOUND, never an existence oracle).
+  listCommands: authedProcedure.query(({ ctx }) => ctx.services.plugin.listCommands({ caller: ctx.auth })),
+
+  invokeUiCommand: authedProcedure
+    .input(
+      z.object({
+        pluginId: pluginIdSchema,
+        name: z.string().regex(PLUGIN_COMMAND_NAME_RE),
+        args: z.string().max(PLUGIN_COMMAND_ARGS_MAX),
+        chatId: chatIdSchema.nullable(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      ctx.services.plugin.invokeUiCommand({
+        caller: ctx.auth,
+        pluginId: input.pluginId,
+        name: input.name,
+        args: input.args,
+        chatId: input.chatId,
       }),
     ),
 
