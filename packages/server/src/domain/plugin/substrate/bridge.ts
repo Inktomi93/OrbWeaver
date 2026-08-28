@@ -272,6 +272,14 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     },
     character: {
       ingest: (card) => ops.character.ingest({ installerUserId, card }),
+      // The U8 D148 per-card state write/read. BOTH un-forgeable coordinates are closed over here: `installerUserId`
+      // (the owner-scope predicate — a character the installer does not own is the leak-free NOT_FOUND, resolved at
+      // compose) and the emitter's own manifest `slug` (`requirePlugin(…).slug` — a guest supplies only the
+      // characterId + data, so it can target only its own `plugin_<slug>` key, never another plugin's). It requires
+      // an installed plugin like `pubsub.emit`/`toast` do: a snippet has no identity AND no `character.card_state`
+      // grant, so the capability gate refuses first.
+      setCardData: (characterId, data) => ops.character.setCardData({ installerUserId, slug: requirePlugin("character.setCardData").slug, characterId, data }),
+      getCardData: (characterId) => ops.character.getCardData({ installerUserId, slug: requirePlugin("character.getCardData").slug, characterId }),
     },
     // The PRIVATE plugin-event EMIT (§5a). BOTH un-forgeable coordinates are closed over here: `installerUserId`
     // (the plane is installer-scoped — an emit can never reach another user's plugins) and the emitter's own
