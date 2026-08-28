@@ -14,6 +14,7 @@
 // test-determinism gate is a line-regex that flags an ambient `Date` / `Math` member call even inside a
 // string literal, so the probes must reference the stubs without spelling that dotted member call.
 
+import { estimateTokens } from "@orb/kit/tokens";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { getPluginQuickJS, installRealm, LogRing } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext } from "quickjs-emscripten-core";
@@ -272,6 +273,21 @@ describe("installRealm — injected seams are the guest's only time/entropy/ids"
       ctx.dispose();
     }
   });
+
+  // #788 F13 — the FREE token-count estimator. It is the kit `estimateTokens` engine computed host-side, so the
+  // guest sees the SAME number the rest of the platform budgets on; a non-string arg is the empty-string estimate
+  // (the realm's fail-safe), never a throw.
+  test("tokens.count returns the kit estimate for the guest's own string (a non-string arg is 0)", async () => {
+    const { ctx } = await realmContext();
+    try {
+      const sample = "The quick brown fox jumps over the lazy dog.";
+      expect(evalString(ctx, `'' + orb.host(1).tokens.count(${JSON.stringify(sample)})`)).toBe(String(estimateTokens(sample)));
+      expect(evalString(ctx, "'' + orb.host(1).tokens.count('')")).toBe("0");
+      expect(evalString(ctx, "'' + orb.host(1).tokens.count(12345)")).toBe("0");
+    } finally {
+      ctx.dispose();
+    }
+  });
 });
 
 describe("installRealm — the P4b surface pin (determinism floor ONLY this slice)", () => {
@@ -285,8 +301,11 @@ describe("installRealm — the P4b surface pin (determinism floor ONLY this slic
   test("the floor is present; every P4b namespace is absent (guest feature-detectable)", async () => {
     const { ctx } = await realmContext();
     try {
-      const present = evalString(ctx, "(() => { const h = orb.host(1); return [typeof h.clock, typeof h.random, typeof h.ids, typeof h.log].join(','); })()");
-      expect(present).toBe("object,object,object,object");
+      const present = evalString(
+        ctx,
+        "(() => { const h = orb.host(1); return [typeof h.clock, typeof h.random, typeof h.ids, typeof h.log, typeof h.tokens].join(','); })()",
+      );
+      expect(present).toBe("object,object,object,object,object");
       const p4b = evalString(
         ctx,
         "(() => { const h = orb.host(1); return ['chat','worldInfo','variables','notifications','imagery','tools','events','transforms','net','grants'].map((k) => k in h).join(','); })()",
