@@ -29,10 +29,16 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
   llm: { prompts: string[] };
   egress: { count: number };
   suggested: { acts: PluginSuggestedAct[] };
-  performed: { turns: number; lore: number; pictures: number; chips: number; uiSetState: { surfaceId: string; state: Record<string, unknown> }[] };
+  performed: {
+    turns: number;
+    lore: number;
+    pictures: number;
+    chips: number;
+    uiSetState: { surfaceId: string; state: Record<string, unknown>; chatId: ChatId | null }[];
+  };
 } {
   const writes = { count: 0 };
-  const uiSetState: { surfaceId: string; state: Record<string, unknown> }[] = [];
+  const uiSetState: { surfaceId: string; state: Record<string, unknown>; chatId: ChatId | null }[] = [];
   const performed = { turns: 0, lore: 0, pictures: 0, chips: 0, uiSetState };
   const llm: { prompts: string[] } = { prompts: [] };
   const egress = { count: 0 };
@@ -87,8 +93,10 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
       return Promise.resolve();
     },
     ui: {
-      setState: (surfaceId, state) => {
-        performed.uiSetState.push({ surfaceId, state });
+      // Capture the THIRD arg (the room). The membrane resolves it from the opaque handle before it reaches the
+      // bridge; recording it here is what lets a test prove an admitted handle actually carried its chat through.
+      setState: (surfaceId, state, chatId) => {
+        performed.uiSetState.push({ surfaceId, state, chatId });
         return Promise.resolve();
       },
     },
@@ -744,7 +752,38 @@ describe("host.ui — declarative surface registration + state publish (plugin-u
       const out = await runAsync(ctx, `(async () => { await host.ui.setState("affinity_panel", { affinity: 7, mood: "warm" }); return "done"; })()`);
       expect(out).toBe("done");
     });
-    expect(performed.uiSetState).toEqual([{ surfaceId: "affinity_panel", state: { affinity: 7, mood: "warm" } }]);
+    // No room arg ⇒ the plugin-wide row every room shares (`chatId: null`), the U1 shape unchanged.
+    expect(performed.uiSetState).toEqual([{ surfaceId: "affinity_panel", state: { affinity: 7, mood: "warm" }, chatId: null }]);
+  });
+
+  test("host.ui.setState WITH the ADMITTED chat handle resolves the room and carries it to the bridge", async () => {
+    // The room dimension (row 777): a PRESENT handle must be the admitted invocation's opaque token, resolved by
+    // the SAME `resolveChat` every room-scoped host fn uses. Passing the live token routes the write to that
+    // chat's row — proving an admitted handle reaches the bridge with its `chatId`, not a silent plugin-wide write.
+    const { bridge, performed } = fakeBridge();
+    const runtime = makeRuntime(uiGrants, false, bridge);
+    await withRuntime(runtime, async (ctx) => {
+      const out = await runAsync(ctx, `host.ui.setState("affinity_panel", { affinity: 3 }, "${TOKEN}").then(() => "done", (e) => "caught:" + e.message)`);
+      expect(out).toBe("done");
+    });
+    expect(performed.uiSetState).toEqual([{ surfaceId: "affinity_panel", state: { affinity: 3 }, chatId: CHAT }]);
+  });
+
+  test("host.ui.setState with a FORGED chat handle is refused at resolution — the bridge is never reached", async () => {
+    // A forged/stale/out-of-scope token throws at `resolveChat` (→ guest promise reject) BEFORE the bridge op, so
+    // a guest cannot publish into a room this invocation was never admitted to. The deliberate NON-coercion of a
+    // bad handle to "no chat" is what stops a typo'd handle becoming a silent cross-room write to the shared row.
+    const { bridge, performed } = fakeBridge();
+    const runtime = makeRuntime(uiGrants, false, bridge);
+    await withRuntime(runtime, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        `host.ui.setState("affinity_panel", { affinity: 3 }, "forged-handle").then(() => "reached", (e) => "caught:" + e.message)`,
+      );
+      expect(out).not.toContain("reached");
+      expect(out).toContain("invalid chat handle");
+    });
+    expect(performed.uiSetState).toEqual([]); // nothing crossed to the bridge
   });
 
   test("a DEEP surface spec is a SOFT refusal — activation SURVIVES, surface skipped, a sibling tool still registers (§4.9)", async () => {

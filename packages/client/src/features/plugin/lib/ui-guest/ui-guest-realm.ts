@@ -282,11 +282,28 @@ function buildHostProxy(deps: RealmDeps): QuickJSHandle {
 }
 
 /** The job pump, guarded on liveness: a late settle against a disposed context is a use-after-free, and a
- *  fire-and-forget guest call can outlive the worker's teardown. */
+ *  fire-and-forget guest call can outlive the worker's teardown.
+ *
+ *  IT ARMS ITS OWN CPU BOUND (#784 F2, the client twin of #781). This pump runs a guest continuation OUTSIDE any
+ *  invocation — a host call fired at boot (or in an event) can settle AFTER `ready`/`settled` cleared the host's
+ *  wall and after `runToSettlement` removed the interrupt handler in its `finally`. Without a fresh handler here,
+ *  a looping `.then` (`h.storage.get(k).then(() => { while(true){} })`) runs `executePendingJobs()` unbounded and
+ *  PEGS the worker thread: the surface freezes on its last tree, and because no wall is armed for a settling host
+ *  call, `reportUiCrash` never fires — the 3-strike auto-disable goes blind. So the pump installs a fresh
+ *  `eventCpuMs` deadline against REAL monotonic time (mirroring `runToSettlement`), pumps, and removes it — a
+ *  bounded continuation is a preempted job, not a crash, so the surface simply stops advancing rather than
+ *  wedging. The host's `terminate()` remains the outer bound for a continuation that STOPS executing bytecode. */
 function pump(ctx: QuickJSContext): () => void {
   return (): void => {
-    if (ctx.alive) {
+    if (!ctx.alive) {
+      return;
+    }
+    const startMs = performance.now();
+    ctx.runtime.setInterruptHandler(() => performance.now() - startMs > UI_GUEST_BUDGETS.eventCpuMs);
+    try {
       ctx.runtime.executePendingJobs();
+    } finally {
+      ctx.runtime.removeInterruptHandler();
     }
   };
 }

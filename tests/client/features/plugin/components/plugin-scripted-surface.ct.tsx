@@ -36,6 +36,87 @@ const SCRIPTED_ID = castId<PluginId>("plugin_ct_scripted00001");
 const HUNG_COLLAPSE_TIMEOUT_MS = 20_000;
 /** Booting a WASM interpreter is not instant, and under CT contention it is less instant still. */
 const GUEST_BOOT_TIMEOUT_MS = 15_000;
+/** The F2 arm's post-fix window: once the pump preempts the boot loop at `eventCpuMs` (1 s) the worker is free
+ *  and the queued click renders within a second or two. Generous for contention, yet well under the 30 s
+ *  per-test default so the UNMODIFIED-source RED (where "pong" never comes) reports as a failure, never a
+ *  SIGKILL. */
+const BOOT_LOOP_PONG_TIMEOUT_MS = 12_000;
+
+/** THE F3 REALM ALLOW-LIST (#784) — every name a client guest may enumerate on `globalThis` after `installRealm`,
+ *  IDENTICAL to the server realm's pin (`tests/server/infra/plugin-host/realm.test.ts`): same quickjs-ng engine
+ *  build, and the client adds `orb` exactly as the server does. The worker header CLAIMED this control existed
+ *  and it did not (`installRealm`/`ui-guest-realm` were in zero test files) — the same blind spot by which
+ *  `performance` shipped live on the server. A closed list is the ONLY shape that goes RED the day a quickjs-ng
+ *  bump adds `crypto` / `Temporal` / `Atomics` / a timer to the guest; a "no ambient X" probe set cannot.
+ *  Three classes: ES intrinsics, the neutralized ambient time/entropy stubs (`Date`/`Math`/`performance` — kept
+ *  as throwing stubs so a guest can feature-detect), and the one installed entry (`orb`). */
+const CLIENT_ALLOWED_GLOBALS: readonly string[] = [
+  "AggregateError",
+  "Array",
+  "ArrayBuffer",
+  "BigInt",
+  "BigInt64Array",
+  "BigUint64Array",
+  "Boolean",
+  "DOMException",
+  "DataView",
+  "Error",
+  "EvalError",
+  "FinalizationRegistry",
+  "Float16Array",
+  "Float32Array",
+  "Float64Array",
+  "Function",
+  "Infinity",
+  "Int16Array",
+  "Int32Array",
+  "Int8Array",
+  "InternalError",
+  "Iterator",
+  "JSON",
+  "Map",
+  "NaN",
+  "Number",
+  "Object",
+  "Promise",
+  "Proxy",
+  "RangeError",
+  "ReferenceError",
+  "Reflect",
+  "RegExp",
+  "Set",
+  "SharedArrayBuffer",
+  "String",
+  "Symbol",
+  "SyntaxError",
+  "TypeError",
+  "URIError",
+  "Uint16Array",
+  "Uint32Array",
+  "Uint8Array",
+  "Uint8ClampedArray",
+  "WeakMap",
+  "WeakRef",
+  "WeakSet",
+  "decodeURI",
+  "decodeURIComponent",
+  "encodeURI",
+  "encodeURIComponent",
+  "escape",
+  "eval",
+  "globalThis",
+  "isFinite",
+  "isNaN",
+  "parseFloat",
+  "parseInt",
+  "queueMicrotask",
+  "undefined",
+  "unescape",
+  "Date",
+  "Math",
+  "performance",
+  "orb",
+];
 
 /** An enabled installed row carrying the `ui.surface` grant — the row a scripted surface mounts inside. */
 function enabledRow(id: PluginId, name: string): Record<string, unknown> {
@@ -130,6 +211,41 @@ const PARKED_HUNG_GUEST = `
   const ui = orb.ui(1);
   ui.render("browser", { kind: "stack", children: [{ kind: "button", actionId: "go", label: "Park it" }] });
   ui.onEvent(() => new Promise(() => {}));
+`;
+
+/** C. THE BOOT-TIME FIRE-AND-FORGET LOOP — the F2 gap (#784, the client twin of #781). A guest that fires a
+ *  host call at BOOT without awaiting it, whose `.then` continuation loops. The fire-and-forget is DELIBERATELY
+ *  NOT the script's last expression: `draw()` is, so the boot eval's completion value is `undefined`, boot's
+ *  `runToSettlement` does NOT await the `.then` chain, and boot `ready`s + REMOVES its interrupt handler while the
+ *  host call is still in flight. The continuation therefore settles LATER, on `ui-guest-realm`'s `pump()`, with
+ *  the boot wall cleared and no handler armed. (If the `.then` were the last expression — the FILTER_GUEST shape
+ *  — boot would await it under its OWN handler and the loop would be bounded by accident; that is why the naive
+ *  arm passed and this ordering is load-bearing.) It is the shape the shipped affinity-tracker teaches
+ *  (`void load();`) — benign there, a worker-pegging DoS here. `phase` lets the CT barrier on the pump having
+ *  STARTED the continuation. */
+const BOOT_LOOP_GUEST = `
+  const ui = orb.ui(1);
+  let phase = "idle";
+  function draw() {
+    ui.render("browser", { kind: "stack", children: [
+      { kind: "button", actionId: "ping", label: "Ping" },
+      { kind: "text", voice: "label", value: phase },
+    ]});
+  }
+  ui.onEvent((e) => { if (e.event.type === "action" && e.event.actionId === "ping") { phase = "pong"; draw(); } });
+  ui.host.storage.get("k").then(() => { phase = "resolved"; draw(); while (true) {} });
+  draw();
+`;
+
+/** THE REALM PROBE (#784 F3) — it enumerates its OWN guest `globalThis` and renders the sorted list into a text
+ *  node the CT reads back, so the closed allow-list is asserted against the REAL worker guest (the production
+ *  path: the real wasm, the real `installRealm`). Wrapped in a marker so the CT can locate exactly this node. */
+const REALM_PROBE_GUEST = `
+  const ui = orb.ui(1);
+  const names = Object.getOwnPropertyNames(globalThis).sort().join(",");
+  ui.render("browser", { kind: "stack", children: [
+    { kind: "text", voice: "label", value: "REALM_GLOBALS[" + names + "]" },
+  ]});
 `;
 
 /** THE LOOPING PUBLISHER — it republishes an IDENTICAL tree on every event. Without a content-equality guard
@@ -247,6 +363,54 @@ test("THE P1-A LESSON — a NON-EXECUTING hang is killed by the HOST's wall-cloc
   expect(reason, "only the OUT-OF-THREAD wall can end a guest that stopped executing").toContain("did not respond");
 });
 
+test("THE F2 GAP — a BOOT-TIME fire-and-forget whose continuation loops is bounded by the pump's OWN interrupt handler, not left to peg the worker forever", async ({
+  mount,
+  page,
+}) => {
+  // The two hang arms above are EVENT-scoped: the host arms a wall on `deliverEvent`, so a wedged handler is
+  // caught. This arm is the gap NEITHER covers — a host call fired at BOOT and NOT awaited, whose `.then` loops.
+  // It settles AFTER `ready` cleared the wall (plugin-ui-guest-host.ts) and the boot `runToSettlement` removed
+  // its interrupt handler (ui-guest.worker.ts), so `ui-guest-realm`'s `pump()` runs `executePendingJobs()` on the
+  // looping continuation with NOTHING armed. RED-FIRST (against the unmodified source): the worker pegs forever,
+  // the click below never processes, "pong" never renders — the surface freezes on its last tree while
+  // `reportUiCrash` stays SILENT (the 3-strike counter blind). The fix arms an `eventCpuMs` deadline inside
+  // `pump()` itself; the loop is preempted and the worker frees.
+  let crashes = 0;
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(SCRIPTED_ID, "Boot-loop Demo")],
+    "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+    // The boot-time host call resolves; its `.then` (which loops) then runs on the pump.
+    "plugin.uiHostCall": () => ({ resultJson: JSON.stringify(null) }),
+    "plugin.reportUiCrash": () => {
+      crashes += 1;
+      return null;
+    },
+  });
+  await routeUiBundle(page, BOOT_LOOP_GUEST);
+  await mount(<PluginScriptedSurfaceStory />);
+
+  // Boot settled: the Ping button rendered, `ready` cleared the wall, the boot interrupt handler was removed —
+  // the stage is exactly as production leaves it after a benign boot.
+  await expect(page.getByRole("button", { name: "Ping" })).toBeVisible({ timeout: GUEST_BOOT_TIMEOUT_MS });
+
+  // The boot host call resolved and the PUMP ran its continuation far enough to publish "resolved" — proof the
+  // fire-and-forget's `.then` is now executing on the worker thread, which is where the `while(true)` lives.
+  await expect(page.getByText("resolved")).toBeVisible({ timeout: GUEST_BOOT_TIMEOUT_MS });
+
+  // THE PROOF the pump bounded the loop: the worker came back and processed a FRESH event. Under the unmodified
+  // pump this click sits behind a pegged thread forever and "pong" never comes.
+  await page.getByRole("button", { name: "Ping" }).click();
+  await expect(page.getByText("pong")).toBeVisible({ timeout: BOOT_LOOP_PONG_TIMEOUT_MS });
+
+  // And the containment was SILENT — a bounded pump continuation is a preempted job, not a crash: the surface
+  // stays alive and nothing was reported. (The BENIGN boot continuation still settling is the DONE-CRITERION
+  // test above, whose `ui.host.storage.list(...).then(draw)` is exactly this shape without the loop.)
+  expect(crashes, "a bounded pump continuation is preempted, not crashed").toBe(0);
+});
+
 test("the publish guard refuses a re-render loop — an identical republish is a no-op, and the surface stays alive", async ({ mount, page }) => {
   await routeTrpc(page, {
     "plugin.list": () => [enabledRow(SCRIPTED_ID, "Republishing Demo")],
@@ -267,4 +431,34 @@ test("the publish guard refuses a re-render loop — an identical republish is a
   await field.fill("abcdefgh");
   await expect(field).toHaveValue("abcdefgh");
   await expect(page.getByText("steady")).toBeVisible();
+});
+
+test("THE F3 PIN — the client guest global object is an EXACT allow-list (a new runtime global goes red here)", async ({ mount, page }) => {
+  // The worker header CLAIMED "the realm allow-list is asserted by a test from birth" — it was not (#784 F3).
+  // This closes it against the REAL worker guest: the guest enumerates its own `globalThis` and renders it, and
+  // the assertion is the CLOSED SET, the only shape that goes red the day a quickjs-ng bump adds `crypto` /
+  // `Temporal` / `Atomics` / a timer — the exact blind spot by which `performance` shipped live on the server.
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(SCRIPTED_ID, "Realm Probe Demo")],
+    "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await routeUiBundle(page, REALM_PROBE_GUEST);
+  await mount(<PluginScriptedSurfaceStory />);
+
+  // The guest rendered its global-object enumeration into the marker node.
+  const marker = page.getByText(/^REALM_GLOBALS\[/);
+  await expect(marker).toBeVisible({ timeout: GUEST_BOOT_TIMEOUT_MS });
+  const rendered = (await marker.textContent()) ?? "";
+  const inner = rendered.replace(/^REALM_GLOBALS\[/, "").replace(/]$/, "");
+  const actual = inner.split(",");
+
+  // THE CLOSED-SET ASSERTION — an added or removed guest global fails HERE.
+  expect(actual).toEqual([...CLIENT_ALLOWED_GLOBALS].sort());
+  // POSITIVE CONTROL that the probe enumerated a live guest (a broken install would render an empty/bare list):
+  // `orb` is the one installed entry and the enumeration is non-trivial.
+  expect(actual).toContain("orb");
+  expect(actual.length).toBeGreaterThan(40);
 });

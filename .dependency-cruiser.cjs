@@ -659,7 +659,7 @@ module.exports = {
       name: "not-to-unresolvable",
       severity: "error",
       from: {},
-      to: { couldNotResolve: true, pathNot: ["wasm\\?url$"] },
+      to: { couldNotResolve: true, pathNot: ["^@jitl/quickjs-ng-wasmfile-release-sync/wasm\\?url$"] },
     },
     {
       // Overrides recommended-strict's ERROR-severity rule, per dep-cruiser's own prescription for
