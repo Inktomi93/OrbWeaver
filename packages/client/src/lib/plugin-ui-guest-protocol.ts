@@ -1,6 +1,12 @@
-// ui-guest-protocol — the main-thread ↔ Web Worker WIRE for the Tier-C client guest (plugin-ui-plane #679 U4,
-// §4.6). Two closed message unions and the budget constants, in one module both sides import, so the worker and
-// its host cannot drift: a new message kind fails `tsc` at the exhaustive dispatch on the other side.
+// plugin-ui-guest-protocol — the main-thread ↔ Web Worker WIRE for the Tier-C client guest (plugin-ui-plane
+// #679 U4, §4.6). Two closed message unions and the budget constants, in one module both sides import, so the
+// worker and its host cannot drift: a new message kind fails `tsc` at the exhaustive dispatch on the other side.
+//
+// IT LIVES IN `client/src/lib`, NOT in `features/plugin/`, and that is the type-home law rather than taste
+// (`no-inline-types`, Spine-TypeScript-and-Patterns §7.4): a client feature's buckets are not a type home, and
+// these are exported UNIONS. `src/lib` is where a client-wide contract belongs — the `contribution-contracts.ts`
+// precedent — and this one genuinely spans two EXECUTION CONTEXTS, which is about as cross-boundary as a
+// client-side shape gets.
 //
 // EVERYTHING THAT CROSSES IS INERT. Every payload here is a string, a number, or a plain JSON-shaped object —
 // structured-clone-safe by construction and, more importantly, DEAD: no functions, no handles, no live
@@ -12,6 +18,8 @@
 // through `pluginSurfaceSpecSchema` before anything mounts, and a pre-parsed object arriving over the wire
 // would invite a reader to trust the shape because it "already looks right". A string cannot be mistaken for
 // validated data.
+
+import type { PluginLogLevel } from "@orb/contracts/plugin";
 
 /** The budget constants, MIRRORING `packages/server/src/infra/plugin-host/budgets.ts`. They are re-declared
  *  rather than imported because `infra` is server-only and above `contracts` in the cake; the reason each number
@@ -74,6 +82,15 @@ export interface UiGuestBootMessage {
   /** The surfaces this worker's plugin registered at the `scripted` tier — the guest renders into these ids and
    *  a `render` naming any other id is dropped by the host (a guest cannot paint a surface it does not own). */
   readonly surfaceIds: readonly string[];
+  /** THE INJECTED CLOCK ORIGIN — the host's wall clock at spawn, in epoch ms. The guest's `clock.nowEpochMs()`
+   *  is this plus the worker's own MONOTONIC elapsed time, which is what makes it a SEAM rather than ambient
+   *  now: the guest cannot reach `Date` (the realm stubs it), the worker never reads one, and the single
+   *  reading that exists came from the host — exactly the shape `HostSeams` gives the server guest. */
+  readonly clockEpochMs: number;
+  /** THE INJECTED ENTROPY SEED — the guest's `random.next()` is a seeded generator over this, never
+   *  `Math.random`. Same determinism law as the server realm (two runs under identical seams are identical),
+   *  and the same reason: an ambient entropy source defeats the injected one before it defeats anything else. */
+  readonly randomSeed: number;
 }
 
 /** Deliver a UI event INTO the guest — the whole point of Tier C: a keystroke or a click is handled locally, at
@@ -116,7 +133,10 @@ export interface UiGuestHostCallMessage {
 /** A guest log line, already ring-bounded worker-side. */
 export interface UiGuestLogMessage {
   readonly kind: "log";
-  readonly level: "info" | "warn" | "error";
+  /** The ONE log-level axis — `@orb/contracts/plugin`'s `PLUGIN_LOG_LEVELS`, derived rather than re-spelled.
+   *  A guest's `orb.ui(1).log.warn(…)` and a server guest's `orb.host(1).log.warn(…)` are the same severity
+   *  vocabulary, and a plugin author who learned one has learned the other. */
+  readonly level: PluginLogLevel;
   readonly message: string;
 }
 

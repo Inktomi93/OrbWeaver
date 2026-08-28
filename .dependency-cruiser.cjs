@@ -696,7 +696,7 @@ module.exports = {
       // is the cheap in-graph tripwire for NEW orphans.
       name: "no-orphans",
       comment:
-        "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority. instruments.ts is carved: the tooling-instrument-proof gate reads it STRUCTURALLY (an AST read, no import edge exists by design — tooling-package.md §4.5); knip covers it via the tooling workspace entry. The seeded EXAMPLE-PLUGIN bundles are carved for a stronger reason: `seed-assets/plugins/<slug>/main.js` is GUEST source, not host source — it is read as BYTES by `packSeedPluginBundle`, zipped, and executed inside the QuickJS sandbox against `orb.host(1)`, a global that does not exist in this graph. An import edge is not merely absent, it is impossible: the guest realm has no module loader. They ride `packages/server/src` because that is the only tree the image copies, and their liveness is proven behaviourally by `tests/server/entry/boot/seed-example-plugins.int.test.ts`, which installs and runs each one.",
+        "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority. instruments.ts is carved: the tooling-instrument-proof gate reads it STRUCTURALLY (an AST read, no import edge exists by design — tooling-package.md §4.5); knip covers it via the tooling workspace entry. The seeded EXAMPLE-PLUGIN bundles are carved for a stronger reason: `seed-assets/plugins/<slug>/{main,ui}.js` is GUEST source, not host source — it is read as BYTES by `packSeedPluginBundle`, zipped, and executed inside a QuickJS sandbox against a global that does not exist in this graph (`orb.host(1)` on the server, `orb.ui(1)` in the browser worker — plugin-ui-plane #679 U4). An import edge is not merely absent, it is impossible: neither guest realm has a module loader. They ride `packages/server/src` because that is the only tree the image copies, and their liveness is proven behaviourally by `tests/server/entry/boot/seed-example-plugins.int.test.ts`, which installs each one and round-trips the scripted example's `ui.js` back out through `getUiBundle`.",
       severity: "warn",
       from: {
         orphan: true,
@@ -704,7 +704,10 @@ module.exports = {
           "\\.d\\.ts$",
           "(^|/)index\\.ts$",
           "^tooling/src/_shared/instruments\\.ts$",
-          "^packages/server/src/entry/boot/seed-assets/plugins/[^/]+/main\\.js$",
+          // `main.js` (the SERVER guest) and `ui.js` (the Tier-C CLIENT guest, plugin-ui-plane #679 U4) — the
+          // SAME carve for the same reason, widened to the second entry name rather than loosened to a
+          // directory glob, so a stray `helper.js` beside them is still a real orphan.
+          "^packages/server/src/entry/boot/seed-assets/plugins/[^/]+/(main|ui)\\.js$",
         ],
       },
       to: {},

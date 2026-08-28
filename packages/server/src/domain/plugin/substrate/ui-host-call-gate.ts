@@ -17,6 +17,7 @@
 // memory, which is the failure the server-side FIFO's own depth bound exists to prevent.
 
 import type { PluginId } from "@orb/kit/ids";
+import type { UiHostCallGate } from "../contract/ops.ts";
 
 /** Concurrent in-flight `uiHostCall`s per PLUGIN. MIRRORS `HOST_CALLS_IN_FLIGHT_MAX = 32` in
  *  `packages/server/src/infra/plugin-host/budgets.ts` — the same number, for the same reason (a legitimate guest
@@ -31,18 +32,9 @@ import type { PluginId } from "@orb/kit/ids";
  *  the plugin chose to register, which is the one number the attacker controls. */
 export const UI_HOST_CALLS_IN_FLIGHT_MAX = 32;
 
-/** The per-plugin in-flight ceiling on proxied host calls. Type + factory both live here (a substrate-local
- *  belt with no cross-tier consumer — unlike `SnippetGate`, whose type sits in `contract/` because the verb
- *  signature names it). */
-export interface UiHostCallGate {
-  /** CHECK-AND-CLAIM one slot, returning its RELEASE (the caller must call it in a `finally`). THROWS when the
-   *  plugin is already at the ceiling. ONE synchronous step, for the same reason `NotifyFloor.admit` is: a claim
-   *  that awaited anything between the check and the record would let a burst of concurrent calls all observe
-   *  the pre-burst count and pass. */
-  readonly admit: (pluginId: PluginId) => () => void;
-}
-
-/** Mint the process-wide gate — ONE per service at compose. */
+/** Mint the process-wide gate — ONE per service at compose. The SEAM TYPE ({@link UiHostCallGate}) lives in
+ *  `contract/service.ts` beside `SnippetGate` and `NotifyFloor`: the seam type in contract, the factory in
+ *  substrate (§7.4's one type home, and the convention this domain's other two belts already follow). */
 export function createUiHostCallGate(): UiHostCallGate {
   const inFlight = new Map<PluginId, number>();
   return {

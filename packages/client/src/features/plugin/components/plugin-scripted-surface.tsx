@@ -20,12 +20,11 @@
 // crash also feeds the 3-strike policy, so a plugin that dies every mount disables itself rather than
 // flickering forever.
 
-import type { PluginSurfaceSpec } from "@orb/contracts/plugin";
-import { PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
+import type { PluginCapability, PluginSurfaceSpec } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { useInvalidation, useTRPC, useTRPCClient } from "#data";
+import { fetchPluginUiSource, useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { useReportUiCrash } from "../lib/plugin-mutations.ts";
 import type { PluginUiGuest } from "../lib/ui-guest/plugin-ui-guest-host.ts";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
@@ -37,18 +36,11 @@ export interface PluginScriptedSurfaceProps {
   /** Every scripted surface id this plugin registered — the guest's render allow-list (a `render` naming
    *  anything else is dropped worker-side). */
   readonly surfaceIds: readonly string[];
-  /** The plugin's granted capabilities, for the guest's feature-detection surface. Display-only. */
-  readonly grants: readonly string[];
+  /** The plugin's granted capabilities, for the guest's feature-detection surface. Display-only — the server
+   *  re-gates every host call against the stored row, so this array is a convenience, never an authority. */
+  readonly grants: readonly PluginCapability[];
   /** The room this surface is mounted in (row 777), threaded into every proxied chat-scoped host call. */
   readonly chatId?: ChatId;
-}
-
-/** The bytes route, fetched as TEXT. `credentials: "same-origin"` because the route is owner-gated on the
- *  session cookie; a 404 (no `ui.js`, a foreign plugin, a torn bundle — the route collapses all three) resolves
- *  `null` and the surface stays silent. */
-async function fetchUiSource(pluginId: PluginId): Promise<string | null> {
-  const response = await fetch(`${PLUGIN_UI_ROUTE}/${pluginId}`, { credentials: "same-origin" });
-  return response.ok ? await response.text() : null;
 }
 
 export function PluginScriptedSurface({ pluginId, surfaceId, surfaceIds, grants, chatId }: PluginScriptedSurfaceProps): ReactElement | null {
@@ -84,7 +76,7 @@ export function PluginScriptedSurface({ pluginId, surfaceId, surfaceIds, grants,
     // The dynamic import is INSIDE the effect, not at module scope: that is what keeps the interpreter and its
     // WASM out of every other chunk. `Promise.all` so the ~1 MiB engine and the source download overlap.
     const boot = async (): Promise<void> => {
-      const [{ startPluginUiGuest }, source] = await Promise.all([import("../lib/ui-guest/plugin-ui-guest-host.ts"), fetchUiSource(pluginId)]);
+      const [{ startPluginUiGuest }, source] = await Promise.all([import("../lib/ui-guest/plugin-ui-guest-host.ts"), fetchPluginUiSource(pluginId)]);
       if (cancelled || source === null) {
         return;
       }

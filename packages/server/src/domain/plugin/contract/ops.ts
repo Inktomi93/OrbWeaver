@@ -321,6 +321,20 @@ export interface NotifyFloor {
  *  `QuickJSContext` (32 MiB ceiling) held for up to the
  *  snippet's settlement wall — so the bound that matters is how many a single user may hold AT ONCE, which no
  *  request-rate bucket can express. */
+/** The per-plugin CONCURRENCY belt on `plugin.uiHostCall` (plugin-ui-plane #679 U4) — the Tier-C sibling of
+ *  {@link SnippetGate}. The transport's per-user rate bucket bounds calls per WINDOW and structurally cannot
+ *  bound how many are RUNNING, which is the number that matters when each in-flight call holds a real domain op
+ *  and the caller is a surface that can re-render at animation rate. Implemented by
+ *  `substrate/ui-host-call-gate.ts` (the seam TYPE in contract, the factory in substrate — the same split
+ *  `SnippetGate` and `NotifyFloor` already use). */
+export interface UiHostCallGate {
+  /** CHECK-AND-CLAIM one slot, returning its RELEASE (the caller must call it in a `finally`). THROWS when the
+   *  plugin is already at the ceiling. ONE synchronous step, for the same reason {@link NotifyFloor.admit} is:
+   *  a claim that awaited anything between the check and the record would let a burst of concurrent calls all
+   *  observe the pre-burst count and pass. */
+  readonly admit: (pluginId: PluginId) => () => void;
+}
+
 export interface SnippetGate {
   /** CHECK-AND-CLAIM one slot for `userId`, returning its RELEASE (the caller must call it in a `finally`).
    *  Throws `PluginSnippetBusyError` when the user is already at the ceiling. ONE synchronous step for the same

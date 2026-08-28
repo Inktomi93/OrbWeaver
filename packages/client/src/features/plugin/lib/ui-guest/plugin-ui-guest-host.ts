@@ -17,14 +17,14 @@
 // LIFECYCLE: one host per (plugin × worker), created lazily by the mount when one of its scripted surfaces is
 // on screen and disposed on unmount/disable. `dispose()` is idempotent and safe to call from a React cleanup.
 
-import type { PluginSurfaceSpec } from "@orb/contracts/plugin";
+import type { PluginLogLevel, PluginSurfaceSpec } from "@orb/contracts/plugin";
 import { pluginSurfaceSpecSchema } from "@orb/contracts/plugin";
-import type { UiGuestInbound, UiGuestOutbound, UiGuestSettledMessage } from "./ui-guest-protocol.ts";
-import { UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "./ui-guest-protocol.ts";
+import type { UiGuestInbound, UiGuestOutbound, UiGuestSettledMessage } from "#lib";
+import { timeLib, UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "#lib";
 
 /** What the host reports OUT to its React owner. Every arm is a rendered outcome, not an internal event: the
  *  component maps them straight to what a person sees. */
-export interface PluginUiGuestEvents {
+interface PluginUiGuestEvents {
   /** A VALIDATED tree for one surface. Already through `pluginSurfaceSpecSchema` and already past the
    *  publish guard, so a caller may set state with it unconditionally. */
   readonly onTree: (surfaceId: string, tree: PluginSurfaceSpec) => void;
@@ -32,7 +32,7 @@ export interface PluginUiGuestEvents {
    *  collapses to null and the caller reports the crash. `reason` is operator-facing. */
   readonly onCrash: (reason: string) => void;
   /** A guest log line — surfaced through the plugin log affordance, never the console. */
-  readonly onLog: (level: "info" | "warn" | "error", message: string) => void;
+  readonly onLog: (level: PluginLogLevel, message: string) => void;
   /** Relay a proxied host call. Resolves with the server's inert JSON result; rejects with a message the guest
    *  sees. The caller wires this to `trpc.plugin.uiHostCall` — this module never touches the network itself,
    *  which is what keeps the tRPC client out of a module that also owns an untrusted worker. */
@@ -197,7 +197,18 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
   };
 
   armWall(UI_GUEST_BOOT_WALL_MS, "startup");
-  send({ kind: "boot", source: options.source, grants: options.grants, surfaceIds: options.surfaceIds });
+  send({
+    kind: "boot",
+    source: options.source,
+    grants: options.grants,
+    surfaceIds: options.surfaceIds,
+    // THE SEAMS ARE INJECTED FROM HERE, exactly as compose injects the server guest's. `timeLib.now()` is the
+    // client's ONE clock (never ambient `Date.now`), and the seed is a real CSPRNG draw rather than
+    // `Math.random` — a guest-visible PRNG and a security token have opposite requirements, and taking the
+    // seed from the audited source costs nothing.
+    clockEpochMs: timeLib.now(),
+    randomSeed: crypto.getRandomValues(new Uint32Array(1))[0] ?? 1,
+  });
 
   return {
     deliverEvent: (surfaceId, event, values): void => {

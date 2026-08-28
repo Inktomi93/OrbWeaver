@@ -10,8 +10,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginInvokeArgs } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
-import type { UiHostCallGate } from "../substrate/ui-host-call-gate.ts";
-import type { PluginBelts, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle, SnippetGate } from "./ops.ts";
+import type { PluginBelts, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle, SnippetGate, UiHostCallGate } from "./ops.ts";
 import type {
   ApplyDistributedPluginsParams,
   GetPluginLogParams,
