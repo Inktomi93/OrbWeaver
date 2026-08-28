@@ -71,7 +71,7 @@ interface TickInput {
    *  to the old live-child handle under ownership inversion — drives the owned-vs-adopt + restart arms). */
   spawnTriggered: boolean;
   now: number;
-  /** A spawn is already queued for this engine — decisions short-circuit to none until it settles. */
+  /** A spawn is already queued/running for this engine — decisions short-circuit to none until it settles. */
   pendingSpawn: boolean;
   /** A LATER engine in the boot chain is healthy — proof the leader already passed this one, so a free port means dead, not pending. */
   laterEngineHealthy: boolean;
@@ -188,9 +188,14 @@ interface EngineState {
   unhealthyStreak: number;
   restarts: number[];
   failedAt?: number | undefined;
-  // Held true through backoff + trigger + health-wait, cleared in runQueuedSpawn's finally — gates the tick
-  // from re-queueing (and re-charging the breaker) while a spawn is still in flight.
-  pendingSpawn: boolean;
+  // #761: COUNTS queued/running operations for this engine — never a shared boolean. Two same-engine
+  // operations (e.g. two concurrent admin restarts) chain sequentially through the one spawn mutex
+  // (`spawnChain`), but each holds its OWN slot: incremented in `queueSpawn`, decremented in
+  // `runQueuedSpawn`'s finally. A boolean here let the FIRST operation's completion clear the flag while
+  // a SECOND was still genuinely queued/running, so a monitor tick landing in that window read "nothing
+  // pending" and admitted an unintended THIRD operation (double-charging the breaker). The count stays
+  // >0 for the whole span from the first queueSpawn to the last runQueuedSpawn settling.
+  pendingSpawns: number;
 }
 
 /** Ask a healthy engine whether it is asleep. Only meaningful when sleepMode is on (else /is_sleeping is
@@ -312,7 +317,7 @@ export function startVllmEngines(opts: {
         seenHealthy: false,
         unhealthyStreak: 0,
         restarts: [],
-        pendingSpawn: false,
+        pendingSpawns: 0,
       },
     ]),
   );
@@ -408,8 +413,11 @@ export function startVllmEngines(opts: {
     }
   }
 
-  // pendingSpawn stays true for the whole body and clears only in finally, once settled — clearing it
-  // early let a monitor tick mid-backoff double-queue a spawn and double-charge the breaker.
+  // #761: pendingSpawns is a per-engine COUNT, not a boolean — decrementing THIS operation's own slot in
+  // finally leaves a still-queued/still-running sibling operation's slot untouched, so the tick's
+  // short-circuit stays armed for as long as ANY same-engine operation is in flight (never just the last
+  // one to finish). Clearing the whole flag early (the pre-#761 bug) let a monitor tick mid-backoff, or
+  // mid a second queued operation, double-queue a spawn and double-charge the breaker.
   async function runQueuedSpawn(s: EngineState, reason: string, backoffMs: number, killFirst: boolean): Promise<void> {
     try {
       if (stopped) {
@@ -433,17 +441,17 @@ export function startVllmEngines(opts: {
       triggerSpawnFor(s, reason);
       await awaitHealthy(s);
     } finally {
-      s.pendingSpawn = false;
+      s.pendingSpawns = Math.max(0, s.pendingSpawns - 1);
     }
   }
 
   function queueSpawn(s: EngineState, reason: string, backoffMs = 0, killFirst = false): void {
-    s.pendingSpawn = true;
+    s.pendingSpawns += 1;
     spawnChain = spawnChain
       .then(() => runQueuedSpawn(s, reason, backoffMs, killFirst))
       .catch((err: unknown) => {
-        // A rejected spawnChain would silently skip every future queued spawn; swallow so the mutex settles fulfilled.
-        s.pendingSpawn = false;
+        // runQueuedSpawn's own finally already released THIS operation's slot above; a rejected spawnChain
+        // would otherwise silently skip every future queued spawn, so just log and keep the mutex settled.
         log.error({ engine: s.engine, err }, "vllm-engines: spawn-chain error — slot released");
       });
   }
@@ -518,7 +526,7 @@ export function startVllmEngines(opts: {
       failedAt: s.failedAt,
       spawnTriggered: s.spawnTriggered,
       now: now(),
-      pendingSpawn: s.pendingSpawn,
+      pendingSpawn: s.pendingSpawns > 0,
       laterEngineHealthy,
       sleepHeld: isSleepHeld(),
       manages,
