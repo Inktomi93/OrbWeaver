@@ -498,6 +498,10 @@ export interface MessageToolCallsStoryProps {
   readonly records: readonly ToolCallRecord[];
   /** Registers a per-tool-name `ToolRenderer` claiming this wire tool name (the specialization seam). */
   readonly customToolName?: string;
+  /** Registers a NAMESPACE-claiming renderer for this prefix — the plugin plane's shape (#679 U3), where the
+   *  wire names depend on who installed what and cannot be listed at door-assembly time. Registered AFTER the
+   *  exact renderer, so an arm supplying both also pins that door order never decides against an exact claim. */
+  readonly prefixToolName?: string;
   /** Registers a whole-message renderer: "claims" owns the block; "abstains" returns null (chat falls
    *  through to the per-record path). Omitted ⇒ no Provider at all, the zero-registrant default. */
   readonly messageRenderer?: "claims" | "abstains";
@@ -507,13 +511,23 @@ export interface MessageToolCallsStoryProps {
  *  fallback, an optional per-tool-name renderer that wins on a name match, and an optional whole-message
  *  renderer with first refusal. The registries are built HERE (post-mount, in the browser) because a
  *  registry instance does NOT survive the Playwright CT prop wire — only plain data crosses it. */
-export function MessageToolCallsStory({ records, customToolName, messageRenderer }: MessageToolCallsStoryProps): ReactElement {
-  const renderers = createContributorRegistry<ToolRenderer>(
-    "tool-renderers",
-    customToolName === undefined
-      ? []
-      : [{ id: customToolName, render: (record): ReactElement => <div data-testid="custom-tool">{`custom:${record.name}`}</div> }],
-  );
+export function MessageToolCallsStory({ records, customToolName, prefixToolName, messageRenderer }: MessageToolCallsStoryProps): ReactElement {
+  // The PREFIX claim is registered FIRST, deliberately: an arm supplying both then proves an exact claim wins
+  // because resolution TRIES EVERY EXACT CLAIM BEFORE ANY PREFIX ONE — not because door order happened to
+  // favour it. A single in-order scan (the natural wrong implementation) passes an exact-first roster and
+  // fails this one; planted 2026-08-28, and it did exactly that.
+  const contributions: ToolRenderer[] = [];
+  if (prefixToolName !== undefined) {
+    contributions.push({
+      id: prefixToolName,
+      match: "prefix",
+      render: (record): ReactElement => <div data-testid="prefix-tool">{`prefix:${record.name}`}</div>,
+    });
+  }
+  if (customToolName !== undefined) {
+    contributions.push({ id: customToolName, match: "name", render: (record): ReactElement => <div data-testid="custom-tool">{`custom:${record.name}`}</div> });
+  }
+  const renderers = createContributorRegistry<ToolRenderer>("tool-renderers", contributions);
   const block = <MessageToolCalls records={records} renderers={renderers} />;
   if (messageRenderer === undefined) {
     return block;

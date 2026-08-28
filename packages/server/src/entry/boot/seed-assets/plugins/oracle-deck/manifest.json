@@ -6,5 +6,5 @@
   "entry": "main.js",
   "description": "A commit-and-reveal card deck the narrator can draw from mid-turn. Every draw is reproducible from a seed the plugin commits to before the first card is dealt.",
   "author": "Orbweaver",
-  "capabilities": ["storage.kv", "tools.register"]
+  "capabilities": ["storage.kv", "tools.register", "ui.surface"]
 }

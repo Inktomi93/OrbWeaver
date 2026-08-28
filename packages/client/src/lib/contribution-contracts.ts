@@ -241,15 +241,33 @@ interface CharacterDetailSectionsContribution {
  *  zero casts. */
 export type CharacterDetailContribution = CharacterDetailSectionsContribution;
 
-/** A per-tool-name renderer (§6c) — the cross-feature seam a feature (automation / a plugin surface) plugs a
+/** HOW a {@link ToolRenderer}'s `id` claims a wire tool name — a CLOSED axis (§5.5), so a claim shape is
+ *  unspellable outside this tuple.
+ *  - `name`: `id` IS the wire tool name (the original, and the only shape a first-party renderer needs).
+ *  - `prefix`: `id` is a NAMESPACE prefix and the renderer claims every wire name starting with it. Minted for
+ *    the plugin plane (#679 U3): a plugin tool's wire name is `plugin_<slug'>_<name>`, which depends on WHO
+ *    installed WHAT and is therefore unknowable at door-assembly time. Without it the door would have to grow
+ *    per plugin — exactly what the one-assembly law (G8) forbids — so ONE `plugin_`-prefixed contribution fans
+ *    per-plugin inside its own body instead. */
+export const TOOL_RENDERER_MATCHES = ["name", "prefix"] as const;
+export type ToolRendererMatch = (typeof TOOL_RENDERER_MATCHES)[number];
+
+/** A per-tool renderer (§6c) — the cross-feature seam a feature (automation / a plugin surface) plugs a
  *  rich renderer into WITHOUT importing chat: chat consumes a `ContributorRegistry<ToolRenderer>` wired empty
- *  at `main.tsx` (the `ChatSurfaceContribution` precedent), keyed by the wire tool `name`. An UNREGISTERED name
+ *  at `main.tsx` (the `ChatSurfaceContribution` precedent), claiming a wire tool `name`. An UNCLAIMED name
  *  falls back to the generic `@orb/ui` `ToolCallBlock`, so zero registrants renders exactly the default block.
  *  `render` receives ONE persisted `ToolCallRecord` (the client's ONLY tool read surface — chat never
- *  body-parses for tool markers) and parses its `arguments`/`result` through the feature's own schemas. */
+ *  body-parses for tool markers) and parses its `arguments`/`result` through the feature's own schemas.
+ *
+ *  RESOLUTION IS TOTAL AND UNAMBIGUOUS (`message-tool-calls.tsx`): an EXACT (`match: "name"`) claim wins over
+ *  every prefix claim, so a broad namespace claim can never shadow a renderer that named the tool outright;
+ *  among prefix claims the FIRST in door order wins, and door order is a decision one file makes. */
 export interface ToolRenderer {
-  /** The wire tool name this renderer claims (the registry key). */
+  /** The wire tool name this renderer claims — or, at `match: "prefix"`, the namespace prefix. Also the
+   *  registry key, so two contributors can never claim the identical string. */
   readonly id: string;
+  /** How `id` claims a name. Required: a renderer that does not say is a renderer whose reach is a guess. */
+  readonly match: ToolRendererMatch;
   readonly render: (record: ToolCallRecord) => ReactNode;
 }
 

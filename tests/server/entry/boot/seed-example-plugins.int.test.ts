@@ -34,6 +34,8 @@ import { expect, test } from "../../../support/fixtures.ts";
 import { makeInertOps, makePluginHarness, ownerPrincipalFor, seedUser } from "../../domain/plugin/_support.ts";
 
 const DRAW_LINE_RE = /^\d+\. (.+)$/;
+/** The public commitment's shape — ten digits, zero-padded (`commitmentFor`). */
+const COMMITMENT_RE = /^\d{10}$/;
 
 /** The production runtime under DETERMINISTIC seams — the same object compose builds, so the membrane, the
  *  registration collection and the resident-invoke path are all real. */
@@ -224,7 +226,7 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   const bundle = await packSeedPluginBundle("oracle-deck");
   expect(bundle).not.toBeNull();
   const installed = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
-  const grant: readonly PluginCapability[] = ["storage.kv", "tools.register"];
+  const grant: readonly PluginCapability[] = ["storage.kv", "tools.register", "ui.surface"];
   await h.service.setGrant({ caller, pluginId: installed.id, grant: [...grant], acknowledgedNetHosts: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
   expect((await h.service.list({ caller }))[0]?.status).toBe("enabled");
@@ -235,14 +237,31 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   const draw = requireHandler(captured.tools, 0, "tool");
   const reveal = requireHandler(captured.tools, 1, "tool");
 
+  // …and so did the `draw` CARD (#679 U3), linked to the guest-local tool name and PROJECTED to the
+  // model-visible one — the whole path a transcript needs to draw a house card instead of the generic block.
+  expect(await h.service.listSurfaces({ caller })).toEqual([
+    expect.objectContaining({ id: "draw_card", anchor: "tool-card", toolName: "draw", toolWireName: "plugin_oracle_deck_draw" }),
+  ]);
+
   // A tool call carries no chat scope of its own here (the deck never asks for one), exactly as a direct-drive
-  // invocation would. The handler's STRING return is what the model reads, verbatim.
-  const first = await invoke(draw, JSON.stringify({ count: 2 }), null);
-  expect(first).toContain("Commitment ");
-  const drawn = first
+  // invocation would. The handler's STRING return is what the model reads, verbatim — a JSON DOCUMENT here,
+  // because the same fields the model reads are the fields its card binds (`{ $state: "result.<field>" }`).
+  const first = JSON.parse(await invoke(draw, JSON.stringify({ count: 2 }), null)) as {
+    drawn: string;
+    cards: string[];
+    commitment: string;
+    dealt: number;
+    countLabel: string;
+  };
+  expect(first.commitment).toMatch(COMMITMENT_RE);
+  expect(first.countLabel).toBe("2 cards");
+  expect(first.dealt).toBe(2);
+  // The narration the model reads names the same cards the document lists — one draw, one truth.
+  const drawn = first.drawn
     .split("\n")
     .map((line) => DRAW_LINE_RE.exec(line)?.[1])
     .filter((card): card is string => card !== undefined);
+  expect(drawn).toEqual(first.cards);
   expect(drawn).toHaveLength(2);
 
   // THE FAIRNESS CHECK, performed the way a suspicious player would: reveal the seed, then confirm the cards
@@ -255,7 +274,10 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
 
   // The reveal RETIRES the session: the next draw commits to a fresh shuffle rather than dealing on from a
   // seed everybody can now see.
-  expect(await invoke(draw, JSON.stringify({ count: 1 }), null)).toContain("Commitment ");
+  const afterReveal = JSON.parse(await invoke(draw, JSON.stringify({ count: 1 }), null)) as { commitment: string; dealt: number };
+  expect(afterReveal.commitment).toMatch(COMMITMENT_RE);
+  expect(afterReveal.commitment).not.toBe(first.commitment);
+  expect(afterReveal.dealt).toBe(1);
 });
 
 test("draft polish: the real bundle registers a user_input transform that tidies a draft", async () => {
