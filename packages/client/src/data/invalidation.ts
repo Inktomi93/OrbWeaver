@@ -12,11 +12,19 @@ import { USER_BUS_EVENT_TYPES } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import { busDupCheck, busInvalidate, IS_DEV } from "#lib";
-import { roomRegistry } from "./bus/room-registry.ts";
 import { collapseFilters, filterKeyName } from "./collapse-filters.ts";
 import { applyCanonView } from "./invalidation-carrier.ts";
 import type { InvalidateFilter } from "./invalidation-reads.ts";
-import { chatCanonReads, chatReads, hiddenRevealRead, promptPreviewReads, ROOM_ENTITY_FILTERS, runtimeVariablesRead } from "./invalidation-reads.ts";
+import {
+  chatCanonReads,
+  chatReads,
+  hiddenRevealRead,
+  promptPreviewReads,
+  ROOM_ENTITY_FILTERS,
+  reactionsRead,
+  roomWasDark,
+  runtimeVariablesRead,
+} from "./invalidation-reads.ts";
 import type { Trpc } from "./trpc.ts";
 
 export type { InvalidateFilter } from "./invalidation-reads.ts";
@@ -51,21 +59,6 @@ type BusFilterMap = {
 
 const nothing = (): readonly InvalidateFilter[] => [];
 
-/**
- * Could this tab have MISSED a write to `chatId`'s room since its reads were filled? The room registry keeps
- * the ledger (`liveEpoch`): `1` means the room is on its first live edge of this page load, so the reads that
- * mounted with it ARE the fresh state and there is nothing for an attach-time heal to close (BOOT-4X, stated
- * at room granularity in `bus/room-registry.ts`); `≥2` means it has been dark since — a reconnect, a re-open
- * after a chat switch, or a shed — so a write that landed elsewhere in the meantime is unseen here.
- *
- * `0` (this room never attached in this page) answers HEAL, deliberately: the only callers that can see it
- * are the ones holding an event for a room they never joined — a probe, a story, a unit test of this map —
- * and an over-fire there costs one refetch where an under-fire would silently teach the seam to skip.
- */
-function roomWasDark(chatId: ChatId): boolean {
-  return roomRegistry.liveEpoch({ channel: "chat", chatId }) !== 1;
-}
-
 const BUS_FILTERS: BusFilterMap = {
   delta: nothing,
   reasoningStreamDone: nothing,
@@ -98,6 +91,7 @@ const BUS_FILTERS: BusFilterMap = {
   // read AND the prompt preview.
   personaSwitched: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId }), ...promptPreviewReads(trpc)],
 
+  reactionsChanged: (_e, trpc) => reactionsRead(trpc),
   // Attachment changes move the ASSEMBLY POOL — the WI reads, the room, and the prompt preview built from it.
   wiBookAttached: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId }), ...promptPreviewReads(trpc)],
   wiBookDetached: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId }), ...promptPreviewReads(trpc)],

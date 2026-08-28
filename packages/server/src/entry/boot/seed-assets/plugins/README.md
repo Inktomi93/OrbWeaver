@@ -168,9 +168,11 @@ Claim the budget before you spend it, never after. Two deliveries can be in flig
 
 ## What plugins cannot do (stated so you do not design around it)
 
-* **No custom rendering.** The client's tool-renderer registry is first-party and assembled at build time. A
-  plugin tool's call and result render in the generic tool block, so write your result string to read well as
-  plain text.
+* **No ARBITRARY rendering.** You draw with the app's own components, declared as data, inside a frame that
+  names you — `ui.register` at the `settings` / `chat-flank` / `chat-settings-section` / `tool-card` anchors
+  (see oracle-deck for a tool card). What you cannot do is draw pixels of your own: no HTML, no CSS, no
+  canvas, no image beyond an asset you already own. A tool with no card registered still renders in the
+  generic tool block, so write your result to read well there too.
 * **No stable room identity in a tool handler.** The chat handle is a fresh opaque token per invocation, so a
   tool cannot key state per room. Event handlers can — their fact carries the chat id.
 * **No fetching transform.** The transform deadline is 250 ms and the fetch deadline is 5 s. Structurally

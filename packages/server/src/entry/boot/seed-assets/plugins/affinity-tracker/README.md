@@ -21,7 +21,7 @@ Settings → Plugins → drop the zip → tick the capabilities → turn it on. 
 ## The manifest
 
 ```json
-"capabilities": ["chat.read", "storage.kv", "notify", "llm.quiet", "events.subscribe"]
+"capabilities": ["chat.read", "storage.kv", "notify", "llm.quiet", "events.subscribe", "ui.surface"]
 ```
 
 * `llm.quiet` — **the spend capability.** This is the only host function that costs the installer money.
@@ -29,6 +29,24 @@ Settings → Plugins → drop the zip → tick the capabilities → turn it on. 
 * `storage.kv` — the per-room counter and the last reading.
 * `notify` — telling the installer when it moves.
 * `events.subscribe` — hearing `messageCommitted`.
+* `ui.surface` — the two surfaces below (the settings panel and the room widget).
+
+## Its two surfaces
+
+A plugin's UI is a **declarative spec the app draws** — you name house controls as data, never DOM, and every
+surface renders inside a frame labelled with your plugin's name. Both of these are `tier: "static"`, i.e. the
+spec lives server-side and its values are bound with `{ $state }` to whatever you last published.
+
+* **Settings panel** (`anchor: "settings"`, id `affinity_summary`) — a private roll-up of every reading, in
+  Settings → Plugins under this plugin's row. Its one button round-trips to `onAction` in this same guest,
+  which recomputes from storage and republishes.
+* **Room widget** (`anchor: "chat-flank"`, id `affinity_flank`) — a warmth meter beside the transcript,
+  republished from the `messageCommitted` handler, so it moves as the scene does.
+
+Two rules the room anchor adds. **Silent until you publish:** a bound surface renders nothing before its first
+`setState`, and a room showing no widget is byte-identical to a room with no plugin — so never publish a
+placeholder just to be visible. **State is per (plugin, surface), not per room:** `setState` replaces the whole
+object and every room reads the same one, so word the copy as "your latest reading", never "this room's".
 
 ## `llm.quiet`, precisely
 

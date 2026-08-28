@@ -165,7 +165,21 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
                   beside the transcript. `:empty` takes the stack out of layout entirely, so "mounted but
                   silent" and "not mounted" render identically; it cannot hide a live contribution, since
                   any rendered node makes the stack non-empty. */}
-              <Stack gap="block" className="empty:hidden" data-slot="chat-thread-flank">
+              {/* …and `max-w-(--width-sidebar-sm)` is the COLUMN'S OWN BOUND (#776), the other half of the
+                  same seam-owns-flank-layout law. Every tenant the anchor had until #679 U2 was
+                  content-small by construction (a meter card), so the column never needed a ceiling — and
+                  then the anchor opened to PLUGIN surfaces, whose text a third party writes. Measured
+                  red-first on the pre-clamp source: one long unwrapped caption took the whole row and
+                  shrank the transcript to a ZERO box — the #680 silent arm (an empty room, no error, no
+                  retry), reachable by any wordy contributor. The bound is the house's narrow side-column
+                  token, the same one the settings nav and the role-slot rows stand in, so a flank widget
+                  reads as the room's side column rather than as a second content column; wide content
+                  wraps inside it instead of eating the reading column. `@max-lg:max-w-none` RELEASES it on
+                  the stacked arm, where the flank is a full-width block under the thread and a 220px
+                  island would be the clamp leaking into the arm it was never for. A contributor bounding
+                  only ITSELF was the rejected arm: it leaves the house's own future widgets unprotected
+                  and puts layout in a contribution, which is exactly what §6c forbids. */}
+              <Stack gap="block" className="empty:hidden max-w-(--width-sidebar-sm) @max-lg:max-w-none" data-slot="chat-thread-flank">
                 {flankContributions.map((c) => (
                   <Fragment key={c.id}>{c.node}</Fragment>
                 ))}

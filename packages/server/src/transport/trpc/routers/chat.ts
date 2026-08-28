@@ -19,6 +19,7 @@ import {
   guidedSteerSchema,
   messageContentBlockSchema,
   openingPolicySchema,
+  reactionEmojiSchema,
   reattributeScopeSchema,
   roomOverridesSchema,
   seatKnobsSchema,
@@ -299,6 +300,18 @@ const setVariablesSchema = z.object({
 });
 const getVariablePicksSchema = z.object({ chatId: brandedId<ChatId>() });
 const getRuntimeVariablesSchema = z.object({ chatId: brandedId<ChatId>() });
+
+// B6/MR0 — the reaction plane. `emoji` DERIVES `reactionEmojiSchema` (the closed contracts vocabulary; no
+// inline re-spell), which is what keeps an arbitrary member-authored string out of a column every other
+// member's transcript renders. Both procs are MEMBER-gated (`requireParticipant`) INSIDE the verb, so a
+// stranger's chatId is a leak-free NOT_FOUND — and the `variantId` half carries its own belt in the verb (in
+// THIS chat, at or above the caller's D16 floor), the `getVariantWire` two-gate shape.
+const toggleReactionSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  variantId: brandedId<MessageVariantId>(),
+  emoji: reactionEmojiSchema,
+});
+const listReactionsSchema = z.object({ chatId: brandedId<ChatId>() });
 
 // speakerCharacterId/guided mirror `PreviewAssemblyParams` (a hypothetical per-speaker turn); `guided`
 // rides the DERIVED `guidedSteerSchema` (F6 — the same wire boundary as `send`/`generate` above).
@@ -590,6 +603,9 @@ export const chatRouter = t.router({
   getRuntimeVariables: authedProcedure
     .input(getRuntimeVariablesSchema)
     .query(({ ctx, input }) => ctx.services.chat.getRuntimeVariables({ principal: ctx.auth, ...input })),
+  // B6/MR0 — the reaction toggle + the room's bounded grouped window (member-gated INSIDE the verb).
+  toggleReaction: authedProcedure.input(toggleReactionSchema).mutation(({ ctx, input }) => ctx.services.chat.toggleReaction({ principal: ctx.auth, ...input })),
+  listReactions: authedProcedure.input(listReactionsSchema).query(({ ctx, input }) => ctx.services.chat.listReactions({ principal: ctx.auth, ...input })),
   previewAssembly: authedProcedure.input(previewAssemblySchema).query(({ ctx, input }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input })),
   previewActionTemplates: authedProcedure
     .input(previewActionTemplatesSchema)

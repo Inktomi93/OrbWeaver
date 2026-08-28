@@ -21,11 +21,12 @@ Settings → Plugins → drop the zip → tick the capabilities → turn it on. 
 ## The manifest
 
 ```json
-"capabilities": ["storage.kv", "tools.register"]
+"capabilities": ["storage.kv", "tools.register", "ui.surface"]
 ```
 
-Two capabilities and no network, no model, no room writes — which is the point of this archetype. A tool
-provider is usually the cheapest thing you can build and the easiest one for a user to say yes to.
+Three capabilities and no network, no model, no room writes — which is the point of this archetype. A tool
+provider is usually the cheapest thing you can build and the easiest one for a user to say yes to. `ui.surface`
+is what lets it draw its own card for a draw (below); drop it and the tool still works, in the generic block.
 
 ## How it works
 
@@ -33,7 +34,9 @@ provider is usually the cheapest thing you can build and the easiest one for a u
 name — `draw` becomes `plugin_oracle_deck_draw` — and puts it in the same tool registry every first-party
 tool lives in, so the model reaches it exactly the way it reaches anything else. Your `handler` runs inside
 the sandbox on your grants, and **whatever string it returns is what the model reads, verbatim**: a handler
-that returns `JSON.stringify(x)` hands the model exactly that JSON, unwrapped and un-re-encoded.
+that returns `JSON.stringify(x)` hands the model exactly that JSON, unwrapped and un-re-encoded. `draw`
+returns a **document** rather than a sentence for exactly that reason: the same fields the model reads are the
+fields its card binds (`{ $state: "result.commitment" }` reads the result of the call being drawn).
 
 `parameters` is raw JSON Schema, validated host-side. Keep it small and literal — that text is what the model
 plans against.
@@ -63,11 +66,12 @@ secret into the ORDER. Both functions are five lines each so a suspicious player
 
 ## Honest gaps
 
-* **No custom rendering, and this one is worth reading twice.** A plugin cannot register a client tool
-  renderer — the registry is first-party and assembled at build time — so your tool's call and result render
-  in the **generic tool block**. "Provably fair" survives intact (the draw is on canon, visibly); bespoke card
-  art does not. Write your result string so it reads well as plain text, because plain text is what the room
-  gets. A plugin renderer plane does not exist and is not scheduled.
+* **No arbitrary pixels.** You *can* draw a card for your tool — `ui.register({anchor: "tool-card", toolName:
+  "draw", spec})` at the bottom of `main.js`, and the app draws it out of its own components inside a frame
+  that names you. What you cannot do is draw ARBITRARY ones: an image per card, a canvas, a layout of your
+  own. Bespoke card art stays a real gap. Note also that a card is **optional and per tool** — `reveal`
+  registers none, so a reveal still renders in the generic block, which is also the fallback whenever a card
+  cannot be drawn (a tool call is part of the record; the app never renders nothing for one).
 * **No stable room identity.** The chat handle a tool invocation can obtain is a fresh opaque token each
   time, so a tool handler cannot key state per room. This deck is therefore ONE deck per install, shared
   across your rooms. (Event handlers do not have this problem — their fact carries the chat id.)

@@ -442,6 +442,62 @@ test("#685 desktop: the flank column's top edge is the TRANSCRIPT's top edge (ro
   expect(flankBox?.y ?? 0).toBeCloseTo(threadBox?.y ?? 0, 0);
 });
 
+// ── #776: THE FLANK COLUMN IS BOUNDED, AND THE SEAM OWNS THAT ────────────────────────────────────────
+// The seam's own law is that FLANK LAYOUT IS SEAM-OWNED so no consumer can crush the reading column
+// (client-architecture-lockdown §6c/M8) — but the column carried no width bound, because every tenant it
+// ever had was content-small by construction (a meter card). #679 U2 opened the anchor to PLUGIN surfaces,
+// whose text is written by a third party: a one-line plugin caption took ~400px of a 1280px room on a
+// rendered receipt, and nothing in the seam said no. The clamp therefore lives HERE, for every tenant —
+// a contributor bounding only itself would leave the house's own future widgets unprotected AND put
+// layout in a contribution, which is the thing §6c forbids.
+//
+// The pin is written against the SEAM's own declaration rather than a magic number: whatever `max-width`
+// the flank column resolves to is what its box may not exceed, and the reading column keeps the majority
+// of the row. RED-FIRST RECEIPT (2026-08-28, run against the pre-clamp source): this test did not merely
+// miss the share floor — the transcript's scroll window resolved HIDDEN, i.e. the greedy single-line body
+// took the whole row and shrank the thread to a zero box. That is the #680 SILENT arm (an empty room with
+// no error and no retry), reachable by any wordy contributor.
+const READING_COLUMN_MIN_SHARE = 0.7;
+
+test("#776 desktop: a GREEDY flank contributor is bounded — the reading column keeps the room", async ({ mount, page }) => {
+  await page.setViewportSize(DESKTOP);
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(LONG_CANON) });
+
+  const component = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} greedy={true} />);
+
+  await expect(component.getByTestId("ct-fake-surface-contribution")).toBeVisible();
+  const flank = page.locator('[data-slot="chat-thread-flank"]');
+  const scroller = page.locator('[data-slot="message-list-scroll"]');
+  await expect(scroller).toBeVisible();
+  const flankBox = await flank.boundingBox();
+  const rowBox = await page.locator('[data-slot="chat-room-flank-row"]').boundingBox();
+  const threadBox = await scroller.boundingBox();
+  expect(flankBox, "the flank column must have a box").not.toBeNull();
+  expect(rowBox, "the flank row must have a box").not.toBeNull();
+  expect(threadBox, "the transcript must have a box").not.toBeNull();
+  // 1. THE CLAMP IS IN FORCE — the column's own declared ceiling, read off the element, so this pin
+  //    follows the token instead of hard-coding its value.
+  const maxWidthPx = await flank.evaluate((el) => Number.parseFloat(getComputedStyle(el).maxWidth));
+  expect(maxWidthPx, "the flank column must declare a max-width at the beside arm").toBeGreaterThan(0);
+  expect(flankBox?.width ?? 0).toBeLessThanOrEqual(maxWidthPx + 1);
+  // 2. …and the property that matters to a reader: the transcript still owns the room.
+  expect((threadBox?.width ?? 0) / (rowBox?.width ?? 1)).toBeGreaterThan(READING_COLUMN_MIN_SHARE);
+});
+
+test("#776 mobile: below the stack threshold the clamp is RELEASED — the flank takes the full width", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 430, height: 932 });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(LONG_CANON) });
+
+  const component = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} greedy={true} />);
+
+  await expect(component.getByTestId("ct-fake-surface-contribution")).toBeVisible();
+  const flankBox = await page.locator('[data-slot="chat-thread-flank"]').boundingBox();
+  const rowBox = await page.locator('[data-slot="chat-room-flank-row"]').boundingBox();
+  // STACKED, the flank is a full-width block UNDER the transcript — a clamped 220px column floating in a
+  // 430px phone would be the clamp leaking into the arm it was never for.
+  expect(flankBox?.width ?? 0).toBeCloseTo(rowBox?.width ?? 0, 0);
+});
+
 // THE SILENT-CONTRIBUTOR COLLAPSE (#16's needle meter is the case that needed it). A contributor whose
 // applicability is DATA cannot answer the seam's SYNC `when`, so it mounts in every room and paints
 // nothing where it does not apply. Without the flank stack's `empty:hidden`, every room without a tension

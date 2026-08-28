@@ -29,6 +29,10 @@ export const CHAT_TRIGGER_TYPES = [
   "worldInfoActivated",
   "personaSwitched",
   "chatCreated",
+  // S7 (wired with B6) — a member reacted to a reply. The one trigger whose fact is a HUMAN's in-room signal
+  // rather than a turn or a config edit, which is what the graveyard's reaction-heat shapes were waiting on;
+  // its fact carries the emoji and the add/remove direction, so a predicate can select on both.
+  "reactionsChanged",
   "messageHidden",
   "messagesDeleted",
   "chatUpdated",
@@ -198,6 +202,9 @@ export const LIVE_TRIGGERS = {
   worldInfoActivated: true,
   personaSwitched: true,
   chatCreated: true,
+  // chat bus — S7 (wired with B6): the reaction plane emits it and the fact resolver projects it, so it is
+  // LIVE, not reserved.
+  reactionsChanged: true,
   // chat bus — reserved (typed, not wired v1)
   messageHidden: false,
   messagesDeleted: false,
@@ -662,6 +669,22 @@ const triggerFactPayloadSchema = z.object({
     .optional(),
   // worldInfoActivated
   worldInfo: z.object({ entryIds: z.array(z.string()).readonly() }).optional(),
+  /** reactionsChanged (B6/MR0). NESTED because it carries four fields (the `message`/`turn` reason).
+   *
+   *  `added` is the DIRECTION — a removal fires the same trigger as an addition, and a rule that means
+   *  "somebody laughed at this" must be able to say `event.reaction.added`, or every un-react re-fires it.
+   *  `emoji` crosses as the raw token (never an enum): the vocabulary is open by design (the custom `:name:`
+   *  arm), so pinning it to today's tuple here would make the guest-marshalling contract lie the day it
+   *  widens. Ids cross UNBRANDED like every other id on this shape. The REACTOR is deliberately absent: a
+   *  seat id is roster data a predicate has no way to resolve, and the useful facts are what and where. */
+  reaction: z
+    .object({
+      messageId: z.string(),
+      variantId: z.string(),
+      emoji: z.string(),
+      added: z.boolean(),
+    })
+    .optional(),
   // personaSwitched (the CHAT-bus member — a seat changed face mid-room). Distinct from the domain-bus
   // `personaId` below, which reports that a persona's own CONTENT was edited; two events, two shapes.
   persona: z.object({ from: z.string().nullable(), to: z.string().nullable() }).optional(),

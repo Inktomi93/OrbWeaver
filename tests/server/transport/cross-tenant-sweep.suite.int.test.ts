@@ -812,6 +812,23 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.chat.getRuntimeVariables({ chatId: i.chatId }),
   },
   {
+    // B6/MR0 — the reaction toggle. A WRITE that lands attributed canon in the room, so a dropped
+    // `requireParticipant` would let a stranger put their name under a message in someone else's chat (and
+    // fire that room's `reactionsChanged` rules). Two foreign-id surfaces, and the chatId gate is the one
+    // that must bite: `requireParticipant` refuses BEFORE the seat or the variant is ever loaded. The
+    // `variantId` half carries its OWN belt for the member case (`loadVariantSlotInChat` — in this chat AND
+    // at or above the caller's D16 floor), pinned separately in the verb's int suite, which is why a fake
+    // variant id is the right probe here: it must never get far enough for the id to matter.
+    path: "chat.toggleReaction",
+    call: (c, i) => c.chat.toggleReaction({ chatId: i.chatId, variantId: FAKE.variantId, emoji: "👍" }),
+  },
+  {
+    // Its read twin — the room's grouped reaction window. Refused BEFORE the window loads: the groups name
+    // A's participant seats, so a leak here hands a stranger part of A's roster.
+    path: "chat.listReactions",
+    call: (c, i) => c.chat.listReactions({ chatId: i.chatId }),
+  },
+  {
     // Probed with the D121-G `presetOverride` ON, so the sweep exercises the SAME two-foreign-id shape the
     // preset editor's bound Prompt readout sends. Identical verdict to `previewActionTemplates` below: the
     // chatId gate (`requireHost`) is the one that must bite, and the override needs no probe of its own

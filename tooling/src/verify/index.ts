@@ -82,6 +82,7 @@ export { generateOverArtPlateBaseline } from "./ops/gen/over-art-plate-arm.ts";
 export { generateProseBaseline } from "./ops/gen/prose.ts";
 export { generateSuppressionsBaseline } from "./ops/gen/suppressions.ts";
 export { generateTestBaselineManifest } from "./ops/gen/test-baseline-manifest.ts";
+export { generateTestPresenceBaseline } from "./ops/gen/test-presence.ts";
 export { runNewGate } from "./ops/new-gate.ts";
 export { runOrphanRatchet } from "./ops/orphan-export-ratchet.ts";
 export type { RatchetClassification, RatchetExclusion } from "./ops/ratchet-gate.ts";

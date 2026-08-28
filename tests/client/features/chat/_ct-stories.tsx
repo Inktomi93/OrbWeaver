@@ -498,6 +498,10 @@ export interface MessageToolCallsStoryProps {
   readonly records: readonly ToolCallRecord[];
   /** Registers a per-tool-name `ToolRenderer` claiming this wire tool name (the specialization seam). */
   readonly customToolName?: string;
+  /** Registers a NAMESPACE-claiming renderer for this prefix — the plugin plane's shape (#679 U3), where the
+   *  wire names depend on who installed what and cannot be listed at door-assembly time. Registered AFTER the
+   *  exact renderer, so an arm supplying both also pins that door order never decides against an exact claim. */
+  readonly prefixToolName?: string;
   /** Registers a whole-message renderer: "claims" owns the block; "abstains" returns null (chat falls
    *  through to the per-record path). Omitted ⇒ no Provider at all, the zero-registrant default. */
   readonly messageRenderer?: "claims" | "abstains";
@@ -507,13 +511,23 @@ export interface MessageToolCallsStoryProps {
  *  fallback, an optional per-tool-name renderer that wins on a name match, and an optional whole-message
  *  renderer with first refusal. The registries are built HERE (post-mount, in the browser) because a
  *  registry instance does NOT survive the Playwright CT prop wire — only plain data crosses it. */
-export function MessageToolCallsStory({ records, customToolName, messageRenderer }: MessageToolCallsStoryProps): ReactElement {
-  const renderers = createContributorRegistry<ToolRenderer>(
-    "tool-renderers",
-    customToolName === undefined
-      ? []
-      : [{ id: customToolName, render: (record): ReactElement => <div data-testid="custom-tool">{`custom:${record.name}`}</div> }],
-  );
+export function MessageToolCallsStory({ records, customToolName, prefixToolName, messageRenderer }: MessageToolCallsStoryProps): ReactElement {
+  // The PREFIX claim is registered FIRST, deliberately: an arm supplying both then proves an exact claim wins
+  // because resolution TRIES EVERY EXACT CLAIM BEFORE ANY PREFIX ONE — not because door order happened to
+  // favour it. A single in-order scan (the natural wrong implementation) passes an exact-first roster and
+  // fails this one; planted 2026-08-28, and it did exactly that.
+  const contributions: ToolRenderer[] = [];
+  if (prefixToolName !== undefined) {
+    contributions.push({
+      id: prefixToolName,
+      match: "prefix",
+      render: (record): ReactElement => <div data-testid="prefix-tool">{`prefix:${record.name}`}</div>,
+    });
+  }
+  if (customToolName !== undefined) {
+    contributions.push({ id: customToolName, match: "name", render: (record): ReactElement => <div data-testid="custom-tool">{`custom:${record.name}`}</div> });
+  }
+  const renderers = createContributorRegistry<ToolRenderer>("tool-renderers", contributions);
   const block = <MessageToolCalls records={records} renderers={renderers} />;
   if (messageRenderer === undefined) {
     return block;
@@ -1931,15 +1945,23 @@ export interface ChatSurfaceContributorStoryProps {
    *  applicability is DATA (automation's needle meter asks "does this room carry a tension score?", which a
    *  sync `when` cannot answer), and the case the flank stack's `empty:hidden` collapse exists for. */
   readonly silent?: boolean;
+  /** A GREEDY contributor: the body is a long single line of prose instead of a two-word stub. The flank
+   *  column's own tenants are content-small (a meter card), so an unbounded column never showed — but the
+   *  seam is open to any feature and, since #679 U2, to third-party plugin surfaces whose text a plugin
+   *  author writes. #776 pins that such a body cannot crush the reading column. */
+  readonly greedy?: boolean;
 }
 
 const CT_SURFACE_CONTRIBUTION_ID = "ct-fake-surface-contribution";
+/** One long, wrappable line — the shape of a caption a contributor is free to write. */
+const CT_GREEDY_BODY =
+  "This contributor writes a long single line of prose into the flank, the way a plugin caption or a wordy status readout does, and it must not be allowed to take the room away from the transcript beside it.";
 
 /** The chat-surface-anchor contributor seam (§6c/M8) LIVE: a single fake `ChatSurfaceContribution` at the
  *  given anchor, registered at a `CtChatContributorSectionRegistry` door in place of the empty registry,
  *  mounted through the REAL `chats` section's `content()` → `ChatContent` → `ChatRoomSurface`/`MessageRow`
  *  anchor-consumer path (chat-room-surface.tsx / message-row.tsx). */
-export function ChatSurfaceContributorStory({ anchor, visible, silent = false }: ChatSurfaceContributorStoryProps): ReactElement {
+export function ChatSurfaceContributorStory({ anchor, visible, silent = false, greedy = false }: ChatSurfaceContributorStoryProps): ReactElement {
   useEffect(() => {
     selectChat(CHAT_ID);
   }, []);
@@ -1955,7 +1977,7 @@ export function ChatSurfaceContributorStory({ anchor, visible, silent = false }:
           id: CT_SURFACE_CONTRIBUTION_ID,
           anchor,
           when: () => visible,
-          body: (): ReactElement | null => (silent ? null : <div data-testid="ct-fake-surface-contribution">fake {anchor}</div>),
+          body: (): ReactElement | null => (silent ? null : <div data-testid="ct-fake-surface-contribution">{greedy ? CT_GREEDY_BODY : `fake ${anchor}`}</div>),
         };
   const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [fakeContribution]);
   return (

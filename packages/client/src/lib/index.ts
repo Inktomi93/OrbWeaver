@@ -39,6 +39,7 @@ export type {
   SlashCommandMountProps,
   SlashCommandRunner,
   ToolRenderer,
+  ToolRendererMatch,
 } from "./contribution-contracts.ts";
 export {
   CHARACTER_DETAIL_ANCHORS,
@@ -48,6 +49,7 @@ export {
   CHAT_SURFACE_ANCHORS,
   SLASH_COMMAND_GROUP_LABELS,
   SLASH_COMMAND_GROUPS,
+  TOOL_RENDERER_MATCHES,
 } from "./contribution-contracts.ts";
 export type { RegistryContext } from "./create-registry-context.tsx";
 export { createRegistryContext } from "./create-registry-context.tsx";

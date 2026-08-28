@@ -14,6 +14,7 @@ import type {
   MessageContentBlock,
   OpeningPolicy,
   PreviewInviteInput,
+  ReactionEmoji,
   ReattributeScope,
   RedeemInviteInput,
   RoomOverrides,
@@ -424,6 +425,21 @@ export interface GetVariablesParams extends ChatScopedParams {}
  *  the needle's meter and B9's clock widget both consume it). Member-gated: the vars plane is
  *  member-visible BY DESIGN — which is exactly why analysis arcs/twists/guidance never write into it. */
 export interface GetRuntimeVariablesParams extends ChatScopedParams {}
+
+/** `toggleReaction` (B6/MR0) — add or remove ONE emoji on ONE variant, attributed to the caller's own seat.
+ *
+ *  ONE verb, not an add/remove pair: the affordance is a toggle, the two directions share every gate, and a
+ *  single verb makes the "which direction?" decision the SERVER'S (from what the seat already holds) instead
+ *  of trusting a client that may be a repaint behind. `emoji` is the wire-validated vocabulary member. */
+export interface ToggleReactionParams extends ChatScopedParams {
+  readonly variantId: MessageVariantId;
+  readonly emoji: ReactionEmoji;
+}
+
+/** `listReactions` (B6/MR0) — the room's bounded grouped reaction window, member-gated and floor-clamped.
+ *  Takes no cursor and no variant: it is ONE read per room that the client indexes by `variantId`, so a
+ *  swipe re-targets data already held (the `rpg.listTurnToolCalls` posture). */
+export interface ListReactionsParams extends ChatScopedParams {}
 
 /** `getVariablePicks` — the picks pane's ChoiceBlock read: the chat's declared variables + the persisted
  *  picks `setVariables` writes (the `getUserMacroPicks` sibling — the pane's two knob families). */

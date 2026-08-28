@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # Orbweaver — Enforcement Registry: Active Gates
@@ -84,7 +84,7 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `no-caller-user-id` | the identifier `callerUserId` is forbidden (D19 turn-identity): the caller is `Principal.userId`; use `triggeredBy`/`runAsUserId`. AST-only (catches a newly-introduced name tsc can't) | | | | | |
 | `types-in-contract` | a feature's `contract/service.ts` declares the exported `<Feature>Service` interface (§7.4) | | | | | |
 | `no-inline-union-redecl` | no inline ≥3-member string-literal union type aliases (→ contracts) | | | | | |
-| `test-presence` | verbs/persistence/contract-schemas carry their required `.test`/`.int.test`/`.contract.test` | | | | | |
+| `test-presence` | verbs/persistence/contract-schemas carry their required `.test`/`.int.test`/`.contract.test`, and the DOMAIN arm is demand-by-default (#767): any other `domain/**` file with runtime logic — `substrate/`, a named subsystem, `guard.ts`, a `contract/` file carrying real logic — owes a mirror `.test`/`.int.test` unless its SHAPE exempts it (`index.ts`, the zero-logic `service.ts`/`context.ts` roots, an error-declaration-only `contract/` file, a D58 stub runner). Carries a shrink-only DEBT ratchet for the widening's residual population (burn-down: board row 772) | | | | | |
 | `test-determinism` | no ambient clock/random/unseeded-id under `tests/` (support/+e2e/ exempt) | | | | | |
 | `commented-code` | no parked code in `//` comments (prose only) | | | | | |
 | `schema-branding` | db `*Id` columns carry `.$type<XId>()` (PK + cross-brand FK) | | | | | |
