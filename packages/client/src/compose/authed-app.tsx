@@ -68,7 +68,7 @@ import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "#feature
 import { imageDetailModal, imageEditModal, imagerySlashCommands, imagineModal } from "#features/imagery";
 import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
-import { pluginDistributeSection, pluginSnippetConsoleSection, pluginsPane } from "#features/plugin";
+import { pluginChatFlankSurface, pluginChatSettingsSection, pluginDistributeSection, pluginSnippetConsoleSection, pluginsPane } from "#features/plugin";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexCollection } from "#features/regex";
@@ -152,6 +152,10 @@ const chatContextContributors = createContributorRegistry<ContextTabDef<ChatCont
 const chatSettingsSections = createContributorRegistry<ChatSettingsSectionContribution>("chat-settings-sections", [
   automationRulesSection,
   pluginSnippetConsoleSection,
+  // U2 (#679, seam 7): the ONE plugin-panel section — it fans per-plugin INSIDE its body off `listSurfaces`,
+  // so this array never grows when a person installs a plugin. Its body renders `null` for a person with no
+  // `chat-settings-section` surfaces and the host's grafted `<Section>` collapses with it (no empty heading).
+  pluginChatSettingsSection,
 ]);
 
 // The chat-context REGION-CLAIM seam (§6c / HUD-1 §3.2): the rpg HUD claims the WHOLE CONTEXT pane on an
@@ -192,6 +196,12 @@ const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContributio
   // published fill + threshold from the same member-visible vars plane and is silent (layout-neutral) in every
   // room that carries no clock.
   automationClockMeterSurface,
+  // U2 (#679, seam 7): the ONE plugin `chat-flank` tenant, and LAST in the column on purpose — the house's own
+  // widgets keep the top of the flank and third-party panels read below them. A fixed first-party member that
+  // fans per-plugin INSIDE its body off `plugin.listSurfaces` (the one-assembly law: the door never grows per
+  // plugin). It carries no `when` — "does this person have a chat-flank surface?" is DATA the seam's sync
+  // predicate cannot see — so it mounts in every room and renders null where it does not apply.
+  pluginChatFlankSurface,
 ]);
 
 // The per-tool-name renderer seam (§6c): EMPTY but typed — zero contributions ⇒ every persisted tool record

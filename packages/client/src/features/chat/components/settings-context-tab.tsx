@@ -267,12 +267,24 @@ function HostControls({
             band's own knobs keep their order and a contributor can never wedge itself between them. The
             HOST spells the `<Section kicker>`: a contribution carries a name and a body, never chrome, so
             a grafted section reads in this pane's voice by construction. Zero contributors renders
-            nothing at all (no empty Section, no gap). */}
+            nothing at all (no empty Section, no gap).
+
+            THE SILENT-CONTRIBUTOR COLLAPSE, the section-anchor form of the property the flank column and the
+            above-composer band already carry (chat-room-surface.tsx). A contributor whose applicability is
+            DATA — plugin panels: does this person have a plugin that registered one? — cannot answer in the
+            seam's SYNC `when` (it sees only `{chatId}`), so it mounts everywhere and renders null where it
+            does not apply. Without this, every such contributor would spend a HEADING on every room: a
+            "Plugin panels" kicker over nothing. The body rides a `display:contents` wrapper, so it adds no
+            box of its own and this pane's spacing is unchanged, and the Section hides itself when that
+            wrapper has no element children. It cannot hide a live contribution: any rendered node makes the
+            wrapper non-empty. */}
         {(sections?.list() ?? [])
           .filter((section) => section.when?.(state) ?? true)
           .map((section) => (
-            <Section key={section.id} kicker={section.kicker}>
-              {section.body(state)}
+            <Section className="has-[[data-slot=chat-settings-graft-body]:empty]:hidden" key={section.id} kicker={section.kicker}>
+              <Stack className="contents" data-slot="chat-settings-graft-body">
+                {section.body(state)}
+              </Stack>
             </Section>
           ))}
       </Stack>
