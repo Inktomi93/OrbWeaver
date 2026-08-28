@@ -16,6 +16,7 @@
 // fetch — the attachment gate, the per-plugin entry cap and `neutralizeMacros` — is pinned by
 // `tests/server/domain/plugin/substrate/bridge.test.ts`.
 
+import { historyFloor } from "@orb/contracts/chat";
 import type { InvocationChat, PluginCapability, PluginHandlerRef } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { ChatId, Handle, MessageId, PluginId } from "@orb/kit/ids";
@@ -653,6 +654,135 @@ test("pocket arcade: a one-capability frame plugin registers its document, and t
   const wire = JSON.stringify(surfaces);
   expect(wire).not.toContain("2048 board");
   expect(wire).not.toContain("<script>");
+});
+
+test("keepsake camera: the spend pipeline — structured quiet falls back, the paint is captured, the ARM C album navigates", async () => {
+  const db = await freshDb();
+  const { ops: recorded, captured } = recordingOps(db, new Map());
+  const paints: { readonly prompt: string; readonly quiet: boolean }[] = [];
+  const validAsset = "asset_01h455vb4pex5vsknk084sn02q";
+  const ops: PluginHostOps = {
+    ...recorded,
+    chat: {
+      ...recorded.chat,
+      // The bridge clamps every canon read through the viewer-visibility verdict BEFORE it crosses the realm
+      // boundary, and the inert default reports NO membership (an empty read) — so a member verdict is part of
+      // the fixture, not a nicety: without it the camera correctly answers "nothing to photograph".
+      resolveViewerVisibility: (): ReturnType<PluginHostOps["chat"]["resolveViewerVisibility"]> =>
+        Promise.resolve({ role: "host", historyFloorSeq: historyFloor(0), readsHidden: true }),
+      // Two beats on the record, so the local-fallback titling pass has something to borrow.
+      listMessages: (): ReturnType<PluginHostOps["chat"]["listMessages"]> =>
+        Promise.resolve([
+          { id: "m1", role: "user", authorDisplayName: "Rowan", characterId: null, seq: 1, content: "We shelter under the broken aqueduct." },
+          {
+            id: "m2",
+            role: "assistant",
+            authorDisplayName: "Narrator",
+            characterId: null,
+            seq: 2,
+            content: "Rain threads the arches; the lantern gutters but holds.",
+          },
+        ]),
+    },
+    imagery: {
+      generatePicture: ({ args }): Promise<{ assetId: string }> => {
+        paints.push({ prompt: args.prompt ?? "", quiet: args.quiet });
+        return Promise.resolve({ assetId: validAsset });
+      },
+    },
+    // The REAL state-plane publisher, late-bound over the harness's own store (the story-clocks wiring).
+    ui: { ...recorded.ui, setState: (req): Promise<void> => publishState(req) },
+  };
+  const h = makePluginHarness(db, { port: realHost(), ops });
+  const publishState = createSurfaceStatePublisher(h.ctx.surfaceState, () => undefined);
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+
+  const pluginId = await installGrantEnable({
+    h,
+    caller,
+    slug: "keepsake-camera",
+    grant: ["chat.read", "storage.kv", "llm.quiet", "imagery.generate", "ui.surface"],
+  });
+
+  // The collected shape: one typed-args command and the ARM C album page (a masterDetail whose browse stage
+  // is a BOUND grid and whose detail stage is a BOUND image — this passing the real registration validation
+  // IS the receipt that the new vocabulary survives an actual activation over the WASM runtime).
+  const commands = await h.service.listCommands({ caller });
+  expect(commands).toEqual([expect.objectContaining({ name: "snapshot", slug: "keepsake-camera" })]);
+  expect(commands[0]?.args?.map((arg) => arg.name)).toEqual(["style", "note"]);
+  expect(await h.service.listSurfaces({ caller })).toEqual([expect.objectContaining({ id: "album_page", anchor: "page", tier: "static" })]);
+
+  // THE SNAPSHOT, through the REAL command round-trip. The inert quiet op answers "" (an unusable titling), so
+  // the LOCAL fallback titles it — the pipeline that cannot jam. The paint op captures the prompt: the style
+  // suffix and the note both rode along, and `quiet:false` is the room-postcard posture (teaching point 2).
+  await h.service.invokeUiCommand({ caller, pluginId, name: "snapshot", args: "", values: { style: "inkSketch", note: "keep the lantern lit" }, chatId: CHAT });
+  expect(paints).toHaveLength(1);
+  expect(paints[0]?.quiet).toBe(false);
+  expect(paints[0]?.prompt).toContain("ink and wash");
+  expect(paints[0]?.prompt).toContain("keep the lantern lit");
+  expect(captured.toasts.some((t) => t.message.startsWith("Kept:"))).toBe(true);
+
+  // The album published GLOBALLY (no chat key — a cross-room roll-up): one bound tile carrying the caught
+  // asset, on the browse stage.
+  const album = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "album_page" });
+  expect(album?.stage).toBe("album");
+  const tiles = album?.tiles as readonly { id: string; assetId: string }[];
+  expect(tiles).toHaveLength(1);
+  expect(tiles[0]?.assetId).toBe(validAsset);
+
+  // Stage navigation is ordinary published state: `open` flips to the detail stage with the picked moment…
+  await h.service.invokeUiAction({ caller, pluginId, surfaceId: "album_page", actionId: "open", values: { tile: tiles[0]?.id ?? "" } });
+  const opened = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "album_page" });
+  expect(opened?.stage).toBe("moment");
+  expect((opened?.detail as { assetId: string }).assetId).toBe(validAsset);
+
+  // …and `discard` forgets the album copy (the rooms keep their postcards) and returns home, empty.
+  await h.service.invokeUiAction({ caller, pluginId, surfaceId: "album_page", actionId: "discard", values: {} });
+  const after = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "album_page" });
+  expect(after?.stage).toBe("album");
+  expect(after?.tiles).toEqual([]);
+});
+
+/** The flagship's CI slice, honest about its edge: like the familiar, the atlas's fetch arms (`safeFetch` has
+ *  no injection seam) would be LIVE requests to two community hubs, so CI drives everything UP TO the wire —
+ *  the ARM C page spec surviving a REAL registration, the activation-time publish, and the no-network action
+ *  arms. The wire halves (search decode incl. the devalue un-flatten, the reshape, the summon) were probed
+ *  against both live hubs on 2026-08-28 and are the live side-eye drive's checklist. */
+test("card atlas: the ARM C flagship page registers, publishes its empty browse state, and refuses gracefully off-line", async () => {
+  const db = await freshDb();
+  const { ops: recorded, captured } = recordingOps(db, new Map());
+  const ops: PluginHostOps = {
+    ...recorded,
+    ui: { ...recorded.ui, setState: (req): Promise<void> => publishState(req) },
+  };
+  const h = makePluginHarness(db, { port: realHost(), ops });
+  const publishState = createSurfaceStatePublisher(h.ctx.surfaceState, () => undefined);
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+
+  const pluginId = await installGrantEnable({
+    h,
+    caller,
+    slug: "card-atlas",
+    grant: ["storage.kv", "ui.surface", "net.fetch", "character.ingest", "character.card_state"],
+    netHosts: ["character-tavern.com", "realm.risuai.net"],
+  });
+
+  // The masterDetail + searchBar(+filters) + BOUND-grid page passed the REAL registration validation over the
+  // WASM runtime — the flagship's whole vocabulary, end to end.
+  expect(await h.service.listSurfaces({ caller })).toEqual([expect.objectContaining({ id: "atlas_page", anchor: "page", tier: "static" })]);
+
+  // The activation publish: an empty atlas is a PUBLISHABLE state (bound specs render only once state lands).
+  const initial = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "atlas_page" });
+  expect(initial?.stage).toBe("browse");
+  expect(initial?.tiles).toEqual([]);
+
+  // The no-network arms: an empty query is a toast, never a fetch; a stale tile (no session — e.g. a respawn
+  // between search and click) folds into the status line, never a crash.
+  await h.service.invokeUiAction({ caller, pluginId, surfaceId: "atlas_page", actionId: "search", values: { q: "  ", source: "tavern" } });
+  expect(captured.toasts.some((t) => t.message.includes("Type something"))).toBe(true);
+  await h.service.invokeUiAction({ caller, pluginId, surfaceId: "atlas_page", actionId: "open_result", values: { tile: "r0" } });
+  const stale = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "atlas_page" });
+  expect(String(stale?.status)).toContain("stale");
 });
 
 /** THE GRANT-GUARD RECEIPT (#774 comment 1). A user may tick some capabilities and leave `ui.surface`
