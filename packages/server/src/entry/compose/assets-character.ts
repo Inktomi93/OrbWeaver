@@ -36,6 +36,7 @@ import type { CharacterService, DefaultCharacterSeeder } from "#domain/character
 import { createCharacterService, createDefaultCharacterSeeder, createLinkCharacterAvatars } from "#domain/character";
 import type { PersonaService } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
+import { PresetNotFoundError } from "#domain/preset";
 import type { SettingsService } from "#domain/settings";
 import { bumpStatsCanonVersion } from "#domain/stats";
 import type { TagService } from "#domain/tag";
@@ -303,8 +304,14 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
         // `config.prose` is `prefault({})` at the schema, so a preset that never carried one still resolves
         // every transform fragment to its shipped default.
         return { template: detail.config.guidedActions?.[kind].prompt ?? fallback, prose: detail.config.prose };
-      } catch {
-        return { template: fallback, prose: {} };
+      } catch (err) {
+        // Only a genuinely stale/unowned/missing preset id degrades to the contract default template — a
+        // database, I/O, or program failure must surface, never silently substitute the shipped default
+        // prose/template for the caller's configured one.
+        if (err instanceof PresetNotFoundError) {
+          return { template: fallback, prose: {} };
+        }
+        throw err;
       }
     },
     generateGreetingText: async ({ caller, prompt }): Promise<{ text: string; costUsd: number | null }> => {
