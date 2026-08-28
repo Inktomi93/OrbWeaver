@@ -12,8 +12,12 @@
 //                   The behaviour changed and nobody was told; the failure contract is unstated.
 //
 // ── WHAT PASSES, AND WHY IT IS ALL PROVENANCE ───────────────────────────────────────────────────────────
-// Rethrow · a call that CANNOT RETURN (`never`, or `Promise<never>`) — control leaves only by throwing, so
-// it is propagation, and it holds for a bindingless catch · `Promise.reject(err)` of the caught binding (the
+// Rethrow · a DISCRIMINATED rethrow (a narrowly-guarded early return beside an escaping `throw <the caught
+// binding>`, or a typed wrapper chaining `{ cause: <the caught binding> }` — one documented case, every
+// other failure propagates; fenced on binding IDENTITY, so a substituted value with NO cause, a lossy
+// `String(err)` message, or a throw inside a nested function do NOT count) · a call that CANNOT
+// RETURN (`never`, or `Promise<never>`) — control leaves only by throwing, so it is propagation, and it
+// holds for a bindingless catch · `Promise.reject(err)` of the caught binding (the
 // NATIVE one; a local object named `Promise` does not launder) · a structured contextual log on the
 // governed pino/`getLog` logger · `securityEvent(<named event>)` at that same door (it owns without the
 // caught binding by design — a reject seam must not leak the raw crypto error, so the NAMED reason is the
@@ -634,11 +638,74 @@ function statementOwner(statement: Node, errorBinding: Node | undefined, returne
   return statement.isKind(SyntaxKind.ReturnStatement) ? "escape" : "none";
 }
 
+/** Does a `throw` ESCAPE this block, rather than being caught or returned somewhere inside it? A nested
+ *  function's throw rejects that call, not this one; an inner catch clause absorbs; an inner `try` whose
+ *  statement HAS a catch absorbs. */
+function throwEscapes(thrown: Node, block: Block): boolean {
+  let current: Node | undefined = thrown.getParent();
+  while (current !== undefined && current !== block) {
+    if (FUNCTION_KINDS.has(current.getKind()) || current.isKind(SyntaxKind.CatchClause)) {
+      return false;
+    }
+    const parent = current.getParent();
+    if (parent?.isKind(SyntaxKind.TryStatement) === true && parent.getTryBlock() === current && parent.getCatchClause() !== undefined) {
+      return false;
+    }
+    current = parent;
+  }
+  return current === block;
+}
+
+/**
+ * THE DISCRIMINATED-RETHROW CREDIT (#751, owner ruling — the "Arm 3" provable subset).
+ *
+ * `catch (error) { if (errnoIs(error, "ENOENT")) { return []; } throw error; }` is the tree's most common
+ * CORRECT error handling: ONE narrowly-guarded documented case, and every other failure propagates
+ * UNCHANGED. 81 of the 439 enforced sites are this shape. Without this credit the gate demanded a marker
+ * for it — taxing the right idiom, which is the inverse of rewarding runtime ownership.
+ *
+ * THE FENCE IS BINDING IDENTITY, and it is the whole reason this is provable: the thrown value must BE the
+ * caught binding. `throw new Error("refresh failed")` is loud but it destroys the original failure's
+ * identity and cause chain, so it is NOT propagation of THIS failure and stays red. A throw that cannot
+ * escape (nested function, inner catch) is not propagation either. Deliberately NOT generalized to
+ * all-paths ownership: the conservative `escape` verdict is what keeps `if (skip) return; notify.error(err)`
+ * red, and that row is pinned on both sides of this change.
+ */
+/** A typed wrapper that CHAINS the caught failure — `throw new CatalogUnavailableError(msg, { cause: err })`.
+ *  The standard `cause` contract keeps the original error reachable, so the failure is re-typed for the
+ *  caller rather than destroyed. Deliberately NARROW: only an explicit `cause` carrying the binding counts.
+ *  `throw new Error(String(err))` keeps the message and drops the identity, stack and chain — that is lossy,
+ *  so it stays red and its site owes a reason. */
+function throwChainsCause(thrown: Node, errorBinding: Node): boolean {
+  return thrown.getDescendantsOfKind(SyntaxKind.PropertyAssignment).some((property) => {
+    const initializer = property.getInitializer();
+    return property.getName() === "cause" && initializer !== undefined && directlyCarriesBinding(initializer, errorBinding);
+  });
+}
+
+function rethrowsCaughtBinding(block: Block, errorBinding: Node | undefined): boolean {
+  if (errorBinding === undefined) {
+    return false;
+  }
+  return block.getDescendantsOfKind(SyntaxKind.ThrowStatement).some((thrown) => {
+    if (!throwEscapes(thrown, block)) {
+      return false;
+    }
+    const expression = thrown.getExpression();
+    return directlyCarriesBinding(expression, errorBinding) || throwChainsCause(expression, errorBinding);
+  });
+}
+
 function hasExplicitOwner(block: Block, errorBinding: Node | undefined, returnedOutcomeOwns = true): boolean {
   for (const statement of block.getStatements()) {
     const verdict = statementOwner(statement, errorBinding, returnedOutcomeOwns);
-    if (verdict !== "none") {
-      return verdict === "owner";
+    if (verdict === "owner") {
+      return true;
+    }
+    if (verdict === "escape") {
+      // A guarded early exit only leaves a swallow path if the REST of the block absorbs. When the block
+      // still rethrows the caught binding, the non-discriminated path propagates and every exit is owned.
+      return rethrowsCaughtBinding(block, errorBinding);
     }
   }
   return false;
@@ -1669,7 +1736,25 @@ export const gate: GateDescriptor = {
         "}\n",
       at: "packages/client/src/features/probe/escaped-owners.ts",
       expect: { count: 2 },
-      why: "an earlier conditional escape leaves a swallow path that a later owner statement cannot dominate",
+      why: "an earlier conditional escape leaves a swallow path that a later owner statement cannot dominate — THE row the discriminated-rethrow credit must not turn green: a BARE `return` swallows, so the trailing statement owns nothing",
+    },
+    {
+      files:
+        "export async function substitutedRethrow(): Promise<void> {\n" +
+        "  try { await save(); } catch (err) { if (isMissing(err)) { return; } throw new Error('refresh failed'); }\n" +
+        "}\n",
+      at: "packages/server/src/domain/probe/substituted-rethrow.ts",
+      expect: { count: 1, token: "default:err" },
+      why: "the BINDING-IDENTITY fence on the discriminated-rethrow credit: throwing a DIFFERENT value is loud but it destroys the caught failure's identity and cause chain, so it is not propagation of THIS failure",
+    },
+    {
+      files:
+        "export async function nestedThrow(items: readonly string[]): Promise<void> {\n" +
+        "  try { await save(); } catch (err) { if (isMissing(err)) { return; } items.forEach(() => { throw err; }); }\n" +
+        "}\n",
+      at: "packages/server/src/domain/probe/nested-throw.ts",
+      expect: { count: 1, token: "default:err" },
+      why: "a `throw` inside a NESTED FUNCTION does not escape the catch — it rejects some other call's promise, so the catch itself still completes normally and the failure is still absorbed",
     },
     {
       files:
@@ -2105,6 +2190,30 @@ export const gate: GateDescriptor = {
         "}\n",
       at: "packages/server/src/infra/auth/probe/security-event-owner.ts",
       why: "the live JWKS/JWT reject seams: `securityEvent` is `getLog().warn({ security: true, event, … })` at the governed door, so the NAMED reason is the operator trail. It owns without the caught binding BY DESIGN — these seams must not leak the raw crypto error",
+    },
+    {
+      files:
+        "function errnoIs(error: unknown, code: string): boolean { return typeof error === 'object' && error !== null && 'code' in error && error.code === code; }\n" +
+        "export async function safeReaddir(dir: string): Promise<readonly string[]> {\n" +
+        "  try { return await readdir(dir); } catch (error) { if (errnoIs(error, 'ENOENT')) { return []; } throw error; }\n" +
+        "}\n" +
+        "export async function elseArm(dir: string): Promise<readonly string[]> {\n" +
+        "  try { return await readdir(dir); } catch (error) { if (errnoIs(error, 'ENOENT')) { return []; } else { throw error; } }\n" +
+        "}\n",
+      at: "packages/server/src/infra/storage/probe/discriminated-rethrow.ts",
+      why: "the live `cas.ts` shape, 81 sites at ruling time: ONE narrowly-guarded documented case and every other failure propagates UNCHANGED. Both the trailing-throw and else-branch spellings are the same control flow, and the credit is fenced on binding IDENTITY — see the substituted-value and nested-throw mustFlag rows for the two ways it must NOT fire",
+    },
+    {
+      files:
+        "class CatalogUnavailableError extends Error {}\n" +
+        "export async function refreshCatalog(): Promise<unknown> {\n" +
+        "  try { return await fetchCatalog(); } catch (err) {\n" +
+        "    const existing = await readSnapshot();\n" +
+        "    if (existing !== null) { return existing; }\n" +
+        "    throw new CatalogUnavailableError(err instanceof Error ? err.message : String(err), { cause: err });\n" +
+        "  }\n}\n",
+      at: "packages/server/src/domain/connection/probe/chained-cause.ts",
+      why: "the two live catalog-refresh seams: a TYPED wrapper that chains `{ cause: err }` re-types the failure for the caller without destroying it, so the original stays reachable. Narrow by design — the substituted-value row proves a wrapper with NO cause still reds",
     },
     {
       files:
