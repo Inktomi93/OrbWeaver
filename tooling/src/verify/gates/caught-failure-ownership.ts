@@ -12,8 +12,12 @@
 //                   The behaviour changed and nobody was told; the failure contract is unstated.
 //
 // ── WHAT PASSES, AND WHY IT IS ALL PROVENANCE ───────────────────────────────────────────────────────────
-// Rethrow · `Promise.reject(err)` of the caught binding (the NATIVE one; a local object named `Promise`
-// does not launder) · a structured contextual log on the governed pino/`getLog` logger · the governed
+// Rethrow · a call that CANNOT RETURN (`never`, or `Promise<never>`) — control leaves only by throwing, so
+// it is propagation, and it holds for a bindingless catch · `Promise.reject(err)` of the caught binding (the
+// NATIVE one; a local object named `Promise` does not launder) · a structured contextual log on the
+// governed pino/`getLog` logger · `securityEvent(<named event>)` at that same door (it owns without the
+// caught binding by design — a reject seam must not leak the raw crypto error, so the NAMED reason is the
+// trail) · the governed
 // `notify`/toast manager carrying the failure with non-success copy · a genuine React `useState` SETTER
 // slot (tuple element [1]) fed a failure-VALUED argument · TanStack query/form and `createEntityMutation`
 // with a failure-valued `errorToast` · `withRequestSpan` · a named handler that itself owns · an
@@ -303,6 +307,21 @@ function stateSetterOwns(call: CallExpression, name: string, errorBinding: Node 
   return FAILURE_SUFFIX_RE.test(name) && call.getArguments().some((argument) => unwrapExpression(argument).getText() === "true");
 }
 
+/** `securityEvent(<event>, …)` from the governed observability door — one consistently-tagged `security:true`
+ *  pino line, which IS the operator surface for a rejection. It owns WITHOUT the caught binding on purpose:
+ *  the whole point of these seams (JWKS parse, JWT verify, credential decrypt) is that the raw error must not
+ *  leak, so the NAMED reason is the evidence and the error object is deliberately dropped. Provenance-checked
+ *  like every other owner, and the event name must be a readable non-empty literal — an unnamed event is not
+ *  a greppable trail. */
+function securityEventOwns(call: CallExpression): boolean {
+  if (importedName(call.getExpression(), OBSERVABILITY_MODULES) !== "securityEvent") {
+    return false;
+  }
+  const event = call.getArguments()[0];
+  const name = event === undefined ? undefined : staticStringValue(event);
+  return name !== undefined && name.trim().length > 0;
+}
+
 function isExplicitOwnerCall(call: CallExpression, errorBinding: Node | undefined): boolean {
   if (isSkippableCall(call)) {
     return false;
@@ -311,7 +330,7 @@ function isExplicitOwnerCall(call: CallExpression, errorBinding: Node | undefine
   if (name === undefined) {
     return false;
   }
-  if (isStructuredLog(call, errorBinding)) {
+  if (isStructuredLog(call, errorBinding) || securityEventOwns(call)) {
     return true;
   }
   const member = literalMember(call.getExpression());
@@ -408,16 +427,27 @@ function objectIsFailureOutcome(value: Node, errorBinding: Node | undefined): bo
   return properties.some((property) => failurePropertyOwns(property, errorBinding));
 }
 
+/** A call that CANNOT RETURN — `never` (sync) or `Promise<never>` (async). Control can only leave it by
+ *  throwing or rejecting, so it is PROPAGATION: the strongest ownership there is, and it does not depend on
+ *  the catch having a binding. The sync half is why `return throwDecryptFailure(sealed)` — a `never`-typed
+ *  helper that logs the typed error and throws it — is ownership rather than a swallow; without it the gate
+ *  demanded a marker for the one shape it should reward most. */
+function cannotReturn(type: ReturnType<CallExpression["getType"]>): boolean {
+  if (type.isNever()) {
+    return true;
+  }
+  return type.getText().startsWith("Promise<") && type.getTypeArguments().some((argument) => argument.isNever());
+}
+
 function callIsFailureOutcome(value: CallExpression, errorBinding: Node | undefined): boolean {
   const type = value.getType();
-  const neverReturning = type.getText().startsWith("Promise<") && type.getTypeArguments().some((argument) => argument.isNever());
-  if (isNativePromiseReject(value, errorBinding) || neverReturning) {
+  if (isNativePromiseReject(value, errorBinding) || cannotReturn(type)) {
     return true;
   }
   if (errorBinding === undefined || !referencesBinding(value, errorBinding)) {
     return false;
   }
-  return type.isNever() || typeIsFailureOutcome(value) || governedFailureFactoryCall(value);
+  return typeIsFailureOutcome(value) || governedFailureFactoryCall(value);
 }
 
 function isFailureOutcome(node: Node, errorBinding: Node | undefined): boolean {
@@ -1845,6 +1875,39 @@ export const gate: GateDescriptor = {
     },
     {
       files:
+        "function looksTerminal(sealed: S): void { return undefined; }\n" +
+        "function alsoNotTerminal(sealed: S): string { throw new Error('sometimes'); }\n" +
+        "export function decoys(box: B, sealed: S): void {\n" +
+        "  try { box.decrypt(sealed); } catch { return looksTerminal(sealed); }\n" +
+        "  try { box.decrypt(sealed); } catch { return alsoNotTerminal(sealed); }\n" +
+        "}\n",
+      at: "packages/server/src/domain/probe/false-never-owner.ts",
+      expect: { count: 2 },
+      why: "the OTHER direction of the never-returning owner: only a `never` RETURN TYPE proves the call cannot return. A void helper that merely looks terminal, and one that throws on SOME paths while its signature still returns a value, both leave a live swallow path",
+    },
+    {
+      files:
+        "const securityEvent = (..._args: unknown[]): void => undefined;\n" +
+        "export function fakeSecurityEvents(): string | null {\n" +
+        "  try { return parse(); } catch { securityEvent('jwks_rejected', { reason: 'parse' }); return null; }\n" +
+        "}\n",
+      at: "packages/server/src/infra/probe/fake-security-event.ts",
+      expect: { count: 1, token: "default:catch" },
+      why: "a LOCAL function named `securityEvent` is not the governed observability door — the owner is provenance, never the callee's name",
+    },
+    {
+      files:
+        "import { securityEvent } from '#foundation/observability';\n" +
+        "export function unnamedSecurityEvents(): string | null {\n" +
+        "  try { return parse(); } catch { securityEvent('', { reason: 'parse' }); return null; }\n" +
+        "  try { return parse(); } catch { securityEvent(dynamicName, { reason: 'parse' }); return null; }\n" +
+        "}\n",
+      at: "packages/server/src/infra/probe/unnamed-security-event.ts",
+      expect: { count: 2 },
+      why: "the governed door still needs a READABLE non-empty event name — an empty or dynamically-keyed event is not a greppable security trail, so it is not evidence",
+    },
+    {
+      files:
         "import { notify } from '#lib';\n" +
         "export async function optionalOwners(): Promise<void> {\n" +
         "  try { await save(); } catch (err) { globalThis.reportError?.(err); }\n" +
@@ -2024,6 +2087,24 @@ export const gate: GateDescriptor = {
         "}\n",
       at: "tooling/src/probe/unproven-outcome.ts",
       why: "an explicit unproven result is failure-valued evidence that prevents the caller from treating a failed measurement as absence",
+    },
+    {
+      files:
+        "function throwDecryptFailure(sealed: S): never { log.error({ code: 1 }, 'decrypt failed'); throw new Error('decrypt'); }\n" +
+        "export function decryptSealed(box: B, sealed: S, aad: string): string {\n" +
+        "  try { return box.decrypt(sealed, aad); } catch { return throwDecryptFailure(sealed); }\n" +
+        "}\n",
+      at: "packages/server/src/domain/probe/never-returning-owner.ts",
+      why: "the live credentials decrypt seam: a SYNC `never`-returning helper cannot return, so control leaves by throwing — propagation, and it holds for a BINDINGLESS catch, which is exactly where a binding-gated reader used to demand a marker for the strongest ownership shape in the tree",
+    },
+    {
+      files:
+        "import { securityEvent } from '#foundation/observability';\n" +
+        "export function jwksFor(raw: string): unknown {\n" +
+        "  try { return parseSet(raw); } catch { securityEvent('jwks_rejected', { reason: 'parse' }, 'security: rejecting'); return null; }\n" +
+        "}\n",
+      at: "packages/server/src/infra/auth/probe/security-event-owner.ts",
+      why: "the live JWKS/JWT reject seams: `securityEvent` is `getLog().warn({ security: true, event, … })` at the governed door, so the NAMED reason is the operator trail. It owns without the caught binding BY DESIGN — these seams must not leak the raw crypto error",
     },
     {
       files:
