@@ -50,6 +50,11 @@ const SERIAL_INT = [
   // into ts-morph (~11s each). Five of those in the parallel lane is a load bomb, and no parallel-lane
   // timeout covers them — the rows carry explicit 120s timeouts and run one at a time here.
   "tests/tooling/ast-observability.int.test.ts",
+  // test-presence + motion-audit: whole-tree scanners (same class as gate-conformance above) that flaked on
+  // the parallel 5s timeout under verify --push's full-suite load — the plugin train grew the tree past the
+  // edge (each passes alone ~3.4s but exceeds 5s under fork contention). Serial + 30s covers the scan weight.
+  "tests/tooling/verify/gates/test-presence.int.test.ts",
+  "tests/tooling/motion-audit/cli.int.test.ts",
   "tests/support/fixtures.int.test.ts",
   "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
   "tests/server/entry/compose/chat.int.test.ts",
