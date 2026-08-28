@@ -15,7 +15,7 @@ import type { PromptTransformOutcome, PromptTransformPoint } from "#chat";
 import type { GenerateImageActionArgs } from "#imagery";
 import type { PluginNotificationRecipient } from "#notifications";
 import type { PluginCapability } from "./manifest.ts";
-import type { PluginSurfaceAnchor, PluginSurfaceSpec, PluginSurfaceTier } from "./ui.ts";
+import type { PluginSurfaceAnchor, PluginSurfaceSpec, PluginSurfaceTier, PluginToastLevel } from "./ui.ts";
 
 // ── Opaque handles (branded strings; minted host-side; forged values fail resolution) ──────────────────────
 export type ChatHandle = Branded<"PluginChatHandle">;
@@ -305,6 +305,35 @@ export interface PluginHostV1 {
     /** Publish surface STATE (the data the spec's `$state` bindings resolve against). ≤ 16 KiB JSON; replaces
      *  the whole state; emits the per-user freshness poke. capability: ui.surface */
     setState: (surfaceId: string, state: Record<string, unknown>) => Promise<void>;
+    /** Register a COMMAND at activation (the `register` mirror — resident, rebuilt on re-activation, dropped on
+     *  disable). U5, §4.5. The host routes `/plugin <slug> <name> <rest>` and a first-party "Plugins" chrome menu
+     *  item to `onRun`, which receives ONE `{ args, chat }` object (`args` = the raw remainder after the name, so
+     *  a command owns its own argument grammar). A plugin never reaches a top-level slash token: the dispatcher
+     *  and the menu are ONE first-party contribution each, fanning per-plugin off the caller's own installs.
+     *
+     *  `onRun` receives ONE `{ args }` object — the raw remainder after the name, so a command owns its own
+     *  argument grammar. THE ROOM IS NOT AN ARGUMENT, deliberately: a command run inside a chat is invoked with
+     *  that chat as its invocation scope, so it reaches the room through `chat.current()` exactly as a tool,
+     *  transform or event handler does. The opaque handle has ONE mint and one accessor; handing a second copy
+     *  in through the args bag would be a second spelling of the same token. Run outside a room (the chrome menu
+     *  on a non-chat screen), `chat.current()` throws — the honest answer, not a synthesized room.
+     *  capability: ui.surface */
+    registerCommand: (def: {
+      name: string; // /^[a-z][a-z0-9_]{0,40}$/, unique per plugin
+      describe: string; // the palette/menu one-liner (≤ 200 chars)
+      onRun: (a: { args: string }) => void | Promise<void>;
+    }) => void;
+    /** Raise a HOUSE toast, prefixed with the plugin's name (stamped host-side — a guest-supplied prefix is the
+     *  impersonation the attribution exists to prevent). Length-capped and RATE-FLOORED per plugin
+     *  (`PLUGIN_TOAST_COOLDOWN_SECONDS`). Transient viewer-local feedback: it rides the outcome of the
+     *  action/command the person just ran, so a toast raised with no viewer present has no one to reach — the
+     *  durable channel stays `notifications.post`. capability: ui.surface */
+    toast: (level: PluginToastLevel, message: string) => Promise<void>;
+    /** Ask the host to open one of THIS plugin's registered `dialog` surfaces — the house modal shell with a
+     *  plugin-attributed title (§4.5a). It resolves when the ask is RECORDED, not when a modal appears: the open
+     *  travels on the outcome of a client-initiated round-trip, so a spontaneous open is unspellable rather than
+     *  refused, and an id naming no registered dialog is dropped. capability: ui.surface */
+    openDialog: (surfaceId: string) => Promise<void>;
     /** THE ESCAPE HATCH (U7, plugin-ui-plane §6.2). Register a `frame`-tier surface: the plugin's OWN interface
      *  code, served as a document into an isolated iframe. capability: **ui.frame** — deliberately NOT
      *  `ui.surface`.
@@ -385,8 +414,18 @@ export const HOST_FUNCTION_CAPABILITY = {
   "net.fetch": "net.fetch",
   "ui.register": "ui.surface",
   "ui.setState": "ui.surface",
+  // U5's three host-mediated affordances ride the SAME `ui.surface` grant, and that is a decision, not an
+  // oversight: the consent line a person read ("Show its own panels and controls — drawn by the app, always
+  // labeled with the plugin's name") already describes a command in the app's own menu, a toast in the app's own
+  // toast slot, and a dialog in the app's own modal shell. A fourth capability per chrome affordance would grow
+  // the grant screen without widening what a person is actually agreeing to.
+  "ui.registerCommand": "ui.surface",
+  "ui.toast": "ui.surface",
+  "ui.openDialog": "ui.surface",
   // U7 — the ONE function claiming `ui.frame`, and the reason the hatch is a separate door at all: a capability
   // is enforced per FUNCTION, so the tier that needs a louder consent line gets its own function. Moving this
-  // value to `ui.surface` would silently fold the hatch's consent into the panel row's.
+  // value to `ui.surface` would silently fold the hatch's consent into the panel row's — which is exactly why
+  // U5's affordances ride `ui.surface` (same "draw in the app's chrome" reach) and this one does NOT (it runs
+  // the plugin's own code in an isolated frame that can beacon out).
   "ui.registerFrame": "ui.frame",
 } as const satisfies Record<HostFunctionRef, PluginCapability>;

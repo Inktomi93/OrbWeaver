@@ -78,6 +78,24 @@ export interface PluginSurfaceView extends PluginSurfaceRegistrationMeta {
  *  resolves `{ $state: "path" }` bindings against. `null` from the verb when nothing has been published yet. */
 export type PluginSurfaceState = Record<string, unknown>;
 
+/** One registered COMMAND as the CALLER's client sees it (`listCommands` — plugin-ui-plane #679 U5). The
+ *  registration meta (name/describe — the `onRun` handle stays server-side) plus the identity BOTH consuming
+ *  surfaces need: the `pluginId` the invoke round-trip names, and the plugin's `slug` + `name`, which are the
+ *  dispatch token and the menu label respectively.
+ *
+ *  THE SLUG IS PROJECTED, NOT DERIVED CLIENT-SIDE, for the same reason `toolWireName` is: `/plugin <slug> <name>`
+ *  is the dispatch grammar, only this side knows the install's slug, and a second spelling of the rule would
+ *  silently unmatch every command the day either half moved. */
+export interface PluginCommandView {
+  readonly pluginId: PluginId;
+  /** The install slug — the FIRST token of `/plugin <slug> <name> …`. */
+  readonly slug: string;
+  /** The plugin's display name — the menu group label and the toast/dialog attribution the person reads. */
+  readonly pluginName: string;
+  readonly name: string;
+  readonly describe: string;
+}
+
 /** One registered DISPLAY transform as the caller's client sees it (`listDisplayTransforms` — plugin-ui-plane
  *  seam 14, U6). Deliberately NOT the handler and NOT the apply: this projection exists so a viewer's client can
  *  answer ONE question — "does anything transform my rows?" — and skip every per-row round-trip when the answer

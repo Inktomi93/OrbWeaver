@@ -13,7 +13,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 function instanceWith(surfaces: PluginInstance["surfaces"]): PluginInstance {
-  return { tools: [], transforms: [], events: [], displayTransforms: [], macros: [], surfaces };
+  return { tools: [], transforms: [], events: [], surfaces, commands: [], displayTransforms: [], macros: [] };
 }
 
 const NOT_ENABLED_RE = /not enabled/u;

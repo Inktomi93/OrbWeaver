@@ -29,6 +29,7 @@ function residentWithFrame(): PluginInstance {
     events: [],
     displayTransforms: [],
     macros: [],
+    commands: [],
     surfaces: [
       { id: "panel", anchor: "settings", title: "Panel", tier: "static", spec: { kind: "text", value: "hi" } },
       { id: "board", anchor: "chat-flank", title: "Chess", tier: "frame", frame: BOARD },

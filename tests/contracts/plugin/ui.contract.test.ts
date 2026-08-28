@@ -1,5 +1,6 @@
 // Contract tests for @orb/contracts/plugin/ui (#679 plugin-ui-plane U0, seam 3): the declarative surface-spec
-// vocabulary. The closed axes (anchors — page DEFERRED to U5; tiers; the 17 node kinds), the zod gate at the
+// vocabulary, through U5 (seam 16). The closed axes (the six anchors incl. `page`/`dialog`; tiers; the 20 node
+// kinds), the zod gate at the
 // node and SPEC-root levels (the global node/depth/byte caps that a per-node schema can never see), the
 // `$state` binding, and the impersonation-wall clamps that ride the vocabulary (no `primary` button, no
 // unknown kind, ident-only form keys). Mirror of ui.ts.
@@ -7,11 +8,13 @@
 import type { PluginSurfaceSpec } from "@orb/contracts/plugin";
 import {
   PLUGIN_ANCHOR_TIERS,
+  PLUGIN_COMMAND_DESCRIBE_MAX,
   PLUGIN_FOOTER_MAX_DEPTH,
   PLUGIN_FOOTER_MAX_NODES,
   PLUGIN_FOOTER_NODE_KIND_ALLOWED,
   PLUGIN_FRAME_CSS_MAX_CHARS,
   PLUGIN_FRAME_HTML_MAX_CHARS,
+  PLUGIN_GRID_TILES_MAX,
   PLUGIN_NODE_KINDS,
   PLUGIN_ROWS_MAX,
   PLUGIN_SPEC_MAX_BYTES,
@@ -21,8 +24,10 @@ import {
   PLUGIN_SURFACE_TIERS,
   PLUGIN_TIER_REGISTRAR,
   PLUGIN_TIER_REGISTRARS,
+  PLUGIN_TOAST_LEVELS,
   PLUGIN_TOOL_NAME_PREFIX,
   PLUGIN_TOOL_NAME_RE,
+  pluginCommandRegistrationMetaSchema,
   pluginFrameBodySchema,
   pluginSurfaceRegistrationMetaSchema,
   pluginSurfaceSpecSchema,
@@ -30,10 +35,8 @@ import {
 } from "@orb/contracts/plugin";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("PLUGIN_SURFACE_ANCHORS is the pinned anchor set (U6 added `message-footer`) — `page` is DEFERRED to U5 (seam 16)", () => {
-  expect(PLUGIN_SURFACE_ANCHORS).toEqual(["settings", "chat-flank", "chat-settings-section", "tool-card", "message-footer"]);
-  // The root-slot-lands-with-occupant rule: `page` has no first-party mount until U5, so it is NOT in the tuple.
-  expect((PLUGIN_SURFACE_ANCHORS as readonly string[]).includes("page")).toBe(false);
+test("PLUGIN_SURFACE_ANCHORS is the merged anchor set — U6's `message-footer`, then U5's `page` + `dialog`", () => {
+  expect(PLUGIN_SURFACE_ANCHORS).toEqual(["settings", "chat-flank", "chat-settings-section", "tool-card", "message-footer", "page", "dialog"]);
 });
 
 test("PLUGIN_SURFACE_TIERS is the three-tier axis [static, scripted, frame] (U7 added the hatch)", () => {
@@ -98,7 +101,7 @@ test("the frame BODY schema bounds size and nothing else — arbitrary pixels is
   expect(pluginFrameBodySchema.safeParse({ css: "body{}" }).success).toBe(false);
 });
 
-test("PLUGIN_NODE_KINDS is the pinned 17-kind vocabulary in §4.3 order", () => {
+test("PLUGIN_NODE_KINDS is the pinned 20-kind vocabulary in §4.3 order (U5 appended the browse genre)", () => {
   expect(PLUGIN_NODE_KINDS).toEqual([
     "stack",
     "row",
@@ -117,6 +120,9 @@ test("PLUGIN_NODE_KINDS is the pinned 17-kind vocabulary in §4.3 order", () => 
     "slider",
     "button",
     "confirmButton",
+    "grid",
+    "masterDetail",
+    "searchBar",
   ]);
 });
 
@@ -299,6 +305,89 @@ test("a tool-card surface MUST name its tool, and only a tool-card surface may n
   // the server derives from one is itself well-formed in the same charset (nothing here re-derives it).
   expect(pluginSurfaceRegistrationMetaSchema.safeParse({ ...base, anchor: "tool-card", toolName: "Draw Card" }).success).toBe(false);
   expect(PLUGIN_TOOL_NAME_RE.test("draw")).toBe(true);
+});
+
+// ── U5: the BROWSE-GENRE vocabulary + the host-mediated affordance grammar (§4.5a/§4.5b, seam 16) ──────────
+
+test("a browse page is spellable end to end: searchBar + grid inside a masterDetail arrangement", () => {
+  const page: PluginSurfaceSpec = {
+    kind: "masterDetail",
+    active: { $state: "stage" },
+    stages: [
+      {
+        id: "browse",
+        kind: "browse",
+        title: "Results",
+        body: {
+          kind: "stack",
+          children: [
+            { kind: "searchBar", name: "q", label: "Search", actionId: "search", filters: [{ kind: "toggle", name: "nsfw", label: "Include NSFW" }] },
+            {
+              kind: "grid",
+              aspect: "portrait",
+              empty: "No results yet — try a search.",
+              tiles: [{ id: "a1", title: { $state: "results.0.name" }, subtitle: "by someone", actionId: "open" }],
+            },
+          ],
+        },
+      },
+      { id: "detail", kind: "detail", title: { $state: "picked.name" }, body: { kind: "markdown", value: { $state: "picked.description" } } },
+    ],
+  };
+  expect(pluginSurfaceSpecSchema.safeParse(page).success).toBe(true);
+});
+
+test("at most ONE searchBar per spec — 'prominent' is a claim two of them refute (§4.5b failure 3)", () => {
+  const two: PluginSurfaceSpec = {
+    kind: "stack",
+    children: [
+      { kind: "searchBar", name: "q", label: "Search" },
+      { kind: "searchBar", name: "q2", label: "Search again" },
+    ],
+  };
+  expect(pluginSurfaceSpecSchema.safeParse(two).success).toBe(false);
+  const one: PluginSurfaceSpec = { kind: "stack", children: [{ kind: "searchBar", name: "q", label: "Search" }] };
+  expect(pluginSurfaceSpecSchema.safeParse(one).success).toBe(true);
+});
+
+test("the global caps SEE THROUGH the U5 recursion — masterDetail stage bodies and searchBar filters both count", () => {
+  // THE HAZARD THIS PINS: `masterDetail`/`searchBar` carry children under fields that are NOT called `children`,
+  // so a cap walk that only knew the three container kinds would report a passing node count over an
+  // arbitrarily deep subtree. Both arms below are over a cap that is only reachable THROUGH the new field.
+  let deep: PluginSurfaceSpec = { kind: "text", value: "leaf" };
+  for (let i = 0; i < PLUGIN_SPEC_MAX_DEPTH; i++) {
+    deep = { kind: "masterDetail", stages: [{ id: "s", kind: "browse", body: deep }] };
+  }
+  expect(pluginSurfaceSpecSchema.safeParse(deep).success).toBe(false);
+
+  const manyFilters: PluginSurfaceSpec = {
+    kind: "searchBar",
+    name: "q",
+    label: "Search",
+    filters: Array.from({ length: PLUGIN_SPEC_MAX_NODES }, () => ({ kind: "text", value: "n" }) as const),
+  };
+  expect(pluginSurfaceSpecSchema.safeParse(manyFilters).success).toBe(false);
+});
+
+test("a grid refuses more tiles than the cap, and a tile's cover is an ASSET id — never a URL (the exfil wall)", () => {
+  const tiles = Array.from({ length: PLUGIN_GRID_TILES_MAX + 1 }, (_, i) => ({ id: `t${i}`, title: `T${i}` }));
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "grid", tiles }).success).toBe(false);
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "grid", tiles: [{ id: "t", title: "T", assetId: "https://evil.example/x.png" }] }).success).toBe(false);
+});
+
+test("a masterDetail needs at least one stage — a page arrangement that renders nothing is not a state", () => {
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "masterDetail", stages: [] }).success).toBe(false);
+});
+
+test("a plugin COMMAND's name is the guest-local ident grammar and its help is required + capped", () => {
+  expect(pluginCommandRegistrationMetaSchema.safeParse({ name: "draw", describe: "Draw a card" }).success).toBe(true);
+  expect(pluginCommandRegistrationMetaSchema.safeParse({ name: "Draw Card", describe: "Draw a card" }).success).toBe(false);
+  expect(pluginCommandRegistrationMetaSchema.safeParse({ name: "draw", describe: "" }).success).toBe(false);
+  expect(pluginCommandRegistrationMetaSchema.safeParse({ name: "draw", describe: "x".repeat(PLUGIN_COMMAND_DESCRIBE_MAX + 1) }).success).toBe(false);
+});
+
+test("PLUGIN_TOAST_LEVELS is the HOUSE notify vocabulary — a plugin gets no severity the app cannot render", () => {
+  expect(PLUGIN_TOAST_LEVELS).toEqual(["info", "success", "warn", "error"]);
 });
 
 test("pluginToolWireName is the ONE mint: hyphens in the slug become underscores, and it carries the claimed prefix", () => {

@@ -64,6 +64,12 @@ export const MODAL_SLOT_IDS = [
   "imagine",
   "imageDetail",
   "imageEdit",
+  // `pluginDialog` is the ONE house modal shell a plugin's `dialog` surface renders inside (plugin-ui-plane
+  // #679 U5, §4.5a) — the imagery precedent exactly: a CONTENT-triggered slot opened by a `#state` action
+  // (`openPluginDialog`) that carries WHICH (plugin, surface) through the plugin-dialog store, never a chrome
+  // affordance. ONE slot for the platform, never one per plugin: the shell owns the modal grammar, the plugin
+  // supplies only the attributed title and the DSL body.
+  "pluginDialog",
 ] as const;
 export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
 

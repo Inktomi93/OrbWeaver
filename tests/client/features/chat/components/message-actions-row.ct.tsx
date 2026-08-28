@@ -9,7 +9,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { MessageActionsRowStory } from "../_ct-stories.tsx";
-import { makeMessageView } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, makeMessageView } from "../fixtures.ts";
 
 const HIDE_LABEL_RE = /Hide from AI|Unhide from AI/u;
 const COPY_RE = /Copy/u;
@@ -93,7 +93,7 @@ test("the action cluster rests HIDDEN + inert and carries the hover/focus/coarse
 });
 
 test("hide-from-AI fires setMessageHidden with the flipped flag", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.setMessageHidden": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.setMessageHidden": () => ({ ok: true }) });
   const message = makeMessageView({ excludedFromPrompt: false });
   const component = await mount(<MessageActionsRowStory message={message} />);
 
@@ -110,7 +110,7 @@ test("hide-from-AI fires setMessageHidden with the flipped flag", async ({ mount
 });
 
 test("an already-hidden row shows Unhide and toggles the flag back", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.setMessageHidden": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.setMessageHidden": () => ({ ok: true }) });
   const message = makeMessageView({ excludedFromPrompt: true });
   const component = await mount(<MessageActionsRowStory message={message} />);
 
@@ -127,7 +127,7 @@ test("an already-hidden row shows Unhide and toggles the flag back", async ({ mo
 });
 
 test("delete opens a confirm dialog; confirming fires deleteMessages with this ONE messageId", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.deleteMessages": () => null });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.deleteMessages": () => null });
   const message = makeMessageView();
   const component = await mount(<MessageActionsRowStory message={message} />);
 
@@ -142,7 +142,7 @@ test("delete opens a confirm dialog; confirming fires deleteMessages with this O
 });
 
 test("delete's Cancel closes the dialog without firing the mutation", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.deleteMessages": () => null });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.deleteMessages": () => null });
   const component = await mount(<MessageActionsRowStory />);
 
   await openActionsMenu(component);
@@ -155,6 +155,8 @@ test("delete's Cancel closes the dialog without firing the mutation", async ({ m
 
 test("fork fires forkChat with this message's seq as throughSeq", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
     "chat.forkChat": () => ({ chat: { id: "chat_forked_ct" } }),
   });
   const message = makeMessageView({ seq: 7 });
@@ -220,7 +222,7 @@ test("a non-assistant row exposes NEITHER continuation item (only assistant repl
 });
 
 test("Undo last continuation fires undoContinue with this chatId + messageId", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.undoContinue": () => null });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.undoContinue": () => null });
   const message = makeMessageView({ hasContinuation: true });
   const component = await mount(<MessageActionsRowStory message={message} />);
 
@@ -232,7 +234,7 @@ test("Undo last continuation fires undoContinue with this chatId + messageId", a
 });
 
 test("Re-apply continuation fires revertContinue with this chatId + messageId", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.revertContinue": () => null });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.revertContinue": () => null });
   const message = makeMessageView({ hasContinuation: true });
   const component = await mount(<MessageActionsRowStory message={message} />);
 
@@ -244,7 +246,7 @@ test("Re-apply continuation fires revertContinue with this chatId + messageId", 
 });
 
 test("a DISABLED (non-continued) item does not fire the mutation on click", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.undoContinue": () => null });
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.undoContinue": () => null });
   const component = await mount(<MessageActionsRowStory message={makeMessageView({ hasContinuation: false })} />);
 
   await openActionsMenu(component);

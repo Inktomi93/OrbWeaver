@@ -87,6 +87,7 @@ export type {
 export type {
   DistributedPluginApplication,
   DistributedPluginView,
+  PluginCommandView,
   PluginDisplayTransformView,
   PluginFanoutResult,
   PluginFanoutSkip,
@@ -106,6 +107,7 @@ export type {
   PluginHostPort,
   PluginService,
   PluginSurfaceStateStore,
+  PluginUiOutbox,
 } from "./contract/service.ts";
 export { isPluginEnabledFor } from "./persistence/plugins.ts";
 export { createPluginService } from "./service.ts";
@@ -117,4 +119,5 @@ export { buildPluginPromptTransform, capFactContent } from "./substrate/registra
 export { createSnippetGate } from "./substrate/snippet-gate.ts";
 export { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "./substrate/storage.ts";
 export { createPluginSurfaceStateStore, createSurfaceStatePublisher, PLUGIN_SURFACE_STATE_MAX_KEYS } from "./substrate/surface-state.ts";
+export { createPluginUiOutbox, resolveUiOutcome } from "./substrate/ui-outbox.ts";
 export { PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS } from "./verbs/transform-for-display.ts";

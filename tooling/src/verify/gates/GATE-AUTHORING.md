@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-23
+updated: 2026-08-28
 ---
 
 # Authoring a structural gate
@@ -425,7 +425,7 @@ against the real tree before inheriting it, and expect "already migrated" claims
 | scan health | every gate's `candidates`/`scanned`/`visited`/`admitted` are tallied from the same walk and printed on its line + written to `gates[].scan`. A gate declares extras via `ctx.scan` (§1) |
 | zero-scan alarm | `scanned === 0` (and nothing declared) at `report.ts` scope ⇒ `⚠ … SCANNED ZERO FILES`, `scanAlarms` in the artifact, exit 2. NOT applied by `scoped.ts` or conformance — their zeros are legitimate |
 | probe artifacts | findings on `__g_*` / `__dc_*` paths are stripped at the real-tree entrypoints (`report.ts`, `scoped.ts`) so a concurrent battery's transient fixtures can't red an independent run. `check-gates.int` opts out with `ORB_GATE_FIXTURES=1`. A gate whose fixture must live at a `__g_` path therefore CANNOT be fixture-driven — mark it `UNFIXTURABLE` |
-| conformance substrate | pure-AST ⇒ in-memory Project rooted at `/repo`; `fsBacked:true` ⇒ a real auto-cleaned temp dir |
+| conformance substrate | pure-AST ⇒ ONE reused in-memory Project, each example under its OWN root `/repo-<n>` (#780, §12 — never cache on Project identity); `fsBacked:true` ⇒ a real auto-cleaned temp dir per example |
 | scoped runs | `scoped.ts` runs only `incremental-safe` gates over the changed set — hence the `scopeSafety` trap in §1 |
 
 ## 7. Size, style, and the house patterns
@@ -500,3 +500,39 @@ Every one of these has happened.
 | `gates/dangling-refs.ts` | `fsBacked`, the ordered string evaluator (`evalString`), and SELF-CONTAINED conformance examples (every doc a passing example cites is PLANTED in the same mini-project) |
 | `gates/density-tier.ts` | a baseline ratchet: per-file budget, excess-only reporting, generator as single writer, stale-row arm |
 | `gates/gate-modernization.ts` | the meta-gate — the machine half of this document |
+
+## 12. Caching — a gate MUST NOT cache on Project identity (added 2026-08-28, #780)
+
+**The rule.** A gate may memoize a whole-corpus derivation for the duration of ONE PASS. It may not key that
+memo on the ts-morph `Project` — no `WeakMap<Project, …>`, no "same project, so same answer". The sanctioned
+shape is a value derived in `begin`, whose lifetime is exactly the pass and which therefore has no
+invalidation problem at all:
+
+```ts
+// the vocabulary for THIS pass, re-derived in `begin`; lifetime = the pass, never a Project
+let passVocabulary: ReadonlySet<string> = new Set<string>();
+// a sibling-gate reader rides the pass value, and derives directly when this gate did not run in the
+// caller's pass (conformance runs ONE gate standalone)
+const vocabulary = passVocabulary.size > 0 ? passVocabulary : derive(sf.getProject().getSourceFiles());
+```
+
+**Why it is a rule and not a preference.** A Project-keyed memo is correct only for as long as the
+CONFORMANCE SUBSTRATE happens to throw the key away between examples — i.e. its correctness depends on how
+often something unrelated to the gate is discarded. `ops/conformance.ts` now reuses ONE in-memory Project
+across every pure-AST example (~105ms/example of lib.d.ts parsing, ~1500 examples, 27.6s → 7.9s on the
+bite-proof), so such a memo silently serves a PREVIOUS example's derivation. That is not a red conformance
+run — the gate keeps passing its own proofs while judging the wrong facts. `detached-work-traced` held
+exactly this memo and three of its own rows changed verdict (#751).
+
+**The substrate's other half, which is NOT optional.** Each example lands under its own virtual root
+(`/repo-<n>`), because re-creating a file at a virtual path that already existed makes ts-morph's language
+service serve the PREVIOUS document's snapshot: a re-created `SourceFile` restarts its script version, so
+`Identifier.getDefinitionNodes()` returns nothing, or definitions at stale positions. Every gate resolving a
+declaration through the language service then changes verdict silently. If you are optimising the substrate,
+that invariant — never re-create a virtual path on a reused Project — is the load-bearing one; do not
+"simplify" it away.
+
+**The enforcer.** `tests/tooling/verify/ops/conformance.int.test.ts` runs every in-memory example
+on BOTH substrates and compares FINDINGS, not pass/fail (a contaminated run satisfies mustFlag/mustPass by
+accident — that is how this class hid). It carries a planted positive control for each corruption class, so
+a pin that stopped biting is itself visible.

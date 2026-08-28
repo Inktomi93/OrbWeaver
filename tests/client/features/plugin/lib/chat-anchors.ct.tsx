@@ -83,6 +83,13 @@ const FLANK_STATE = { score: 7, caption: "Your latest warmth reading, 7 of 10." 
  *  never leaves its loading skeleton — and every geometry pin below would then be measuring nothing. */
 const ROOM_ROUTES: Readonly<Record<string, unknown>> = {
   "chat.listMessages": () => makeMessagesPage([makeMessageView({ content: "Hi Aria", role: "user", seq: 1 })]),
+  // FED, not declared (the unfed-read ratchet): the committed-row footer anchor mounts chat's own reaction pill
+  // row (B6, 99b6ba2c6), which reads `chat.listReactions`. It landed AFTER this file and its lane's CT floor did
+  // not name this file, so the read ran INERT here — `routeTrpc` answering `null` is not a view, and a
+  // regression inside the pill pipeline would have been invisible in every arm below. An EMPTY reaction set is
+  // the honest fixture for these arms: they are about the FLANK's geometry, and a room where nobody has reacted
+  // is both the common case and the one whose layout the silent-arm pins compare.
+  "chat.listReactions": () => [],
   "chat.getChat": () => ({ participants: [], anchorPersonaId: null, cast: [], group: DEFAULT_GROUP_CONFIG }),
   "chat.previewContextFit": () => ({
     boundaryMessageId: null,
