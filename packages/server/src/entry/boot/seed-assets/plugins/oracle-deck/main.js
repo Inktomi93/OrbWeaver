@@ -65,6 +65,8 @@ const SESSION_KEY = "session";
  *  trusted — a schema `maximum` is a hint to the model, not an enforcement. */
 const MIN_DRAW = 1;
 const MAX_DRAW = 3;
+/** The past/present/future spread deals exactly this many — the one named spread the draw command knows. */
+const SPREAD_CARDS = 3;
 
 // The hash + PRNG constants. Named because they are ALGORITHM IDENTITY, not tunables: change one and every
 // commitment already printed in a transcript stops verifying. The whole scheme is deliberately plain
@@ -175,62 +177,126 @@ function drawResult(session, taken, narration) {
   });
 }
 
+// ── THE PRIVATE-EVENT ANNOUNCEMENT (pubsub.emit) ───────────────────────────────────────────────────────────
+// Every draw is ANNOUNCED on this plugin's own private channel, `plugin:oracle-deck:draw`. This is the
+// multi-plugin composition plane: any OTHER plugin the same person installed can `host.pubsub.on(
+// "oracle-deck", "draw", …)` and react (the seeded scene-chips does — install both and the table starts
+// playing together). Three facts to copy correctly:
+//   1. Emitting to NOBODY is free — no subscriber, no cost, no error. Announce your interesting moments and
+//      let the ecosystem decide; do not feature-detect "is anyone listening" (you can't, on purpose).
+//   2. The channel is INSTALLER-PRIVATE and one-directional: your emit reaches only the same person's
+//      plugins, never a domain event, never automation, never another user. Your slug is stamped host-side —
+//      you cannot publish on another plugin's channel.
+//   3. A subscriber's handler runs with NO chat scope, so put everything it needs IN the payload (that is
+//      why `card` rides here rather than "go read my storage").
+// Guarded per-call: `plugin_events` may be unticked, and a decoration must never crash a draw.
+async function announceDraw(cards, dealt, commitment) {
+  if (!host.grants.includes("plugin_events")) {
+    return;
+  }
+  await host.pubsub.emit("draw", { cards, dealt, commitment, deckSize: DECK.length });
+}
+
 // ── the tools ──────────────────────────────────────────────────────────────────────────────────────────────
 // `tools.register` is activation-time and synchronous. The host namespaces each name to
 // `plugin_<slug>_<name>` (so this pair lands as `plugin_oracle_deck_draw` / `plugin_oracle_deck_reveal`) and
 // registers it into the ONE tool registry every other tool consumer already funnels through. Your handler runs
 // IN the sandbox under the per-invocation budget, and whatever STRING it returns is what the model reads —
 // returned verbatim, never re-encoded, so `JSON.stringify(x)` yields exactly that JSON to the model.
+//
+// FEATURE-DETECT BEFORE YOU REGISTER — the idiom every registration in this file follows. An ungranted host
+// call THROWS, registrations run at activation, and one unguarded call takes the whole plugin down. The deck
+// needs BOTH `tools.register` (to exist as tools) and `storage.kv` (a session it cannot store is a deck it
+// cannot deal), so the guard names both and the dormant arm says exactly what is missing.
 
-host.tools.register({
-  name: "draw",
-  description:
-    "Draw from the oracle deck. Returns the drawn cards in order. The first draw of a session also returns a commitment that fixes the whole shuffle in advance.",
-  // Raw JSON Schema, validated host-side. Keep it small and literal: this text is what the model plans against.
-  parameters: {
-    type: "object",
-    properties: {
-      count: { type: "integer", minimum: MIN_DRAW, maximum: MAX_DRAW, description: "How many cards to draw (1-3)." },
+const canDeal = host.grants.includes("tools.register") && host.grants.includes("storage.kv");
+if (!canDeal) {
+  host.log.warn("oracle deck is dormant: it needs tools.register + storage.kv granted (Settings → Plugins)");
+}
+
+if (canDeal) {
+  host.tools.register({
+    name: "draw",
+    description:
+      "Draw from the oracle deck. Returns the drawn cards in order. The first draw of a session also returns a commitment that fixes the whole shuffle in advance.",
+    // Raw JSON Schema, validated host-side. Keep it small and literal: this text is what the model plans against.
+    parameters: {
+      type: "object",
+      properties: {
+        count: { type: "integer", minimum: MIN_DRAW, maximum: MAX_DRAW, description: "How many cards to draw (1-3)." },
+      },
+      additionalProperties: false,
     },
-    additionalProperties: false,
-  },
-  handler: async (args) => {
-    const count = clampCount(args ? args.count : MIN_DRAW);
-    const existing = await loadSession();
-    const session = existing ?? (await startSession());
-    const cards = shuffleFor(session.seed);
+    handler: async (args) => {
+      const count = clampCount(args ? args.count : MIN_DRAW);
+      const existing = await loadSession();
+      const session = existing ?? (await startSession());
+      const cards = shuffleFor(session.seed);
 
-    if (session.dealt >= cards.length) {
-      return drawResult(session, [], "The deck is spent. Call reveal to verify this session, then draw again for a fresh shuffle.");
-    }
-    const taken = cards.slice(session.dealt, session.dealt + count);
-    await host.storage.set(SESSION_KEY, JSON.stringify({ seed: session.seed, dealt: session.dealt + taken.length }));
+      if (session.dealt >= cards.length) {
+        return drawResult(session, [], "The deck is spent. Call reveal to verify this session, then draw again for a fresh shuffle.");
+      }
+      const taken = cards.slice(session.dealt, session.dealt + count);
+      await host.storage.set(SESSION_KEY, JSON.stringify({ seed: session.seed, dealt: session.dealt + taken.length }));
 
-    const drawn = taken.map((card, i) => `${session.dealt + i + 1}. ${card}`).join("\n");
-    // The commitment rides in the RESULT on every draw (it is public by construction — only the seed is
-    // secret), but the model is TOLD about it only on the first, because that is the moment it means
-    // something and repeating it every draw would train everyone to skip the line that matters.
-    const lead = existing === null ? `Commitment ${commitmentFor(session.seed)} — verify it after reveal.` : "";
-    return drawResult({ seed: session.seed, dealt: session.dealt + taken.length }, taken, `${lead ? `${lead}\n\n` : ""}${drawn}`);
-  },
-});
+      const drawn = taken.map((card, i) => `${session.dealt + i + 1}. ${card}`).join("\n");
+      await announceDraw(taken, session.dealt + taken.length, commitmentFor(session.seed));
+      // The commitment rides in the RESULT on every draw (it is public by construction — only the seed is
+      // secret), but the model is TOLD about it only on the first, because that is the moment it means
+      // something and repeating it every draw would train everyone to skip the line that matters.
+      const lead = existing === null ? `Commitment ${commitmentFor(session.seed)} — verify it after reveal.` : "";
+      return drawResult({ seed: session.seed, dealt: session.dealt + taken.length }, taken, `${lead ? `${lead}\n\n` : ""}${drawn}`);
+    },
+  });
 
-host.tools.register({
-  name: "reveal",
-  description: "Reveal the seed behind the current oracle session so the draws can be verified, and retire the deck. The next draw starts a fresh session.",
-  parameters: { type: "object", properties: {}, additionalProperties: false },
-  handler: async () => {
-    const session = await loadSession();
-    if (session === null) {
-      return "No oracle session is open — nothing has been drawn yet.";
-    }
-    // Retiring the session on reveal is the whole discipline: a seed that stays live after it is public is a
-    // deck whose remaining order everyone already knows.
-    await host.storage.delete(SESSION_KEY);
-    const order = shuffleFor(session.seed).join(", ");
-    return `Seed: ${session.seed}\nCommitment: ${commitmentFor(session.seed)}\nCards dealt: ${session.dealt}\nFull order: ${order}`;
-  },
-});
+  host.tools.register({
+    name: "reveal",
+    description: "Reveal the seed behind the current oracle session so the draws can be verified, and retire the deck. The next draw starts a fresh session.",
+    parameters: { type: "object", properties: {}, additionalProperties: false },
+    handler: async () => {
+      const session = await loadSession();
+      if (session === null) {
+        return "No oracle session is open — nothing has been drawn yet.";
+      }
+      // Retiring the session on reveal is the whole discipline: a seed that stays live after it is public is a
+      // deck whose remaining order everyone already knows.
+      await host.storage.delete(SESSION_KEY);
+      const order = shuffleFor(session.seed).join(", ");
+      return `Seed: ${session.seed}\nCommitment: ${commitmentFor(session.seed)}\nCards dealt: ${session.dealt}\nFull order: ${order}`;
+    },
+  });
+} // end canDeal — the tools exist only when both capabilities are granted.
+
+// ── THE OMEN MACRO (macros.register) ───────────────────────────────────────────────────────────────────────
+// `{{plugin_oracle_deck_omen}}` — usable anywhere macros run (a persona note, a scenario line, an author's
+// note) — substitutes the MOST RECENT card of the open session. Put "The table's omen is
+// {{plugin_oracle_deck_omen}}." in a scenario note and every turn quietly leans toward the last card drawn.
+//
+// WHAT A PLUGIN MACRO IS, precisely — three facts that shape everything you can do with one:
+//   1. It is a VALUE, not a function: `resolve` takes NO arguments. The kit macro engine is synchronous and
+//      a guest call is not, so the host resolves each plugin macro ONCE per turn, before assembly, and
+//      registers the RESULT as that turn's value. (An arg-taking plugin macro is structurally impossible —
+//      do not design around it.)
+//   2. The NAME is host-namespaced: you register "omen", macros see `plugin_oracle_deck_omen`. You can never
+//      shadow a builtin or another plugin's macro.
+//   3. A throw or an overrun resolves to "" for that turn — degrade-never-throw is the macro plane's own law,
+//      so returning "" for "nothing to say" (no session yet) is the idiomatic empty, not an error.
+// Capability: `chat.transform` — a macro substitutes text into the assembled prompt, which is exactly the
+// reach that capability names. Storage is read inside `resolve`, so the guard names both.
+if (host.grants.includes("chat.transform") && host.grants.includes("storage.kv")) {
+  host.macros.register({
+    name: "omen",
+    description: "The most recent card drawn from the open oracle session (empty when nothing has been drawn).",
+    resolve: async () => {
+      const session = await loadSession();
+      if (session === null || session.dealt === 0) {
+        return "";
+      }
+      const cards = shuffleFor(session.seed);
+      return cards[Math.min(session.dealt, cards.length) - 1];
+    },
+  });
+}
 
 // ── THE CARD (ui.surface at the `tool-card` anchor) ────────────────────────────────────────────────────────
 //
@@ -313,10 +379,30 @@ if (host.grants.includes("ui.surface")) {
     });
   };
 
+  // TYPED COMMAND ARGS (#791). Declaring `args` buys the whole platform half for free: the palette shows a
+  // typed input strip, the composer autocompletes `count=`/`spread=`, both surfaces validate BEFORE your code
+  // runs, and the server re-validates at the membrane — so `a.values` here holds only well-typed, in-enum,
+  // required-present values. The RAW remainder still arrives as `a.args` (unchanged, `{}`-values when you
+  // declare nothing), so a command with its own grammar keeps it. Declare an arg per QUESTION the command
+  // answers, not per flag you can imagine: `spread` (which shape) and `count` (how many) is this command's
+  // whole decision surface.
   host.ui.registerCommand({
     name: "draw",
-    describe: "Draw one card from the oracle deck",
-    onRun: async () => {
+    describe: "Draw from the oracle deck — one card, several, or a past/present/future spread",
+    args: [
+      { name: "count", type: "number", describe: "How many cards to draw (1-3, default 1)" },
+      {
+        name: "spread",
+        type: "enum",
+        enumValues: ["single", "past_present_future"],
+        describe: "A named spread — past_present_future deals three labeled cards",
+      },
+    ],
+    onRun: async (a) => {
+      // The values bag is TYPED: `count` is a number (or absent), `spread` is one of the declared members
+      // (or absent). No parsing, no trimming, no "is it a string" — the platform did that on both sides.
+      const spread = a.values.spread === "past_present_future" ? SPREAD_CARDS : MIN_DRAW;
+      const count = clampCount(a.values.count ?? spread);
       const existing = await loadSession();
       const session = existing ?? (await startSession());
       const cards = shuffleFor(session.seed);
@@ -324,12 +410,18 @@ if (host.grants.includes("ui.surface")) {
         await host.ui.toast("warn", "The deck is spent — reveal it to start a fresh shuffle.");
         return;
       }
-      const card = cards[session.dealt];
-      await host.storage.set(SESSION_KEY, JSON.stringify({ seed: session.seed, dealt: session.dealt + 1 }));
+      const taken = cards.slice(session.dealt, session.dealt + count);
+      await host.storage.set(SESSION_KEY, JSON.stringify({ seed: session.seed, dealt: session.dealt + taken.length }));
       await publishDeckState();
+      await announceDraw(taken, session.dealt + taken.length, commitmentFor(session.seed));
       // The toast is the ANSWER to the command: a command that runs and says nothing reads as broken, and the
       // person who typed it is right there, which is exactly the audience a transient notice is for.
-      await host.ui.toast("info", `${card} (${session.dealt + 1} of ${cards.length})`);
+      const labels = ["Past", "Present", "Future"];
+      const line =
+        a.values.spread === "past_present_future" && taken.length === SPREAD_CARDS
+          ? taken.map((card, i) => `${labels[i]}: ${card}`).join(" · ")
+          : taken.join(", ");
+      await host.ui.toast("info", `${line} (${session.dealt + taken.length} of ${cards.length} dealt)`);
     },
   });
 
@@ -422,6 +514,23 @@ if (host.grants.includes("ui.surface")) {
       await publishDeckState();
       await host.ui.toast("success", "Deck retired — the next draw starts a fresh shuffle.");
     },
+  });
+
+  // ── THE MESSAGE-FOOTER MARK — the per-row anchor, and its honest constraints ─────────────────────────────
+  // `message-footer` mounts once per COMMITTED transcript row, so it carries the tightest bounds in the
+  // vocabulary, all enforced at registration: STATIC tier only, decoration kinds only (badge/text/meter/
+  // image/row — no buttons, no lists, no markdown), ≤ 8 nodes, depth ≤ 2, and — the one that shapes what a
+  // footer can BE — no `$state` bindings: a bound footer would paint fallbacks under every row until you
+  // publish, so the mount skips bound specs entirely. A footer is therefore a FIXED mark, the same under
+  // every message. Use it for something that is true of every row, keep it to ONE small node, and remember
+  // the strip already carries your plugin's name — say one thing, quietly. Here: the deck's table-presence
+  // mark, the standing reminder that this room's draws are commitment-checked.
+  host.ui.register({
+    id: "table_mark",
+    anchor: "message-footer",
+    title: "At the table",
+    tier: "static",
+    spec: { kind: "badge", intent: "neutral", text: "⟡ draws are committed — reveal verifies" },
   });
 }
 

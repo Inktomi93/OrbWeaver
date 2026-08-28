@@ -197,20 +197,27 @@ async function publishSummary() {
   });
 }
 
-host.ui.register({
-  id: "affinity_summary",
-  anchor: "settings",
-  title: "Affinity readings",
-  tier: "static",
-  spec: AFFINITY_PANEL_SPEC,
-  // The action round-trip. A settings surface carries no room, so `a.chat` is null; the handler reads private
-  // storage and publishes — which is the whole allowed shape (a UI action cannot write a room by itself).
-  onAction: async (a) => {
-    if (a.actionId === "refresh") {
-      await publishSummary();
-    }
-  },
-});
+// FEATURE-DETECT THE GRANT before every UI registration — never assume it. A user may tick `llm.quiet` and
+// leave `ui.surface` unticked; their call, and the tracker still works headless (readings, notices). Calling
+// a host fn you were not granted THROWS, and registrations run at activation, so ONE unguarded `ui.register`
+// takes the whole plugin down — no event handler, no readings — over a decoration. `host.grants` is the
+// guest-readable grant set for exactly this. (Every UI call site in this file sits behind the same guard.)
+if (host.grants.includes("ui.surface")) {
+  host.ui.register({
+    id: "affinity_summary",
+    anchor: "settings",
+    title: "Affinity readings",
+    tier: "static",
+    spec: AFFINITY_PANEL_SPEC,
+    // The action round-trip. A settings surface carries no room, so `a.chat` is null; the handler reads private
+    // storage and publishes — which is the whole allowed shape (a UI action cannot write a room by itself).
+    onAction: async (a) => {
+      if (a.actionId === "refresh") {
+        await publishSummary();
+      }
+    },
+  });
+}
 
 // ── THE ROOM WIDGET (ui.surface at the `chat-flank` anchor) ──────────────────────────────────────────────
 //
@@ -238,20 +245,27 @@ const AFFINITY_FLANK_SPEC = {
 };
 
 /** Publish the latest reading to the room widget, keyed to THIS ROOM. Called from the event handler — that is
- *  what makes the widget LIVE: the app is told the surface changed and repaints it wherever it is on screen. */
+ *  what makes the widget LIVE: the app is told the surface changed and repaints it wherever it is on screen.
+ *  Grant-guarded HERE (not at the caller): the event handler runs headless too, and a `setState` for a
+ *  surface that was never registered is a refusal we can simply not ask for. */
 async function publishFlank(chat, score) {
+  if (!host.grants.includes("ui.surface")) {
+    return;
+  }
   await host.ui.setState("affinity_flank", { score, caption: `This room's warmth, ${score} of ${SCORE_MAX}, read every ${SCORE_EVERY} messages.` }, chat);
 }
 
-host.ui.register({
-  id: "affinity_flank",
-  anchor: "chat-flank",
-  title: "Warmth",
-  tier: "static",
-  spec: AFFINITY_FLANK_SPEC,
-  // No `onAction`: this surface is a READOUT. A surface with no actions is a perfectly good surface — it is
-  // the cheapest thing to build and the least that can go wrong in a room.
-});
+if (host.grants.includes("ui.surface")) {
+  host.ui.register({
+    id: "affinity_flank",
+    anchor: "chat-flank",
+    title: "Warmth",
+    tier: "static",
+    spec: AFFINITY_FLANK_SPEC,
+    // No `onAction`: this surface is a READOUT. A surface with no actions is a perfectly good surface — it is
+    // the cheapest thing to build and the least that can go wrong in a room.
+  });
+}
 
 // ── THE SCRIPTED SURFACE (tier: "scripted" — the Tier-C half, drawn by `ui.js`) ──────────────────────────
 //
@@ -268,11 +282,13 @@ host.ui.register({
 //
 // There is no `onAction` either: a scripted surface's events go to its own `onEvent` handler in `ui.js`, not
 // back to this file.
-host.ui.register({
-  id: "affinity_browser",
-  anchor: "settings",
-  title: "Browse readings",
-  tier: "scripted",
-});
+if (host.grants.includes("ui.surface")) {
+  host.ui.register({
+    id: "affinity_browser",
+    anchor: "settings",
+    title: "Browse readings",
+    tier: "scripted",
+  });
+}
 
 host.log.info(`affinity tracker ready — scoring every ${SCORE_EVERY} messages (grants: ${host.grants.join(", ") || "none"})`);
