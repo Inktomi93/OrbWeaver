@@ -206,6 +206,11 @@ function mapToolCalls(calls: readonly ChatMessageToolCall[] | undefined): readon
 const SSE_DATA_PREFIX = "data:";
 const SSE_DONE = "[DONE]";
 const SSE_BUFFER_LIMIT = 1_048_576;
+const SSE_ERROR_PAYLOAD_PREVIEW = 200;
+
+function truncateSsePayload(payload: string): string {
+  return payload.length > SSE_ERROR_PAYLOAD_PREVIEW ? `${payload.slice(0, SSE_ERROR_PAYLOAD_PREVIEW)}…` : payload;
+}
 
 function parseSseLine(line: string): { kind: "data"; value: unknown } | { kind: "done" | "skip" } {
   if (!line.startsWith(SSE_DATA_PREFIX)) {
@@ -217,8 +222,12 @@ function parseSseLine(line: string): { kind: "data"; value: unknown } | { kind: 
   }
   try {
     return { kind: "data", value: JSON.parse(payload) };
-  } catch {
-    return { kind: "skip" };
+  } catch (cause) {
+    // #758: a malformed `data:` payload can carry content/error/terminal semantics — silently dropping
+    // it let the reducer return a partial/empty ChatResult as a SUCCESS. Blank lines, SSE comments, and
+    // non-data fields stay skippable above (that arm is untouched); only a RESULT-BEARING `data:` line
+    // that fails to parse is a protocol error the caller must see.
+    throw new Error(`OpenAI-compatible SSE data payload was not valid JSON: ${truncateSsePayload(payload)}`, { cause });
   }
 }
 
