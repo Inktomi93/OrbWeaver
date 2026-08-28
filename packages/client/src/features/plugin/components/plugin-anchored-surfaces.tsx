@@ -33,6 +33,7 @@ import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useTRPC } from "#data";
 import { specBindsState } from "../lib/plugin-surface-bindings.ts";
+import { PluginFrame } from "./plugin-frame.tsx";
 import { PluginScriptedSurface } from "./plugin-scripted-surface.tsx";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
 import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
@@ -55,9 +56,10 @@ export interface PluginAnchoredSurfacesProps {
  *  — its plugin's grants and sibling surface ids. Local to this fan-out (a rendering partition, not a
  *  cross-boundary shape; the wire type is the router's).
  *
- *  The TIER is the discriminant, because the two tiers need genuinely different things: a `static` surface has
- *  a server-registered `spec` and a state row to bind against, while a `scripted` one has NEITHER until its
- *  guest boots and publishes — its spec IS the thing being computed. */
+ *  The TIER is the discriminant, because the three tiers need genuinely different things: a `static` surface has
+ *  a server-registered `spec` and a state row to bind against; a `scripted` one has NEITHER until its guest boots
+ *  and publishes — its spec IS the thing being computed (U4); a `frame` one renders its OWN document in an
+ *  isolated iframe and has no spec and no published-state plane at all (U7). */
 type RenderableSurface =
   | {
       readonly tier: "static";
@@ -79,6 +81,14 @@ type RenderableSurface =
        *  worker's render allow-list has to cover the whole set or a plugin's second surface silently never
        *  paints. */
       readonly scriptedIds: readonly string[];
+    }
+  | {
+      /** U7 frame: `PluginFrame` mints and renders the isolated document; this fan-out only labels + places it. */
+      readonly tier: "frame";
+      readonly pluginId: PluginId;
+      readonly pluginName: string;
+      readonly surfaceId: string;
+      readonly title: string;
     };
 
 /** Partition the caller's own registrations into what THIS anchor can render. Pure and hook-free, so the
@@ -106,6 +116,11 @@ function buildCandidates(surfaces: readonly PluginSurfaceView[], plugins: readon
     const common = { pluginId: surface.pluginId, pluginName: row.name, surfaceId: surface.id, title: surface.title } as const;
     if (surface.tier === "scripted") {
       candidates.push({ ...common, tier: "scripted", grants: row.grantedCapabilities, scriptedIds: scriptedIdsByPlugin.get(surface.pluginId) ?? [surface.id] });
+      continue;
+    }
+    // A U7 FRAME surface draws a document and legitimately carries NO spec — `PluginFrame` mints it.
+    if (surface.tier === "frame") {
+      candidates.push({ ...common, tier: "frame" });
       continue;
     }
     // A static surface with NO spec has nothing to draw and no guest that will ever compute one.
@@ -143,12 +158,14 @@ export function PluginAnchoredSurfaces({ anchor, chatId }: PluginAnchoredSurface
       throwOnError: false,
     })),
   });
-  // THE SILENCE TEST (§4.9), per tier. A STATIC surface that binds `{ $state }` renders its fallbacks — an empty
-  // meter, blank rows — until its plugin publishes, so it waits for state. A SCRIPTED surface has no such
-  // failure mode here: it renders nothing at all until its guest publishes a tree, and that decision lives in
-  // the mount itself.
+  // THE SILENCE TEST (§4.9) APPLIES TO THE STATIC ARM ONLY. A `static` surface binding `{ $state }` renders its
+  // fallbacks — an empty meter, blank rows — until its plugin publishes, so it waits for state. A `scripted`
+  // surface renders nothing until its guest publishes a tree (that decision lives in the mount); a `frame`
+  // surface has no bindings and no published-state plane at all (`PluginFrame` answers its "nothing yet" with
+  // `null`) — so both skip the gate. The `tier !== "static"` guard is also what keeps `candidate.spec` type-safe:
+  // only the static arm carries a `spec`.
   const visible = candidates.filter(
-    (candidate, index) => candidate.tier === "scripted" || !specBindsState(candidate.spec) || (states[index]?.data ?? null) !== null,
+    (candidate, index) => candidate.tier !== "static" || !specBindsState(candidate.spec) || (states[index]?.data ?? null) !== null,
   );
 
   if (visible.length === 0) {
@@ -156,26 +173,43 @@ export function PluginAnchoredSurfaces({ anchor, chatId }: PluginAnchoredSurface
   }
   return (
     <Stack gap="block">
-      {visible.map((surface) => (
-        <PluginSurfaceShell key={`${surface.pluginId}:${surface.surfaceId}`} pluginName={surface.pluginName} title={surface.title}>
-          {surface.tier === "scripted" ? (
-            <PluginScriptedSurface
-              grants={surface.grants}
+      {visible.map((surface) => {
+        // The U7 FRAME arm draws its OWN shell (`plugin-frame.tsx`: an un-minted frame must render nothing at
+        // all, chrome included, and the §4.8 label must have no opt-out). The `scripted` (U4) and `static` arms
+        // render inside the shared attribution shell — the state gate above has already proven the static one
+        // has something to draw.
+        if (surface.tier === "frame") {
+          return (
+            <PluginFrame
+              key={`${surface.pluginId}:${surface.surfaceId}`}
               pluginId={surface.pluginId}
+              pluginName={surface.pluginName}
               surfaceId={surface.surfaceId}
-              surfaceIds={surface.scriptedIds}
-              {...(chatId === undefined ? {} : { chatId })}
+              title={surface.title}
             />
-          ) : (
-            <PluginSurfaceRenderer
-              pluginId={surface.pluginId}
-              spec={surface.spec}
-              surfaceId={surface.surfaceId}
-              {...(chatId === undefined ? {} : { chatId })}
-            />
-          )}
-        </PluginSurfaceShell>
-      ))}
+          );
+        }
+        return (
+          <PluginSurfaceShell key={`${surface.pluginId}:${surface.surfaceId}`} pluginName={surface.pluginName} title={surface.title}>
+            {surface.tier === "scripted" ? (
+              <PluginScriptedSurface
+                grants={surface.grants}
+                pluginId={surface.pluginId}
+                surfaceId={surface.surfaceId}
+                surfaceIds={surface.scriptedIds}
+                {...(chatId === undefined ? {} : { chatId })}
+              />
+            ) : (
+              <PluginSurfaceRenderer
+                pluginId={surface.pluginId}
+                spec={surface.spec}
+                surfaceId={surface.surfaceId}
+                {...(chatId === undefined ? {} : { chatId })}
+              />
+            )}
+          </PluginSurfaceShell>
+        );
+      })}
     </Stack>
   );
 }

@@ -20,6 +20,13 @@ export const PLUGIN_CAPABILITIES = [
   "storage.kv", // plugin-private KV
   "notify",
   "ui.surface", // draw its own house-rendered panels/controls (plugin-ui-plane #679; NOT spend, NOT admin-gated — renders only for the installer)
+  // The U7 ESCAPE HATCH, and the one UI capability that is RISK class: a `frame` surface runs the plugin's OWN
+  // interface code inside an isolated (opaque-origin, `default-src 'none'`, no `connect-src`) document. It reaches
+  // no session, no storage, no app DOM and no sibling frame — but it CAN beacon out over WebRTC/STUN, which no CSP
+  // directive Chromium recognizes can close (the measured residual R1 in `@orb/kit/card-frame`). Its consent line
+  // says exactly that. It sits ADJACENT to `ui.surface` rather than in the reach band beside `net.fetch` because it
+  // is the escalation OF that row — a reader deciding "what may this plugin draw" must weigh both in one place.
+  "ui.frame",
   "turn.trigger", // SPEND
   "imagery.generate", // SPEND
   "llm.quiet", // SPEND — a non-canon generation on the installer's own summarize-role connection; writes NOTHING

@@ -23,6 +23,7 @@
 import { randomUUID } from "node:crypto";
 import type {
   PluginCapability,
+  PluginCommandRegistration,
   PluginDisplayTransformRegistration,
   PluginEventSubscription,
   PluginHandlerRef,
@@ -159,6 +160,7 @@ interface ResidentState {
   readonly transforms: PluginTransformRegistration[];
   readonly events: PluginEventSubscription[];
   readonly surfaces: PluginSurfaceRegistration[];
+  readonly commands: PluginCommandRegistration[];
   readonly displayTransforms: PluginDisplayTransformRegistration[];
   readonly macros: PluginMacroRegistration[];
   readonly handlers: Map<PluginHandlerRef, QuickJSHandle>;
@@ -211,6 +213,7 @@ export class Sandbox implements Disposable {
       transforms: [],
       events: [],
       surfaces: [],
+      commands: [],
       displayTransforms: [],
       macros: [],
       handlers: new Map(),
@@ -253,14 +256,23 @@ export class Sandbox implements Disposable {
               state.handlers.set(ref, handler);
               state.macros.push({ name: reg.name, description: reg.description, handler: ref });
             },
-            collectSurface: (meta, onAction): void => {
+            collectSurface: (meta, onAction, frame): void => {
+              // U7: `frame` is the frame-tier DOCUMENT BODY. It rides the registration and NOT the meta, so it
+              // stays server-side — `PluginSurfaceView extends PluginSurfaceRegistrationMeta`, and a body on the
+              // meta would ship every frame document to the client through `listSurfaces`.
+              const body = frame === undefined ? {} : { frame };
               if (onAction === null) {
-                state.surfaces.push({ ...meta });
+                state.surfaces.push({ ...meta, ...body });
                 return;
               }
               const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
               state.handlers.set(ref, onAction);
-              state.surfaces.push({ ...meta, onAction: ref });
+              state.surfaces.push({ ...meta, ...body, onAction: ref });
+            },
+            collectCommand: (meta, onRun): void => {
+              const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
+              state.handlers.set(ref, onRun);
+              state.commands.push({ ...meta, onRun: ref });
             },
             logWarn: (message): void => {
               log.push("warn", message);
@@ -312,6 +324,14 @@ export class Sandbox implements Disposable {
    *  registry entry. */
   get collectedSurfaces(): readonly PluginSurfaceRegistration[] {
     return this.state.surfaces;
+  }
+
+  /** The UI COMMANDS `main.js` registered at activation (plugin-ui-plane #679 U5) — read directly by
+   *  `plugin.listCommands` (which the `/plugin` dispatcher and the Plugins chrome menu both fan off); each
+   *  command's `onRun` handle lives in `handlers` (disposed at teardown alongside every other resident handler).
+   *  No external registrar, for the same reason a surface has none: a command is instance-resident data. */
+  get collectedCommands(): readonly PluginCommandRegistration[] {
+    return this.state.commands;
   }
 
   /** The DISPLAY transforms `main.js` registered at activation (plugin-ui-plane seam 14) — read directly by the

@@ -280,7 +280,31 @@ by fixed first-party members, never per-plugin (the one-assembly law, G8):
   first-party "Plugins" chrome menu (the wand shape) lists registered commands. Full per-command
   palette rows (a dynamic palette source) are COMMITTED at U8 (full-parity ruling; §5 row 9).
 
-### 4.5a Dialogs + toasts (host-mediated affordances — committed U5, full-parity ruling)
+### 4.5a Dialogs + toasts (host-mediated affordances — BUILT at U5)
+
+> **AS-BUILT (2026-08-28), and the three places the build is more specific than the design was.** Every clause
+> below stands; these are the mechanisms the build had to decide and this section did not name.
+>
+> 1. **`dialog` is a MEMBER of `PLUGIN_SURFACE_ANCHORS`, not a separate axis.** The design calls it "a fifth
+>    surface KIND (not an anchor)"; the tuple had four members, so "fifth kind" and "sixth tuple member"
+>    (`page` joined at the same time) name the same edit. It shares the tuple because it shares the
+>    REGISTRATION vocabulary — registered, titled, tiered and spec'd exactly like every other surface — and a
+>    second axis for one member would be the parallel map the house kills. What "not an anchor" means as built:
+>    it mounts nowhere by itself.
+> 2. **THE DELIVERY CHANNEL IS THE ROUND-TRIP OUTCOME.** A guest calls `host.ui.toast`/`host.ui.openDialog`
+>    during an invocation; the domain stashes the item in a bounded per-plugin UI OUTBOX
+>    (`domain/plugin/substrate/ui-outbox.ts`), and the outbox DRAINS onto the result of the action/command the
+>    person just ran. That is what makes "opened ONLY by an explicit user act" structural: a spontaneous open
+>    has no channel to travel on. It also names the honest cost — a toast raised with no viewer present (an
+>    event handler, a resident tool) waits for that person's next round-trip with the plugin, or is evicted;
+>    the durable channel stays `notifications.post`. The user bus was REJECTED as the channel: it is the
+>    invalidation router (`bus-onData-no-store-write`), and a toast has nothing to invalidate.
+> 3. **A THIRD host fn was required: `host.ui.openDialog`.** §4.8 rules that no vocabulary node opens a modal,
+>    so with only `registerCommand` + `toast` a registered dialog would have been unreachable. It rides the
+>    same `ui.surface` grant, and the DOMAIN resolves the id against the plugin's own `dialog`-anchored
+>    registrations when the outbox drains — so a plugin cannot open another plugin's dialog, cannot smuggle a
+>    `page` into the modal shell, and a stale id costs the ask and nothing else (§4.9's soft-refusal posture).
+
 
 - **`dialog`** — a fifth surface KIND (not an anchor): a house modal shell, plugin-attributed
   title, DSL body (Tier S or C), opened only by an explicit user act on one of the plugin's own
@@ -290,7 +314,25 @@ by fixed first-party members, never per-plugin (the one-assembly law, G8):
   rate-floored per plugin (constant named at build, the `AUTOMATION_NOTICE_COOLDOWN_SECONDS`
   posture). Transient viewer-local feedback; the durable channel stays `notify`.
 
-### 4.5b The Extensions section + `ui.page` (steer 7 — committed U5)
+### 4.5b The Extensions section + `ui.page` (steer 7 — BUILT at U5)
+
+> **AS-BUILT (2026-08-28).** `extensions` is the tenth `SECTION_IDS` member, placed directly after `config` per
+> this section's own recommendation, and the §6a playbook was walked in full (the ten sites are enumerated in
+> the build's report). Two build decisions this section left open:
+>
+> - **The browse-genre nodes landed as `grid` · `masterDetail` · `searchBar` (with `filters` as a SLOT on
+>   `searchBar`, not a fourth kind)**, plus an `aspect` field on `image`. The house media-tile composite this
+>   section anticipated is `@orb/ui/media-tile-grid` (`MediaTileGrid` + a shape-matched `MediaTileGridSkeleton`)
+>   — a shelf member, per the §4.3 shelf-exposure rule, so the whole app gets it. `searchBar` is capped at ONE
+>   PER SPEC by the schema: "prominent" is a claim two of them refute.
+> - **A HAZARD the vocabulary growth introduced, closed at the source.** `masterDetail` (stage bodies) and
+>   `searchBar` (filters) carry children under fields NOT called `children`, so every existing tree walk — the
+>   spec's own node/depth CAPS, the renderer's depth belt, the image-id sweep, the form-default collector — was
+>   about to go silently blind to a whole subtree while still reporting a passing node count. The fix is ONE
+>   exported seam, `pluginChildNodes` in `@orb/contracts/plugin/ui.ts`, that every walk recurses through; a
+>   sixth recursive kind is one edit. The caps' blindness is pinned by a contract test that nests past the
+>   depth cap THROUGH the new fields.
+
 
 **The need:** an extension with "lots of bits and bobs" — the motivating example is a HUB BROWSER
 (search → results → preview → import) — has no home in panel-scale anchors. `ui.page` is a
@@ -636,13 +678,44 @@ is the arbitrary-pixels arm, not a parallel UI system.
 | 10 | CSP: `script-src` gains `'wasm-unsafe-eval'` | `security-headers.ts:99` + its prod-script-src pin test (`tests/server/entry/http/security-headers.test.ts` — the pin must be UPDATED deliberately, it currently proves no-escape) | the pin test (edited with intent) + security-executor sign-off |
 | 11 | Bundle UI assets (`ui/assets/` → installer CAS, `image` node source) | bundle funnel + assets kind + the `image` node's assetId-only rule | zod (no URL arm exists) + the CAS ownership reads |
 | 12 | Consent copy + grant screen | `features/plugin/components/plugin-grant-list.tsx` + the capability-order decision | review + side-eye (copy is a consent artifact) |
-| 13 | U7 — the `ui.frame` hatch | `ui.frame` tuple member (+ both vitest pins move) · consent line (§6.2) · the plugin-frame routed doorway (`entry/http`, the card-frame shape: per-user handles, own response CSP, floor on every arm) · the `PluginFrame` client component (window-identity listener, `sandbox-frame` posture) · the postMessage→`uiHostCall` bridge | the card-frame belt set (kit CSP builder + route tests + CT) + security-executor gate |
+| 13 | U7 — the `ui.frame` hatch | `ui.frame` tuple member (+ both vitest pins move) · consent line (§6.2) · the plugin-frame routed doorway (`entry/http`, the card-frame shape: per-user handles, own response CSP, floor on every arm) · **the `security-headers.ts` document-path exemption — its own commit, see §7a 2026-08-28** · the `PluginFrame` client component (window-identity listener, `sandbox-frame` posture) · the postMessage→`uiHostCall` bridge | the card-frame belt set (kit CSP builder + route tests + CT) + security-executor gate |
 | 14 | U6 — the display-transform seam — **BUILT 2026-08-28; see the dated repair below** | `host.transforms.registerDisplay` (capability `chat.transform`, no new member) · the resident-read `plugin.listDisplayTransforms` (the byte-identity gate) + `plugin.transformForDisplay` (the per-row round-trip) · `PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS` per transform, `PLUGIN_DISPLAY_TEXT_MAX_CHARS` at the transport boundary · timeout/throw ⇒ SKIP (D53) · the client's `usePluginDisplayText` gate + result cache | the verb's own int suite (`tests/server/domain/plugin/verbs/transform-for-display.int.test.ts`) + the membrane capability pins |
 | 15 | U8 — ecosystem verbs | URL install (fetch→same funnel+consent; egress-guarded) · update check + one-click `upgradePlugin` (#615 re-consent, never silent) · `databank.ingest` capability + host fn (D107 op) · card extension fields (`data.extensions.plugin_<slug>`, D-entry with the build) · the dynamic palette source for per-command rows | each verb's own sweep-class int tests + the capability pins + the egress wall |
 | 16 | U5 — `ui.page` + the Extensions section | `PLUGIN_SURFACE_ANCHORS` gains `page` · the tenth `SECTION_IDS` member `extensions` walking the FULL §6a playbook (`client-architecture-lockdown.md`): tuple + rail order · persisted-state sanitizers (`isSectionId`, `panelOverrides`) · the co-located `SectionDefinition` + front-door export + door row · the drill selection store (G27 mint) · `__orb.nav` vocabulary · the `ct-data-providers` door mirror · the mobile fate (`sheet`) · chrome self-derivation verified-not-edited · DISTINCT placeholder copy · the rail prose in `UI-Architecture-and-Layout.md` §4.1 — PLUS the page switcher + the page-scale shell + the teaching empty state + the BROWSE-GENRE vocabulary nodes (`grid` · `masterDetail` · `searchBar`/`filters`, §4.5b — incl. any new house media-tile composite they require) | tsc (total Record) + G1/G2/G8 + the placeholder-copy gate + `empty-state-has-action` + a CT on the switcher/empty + the exhaustive node-renderer Record |
 | 17 | U8 — `character.ingest` | capability member (sibling of `databank.ingest`, same consent grammar) + host fn over the character-create/import op (a canon write under the installer, riding the import domain's ContentChanged-emitting path so the indexer auto-runs — `AGENTS.md` §6 import row) + `HOST_FUNCTION_CAPABILITY` row + both vitest pins + its consent line | the capability pins + sweep-class int tests (installer-owned rows only) + the existing import-domain belts |
 
 ### §7a DATED REPAIRS — premises this doc asserted that the tree refuted (never a silent rewrite)
+
+**2026-08-28 · §8-U7's "CSP untouched" was true of the POLICY and false of the FILE.** The ruling survives; its
+input changed. Every app-CSP *directive* is byte-identical after U7 — nothing added, removed or widened, and the
+frames are same-origin so the existing `frame-src 'self'` already admitted them. What the row did not account
+for is *where the mechanism lives*: a routed document only carries its own policy because
+`entry/http/security-headers.ts` SKIPS its path. `hono/secure-headers` writes its headers AFTER the handler with
+`.set()` (`security-headers.ts:60-67`), so without that exemption the app policy silently overwrites the frame's.
+`servesOwnPolicy` was hardcoded to the single card-frame prefix, so U7 had to add the plugin-frame document
+prefix as a second member of that existing class.
+
+*Measured, not argued* (control planted by removing the prefix, then restored): the document then serves under
+`default-src 'self'; script-src 'self'; …; frame-ancestors 'none'`. Two distinct consequences, and the honest
+statement distinguishes them — **embedded**, `frame-ancestors 'none'` refuses our own iframe, so the surface
+visibly fails to load; **directly navigated**, there is no `sandbox` directive at all, so plugin-authored markup
+lands in the app's OWN origin. Today's `script-src 'self'` refuses its inline scripts, which makes that half
+LATENT rather than immediate — and latent is the dangerous kind, since it converts any future `script-src`
+widening into an XSS in our origin instead of a contained one inside an opaque frame.
+
+Both members are now pinned by the served response header rather than by the constant
+(`tests/server/entry/http/{plugin,card}-frame.test.ts` — the card-frame arm never had that pin either and gained
+it in the same commit), plus the near-miss prefix arm in `security-headers.test.ts`. Owner-side ruling:
+orchestrator, 2026-08-28, arm A approved with the exemption landing as its own reviewed commit.
+
+**2026-08-28 · "a resident instance outlives a re-grant" is FALSE on this tree** — a premise an earlier draft of
+U7's `getFrameBody` header asserted, refuted by the verb's own int test. `setGrant` DEACTIVATES before the write
+and re-activates only if the row was enabled (`verbs/set-grant.ts`, "THE RUNNING-INSTANCE INVARIANT"), so a
+narrowed grant rebuilds the guest and a now-ungranted registration is never collected again. The membrane's
+registration-time capability check is therefore the PRIMARY control for `ui.frame`, and the per-call grant
+re-reads in `getFrameBody`/`listSurfaces` are a second belt — kept for the reason `entry/http/card-frame.ts`
+re-applies a ceiling `resolveRenderPolicy` already folded in (the boundary must hold if the layer above is
+weakened), and documented as a belt rather than sold as the wall.
 
 **2026-08-28 · seam 14's "applied at the render path" was a SERVER-side reading, and there is no server-side
 render path.** The house display pipeline is CLIENT-side and SYNCHRONOUS — `renderMessageForDisplay` at
@@ -695,9 +768,9 @@ the engine async, not a widening of this row.
 | U2 | chat anchors: flank fan-out + settings-section contribution + the shell (seam 7) | a plugin renders a labeled flank widget updating on room events; disabled ⇒ byte-identical room | ordinary |
 | U3 | `tool-card`: `pluginToolRenderer` + card specs — **closes A2-F5** | the oracle-deck example's draw renders a house card; an unregistered tool still gets the generic block | ordinary |
 | U4 | Tier C: `uiEntry` + bytes route + worker host + `uiHostCall` + CSP delta (seams 8-10) — **security-executor review gates the merge** | a scripted surface filters a list with zero network on keystroke; a hung `ui.js` collapses to null within the deadline | ordinary (CSP edit deliberate) |
-| U5 | `/plugin` slash dispatch + the Plugins chrome menu + the `dialog` surface kind + `host.ui.toast` (§4.5a) + **`ui.page` + the Extensions section** (§4.5b, seam 16) | `/plugin oracle draw` runs; the wand menu lists plugin commands; a plugin action opens a plugin-attributed house dialog and raises a prefixed toast; a plugin registers a page and it appears behind the Extensions rail entry's switcher; zero pages ⇒ the teaching empty | ordinary (the SECTION\_IDS tuple edit is the §6a playbook, not a merge window) |
+| U5 **(BUILT)** | `/plugin` slash dispatch + the Plugins chrome menu + the `dialog` surface kind + `host.ui.toast` (§4.5a) + **`ui.page` + the Extensions section** (§4.5b, seam 16) | `/plugin oracle-deck draw` runs; the wand menu lists plugin commands; a plugin action opens a plugin-attributed house dialog and raises a prefixed toast; a plugin registers a page and it appears behind the Extensions rail entry's switcher; zero pages ⇒ the teaching empty | ordinary (the SECTION\_IDS tuple edit is the §6a playbook, not a merge window) |
 | U6 | the committed parity tail (all CMT rows): `message-footer` DSL badges (§5.4) · the display-transform seam (§5.5/§5.29, seam 14) · `llm.quiet` schema + vision params (§5.16/§5.32) · the typed transform-abort outcome (§5.14) · `macros.register` (§5.15) | per row: a badge renders under a message; a display transform annotates rendered text; a structured quiet call returns schema-valid JSON; a transform aborts a generation typed; a plugin macro substitutes | ordinary |
-| U7 | the `ui.frame` hatch whole (seam 13; §6.2) — **security-executor review gates the merge** | a frame surface draws a chess board at `chat-flank`; a hostile frame reaches nothing off-box except the #124 channel its consent line names; every §6.1 row is servable | ordinary (CSP untouched — the frame carries its OWN response policy) |
+| U7 | the `ui.frame` hatch whole (seam 13; §6.2) — **security-executor review gates the merge** | a frame surface draws a chess board at `chat-flank`; a hostile frame reaches nothing off-box except the #124 channel its consent line names; every §6.1 row is servable | ordinary (the app CSP's DIRECTIVES are untouched — the frame carries its own response policy; `security-headers.ts` gains the document-path exemption its mechanism requires, see §7a 2026-08-28) |
 | U8 | ecosystem (seams 15+17): URL install + update check (one-click, re-consented) · `databank.ingest` · **`character.ingest`** · card extension fields · dynamic palette rows | install a plugin from a URL with the same consent screen; an update lands disabled-pending-reconsent when reach widened; a scraper plugin ingests into the databank; plugin commands appear as first-class palette rows; **the HUB-BROWSER showcase becomes buildable** — a `ui.page` Extensions page (search → results grid → preview → import; the flow of THIS repo's own 2026-07-22-purged `features/hub` carried as semantics, its UI designed fresh against the §4.5b failure list, `f6c5c588e` the dated drop) importing via `character.ingest`; it joins the example-plugin candidates (#673's seeded set) as the ui.page + ingest showcase | ordinary |
 
 No row renames or migrates anything an earlier row shipped; U1 alone already delivers the

@@ -2,13 +2,14 @@
 // #679 U1, §4.5: "spec rendered inside the plugin's row/detail — ST's per-extension settings drawer"). Reads
 // the caller's own `listSurfaces` (cached, shared across rows) and renders each of THIS plugin's settings
 // surfaces in the first-party plugin-labelled shell. `listSurfaces` returns only ENABLED plugins' surfaces, so
-// a disabled plugin renders nothing here.
+// a disabled plugin renders nothing here; a static surface with no `spec` is skipped (it has nothing to draw
+// and, unlike a scripted one, nothing that will ever compute it).
 //
-// BOTH TIERS MOUNT HERE (U4). A `static` surface renders its server-registered `spec`; a `scripted` one hands
-// off to `PluginScriptedSurface`, which boots the plugin's client guest and draws whatever tree it publishes.
-// The shell, the label and the row are identical either way — the tier changes who COMPUTES the tree, never
-// what a person sees around it. A static surface with no `spec` is still skipped: it has nothing to draw and,
-// unlike a scripted one, nothing that will ever compute it.
+// ALL THREE TIERS MOUNT HERE. A `static` surface renders its server-registered `spec`; a `scripted` one (U4)
+// hands off to `PluginScriptedSurface`, which boots the plugin's client guest and draws whatever tree it
+// publishes; a `frame` one (U7 — §6.1's "arbitrary-HTML settings look", served on the installer's OWN settings
+// screen under their own grant) hands off to `PluginFrame`, which draws its own shell so an un-minted frame
+// contributes no empty box. The tier changes who COMPUTES the surface, never what a person sees around it.
 
 import type { PluginCapability } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
@@ -16,6 +17,7 @@ import { Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
+import { PluginFrame } from "./plugin-frame.tsx";
 import { PluginScriptedSurface } from "./plugin-scripted-surface.tsx";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
 import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
@@ -37,7 +39,8 @@ export function PluginSurfacesPanel({ pluginId, pluginName, grants }: PluginSurf
   const { data: surfaces } = useQuery(trpc.plugin.listSurfaces.queryOptions());
   const all = surfaces ?? [];
   const mine = all.filter(
-    (surface) => surface.pluginId === pluginId && surface.anchor === "settings" && (surface.tier === "scripted" || surface.spec !== undefined),
+    (surface) =>
+      surface.pluginId === pluginId && surface.anchor === "settings" && (surface.tier === "scripted" || surface.tier === "frame" || surface.spec !== undefined),
   );
   if (mine.length === 0) {
     return null;
@@ -47,15 +50,22 @@ export function PluginSurfacesPanel({ pluginId, pluginName, grants }: PluginSurf
   const scriptedIds = all.filter((surface) => surface.pluginId === pluginId && surface.tier === "scripted").map((surface) => surface.id);
   return (
     <Stack gap="block">
-      {mine.map((surface) => (
-        <PluginSurfaceShell key={surface.id} pluginName={pluginName} title={surface.title}>
-          {surface.tier === "scripted" ? (
-            <PluginScriptedSurface grants={grants} pluginId={pluginId} surfaceId={surface.id} surfaceIds={scriptedIds} />
-          ) : (
-            surface.spec !== undefined && <PluginSurfaceRenderer pluginId={pluginId} spec={surface.spec} surfaceId={surface.id} />
-          )}
-        </PluginSurfaceShell>
-      ))}
+      {mine.map((surface) => {
+        // U7 frame → its OWN shell (`PluginFrame`); scripted (U4) → the client guest; static → the renderer.
+        if (surface.tier === "frame") {
+          return <PluginFrame key={surface.id} pluginId={pluginId} pluginName={pluginName} surfaceId={surface.id} title={surface.title} />;
+        }
+        return (
+          <PluginSurfaceShell key={surface.id} pluginName={pluginName} title={surface.title}>
+            {surface.tier === "scripted" ? (
+              <PluginScriptedSurface grants={grants} pluginId={pluginId} surfaceId={surface.id} surfaceIds={scriptedIds} />
+            ) : (
+              // The filter guarantees a static surface has a spec; the guard keeps the type narrow.
+              surface.spec !== undefined && <PluginSurfaceRenderer pluginId={pluginId} spec={surface.spec} surfaceId={surface.id} />
+            )}
+          </PluginSurfaceShell>
+        );
+      })}
     </Stack>
   );
 }

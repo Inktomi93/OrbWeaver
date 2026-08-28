@@ -19,6 +19,7 @@ const RAIL_LABELS: Record<Exclude<SectionId, "home">, string> = {
   characters: "Characters",
   corpus: "Corpus",
   config: "Configuration",
+  extensions: "Extensions",
   databank: "Databank",
   presets: "Presets",
   refinery: "Refinery",

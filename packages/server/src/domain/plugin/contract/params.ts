@@ -192,6 +192,16 @@ export interface ReportUiCrashParams {
   readonly reason: string;
 }
 
+/** `getFrameBody` — the DOCUMENT BYTES of one owned `frame`-tier surface (plugin-ui-plane #679 U7, §6.2). Owner-
+ *  scoped on `pluginId` (leak-free NOT_FOUND) AND re-gated per call on the row's live `ui.frame` grant, because a
+ *  resident instance outlives a re-grant and a consent that cannot be withdrawn is not a consent. Its ONE caller
+ *  is the plugin-frame doorway; the bytes never reach a projected wire shape. */
+export interface GetFrameBodyParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+  readonly surfaceId: string;
+}
+
 /** `invokeUiAction` — the guest-action round-trip (plugin-ui-plane #679 U1). Owner-scoped on `pluginId`
  *  (leak-free NOT_FOUND); re-enters the surface's `onAction` handler under the crash policy + the per-instance
  *  invoke queue. `values` is the collected form-field bag (all strings on the wire); the guest may publish new
@@ -210,6 +220,28 @@ export interface InvokeUiActionParams {
    *  room, with `canWrite` set from the caller's HOST authority — so a room-anchored action reaches the room a
    *  person is actually looking at, and only that one. */
   readonly chatId?: ChatId;
+}
+
+/** `listCommands` — the CALLER's OWN enabled plugins' registered commands (plugin-ui-plane #679 U5). No id, no
+ *  foreign scope: the `listSurfaces` posture exactly — the owner-scoped read of the caller's rows IS the gate. */
+export interface ListCommandsParams {
+  readonly caller: Principal;
+}
+
+/** `invokeUiCommand` — run one registered command (U5, §4.5). Owner-scoped on `pluginId` (leak-free NOT_FOUND);
+ *  re-enters `onRun` under the crash policy + the per-instance invoke queue, exactly like a UI action.
+ *
+ *  `args` is the RAW remainder after `/plugin <slug> <name>` (trimmed) — a command owns its own argument grammar
+ *  (the `SlashCommandRunner` contract, applied across the membrane). `chatId` is the room the person ran it in,
+ *  or `null` when there is none (the chrome menu outside a chat): it is gated as a real invocation chat scope,
+ *  so a command that reads the room needs the same authority any other guest read of that room does — a command
+ *  is not a back door around the chat-read admission. */
+export interface InvokeUiCommandParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+  readonly name: string;
+  readonly args: string;
+  readonly chatId: ChatId | null;
 }
 
 /** `listDisplayTransforms` — the caller's OWN enabled plugins' registered DISPLAY transforms (plugin-ui-plane

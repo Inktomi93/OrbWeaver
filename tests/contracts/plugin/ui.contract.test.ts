@@ -1,5 +1,6 @@
 // Contract tests for @orb/contracts/plugin/ui (#679 plugin-ui-plane U0, seam 3): the declarative surface-spec
-// vocabulary. The closed axes (anchors — page DEFERRED to U5; tiers; the 17 node kinds), the zod gate at the
+// vocabulary, through U5 (seam 16). The closed axes (the six anchors incl. `page`/`dialog`; tiers; the 20 node
+// kinds), the zod gate at the
 // node and SPEC-root levels (the global node/depth/byte caps that a per-node schema can never see), the
 // `$state` binding, and the impersonation-wall clamps that ride the vocabulary (no `primary` button, no
 // unknown kind, ident-only form keys). Mirror of ui.ts.
@@ -9,9 +10,13 @@ import {
   HOST_FUNCTION_CAPABILITY,
   isUiProxyableHostFunction,
   PLUGIN_ANCHOR_TIERS,
+  PLUGIN_COMMAND_DESCRIBE_MAX,
   PLUGIN_FOOTER_MAX_DEPTH,
   PLUGIN_FOOTER_MAX_NODES,
   PLUGIN_FOOTER_NODE_KIND_ALLOWED,
+  PLUGIN_FRAME_CSS_MAX_CHARS,
+  PLUGIN_FRAME_HTML_MAX_CHARS,
+  PLUGIN_GRID_TILES_MAX,
   PLUGIN_NODE_KINDS,
   PLUGIN_ROWS_MAX,
   PLUGIN_SPEC_MAX_BYTES,
@@ -19,8 +24,13 @@ import {
   PLUGIN_SPEC_MAX_NODES,
   PLUGIN_SURFACE_ANCHORS,
   PLUGIN_SURFACE_TIERS,
+  PLUGIN_TIER_REGISTRAR,
+  PLUGIN_TIER_REGISTRARS,
+  PLUGIN_TOAST_LEVELS,
   PLUGIN_TOOL_NAME_PREFIX,
   PLUGIN_TOOL_NAME_RE,
+  pluginCommandRegistrationMetaSchema,
+  pluginFrameBodySchema,
   pluginSurfaceRegistrationMetaSchema,
   pluginSurfaceSpecSchema,
   pluginToolWireName,
@@ -28,14 +38,12 @@ import {
 } from "@orb/contracts/plugin";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("PLUGIN_SURFACE_ANCHORS is the pinned anchor set (U6 added `message-footer`) — `page` is DEFERRED to U5 (seam 16)", () => {
-  expect(PLUGIN_SURFACE_ANCHORS).toEqual(["settings", "chat-flank", "chat-settings-section", "tool-card", "message-footer"]);
-  // The root-slot-lands-with-occupant rule: `page` has no first-party mount until U5, so it is NOT in the tuple.
-  expect((PLUGIN_SURFACE_ANCHORS as readonly string[]).includes("page")).toBe(false);
+test("PLUGIN_SURFACE_ANCHORS is the merged anchor set — U6's `message-footer`, then U5's `page` + `dialog`", () => {
+  expect(PLUGIN_SURFACE_ANCHORS).toEqual(["settings", "chat-flank", "chat-settings-section", "tool-card", "message-footer", "page", "dialog"]);
 });
 
-test("PLUGIN_SURFACE_TIERS is the two-tier axis [static, scripted]", () => {
-  expect(PLUGIN_SURFACE_TIERS).toEqual(["static", "scripted"]);
+test("PLUGIN_SURFACE_TIERS is the three-tier axis [static, scripted, frame] (U7 added the hatch)", () => {
+  expect(PLUGIN_SURFACE_TIERS).toEqual(["static", "scripted", "frame"]);
 });
 
 // ── Tier C (U4, §4.6) — the PROXY SUBSET, pinned by VALUE ────────────────────────────────────────────────────
@@ -72,6 +80,19 @@ test("the EXCLUSIONS are excluded — residency, authority writes, spend, and eg
     "events.on",
     "ui.register",
     "ui.setState",
+    // U5/U7 resident registrations — a COMMAND (the `register` mirror) and the `ui.frame` ESCAPE-HATCH door are
+    // the same process-lifetime, server-guest-owned class: a client UI guest holds `orb.ui(1)`, not
+    // `orb.host(1)`, and could no more register a command or mint a frame than register a tool.
+    "ui.registerCommand",
+    "ui.registerFrame",
+    // U5 HOST-MEDIATED affordances (§4.5a) — `toast`/`openDialog` are UI EFFECTS the SERVER mediates (the outbox
+    // stamps the plugin name and drains onto a client round-trip), not DATA the client guest lacks. The relay
+    // exists for server-owned data (chat/vars/storage); routing a toast through it would be a round-trip for an
+    // effect the server pushes back to the SAME client, contradicting the Tier-C ZERO-NETWORK property. If a
+    // scripted surface should ever raise one, that is a CLIENT UI-plane affordance (an `orb.ui(1)` method wired
+    // to the client host), a deliberate §5a enablement — never a free proxyable-tuple entry.
+    "ui.toast",
+    "ui.openDialog",
     // No invocation to resolve.
     "chat.current",
     // The AUTHORITY-WRITE class — each gated on `InvocationChat.canWrite`, whose sanctioned client-side route is
@@ -92,7 +113,7 @@ test("the EXCLUSIONS are excluded — residency, authority writes, spend, and eg
     expect(isUiProxyableHostFunction(fn), fn).toBe(false);
   }
   // Together with the ordered pin above, these two tests are exhaustive over `HOST_FUNCTION_CAPABILITY`: 9 in,
-  // 16 out, 25 total.
+  // 20 out, 29 total.
   expect(UI_PROXYABLE_HOST_FUNCTIONS.length + excluded.length).toBe(Object.keys(HOST_FUNCTION_CAPABILITY).length);
 });
 
@@ -105,7 +126,65 @@ test("every proxyable fn names a capability — the re-gate has something to che
   }
 });
 
-test("PLUGIN_NODE_KINDS is the pinned 17-kind vocabulary in §4.3 order", () => {
+// ── U7: the `ui.frame` ESCAPE HATCH (plugin-ui-plane §6.2, seam 13) ───────────────────────────────────────────
+// Three walls live in this file, and each one exists because the alternative is a silent widening: which ANCHORS
+// admit a frame, which HOST FUNCTION may mint one (hence which capability, hence which consent line), and what a
+// frame body may weigh.
+
+test("PLUGIN_TIER_REGISTRAR is TOTAL — every tier names the host function that mints it, so none inherits a door", () => {
+  for (const tier of PLUGIN_SURFACE_TIERS) {
+    expect(PLUGIN_TIER_REGISTRARS).toContain(PLUGIN_TIER_REGISTRAR[tier]);
+  }
+  // The FORK itself: the declarative tiers ride `ui.register` (capability `ui.surface`); the frame tier rides
+  // `ui.registerFrame` (capability `ui.frame`). If `frame` ever mapped to `ui.register`, a plugin granted only
+  // "show its own panels" could open an isolated frame by naming a tier.
+  expect(PLUGIN_TIER_REGISTRAR.static).toBe("ui.register");
+  expect(PLUGIN_TIER_REGISTRAR.scripted).toBe("ui.register");
+  expect(PLUGIN_TIER_REGISTRAR.frame).toBe("ui.registerFrame");
+});
+
+test("the `frame` column of PLUGIN_ANCHOR_TIERS is the §6.2 anchor list — and message-footer is FALSE permanently", () => {
+  // ADMITTED: the hatch's own anchors (§6.2) — the flank (the owner test's chess board), the installer's own
+  // settings screen (§6.1's arbitrary-HTML row), and tool cards (§6.1's arbitrary card art, lazy).
+  expect(PLUGIN_ANCHOR_TIERS["chat-flank"].frame).toBe(true);
+  expect(PLUGIN_ANCHOR_TIERS.settings.frame).toBe(true);
+  expect(PLUGIN_ANCHOR_TIERS["tool-card"].frame).toBe(true);
+  // REFUSED, and both refusals are decisions rather than omissions. `message-footer` is PERMANENT: one document
+  // per transcript row. `chat-settings-section` is the host-controls band, which §6.2's anchor list does not name.
+  expect(PLUGIN_ANCHOR_TIERS["message-footer"].frame).toBe(false);
+  expect(PLUGIN_ANCHOR_TIERS["chat-settings-section"].frame).toBe(false);
+});
+
+test("a frame surface is REFUSED at message-footer and admitted at the flank — the anchor belt bites on the new tier", () => {
+  const frameAt = (anchor: string): unknown => ({ id: "board", anchor, title: "Board", tier: "frame" });
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(frameAt("chat-flank")).success).toBe(true);
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(frameAt("message-footer")).success).toBe(false);
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(frameAt("chat-settings-section")).success).toBe(false);
+});
+
+test("a frame surface names NO spec — a document and a node tree are not two descriptions of one surface", () => {
+  const base = { id: "board", anchor: "chat-flank", title: "Board", tier: "frame" } as const;
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(base).success).toBe(true);
+  // A spec smuggled onto a frame registration would be a declarative surface for a plugin that may hold only
+  // `ui.frame` — the fork laundered through the OTHER field.
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse({ ...base, spec: { kind: "text", value: "hi" } }).success).toBe(false);
+});
+
+test("the frame BODY schema bounds size and nothing else — arbitrary pixels is the tier, the response CSP is the wall", () => {
+  expect(pluginFrameBodySchema.safeParse({ html: "<canvas id=board></canvas><script>draw()</script>" }).success).toBe(true);
+  expect(pluginFrameBodySchema.safeParse({ html: "<div/>", css: "body{margin:0}" }).success).toBe(true);
+  // The CONTENT is deliberately unconstrained: a script tag is the whole point of the tier, and pretending this
+  // schema is a sanitizer would teach the next reader that the isolation lives here rather than in the policy.
+  expect(pluginFrameBodySchema.safeParse({ html: "<script>fetch('https://evil')</script>" }).success).toBe(true);
+  // What IS bounded: the bytes, on both fields…
+  expect(pluginFrameBodySchema.safeParse({ html: "x".repeat(PLUGIN_FRAME_HTML_MAX_CHARS + 1) }).success).toBe(false);
+  expect(pluginFrameBodySchema.safeParse({ html: "<p/>", css: "x".repeat(PLUGIN_FRAME_CSS_MAX_CHARS + 1) }).success).toBe(false);
+  // …and the SHAPE: `strictObject`, so a smuggled key is a reject rather than a silent strip.
+  expect(pluginFrameBodySchema.safeParse({ html: "<p/>", src: "https://evil.example" }).success).toBe(false);
+  expect(pluginFrameBodySchema.safeParse({ css: "body{}" }).success).toBe(false);
+});
+
+test("PLUGIN_NODE_KINDS is the pinned 20-kind vocabulary in §4.3 order (U5 appended the browse genre)", () => {
   expect(PLUGIN_NODE_KINDS).toEqual([
     "stack",
     "row",
@@ -124,6 +203,9 @@ test("PLUGIN_NODE_KINDS is the pinned 17-kind vocabulary in §4.3 order", () => 
     "slider",
     "button",
     "confirmButton",
+    "grid",
+    "masterDetail",
+    "searchBar",
   ]);
 });
 
@@ -306,6 +388,89 @@ test("a tool-card surface MUST name its tool, and only a tool-card surface may n
   // the server derives from one is itself well-formed in the same charset (nothing here re-derives it).
   expect(pluginSurfaceRegistrationMetaSchema.safeParse({ ...base, anchor: "tool-card", toolName: "Draw Card" }).success).toBe(false);
   expect(PLUGIN_TOOL_NAME_RE.test("draw")).toBe(true);
+});
+
+// ── U5: the BROWSE-GENRE vocabulary + the host-mediated affordance grammar (§4.5a/§4.5b, seam 16) ──────────
+
+test("a browse page is spellable end to end: searchBar + grid inside a masterDetail arrangement", () => {
+  const page: PluginSurfaceSpec = {
+    kind: "masterDetail",
+    active: { $state: "stage" },
+    stages: [
+      {
+        id: "browse",
+        kind: "browse",
+        title: "Results",
+        body: {
+          kind: "stack",
+          children: [
+            { kind: "searchBar", name: "q", label: "Search", actionId: "search", filters: [{ kind: "toggle", name: "nsfw", label: "Include NSFW" }] },
+            {
+              kind: "grid",
+              aspect: "portrait",
+              empty: "No results yet — try a search.",
+              tiles: [{ id: "a1", title: { $state: "results.0.name" }, subtitle: "by someone", actionId: "open" }],
+            },
+          ],
+        },
+      },
+      { id: "detail", kind: "detail", title: { $state: "picked.name" }, body: { kind: "markdown", value: { $state: "picked.description" } } },
+    ],
+  };
+  expect(pluginSurfaceSpecSchema.safeParse(page).success).toBe(true);
+});
+
+test("at most ONE searchBar per spec — 'prominent' is a claim two of them refute (§4.5b failure 3)", () => {
+  const two: PluginSurfaceSpec = {
+    kind: "stack",
+    children: [
+      { kind: "searchBar", name: "q", label: "Search" },
+      { kind: "searchBar", name: "q2", label: "Search again" },
+    ],
+  };
+  expect(pluginSurfaceSpecSchema.safeParse(two).success).toBe(false);
+  const one: PluginSurfaceSpec = { kind: "stack", children: [{ kind: "searchBar", name: "q", label: "Search" }] };
+  expect(pluginSurfaceSpecSchema.safeParse(one).success).toBe(true);
+});
+
+test("the global caps SEE THROUGH the U5 recursion — masterDetail stage bodies and searchBar filters both count", () => {
+  // THE HAZARD THIS PINS: `masterDetail`/`searchBar` carry children under fields that are NOT called `children`,
+  // so a cap walk that only knew the three container kinds would report a passing node count over an
+  // arbitrarily deep subtree. Both arms below are over a cap that is only reachable THROUGH the new field.
+  let deep: PluginSurfaceSpec = { kind: "text", value: "leaf" };
+  for (let i = 0; i < PLUGIN_SPEC_MAX_DEPTH; i++) {
+    deep = { kind: "masterDetail", stages: [{ id: "s", kind: "browse", body: deep }] };
+  }
+  expect(pluginSurfaceSpecSchema.safeParse(deep).success).toBe(false);
+
+  const manyFilters: PluginSurfaceSpec = {
+    kind: "searchBar",
+    name: "q",
+    label: "Search",
+    filters: Array.from({ length: PLUGIN_SPEC_MAX_NODES }, () => ({ kind: "text", value: "n" }) as const),
+  };
+  expect(pluginSurfaceSpecSchema.safeParse(manyFilters).success).toBe(false);
+});
+
+test("a grid refuses more tiles than the cap, and a tile's cover is an ASSET id — never a URL (the exfil wall)", () => {
+  const tiles = Array.from({ length: PLUGIN_GRID_TILES_MAX + 1 }, (_, i) => ({ id: `t${i}`, title: `T${i}` }));
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "grid", tiles }).success).toBe(false);
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "grid", tiles: [{ id: "t", title: "T", assetId: "https://evil.example/x.png" }] }).success).toBe(false);
+});
+
+test("a masterDetail needs at least one stage — a page arrangement that renders nothing is not a state", () => {
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "masterDetail", stages: [] }).success).toBe(false);
+});
+
+test("a plugin COMMAND's name is the guest-local ident grammar and its help is required + capped", () => {
+  expect(pluginCommandRegistrationMetaSchema.safeParse({ name: "draw", describe: "Draw a card" }).success).toBe(true);
+  expect(pluginCommandRegistrationMetaSchema.safeParse({ name: "Draw Card", describe: "Draw a card" }).success).toBe(false);
+  expect(pluginCommandRegistrationMetaSchema.safeParse({ name: "draw", describe: "" }).success).toBe(false);
+  expect(pluginCommandRegistrationMetaSchema.safeParse({ name: "draw", describe: "x".repeat(PLUGIN_COMMAND_DESCRIBE_MAX + 1) }).success).toBe(false);
+});
+
+test("PLUGIN_TOAST_LEVELS is the HOUSE notify vocabulary — a plugin gets no severity the app cannot render", () => {
+  expect(PLUGIN_TOAST_LEVELS).toEqual(["info", "success", "warn", "error"]);
 });
 
 test("pluginToolWireName is the ONE mint: hyphens in the slug become underscores, and it carries the claimed prefix", () => {

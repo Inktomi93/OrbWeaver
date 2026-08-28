@@ -32,6 +32,7 @@ import {
   createPluginRateFloor,
   createPluginService,
   createPluginSurfaceStateStore,
+  createPluginUiOutbox,
   createSnippetGate,
   createUiHostCallGate,
   PLUGIN_EGRESS_PER_HOUR,
@@ -87,7 +88,7 @@ function makeFakePort(): FakePort {
       const scripted = queue.shift();
       const outcome: CreateInstanceOutcome = scripted ?? {
         ok: true,
-        instance: { tools: [], transforms: [], events: [], surfaces: [], displayTransforms: [], macros: [] },
+        instance: { tools: [], transforms: [], events: [], surfaces: [], commands: [], displayTransforms: [], macros: [] },
       };
       if (outcome.ok) {
         logs.set(outcome.instance, []);
@@ -136,7 +137,7 @@ export function makeSandboxPort(seams: HostSeams): PluginHostPort {
         sandbox.dispose();
         return { ok: false, error: outcome.error?.message ?? "activation failed", log: toLog(outcome.logs) };
       }
-      const instance: PluginInstance = { tools: [], transforms: [], events: [], surfaces: [], displayTransforms: [], macros: [] };
+      const instance: PluginInstance = { tools: [], transforms: [], events: [], surfaces: [], commands: [], displayTransforms: [], macros: [] };
       sandboxes.set(instance, sandbox);
       logs.set(instance, toLog(outcome.logs));
       return { ok: true, instance };
@@ -224,6 +225,9 @@ export function makePluginHarness(
     // a `getSurfaceState`/deactivate test observes exactly what `ui.setState` wrote (a permissive fake would let
     // a test prove state semantics the shared store does not have).
     surfaceState: createPluginSurfaceStateStore(),
+    // …and the REAL UI outbox over the harness's frozen clock, for the SAME reason: the toast rate floor lives
+    // inside it, and a permissive fake would let a test prove a flood the production outbox refuses.
+    uiOutbox: createPluginUiOutbox(() => clock.now()),
     // The snippet AUTHORITY seam — full authority by default (the harness caller is the owner); a test needing a
     // read-only or no-access chat overrides it. The composed-real int test drives the REAL loadPresentRole gate.
     resolveChatAuthority: overrides.resolveChatAuthority ?? (() => Promise.resolve({ canRead: true, canWrite: true })),
@@ -304,7 +308,10 @@ export function makeInertOps(): PluginHostOps {
     // non-host act does not EXECUTE, and the tests that care about the ask being stored inject a recorder.
     suggestions: { raise: () => undefined, voidForPlugin: () => undefined },
     quickReply: { surface: () => Promise.resolve() },
-    ui: { setState: () => Promise.resolve() },
+    // The U5 host-mediated ops are INERT here for the same reason `setState` is: a verb test asserts what the
+    // verb does with the outbox (`ctx.uiOutbox` is the real one), not what a compose-side op wired to it does.
+    // A test that wants to observe a queued toast pushes through the real outbox directly.
+    ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
     imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_inert00000000000000000" }) },
     variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
     registrar: {

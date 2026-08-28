@@ -11,6 +11,7 @@
 
 import type { DeploymentRenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
 import { resolveRenderPolicy } from "@orb/contracts/chat";
+import { PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
 import { securityHeaders } from "@orb/server/entry/http";
 import { Hono } from "hono";
 import { describe } from "vitest";
@@ -221,6 +222,32 @@ describe("securityHeaders", () => {
       for (const [path, csp] of served) {
         expect(csp, path).toContain("default-src 'self'");
       }
+    });
+
+    // ADDED 2026-08-28 (#679 U7). The exemption gained a SECOND member — the plugin-frame document — and it is
+    // the same class for the same mechanical reason, so it gets the same three pins. Nothing about the app
+    // policy's DIRECTIVES moved with it: the frames are same-origin, and `frame-src 'self'` above already
+    // admitted them. What moved is which paths this middleware steps aside for.
+    test("the PLUGIN-frame served document keeps its own policy too — the second member of the same class", async () => {
+      const h = await servedFor(`${PLUGIN_FRAME_ROUTE}/0123456789abcdef0123456789abcdef`);
+      expect(h.get("content-security-policy")).toBe("sandbox; default-src 'none'");
+      expect(h.get("content-security-policy")).not.toContain("script-src");
+      // `X-Frame-Options: DENY` would refuse our own embed outright, which is how a lost exemption announces
+      // itself in the EMBEDDED case (the direct-navigation case is the quiet one — see plugin-frame.test.ts).
+      expect(h.get("x-frame-options")).toBeNull();
+    });
+
+    test("the PLUGIN-frame MINT path is NOT exempt — a JSON reply keeps the full app header set", async () => {
+      const h = await servedFor(PLUGIN_FRAME_ROUTE);
+      expect(h.get("content-security-policy")).toContain("script-src 'self'");
+      expect(h.get("x-frame-options")).toBe("DENY");
+    });
+
+    test("the plugin-frame prefix exempts no sibling either — `/api/plugin-frames/x` is NOT the document path", async () => {
+      // The near-miss that a `startsWith` on a hand-typed prefix would admit. The real prefix is DERIVED from
+      // `PLUGIN_FRAME_ROUTE` and ends in a slash, so a differently-named sibling route keeps the app policy.
+      const h = await servedFor("/api/plugin-frames/x");
+      expect(h.get("content-security-policy")).toContain("default-src 'self'");
     });
   });
 

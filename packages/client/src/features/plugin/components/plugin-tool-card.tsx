@@ -25,6 +25,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { toolCardState } from "../lib/plugin-tool-card-state.ts";
+import { PluginFrame } from "./plugin-frame.tsx";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
 import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
 
@@ -44,9 +45,31 @@ export function PluginToolCard({ record }: PluginToolCardProps): ReactElement {
 
   // `toolWireName` is the SERVER's projection of `plugin_<slug'>_<toolName>` (the one mint lives in contracts;
   // the client never re-derives the namespacing rule). A surface only carries it at the `tool-card` anchor.
-  const surface = (surfaces ?? []).find((row) => row.toolWireName === record.name && row.spec !== undefined);
+  const surface = (surfaces ?? []).find((row) => row.toolWireName === record.name && (row.tier === "frame" || row.spec !== undefined));
   const pluginName = surface === undefined ? undefined : plugins?.find((row) => row.id === surface.pluginId)?.name;
-  if (surface?.spec === undefined || pluginName === undefined) {
+  if (surface === undefined || pluginName === undefined) {
+    return <ToolCallBlock record={record} />;
+  }
+  // U7 — the ARBITRARY-CARD-ART arm (§6.1). LAZY, never per-row-eager: the mint happens on mount and the iframe
+  // itself carries `loading="lazy"`, so a transcript scrolled past a plugin tool call pays for nothing. Note
+  // what a frame card CANNOT do that a declarative one can: bind `{ $state }` to the `ToolCallRecord`. A frame
+  // is a document, and handing it the call's args/result would be a new read channel this phase did not price —
+  // so a frame card draws the plugin's own art and the record's facts stay with the declarative arm.
+  // The FALLBACK is explicit here and nowhere else: this anchor's law is the opposite of the flank's. A frame
+  // that cannot mint must still leave the call's record in the transcript, so it degrades to the generic block
+  // rather than to silence.
+  if (surface.tier === "frame") {
+    return (
+      <PluginFrame
+        fallback={<ToolCallBlock record={record} />}
+        pluginId={surface.pluginId}
+        pluginName={pluginName}
+        surfaceId={surface.id}
+        title={surface.title}
+      />
+    );
+  }
+  if (surface.spec === undefined) {
     return <ToolCallBlock record={record} />;
   }
   return (
