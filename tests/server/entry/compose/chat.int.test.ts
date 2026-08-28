@@ -27,12 +27,16 @@ import type { Principal } from "@orb/contracts/identity";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import type { ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
+import { rpgGames } from "@orb/db";
+import type { ChatId, Handle, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
-import { describe } from "vitest";
+import { eq } from "drizzle-orm";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
+import { seedPreset } from "../../domain/preset/_support.ts";
+import { seedGame } from "../../domain/rpg/_support.ts";
 
 /** The host `Principal` (role-irrelevant here — the edit gate matches on author identity; the host-tier regex
  *  set resolves under this user's `UserSettings`). `via:"header"` mirrors the fixture callers. */
@@ -171,5 +175,130 @@ describe("resolveSeatDeco — the tighten-only external-media ceiling, composed 
     expect(seat?.renderPolicy?.htmlTrust).toBe("trusted");
     // The human seat keeps the bare deployment floor.
     expect(roster.find((p) => p.userId === host)?.renderPolicy).toEqual({ htmlTrust: "untrusted", forbidExternalMedia: true });
+  });
+});
+
+// ── #759 — the composed preset-read catches narrow to PresetNotFoundError, END TO END ──────────────────────
+// `resolvePromptConfigFor` (compose/chat.ts) is reachable through `chat.getVariables` (the picker-pane read
+// that folds the host's default-preset ChoiceBlock declarations); `resolvePromptConfigWithOverride`'s own
+// try/catch (the GM-voice preset REDIRECT) is reachable through `chatRpgOps.resolveChatPresetProse`. Both
+// closures are internal to `ChatComposeResult` — these are the only two seams that surface them without
+// re-deriving a full turn. `services.preset` is the SAME instance the composed `ChatComposeInput.preset`
+// closes over (compose-observe-via-service-spyon), so `vi.spyOn` intercepts the real injected read.
+describe("compose/chat.ts — the preset-read catches narrow to PresetNotFoundError (#759)", () => {
+  test("getVariables (resolvePromptConfigFor): a non-not-found preset rejection PROPAGATES", async ({ db, services }) => {
+    const host = await seedUser(db, castId<Handle>("presethost1"));
+    const chatId = await seedChat(db, "presetchat1");
+    await seedParticipant(db, { chatId, key: "presethost1", userId: host, role: "host" });
+    await services.settings.updateUserSettingsSection({
+      principal: hostPrincipal(host),
+      input: { section: "seeds", patch: { defaultPresetId: castId<PresetId>("preset_will_error") } },
+    });
+    const dbDown = new Error("preset store unreachable");
+    vi.spyOn(services.preset, "get").mockRejectedValueOnce(dbDown);
+
+    await expect(services.chat.getVariables({ principal: hostPrincipal(host), chatId })).rejects.toBe(dbDown);
+  });
+
+  test("getVariables: a genuinely stale/unowned default preset id still degrades to the system default", async ({ db, services }) => {
+    const host = await seedUser(db, castId<Handle>("presethost2"));
+    const chatId = await seedChat(db, "presetchat2");
+    await seedParticipant(db, { chatId, key: "presethost2", userId: host, role: "host" });
+    await services.settings.updateUserSettingsSection({
+      principal: hostPrincipal(host),
+      input: { section: "seeds", patch: { defaultPresetId: castId<PresetId>("preset_gone_forever") } },
+    });
+
+    // DEFAULT_PROMPT_CONFIG declares no ChoiceBlock variables — the lenient-id fallback is byte-observable
+    // as an empty picker.
+    await expect(services.chat.getVariables({ principal: hostPrincipal(host), chatId })).resolves.toEqual({});
+  });
+
+  test("chatRpgOps.resolveChatPresetProse (resolvePromptConfigWithOverride): a non-not-found GM-preset rejection PROPAGATES", async ({ db, app, services }) => {
+    const host = await seedUser(db, castId<Handle>("gmhost1"));
+    const chatId = await seedChat(db, "gmchat1");
+    await seedParticipant(db, { chatId, key: "gmhost1", userId: host, role: "host" });
+    const gameId = await seedGame(db, chatId, "gmoverride1");
+    // `rpg_games.gm_preset_id` is a real FK — the row must actually exist for the update to land; the
+    // failure under test comes from the SPIED read, not a missing row.
+    const gmPreset = await seedPreset(db, { id: castId<PresetId>("preset_gm_voice1"), ownerId: null, name: "GM voice" });
+    await db.update(rpgGames).set({ gmPresetId: gmPreset }).where(eq(rpgGames.id, gameId));
+    const dbDown = new Error("gm-voice preset unreachable");
+    vi.spyOn(services.preset, "get").mockRejectedValueOnce(dbDown);
+
+    await expect(app.chatRpgOps.resolveChatPresetProse(chatId)).rejects.toBe(dbDown);
+  });
+
+  test("chatRpgOps.resolveChatPresetProse: a genuinely stale/unowned GM override still falls through to the host default", async ({ db, app }) => {
+    const host = await seedUser(db, castId<Handle>("gmhost2"));
+    const other = await seedUser(db, castId<Handle>("gmhostother"));
+    const chatId = await seedChat(db, "gmchat2");
+    await seedParticipant(db, { chatId, key: "gmhost2", userId: host, role: "host" });
+    const gameId = await seedGame(db, chatId, "gmoverride2");
+    // A REAL preset row the game's host cannot read (owned by someone else) — the genuine
+    // `PresetNotFoundError` control, no mocking needed.
+    const foreignPreset = await seedPreset(db, { id: castId<PresetId>("preset_gm_foreign"), ownerId: other, name: "Their voice" });
+    await db.update(rpgGames).set({ gmPresetId: foreignPreset }).where(eq(rpgGames.id, gameId));
+
+    // Never throws — the redirect degrades to the host's normal (unset) default, which composes to a
+    // defined ProseOverrides object rather than propagating the stale override.
+    await expect(app.chatRpgOps.resolveChatPresetProse(chatId)).resolves.toBeDefined();
+  });
+});
+
+// ── #760 — the composed persona-read catches narrow to PersonaNotFoundError, END TO END ─────────────────────
+// `resolveCurrentPersona` and `resolveDefaultPersona` (compose/chat.ts) are both reachable through
+// `chat.startChat`'s founding-anchor chain (`resolveFoundingAnchor`: explicit > connected > current >
+// default). Each is pinned in isolation by leaving the OTHER seed pointer unset (so its own read never
+// fires — an unset pointer returns null without calling `persona.get` at all).
+describe("compose/chat.ts — the persona-read catches narrow to PersonaNotFoundError (#760)", () => {
+  test("startChat (resolveCurrentPersona): a non-not-found persona rejection PROPAGATES", async ({ db, services }) => {
+    const host = await seedUser(db, castId<Handle>("personahost1"));
+    const characterId = await seedCharacter(db, host, "personacard1");
+    await services.settings.updateUserSettingsSection({
+      principal: hostPrincipal(host),
+      input: { section: "seeds", patch: { currentPersonaId: castId<PersonaId>("persona_gone1") } },
+    });
+    const dbDown = new Error("persona store unreachable");
+    vi.spyOn(services.persona, "get").mockRejectedValueOnce(dbDown);
+
+    await expect(services.chat.startChat({ principal: hostPrincipal(host), characterIds: [characterId], opening: "none" })).rejects.toBe(dbDown);
+  });
+
+  test("startChat: a genuinely stale currentPersonaId still falls through the chain (no active persona)", async ({ db, services }) => {
+    const host = await seedUser(db, castId<Handle>("personahost2"));
+    const characterId = await seedCharacter(db, host, "personacard2");
+    await services.settings.updateUserSettingsSection({
+      principal: hostPrincipal(host),
+      input: { section: "seeds", patch: { currentPersonaId: castId<PersonaId>("persona_gone2") } },
+    });
+
+    const { chat } = await services.chat.startChat({ principal: hostPrincipal(host), characterIds: [characterId], opening: "none" });
+    expect(chat.anchorPersonaId).toBeNull();
+  });
+
+  test("startChat (resolveDefaultPersona): a non-not-found persona rejection PROPAGATES", async ({ db, services }) => {
+    const host = await seedUser(db, castId<Handle>("personahost3"));
+    const characterId = await seedCharacter(db, host, "personacard3");
+    await services.settings.updateUserSettingsSection({
+      principal: hostPrincipal(host),
+      input: { section: "seeds", patch: { defaultPersonaId: castId<PersonaId>("persona_gone3") } },
+    });
+    const dbDown = new Error("persona store unreachable");
+    vi.spyOn(services.persona, "get").mockRejectedValueOnce(dbDown);
+
+    await expect(services.chat.startChat({ principal: hostPrincipal(host), characterIds: [characterId], opening: "none" })).rejects.toBe(dbDown);
+  });
+
+  test("startChat: a genuinely stale defaultPersonaId still falls through the chain (no active persona)", async ({ db, services }) => {
+    const host = await seedUser(db, castId<Handle>("personahost4"));
+    const characterId = await seedCharacter(db, host, "personacard4");
+    await services.settings.updateUserSettingsSection({
+      principal: hostPrincipal(host),
+      input: { section: "seeds", patch: { defaultPersonaId: castId<PersonaId>("persona_gone4") } },
+    });
+
+    const { chat } = await services.chat.startChat({ principal: hostPrincipal(host), characterIds: [characterId], opening: "none" });
+    expect(chat.anchorPersonaId).toBeNull();
   });
 });

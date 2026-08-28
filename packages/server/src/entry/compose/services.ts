@@ -60,6 +60,7 @@ import { createCredentialsService } from "#domain/credentials";
 import type { DatabankIngest } from "#domain/databank";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
+import { PersonaNotFoundError } from "#domain/persona";
 import { createCopyPresetToUser, PresetNotFoundError } from "#domain/preset";
 import type { RpgTraceRecorder } from "#domain/rpg";
 import { createExportRpgGame, createRpgTraceRecorder } from "#domain/rpg";
@@ -1000,8 +1001,13 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       // the id is VERIFIED before it is seated — the `resolveCurrentPersona` precedent in compose/chat.ts.
       try {
         return (await persona.get({ principal, personaId: castId<PersonaId>(raw) })).id;
-      } catch {
-        return null;
+      } catch (err) {
+        // Only a genuinely stale/deleted persona id is optional — a database, I/O, or program failure
+        // must surface (never silently stamp an example without the intended identity, #760).
+        if (err instanceof PersonaNotFoundError) {
+          return null;
+        }
+        throw err;
       }
     },
     // rpg's REAL create door + the authored-setup replay through rpg's real HAND doors (entry/compose/
