@@ -1,0 +1,139 @@
+// CT: the EXTENSIONS rail section — the platform's full-page home (plugin-ui-plane #679 U5, §4.5b/§9, seam 16)
+// — over the REAL section registry with a stubbed network. The subjects are `registry.get("extensions").list()`
+// and `.content()`, the exact calls the shell makes, so what is pinned is the production path.
+//
+// THE OWNER'S U5 TESTS, the two this file owns:
+//   * "a plugin registers a page and it appears behind the Extensions rail entry's switcher" — a `page`-anchored
+//     surface becomes a plugin-labelled row, and picking it renders the page.
+//   * "zero pages ⇒ the teaching empty" — with an action, because a dead-end empty is what makes the whole
+//     platform undiscoverable (the section ships rail-VISIBLE precisely so this state teaches).
+//
+// AND THE ONE §9 SAYS IS LOAD-BEARING: THE PINNED ATTRIBUTION BAND. A full page is the biggest impersonation
+// canvas in this design — a page can draw a convincing fake settings screen entirely out of house primitives,
+// because house primitives are what it is made of. So the band's presence is pinned ON EVERY PAGE (both pages
+// of a two-page roster, not one), and it is pinned to carry the plugin's NAME and the "Extension" kicker: a
+// band that rendered without the name would be the wall reporting green while doing nothing.
+
+import type { PluginId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { expect, test } from "@playwright/experimental-ct-react";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ExtensionsPageStory, ExtensionsSwitcherStory } from "../_ct-stories.tsx";
+
+const A_PAST_INSTANT = 1_760_000_000_000;
+const ORACLE_ID = castId<PluginId>("plugin_ct_oracle00000001");
+const CHIPS_ID = castId<PluginId>("plugin_ct_chips000000001");
+
+/** One installed row as `plugin.list` projects it — the join every plugin surface reads its NAME from. */
+function pluginRow(id: PluginId, slug: string, name: string): Record<string, unknown> {
+  return {
+    id,
+    slug,
+    name,
+    version: "1.0.0",
+    status: "enabled",
+    origin: "upload",
+    declaredCapabilities: ["ui.surface"],
+    grantedCapabilities: ["ui.surface"],
+    netHosts: null,
+    reconsentPending: false,
+    widenedNetHosts: [],
+    builtAgainst: null,
+    consecutiveCrashes: 0,
+    lastError: null,
+    installedAt: A_PAST_INSTANT,
+    updatedAt: A_PAST_INSTANT,
+  };
+}
+
+/** One `listSurfaces` row (the serializable meta + its pluginId; the `onAction` handle stays server-side). */
+function pageRow(pluginId: PluginId, id: string, title: string, spec: unknown): Record<string, unknown> {
+  return { pluginId, id, anchor: "page", title, tier: "static", spec };
+}
+
+const DECK_SPEC = { kind: "stack", gap: "block", children: [{ kind: "text", value: { $state: "status" }, voice: "label" }] };
+const CHIPS_SPEC = { kind: "stack", gap: "block", children: [{ kind: "text", value: "Scene chips live here.", voice: "body" }] };
+
+const TWO_PAGES: Readonly<Record<string, unknown>> = {
+  "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck"), pluginRow(CHIPS_ID, "scene-chips", "Scene Chips")],
+  "plugin.listSurfaces": () => [pageRow(ORACLE_ID, "deck_page", "The Deck", DECK_SPEC), pageRow(CHIPS_ID, "chips_page", "Chips", CHIPS_SPEC)],
+  "plugin.getSurfaceState": () => ({ status: "Session open · 2 dealt" }),
+};
+
+const NO_PAGES: Readonly<Record<string, unknown>> = {
+  // INSTALLED AND ENABLED but registering no `page` surface — the common case for everyone who has a plugin at
+  // all, and the arm where a rail entry that only ever showed a full list would teach nothing.
+  "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck")],
+  "plugin.listSurfaces": () => [],
+};
+
+test.describe("the page switcher", () => {
+  test("a registered `page` surface becomes a PLUGIN-LABELLED row (one per page, across plugins)", async ({ mount, page }) => {
+    await routeTrpc(page, TWO_PAGES);
+    await mount(<ExtensionsSwitcherStory />);
+
+    const rows = page.getByRole("button", { name: /The Deck|Chips/u });
+    await expect(rows).toHaveCount(2);
+    // THE ATTRIBUTION IS IN THE ACCESSIBLE NAME, not just beside it: two plugins may both register a page called
+    // "Browse", and a list of identically-named rows is unusable by voice and ambiguous by eye. The plugin name
+    // is the row's disambiguator AND its subtitle.
+    await expect(page.getByRole("button", { name: /The Deck.*Oracle Deck/u })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Chips.*Scene Chips/u })).toBeVisible();
+  });
+
+  test("ZERO pages ⇒ the TEACHING empty, with the action that leads to installing one", async ({ mount, page }) => {
+    await routeTrpc(page, NO_PAGES);
+    await mount(<ExtensionsSwitcherStory />);
+
+    await expect(page.getByText("No extension pages yet")).toBeVisible();
+    await expect(page.getByText("Install a plugin with page surfaces and it will appear here.")).toBeVisible();
+    // `empty-state-has-action` is the law; this is the RENDERED half of it — a dead-end empty here would make
+    // the whole platform undiscoverable for anyone who has never installed a page-bearing plugin.
+    await expect(page.getByRole("button", { name: "Open Plugins" })).toBeVisible();
+  });
+});
+
+test.describe("the page-scale shell", () => {
+  test("THE ATTRIBUTION BAND IS PRESENT ON EVERY PAGE — name, and the 'Extension' kicker (§9)", async ({ mount, page }) => {
+    await routeTrpc(page, TWO_PAGES);
+
+    // Page one.
+    const first = await mount(<ExtensionsPageStory selectKey={`${ORACLE_ID}:deck_page`} />);
+    const band = page.getByTestId("plugin-page-attribution");
+    await expect(band).toBeVisible();
+    await expect(band).toContainText("Oracle Deck");
+    await expect(band).toContainText("The Deck");
+    await expect(band).toContainText("Extension");
+    // …and the page's own body rendered beneath it, bound to the plugin's published state.
+    await expect(page.getByText("Session open · 2 dealt")).toBeVisible();
+    await first.unmount();
+
+    // Page TWO — the band is pinned on EVERY page, not on the one the first test happened to open. A wall that
+    // holds for one page and not the next is not a wall.
+    await mount(<ExtensionsPageStory selectKey={`${CHIPS_ID}:chips_page`} />);
+    const secondBand = page.getByTestId("plugin-page-attribution");
+    await expect(secondBand).toBeVisible();
+    await expect(secondBand).toContainText("Scene Chips");
+    await expect(secondBand).toContainText("Extension");
+  });
+
+  test("NO SELECTION reads differently from NO PAGES — 'pick one' and 'there are none' are different facts", async ({ mount, page }) => {
+    await routeTrpc(page, TWO_PAGES);
+    await mount(<ExtensionsPageStory selectKey={null} />);
+    // Two pages exist; nothing is picked. Collapsing this into the install-a-plugin empty would tell a person
+    // with two extensions installed that they have none.
+    await expect(page.getByText("Pick an extension page")).toBeVisible();
+    await expect(page.getByText("No extension pages yet")).toHaveCount(0);
+    // …and no band, because no page is being attributed.
+    await expect(page.getByTestId("plugin-page-attribution")).toHaveCount(0);
+  });
+
+  test("a page whose plugin went away renders the honest GONE line, never a blank pane", async ({ mount, page }) => {
+    await routeTrpc(page, NO_PAGES);
+    // The drill outlived its page (the plugin was disabled while it was open). The store is ephemeral and never
+    // self-heals by writing — it just stops resolving until the person picks again (D138 rule 2).
+    await mount(<ExtensionsPageStory selectKey={`${ORACLE_ID}:deck_page`} />);
+    await expect(page.getByText("That page is no longer available")).toBeVisible();
+    await expect(page.getByTestId("plugin-page-attribution")).toHaveCount(0);
+  });
+});

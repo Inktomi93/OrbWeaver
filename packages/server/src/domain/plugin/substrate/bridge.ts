@@ -80,6 +80,13 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     }
     return plugin.id;
   };
+  /** The identity form — for the one op that needs the plugin's NAME too (`ui.toast`'s attribution prefix). */
+  const requirePlugin = (fn: string): PluginIdentity => {
+    if (plugin === null) {
+      throw new Error(`plugin host: ${fn} requires an installed plugin (unavailable to a transient snippet)`);
+    }
+    return plugin;
+  };
   return {
     chat: {
       // VIEWER CLAMP (the read-visibility D-entry): resolve the INSTALLER's membership + D16 history floor as
@@ -242,6 +249,13 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // A transient snippet has no pluginId — and no `ui.surface` grant, so the capability gate never reaches this.
     ui: {
       setState: (surfaceId, state) => ops.ui.setState(requirePluginId("ui.setState"), installerUserId, surfaceId, state),
+      // The two HOST-MEDIATED affordances (U5, §4.5a). `toast` takes the whole identity because the outbox
+      // stamps the plugin NAME as the attribution prefix — the toast half of the labeled-shell wall — and a
+      // guest supplies only the body. Both require an installed plugin for the same reason `storage`/`notify`
+      // do: they are keyed to a durable row (the outbox, the rate floor), and a transient snippet holds no
+      // `ui.surface` grant anyway, so the capability gate refuses first.
+      toast: (level, message) => ops.ui.toast(requirePlugin("ui.toast"), level, message),
+      openDialog: (surfaceId) => ops.ui.openDialog(requirePluginId("ui.openDialog"), surfaceId),
     },
   };
 }

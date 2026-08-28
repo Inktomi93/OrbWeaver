@@ -7,7 +7,7 @@
 // hand-built, i.e. here; the cross-invocation half of that invariant is the escape suite's (it needs a Sandbox).
 // The full end-to-end runtime lives in port.test.ts; this is the module's own-seam mirror.
 
-import type { InvocationChat, PluginBridge, PluginCapability, PluginQuietOptions, PluginSuggestedAct } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginBridge, PluginCapability, PluginQuietOptions, PluginSuggestedAct, PluginToastLevel } from "@orb/contracts/plugin";
 import { PLUGIN_FRAME_HTML_MAX_CHARS, PLUGIN_FRAME_SURFACES_MAX } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { getPluginQuickJS, HOST_FN_DEADLINE_MS } from "@orb/server/infra/plugin-host";
@@ -30,11 +30,21 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
   llm: { prompts: string[]; opts: (PluginQuietOptions | undefined)[] };
   egress: { count: number };
   suggested: { acts: PluginSuggestedAct[] };
-  performed: { turns: number; lore: number; pictures: number; chips: number; uiSetState: { surfaceId: string; state: Record<string, unknown> }[] };
+  performed: {
+    turns: number;
+    lore: number;
+    pictures: number;
+    chips: number;
+    uiSetState: { surfaceId: string; state: Record<string, unknown> }[];
+    uiToasts: { level: PluginToastLevel; message: string }[];
+    uiDialogs: string[];
+  };
 } {
   const writes = { count: 0 };
   const uiSetState: { surfaceId: string; state: Record<string, unknown> }[] = [];
-  const performed = { turns: 0, lore: 0, pictures: 0, chips: 0, uiSetState };
+  const uiToasts: { level: PluginToastLevel; message: string }[] = [];
+  const uiDialogs: string[] = [];
+  const performed = { turns: 0, lore: 0, pictures: 0, chips: 0, uiSetState, uiToasts, uiDialogs };
   const llm: { prompts: string[]; opts: (PluginQuietOptions | undefined)[] } = { prompts: [], opts: [] };
   const egress = { count: 0 };
   const suggested: { acts: PluginSuggestedAct[] } = { acts: [] };
@@ -93,6 +103,17 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
         performed.uiSetState.push({ surfaceId, state });
         return Promise.resolve();
       },
+      // The U5 host-mediated affordances (§4.5a). Recorded, not inert: the membrane's job here is the LEVEL
+      // resolve (an unrecognised level degrades to the quietest arm) and the surfaceId grammar, and neither is
+      // observable without capturing what crossed.
+      toast: (level, message) => {
+        performed.uiToasts.push({ level, message });
+        return Promise.resolve();
+      },
+      openDialog: (surfaceId) => {
+        performed.uiDialogs.push(surfaceId);
+        return Promise.resolve();
+      },
     },
   };
   return { bridge, writes, llm, egress, suggested, performed };
@@ -105,6 +126,7 @@ interface RuntimeExtras {
   readonly collectTransform?: MembraneRuntime["collectTransform"];
   readonly collectEvent?: MembraneRuntime["collectEvent"];
   readonly collectSurface?: MembraneRuntime["collectSurface"];
+  readonly collectCommand?: MembraneRuntime["collectCommand"];
   readonly collectDisplayTransform?: MembraneRuntime["collectDisplayTransform"];
   readonly collectMacro?: MembraneRuntime["collectMacro"];
   readonly logWarn?: MembraneRuntime["logWarn"];
@@ -124,6 +146,7 @@ function makeRuntime(grants: readonly PluginCapability[], canWrite: boolean, bri
     collectTransform: extra.collectTransform ?? ((): void => undefined),
     collectEvent: extra.collectEvent ?? ((): void => undefined),
     collectSurface: extra.collectSurface ?? ((): void => undefined),
+    collectCommand: extra.collectCommand ?? ((): void => undefined),
     collectDisplayTransform: extra.collectDisplayTransform ?? ((): void => undefined),
     collectMacro: extra.collectMacro ?? ((): void => undefined),
     logWarn: extra.logWarn ?? ((): void => undefined),
@@ -859,6 +882,107 @@ describe("host.ui — declarative surface registration + state publish (plugin-u
       expect(setStateName).toBe("PluginCapabilityError");
     });
     expect(performed.uiSetState).toEqual([]);
+  });
+
+  // ── U5: the command collector + the two HOST-MEDIATED affordances (§4.5/§4.5a) ──────────────────────────
+
+  test("host.ui.registerCommand collects a VALIDATED command and keeps the onRun handle", async () => {
+    const { bridge } = fakeBridge();
+    const collected: { name: string; describe: string }[] = [];
+    const runtime = makeRuntime(uiGrants, false, bridge, {
+      collectCommand: (meta, onRun): void => {
+        collected.push({ name: meta.name, describe: meta.describe });
+        onRun.dispose();
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      const out = ctx.evalCode(`host.ui.registerCommand({ name: "draw", describe: "Draw a card", onRun: async () => {} }); "ok"`);
+      if (out.error) {
+        throw new Error(readString(ctx, out.error));
+      }
+      out.value.dispose();
+    });
+    expect(collected).toEqual([{ name: "draw", describe: "Draw a card" }]);
+  });
+
+  test("a malformed command is a SOFT refusal — logged and skipped, never activation-fatal (§4.9)", async () => {
+    const { bridge } = fakeBridge();
+    const collected: string[] = [];
+    const warnings: string[] = [];
+    const runtime = makeRuntime(uiGrants, false, bridge, {
+      collectCommand: (meta, onRun): void => {
+        collected.push(meta.name);
+        onRun.dispose();
+      },
+      logWarn: (message): void => {
+        warnings.push(message);
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      // A display-name `name` (not the ident grammar), an empty `describe`, and a non-function `onRun` — three
+      // separate refusals. The last is the one that MATTERS: a command with nothing to run is a dead menu row,
+      // which is worse than an absent one, so it is refused rather than collected as display-only.
+      const out = ctx.evalCode(
+        `host.ui.registerCommand({ name: "Draw Card", describe: "x", onRun: () => {} });
+         host.ui.registerCommand({ name: "ok_one", describe: "", onRun: () => {} });
+         host.ui.registerCommand({ name: "ok_two", describe: "fine", onRun: "not a function" });
+         host.ui.registerCommand({ name: "good", describe: "fine", onRun: () => {} });
+         "survived"`,
+      );
+      if (out.error) {
+        throw new Error(readString(ctx, out.error));
+      }
+      // The activation SURVIVED all three refusals — a stale command must not kill the tools beside it.
+      expect(ctx.getString(out.value)).toBe("survived");
+      out.value.dispose();
+    });
+    expect(collected).toEqual(["good"]);
+    expect(warnings).toHaveLength(3);
+  });
+
+  test("host.ui.toast resolves the LEVEL against the closed house tuple — an unknown level degrades to the quietest arm", async () => {
+    const { bridge, performed } = fakeBridge();
+    const runtime = makeRuntime(uiGrants, false, bridge);
+    await withRuntime(runtime, async (ctx) => {
+      expect(await runAsync(ctx, `host.ui.toast("success", "drew The Road").then(() => "ok", (e) => e.message)`)).toBe("ok");
+      // A guest cannot widen its own attention footprint by naming a string the host did not admit.
+      expect(await runAsync(ctx, `host.ui.toast("CRITICAL", "look at me").then(() => "ok", (e) => e.message)`)).toBe("ok");
+    });
+    expect(performed.uiToasts).toEqual([
+      { level: "success", message: "drew The Road" },
+      { level: "info", message: "look at me" },
+    ]);
+  });
+
+  test("host.ui.openDialog REFUSES an id outside the surface-id grammar — the bridge is never reached", async () => {
+    const { bridge, performed } = fakeBridge();
+    const runtime = makeRuntime(uiGrants, false, bridge);
+    await withRuntime(runtime, async (ctx) => {
+      expect(await runAsync(ctx, `host.ui.openDialog("reveal_dialog").then(() => "reached", (e) => "caught")`)).toBe("reached");
+      // An unbounded id would be an unbounded outbox key — the same grammar `ui.register`/`setState` enforce.
+      expect(await runAsync(ctx, `host.ui.openDialog("Bad Id!").then(() => "reached", (e) => "caught")`)).toBe("caught");
+    });
+    expect(performed.uiDialogs).toEqual(["reveal_dialog"]);
+  });
+
+  test("registerCommand / toast / openDialog are ALL gated by the ui.surface capability", async () => {
+    const { bridge, performed } = fakeBridge();
+    const runtime = makeRuntime([], false, bridge); // NO ui.surface grant
+    await withRuntime(runtime, async (ctx) => {
+      const registerName = ctx.evalCode(
+        `let name = ""; try { host.ui.registerCommand({ name: "draw", describe: "d", onRun: () => {} }); } catch (e) { name = e.name; } name`,
+      );
+      if (registerName.error) {
+        throw new Error(readString(ctx, registerName.error));
+      }
+      expect(ctx.getString(registerName.value)).toBe("PluginCapabilityError");
+      registerName.value.dispose();
+      expect(await runAsync(ctx, `host.ui.toast("info", "x").then(() => "ok", (e) => e.name)`)).toBe("PluginCapabilityError");
+      expect(await runAsync(ctx, `host.ui.openDialog("x").then(() => "ok", (e) => e.name)`)).toBe("PluginCapabilityError");
+    });
+    // Nothing reached the bridge: an ungranted plugin raises no chrome at all.
+    expect(performed.uiToasts).toEqual([]);
+    expect(performed.uiDialogs).toEqual([]);
   });
 });
 

@@ -22,6 +22,7 @@ function instanceWith(names: readonly string[]): PluginInstance {
     transforms: [],
     events: [],
     surfaces: [],
+    commands: [],
     macros: [],
     displayTransforms: names.map((name) => ({ name, handler: castId<PluginHandlerRef>(`handler-${name}`) })),
   };

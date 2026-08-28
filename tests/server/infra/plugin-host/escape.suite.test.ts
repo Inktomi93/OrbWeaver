@@ -10,22 +10,48 @@
 // membrane.test.ts); DoS deadline/OOM/stack containment (sandbox.test.ts). This file adds the NET-NEW corpus:
 // realm-escape walks, cross-boundary prototype pollution, the guest→host INBOUND inert boundary, the
 // stale-token / single-chat-per-invocation invariant, the ≤32 concurrency cap, the monotonic-clock DoS kill,
-// and the multi-pending teardown drain.
+// the multi-pending teardown drain, and the POST-INVOCATION job pump's CPU bound (#781).
+//
+// Elapsed time uses `process.hrtime()` (the test-determinism gate bans Date.now/performance.now), the same
+// spelling sandbox.test.ts uses for the deadline-kill receipts.
 
 import process from "node:process";
 import type { PluginBridge } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
-import { createPluginHost, getPluginQuickJS, installRealm, LogRing, Sandbox } from "@orb/server/infra/plugin-host";
+import { createPluginHost, getPluginQuickJS, installRealm, LogRing, PLUGIN_MEMORY_LIMIT_BYTES, Sandbox } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
 const CHAT_A = "chat_aaaa000000000000000000000" as ChatId;
 const CHAT_B = "chat_bbbb000000000000000000000" as ChatId;
 const LONG = 30_000;
+/** §6's poll ceiling — inside `LONG` so a wedged pump reports its own assertion, not a bare test timeout. */
+const POLL_MS = 25_000;
+/** §6's per-instance guest-CPU window — small enough that the bound is legible in the elapsed receipt, far
+ *  above the control arm's real work. */
+const PUMP_CPU_MS = 200;
+/** §6's host resolution, landing LATER than the whole CPU window — the control arm's point: the deadline
+ *  bounds guest BYTECODE, never wall-time-to-settle, so a continuation resuming after a slow host call must
+ *  still run. */
+const SLOW_HOST_MS = 400;
+/** §6's ceiling on how long the main thread may stay blocked by one continuation. */
+const PUMP_RELEASE_CEILING_MS = 2000;
+/** §6's runaway: guest iterations costing SECONDS of unbounded main-thread CPU (measured ~2.3 s per 1e8 on
+ *  this runtime/box). Big enough that "preempted" and "the loop simply finished" can never be confused;
+ *  FINITE so a regressed run REPORTS instead of hanging the suite forever (a `while(true)` here would be a
+ *  SIGKILL, and a suite that dies has no finding). */
+const RUNAWAY_ITERATIONS = "2e8";
+const MS_PER_SEC = 1000;
+const NS_PER_MS = 1_000_000;
+
+function elapsedMs(start: [number, number]): number {
+  const [seconds, nanos] = process.hrtime(start);
+  return seconds * MS_PER_SEC + nanos / NS_PER_MS;
+}
 
 function makeSeams(seed = 1): HostSeams {
   let state = seed;
@@ -190,7 +216,7 @@ describe("escape — the guest→host argument boundary is inert (no callable/li
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
-      ui: { setState: () => Promise.resolve() },
+      ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
     };
     return { bridge, captured };
   }
@@ -275,7 +301,7 @@ describe("escape — a stale chat handle cannot read a prior/other chat (single-
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
-      ui: { setState: () => Promise.resolve() },
+      ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
     };
     // First call stashes the token into the resident guest global; second call replays the STALE token.
     const main = `
@@ -356,7 +382,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
-      ui: { setState: () => Promise.resolve() },
+      ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
     };
     // Fire 40 gated host calls in ONE invocation; the gate never settles during it. 32 are admitted (stay pending),
     // calls 33–40 reject synchronously with the back-pressure error → exactly 8 rejections.
@@ -421,7 +447,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
-      ui: { setState: () => Promise.resolve() },
+      ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
     };
     const main = `
       const h = orb.host(1);
@@ -493,7 +519,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
-      ui: { setState: () => Promise.resolve() },
+      ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
     };
     const main = `
       const h = orb.host(1);
@@ -546,7 +572,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
-      ui: { setState: () => Promise.resolve() },
+      ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
     };
     // The guest passes a MALICIOUS 3rd+ arg (a forged funder) + a spoofed depth field on the hints — all ignored.
     const main =
@@ -583,5 +609,123 @@ describe("escape — resource ceilings hold under adversarial load", () => {
     } finally {
       sandbox.dispose();
     }
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────────────────────────────────
+// 6. THE POST-INVOCATION JOB PUMP (#781) — guest bytecode that resumes AFTER its invocation settled is
+//    STILL bounded. The CPU interrupt is a per-context LIFETIME handler reading a mutable window, not an
+//    install/remove pair scoped to `runToSettlement`: before the repair, a fire-and-forget host call whose
+//    `.then` continuation looped ran on the Node MAIN THREAD with no interrupt handler installed at all —
+//    one line of guest JS at activation, only `storage.kv`, and the whole process wedged with no recovery.
+// ────────────────────────────────────────────────────────────────────────────────────────────────────────
+describe("escape — a runaway guest CONTINUATION cannot wedge the host (the post-invocation pump is bounded)", () => {
+  /** A bridge whose `storage.get` parks on the supplied gate and whose `storage.set` is the host-side
+   *  observable for how far the guest continuation got. Everything else is inert (this pin is about the
+   *  pump, not the belts). */
+  function pumpBridge(gate: () => Promise<string | null>, wrote: string[]): PluginBridge {
+    return {
+      chat: {
+        listMessages: () => Promise.resolve([]),
+        getVariables: () => Promise.resolve({}),
+        applyVariableOps: () => Promise.resolve(),
+        requestTurn: () => Promise.resolve(),
+      },
+      worldInfo: { upsertEntry: () => Promise.resolve() },
+      imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_x0000000000000000000000" }) },
+      variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
+      storage: {
+        get: gate,
+        set: (key): Promise<void> => {
+          wrote.push(key);
+          return Promise.resolve();
+        },
+        delete: () => Promise.resolve(),
+        list: () => Promise.resolve([]),
+      },
+      notifications: { post: () => Promise.resolve() },
+      surfaceQuickReply: () => Promise.resolve(),
+      llm: { quiet: () => Promise.resolve({ text: "" }) },
+      admitEgress: (): void => undefined,
+      suggest: () => Promise.resolve(),
+      ui: {
+        setState: () => Promise.resolve(),
+        toast: () => Promise.resolve(),
+        openDialog: () => Promise.resolve(),
+      },
+    };
+  }
+
+  test("a fire-and-forget continuation that loops is PREEMPTED mid-loop — it never reaches its next host call", { timeout: LONG }, async () => {
+    // THE ATTACK (#781): `main.js` fires a host call it never awaits and loops in the `.then`. The call settles
+    // AFTER activation returned, so the continuation runs in the DETACHED job pump — the site that used to
+    // execute guest bytecode with NO interrupt handler installed. Measured on the unmodified source: the
+    // continuation ran to completion (~2.3 s per 1e8 iterations) with the Node main thread blocked for the
+    // duration; a `while(true)` there is a permanent whole-process wedge (SIGKILL, exit 137).
+    const host = makeHost();
+    const wrote: string[] = [];
+    let release!: (value: string | null) => void;
+    const gate = new Promise<string | null>((resolve) => {
+      release = resolve;
+    });
+    // `resumed` proves the continuation actually RAN (without it an all-refused / never-pumped run would
+    // satisfy the ceiling vacuously); `escaped` is the bytecode PAST the runaway loop, which must never run.
+    const main = `
+      const h = orb.host(1);
+      h.storage.get('gate').then(function () {
+        h.storage.set('resumed', '1');
+        for (var i = 0; i < ${RUNAWAY_ITERATIONS}; i++) {}
+        h.storage.set('escaped', '1');
+      });
+      'activated';`;
+    const outcome = await host.createInstance({
+      mainJs: main,
+      grants: ["storage.kv"],
+      bridge: pumpBridge(() => gate, wrote),
+      chat: null,
+      budgets: { cpuDeadlineMs: PUMP_CPU_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES },
+    });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) {
+      return;
+    }
+    const started = process.hrtime();
+    release(null);
+    await vi.waitFor(() => expect(wrote).toContain("resumed"), { timeout: POLL_MS, interval: 5 });
+    const blockedMs = elapsedMs(started);
+    // The continuation was interrupted mid-loop: the host write PAST the loop never happened...
+    expect(wrote).not.toContain("escaped");
+    // ...and the main thread came back inside the window rather than after the whole loop (~2.3 s+). Generous
+    // bound: the interrupt reads real monotonic time, so it fires at PUMP_CPU_MS regardless of box load.
+    expect(blockedMs).toBeLessThan(PUMP_RELEASE_CEILING_MS);
+    host.dispose(outcome.instance);
+  });
+
+  test("a continuation resuming after a SLOW host call still completes — the window bounds BYTECODE, not wall-time-to-settle", { timeout: LONG }, async () => {
+    // The over-bound guard for the pin above: the repair must not convert "guest CPU" into "wall clock since
+    // the invocation started". Here the host call settles 400 ms out — twice the whole CPU window — and the
+    // continuation then does a small bounded amount of work. It MUST complete.
+    const host = makeHost();
+    const wrote: string[] = [];
+    const main = `
+      const h = orb.host(1);
+      h.storage.get('slow').then(function () {
+        for (var i = 0; i < 1e5; i++) {}
+        h.storage.set('control-completed', '1');
+      });
+      'activated';`;
+    const outcome = await host.createInstance({
+      mainJs: main,
+      grants: ["storage.kv"],
+      bridge: pumpBridge(() => new Promise<string | null>((resolve) => setTimeout(() => resolve(null), SLOW_HOST_MS)), wrote),
+      chat: null,
+      budgets: { cpuDeadlineMs: PUMP_CPU_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES },
+    });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) {
+      return;
+    }
+    await vi.waitFor(() => expect(wrote).toContain("control-completed"), { timeout: POLL_MS, interval: 5 });
+    host.dispose(outcome.instance);
   });
 });

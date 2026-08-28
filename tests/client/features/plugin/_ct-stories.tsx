@@ -21,7 +21,7 @@ import {
 import type { ChatSettingsSectionContribution, ChatSurfaceContribution, ToolRenderer } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { SettingsSectionContribution } from "@orb/client/state";
-import { selectChat, useSectionRegistry } from "@orb/client/state";
+import { clearPluginPage, selectChat, selectPluginPage, useSectionRegistry } from "@orb/client/state";
 import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -30,7 +30,7 @@ import { MessageToolCalls } from "../../../../packages/client/src/features/chat/
 // The "This chat" tab as the component it is — the same relative-into-the-package import chat's own story
 // module takes for it (a story legitimately composes feature internals the front door does not re-export).
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
-import { CtChatContributorSectionRegistry, CtDataProviders, CtSettingsSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry, CtSettingsSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 import { CHAT_ID } from "../chat/fixtures.ts";
 
 /** The settings modal's content column at its real docked width — the narrowest REAL host for this pane. */
@@ -188,4 +188,68 @@ export function PluginToolCardStory({
       </div>
     </CtDataProviders>
   );
+}
+
+// ── U5: the EXTENSIONS section (plugin-ui-plane #679, §4.5b / seam 16) ─────────────────────────────────────
+// Both halves render through the REAL section registry — `registry.get("extensions").list()` / `.content()`,
+// the exact calls the shell's own `SectionList`/`SectionContent` make — so what the CT exercises is the
+// production path a person gets, not a hand-mounted surface. The CT drives the DATA (`plugin.listSurfaces` +
+// `plugin.list`), which is the only input that decides between the teaching empty, the switcher, and a page.
+
+/** The LIST pane's real docked width — the narrowest REAL host for the page switcher. */
+const SWITCHER_PANE_WIDTH = 320;
+/** A CONTENT region a page-scale shell can fill; fixed, so the band's geometry compares like with like. */
+const PAGE_REGION = { width: 900, height: 600 };
+
+/** The Extensions section's LIST pane, through the real registry (`CtRealSectionRegistry` mirrors the door). */
+export function ExtensionsSwitcherStory({ width = SWITCHER_PANE_WIDTH }: { readonly width?: number }): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div style={{ width }}>
+          <ExtensionsListHarness />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+function ExtensionsListHarness(): ReactElement {
+  const registry = useSectionRegistry();
+  const list = registry.get("extensions").list;
+  if (typeof list !== "function") {
+    throw new Error("ct-stories: the extensions section declares no list pane");
+  }
+  return <>{list()}</>;
+}
+
+/** The Extensions section's CONTENT pane, through the real registry. `selectKey` drives the module-singleton
+ *  drill store the way a switcher click does (`selectPluginPage`) — `null` is the no-selection arm, which is a
+ *  DIFFERENT state from "there are no pages" and must read differently. */
+export function ExtensionsPageStory({ selectKey = null }: { readonly selectKey?: string | null }): ReactElement {
+  useEffect(() => {
+    if (selectKey === null) {
+      clearPluginPage();
+    } else {
+      selectPluginPage(selectKey);
+    }
+  }, [selectKey]);
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div style={{ height: PAGE_REGION.height, width: PAGE_REGION.width }}>
+          <ExtensionsContentHarness />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+function ExtensionsContentHarness(): ReactElement {
+  const registry = useSectionRegistry();
+  const content = registry.get("extensions").content;
+  if (typeof content !== "function") {
+    throw new Error("ct-stories: the extensions section content is a planned stub, not a body");
+  }
+  return <>{content()}</>;
 }

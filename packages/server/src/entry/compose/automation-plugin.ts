@@ -61,6 +61,7 @@ import {
   createPluginRateFloor,
   createPluginService,
   createPluginSurfaceStateStore,
+  createPluginUiOutbox,
   createSnippetGate,
   createSurfaceStatePublisher,
   isPluginEnabledFor,
@@ -439,6 +440,11 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   // The UI-surface STATE plane (plugin-ui-plane #679 U1) — ONE per process, shared by the `ui.setState` write
   // op below, the `getSurfaceState` read verb (via `ctx.surfaceState`), and the deactivate sweep. Respawn wipes.
   const pluginSurfaceState = createPluginSurfaceStateStore();
+  // The UI OUTBOX (plugin-ui-plane #679 U5) — the surface-state plane's sibling: ONE per process, shared by the
+  // `ui.toast`/`ui.openDialog` write ops below, the two invoke verbs that DRAIN it (via `ctx.uiOutbox`), and the
+  // deactivate sweep. Its `now` is the same injected clock every other belt reads, so a suite advances the toast
+  // cooldown rather than sleeping through it.
+  const pluginUiOutbox = createPluginUiOutbox(now);
   const pluginHostOps: PluginHostOps = {
     // INVARIANT (injected-op-caller-gate, INFO-5): every chat op below takes a BARE chatId and does NOT re-check
     // caller authority — it TRUSTS that admission already happened. The membrane is the ONLY caller and the gate.
@@ -604,7 +610,21 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // per-user freshness poke. Homed in `domain/plugin/substrate` (not inline here) so the emit literal is where
     // the `user-bus-coverage` gate can see it (its scope is domain|transport, not entry/compose). The 16 KiB
     // cap is enforced inside the store's `set` (a throw ⇒ a rejected guest promise upstream).
-    ui: { setState: createSurfaceStatePublisher(pluginSurfaceState, publishUserEvent) },
+    // …and the two U5 HOST-MEDIATED affordances, both straight onto the shared outbox (the SAME store the invoke
+    // verbs drain + deactivate clears). Unlike `setState` these emit NO bus event on purpose: a toast and a
+    // dialog-open are chrome, not data, so they have nothing to invalidate — they ride the outcome of the
+    // round-trip that caused them (§4.5a), which is also the wall that makes a spontaneous modal unspellable.
+    ui: {
+      setState: createSurfaceStatePublisher(pluginSurfaceState, publishUserEvent),
+      toast: (identity, level, message) => {
+        pluginUiOutbox.pushToast(identity, level, message);
+        return Promise.resolve();
+      },
+      openDialog: (pluginId, surfaceId) => {
+        pluginUiOutbox.requestDialog(pluginId, surfaceId);
+        return Promise.resolve();
+      },
+    },
     registrar: {
       // PL-A: a plugin tool namespaces `plugin_<slug'>_<name>` and lands in the ONE tool-use registry.
       registerTool: (reg, invoke, scope) =>
@@ -711,6 +731,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // The UI-surface state plane — the SAME store `ops.ui.setState` writes above (getSurfaceState reads it,
       // deactivate clears it). Shared by construction, so a publish is visible to the very next read.
       surfaceState: pluginSurfaceState,
+      uiOutbox: pluginUiOutbox,
       // The capability BELTS — process-wide state, minted ONCE here and shared by every activation (the
       // resident-registry precedent); the domain's bridge claims the relevant one per guarded call. The two
       // HOURLY floors are the only bounds on a RATE anywhere in the sandbox: every other cap is per-call or

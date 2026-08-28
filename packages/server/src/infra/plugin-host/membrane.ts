@@ -29,12 +29,14 @@ import type {
   InvocationChat,
   PluginBridge,
   PluginCapability,
+  PluginCommandRegistrationMeta,
   PluginFrameBody,
   PluginInvocationLiveness,
   PluginQuietOptions,
   PluginQuietSchema,
   PluginSuggestedAct,
   PluginSurfaceRegistrationMeta,
+  PluginToastLevel,
   PluginTransformRegistration,
   PluginWorldEntryUpsert,
 } from "@orb/contracts/plugin";
@@ -44,8 +46,10 @@ import {
   PLUGIN_QUIET_IMAGES_MAX,
   PLUGIN_SURFACE_ID_RE,
   PLUGIN_TIER_REGISTRAR,
+  PLUGIN_TOAST_LEVELS,
   PluginCapabilityError,
   PluginSuggestedError,
+  pluginCommandRegistrationMetaSchema,
   pluginFrameBodySchema,
   pluginSurfaceRegistrationMetaSchema,
 } from "@orb/contracts/plugin";
@@ -65,6 +69,7 @@ import {
   PLUGIN_NET_MAX_BYTES,
   PLUGIN_QUIET_PROMPT_MAX_CHARS,
 } from "./budgets.ts";
+import { pumpGuestJobs } from "./cpu-guard.ts";
 import { jsToHandle } from "./marshal.ts";
 
 export type { InvocationChat, PluginBridge } from "@orb/contracts/plugin";
@@ -153,6 +158,13 @@ export interface MembraneRuntime {
    *  = a display-only surface). Unlike tools/transforms/events a surface needs NO external registrar: it is read
    *  directly off the resident instance by `plugin.listSurfaces` and re-entered by `plugin.invokeUiAction`. */
   readonly collectSurface: (meta: PluginSurfaceRegistrationMeta, onAction: QuickJSHandle | null, frame?: PluginFrameBody) => void;
+  /** Collect a UI COMMAND registration — the `collectSurface` mirror (plugin-ui-plane #679 U5, §4.5). `meta` is
+   *  the ALREADY-VALIDATED serializable descriptor; `onRun` is the guest handler HANDLE the Sandbox keeps alive
+   *  keyed by a minted ref, and it is NON-NULL by construction (a command with nothing to run is a dead menu
+   *  row, not a display-only affordance — the membrane refuses one softly before ever calling this). Like a
+   *  surface, a command needs no external registrar: `plugin.listCommands` reads it off the resident instance
+   *  and `plugin.invokeUiCommand` re-enters it. */
+  readonly collectCommand: (meta: PluginCommandRegistrationMeta, onRun: QuickJSHandle) => void;
   /** Append a WARN line to the instance's log ring (drained into the invocation outcome / runtime ring). The ONE
    *  soft-diagnostic seam: `ui.register` uses it to record a refused surface WITHOUT throwing — an invalid surface
    *  spec must not be activation-fatal (a plugin's tools/chips outlive its stale panel, plugin-ui-plane §4.9). */
@@ -525,6 +537,89 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       const raw = args[1];
       const state: Record<string, unknown> = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
       await runtime.bridge.ui.setState(surfaceId, state);
+      return null;
+    },
+  });
+
+  // registerCommand — SYNC, activation-time, the `register` mirror (U5, §4.5). Same SOFT-refusal posture: a
+  // malformed command must not kill the activation that also registered the plugin's tools, events and panels.
+  // Unlike a surface the handler is REQUIRED — a command with no `onRun` is a menu row that does nothing, which
+  // is worse than an absent one, so a non-function `onRun` is a refusal rather than a display-only arm.
+  using registerCommandFn = ctx.newFunction("registerCommand", (defHandle?: QuickJSHandle) => {
+    requireCapability(runtime, "ui.registerCommand");
+    if (defHandle === undefined) {
+      throw new Error("plugin host: ui.registerCommand requires a definition object");
+    }
+    // Same ownership split as `register`: the metadata handles are scope-owned; `onRun`'s ownership TRANSFERS
+    // to the Sandbox on the collect path and is hand-disposed on every other, so it is never `using`.
+    using nameH = ctx.getProp(defHandle, "name");
+    using describeH = ctx.getProp(defHandle, "describe");
+    const onRun = ctx.getProp(defHandle, "onRun");
+    let parsed: ReturnType<typeof pluginCommandRegistrationMetaSchema.safeParse>;
+    try {
+      const name = tryDumpGuestValue(ctx, nameH);
+      const describe = tryDumpGuestValue(ctx, describeH);
+      if (!(name.ok && describe.ok)) {
+        throw new Error("metadata is too deeply nested or too large to validate");
+      }
+      parsed = pluginCommandRegistrationMetaSchema.safeParse({ name: name.value, describe: describe.value });
+    } catch (err) {
+      onRun.dispose();
+      runtime.logWarn(`ui.registerCommand refused a command: ${err instanceof Error ? err.message : String(err)}`);
+      return ctx.undefined;
+    }
+    if (!parsed.success) {
+      onRun.dispose();
+      runtime.logWarn(`ui.registerCommand refused a command: ${z.prettifyError(parsed.error)}`);
+      return ctx.undefined;
+    }
+    if (ctx.typeof(onRun) !== "function") {
+      onRun.dispose();
+      runtime.logWarn(`ui.registerCommand refused '${parsed.data.name}': onRun must be a function`);
+      return ctx.undefined;
+    }
+    runtime.collectCommand(parsed.data, onRun);
+    return ctx.undefined;
+  });
+  ctx.setProp(ui, "registerCommand", registerCommandFn);
+
+  // toast — ASYNC, runtime. The LEVEL is resolved against the closed house tuple rather than a hand-spelled
+  // literal (the `PLUGIN_NOTIFICATION_RECIPIENTS` posture): an unrecognised value degrades to the QUIETEST arm
+  // (`info`), so a guest can never widen its own attention footprint by naming a string the host did not admit.
+  // The MESSAGE is guest text; the domain stamps the plugin-name prefix, applies the length cap and claims the
+  // per-plugin rate floor — infra holds none of those and must not pretend to.
+  attachAsync(ctx, ui, {
+    name: "toast",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "ui.toast");
+      const named = args[0];
+      const level: PluginToastLevel = PLUGIN_TOAST_LEVELS.find((member) => member === named) ?? "info";
+      const message = args[1];
+      if (typeof message !== "string") {
+        throw new Error("plugin host: ui.toast requires a message string");
+      }
+      await runtime.bridge.ui.toast(level, message);
+      return null;
+    },
+  });
+
+  // openDialog — ASYNC, runtime. The id is bounded by the SAME grammar `ui.register` enforces (an unbounded id
+  // would be an unbounded outbox key); WHICH dialog it names is resolved DOMAIN-side against the plugin's own
+  // registered surfaces when the outbox drains, so infra cannot leak whether a surface exists and a guest
+  // cannot open another plugin's dialog (the outbox is keyed by the plugin the guest is).
+  attachAsync(ctx, ui, {
+    name: "openDialog",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "ui.openDialog");
+      const surfaceId = args[0];
+      if (typeof surfaceId !== "string" || !PLUGIN_SURFACE_ID_RE.test(surfaceId)) {
+        throw new Error("plugin host: ui.openDialog requires a valid surfaceId (/^[a-z][a-z0-9_]{0,40}$/)");
+      }
+      await runtime.bridge.ui.openDialog(surfaceId);
       return null;
     },
   });
@@ -1254,8 +1349,9 @@ function chargeValue(value: unknown, pending: unknown[]): number {
 }
 
 /** Build + attach ONE async host function: guest args via `ctx.dump`, the impl races a real-time deadline, the
- *  JSON-safe result crosses back via `jsToHandle` (size-capped), and settled guest jobs are pumped (bounded by
- *  the invocation deadline). ≤ 32 concurrent host calls per instance — call 33 rejects (back-pressure).
+ *  JSON-safe result crosses back via `jsToHandle` (size-capped), and settled guest jobs are pumped under their
+ *  own guest-CPU window (`cpu-guard.ts` — the pump runs guest continuations, so it is bounded like an
+ *  invocation is). ≤ 32 concurrent host calls per instance — call 33 rejects (back-pressure).
  *  A thrown/rejected impl (a capability/handle/host-authority refusal, or a bridge error) rejects the guest
  *  promise — errors-as-data, never a host crash.
  *
@@ -1373,11 +1469,15 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
         clearTimeout(timer);
       });
 
+    // THE POST-INVOCATION PUMP (#781). When this host call settles LATER than the invocation that fired it,
+    // the guest's `.then` continuation runs HERE — bytecode outside any invocation, which until the
+    // context-lifetime CPU guard landed executed with NO interrupt handler installed at all: one
+    // `h.storage.get(k).then(function () { while (true) {} })` in `main.js` wedged the Node MAIN THREAD
+    // permanently. `pumpGuestJobs` opens a fresh CPU window around the pump and owns the `ctx.alive` guard for
+    // the late-settle case (the instance can be torn down before this call lands).
     superviseDetached(`plugin-host:${name}:${randomUUID()}`, "plugin.host.pending-jobs", { hostFunction: name }, () =>
       deferred.settled.then(() => {
-        if (ctx.alive) {
-          ctx.runtime.executePendingJobs();
-        }
+        pumpGuestJobs(ctx);
       }),
     );
     return deferred.handle;
