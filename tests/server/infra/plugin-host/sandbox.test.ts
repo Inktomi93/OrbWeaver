@@ -13,12 +13,18 @@ import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { boundHostFn, getPluginQuickJS, PLUGIN_INVOCATION_ENDED, Sandbox } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext, QuickJSHandle, VmCallResult } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
 const MS_PER_SEC = 1000;
 const NS_PER_MS = 1_000_000;
+/** #781's runaway: guest iterations costing SECONDS of unbounded main-thread CPU (~2.3 s per 1e8 on this
+ *  runtime/box). FINITE so a regressed run REPORTS instead of hanging the suite forever. */
+const RUNAWAY_ITERATIONS = "2e8";
+/** #781's ceiling on how long one continuation may hold the Node main thread (the pump's default window is
+ *  `PLUGIN_INVOCATION_CPU_MS` = 1 s, the runaway loop above is ~4.5 s). */
+const PUMP_RELEASE_CEILING_MS = 3000;
 
 function makeSeams(seed = 1): HostSeams {
   let state = seed;
@@ -348,6 +354,50 @@ describe("boundHostFn — the self-bounding membrane call", () => {
       expect(settledString(ctx, result)).toContain("cap");
     });
   });
+
+  // #781 — the POST-SETTLE pump is the second half of the reentrancy footgun. `boundHostFn` pumps the guest's
+  // pending jobs when its deferred settles, and that pump used to run guest bytecode with NO interrupt handler:
+  // a `.then` continuation that loops wedged the Node main thread with no recovery. The repair is a
+  // CONTEXT-LIFETIME interrupt reading a mutable window, and the pump opens one — even on a bare context this
+  // standalone primitive was handed (there is no Sandbox here, so the pump's own lazy install is what bounds it,
+  // at the default `PLUGIN_INVOCATION_CPU_MS`). This pin is also the fail-CLOSED proof of that lazy install.
+  test("a runaway guest CONTINUATION in the post-settle pump is preempted (the pump is never unbounded, even on a bare context)", async () => {
+    await withContext(async (ctx) => {
+      const reached: string[] = [];
+      attach(
+        ctx,
+        "mark",
+        ctx.newFunction("mark", (nameHandle) => {
+          reached.push(ctx.getString(nameHandle));
+          return ctx.undefined;
+        }),
+      );
+      let release!: (value: string) => void;
+      const gate = new Promise<string>((resolve) => {
+        release = resolve;
+      });
+      attach(
+        ctx,
+        "gated",
+        // A host-fn deadline far above the test's own wall: the bound under proof is the GUEST-CPU one, not this.
+        boundHostFn(ctx, "gated", () => gate, { deadlineMs: 60_000 }),
+      );
+      // `resumed` proves the continuation actually ran (a never-pumped guest would satisfy the ceiling
+      // vacuously); `escaped` is the bytecode PAST the runaway loop and must never be reached.
+      const started = ctx.evalCode(
+        `gated('x').then(function () { mark('resumed'); for (var i = 0; i < ${RUNAWAY_ITERATIONS}; i++) {} mark('escaped'); }); 'started'`,
+      );
+      if (started.error) {
+        throw new Error("gated guest failed to start");
+      }
+      started.value.dispose();
+      const startedAt = process.hrtime();
+      release("ok");
+      await vi.waitFor(() => expect(reached).toContain("resumed"), { timeout: 25_000, interval: 5 });
+      expect(reached).not.toContain("escaped");
+      expect(elapsedMs(startedAt)).toBeLessThan(PUMP_RELEASE_CEILING_MS);
+    });
+  }, 30_000);
 
   test("a hanging host call self-bounds at its deadline (the reentrancy footgun)", async () => {
     await withContext(async (ctx) => {
