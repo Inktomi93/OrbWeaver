@@ -21,6 +21,7 @@ function instanceWith(names: readonly string[]): PluginInstance {
     tools: [],
     transforms: [],
     events: [],
+    pubsub: [],
     surfaces: [],
     commands: [],
     macros: [],

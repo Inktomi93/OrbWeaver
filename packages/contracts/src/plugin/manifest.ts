@@ -41,6 +41,12 @@ export const PLUGIN_CAPABILITIES = [
   "databank.ingest", // ingest a text document into the installer's OWN databank (a Data Bank scraper)
   "character.ingest", // ingest a V2/V3 card into the installer's OWN character library (a hub-import scraper)
   "events.subscribe",
+  // U8 §5a — the PRIVATE plugin-event plane: emit + subscribe to `plugin:<slug>:<name>` events among the SAME
+  // installer's plugins. BENIGN band (neither spend nor risk): it is installer-scoped, never touches a domain/
+  // chat bus, never becomes a TriggerFact, and never crosses to another user (the forgery wall). It sits beside
+  // `events.subscribe` because both are event reach — one over the closed domain taxonomy, one over the plugin's
+  // own private vocabulary.
+  "plugin_events",
   "tools.register", // D48 tool-use registry, source (b)
   "net.fetch", // requires netHosts
 ] as const;

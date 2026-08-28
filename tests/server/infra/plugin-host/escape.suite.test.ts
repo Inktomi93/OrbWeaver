@@ -219,6 +219,7 @@ describe("escape — the guest→host argument boundary is inert (no callable/li
       ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
       databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
       character: { ingest: () => Promise.resolve({ characterId: "char_test", created: true }) },
+      pubsub: { emit: () => Promise.resolve() },
     };
     return { bridge, captured };
   }
@@ -306,6 +307,7 @@ describe("escape — a stale chat handle cannot read a prior/other chat (single-
       ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
       databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
       character: { ingest: () => Promise.resolve({ characterId: "char_test", created: true }) },
+      pubsub: { emit: () => Promise.resolve() },
     };
     // First call stashes the token into the resident guest global; second call replays the STALE token.
     const main = `
@@ -389,6 +391,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
       databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
       character: { ingest: () => Promise.resolve({ characterId: "char_test", created: true }) },
+      pubsub: { emit: () => Promise.resolve() },
     };
     // Fire 40 gated host calls in ONE invocation; the gate never settles during it. 32 are admitted (stay pending),
     // calls 33–40 reject synchronously with the back-pressure error → exactly 8 rejections.
@@ -456,6 +459,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
       databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
       character: { ingest: () => Promise.resolve({ characterId: "char_test", created: true }) },
+      pubsub: { emit: () => Promise.resolve() },
     };
     const main = `
       const h = orb.host(1);
@@ -530,6 +534,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
       databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
       character: { ingest: () => Promise.resolve({ characterId: "char_test", created: true }) },
+      pubsub: { emit: () => Promise.resolve() },
     };
     const main = `
       const h = orb.host(1);
@@ -585,6 +590,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
       databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
       character: { ingest: () => Promise.resolve({ characterId: "char_test", created: true }) },
+      pubsub: { emit: () => Promise.resolve() },
     };
     // The guest passes a MALICIOUS 3rd+ arg (a forged funder) + a spoofed depth field on the hints — all ignored.
     const main =
@@ -667,6 +673,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
       },
       databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
       character: { ingest: () => Promise.resolve({ characterId: "char_test", created: true }) },
+      pubsub: { emit: () => Promise.resolve() },
     };
   }
 

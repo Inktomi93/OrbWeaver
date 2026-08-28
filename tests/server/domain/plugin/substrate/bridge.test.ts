@@ -29,10 +29,10 @@ const OTHER = castId<UserId>("user_other000000000000000000");
 const PLUGIN = castId<PluginId>("plugin_bridge000000000000000001");
 /** The bridge is keyed by IDENTITY (id + the manifest display name) since posture 2 — a card has to say who
  *  is asking. Only the id participates in the KV/lore namespaces; the name reaches only `suggest`. */
-const PLUGIN_REF = { id: PLUGIN, name: "Bridge Test Plugin" };
+const PLUGIN_REF = { id: PLUGIN, name: "Bridge Test Plugin", slug: "bridge-test-plugin" };
 const CHAT = castId<ChatId>("chat_bridge0000000000000000");
 const OTHER_PLUGIN = castId<PluginId>("plugin_other0000000000000000002");
-const OTHER_PLUGIN_REF = { id: OTHER_PLUGIN, name: "Other Plugin" };
+const OTHER_PLUGIN_REF = { id: OTHER_PLUGIN, name: "Other Plugin", slug: "other-plugin" };
 const BOOK = "wbook_bridge00000000000000000";
 /** A LIVE mutating macro — `{{setvar}}` is the one that turns a lore write into durable chat state. */
 const LIVE_MACRO = "tension is {{setvar::tension::99}} now";
