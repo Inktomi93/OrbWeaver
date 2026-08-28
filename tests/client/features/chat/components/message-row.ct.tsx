@@ -17,6 +17,7 @@ import type { Locator } from "@playwright/test";
 import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row.tsx";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { GroupTranscriptAttributionStory, MessageRowStory, NarratorTranscriptStory } from "../_ct-stories.tsx";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 
 const AI_BUBBLE = /bg-ai-bubble/u;
 const USER_BUBBLE = /bg-user-bubble/u;
@@ -1738,7 +1739,7 @@ test("#106 CONTROL: with no background photo the same row is byte-identically ba
 const SWIPE_STRIP = '[data-slot="swipe-strip"]';
 
 test("the swipe strip over a bg image is backed by the chrome chip, not the raw photo (#221)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listMessageVariants": () => [] });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
   const component = await mount(
     <div data-has-bg-image="">
       <MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} characterId={ALICE_ID} participants={[alice()]} />
@@ -1757,7 +1758,7 @@ test("the swipe strip over a bg image is backed by the chrome chip, not the raw 
 });
 
 test("without a bg image the swipe strip stays unbacked — don't chip what doesn't need it (#221)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listMessageVariants": () => [] });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
   const component = await mount(
     <MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} characterId={ALICE_ID} participants={[alice()]} />,
   );
@@ -1795,7 +1796,7 @@ const TRAILING_EDGE_BODY = "The pale light of the second moon slid across the co
 
 for (const width of [360, 720] as const) {
   test(`the swipe strip packs to the content column's trailing edge, with the row actions (#312, ${width}px)`, async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listMessageVariants": () => [] });
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
     const component = await mount(
       <MessageRowStory
         chatStyle="bubble"
@@ -2198,7 +2199,7 @@ const PAGER_MATRIX = [
 for (const width of [360, 900] as const) {
   for (const cell of PAGER_MATRIX) {
     test(`#598 the variant pager neither widens nor overhangs its bubble (${cell.label} body, ${width}px)`, async ({ mount, page }) => {
-      await routeTrpc(page, { "chat.listMessageVariants": () => [] });
+      await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
       const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content={cell.content} width={width} />);
       await expect(component.locator(SWIPE_STRIP)).toHaveCount(1);
       await expectPagerUsable(component);
@@ -2224,7 +2225,7 @@ for (const width of [360, 900] as const) {
 // two-letter speaker name). The compact label-less chip is 99.48px, so the stand-downs leave real headroom
 // rather than a coincidence; if a future action cluster shrinks past the chip, THIS is the pin that goes red.
 test("#598 even the narrowest bubble the row can produce still contains its pager", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listMessageVariants": () => [] });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
   const component = await mount(
     <MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Ok" width={360} characterId={ALICE_ID} participants={[alice()]} />,
   );
@@ -2268,7 +2269,7 @@ test.describe("#608 coarse pager", () => {
         // The emulation PROVES itself before any geometry is trusted (the #220 precedent) — `hasTouch` is
         // what flips `(pointer: coarse)` in chromium; `page.emulateMedia` has no pointer feature.
         await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-        await routeTrpc(page, { "chat.listMessageVariants": () => [] });
+        await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
         const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content={cell.content} width={width} />);
         await expectPagerUsable(component);
 
@@ -2290,7 +2291,7 @@ test.describe("#608 coarse pager", () => {
   // than the compact chip, the chip stops at its floor with legal targets instead of crushing to fit.
   test("#608 under a bubble narrower than the chip, the chip holds its touch floor rather than crushing", async ({ mount, page }) => {
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-    await routeTrpc(page, { "chat.listMessageVariants": () => [] });
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
     const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Ok" width={360} />);
     await expectPagerUsable(component);
     const g = await readPagerGeometry(component);
@@ -2310,7 +2311,7 @@ test.describe("#608 coarse pager", () => {
 // the word leaves the FLOW — zero width contribution, and an absolutely-positioned child is not a flex item
 // at all, so its gap goes too — while the accessible name of the band still reads "Variant 2 / 3".
 test("#598/#608 the narrow chip keeps the word in the a11y tree even though it leaves the layout", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listMessageVariants": () => [] });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
   const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Hi there" width={360} />);
   await expect(component.locator(SWIPE_STRIP)).toHaveCount(1);
   const g = await readPagerGeometry(component);
