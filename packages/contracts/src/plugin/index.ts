@@ -88,6 +88,7 @@ export { PLUGIN_SUGGESTED_ACT_KINDS, summarizePluginAct } from "./suggestion.ts"
 export type {
   PluginBadgeIntent,
   PluginBadgeNode,
+  PluginBoundGridTile,
   PluginBoundNumber,
   PluginBoundString,
   PluginButtonNode,
@@ -182,6 +183,7 @@ export {
   PLUGIN_UI_HOST_CALL_RESULT_MAX_BYTES,
   PLUGIN_UI_OUTBOX_MAX,
   PLUGIN_UI_ROUTE,
+  pluginBoundGridTileSchema,
   pluginChildNodes,
   pluginCommandArgSpecSchema,
   pluginCommandArgsSchema,
@@ -190,4 +192,6 @@ export {
   pluginSurfaceNodeSchema,
   pluginSurfaceRegistrationMetaSchema,
   pluginSurfaceSpecSchema,
+  resolvePluginBoundAssetId,
+  resolvePluginBoundTiles,
 } from "./ui.ts";

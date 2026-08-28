@@ -39,6 +39,8 @@ import {
   pluginSurfaceRegistrationMetaSchema,
   pluginSurfaceSpecSchema,
   pluginToolWireName,
+  resolvePluginBoundAssetId,
+  resolvePluginBoundTiles,
   UI_PROXYABLE_HOST_FUNCTIONS,
 } from "@orb/contracts/plugin";
 import { expect, test } from "../../support/fixtures.ts";
@@ -565,4 +567,63 @@ test("pluginToolWireName is the ONE mint: hyphens in the slug become underscores
   expect(pluginToolWireName("mood", "read")).toBe("plugin_mood_read");
   // …and the prefix the client's ONE `pluginToolRenderer` claims is the prefix this mint emits.
   expect(pluginToolWireName("oracle-deck", "draw").startsWith(PLUGIN_TOOL_NAME_PREFIX)).toBe(true);
+});
+
+// ── #774 ARM C — the BOUND-collection arms (`grid.tilesFrom` + `tileAction`, `image.assetFrom`) ─────────────
+
+test("ARM C: a grid names exactly one of `tiles` / `tilesFrom`, and `tileAction` belongs to the bound arm", () => {
+  const bound: PluginSurfaceSpec = { kind: "grid", tilesFrom: { $state: "results" }, tileAction: "open", empty: "Search to begin." };
+  expect(pluginSurfaceSpecSchema.safeParse(bound).success).toBe(true);
+  // Declared stays valid untouched (the append-only condition, regression-pinned).
+  const declared: PluginSurfaceSpec = { kind: "grid", tiles: [{ id: "a1", title: "One" }] };
+  expect(pluginSurfaceSpecSchema.safeParse(declared).success).toBe(true);
+  // BOTH arms is two descriptions of one grid; NEITHER is a grid with nothing to show and no binding to wait
+  // for; `tileAction` beside declared tiles is a claim the renderer would never honour (declared tiles carry
+  // their own per-tile actionId).
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "grid", tiles: [{ id: "a1", title: "One" }], tilesFrom: { $state: "results" } }).success).toBe(false);
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "grid" }).success).toBe(false);
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "grid", tiles: [{ id: "a1", title: "One" }], tileAction: "open" }).success).toBe(false);
+});
+
+test("ARM C: an image names exactly one of `assetId` / `assetFrom` — and the belt reaches nested subtrees", () => {
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "image", assetFrom: { $state: "detail.cover" } }).success).toBe(true);
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "image" }).success).toBe(false);
+  // Nested through a masterDetail stage body — the belt walks `pluginChildNodes`, so a violation cannot hide
+  // under a non-`children` field (the U5 blind-subtree hazard, re-pinned for the new belt).
+  const nested = {
+    kind: "masterDetail",
+    stages: [{ id: "detail", kind: "detail", body: { kind: "image" } }],
+  };
+  expect(pluginSurfaceSpecSchema.safeParse(nested).success).toBe(false);
+});
+
+test("ARM C: resolvePluginBoundTiles validates, drops, and clamps — state is never a loophole past a registration bound", () => {
+  const good = { id: "r1", title: "The Storm", subtitle: "by nobody", badge: "new" };
+  const state = {
+    results: [
+      good,
+      { id: "NOT AN IDENT", title: "dropped" }, // malformed id ⇒ dropped, not fatal
+      { id: "r2", title: 42 }, // mistyped title ⇒ dropped
+      { id: "r3", title: "ok", assetId: "https://evil.example/x.png" }, // a URL is not an asset id ⇒ dropped
+      { id: "r4", title: "ok" },
+    ],
+  };
+  const tiles = resolvePluginBoundTiles(state, { $state: "results" });
+  expect(tiles.map((tile) => tile.id)).toEqual(["r1", "r4"]);
+  // A missing path / non-array resolves to NO tiles — the grid renders its empty line, never a crash.
+  expect(resolvePluginBoundTiles(state, { $state: "nope" })).toEqual([]);
+  expect(resolvePluginBoundTiles({ results: "not an array" }, { $state: "results" })).toEqual([]);
+  // The count clamps to the SAME cap the declared arm's schema enforces.
+  const flood = { results: Array.from({ length: PLUGIN_GRID_TILES_MAX + 20 }, (_u, i) => ({ id: `r${i}`, title: "t" })) };
+  expect(resolvePluginBoundTiles(flood, { $state: "results" })).toHaveLength(PLUGIN_GRID_TILES_MAX);
+});
+
+test("ARM C: resolvePluginBoundAssetId is the FORMAT wall — only a well-formed asset id ever reaches the owner resolve", () => {
+  // A real TypeID format passes (ownership is the server resolve's job, judged later and owner-scoped).
+  expect(resolvePluginBoundAssetId({ cover: "asset_01h455vb4pex5vsknk084sn02q" }, { $state: "cover" })).toBe("asset_01h455vb4pex5vsknk084sn02q");
+  // Everything else paints nothing: a URL, a foreign-prefix id, a number, a missing path.
+  expect(resolvePluginBoundAssetId({ cover: "https://evil.example/x.png" }, { $state: "cover" })).toBeUndefined();
+  expect(resolvePluginBoundAssetId({ cover: "chat_01h455vb4pex5vsknk084sn02q" }, { $state: "cover" })).toBeUndefined();
+  expect(resolvePluginBoundAssetId({ cover: 7 }, { $state: "cover" })).toBeUndefined();
+  expect(resolvePluginBoundAssetId({}, { $state: "cover" })).toBeUndefined();
 });
