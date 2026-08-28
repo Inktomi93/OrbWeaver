@@ -221,6 +221,18 @@ export { ModalRegistryProvider } from "./modal-registry-provider.tsx";
 export { publishNoticeBand, useNoticeBand } from "./notice-band-store.ts";
 export type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.ts";
 export { PANEL_MODES, resolvePanelMode } from "./panel-resolve.ts";
+export type { PluginDialogSubject } from "./plugin-dialog-store.ts";
+export { __readPluginDialogSubjectForTest, __resetPluginDialog, clearPluginDialog, openPluginDialog, usePluginDialogSubject } from "./plugin-dialog-store.ts";
+export type { PluginPageKey } from "./plugin-page-selection-store.ts";
+export {
+  clearPluginPage,
+  parsePluginPageKey,
+  pluginPageKey,
+  pluginPageSectionSelection,
+  selectPluginPage,
+  selectPluginPageFromList,
+  usePluginPageKey,
+} from "./plugin-page-selection-store.ts";
 export { setPresetEditorView, usePresetEditorView } from "./preset-editor-view-store.ts";
 export { setPresetSearchQuery, usePresetSearchQuery } from "./preset-search-store.ts";
 export {

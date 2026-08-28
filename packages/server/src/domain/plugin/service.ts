@@ -14,12 +14,15 @@ import { createCrashPolicy } from "./activation/crash-policy.ts";
 import { createDeactivate } from "./activation/deactivate.ts";
 import type { PluginContext, PluginDistributionDeps, PluginRegistry, PluginService } from "./contract/service.ts";
 import { createApplyDistributedPlugins } from "./verbs/apply-distributed-plugins.ts";
+import { createGetFrameBody } from "./verbs/get-frame-body.ts";
 import { createGetPluginLog } from "./verbs/get-plugin-log.ts";
 import { createGetSurfaceState } from "./verbs/get-surface-state.ts";
 import { createGetUiBundle } from "./verbs/get-ui-bundle.ts";
 import { createInstall } from "./verbs/install.ts";
 import { createInstallForAllUsers } from "./verbs/install-for-all-users.ts";
 import { createInvokeUiAction } from "./verbs/invoke-ui-action.ts";
+import { createInvokeUiCommand } from "./verbs/invoke-ui-command.ts";
+import { createListCommands } from "./verbs/list-commands.ts";
 import { createListDisplayTransforms } from "./verbs/list-display-transforms.ts";
 import { createListDistributedPlugins } from "./verbs/list-distributed-plugins.ts";
 import { createListPlugins } from "./verbs/list-plugins.ts";
@@ -72,6 +75,9 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
     // registry the lifecycle owns; getSurfaceState reads the shared surface-state plane off the context.
     listSurfaces: createListSurfaces(ctx, registry),
     getSurfaceState: createGetSurfaceState(ctx),
+    // U7 — the frame doorway's ONE read. Same registry, same owner-scoped gate, plus a per-call re-check of the
+    // row's live `ui.frame` grant (a resident instance outlives a re-grant).
+    getFrameBody: createGetFrameBody(ctx, registry),
     invokeUiAction: createInvokeUiAction(ctx, registry),
     // TIER C (U4). `uiHostCall` needs NO registry — it re-gates and calls the bridge directly, so a proxied read
     // works whether or not the plugin's server guest happens to be mid-invocation. `reportUiCrash` closes over
@@ -80,6 +86,11 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
     uiHostCall: createUiHostCall(ctx),
     getUiBundle: createGetUiBundle(ctx),
     reportUiCrash: createReportUiCrash(ctx, crashPolicy),
+    // …and the U5 COMMAND pair (§4.5), the same two shapes over the same registry: an owner-scoped list the
+    // `/plugin` dispatcher + the Plugins chrome menu both read, and a crash-policy'd round-trip that returns the
+    // drained UI outcome.
+    listCommands: createListCommands(ctx, registry),
+    invokeUiCommand: createInvokeUiCommand(ctx, registry),
     // The DISPLAY-transform read side (U6, seam 14) — the same resident registry, the same owner-scoped read.
     listDisplayTransforms: createListDisplayTransforms(ctx, registry),
     transformForDisplay: createTransformForDisplay(ctx, registry),

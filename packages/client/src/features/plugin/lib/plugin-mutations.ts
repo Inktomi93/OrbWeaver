@@ -51,6 +51,7 @@ export const useUpgradePlugin = createEntityMutation<inferInput<Trpc["plugin"]["
     trpc.plugin.list.queryFilter(),
     trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),
     trpc.plugin.listSurfaces.queryFilter(),
+    trpc.plugin.listCommands.queryFilter(),
   ],
   errorToast: serverReason("Couldn't update that plugin."),
 });
@@ -89,6 +90,7 @@ export const useSetPluginEnabled = createEntityMutation<inferInput<Trpc["plugin"
     trpc.plugin.list.queryFilter(),
     trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),
     trpc.plugin.listSurfaces.queryFilter(),
+    trpc.plugin.listCommands.queryFilter(),
   ],
   errorToast: serverReason("Couldn't change whether that plugin is on."),
 });
@@ -97,7 +99,7 @@ export const useSetPluginEnabled = createEntityMutation<inferInput<Trpc["plugin"
  *  behind a confirm, and a failed uninstall flashing a row back is worse than the brief settle refetch. */
 export const useUninstallPlugin = createEntityMutation<{ readonly pluginId: PluginId }, inferOutput<Trpc["plugin"]["uninstall"]>>({
   options: (trpc) => trpc.plugin.uninstall.mutationOptions(),
-  invalidates: (trpc) => [trpc.plugin.list.queryFilter(), trpc.plugin.listSurfaces.queryFilter()],
+  invalidates: (trpc) => [trpc.plugin.list.queryFilter(), trpc.plugin.listSurfaces.queryFilter(), trpc.plugin.listCommands.queryFilter()],
   errorToast: serverReason("Couldn't remove that plugin."),
 });
 
@@ -153,6 +155,17 @@ export const useInvokeUiAction = createEntityMutation<inferInput<Trpc["plugin"][
 export const useReportUiCrash = createEntityMutation<inferInput<Trpc["plugin"]["reportUiCrash"]>, inferOutput<Trpc["plugin"]["reportUiCrash"]>>({
   options: (trpc) => trpc.plugin.reportUiCrash.mutationOptions(),
   invalidates: (trpc) => [trpc.plugin.list.queryFilter()],
+});
+
+/** Run one registered plugin COMMAND (plugin-ui-plane #679 U5) — the `/plugin <slug> <name> …` dispatch and the
+ *  Plugins chrome menu both land here. Reconciles the plugin's SURFACE STATE broadly rather than by key: a
+ *  command is not scoped to one surface (it can publish into any of the plugin's), so the narrow
+ *  `{pluginId, surfaceId}` filter an action uses would miss exactly the panel the command just updated. The
+ *  caller reads the returned `PluginUiOutcome` through `mutateAsync` and hands it to `applyPluginUiOutcome`. */
+export const useInvokeUiCommand = createEntityMutation<inferInput<Trpc["plugin"]["invokeUiCommand"]>, inferOutput<Trpc["plugin"]["invokeUiCommand"]>>({
+  options: (trpc) => trpc.plugin.invokeUiCommand.mutationOptions(),
+  invalidates: (trpc) => [trpc.plugin.getSurfaceState.queryFilter()],
+  errorToast: serverReason("That plugin command couldn't run."),
 });
 
 /** Run one inline snippet as the caller in one chat. Reconciles nothing — a snippet is transient and

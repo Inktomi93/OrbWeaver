@@ -39,7 +39,20 @@ export function createListSurfaces(ctx: PluginContext, registry: PluginRegistry)
       if (resident === undefined) {
         continue;
       }
+      // U7 — the frame tier's grant is re-read off the ROW, the SECOND BELT that `verbs/get-frame-body.ts`
+      // documents in full. On today's tree `setGrant` tears the resident down before writing (so a narrowed
+      // grant rebuilds the guest and the refused registration is never collected again), which makes this a
+      // belt rather than the control — verified on the tree, not assumed.
+      //
+      // It earns its place HERE specifically because the two reads have different consequences: the doorway
+      // refusing a revoked frame yields a MISS, and a listed-but-un-mintable surface is an empty labelled box
+      // at the anchor forever. Keeping the list and the doorway on the SAME predicate means the surface either
+      // renders or is absent — never present-but-dead.
+      const framesGranted = row.grantedCapabilities.includes("ui.frame");
       for (const surface of resident.instance.surfaces) {
+        if (surface.tier === "frame" && !framesGranted) {
+          continue;
+        }
         views.push(toView(row.id, row.slug, surface));
       }
     }

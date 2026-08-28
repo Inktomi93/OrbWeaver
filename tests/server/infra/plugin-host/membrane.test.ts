@@ -7,7 +7,8 @@
 // hand-built, i.e. here; the cross-invocation half of that invariant is the escape suite's (it needs a Sandbox).
 // The full end-to-end runtime lives in port.test.ts; this is the module's own-seam mirror.
 
-import type { InvocationChat, PluginBridge, PluginCapability, PluginQuietOptions, PluginSuggestedAct } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginBridge, PluginCapability, PluginQuietOptions, PluginSuggestedAct, PluginToastLevel } from "@orb/contracts/plugin";
+import { PLUGIN_FRAME_HTML_MAX_CHARS, PLUGIN_FRAME_SURFACES_MAX } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { getPluginQuickJS, HOST_FN_DEADLINE_MS } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
@@ -35,11 +36,15 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
     pictures: number;
     chips: number;
     uiSetState: { surfaceId: string; state: Record<string, unknown>; chatId: ChatId | null }[];
+    uiToasts: { level: PluginToastLevel; message: string }[];
+    uiDialogs: string[];
   };
 } {
   const writes = { count: 0 };
   const uiSetState: { surfaceId: string; state: Record<string, unknown>; chatId: ChatId | null }[] = [];
-  const performed = { turns: 0, lore: 0, pictures: 0, chips: 0, uiSetState };
+  const uiToasts: { level: PluginToastLevel; message: string }[] = [];
+  const uiDialogs: string[] = [];
+  const performed = { turns: 0, lore: 0, pictures: 0, chips: 0, uiSetState, uiToasts, uiDialogs };
   const llm: { prompts: string[]; opts: (PluginQuietOptions | undefined)[] } = { prompts: [], opts: [] };
   const egress = { count: 0 };
   const suggested: { acts: PluginSuggestedAct[] } = { acts: [] };
@@ -100,6 +105,17 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
         performed.uiSetState.push({ surfaceId, state, chatId });
         return Promise.resolve();
       },
+      // The U5 host-mediated affordances (§4.5a). Recorded, not inert: the membrane's job here is the LEVEL
+      // resolve (an unrecognised level degrades to the quietest arm) and the surfaceId grammar, and neither is
+      // observable without capturing what crossed.
+      toast: (level, message) => {
+        performed.uiToasts.push({ level, message });
+        return Promise.resolve();
+      },
+      openDialog: (surfaceId) => {
+        performed.uiDialogs.push(surfaceId);
+        return Promise.resolve();
+      },
     },
   };
   return { bridge, writes, llm, egress, suggested, performed };
@@ -112,6 +128,7 @@ interface RuntimeExtras {
   readonly collectTransform?: MembraneRuntime["collectTransform"];
   readonly collectEvent?: MembraneRuntime["collectEvent"];
   readonly collectSurface?: MembraneRuntime["collectSurface"];
+  readonly collectCommand?: MembraneRuntime["collectCommand"];
   readonly collectDisplayTransform?: MembraneRuntime["collectDisplayTransform"];
   readonly collectMacro?: MembraneRuntime["collectMacro"];
   readonly logWarn?: MembraneRuntime["logWarn"];
@@ -131,6 +148,7 @@ function makeRuntime(grants: readonly PluginCapability[], canWrite: boolean, bri
     collectTransform: extra.collectTransform ?? ((): void => undefined),
     collectEvent: extra.collectEvent ?? ((): void => undefined),
     collectSurface: extra.collectSurface ?? ((): void => undefined),
+    collectCommand: extra.collectCommand ?? ((): void => undefined),
     collectDisplayTransform: extra.collectDisplayTransform ?? ((): void => undefined),
     collectMacro: extra.collectMacro ?? ((): void => undefined),
     logWarn: extra.logWarn ?? ((): void => undefined),
@@ -897,6 +915,246 @@ describe("host.ui — declarative surface registration + state publish (plugin-u
       expect(setStateName).toBe("PluginCapabilityError");
     });
     expect(performed.uiSetState).toEqual([]);
+  });
+
+  // ── U5: the command collector + the two HOST-MEDIATED affordances (§4.5/§4.5a) ──────────────────────────
+
+  test("host.ui.registerCommand collects a VALIDATED command and keeps the onRun handle", async () => {
+    const { bridge } = fakeBridge();
+    const collected: { name: string; describe: string }[] = [];
+    const runtime = makeRuntime(uiGrants, false, bridge, {
+      collectCommand: (meta, onRun): void => {
+        collected.push({ name: meta.name, describe: meta.describe });
+        onRun.dispose();
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      const out = ctx.evalCode(`host.ui.registerCommand({ name: "draw", describe: "Draw a card", onRun: async () => {} }); "ok"`);
+      if (out.error) {
+        throw new Error(readString(ctx, out.error));
+      }
+      out.value.dispose();
+    });
+    expect(collected).toEqual([{ name: "draw", describe: "Draw a card" }]);
+  });
+
+  test("a malformed command is a SOFT refusal — logged and skipped, never activation-fatal (§4.9)", async () => {
+    const { bridge } = fakeBridge();
+    const collected: string[] = [];
+    const warnings: string[] = [];
+    const runtime = makeRuntime(uiGrants, false, bridge, {
+      collectCommand: (meta, onRun): void => {
+        collected.push(meta.name);
+        onRun.dispose();
+      },
+      logWarn: (message): void => {
+        warnings.push(message);
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      // A display-name `name` (not the ident grammar), an empty `describe`, and a non-function `onRun` — three
+      // separate refusals. The last is the one that MATTERS: a command with nothing to run is a dead menu row,
+      // which is worse than an absent one, so it is refused rather than collected as display-only.
+      const out = ctx.evalCode(
+        `host.ui.registerCommand({ name: "Draw Card", describe: "x", onRun: () => {} });
+         host.ui.registerCommand({ name: "ok_one", describe: "", onRun: () => {} });
+         host.ui.registerCommand({ name: "ok_two", describe: "fine", onRun: "not a function" });
+         host.ui.registerCommand({ name: "good", describe: "fine", onRun: () => {} });
+         "survived"`,
+      );
+      if (out.error) {
+        throw new Error(readString(ctx, out.error));
+      }
+      // The activation SURVIVED all three refusals — a stale command must not kill the tools beside it.
+      expect(ctx.getString(out.value)).toBe("survived");
+      out.value.dispose();
+    });
+    expect(collected).toEqual(["good"]);
+    expect(warnings).toHaveLength(3);
+  });
+
+  test("host.ui.toast resolves the LEVEL against the closed house tuple — an unknown level degrades to the quietest arm", async () => {
+    const { bridge, performed } = fakeBridge();
+    const runtime = makeRuntime(uiGrants, false, bridge);
+    await withRuntime(runtime, async (ctx) => {
+      expect(await runAsync(ctx, `host.ui.toast("success", "drew The Road").then(() => "ok", (e) => e.message)`)).toBe("ok");
+      // A guest cannot widen its own attention footprint by naming a string the host did not admit.
+      expect(await runAsync(ctx, `host.ui.toast("CRITICAL", "look at me").then(() => "ok", (e) => e.message)`)).toBe("ok");
+    });
+    expect(performed.uiToasts).toEqual([
+      { level: "success", message: "drew The Road" },
+      { level: "info", message: "look at me" },
+    ]);
+  });
+
+  test("host.ui.openDialog REFUSES an id outside the surface-id grammar — the bridge is never reached", async () => {
+    const { bridge, performed } = fakeBridge();
+    const runtime = makeRuntime(uiGrants, false, bridge);
+    await withRuntime(runtime, async (ctx) => {
+      expect(await runAsync(ctx, `host.ui.openDialog("reveal_dialog").then(() => "reached", (e) => "caught")`)).toBe("reached");
+      // An unbounded id would be an unbounded outbox key — the same grammar `ui.register`/`setState` enforce.
+      expect(await runAsync(ctx, `host.ui.openDialog("Bad Id!").then(() => "reached", (e) => "caught")`)).toBe("caught");
+    });
+    expect(performed.uiDialogs).toEqual(["reveal_dialog"]);
+  });
+
+  test("registerCommand / toast / openDialog are ALL gated by the ui.surface capability", async () => {
+    const { bridge, performed } = fakeBridge();
+    const runtime = makeRuntime([], false, bridge); // NO ui.surface grant
+    await withRuntime(runtime, async (ctx) => {
+      const registerName = ctx.evalCode(
+        `let name = ""; try { host.ui.registerCommand({ name: "draw", describe: "d", onRun: () => {} }); } catch (e) { name = e.name; } name`,
+      );
+      if (registerName.error) {
+        throw new Error(readString(ctx, registerName.error));
+      }
+      expect(ctx.getString(registerName.value)).toBe("PluginCapabilityError");
+      registerName.value.dispose();
+      expect(await runAsync(ctx, `host.ui.toast("info", "x").then(() => "ok", (e) => e.name)`)).toBe("PluginCapabilityError");
+      expect(await runAsync(ctx, `host.ui.openDialog("x").then(() => "ok", (e) => e.name)`)).toBe("PluginCapabilityError");
+    });
+    // Nothing reached the bridge: an ungranted plugin raises no chrome at all.
+    expect(performed.uiToasts).toEqual([]);
+    expect(performed.uiDialogs).toEqual([]);
+  });
+});
+
+describe("host.ui.registerFrame — the U7 escape hatch's door (plugin-ui-plane §6.2, seam 13)", () => {
+  const frameDef = `id: "board", anchor: "chat-flank", title: "Chess", html: "<canvas></canvas><script>go()</script>"`;
+
+  test("a granted registerFrame collects tier:'frame' meta + the body SEPARATELY — the bytes never enter the meta", async () => {
+    const collected: { meta: unknown; frame: unknown; hasAction: boolean }[] = [];
+    const { bridge } = fakeBridge();
+    const runtime = makeRuntime(["ui.frame"], false, bridge, {
+      collectSurface: (meta, onAction, frame) => {
+        collected.push({ meta, frame, hasAction: onAction !== null });
+        onAction?.dispose();
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      const res = ctx.evalCode(`host.ui.registerFrame({ ${frameDef}, css: "body{margin:0}" }); "ok"`);
+      if (res.error) {
+        throw new Error(readString(ctx, res.error));
+      }
+      res.value.dispose();
+    });
+    // THE META carries no bytes. This is the load-bearing split: `PluginSurfaceView extends
+    // PluginSurfaceRegistrationMeta`, so an `html` key here would ship every frame document to the client
+    // through `listSurfaces`. The projection is not what keeps it server-side — this shape is.
+    expect(collected[0]?.meta).toEqual({ id: "board", anchor: "chat-flank", title: "Chess", tier: "frame" });
+    expect(collected[0]?.frame).toEqual({ html: "<canvas></canvas><script>go()</script>", css: "body{margin:0}" });
+    // A frame has no declarative action round-trip; its calls ride the postMessage bridge.
+    expect(collected[0]?.hasAction).toBe(false);
+  });
+
+  // THE CAPABILITY FORK, probed from BOTH sides. The membrane gates per FUNCTION, so the hatch's louder
+  // consent line is only real if (a) its own door refuses a plugin without `ui.frame`, and (b) the declarative
+  // door refuses the frame TIER. Either hole alone lets a plugin granted "show its own panels" open an
+  // isolated frame that can beacon out — the exact laundering the two-door design exists to prevent.
+  test("registerFrame is refused WITHOUT ui.frame — even when ui.surface IS granted", async () => {
+    const collected: unknown[] = [];
+    const { bridge } = fakeBridge();
+    const runtime = makeRuntime(["ui.surface"], false, bridge, { collectSurface: (meta) => collected.push(meta) });
+    await withRuntime(runtime, (ctx) => {
+      const res = ctx.evalCode(`let name = ""; try { host.ui.registerFrame({ ${frameDef} }); } catch (e) { name = e.name; } name`);
+      if (res.error) {
+        throw new Error(readString(ctx, res.error));
+      }
+      expect(ctx.getString(res.value)).toBe("PluginCapabilityError");
+      res.value.dispose();
+    });
+    expect(collected).toHaveLength(0);
+  });
+
+  test("ui.register REFUSES tier:'frame' — the hatch cannot be taken by naming its tier at the panel door", async () => {
+    const collected: unknown[] = [];
+    const warned: string[] = [];
+    const { bridge } = fakeBridge();
+    // The maximal declarative grant, deliberately: this plugin may register every panel it likes and STILL
+    // cannot open a frame.
+    const runtime = makeRuntime(["ui.surface"], false, bridge, { collectSurface: (meta) => collected.push(meta), logWarn: (msg) => warned.push(msg) });
+    await withRuntime(runtime, (ctx) => {
+      const res = ctx.evalCode(
+        `let threw = false;
+         try { host.ui.register({ id: "sneak", anchor: "chat-flank", title: "Sneak", tier: "frame" }); } catch { threw = true; }
+         threw ? "threw" : "survived"`,
+      );
+      if (res.error) {
+        throw new Error(readString(ctx, res.error));
+      }
+      // A SOFT refusal like every other bad registration (§4.9) — the plugin's tools and events survive.
+      expect(ctx.getString(res.value)).toBe("survived");
+      res.value.dispose();
+    });
+    expect(collected).toHaveLength(0);
+    expect(warned).toHaveLength(1);
+    expect(warned[0]).toContain("registerFrame");
+  });
+
+  test("the guest cannot name the tier OR smuggle a spec at the frame door — both are host-decided", async () => {
+    const collected: { meta: unknown; frame: unknown }[] = [];
+    const { bridge } = fakeBridge();
+    const runtime = makeRuntime(["ui.frame"], false, bridge, { collectSurface: (meta, _onAction, frame) => collected.push({ meta, frame }) });
+    await withRuntime(runtime, (ctx) => {
+      // A guest passing `tier: "static"` (to dodge the anchor×tier table) and a `spec` (to get a declarative
+      // surface out of a frame-only grant) gets NEITHER: `tier` is a host OVERRIDE applied after the dump, and
+      // `spec` is not among the props this door reads at all.
+      const res = ctx.evalCode(`host.ui.registerFrame({ ${frameDef}, tier: "static", spec: { kind: "text", value: "pwn" } }); "ok"`);
+      if (res.error) {
+        throw new Error(readString(ctx, res.error));
+      }
+      res.value.dispose();
+    });
+    expect(collected[0]?.meta).toEqual({ id: "board", anchor: "chat-flank", title: "Chess", tier: "frame" });
+  });
+
+  test("a frame at message-footer is REFUSED — the per-row anchor's permanent wall bites the new tier", async () => {
+    const collected: unknown[] = [];
+    const warned: string[] = [];
+    const { bridge } = fakeBridge();
+    const runtime = makeRuntime(["ui.frame"], false, bridge, { collectSurface: (meta) => collected.push(meta), logWarn: (msg) => warned.push(msg) });
+    await withRuntime(runtime, (ctx) => {
+      const res = ctx.evalCode(
+        `host.ui.registerFrame({ id: "row_frame", anchor: "message-footer", title: "Row", html: "<b>x</b>" });
+         host.ui.registerFrame({ id: "band_frame", anchor: "chat-settings-section", title: "Band", html: "<b>x</b>" });
+         host.ui.registerFrame({ ${frameDef} });
+         "ok"`,
+      );
+      if (res.error) {
+        throw new Error(readString(ctx, res.error));
+      }
+      res.value.dispose();
+    });
+    // One document per transcript row is never eligible; the host-controls band is not on §6.2's anchor list.
+    // Only the flank registration survives — and both refusals are soft + logged.
+    expect(collected).toHaveLength(1);
+    expect(warned).toHaveLength(2);
+  });
+
+  test("an over-cap body and an over-count registration are both SOFT refusals — bounded retention per instance", async () => {
+    const collected: unknown[] = [];
+    const warned: string[] = [];
+    const { bridge } = fakeBridge();
+    const runtime = makeRuntime(["ui.frame"], false, bridge, { collectSurface: (meta) => collected.push(meta), logWarn: (msg) => warned.push(msg) });
+    await withRuntime(runtime, (ctx) => {
+      // A frame body is held for the INSTANCE LIFETIME and multiplied by the resident-runtime ceiling, so both
+      // the per-body size and the per-instance COUNT are bounded. `ui.register` needs no count cap because a
+      // spec is already bounded to 32 KiB; a frame body is 5x that.
+      const res = ctx.evalCode(
+        `host.ui.registerFrame({ id: "huge", anchor: "chat-flank", title: "Huge", html: "x".repeat(${PLUGIN_FRAME_HTML_MAX_CHARS} + 1) });
+         for (let i = 0; i < ${PLUGIN_FRAME_SURFACES_MAX} + 3; i++) {
+           host.ui.registerFrame({ id: "f" + i, anchor: "chat-flank", title: "F", html: "<b>ok</b>" });
+         }
+         "ok"`,
+      );
+      if (res.error) {
+        throw new Error(readString(ctx, res.error));
+      }
+      res.value.dispose();
+    });
+    expect(collected).toHaveLength(PLUGIN_FRAME_SURFACES_MAX);
+    // 1 over-size + 3 over-count.
+    expect(warned).toHaveLength(4);
   });
 });
 

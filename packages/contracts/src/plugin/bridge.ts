@@ -12,6 +12,7 @@ import type { GenerateImageActionArgs } from "#imagery";
 import type { PluginNotificationRecipient } from "#notifications";
 import type { PluginMessageView, PluginQuietOptions, PluginWorldEntryUpsert } from "./host-v1.ts";
 import type { PluginSuggestedAct } from "./suggestion.ts";
+import type { PluginToastLevel } from "./ui.ts";
 
 /** Isomorphic invocation liveness crossing the contracts cake. `AbortSignal` itself is a DOM/server type and
  *  cannot live in `@orb/contracts`; infra adapts its controller to this subscription seam, and the server-side
@@ -151,6 +152,17 @@ export interface PluginBridge {
    *  to. Authority-agnostic like every bridge op — infra holds no pluginId or Principal. */
   readonly ui: {
     readonly setState: (surfaceId: string, state: Record<string, unknown>, chatId: ChatId | null) => Promise<void>;
+    /** Stash a host-mediated TOAST for this plugin (`host.ui.toast`, U5 §4.5a). The domain builder closes over
+     *  the `pluginId` + the plugin's DISPLAY NAME (the attribution prefix — a guest can no more name whose toast
+     *  this is than it can name a funder) and applies the per-plugin rate floor + the length cap before the item
+     *  reaches the bounded outbox. THROWS when the floor refuses, so a flooding guest is told rather than
+     *  silently swallowed. Infra stays authority-blind: it holds no pluginId, no name, and no outbox. */
+    readonly toast: (level: PluginToastLevel, message: string) => Promise<void>;
+    /** Stash an OPEN-DIALOG ask for one of this plugin's own registered `dialog` surfaces (`host.ui.openDialog`,
+     *  U5 §4.5a). Resolves when the ask is recorded; the DOMAIN resolves the id against the resident instance
+     *  when the outbox drains onto a client round-trip, so an id naming no registered dialog costs nothing and a
+     *  cross-plugin open is not expressible (the outbox is keyed by the plugin the guest is). */
+    readonly openDialog: (surfaceId: string) => Promise<void>;
   };
 }
 

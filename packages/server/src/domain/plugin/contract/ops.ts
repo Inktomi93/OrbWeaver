@@ -22,6 +22,7 @@ import type {
   PluginMessageView,
   PluginQuietOptions,
   PluginSuggestedAct,
+  PluginToastLevel,
   PluginToolRegistration,
   PluginTransformRegistration,
 } from "@orb/contracts/plugin";
@@ -248,6 +249,16 @@ export interface PluginHostOps {
       readonly chatId: ChatId | null;
       readonly state: Record<string, unknown>;
     }) => Promise<void>;
+    /** `host.ui.toast` (U5, §4.5a) — stash a HOST-MEDIATED toast in the plugin's bounded UI outbox. Takes the
+     *  whole {@link PluginIdentity} because the outbox stamps the plugin NAME as the attribution prefix (a guest
+     *  supplies only the body — a guest-named prefix is the impersonation the label exists to prevent) and keys
+     *  the per-plugin rate floor by the id. THROWS on the floor refusal, which the membrane surfaces as a
+     *  rejected guest promise. Wired at compose to `createPluginUiOutbox`'s store. */
+    readonly toast: (plugin: PluginIdentity, level: PluginToastLevel, message: string) => Promise<void>;
+    /** `host.ui.openDialog` (U5, §4.5a) — record an ask to open one of THIS plugin's registered `dialog`
+     *  surfaces. It records an id, never a claim that the surface exists: the draining verb resolves it against
+     *  the resident instance, so an unknown id costs nothing and a cross-plugin open is not expressible. */
+    readonly openDialog: (pluginId: PluginId, surfaceId: string) => Promise<void>;
   };
   /** The runtime registrar seams (PL-A tool-use, D50 transform, event subscribe). Each takes a collected
    *  registration + the per-handler invoker + the per-activation {@link PluginActivationScope} (slug for

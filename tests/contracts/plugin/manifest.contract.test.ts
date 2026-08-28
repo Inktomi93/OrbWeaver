@@ -18,13 +18,17 @@ const BASE = {
 
 // THE ORDER IS THE CONFIRM-DIALOG DISPLAY ORDER (`manifest.ts` says so), so this `toEqual` is not a count pin
 // wearing a list's clothes — it is the consent screen's reading order, and the client's `CAPABILITY_COPY_ROWS`
-// is written to match it. `llm.quiet` sits at position 12: it is SPEND class, and the three spend capabilities
+// is written to match it. `llm.quiet` sits at position 13: it is SPEND class, and the three spend capabilities
 // (`turn.trigger`, `imagery.generate`, `llm.quiet`) sit adjacent so the "Costs money" badge and the reading
 // order reinforce each other on a screen whose scan question is "what can this cost me". `ui.surface` (#679)
 // was inserted at position 9 — after `notify`, BEFORE the spend block — deliberately: it is neither spend nor
 // risk (it renders only for the installer, house-drawn, and cannot impersonate host chrome), so it reads in the
-// benign band and does not split the three adjacent spend rows. Moving a member is a UX decision, not a refactor.
-test("PLUGIN_CAPABILITIES is the pinned 15-member axis (02 §1; ui.surface #679) in confirm-dialog order", () => {
+// benign band and does not split the three adjacent spend rows. `ui.frame` (U7) follows it at position 10, and
+// that adjacency is the point: it is the ESCALATION of the row above it (the same "may this plugin draw"
+// question, answered with an isolated frame that can beacon over a channel no policy closes), so a reader
+// weighing one has the other in the same glance. It is RISK class where `ui.surface` is not — the only UI
+// capability that reaches past the plugin's own sandbox. Moving a member is a UX decision, not a refactor.
+test("PLUGIN_CAPABILITIES is the pinned 16-member axis (02 §1; ui.surface + ui.frame #679) in confirm-dialog order", () => {
   expect(PLUGIN_CAPABILITIES).toEqual([
     "chat.read",
     "chat.variables.write",
@@ -35,6 +39,7 @@ test("PLUGIN_CAPABILITIES is the pinned 15-member axis (02 §1; ui.surface #679)
     "storage.kv",
     "notify",
     "ui.surface",
+    "ui.frame",
     "turn.trigger",
     "imagery.generate",
     "llm.quiet",
@@ -42,6 +47,15 @@ test("PLUGIN_CAPABILITIES is the pinned 15-member axis (02 §1; ui.surface #679)
     "tools.register",
     "net.fetch",
   ]);
+});
+
+test("pluginManifestSchema accepts ui.frame, and it carries no netHosts coupling (a frame has no network of its own)", () => {
+  const parsed = pluginManifestSchema.parse({ ...BASE, capabilities: ["ui.surface", "ui.frame"] });
+  expect(parsed.capabilities).toEqual(["ui.surface", "ui.frame"]);
+  expect(parsed.netHosts).toBeUndefined();
+  // ui.frame is INDEPENDENT of ui.surface: a plugin whose only UI is a frame declares only the frame. If these
+  // were ever coupled, the hatch's louder consent line would ride along with every declarative panel.
+  expect(pluginManifestSchema.safeParse({ ...BASE, capabilities: ["ui.frame"] }).success).toBe(true);
 });
 
 test("pluginManifestSchema accepts the ui.surface capability (a plugin may declare its own surfaces)", () => {

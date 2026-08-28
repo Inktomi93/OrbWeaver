@@ -29,20 +29,28 @@ import type {
   InvocationChat,
   PluginBridge,
   PluginCapability,
+  PluginCommandRegistrationMeta,
+  PluginFrameBody,
   PluginInvocationLiveness,
   PluginQuietOptions,
   PluginQuietSchema,
   PluginSuggestedAct,
   PluginSurfaceRegistrationMeta,
+  PluginToastLevel,
   PluginTransformRegistration,
   PluginWorldEntryUpsert,
 } from "@orb/contracts/plugin";
 import {
   HOST_FUNCTION_CAPABILITY,
+  PLUGIN_FRAME_SURFACES_MAX,
   PLUGIN_QUIET_IMAGES_MAX,
   PLUGIN_SURFACE_ID_RE,
+  PLUGIN_TIER_REGISTRAR,
+  PLUGIN_TOAST_LEVELS,
   PluginCapabilityError,
   PluginSuggestedError,
+  pluginCommandRegistrationMetaSchema,
+  pluginFrameBodySchema,
   pluginSurfaceRegistrationMetaSchema,
 } from "@orb/contracts/plugin";
 import type { VarOp } from "@orb/kit/macro";
@@ -149,7 +157,14 @@ export interface MembraneRuntime {
    *  trust boundary); `onAction` is the guest handler HANDLE the Sandbox keeps alive keyed by a minted ref (`null`
    *  = a display-only surface). Unlike tools/transforms/events a surface needs NO external registrar: it is read
    *  directly off the resident instance by `plugin.listSurfaces` and re-entered by `plugin.invokeUiAction`. */
-  readonly collectSurface: (meta: PluginSurfaceRegistrationMeta, onAction: QuickJSHandle | null) => void;
+  readonly collectSurface: (meta: PluginSurfaceRegistrationMeta, onAction: QuickJSHandle | null, frame?: PluginFrameBody) => void;
+  /** Collect a UI COMMAND registration — the `collectSurface` mirror (plugin-ui-plane #679 U5, §4.5). `meta` is
+   *  the ALREADY-VALIDATED serializable descriptor; `onRun` is the guest handler HANDLE the Sandbox keeps alive
+   *  keyed by a minted ref, and it is NON-NULL by construction (a command with nothing to run is a dead menu
+   *  row, not a display-only affordance — the membrane refuses one softly before ever calling this). Like a
+   *  surface, a command needs no external registrar: `plugin.listCommands` reads it off the resident instance
+   *  and `plugin.invokeUiCommand` re-enters it. */
+  readonly collectCommand: (meta: PluginCommandRegistrationMeta, onRun: QuickJSHandle) => void;
   /** Append a WARN line to the instance's log ring (drained into the invocation outcome / runtime ring). The ONE
    *  soft-diagnostic seam: `ui.register` uses it to record a refused surface WITHOUT throwing — an invalid surface
    *  spec must not be activation-fatal (a plugin's tools/chips outlive its stale panel, plugin-ui-plane §4.9). */
@@ -315,80 +330,190 @@ function tryDumpGuestValue(ctx: QuickJSContext, handle: QuickJSHandle): DumpGues
   return { ok: true, value: ctx.dump(handle) as unknown };
 }
 
-/** The DECLARATIVE UI plane (plugin-ui-plane #679 U1). Two host fns, both capability `ui.surface`:
- *   - `register(def)` — SYNC, activation-time (the `tools.register` mirror): validate the serializable metadata
- *     host-side (`pluginSurfaceRegistrationMetaSchema` — the trust boundary), keep the guest `onAction` HANDLE,
- *     collect a surface registration. An INVALID def is logged + SKIPPED, NEVER thrown: a stale panel spec must
- *     not kill the activation that also registered the plugin's tools/events (§4.9). This is the ONE membrane
- *     collector that refuses softly rather than throwing.
- *   - `setState(surfaceId, state)` — ASYNC, runtime: publish the whole replacement state through the bridge
- *     (the domain writes the in-memory state row + emits the per-user freshness poke). JSON-safe data only. */
-function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
-  using ui = ctx.newObject();
-  using registerFn = ctx.newFunction("register", (defHandle?: QuickJSHandle) => {
+/** The props `ui.register` reads off a guest def. Named as data so the materialize step is ONE shared helper
+ *  rather than a per-registrar ladder of `getProp`/`tryDumpGuestValue` pairs that can drift apart. */
+const SURFACE_DEF_PROPS = ["id", "anchor", "title", "tier", "spec", "toolName"] as const;
+/** The META props `ui.registerFrame` reads. NOTE what is absent: `tier`. The frame registrar SUPPLIES the tier
+ *  host-side, so a guest cannot name a tier at this door at all — the capability fork is not something the
+ *  argument can influence. `spec`/`toolName` are absent for the same reason in reverse: a frame renders a
+ *  document, so a spec here would be unread, and the meta schema refuses one outright. */
+const FRAME_DEF_PROPS = ["id", "anchor", "title"] as const;
+/** The BODY props `ui.registerFrame` reads — kept apart from the meta so the document bytes are handled by the
+ *  one code path that knows they must never be projected to a client. */
+const FRAME_BODY_PROPS = ["html", "css"] as const;
+
+/** Materialize a fixed list of a def's own props into one plain object, or `undefined` when ANY of them is too
+ *  deeply nested / too large to hand to `ctx.dump` safely. Shared by both registrars so the deep-nesting belt —
+ *  which protects the shared WASM runtime, not merely this call (see {@link handleSafeToDump}) — is applied
+ *  identically at both doors. Every handle it opens is disposed here. */
+function dumpDefProps(ctx: QuickJSContext, defHandle: QuickJSHandle, names: readonly string[]): Record<string, unknown> | undefined {
+  const out: Record<string, unknown> = {};
+  for (const name of names) {
+    using handle = ctx.getProp(defHandle, name);
+    const dumped = tryDumpGuestValue(ctx, handle);
+    if (!dumped.ok) {
+      return;
+    }
+    out[name] = dumped.value;
+  }
+  return out;
+}
+
+/** A def's metadata, materialized and validated, or the SOFT-refusal reason (§4.9). */
+type SurfaceMetaParse = { readonly ok: true; readonly meta: PluginSurfaceRegistrationMeta } | { readonly ok: false; readonly reason: string };
+
+/**
+ * Materialize `props` off a guest def, apply `overrides` (HOST-supplied fields the guest may not name), and
+ * validate the result at the trust boundary. Shared by both registrars.
+ *
+ * IT RUNS UNDER A BELT: any throw — a residual `RangeError` the deep-nesting pre-walk did not pre-empt, a
+ * marshalling failure — becomes the §4.9 soft refusal, never an activation-fatal throw. `safeParse` catches a
+ * `ZodError` but NOT a `RangeError`, so the try/catch is load-bearing, not decoration.
+ *
+ * `overrides` are applied AFTER the dump, so a field the host supplies (the frame door's `tier`) cannot be
+ * shadowed by a guest property of the same name.
+ */
+function parseSurfaceMeta(
+  ctx: QuickJSContext,
+  defHandle: QuickJSHandle,
+  props: readonly string[],
+  overrides: Readonly<Record<string, unknown>>,
+): SurfaceMetaParse {
+  try {
+    const raw = dumpDefProps(ctx, defHandle, props);
+    if (raw === undefined) {
+      return { ok: false, reason: "metadata is too deeply nested or too large to validate" };
+    }
+    const parsed = pluginSurfaceRegistrationMetaSchema.safeParse({ ...raw, ...overrides });
+    // `prettifyError` carries the PATH (which field failed) — the diagnostic a plugin author needs to fix a
+    // stale spec, where a bare `issues[0].message` names none.
+    return parsed.success ? { ok: true, meta: parsed.data } : { ok: false, reason: z.prettifyError(parsed.error) };
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** `ui.register(def)` — SYNC, activation-time (the `tools.register` mirror): validate the serializable metadata
+ *  host-side (`pluginSurfaceRegistrationMetaSchema` — the trust boundary), keep the guest `onAction` HANDLE,
+ *  collect a surface registration. An INVALID def is logged + SKIPPED, NEVER thrown: a stale panel spec must not
+ *  kill the activation that also registered the plugin's tools/events (§4.9). capability: `ui.surface`. */
+function newRegisterFn(ctx: QuickJSContext, runtime: MembraneRuntime): QuickJSHandle {
+  return ctx.newFunction("register", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "ui.register");
     if (defHandle === undefined) {
       throw new Error("plugin host: ui.register requires a definition object");
     }
-    // The metadata handles are scope-owned (`using`). `onAction` is NOT: on the collect path its ownership
-    // TRANSFERS to the Sandbox (kept alive for the instance lifetime); on every other path it is hand-disposed
-    // here — a `using` would double-free the transferred handle (`Lifetime.dispose` throws on a second call).
-    using idH = ctx.getProp(defHandle, "id");
-    using anchorH = ctx.getProp(defHandle, "anchor");
-    using titleH = ctx.getProp(defHandle, "title");
-    using tierH = ctx.getProp(defHandle, "tier");
-    using specH = ctx.getProp(defHandle, "spec");
-    using toolNameH = ctx.getProp(defHandle, "toolName");
+    // `onAction` is NOT scope-owned: on the collect path its ownership TRANSFERS to the Sandbox (kept alive for
+    // the instance lifetime); on every other path it is hand-disposed — a `using` would double-free the
+    // transferred handle (`Lifetime.dispose` throws on a second call). `refuse` owns that discipline for every
+    // early exit, so no arm can forget it.
     const onAction = ctx.getProp(defHandle, "onAction");
-    // The materialize + parse runs under a BELT: ANY throw (a residual `RangeError` the pre-walk did not pre-empt,
-    // a marshalling failure) becomes the §4.9 SOFT refusal, never an activation-fatal throw. `safeParse` catches
-    // `ZodError` but NOT a `RangeError`, so the try/catch is load-bearing, not decoration.
-    // `spec` absent ⇒ `ctx.dump` yields `undefined`, which the schema's optional `spec` accepts.
-    let parsed: ReturnType<typeof pluginSurfaceRegistrationMetaSchema.safeParse>;
-    try {
-      const id = tryDumpGuestValue(ctx, idH);
-      const anchor = tryDumpGuestValue(ctx, anchorH);
-      const title = tryDumpGuestValue(ctx, titleH);
-      const tier = tryDumpGuestValue(ctx, tierH);
-      const spec = tryDumpGuestValue(ctx, specH);
-      // U3: the `tool-card` linkage. Absent ⇒ `undefined`, which the schema's optional `toolName` accepts for
-      // every other anchor and REFUSES for `tool-card` (the biconditional in `ui.ts`).
-      const toolName = tryDumpGuestValue(ctx, toolNameH);
-      if (!(id.ok && anchor.ok && title.ok && tier.ok && spec.ok && toolName.ok)) {
-        throw new Error("metadata is too deeply nested or too large to validate");
-      }
-      const meta = {
-        id: id.value,
-        anchor: anchor.value,
-        title: title.value,
-        tier: tier.value,
-        spec: spec.value,
-        toolName: toolName.value,
-      };
-      parsed = pluginSurfaceRegistrationMetaSchema.safeParse(meta);
-    } catch (err) {
+    const refuse = (reason: string): QuickJSHandle => {
       onAction.dispose();
-      runtime.logWarn(`ui.register refused a surface: ${err instanceof Error ? err.message : String(err)}`);
+      runtime.logWarn(`ui.register refused a surface: ${reason}`);
       return ctx.undefined;
+    };
+    // Absent props dump as `undefined`, which the schema's optional `spec`/`toolName` accept — and which the
+    // U3 `tool-card` biconditional REFUSES for that one anchor.
+    const parsed = parseSurfaceMeta(ctx, defHandle, SURFACE_DEF_PROPS, {});
+    if (!parsed.ok) {
+      return refuse(parsed.reason);
     }
-    if (!parsed.success) {
-      // SOFT refusal: the surface is absent + a log line explains why; activation continues (§4.9).
-      // `prettifyError` carries the PATH (which field failed) — the diagnostic a plugin author needs to fix a
-      // stale spec, where a bare `issues[0].message` names none.
-      onAction.dispose();
-      runtime.logWarn(`ui.register refused a surface: ${z.prettifyError(parsed.error)}`);
-      return ctx.undefined;
+    // THE CAPABILITY FORK (U7). This door is gated on `ui.surface`; the `frame` tier is gated on `ui.frame` and
+    // is minted ONLY by `registerFrame`. Without this, a guest holding `ui.surface` alone could take the hatch's
+    // tier by naming it and the louder consent line would never have been shown. Read off `PLUGIN_TIER_REGISTRAR`
+    // rather than re-spelled as `tier === "frame"`, so a FUTURE tier fails `tsc` at that Record instead of
+    // silently defaulting into this door.
+    if (PLUGIN_TIER_REGISTRAR[parsed.meta.tier] !== "ui.register") {
+      return refuse(`the '${parsed.meta.tier}' tier is registered through host.ui.registerFrame`);
     }
     if (ctx.typeof(onAction) === "function") {
-      runtime.collectSurface(parsed.data, onAction);
+      runtime.collectSurface(parsed.meta, onAction);
     } else {
       // No action handler — a display-only surface. Drop the non-function handle (an absent prop is `undefined`).
       onAction.dispose();
-      runtime.collectSurface(parsed.data, null);
+      runtime.collectSurface(parsed.meta, null);
     }
     return ctx.undefined;
   });
+}
+
+/** A frame def's BODY, materialized and validated, or the soft-refusal reason. Separate from the meta parse
+ *  because the body is the one thing that never enters {@link PluginSurfaceRegistrationMeta} — it must not reach
+ *  the projected wire shape (`PluginSurfaceView extends` that meta), so it is validated by its own schema and
+ *  handed to `collectSurface` as its own argument. */
+type FrameBodyParse = { readonly ok: true; readonly body: PluginFrameBody } | { readonly ok: false; readonly reason: string };
+
+function parseFrameBody(ctx: QuickJSContext, defHandle: QuickJSHandle): FrameBodyParse {
+  try {
+    const raw = dumpDefProps(ctx, defHandle, FRAME_BODY_PROPS);
+    if (raw === undefined) {
+      return { ok: false, reason: "the frame body is too deeply nested or too large to validate" };
+    }
+    const parsed = pluginFrameBodySchema.safeParse(raw);
+    return parsed.success ? { ok: true, body: parsed.data } : { ok: false, reason: z.prettifyError(parsed.error) };
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** `ui.registerFrame(def)` — the U7 ESCAPE HATCH's door (plugin-ui-plane §6.2). capability: **`ui.frame`**.
+ *
+ *  Three things make it a different door rather than an argument:
+ *   1. THE CAPABILITY. A frame runs the plugin's own code in an isolated document and can beacon over WebRTC
+ *      (residual R1, unclosable) — a louder consent line than `ui.surface`'s, and consent is enforced per
+ *      FUNCTION here.
+ *   2. THE TIER IS OURS. `tier: "frame"` is supplied host-side; the guest cannot name a tier at this door, so
+ *      the fork is not reachable from the argument.
+ *   3. THE COUNT CAP. A frame BODY is up to 64 KiB held for the instance lifetime and multiplied by
+ *      `PLUGIN_RESIDENT_RUNTIME_MAX`; `ui.register` needs no such cap because a spec is already bounded to
+ *      32 KiB. The counter is per-CONTEXT (this closure is built once per sandbox), so it bounds ONE plugin
+ *      instance, which is the thing whose memory it is protecting.
+ *
+ *  A frame surface has no `onAction`: its actions ride the postMessage bridge, never a declarative button. */
+function newRegisterFrameFn(ctx: QuickJSContext, runtime: MembraneRuntime): QuickJSHandle {
+  let registered = 0;
+  return ctx.newFunction("registerFrame", (defHandle?: QuickJSHandle) => {
+    requireCapability(runtime, "ui.registerFrame");
+    if (defHandle === undefined) {
+      throw new Error("plugin host: ui.registerFrame requires a definition object");
+    }
+    const refuse = (reason: string): QuickJSHandle => {
+      runtime.logWarn(`ui.registerFrame refused a surface: ${reason}`);
+      return ctx.undefined;
+    };
+    if (registered >= PLUGIN_FRAME_SURFACES_MAX) {
+      return refuse(`at most ${PLUGIN_FRAME_SURFACES_MAX} frame surfaces per plugin`);
+    }
+    // `tier` is an OVERRIDE, not a read: the guest never names one at this door (see FRAME_DEF_PROPS). The meta
+    // parse still applies every shared belt — the id grammar, the title cap, and the anchor × tier admission
+    // that refuses `message-footer` permanently (`PLUGIN_ANCHOR_TIERS`).
+    const parsed = parseSurfaceMeta(ctx, defHandle, FRAME_DEF_PROPS, { tier: "frame" });
+    if (!parsed.ok) {
+      return refuse(parsed.reason);
+    }
+    const body = parseFrameBody(ctx, defHandle);
+    if (!body.ok) {
+      return refuse(body.reason);
+    }
+    registered += 1;
+    runtime.collectSurface(parsed.meta, null, body.body);
+    return ctx.undefined;
+  });
+}
+
+/** The plugin UI plane's guest-facing namespace. `register`/`setState` are the DECLARATIVE arm (capability
+ *  `ui.surface`, U1); `registerFrame` is the U7 escape hatch (capability `ui.frame`) — see the two factories
+ *  above for why the hatch is its own door.
+ *
+ *  `setState(surfaceId, state)` — ASYNC, runtime: publish the whole replacement state through the bridge (the
+ *  domain writes the in-memory state row + emits the per-user freshness poke). JSON-safe data only. */
+function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
+  using ui = ctx.newObject();
+  using registerFn = newRegisterFn(ctx, runtime);
   ctx.setProp(ui, "register", registerFn);
+  using registerFrameFn = newRegisterFrameFn(ctx, runtime);
+  ctx.setProp(ui, "registerFrame", registerFrameFn);
 
   attachAsync(ctx, ui, {
     name: "setState",
@@ -421,6 +546,89 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       const chatArg = args[2];
       const chatId = chatArg === undefined || chatArg === null ? null : resolveChat(runtime, chatArg).chatId;
       await runtime.bridge.ui.setState(surfaceId, state, chatId);
+      return null;
+    },
+  });
+
+  // registerCommand — SYNC, activation-time, the `register` mirror (U5, §4.5). Same SOFT-refusal posture: a
+  // malformed command must not kill the activation that also registered the plugin's tools, events and panels.
+  // Unlike a surface the handler is REQUIRED — a command with no `onRun` is a menu row that does nothing, which
+  // is worse than an absent one, so a non-function `onRun` is a refusal rather than a display-only arm.
+  using registerCommandFn = ctx.newFunction("registerCommand", (defHandle?: QuickJSHandle) => {
+    requireCapability(runtime, "ui.registerCommand");
+    if (defHandle === undefined) {
+      throw new Error("plugin host: ui.registerCommand requires a definition object");
+    }
+    // Same ownership split as `register`: the metadata handles are scope-owned; `onRun`'s ownership TRANSFERS
+    // to the Sandbox on the collect path and is hand-disposed on every other, so it is never `using`.
+    using nameH = ctx.getProp(defHandle, "name");
+    using describeH = ctx.getProp(defHandle, "describe");
+    const onRun = ctx.getProp(defHandle, "onRun");
+    let parsed: ReturnType<typeof pluginCommandRegistrationMetaSchema.safeParse>;
+    try {
+      const name = tryDumpGuestValue(ctx, nameH);
+      const describe = tryDumpGuestValue(ctx, describeH);
+      if (!(name.ok && describe.ok)) {
+        throw new Error("metadata is too deeply nested or too large to validate");
+      }
+      parsed = pluginCommandRegistrationMetaSchema.safeParse({ name: name.value, describe: describe.value });
+    } catch (err) {
+      onRun.dispose();
+      runtime.logWarn(`ui.registerCommand refused a command: ${err instanceof Error ? err.message : String(err)}`);
+      return ctx.undefined;
+    }
+    if (!parsed.success) {
+      onRun.dispose();
+      runtime.logWarn(`ui.registerCommand refused a command: ${z.prettifyError(parsed.error)}`);
+      return ctx.undefined;
+    }
+    if (ctx.typeof(onRun) !== "function") {
+      onRun.dispose();
+      runtime.logWarn(`ui.registerCommand refused '${parsed.data.name}': onRun must be a function`);
+      return ctx.undefined;
+    }
+    runtime.collectCommand(parsed.data, onRun);
+    return ctx.undefined;
+  });
+  ctx.setProp(ui, "registerCommand", registerCommandFn);
+
+  // toast — ASYNC, runtime. The LEVEL is resolved against the closed house tuple rather than a hand-spelled
+  // literal (the `PLUGIN_NOTIFICATION_RECIPIENTS` posture): an unrecognised value degrades to the QUIETEST arm
+  // (`info`), so a guest can never widen its own attention footprint by naming a string the host did not admit.
+  // The MESSAGE is guest text; the domain stamps the plugin-name prefix, applies the length cap and claims the
+  // per-plugin rate floor — infra holds none of those and must not pretend to.
+  attachAsync(ctx, ui, {
+    name: "toast",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "ui.toast");
+      const named = args[0];
+      const level: PluginToastLevel = PLUGIN_TOAST_LEVELS.find((member) => member === named) ?? "info";
+      const message = args[1];
+      if (typeof message !== "string") {
+        throw new Error("plugin host: ui.toast requires a message string");
+      }
+      await runtime.bridge.ui.toast(level, message);
+      return null;
+    },
+  });
+
+  // openDialog — ASYNC, runtime. The id is bounded by the SAME grammar `ui.register` enforces (an unbounded id
+  // would be an unbounded outbox key); WHICH dialog it names is resolved DOMAIN-side against the plugin's own
+  // registered surfaces when the outbox drains, so infra cannot leak whether a surface exists and a guest
+  // cannot open another plugin's dialog (the outbox is keyed by the plugin the guest is).
+  attachAsync(ctx, ui, {
+    name: "openDialog",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "ui.openDialog");
+      const surfaceId = args[0];
+      if (typeof surfaceId !== "string" || !PLUGIN_SURFACE_ID_RE.test(surfaceId)) {
+        throw new Error("plugin host: ui.openDialog requires a valid surfaceId (/^[a-z][a-z0-9_]{0,40}$/)");
+      }
+      await runtime.bridge.ui.openDialog(surfaceId);
       return null;
     },
   });
