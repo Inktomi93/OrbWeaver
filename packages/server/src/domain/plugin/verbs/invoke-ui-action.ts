@@ -19,11 +19,20 @@
 // guest receives ONE `{ actionId, values, chat }` object (the single-arg host→guest seam); `chat` is `null`
 // because a v1 settings surface has no room scope. The handler's return is DISCARDED — the surface's effect is
 // whatever state it publishes via `host.ui.setState`, whose bus poke refreshes the caller's own client.
+//
+// U5 ADDED THE OUTCOME (§4.5a). The handler may also ask for host-mediated CHROME while it runs —
+// `host.ui.toast`, `host.ui.openDialog` — which lands in the plugin's bounded UI outbox. This verb DRAINS that
+// outbox after the guest returns and hands the items back to the person who acted. That is the whole delivery
+// channel, which is what makes a spontaneous modal unspellable rather than merely refused. The drain runs even
+// when the invoke THREW: a handler that toasts "couldn't reach the API" and then throws should still get its
+// sentence to the person, and leaving items behind would deliver them to a LATER, unrelated round-trip.
 
+import type { PluginUiOutcome } from "@orb/contracts/plugin";
 import { PluginNotFoundError } from "../contract/errors.ts";
 import type { InvokeUiActionParams } from "../contract/params.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { getById } from "../persistence/plugins.ts";
+import { resolveUiOutcome } from "../substrate/ui-outbox.ts";
 
 export function createInvokeUiAction(ctx: PluginContext, registry: PluginRegistry): PluginService["invokeUiAction"] {
   return async ({ caller, pluginId, surfaceId, actionId, values }: InvokeUiActionParams) => {
@@ -44,6 +53,15 @@ export function createInvokeUiAction(ctx: PluginContext, registry: PluginRegistr
     }
     // Re-enter under the crash policy + the per-instance invoke queue. The guest gets one {actionId, values,
     // chat} object; a settings surface has no room, so chat is null. The handler's string return is discarded.
-    await resident.invoke(surface.onAction, JSON.stringify({ actionId, values, chat: null }), null);
+    // The DRAIN is in a `finally` so a throwing handler's toasts still reach the person who acted (and never
+    // leak into a later round-trip). The invoke's own rejection still propagates — it must, or a crash reads
+    // as a success with a sad toast.
+    let outcome: PluginUiOutcome = { toasts: [] };
+    try {
+      await resident.invoke(surface.onAction, JSON.stringify({ actionId, values, chat: null }), null);
+    } finally {
+      outcome = resolveUiOutcome(ctx.uiOutbox.drain(pluginId), resident.instance);
+    }
+    return outcome;
   };
 }

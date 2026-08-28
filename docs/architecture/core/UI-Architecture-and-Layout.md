@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-14
+updated: 2026-08-28
 ---
 
 # UI-Architecture-and-Layout
@@ -198,11 +198,16 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             the cell hides and home rides the mobile bar as its FIRST tab) | grouped by
             --spacing-section dividers: Chats · Characters · Corpus (primary; `corpus` is the
             SECTION/feature name — the owning DOMAIN is `discovery`, the rename landed domain-side only,
-            per the feature-structure gate note) | Configuration · Databank · Presets · Refinery
+            per the feature-structure gate note) | Configuration · Extensions · Databank · Presets · Refinery
             (authoring — Configuration leads the run: it is the roster of the LIBRARIES the others are
             built from, and tags, regex scripts and world books live nowhere else since their settings
-            panes and, at R2, the World Info rail section retired; Databank follows it as the other
-            library you author INTO — files/pages/pasted text, indexed for retrieval)
+            panes and, at R2, the World Info rail section retired; Extensions follows it because an
+            extension PAGE is a thing you configured the app to have rather than a library you author
+            into — ONE entry for the whole plugin platform, never one per plugin (plugin-ui-plane §4.5b:
+            rail bloat plus the biggest impersonation surface in that design; per-plugin promotion is a
+            recorded owner knob, not built). It ships rail-VISIBLE with a teaching empty rather than
+            hidden-until-populated, because a hidden entry makes the platform undiscoverable; Databank
+            follows as the other library you author INTO — files/pages/pasted text, indexed for retrieval)
             | Analytics (insight) → spacer → Theme · Settings · persona Identity. The CEILING is a rule
             about KIND, not a count (D121): a rail section owns a top-level workspace with its own
             LIST/CONTENT/CONTEXT grid; dialogs, preferences and one-shots go to modals/settings.
@@ -273,6 +278,7 @@ Per-section grid (end-state; the D62 program builds toward it):
 | Chats | conversation rows · search · star/archive chips · `+` → new-chat picker | LANDING (hero + recents + quick-picks) | chat room (header · thread · composer) | tabs: Members(group) · Overrides · Group(host) · Preview(host) · Injections — REGISTRY-owned via `defineContextTabs` (`ContextTabsPanel`, built M3; `client-architecture-lockdown.md` §6b), not a bespoke `<Tabs>` |
 | Characters | character rows · search · `+` create/import | teaching state | detail card → editor | activity (chats with them) + actions |
 | Configuration | one COLLAPSED group per registered `CollectionContribution` (band = icon · kicker · count · optional import · create `+`); expanded groups get a count-driven filter and windowed rows. R2 added World Info: book rows scented "42 entries · attached ×3" | the welcome (a launcher card per collection) | the selected member's OWN editor, mounted (never a dialog) — for a book, its entry list + entry editor | the selected collection's own arm (a book's activation scopes), or its own `{kind:"none"}` copy |
+| Extensions | the PAGE SWITCHER: one plugin-labelled row per registered `ui.page` surface across the caller's granted-and-enabled plugins (title + the plugin's name as subtitle AND accessible-name disambiguator) — the per-plugin fan happens here, never in the rail | the teaching empty ("No extension pages yet" + Open Plugins), or "pick a page" when pages exist and none is picked — two DIFFERENT facts, deliberately different copy | the selected page inside the PAGE-SCALE plugin shell: a pinned band (plugin name · glyph · "Extension" kicker, no opt-out — plugin-ui-plane §9) above the scrollable DSL body | `{kind:"none"}` — a plugin page owns its whole CONTENT region and draws no host inspector; the context panel is host grammar |
 | Databank | document rows (name · phase chip when NOT ready · origin/size/chunks) + search; band = DATABANK · count · Add · a maintenance kebab (owner-wide reindex / re-extract) | teaching state | the document detail (Details · Maintenance · the source-text reveal) | the activation panel: Everywhere · Active in · the retrieval-knobs pointer |
 | Presets | preset rows + CRUD toolbar | teaching state | tabbed editor (Sampling · Output · Quality · Reasoning · Templates · Post-process · Compaction · Prompt) | usage/bindings (default-collapsed) |
 | Corpus | the search omnibox + target picker + results (default-docked, amended 2026-07-13) | overview home (coverage · insights · keywords) | selected character's dossier | corpus-global analysis tabs (Archetypes/Visuals/Map/Similarity/Compare) |

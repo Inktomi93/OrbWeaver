@@ -1144,6 +1144,15 @@ const PROBES: readonly Probe[] = [
     path: "plugin.invokeUiAction",
     call: (c, i) => c.plugin.invokeUiAction({ pluginId: i.pluginId, surfaceId: "probe_surface", actionId: "probe_action", values: {} }),
   },
+  // ── plugin.invokeUiCommand (plugin-ui-plane #679 U5) — the widest surface of the U5 set and the reason it is
+  //    probed with BOTH of A's real ids at once: it takes a foreign pluginId (gated by the owner-scoped
+  //    `getById`) AND a foreign chatId (gated by the same leak-free `resolveChatAuthority` the snippet uses).
+  //    A command is a NEW way to reach a guest with a room attached, so a dropped belt on either half would run
+  //    A's untrusted code under B, or admit B into A's room — the probe aims at both simultaneously.
+  {
+    path: "plugin.invokeUiCommand",
+    call: (c, i) => c.plugin.invokeUiCommand({ pluginId: i.pluginId, name: "probe_command", args: "", chatId: i.chatId }),
+  },
   // ── plugin.runSnippet (03 §1) takes owner A's chatId — the service gates on `resolveChatAuthority`
   //    (`loadPresentRole` under the caller): a stranger is not present ⇒ canRead=false ⇒ NOT_FOUND BEFORE the
   //    snippet ever runs (no read, no write, no execution against A's chat). Leak-free by the loadPresentRole
@@ -1533,6 +1542,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "plugin.list": "self-scoped: takes NO input at all; listOwned filters WHERE owner_id = caller.userId, so there is no id a stranger could aim",
   "plugin.listSurfaces":
     "self-scoped: takes NO input; listOwned filters WHERE owner_id = caller.userId and only the caller's OWN resident instances are consulted, so a stranger's surfaces are never in the result (plugin-ui-plane #679 U1)",
+  "plugin.listCommands":
+    "self-scoped: the listSurfaces twin — takes NO input; listOwned filters WHERE owner_id = caller.userId and only the caller's OWN resident instances are consulted, so a stranger's commands are never in the result (plugin-ui-plane #679 U5)",
   // ── SERVER-WIDE DISTRIBUTION (D147 clause (d), added 2026-08-24). All three are `adminProcedure` + a domain
   //    `requireAdmin` re-check, so the sweep's plain-user stranger is refused FORBIDDEN at LAYER 1 before any
   //    lookup — the `admin.*` role-gate pattern, tested by the admin-gate matrix, not IDOR. None takes a

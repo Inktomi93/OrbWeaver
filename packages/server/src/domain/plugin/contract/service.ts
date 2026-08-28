@@ -7,10 +7,18 @@
 
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
+import type {
+  InvocationChat,
+  PluginBridge,
+  PluginCapability,
+  PluginHandlerRef,
+  PluginInstance,
+  PluginToastLevel,
+  PluginUiOutcome,
+} from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
-import type { PluginBelts, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle, SnippetGate } from "./ops.ts";
+import type { PluginBelts, PluginHostOps, PluginIdentity, PluginInvokeHandler, PluginRegistrationHandle, SnippetGate } from "./ops.ts";
 import type {
   ApplyDistributedPluginsParams,
   GetPluginLogParams,
@@ -18,6 +26,8 @@ import type {
   InstallForAllUsersParams,
   InstallPluginParams,
   InvokeUiActionParams,
+  InvokeUiCommandParams,
+  ListCommandsParams,
   ListDistributedPluginsParams,
   ListPluginsParams,
   ListSurfacesParams,
@@ -31,6 +41,7 @@ import type {
 import type {
   DistributedPluginApplication,
   DistributedPluginView,
+  PluginCommandView,
   PluginFanoutResult,
   PluginLogView,
   PluginSurfaceState,
@@ -185,6 +196,28 @@ export interface PluginSurfaceStateStore {
   readonly clearForPlugin: (pluginId: PluginId) => void;
 }
 
+/** The in-memory per-plugin UI OUTBOX (plugin-ui-plane #679 U5, §4.5a) — where `host.ui.toast` and
+ *  `host.ui.openDialog` land and where the two invoke verbs drain them onto the round-trip's outcome. The
+ *  surface-state plane's sibling in every respect: minted ONCE per service at compose, `ASSUMES(single-replica)`,
+ *  respawn wipes, cleared per-plugin on deactivate. FACTORY: `substrate/ui-outbox.ts` (the SnippetGate/NotifyFloor
+ *  convention — seam TYPE here, factory in substrate).
+ *
+ *  The channel choice is the security property, not plumbing: because the ONLY way an item leaves this store is
+ *  the outcome of a client-initiated `invokeUiAction`/`invokeUiCommand`, a plugin cannot raise a modal or a toast
+ *  at a person who did not just act on it. A spontaneous open has no path to travel on. */
+export interface PluginUiOutbox {
+  /** Stamp the plugin's NAME as the attribution prefix, cap the body, claim the per-plugin toast cooldown, and
+   *  queue it. THROWS when the cooldown refuses (→ a rejected guest promise: a plugin over its floor is told). */
+  readonly pushToast: (plugin: PluginIdentity, level: PluginToastLevel, message: string) => void;
+  /** Record an ask to open one of this plugin's `dialog` surfaces. LAST WRITE WINS; the id is resolved against
+   *  the resident instance by the draining verb, never here. */
+  readonly requestDialog: (pluginId: PluginId, surfaceId: string) => void;
+  /** Take and clear everything queued for one plugin — called by the invoke verbs after the guest returns. */
+  readonly drain: (pluginId: PluginId) => PluginUiOutcome;
+  /** Drop one plugin's whole outbox — the deactivate/uninstall sweep (no ghost chrome outlives a disabled plugin). */
+  readonly clearForPlugin: (pluginId: PluginId) => void;
+}
+
 /** The injected-op bundle every plugin verb closes over, assembled at the composition root. */
 export interface PluginContext {
   readonly db: Db;
@@ -211,6 +244,10 @@ export interface PluginContext {
    *  deactivate/uninstall clears it. Written by the compose-side `ops.ui.setState` (the same store instance,
    *  shared by construction). Minted ONCE at compose (`createPluginSurfaceStateStore`). */
   readonly surfaceState: PluginSurfaceStateStore;
+  /** The UI OUTBOX (plugin-ui-plane #679 U5) — the invoke verbs drain it onto their outcome and
+   *  deactivate/uninstall clears it. Written by the compose-side `ops.ui.toast`/`ops.ui.openDialog` (the same
+   *  store instance, shared by construction). Minted ONCE at compose (`createPluginUiOutbox`). */
+  readonly uiOutbox: PluginUiOutbox;
   /** The snippet gate: resolve the caller's leak-free read/host authority for a chat. Caller-in-params
    *  (the injected-op-caller-gate rule); a foreign/unknown chat yields `{false,false}` — no existence oracle.
    *  Injected at compose (the domain never imports chat) — `loadPresentRole` under the caller. */
@@ -311,7 +348,15 @@ export interface PluginService {
   readonly listSurfaces: (params: ListSurfacesParams) => Promise<readonly PluginSurfaceView[]>;
   /** One owned surface's published state (`null` if nothing published). Owner-scoped on `pluginId` (leak-free). */
   readonly getSurfaceState: (params: GetSurfaceStateParams) => Promise<PluginSurfaceState | null>;
-  /** Re-enter a surface's `onAction` under the crash policy (owner-scoped, leak-free). Void — the state update
-   *  the handler may publish rides the `pluginSurfaceStateChanged` bus poke to the caller's own client. */
-  readonly invokeUiAction: (params: InvokeUiActionParams) => Promise<void>;
+  /** Re-enter a surface's `onAction` under the crash policy (owner-scoped, leak-free). Returns the drained UI
+   *  OUTCOME (U5): the host-mediated toasts + at most one dialog-open the guest asked for while it ran. Any STATE
+   *  the handler published still rides the `pluginSurfaceStateChanged` bus poke — the outcome carries chrome, not
+   *  data. */
+  readonly invokeUiAction: (params: InvokeUiActionParams) => Promise<PluginUiOutcome>;
+  /** The caller's OWN enabled plugins' registered COMMANDS (U5) — owner-scoped, no foreign id, the
+   *  `listSurfaces` posture exactly. Both the `/plugin` dispatcher and the Plugins chrome menu read it. */
+  readonly listCommands: (params: ListCommandsParams) => Promise<readonly PluginCommandView[]>;
+  /** Run one registered command under the crash policy (owner-scoped, leak-free) and return the drained UI
+   *  outcome. `/plugin <slug> <name> <rest>` and the chrome menu are the two surfaces that reach it. */
+  readonly invokeUiCommand: (params: InvokeUiCommandParams) => Promise<PluginUiOutcome>;
 }

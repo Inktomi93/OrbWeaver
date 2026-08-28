@@ -78,6 +78,24 @@ export interface PluginSurfaceView extends PluginSurfaceRegistrationMeta {
  *  resolves `{ $state: "path" }` bindings against. `null` from the verb when nothing has been published yet. */
 export type PluginSurfaceState = Record<string, unknown>;
 
+/** One registered COMMAND as the CALLER's client sees it (`listCommands` — plugin-ui-plane #679 U5). The
+ *  registration meta (name/describe — the `onRun` handle stays server-side) plus the identity BOTH consuming
+ *  surfaces need: the `pluginId` the invoke round-trip names, and the plugin's `slug` + `name`, which are the
+ *  dispatch token and the menu label respectively.
+ *
+ *  THE SLUG IS PROJECTED, NOT DERIVED CLIENT-SIDE, for the same reason `toolWireName` is: `/plugin <slug> <name>`
+ *  is the dispatch grammar, only this side knows the install's slug, and a second spelling of the rule would
+ *  silently unmatch every command the day either half moved. */
+export interface PluginCommandView {
+  readonly pluginId: PluginId;
+  /** The install slug — the FIRST token of `/plugin <slug> <name> …`. */
+  readonly slug: string;
+  /** The plugin's display name — the menu group label and the toast/dialog attribution the person reads. */
+  readonly pluginName: string;
+  readonly name: string;
+  readonly describe: string;
+}
+
 /** One published plugin as the DISTRIBUTE surface sees it (D147 clause (d)) — the `admin_distributed_plugins`
  *  row projected. It describes the deployment's POLICY, never anyone's install: no status, no grant, no
  *  crash counter, because the record is a bundle the server publishes and every actual copy is an ordinary

@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-08-24
+updated: 2026-08-28
 ---
 
 # The Plugin UI Plane — full-featured add-ons over the sealed membrane (#679)
@@ -280,7 +280,31 @@ by fixed first-party members, never per-plugin (the one-assembly law, G8):
   first-party "Plugins" chrome menu (the wand shape) lists registered commands. Full per-command
   palette rows (a dynamic palette source) are COMMITTED at U8 (full-parity ruling; §5 row 9).
 
-### 4.5a Dialogs + toasts (host-mediated affordances — committed U5, full-parity ruling)
+### 4.5a Dialogs + toasts (host-mediated affordances — BUILT at U5)
+
+> **AS-BUILT (2026-08-28), and the three places the build is more specific than the design was.** Every clause
+> below stands; these are the mechanisms the build had to decide and this section did not name.
+>
+> 1. **`dialog` is a MEMBER of `PLUGIN_SURFACE_ANCHORS`, not a separate axis.** The design calls it "a fifth
+>    surface KIND (not an anchor)"; the tuple had four members, so "fifth kind" and "sixth tuple member"
+>    (`page` joined at the same time) name the same edit. It shares the tuple because it shares the
+>    REGISTRATION vocabulary — registered, titled, tiered and spec'd exactly like every other surface — and a
+>    second axis for one member would be the parallel map the house kills. What "not an anchor" means as built:
+>    it mounts nowhere by itself.
+> 2. **THE DELIVERY CHANNEL IS THE ROUND-TRIP OUTCOME.** A guest calls `host.ui.toast`/`host.ui.openDialog`
+>    during an invocation; the domain stashes the item in a bounded per-plugin UI OUTBOX
+>    (`domain/plugin/substrate/ui-outbox.ts`), and the outbox DRAINS onto the result of the action/command the
+>    person just ran. That is what makes "opened ONLY by an explicit user act" structural: a spontaneous open
+>    has no channel to travel on. It also names the honest cost — a toast raised with no viewer present (an
+>    event handler, a resident tool) waits for that person's next round-trip with the plugin, or is evicted;
+>    the durable channel stays `notifications.post`. The user bus was REJECTED as the channel: it is the
+>    invalidation router (`bus-onData-no-store-write`), and a toast has nothing to invalidate.
+> 3. **A THIRD host fn was required: `host.ui.openDialog`.** §4.8 rules that no vocabulary node opens a modal,
+>    so with only `registerCommand` + `toast` a registered dialog would have been unreachable. It rides the
+>    same `ui.surface` grant, and the DOMAIN resolves the id against the plugin's own `dialog`-anchored
+>    registrations when the outbox drains — so a plugin cannot open another plugin's dialog, cannot smuggle a
+>    `page` into the modal shell, and a stale id costs the ask and nothing else (§4.9's soft-refusal posture).
+
 
 - **`dialog`** — a fifth surface KIND (not an anchor): a house modal shell, plugin-attributed
   title, DSL body (Tier S or C), opened only by an explicit user act on one of the plugin's own
@@ -290,7 +314,25 @@ by fixed first-party members, never per-plugin (the one-assembly law, G8):
   rate-floored per plugin (constant named at build, the `AUTOMATION_NOTICE_COOLDOWN_SECONDS`
   posture). Transient viewer-local feedback; the durable channel stays `notify`.
 
-### 4.5b The Extensions section + `ui.page` (steer 7 — committed U5)
+### 4.5b The Extensions section + `ui.page` (steer 7 — BUILT at U5)
+
+> **AS-BUILT (2026-08-28).** `extensions` is the tenth `SECTION_IDS` member, placed directly after `config` per
+> this section's own recommendation, and the §6a playbook was walked in full (the ten sites are enumerated in
+> the build's report). Two build decisions this section left open:
+>
+> - **The browse-genre nodes landed as `grid` · `masterDetail` · `searchBar` (with `filters` as a SLOT on
+>   `searchBar`, not a fourth kind)**, plus an `aspect` field on `image`. The house media-tile composite this
+>   section anticipated is `@orb/ui/media-tile-grid` (`MediaTileGrid` + a shape-matched `MediaTileGridSkeleton`)
+>   — a shelf member, per the §4.3 shelf-exposure rule, so the whole app gets it. `searchBar` is capped at ONE
+>   PER SPEC by the schema: "prominent" is a claim two of them refute.
+> - **A HAZARD the vocabulary growth introduced, closed at the source.** `masterDetail` (stage bodies) and
+>   `searchBar` (filters) carry children under fields NOT called `children`, so every existing tree walk — the
+>   spec's own node/depth CAPS, the renderer's depth belt, the image-id sweep, the form-default collector — was
+>   about to go silently blind to a whole subtree while still reporting a passing node count. The fix is ONE
+>   exported seam, `pluginChildNodes` in `@orb/contracts/plugin/ui.ts`, that every walk recurses through; a
+>   sixth recursive kind is one edit. The caps' blindness is pinned by a contract test that nests past the
+>   depth cap THROUGH the new fields.
+
 
 **The need:** an extension with "lots of bits and bobs" — the motivating example is a HUB BROWSER
 (search → results → preview → import) — has no home in panel-scale anchors. `ui.page` is a
@@ -612,7 +654,7 @@ is the arbitrary-pixels arm, not a parallel UI system.
 | U2 | chat anchors: flank fan-out + settings-section contribution + the shell (seam 7) | a plugin renders a labeled flank widget updating on room events; disabled ⇒ byte-identical room | ordinary |
 | U3 | `tool-card`: `pluginToolRenderer` + card specs — **closes A2-F5** | the oracle-deck example's draw renders a house card; an unregistered tool still gets the generic block | ordinary |
 | U4 | Tier C: `uiEntry` + bytes route + worker host + `uiHostCall` + CSP delta (seams 8-10) — **security-executor review gates the merge** | a scripted surface filters a list with zero network on keystroke; a hung `ui.js` collapses to null within the deadline | ordinary (CSP edit deliberate) |
-| U5 | `/plugin` slash dispatch + the Plugins chrome menu + the `dialog` surface kind + `host.ui.toast` (§4.5a) + **`ui.page` + the Extensions section** (§4.5b, seam 16) | `/plugin oracle draw` runs; the wand menu lists plugin commands; a plugin action opens a plugin-attributed house dialog and raises a prefixed toast; a plugin registers a page and it appears behind the Extensions rail entry's switcher; zero pages ⇒ the teaching empty | ordinary (the SECTION\_IDS tuple edit is the §6a playbook, not a merge window) |
+| U5 **(BUILT)** | `/plugin` slash dispatch + the Plugins chrome menu + the `dialog` surface kind + `host.ui.toast` (§4.5a) + **`ui.page` + the Extensions section** (§4.5b, seam 16) | `/plugin oracle-deck draw` runs; the wand menu lists plugin commands; a plugin action opens a plugin-attributed house dialog and raises a prefixed toast; a plugin registers a page and it appears behind the Extensions rail entry's switcher; zero pages ⇒ the teaching empty | ordinary (the SECTION\_IDS tuple edit is the §6a playbook, not a merge window) |
 | U6 | the committed parity tail (all CMT rows): `message-footer` DSL badges (§5.4) · the display-transform seam (§5.5/§5.29, seam 14) · `llm.quiet` schema + vision params (§5.16/§5.32) · the typed transform-abort outcome (§5.14) · `macros.register` (§5.15) | per row: a badge renders under a message; a display transform annotates rendered text; a structured quiet call returns schema-valid JSON; a transform aborts a generation typed; a plugin macro substitutes | ordinary |
 | U7 | the `ui.frame` hatch whole (seam 13; §6.2) — **security-executor review gates the merge** | a frame surface draws a chess board at `chat-flank`; a hostile frame reaches nothing off-box except the #124 channel its consent line names; every §6.1 row is servable | ordinary (CSP untouched — the frame carries its OWN response policy) |
 | U8 | ecosystem (seams 15+17): URL install + update check (one-click, re-consented) · `databank.ingest` · **`character.ingest`** · card extension fields · dynamic palette rows | install a plugin from a URL with the same consent screen; an update lands disabled-pending-reconsent when reach widened; a scraper plugin ingests into the databank; plugin commands appear as first-class palette rows; **the HUB-BROWSER showcase becomes buildable** — a `ui.page` Extensions page (search → results grid → preview → import; the flow of THIS repo's own 2026-07-22-purged `features/hub` carried as semantics, its UI designed fresh against the §4.5b failure list, `f6c5c588e` the dated drop) importing via `character.ingest`; it joins the example-plugin candidates (#673's seeded set) as the ui.page + ingest showcase | ordinary |
