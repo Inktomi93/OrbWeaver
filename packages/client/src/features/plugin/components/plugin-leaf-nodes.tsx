@@ -1,0 +1,324 @@
+// The LEAF node renderers (plugin-ui-plane #679 U1, §4.3) — the display leaves and the form/action leaves —
+// split out of `plugin-surface-renderer.tsx`, which owns the walk, the caps and the container dispatch.
+//
+// THE SPLIT FOLLOWS `plugin-browse-nodes.tsx`: the one exported entry `SurfaceLeaf` takes the CONCRETE values a
+// leaf needs (surface state, the resolved owner-scoped image urls, the form draft + its setter, the action
+// submitter, the in-flight flag) rather than the renderer's own `RenderCtx` object. That keeps the renderer the
+// single owner of the walk, gives this module NO import back into it (so there is no cycle to unpick), and keeps
+// `RenderCtx` private to the renderer.
+//
+// The WHOLE leaf concern lives HERE and behind one door: the display/form partition, the `isFormNode` guard, and
+// both leaf families are module-private, so each leaf renderer stays exhaustive over its own SMALL union (a new
+// node kind still fails `tsc` in the switch that owns it) without the union alias ever being exported — which
+// `no-inline-types` forbids for a feature module, and which is why the renderer delegates every leaf to
+// `SurfaceLeaf` instead of dispatching the two families itself. Exporting only a component also satisfies the
+// react-refresh `useComponentExportOnlyModules` rule (a guard export would break it).
+
+import type {
+  PluginBadgeNode,
+  PluginBoundString,
+  PluginButtonNode,
+  PluginConfirmButtonNode,
+  PluginGridNode,
+  PluginImageNode,
+  PluginKeyValueNode,
+  PluginListNode,
+  PluginMarkdownNode,
+  PluginMeterNode,
+  PluginNodeKind,
+  PluginNumberFieldNode,
+  PluginSelectNode,
+  PluginSliderNode,
+  PluginTextFieldNode,
+  PluginTextNode,
+  PluginToggleNode,
+} from "@orb/contracts/plugin";
+import { Badge } from "@orb/ui/badge";
+import { Button } from "@orb/ui/button";
+import { Field } from "@orb/ui/field";
+import { Input } from "@orb/ui/input";
+import { Row, Stack } from "@orb/ui/layout";
+import { Markdown } from "@orb/ui/markdown";
+import { MessageMedia } from "@orb/ui/message-media";
+import { Meter } from "@orb/ui/meter";
+import { NumberField } from "@orb/ui/number-field";
+import { Select } from "@orb/ui/select";
+import { Slider } from "@orb/ui/slider";
+import { Switch } from "@orb/ui/switch";
+import { Text } from "@orb/ui/text";
+import type { ReactElement } from "react";
+import { ConfirmDialog } from "#components";
+import { METER_DEFAULT_MAX, numFromValues, resolveNumber, resolveString } from "../lib/plugin-surface-bindings.ts";
+import { SurfaceGrid } from "./plugin-browse-nodes.tsx";
+
+/** The display leaves (no form state) and the form/action leaves — partition the non-container node union so
+ *  each leaf renderer stays over a SMALL union (a new kind still fails `tsc`). Local to this module: these are
+ *  rendering partitions, not a cross-boundary contract shape, and are never exported (the walk dispatches through
+ *  `isFormNode`, never by naming a union).
+ *
+ *  `grid` is a DISPLAY leaf even though a tile can carry an `actionId`: it holds no draft state of its own — a
+ *  tile click submits the surface's current `values` bag plus the tile's id, exactly as a `button` does. */
+type DisplayNode =
+  | PluginTextNode
+  | PluginBadgeNode
+  | PluginMeterNode
+  | PluginKeyValueNode
+  | PluginListNode
+  | PluginImageNode
+  | PluginMarkdownNode
+  | PluginGridNode;
+type FormNode =
+  | PluginTextFieldNode
+  | PluginNumberFieldNode
+  | PluginToggleNode
+  | PluginSelectNode
+  | PluginSliderNode
+  | PluginButtonNode
+  | PluginConfirmButtonNode;
+
+const FORM_KINDS: ReadonlySet<PluginNodeKind> = new Set<PluginNodeKind>(["textField", "numberField", "toggle", "select", "slider", "button", "confirmButton"]);
+
+/** Is this leaf a FORM/ACTION leaf (draft state) rather than a DISPLAY leaf? Module-private: the walk delegates
+ *  every leaf to `SurfaceLeaf`, which uses this to route to the right family without either union being named
+ *  outside this file. */
+function isFormNode(node: DisplayNode | FormNode): node is FormNode {
+  return FORM_KINDS.has(node.kind);
+}
+
+/** Submit `actionId` with the current draft, plus any EXTRA values the affordance carries (a grid tile's `tile`
+ *  id). Mirrors `RenderCtx.submit` — passed concretely so this module never imports the renderer's context. */
+type SubmitAction = (actionId: string, extra?: Record<string, string>) => void;
+
+/** The ONE exported leaf door — the renderer's walk delegates every non-container node here, so the display/form
+ *  partition and both leaf families stay module-private. Props are the flattened `RenderCtx` fields a leaf reads
+ *  (concrete, never the context object), threaded on to the family that owns each leaf kind. */
+export function SurfaceLeaf({
+  node,
+  state,
+  values,
+  setValue,
+  submit,
+  submitting,
+  imageUrls,
+}: {
+  readonly node: DisplayNode | FormNode;
+  readonly state: Record<string, unknown>;
+  readonly values: Record<string, string>;
+  readonly setValue: (name: string, value: string) => void;
+  readonly submit: SubmitAction;
+  readonly submitting: boolean;
+  readonly imageUrls: ReadonlyMap<string, string>;
+}): ReactElement {
+  return isFormNode(node) ? (
+    <FormLeaf node={node} setValue={setValue} submit={submit} submitting={submitting} values={values} />
+  ) : (
+    <DisplayLeaf imageUrls={imageUrls} node={node} state={state} submit={submit} />
+  );
+}
+
+/** The house Text voice for a plugin `text`/section voice — `gloss`/`label` pass through; `body` is the default. */
+function BoundText({
+  value,
+  voice,
+  state,
+}: {
+  readonly value: PluginBoundString;
+  readonly voice: "body" | "gloss" | "label" | undefined;
+  readonly state: Record<string, unknown>;
+}): ReactElement {
+  const text = resolveString(value, state);
+  if (voice === "gloss" || voice === "label") {
+    return (
+      <Text prose={true} voice={voice}>
+        {text}
+      </Text>
+    );
+  }
+  return <Text prose={true}>{text}</Text>;
+}
+
+/** The seven DISPLAY leaves (no form state). An if-chain, not a switch: each guard narrows `node`, and the
+ *  final `markdown` return doubles as the forward-compat fallback over an untrusted (post-validation) spec. */
+function DisplayLeaf({
+  node,
+  state,
+  imageUrls,
+  submit,
+}: {
+  readonly node: DisplayNode;
+  readonly state: Record<string, unknown>;
+  readonly imageUrls: ReadonlyMap<string, string>;
+  readonly submit: SubmitAction;
+}): ReactElement {
+  if (node.kind === "text") {
+    return <BoundText state={state} value={node.value} voice={node.voice} />;
+  }
+  if (node.kind === "badge") {
+    return (
+      <Badge intent={node.intent ?? "neutral"} size="sm" tone="soft">
+        {resolveString(node.text, state)}
+      </Badge>
+    );
+  }
+  if (node.kind === "meter") {
+    return (
+      <Meter
+        kind="linear"
+        label={node.label ?? ""}
+        max={node.max ?? METER_DEFAULT_MAX}
+        showValue={node.label !== undefined}
+        value={resolveNumber(node.value, state)}
+      />
+    );
+  }
+  if (node.kind === "keyValue") {
+    return (
+      <Stack gap="tight">
+        {node.rows.map((kv) => (
+          <Row align="baseline" gap="field" justify="between" key={kv.key}>
+            <Text voice="label">{kv.key}</Text>
+            <Text prose={true} voice="gloss">
+              {resolveString(kv.value, state)}
+            </Text>
+          </Row>
+        ))}
+      </Stack>
+    );
+  }
+  if (node.kind === "list") {
+    return (
+      <Stack gap="tight">
+        {node.items.map((item, index) => (
+          <Text
+            // biome-ignore lint/suspicious/noArrayIndexKey: a list item is a bindable string with no id and the list is static per render — index is a stable key here.
+            key={index}
+            prose={true}
+          >
+            {resolveString(item, state)}
+          </Text>
+        ))}
+      </Stack>
+    );
+  }
+  if (node.kind === "image") {
+    return <SurfaceImage node={node} url={imageUrls.get(node.assetId)} />;
+  }
+  if (node.kind === "grid") {
+    return <SurfaceGrid imageUrls={imageUrls} node={node} state={state} submit={submit} />;
+  }
+  // Untrusted plugin markdown — the sealed Streamdown renderer's `untrusted` tier (Tier-A allowlist + url gate),
+  // the same posture model output takes; never `trusted`. Last in the chain, so it is also the safe fallback.
+  return (
+    <Markdown mode="static" trust="untrusted">
+      {resolveString(node.value, state)}
+    </Markdown>
+  );
+}
+
+/** An `image` node — the src is ALWAYS an owner-scoped CAS blob url; a miss is the empty placeholder. */
+function SurfaceImage({ node, url }: { readonly node: PluginImageNode; readonly url: string | undefined }): ReactElement {
+  if (url === undefined) {
+    // Owner-scope miss: the installer does not own this asset (or it is gone). NEVER another user's blob.
+    return (
+      <Stack align="center" className="rounded-base border border-border border-dashed p-block" justify="center">
+        <Text voice="gloss">{node.alt ?? "Image unavailable"}</Text>
+      </Stack>
+    );
+  }
+  // Through the sealed house media primitive (asset-vs-external dispatch + broken-media fallback, D44) — the
+  // src is an OWNER-SCOPED CAS asset url, the only source the vocabulary permits.
+  return <MessageMedia alt={node.alt ?? ""} media="image" src={{ kind: "asset", url }} />;
+}
+
+/** The FORM/ACTION leaves. Values are client-transient until an action submits the whole bag. An if-chain,
+ *  not a switch: each guard narrows `node`, and the final `confirmButton` return doubles as the safe fallback. */
+function FormLeaf({
+  node,
+  values,
+  setValue,
+  submit,
+  submitting,
+}: {
+  readonly node: FormNode;
+  readonly values: Record<string, string>;
+  readonly setValue: (name: string, value: string) => void;
+  readonly submit: SubmitAction;
+  readonly submitting: boolean;
+}): ReactElement {
+  if (node.kind === "textField") {
+    return (
+      <Field description={node.placeholder} label={node.label}>
+        <Input onValueChange={(next: string): void => setValue(node.name, next)} placeholder={node.placeholder} value={values[node.name] ?? ""} />
+      </Field>
+    );
+  }
+  if (node.kind === "numberField") {
+    return (
+      <Field label={node.label}>
+        <NumberField
+          max={node.max}
+          min={node.min}
+          onValueChange={(next): void => setValue(node.name, next === null ? "" : String(next))}
+          step={node.step}
+          value={values[node.name] === undefined || values[node.name] === "" ? null : Number(values[node.name])}
+        />
+      </Field>
+    );
+  }
+  if (node.kind === "toggle") {
+    return (
+      <Field label={node.label} orientation="horizontal">
+        {/* aria-label carries the field label onto the control itself — Field renders the visible label, but
+            the a11y rule wants the Switch to carry its OWN accessible name (same string, no double-voicing). */}
+        <Switch aria-label={node.label} checked={values[node.name] === "true"} onCheckedChange={(next): void => setValue(node.name, String(next))} />
+      </Field>
+    );
+  }
+  if (node.kind === "select") {
+    return (
+      <Field label={node.label}>
+        {/* aria-label mirrors the Field label onto the trigger — Base UI's Select.Label doesn't reach the
+            trigger's aria-labelledby standalone, and the static a11y rule wants the control's own name. */}
+        <Select
+          aria-label={node.label}
+          items={node.options.map((o) => ({ label: o.label, value: o.value }))}
+          onValueChange={(next: string | null): void => setValue(node.name, next ?? "")}
+          value={values[node.name] ?? ""}
+        />
+      </Field>
+    );
+  }
+  if (node.kind === "slider") {
+    return (
+      <Slider
+        label={node.label}
+        max={node.max}
+        min={node.min}
+        onValueChange={(next): void => setValue(node.name, String(next))}
+        step={node.step ?? 1}
+        value={numFromValues(values, node.name, node.min)}
+      />
+    );
+  }
+  if (node.kind === "button") {
+    return (
+      <Button intent={node.variant === "outline" ? "outline" : "secondary"} loading={submitting} onClick={(): void => submit(node.actionId)} size="sm">
+        {node.label}
+      </Button>
+    );
+  }
+  // confirmButton — last in the chain, so it is also the safe fallback over an untrusted (post-validation) spec.
+  return (
+    <ConfirmDialog
+      confirmLabel={node.label}
+      description={node.confirmBody ?? ""}
+      onConfirm={(): void => submit(node.actionId)}
+      title={node.confirmTitle}
+      trigger={
+        <Button intent="destructive" loading={submitting} size="sm">
+          {node.label}
+        </Button>
+      }
+    />
+  );
+}
