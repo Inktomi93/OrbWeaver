@@ -134,11 +134,11 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
         castAction={
           isHost ? (
             <Row align="center" gap="tight">
-              {/* #26 — the saved-party door: the picker is the destination (openModal, never a feature
-                  import); "Add party…"/"Save as party" both live inside it, scoped to THIS open room. */}
-              <Button type="button" intent="ghost" size="sm" onClick={(): void => openModal("savedParties")}>
+              {/* #26 — the saved-cast door (B10: apply-existing = Members “Add cast…”): the picker is the destination (openModal, never a feature
+                  import); "Add cast…"/"Save current cast" both live inside it, scoped to THIS open room. */}
+              <Button type="button" intent="ghost" size="sm" onClick={(): void => openModal("savedCasts")}>
                 <Icon icon={Users} size="sm" />
-                Parties
+                Add cast…
               </Button>
               <AddMemberPopover chatId={chatId} existingCharacterIds={[...participantIdByCharacter.keys()]} />
             </Row>

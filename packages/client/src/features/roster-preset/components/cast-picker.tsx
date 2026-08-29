@@ -1,12 +1,12 @@
-// The Saved-parties modal body (RP2 — docs/design/saved-rosters-build-record.md §3): the owner's party
+// The Saved-casts modal body (RP2 — docs/design/saved-rosters-build-record.md §3): the owner's cast
 // library with the three affordance families the program doc's §6 sketches, in ONE surface:
-//   · per row — START a chat from the party (members in position order + the anchor persona through the
+//   · per row — START a chat from the cast (members in position order + the anchor persona through the
 //     REAL `useStartChat`, then the `applyToChat` polish call for knobs + config: two calls is CORRECT,
 //     call 1 alone yields a fully valid room and the polish is idempotently retryable);
-//   · per row — ADD the party to the OPEN room (additive `applyToChat`; result toast "Added N…"),
+//   · per row — ADD the cast to the OPEN room (additive `applyToChat`; result toast "Added N…"),
 //     rendered only when a room is open (the server's host gate refuses a non-host with chat's own
 //     leak-free error — the affordance itself stays capability-quiet rather than lying);
-//   · the header — SAVE the open room's CURRENT cast as a new party (author-by-example: present
+//   · the header — SAVE the open room's CURRENT cast as a new saved cast (author-by-example: present
 //     character seats + their live knobs + the room's effective group config + the anchor persona),
 //     rendered only when the viewer HOSTS the open room.
 //
@@ -30,11 +30,11 @@ import { useInvalidation, useStartChat, useTRPC } from "#data";
 import { notify } from "#lib";
 import { closeModal, openModal } from "#state";
 import { useApplyRosterPreset, useCreateRosterPreset, useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
-import { useActivePartyChat, useSavedParties } from "../hooks/use-saved-parties.ts";
+import { useActiveCastChat, useSavedCasts } from "../hooks/use-saved-casts.ts";
 
 /** Derived, not re-minted (no-inline-types): the hook's own return shapes. */
-type SavedPartySummary = RosterPresetSummary;
-type ActivePartyChat = NonNullable<ReturnType<typeof useActivePartyChat>>;
+type SavedCastSummary = RosterPresetSummary;
+type ActiveCastChat = NonNullable<ReturnType<typeof useActiveCastChat>>;
 
 /** The apply outcome, said as one short sentence (the §6 result toast). */
 function applySentence(result: {
@@ -52,29 +52,29 @@ function applySentence(result: {
   return parts.join(" · ");
 }
 
-/** One party row: name + member preview + the row actions. `canAddToChat` = a room is open AND the
+/** One cast row: name + member preview + the row actions. `canAddToChat` = a room is open AND the
  *  viewer HOSTS it (program doc §6 — the add door is capability-driven and HIDDEN for a non-host, the
  *  D16 precedent; the server's own host gate stays the enforcement, this is just not offering a
  *  dead-end). */
-function PartyRow(props: {
-  readonly party: SavedPartySummary;
+function CastRow(props: {
+  readonly cast: SavedCastSummary;
   readonly canAddToChat: boolean;
   readonly busy: boolean;
-  readonly onStart: (party: SavedPartySummary) => void;
-  readonly onAddToChat: (party: SavedPartySummary) => void;
-  readonly onDelete: (party: SavedPartySummary) => void;
+  readonly onStart: (cast: SavedCastSummary) => void;
+  readonly onAddToChat: (cast: SavedCastSummary) => void;
+  readonly onDelete: (cast: SavedCastSummary) => void;
 }): ReactElement {
-  const { party, canAddToChat, busy, onStart, onAddToChat, onDelete } = props;
-  const memberNames = party.members.map((m) => m.name).join(", ");
+  const { cast, canAddToChat, busy, onStart, onAddToChat, onDelete } = props;
+  const memberNames = cast.members.map((m) => m.name).join(", ");
   return (
-    <Row align="center" gap="field" padding="block" className="border-border border-b last:border-b-0" data-slot="party-row">
+    <Row align="center" gap="field" padding="block" className="border-border border-b last:border-b-0" data-slot="cast-row">
       <Stack gap="tight" className="min-w-0 flex-1">
         <Row align="center" gap="field">
           <Text voice="label" className="truncate">
-            {party.name}
+            {cast.name}
           </Text>
           <Badge intent="neutral" tone="soft">
-            {party.memberCount}
+            {cast.memberCount}
           </Badge>
         </Row>
         <Text voice="gloss" className="truncate">
@@ -82,17 +82,17 @@ function PartyRow(props: {
         </Text>
       </Stack>
       <Row align="center" gap="tight" className="shrink-0">
-        <Button disabled={busy} intent="ghost" size="sm" onClick={(): void => onStart(party)} aria-label={`Start a chat with ${party.name}`}>
+        <Button disabled={busy} intent="ghost" size="sm" onClick={(): void => onStart(cast)} aria-label={`Start a chat with ${cast.name}`}>
           <Icon icon={MessagesSquare} size="sm" />
           Start
         </Button>
         {canAddToChat ? (
-          <Button disabled={busy} intent="ghost" size="sm" onClick={(): void => onAddToChat(party)} aria-label={`Add ${party.name} to this chat`}>
+          <Button disabled={busy} intent="ghost" size="sm" onClick={(): void => onAddToChat(cast)} aria-label={`Add ${cast.name} to this chat`}>
             <Icon icon={UserPlus} size="sm" />
             Add to chat
           </Button>
         ) : null}
-        <Button disabled={busy} intent="ghost" size="icon-sm" onClick={(): void => onDelete(party)} aria-label={`Delete ${party.name}`}>
+        <Button disabled={busy} intent="ghost" size="icon-sm" onClick={(): void => onDelete(cast)} aria-label={`Delete ${cast.name}`}>
           <Icon icon={Trash2} size="sm" />
         </Button>
       </Row>
@@ -100,19 +100,13 @@ function PartyRow(props: {
   );
 }
 
-/** The header's author-by-example door — snapshot the OPEN room's cast into a named party. */
-function SaveCurrentParty(props: { readonly active: ActivePartyChat; readonly busy: boolean; readonly onSave: (name: string) => void }): ReactElement {
+/** The header's author-by-example door — snapshot the OPEN room's cast into a named cast. */
+function SaveCurrentCast(props: { readonly active: ActiveCastChat; readonly busy: boolean; readonly onSave: (name: string) => void }): ReactElement {
   const [name, setName] = useState("");
   const trimmed = name.trim();
   return (
     <Row align="center" gap="field">
-      <Input
-        aria-label="New party name"
-        placeholder="Name this party…"
-        value={name}
-        onChange={(e): void => setName(e.target.value)}
-        className="min-w-0 flex-1"
-      />
+      <Input aria-label="New cast name" placeholder="Name this cast…" value={name} onChange={(e): void => setName(e.target.value)} className="min-w-0 flex-1" />
       <Button
         className="shrink-0"
         disabled={props.busy || trimmed.length === 0}
@@ -124,34 +118,34 @@ function SaveCurrentParty(props: { readonly active: ActivePartyChat; readonly bu
         }}
       >
         <Icon icon={Users} size="sm" />
-        Save current party
+        Save current cast
       </Button>
     </Row>
   );
 }
 
-export function PartyPicker(): ReactElement {
-  const parties = useSavedParties();
-  const active = useActivePartyChat();
+export function CastPicker(): ReactElement {
+  const casts = useSavedCasts();
+  const active = useActiveCastChat();
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const create = useCreateRosterPreset({ trpc, invalidation });
   const remove = useRemoveRosterPreset({ trpc, invalidation });
   const apply = useApplyRosterPreset({ trpc, invalidation });
   const { startChat, isPending: isStarting } = useStartChat();
-  const [confirmDelete, setConfirmDelete] = useState<SavedPartySummary | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<SavedCastSummary | null>(null);
   const busy = isStarting || create.isPending || remove.isPending || apply.isPending;
 
-  const onStart = (party: SavedPartySummary): void => {
+  const onStart = (cast: SavedCastSummary): void => {
     if (isStarting) {
       return; // one creation at a time — a double-fire would mint two rooms for one intent.
     }
-    startChat({ characterIds: party.members.map((m) => m.characterId), anchorPersonaId: party.anchorPersonaId })
+    startChat({ characterIds: cast.members.map((m) => m.characterId), anchorPersonaId: cast.anchorPersonaId })
       .then(async (chatId) => {
         closeModal();
         // The POLISH call — knobs + group config onto the fresh room. Silent on full success (§6);
         // a partial (the delete-mid-apply race) surfaces as words.
-        const result = await apply.mutateAsync({ presetId: party.id, chatId });
+        const result = await apply.mutateAsync({ presetId: cast.id, chatId });
         if (result.skipped.length > 0) {
           notify.info(`${result.skipped.length} member${result.skipped.length === 1 ? "" : "s"} skipped — a character was deleted.`);
         }
@@ -159,12 +153,12 @@ export function PartyPicker(): ReactElement {
       .catch(() => undefined); // both mutations toast their own failures; the picked state survives for retry.
   };
 
-  const onAddToChat = (party: SavedPartySummary): void => {
+  const onAddToChat = (cast: SavedCastSummary): void => {
     if (active === null) {
       return;
     }
     apply
-      .mutateAsync({ presetId: party.id, chatId: active.chatId })
+      .mutateAsync({ presetId: cast.id, chatId: active.chatId })
       .then((result) => {
         notify.success(applySentence(result));
         closeModal();
@@ -210,15 +204,15 @@ export function PartyPicker(): ReactElement {
 
   return (
     <Stack gap="section">
-      {active?.isHost === true ? <SaveCurrentParty active={active} busy={busy} onSave={onSave} /> : null}
-      {parties.length === 0 ? (
+      {active?.isHost === true ? <SaveCurrentCast active={active} busy={busy} onSave={onSave} /> : null}
+      {casts.length === 0 ? (
         <EmptyState
           icon={<Icon icon={Users} size="lg" />}
-          title="No saved parties yet"
+          title="No saved casts yet"
           description={
             active?.isHost === true
-              ? "Save this room's cast above, and it becomes a party you can drop into any new chat."
-              : "Open a chat you host and save its cast as a party — then start new rooms from it in one pick."
+              ? "Save this room's cast above, and it becomes a cast you can drop into any new chat."
+              : "Open a chat you host and save it as a cast — then start new rooms from it in one pick."
           }
           action={
             <Button
@@ -236,15 +230,15 @@ export function PartyPicker(): ReactElement {
         />
       ) : (
         <Stack gap="row">
-          {parties.map((party) => (
-            <PartyRow
+          {casts.map((cast) => (
+            <CastRow
               canAddToChat={active?.isHost === true}
               busy={busy}
-              key={party.id}
+              key={cast.id}
               onAddToChat={onAddToChat}
               onDelete={setConfirmDelete}
               onStart={onStart}
-              party={party}
+              cast={cast}
             />
           ))}
         </Stack>
@@ -256,7 +250,7 @@ export function PartyPicker(): ReactElement {
             setConfirmDelete(null);
           }
         }}
-        title="Delete this party?"
+        title="Delete this cast?"
         description={confirmDelete === null ? "" : `“${confirmDelete.name}” is a saved template — chats you started from it are untouched.`}
         confirmLabel="Delete"
         onConfirm={(): void => {

@@ -4,15 +4,24 @@ status: active
 updated: 2026-08-28
 ---
 
-# Saved rosters (roster presets) — the RP1+RP2 build record (#26, lane roster-26)
+# Saved casts (roster presets) — the RP1+RP2 build record (#26, lane roster-26)
 
-> **What this is:** the as-built design for `domain/roster-preset` + the client party picker, built
-> 2026-08-28 against the parked program doc
-> [`saved-rosters-design.md`](../architecture/proposed/saved-rosters-design.md) (D61 B6). The program
-> doc stays the WHY; this file records the deltas the 2026-07-25 rollback + the D80 seat-knob
-> consolidation forced, the alternatives weighed on today's tree, and the coupled-site inventory the
-> landing swept. On conflict: the D-ledger (D61, D80's reserved meaning) wins, then this record, then
-> the parked program doc (its RIDER/triage lines describe the pre-rollback tree and are stale).
+> **What this is:** the as-built design for `domain/roster-preset` + the client saved-cast surfaces.
+> **The CURRENT authority is [`interaction-direction-spec.md`](interaction-direction-spec.md) row B10
+> "saved casts (#26)"** (updated 2026-08-28 — the modernized interaction plan): nomenclature is "saved
+> cast(s)" everywhere user-facing; the four surfaces are save = a Members-tab host action, apply-new =
+> the `newChat` picker's "Start from saved cast", apply-existing = Members "Add cast…", library
+> management = a Configuration-section `CollectionContribution`. The build was originally cut against
+> the July-3 program doc `saved-rosters-design.md` (D61 B6) — that doc is DELETED (2026-08-28,
+> superseded by B10); its mechanics survive here and in D61. On conflict: the D-ledger (D61, D80's
+> reserved meaning) wins, then B10, then this record.
+>
+> **B10 rider NOT yet carried (flagged, deferred by the pre-merge reconciliation):** B10's "the room's
+> enabled PRESET IDS + KNOB VALUES re-minted on apply" — saving the room's enabled automation-RULE
+> presets into the cast and re-minting them on apply (the B2 provenance flip-shape). The schema carries
+> no column for it (a baseline change), and the reconciliation directive scoped this leg to
+> nomenclature + surfaces + doc retirement with the verbs blessed as-built. It is the named follow-up
+> when B2's Rules surface lands.
 
 ## 0. Premise repair (what the dispatch believed vs the tree)
 
@@ -97,21 +106,23 @@ re-apply leans on this", verbs/roster.ts:707). Everything else was rebuilt fresh
    the chat compose precedent, entry/compose/chat.ts:1144). The FK proves existence, never ownership
    (the persona `ensureAssetOwned` comment); a foreign id is a leak-free NotFound.
 
-## 3. Client (RP2) — the party picker
+## 3. Client (RP2) — the saved-cast surfaces
 
 - **A new `features/roster-preset` slice** (name = the server domain, `client-structure` rule 2). It
-  earns existence under G23 by OWNING the `savedParties` MODAL definition
-  (`lib/saved-parties-modal.tsx`); body in `components/`, reads/mutations in `hooks/`.
+  earns existence under G23 by OWNING the `savedCasts` MODAL definition (`lib/saved-casts-modal.tsx`)
+  and the `castCollection` `CollectionContribution` (`lib/cast-collection.tsx` — B10's Configuration-
+  section library management: rows + a mounted member editor for rename/describe/start/delete; member
+  RE-composition stays author-by-example); body in `components/`, reads/mutations in `hooks/`.
 - **One modal, three affordance families** (the program doc's §6 compressed into one surface):
   per-row **Start chat** (preset members in position order + anchor → the real `useStartChat`, then
   the `applyToChat` polish call — two calls is CORRECT, call 1 alone yields a valid room), per-row
   **Add to this chat** (visible only when a room is open AND the viewer HOSTS it — the doc's §6
   capability-driven rule, tightened at the pre-merge stickler's F6; `applyToChat`, result toast),
-  per-row **Delete** (ConfirmDialog), and **Save current party** (snapshots the OPEN chat's present
+  per-row **Delete** (ConfirmDialog), and **Save current cast** (snapshots the OPEN chat's present
   character seats + knobs + groupConfig + anchor into `create` — author-by-example, reading
   `chat.getChat` from cache; rendered only when a chat is active and the viewer hosts it).
-- **Openers:** "Start from party…" in the new-chat picker footer and "Add party…" in the members
-  panel — both `openModal("savedParties")`, the sanctioned cross-feature channel (no feature
+- **Openers (B10's exact labels):** "Start from saved cast" in the new-chat picker and "Add cast…"
+  in the members panel — both `openModal("savedCasts")`, the sanctioned cross-feature channel (no feature
   imports the other). Empty library ⇒ the modal shows its designed empty state (the picker-hides
   rule from the doc applies to the OPENERS' badge, not the modal itself).
 - **Freshness:** `rosterPreset.list` is covered by the `rosterPresetsChanged` invalidation row
@@ -140,7 +151,7 @@ modal's rename/delete covers v1).
 | 12 | `tests/server/transport/cross-tenant-sweep.suite.int.test.ts` | MARK + OwnerIds + seed + probes + EXEMPT rows |
 | 13 | `vitest.config.ts` `SERIAL_INT` | the full-`createServices` apply test rides the serial lane |
 | 14 | `tests/{contracts,server}/…` mirrors | per-verb + persistence + contract tests (test-presence) |
-| 15 | `packages/client/src/state/modal-slot-ids.ts` | `"savedParties"` (appended — the registry CT loops + the prefix-pinned ids assertion both stay green by construction) |
+| 15 | `packages/client/src/state/modal-slot-ids.ts` | `"savedCasts"` (appended — the registry CT loops + the prefix-pinned ids assertion both stay green by construction) |
 | 16 | `packages/client/src/compose/authed-app.tsx` | modal registration (Record-total forces it) |
 | 17 | `packages/client/src/data/invalidation.ts` (+ its EXPECTED-map test) | `rosterPresetsChanged` row |
 | 18 | `packages/client/src/features/roster-preset/**` + the two chat openers | the slice + reachability |
@@ -165,5 +176,5 @@ modal's rename/delete covers v1).
   probe (stranger's OWN preset onto A's chat → NOT_FOUND); `list` PROBED marker-free (the
   WHERE-partition rule — "no id input" is not grounds for EXEMPT).
 - **Contract round-trip** (`tests/contracts/roster-preset/index.contract.test.ts`).
-- **Client CT** (`party-picker.ct.tsx`): rows render from a routed list; empty state; Start/Add
+- **Client CT** (`cast-picker.ct.tsx`): rows render from a routed list; empty state; Start/Add
   affordance gating; delete confirm.
