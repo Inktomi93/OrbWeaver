@@ -11571,9 +11571,9 @@
       "path": "docs/design/interaction-direction-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 642,
-      "bytes": 65876,
-      "sha256": "09b5ad5f85de936dabf9728bb26d9a1f95a7eb7ba1472bcee0561af0bb16e8b3",
+      "lines": 643,
+      "bytes": 67131,
+      "sha256": "35a23ecb0b8a5c8bb718bbf5e588dd9ebd1c89f48016de9f1c73cc1589d60458",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11614,7 +11614,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/interaction-substrate-spec.md",
