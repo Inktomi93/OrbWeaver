@@ -16,6 +16,12 @@
 //           the candidate set. A whole LINE containing "rider" (the corpus's rider-block convention:
 //           `BUILD-STATE RIDER`, `truth-audit rider`, …) or text inside `~~struck~~` is exempt structurally
 //           — deliberately-dead symbols documented as history must not red. Two-sided allowlist.
+//   arm 5 — ABSENT BY DESIGN (#775): a backticked path that is GITIGNORED exists on a full working checkout
+//           and never on a clean one, so arm 3's `existsSync` verdict is a property of the CHECKOUT, not the
+//           docs — this gate was green on main and RED in every fresh worktree, same commit, same doc line.
+//           `GITIGNORED_ABSENT` skips those paths and is THREE-SIDED: the row reds when the docs stop
+//           referencing it, when its `cite` stops resolving, and when the path stops being named by a
+//           literal `.gitignore` rule (the moment "absent by design" becomes false).
 // Arms 3/4 are DOC-PATHS-ONLY siblings of arms 1/2, scoped to docs/architecture/core/** only (the law corpus;
 // proposed/ and history/ legitimately name dead code in prose). Both carry a two-sided allowlist (`why`
 // mandatory; a row matching no live phantom is itself RED — a stale exemption is a loaded gun).
@@ -656,9 +662,72 @@ const ARM4_ALLOW: ExemptionTable = {
   COMMAND_ACTION: { why: CERD_WHY },
 };
 
+// ── arm 3's ABSENT-BY-DESIGN rows (#775) ────────────────────────────────────────────────────────────────
+// A GITIGNORED path is present on a full working checkout and absent on a clean one, so resolving it with
+// `existsSync` makes this gate's verdict a property of the CHECKOUT rather than of the docs: `dangling-refs`
+// was green on main and RED in every fresh worktree, on the same commit, for the same doc line. An
+// instrument whose answer depends on where it runs is lying in one of the two places. `tsconfig-entry-liveness`
+// already carries the identical row for the identical path; this is the same ruling on the doc side.
+// THREE-SIDED, so the exemption cannot outlive its justification: the row reds when the docs stop
+// referencing it (the shared stale arm), when its `cite` stops resolving, and when the path stops being
+// GITIGNORED — the moment "absent by design" becomes false.
+interface AbsentByDesign {
+  readonly why: string;
+  /** The doc that establishes the path is deliberately gitignored. */
+  readonly cite: string;
+}
+
+const GITIGNORE_REL = ".gitignore";
+
+const GITIGNORED_ABSENT: ExemptionTable<AbsentByDesign> = {
+  "scripts/probes/st-goldens/sillytavern-runtime": {
+    why:
+      "a GITIGNORED captured SillyTavern install — present on a full checkout, absent by design on a clean one. " +
+      "Judging it with existsSync makes the verdict environment-dependent (#775: phantom RED in every worktree, " +
+      "silent on main). Delete this row the day scripts/probes/st-goldens stops shipping a gitignored runtime subtree.",
+    cite: "scripts/probes/st-goldens/README.md",
+  },
+};
+
+/** Is `path` named by a literal `.gitignore` rule? Read literally — a rule this reader cannot prove is a
+ *  MISSING justification, never an assumed one, so the row reds rather than passing on a guess. */
+function gitignoredLiterally(root: string, path: string): boolean {
+  const file = join(root, GITIGNORE_REL);
+  if (!existsSync(file)) {
+    return false;
+  }
+  const wanted = new Set([path, `${path}/`, `/${path}`, `/${path}/`]);
+  return readFileSync(file, "utf8")
+    .split("\n")
+    .map((line) => line.trim())
+    .some((line) => wanted.has(line));
+}
+
 const STALE_ROW_MSG = (arm: string, key: string): string =>
   `${arm} allowlist row \`${key}\` matches no live phantom — stale entry, delete it ` +
   "(GATE-AUTHORING.md's exemption grammar: every exemption is two-sided).";
+
+const UNGITIGNORED_MSG = (key: string): string =>
+  `absent-by-design row \`${key}\` is no longer named by a literal ${GITIGNORE_REL} rule — the ONLY thing that made ` +
+  "its absence by design is gone, so the row now forgives a real phantom. Delete the row from GITIGNORED_ABSENT in " +
+  "tooling/src/verify/gates/dangling-refs.ts, or restore the ignore rule. See tooling/src/verify/gates/GATE-AUTHORING.md §4.4.";
+
+const DEAD_CITE_MSG = (key: string): string =>
+  `absent-by-design row \`${key}\`'s cite no longer resolves — the doc that justified the exemption moved or was ` +
+  "deleted. Re-derive the cite, or delete the row from GITIGNORED_ABSENT in tooling/src/verify/gates/dangling-refs.ts.";
+
+function absentByDesignViolations(root: string): Violation[] {
+  const out: Violation[] = [];
+  for (const [key, row] of Object.entries(GITIGNORED_ABSENT)) {
+    if (!gitignoredLiterally(root, key)) {
+      out.push({ file: GITIGNORE_REL, line: 0, message: UNGITIGNORED_MSG(key) });
+    }
+    if (!existsSync(join(root, row.cite))) {
+      out.push({ file: ARM34_SCAN_DIR, line: 0, message: DEAD_CITE_MSG(key) });
+    }
+  }
+  return out;
+}
 
 function staleAllowlistViolations(arm: string, allow: ExemptionTable, hitRefs: ReadonlySet<string>): Violation[] {
   return Object.keys(allow)
@@ -689,7 +758,10 @@ export const gate: GateDescriptor = {
     for (const v of [...scanGateDescriptors(ctx.root), ...scanDocLinks(ctx.root, docs)]) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    const arm3 = scanPathTokens(ctx.root, ARM3_ALLOW);
+    // Arm 3's allow set is the reasoned rows PLUS the absent-by-design ones (#775) — one lookup, so a
+    // gitignored path is skipped by the same branch every other exemption uses.
+    const arm3Allow: ExemptionTable = { ...ARM3_ALLOW, ...GITIGNORED_ABSENT };
+    const arm3 = scanPathTokens(ctx.root, arm3Allow);
     const arm4 = scanSymbolTokens(ctx.root, ctx, ARM4_ALLOW);
     for (const v of [...arm3.violations, ...arm4.violations]) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
@@ -699,8 +771,9 @@ export const gate: GateDescriptor = {
     // mini-projects, which would fire a stale-arm there and red the gate's own self-proof.
     if (existsSync(join(ctx.root, "docs/architecture/core/AGENTS.md"))) {
       for (const v of [
-        ...staleAllowlistViolations("arm 3 path", ARM3_ALLOW, arm3.hitRefs),
+        ...staleAllowlistViolations("arm 3 path", arm3Allow, arm3.hitRefs),
         ...staleAllowlistViolations("arm 4 symbol", ARM4_ALLOW, arm4.hitRefs),
+        ...absentByDesignViolations(ctx.root),
       ]) {
         ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
       }
@@ -738,6 +811,18 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "has no declaration" },
       why: "arm 4: a backticked UPPER_SNAKE token resolves to no declaration — the REATTRIBUTE_WINDOW phantom-symbol class",
+    },
+    {
+      files: {
+        // The real-tree ANCHOR, planted so the exemption arms run at all (§4.5), plus a `.gitignore` that does
+        // NOT name the absent-by-design path. Other stale-row findings ride along here by construction — this
+        // row is matched on its MESSAGE, and the PASS half is un-provable in a mini-project (the anchor turns
+        // every stale arm on), so it lives in tests/tooling/verify/gates/dangling-refs-absent-by-design.int.test.ts.
+        "docs/architecture/core/AGENTS.md": "---\nkind: law\n---\n\nplanted anchor.\n",
+        ".gitignore": "node_modules/\nreports/\n",
+      },
+      expect: { messageIncludes: "no longer named by a literal" },
+      why: "arm 5 two-sidedness (#775): the ONLY thing making the path absent-by-design is its ignore rule — with the rule gone the row would forgive a REAL phantom, so it must red rather than keep skipping",
     },
   ],
   mustPass: [

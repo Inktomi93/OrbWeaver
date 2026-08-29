@@ -105,6 +105,7 @@ export function readSessionCookie(headers: Headers): SessionToken | null {
       continue;
     }
     if (part.slice(0, eq).trim() === SESSION_COOKIE_NAME) {
+      // @orb-gate-ignore caught-failure-ownership(default:catch): a cookie value that fails to percent-decode is not a session token, and `null` here means exactly "no cookie session" — the caller's unauthenticated path. A client-supplied malformed header is not an operator event. Ends if a malformed cookie should be distinguished from an absent one.
       try {
         return castId<SessionToken>(decodeURIComponent(part.slice(eq + 1).trim()));
       } catch {
@@ -370,6 +371,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
    * Never throws — a transport/db error resolves to `false` so a misbehaving seam can't open the gate.
    */
   async function isAdmin(headers: Headers): Promise<boolean> {
+    // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED, and this function's own JSDoc above is the contract — a transport/db fault resolves to `false` so a misbehaving seam can never OPEN the debug gate. Propagating here would turn an infra blip into a 500 on a gate whose only correct failure mode is "denied". Ends if the debug gate gains a distinct unavailable state.
     try {
       const { principal } = await resolvePrincipal(headers);
       if (principal === null || !DEBUG_GATE_CREDENTIALED[principal.via]) {

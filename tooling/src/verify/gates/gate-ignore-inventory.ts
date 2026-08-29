@@ -8,14 +8,20 @@
 // sibling nobody reasoned about; name the position instead). scanRoot is the workspace's WHOLE
 // marker-bearing surface — `packages/` + `tests/` + `tooling/src/verify/gates/` (since 2026-08-08): the
 // suppressor has no scanRoot of its own, so a marker in the gate corpus is LIVE vocabulary for every
-// wide-scanRoot gate and must be audited like any other. What makes the corpus scannable is pass.ts's
+// wide-scanRoot gate and must be audited like any other. WIDENED 2026-08-27 (#751) from
+// `tooling/src/verify/gates/` to ALL of `tooling/src/`: `caught-failure-ownership` scans the whole tooling
+// tree, so 44 live markers sat under `tooling/src/stack|_shared|model-ab|motion-audit` with NO stale arm
+// over them — a one-sided exemption (§4.4), and exactly one of them had already gone stale unnoticed
+// (`stack/ops/engines.ts`, deleted in the same commit). An exemption vocabulary is two-sided everywhere it
+// is honoured, or nowhere. What makes the corpus scannable is pass.ts's
 // MENTION FENCE (docs/design/gate-ignore-mention-fence.md): a marker IS a `//` comment that BEGINS with
 // the vocabulary, so grammar quotations in gate prose/JSDoc and spellings inside string/template/regex
 // literals are MENTIONS — skipped by the scanner and inert to the suppressor alike. DECLARED LIMITS: a
 // marker naming a DORMANT gate reds as STALE (a dormant gate suppresses nothing, so the marker protects
-// nothing); scripts/ OUTSIDE the gates dir stays out of BOTH ledgers (harnessGlobs never loads those
-// files, so no gate can visit them — a marker there is inert-by-construction, the workspace's pinned
-// boundary, not this gate's choice); the OVER-EXEMPT arm is NOT conformance-provable (conformance runs
+// nothing); `scripts/` stays out of BOTH ledgers because NO gate's scanRoot admits it, so no gate can ever
+// consume a marker there and every one would judge stale by construction (the old reason given here —
+// "harnessGlobs never loads those files" — was FALSE: harnessGlobs has carried `scripts/**` since the
+// @orb/tooling widening. The boundary survives; its reason is scanRoot, not the fileset); the OVER-EXEMPT arm is NOT conformance-provable (conformance runs
 // ONE gate standalone, so no sibling gate can ever consume a marker in a mini-project) and is proven
 // instead by the real-tree probe in tests/tooling/gate-ignore-grammar.int.test.ts (both roots). Registered
 // names come from each gate file's FILENAME, not a `name:` literal scan — the loader hard-enforces
@@ -98,8 +104,9 @@ export const gate: GateDescriptor = {
   message: MESSAGE,
   fix: FIX,
   // The workspace's whole marker-bearing surface, gate corpus included — pass.ts's mention fence is what
-  // keeps the corpus's own grammar prose/fixtures from self-flagging (see the header).
-  scanRoot: (p) => p.startsWith("packages/") || p.startsWith("tests/") || p.startsWith("tooling/src/verify/gates/"),
+  // keeps the corpus's own grammar prose/fixtures from self-flagging (see the header). `tooling/src/` is
+  // covered WHOLE since #751: a gate that scans the tooling tree makes every marker there live vocabulary.
+  scanRoot: (p) => p.startsWith("packages/") || p.startsWith("tests/") || p.startsWith("tooling/src/"),
   begin: () => {
     pending = [];
   },
@@ -223,6 +230,15 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "STALE" },
       why: "a TRAILING marker opens a real comment (an attempted marker, NOT a mention) but sits in no node's LEADING trivia, so the suppressor can never honour it — the mention fence must keep it VISIBLE so the stale arm reds the attempt instead of letting it sit there looking like protection",
+    },
+    {
+      files: {
+        "tooling/src/verify/lib/pass.ts": "export const anchor = 1;\n",
+        "tooling/src/verify/gates/real-gate.ts": 'export const gate = { name: "real-gate" };\n',
+        "tooling/src/stack/lib/spawn-lock.ts": "// @orb-gate-ignore real-gate(error): a tooling-tree marker outside the gates dir\nexport const x = 1;\n",
+      },
+      expect: { messageIncludes: "STALE" },
+      why: "#751 — the WIDENED root. A marker under `tooling/src/<tool>/` is live vocabulary for every gate that scans the tooling tree; before the widening 44 of them had no stale arm at all, and one had silently gone stale",
     },
   ],
   mustPass: [

@@ -48,7 +48,6 @@ export function result(line: string): void {
 // ── env + port resolution (must MATCH foundation/env, which loads .env with override:true) ───────────
 
 export function readEnvFile(): Readonly<Record<string, string | undefined>> {
-  // @orb-gate-ignore caught-failure-ownership(default:error): ENOENT alone means no env file; unreadable or malformed configuration now throws. Ends if the env file ceases to be optional.
   try {
     return parseEnv(readFileSync(join(REPO_ROOT, ".env"), "utf8"));
   } catch (error) {
@@ -86,7 +85,6 @@ async function probeHealthz(port: number): Promise<{ healthy: boolean; harness: 
 /** Read the operator debug token WITHOUT minting one — the minting path mints on miss, which a probe must
  *  never do. Returns null when no token is on disk (debug not armed). */
 function readDebugToken(): string | null {
-  // @orb-gate-ignore caught-failure-ownership(default:error): ENOENT alone means debug is not armed; unreadable token errors now throw. Ends if token absence stops being valid posture.
   try {
     const token = readFileSync(TOKEN_PATH(), "utf8").trim();
     return token.length > 0 ? token : null;
@@ -150,7 +148,6 @@ function listenerPid(port: number): number | null {
 }
 
 export function procStartTicks(pid: number): string | null {
-  // @orb-gate-ignore caught-failure-ownership(default:error): ENOENT proc stat means the pid vanished; other read errors now throw. Ends if proc identity gains another absence code.
   try {
     return parseProcStartTicks(readFileSync(`/proc/${pid}/stat`, "utf8"));
   } catch (error) {
@@ -162,7 +159,6 @@ export function procStartTicks(pid: number): string | null {
 }
 
 export function processAlive(pid: number): boolean {
-  // @orb-gate-ignore caught-failure-ownership(default:error): ESRCH means absent and EPERM means live; every other kill-zero error throws. Ends if platform liveness semantics change.
   try {
     process.kill(pid, 0);
     return true;
@@ -192,7 +188,6 @@ export async function observe(port: number): Promise<ObservedInstance & { readon
 }
 
 export function readRecord(): ProdRecord | null {
-  // @orb-gate-ignore caught-failure-ownership(default:error): ENOENT alone means no pidfile; unreadable records now throw and malformed content remains an explicit null refusal. Ends if no-record stops being valid.
   try {
     return parseProdRecord(readFileSync(PIDFILE(), "utf8"));
   } catch (error) {
