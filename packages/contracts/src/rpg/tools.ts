@@ -300,5 +300,5 @@ export const rollDiceToolResultSchema = z.object({
   faces: z.array(z.number()),
   reason: z.string().optional(),
 });
-/** @public twin: rollDiceToolResultSchema — the typed roll_dice result surface the in-thread renderer reads. */
+/** The typed roll_dice result surface the in-thread renderer reads. */
 export type RollDiceToolResult = z.infer<typeof rollDiceToolResultSchema>;
