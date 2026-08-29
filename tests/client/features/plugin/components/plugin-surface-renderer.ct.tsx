@@ -236,3 +236,93 @@ test("#798: a card-atlas-style detail stage shows its cover — the BOUND hero (
   await expect(page.getByText("A wandering cartographer.")).toBeVisible();
   await expect(page.locator('img[alt="Aria\'s cover"]')).toHaveCount(1);
 });
+
+// ── card-atlas-hub-polish: the two rendered-fidelity pins (stickler 2026-08-29 F2 + F4) ────────────────────
+
+/** Long enough that an UNCAPPED column visibly stretches toward the wide mount — the pre-fix defect
+ *  (the detail blurb ran ~150 chars/line edge-to-edge on the populated atlas capture). */
+const DETAIL_PROSE =
+  "The archive keeps its own weather, and the weather keeps its own archive; every page that is read " +
+  "is a page that is rewritten, and every page rewritten is a page that will be read again by someone " +
+  "who does not know they are the second reader of a sentence that was never finished the first time.";
+
+/** Far wider than the reading measure resolves (75ch ≈ 600px here), so the cap is the only thing that can
+ *  hold the column's line length down. */
+const WIDE_MOUNT = 2000;
+
+test("F2: a masterDetail DETAIL stage renders its column at the house --reading-measure token, and the cap BINDS at a wide mount", async ({ mount, page }) => {
+  const spec = {
+    kind: "masterDetail",
+    stages: [
+      {
+        id: "card",
+        kind: "detail",
+        title: "Aria",
+        body: { kind: "markdown", value: DETAIL_PROSE },
+      },
+    ],
+  };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    "plugin.getSurfaceState": () => null,
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory width={WIDE_MOUNT} />);
+  await expect(page.getByText("The archive keeps its own weather", { exact: false })).toBeVisible();
+
+  // The expected px is DERIVED FROM THE TOKEN inside the column itself (same inherited font ⇒ same `ch`),
+  // never a px literal — the reading-measure.suite.ct.tsx mechanism. The uncapped A/B is the planted
+  // control: forcing the cap off must WIDEN the column, proving the cap (not some other constraint) is
+  // what holds the line length — a pin that agreed by coincidence would fail that arm.
+  const reading = await page.evaluate((selector) => {
+    const column = document.querySelector(selector);
+    if (column === null || !(column instanceof HTMLElement)) {
+      throw new Error(`no ${selector} mounted`);
+    }
+    const probe = document.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.width = "var(--reading-measure)";
+    column.append(probe);
+    const tokenPx = probe.getBoundingClientRect().width;
+    probe.remove();
+    const maxWidth = getComputedStyle(column).maxWidth;
+    const renderedWidth = column.getBoundingClientRect().width;
+    column.style.setProperty("max-width", "none", "important");
+    const uncappedWidth = column.getBoundingClientRect().width;
+    column.style.removeProperty("max-width");
+    return { maxWidth, tokenPx, renderedWidth, uncappedWidth };
+  }, '[data-slot="plugin-detail-stage"]');
+
+  expect(reading.maxWidth).not.toBe("none");
+  expect(Math.abs(Number.parseFloat(reading.maxWidth) - reading.tokenPx)).toBeLessThanOrEqual(1);
+  // The cap BINDS: released, the column stretches toward the wide mount.
+  expect(reading.uncappedWidth).toBeGreaterThan(reading.renderedWidth + 100);
+});
+
+test("F4: an empty grid renders the house EmptyState carrying the plugin's own teaching line — not a bare gloss", async ({ mount, page }) => {
+  // A BOUND grid whose state resolved to zero tiles — the card-atlas pre-search page.
+  const spec = {
+    kind: "grid",
+    tilesFrom: { $state: "tiles" },
+    tileAction: "open_result",
+    empty: "Search to begin — the atlas covers Character Tavern and RisuRealm.",
+  };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    "plugin.getSurfaceState": () => ({ tiles: [] }),
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  // The house pattern (icon + measured title), not one grey sentence above a void — and the plugin's own
+  // teaching text is what it carries.
+  await expect(page.locator('[data-slot="empty-state-root"]')).toBeVisible();
+  await expect(page.getByText("Search to begin — the atlas covers Character Tavern and RisuRealm.")).toBeVisible();
+});
