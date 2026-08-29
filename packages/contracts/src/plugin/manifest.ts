@@ -154,8 +154,14 @@ const AUTHOR_MAX = 120;
  *  the client says the ceiling out loud next to a host list (the P3 side-eye finding — the consent screen
  *  asserted the list was exhaustive but gave no way to check it against the declared cap), and the re-grant
  *  acknowledgement echo (`plugin.setGrant`) bounds its array by it, since an echo can never legitimately
- *  name more hosts than a manifest may declare. */
-export const NET_HOSTS_MAX = 8;
+ *  name more hosts than a manifest may declare.
+ *
+ *  16, raised from 8 (hub v1.2, owner-directed multi-hub roster): a LEGITIMATE aggregator plugin honestly
+ *  needs ~2 hosts per integrated service (API + art CDN — netHosts matching is exact, so a CDN is its own
+ *  consent line), and the six-hub card-atlas already spends 10. The ceiling stays a consent-screen bound
+ *  (a list a person can actually read), never a security wall — every host is still individually consented
+ *  and individually SSRF-pinned. */
+export const NET_HOSTS_MAX = 16;
 const ENGINE_VERSION_MAX = 40;
 const ENGINE_COMMIT_MAX = 64;
 

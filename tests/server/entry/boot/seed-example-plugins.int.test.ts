@@ -746,11 +746,12 @@ test("keepsake camera: the spend pipeline — structured quiet falls back, the p
 /** The flagship's CI slice, honest about its edge: like the familiar, the atlas's fetch arms (`safeFetch` has
  *  no injection seam) would be LIVE requests to two community hubs, so CI drives everything UP TO the wire —
  *  the ARM C page spec surviving a REAL registration, the activation-time publish, and the no-network action
- *  arms. The wire halves (search decode incl. the devalue un-flatten, the reshape, the summon) were probed
- *  against both live hubs on 2026-08-28 and are the live side-eye drive's checklist. */
+ *  arms. The wire halves (search decode incl. the devalue un-flatten, paging, the tag filters, the reshape,
+ *  the add-to-library import) were probed against both live hubs on 2026-08-29 and are the live side-eye
+ *  drive's checklist. */
 test("card atlas: the ARM C flagship page registers, publishes its empty browse state, and refuses gracefully off-line", async () => {
   const db = await freshDb();
-  const { ops: recorded, captured } = recordingOps(db, new Map());
+  const { ops: recorded } = recordingOps(db, new Map());
   const ops: PluginHostOps = {
     ...recorded,
     ui: { ...recorded.ui, setState: (req): Promise<void> => publishState(req) },
@@ -764,33 +765,61 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
     caller,
     slug: "card-atlas",
     grant: ["storage.kv", "ui.surface", "net.fetch", "net.fetch_asset", "character.ingest", "character.card_state"],
-    // The acknowledged list mirrors the manifest EXACTLY (the anti-TOCTOU pin): the two hub APIs plus each
-    // hub's art CDN — netHosts matching is exact-host, so the CDNs are their own consent lines.
-    netHosts: ["character-tavern.com", "ct-cards.storage.character-tavern.com", "realm.risuai.net", "sv.risuai.xyz"],
+    // The acknowledged list mirrors the manifest EXACTLY (the anti-TOCTOU pin): six hub APIs plus each
+    // hub's art CDN — netHosts matching is exact-host, so every CDN is its own consent line.
+    netHosts: [
+      "character-tavern.com",
+      "ct-cards.storage.character-tavern.com",
+      "realm.risuai.net",
+      "sv.risuai.xyz",
+      "api.chub.ai",
+      "avatars.charhub.io",
+      "api.wyvern.chat",
+      "imagedelivery.net",
+      "api.aicharactercards.com",
+      "charavault.net",
+    ],
   });
 
   // The masterDetail + searchBar + BOUND-grid page passed the REAL registration validation over the
   // WASM runtime — the flagship's whole vocabulary, end to end.
   const surfaces = await h.service.listSurfaces({ caller });
   expect(surfaces).toEqual([expect.objectContaining({ id: "atlas_page", anchor: "page", tier: "static" })]);
-  // The art-forward spec shapes (card-atlas-hub-polish): the Hub + Sort selects are ALWAYS-VISIBLE nodes
-  // (never buried in a searchBar `filters` disclosure), and the detail stage binds its hero to the art the
-  // plugin fetches at runtime (`assetFrom` — the #798 arm).
+  // The v1.2 spec shapes (card-atlas-hub-v2): the Hub + Sort selects stay ALWAYS-VISIBLE (never inside the
+  // searchBar disclosure — that ruling survives; its input changed), the TAG FILTERS are exactly what the
+  // disclosure holds (the long tail it exists for), the pager row exists, the detail stage binds its hero to
+  // runtime-fetched art (`assetFrom` — #798) and shows the Tags provenance row, and the plain-named
+  // "Add to library" replaced the cute verb (owner ask, v1.2).
   const spec = JSON.stringify(surfaces[0]?.["spec"] ?? {});
   expect(spec).toContain('"name":"source"');
   expect(spec).toContain('"name":"sort"');
-  expect(spec).not.toContain('"filters"');
+  expect(spec).toContain('"name":"include_tags"');
+  expect(spec).toContain('"name":"exclude_tags"');
+  expect(spec).toContain('"actionId":"prev_page"');
+  expect(spec).toContain('"actionId":"next_page"');
+  expect(spec).toContain('"label":"Add to library"');
+  expect(spec).not.toContain("Summon");
   expect(spec).toContain('"assetFrom":{"$state":"detail.art"}');
+  // The DISCLOSURE holds ONLY the tag textFields — a select inside it would be the buried-switcher failure
+  // the always-visible pin above exists to prevent. Structured read, not a substring: the filters array is
+  // the searchBar's own field.
+  const atlasSpec = surfaces[0]?.["spec"] as {
+    stages: readonly { body: { children: readonly { kind: string; filters?: readonly { kind: string }[] }[] } }[];
+  };
+  const searchBar = atlasSpec.stages[0]?.body.children.find((node) => node.kind === "searchBar");
+  expect(searchBar?.filters?.map((node) => node.kind)).toEqual(["textField", "textField"]);
 
   // The activation publish: an empty atlas is a PUBLISHABLE state (bound specs render only once state lands).
   const initial = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "atlas_page" });
   expect(initial?.["stage"]).toBe("browse");
   expect(initial?.["tiles"]).toEqual([]);
 
-  // The no-network arms: an empty query is a toast, never a fetch; a stale tile (no session — e.g. a respawn
-  // between search and click) folds into the status line, never a crash.
-  await h.service.invokeUiAction({ caller, pluginId, surfaceId: "atlas_page", actionId: "search", values: { q: "  ", source: "tavern" } });
-  expect(captured.toasts.some((t) => t.message.includes("Type something"))).toBe(true);
+  // The no-network arms (an empty query now legitimately BROWSES the hub, so its wire half moved to the live
+  // drive's checklist): a pager click with no session answers in the status line, never a fetch; a stale tile
+  // (no session — e.g. a respawn between search and click) folds the same way, never a crash.
+  await h.service.invokeUiAction({ caller, pluginId, surfaceId: "atlas_page", actionId: "next_page", values: {} });
+  const unpaged = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "atlas_page" });
+  expect(String(unpaged?.["status"])).toContain("Search first");
   await h.service.invokeUiAction({ caller, pluginId, surfaceId: "atlas_page", actionId: "open_result", values: { tile: "r0" } });
   const stale = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "atlas_page" });
   expect(String(stale?.["status"])).toContain("stale");

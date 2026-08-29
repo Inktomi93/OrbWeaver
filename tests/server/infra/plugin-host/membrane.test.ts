@@ -38,6 +38,9 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
   writes: { count: number };
   llm: { prompts: string[]; opts: (PluginQuietOptions | undefined)[] };
   egress: { count: number };
+  // #801 — the SPLIT `net.fetchAsset` belt's own counter, so a test can pin WHICH belt a call claimed
+  // (fetchAsset on the asset belt and NOT the fetch belt, and vice versa — both directions).
+  assetEgress: { count: number };
   suggested: { acts: PluginSuggestedAct[] };
   performed: {
     turns: number;
@@ -89,6 +92,7 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
   };
   const llm: { prompts: string[]; opts: (PluginQuietOptions | undefined)[] } = { prompts: [], opts: [] };
   const egress = { count: 0 };
+  const assetEgress = { count: 0 };
   const suggested: { acts: PluginSuggestedAct[] } = { acts: [] };
   const bridge: PluginBridge = {
     llm: {
@@ -105,6 +109,13 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
     },
     admitEgress: (): void => {
       egress.count += 1;
+      if (opts.egressRefusal !== undefined) {
+        throw new Error(opts.egressRefusal);
+      }
+    },
+    // #801 — the split asset belt: its own counter, sharing the scripted refusal (a floor is a floor).
+    admitAssetEgress: (): void => {
+      assetEgress.count += 1;
       if (opts.egressRefusal !== undefined) {
         throw new Error(opts.egressRefusal);
       }
@@ -213,7 +224,7 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
       },
     },
   };
-  return { bridge, writes, llm, egress, suggested, performed };
+  return { bridge, writes, llm, egress, assetEgress, suggested, performed };
 }
 
 /** Optional membrane wiring the net.fetch / transforms / events seams need (default: no hosts, noop collect). */
@@ -728,8 +739,8 @@ async function withStubbedFetchAsset(
 }
 
 describe("attachMembrane — net.fetchAsset downloads a remote image into the installer's OWN CAS (#798)", () => {
-  test("WITHOUT the net.fetch_asset grant it rejects (capability gate) — never fetches, never claims egress, never stores", async () => {
-    const { bridge, egress, performed } = fakeBridge();
+  test("WITHOUT the net.fetch_asset grant it rejects (capability gate) — never fetches, never claims either belt, never stores", async () => {
+    const { bridge, egress, assetEgress, performed } = fakeBridge();
     // Grant net.fetch (text) but NOT net.fetch_asset — the two are DISTINCT consent lines, so a text-fetch grant
     // must not reach the CAS-write arm.
     const runtime = makeRuntime(["net.fetch"], false, bridge, { netHosts: ["img.allowed.test"] });
@@ -742,6 +753,7 @@ describe("attachMembrane — net.fetchAsset downloads a remote image into the in
       expect(out).toContain("net.fetch_asset");
     });
     expect(egress.count).toBe(0);
+    expect(assetEgress.count).toBe(0);
     expect(performed.fetchedAssets).toHaveLength(0);
   });
 
@@ -787,7 +799,7 @@ describe("attachMembrane — net.fetchAsset downloads a remote image into the in
   });
 
   test("the HAPPY PATH: an allowlisted PNG is fetched, guarded, stored, and only an assetId (never bytes, never a URL) crosses to the guest", async () => {
-    const { bridge, egress, performed } = fakeBridge();
+    const { bridge, egress, assetEgress, performed } = fakeBridge();
     const runtime = makeRuntime(["net.fetch_asset"], false, bridge, { netHosts: ["img.allowed.test"] });
     await withStubbedFetchAsset(ONE_PX_PNG, "image/png", runtime, async (ctx) => {
       const out = await runAsync(
@@ -800,9 +812,12 @@ describe("attachMembrane — net.fetchAsset downloads a remote image into the in
       expect(parsed.keys).toEqual(["assetId"]);
       expect(parsed.assetId).toBe("asset_fetched000000000000000");
     });
-    // The egress belt was claimed, and the DOMAIN got the validated bytes + the SNIFFED mime (image/png), never
-    // the guest — the bytes crossed the infra→domain seam only.
-    expect(egress.count).toBe(1);
+    // The ASSET belt was claimed — and NOT the `net.fetch` belt (#801's split, pinned in BOTH directions
+    // beside the net.fetch tests that claim `egress` and never `assetEgress`) — and the DOMAIN got the
+    // validated bytes + the SNIFFED mime (image/png), never the guest — the bytes crossed the infra→domain
+    // seam only.
+    expect(assetEgress.count).toBe(1);
+    expect(egress.count).toBe(0);
     expect(performed.fetchedAssets).toHaveLength(1);
     expect(performed.fetchedAssets[0]?.mime).toBe("image/png");
     expect(performed.fetchedAssets[0]?.bytes.byteLength).toBe(ONE_PX_PNG.byteLength);
@@ -962,7 +977,7 @@ describe("attachMembrane — the hourly EGRESS floor is claimed before the fetch
     // The ORDER is the assertion. `netHosts` names the host being fetched, so an allowlist refusal is not
     // available as an excuse: if the message is the rate refusal, the claim ran BEFORE `safeFetch`. If the
     // claim ran after, this guest would see the network/allowlist path instead.
-    const { bridge, egress } = fakeBridge({ egressRefusal: "plugin host: net.fetch is limited to 120 calls per hour for this plugin" });
+    const { bridge, egress, assetEgress } = fakeBridge({ egressRefusal: "plugin host: net.fetch is limited to 120 calls per hour for this plugin" });
     const runtime = makeRuntime(["net.fetch"], false, bridge, { netHosts: ["api.example.com"] });
     await withRuntime(runtime, async (ctx) => {
       const out = await runAsync(
@@ -973,6 +988,8 @@ describe("attachMembrane — the hourly EGRESS floor is claimed before the fetch
       expect(out).toContain("limited to 120 calls per hour");
       expect(out).not.toContain("allowlist");
       expect(egress.count).toBe(1);
+      // #801's split, the other direction: a `net.fetch` claim never touches the asset belt.
+      expect(assetEgress.count).toBe(0);
     });
   });
 

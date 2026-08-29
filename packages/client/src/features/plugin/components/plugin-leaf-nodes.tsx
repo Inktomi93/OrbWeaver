@@ -287,7 +287,14 @@ function FormLeaf({
         <Select
           aria-label={node.label}
           items={node.options.map((o) => ({ label: o.label, value: o.value }))}
-          onValueChange={(next: string | null): void => setValue(node.name, next ?? "")}
+          onValueChange={(next: string | null): void => {
+            setValue(node.name, next ?? "");
+            // A LIVE select (hub v1.2): the pick IS the act — fire its action with the fresh value riding
+            // as `extra` (the React state write above is async; the submit must not read the stale bag).
+            if (node.actionId !== undefined) {
+              submit(node.actionId, { [node.name]: next ?? "" });
+            }
+          }}
           value={values[node.name] ?? ""}
         />
       </Field>

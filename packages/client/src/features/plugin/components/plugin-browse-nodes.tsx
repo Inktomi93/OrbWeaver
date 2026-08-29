@@ -62,6 +62,8 @@ export function SurfaceGrid({
     ...(tile.badge === undefined ? {} : { badge: resolveString(tile.badge, state) }),
     ...(tile.assetId === undefined ? {} : { imageUrl: imageUrls.get(tile.assetId) }),
     ...(tile.alt === undefined ? {} : { alt: tile.alt }),
+    // Tag chips (hub v1.2) — deduped here because the chip is keyed by its text (untrusted state may repeat).
+    ...(tile.tags === undefined || tile.tags.length === 0 ? {} : { tags: [...new Set(tile.tags)] }),
   }));
   // The bound arm's ONE `tileAction` covers every tile; the declared arm is interactive only when EVERY tile
   // names an action — a grid where some tiles respond and others do not is a control that lies about itself.

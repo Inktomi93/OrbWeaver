@@ -184,6 +184,13 @@ export interface PluginBridge {
    *  miss the identical egress reachable from a tool handler or a D50 transform, while throttling legitimate
    *  non-egress work. */
   readonly admitEgress: () => void;
+  /** CHECK-AND-CLAIM one `net.fetchAsset` slot for this plugin's OWN hourly floor (#801 — the belt split).
+   *  The asset arm rode `admitEgress` when #798 landed; it moved to its own belt because the two channels
+   *  price differently: `net.fetch` carries a POST body OUT (the D46 exfil channel the tight ceiling is
+   *  for), while `fetchAsset` is GET-only to the manifest allowlist and its product lands in the
+   *  installer's OWN CAS — its honest cost is an art GRID's (a fresh browse page is ~30 covers), which a
+   *  belt priced for text egress starved. Same closure mechanics as `admitEgress`; THROWS over ceiling. */
+  readonly admitAssetEgress: () => void;
   /** Surface transient quick-reply chips into the admitted chat (`surfaceQuickReply`; the automation-bus
    *  `quickReplySurfaced` event). Host-authority gated UPSTREAM in the membrane (same write ceiling as
    *  the plugin's other chat writes) via `InvocationChat.canWrite`. The domain builder closes over the `pluginId`

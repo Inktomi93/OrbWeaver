@@ -69,6 +69,7 @@ function makeBridge(): PluginBridge {
     llm: { quiet: notProxied("llm.quiet") },
     suggest: notProxied("suggest"),
     admitEgress: (): void => undefined,
+    admitAssetEgress: (): void => undefined,
     surfaceQuickReply: notProxied("surfaceQuickReply"),
     ui: { setState: notProxied("ui.setState"), toast: notProxied("ui.toast"), openDialog: notProxied("ui.openDialog") },
     // U8 canon writes — NOT proxyable (the excluded set), so a Tier-C guest must never reach them.

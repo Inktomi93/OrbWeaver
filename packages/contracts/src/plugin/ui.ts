@@ -141,6 +141,9 @@ export const PLUGIN_GRID_TILES_MAX = 64;
 /** The stage cap on a `masterDetail` node (U5) — a page arrangement, not a router. Two is the shape the genre
  *  needs (browse → detail); the headroom is for a plugin that splits browse by source. */
 export const PLUGIN_PAGE_STAGES_MAX = 8;
+/** The tag cap on ONE grid tile (hub v1.2, tags-on-cards): the chip row is a scent — the words a person
+ *  filters by — never a taxonomy dump; the renderer clips a row that outgrows its tile. */
+export const PLUGIN_TILE_TAGS_MAX = 8;
 
 // ── The `message-footer` per-ROW bounds (U6, §5.4) ────────────────────────────────────────────────────────────
 // Every other anchor mounts ONCE per open room; this one mounts once per COMMITTED transcript row, so its cost
@@ -410,6 +413,11 @@ export interface PluginSelectNode {
   readonly label: string;
   readonly options: readonly PluginSelectOption[];
   readonly value?: string | undefined;
+  /** Fired when the person PICKS a value (hub v1.2) — the `searchBar.actionId` shape one control over, so a
+   *  select that drives the page (a source switcher, a sort order) applies on change instead of sitting inert
+   *  until some other submit. The round-trip carries the whole collected `values` bag, new value included.
+   *  Absent = the U0 behavior: the choice is collected and travels with whatever action fires next. */
+  readonly actionId?: string | undefined;
 }
 export interface PluginSliderNode {
   readonly kind: "slider";
@@ -458,6 +466,10 @@ export interface PluginGridTile {
   /** The cover image — an asset in the INSTALLER's CAS (the `image` node's rule, one home for the wall). */
   readonly assetId?: AssetId | undefined;
   readonly alt?: string | undefined;
+  /** The tile's tag/genre words (hub v1.2) — rendered as a clipped chip row under the subtitle, so a browse
+   *  grid shows the vocabulary a person filters by. Plain strings on BOTH arms (a tag set is data, not a
+   *  binding target); count-capped at {@link PLUGIN_TILE_TAGS_MAX}. */
+  readonly tags?: readonly string[] | undefined;
   /** Names the server round-trip a click fires; the collected `values` gain `tile: <this tile's id>`. */
   readonly actionId?: string | undefined;
 }
@@ -504,6 +516,8 @@ export interface PluginBoundGridTile {
    *  resolved server-side (foreign ⇒ no ref ⇒ placeholder). */
   readonly assetId?: AssetId | undefined;
   readonly alt?: string | undefined;
+  /** The tile's tag/genre chip row (hub v1.2) — the declared arm's `tags`, published as state. */
+  readonly tags?: readonly string[] | undefined;
 }
 
 /** ONE stage of a {@link PluginMasterDetailNode}. A `detail` stage renders its `hero` above a reading-width
@@ -645,6 +659,7 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
       label: labelSchema,
       options: z.array(z.object({ value: z.string().max(LABEL_MAX), label: labelSchema })).max(PLUGIN_ROWS_MAX),
       value: z.string().max(LABEL_MAX).optional(),
+      actionId: identSchema.optional(),
     }),
     z.object({
       kind: z.literal("slider"),
@@ -676,6 +691,7 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
             badge: boundString(LABEL_MAX).optional(),
             assetId: typeIdSchema(ID_PREFIX.asset).optional(),
             alt: z.string().max(LABEL_MAX).optional(),
+            tags: z.array(z.string().max(LABEL_MAX)).max(PLUGIN_TILE_TAGS_MAX).optional(),
             actionId: identSchema.optional(),
           }),
         )
@@ -849,6 +865,7 @@ export const pluginBoundGridTileSchema = z.object({
   badge: z.string().max(LABEL_MAX).optional(),
   assetId: typeIdSchema(ID_PREFIX.asset).optional(),
   alt: z.string().max(LABEL_MAX).optional(),
+  tags: z.array(z.string().max(LABEL_MAX)).max(PLUGIN_TILE_TAGS_MAX).optional(),
 });
 
 /** Resolve a grid's `tilesFrom` binding against published state: read the path, validate EVERY entry, clamp

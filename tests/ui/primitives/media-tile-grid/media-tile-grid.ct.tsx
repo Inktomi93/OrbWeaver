@@ -13,7 +13,7 @@
 //     without it NOTHING is focusable — a display grid that traps tab stops is worse than no grid.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ActivatableTileGrid, BasicTileGrid, MixedTileGrid, TileGridSkeleton } from "./media-tile-grid.fixtures.tsx";
+import { ActivatableTileGrid, BasicTileGrid, MixedTileGrid, TaggedTileGrid, TileGridSkeleton } from "./media-tile-grid.fixtures.tsx";
 
 /** Container widths chosen against the grid's own `@container` breakpoints (2 → @md 3 → @2xl 4). */
 const NARROW_PX = 320;
@@ -84,6 +84,18 @@ test("with onActivate every tile is a real BUTTON that reports its own id; witho
   // A display grid traps no tab stops: no buttons at all, rather than disabled ones.
   await expect(display.getByRole("button")).toHaveCount(0);
   await expect(display.locator('[data-slot="media-tile"]')).toHaveCount(3);
+});
+
+test("hub v1.2: an interactive tile's accessible NAME separates title from subtitle, and tag chips render only where tags exist", async ({ mount }) => {
+  const component = await mount(<TaggedTileGrid widthPx={WIDE_PX} />);
+  // The a11y fix (side-eye 2026-08-29 P3): content-derived naming ran the halves together
+  // ("World RPrickrocka · 7.4k↓"); the explicit comma-joined label keeps them distinct.
+  await expect(component.getByRole("button", { name: "World RP, rickrocka · 7.4k↓" })).toBeVisible();
+  // The chip row renders on the tagged tile ONLY — an untagged tile gets no empty shell.
+  const tagRows = component.locator('[data-slot="media-tile-tags"]');
+  await expect(tagRows).toHaveCount(1);
+  await expect(tagRows.getByText("fantasy")).toBeVisible();
+  await expect(tagRows.getByText("vampire")).toBeVisible();
 });
 
 test("a cover with no `alt` is DECORATIVE — the tile's own title carries the name, never twice", async ({ mount }) => {

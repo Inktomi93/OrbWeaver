@@ -661,12 +661,13 @@ interface PluginHostV1 {
 
   readonly net: {
     /** Host-performed fetch: allowlisted to your manifest's `netHosts` ONLY, GET/POST, 5 s deadline, 1 MiB
-     *  response cap, SSRF-guarded, 120/hour per plugin. The body is text — there are no bytes in the realm.
+     *  response cap, SSRF-guarded, 360/hour per plugin. The body is text — there are no bytes in the realm.
      *  capability: net.fetch */
     fetch: (url: string, init?: { method?: "GET" | "POST"; headers?: Record<string, string>; body?: string }) => Promise<{ status: number; body: string }>;
     /** Download a remote IMAGE into the installer's OWN storage and get back an assetId — allowlisted to your
-     *  manifest's `netHosts` ONLY (the same hosts and the same hourly limit as `fetch`), SSRF-guarded, and
-     *  image-validated (magic bytes, not the server's Content-Type; dimension/size caps; 1 MiB). You never see
+     *  manifest's `netHosts` ONLY (the same hosts; its OWN art-sized 1200/hour belt, so covers never starve
+     *  your `fetch` budget), SSRF-guarded, and
+     *  image-validated (magic bytes, not the server's Content-Type; dimension/size caps; 5 MiB). You never see
      *  the bytes or a URL — only the assetId, which you can render in an `image`/`hero` node or hand to
      *  `character.ingestAsset`. Rejects on a non-image, an oversize download, or a blocked host.
      *  capability: net.fetch_asset */

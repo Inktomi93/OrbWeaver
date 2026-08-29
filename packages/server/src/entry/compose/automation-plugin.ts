@@ -70,6 +70,7 @@ import {
   createSurfaceStatePublisher,
   createUiHostCallGate,
   isPluginEnabledFor,
+  PLUGIN_ASSET_EGRESS_PER_HOUR,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
   PluginNotFoundError,
@@ -469,6 +470,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const pluginBelts: PluginBelts = {
     notify: createNotifyFloor(now),
     egress: createPluginRateFloor(now, { capability: "net.fetch", limit: PLUGIN_EGRESS_PER_HOUR }),
+    assetEgress: createPluginRateFloor(now, { capability: "net.fetchAsset", limit: PLUGIN_ASSET_EGRESS_PER_HOUR }),
     quietLlm: createPluginRateFloor(now, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
   };
   // The UI-surface STATE plane (plugin-ui-plane #679 U1) — ONE per process, shared by the `ui.setState` write

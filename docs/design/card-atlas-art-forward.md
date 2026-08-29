@@ -212,3 +212,166 @@ no-art wall.
 - **Snap traps carried from the stickler recipe**: submit search via Enter on the input
   (`text=Search` hits the label); `--fill` selectors cannot contain `=`; the resident's published
   stage survives contexts (may open on detail — Back first).
+
+## §7 Hub v1.2 — pagination, tag filtering, tags-on-cards, plain names, the belt split (lane card-atlas-hub-v2)
+
+Owner asks, verbatim summary: rename "Summon" → "Add to library" (no cute names); page through
+results; genre + tag filtering, include AND exclude; tags/genre shown on cards + detail; fields
+normalized so filter + display are universal between hubs; no budget limit — fix slowness, don't
+degrade (#801, "no budget idgaf"). Base: `ff8ba2f7c` (v1.1.0).
+
+### 7a Live provider probes (2026-08-29, all re-derived — two v1.1.0-era premises DIED)
+
+| Premise | Receipt |
+| - | - |
+| **PREMISE KILL — Tavern's `q=` param is DEAD**: `q=vampire` and `q=` return byte-identical result sets (totalHits 4154, same first hits). The live query param is **`query=`** (`query=vampire` → 122 hits). v1.1.0's Tavern "search" has been silently returning the unfiltered firehose. | live curl A/B 2026-08-29 |
+| Tavern **`tags=a,b` is a server-side AND filter** (the legacy adapter's 2026-07-17 "no tag param, verified ignored" is stale): `tags=elf`→74 · `tags=vampire`→56 · `tags=elf,vampire`→5 · combines with `query=` (`query=girl`→1567; `+tags=vampire`→23) | live curls 2026-08-29 |
+| Tavern paging is real: `page=N` honored, `hitsPerPage` fixed 30 (param ignored), `totalPages`/`totalHits` in every response | p1/p2 curls, distinct hit sets |
+| Tavern has **NO exclude** (`excludeTags=` ignored; `tags=-x` matches a literal tag) and **NO server sort** (`sort=downloads` ignored — v1.1.0 finding stands) and no `genre=` param | live curls 2026-08-29 |
+| Tavern hits carry **NO `tags` field** (60 hits across 2 pages: zero), detail carries none, `attributesToRetrieve`/`facets` ignored, the card page's tag chips are client-rendered from a lazy chunk (SSR ships skeletons), the card `__data.json` carries layout only — **per-row tags are unreachable on every public JSON surface** | key dumps + page-HTML grep 2026-08-29 |
+| Realm: one `__data.json?search=` response = **60 rows**, rows carry `tags` (28/60 non-empty); **`page=2` → Internal Server Error** (the route echoes `page: 1` but the backing query refuses ≠1) — paging realm = client-side slicing of the fetched set | node unflatten probe + p2 curl 2026-08-29 |
+| **Neither provider has a distinct genre field** — "genre" words (fantasy, romance…) live IN the tag taxonomy on both. Genre filtering IS tag filtering; the ask's "genre + tags" folds to ONE normalized `tags` vocabulary. | key dumps both providers |
+
+### 7b The architecture
+
+- **The session object** (module state, honestly respawn-mortal like `lastResults` before it):
+  `{ q, sourceKey, sortKey, include, exclude, page, totalPages, rows }` — `rows` is the CURRENT page's
+  normalized rows for tavern, and the WHOLE fetched set for realm (so realm page flips are free).
+  `sessionSeq` guarding is unchanged.
+- **ONE page control, provider-shaped behind it**: a `row` beneath the grid — `button` "Previous" ·
+  bound gloss `pageLabel` ("Page 2 of 139") · `button` "Next". Tavern: Next/Prev refetch server page
+  N±1 (filters ride along, so `totalPages` is filter-aware). Realm: slice the held set 30/page
+  (60-row set = 2 pages; include/exclude filter first, then slice, so its label is filter-aware too).
+  Both hubs show ~30 tiles/page (tavern's natural page; the 24-clamp died with the budget framing).
+  Out-of-range clicks fold to the status line ("That's the last page."). The pager row is STRUCTURAL
+  (the vocabulary has no `when` predicate — deferred phase, ui.ts header), so it renders pre-search
+  too; its buttons answer honestly ("Search first.").
+- **The normalized row gains `tags: string[]`** (lowercased, trimmed, deduped, clamped) — realm: real
+  row tags; tavern: `[]` always (7a). Display and filtering read ONLY this field, so a third hub that
+  publishes tags gets chips + exclude for free.
+- **Filtering, include AND exclude, comma-separated** (two `textField`s in the searchBar's `filters`
+  disclosure, label "Tag filters" — the disclosure exists for exactly this long tail; Hub + Sort STAY
+  always-visible, the §2a ruling survives, its input changed): include = every listed tag must match
+  (AND — mirrors Tavern's server semantics); exclude = any listed tag drops the row. WHERE each
+  applies: tavern include → the server `tags=` param (whole-corpus, page counts filter-aware); realm
+  include+exclude → plugin-side over row tags; tavern exclude → **honestly unsupported** (no server
+  param, no row tags to judge — the status line says so once per search rather than silently
+  no-opping). Untagged realm rows: dropped by include (cannot match ALL), kept by exclude (nothing to
+  match).
+- **Tags on cards + detail**: the tile vocabulary gains `tags?: readonly string[]` (declared arm +
+  bound arm + both schemas, count-capped) rendered by `MediaTileGrid` as a clipped single row of soft
+  mini-badges under the subtitle; the detail's provenance `keyValue` gains a "Tags" row (joined "a ·
+  b · c", clamped to the 200-char value cap, "—" when the hub publishes none). Detail tags come FROM
+  THE NORMALIZED ROW (not the detail payload), so both hubs are uniform by construction.
+- **The belt split (#801)**: `net.fetchAsset` leaves the shared belt for its own
+  `PLUGIN_ASSET_EGRESS_PER_HOUR = 1200` floor (one per 3 s sustained ≈ 40 fresh uncached pages/hour;
+  outbound channel = a GET URL to manifest-allowlisted hosts only — the D46 exfil pricing that set 120
+  was about `net.fetch`'s POST-body channel, which keeps its own belt), and `PLUGIN_EGRESS_PER_HOUR`
+  rises 120 → 360 (one per 10 s sustained — above any human search/page/detail cadence, still a
+  visible ceiling on the POST-capable channel). Art can no longer starve search BY CONSTRUCTION (two
+  belts), not by rationing. The art cache stays — as a SPEED cache (instant page flips, free repeats)
+  — every "budget"/"starve" framing in main.js/README dies.
+- **The rename**: "Summon" → "Add to library" in every user-visible string, plus the internal
+  actionId/function names and the teaching prose (main.js header, README, manifest description,
+  `host-v1.ts:355`'s comment). The chat domain's force-summon vocabulary is a DIFFERENT concept and
+  is untouched (swept: all other "summon" hits are chat-domain or historical records).
+
+### 7c Rejected alternatives
+
+1. **Fetch-all-pages global sort for tavern** — 139 pages × 1 call to sort a corpus we show one page
+   of. Sort stays per-page for tavern (and whole-set for realm, where the set is held). Rejected.
+2. **Re-chunking tavern's 30-hit pages into 24-tile pages** — page arithmetic straddling provider
+   pages (page 3 = hits 73-96 spans provider pages 3+4) for zero user value. The provider page IS the
+   page. Rejected.
+3. **Tags in the subtitle string** (zero vocabulary change) — two identical gloss lines, no visual
+   "these are the filterable words" signal, and the owner asked for tags ON the cards. Rejected for
+   the first-class tile slot.
+4. **Select-based tag pickers** — `select` options are registration-static; the tag vocabulary is
+   data (per-search, per-hub). Dynamic options are unspellable in the vocabulary. Comma-separated
+   textFields. Rejected.
+5. **Scraping the Tavern card page HTML for tags** — the chips are client-rendered (SSR ships
+   skeletons; no per-card JSON endpoint found by probe), so it would be N speculative HTML fetches
+   through the 1 MiB cap for a display nicety. Rejected; filed as the capability gap it is.
+6. **Bumping only the shared belt** (no split) — every plugin's POST-capable `net.fetch` channel
+   inherits the art-sized ceiling, and art + search still contend on one belt under load. The split
+   keeps the D46 posture legible per-channel. Rejected.
+7. **A `when` visibility predicate for the pager** — a real vocabulary phase the ui.ts header already
+   prices as its own deferred work; not smuggled in for one row. Rejected here.
+
+### 7d Coupled sites (v1.2 fan-out)
+
+1. `…/card-atlas/main.js` — session/pager/filters/tags/rename/`query=` fix (the bulk).
+2. `…/card-atlas/manifest.json` — version 1.2.0 + description rename (no new hosts/capabilities ⇒ NO re-consent this time).
+3. `…/card-atlas/README.md` — rename, pagination/filter teaching, belt-split truth, honest-gaps rewrite.
+4. `packages/contracts/src/plugin/ui.ts` — tile `tags` (2 interfaces + 2 schemas + count cap).
+5. `packages/ui/src/primitives/media-tile-grid/` — `MediaTileItem.tags` + chip row + `tagRow` slot.
+6. `packages/client/src/features/plugin/components/plugin-browse-nodes.tsx` — tile map carries `tags`.
+7. `packages/server/src/domain/plugin/substrate/rate-floor.ts` — `PLUGIN_ASSET_EGRESS_PER_HOUR` + the 360 bump + comment truth-repair.
+8. `packages/server/src/domain/plugin/contract/ops.ts` — `PluginBelts.assetEgress`.
+9. `packages/server/src/domain/plugin/substrate/bridge.ts` + `packages/contracts/src/plugin/bridge.ts` — `admitAssetEgress`.
+10. `packages/server/src/infra/plugin-host/membrane.ts` — fetchAsset claims the asset belt.
+11. `packages/server/src/entry/compose/automation-plugin.ts` — mint the new floor.
+12. `packages/server/src/domain/plugin/index.ts` — export the constant.
+13. Mock bridges: `tests/server/infra/plugin-host/{membrane,port,escape.suite}.test.ts`, `tests/server/domain/plugin/substrate/{bridge,ui-host-dispatch}.test.ts`, `tests/server/domain/plugin/_support.ts` (belts bag + bridge literals — tsc-forced).
+14. `tests/server/entry/boot/seed-example-plugins.int.test.ts` — the atlas slice: the `not.toContain('"filters"')` pin INVERTS (tag filters now live in the disclosure; the pin becomes "Hub/Sort selects are NOT inside filters"), pager/label pins.
+15. `tests/client/features/plugin/components/plugin-surface-renderer.ct.tsx` — red-first tile-tags pin.
+16. `packages/contracts/src/plugin/host-v1.ts` — the `:355` "Summon" comment + the shared-belt copy near fetchAsset docs.
+17. This file + its catalog receipt (re-attest).
+
+### 7e Test plan
+
+- **Red-first CT**: a bound grid whose state tiles carry `tags` renders the chips (fails against the
+  pre-change renderer — the field is schema-stripped today, which IS the planted control).
+- **Belt two-direction pins**: membrane test — `net.fetchAsset` claims the ASSET belt and NOT the
+  fetch belt (both counters asserted, both directions); `net.fetch` still claims the fetch belt.
+- **Int test**: atlas slice re-pinned to the v1.2 spec shapes (filters disclosure with the two tag
+  fields, pager row, Hub/Sort still top-level), grant/netHosts rows unchanged.
+- **Floors**: `pnpm ct:scoped tests/client/features/plugin/components/plugin-surface-renderer.ct.tsx --workers=2` ·
+  `pnpm test:scoped` on seed-example-plugins.int + membrane/port/escape/bridge/ui-host-dispatch/rate-floor +
+  contracts ui.contract · per-package `pnpm typecheck` · `node scripts/ts7.cjs --noEmit -p tsconfig.json` ·
+  scoped biome · scoped `pnpm check:docs`.
+- **Live drive** (the wire arms are live-only): pack 1.2.0 → isolated stage → real upgrade path →
+  per provider: populated grid WITH tag chips (realm) → page 2 → an active include+exclude filter
+  changing the result set → detail with the Tags row → renders desktop + ~390px.
+
+### 7f Gaps found, filed not fixed
+
+- **Tavern per-row tags** (capability gap, reported to the orchestrator): filtering-include works
+  server-side, but exclude + display are structurally unreachable until Character Tavern projects
+  tags into a public JSON surface. The plugin says so honestly instead of no-opping.
+- **Realm's deep corpus**: one response = 60 rows; rows beyond 60 for a query are unreachable
+  (`page=2` 500s server-side). Client-side slicing pages what exists.
+- **v1.1.0 shipped the dead `q=` param** — every Tavern search was unfiltered. Fixed here; flagged to
+  the orchestrator because v1.1.0 sits on a branch awaiting owner render review.
+
+### 7g Mid-lane scope adds (owner + side-eye, relayed 2026-08-29 — all folded in)
+
+- **LIVE Hub/Sort selects** (side-eye P2): the `select` vocabulary gains an optional `actionId`
+  (the `searchBar.actionId` shape one control over — contracts + schema + the leaf renderer's
+  change-fires-submit wiring, the fresh value riding the `extra` merge so the async React state write
+  cannot race it). Both atlas selects fire `search` on pick.
+- **Tile accessible name** (side-eye P3): the interactive `MediaTile` button carries an explicit
+  comma-joined `aria-label` ("World RP, rickrocka · 7.4k↓") — content-derived naming ran title and
+  subtitle together. Pinned at the primitive CT.
+- **The 5 MiB asset byte cap** (`PLUGIN_ASSET_MAX_BYTES`, side-eye P3): RisuRealm serves full-size
+  ~2.6 MB covers with NO resize variant (`?width=` ignored, probed; its own site ships the same bare
+  URLs), so the 1 MiB guard was rejecting most realm art. The cap is the belt split's size sibling:
+  fetchAsset bytes never enter the guest, so the marshalling result cap that prices
+  `PLUGIN_NET_MAX_BYTES` does not apply; the image guard's dimension/pixel caps still hold the bomb
+  wall.
+- **THE ROSTER (owner: "handle ALL of them")** — the source seam went from 2 to 6 wired hubs, and the
+  briefed premises were re-derived first: the brief said wyvern was "designed, never built" — FALSE,
+  legacy built SEVEN adapters (chub, wyvern, chartavern, risurealm, botbooru, charavault, aicc; the
+  `HUB_ADAPTERS` registry at `legacy-main:packages/server/src/infra/network/hubs/index.ts`). The
+  brief said chub is geo-blocked from this box — DID NOT REPRODUCE (live 200 with the browser-UA
+  pair, 2026-08-29). All four candidate hubs probed live and answered: **chub** (full server
+  include+exclude+sort, row topics, avatar.webp covers, card PNG; `nDownloads` now null on the wire →
+  `starCount` is the popularity signal, labeled ★), **wyvern** (clean API, row tags, Cloudflare-Images
+  covers, native-V2 JSON detail that doubles as the import body), **aicc** (curated; limit/skip
+  paging, `orderBy=downloadCount`, relative webp covers, native V2 PNG), **charavault** (95K
+  aggregator; browser-UA quirk; its card PNG doubles as its cover — heavy but honest). SKIPPED with
+  receipts: **botbooru** (built legacy adapter, but its DEFAULT feed includes NSFW with tag-derived
+  ratings — wiring it into the seeded SFW example is an owner content-posture call);
+  **pygmalion/janitorai/datacat** (never built anywhere — no adapter, no probe record; each needs its
+  own probe campaign, priced as the follow-up). netHosts grew 4 → 10 (each hub host+CDN its own
+  consent line; hub-host widening owner-authorized).

@@ -288,6 +288,11 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     admitEgress: (): void => {
       belts.egress.admit(requirePluginId("net.fetch"));
     },
+    // The `net.fetchAsset` claim rides its OWN belt (#801 split — see the contract's member header): same
+    // closure mechanics, different ceiling, so covers never starve text egress.
+    admitAssetEgress: (): void => {
+      belts.assetEgress.admit(requirePluginId("net.fetchAsset"));
+    },
     // Transient quick-reply chips onto the chat's automation bus — host-authority is gated UPSTREAM in the
     // membrane (`InvocationChat.canWrite`); the source stamps THIS plugin.
     surfaceQuickReply: (chatId, choices) => ops.quickReply.surface({ pluginId: requirePluginId("surfaceQuickReply"), chatId, choices }),

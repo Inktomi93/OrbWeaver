@@ -529,6 +529,10 @@ export interface PluginBelts {
   readonly notify: NotifyFloor;
   /** The `net.fetch` hourly egress ceiling — the only bound on egress RATE (the D46 review's tracked finding). */
   readonly egress: PluginRateFloor;
+  /** The `net.fetchAsset` hourly ceiling — SPLIT from `egress` (#801) so an art grid's honest cover spend
+   *  (~30 per fresh browse page) can never starve text egress; the GET-to-allowlist channel prices
+   *  differently from `net.fetch`'s POST-capable one. */
+  readonly assetEgress: PluginRateFloor;
   /** The `llm.quiet` hourly generation ceiling — the only bound on how much of the installer's credential a
    *  granted plugin may spend over time. */
   readonly quietLlm: PluginRateFloor;
