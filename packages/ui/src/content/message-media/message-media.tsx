@@ -35,6 +35,9 @@ function isDataUri(url: string): boolean {
 }
 
 function hostOf(url: string): string {
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): display-only fallback — a malformed url yields
+  // the human-readable "external source" label, consumed directly as UI text. Ends if the fallback string
+  // is removed.
   try {
     return new URL(url).host;
   } catch {

@@ -187,6 +187,7 @@ function mode1IsolatedConfigDir(): string | undefined {
     try {
       symlinkSync(credSrc, join(dir, ".credentials.json"));
     } catch {
+      // @orb-gate-ignore caught-failure-ownership(empty:catch): best-effort removal of the ephemeral temp dir on the symlink-failure path; a cleanup miss leaks only an empty tmp dir, no credential/auth decision. Ends if the temp dir ever holds a live credential.
       try {
         rmSync(dir, { recursive: true, force: true });
       } catch {

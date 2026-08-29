@@ -778,6 +778,9 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     // the empty delta), but the throw MUST be observable: a silent swallow at `engine.ts`'s fire-and-forget
     // `.catch` made a broken extraction invisible in prod (the diagnosis that surfaced this).
     let text: string;
+    // @orb-gate-ignore caught-failure-ownership(empty:err): errors-as-data — documented above: a failed
+    // extraction never corrupts state (returns the empty delta), but the throw is made observable by the
+    // `logger.warn` below (the diagnosis that surfaced the fix). Ends if the warn log is removed.
     try {
       text = conn.api === "agent-sdk" ? await extractViaChat(deps, ctx) : await extractViaStructured(deps, ctx);
     } catch (err) {
@@ -1016,6 +1019,9 @@ function logCancelled(args: {
 
 /** Parse structured-output text to a value, or `null` on non-JSON (the schema parse then fails → empty). */
 function safeJson(text: string): unknown {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): client-input — the docstring states the
+  // contract: `null` on non-JSON, and the caller's schema parse then fails → empty delta. Ends if this
+  // stops feeding a schema-validated read.
   try {
     return JSON.parse(text);
   } catch {
@@ -1230,6 +1236,9 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
       signal,
     } satisfies ToolRoundRequest;
     let calls: readonly RpgToolCall[];
+    // @orb-gate-ignore caught-failure-ownership(empty:err): errors-as-data — the structured arm's twin: a
+    // CANCEL is read off the signal (not the error shape) and returns `empty`; any other failure is observed
+    // via `logger.warn` below. Ends if the warn log is removed.
     try {
       const result = await deps.executor.runChatTurn({
         ...request,

@@ -286,6 +286,10 @@ async function parseOneDistill(
 ): Promise<CharacterDistillation | null> {
   const run = (correction?: string): Promise<string> =>
     correction === undefined ? Promise.resolve(batchText) : retryDistillOne(deps, target, correction, pass);
+  // @orb-gate-ignore caught-failure-ownership(default:catch): bookkeeping — the header states the contract:
+  // `null` counts THIS card `failed` in the caller's sweep counts so one bad card never aborts the batch;
+  // the caller reads `failed > 0` and throws the retryable `DistillFailedError`. Ends if a per-card cause
+  // needs to travel past this boundary.
   try {
     const p = await runStructuredTurn({ payloadSchema: DISTILL_PAYLOAD, run, onRetry: traceStructuredRetry("distill-card") });
     return { genre: p.genre, tone: p.tone, setting: p.setting, subGenres: p.subGenres, tags: p.tags, elevatorPitch: p.elevatorPitch, overview: p.overview };

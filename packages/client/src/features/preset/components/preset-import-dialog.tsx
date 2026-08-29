@@ -71,6 +71,9 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
 
   const onFile = (file: File): void => {
     reset();
+    // @orb-gate-ignore caught-failure-ownership(promise:text): the .catch below explicitly sets a detailed
+    // error state (the sniffer fall-through comment) — a rendered failure surface. Ends if the error state
+    // stops being written.
     void file
       .text()
       .then((text) => {

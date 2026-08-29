@@ -254,6 +254,8 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
       onChatForked?.(result.chat.id);
       notify.success("Forked to a new chat.");
     } catch {
+      // @orb-gate-ignore caught-failure-ownership(empty:catch): the fork mutation's sticky error + global
+      // errorToast already surfaced the failure. Ends if the mutation drops its errorToast.
       // The sticky mutation error + the global errorToast already surfaced the failure.
     }
   };

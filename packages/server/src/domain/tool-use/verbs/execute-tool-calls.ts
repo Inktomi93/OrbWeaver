@@ -36,6 +36,9 @@ function serializeOutcome(name: string, outcome: RunOutcome): CallOutcome {
 
 async function runCall(ctx: ToolUseContext, entry: RegisteredTool, call: ToolCallInput, exec: ToolExecutionContext): Promise<CallOutcome> {
   let parsedJson: unknown;
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): client-input — the model's own tool-call
+  // arguments failed to parse as JSON; this IS the caller's malformed-request answer, returned as data (the
+  // model reads it and can retry). Ends if this stops being a client-input surface.
   try {
     parsedJson = JSON.parse(call.arguments);
   } catch {

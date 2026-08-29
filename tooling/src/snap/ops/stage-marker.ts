@@ -32,6 +32,7 @@ export function readActive(markerHome: string): ActiveStage | null {
   if (!existsSync(p)) {
     return null;
   }
+  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — a truncated/garbage marker is treated as "no active stage", triggering the same clean-rebuild path a missing marker takes. Ends if the sweep/status readers stop tolerating a null marker.
   try {
     const parsed = JSON.parse(readFileSync(p, "utf8")) as Partial<ActiveStage>;
     // A marker with no owner cannot be reasoned about across checkouts (it predates #108, or is

@@ -435,6 +435,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       rerank: DEFAULT_RERANK_MODEL,
     },
     isOwner: (principal) => {
+      // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — the ONE `requireOwner`/`can()`
+      // kernel's refusal collapses to a boolean verdict; a denied check can never read as owner. Ends if
+      // `requireOwner` grows a distinct infra-error class this boolean must stop swallowing.
       try {
         requireOwner(principal);
         return true;
