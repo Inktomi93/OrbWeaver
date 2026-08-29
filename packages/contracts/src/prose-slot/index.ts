@@ -130,6 +130,8 @@ export const PROSE_SLOT_IDS = [
   "chat.assembly.continuationNudge",
   // ── per-USER: the prose-less-completion recovery ask (dogfood EMPTYGEN-REASONING) ──
   "chat.recovery.narrativeContinuation",
+  // ── per-USER: the B7 `react` tool's model-facing description (the imagery.tool.* shape) ──
+  "chat.tool.reactDescription",
   // ── per-USER: the automation quiet-pick prompts (census 91) ──
   "automation.autobg.task",
   "automation.autobg.reply",

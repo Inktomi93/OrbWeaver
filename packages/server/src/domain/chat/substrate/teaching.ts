@@ -15,7 +15,7 @@
 // which is exactly the class of bug this codebase refuses to make quiet.
 
 import type { ChatInjection, ChatMetadata } from "@orb/contracts/chat";
-import { resolveOfferChoices } from "@orb/contracts/chat";
+import { resolveCharactersCanReact, resolveOfferChoices, resolveReactionsEnabled } from "@orb/contracts/chat";
 import type { ChatTeachingRegistry, TeachingCollection, TeachingContext, TeachingKnobs } from "../contract/context.ts";
 import type { ChatBehaviorInputs } from "../contract/foreign.ts";
 
@@ -33,7 +33,13 @@ import type { ChatBehaviorInputs } from "../contract/foreign.ts";
  *  Takes the two RESOLVED VALUES rather than the ctx: this is a pure function with pins on it, and every
  *  collection site (the turn build, the host's preview) already holds both. */
 export function resolveTeachingKnobs(metadata: ChatMetadata, behavior: ChatBehaviorInputs): TeachingKnobs {
-  return { offerChoices: resolveOfferChoices(metadata.offerChoices, behavior.offerChoices) };
+  return {
+    offerChoices: resolveOfferChoices(metadata.offerChoices, behavior.offerChoices),
+    // B7 — the same room-over-host-default precedence, one resolver per knob (each spells its own default
+    // direction: charactersCanReact is opt-in at both tiers, reactionsEnabled ships ON).
+    charactersCanReact: resolveCharactersCanReact(metadata.charactersCanReact, behavior.charactersCanReact),
+    reactionsEnabled: resolveReactionsEnabled(metadata.reactionsEnabled, behavior.reactionsEnabled),
+  };
 }
 
 /** The dedup identity of an injection ACROSS CONTRIBUTIONS — the full placement + content tuple. */

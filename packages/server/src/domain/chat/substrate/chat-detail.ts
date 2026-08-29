@@ -76,6 +76,9 @@ export function toChatDetail({ chat, participants, cast, viewerUserId, viewerHis
     // the host's toggle that a never-touched room is pinned off (the toolRecurseLimit shape, not the
     // hostDisplayScripts one — that neighbour genuinely has no third state).
     offerChoices: chat.metadata.offerChoices ?? null,
+    // B7 — the same tri-state shape as offerChoices (absent = inherit the host's per-user default).
+    charactersCanReact: chat.metadata.charactersCanReact ?? null,
+    reactionsEnabled: chat.metadata.reactionsEnabled ?? null,
     background: chat.metadata.background ?? null,
     rpg: chat.metadata.rpg ?? null,
     opening: chat.metadata.opening ?? null,

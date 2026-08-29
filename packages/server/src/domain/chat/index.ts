@@ -69,7 +69,16 @@ export {
   TOOL_RECURSE_LIMIT_DEFAULT,
   toolRecurseLimitSchema,
 } from "./contract/metadata.ts";
-export type { ImpersonateStreamDelta, RequestTurnOp, ResolvedMediaRef, TurnMessage, TurnRequest, TurnStreamChunk } from "./contract/results.ts";
+export type {
+  ImpersonateStreamDelta,
+  ReactAsCharacterOp,
+  ReactAsCharacterResult,
+  RequestTurnOp,
+  ResolvedMediaRef,
+  TurnMessage,
+  TurnRequest,
+  TurnStreamChunk,
+} from "./contract/results.ts";
 export type { ChatService } from "./contract/service.ts";
 export type { ChatWorkloadDeps } from "./contract/workloads.ts";
 export { requireAuthorOrHost, requireHost, requireParticipant } from "./guard.ts";
@@ -146,6 +155,9 @@ export { createExtractQuiet } from "./verbs/extract-quiet.ts";
 export { createGetMembership } from "./verbs/get-membership.ts";
 export { createGetPendingUserText } from "./verbs/get-pending-user-text.ts";
 export { createPostNarratorMessage } from "./verbs/post-narrator-message.ts";
+// B7 — the `react` tool's standalone write op (deliberately NOT a ChatService member — its one consumer is
+// the composition root's tool definition, `entry/compose/chat-tools.ts`; contract/params.ts states why).
+export { createReactAsCharacter } from "./verbs/reactions.ts";
 // THE cross-domain viewer-visibility op (the read-visibility D-entry) — membership AND the D16 canon floor as
 // ONE inseparable answer, wired at the composition root into every non-chat consumer that decides "may this
 // human see this chat's CONTENT" (today: the automation plugin fan-out + the plugin membrane's chat read).

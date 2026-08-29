@@ -11,10 +11,23 @@
 // `ChatRpgGatherResult` chat already owns), and the gather's NON-injection outputs — macros, celBindings,
 // cardKeepLastX, terminalTools — are untouched by this seam and still ride `buildTurnContext` directly.
 
-import type { ChatInjection } from "@orb/contracts/chat";
+import type { ChatInjection, ReactionEmoji } from "@orb/contracts/chat";
+import {
+  CHAT_REACT_TOOL_NAME,
+  isNarratorVoiced,
+  REACTION_ATTRIBUTION_CONTENT_CAP,
+  REACTION_ATTRIBUTION_MAX_PER_MESSAGE,
+  REACTION_ATTRIBUTION_SLOT_WINDOW,
+  REACTION_SEGMENT_SNIPPET_MAX,
+  reactionEmojiSchema,
+} from "@orb/contracts/chat";
 import { resolveProseText } from "@orb/contracts/prose";
+import type { Db } from "@orb/db";
 import { createNamesOnlyRegistry, processMacros } from "@orb/kit/macro";
+import { resolveSegmentAnchor, segmentSnippet } from "@orb/kit/speaker-label";
 import type { ChatTeachingRegistry, TeachingCollection, TeachingContext, TeachingContribution } from "./contract/context.ts";
+import { listAttributionReactions, loadPresentCastNames } from "./persistence/reactions.ts";
+import { NO_HISTORY_FLOOR } from "./substrate/auth/index.ts";
 
 /** Contributor #0 — the rpg gather's injections + tool names, projected onto the teaching contract.
  *
@@ -114,7 +127,115 @@ const offerChoicesTeach: TeachingContribution = {
  *  nothing" path is the same object the collector's empty-registry arm produces. */
 const EMPTY_COLLECTION: TeachingCollection = { injections: [], toolNames: [] };
 
-/** Chat's own teaching contributions, in registration order (the collector sorts by `order`). */
-export function createChatTeachingContributions(): ChatTeachingRegistry {
-  return [rpgGatherProjection, offerChoicesTeach];
+// ── The B7/MR4 reaction-attribution loop ────────────────────────────────────────────────────────────────
+//
+// Marinara's clever half, on this codebase's rails: recent reactions are narrated INTO the next turn's
+// prompt so the model can acknowledge them — the engagement payoff that makes a reaction steer the story.
+// The mechanism is deliberately NOT the mini-spec's per-message inline splice: §3-S2's convergence law puts
+// ALL prose steering on the ONE ChatInjection channel (PD-63 single placement), and a second
+// prompt-mutation plane beside it is exactly what the S2 seam exists to prevent. One depth-0 `in_chat`
+// system injection carries every note; the model correlates by the quoted text.
+//
+// BOUNDED at three seams (the B7 "attribution caps" knob, constants one-homed in contracts/chat/reactions):
+// the newest `REACTION_ATTRIBUTION_SLOT_WINDOW` reacted slots · the most-recent
+// `REACTION_ATTRIBUTION_MAX_PER_MESSAGE` (K) reactions per message · bodies past
+// `REACTION_ATTRIBUTION_CONTENT_CAP` skip re-segmentation (whole-message notes only — the Marinara cap).
+//
+// STALENESS is re-judged HERE, at inject time, through the ONE kit rule (`resolveSegmentAnchor`): a stored
+// anchor the current canon refutes degrades to a whole-message note — never a mis-attributed quote. The
+// read is SELECTED-variants-only (the prompt contains selected variants; a dead swipe's reaction must not
+// be narrated against text the model cannot see) and the notes are DATA (§2 law 6 — the injections channel
+// is macro-inert in production, so a `{{`-bearing snippet ships as literal braces, pinned at B1).
+
+/** One reaction row → its note line. The reactor's display identity resolved by the read (character name /
+ *  persona name); a seat with neither (a persona-less human) reads as "A member" — never a raw id. */
+function attributionLine(
+  row: Awaited<ReturnType<typeof listAttributionReactions>>[number],
+  emoji: ReactionEmoji,
+  castNames: readonly string[],
+  parseable: boolean,
+): string {
+  const name = row.reactorCharacterName ?? row.reactorPersonaName ?? "A member";
+  const anchor =
+    parseable && row.segmentIndex !== null && row.segmentSnippet !== null
+      ? resolveSegmentAnchor(row.content, castNames, { index: row.segmentIndex, speaker: row.segmentSpeaker, snippet: row.segmentSnippet })
+      : null;
+  if (anchor !== null && row.segmentSnippet !== null) {
+    const whose = row.segmentSpeaker ?? "the narration";
+    return `[${name} reacted with ${emoji} to ${whose === "the narration" ? whose : `${whose}'s line`}: "${row.segmentSnippet}"]`;
+  }
+  return `[${name} reacted with ${emoji} to the message: "${segmentSnippet(row.content, REACTION_SEGMENT_SNIPPET_MAX)}"]`;
+}
+
+/** Fold the read's chronological rows into note lines under the two per-message caps (K + content — see
+ *  the section comment). "The last K" is a tail slice per messageId because the read is chronological
+ *  within a message; an off-vocabulary emoji row is dropped (the `groupReactions` posture). */
+function buildAttributionLines(rows: Awaited<ReturnType<typeof listAttributionReactions>>, castNames: readonly string[]): readonly string[] {
+  const byMessage = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const bucket = byMessage.get(row.messageId) ?? [];
+    byMessage.set(row.messageId, [...bucket, row]);
+  }
+  const lines: string[] = [];
+  for (const bucket of byMessage.values()) {
+    const kept = bucket.slice(-REACTION_ATTRIBUTION_MAX_PER_MESSAGE);
+    // The content cap: past it, skip re-segmentation for this message (whole-message notes only).
+    const parseable = (kept[0]?.content.length ?? 0) <= REACTION_ATTRIBUTION_CONTENT_CAP;
+    for (const row of kept) {
+      const token = reactionEmojiSchema.safeParse(row.emoji);
+      if (token.success) {
+        // The plain-`Name:` cast set applies only to a narrator-voiced row — the same `isNarratorVoiced`
+        // gate the write-side validation and the client renderer use (one predicate, every parse).
+        lines.push(attributionLine(row, token.data, isNarratorVoiced(row.messageKind) ? castNames : [], parseable));
+      }
+    }
+  }
+  return lines;
+}
+
+/** Contributor #2 — the reaction-attribution injection. No reactions (or the plane resolved off) ⇒
+ *  {@link EMPTY_COLLECTION} ⇒ byte-identical (the A1 per-contributor property). */
+function createReactionAttribution(db: Db): TeachingContribution {
+  return {
+    id: "chat.reaction-attribution",
+    order: 2,
+    collect: async (tctx: TeachingContext): Promise<TeachingCollection> => {
+      if (!tctx.knobs.reactionsEnabled) {
+        return EMPTY_COLLECTION;
+      }
+      // The turn runs AS the host, and a host holds no D16 floor (`resolveHistoryFloorSeq`'s host arm), so
+      // the read floor is the no-floor constant — restated here rather than re-derived from a row read.
+      const rows = await listAttributionReactions(db, tctx.chatId, { slotWindow: REACTION_ATTRIBUTION_SLOT_WINDOW, floorSeq: NO_HISTORY_FLOOR });
+      if (rows.length === 0) {
+        return EMPTY_COLLECTION;
+      }
+      const lines = buildAttributionLines(rows, await loadPresentCastNames(db, tctx.chatId));
+      if (lines.length === 0) {
+        return EMPTY_COLLECTION;
+      }
+      // Depth-0 `in_chat` system — right before the turn about to run, where an acknowledgment steer has
+      // adjacency (the offer-choices teach's placement). Unstamped `origin`: the merge stamps it.
+      return { injections: [{ position: "in_chat", depth: 0, role: "system", content: lines.join("\n") }], toolNames: [] };
+    },
+  };
+}
+
+/** Contributor #3 — the B7 `react` tool ATTACH (the FIRST non-empty `toolNames` contributor — R2's whole
+ *  point). Teach and attach travel together (D145-a): the tool's wire `description` IS the teach (the
+ *  tool-use contribution's documented posture — no prose injection beside it), so this contribution emits
+ *  the NAME only, and only when BOTH knobs resolve on: `charactersCanReact` (the owner's opt-in — OFF by
+ *  default at both tiers) AND `reactionsEnabled` (a room with the plane off attaches nothing). Either off
+ *  ⇒ {@link EMPTY_COLLECTION} ⇒ the react tool never reaches the wire — the receipt the OFF toggle owes. */
+const reactToolAttach: TeachingContribution = {
+  id: "chat.react-tool",
+  order: 3,
+  collect: (tctx: TeachingContext): Promise<TeachingCollection> =>
+    Promise.resolve(tctx.knobs.reactionsEnabled && tctx.knobs.charactersCanReact ? { injections: [], toolNames: [CHAT_REACT_TOOL_NAME] } : EMPTY_COLLECTION),
+};
+
+/** Chat's own teaching contributions, in registration order (the collector sorts by `order`). `db` feeds
+ *  ONLY the attribution read — chat's own contribution reading chat's own tables through a closed-over
+ *  dep, the `createAutomationTeachingContributions({db})` shape. */
+export function createChatTeachingContributions(deps: { readonly db: Db }): ChatTeachingRegistry {
+  return [rpgGatherProjection, offerChoicesTeach, createReactionAttribution(deps.db), reactToolAttach];
 }

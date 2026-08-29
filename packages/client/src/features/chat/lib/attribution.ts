@@ -15,7 +15,7 @@
 // carry a per-chat override the character-level producer doesn't).
 
 import type { CarriedAppearanceCast, CastKind, CastKindPolicy, MessageKind, ParticipantView } from "@orb/contracts/chat";
-import { CAST_KIND_POLICY, resolveCarriedTheme } from "@orb/contracts/chat";
+import { CAST_KIND_POLICY, isNarratorVoiced, resolveCarriedTheme } from "@orb/contracts/chat";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -132,23 +132,12 @@ export interface ResolveRowAttributionInput {
  * `narratorRoom && role === "assistant"` — an inference over the room's CURRENT output dial that
  * mis-classified every historical row the moment the dial moved, and that could not survive the synthetic
  * card being deleted.
+ *
+ * PROMOTED to `@orb/contracts/chat` as `isNarratorVoiced` (B7): the server's segment-anchor validation
+ * gates the same span grammar with the same predicate, and two spellings is a picker and a validator
+ * disagreeing about one body. Client consumers import it from the contracts front door now (a local
+ * re-export here trips `noBarrelFile`); this comment stays because it is the predicate's DESIGN record.
  */
-export function isNarratorVoiced(kind: MessageKind | undefined): boolean {
-  switch (kind) {
-    case "narrator":
-      return true;
-    case undefined:
-    case "standard":
-    case "comment":
-      return false;
-    default:
-      return assertNeverMessageKind(kind);
-  }
-}
-
-function assertNeverMessageKind(kind: never): never {
-  throw new Error(`isNarratorVoiced: unhandled MessageKind ${JSON.stringify(kind)}`);
-}
 
 /** The per-kind avatar precedence — `CAST_KIND_POLICY`'s `avatar` column enacted (D137, its live reader):
  *  `participant-first` lets a live `ParticipantView`'s hash (which can carry a per-chat override) win over

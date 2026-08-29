@@ -1,5 +1,7 @@
 // B6/MR2 — the reaction PICKER: the emoji vocabulary as a pickable grid, opened from either of the message
-// row's two doors.
+// row's two doors. B7/MR3 adds the TARGET row: react to the whole message (the default at every pointer —
+// the spec's "whole-message default at coarse" is satisfied by defaulting everywhere) or to ONE speaker's
+// line of a multi-speaker body.
 //
 // ONE SURFACE, TWO DOORS (and the deviation from the spec's letter is stated, not silent). §7-B6 asks for a
 // "hover cluster at fine, INSIDE the ⋯ row menu at coarse". Both DOORS are built exactly that way
@@ -12,26 +14,46 @@
 // sibling of the menu, for the same reason (a `MenuItem` click closes the menu and would unmount a popup
 // rendered inside it) — so the picker follows it.
 //
+// THE TARGET LIST IS THE CANON PARSE, not the display parse: `parseSpeakerSpans` over the stored
+// `content` with the cast names the caller threads (narrator-gated upstream) — the IDENTICAL inputs the
+// server's write validation runs (`verbs/reactions.ts::resolveSegmentClaim`), which is what makes a picked
+// index survive the round trip instead of refusing `invalid_segment`. Display regex/macros can reshape the
+// RENDERED body (`message-content.tsx` parses that), so a display-derived index would be a different
+// segmentation than the one the server stores against.
+//
 // THE GRID IS THE CONTRACT'S VOCABULARY, iterated (`REACTION_EMOJIS`), never a second list: the wire enum
 // refuses anything else, so a hand-kept picker list could only ever be a list of tokens the server rejects.
 // Widening the vocabulary widens this grid, in one edit, with no client change at all.
 //
-// PRESSED STATE IS REAL HERE TOO. The grid shows which emoji the VIEWER already has on this variant, so the
+// PRESSED STATE IS REAL HERE TOO — per TARGET: the grid shows which emoji the VIEWER already has on this
+// variant for the SELECTED target (whole-message vs one line are independent toggles, MA-2 §4), so the
 // picker doubles as the un-react path for a reaction whose pill has scrolled behind the "+N" tail. Same
 // toggle verb, same seat, same answer — there is no second write path to keep honest.
 
 import type { MessageReactionGroup, ReactionEmoji } from "@orb/contracts/chat";
 import { REACTION_EMOJIS } from "@orb/contracts/chat";
 import type { ChatId, ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
+import { parseSpeakerSpans } from "@orb/kit/speaker-label";
 import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
+import { useState } from "react";
+
+/** The picked segment target: a span index + that span's speaker (the CLAIM the server re-validates). */
+export interface ReactionSegmentTarget {
+  readonly index: number;
+  readonly speaker: string | null;
+}
 
 export interface ReactionPickerProps {
   readonly chatId: ChatId;
   readonly variantId: MessageVariantId;
+  /** The variant's STORED canon body — the segment-target parse substrate (see the header). */
+  readonly content: string;
+  /** The room's present cast names, already narrator-gated by the caller (`[]` on a non-narrator row). */
+  readonly castNames: readonly string[];
   /** The viewer's own seat, or `null` while the room read is in flight — a null seat simply means no cell
    *  reads as pressed yet; it never disables the picker, because the SERVER resolves the seat on the write. */
   readonly viewerSeatId: ChatParticipantId | null;
@@ -39,20 +61,68 @@ export interface ReactionPickerProps {
   readonly groups: readonly MessageReactionGroup[];
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  readonly onPick: (emoji: ReactionEmoji) => void;
+  readonly onPick: (emoji: ReactionEmoji, segment: ReactionSegmentTarget | null) => void;
+}
+
+/** The speaker-line targets a body offers: every span with a NAMED speaker (narration spans are reachable
+ *  as "the whole message" — the spec's target is "one speaker's line", and a target list that also offered
+ *  anonymous narration slices would mostly be noise). Empty for a single-span / tagless-unmatched body —
+ *  the target row simply doesn't render and the picker behaves exactly as B6 shipped it. */
+function speakerTargets(content: string, castNames: readonly string[]): readonly { readonly index: number; readonly speaker: string; readonly text: string }[] {
+  return parseSpeakerSpans(content, castNames).flatMap((span, index) => (span.speaker === null ? [] : [{ index, speaker: span.speaker, text: span.text }]));
 }
 
 /**
- * The emoji grid. Picking CLOSES the dialog: one reaction per visit is the whole interaction, and leaving it
- * open after a pick would leave the reader looking at a surface whose result is behind it.
+ * The emoji grid + (B7) the target row. Picking CLOSES the dialog: one reaction per visit is the whole
+ * interaction, and leaving it open after a pick would leave the reader looking at a surface whose result is
+ * behind it.
  */
-export function ReactionPicker({ chatId, groups, onOpenChange, onPick, open, variantId, viewerSeatId }: ReactionPickerProps): ReactElement {
-  const reactedWith = new Set(groups.filter((g) => viewerSeatId !== null && g.reactorParticipantIds.includes(viewerSeatId)).map((g) => g.emoji));
+export function ReactionPicker({ castNames, chatId, content, groups, onOpenChange, onPick, open, variantId, viewerSeatId }: ReactionPickerProps): ReactElement {
+  // Whole-message is the DEFAULT target (null) — a segment is an explicit narrowing per visit.
+  const [target, setTarget] = useState<ReactionSegmentTarget | null>(null);
+  const targets = speakerTargets(content, castNames);
+  // Pressed state is per-TARGET: a whole-message 😂 and a line-anchored 😂 are different rows.
+  const reactedWith = new Set(
+    groups
+      .filter((g) => viewerSeatId !== null && g.reactorParticipantIds.includes(viewerSeatId) && g.segmentIndex === (target?.index ?? null))
+      .map((g) => g.emoji),
+  );
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogPopup data-slot="reaction-picker" data-chat-id={chatId} data-variant-id={variantId}>
         <Stack gap="block">
           <DialogTitle>Add a reaction</DialogTitle>
+          {targets.length > 0 ? (
+            // The TARGET row (B7/MR3): whole-message first (the default), then one chip per named line.
+            // A wrapping rail like the grid below; `title` carries the line's text so same-name lines are
+            // tellable apart without widening the chip.
+            <Row align="center" className="flex-wrap" gap="field">
+              <Toggle
+                aria-label="React to the whole message"
+                intent="outline"
+                onPressedChange={(): void => setTarget(null)}
+                pressed={target === null}
+                shape="pill"
+                size="chip"
+              >
+                Whole message
+              </Toggle>
+              {targets.map((t) => (
+                <Toggle
+                  aria-label={`React to ${t.speaker}'s line`}
+                  intent="outline"
+                  key={t.index}
+                  onPressedChange={(): void => setTarget({ index: t.index, speaker: t.speaker })}
+                  pressed={target?.index === t.index}
+                  shape="pill"
+                  size="chip"
+                  title={t.text.trim()}
+                >
+                  {t.speaker}
+                </Toggle>
+              ))}
+            </Row>
+          ) : null}
           {/* `wrap` is the grid: ten cells at a ≥44px coarse floor cannot hold one line on a phone, and a
               wrapping rail is what the chip box is FOR (`CHIP_BOX` is one home with Button's `chip` size,
               which is the wrapping-rail cell). */}
@@ -63,7 +133,7 @@ export function ReactionPicker({ chatId, groups, onOpenChange, onPick, open, var
                 intent="outline"
                 key={emoji}
                 onPressedChange={(): void => {
-                  onPick(emoji);
+                  onPick(emoji, target);
                   onOpenChange(false);
                 }}
                 pressed={reactedWith.has(emoji)}
