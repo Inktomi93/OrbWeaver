@@ -117,6 +117,9 @@ function UrlInstallArm({
       return;
     }
     setError(null);
+    // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): the rejection is caught below and sets a
+    // fixed leak-free error line (deliberately not error.message, an SSRF-oracle concern) — a rendered error
+    // state. Ends if the fixed message is replaced with a forwarded server reason.
     previewFromUrl.mutateAsync({ url: trimmedUrl }).then(
       (manifest) => onPreviewed(manifest, trimmedUrl),
       // EVERY failure is the SAME fixed line (file header) — never `error.message`, which would name whether
@@ -233,6 +236,9 @@ export function PluginInstallCard(): ReactElement {
       source.kind === "file"
         ? install.mutateAsync({ bundleBase64: toBundleBase64(source.bytes), grant })
         : installFromUrl.mutateAsync({ url: source.url, grant });
+    // @orb-gate-ignore caught-failure-ownership(promise:settled): both useInstallPlugin and useInstallPluginFromUrl
+    // carry an errorToast (serverReason-wrapped) — the toast is the surface; the dialog just stays open. Ends if
+    // either mutation drops its errorToast.
     settled.then(onDone, () => undefined);
   };
 

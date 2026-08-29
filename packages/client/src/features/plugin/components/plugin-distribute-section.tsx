@@ -103,6 +103,9 @@ function PluginDistributeBody(): ReactElement {
       return;
     }
     const { name } = state.preview.manifest;
+    // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): useDistributePlugin carries
+    // errorToast: serverReason("Couldn't distribute that plugin.") — the toast is the surface. Ends if that
+    // mutation drops its errorToast.
     distribute.mutateAsync({ bundleBase64: toBundleBase64(state.preview.bytes) }).then(
       (result) => {
         notify.success(fanoutSentence(result, name));
@@ -203,6 +206,9 @@ function PluginDistributeBody(): ReactElement {
                     size="sm"
                     loading={withdraw.isPending}
                     onClick={(): void => {
+                      // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): useWithdrawPlugin carries
+                      // errorToast: serverReason("Couldn't withdraw that plugin.") — the toast is the surface.
+                      // Ends if that mutation drops its errorToast.
                       withdraw.mutateAsync({ slug: row.slug }).then(
                         (result) => {
                           notify.success(withdrawSentence(result, row.name));

@@ -80,6 +80,8 @@ function PanelBody({ presentation }: { readonly presentation: ChromePresentation
       const created = await create.mutateAsync({ input: { name: "New persona", description: "" } });
       setExpandedId(created.id);
     } catch {
+      // @orb-gate-ignore caught-failure-ownership(empty:catch): createEntityMutation's own errorToast already
+      // surfaced the failure — nothing to expand. Ends if useCreatePersona drops its errorToast.
       // `createEntityMutation`'s errorToast already surfaced the failure — nothing to expand.
     }
   };

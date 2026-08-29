@@ -51,6 +51,9 @@ function LinkSsoBody({ userId, onDone }: { readonly userId: UserId; readonly onD
     if (trimmed.length === 0) {
       return;
     }
+    // @orb-gate-ignore caught-failure-ownership(default:catch): the comment below explains — the sticky
+    // mutation error renders below plus the factory's errorToast; the dialog just stays open. Ends if
+    // useLinkSsoIdentity drops its errorToast.
     try {
       await link.mutateAsync({ userId, externalId: castId<ExternalId>(trimmed) });
     } catch {

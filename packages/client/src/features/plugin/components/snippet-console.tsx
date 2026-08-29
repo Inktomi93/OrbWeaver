@@ -63,6 +63,9 @@ export function SnippetConsole({ chatId }: SnippetConsoleProps): ReactElement {
 
   const onRun = (): void => {
     setResult(null);
+    // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): useRunSnippet carries
+    // errorToast: serverReason("Couldn't run that snippet.") — the toast is the surface. Ends if that mutation
+    // drops its errorToast.
     runSnippet.mutateAsync({ chatId, code }).then(setResult, () => undefined);
   };
 
