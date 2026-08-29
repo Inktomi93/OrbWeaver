@@ -9,6 +9,7 @@ import process from "node:process";
 import type { NotificationRecipient } from "@orb/contracts/notifications";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginSuggestedAct } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
+import { logger } from "@orb/server/foundation/observability";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import {
   createPluginHost,
@@ -21,7 +22,7 @@ import {
   PLUGIN_RESIDENT_RUNTIME_MAX,
   Sandbox,
 } from "@orb/server/infra/plugin-host";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
@@ -1369,6 +1370,110 @@ describe("membrane — host-operation liveness cancellation", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(witness).toEqual({ started: 1, aborted: 1, sideEffects: 0 });
     await expect(host.invoke(instance, ref, "{}", noChat)).rejects.toThrow(UNKNOWN_OR_DISPOSED_RE);
+  });
+});
+
+// #782 — dispose's DETACHED cleanup join must SURFACE a settle failure, not swallow it. When the resident still
+// has in-flight host work at dispose, teardown is deferred onto `superviseDetached(() => resident.tail
+// .then(settle)...)`, and port.ts's header claims "the detached join is supervised so cleanup failure is
+// observable." A `settleHostOperations()` REJECTION must therefore reach superviseDetached's failure sink (its
+// terminal `.catch` logs ONE structured line: `getLog().error({ err, spanName }, "detached operation failed")`).
+// The pre-fix `.then(finish, finish)` passed the void-returning `finish` as BOTH the fulfil AND the reject
+// handler, so a settle rejection ran `finish` as the reject handler, returned void, and RESOLVED the supervised
+// promise — the failure was swallowed and the sink never fired (the header's claim was false as written).
+// `settleHostOperations` is non-rejecting in the real Sandbox BY DESIGN (its barriers project rejection through
+// the guest promise and never reject the join), so injecting the rejection AT that seam is the ONLY reachable
+// door to this join's rejection path — the assertion is on the DISPOSE JOIN's error propagation, not on settle.
+// `finish` must still run EXACTLY ONCE on both arms: the sandbox is disposed once (a double `ctx.dispose()`
+// aborts the shared WASM module), and `dispose()` completing means its `finally` releaseAdmission ran too.
+describe("port.dispose — the detached cleanup join surfaces a settle failure (#782)", () => {
+  const detachedFailureMsg = "detached operation failed";
+
+  /** A bridge whose `chat.getVariables` NEVER settles: a fire-and-forget guest call leaves one host op in flight
+   *  at dispose, so `cancelHostOperations` only signals it (controllers stay registered — `pendingHostOperations`
+   *  stays > 0) and dispose takes the DEFERRED `superviseDetached` teardown path rather than the synchronous one. */
+  function pendingGetVarsBridge(): PluginBridge {
+    const base = fakeBridge().bridge;
+    const neverSettles = new Promise<Record<string, string>>(() => undefined);
+    return { ...base, chat: { ...base.chat, getVariables: () => neverSettles } };
+  }
+
+  /** Activate a resident whose one tool fires a never-settling host call fire-and-forget then returns — after the
+   *  invoke returns, that host op is still in flight, forcing dispose down the detached teardown join. */
+  async function residentWithPendingHostOp(host: ReturnType<typeof createPluginHost>, bridge: PluginBridge): Promise<PluginInstance> {
+    const main =
+      "orb.host(1).tools.register({ name: 'leak', description: 'd', parameters: { type: 'object', properties: {} }, handler: async () => { const h = orb.host(1); h.chat.getVariables(h.chat.current()); return 'ok'; } });";
+    const outcome = await host.createInstance({ mainJs: main, grants: ["tools.register", "chat.read"], bridge, chat: noChat });
+    if (!outcome.ok) {
+      throw new Error(`activation failed: ${outcome.error}`);
+    }
+    const ref = outcome.instance.tools[0]?.handler;
+    if (ref === undefined) {
+      throw new Error("test: leak handler missing");
+    }
+    expect(await host.invoke(outcome.instance, ref, "{}", { chatId: CHAT, canWrite: true, automationDepth: 0 })).toBe("ok");
+    return outcome.instance;
+  }
+
+  /** Spin the macrotask queue so the detached chain (tail → settle reject → finish → propagate → withRequestSpan
+   *  seal → superviseDetached's `.catch`) flushes fully before we assert on the fire-and-forget supervisor. */
+  function flushDetached(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  test("a settleHostOperations REJECTION on the deferred teardown path is OBSERVED (superviseDetached logs it), and finish runs once", {
+    timeout: LONG,
+  }, async () => {
+    const host = makeHost();
+    const instance = await residentWithPendingHostOp(host, pendingGetVarsBridge());
+
+    // The real barrier never rejects, so this seam is the only reachable door to the join's rejection path. A
+    // UNIQUE message attributes the observed failure to THIS dispose's supervised operation.
+    const settleBoom = "settle-boom-782";
+    const settleSpy = vi.spyOn(Sandbox.prototype, "settleHostOperations").mockRejectedValue(new Error(settleBoom));
+    const disposeSpy = vi.spyOn(Sandbox.prototype, "dispose");
+    const errorSpy = vi.spyOn(logger, "error");
+
+    // Pending host op → dispose defers teardown onto superviseDetached(() => resident.tail.then(settle)...).
+    host.dispose(instance);
+    await flushDetached();
+
+    // THE BUG (red): pre-fix `.then(finish, finish)` swallowed the rejection — the supervised promise resolved and
+    // this operator-visible sink NEVER fired. The fix (`.finally(finish)`) propagates the rejection so
+    // superviseDetached's `.catch` logs exactly one structured line carrying the settle error.
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ spanName: "plugin.host.dispose", err: expect.objectContaining({ message: settleBoom }) }),
+      detachedFailureMsg,
+    );
+    // finish still ran EXACTLY ONCE on the reject arm — the sandbox is disposed once (a double dispose aborts the
+    // shared WASM), and dispose() completing means its `finally` releaseAdmission ran too (cleanup still happened).
+    expect(disposeSpy).toHaveBeenCalledTimes(1);
+
+    settleSpy.mockRestore();
+    disposeSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  test("a settleHostOperations that RESOLVES on the deferred path completes cleanly — finish runs once, no failure logged", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const instance = await residentWithPendingHostOp(host, pendingGetVarsBridge());
+
+    // The fulfil arm: settle resolves, so the supervised operation succeeds and no detached failure is logged.
+    const settleSpy = vi.spyOn(Sandbox.prototype, "settleHostOperations").mockResolvedValue(undefined);
+    const disposeSpy = vi.spyOn(Sandbox.prototype, "dispose");
+    const errorSpy = vi.spyOn(logger, "error");
+
+    host.dispose(instance);
+    await flushDetached();
+
+    // On fulfil the supervised promise still resolves (no error sink), and finish ran exactly once — the fix
+    // must not regress the happy path into a spurious failure or a double teardown.
+    expect(errorSpy).not.toHaveBeenCalledWith(expect.anything(), detachedFailureMsg);
+    expect(disposeSpy).toHaveBeenCalledTimes(1);
+
+    settleSpy.mockRestore();
+    disposeSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 });
 
