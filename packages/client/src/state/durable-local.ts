@@ -88,7 +88,7 @@ function readBootHint(): UserId | null {
   if (storage === undefined) {
     return null;
   }
-  // SWALLOW OWNERSHIP (default:catch) — refused browser storage has no durable bytes to isolate; null selects the storage-less legacy namespace. Ends if the boot hint becomes authoritative.
+  // @orb-gate-ignore caught-failure-ownership(default:catch): refused browser storage has no durable bytes to isolate; null selects the storage-less legacy namespace. Ends if the boot hint becomes authoritative.
   try {
     return storage.getItem(ACTIVE_USER_KEY) as UserId | null;
   } catch {
@@ -100,7 +100,7 @@ function readBootHint(): UserId | null {
 
 function writeBootHint(userId: UserId): void {
   const storage = (globalThis as { localStorage?: Storage }).localStorage;
-  // SWALLOW OWNERSHIP (empty:catch) — refused storage costs only the no-flash boot hint; the verified bind still owns isolation. Ends if the hint becomes authoritative.
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): refused storage costs only the no-flash boot hint; the verified bind still owns isolation. Ends if the hint becomes authoritative.
   try {
     storage?.setItem(ACTIVE_USER_KEY, userId);
   } catch {
@@ -110,7 +110,7 @@ function writeBootHint(userId: UserId): void {
 
 function readAdoptionHint(): UserId | null {
   const storage = (globalThis as { localStorage?: Storage }).localStorage;
-  // SWALLOW OWNERSHIP (default:catch) — refused storage cannot hold legacy blobs or the pending pointer; module memory retains the owner for this page. Ends if storage refusal can coexist with readable durable blobs.
+  // @orb-gate-ignore caught-failure-ownership(default:catch): refused storage cannot hold legacy blobs or the pending pointer; module memory retains the owner for this page. Ends if storage refusal can coexist with readable durable blobs.
   try {
     return storage?.getItem(PENDING_ADOPTION_KEY) as UserId | null;
   } catch {
@@ -129,7 +129,7 @@ function writeAdoptionHint(userId: UserId): void {
 
 function clearAdoptionHint(): void {
   const storage = (globalThis as { localStorage?: Storage }).localStorage;
-  // SWALLOW OWNERSHIP (empty:catch) — a stale pending pointer only causes one safe target rehydrate on a later bind. Ends if adoption stops being idempotent.
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): a stale pending pointer only causes one safe target rehydrate on a later bind. Ends if adoption stops being idempotent.
   try {
     storage?.removeItem(PENDING_ADOPTION_KEY);
   } catch {
@@ -231,7 +231,7 @@ async function bindQueuedUser(userId: UserId): Promise<void> {
 export function bindDurableLocalToUser(userId: UserId): Promise<void> {
   desiredUserId = userId;
   const run = bindTail.then(() => bindQueuedUser(userId));
-  // SWALLOW OWNERSHIP (promise:run) — bindTail recovers only the serialization queue; the original run is returned and rejects to AppRoot's visible retry boundary. Ends if callers receive bindTail instead of run.
+  // @orb-gate-ignore caught-failure-ownership(promise:run): bindTail recovers only the serialization queue; the original run is returned and rejects to AppRoot's visible retry boundary. Ends if callers receive bindTail instead of run.
   bindTail = run.catch(() => undefined);
   return run;
 }

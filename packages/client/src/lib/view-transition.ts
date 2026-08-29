@@ -105,7 +105,7 @@ export function withViewTransition(update: () => void): void {
   });
   const surfacedFailures = new Set<unknown>();
   for (const settled of [transition?.ready, transition?.finished, transition?.updateCallbackDone]) {
-    // SWALLOW OWNERSHIP (promise:settled) — only AbortError is absorbed as the platform's skipped-transition outcome; every other rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement.
+    // @orb-gate-ignore caught-failure-ownership(promise:settled): only AbortError is absorbed as the platform's skipped-transition outcome; every other rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement.
     settled?.catch((error: unknown) => {
       if (!(isSkippedTransition(error) || surfacedFailures.has(error))) {
         surfacedFailures.add(error);
