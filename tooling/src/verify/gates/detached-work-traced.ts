@@ -24,7 +24,9 @@
 //                    TWO-SIDED: a marker naming no live guarded position is RED (a stale exemption is a
 //                    loaded gun — the next swallow written there inherits it), and a MALFORMED marker (no
 //                    name and/or no reason, so it exempts nothing) reds as its own flavour rather than
-//                    sitting there looking like protection.
+//                    sitting there looking like protection. A position resolves to exactly ONE guarded
+//                    thing: two same-named dispatches on one guarded line get `cancel` and `cancel_2`, so
+//                    one reason can never launder its sibling.
 //   A4 blindness   — ZERO span openers derived from the tracing module ⇒ RED. A gate keyed on a derivation
 //                    that stops resolving reports ✓ forever (GATE-AUTHORING §4.6).
 //
@@ -37,7 +39,9 @@
 // deleting the detach makes the derivation empty and A4 REDS.
 //
 // ── DECLARED LIMITS (each with a mustPass row) ──────────────────────────────────────────────────────────
-// A1 reads only DISCARDING handlers: a handler that logs, cleans up, or rethrows is out of scope (it is
+// Promise links are read through `literalMember`, so `p.catch` and `p["catch"]` (literal, parenthesized,
+// literal-typed, `+`-concatenated, or a same-file `const`) are the SAME read; a dynamic key stays a declared
+// limit rather than a guess. A1 reads only DISCARDING handlers: a handler that logs, cleans up, or rethrows is out of scope (it is
 // visible), and so is a bare `void work()` with no handler at all (an unhandled rejection is loud). Only
 // STATEMENT position counts — an absorber nested inside an argument is not the class. "Traced" is satisfied
 // by ANY opener call anywhere in the statement (deliberately permissive: proving the opener wraps THE work
@@ -125,7 +129,8 @@ const MALFORMED_MARKER =
  *  a parented span dispatched from inside the request it outlives never seals its bucket. */
 function opensDetachedRoot(call: CallExpression): boolean {
   const callee = unwrapExpression(call.getExpression());
-  const name = callee.isKind(SyntaxKind.PropertyAccessExpression) ? callee.getName() : callee.getText();
+  const member = literalMember(callee);
+  const name = member === undefined ? callee.getText() : member.name;
   if (name !== OTEL_ROOT_OPENER) {
     return false;
   }
@@ -178,10 +183,59 @@ export function deriveRootSpanOpeners(sourceFiles: readonly SourceFile[]): Set<s
 
 function calleeName(call: CallExpression): string | undefined {
   const callee = unwrapExpression(call.getExpression());
-  if (callee.isKind(SyntaxKind.PropertyAccessExpression)) {
-    return callee.getName();
+  const member = literalMember(callee);
+  if (member !== undefined) {
+    return member.name;
   }
   return callee.isKind(SyntaxKind.Identifier) ? callee.getText() : undefined;
+}
+
+/** A property read spelled EITHER way — `p.catch` and `p["catch"]` are the same read. Bracket access with a
+ *  statically-resolvable string key is not a different language feature, and a dot-only reader is a silent
+ *  laundering path (the gate would go green on `void p['catch'](() => undefined)`). */
+function literalMember(node: Node): { readonly name: string; readonly receiver: Node } | undefined {
+  const member = unwrapExpression(node);
+  if (member.isKind(SyntaxKind.PropertyAccessExpression)) {
+    return { name: member.getName(), receiver: unwrapExpression(member.getExpression()) };
+  }
+  if (!member.isKind(SyntaxKind.ElementAccessExpression)) {
+    return;
+  }
+  const key = member.getArgumentExpression();
+  const name = key === undefined ? undefined : staticStringValue(key);
+  return name === undefined ? undefined : { name, receiver: unwrapExpression(member.getExpression()) };
+}
+
+/** The ORDERED runtime value of a statically-knowable string expression (GATE-AUTHORING §5): literal,
+ *  parenthesized, literal-typed, `+`-concatenated, or a same-file `const` one hop away. Anything the reader
+ *  cannot prove returns undefined — a dynamic key is a declared limit, never a guess. */
+function staticStringValue(node: Node): string | undefined {
+  const typedLiteral = node.getType().getLiteralValue();
+  if (typeof typedLiteral === "string") {
+    return typedLiteral;
+  }
+  const value = unwrapExpression(node);
+  if (value.isKind(SyntaxKind.StringLiteral) || value.isKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
+    return value.getLiteralValue();
+  }
+  if (value.isKind(SyntaxKind.BinaryExpression) && value.getOperatorToken().getText() === "+") {
+    const left = staticStringValue(value.getLeft());
+    const right = staticStringValue(value.getRight());
+    return left === undefined || right === undefined ? undefined : left + right;
+  }
+  const literal = value.getType().getLiteralValue();
+  if (typeof literal === "string") {
+    return literal;
+  }
+  if (!value.isKind(SyntaxKind.Identifier)) {
+    return;
+  }
+  const declaration = value.getSymbol()?.getDeclarations()[0];
+  if (declaration?.isKind(SyntaxKind.VariableDeclaration) !== true || declaration.getVariableStatement()?.getDeclarationKind() !== "const") {
+    return;
+  }
+  const initializer = declaration.getInitializer();
+  return initializer === undefined ? undefined : staticStringValue(initializer);
 }
 
 /** A handler that throws the rejection away and does NOTHING else — `() => undefined`, `() => {}`,
@@ -210,16 +264,16 @@ function absorbingLink(expr: Node): CallExpression | undefined {
   let cur: Node = expr;
   let found: CallExpression | undefined;
   while (found === undefined && cur.isKind(SyntaxKind.CallExpression)) {
-    const callee = unwrapExpression(cur.getExpression());
-    if (!callee.isKind(SyntaxKind.PropertyAccessExpression)) {
+    const member = literalMember(cur.getExpression());
+    if (member === undefined) {
       break;
     }
-    const name = callee.getName();
+    const name = member.name;
     const handler = rejectionHandlerOf(cur, name);
     if (handler !== undefined && isDiscardingHandler(handler)) {
       found = cur;
     } else if (PROMISE_LINKS.has(name)) {
-      cur = unwrapExpression(callee.getExpression());
+      cur = member.receiver;
     } else {
       break;
     }
@@ -233,9 +287,9 @@ function dispatchPosition(absorber: CallExpression): string {
   let cur: Node = absorber;
   for (;;) {
     if (cur.isKind(SyntaxKind.CallExpression)) {
-      const callee = unwrapExpression(cur.getExpression());
-      if (callee.isKind(SyntaxKind.PropertyAccessExpression) && PROMISE_LINKS.has(callee.getName())) {
-        cur = unwrapExpression(callee.getExpression());
+      const link = literalMember(cur.getExpression());
+      if (link !== undefined && PROMISE_LINKS.has(link.name)) {
+        cur = link.receiver;
         continue;
       }
       return calleeName(cur) ?? FALLBACK_POSITION;
@@ -243,10 +297,8 @@ function dispatchPosition(absorber: CallExpression): string {
     if (cur.isKind(SyntaxKind.Identifier)) {
       return cur.getText();
     }
-    if (cur.isKind(SyntaxKind.PropertyAccessExpression)) {
-      return cur.getName();
-    }
-    return FALLBACK_POSITION;
+    const member = literalMember(cur);
+    return member === undefined ? FALLBACK_POSITION : member.name;
   }
 }
 
@@ -309,6 +361,7 @@ function enclosingOpenerCall(node: Node, openers: ReadonlySet<string>): string |
 
 const COMMENT_LINE_RE = /^\s*(?:\/\/|\*|\/\*)/u;
 const BLANK_LINE_RE = /^\s*$/u;
+const LINE_BREAK_RE = /\r?\n/u;
 
 interface MarkerRef {
   readonly line: number;
@@ -408,7 +461,50 @@ function blindedRejectionSites(sf: SourceFile, openers: ReadonlySet<string>): Gu
 /** A1 + A2 — every guarded site in one file, BEFORE the marker filter. One producer, so the detector and the
  *  stale arm can never disagree about what a markable position is. */
 function guardedSites(sf: SourceFile, openers: ReadonlySet<string>): GuardedSite[] {
-  return [...untracedDispatchSites(sf, openers), ...swallowingCatchSites(sf, openers), ...blindedRejectionSites(sf, openers)];
+  // §4.3a taken to its conclusion: a position is only a POSITION if it resolves to ONE guarded thing. Two
+  // same-named dispatches on one guarded line (`void a.cancel()…; void b.cancel()…;`) would otherwise share
+  // `cancel`, and ONE marker would launder both — the exact over-exemption the position was minted to stop.
+  const uses = new Map<string, number>();
+  return [...untracedDispatchSites(sf, openers), ...swallowingCatchSites(sf, openers), ...blindedRejectionSites(sf, openers)].map((site) => {
+    const key = `${site.line}:${site.position}`;
+    const count = (uses.get(key) ?? 0) + 1;
+    uses.set(key, count);
+    return count === 1 ? site : { ...site, position: `${site.position}_${count}` };
+  });
+}
+
+/** A live positioned `@swallowed-ok` is ALREADY two-sided ownership evidence — this gate reds it the moment
+ *  it stops guarding a live site — so a sibling gate may read it as proof instead of demanding a second
+ *  marker on the same line. Exact path + exact position + exact guarded line, or nothing. */
+export function hasLiveDetachedSwallowOwner(node: Node, position: string): boolean {
+  const sf = node.getSourceFile();
+  if (!inScope(sf.getFilePath())) {
+    return false;
+  }
+  // RESOLVE ONCE PER PASS, via this gate's own `begin`-derived vocabulary. The derivation walks every source
+  // file, and a sibling gate asks this per candidate SITE, so it must not be inline — but the cache lifetime
+  // is the PASS, never the Project.
+  //
+  // A Project-keyed memo was tried and REJECTED (2026-08-28). Project identity is only stable-per-example
+  // because conformance happens to build a fresh Project each time; measured against a prototype that
+  // amortizes that substrate (a 14.5x win the harness may well take), a Project-keyed memo served a
+  // PREVIOUS example's vocabulary and three of this gate's own conformance rows silently changed verdict.
+  // A cache whose correctness depends on how often its key happens to be thrown away is a trap for whoever
+  // optimises the substrate. `begin` fires once per pass, which is exactly this value's valid lifetime.
+  //
+  // When this gate did not run in the caller's pass (conformance runs ONE gate standalone), the vocabulary
+  // is empty and we derive directly — correct, and cheap on a mini-project.
+  const openers = passOpeners.size > 0 ? passOpeners : deriveRootSpanOpeners(sf.getProject().getSourceFiles());
+  if (openers.size === 0) {
+    return false;
+  }
+  const site = guardedSites(sf, openers).find(
+    (candidate) => candidate.position === position && candidate.node.getStart() <= node.getStart() && candidate.node.getEnd() >= node.getEnd(),
+  );
+  if (site === undefined) {
+    return false;
+  }
+  return resolveMarkers(sf.getFullText().split(LINE_BREAK_RE)).some((marker) => marker.guards === site.line && marker.name === site.position);
 }
 
 /** A NODE-anchored unmarked guarded site — never a `{file,line,column}` Finding literal
@@ -427,7 +523,7 @@ export function detachedWorkFindings(
   openers: ReadonlySet<string>,
 ): { readonly siteHits: readonly SiteHit[]; readonly markerFindings: readonly Finding[] } {
   const sites = guardedSites(sf, openers);
-  const markers = resolveMarkers(sf.getFullText().split("\n"));
+  const markers = resolveMarkers(sf.getFullText().split(LINE_BREAK_RE));
   const siteHits: SiteHit[] = [];
   for (const site of sites) {
     const exempt = markers.some((marker) => marker.guards === site.line && marker.name === site.position);
@@ -458,6 +554,9 @@ export function inScope(path: string): boolean {
   return path.includes("packages/server/src/");
 }
 
+/** The opener vocabulary for THIS pass, re-derived in `begin`. Its lifetime is the PASS, never a Project,
+ *  which is what makes it safe for the sibling-gate reader above to ride (see the rejection of a
+ *  Project-keyed memo there). */
 let passOpeners: ReadonlySet<string> = new Set<string>();
 
 export const gate: GateDescriptor = {
@@ -505,6 +604,27 @@ export const gate: GateDescriptor = {
       },
       expect: { count: 1, token: "onUserCommit" },
       why: "A1, the founding shape — the live `fireRpgUserCommit` this gate found on landing: a background snapshot-commit whose rejection is discarded, outside any span",
+    },
+    {
+      files: {
+        [TRACING_MODULE]:
+          "export function withRequestSpan(id: string, name: string, attrs: A, fn: () => Promise<void>): Promise<void> {\n" +
+          "  return t.startActiveSpan(name, { attributes: attrs, root: true }, fn);\n}\n",
+        "packages/server/src/domain/chat/verbs/bracket.ts":
+          "export function fire(ctx: C): void {\n" +
+          "  const link = 'catch' as const;\n" +
+          "  let typedLink: 'catch' = 'catch';\n" +
+          "  void ctx.save()['catch'](() => undefined);\n" +
+          "  void ctx.save()?.['then'](undefined, () => undefined);\n" +
+          "  void ctx.save()[('catch')](() => undefined);\n" +
+          "  void ctx.save()[link](() => undefined);\n" +
+          "  void ctx.save()[typedLink](() => undefined);\n" +
+          "  void ctx.save()[(('ca' + 'tch') as 'catch')](() => undefined);\n" +
+          "  void ctx.save()['ca' + 'tch'](() => undefined);\n" +
+          "  void ctx.save()['th' + 'en'](undefined, () => undefined);\n}\n",
+      },
+      expect: { count: 8 },
+      why: "literal, parenthesized-literal, literal-typed, concatenated and optional-bracket promise links are the same invisible detached dispatch as dot access — a dot-only reader goes silently green on every one of them",
     },
     {
       files: {
@@ -571,6 +691,19 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
+        [TRACING_MODULE]:
+          "export function withRequestSpan(id: string, name: string, attrs: A, fn: () => Promise<void>): Promise<void> {\n" +
+          "  return t.startActiveSpan(name, { attributes: attrs, root: true }, fn);\n}\n",
+        "packages/server/src/infra/network/repeated-cancel.ts":
+          "export function tear(a: R, b: R): void {\n" +
+          "  // @swallowed-ok(cancel): the first stream is already closed. Ends if cancel becomes user-visible.\n" +
+          "  void a.cancel().catch(() => undefined); void b.cancel().catch(() => undefined);\n}\n",
+      },
+      expect: { count: 1, token: "cancel_2" },
+      why: "the SAME name twice on one guarded line: one positioned marker owns ONE dispatch, the sibling gets a unique position and stays red. Without the disambiguator a single reason silently absolves both",
+    },
+    {
+      files: {
         [TRACING_MODULE]: "export function withRequestSpan(id: string, fn: () => Promise<void>): Promise<void> {\n  return t.startActiveSpan(id, {}, fn);\n}\n",
         [REAL_TREE_ANCHOR]: "export const tables = {};\n",
         "packages/server/src/domain/chat/verbs/turn.ts": "export function fire(ctx: C): void {\n  void ctx.rpg.onUserCommit(a, b).catch(() => undefined);\n}\n",
@@ -617,6 +750,18 @@ export const gate: GateDescriptor = {
           "  void res.body.cancel().catch(() => undefined);\n}\n",
       },
       why: "the deliberate-invisibility escape with its reason and end condition — the live egress-teardown class. The reason is the deliverable, not the silence",
+    },
+    {
+      files: {
+        [TRACING_MODULE]:
+          "export function withRequestSpan(id: string, name: string, attrs: A, fn: () => Promise<void>): Promise<void> {\n" +
+          "  return t.startActiveSpan(name, { attributes: attrs, root: true }, fn);\n}\n",
+        "packages/server/src/infra/network/bracket-egress.ts":
+          "export function tear(res: R): void {\n" +
+          "  // @swallowed-ok(cancel): an already-closing stream has no caller; ends if cancellation gains a visible result.\n" +
+          "  void res.body.cancel()['catch'](() => undefined);\n}\n",
+      },
+      why: "the bracket-linked absorber reaches the SAME exact-position stale-checked marker — the widened reader must not leave a detected shape unexemptable",
     },
     {
       files: {
