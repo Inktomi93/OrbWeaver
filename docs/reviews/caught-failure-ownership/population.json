@@ -4,11 +4,11 @@
   "totals": {
     "sites": 406,
     "enforced": 403,
-    "reported": 329,
+    "reported": 327,
     "byVerdict": {
-      "deliberate-absorb": 74,
+      "deliberate-absorb": 76,
       "detached-owned": 3,
-      "unproven": 329
+      "unproven": 327
     },
     "byGrammar": {
       "promise": 119,
@@ -4147,9 +4147,9 @@
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "every caller (receiptFacts) treats a git command failure as \"this receipt fact is unverified\", not as a tool crash — null downgrades verifiedCommitExists/IsAncestor/blob to false/null rather than aborting the whole catalog build. Ends if a caller starts treating null as \"verified\".",
+      "markerLine": 60
     },
     {
       "siteId": "tooling/src/doc-catalog/ops/tree.ts::default:catch::2",
@@ -4160,9 +4160,9 @@
       "position": "default:catch",
       "ordinal": 2,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "same optional-read contract as gitResult above — only called when verifiedCommitExists is already true, and a failed `git show` just means the blob hash comes back null (unverified), not that the build aborts. Ends if a caller starts treating null as \"verified\".",
+      "markerLine": 69
     },
     {
       "siteId": "tooling/src/model-ab/lib/verify.ts::empty:catch::1",
