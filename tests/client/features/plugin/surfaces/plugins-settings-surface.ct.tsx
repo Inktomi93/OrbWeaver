@@ -698,18 +698,27 @@ test("at a phone-width pane the LONG status badge never collides with the row's 
 
   const badge = page.getByText("Off — asked for more than you allowed");
   await expect(badge).toBeVisible();
-  const badgeBox = await badge.boundingBox();
-  const switchBox = await page.getByRole("switch", { name: "Turn Weather Teller on" }).boundingBox();
-  const updateBox = await page.getByRole("button", { name: "Update Weather Teller from a bundle" }).boundingBox();
-  expect(badgeBox === null || switchBox === null || updateBox === null).toBe(false);
-  if (badgeBox === null || switchBox === null || updateBox === null) {
-    return;
-  }
-  expect(overlaps(badgeBox, switchBox)).toBe(false);
-  expect(overlaps(badgeBox, updateBox)).toBe(false);
-  // …and the badge itself stays inside the 390px pane rather than escaping it (the overflow that made the
-  // collision possible in the first place).
-  expect(badgeBox.x + badgeBox.width).toBeLessThanOrEqual(390);
+  // ONE polled composite read (the mount animation settles under the poll; three separate one-shot reads
+  // would each sample mid-transition): badge ∩ switch, badge ∩ update, and the badge's right edge vs the
+  // 390px pane — the overflow that made the collision possible in the first place.
+  await expect
+    .poll(
+      async () => {
+        const badgeBox = await badge.boundingBox();
+        const switchBox = await page.getByRole("switch", { name: "Turn Weather Teller on" }).boundingBox();
+        const updateBox = await page.getByRole("button", { name: "Update Weather Teller from a bundle" }).boundingBox();
+        if (badgeBox === null || switchBox === null || updateBox === null) {
+          return "a box was null";
+        }
+        return {
+          badgeHitsSwitch: overlaps(badgeBox, switchBox),
+          badgeHitsUpdate: overlaps(badgeBox, updateBox),
+          badgeInsidePane: badgeBox.x + badgeBox.width <= 390,
+        };
+      },
+      { intervals: [50, 100, 200, 400] },
+    )
+    .toEqual({ badgeHitsSwitch: false, badgeHitsUpdate: false, badgeInsidePane: true });
 });
 
 test("a plugin switched ON with nothing granted says so on its status badge (owner observation, 2026-08-29)", async ({ mount, page }) => {
