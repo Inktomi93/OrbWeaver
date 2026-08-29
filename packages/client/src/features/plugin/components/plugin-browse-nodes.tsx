@@ -14,7 +14,9 @@
 import type { PluginGridNode, PluginMasterDetailNode, PluginSearchBarNode, PluginSurfaceNode } from "@orb/contracts/plugin";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
+import { EmptyState } from "@orb/ui/empty-state";
 import { Field } from "@orb/ui/field";
+import { Icon, Images } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { MediaTileGrid } from "@orb/ui/media-tile-grid";
@@ -48,11 +50,10 @@ export function SurfaceGrid({
   // never reaches this map unjudged). Everything below is arm-blind.
   const tiles = gridTiles(node, state);
   if (tiles.length === 0) {
-    return (
-      <Text prose={true} voice="gloss">
-        {node.empty ?? "Nothing here yet."}
-      </Text>
-    );
+    // The HOUSE empty state, not one grey sentence above a void (stickler 2026-08-29 F4): the browse genre's
+    // empty is load-bearing — it is the whole pre-search page — and the section's own empties one file over
+    // already speak this pattern. The plugin's `empty` line stays the copy; only its frame is promoted.
+    return <EmptyState icon={<Icon icon={Images} size="lg" />} measure="default" title={node.empty ?? "Nothing here yet."} titleAs="p" />;
   }
   const items = tiles.map((tile) => ({
     id: tile.id,
@@ -88,9 +89,11 @@ export function SurfaceGrid({
  * mount-lifetime trick. An `active` naming no stage falls back to the FIRST stage: a page that renders blank
  * because a plugin published a typo is the failure this fallback exists to prevent.
  *
- * The DETAIL stage is the one that differs by construction: hero above a READING-WIDTH column (the house
- * `prose` measure on the text primitives themselves — a plugin never spells a width), which is exactly what the
- * purged surface's drawer-crammed preview did not have.
+ * The DETAIL stage is the one that differs by construction: hero above a READING-WIDTH column — the renderer
+ * caps the stage's whole column at the house `--reading-measure` token (a plugin never spells a width), which
+ * is exactly what the purged surface's drawer-crammed preview did not have. One cap, three fixes: the blurb
+ * stops running ~150 chars/line, the keyValue rows stop putting label and value at opposite ends of a
+ * near-900px scan gap, and the hero cannot balloon past the column it crowns (stickler 2026-08-29 F2).
  */
 export function MasterDetail({
   node,
@@ -126,7 +129,9 @@ export function MasterDetail({
     );
   }
   return (
-    <Stack gap="block">
+    // The reading-measure cap is the FEATURE-precedented spelling (databank/imagery/refinery all cap prose
+    // columns with the same token); the slot names the stage for the styles tier and the CT pin.
+    <Stack className="max-w-(--reading-measure)" data-slot="plugin-detail-stage" gap="block">
       {stage.hero === undefined || heroUrl === undefined ? null : (
         <MessageMedia alt={stage.hero.alt ?? ""} media="image" src={{ kind: "asset", url: heroUrl }} />
       )}

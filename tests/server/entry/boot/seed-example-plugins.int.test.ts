@@ -763,13 +763,24 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
     h,
     caller,
     slug: "card-atlas",
-    grant: ["storage.kv", "ui.surface", "net.fetch", "character.ingest", "character.card_state"],
-    netHosts: ["character-tavern.com", "realm.risuai.net"],
+    grant: ["storage.kv", "ui.surface", "net.fetch", "net.fetch_asset", "character.ingest", "character.card_state"],
+    // The acknowledged list mirrors the manifest EXACTLY (the anti-TOCTOU pin): the two hub APIs plus each
+    // hub's art CDN — netHosts matching is exact-host, so the CDNs are their own consent lines.
+    netHosts: ["character-tavern.com", "ct-cards.storage.character-tavern.com", "realm.risuai.net", "sv.risuai.xyz"],
   });
 
-  // The masterDetail + searchBar(+filters) + BOUND-grid page passed the REAL registration validation over the
+  // The masterDetail + searchBar + BOUND-grid page passed the REAL registration validation over the
   // WASM runtime — the flagship's whole vocabulary, end to end.
-  expect(await h.service.listSurfaces({ caller })).toEqual([expect.objectContaining({ id: "atlas_page", anchor: "page", tier: "static" })]);
+  const surfaces = await h.service.listSurfaces({ caller });
+  expect(surfaces).toEqual([expect.objectContaining({ id: "atlas_page", anchor: "page", tier: "static" })]);
+  // The art-forward spec shapes (card-atlas-hub-polish): the Hub + Sort selects are ALWAYS-VISIBLE nodes
+  // (never buried in a searchBar `filters` disclosure), and the detail stage binds its hero to the art the
+  // plugin fetches at runtime (`assetFrom` — the #798 arm).
+  const spec = JSON.stringify(surfaces[0]?.["spec"] ?? {});
+  expect(spec).toContain('"name":"source"');
+  expect(spec).toContain('"name":"sort"');
+  expect(spec).not.toContain('"filters"');
+  expect(spec).toContain('"assetFrom":{"$state":"detail.art"}');
 
   // The activation publish: an empty atlas is a PUBLISHABLE state (bound specs render only once state lands).
   const initial = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "atlas_page" });
