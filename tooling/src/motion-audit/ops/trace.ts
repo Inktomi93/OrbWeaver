@@ -31,6 +31,7 @@ export async function runAudit(
     });
 
     if (measuredClick !== null) {
+      // @orb-gate-ignore caught-failure-ownership(empty:e): sets stepFailed, which is returned in the AuditData the caller reads as part of the verdict, and prints STEP FAILED — not dropped. Ends if stepFailed stops being read from the returned AuditData.
       try {
         await page.mouse.click(measuredClick.x, measuredClick.y);
       } catch (e) {
@@ -47,6 +48,7 @@ export async function runAudit(
     await cdp.send("Tracing.end");
     await completed;
   } finally {
+    // @orb-gate-ignore caught-failure-ownership(promise:evaluate): best-effort cleanup unpausing an in-page flag in a finally block — the page may already be closed/navigated by the time this runs, and there is nothing further downstream that could act on this failure. Ends if this flag gates behavior a later step depends on.
     await page.evaluate("globalThis.__orb?.setMotionAuditDropTrackingPaused(false)").catch(() => undefined);
   }
 
