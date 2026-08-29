@@ -684,9 +684,7 @@
       "verifiedSha256": "284780ad6d0041881be0134b091fbf378b5f1485b579b1a570c1c8a8c7373ab9",
       "verifiedCommit": "e69f96774a1606587feaf155b952fc701ef85a87",
       "verifiedAt": "2026-08-24",
-      "evidence": [
-        "docs/design/interaction-substrate-spec.md:1-9 supersession header pointing at interaction-direction-spec.md (e69f96774)"
-      ],
+      "evidence": ["docs/design/interaction-substrate-spec.md:1-9 supersession header pointing at interaction-direction-spec.md (e69f96774)"],
       "summary": "Superseded commissioning draft (2026-08-23) of the interaction direction; provenance only."
     },
     {
@@ -2159,16 +2157,16 @@
     },
     {
       "path": "docs/design/saved-rosters-build-record.md",
-      "assignedSha256": "b7fc49c1ddd9c4c118d24bd8ee9604a1cce0ba711f07d068a3368cc6cf09702a",
+      "assignedSha256": "3bcc3d82454f7a61a3859f03ce9b906495d119d19151a4040cf3a6826aeaa4c2",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "b7fc49c1ddd9c4c118d24bd8ee9604a1cce0ba711f07d068a3368cc6cf09702a",
-      "verifiedCommit": "936501dfb1b7a7a8f3a99a0cc8a501051baaf37e",
+      "verifiedSha256": "3bcc3d82454f7a61a3859f03ce9b906495d119d19151a4040cf3a6826aeaa4c2",
+      "verifiedCommit": "b39ec367beef5ad10d29fc7e947b60e0fc86fc23",
       "verifiedAt": "2026-08-28",
       "evidence": [
         "docs/design/saved-rosters-build-record.md:1 (design; active)",
-        "authored by lane roster-26 with the RP1+RP2 build (the two-commit born-reviewed dance: the build commit carries the doc, this receipt pins it)",
+        "authored by lane roster-26 with the RP1+RP2 build; re-attested after the pre-merge stickler truth-repairs (F3/F6) at b39ec367b",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
       "summary": "Saved rosters (roster presets) — the as-built RP1+RP2 design record (#26, lane roster-26, 2026-08-28): premise repair vs the parked program doc, the D80/requireHost deltas, the coupled-site inventory, and the test plan.",
