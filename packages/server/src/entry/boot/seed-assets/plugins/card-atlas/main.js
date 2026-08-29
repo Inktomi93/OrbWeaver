@@ -24,6 +24,12 @@
 //    one call, and every art failure degrades to the placeholder tile, never a broken page. When you copy
 //    this plugin, copy the budget thinking too.
 //
+//  * WORKING PAST THE SETTLEMENT WALL. An action handler has ~6 s of real time to settle; a search plus a
+//    two-dozen-cover batch does not fit, and blowing the wall is a crash strike + a respawned session. So the
+//    handler publishes the TEXT grid and returns, and the art batch rides a FLOATING promise the host pumps
+//    between invocations (`scheduleArtLoad` — the same mechanism as the activation-time publish), guarded by
+//    session identity so an older batch never overwrites a newer search. Long work floats; handlers answer.
+//
 //  * TALKING TO THE OUTSIDE WORLD PROPERLY. Fetches are host-performed, allowlisted to the hosts the
 //    manifest declares, 5 s / 1 MiB bounded, SSRF-guarded — and every response here is treated as UNTRUSTED
 //    DATA: parsed defensively, malformed rows dropped (never thrown), failures folded into the status line.
@@ -460,6 +466,44 @@ async function fetchMissingArt(cache, rows, keyOf, urlOf) {
 const artKey = (result) => `${result.source}:${result.ref}`;
 const heroKey = (result) => `${result.source}:${result.ref}:hero`;
 
+// ── the FLOATING art continuations (the settlement-wall discipline) ────────────────────────────────────────
+// An action invocation is bounded by the host's SETTLEMENT WALL (~6 s of real time for the WHOLE handler),
+// and a fresh 24-cover batch structurally cannot fit inside it — one slow hub plus two dozen downloads is a
+// deadline kill, a crash strike, and a respawned session (measured live, 2026-08-29). So the HANDLER publishes
+// the text grid and RETURNS, and the art batch rides a FLOATING promise the host's job pump advances between
+// invocations (the same mechanism the activation-time `void publishBrowse("")` below already rides). Each
+// republish is guarded by SESSION IDENTITY, so a newer search is never overwritten by an older batch's art.
+
+/** Fetch the missing covers for `rows` after the current invocation settles, then republish ONCE. */
+function scheduleArtLoad(rows, status) {
+  if (!canFetchArt()) {
+    return;
+  }
+  void (async () => {
+    const cache = await loadArtCache();
+    const landed = await fetchMissingArt(cache, rows, artKey, (row) => row.art);
+    if (landed > 0 && lastResults === rows) {
+      await publishBrowse(status);
+    }
+  })().catch((err) => host.log.warn(`art batch failed: ${String(err)}`));
+}
+
+/** Fetch the sharper hero variant (where the hub serves one) after the invocation settles, then republish the
+ *  still-open detail in place. */
+function scheduleHeroUpgrade(result, blurb) {
+  const heroUrl = SOURCES[result.source].heroUrl(result);
+  if (heroUrl === null || !canFetchArt()) {
+    return;
+  }
+  void (async () => {
+    const cache = await loadArtCache();
+    const landed = await fetchMissingArt(cache, [result], heroKey, () => heroUrl);
+    if (landed > 0 && openResult !== null && openResult.result === result) {
+      await publishDetail(result, blurb);
+    }
+  })().catch((err) => host.log.warn(`hero upgrade failed: ${String(err)}`));
+}
+
 // ── the owned-index (fast lookup) + the card stamp (durable provenance) ────────────────────────────────────
 const ownedKey = (result) => `owned:${result.source}:${result.ref}`;
 
@@ -718,14 +762,11 @@ async function searchAction(values) {
   lastResults = sortRows(results, sortKey).slice(0, PAGE_SIZE);
   openResult = null;
   const status = lastResults.length === 0 ? `Nothing on ${label} for "${q}".` : `${lastResults.length} from ${label} for "${q}".`;
-  // Paint 1: the text grid, plus whatever covers the cache already holds — instant.
+  // Paint 1: the text grid, plus whatever covers the cache already holds — instant, inside the invocation.
   await publishBrowse(status);
-  // Paint 2: fetch the missing covers in parallel and republish ONCE when the batch settles.
-  const cache = await loadArtCache();
-  const landed = await fetchMissingArt(cache, lastResults, artKey, (row) => row.art);
-  if (landed > 0) {
-    await publishBrowse(status);
-  }
+  // Paint 2: the cover batch FLOATS past the settlement wall (see the continuation's own header) and
+  // republishes once when it lands.
+  scheduleArtLoad(lastResults, status);
 }
 
 /** `open_result`: resolve the clicked tile against the resident session, fetch the detail, flip the stage —
@@ -742,16 +783,9 @@ async function openAction(values) {
     await publishBrowse(`${SOURCES[result.source].label} wouldn't show that card — try another.`);
     return;
   }
-  openResult = { result, raw: detail.raw };
+  openResult = { result, raw: detail.raw, blurb: detail.blurb };
   await publishDetail(result, detail.blurb); // Instant: the hero rides the cached grid cover.
-  const heroUrl = SOURCES[result.source].heroUrl(result);
-  if (heroUrl !== null && canFetchArt()) {
-    const cache = await loadArtCache();
-    const landed = await fetchMissingArt(cache, [result], heroKey, () => heroUrl);
-    if (landed > 0 && openResult !== null && openResult.result === result) {
-      await publishDetail(result, detail.blurb); // The in-place upgrade to the sharper hero.
-    }
-  }
+  scheduleHeroUpgrade(result, detail.blurb); // The in-place upgrade floats past the settlement wall.
 }
 
 /** `summon`: the canon write, feature-detected at USE, then the detail republished with its owned line. */
@@ -765,8 +799,9 @@ async function summonAction() {
     return;
   }
   await summon(openResult.result, openResult.raw);
-  const detail = await SOURCES[openResult.result.source].detail(openResult.result);
-  await publishDetail(openResult.result, String(detail?.blurb ?? ""));
+  // Republish from the SESSION's own copy of the blurb rather than re-fetching the detail: the summon arm
+  // already spends up to one slow fetch, and the settlement wall prices a second one out of the invocation.
+  await publishDetail(openResult.result, openResult.blurb);
 }
 
 /** The action router — one verb per affordance, dispatched by id; `back` (and any unknown id) goes home. */
