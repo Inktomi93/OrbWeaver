@@ -19,6 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { openSettingsTo, usePluginDialogSubject } from "#state";
+import { PluginFrame } from "./plugin-frame.tsx";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
 import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
 
@@ -54,6 +55,12 @@ export function PluginDialogBody(): ReactElement {
         />
       </Stack>
     );
+  }
+  // U7 FRAME (#787) — a `dialog`-anchored frame draws the plugin's OWN document in the isolated iframe, inside
+  // the house modal shell. `PluginFrame` draws its own (panel-scale) attribution band, so an un-minted frame
+  // leaves no orphaned box in the modal — the flank-law posture, chrome included. A frame carries no `spec`.
+  if (surface.tier === "frame") {
+    return <PluginFrame pluginId={subject.pluginId} pluginName={pluginName} surfaceId={surface.id} title={surface.title} />;
   }
   return (
     <PluginSurfaceShell pluginName={pluginName} title={surface.title}>

@@ -25,9 +25,11 @@ import { createContributorRegistry } from "@orb/client/lib";
 import type { SettingsSectionContribution } from "@orb/client/state";
 import {
   __resetPluginCommandArgs,
+  __resetPluginDialog,
   CommandPaletteSourceRegistryProvider,
   clearPluginPage,
   openPluginCommandArgs,
+  openPluginDialog,
   selectChat,
   selectPluginPage,
   useSectionRegistry,
@@ -42,6 +44,7 @@ import { MessageToolCalls } from "../../../../packages/client/src/features/chat/
 // module takes for it (a story legitimately composes feature internals the front door does not re-export).
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
 import { PluginCommandArgsBody } from "../../../../packages/client/src/features/plugin/components/plugin-command-args-body.tsx";
+import { PluginDialogBody } from "../../../../packages/client/src/features/plugin/components/plugin-dialog-body.tsx";
 import { CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry, CtSettingsSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID } from "../chat/fixtures.ts";
@@ -343,6 +346,34 @@ export function PluginCommandArgsStory(): ReactElement {
           <ArgsModalSeed />
         </div>
       </CtToastSurface>
+    </CtDataProviders>
+  );
+}
+
+// ── U7 FRAME at the DIALOG anchor (plugin-ui-plane #679 §6.2 / #787) ──────────────────────────────────────────
+// The subject is the REAL `PluginDialogBody` over the stubbed network, seeded through the SAME `openPluginDialog`
+// round-trip channel a plugin's own action outcome uses (there is no affordance that opens a plugin dialog
+// directly — the §4.5a wall). The CT drives the DATA (`plugin.listSurfaces`), so a `dialog`-anchored `frame`
+// registration renders the plugin's isolated document inside the house modal shell through the production path.
+
+const DIALOG_PLUGIN_ID = castId<PluginId>("plugin_ct_dialog00000001");
+
+/** The dialog modal's BODY at its docked width, its subject seeded to the frame surface the CT's `listSurfaces`
+ *  stub declares. */
+function DialogBodySeed(): ReactElement {
+  useEffect(() => {
+    openPluginDialog({ pluginId: DIALOG_PLUGIN_ID, surfaceId: "board" });
+    return (): void => __resetPluginDialog();
+  }, []);
+  return <PluginDialogBody />;
+}
+
+export function PluginDialogBodyStory({ width = SETTINGS_PANE_WIDTH }: { readonly width?: number }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width }}>
+        <DialogBodySeed />
+      </div>
     </CtDataProviders>
   );
 }

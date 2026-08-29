@@ -26,6 +26,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { testId, useFocusOnMount } from "#lib";
 import { clearPluginPage, openSettingsTo, usePluginPageKey } from "#state";
+import { PluginFrame } from "../components/plugin-frame.tsx";
 import { PluginSurfaceRenderer } from "../components/plugin-surface-renderer.tsx";
 import { PluginSurfaceShell } from "../components/plugin-surface-shell.tsx";
 import { usePluginPages } from "../hooks/use-plugin-pages.ts";
@@ -94,15 +95,24 @@ export function ExtensionsPageSurface(): ReactElement {
     // edges (a pinned band + a scrolling body). A container's reading-width clamp here would inset a full-page
     // surface inside a gutter it did not ask for — the shell IS the containment for this arm.
     <Stack className="h-full min-h-0 outline-none" data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
-      <PluginSurfaceShell pluginName={page.pluginName} scale="page" title={page.title}>
-        {page.spec === undefined ? (
-          <Text prose={true} voice="gloss">
-            This page hasn't published anything to draw yet.
-          </Text>
-        ) : (
-          <PluginSurfaceRenderer pluginId={page.pluginId} spec={page.spec} surfaceId={page.surfaceId} />
-        )}
-      </PluginSurfaceShell>
+      {page.tier === "frame" ? (
+        // U7 FRAME (#787) — the arbitrary-pixels arm at PAGE scale (§6.1/§9). `PluginFrame` draws its OWN
+        // page-scale shell (the pinned attribution band with no opt-out) exactly as it does at every other
+        // anchor, so an un-minted frame contributes no orphaned band — the flank-law posture, chrome included.
+        // `scale="page"` gives the biggest impersonation canvas in the design the same wall the vocabulary
+        // pages wear.
+        <PluginFrame pluginId={page.pluginId} pluginName={page.pluginName} scale="page" surfaceId={page.surfaceId} title={page.title} />
+      ) : (
+        <PluginSurfaceShell pluginName={page.pluginName} scale="page" title={page.title}>
+          {page.spec === undefined ? (
+            <Text prose={true} voice="gloss">
+              This page hasn't published anything to draw yet.
+            </Text>
+          ) : (
+            <PluginSurfaceRenderer pluginId={page.pluginId} spec={page.spec} surfaceId={page.surfaceId} />
+          )}
+        </PluginSurfaceShell>
+      )}
     </Stack>
   );
 }
