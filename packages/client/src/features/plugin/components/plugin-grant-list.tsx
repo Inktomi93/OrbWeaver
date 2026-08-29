@@ -28,9 +28,26 @@
 // marked because the SERVER said it was added, never because a client inferred it. Do not compute this
 // prop from anything else — the host fold (case, trailing dot) lives server-side and has exactly one home.
 //
-// A11Y: each row is a real `Field` label wrapping its `Checkbox`, so the control has an accessible name and
-// the whole row is the hit target (the side-eye 2026-08-09 P1-9 ruling — twelve bare checkboxes beside
-// sibling `<Text>` had no name and an 18px target). "New" is a WORD in the accessible name, never a colour.
+// A11Y + GEOMETRY: each interactive row is CHECKBOX-LEADING with a real `<label htmlFor>` wrapping the
+// name AND the consequence (the character-greeting-preview.tsx:320 precedent — a bare `<label>` with no
+// className is the sanctioned raw intrinsic for exactly this), so the WHOLE text block toggles the box and
+// the box sits ADJACENT to the words it grants. The prior shape — `Field orientation="horizontal"` — docked
+// the checkbox in the fixed control column at the row's FAR edge (`justify-between`), which at the 560-746px
+// pane put a security checkbox ~400px of dead gap away from its own label and left only the 18px box
+// clickable (side-eye 2026-08-29 P2-2; the same primitive's geometry stranded a checkbox ~370px once
+// before, `field-forces-a11y-suppression` layout sibling). A control-leading Field variant was REJECTED as
+// the fix: it would grow a sealed primitive's axis for one consumer and still could not make the
+// DESCRIPTION clickable (Base UI wires the label only).
+//
+// THE ACCESSIBLE NAME IS `aria-label` ON THE CHECKBOX, not the label element's textContent — deliberately
+// (side-eye 2026-08-29 P3-5): the wrapping label holds the badge pills, and letting accname composition
+// concatenate them produced the run-on "Rewrite your outgoing messages (new in this update)NewReaches
+// further". `aria-label` wins the accname algorithm over the native label, so the name is exactly
+// `<label>` or `<label> (new in this update)` — the NEW mark still rides the NAME (a re-consent screen
+// read aloud has to distinguish the rows that changed, and a colour cannot say that), the visible words
+// remain a prefix of it (WCAG 2.5.3 containment), and the pills stay visual. The consequence reaches AT
+// via `aria-describedby`. The visible "(new in this update)" suffix is GONE from the label text — the
+// "New" badge beside it said the identical thing 8px away (P3-5's redundancy half).
 //
 // A READ-ONLY row that is NOT granted renders a "Not granted" word-mark instead of a disabled checkbox
 // (side-eye #650 P1-3). A `disabled` Checkbox still computes `cursor:pointer` (the shared selection-control
@@ -40,16 +57,18 @@
 // "asks for a permission you hadn't allowed" was to tick the empty box beside it. A checked read-only row
 // keeps the checkbox — showing what you already have is a true state, not a false affordance — only an
 // UNCHECKED read-only row swaps to a statement, because that is specifically the shape that looks tickable
-// and isn't.
+// and isn't. With the leading-control layout the word-mark moves ONTO the label row (beside the name it
+// refuses, where the eye already is) and the lead column keeps a `w-checkbox` spacer, so mixed
+// granted/ungranted rows still share one left rail.
 
 import type { PluginCapability } from "@orb/contracts/plugin";
 import { NET_HOSTS_MAX } from "@orb/contracts/plugin";
 import { Badge } from "@orb/ui/badge";
 import { Checkbox } from "@orb/ui/checkbox";
-import { Field } from "@orb/ui/field";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import { CAPABILITY_COPY_ROWS, capabilityCopy } from "../lib/plugin-copy.ts";
 
 export interface PluginGrantListProps {
@@ -103,62 +122,81 @@ interface GrantRowProps {
 }
 
 function GrantRow({ capability, checked, isNew, onToggle }: GrantRowProps): ReactElement | null {
+  const boxId = useId();
+  const consequenceId = useId();
   const copy = capabilityCopy(capability);
   if (copy === undefined) {
     return null;
   }
-  // The NEW mark rides the accessible NAME, not just the badge — a re-consent screen read aloud has to
-  // distinguish the rows that changed from the ones carried forward, and a colour cannot say that.
-  const name = isNew ? `${copy.label} (new in this update)` : copy.label;
+  // The NEW mark rides the accessible NAME (see the file header) — `aria-label` composes it, so the badge
+  // pills never concatenate into the name and the visible label stays a prefix of it (WCAG 2.5.3).
+  const srName = isNew ? `${copy.label} (new in this update)` : copy.label;
   const interactive = onToggle !== undefined;
+  const labelBlock = (
+    <Stack gap="tight">
+      <Row align="center" className="flex-wrap" gap="field">
+        <Text voice="label">{copy.label}</Text>
+        {/* An UNCHECKED read-only row's state, as a word beside the name it refuses — adjacent, where the
+            far-docked control column used to strand it (file header). */}
+        {!(interactive || checked) ? (
+          <Text className="text-muted-foreground" voice="label">
+            Not granted
+          </Text>
+        ) : null}
+        {/* "New" reads INFO (informational — this row changed) against "Costs money"'s WARNING (a real
+            caution) — two amber "warning/soft" pills at a glance were indistinguishable (side-eye P2-8). */}
+        {isNew ? (
+          <Badge intent="info" size="sm" tone="soft">
+            New
+          </Badge>
+        ) : null}
+        {copy.spends === true ? (
+          <Badge intent="warning" size="sm" tone="soft">
+            Costs money
+          </Badge>
+        ) : null}
+        {/* The elevated-risk mark (side-eye P2-9): a capability that mutates YOUR outgoing content, room
+            state or global state, registers code the app will run for you, or leaves the sandbox entirely.
+            `ghost` keeps it quieter than the two solid-tint marks above (a new/spend fact is more urgent
+            than "this one reaches further than most"), while still breaking the otherwise-uniform weight
+            every row shared regardless of what it actually does. */}
+        {copy.risk === true ? (
+          <Badge intent="danger" size="sm" tone="ghost">
+            Reaches further
+          </Badge>
+        ) : null}
+      </Row>
+      <Text id={consequenceId} prose={true} voice="gloss">
+        {copy.consequence}
+      </Text>
+    </Stack>
+  );
+  // The whole text block is the hit target when the row is live: a bare `<label htmlFor>` (the
+  // greetings-toggle precedent — no className on a raw intrinsic, the paint law) forwards every click on
+  // the name, the pills or the consequence to the checkbox — a security decision should not demand an 18px
+  // aim (P2-2). The Stack wrapper below carries the flex geometry AND blockifies/stretches the
+  // inline-by-default label to the full remaining row width, so the target is the row, not the run of text.
+  const textColumn = interactive ? <label htmlFor={boxId}>{labelBlock}</label> : labelBlock;
   return (
-    // `label` + `description` + a bare control child is the shape `orientation="horizontal"` is BUILT for:
-    // the name and its consequence take the row's slack on the left and the checkbox docks right in the
-    // fixed control column. Putting the consequence in the CHILDREN instead crams it into that narrow
-    // column and strands the checkbox ~370px from its own label (measured in the CT browser at the 560px
-    // pane width before this was fixed) — the layout the primitive's `multiline` arm exists to prevent.
-    <Field
-      description={copy.consequence}
-      label={
-        <Row align="center" gap="field">
-          <Text voice="label">{name}</Text>
-          {/* "New" reads INFO (informational — this row changed) against "Costs money"'s WARNING (a real
-              caution) — two amber "warning/soft" pills at a glance were indistinguishable (side-eye P2-8). */}
-          {isNew ? (
-            <Badge intent="info" size="sm" tone="soft">
-              New
-            </Badge>
-          ) : null}
-          {copy.spends === true ? (
-            <Badge intent="warning" size="sm" tone="soft">
-              Costs money
-            </Badge>
-          ) : null}
-          {/* The elevated-risk mark (side-eye P2-9): a capability that mutates YOUR outgoing content, room
-              state or global state, registers code the app will run for you, or leaves the sandbox entirely.
-              `ghost` keeps it quieter than the two solid-tint marks above (a new/spend fact is more urgent
-              than "this one reaches further than most"), while still breaking the otherwise-uniform weight
-              every row shared regardless of what it actually does. */}
-          {copy.risk === true ? (
-            <Badge intent="danger" size="sm" tone="ghost">
-              Reaches further
-            </Badge>
-          ) : null}
-        </Row>
-      }
-      orientation="horizontal"
-    >
-      {/* A CHECKED read-only row keeps the checkbox: "you already have this" is a true state, not a false
-          affordance. An UNCHECKED read-only row is the one shape that looked tickable and did nothing on
-          click (P1-3, see the file header) — it becomes a plain word-mark instead of an inert control. */}
+    <Row align="start" gap="row">
+      {/* THE LEAD COLUMN: the control, adjacent to its words. A CHECKED read-only row keeps the checkbox
+          ("you already have this" is a true state, not a false affordance — its ≥44px touch pseudo is moot,
+          it is disabled); an UNCHECKED read-only row gets a `w-checkbox` spacer so mixed rows keep one left
+          rail, with the "Not granted" word-mark on the label row above (P1-3, see the file header). */}
       {interactive || checked ? (
-        <Checkbox checked={checked} disabled={!interactive} onCheckedChange={(next): void => onToggle?.(capability, next)} />
+        <Checkbox
+          aria-describedby={consequenceId}
+          aria-label={srName}
+          checked={checked}
+          disabled={!interactive}
+          id={boxId}
+          onCheckedChange={(next): void => onToggle?.(capability, next)}
+        />
       ) : (
-        <Text className="text-muted-foreground" voice="label">
-          Not granted
-        </Text>
+        <Stack aria-hidden={true} className="w-checkbox shrink-0" />
       )}
-    </Field>
+      <Stack className="min-w-0 flex-1">{textColumn}</Stack>
+    </Row>
   );
 }
 

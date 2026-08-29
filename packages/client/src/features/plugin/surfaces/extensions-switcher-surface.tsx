@@ -51,12 +51,15 @@ function ExtensionsPageList(): ReactElement {
           leading={<Icon icon={Blocks} size="sm" />}
           onClick={(): void => selectPluginPageFromList(page.key)}
           selected={page.key === active}
-          subtitle={page.pluginName}
           title={page.title}
           // Two plugins may legitimately register a page with the same title ("Browse"), and a list of
           // identically-named rows is unusable by voice and ambiguous by eye. The plugin name IS the
-          // disambiguator, and `titleQualifier` renders it into the accessible name as well as the label.
-          titleQualifier={page.pluginName}
+          // disambiguator: the subtitle carries it for the eye and `titleQualifier` renders it into the
+          // accessible name — EXCEPT when the page is titled exactly like its plugin (side-eye 2026-08-29
+          // P3-7: "Card Atlas" over a "Card Atlas" subtitle, the qualifier doubling the SR name). A
+          // qualifier that repeats the title disambiguates nothing; the attribution the pair exists for is
+          // already the title itself. Spread, not `undefined` props: exactOptionalPropertyTypes.
+          {...(page.pluginName === page.title ? {} : { subtitle: page.pluginName, titleQualifier: page.pluginName })}
         />
       ))}
     </Stack>

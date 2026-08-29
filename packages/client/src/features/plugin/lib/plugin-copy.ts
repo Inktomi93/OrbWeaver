@@ -270,13 +270,22 @@ export function grantSummaryLine(granted: readonly PluginCapability[]): string |
  * the owner's own toggle-off otherwise, and the surface would be presenting the system's refusal as the
  * person's decision. `warning` rather than `neutral` because it names an OPEN question ("this still needs
  * you"), not a settled state — the row below carries the actual re-consent notice + action.
+ *
+ * `grantedCount` feeds the ENABLED-BUT-INERT arm (side-eye 2026-08-29 owner observation): a plugin switched
+ * on with ZERO granted capabilities runs and can reach nothing — the least-privilege posture working as
+ * designed, but "I turned it on and nothing happened" needed an answer ON THE ROW. The badge says why,
+ * and says no more: an installed plugin's grant is only editable through the re-consent path (`setGrant`
+ * is reached from the notice, never from the durable disclosure), so this label deliberately does NOT
+ * point at a "tick something below" affordance that does not exist. `warning` on the statusCopy doc's own
+ * rule — an on-but-inert plugin is an OPEN question, not a settled success.
  */
 export function statusCopy(
   status: PluginStatus,
   reconsentPending: boolean,
+  grantedCount: number,
 ): { readonly label: string; readonly intent: "success" | "neutral" | "warning" | "danger" } {
   if (status === "enabled") {
-    return { label: "On", intent: "success" };
+    return grantedCount === 0 ? { label: "On — nothing granted yet", intent: "warning" } : { label: "On", intent: "success" };
   }
   if (status === "errored") {
     return { label: "Stopped after an error", intent: "danger" };
