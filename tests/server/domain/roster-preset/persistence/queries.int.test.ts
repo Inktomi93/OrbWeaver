@@ -11,11 +11,12 @@ import { describe } from "vitest";
 import {
   insertPresetWithMembers,
   listOwnedPresetRows,
+  loadMemberCardRows,
   loadMemberRows,
-  loadMembersWithCards,
   loadOwnedPresetRow,
   ownedPresetNameTaken,
 } from "../../../../../packages/server/src/domain/roster-preset/persistence/queries.ts";
+import { groupMemberViews } from "../../../../../packages/server/src/domain/roster-preset/substrate/members.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter } from "../../../../support/factories/character.ts";
 import { seedPersona } from "../../../../support/factories/persona.ts";
@@ -108,7 +109,7 @@ describe("roster-preset persistence — FK physics", () => {
     expect(await ownedPresetNameTaken(db, a, "Other")).toBe(false);
   });
 
-  test("loadMembersWithCards batches MULTIPLE presets, each bucket in position order", async () => {
+  test("loadMemberCardRows batches MULTIPLE presets; groupMemberViews buckets each in position order", async () => {
     const db = await freshDb();
     const owner = (await seedUser(db)).id;
     const x = (await seedCharacter(db, { ownerId: owner, name: "Xan" })).id;
@@ -116,7 +117,7 @@ describe("roster-preset persistence — FK physics", () => {
     const p1 = await seedPreset(db, { id: "roster_preset_p6", ownerId: owner, name: "One", memberIds: [y, x] });
     const p2 = await seedPreset(db, { id: "roster_preset_p7", ownerId: owner, name: "Two", memberIds: [x] });
 
-    const buckets = await loadMembersWithCards(db, [p1, p2]);
+    const buckets = groupMemberViews(await loadMemberCardRows(db, [p1, p2]));
     expect(buckets.get(p1)?.map((m) => m.name)).toEqual(["Yara", "Xan"]);
     expect(buckets.get(p2)?.map((m) => m.name)).toEqual(["Xan"]);
     expect(await listOwnedPresetRows(db, owner)).toHaveLength(2);

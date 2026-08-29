@@ -15,6 +15,7 @@
 // arm. Freshness is bus-driven end to end: `rosterPresetsChanged` covers the list, `chatUpdated` covers
 // the room the apply mutated.
 
+import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -28,10 +29,13 @@ import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useStartChat, useTRPC } from "#data";
 import { notify } from "#lib";
-import { closeModal } from "#state";
+import { closeModal, openModal } from "#state";
 import { useApplyRosterPreset, useCreateRosterPreset, useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
-import type { ActivePartyChat, SavedPartySummary } from "../hooks/use-saved-parties.ts";
 import { useActivePartyChat, useSavedParties } from "../hooks/use-saved-parties.ts";
+
+/** Derived, not re-minted (no-inline-types): the hook's own return shapes. */
+type SavedPartySummary = RosterPresetSummary;
+type ActivePartyChat = NonNullable<ReturnType<typeof useActivePartyChat>>;
 
 /** The apply outcome, said as one short sentence (the §6 result toast). */
 function applySentence(result: {
@@ -61,17 +65,17 @@ function PartyRow(props: {
   const { party, activeChatId, busy, onStart, onAddToChat, onDelete } = props;
   const memberNames = party.members.map((m) => m.name).join(", ");
   return (
-    <Row align="center" gap="field" className="border-border border-b pb-2 last:border-b-0" data-slot="party-row">
+    <Row align="center" gap="field" padding="block" className="border-border border-b last:border-b-0" data-slot="party-row">
       <Stack gap="tight" className="min-w-0 flex-1">
         <Row align="center" gap="field">
-          <Text className="truncate" weight="medium">
+          <Text voice="label" className="truncate">
             {party.name}
           </Text>
           <Badge intent="neutral" tone="soft">
             {party.memberCount}
           </Badge>
         </Row>
-        <Text size="label" tone="muted" className="truncate">
+        <Text voice="gloss" className="truncate">
           {memberNames}
         </Text>
       </Stack>
@@ -213,6 +217,19 @@ export function PartyPicker(): ReactElement {
             active?.isHost === true
               ? "Save this room's cast above, and it becomes a party you can drop into any new chat."
               : "Open a chat you host and save its cast as a party — then start new rooms from it in one pick."
+          }
+          action={
+            <Button
+              intent="outline"
+              size="sm"
+              onClick={(): void => {
+                closeModal();
+                openModal("newChat");
+              }}
+            >
+              <Icon icon={MessagesSquare} size="sm" />
+              Start a new chat
+            </Button>
           }
         />
       ) : (

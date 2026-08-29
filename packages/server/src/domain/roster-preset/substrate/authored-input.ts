@@ -10,7 +10,8 @@ import type { RosterPresetView } from "@orb/contracts/roster-preset";
 import type { PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { RosterPresetCharacterNotFoundError, RosterPresetNotFoundError, RosterPresetPersonaNotFoundError } from "../contract/errors.ts";
 import type { MemberWrite, RosterPresetContext } from "../contract/service.ts";
-import { loadMembersWithCards, loadOwnedPresetRow, viewOf } from "../persistence/queries.ts";
+import { loadMemberCardRows, loadOwnedPresetRow, viewOf } from "../persistence/queries.ts";
+import { groupMemberViews } from "./members.ts";
 
 /** The member-ownership belt — throws on the FIRST member that is missing / another user's. */
 export async function ensureMembersOwned(ctx: RosterPresetContext, ownerId: UserId, members: readonly MemberWrite[]): Promise<void> {
@@ -45,6 +46,6 @@ export async function loadView(ctx: RosterPresetContext, ownerId: UserId, preset
   if (row === undefined) {
     throw new RosterPresetNotFoundError(presetId);
   }
-  const members = (await loadMembersWithCards(ctx.db, [presetId])).get(presetId) ?? [];
+  const members = groupMemberViews(await loadMemberCardRows(ctx.db, [presetId])).get(presetId) ?? [];
   return viewOf(row, members);
 }

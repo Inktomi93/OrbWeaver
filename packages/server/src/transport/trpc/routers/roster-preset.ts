@@ -3,7 +3,7 @@
 // host-gated INSIDE chat via the domain's injected guard. Thin: validate →
 // `ctx.services.rosterPreset.<verb>`. Input shapes derive from `@orb/contracts/roster-preset`.
 
-import { createRosterPresetSchema, updateRosterPresetSchema } from "@orb/contracts/roster-preset";
+import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import type { ChatId, RosterPresetId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -15,7 +15,9 @@ export const rosterPresetRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.rosterPreset.create({ principal: ctx.auth, input: input.input })),
 
   update: authedProcedure
-    .input(z.object({ presetId: brandedId<RosterPresetId>(), input: updateRosterPresetSchema }))
+    // `update` is a FULL REPLACE of the same authored fields, member list included — ONE schema object,
+    // deliberately (a party is small enough that patch semantics would only buy drift).
+    .input(z.object({ presetId: brandedId<RosterPresetId>(), input: createRosterPresetSchema }))
     .mutation(({ ctx, input }) => ctx.services.rosterPreset.update({ principal: ctx.auth, presetId: input.presetId, input: input.input })),
 
   remove: authedProcedure

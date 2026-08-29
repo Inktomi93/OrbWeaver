@@ -14,7 +14,7 @@ export function createRemove(ctx: RosterPresetContext): RosterPresetService["rem
     if (existing === undefined) {
       throw new RosterPresetNotFoundError(presetId);
     }
-    await deletePresetRow(ctx.db, presetId);
+    await deletePresetRow(ctx.db, ownerId, presetId);
     await ctx.audit(
       {
         actorUserId: ownerId,

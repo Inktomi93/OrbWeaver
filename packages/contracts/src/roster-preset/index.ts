@@ -56,9 +56,6 @@ export const createRosterPresetSchema = z.object({
  *  foreign id is a leak-free NotFound either way, so the verb needs no second TypeID re-parse. */
 export type CreateRosterPresetInput = z.input<typeof createRosterPresetSchema>;
 
-/** @public twin: createRosterPresetSchema — `update` is a full replace of the same authored fields. */
-export const updateRosterPresetSchema = createRosterPresetSchema;
-
 /** One resolved seat of a preset (`get`) — the stored junction row + the live card's display floor
  *  (name + avatar, the ParticipantView resolution posture: joined server-side, never re-derived by the
  *  client). A deleted character CASCADEs its seat out, so every returned member resolves. */

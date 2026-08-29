@@ -96,6 +96,15 @@ const NON_PORTABLE_CANON: ExemptionTable<NonPortableRow> = {
     classification: "RULED-OUT",
     why: "the KV store of RULED-OUT `plugins` — restoring a plugin's state without the plugin is worse than not restoring it. Ends with the `plugins` row.",
   },
+  rosterPresets: {
+    classification: "DEFERRED",
+    why:
+      "#26 (D61 B6) — saved parties are owner-authored library artifacts (the tag/theme class, so PORTABLE in spirit), but v1 shipped " +
+      "without a portable kind by the program doc's own scope (saved-rosters-design.md §7 names no portability; build record " +
+      "docs/design/saved-rosters-build-record.md). A party is a name + FKs into the owner's character library, so a portable kind must " +
+      "resolve members by the characters the bundle also carries. Ends when `roster-preset` registers a PORTABLE_KINDS member " +
+      "(serde + verbs + descriptor + import-order slot AFTER characters + round-trip pin).",
+  },
   refinerySchemas: {
     classification: "DEFERRED",
     why:
