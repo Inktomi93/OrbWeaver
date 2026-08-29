@@ -68,6 +68,7 @@ export async function runSteps(run: StepRun, steps: readonly Step[]): Promise<nu
     }
     const label = `${step.kind} ${step.selector}${step.kind === "wheel" ? `=${step.dy}` : ""}`;
     run.stepTimeline.push({ t: Date.now() - run.t0, label });
+    // @orb-gate-ignore caught-failure-ownership(empty:e): printed as a STEP FAILED line and counted into the failures total this function returns to its caller as the run's verdict. Ends if the returned count stops being read by the caller.
     try {
       await dispatchStep(run, step);
       // Small default settle so back-to-back steps don't merge on tape.

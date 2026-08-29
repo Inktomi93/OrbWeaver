@@ -63,6 +63,7 @@ const READY_TIMEOUT_MS = 10_000;
 export async function runNav(page: Page, method: NavMethod, target: string): Promise<NavOutcome> {
   try {
     await page.locator("html[data-app-ready]").waitFor({ state: "attached", timeout: READY_TIMEOUT_MS });
+    // @orb-gate-ignore caught-failure-ownership(promise:evaluate): a best-effort readiness ping before the real bridge call two lines below — any genuine failure (no bridge, mid-navigation) is caught by the surrounding try and returned as ok:false with the message. Ends if this becomes the only readiness signal checked.
     await page.evaluate("window.__orb && window.__orb.ready").catch(() => undefined);
     const result = (await page.evaluate(buildNavScript(method, target))) as { ok: boolean; reason?: string };
     return result.ok ? { ok: true } : { ok: false, reason: result.reason ?? "rejected" };

@@ -39,6 +39,7 @@ export function configureAuditStage(opts: Args): number | null {
   print(STAGE_DB_NOTE);
   print(STAGE_WARMUP_NOTE);
   const beforeEnsureMs = Date.now();
+  // @orb-gate-ignore caught-failure-ownership(empty:error): the stage boot failure is printed via stageBootRefusal and returned as EXIT.toolError — propagated through both the message and the exit code. Ends if either is dropped.
   try {
     const stage = opts.dirty
       ? ensureStage({ fresh: opts.fresh, dirty: true })
