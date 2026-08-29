@@ -6,24 +6,26 @@
 // resends the stored members verbatim (the view carries them, knobs included).
 
 import type { RosterPresetView } from "@orb/contracts/roster-preset";
-import type { RosterPresetId } from "@orb/kit/ids";
+import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Container, Row, Stack } from "@orb/ui/layout";
+import { Heading, Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useInvalidation, useStartChat, useTRPC } from "#data";
 import type { CollectionDetailView } from "#lib";
+import { useFocusOnMount } from "#lib";
 import { useApplyRosterPreset, useUpdateRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 
-/** The stored seats, resent VERBATIM on a rename (the update verb is a full replace). */
+/** The stored seats, resent VERBATIM on a rename (the update verb is a full replace). The view's ids
+ *  stay BRANDED end to end (`CharacterId` — brand-in-name-position; the wire's `z.input` accepts them). */
 function memberInputsOf(view: RosterPresetView): {
   kind: "character";
-  characterId: string;
+  characterId: CharacterId;
   position: number;
   talkativeness?: number;
   disabled?: boolean;
@@ -46,6 +48,9 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
   const update = useUpdateRosterPreset({ trpc, invalidation });
   const apply = useApplyRosterPreset({ trpc, invalidation });
   const { startChat, isPending: isStarting } = useStartChat();
+  // Focus lands on the surface wrapper at mount (surface-a11y-focus — the tag-member-surface idiom).
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
   // Draft fields keyed by the loaded row; the mounted editor's Save is the one write affordance.
   const [name, setName] = useState(cast.name);
   const [description, setDescription] = useState(cast.description);
@@ -77,37 +82,40 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
   };
 
   return (
-    <Stack gap="section">
-      <Field label="Name">
-        <Input aria-label="Cast name" onChange={(e): void => setName(e.target.value)} value={name} />
-      </Field>
-      <Field label="Description">
-        <Input aria-label="Cast description" onChange={(e): void => setDescription(e.target.value)} value={description} />
-      </Field>
-      <Row align="center" gap="field">
-        <Button disabled={busy || !dirty || name.trim().length === 0} intent="primary" size="sm" onClick={onSave}>
-          Save
-        </Button>
-        <Button disabled={busy} intent="ghost" size="sm" onClick={onStart}>
-          Start chat
-        </Button>
-      </Row>
-      <Stack gap="tight">
-        <Text as="span" voice="kicker">
-          Members
-        </Text>
-        {cast.members.map((member) => (
-          <Row align="center" gap="field" key={member.characterId}>
-            <Text voice="label" className="min-w-0 flex-1 truncate">
-              {member.name}
-            </Text>
-            <Text as="span" voice="gloss">
-              {member.disabled ? "muted" : (member.talkativeness ?? "")}
-            </Text>
-          </Row>
-        ))}
-        <Text voice="gloss">To re-compose the cast, arrange a room you host and save it as a new cast — the saved-casts door in Members.</Text>
+    <Container>
+      <Stack className="max-w-prose outline-none" data-slot="cast-member-editor" gap="section" ref={surfaceRef} tabIndex={-1}>
+        <Heading level={2}>{cast.name}</Heading>
+        <Field label="Name">
+          <Input aria-label="Cast name" onChange={(e): void => setName(e.target.value)} value={name} />
+        </Field>
+        <Field label="Description">
+          <Input aria-label="Cast description" onChange={(e): void => setDescription(e.target.value)} value={description} />
+        </Field>
+        <Row align="center" gap="field">
+          <Button disabled={busy || !dirty || name.trim().length === 0} intent="primary" size="sm" onClick={onSave}>
+            Save
+          </Button>
+          <Button disabled={busy} intent="ghost" size="sm" onClick={onStart}>
+            Start chat
+          </Button>
+        </Row>
+        <Stack gap="tight">
+          <Text as="span" voice="kicker">
+            Members
+          </Text>
+          {cast.members.map((member) => (
+            <Row align="center" gap="field" key={member.characterId}>
+              <Text voice="label" className="min-w-0 flex-1 truncate">
+                {member.name}
+              </Text>
+              <Text as="span" voice="gloss">
+                {member.disabled ? "muted" : (member.talkativeness ?? "")}
+              </Text>
+            </Row>
+          ))}
+          <Text voice="gloss">To re-compose the cast, arrange a room you host and save it as a new cast — the saved-casts door in Members.</Text>
+        </Stack>
       </Stack>
-    </Stack>
+    </Container>
   );
 }
