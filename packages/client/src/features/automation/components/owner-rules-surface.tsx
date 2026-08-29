@@ -15,9 +15,8 @@
 // event therefore updates its "Last ran" line on the next read rather than live — the fire LOG under each
 // row is durable and always current when opened, which is where "did it run" is actually answered.
 
-import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
@@ -50,15 +49,25 @@ export const OWNER_BUDGET_ANCHOR = "budget";
 const OWNER_CAP_MIN = 0;
 const OWNER_CAP_MAX = 240;
 
-/** The rate ceiling every owner-global rule counts against. A discrete write behind an explicit Save rather
- *  than an autosave field: this is a BELT, and a half-typed number briefly meaning "3" instead of "30" would
- *  be a belt that silently tightened while the host was still typing it. */
+/** The rate ceiling every owner-global rule counts against. It COMMITS ON BLUR / Enter with the FINAL value
+ *  (`onValueCommitted`, the Base UI commit seam the talkativeness popover uses) rather than on every
+ *  keystroke: this is a BELT, and a half-typed number briefly meaning "3" instead of "30" must never persist
+ *  as a clamp the host did not mean. That guarantee used to be an explicit "Save limit" button; on-blur keeps
+ *  it (the ruling survives — its MECHANISM changed) while matching the settings-surface norm every other
+ *  numeric knob follows and dropping the button's own misalignment along with it. NO optimistic patch: the
+ *  belt reads the authoritative ceiling, so a failed (non-optimistic) write or an other-device change re-seeds
+ *  the input rather than briefly showing a bound the server has not accepted. */
 function OwnerBudgetSection(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: budget } = useSuspenseQuery(trpc.automation.getOwnerBudgets.queryOptions());
   const save = useSetOwnerBudgets({ trpc, invalidation });
-  const [value, setValue] = useState<number>(budget.maxFiresPerHour);
+  // The IN-PROGRESS edit only; `null` means "not editing", so the field reads the authoritative ceiling and a
+  // failed write or a foreign change re-seeds it (the talkativeness-popover precedent). Cleared on commit so
+  // the server value re-takes.
+  const [draft, setDraft] = useState<number | null>(null);
+  const value = draft ?? budget.maxFiresPerHour;
+  const clamp = (next: number): number => Math.min(Math.max(next, OWNER_CAP_MIN), OWNER_CAP_MAX);
 
   return (
     <Stack id={settingsAnchorId("automation", OWNER_BUDGET_ANCHOR)} gap="block">
@@ -66,29 +75,36 @@ function OwnerBudgetSection(): ReactElement {
         A safety limit across all of your library-wide rules together, so a rule that starts repeating cannot keep spending. Each rule also has its own per-hour
         limit.
       </Text>
-      <Row gap="field" align="end">
-        {/* NO `aria-label` on the control: an `@orb/ui` NumberField inside a `Field` is a Base UI TEXTBOX
-            already NAMED by the Field's own label (and described by its description), so a second name here
-            would override the association rather than add to it — the house convention every other numeric
-            knob in settings follows. */}
-        <Field label="Runs per hour" orientation="vertical" description="Across every library-wide rule you have.">
-          <NumberField
-            min={OWNER_CAP_MIN}
-            max={OWNER_CAP_MAX}
-            value={value}
-            onValueChange={(next): void => setValue(next === null ? budget.maxFiresPerHour : Math.min(Math.max(next, OWNER_CAP_MIN), OWNER_CAP_MAX))}
-          />
-        </Field>
-        <Button
-          intent="secondary"
-          size="sm"
-          loading={save.isPending}
-          disabled={value === budget.maxFiresPerHour}
-          onClick={(): void => save.mutate({ maxFiresPerHour: value })}
-        >
-          Save limit
-        </Button>
-      </Row>
+      {/* NO `aria-label` on the control: an `@orb/ui` NumberField inside a `Field` is a Base UI TEXTBOX
+          already NAMED by the Field's own label (and described by its description), so a second name here
+          would override the association rather than add to it — the house convention every other numeric
+          knob in settings follows. */}
+      <Field label="Runs per hour" orientation="vertical" description="Across every library-wide rule you have.">
+        <NumberField
+          min={OWNER_CAP_MIN}
+          max={OWNER_CAP_MAX}
+          value={value}
+          // Display only — the in-progress edit, clamped for the field but NEVER persisted here (that is the
+          // mid-type guarantee: typing `5` en route to `50` moves the draft, not the belt).
+          onValueChange={(next): void => setDraft(next === null ? null : clamp(next))}
+          // The commit: fires on blur, on Enter (see `onKeyDown`), and on stepper/scrub release with the
+          // FINAL value. Empty reverts to the current ceiling; only a real change writes.
+          onValueCommitted={(next): void => {
+            const settled = next === null ? budget.maxFiresPerHour : clamp(next);
+            setDraft(null);
+            if (settled !== budget.maxFiresPerHour) {
+              save.mutate({ maxFiresPerHour: settled });
+            }
+          }}
+          // Enter is a NAVIGATE key for Base UI's NumberField (it does not commit on its own), so blur the
+          // input to route Enter through the same single commit path as clicking away.
+          onKeyDown={(event): void => {
+            if (event.key === "Enter" && event.target instanceof HTMLElement) {
+              event.target.blur();
+            }
+          }}
+        />
+      </Field>
     </Stack>
   );
 }
