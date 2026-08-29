@@ -297,9 +297,12 @@ test("F2: a masterDetail DETAIL stage renders its column at the house --reading-
     return { maxWidth, tokenPx, renderedWidth, uncappedWidth };
   }, '[data-slot="plugin-detail-stage"]');
 
+  // ONESHOT-OK: the evaluate ran after the visible-text barrier over a STATIC spec — max-width is stylesheet state, not async state, and cannot transition after settle.
   expect(reading.maxWidth).not.toBe("none");
   expect(Math.abs(Number.parseFloat(reading.maxWidth) - reading.tokenPx)).toBeLessThanOrEqual(1);
-  // The cap BINDS: released, the column stretches toward the wide mount.
+  // The cap BINDS: released, the column stretches toward the wide mount (the A/B mutation is same-tick
+  // synchronous inside the evaluate above, so all four numbers are one settled sample).
+  // ONESHOT-OK: same settled evaluate sample as above — geometry read synchronously inside one evaluate, no async transition between reads.
   expect(reading.uncappedWidth).toBeGreaterThan(reading.renderedWidth + 100);
 });
 
