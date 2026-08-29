@@ -74,6 +74,7 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
     if (isStarting) {
       return; // one creation at a time.
     }
+    // @orb-gate-ignore caught-failure-ownership(promise:startChat): startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning. Ends if either mutation stops owning its failure copy.
     startChat({ characterIds: cast.members.map((m) => m.characterId), anchorPersonaId: cast.anchorPersonaId })
       .then(async (chatId) => {
         await apply.mutateAsync({ presetId, chatId });
