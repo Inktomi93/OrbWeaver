@@ -74,6 +74,9 @@ export async function runProfileImport(deps: ProfileImportDeps): Promise<Profile
 
   for (const file of files) {
     const filename = file.filename ?? null;
+    // @orb-gate-ignore caught-failure-ownership(empty:err): bookkeeping — the failure is recorded into
+    // `failed` (with message), the function's own return value; one bad card never aborts the batch. Ends
+    // if `failed` stops being read by the caller.
     try {
       const result = await service.importCharacter({
         card: {
