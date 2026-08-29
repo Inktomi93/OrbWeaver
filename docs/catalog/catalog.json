@@ -25119,6 +25119,90 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-29-plugin-automation.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 203,
+      "bytes": 14216,
+      "sha256": "be1a8772247dda6bda1a1cf546e2500cdbe10622c6e337cedcdfb098bd4bdc82",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-29-plugin-automation.md",
+        "assignedSha256": "be1a8772247dda6bda1a1cf546e2500cdbe10622c6e337cedcdfb098bd4bdc82",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "be1a8772247dda6bda1a1cf546e2500cdbe10622c6e337cedcdfb098bd4bdc82",
+        "verifiedCommit": "c45dec5d2404c822159d303164beea2c811517c5",
+        "verifiedAt": "2026-08-29",
+        "evidence": ["docs/reviews/side-eye/2026-08-29-plugin-automation.md:1 (full read; the side-eye acceptance pass on the plugin/automation surfaces)"],
+        "claims": [
+          {
+            "claim": "Plugin & automation surfaces are SHIP WITH FIXES: consent/onboarding UX is strong; confirmed defects tracked as follow-up issues.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#796"
+              }
+            ]
+          }
+        ],
+        "summary": "side-eye acceptance pass on the plugin + automation surfaces (live dev app, 9 showcase plugins seeded): verdict SHIP WITH FIXES. Consent/onboarding writing and information design are the strongest reviewed here; confirmed defects are fixable within scope."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-29-plugins-rework-scored.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 182,
+      "bytes": 13794,
+      "sha256": "1398f11f85e44d541e8a149a5f4f3d6896976a49be4b3f0fecb81e7175608dda",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-29-plugins-rework-scored.md",
+        "assignedSha256": "1398f11f85e44d541e8a149a5f4f3d6896976a49be4b3f0fecb81e7175608dda",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "1398f11f85e44d541e8a149a5f4f3d6896976a49be4b3f0fecb81e7175608dda",
+        "verifiedCommit": "c45dec5d2404c822159d303164beea2c811517c5",
+        "verifiedAt": "2026-08-29",
+        "evidence": ["docs/reviews/side-eye/2026-08-29-plugins-rework-scored.md:1 (full read; the scored side-eye review of the plugins settings pane rework)"],
+        "claims": [
+          {
+            "claim": "The Plugins settings pane rework (bordered cards, checkbox-leading capability rows) is SHIP-ready per design-audit and Lighthouse scoring.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#797"
+              }
+            ]
+          }
+        ],
+        "summary": "side-eye scored review of the Plugins settings pane rework (commit 0789a0718, isolated stage): verdict SHIP (owner can merge). Scored via design-audit + Lighthouse against the bordered-card/checkbox-leading rework."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-08-14-staleness-diagnosis.md",
       "lane": "reviews",
       "issue": 7,
@@ -26174,6 +26258,50 @@
             ]
           }
         ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-29-plugin-visual-capability.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 359,
+      "bytes": 26515,
+      "sha256": "794e45a6ea8edcfefa3778633c4d5d752b00a7d1b1927bd3152e42e6dcee172e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-29-plugin-visual-capability.md",
+        "assignedSha256": "794e45a6ea8edcfefa3778633c4d5d752b00a7d1b1927bd3152e42e6dcee172e",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "794e45a6ea8edcfefa3778633c4d5d752b00a7d1b1927bd3152e42e6dcee172e",
+        "verifiedCommit": "c45dec5d2404c822159d303164beea2c811517c5",
+        "verifiedAt": "2026-08-29",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-29-plugin-visual-capability.md:1 (full read; the stickler visual-capability investigation for plugin surfaces)"
+        ],
+        "claims": [
+          {
+            "claim": "Node-based plugin tiers (static + scripted) apply the app's visual styles/tokens/theme by construction; the iframe/frame tier is visually constrained to two color tokens and a font, motivating the vocabulary-gap findings.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#799"
+              }
+            ]
+          }
+        ],
+        "summary": "stickler frontier investigation into whether plugin surfaces (esp. card-atlas hub) can look genuinely good: node-based tiers inherit house visual styles by construction; the iframe/frame tier is limited to two color tokens + a font. Findings ranked with security tradeoffs for proposed additions."
       },
       "receiptCurrent": true
     },
