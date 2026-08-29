@@ -381,7 +381,12 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
       // reject through the normal guest-promise path, queued invokes refuse on `disposing`, then the final tail
       // releases the context and admission. The detached join is supervised so cleanup failure is observable.
       superviseDetached(`plugin-host:dispose:${randomUUID()}`, "plugin.host.dispose", {}, () =>
-        resident.tail.then(() => resident.sandbox.settleHostOperations()).then(finish, finish),
+        // `.finally(finish)` runs cleanup on BOTH settle arms (exactly once — teardown always happens) AND
+        // propagates a `settleHostOperations()` rejection through to `superviseDetached`, so a real cleanup
+        // failure reaches the trace/log sink. `.then(finish, finish)` would swallow the rejection (finish
+        // returns void, resolving the supervised promise), making the "cleanup failure is observable" claim above
+        // false.
+        resident.tail.then(() => resident.sandbox.settleHostOperations()).finally(finish),
       );
     },
   };
