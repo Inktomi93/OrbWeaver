@@ -209,6 +209,10 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // own reach, the `databank`/`variables` posture). The capability gate is the membrane-tier wall.
     assets: {
       read: (assetId) => ops.assets.read({ installerUserId, assetId }),
+      // #798 — the `net.fetch_asset` CAS write. Closed over the INSTALLER only (a guest names no owner), the
+      // `read`/`variables`/`databank` owner-closure. Infra performed the fetch + SSRF wall + remote-image guard
+      // and hands ONLY validated bytes + the sniffed mime; the bytes cross THIS seam, never the guest realm.
+      storeFetched: (bytes, mime) => ops.assets.storeFetched({ installerUserId, bytes, mime }),
     },
     // FIRST-PARTY RETRIEVAL (#788 F1). Closed over the INSTALLER only — the guest supplies the query text + the
     // (already host-clamped) limit and can name no owner, so the compose op's `scope: { ownerId: installer }`
@@ -315,6 +319,10 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     },
     character: {
       ingest: (card) => ops.character.ingest({ installerUserId, card }),
+      // #798 — the remote-image "summon with art" arm. Closed over the INSTALLER only (a guest names no owner);
+      // the compose op reads the PNG from the installer's OWN CAS (owner-gated, leak-free on foreign/absent) and
+      // runs the SAME importCharacter funnel `ingest` does. Rides the SAME `character.ingest` grant.
+      ingestAsset: (assetId) => ops.character.ingestAsset({ installerUserId, assetId }),
       // The U8 D148 per-card state write/read. BOTH un-forgeable coordinates are closed over here: `installerUserId`
       // (the owner-scope predicate — a character the installer does not own is the leak-free NOT_FOUND, resolved at
       // compose) and the emitter's own manifest `slug` (`requirePlugin(…).slug` — a guest supplies only the

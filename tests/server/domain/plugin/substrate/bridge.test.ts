@@ -770,6 +770,7 @@ function readGapOps(over: { readonly visibility?: Awaited<ReturnType<PluginHostO
         assetReads.push(req);
         return Promise.resolve({ mime: "image/png", sizeBytes: 3, dataBase64: "AAAA" });
       },
+      storeFetched: () => Promise.resolve({ assetId: "asset_stored0000000000000000" }),
     },
     search: {
       documents: (req) => {

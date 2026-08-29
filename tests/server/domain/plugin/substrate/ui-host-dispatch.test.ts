@@ -49,8 +49,8 @@ function makeBridge(): PluginBridge {
       listBooks: notProxied("worldInfo.listBooks"),
       listEntries: notProxied("worldInfo.listEntries"),
     },
-    // #788 seam-11 — the CAS asset read is NOT proxyable (excluded), so a Tier-C dispatch must throw.
-    assets: { read: notProxied("assets.read") },
+    // #788 seam-11 + #798 — the CAS asset read AND the fetch-asset CAS write are NOT proxyable (excluded), so a Tier-C dispatch must throw.
+    assets: { read: notProxied("assets.read"), storeFetched: notProxied("assets.storeFetched") },
     // #788 F1 — first-party retrieval is NOT proxyable (excluded, embedding-compute class), so a Tier-C dispatch must throw.
     search: { documents: notProxied("search.documents") },
     imagery: { generatePicture: notProxied("imagery.generatePicture") },
@@ -75,6 +75,7 @@ function makeBridge(): PluginBridge {
     databank: { ingest: notProxied("databank.ingest") },
     character: {
       ingest: notProxied("character.ingest"),
+      ingestAsset: notProxied("character.ingestAsset"),
       // D148 per-card state — also NOT proxyable (both in the excluded set), so a Tier-C guest reaching them here throws.
       setCardData: notProxied("character.setCardData"),
       getCardData: notProxied("character.getCardData"),

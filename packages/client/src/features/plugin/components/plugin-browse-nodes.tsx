@@ -21,7 +21,7 @@ import { MediaTileGrid } from "@orb/ui/media-tile-grid";
 import { MessageMedia } from "@orb/ui/message-media";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { gridTiles, resolveString } from "../lib/plugin-surface-bindings.ts";
+import { gridTiles, heroAssetId, resolveString } from "../lib/plugin-surface-bindings.ts";
 
 /**
  * The MEDIA-FORWARD TILE GRID (§4.5b failure 1) — through the sealed `@orb/ui` `MediaTileGrid` composite, which
@@ -110,7 +110,11 @@ export function MasterDetail({
   if (stage === undefined) {
     return null;
   }
-  const heroUrl = stage.hero === undefined ? undefined : imageUrls.get(stage.hero.assetId);
+  // BOTH hero arms collapse through `heroAssetId` (#798): the declared id, or the `assetFrom` binding resolved
+  // against published state (format-gated in contracts). The resolved id then rides the SAME owner-scoped
+  // `imageUrls` map every declared cover does — a foreign id has no url and the hero renders nothing.
+  const heroId = stage.hero === undefined ? undefined : heroAssetId(stage.hero, state);
+  const heroUrl = heroId === undefined ? undefined : imageUrls.get(heroId);
   const title = stage.title === undefined ? undefined : resolveString(stage.title, state);
   const body = renderNode(stage.body, depth + 1);
   if (stage.kind === "browse") {

@@ -158,6 +158,19 @@ export interface PluginHostOps {
   readonly assets: {
     // @foreign-id-ok(assetId): the guest's untrusted wire string, owner-scope-gated by the domain read, cast at compose — branding here would claim a validation this boundary has not performed.
     readonly read: (req: { readonly installerUserId: UserId; readonly assetId: string }) => Promise<PluginAssetView | null>;
+    /** The `net.fetch_asset` capability's CAS-WRITE op (#798). Write ALREADY-FETCHED-AND-VALIDATED image bytes
+     *  into the INSTALLER's OWN CAS — wired at compose to the assets domain's `store` under the installer's own
+     *  Principal (resolved by ROW READ, so a `UserId` here carries no authority; the store re-verifies the mime
+     *  against the magic bytes). Infra performed the fetch + the SSRF egress wall + the remote-image guard and
+     *  hands ONLY the validated bytes + the SNIFFED mime down — the bytes cross THIS seam but never the guest
+     *  realm. Owner-scoped by construction (the bridge closes the installer over it; a guest names no owner).
+     *  Returns the new (or content-addressed-deduped) asset id. */
+    readonly storeFetched: (req: {
+      readonly installerUserId: UserId;
+      readonly bytes: Uint8Array;
+      readonly mime: string;
+      // @foreign-id-ok(assetId): the injected-op result id for the installer's own new asset, minted under the installer by the CAS store and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
+    }) => Promise<{ readonly assetId: string }>;
   };
   /** The `search.query` capability's READ op (#788 F1). Semantic document search over the INSTALLER's OWN
    *  corpus — wired at compose to search's `documents` with `scope: { ownerId: installerUserId }`, so a guest
@@ -320,6 +333,18 @@ export interface PluginHostOps {
     readonly ingest: (req: {
       readonly installerUserId: UserId;
       readonly card: Record<string, unknown>;
+      // @foreign-id-ok(characterId): the injected-op result id for the installer's own new character, minted under the installer and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
+    }) => Promise<{ readonly characterId: string; readonly created: boolean }>;
+    /** The remote-image "summon with art" op (`character.ingestAsset`, capability `character.ingest` — #798).
+     *  Read a PNG asset from the INSTALLER's OWN CAS (owner-gated `readOwnedAssetBytes` — a foreign/absent id
+     *  rejects leak-free) and run the SAME `importCharacter` funnel a file upload takes over those bytes, so the
+     *  created character arrives WITH its embedded avatar (the plain `card`-JSON path cannot carry it). Same
+     *  owner-scoped, no-chat, no-host posture as `ingest`; rides its SAME grant. Wired at compose to a
+     *  per-installer `ingestCharacterAsset`. Returns the new character id + whether it was freshly created. */
+    readonly ingestAsset: (req: {
+      readonly installerUserId: UserId;
+      // @foreign-id-ok(assetId): the guest's untrusted wire string, owner-scope-gated by the CAS read, cast at compose — branding here would claim a validation this boundary has not performed.
+      readonly assetId: string;
       // @foreign-id-ok(characterId): the injected-op result id for the installer's own new character, minted under the installer and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
     }) => Promise<{ readonly characterId: string; readonly created: boolean }>;
     /** The `character.card_state` capability's WRITE op (D148). Merge this plugin's per-card state under the

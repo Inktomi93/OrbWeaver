@@ -155,6 +155,16 @@ export interface AutomationPluginComposeDeps {
     readonly card: Record<string, unknown>;
     // @foreign-id-ok(characterId): the result id for the installer's own new character, minted under the installer by the import funnel and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
   }) => Promise<{ readonly characterId: string; readonly created: boolean }>;
+  /** #798 — the remote-image "summon with art" op, pre-built PER-INSTALLER at the composition root (same
+   *  import-context wiring `ingestCharacterCard` needs). Reads the PNG from the installer's OWN CAS (owner-gated,
+   *  leak-free on foreign/absent) and runs the SAME `importCharacter` funnel — so the character arrives WITH its
+   *  embedded avatar. */
+  readonly ingestCharacterAsset: (req: {
+    readonly installerUserId: UserId;
+    // @foreign-id-ok(assetId): the guest's untrusted wire string, owner-scope-gated by the CAS read at the root, cast there — branding here would claim a validation this boundary has not performed.
+    readonly assetId: string;
+    // @foreign-id-ok(characterId): the result id for the installer's own new character, minted under the installer by the import funnel and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
+  }) => Promise<{ readonly characterId: string; readonly created: boolean }>;
 }
 
 /** The automation+plugin compose product. */
@@ -693,6 +703,17 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
           return null;
         }
       },
+      // #798 — the `net.fetch_asset` CAS write. Infra performed the fetch + SSRF egress wall + remote-image
+      // guard and hands ONLY validated bytes + the SNIFFED mime; here we resolve the installer's Principal by
+      // ROW READ and store into their OWN CAS with `enforceMagic:true` (re-verify mime against the magic bytes,
+      // the upload boundary's own belt — the imagery `storeAsset` posture). Owner-scoped: the bridge closed the
+      // installer over this, a guest names no owner. `kind: "generated"` — a plugin-produced image in the
+      // installer's CAS, the imagery-generated class. Content-addressed dedup makes a re-fetch idempotent.
+      storeFetched: async ({ installerUserId, bytes, mime }) => {
+        const caller = await resolveOwnerPrincipal(installerUserId);
+        const stored = await assets.store({ principal: caller, bytes, kind: "generated", mime, enforceMagic: true });
+        return { assetId: stored.assetId };
+      },
     },
     // #788 F1 — first-party retrieval. `scope: { ownerId: installerUserId }` is the WHOLE owner gate: the
     // installer's ownerId is closed over here, a guest names only the query, so a cross-owner search is not
@@ -756,6 +777,11 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     },
     character: {
       ingest: ({ installerUserId, card }) => deps.ingestCharacterCard({ installerUserId, card }),
+      // #798 — the remote-image "summon with art" arm. Built PER-INSTALLER at the root (like `ingestCharacterCard`)
+      // because the import-context wiring lives there: it reads the PNG from the installer's OWN CAS (owner-gated,
+      // leak-free on foreign/absent) and runs the SAME importCharacter funnel, so the character arrives WITH its
+      // embedded avatar. Rides the SAME `character.ingest` grant.
+      ingestAsset: ({ installerUserId, assetId }) => deps.ingestCharacterAsset({ installerUserId, assetId }),
       // U8 D148 — the per-card state WRITE/READ. Owner-scoped by the persistence `WHERE owner_id` predicate (NO
       // principal resolve — a residual-extensions merge is the installer's OWN reach, the `storage.kv` posture,
       // not the `ingest` import funnel that needs a Principal). The `slug` arrived host-stamped from the bridge,

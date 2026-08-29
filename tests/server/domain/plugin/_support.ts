@@ -304,8 +304,8 @@ export function makeInertOps(): PluginHostOps {
       listBooksForChat: () => Promise.resolve([]),
       listEntries: () => Promise.resolve([]),
     },
-    // #788 seam-11 read half — inert (a bridge test that cares about owner-scoping injects a recording op).
-    assets: { read: () => Promise.resolve(null) },
+    // #788 seam-11 read half + #798 CAS write — inert (a bridge test that cares about owner-scoping injects a recording op).
+    assets: { read: () => Promise.resolve(null), storeFetched: () => Promise.resolve({ assetId: "asset_inert00000000000000000" }) },
     // #788 F1 — inert search (a bridge test that cares about owner-scoping injects a recording op).
     search: { documents: () => Promise.resolve([]) },
     storage: {
@@ -329,6 +329,7 @@ export function makeInertOps(): PluginHostOps {
     databank: { ingest: () => Promise.resolve({ documentId: "doc_inert0000000000000000000" }) },
     character: {
       ingest: () => Promise.resolve({ characterId: "char_inert000000000000000000", created: false }),
+      ingestAsset: () => Promise.resolve({ characterId: "char_inert000000000000000000", created: false }),
       setCardData: () => Promise.resolve(),
       getCardData: () => Promise.resolve(null),
     },

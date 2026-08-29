@@ -84,8 +84,26 @@ export const PLUGIN_CAPABILITIES = [
   "plugin_events",
   "tools.register", // D48 tool-use registry, source (b)
   "net.fetch", // requires netHosts
+  // The REMOTE-IMAGE-INTO-CAS capability (plugin-remote-image #798). `host.net.fetchAsset(url)` downloads an
+  // image from a manifest-allowlisted host through the SAME audited SSRF egress wall + the same hourly egress
+  // belt as `net.fetch` (EGRESS DELTA ZERO — a plugin that can `net.fetch` a host can already GET its bytes),
+  // runs the remote-image guard, and writes the bytes into the INSTALLER's OWN CAS, returning an assetId. It is
+  // its OWN consent line rather than folded into `net.fetch` because it adds a CAS-WRITE (a durable asset in
+  // your library) on top of the identical egress reach: a plugin granted `net.fetch` to call a text API must
+  // not silently also mint images into your storage. Like `net.fetch` it is one of the egress capabilities and
+  // so REQUIRES `netHosts` (the biconditional below). SPEND-band-adjacent by REACH (it reaches the open
+  // internet) but it draws no paid credential — the CAS write is the installer's own local storage, the
+  // `character.ingest` posture — so it sits beside `net.fetch` (both reach the internet, weighed together).
+  "net.fetch_asset", // requires netHosts (an egress capability)
 ] as const;
 export type PluginCapability = (typeof PLUGIN_CAPABILITIES)[number];
+
+/** The capabilities that PERFORM allowlisted egress and therefore REQUIRE `netHosts` (the SSRF wall). Both
+ *  `net.fetch` (text) and `net.fetch_asset` (a remote image → the installer's CAS) reach the network through
+ *  the SAME manifest allowlist and the SAME hourly egress belt; declaring EITHER requires ≥ 1 host, and a host
+ *  list is meaningless without at least one of them (the biconditional's integrity is the SSRF allowlist's).
+ *  Derived once so a third egress capability lands in ONE place instead of a hand-updated `||` chain. */
+const EGRESS_CAPABILITIES = ["net.fetch", "net.fetch_asset"] as const satisfies readonly PluginCapability[];
 
 /** A lowercase slug, unique per installing owner — NOT reverse-DNS (nothing federates; a slug is what users
  *  type and logs show). Also the tool namespace prefix root. */
@@ -197,13 +215,17 @@ export const pluginManifestSchema = z
     builtAgainst: pluginBuiltAgainstSchema.optional(),
   })
   .superRefine((m, ctx): void => {
-    const declaresNet = m.capabilities.includes("net.fetch");
+    // The netHosts ⟺ egress biconditional, generalized over EVERY egress capability (net.fetch AND
+    // net.fetch_asset). Declaring an egress capability requires ≥ 1 host (an empty allowlist is a fail-closed
+    // dud, not a grant); a host list without any egress capability is a dangling allowlist. ONE home so a third
+    // egress capability is a single-tuple edit, never a forgotten `||` that silently un-gates a new fetch verb.
+    const declaresEgress = m.capabilities.some((c) => (EGRESS_CAPABILITIES as readonly string[]).includes(c));
     const hasHosts = m.netHosts !== undefined && m.netHosts.length > 0;
-    if (declaresNet && !hasHosts) {
-      ctx.addIssue({ code: "custom", message: "net.fetch requires at least one netHosts entry", path: ["netHosts"] });
+    if (declaresEgress && !hasHosts) {
+      ctx.addIssue({ code: "custom", message: "an egress capability (net.fetch / net.fetch_asset) requires at least one netHosts entry", path: ["netHosts"] });
     }
-    if (hasHosts && !declaresNet) {
-      ctx.addIssue({ code: "custom", message: "netHosts requires the net.fetch capability", path: ["capabilities"] });
+    if (hasHosts && !declaresEgress) {
+      ctx.addIssue({ code: "custom", message: "netHosts requires an egress capability (net.fetch / net.fetch_asset)", path: ["capabilities"] });
     }
     // `uiEntry` ⇒ `ui.surface`, one direction only — and the asymmetry is deliberate, unlike the netHosts
     // biconditional above. A `ui.js` without the capability is code that could never draw anything (a scripted

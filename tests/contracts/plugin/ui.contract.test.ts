@@ -115,6 +115,9 @@ test("the EXCLUSIONS are excluded — residency, authority writes, spend, and eg
     // the SSRF guard; the bridge carries only the hourly admission), so proxying it would require a SECOND
     // egress path. See the tuple's header.
     "net.fetch",
+    // #798 — the remote-image fetch-into-CAS is OUT for the SAME structural reason as `net.fetch`: infra performs
+    // the fetch behind the SSRF guard + the image guard, so a proxy would need a second egress+CAS-write path.
+    "net.fetchAsset",
     // U8 CANON-WRITE class — OUT. Not room-authority writes (no `canWrite` gate — a library write is the
     // installer's own), but WRITES all the same that mint durable rows + kick derived-index compute; the Tier-C
     // tuple is deliberately reads + the two KV planes (§4.6 bought LATENCY for local-immediate interaction,
@@ -122,6 +125,10 @@ test("the EXCLUSIONS are excluded — residency, authority writes, spend, and eg
     // handler holds the grant — the plugin's server guest ingests under the same grant, nothing is lost.
     "databank.ingest",
     "character.ingest",
+    // #798 — the remote-image "summon with art" arm is a CANON WRITE (a character import), the `character.ingest`
+    // class, so it is OUT for the same reason: a scripted surface fires an `actionId` round-trip whose server
+    // guest holds the grant, never a direct proxy.
+    "character.ingestAsset",
     // U8 D148 per-card state — BOTH OUT. `setCardData` is a WRITE (the canon-write class above). `getCardData` IS
     // a read, but its owner-scope is per-CHARACTER and a proxied call names a `characterId` the server would owe an
     // ownership check on (the `chat.current`/row-777 shape, one plane over) — a gate that does not exist yet, so it
@@ -154,7 +161,7 @@ test("the EXCLUSIONS are excluded — residency, authority writes, spend, and eg
     expect(isUiProxyableHostFunction(fn), fn).toBe(false);
   }
   // Together with the ordered pin above, these two tests are exhaustive over `HOST_FUNCTION_CAPABILITY`: 9 in,
-  // 31 out, 40 total.
+  // 33 out, 42 total (#798 added `net.fetchAsset` + `character.ingestAsset`, both OUT).
   expect(UI_PROXYABLE_HOST_FUNCTIONS.length + excluded.length).toBe(Object.keys(HOST_FUNCTION_CAPABILITY).length);
 });
 
@@ -616,6 +623,21 @@ test("ARM C: an image names exactly one of `assetId` / `assetFrom` — and the b
     stages: [{ id: "detail", kind: "detail", body: { kind: "image" } }],
   };
   expect(pluginSurfaceSpecSchema.safeParse(nested).success).toBe(false);
+});
+
+test("#798: a detail-stage HERO names exactly one of `assetId` / `assetFrom`, and NEITHER arm can spell a URL", () => {
+  const declared = (hero: unknown): unknown => ({ kind: "masterDetail", stages: [{ id: "d", kind: "detail", hero, body: { kind: "text", value: "x" } }] });
+  // The bound arm (#798 — a fetched cover whose id lives in published state) is accepted, as is a declared id.
+  expect(pluginSurfaceSpecSchema.safeParse(declared({ assetFrom: { $state: "detail.cover" } })).success).toBe(true);
+  expect(pluginSurfaceSpecSchema.safeParse(declared({ assetId: "asset_01h455vb4pex5vsknk084sn02q" })).success).toBe(true);
+  // BOTH arms is two descriptions of one hero; NEITHER is a hero with nothing to show — both refused by the belt.
+  expect(pluginSurfaceSpecSchema.safeParse(declared({ assetId: "asset_01h455vb4pex5vsknk084sn02q", assetFrom: { $state: "c" } })).success).toBe(false);
+  expect(pluginSurfaceSpecSchema.safeParse(declared({ alt: "no id" })).success).toBe(false);
+  // THE ANTI-EXFIL-PIXEL WALL (#798 invariant): a URL is NOT spellable in a node. The declared `assetId` is a
+  // TypeID, so a raw URL there fails the schema outright — a guest can never render an <img src=attacker-url>.
+  expect(pluginSurfaceSpecSchema.safeParse(declared({ assetId: "https://evil.example/x.png?exfil=secret" })).success).toBe(false);
+  // The bound arm carries only a $state PATH (never a URL); the resolved value is format-gated by
+  // `resolvePluginBoundAssetId` (proven below) — so a URL smuggled through state paints nothing either.
 });
 
 test("ARM C: resolvePluginBoundTiles validates, drops, and clamps — state is never a loophole past a registration bound", () => {
