@@ -116,6 +116,10 @@ export const CHAT_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // assumes; a null previously reached the same rendering through `!verdict`, which is why the gate's own
   // resolve path never ran.
   "chat.checkSendAvailability": { available: true },
+  // The saved-party library (#26) — the new-chat picker's "Start from party…" gate reads it. EMPTY is the
+  // honest default (a fresh viewer owns no parties → the opener hides); the opener's own CT overrides it
+  // after the spread with a populated list.
+  "rosterPreset.list": [],
   // The room bus's attach MUTATION. NOTE THE CORRECTION (#637): `stream.attach` is NOT a subscription and was
   // never on the EventSource path the #629 instrument fix excluded — `use-orb-socket.ts` states plainly that
   // attach/detach "ride the BATCHED HTTP" link and only `stream.connect` is the SSE leg. So it is a genuine

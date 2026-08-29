@@ -22,6 +22,7 @@ import type { PluginService } from "#domain/plugin";
 import type { PresetService } from "#domain/preset";
 import type { RefineryService } from "#domain/refinery";
 import type { RegexService } from "#domain/regex";
+import type { RosterPresetService } from "#domain/roster-preset";
 import type { RpgService } from "#domain/rpg";
 import type { SearchService } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
@@ -54,6 +55,8 @@ export interface Services {
   readonly plugin: PluginService;
   readonly preset: PresetService;
   readonly refinery: RefineryService;
+  /** Saved parties (D61 B6) — owner-scoped library CRUD + `applyToChat`. */
+  readonly rosterPreset: RosterPresetService;
   /** The rpg (lite-rpg) verb surface — carried for the W2 `rpg` router; no transport consumer until then. */
   readonly rpg: RpgService;
   readonly search: SearchService;

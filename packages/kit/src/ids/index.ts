@@ -82,6 +82,9 @@ export const ID_PREFIX = {
   // The installed-plugin registry row (D46). `plugin_kv` has NO TypeID — its identity is the composite
   // PK (pluginId, key).
   plugin: "plugin",
+  // A saved party template (`roster_presets`, D61 B6) — the owner's named cast dropped into rooms via
+  // `applyToChat`. Members ride the `(presetId, characterId)` junction PK, so no member TypeID exists.
+  rosterPreset: "roster_preset",
   // Card-refinery pipeline rows (refinery R0 — docs/design/refinery-r0.md).
   refinerySession: "refinery_session",
   refineryRun: "refinery_run",
@@ -136,6 +139,9 @@ export type TagId = TypeIdOf<"tag">;
 export type AssetId = TypeIdOf<"asset">;
 export type ImageryGenerationId = TypeIdOf<"imagery_generation">;
 export type GalleryItemId = TypeIdOf<"gallery_item">;
+/** A saved party template (`roster_presets`, D61 B6) — library data, distinct from the generation
+ *  `PresetId` one line up in spirit: this names a CAST, never params. */
+export type RosterPresetId = TypeIdOf<"roster_preset">;
 
 // --- Chat / conversation -----------------------------------------------------
 export type ChatId = TypeIdOf<"chat">;

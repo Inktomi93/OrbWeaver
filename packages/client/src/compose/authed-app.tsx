@@ -63,6 +63,7 @@ import {
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexCollection } from "#features/regex";
+import { savedPartiesModal } from "#features/roster-preset";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "#features/rpg";
 import { appearancePane, chatBehaviorPane, settingsModal, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
@@ -286,6 +287,9 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   // #791: the ONE house modal that collects a plugin command's DECLARED typed args when it is picked from the
   // command palette — opened by `openPluginCommandArgs` (the palette source's row `run`), never an affordance.
   pluginCommandArgs: pluginCommandArgsModal,
+  // #26 (D61 B6): the saved-party picker — opened from the new-chat picker's "Start from party…" and the
+  // members panel's host action via `openModal("savedParties")` (all `placement:"surface"`).
+  savedParties: savedPartiesModal,
 });
 
 // The ONE chrome assembly (shell-chrome-unification.md §A/§D/§E-2, G8): `assembleChrome` DERIVES the rail

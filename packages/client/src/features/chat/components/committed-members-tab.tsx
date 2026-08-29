@@ -4,10 +4,13 @@
 
 import type { CastEntry, ParticipantView, SeatKnobs } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
+import { Icon, Users } from "@orb/ui/icons";
+import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { goToLanding, useTurnSpeakerCharacterId } from "#state";
+import { goToLanding, openModal, useTurnSpeakerCharacterId } from "#state";
 import { useKickMember, useNominateHostHandoff, useSelfLeave, useSetMemberHistoryVisibility } from "../hooks/use-membership-mutations.ts";
 import { useForceCharacterTurn, useRemoveCharacterFromChat, useSetSeatKnobs } from "../hooks/use-roster-mutations.ts";
 import type { MemberRowActions } from "../lib/member-rows.ts";
@@ -128,7 +131,19 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
         // feature, and this tab used to offer only the human half). The SAME picker the cast bar's "+" opens;
         // gated on `isHost` alone, not `hostMembership`, because adding a character is a single-human
         // capability that has nothing to do with the multi-human deployment flag.
-        castAction={isHost ? <AddMemberPopover chatId={chatId} existingCharacterIds={[...participantIdByCharacter.keys()]} /> : undefined}
+        castAction={
+          isHost ? (
+            <Row align="center" gap="tight">
+              {/* #26 — the saved-party door: the picker is the destination (openModal, never a feature
+                  import); "Add party…"/"Save as party" both live inside it, scoped to THIS open room. */}
+              <Button type="button" intent="ghost" size="sm" onClick={(): void => openModal("savedParties")}>
+                <Icon icon={Users} size="sm" />
+                Parties
+              </Button>
+              <AddMemberPopover chatId={chatId} existingCharacterIds={[...participantIdByCharacter.keys()]} />
+            </Row>
+          ) : undefined
+        }
         onKick={hostMembership ? (userId): void => kick.mutate({ chatId, userId }) : undefined}
         onNominateHost={hostMembership ? (userId, offer): void => nominateHost.mutate({ chatId, userId, offer }) : undefined}
         onSetHistoryVisibility={hostMembership ? (userId, visibility): void => setHistoryVisibility.mutate({ chatId, userId, visibility }) : undefined}

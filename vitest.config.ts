@@ -67,6 +67,9 @@ const SERIAL_INT = [
   // rpg compose wire: repeatedly flaked with 5s/20s timeouts under fork contention (heavy full-composition
   // file, same class as chat.int/databank.int above).
   "tests/server/entry/compose/rpg.int.test.ts",
+  // The saved-party apply, composed-real (#26): full-`createServices` app-fixture file — the first test
+  // pays the cold whole-server-graph import + createServices cost (the databank.int/chat.int class).
+  "tests/server/entry/compose/roster-preset.int.test.ts",
   // The multi-human persona-resolution suite: full-`createServices` app-fixture file whose first test pays
   // the cold whole-server-graph import (measured 3.4s isolated → 5s-timeout flake under fork contention).
   "tests/server/entry/compose/persona-multihuman.suite.int.test.ts",
