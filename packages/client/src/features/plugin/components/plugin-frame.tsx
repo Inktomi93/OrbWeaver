@@ -58,6 +58,11 @@ export interface PluginFrameProps {
   readonly title: string;
   /** The relay to `plugin.uiHostCall`. Absent ⇒ every host call is refused (see the header). */
   readonly hostCall?: PluginFrameHostCall | undefined;
+  /** Which shell chrome to draw the frame inside — forwarded verbatim to {@link PluginSurfaceShell} (#787).
+   *  DEFAULT `panel`, the room/settings/tool-card/dialog scale. A `page`-anchored frame passes `page` so the
+   *  §9 pinned attribution band wraps it: a full-page frame is arbitrary HTML at the biggest impersonation
+   *  scale in the design, so it needs the wall the vocabulary pages get, not the smaller panel band. */
+  readonly scale?: "panel" | "page" | undefined;
   /** What to render when the frame cannot be had — DEFAULT `null`, which is the flank law (§4.9).
    *
    *  It exists because ONE anchor's law is the opposite. A `tool-card` frame sits on CANON: the call happened
@@ -78,7 +83,7 @@ export interface PluginFrameProps {
  * resolved (or cannot), which is precisely the "broken frame in the room" §4.9 forbids. Returning the fallback
  * for the whole thing — chrome included — is what makes "renders nothing" true.
  */
-export function PluginFrame({ pluginId, surfaceId, pluginName, title, hostCall, fallback = null }: PluginFrameProps): ReactElement | null {
+export function PluginFrame({ pluginId, surfaceId, pluginName, title, hostCall, fallback = null, scale = "panel" }: PluginFrameProps): ReactElement | null {
   const inFlight = useRef(0);
   const { themeTokens, fontFamily } = useSandboxTheme();
   const src = usePluginFrameSrc({ pluginId, surfaceId, themeTokens, fontFamily });
@@ -116,7 +121,7 @@ export function PluginFrame({ pluginId, surfaceId, pluginName, title, hostCall, 
     return fallback ?? null;
   }
   return (
-    <PluginSurfaceShell pluginName={pluginName} title={title}>
+    <PluginSurfaceShell pluginName={pluginName} scale={scale} title={title}>
       {/* `SandboxFrame` owns the iframe, its sandbox grant (`allow-scripts`, never `allow-same-origin`), the
           height fold, and the window-identity check. `html=""` because this is a ROUTED-ONLY surface: the srcdoc
           floor is never rendered when `src` is present (and would be script-dead anyway). The frame's accessible
