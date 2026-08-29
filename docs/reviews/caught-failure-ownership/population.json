@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 406,
-    "enforced": 403,
-    "reported": 2,
+    "sites": 404,
+    "enforced": 401,
+    "reported": 0,
     "byVerdict": {
       "deliberate-absorb": 401,
       "detached-owned": 3,
-      "unproven": 2
+      "unproven": 0
     },
     "byGrammar": {
       "promise": 119,
-      "default": 119,
+      "default": 117,
       "empty": 168
     }
   },
@@ -3320,22 +3320,9 @@
       "markerLine": 75
     },
     {
-      "siteId": "packages/server/src/infra/providers/backends/agent-sdk/env.ts::default:catch::1",
-      "path": "packages/server/src/infra/providers/backends/agent-sdk/env.ts",
-      "line": 189,
-      "column": 7,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/env.ts::empty:catch::1",
       "path": "packages/server/src/infra/providers/backends/agent-sdk/env.ts",
-      "line": 193,
+      "line": 200,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3343,7 +3330,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort temp-dir cleanup on the symlink-failure path — the symlink already failed so `dir` holds no credential; a cleanup miss leaks only an empty tmp dir, never an auth decision. Ends if this cleanup becomes load-bearing or `dir` can ever hold a live credential.",
-      "markerLine": 190
+      "markerLine": 197
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/host-token.ts::default:catch::1",
@@ -5021,19 +5008,6 @@
       "verdict": "deliberate-absorb",
       "reason": "the stage boot failure is printed via stageBootRefusal and returned as EXIT.toolError — propagated through both the message and the exit code. Ends if either is dropped.",
       "markerLine": 42
-    },
-    {
-      "siteId": "tooling/src/verify/gates/db-structure.ts::default:catch::1",
-      "path": "tooling/src/verify/gates/db-structure.ts",
-      "line": 103,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
     },
     {
       "siteId": "tooling/src/verify/gates/monotonic-tests.ts::empty:catch::1",
