@@ -33,6 +33,9 @@ import { HomeSurface } from "@orb/client/features/home";
 // #618 — the shell-level detail modal the room-image click opens; imported through the SAME front door the
 // providers use, never a relative path (a relative import gets a different React context instance).
 import { ImageDetailBody, ImageEditBody } from "@orb/client/features/imagery";
+// B8 (interaction-direction-spec §7): the REAL rpg dice ASK source + in-thread RESULT renderer, through the
+// same front door the providers use (a relative import gets a different React context instance).
+import { rpgDiceAskSource, rpgDiceToolRenderer } from "@orb/client/features/rpg";
 import type {
   ChatContextState,
   ChatControl,
@@ -3396,4 +3399,35 @@ export function AutomationSuggestionCardStory(): ReactElement {
       </SocketHost>
     </CtDataProviders>
   );
+}
+
+// ── B8: the REAL rpg dice ASK source, wired the door's way (interaction-direction-spec §7 B8) ──────────────
+// The GAME-ARM twin of the automation chips story: `rpgDiceAskSource` from `features/rpg`, in the SAME registry
+// `authed-app.tsx` builds, rendered blind through the one `above-composer` mount. The source gates on
+// `isRpgEngaged` off `chat.getChat.rpg`, so the CT presents an ENGAGED pointer to open it (a plain chat gets no
+// chips — that acceptance arm rides the CT). Full room (not a bare band) so the CT can read THIS room's real
+// composer draft: an `execute` chip rolls `rpg.rollDice` and appends the baked stamp for the member to send.
+export function RpgDiceAskStory(): ReactElement {
+  const sources = createContributorRegistry<ChatControlSource>("chat-controls", [rpgDiceAskSource]);
+  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [makeChatControlsContribution(sources)]);
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <div style={{ height: 480 }}>
+          <ChatControlsRoom surfaceContributors={surfaceContributors} />
+        </div>
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+// ── B8: the REAL rpg in-thread dice RESULT renderer (interaction-direction-spec §7 B8) ─────────────────────
+// The `tool-renderers` half: `rpgDiceToolRenderer` claims the exact `roll_dice` wire name, and `MessageToolCalls`
+// (chat's real tool-block seam) resolves it for a persisted `roll_dice` `ToolCallRecord`. The registry is built
+// HERE (post-mount, in the browser) because a registry instance does NOT survive the Playwright CT prop wire —
+// only the plain `record` data crosses it. A record whose result is malformed/absent falls back to the generic
+// `ToolCallBlock` (the canon-preserving null state), which the CT drives with a second record.
+export function RpgDiceToolResultStory({ record }: { readonly record: ToolCallRecord }): ReactElement {
+  const renderers = createContributorRegistry<ToolRenderer>("tool-renderers", [rpgDiceToolRenderer]);
+  return <MessageToolCalls records={[record]} renderers={renderers} />;
 }
