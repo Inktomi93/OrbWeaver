@@ -40,11 +40,16 @@ export function secondsToMs(seconds: number | null | undefined): number | undefi
 /** An `[IANA/Zone]`-annotated or offset/`Z`-designated string names an EXACT instant — the string's own
  *  zone decides it, never the caller's. `null` when it carries neither (the zone-less arm below). */
 function exactInstantMs(value: string): number | null {
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): documented — no [IANA/Zone] annotation falls
+  // through to the designator arm below. Ends if the fallthrough is removed.
   try {
     return Temporal.ZonedDateTime.from(value).epochMilliseconds;
   } catch {
     // No `[IANA/Zone]` annotation — fall through to the designator arm.
   }
+  // @orb-gate-ignore caught-failure-ownership(default:catch): documented in the function's JSDoc — null
+  // when the value carries neither zone form, consumed by isoToMs's ?? naiveIsoMs fallback. Ends if
+  // isoToMs stops handling the null.
   try {
     return Temporal.Instant.from(value).epochMilliseconds;
   } catch {
@@ -55,6 +60,9 @@ function exactInstantMs(value: string): number | null {
 /** A zone-less ISO reading resolved as UTC. `overflow:"reject"` so an impossible date (`2026-02-30`)
  *  is `null` rather than silently CONSTRAINED to the month's last day — Temporal's default. */
 function naiveIsoMs(value: string): number | null {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): documented — null on an invalid/impossible
+  // reading, consumed by isoToMs (this function's sole caller) as the terminal fallback arm. Ends if
+  // isoToMs stops handling the null.
   try {
     return Temporal.PlainDateTime.from(value, { overflow: "reject" }).toZonedDateTime("UTC").epochMilliseconds;
   } catch {
@@ -122,6 +130,9 @@ export function wallClockToMs(
     return null;
   }
   const endOfDay = parts.hour === END_OF_DAY_HOUR && parts.minute === 0 && parts.second === 0;
+  // @orb-gate-ignore caught-failure-ownership(default:catch): documented in the JSDoc — null when the
+  // parts or zone name are invalid, part of this function's stated contract. Ends if a caller stops
+  // treating the null return as "invalid input".
   try {
     // `overflow:"reject"` — an impossible reading (month 13, 30 February) is null, never CONSTRAINED to
     // a nearby valid one, which is Temporal's default and would silently land a wrong instant.
@@ -142,6 +153,9 @@ export function msToWallClock(
   if (!Number.isFinite(ms)) {
     return null;
   }
+  // @orb-gate-ignore caught-failure-ownership(default:catch): documented in the JSDoc — null when the
+  // instant or zone name is invalid, part of this function's stated contract. Ends if a caller stops
+  // treating the null return as "invalid input".
   try {
     // Truncate toward zero before the instant: `Temporal` takes integer ms only, and truncation is
     // exactly what `Date`/luxon did with a sub-ms fraction, so a fractional input lands the same clock.

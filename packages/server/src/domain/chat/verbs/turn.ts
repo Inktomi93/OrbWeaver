@@ -1206,6 +1206,9 @@ function isAutoSwipeRejected(content: string, cfg: ChatBehaviorInputs["autoSwipe
 /** Runs ONE auto-behavior follow-up (swipe/continue) and returns its committed tip, or null on any failure —
  *  non-fatal, mirroring neo: the already-committed reply stands and the loop stops. */
 async function runAutoFollowUp(run: () => Promise<TurnOutcome>): Promise<MessageView | null> {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): documented above — non-fatal, mirrors neo: the
+  // already-committed reply stands and the loop stops; the `null` is the consumed result the caller checks.
+  // Ends if a follow-up failure needs to surface to the turn's own caller.
   try {
     const outcome = await run();
     return outcome.messages.at(-1) ?? null;
@@ -2434,6 +2437,9 @@ async function drainOne(ctx: ChatContext, deps: TurnDeps, row: { readonly id: Pe
   if (claimed === undefined) {
     return "skipped"; // a concurrent drain already claimed this row.
   }
+  // @orb-gate-ignore caught-failure-ownership(empty:err): fully classified below — a permanent verdict
+  // notifies + logs and returns "dropped"; anything else (budget/transient) re-inserts the row and logs
+  // "requeued" (documented in the function header). Ends if a third fault class needs its own handling.
   try {
     await runDeferredRound(ctx, deps, claimed);
     return "ran";

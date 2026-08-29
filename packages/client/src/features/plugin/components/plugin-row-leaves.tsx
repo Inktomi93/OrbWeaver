@@ -51,6 +51,9 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   const [verdict, setVerdict] = useState<UpdateVerdict>({ kind: "idle" });
 
   const runCheck = async (): Promise<void> => {
+    // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): useCheckForUpdates carries
+    // errorToast: "Couldn't check for updates." — the toast is the surface; undefined just leaves the verdict
+    // as-is. Ends if that mutation drops its errorToast.
     const results = await check.mutateAsync(undefined).catch(() => undefined);
     if (results === undefined) {
       return;
@@ -71,6 +74,9 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   };
 
   const applyStoredUpgrade = async (): Promise<void> => {
+    // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): useUpgradePluginFromStoredUrl carries
+    // errorToast: serverReason("Couldn't update that plugin.") — the toast is the surface. Ends if that
+    // mutation drops its errorToast.
     const updated = await upgradeStored.mutateAsync({ pluginId: plugin.id }).catch(() => undefined);
     if (updated === undefined) {
       return;
@@ -93,6 +99,9 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
         intent="secondary"
         loading={check.isPending}
         onClick={(): void => {
+          // @orb-gate-ignore caught-failure-ownership(promise:runCheck): runCheck already catches its own
+          // mutation's rejection internally, so it never rejects — belt-and-suspenders. Ends if runCheck stops
+          // catching internally.
           void runCheck().catch(() => undefined);
         }}
         size="sm"
@@ -105,6 +114,9 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
           intent="primary"
           loading={upgradeStored.isPending}
           onClick={(): void => {
+            // @orb-gate-ignore caught-failure-ownership(promise:applyStoredUpgrade): applyStoredUpgrade already
+            // catches its own mutation's rejection internally, so it never rejects — belt-and-suspenders. Ends
+            // if applyStoredUpgrade stops catching internally.
             void applyStoredUpgrade().catch(() => undefined);
           }}
           size="sm"

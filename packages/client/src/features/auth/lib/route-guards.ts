@@ -26,6 +26,9 @@ const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(
 /** This request's auth state, or null only when the server stays unreachable across a short retry window.
  *  A completed fetch (authed OR anon) short-circuits immediately — retries cover a THROWN read only. */
 async function meOrNull(retriesLeft = UNREACHABLE_RETRIES): Promise<AuthMe | null> {
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): a thrown read returns null after the retry window
+  // exhausts, and both callers already treat null as "unreachable" and route to /login. Ends if a caller starts
+  // treating null as a resolved authed state instead of the unreachable case.
   try {
     return await fetchAuthMe();
   } catch {

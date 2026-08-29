@@ -63,6 +63,9 @@ export function usePluginCommandRunner(
       notify.error(PLUGIN_COMMAND_UNKNOWN);
       return;
     }
+    // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): the comment below explains — the
+    // mutation's own errorToast already told the person; this catch only keeps a handled rejection from
+    // surfacing as unhandled on this fire-and-forget path. Ends if that mutation drops its errorToast.
     void invoke
       .mutateAsync({ pluginId: command.pluginId, name: command.name, args, values, chatId })
       // The outcome is the plugin's host-mediated chrome (§4.5a): its toasts, and at most one dialog open.

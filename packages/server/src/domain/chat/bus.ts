@@ -85,6 +85,9 @@ const RING_CAPACITY = 256;
 async function reportDroppedAppend(db: Db, event: ChatBusEvent, err: unknown): Promise<void> {
   const chatId = event.chatId;
   let chatGone = false;
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): the ground-truth probe failing means the db is
+  // unwell — fall through to the loud arm below (getLog().error), which reports the original `err`. Ends if
+  // the probe grows its own retry/backoff (then it owns classifying its own failure).
   try {
     chatGone = (await loadChatRow(db, chatId)) === undefined;
   } catch {
@@ -136,6 +139,9 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
     // Durable-first: commit the INSERT before the in-memory push so a crash can never leave a
     // delivered-but-unlogged event.
     let seq: number;
+    // @orb-gate-ignore caught-failure-ownership(default:err): reported via reportDroppedAppend (classifies +
+    // logs/errors) per FLAG[emit-is-total] above — never rethrown so a fire-and-forget delta emit can't kill
+    // the process. Ends if a caller needs the durable-write failure to propagate (then it owns its own retry).
     try {
       const args = { id: deps.newEventId(), chatId, event, createdAt: deps.now() };
       seq = await appendChatEvent(deps.db, args);
@@ -152,6 +158,9 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
   const emitAfterClaim: EmitChatEventAfterClaim = async (raw, claimStatement) => {
     const chatId = raw.chatId;
     const event = stamper.stamp(raw);
+    // @orb-gate-ignore caught-failure-ownership(default:err): same FLAG[emit-is-total] contract as `emit`
+    // above — reportDroppedAppend classifies + reports, never rethrown. Ends if a caller needs the durable
+    // write failure to propagate.
     try {
       const append = appendChatEventAfterClaimStatement(deps.db, {
         id: deps.newEventId(),

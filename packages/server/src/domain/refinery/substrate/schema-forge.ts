@@ -161,6 +161,9 @@ function parseFieldReply(payload: z.ZodType<{ field: ForgeFieldRow }>, text: str
   if (start === -1) {
     return null;
   }
+  // @orb-gate-ignore caught-failure-ownership(default:catch): bookkeeping — documented above: a malformed
+  // JSON slice is a DROP the caller counts (bounded-cost posture, no retry); `null` is the same drop
+  // `safeParse.success === false` already produces two lines up. Ends if a dropped row needs its own reason.
   try {
     const parsed = payload.safeParse(JSON.parse(text.slice(start)));
     return parsed.success ? parsed.data.field : null;

@@ -81,6 +81,7 @@ export function configureStage(opts: Args): number | null {
     return 0;
   }
   if (opts.isolated) {
+    // @orb-gate-ignore caught-failure-ownership(empty:e): printed as STAGE ERROR and returned as exit code 1, which the CLI process exits with. Ends if that exit code stops being surfaced.
     try {
       const stage = opts.dirty
         ? ensureStage({ fresh: opts.fresh, dirty: true })

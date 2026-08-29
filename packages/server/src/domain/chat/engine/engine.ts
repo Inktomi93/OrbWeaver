@@ -854,6 +854,9 @@ function preTurnCoveragePoint(args: {
 /** Emit a bus event, swallowing any failure — a background warning/update must never re-throw out of the
  *  fire-and-forget compaction body (and a nested `.catch` trips noNestedPromises). */
 async function emitQuiet(deps: EngineDeps, event: DurableChatBusEvent): Promise<void> {
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): `deps.emit` is the chat bus, which already
+  // classifies + reports a dropped append (FLAG[emit-is-total], bus.ts) and never rejects in practice — this
+  // is the fire-and-forget background-hook's own belt. Ends if `emit` grows a path that can actually reject.
   try {
     await deps.emit(event);
   } catch {
@@ -1635,6 +1638,10 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
 
     return committedOutcome([view]);
   } catch (err) {
+    // @orb-gate-ignore caught-failure-ownership(empty:deltaErr): explicitly classified below — a `deltaErr` equal
+    // to `err` is already owned by the outer catch; a distinct secondary failure is logged via
+    // getLog().warn so it stays visible while the primary error still wins. Ends if this needs to fail the
+    // turn outcome instead of only warning.
     try {
       await deltaTail;
     } catch (deltaErr) {

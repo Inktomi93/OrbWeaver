@@ -509,6 +509,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // live re-check that the installer is still in the room, one belt beyond the invocation-time admission.
       // A refusal (kicked between admission and write) resolves fail-CLOSED to "not attached".
       isBookAttachedToChat: async (ownerId, chatId, bookId) => {
+        // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — documented above: a refusal
+        // (kicked between admission and write) resolves to "not attached", never a leak. Ends if this needs
+        // to tell a raced-kick apart from an infra failure.
         try {
           const attached = await worldInfo.listForChat({ principal: await resolveOwnerPrincipal(ownerId), chatId });
           return attached.some((book) => book.id === bookId);
@@ -525,6 +528,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // `isBookAttachedToChat` above uses, projecting to the reduced `{id, name}`; fail-CLOSED to `[]` on a
       // refusal (kicked between admission and read), so a non-member never learns the room's book list.
       listBooksForChat: async (ownerId, chatId) => {
+        // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — documented above: a
+        // refusal (kicked between admission and read) resolves to `[]`, so a non-member never learns the
+        // room's book list. Ends if this needs to tell a raced-kick apart from an infra failure.
         try {
           const books = await worldInfo.listForChat({ principal: await resolveOwnerPrincipal(ownerId), chatId });
           return books.map((book) => ({ id: book.id, name: book.name }));
@@ -537,6 +543,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // ran in the bridge first. Fail-CLOSED to `[]` if the installer does not own the book (leak-free — a book
       // owned by another host is indistinguishable from an empty one). Content is capped like the message read.
       listEntries: async (ownerId, bookId) => {
+        // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — documented above: `[]` if
+        // the installer does not own the book — leak-free, indistinguishable from an empty one. Ends if this
+        // needs to tell a not-owned book apart from an infra failure.
         try {
           const entries = await worldInfo.listEntries({ principal: await resolveOwnerPrincipal(ownerId), bookId });
           return entries.map((entry) => ({
@@ -667,6 +676,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     assets: {
       read: async ({ installerUserId, assetId }) => {
         const caller = await resolveOwnerPrincipal(installerUserId);
+        // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — documented above: any
+        // unreadable asset (a foreign/absent id, `AssetNotFoundError`) collapses to `null`, leak-free (no
+        // existence oracle). Ends if this needs to tell "foreign" apart from an infra failure.
         try {
           const owned = await assets.readOwnedAssetBytes(caller, castId<AssetId>(assetId));
           const sizeBytes = owned.bytes.length;

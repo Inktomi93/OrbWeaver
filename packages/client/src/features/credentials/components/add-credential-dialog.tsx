@@ -261,6 +261,9 @@ function DraftFetchModelsCheck({
       return;
     }
     const draft = keyValue.trim() === "" ? { baseUrl: draftBaseUrl } : { baseUrl: draftBaseUrl, key: keyValue.trim() };
+    // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): an advisory-only reachability check —
+    // the .catch below sets count to 0 and checked to true, which IS the rendered "0 models" failure state.
+    // Ends if the failure branch stops writing a distinguishable UI state.
     void fetchModels
       .mutateAsync({ draft })
       .then((models): void => {

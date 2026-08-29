@@ -159,6 +159,7 @@ function readMembershipCache(key: string): ReadonlySet<string> | undefined {
     return;
   }
   let cache: MembershipCache | undefined;
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): optional-read-as-absent — a corrupt/unreadable cache becomes a miss, which the caller recomputes from scratch via ts7 rather than trusting. Ends if the caller stops recomputing on a cache miss.
   try {
     cache = JSON.parse(readFileSync(path, "utf8")) as MembershipCache;
   } catch {

@@ -94,6 +94,9 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
   const pumps = new Map<string, AbortController>();
 
   async function pumpRoom(ref: StreamRoomRef, cursor: number | null, control: AbortController): Promise<void> {
+    // @orb-gate-ignore caught-failure-ownership(default:err): documented below — a non-abort failure is
+    // logged, pushed as a "roomFailed" control frame to the subscriber, and the room detaches. Ends if any
+    // of those three consumption steps is removed.
     try {
       const source = roomSourceFor(ref);
       for await (const frame of source.run({ ref, principal, services, multiHumanCapable, cursor, signal: control.signal })) {
