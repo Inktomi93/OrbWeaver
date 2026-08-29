@@ -673,6 +673,9 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
       // B1: a fresh fork has never been pinned, so its posture is `null` = INHERIT the host's own default
       // (NOT `false` — the tri-state is the point of the field).
       offerChoices: null,
+      // B7: the two reaction knobs are the same tri-state — a fresh fork inherits on both.
+      charactersCanReact: null,
+      reactionsEnabled: null,
       parentChatId: CHAT,
       forkedAt: 0,
       anchorPersonaId: null,

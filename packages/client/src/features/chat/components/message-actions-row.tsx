@@ -31,7 +31,6 @@
 // the budget exists to red on.
 
 import type { MessageView } from "@orb/contracts/chat";
-import { isNarratorVoiced } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
@@ -47,8 +46,7 @@ import { cn, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { startEditingMessage } from "#state";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
-import { useToggleReactionMutation } from "../lib/reaction-mutations.ts";
-import { ReactionPicker } from "./reaction-picker.tsx";
+import { RowReactionPicker } from "./row-reaction-picker.tsx";
 import { VariantWireViewer } from "./variant-wire-viewer.tsx";
 
 interface HideVars {
@@ -409,50 +407,11 @@ export function MessageActionsRow({
       {/* Mounted only once opened — an unopened row builds no query key and no dialog subtree (the viewer's
           own read is `enabled: open`, so this is belt-and-braces on the same gate). */}
       {wireOpen ? <VariantWireViewer chatId={chatId} variantId={message.selectedVariantId} open={wireOpen} onOpenChange={setWireOpen} /> : null}
-      {/* Same mount discipline as the wire viewer: an unopened row builds no picker subtree. */}
+      {/* Same mount discipline as the wire viewer: an unopened row builds no picker subtree (the picker
+          wiring itself — the canon parse + the segment claim — lives in `row-reaction-picker.tsx`). */}
       {pickerOpen ? (
         <RowReactionPicker castNames={castNames} groups={reactionGroups} message={message} onOpenChange={setPickerOpen} viewerSeatId={viewerSeatId} />
       ) : null}
     </Row>
-  );
-}
-
-interface RowReactionPickerProps {
-  readonly message: MessageView;
-  readonly castNames: readonly string[];
-  readonly groups: Parameters<typeof ReactionPicker>[0]["groups"];
-  readonly viewerSeatId: Parameters<typeof ReactionPicker>[0]["viewerSeatId"];
-  readonly onOpenChange: (open: boolean) => void;
-}
-
-/** The picker's mount, split from the row (the cognitive-complexity budget) and OWNING its own toggle
- *  mutation — it exists only while open, so the mutation's lifetime matches its one consumer. The parse
- *  inputs mirror the SERVER's write validation exactly (canon `message.content`; cast names under the
- *  `isNarratorVoiced` gate), which is what makes a picked segment index survive the round trip. */
-function RowReactionPicker({ message, castNames, groups, viewerSeatId, onOpenChange }: RowReactionPickerProps): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const toggleReaction = useToggleReactionMutation({ trpc, invalidation });
-  return (
-    <ReactionPicker
-      castNames={isNarratorVoiced(message.kind) ? castNames : []}
-      chatId={message.chatId}
-      content={message.content}
-      groups={groups}
-      onOpenChange={onOpenChange}
-      onPick={(emoji, segment): void => {
-        if (!toggleReaction.isPending) {
-          toggleReaction.mutate({
-            chatId: message.chatId,
-            variantId: message.selectedVariantId,
-            emoji,
-            ...(segment !== null ? { segmentIndex: segment.index, segmentSpeaker: segment.speaker } : {}),
-          });
-        }
-      }}
-      open={true}
-      variantId={message.selectedVariantId}
-      viewerSeatId={viewerSeatId}
-    />
   );
 }

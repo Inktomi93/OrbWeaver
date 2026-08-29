@@ -262,7 +262,7 @@ type ResolveChatProseOp = (chatId: ChatId) => Promise<ProseOverrides>;
 /** B7 — a user's per-user reaction defaults, picked off the same schema-real `UserSettings.chat` arm the
  *  turn path consumes as `ChatBehaviorInputs` (never a re-spelled shape). The op half of
  *  {@link ChatContext.readReactionDefaults}. */
-export type ReadReactionDefaultsOp = (userId: UserId) => Promise<Pick<ChatBehaviorInputs, "charactersCanReact" | "reactionsEnabled">>;
+type ReadReactionDefaultsOp = (userId: UserId) => Promise<Pick<ChatBehaviorInputs, "charactersCanReact" | "reactionsEnabled">>;
 
 /** The imagery quiet-extraction shaper (imagery-design/02 §2) — a STANDALONE op (not on ChatContext; built
  *  at compose from db + summarize + getCard, the `loadTurnForClassify` precedent). Chat owns the history

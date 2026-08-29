@@ -161,7 +161,10 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   // room read (this arm is one of the chat-row transitions that DOES stale `ChatDetail`) PLUS the Group tab's own
   // `getGroupConfig` read (the only bus arm that carries it; proven cross-tab by
   // tests/e2e/multi-tab-room-sync.spec.ts).
-  chatUpdated: [...CHAT_READS, "getChat", "getGroupConfig", "listChatInjections"],
+  // …PLUS the reaction window (B7): `listReactions` carries the room's RESOLVED `reactionsEnabled` verdict,
+  // and `chat.setReactionsEnabled` emits THIS catch-all — without the row a host flipping the plane off
+  // would leave every member's pills and picker doors standing until someone reacted.
+  chatUpdated: [...CHAT_READS, "getChat", "getGroupConfig", "listChatInjections", "reactions"],
   // Room + the prompt preview: a re-anchored persona rewrites `{{user}}` in the next turn's prompt.
   personaSwitched: ["getChat", "previewAssembly", "getShapeTrace"],
   // B6 — NARROW on purpose (the `roomEntityChanged` argument): the pill row is its own read, so exactly one

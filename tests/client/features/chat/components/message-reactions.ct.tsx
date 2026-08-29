@@ -38,7 +38,21 @@ const CHAT_DETAIL = {
 };
 
 function group(emoji: string, reactors: readonly string[]): Record<string, unknown> {
-  return { variantId: VARIANT_ID, emoji, emojiImageAssetId: null, reactorParticipantIds: reactors };
+  // Whole-message groups (all-null trio — B7): a chip missing the trio would gloss as a bogus segment.
+  return {
+    variantId: VARIANT_ID,
+    emoji,
+    emojiImageAssetId: null,
+    segmentIndex: null,
+    segmentSpeaker: null,
+    segmentSnippet: null,
+    reactorParticipantIds: reactors,
+  };
+}
+
+/** The B7 wire view — `listReactions` carries the room's resolved posture beside the groups. */
+function view(groups: readonly Record<string, unknown>[]): Record<string, unknown> {
+  return { reactionsEnabled: true, groups };
 }
 
 /** Two chips: one the viewer is IN (👍) and one they are not (😂) — the pressed-state claim needs both. */
@@ -49,7 +63,7 @@ const NINE_CHIPS = ["👍", "❤️", "😂", "😮", "😢", "😡", "🔥", "�
 
 test.describe("the pill row", () => {
   test("renders one chip per emoji with its reactor COUNT, and presses only the viewer's own", async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listReactions": TWO_CHIPS, "chat.getChat": CHAT_DETAIL });
+    await routeTrpc(page, { "chat.listReactions": view(TWO_CHIPS), "chat.getChat": CHAT_DETAIL });
     const component = await mount(<MessageReactionsStory />);
 
     const mine = component.getByRole("button", { name: /React with 👍/ });
@@ -64,7 +78,7 @@ test.describe("the pill row", () => {
   });
 
   test("renders NOTHING for a variant with no reactions — an applicability gate, not an empty shell", async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listReactions": [], "chat.getChat": CHAT_DETAIL });
+    await routeTrpc(page, { "chat.listReactions": view([]), "chat.getChat": CHAT_DETAIL });
     const component = await mount(<MessageReactionsStory />);
 
     // The host IS the mounted component root, so it is asserted on directly (a `getByTestId` INSIDE it
@@ -77,7 +91,7 @@ test.describe("the pill row", () => {
   });
 
   test("stays ONE LINE at 320px and discloses the rest as +N", async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listReactions": NINE_CHIPS, "chat.getChat": CHAT_DETAIL });
+    await routeTrpc(page, { "chat.listReactions": view(NINE_CHIPS), "chat.getChat": CHAT_DETAIL });
     const component = await mount(<MessageReactionsStory />);
 
     const chips = component.getByRole("button", { name: /React with/ });
@@ -96,12 +110,65 @@ test.describe("the pill row", () => {
   });
 });
 
+// B7/MR3 — a SEGMENT-anchored chip: the qualifier gloss, the snippet on `title`, and the press re-keying
+// the SAME anchor (whole-message and per-line are independent toggles, so a segment chip that sent a bare
+// toggle would silently retarget the member's click at the whole message).
+test.describe("the segment-anchored chip", () => {
+  const SegmentChip = [
+    group("👍", [VIEWER_SEAT, OTHER_SEAT]),
+    {
+      variantId: VARIANT_ID,
+      emoji: "😂",
+      emojiImageAssetId: null,
+      segmentIndex: 1,
+      segmentSpeaker: "Bob",
+      segmentSnippet: "Bob: Fine day.",
+      reactorParticipantIds: [OTHER_SEAT],
+    },
+  ];
+
+  test("glosses its target, carries the snippet on title, and a press re-keys the SAME anchor on the wire", async ({ mount, page }) => {
+    const trpc = await routeTrpc(page, { "chat.listReactions": view(SegmentChip), "chat.getChat": CHAT_DETAIL, "chat.toggleReaction": true });
+    const component = await mount(<MessageReactionsStory />);
+
+    // The accessible name says the whole sentence — target included — and the printed gloss names the line.
+    const chip = component.getByRole("button", { name: "React with 😂 to Bob's line — 1 so far" });
+    await expect(chip).toBeVisible();
+    await expect(chip).toHaveText(/→ Bob/);
+    // The captured snippet rides `title` — the stored qualifier is DATA display, tellable on hover.
+    await expect(chip).toHaveAttribute("title", "Bob: Fine day.");
+    // …and the WHOLE-message sibling glosses nothing (the trio-null arm stays exactly as B6 shipped it).
+    await expect(component.getByRole("button", { name: "React with 👍 — 2 so far" })).not.toHaveText(/→/);
+
+    await chip.click();
+    await expect
+      .poll(() => trpc.inputs("chat.toggleReaction"))
+      .toEqual([{ chatId: CHAT_ID, variantId: VARIANT_ID, emoji: "😂", segmentIndex: 1, segmentSpeaker: "Bob" }]);
+  });
+});
+
+// B7 — the room's reactions posture resolved OFF: BOTH picker doors vanish (applicability, not a phase
+// gate — the server refuses the verb too; these doors are the courtesy over that enforcement).
+test.describe("the plane resolved OFF", () => {
+  test("both doors are GONE while the rest of the menu stands", async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listReactions": { reactionsEnabled: false, groups: [] }, "chat.getChat": CHAT_DETAIL });
+    const component = await mount(<MessageActionsDoorsStory />);
+
+    // Barrier on the row's other affordances so the absence reads are about the posture, not a blank mount.
+    await expect(component.getByRole("button", { name: "More message actions" })).toBeVisible();
+    await expect(component.getByRole("button", { name: "Add a reaction" })).toHaveCount(0);
+    await component.getByRole("button", { name: "More message actions" }).click();
+    await expect(page.getByRole("menuitem", { name: "Copy" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Add a reaction" })).toHaveCount(0);
+  });
+});
+
 test.describe("the pill row at a coarse pointer", () => {
   test.use({ hasTouch: true });
 
   test("the chip box IS the touch floor — no overflowing pseudo to clip in a run", async ({ mount, page }) => {
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-    await routeTrpc(page, { "chat.listReactions": TWO_CHIPS, "chat.getChat": CHAT_DETAIL });
+    await routeTrpc(page, { "chat.listReactions": view(TWO_CHIPS), "chat.getChat": CHAT_DETAIL });
     const component = await mount(<MessageReactionsStory />);
     const floor = await touchFloorPx(page);
 
@@ -120,7 +187,7 @@ test.describe("the pill row at a coarse pointer", () => {
 
 test.describe("the picker's two doors", () => {
   test("at a FINE pointer both the inline glyph and the ⋯ item are present", async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listReactions": [], "chat.getChat": CHAT_DETAIL });
+    await routeTrpc(page, { "chat.listReactions": view([]), "chat.getChat": CHAT_DETAIL });
     const component = await mount(<MessageActionsDoorsStory />);
 
     await expect(component.getByRole("button", { name: "Add a reaction" })).toBeVisible();
@@ -129,7 +196,7 @@ test.describe("the picker's two doors", () => {
   });
 
   test("the ⋯ item opens the picker, and the grid is the CONTRACT vocabulary", async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listReactions": TWO_CHIPS, "chat.getChat": CHAT_DETAIL });
+    await routeTrpc(page, { "chat.listReactions": view(TWO_CHIPS), "chat.getChat": CHAT_DETAIL });
     const component = await mount(<MessageActionsDoorsStory />);
 
     await component.getByRole("button", { name: "Add a reaction" }).click();
@@ -149,7 +216,7 @@ test.describe("the picker doors at a coarse pointer", () => {
 
   test("the inline glyph is DISPLAY:NONE and the ⋯ item survives — one door per pointer class", async ({ mount, page }) => {
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-    await routeTrpc(page, { "chat.listReactions": [], "chat.getChat": CHAT_DETAIL });
+    await routeTrpc(page, { "chat.listReactions": view([]), "chat.getChat": CHAT_DETAIL });
     const component = await mount(<MessageActionsDoorsStory />);
 
     // `ROW_ACTION_INLINE` is `pointer-coarse:hidden` — `display:none`, so the glyph leaves the a11y tree

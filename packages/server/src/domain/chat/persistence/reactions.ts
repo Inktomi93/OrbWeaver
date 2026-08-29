@@ -24,6 +24,7 @@ import type { Db } from "@orb/db";
 import { characters, chatParticipants, messageReactions, messages, messageVariants, personas } from "@orb/db";
 import type { AssetId, ChatId, ChatParticipantId, MessageId, MessageReactionId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, gte, inArray, isNull, max } from "drizzle-orm";
+import type { StoredSegmentAnchor } from "../contract/params.ts";
 
 const LIMIT_ONE = 1;
 
@@ -42,14 +43,6 @@ interface ReactionRow {
   readonly segmentIndex: number | null;
   readonly segmentSpeaker: string | null;
   readonly segmentSnippet: string | null;
-}
-
-/** The B7 segment-anchor trio as one persisted value (`null` = a whole-message reaction). The SPEAKER may
- *  be null inside a present anchor (a narration span has no label); the snippet may not (the CHECK). */
-export interface StoredSegmentAnchor {
-  readonly segmentIndex: number;
-  readonly segmentSpeaker: string | null;
-  readonly segmentSnippet: string;
 }
 
 /** The caller's PRESENT seat in this room (D80) — the reactor id every write stamps.

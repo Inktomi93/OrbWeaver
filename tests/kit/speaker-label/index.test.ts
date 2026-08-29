@@ -4,6 +4,8 @@ import {
   LEADING_SPEAKER_TAG,
   normalizeExampleStart,
   parseSpeakerSpans,
+  resolveSegmentAnchor,
+  segmentSnippet,
   speakerTagsToPlain,
   stripInlineSpeakerLabel,
   stripLeadingSpeakerName,
@@ -242,4 +244,40 @@ test("foreignLabelStops agrees with truncateAtForeignLabel — the wire cut and 
   const stop = foreignLabelStops(["Seren"])[0] ?? "";
   // What a completion runner keeps when the stop fires == what the receive-side truncate keeps.
   expect(drafted.slice(0, drafted.indexOf(stop))).toBe(truncateAtForeignLabel(drafted, ["Seren"]));
+});
+
+// ── B7: the segment-anchor pair (`segmentSnippet` + `resolveSegmentAnchor`) — the ONE staleness rule
+// every reaction consumer shares (the server's write validation + attribution read, the client display).
+// The anchoring fitness suite proved WHY the trio exists (a bare index is not edit-stable; (index,
+// speaker) is defeated by a same-speaker insert); these pins prove the rule ITSELF: each leg of the
+// validity conjunction refuses alone, and the prefix arm is what keeps a tail edit alive.
+
+test("segmentSnippet: trimmed head, caller-capped — the one derivation writers and validators share", () => {
+  expect(segmentSnippet("  Bob: Fine day.  ", 120)).toBe("Bob: Fine day.");
+  expect(segmentSnippet("abcdefgh", 4)).toBe("abcd");
+  expect(segmentSnippet("   \n  ", 120)).toBe("");
+});
+
+const ANCHOR_BODY = "Alice: Hello there.\nBob: Fine day.";
+const ANCHOR_CAST = ["Alice", "Bob"];
+
+test("resolveSegmentAnchor: a live anchor resolves to its span; each stale leg refuses alone", () => {
+  const live = resolveSegmentAnchor(ANCHOR_BODY, ANCHOR_CAST, { index: 1, speaker: "Bob", snippet: "Bob: Fine day." });
+  expect(live).toEqual({ speaker: "Bob", text: "Bob: Fine day." });
+  // Out of range — the body segments into two spans.
+  expect(resolveSegmentAnchor(ANCHOR_BODY, ANCHOR_CAST, { index: 5, speaker: "Bob", snippet: "Bob: Fine day." })).toBeNull();
+  // Speaker moved — a structural insert shifted the index onto somebody else's line.
+  expect(resolveSegmentAnchor(ANCHOR_BODY, ANCHOR_CAST, { index: 0, speaker: "Bob", snippet: "Bob: Fine day." })).toBeNull();
+  // The FINGERPRINT leg — the same-speaker-insert hole the suite found: index in range, speaker matches,
+  // but the text is a DIFFERENT line by the same speaker. (index, speaker) alone would silently pass this.
+  expect(resolveSegmentAnchor(ANCHOR_BODY, ANCHOR_CAST, { index: 1, speaker: "Bob", snippet: "Bob: Another line entirely." })).toBeNull();
+});
+
+test("resolveSegmentAnchor: the snippet is a PREFIX, so a tail edit keeps the anchor alive", () => {
+  const edited = "Alice: Hello there.\nBob: Fine day. And a fine evening too.";
+  const kept = resolveSegmentAnchor(edited, ANCHOR_CAST, { index: 1, speaker: "Bob", snippet: "Bob: Fine day." });
+  expect(kept?.speaker).toBe("Bob");
+  // A narration anchor carries `speaker: null` and resolves the same way.
+  const narration = resolveSegmentAnchor("The rain fell.\n<speaker>Alice</speaker>Well.", [], { index: 0, speaker: null, snippet: "The rain fell." });
+  expect(narration?.speaker).toBeNull();
 });

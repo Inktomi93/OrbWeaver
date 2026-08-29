@@ -444,6 +444,18 @@ export interface ToggleReactionParams extends ChatScopedParams {
   readonly segmentSpeaker?: string | null | undefined;
 }
 
+/** The B7 segment-anchor trio as one PERSISTED value (`message_reactions.segment_*`; `null` at the write
+ *  seam = a whole-message reaction). Minted ONLY from the server's own canon parse (`mintSegmentAnchor` /
+ *  `resolveToSpeakerAnchor` in `verbs/reactions.ts`) — never from wire text. The SPEAKER may be null inside
+ *  a present anchor (a narration span has no label); the snippet may not (the schema CHECK). Homed here
+ *  (the domain's contract) because the write statement (`persistence/reactions.ts::insertReaction`) and
+ *  both writers share it. */
+export interface StoredSegmentAnchor {
+  readonly segmentIndex: number;
+  readonly segmentSpeaker: string | null;
+  readonly segmentSnippet: string;
+}
+
 /** `reactAsCharacter` (B7/MR5) — the `react` TOOL's write half: attach ONE emoji to the room's NEWEST
  *  committed message, attributed to a PRESENT character's seat. NOT a `ChatService` member: its one
  *  consumer is the composition root (the tool definition closes over it), so it ships as a standalone

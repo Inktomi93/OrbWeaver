@@ -89,7 +89,7 @@ const ROOM_ROUTES: Readonly<Record<string, unknown>> = {
   // regression inside the pill pipeline would have been invisible in every arm below. An EMPTY reaction set is
   // the honest fixture for these arms: they are about the FLANK's geometry, and a room where nobody has reacted
   // is both the common case and the one whose layout the silent-arm pins compare.
-  "chat.listReactions": () => [],
+  "chat.listReactions": () => ({ reactionsEnabled: true, groups: [] }),
   "chat.getChat": () => ({ participants: [], anchorPersonaId: null, cast: [], group: DEFAULT_GROUP_CONFIG }),
   "chat.previewContextFit": () => ({
     boundaryMessageId: null,

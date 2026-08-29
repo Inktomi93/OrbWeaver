@@ -1165,6 +1165,10 @@ describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
     // B1: this suite's rooms carry no `chatMetadata.offerChoices`, so the host default alone decides — OFF
     // keeps every prompt in this file byte-identical to its pre-B1 assertions.
     offerChoices: false,
+    // B7: the same argument per knob — the react tool stays unattached (its shipped default) and the
+    // reaction plane's ON is the do-nothing posture (no reactions exist in these rooms ⇒ no injection).
+    charactersCanReact: false,
+    reactionsEnabled: true,
   };
 
   test("custom stopping strings reach the generation request's stop set", async () => {

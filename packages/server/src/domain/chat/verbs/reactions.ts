@@ -52,11 +52,10 @@ import { parseSpeakerSpans, segmentSnippet } from "@orb/kit/speaker-label";
 import type { ChatContext } from "../context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
-import type { ListReactionsParams, ReactAsCharacterParams, ToggleReactionParams } from "../contract/params.ts";
+import type { ListReactionsParams, ReactAsCharacterParams, StoredSegmentAnchor, ToggleReactionParams } from "../contract/params.ts";
 import type { ReactAsCharacterOp } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
-import type { StoredSegmentAnchor } from "../persistence/reactions.ts";
 import {
   deleteReaction,
   insertReaction,

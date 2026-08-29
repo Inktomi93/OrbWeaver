@@ -13,6 +13,9 @@ import { expect, test } from "../../../../support/fixtures.ts";
 const populated: ChatSettings = {
   // B1: NON-default (the section owns it now) — a projection that dropped it would echo the default back.
   offerChoices: true,
+  // B7: both NON-default for the same reason (schema defaults are OFF and ON respectively).
+  charactersCanReact: true,
+  reactionsEnabled: false,
   enterSends: false,
   continueOnSend: false,
   generateOnEmptySend: false,
@@ -40,6 +43,8 @@ test("projectMessageHandlingForm flattens the nest and newline-joins the two lis
     customStoppingStrings: "###\nEND",
     tempChatTtlHours: 72,
     offerChoices: true,
+    charactersCanReact: true,
+    reactionsEnabled: false,
   });
 });
 
@@ -53,12 +58,15 @@ test("toMessageHandlingPatch writes exactly this section's owned keys — no sib
     "autoContinue",
     "autoContinueRounds",
     "autoSwipe",
+    // B7: the two per-user reaction DEFAULTS (the offerChoices twins) — owned here, same section.
+    "charactersCanReact",
     "continueOnSend",
     "customStoppingStrings",
     "enterSends",
     "generateOnEmptySend",
     // B1: the per-user DEFAULT offer-choices posture a room inherits — owned here since 171e4aa5e.
     "offerChoices",
+    "reactionsEnabled",
     "tempChatTtlHours",
   ]);
   // `autoSwipe` is claimed at the TOP-level key, and its one editor-less leaf (`maxRetries`) is omitted so
@@ -77,6 +85,8 @@ test("toMessageHandlingPatch restores the nest and splits the list fields back t
     customStoppingStrings: ["###", "END"],
     tempChatTtlHours: 72,
     offerChoices: true,
+    charactersCanReact: true,
+    reactionsEnabled: false,
   });
 });
 
