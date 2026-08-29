@@ -9,6 +9,11 @@
 // makes the CONTEXT panel BE the HUD on an engaged game chat. Same deps, same predicate, same one-directional
 // flow — the tabs supply the content, the region supplies the arrangement.
 
+// B8 (interaction-direction-spec §7): the two halves of "checks" the door wires into chat's registries —
+// the ASK is a game-arm control source (the `chat-controls` band); the RESULT is an in-thread tool renderer
+// (the `tool-renderers` registry). rpg NEVER imports chat, chat NEVER imports rpg; the door imports both.
+export { rpgDiceAskSource } from "./lib/dice-ask-source.tsx";
+export { rpgDiceToolRenderer } from "./lib/dice-tool-renderer.tsx";
 export { makeRpgContextTabs } from "./lib/rpg-context-section.tsx";
 export type { RpgContextTabsDeps } from "./lib/rpg-game-chat.ts";
 export { makeRpgHudRegion } from "./lib/rpg-hud-region.tsx";
