@@ -108,10 +108,12 @@ export function installAppReadySignal(queryClient: QueryClient, routeResolution:
     }
   };
   const unsubscribe = cache.subscribe(check);
+  // @orb-gate-ignore caught-failure-ownership(promise:ready): both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.
   ready.then(unsubscribe, unsubscribe);
   // A boot-critical dependent read clearing is the other event (besides a cache tick) that can unblock a
   // settle, so the signal re-checks when the gate changes — symmetric with the routeResolution subscription.
   const unsubscribeBootReads = bootReads.subscribe(check);
+  // @orb-gate-ignore caught-failure-ownership(promise:ready): both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.
   ready.then(unsubscribeBootReads, unsubscribeBootReads);
   requestAnimationFrame(() => {
     requestAnimationFrame(check);
@@ -142,6 +144,7 @@ export function installAppReadySignal(queryClient: QueryClient, routeResolution:
     armGrace();
     check();
   });
+  // @orb-gate-ignore caught-failure-ownership(promise:ready): both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.
   ready.then(unsubscribeRoute, unsubscribeRoute);
   armGrace();
   // The ceiling still guarantees "never hang a waiter", but it tells the truth about what it is handing over:

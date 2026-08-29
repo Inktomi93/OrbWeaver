@@ -99,6 +99,8 @@ export function tokenMatches(provided: string | undefined, expected: string | un
 }
 
 function parseLine(line: string): Record<string, unknown> | null {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): null is consumed by both collectLogs and
+  // collectErrors as "skip this ring line". Ends if either caller stops filtering out the null.
   try {
     const value: unknown = JSON.parse(line);
     return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
@@ -253,6 +255,8 @@ export function createDebugAuthMiddleware(opts: DebugAuthOptions | string | unde
   const config: DebugAuthOptions = typeof opts === "string" || opts === undefined ? { expectedToken: opts } : opts;
   return async (c: Context, next: Next) => {
     if (config.adminAuth !== undefined) {
+      // @orb-gate-ignore caught-failure-ownership(empty:catch): documented below — a checker error falls
+      // through to the token check, never opening the gate. Ends if the fallthrough is removed.
       try {
         if (await config.adminAuth.isAdmin(c.req.raw.headers)) {
           return await next();

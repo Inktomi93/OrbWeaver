@@ -42,6 +42,7 @@ function crashExit(label: string, e: unknown): never {
 export async function runTool(main: () => Promise<number> | number): Promise<void> {
   process.on("uncaughtException", (e) => crashExit("uncaught", e));
   process.on("unhandledRejection", (e) => crashExit("unhandled rejection", e));
+  // @orb-gate-ignore caught-failure-ownership(default:e): the exit-contract's own door — UsageError writes ARG ERROR and escalates misuse, anything else routes through crashExit which writes stderr, escalates toolError and hard-exits. Ends if a branch here stops writing stderr or escalating.
   try {
     escalate((await main()) as ExitCode);
   } catch (e) {

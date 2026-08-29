@@ -40,12 +40,14 @@ type AppReadiness = (typeof APP_READINESS)[number];
  *  `useAuthConfig` (`data/auth-config.ts`), so a settled app has read something. `__orb` is dev-only — a
  *  build without the bridge answers `null` and we make no claim rather than a false one. */
 async function everReadAnything(page: Page): Promise<boolean | null> {
+  // @orb-gate-ignore caught-failure-ownership(promise:evaluate): probe-whose-failure-is-its-return-value — a build without the __orb bridge, or a probe that throws, returns null and the caller "makes no claim rather than a false one" (doc comment above). Ends if a caller starts trusting null as a positive settle.
   const count = await page.evaluate("window.__orb ? window.__orb.queries().length : null").catch(() => null);
   return typeof count === "number" ? count > 0 : null;
 }
 
 async function appReadiness(page: Page, timeoutMs: number): Promise<AppReadiness> {
   const flag = page.locator("html[data-app-ready]");
+  // @orb-gate-ignore caught-failure-ownership(promise:waitFor): failure IS the return value — converts to attached=false, which becomes the "absent" readiness arm fed into UNSETTLED_REASON and reported as navError below. Ends if that reporting chain is removed.
   const attached = await flag
     .waitFor({ state: "attached", timeout: timeoutMs })
     .then(() => true)
@@ -165,6 +167,7 @@ function stepLabel(step: Step): string {
 // One step attempt + its settle. Returns the failure count (0 or 1) and prints its own reason —
 // a failing step never aborts the run, so the caller still gets a PNG of wherever the page ended up.
 async function driveStep(page: Page, step: Step): Promise<number> {
+  // @orb-gate-ignore caught-failure-ownership(empty:e): printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.
   try {
     await runStep(page, step);
     await settle(page, STEP_SETTLE_MS);
@@ -175,6 +178,7 @@ async function driveStep(page: Page, step: Step): Promise<number> {
     // step ONE retry after a settle, rather than reporting an environmental blip as an app failure.
     if (isContextChurn(msg)) {
       print(`${CHURN_LINE} — retrying: ${stepLabel(step)}`);
+      // @orb-gate-ignore caught-failure-ownership(empty:retryErr): the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read.
       try {
         await settle(page, STEP_SETTLE_MS);
         await runStep(page, step);
@@ -197,12 +201,15 @@ interface NavResultShape {
 // One nav action + its settle. Returns the failure count (0 or 1); each failure prints + reddens exit.
 async function driveNav(page: Page, action: NavAction): Promise<number> {
   // Every nav action needs the app hydrated AND the bridge installed — wait on both, gracefully bounded.
+  // @orb-gate-ignore caught-failure-ownership(promise:waitFor): gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures.
   await page
     .locator("html[data-app-ready]")
     .waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS })
     .catch(() => undefined);
   let result: NavResultShape;
+  // @orb-gate-ignore caught-failure-ownership(empty:e): printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read.
   try {
+    // @orb-gate-ignore caught-failure-ownership(promise:evaluate): a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures.
     await page.evaluate("window.__orb && window.__orb.ready").catch(() => undefined);
     result = (await page.evaluate(buildNavScript(action.kind, action.target))) as NavResultShape;
   } catch (e) {
@@ -269,6 +276,7 @@ export async function settlePage(page: Page, opts: Args): Promise<void> {
   if (opts.idle) {
     // Wait for the network to go quiet (bounded) — a real settle for routes whose
     // content lands via deferred queries, instead of guessing a timeout.
+    // @orb-gate-ignore caught-failure-ownership(promise:waitForLoadState): bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.
     // biome-ignore lint/nursery/noPlaywrightNetworkidle: explicit opt-in (--idle) with a hard bound — settling on network-quiet IS the flag's contract.
     await page.waitForLoadState("networkidle", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {
       /* bounded — a chatty stream must never block the shot */

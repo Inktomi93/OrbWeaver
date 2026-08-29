@@ -212,6 +212,80 @@ describe("mode-1 (Max sub) firewall", () => {
   });
 });
 
+// mode-1 isolation FAIL-CLOSED (#751 escalation). The mode-1 spawn runs against an ephemeral
+// CLAUDE_CONFIG_DIR that symlinks in ONLY the host `.credentials.json` — the host `~/.claude` also holds
+// skills/memory/settings that would leak into the (potentially adversarial) RP subprocess. Two distinct
+// no-symlink outcomes must NOT be conflated:
+//   • PATH 1 (host creds ABSENT): nothing to isolate → degrade to the un-isolated default (still firewalled).
+//   • PATH 2 (host creds PRESENT but the symlink FAILED): isolation could not be established → REFUSE the
+//     spawn. Silently degrading here would run the RP subprocess against the REAL ~/.claude — the leak.
+// The module memoizes its isolation decision, so these tests reset the module registry and re-import the
+// backend per case, mocking only the two fs calls the isolation path branches on: existsSync (scoped to the
+// credentials path) and symlinkSync (forced to fail). mkdtempSync/rmSync stay REAL, so the temp dir is
+// genuinely created and cleaned up — nothing to hand-shape or fabricate. The refusal surfaces as a
+// `ProviderError { kind: "forbidden", retryable: false }`, which `disciplineOptions` (mode-1 chat) and
+// `fetchAgentSdkModels` (model discovery) both propagate as a turn/discovery error rather than an un-isolated spawn.
+const CREDS_SUFFIX = ".credentials.json";
+const ISO_REFUSAL_RE = /mode-1 isolation could not be established/u;
+const AGENT_SDK_BARREL = "@orb/server/infra/providers/backends/agent-sdk";
+
+describe("mode-1 isolation FAIL-CLOSED (host creds present, symlink fails → refuse, never un-isolate)", () => {
+  afterEach(() => {
+    vi.doUnmock("node:fs");
+    vi.resetModules();
+  });
+
+  test("symlink FAILS with host creds present → REFUSES (throws forbidden), never returns an un-isolated env", async () => {
+    vi.doMock("node:fs", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("node:fs")>();
+      return {
+        ...actual,
+        // Host creds "present": only the credentials probe is forced true; every other existsSync is real.
+        existsSync: (p: Parameters<typeof actual.existsSync>[0]) => (typeof p === "string" && p.endsWith(CREDS_SUFFIX) ? true : actual.existsSync(p)),
+        // Isolation can't be established: the symlink into the (real) temp dir fails. mkdtempSync + rmSync stay
+        // real, so the temp dir is created and cleaned up for real — no fabricated fs return to hand-shape.
+        symlinkSync: (target: string, path: string) => {
+          throw new Error(`EPERM: operation not permitted, symlink '${target}' -> '${path}'`);
+        },
+      };
+    });
+    vi.resetModules();
+    const mod = await import(AGENT_SDK_BARREL);
+
+    let thrown: unknown;
+    try {
+      mod.buildClaudeSdkEnv();
+    } catch (err) {
+      thrown = err;
+    }
+    // FAIL-CLOSED: the build must REFUSE, not return. On the pre-fix source this catch stayed empty (the
+    // builder returned an env with NO CLAUDE_CONFIG_DIR override — the subprocess would inherit real ~/.claude).
+    expect(thrown, "mode-1 with a failed isolation symlink must throw, not silently run un-isolated").toBeDefined();
+    expect((thrown as Error).message).toMatch(ISO_REFUSAL_RE);
+    // Firewall semantics: a fail-closed denial, non-retryable (an auto-retry can't fix a broken isolation FS).
+    expect((thrown as { kind?: string }).kind).toBe("forbidden");
+    expect((thrown as { retryable?: boolean }).retryable).toBe(false);
+  });
+
+  test("PATH 1 — host creds ABSENT still degrades to the un-isolated default (no throw, no CLAUDE_CONFIG_DIR)", async () => {
+    vi.doMock("node:fs", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("node:fs")>();
+      return {
+        ...actual,
+        existsSync: (p: Parameters<typeof actual.existsSync>[0]) => (typeof p === "string" && p.endsWith(CREDS_SUFFIX) ? false : actual.existsSync(p)),
+      };
+    });
+    vi.resetModules();
+    const mod = await import(AGENT_SDK_BARREL);
+
+    const env = mod.buildClaudeSdkEnv();
+    // No creds to isolate: the documented degrade. It does NOT override the config dir (so the runtime uses
+    // its own default) and it does NOT throw — distinct from PATH 2 above.
+    expect(env["CLAUDE_CONFIG_DIR"]).toBeUndefined();
+    expect(env["ANTHROPIC_CONFIG_DIR"]).toBeUndefined();
+  });
+});
+
 // mode-3 (local vLLM loopback agent) was RETIRED 2026-07-27 (owner ruling): `buildClaudeVllmEnv` is deleted
 // — local vLLM chat runs on the chat-completions surface only. There is no agent-sdk×vllm env to firewall.
 

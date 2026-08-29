@@ -92,6 +92,7 @@ export async function runSteps(page: PageHandle, steps: readonly Step[]): Promis
       await settle(page, step.ms);
       continue;
     }
+    // @orb-gate-ignore caught-failure-ownership(empty:e): printed as a STEP FAILED line and counted into the failures total this function returns — its one caller (ops/run.ts) reads that count as the run's verdict, so the failure is not dropped. Ends if the returned count stops being read by the caller.
     try {
       await dispatchStep(page, idx, step);
       idx += 1;

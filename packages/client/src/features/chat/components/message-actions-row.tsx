@@ -249,6 +249,7 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
     if (fork.isPending) {
       return;
     }
+    // @orb-gate-ignore caught-failure-ownership(empty:catch): the fork mutation's sticky error + global errorToast already surfaced the failure. Ends if the mutation drops its errorToast.
     try {
       const result = await fork.mutateAsync({ chatId, throughSeq: message.seq });
       onChatForked?.(result.chat.id);

@@ -13,7 +13,6 @@ export interface SourceEntry {
 }
 
 function safeMtimeMs(path: string): number | null {
-  // @orb-gate-ignore caught-failure-ownership(default:error): ENOENT means this source vanished during the walk; every unreadable/unmeasurable error propagates so null cannot fabricate freshness. Ends if another absence code is supported.
   try {
     return statSync(path).mtimeMs;
   } catch (error) {
@@ -28,7 +27,6 @@ function walk(path: string, accept: (path: string) => boolean, into: SourceEntry
   // `Dirent<string>`, not `ReturnType<typeof readdirSync>`: that alias resolves to the BUFFER overload
   // (`Dirent<NonSharedBuffer>`) under node's current typings, and `entry.name` then isn't a string.
   let entries: Dirent<string>[];
-  // @orb-gate-ignore caught-failure-ownership(default:error): ENOTDIR is a single-file leaf and ENOENT is a vanished optional root; every unreadable directory error propagates. Ends if callers add another explicitly optional filesystem state.
   try {
     entries = readdirSync(path, { withFileTypes: true });
   } catch (error) {

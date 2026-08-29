@@ -448,6 +448,7 @@ async function fetchAndReduce(args: {
       });
     }
     if (!res.ok || res.body === null) {
+      // @orb-gate-ignore caught-failure-ownership(promise:readErrorBody): an error-body read failure falls back to res.statusText and the failure is STILL thrown as a secret-scrubbed ProviderError (providerErrorFromHttp) — propagated, not dropped, and secrets redacted by value. Ends if the throw below is removed.
       const text = await readErrorBody(res).catch((): string => "");
       throw providerErrorFromHttp(
         Object.assign(new Error(text.length > 0 ? text : res.statusText), {
@@ -463,6 +464,7 @@ async function fetchAndReduce(args: {
     let view: Awaited<ReturnType<typeof reduceChatCompletionStream>>;
     try {
       if (nonStreamJson) {
+        // @orb-gate-ignore caught-failure-ownership(promise:json): a non-stream JSON body that fails to parse collapses to null → an empty reduced view; the request already passed auth (res.ok checked above), so no credential/auth failure is hidden and no secret leaks — only a malformed post-auth provider body is absorbed. Ends if this runs before the res.ok/auth check.
         const json: unknown = await res.json().catch((): null => null);
         view = await reduceChatCompletionStream(oneChunk(reshapeChunk(json, withResponseMap(BODY_DEFAULT_MAP, responseMap))), reduceOpts);
       } else {

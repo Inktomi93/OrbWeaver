@@ -664,6 +664,9 @@ export function createRunChatTurnBridge(deps: {
         ? agentSdkChatRequest({ req, orSkinTierModels, onDelta })
         : arrayWireChatRequest({ req, onDelta, promptCacheMinDepth: deps.promptCacheMinDepth?.() ?? 0 });
 
+    // @orb-gate-ignore caught-failure-ownership(promise:runChatTurn): propagated — the rejection reaches
+    // `pump.fail(err)` in the `.catch` below, which the consuming `yield* pump.drain()` surfaces to the
+    // caller; never swallowed. Ends if `pump.fail` stops being read by the drain.
     void deps
       .runChatTurn(chatReq)
       .then((result) => {
@@ -736,6 +739,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     defaultPresetId: string | null,
   ): Promise<{ config: PromptConfig; presetId: PresetId | null }> => {
     if (presetOverride !== undefined) {
+      // @orb-gate-ignore caught-failure-ownership(empty:err): narrow rethrow — documented below: only a
+      // genuinely stale/unowned/missing override falls through to the host's default (the lenient-id rule,
+      // #759); a database/I/O/program failure rethrows below unhandled. Ends if #759's ruling changes.
       try {
         return { config: (await input.preset.get({ userId: runAsUserId, id: presetOverride })).config, presetId: presetOverride };
       } catch (err) {
@@ -890,6 +896,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
     resolveCredential: async ({ runAsUserId, source }) => input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
     maybeRevokeOnAuthFailed: async ({ runAsUserId, source, status }) => {
+      // @orb-gate-ignore caught-failure-ownership(empty:catch): best-effort cleanup — the trailing comment
+      // states the contract: never throw into the turn. A missed auto-revocation self-heals on the next
+      // auth failure. Ends if a caller starts depending on this revocation actually landing.
       try {
         // biome-ignore lint/style/noMagicNumbers: HTTP status codes
         if (status === 401 || status === 403) {
@@ -953,6 +962,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // through the character domain (chat stays character-table-blind, the getCard precedent); a gone card
     // fail-closes to [] rather than throwing into the member-card read.
     resolveCharacterTags: async ({ ownerId, characterId }) => {
+      // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.
       try {
         const detail = await input.character.get({ principal: hostPrincipal(ownerId), characterId });
         return detail.tags.map((t) => t.name);
@@ -978,6 +988,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       if (characterId === null || ownerId === null) {
         return { renderPolicy: resolvedFloor, themeOverride: null, backgroundOverride: null, card: null };
       }
+      // @orb-gate-ignore caught-failure-ownership(empty:catch): FAIL-CLOSED — the comment block above states
+      // the contract: a no-host/unreadable-card seat resolves to the bare global floor + a null card, never
+      // a throw into roster assembly. Ends if an unreadable card needs to surface distinctly from absence.
       try {
         const detail = await input.character.get({ principal: hostPrincipal(ownerId), characterId });
         return {
@@ -1015,6 +1028,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       }
 
       if (avatarAssetId === null) {
+        // @orb-gate-ignore caught-failure-ownership(empty:catch): optional-read-as-absent — a persona/handle
+        // display fact was already resolved above; this is the LAST-resort avatar enrichment, and a failed
+        // read just leaves `avatarAssetId` at its already-established `null`. Ends if this read becomes the
+        // only source of `displayName`/`handle`.
         try {
           const userSettings = await input.settings.loadUserSettings(userId);
           const raw = userSettings.profile.avatarAssetId ?? null;

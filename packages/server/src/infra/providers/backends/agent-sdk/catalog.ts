@@ -72,6 +72,7 @@ export async function fetchAgentSdkModels(deps: AgentSdkDeps): Promise<AgentSdkM
     });
   } finally {
     // Tear down the never-started turn so no generation is billed (best-effort).
+    // @orb-gate-ignore caught-failure-ownership(empty:catch): a best-effort turn teardown (interrupt) whose failure means the spawn is already gone — billing-cleanup only, no auth/credential decision; the discovery error itself is propagated by the outer catch. Ends if interrupt gains a caller-visible result.
     try {
       await stream.interrupt();
     } catch {

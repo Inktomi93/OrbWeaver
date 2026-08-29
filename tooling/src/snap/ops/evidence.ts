@@ -36,6 +36,7 @@ export async function captureEvals(page: Page, exprs: readonly string[]): Promis
   for (const expr of exprs) {
     let text: string;
     let failed = false;
+    // @orb-gate-ignore caught-failure-ownership(empty:e): captured into the EvalOutcome as `failed: true` + an "EVAL ERROR" text, pushed into `results` and returned to the caller that prints/counts it. Ends if `failed`/`text` stop being read from the outcome.
     try {
       const value: unknown = await page.evaluate(wrapEvalExpr(expr));
       text = value === undefined ? "undefined" : JSON.stringify(value, null, 2);
@@ -116,6 +117,7 @@ async function runAssertion(page: Page, assertion: Assertion, includeHidden: boo
   }
   const locator = page.locator(assertion.selector);
   if (assertion.kind === "visible") {
+    // @orb-gate-ignore caught-failure-ownership(promise:isVisible): probe-whose-failure-is-its-return-value — a locator failure converts to pass=false, which the very next line reports as ASSERT visible … FAIL. Ends if that FAIL line stops being printed/read.
     const pass = await locator
       .first()
       .isVisible()
@@ -128,6 +130,7 @@ async function runAssertion(page: Page, assertion: Assertion, includeHidden: boo
 export async function runAssertions(page: Page, assertions: readonly Assertion[], includeHidden: boolean): Promise<AssertionOutcome[]> {
   const outcomes: AssertionOutcome[] = [];
   for (const assertion of assertions) {
+    // @orb-gate-ignore caught-failure-ownership(empty:error): captured as an ERROR outcome line pushed into the returned outcomes array, which the caller counts as failed and reports. Ends if the outcomes array stops being read.
     try {
       outcomes.push(await runAssertion(page, assertion, includeHidden));
     } catch (error) {
@@ -138,6 +141,7 @@ export async function runAssertions(page: Page, assertions: readonly Assertion[]
 }
 
 export async function capturePerfEvidence(page: Page): Promise<PerfEvidence | null> {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — perf evidence is a nice-to-have from window.__orb, null on any failure (old build, dev-only bridge absent) and the caller treats null as "no perf evidence", never a failure. Ends if a caller starts requiring perf evidence to be present.
   try {
     return (await page.evaluate(`(() => {
       const nav = performance.getEntriesByType("navigation")[0];

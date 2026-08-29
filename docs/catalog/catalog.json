@@ -425,9 +425,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 370,
-      "bytes": 180338,
-      "sha256": "d1bd62e4505ed6393b65fb720196268d8c4a56bbda2a50ca7f696be033ab6f65",
+      "lines": 371,
+      "bytes": 183940,
+      "sha256": "2def101a8d741978c33ca0197aef121026add1e8ea000d2537579d9feeffa584",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -440,13 +440,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "e534a60d0299585480642e726bae73a84bc59b77244f04c1e53517aad75d0d91",
+        "assignedSha256": "2def101a8d741978c33ca0197aef121026add1e8ea000d2537579d9feeffa584",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "d1bd62e4505ed6393b65fb720196268d8c4a56bbda2a50ca7f696be033ab6f65",
-        "verifiedCommit": "f54644386fe554e92adbead60c2461d2e3fcace0",
-        "verifiedAt": "2026-08-27",
+        "verifiedSha256": "2def101a8d741978c33ca0197aef121026add1e8ea000d2537579d9feeffa584",
+        "verifiedCommit": "13a3effb34ff77d44ea070ff4baf87f33b59084a",
+        "verifiedAt": "2026-08-28",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -473,7 +473,9 @@
           "integration re-attestation 2026-08-25 (commit fac181a77): the merged route preserves both the OIDC back-channel body cap and the fail-closed sid-only rejection; all three new diagnostics now point to the #712 design, and the review-mirror contract derives its five-way pending classification from one tuple.",
           "delta re-attestation 2026-08-26 (#730, commit 4b727cf44): monotonic-tests now rejects pseudo-skip annotations while accepting genuine runner outcomes, and test-no-stubs distinguishes those runtime guards from skipped test declarations; suppressions records the retired noAwaitInLoops ceremony and the measured 159-row fully-ratified floor. The design and changed rows were read in full; focused gate conformance passed 8/8 and suppression/monotonic residuals passed 15/15 on the lane bytes.",
           "delta re-attestation 2026-08-26 (#750, commit 92011ffcf): the suppressions row now matches the shared governed typed-source predicate, exact directive-token detector, foreign-runtime fence, derived classification, and both-ways controls. useTopLevelRegex was removed from Layer 1. The full document and descriptor were re-read; focused gate conformance passed 8/8, residual/config tests passed 19/19, and the standalone real gate scanned 3,645 governed files clean with 310 ratified sites.",
-          "delta re-verify 2026-08-27 (#769, lane fix-e1-alias, content commit b287ab649): the owner-scoped-writes and owner-scoped-upserts rows changed only where the landed descriptors did — the writes row now states THREE biting shapes (the third being the unresolvable target and its chain-free declared limit) and the upserts row its second shape, and both record the full schema-ident denominator plus the declaration-kind-agnostic alias resolver. Every changed clause re-read against the descriptors; red-first against HEAD failed 8/8 on the let/var/unresolvable arms with their const controls passing, whole-corpus gate conformance passed 8/8 (30.1s, down from 45.5s at HEAD under comparable load), the two permanent pins passed 17/17, and both gates ran the real 1,394-file tree with ZERO findings before planted let/var/parameter bypasses produced four."
+          "delta re-verify 2026-08-27 (#769, lane fix-e1-alias, content commit b287ab649): the owner-scoped-writes and owner-scoped-upserts rows changed only where the landed descriptors did — the writes row now states THREE biting shapes (the third being the unresolvable target and its chain-free declared limit) and the upserts row its second shape, and both record the full schema-ident denominator plus the declaration-kind-agnostic alias resolver. Every changed clause re-read against the descriptors; red-first against HEAD failed 8/8 on the let/var/unresolvable arms with their const controls passing, whole-corpus gate conformance passed 8/8 (30.1s, down from 45.5s at HEAD under comparable load), the two permanent pins passed 17/17, and both gates ran the real 1,394-file tree with ZERO findings before planted let/var/parameter bypasses produced four.",
+          "delta re-verify 2026-08-28 (#751/#775): the new caught-failure-ownership ACTIVE row, the detached-work-traced row's bracket-link + position-disambiguation extension, and the 232->233 count line (enforcement-registry-parity reconciles it against loadGates(): 233 gate descriptors on the tree). Full read of the delta; scoped check:docs green",
+          "delta re-verify 2026-08-28 (#751/#775, post-merge of main 46c356b62): the only change since the prior attestation is the frontmatter updated: date, resolved to 2026-08-28 at the merge (both sides edited it the same day). The caught-failure-ownership ACTIVE row, the detached-work-traced bracket-link + position-disambiguation extension and the 233 count line are unchanged and re-read; 233 gate descriptors on the tree; scoped check:docs green (104 files)"
         ],
         "claims": [
           {
@@ -11506,9 +11508,9 @@
       "path": "docs/design/interaction-direction-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 642,
-      "bytes": 65876,
-      "sha256": "09b5ad5f85de936dabf9728bb26d9a1f95a7eb7ba1472bcee0561af0bb16e8b3",
+      "lines": 643,
+      "bytes": 67131,
+      "sha256": "35a23ecb0b8a5c8bb718bbf5e588dd9ebd1c89f48016de9f1c73cc1589d60458",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11525,16 +11527,17 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "09b5ad5f85de936dabf9728bb26d9a1f95a7eb7ba1472bcee0561af0bb16e8b3",
-        "verifiedCommit": "99b6ba2c619329ecb2bbc84ef68c6b1aa18a1644",
-        "verifiedAt": "2026-08-25",
+        "verifiedSha256": "35a23ecb0b8a5c8bb718bbf5e588dd9ebd1c89f48016de9f1c73cc1589d60458",
+        "verifiedCommit": "2c970e0196bfa79c2aa65d8c874c9a3bcbec40dc",
+        "verifiedAt": "2026-08-28",
         "evidence": [
           "docs/design/interaction-direction-spec.md read in full by the orchestrator before commit (1a7f20ed3); the needle ruling folded at both sites by the orchestrator after the owner's 2026-08-24 call",
           "consolidation of five sources into one: the panel-verified RULED spec + the IA placement table + the platform-axes audit + the juice catalogue + the real adversarial A-round (16 findings, 12 of 15 survivors changed)",
           "builder test (stickler, 4 sampled rows A1/B9/C5/preset-12): PASS-WITH-FOLDS, all six folds applied — a row is landable from this file alone",
           "the four docs/reviews/stickler/ interaction docs are provenance only; §10 points at them for the argument, never for the conclusion",
           "delta re-verify 2026-08-24 (bde3acca3): C7's row flipped from AFTER-the-review to UNBLOCKED (the D46 review #605 and all seven findings CLOSED and security-verified; #24 out of Parked), and gained §7-C7a — the integration seams folded in from docs/reviews/stickler/2026-08-24-automation-platform-axes.md §3, which was written against the BUILT membrane unlike the parked plugin set. Six clauses, each re-derived on the tree at fold time: run_tool as the zero-arm-growth extensibility shape (registerPluginTool wired at entry/compose/automation-plugin.ts), rules-reach vs turn-attach as two doors, pause-not-rot, the installer-not-caller ceiling (#610), reach-based upgrade re-consent (#615), and the standing membrane walls (#611/#613).",
-          "delta re-verify 2026-08-24 (9bc1cd142, lane cb-plugui-design — the spec was read IN FULL by this lane before the edit): the ONE changed passage is the new §7-C7b pointer block after §7-C7a — a one-home POINTER to docs/design/plugin-ui-plane.md (#679) naming its phases U0-U8, the six folded owner rulings, the §5a enablement price sheet, and two dated branch-side build-state receipts (D147 user-scoping 8340b7f87; seeded example plugins 79e89d255 — both verified NOT on local main at fold time via merge-base --is-ancestor); no other line changed and the typed claims are unaffected"
+          "delta re-verify 2026-08-24 (9bc1cd142, lane cb-plugui-design — the spec was read IN FULL by this lane before the edit): the ONE changed passage is the new §7-C7b pointer block after §7-C7a — a one-home POINTER to docs/design/plugin-ui-plane.md (#679) naming its phases U0-U8, the six folded owner rulings, the §5a enablement price sheet, and two dated branch-side build-state receipts (D147 user-scoping 8340b7f87; seeded example plugins 79e89d255 — both verified NOT on local main at fold time via merge-base --is-ancestor); no other line changed and the typed claims are unaffected",
+          "truth-repair re-verify 2026-08-28 (2c970e0196bfa79c2aa65d8c874c9a3bcbec40dc, lane spec-truthrepair — receipts re-derived against the shipped tree per docs/reviews/stickler/2026-08-28-interaction-program-soundness.md): §7-C7a.1 corrected to state run_tool's deliberate builtin narrowing (arm-executors.ts:18-30, D146-d, verified against source); B4's phantom suggestOnRefusal knob corrected to the recorded-unbuilt per-rule opt-out (dispatch.ts:208-212); §4 row 20 and §7-C7b's build-state receipts flipped from in-flight/branch-pending to LANDED (C5; D147/#675 8340b7f87; the seeded plugins 79e89d255 — both confirmed on local main via git log); preset 6 annotated with its authoritative built name. No other line changed; typed claims above are unaffected"
         ],
         "summary": "THE ONE build-from specification for the interaction direction: inside/outside taxonomy + class walls, the authority law and seven authoring laws, the S1-S7 substrate (control seam, teaching seam with tool-attach, presets, suggest/confirm, quiet-analysis arm, run_tool bridge, trigger batch), the 20-row preset catalogue, the A/B/C path with per-row test/merge-class/knobs/home, the purged-capability disposition table, revamps R1-R7, and every ruling. Zero open items. §7-C7b (added 2026-08-24) points at the one-homed plugin UI plane design (docs/design/plugin-ui-plane.md, #679) — pointer, phases and rulings only.",
         "claims": [

@@ -30,7 +30,6 @@ export async function probeEngineAdoption(
   expectedModels: readonly string[],
   request: typeof fetch = fetch,
 ): Promise<string | null> {
-  // @orb-gate-ignore caught-failure-ownership(empty:error): the returned identity-probe failure is printed as a tool error and refuses adoption/spawn. Ends if this string can be treated as a successful identity verdict.
   try {
     const [modelsResponse, openapiResponse] = await Promise.all([
       request(`http://127.0.0.1:${port}/v1/models`, { signal: AbortSignal.timeout(IDENTITY_PROBE_TIMEOUT_MS) }),

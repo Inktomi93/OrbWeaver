@@ -325,6 +325,8 @@ const exprHandler: MacroHandler = (args, ctx) => {
     pushExprError(ctx, parsed.message);
     return "";
   }
+  // @orb-gate-ignore caught-failure-ownership(default:err): documented — macros never throw into assembly;
+  // a CEL eval failure renders "" + a diagnostic via pushExprError. Ends if pushExprError stops being called.
   try {
     return coerceExprResult(evalCel(parsed, ctx.celBindings ?? {}));
   } catch (err) {

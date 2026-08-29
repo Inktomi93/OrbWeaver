@@ -47,6 +47,10 @@ function eraseDefinition<A>(def: ToolDefinition<A>): RegisteredTool {
         throw err; // a non-policy throw from the gate is an infrastructure bug — propagate
       }
       let outcome: RunOutcome;
+      // @orb-gate-ignore caught-failure-ownership(empty:err): errors-as-data — a thrown handler failure
+      // becomes the `"threw"` `RunOutcome` arm, which `serializeOutcome` (execute-tool-calls.ts) turns into
+      // an error-outcome the model reads and can retry, mirroring the sibling `denied`/`invalid` arms. Ends
+      // if a handler throw needs to abort the whole tool round instead of failing just this call.
       try {
         const result = await def.handler(parsed.data, exec);
         outcome = result.ok ? { kind: "result", ok: true, value: JSON.stringify(result.value) } : { kind: "result", ok: false, value: result.error };

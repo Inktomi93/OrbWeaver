@@ -369,6 +369,9 @@ export function executeRegexScripts(args: ExecuteRegexScriptsArgs): string {
       continue;
     }
 
+    // @orb-gate-ignore caught-failure-ownership(empty:err): documented in the JSDoc above — caught and
+    // reported via onScriptFailure so one bad regex can't poison the list. Ends if onScriptFailure stops
+    // being called.
     try {
       const regex = compilePattern(script, ctx);
       result = applyReplace(result, regex, makeReplacer(script, ctx));

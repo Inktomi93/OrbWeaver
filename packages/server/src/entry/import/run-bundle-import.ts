@@ -93,6 +93,9 @@ async function importEntity(
       break;
     }
     const path = `${entity.dir}${staged.filename}`;
+    // @orb-gate-ignore caught-failure-ownership(empty:err): bookkeeping — the failure is recorded as an
+    // `ok: false` outcome (with message) pushed into `outcomes`, the function's own return value; one bad
+    // file never aborts the batch. Ends if `outcomes` stops being read by the caller.
     try {
       const bytes = await staged.read();
       const result = await entity.importFile(ownerId, { filename: staged.filename, bytes });

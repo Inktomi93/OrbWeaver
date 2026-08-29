@@ -16,6 +16,8 @@ export type {
   RenderSite,
   SurfaceManifest,
 } from "./contract/baseui.ts";
+export type { CaughtFailurePopulation, CaughtFailureRow, CaughtFailureTotals, CaughtFailureVerdict } from "./contract/caught-failure.ts";
+export { CAUGHT_FAILURE_VERDICTS } from "./contract/caught-failure.ts";
 export type {
   ExemptionRow,
   ExemptionTable,
@@ -73,6 +75,7 @@ export { compareSchemaBaseline, runDbBaselineParity } from "./ops/db-baseline-pa
 export type { Ledger } from "./ops/debt.ts";
 export { LEDGERS, readLedgerRows, reconcileLedgers, runDebtWalk } from "./ops/debt.ts";
 export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";
+export { deriveCaughtFailurePopulation, generateCaughtFailurePopulation, POPULATION_REL } from "./ops/gen/caught-failure-population.ts";
 export { generateDensityBaseline } from "./ops/gen/density.ts";
 export { generateDuplicateActionDoorsBaseline } from "./ops/gen/duplicate-action-doors.ts";
 export { generateOverArtPlateBaseline } from "./ops/gen/over-art-plate-arm.ts";

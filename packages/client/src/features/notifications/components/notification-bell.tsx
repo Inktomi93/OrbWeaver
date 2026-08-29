@@ -200,6 +200,9 @@ function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): React
       return;
     }
     actionOwned.current = true;
+    // @orb-gate-ignore caught-failure-ownership(promise:work): every `work` this wraps (accept/decline/
+    // acceptHandoff/dismiss) carries its own errorToast — the toast is the surface. Ends if a new `work`
+    // caller lacks an errorToast.
     void work()
       .catch(() => undefined)
       .finally(() => {

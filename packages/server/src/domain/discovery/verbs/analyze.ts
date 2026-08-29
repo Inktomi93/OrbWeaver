@@ -71,6 +71,9 @@ async function compareCharactersDeep(
     return result.items[0]?.text ?? "";
   };
   let narrative: ComparisonNarrative;
+  // @orb-gate-ignore caught-failure-ownership(empty:err): narrow rethrow — only a validation failure
+  // (`StructuredOutputError`) degrades to `narrative.degraded: true` (surfaced to the caller as data); any
+  // engine/infra error rethrows below unhandled. Ends if a new caller needs a validation failure to propagate.
   try {
     const p = await runStructuredTurn({ payloadSchema: NARRATIVE_PAYLOAD, run, onRetry: traceStructuredRetry("compare-narrative") });
     narrative = { summary: p.summary.trim(), overlap: p.overlap.trim(), distinction: p.distinction.trim(), degraded: false };
@@ -125,6 +128,9 @@ async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: Chara
   let answer: string;
   let grounded: boolean;
   let degraded: boolean;
+  // @orb-gate-ignore caught-failure-ownership(empty:err): narrow rethrow — only a validation failure
+  // (`StructuredOutputError`) degrades to `degraded: true` (surfaced to the caller as data); any engine/infra
+  // error rethrows below unhandled. Ends if a new caller needs a validation failure to propagate.
   try {
     const p = await runStructuredTurn({ payloadSchema: ANSWER_PAYLOAD, run, onRetry: traceStructuredRetry("ask-card") });
     answer = p.answer.trim();

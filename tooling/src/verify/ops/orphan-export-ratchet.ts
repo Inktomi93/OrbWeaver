@@ -234,6 +234,7 @@ export function runOrphanRatchet(root: string, argv: readonly string[]): number 
   const update = argv.includes("--update");
   let scan: Scan;
   let baseline: Baseline;
+  // @orb-gate-ignore caught-failure-ownership(empty:err): printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced.
   try {
     baseline = readBaseline(root);
     scan = scanTree(root);

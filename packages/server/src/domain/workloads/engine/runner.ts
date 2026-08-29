@@ -90,6 +90,9 @@ function createLeaseWriter(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, c
       return;
     }
     let next: Promise<void>;
+    // @orb-gate-ignore caught-failure-ownership(empty:err): converts a SYNCHRONOUS throw into a rejected
+    // `next` so the promise-chain contract below (`.then` with a reject handler that fails the lease) still
+    // sees it — not a swallow, the error flows on as `next`'s own rejection.
     try {
       // Preserve report()'s existing contract: the first durable write starts synchronously. Later monitor
       // work chains behind it so heartbeat/cancel reads cannot reorder or escape the runner lifecycle.
@@ -99,6 +102,9 @@ function createLeaseWriter(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, c
     }
     idle = false;
     tail = next;
+    // @orb-gate-ignore caught-failure-ownership(promise:next): the reject handler classifies + owns the
+    // failure — flips `failed`, aborts the controller, and rejects the `failure` promise with a
+    // `LeaseFailure` that `runWorkload`'s `Promise.race` below observes. Never dropped.
     next.then(
       () => {
         if (tail === next) {
@@ -287,6 +293,9 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
   );
   let leaseFailed = false;
   let outcome: { readonly kind: "success"; readonly result: unknown } | { readonly kind: "failure"; readonly err: unknown; readonly aborted: boolean };
+  // @orb-gate-ignore caught-failure-ownership(empty:err): fully classified below into `outcome` (LeaseFailure
+  // vs contribution failure vs abort), consumed by `finalizeFailure`/`finalizeSuccess` further down — the
+  // function docstring: "it never throws (every outcome is recorded on the row + the bus)."
   try {
     const result = await Promise.race([contribution, lease.failure]);
     outcome = { kind: "success", result };
@@ -307,8 +316,14 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
   if (leaseFailed) {
     // A lease failure aborts the contribution, but abort is cooperative. Do not stamp a terminal row while
     // the contribution is still unwinding (or still able to write); the runner owns that Promise to settlement.
+    // @orb-gate-ignore caught-failure-ownership(promise:contribution): `outcome` already carries the
+    // classified failure from the LeaseFailure catch above — this only waits out the contribution's own
+    // unwind so a terminal row isn't stamped mid-write; the contribution's own error handling (its own
+    // caller/span) already owns reporting it.
     await contribution.catch(() => undefined);
   }
+  // @orb-gate-ignore caught-failure-ownership(empty:err): reclassifies `outcome` to failure, consumed by the
+  // `finalizeFailure` branch immediately below — never dropped.
   try {
     await lease.drain();
   } catch (err) {
@@ -318,6 +333,8 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
     await finalizeFailure(deps, row, { aborted: outcome.aborted, err: outcome.err });
     return;
   }
+  // @orb-gate-ignore caught-failure-ownership(empty:err): a finalize-success failure is reclassified and
+  // re-finalized as a failure via `finalizeFailure` on the next line — never dropped.
   try {
     await finalizeSuccess(deps, row, { aborted: controller.signal.aborted, result: outcome.result });
   } catch (err) {

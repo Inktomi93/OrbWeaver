@@ -446,6 +446,9 @@ async function storeCollectedBackgrounds(
     if (deps.signal.aborted) {
       break;
     }
+    // @orb-gate-ignore caught-failure-ownership(empty:err): bookkeeping — the failure is recorded into
+    // `skipped` (with reason), the function's own return value; one bad background never aborts the batch.
+    // Ends if `skipped` stops being read by the caller.
     try {
       const stored = await store({
         principal: deps.principal,
@@ -688,6 +691,9 @@ async function importOrphanBundles(
     if (deps.signal.aborted) {
       break;
     }
+    // @orb-gate-ignore caught-failure-ownership(empty:err): bookkeeping — the failure is recorded into
+    // `orphanSkipped` (with reason), part of the function's own return value; one bad orphan directory
+    // never aborts the batch. Ends if `orphanSkipped` stops being read by the caller.
     try {
       const mint = await service.importOrphanCharacter({
         dirName: orphan.dirName,
@@ -799,6 +805,9 @@ async function importCollectedBundles(
     if (deps.signal.aborted) {
       break;
     }
+    // @orb-gate-ignore caught-failure-ownership(empty:err): bookkeeping — the failure is recorded into
+    // `skippedCards` (with reason), part of the function's own return value; one bad card bundle never
+    // aborts the batch. Ends if `skippedCards` stops being read by the caller.
     try {
       const result = await importOneBundle(service, bundle);
       changed += result.changed;
@@ -1030,6 +1039,9 @@ function direntKind(e: Dirent): FsEntry["kind"] {
 export function createNodeFsImportPort(): ImportFsPort {
   return {
     readdir: async (dir): Promise<readonly FsEntry[]> => {
+      // @orb-gate-ignore caught-failure-ownership(default:catch): documented above — the PORT'S OWN contract
+      // states `readdir` resolves `[]` for a missing/unreadable dir, never throwing (a profile may carry
+      // only one subdir). Ends if the port contract changes to distinguish missing from unreadable.
       try {
         const ents = await readdirFs(dir, { withFileTypes: true });
         return ents.map((e): FsEntry => ({ name: e.name, kind: direntKind(e) }));
