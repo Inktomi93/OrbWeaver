@@ -2116,5 +2116,29 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(pluginStill[0]?.grantedCapabilities).toEqual(["chat.read"]); // setGrant never widened A's grant
     expect(pluginStill[0]?.netHosts).toEqual(["api.vendor.example"]); // the egress wall was not re-pointed
     expect(pluginStill[0]?.status).toBe("disabled"); // setEnabled never booted A's guest code as the stranger
+    // ── #755 — WRITE-authority for the owner-scoped E5 candidates the marker detector is STRUCTURALLY BLIND
+    //    to. An UPDATE probe OVERWRITES A's marker field with the attacker's value ("hacked"), and a DELETE
+    //    probe returns void, so a resolved probe carries no marker whether the write was REFUSED or SILENTLY
+    //    SUCCEEDED — the two are indistinguishable to `leakVerdict`. These four families had NO post-sweep
+    //    re-read, so a dropped owner predicate on persona.remove/update, preset.update/remove/resetToDefault,
+    //    worldInfo.updateBook/updateEntry/removeBook/removeEntry/attachToCharacter, or tag.updateTag/removeTag/
+    //    mergeTags resolved leak-free here (proven: dropping `eq(presets.ownerId, userId)` from updatePresetRow
+    //    left this suite GREEN). Re-reading A's row is the ONLY witness that the write's authority reached the
+    //    commit — the same posture the refinery/plugin/rpg re-reads above already carry for their write probes.
+    const personaStill = await ownerCaller.persona.get({ personaId: ids.personaId });
+    expect(personaStill.name).toBe(MARK.persona); // survived persona.remove; untouched by persona.update
+    const presetStill = await ownerCaller.preset.get({ id: ids.presetId });
+    expect(presetStill.name).toBe(MARK.preset); // survived preset.remove/resetToDefault; untouched by preset.update
+    const bookStill = await ownerCaller.worldInfo.getBook({ bookId: ids.bookId });
+    expect(bookStill.name).toBe(MARK.book); // survived removeBook; untouched by updateBook
+    const entryStill = await ownerCaller.worldInfo.getEntry({ entryId: ids.entryId });
+    expect(entryStill.title).toBe(MARK.entry); // untouched by the stranger's updateEntry/removeEntry probes
+    // world-info primary-book (E5): the stranger aimed A's book at A's character as `primary`; a dropped
+    // `ensureCharacterOwned` belt would MUTATE A's `character_books` junction. A's book has no seeded
+    // attachment, so an empty character list proves the stranger's attach never landed on A's world.
+    const bookAttachmentsStill = await ownerCaller.worldInfo.listAttachmentsForBook({ bookId: ids.bookId });
+    expect(bookAttachmentsStill.characters).toEqual([]);
+    const tagStill = (await ownerCaller.tag.listTags()).find((t) => t.id === ids.tagId);
+    expect(tagStill?.name).toBe(MARK.tag); // survived removeTag/mergeTags; untouched by updateTag
   });
 });
