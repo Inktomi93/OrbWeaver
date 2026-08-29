@@ -11,6 +11,7 @@ import process from "node:process";
 import { isUnsafeClaudeRuntimeEnvKey } from "@orb/contracts/preset";
 import { processEnvSnapshot } from "#foundation/env";
 import type { OrSkinTierModels } from "../../contract/index.ts";
+import { ProviderError } from "../../contract/index.ts";
 
 // Non-Claude-namespaced app secrets the child has no business seeing. These stay enumerated for the
 // entrypoint parity test even though the ambient baseline below is now allowlisted, not copied then denied.
@@ -173,8 +174,14 @@ function claudeUserEnv(userOverrides: Record<string, string | null> | undefined)
 }
 
 // mode-1 ephemeral CLAUDE_CONFIG_DIR with ONLY .credentials.json symlinked in — the default ~/.claude
-// also holds skills/memory/settings that leak into the spawned RP subprocess. Memoized one-per-process;
-// falls back to the un-isolated default (still firewalled) if no host credentials exist.
+// also holds skills/memory/settings that leak into the spawned (potentially adversarial) RP subprocess.
+// Memoized one-per-process. TWO no-symlink outcomes, kept DISTINCT (owner ruling, #751 — FAIL CLOSED):
+//   • host creds ABSENT   → nothing to isolate; degrade to the un-isolated default (still firewalled).
+//   • host creds PRESENT but the symlink FAILED → isolation could NOT be established; REFUSE the spawn.
+//     Silently degrading here would run the RP subprocess against the REAL ~/.claude — the leak. The
+//     refusal is a ProviderError the caller (disciplineOptions / fetchAgentSdkModels) surfaces as a turn
+//     error. NOT memoized: a transient FS failure self-heals on the next turn (the throw leaves
+//     `mode1IsolatedDir === undefined`, so this recomputes), and every attempt stays fail-closed.
 let mode1IsolatedDir: string | undefined | null;
 function mode1IsolatedConfigDir(): string | undefined {
   if (mode1IsolatedDir === undefined) {
@@ -186,15 +193,21 @@ function mode1IsolatedConfigDir(): string | undefined {
     const dir = mkdtempSync(join(tmpdir(), "orbweaver-claude-sub-"));
     try {
       symlinkSync(credSrc, join(dir, ".credentials.json"));
-    } catch {
+    } catch (cause) {
       // @orb-gate-ignore caught-failure-ownership(empty:catch): best-effort temp-dir cleanup on the symlink-failure path — the symlink already failed so `dir` holds no credential; a cleanup miss leaks only an empty tmp dir, never an auth decision. Ends if this cleanup becomes load-bearing or `dir` can ever hold a live credential.
       try {
         rmSync(dir, { recursive: true, force: true });
       } catch {
-        // best-effort cleanup
+        // best-effort cleanup of the temp dir; the isolation failure below is the fail-closed outcome.
       }
-      mode1IsolatedDir = null;
-      return;
+      // biome-ignore lint/style/useErrorCause: cause IS chained via the init object (`cause`) — the rule misses ProviderError's own cause-forwarding ctor.
+      throw new ProviderError({
+        kind: "forbidden",
+        retryable: false,
+        message:
+          "agent-sdk: mode-1 isolation could not be established (host credentials present, isolated config-dir symlink failed); refusing to run un-isolated.",
+        cause,
+      });
     }
     mode1IsolatedDir = dir;
     process.on("exit", () => {
