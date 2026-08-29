@@ -133,7 +133,11 @@ function GrantRow({ capability, checked, isNew, onToggle }: GrantRowProps): Reac
   const srName = isNew ? `${copy.label} (new in this update)` : copy.label;
   const interactive = onToggle !== undefined;
   const labelBlock = (
-    <Stack gap="tight">
+    // `cursor-pointer` when interactive: the WHOLE label row is the toggle's hit target (the bare `<label
+    // htmlFor>` below), but a raw `<label>` cannot carry the class (feature paint law — G16 bans className on
+    // a raw intrinsic), so the pointer affordance rides this Stack instead, matching the already-correct hit
+    // area (side-eye 2026-08-29 residual P3). Read-only rows stay default-cursor.
+    <Stack className={interactive ? "cursor-pointer" : undefined} gap="tight">
       <Row align="center" className="flex-wrap" gap="field">
         <Text voice="label">{copy.label}</Text>
         {/* An UNCHECKED read-only row's state, as a word beside the name it refuses — adjacent, where the
@@ -166,7 +170,10 @@ function GrantRow({ capability, checked, isNew, onToggle }: GrantRowProps): Reac
           </Badge>
         ) : null}
       </Row>
-      <Text id={consequenceId} prose={true} voice="gloss">
+      {/* `max-w-prose` caps the consequence to the house 65-75ch reading measure (side-eye 2026-08-29
+          residual P2): inside the re-consent callout these ran edge-to-edge near ~90ch. It is a length
+          statement, harmless on the wider install/distribute surfaces where the line rarely reaches the cap. */}
+      <Text className="max-w-prose" id={consequenceId} prose={true} voice="gloss">
         {copy.consequence}
       </Text>
     </Stack>

@@ -450,6 +450,15 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
 
   const notice = page.getByRole("alert").filter({ hasText: "stayed off" });
   await expect(notice).toBeVisible();
+  // THE NOTICE IS A LEADING ACCENT RULE, NOT A BORDERED BOX, AND CARRIES NO FILL (side-eye 2026-08-29
+  // residual P3 + the badge-AA guarantee). A full `/40` warning border nested a second box inside the
+  // plugin Card's own border (box-in-box, cheap at ~390px); a `bg-warning/10` fill composited the badge
+  // pills' translucent tints under AA ("New" 4.44:1, "Reaches further" 4.19:1). So the boundary is a
+  // 2px solid left rule with a transparent ground — a regression to either a full box or a tinted fill
+  // fails HERE, not just to the eye.
+  await expect(notice).toHaveCSS("border-left-width", "2px");
+  await expect(notice).toHaveCSS("border-top-width", "0px");
+  await expect(notice).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   // The row-level status also stops reading as a plain "Off" (P1-1) — the same durable flag that raised
   // the notice is what this badge reads, so the two can never disagree.
   await expect(page.getByText("Off — asked for more than you allowed")).toBeVisible();
