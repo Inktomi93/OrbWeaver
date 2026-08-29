@@ -319,7 +319,9 @@ test("switching to Automation shows ITS distinct content — the owner-global ru
   // the global lane's own surface. The control is asserted BY ITS LABEL, not by a placeholder string: the
   // `Field`-owned association is the thing that would break silently if a second `aria-label` were added.
   await expect(component.getByRole("textbox", { name: "Runs per hour" })).toHaveValue(String(OWNER_RATE_CEILING));
-  await expect(component.getByRole("button", { name: "Save limit" })).toBeVisible();
+  // The belt AUTOSAVES on blur/Enter now — there is no explicit "Save limit" button (the ruling survives,
+  // its mechanism changed from a discrete button to on-blur commit, matching every other numeric knob).
+  await expect(component.getByRole("button", { name: "Save limit" })).toHaveCount(0);
 
   // …and the pane's `description` is NOT on screen — the assertion that keeps this test honest about which
   // body arm rendered (a regression back to the placeholder arm would paint it and every check above would
