@@ -74,6 +74,9 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
       });
       cancelEditingMessage(message.id);
     } catch {
+      // @orb-gate-ignore caught-failure-ownership(empty:catch): useEditMessageMutation carries
+      // errorToast: "Couldn't save that edit." — the toast is the surface; staying in edit mode preserves the draft.
+      // Ends if the mutation drops its errorToast.
       // Stay in edit mode so the user can retry without retyping.
     }
   };
@@ -86,6 +89,9 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
     }
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
+      // @orb-gate-ignore caught-failure-ownership(promise:save): save() already catches the mutation's own
+      // errorToast-backed rejection internally; this outer catch is belt-and-suspenders. Ends if save() stops
+      // catching its own rejection.
       save().catch(() => undefined); // save owns the mutation failure and preserves the draft.
     }
   };

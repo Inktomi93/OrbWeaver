@@ -165,6 +165,9 @@ export function PluginSurfaceRenderer({
         sink.submit(actionId, merged);
         return;
       }
+      // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): the comment above explains — the
+      // mutation's own errorToast already told the person; this catch only keeps a handled rejection from
+      // surfacing as unhandled on this fire-and-forget path. Ends if that mutation drops its errorToast.
       void invoke
         .mutateAsync({ pluginId, surfaceId, actionId, values: merged, ...(chatId === undefined ? {} : { chatId }) })
         .then((outcome) => applyPluginUiOutcome(pluginId, outcome))

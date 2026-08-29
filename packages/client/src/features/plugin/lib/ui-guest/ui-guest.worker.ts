@@ -80,6 +80,9 @@ async function runToSettlement(state: GuestState, cpuMs: number, produce: () => 
   // a real monotonic clock so a frozen guest clock can never disable the kill.
   const startMs = performance.now();
   ctx.runtime.setInterruptHandler(() => performance.now() - startMs > cpuMs);
+  // @orb-gate-ignore caught-failure-ownership(empty:err): the failure message is returned to the caller
+  // (boot/deliver both post it back over the wire) — fully propagated, never swallowed. Ends if a caller
+  // stops forwarding this return value.
   try {
     const result = produce();
     if (result.error) {
@@ -177,12 +180,16 @@ function settleHostCall(message: Extract<UiGuestInbound, { kind: "hostResult" }>
 globalThis.onmessage = (event: MessageEvent<UiGuestInbound>): void => {
   const message = event.data;
   if (message.kind === "boot") {
+    // @orb-gate-ignore caught-failure-ownership(promise:boot): the failure message is posted back as a
+    // `ready:false` outbound message — fully propagated, never swallowed. Ends if that post call is removed.
     void boot(message).catch((err: unknown) => {
       post({ kind: "ready", ok: false, message: err instanceof Error ? err.message : String(err) });
     });
     return;
   }
   if (message.kind === "event") {
+    // @orb-gate-ignore caught-failure-ownership(promise:deliver): the failure message is posted back as a
+    // `settled:false` outbound message — fully propagated, never swallowed. Ends if that post call is removed.
     void deliver(message).catch((err: unknown) => {
       post({ kind: "settled", ok: false, message: err instanceof Error ? err.message : String(err) });
     });

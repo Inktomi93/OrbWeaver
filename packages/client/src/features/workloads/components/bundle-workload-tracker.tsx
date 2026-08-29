@@ -55,6 +55,9 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
     onSocketLive: () => {
       // A failed READ is not a failed IMPORT: leave the tracker running rather than converting a transient
       // read error into a terminal claim about the run — the same reasoning #222 applied to socket faults.
+      // @orb-gate-ignore caught-failure-ownership(promise:query): a failed read is intentionally silent (see the
+      // onSocketLive comment above) — a transient read error must not be converted into a terminal claim about
+      // the run; the tracker just keeps running. Ends if a read failure needs to surface a distinct UI state.
       trpcClient.workloads.get.query({ id }).then(
         (row) => {
           if (row.status === "succeeded") {

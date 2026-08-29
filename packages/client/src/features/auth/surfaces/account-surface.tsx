@@ -66,6 +66,9 @@ export function AccountSurface(): ReactElement {
           data-testid={testId("accountLogout")}
           onClick={(): void => {
             setSigningOut(true);
+            // @orb-gate-ignore caught-failure-ownership(promise:signOut): signOut() already catches internally and
+            // calls notify.error on failure; both settle arms here only reset the local pending flag. Ends if
+            // signOut() stops catching its own failure internally.
             signOut().then(
               (): void => setSigningOut(false),
               (): void => setSigningOut(false),
