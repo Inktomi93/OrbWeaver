@@ -68,10 +68,15 @@ re-apply leans on this", verbs/roster.ts:707). Everything else was rebuilt fresh
    `position`, re-stamp dense 0..n-1 (the doc's "stamp position from array order", honored after the
    sort).
 4. **`ApplyRosterPresetResult` gains `skipped`** — the doc's §4 text requires skipped/missing
-   members reported ("never an abort") while its §3 sketch omits the field. The FK CASCADE makes a
-   stale member nearly unreachable (a deleted character deletes its seat rows), so `skipped` catches
-   only the delete-mid-apply race: a `DomainNotFoundError` from `addCharacterToChat` is collected,
-   never rethrown.
+   members reported while its §3 sketch omits the field. The FK CASCADE makes a stale member nearly
+   unreachable (a deleted character deletes its seat rows), so `skipped` is the PRE-DRIVE re-verify
+   arm only: members failing the ownership re-check between the member read and the drive are dropped
+   and reported. A failure INSIDE the drive (an injected chat verb throwing — the sub-verify deletion
+   window, a dying room) SURFACES and aborts the loop — deliberately NOT collected (truth-repaired
+   after the pre-merge stickler, F3): classifying it would need cross-domain error-class sniffing, and
+   the additive + idempotent contract already makes a retry converge (landed seats re-classify
+   `alreadyPresent`). The program doc's "never an abort" letter is therefore narrowed to the
+   pre-drive arm.
 5. **`rosterPresetsChanged` joins the user bus.** The doc predates the `staleTime: Infinity` /
    bus-driven-freshness era; a library-CRUD read surface with no bus member is the exact H1/H3 class
    the event-bus coverage survey forced members for (contracts/user-bus header). One coarse member
@@ -100,7 +105,8 @@ re-apply leans on this", verbs/roster.ts:707). Everything else was rebuilt fresh
 - **One modal, three affordance families** (the program doc's §6 compressed into one surface):
   per-row **Start chat** (preset members in position order + anchor → the real `useStartChat`, then
   the `applyToChat` polish call — two calls is CORRECT, call 1 alone yields a valid room), per-row
-  **Add to this chat** (visible only when an active chat exists — `applyToChat`, result toast),
+  **Add to this chat** (visible only when a room is open AND the viewer HOSTS it — the doc's §6
+  capability-driven rule, tightened at the pre-merge stickler's F6; `applyToChat`, result toast),
   per-row **Delete** (ConfirmDialog), and **Save current party** (snapshots the OPEN chat's present
   character seats + knobs + groupConfig + anchor into `create` — author-by-example, reading
   `chat.getChat` from cache; rendered only when a chat is active and the viewer hosts it).

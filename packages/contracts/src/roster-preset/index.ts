@@ -96,10 +96,15 @@ export interface RosterPresetSummary {
   readonly updatedAt: number;
 }
 
-/** `applyToChat`'s outcome — additive + idempotent, never an abort: `added` minted fresh seats,
- *  `alreadyPresent` seats the room already held (knobs re-stamped either way), `skipped` members whose
- *  character vanished mid-apply (the FK CASCADE makes this a race arm, not a steady state — reported,
- *  never thrown), `configApplied` whether the preset carried a `groupConfig` that landed. */
+/** `applyToChat`'s outcome — additive + idempotent: `added` minted fresh seats, `alreadyPresent` seats
+ *  the room already held (knobs re-stamped either way), `configApplied` whether the preset carried a
+ *  `groupConfig` that landed. `skipped` is the PRE-DRIVE re-verify arm only: members whose character no
+ *  longer resolves under the owner when the apply re-checks (the FK CASCADE makes this a
+ *  delete-between-read-and-verify race, not a steady state) are dropped from the drive and reported
+ *  here. A failure INSIDE the drive (an injected chat verb throwing — e.g. the sub-verify deletion
+ *  window, or the room dying mid-apply) SURFACES and aborts the loop; it is NOT collected into
+ *  `skipped`. That is safe by construction: the apply is additive and every landed seat is idempotent,
+ *  so a retry converges (already-landed members classify `alreadyPresent`). */
 export interface ApplyRosterPresetResult {
   readonly added: readonly CharacterId[];
   readonly alreadyPresent: readonly CharacterId[];

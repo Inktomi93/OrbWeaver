@@ -6,6 +6,7 @@ import type { Db } from "@orb/db";
 import { characters, personas, rosterPresetMembers, rosterPresets, users } from "@orb/db";
 import type { CharacterId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { RosterPresetNotFoundError } from "@orb/server/domain/roster-preset";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import {
@@ -15,6 +16,7 @@ import {
   loadMemberRows,
   loadOwnedPresetRow,
   ownedPresetNameTaken,
+  updatePresetWithMembers,
 } from "../../../../../packages/server/src/domain/roster-preset/persistence/queries.ts";
 import { groupMemberViews } from "../../../../../packages/server/src/domain/roster-preset/substrate/members.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -94,6 +96,41 @@ describe("roster-preset persistence — FK physics", () => {
     await db.delete(users).where(eq(users.id, owner));
     expect(await db.select().from(rosterPresets)).toHaveLength(0);
     expect(await db.select().from(rosterPresetMembers)).toHaveLength(0);
+  });
+
+  test("updatePresetWithMembers with a MISMATCHED owner refuses leak-free and mutates NO cross-owner member (stickler F2 — the direct belt probe the verb path can't reach)", async () => {
+    const db = await freshDb();
+    const alice = (await seedUser(db)).id;
+    const bob = (await seedUser(db)).id;
+    const alicesChar = (await seedCharacter(db, { ownerId: alice, name: "AliceHero" })).id;
+    const bobsChar = (await seedCharacter(db, { ownerId: bob })).id;
+    const alicesPreset = await seedPreset(db, { id: "roster_preset_f2", ownerId: alice, name: "Alice's party", memberIds: [alicesChar] });
+
+    // Bob calls the persistence op DIRECTLY (bypassing the verb's owned read) with Alice's presetId.
+    // Pre-fix this no-op'd the row but WIPED+replaced Alice's member list — the half-belt.
+    await expect(
+      updatePresetWithMembers(db, {
+        ownerId: bob,
+        presetId: alicesPreset,
+        patch: { name: "stolen", description: "", anchorPersonaId: null, groupConfig: null, updatedAt: AT + 1 },
+        members: [{ characterId: bobsChar, position: 0, talkativeness: null, disabled: false }],
+      }),
+    ).rejects.toBeInstanceOf(RosterPresetNotFoundError);
+
+    // Alice's world is byte-untouched: her row AND her member list survive.
+    const row = await loadOwnedPresetRow(db, alice, alicesPreset);
+    expect(row?.name).toBe("Alice's party");
+    const members = await loadMemberRows(db, alicesPreset);
+    expect(members.map((m) => m.characterId)).toEqual([alicesChar]);
+
+    // POSITIVE CONTROL (non-vacuity): the SAME op under the RIGHT owner does replace the list.
+    await updatePresetWithMembers(db, {
+      ownerId: alice,
+      presetId: alicesPreset,
+      patch: { name: "Alice's party", description: "", anchorPersonaId: null, groupConfig: null, updatedAt: AT + 2 },
+      members: [{ characterId: alicesChar, position: 0, talkativeness: 0.9, disabled: false }],
+    });
+    expect((await loadMemberRows(db, alicesPreset))[0]?.talkativeness).toBe(0.9);
   });
 
   test("ownedPresetNameTaken: taken for a sibling, NOT taken for self (excludeId), owner-partitioned", async () => {
