@@ -962,9 +962,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // through the character domain (chat stays character-table-blind, the getCard precedent); a gone card
     // fail-closes to [] rather than throwing into the member-card read.
     resolveCharacterTags: async ({ ownerId, characterId }) => {
-      // @orb-gate-ignore caught-failure-ownership(empty:catch): FAIL-CLOSED — documented above: a gone card
-      // fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to
-      // surface distinctly from an infra failure.
+      // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.
       try {
         const detail = await input.character.get({ principal: hostPrincipal(ownerId), characterId });
         return detail.tags.map((t) => t.name);

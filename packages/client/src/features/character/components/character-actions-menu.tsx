@@ -63,9 +63,14 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
           onConfirm: confirmDelete,
         }}
       >
-        {/* @orb-gate-ignore caught-failure-ownership(promise:openRefinery): useOpenRefinery's own errorToast surfaces
-            the failure; a failed open just leaves the actor on this menu. Ends if useOpenRefinery drops its errorToast. */}
-        <MenuItem onClick={(): void => void openRefinery(characterId).catch(() => undefined)}>Open in Refinery</MenuItem>
+        <MenuItem
+          onClick={(): void => {
+            // @orb-gate-ignore caught-failure-ownership(promise:openRefinery): useOpenRefinery's own errorToast surfaces the failure; a failed open just leaves the actor on this menu. Ends if useOpenRefinery drops its errorToast.
+            void openRefinery(characterId).catch(() => undefined);
+          }}
+        >
+          Open in Refinery
+        </MenuItem>
         <MenuItem onClick={(): void => setDuplicateOpen(true)}>Duplicate</MenuItem>
         <MenuItem onClick={(): void => convert.mutate({ characterId, swapMacros: true })}>Convert to persona</MenuItem>
         <MenuItem
