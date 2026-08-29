@@ -66,6 +66,7 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
       cancel();
       return;
     }
+    // @orb-gate-ignore caught-failure-ownership(empty:catch): useEditMessageMutation carries errorToast "Couldn't save that edit." — the toast is the surface; staying in edit mode preserves the draft. Ends if the mutation drops its errorToast.
     try {
       await editMessage.mutateAsync({
         chatId: message.chatId,
@@ -74,9 +75,6 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
       });
       cancelEditingMessage(message.id);
     } catch {
-      // @orb-gate-ignore caught-failure-ownership(empty:catch): useEditMessageMutation carries
-      // errorToast: "Couldn't save that edit." — the toast is the surface; staying in edit mode preserves the draft.
-      // Ends if the mutation drops its errorToast.
       // Stay in edit mode so the user can retry without retyping.
     }
   };

@@ -4,11 +4,11 @@
   "totals": {
     "sites": 406,
     "enforced": 403,
-    "reported": 17,
+    "reported": 3,
     "byVerdict": {
-      "deliberate-absorb": 386,
+      "deliberate-absorb": 400,
       "detached-owned": 3,
-      "unproven": 17
+      "unproven": 3
     },
     "byGrammar": {
       "promise": 119,
@@ -397,15 +397,15 @@
     {
       "siteId": "packages/client/src/features/character/components/character-actions-menu.tsx::promise:openRefinery::1",
       "path": "packages/client/src/features/character/components/character-actions-menu.tsx",
-      "line": 68,
-      "column": 45,
+      "line": 69,
+      "column": 18,
       "grammar": "promise",
       "position": "promise:openRefinery",
       "ordinal": 1,
-      "snippet": "<MenuItem onClick={(): void => void openRefinery(characterId).catch(() => undefined)}>Open in Refinery</MenuItem>",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "snippet": "void openRefinery(characterId).catch(() => undefined);",
+      "verdict": "deliberate-absorb",
+      "reason": "useOpenRefinery's own errorToast surfaces the failure; a failed open just leaves the actor on this menu. Ends if useOpenRefinery drops its errorToast.",
+      "markerLine": 68
     },
     {
       "siteId": "packages/client/src/features/character/lib/character-chat-intents.ts::promise:startChat::1",
@@ -462,33 +462,33 @@
     {
       "siteId": "packages/client/src/features/chat/components/message-actions-row.tsx::empty:catch::1",
       "path": "packages/client/src/features/chat/components/message-actions-row.tsx",
-      "line": 256,
+      "line": 257,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "the fork mutation's sticky error + global errorToast already surfaced the failure. Ends if the mutation drops its errorToast.",
+      "markerLine": 252
     },
     {
       "siteId": "packages/client/src/features/chat/components/message-edit-textarea.tsx::empty:catch::1",
       "path": "packages/client/src/features/chat/components/message-edit-textarea.tsx",
-      "line": 76,
+      "line": 77,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "useEditMessageMutation carries errorToast \"Couldn't save that edit.\" — the toast is the surface; staying in edit mode preserves the draft. Ends if the mutation drops its errorToast.",
+      "markerLine": 69
     },
     {
       "siteId": "packages/client/src/features/chat/components/message-edit-textarea.tsx::promise:save::1",
       "path": "packages/client/src/features/chat/components/message-edit-textarea.tsx",
-      "line": 95,
+      "line": 93,
       "column": 7,
       "grammar": "promise",
       "position": "promise:save",
@@ -496,7 +496,7 @@
       "snippet": "save().catch(() => undefined); // save owns the mutation failure and preserves the draft.",
       "verdict": "deliberate-absorb",
       "reason": "save() already catches the mutation's own",
-      "markerLine": 92
+      "markerLine": 90
     },
     {
       "siteId": "packages/client/src/features/chat/hooks/use-guided-actions.ts::promise:streamImpersonation::1",
@@ -644,15 +644,15 @@
     {
       "siteId": "packages/client/src/features/persona/surfaces/persona-panel-surface.tsx::empty:catch::1",
       "path": "packages/client/src/features/persona/surfaces/persona-panel-surface.tsx",
-      "line": 82,
+      "line": 83,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "createEntityMutation's own errorToast already surfaced the failure — nothing to expand. Ends if useCreatePersona drops its errorToast.",
+      "markerLine": 79
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx::promise:mutateAsync::1",
@@ -839,15 +839,15 @@
     {
       "siteId": "packages/client/src/features/plugin/lib/plugin-tool-card-state.ts::empty:catch::1",
       "path": "packages/client/src/features/plugin/lib/plugin-tool-card-state.ts",
-      "line": 22,
+      "line": 20,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "the doc comment above explains — a plugin returning legitimate prose must render as prose, not an empty node; the raw string is the provenance-faithful fallback the binding root renders, not a swallow. Ends if the binding root stops accepting a raw-string fallback.",
+      "markerLine": 17
     },
     {
       "siteId": "packages/client/src/features/plugin/lib/ui-guest/plugin-ui-guest-host.ts::default:catch::1",
@@ -2009,15 +2009,15 @@
     {
       "siteId": "packages/server/src/domain/databank/ingest/index.ts::empty:error::1",
       "path": "packages/server/src/domain/databank/ingest/index.ts",
-      "line": 200,
+      "line": 198,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the accumulator records this document's failure (`acc.addFailure`), surfaced to the caller via `acc.result()`; the pass continues so one bad document never aborts the batch. Ends if `addFailure` stops being read by the returned result.",
+      "markerLine": 192
     },
     {
       "siteId": "packages/server/src/domain/databank/verbs/scrape/scrape-youtube.ts::default:catch::1",
@@ -2269,15 +2269,15 @@
     {
       "siteId": "packages/server/src/domain/refinery/persistence/queries.ts::empty:catch::1",
       "path": "packages/server/src/domain/refinery/persistence/queries.ts",
-      "line": 241,
+      "line": 239,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "self-heal — a lift failure means the stored custom schema no longer parses; `healedRun` emits the `HEAL_EVENT` span (observable) and the row reads as absent rather than crashing the run view. Ends if the heal event stops being read anywhere.",
+      "markerLine": 236
     },
     {
       "siteId": "packages/server/src/domain/refinery/substrate/schema-forge.ts::default:catch::1",
@@ -2711,15 +2711,15 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 971,
+      "line": 969,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
+      "markerLine": 965
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::1",
@@ -2737,7 +2737,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1004,
+      "line": 1002,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2745,12 +2745,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 993
+      "markerLine": 991
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::3",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1041,
+      "line": 1039,
       "column": 11,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2758,7 +2758,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 1033
+      "markerLine": 1031
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:err::1",
@@ -2919,41 +2919,41 @@
     {
       "siteId": "packages/server/src/entry/http/plugin-frame.ts::empty:catch::1",
       "path": "packages/server/src/entry/http/plugin-frame.ts",
-      "line": 142,
+      "line": 140,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "client-input — a malformed JSON body answers the caller a leak-free 400, the standard HTTP body-parse refusal. Ends if this stops being an entry-point body parse.",
+      "markerLine": 137
     },
     {
       "siteId": "packages/server/src/entry/http/plugin-frame.ts::empty:catch::2",
       "path": "packages/server/src/entry/http/plugin-frame.ts",
-      "line": 156,
+      "line": 152,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 2,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "leak-free collapse — documented below: a foreign/unknown pluginId, \"no such surface\", and \"grant revoked\" all answer the SAME NOT_FOUND, the card-frame doorway's fail-closed posture. Ends if a caller needs to distinguish those causes.",
+      "markerLine": 149
     },
     {
       "siteId": "packages/server/src/entry/http/plugin-ui.ts::empty:catch::1",
       "path": "packages/server/src/entry/http/plugin-ui.ts",
-      "line": 73,
+      "line": 71,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "leak-free collapse — documented below: every domain refusal (foreign plugin, torn CAS entry, unparseable bundle) collapses to ONE NOT_FOUND, the same containment `blob.ts` gives a torn blob. Ends if a caller needs to distinguish those causes.",
+      "markerLine": 68
     },
     {
       "siteId": "packages/server/src/entry/import/run-bundle-import.ts::empty:err::1",
@@ -3335,15 +3335,15 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/env.ts::empty:catch::1",
       "path": "packages/server/src/infra/providers/backends/agent-sdk/env.ts",
-      "line": 193,
+      "line": 192,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "best-effort removal of the ephemeral temp dir on the symlink-failure path; a cleanup miss leaks only an empty tmp dir, no credential/auth decision. Ends if the temp dir ever holds a live credential.",
-      "markerLine": 190
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/host-token.ts::default:catch::1",
@@ -4420,9 +4420,9 @@
       "position": "empty:e",
       "ordinal": 1,
       "snippet": "} catch (e) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "captured into outcome.navError, which the caller counts into the verdict's navigation total and prints as NAV ERROR. Ends if navError stops being read.",
+      "markerLine": 73
     },
     {
       "siteId": "tooling/src/snap/ops/contrast.ts::promise:evaluate::1",
@@ -4446,9 +4446,9 @@
       "position": "empty:e",
       "ordinal": 1,
       "snippet": "} catch (e) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.",
+      "markerLine": 170
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::2",
@@ -4544,7 +4544,7 @@
     {
       "siteId": "tooling/src/snap/ops/evidence.ts::default:catch::1",
       "path": "tooling/src/snap/ops/evidence.ts",
-      "line": 157,
+      "line": 158,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4552,25 +4552,25 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — perf evidence is a nice-to-have from window.__orb, null on any failure (old build, dev-only bridge absent) and the caller treats null as \"no perf evidence\", never a failure. Ends if a caller starts requiring perf evidence to be present.",
-      "markerLine": 144
+      "markerLine": 145
     },
     {
       "siteId": "tooling/src/snap/ops/evidence.ts::empty:e::1",
       "path": "tooling/src/snap/ops/evidence.ts",
-      "line": 44,
+      "line": 45,
       "column": 7,
       "grammar": "empty",
       "position": "empty:e",
       "ordinal": 1,
       "snippet": "} catch (e) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "captured into the EvalOutcome as `failed: true` + an \"EVAL ERROR\" text, pushed into `results` and returned to the caller that prints/counts it. Ends if `failed`/`text` stop being read from the outcome.",
+      "markerLine": 40
     },
     {
       "siteId": "tooling/src/snap/ops/evidence.ts::empty:error::1",
       "path": "tooling/src/snap/ops/evidence.ts",
-      "line": 136,
+      "line": 137,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -4578,12 +4578,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "captured as an ERROR outcome line pushed into the returned outcomes array, which the caller counts as failed and reports. Ends if the outcomes array stops being read.",
-      "markerLine": 133
+      "markerLine": 134
     },
     {
       "siteId": "tooling/src/snap/ops/evidence.ts::promise:isVisible::1",
       "path": "tooling/src/snap/ops/evidence.ts",
-      "line": 121,
+      "line": 122,
       "column": 24,
       "grammar": "promise",
       "position": "promise:isVisible",
@@ -4591,7 +4591,7 @@
       "snippet": "const pass = await locator",
       "verdict": "deliberate-absorb",
       "reason": "probe-whose-failure-is-its-return-value — a locator failure converts to pass=false, which the very next line reports as ASSERT visible … FAIL. Ends if that FAIL line stops being printed/read.",
-      "markerLine": 120
+      "markerLine": 121
     },
     {
       "siteId": "tooling/src/snap/ops/fixture.ts::default:catch::1",
@@ -5226,9 +5226,9 @@
       "position": "empty:err",
       "ordinal": 1,
       "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced.",
+      "markerLine": 148
     },
     {
       "siteId": "tooling/src/verify/ops/debt.ts::default:catch::1",

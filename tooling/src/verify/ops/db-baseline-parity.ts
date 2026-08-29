@@ -145,7 +145,7 @@ async function reportDevDbForecast(root: string): Promise<void> {
 export async function runDbBaselineParity(root: string): Promise<number> {
   await reportDevDbForecast(root);
   let result: SchemaBaselineComparison;
-  // @orb-gate-ignore caught-failure-ownership(default:err): printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced.
+  // @orb-gate-ignore caught-failure-ownership(empty:err): printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced.
   try {
     result = await compareSchemaBaseline(root);
   } catch (err) {

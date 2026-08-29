@@ -166,8 +166,8 @@ function stepLabel(step: Step): string {
 
 // One step attempt + its settle. Returns the failure count (0 or 1) and prints its own reason —
 // a failing step never aborts the run, so the caller still gets a PNG of wherever the page ended up.
-// @orb-gate-ignore caught-failure-ownership(empty:e): printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.
 async function driveStep(page: Page, step: Step): Promise<number> {
+  // @orb-gate-ignore caught-failure-ownership(empty:e): printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.
   try {
     await runStep(page, step);
     await settle(page, STEP_SETTLE_MS);
