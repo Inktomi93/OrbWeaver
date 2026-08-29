@@ -48,6 +48,7 @@ function actionLabel(action: AuditAction): string {
  *  the WRONG surface is worse than no scan, so an action that didn't land is never silent. The nav arm is
  *  the shared bridge vocabulary (_shared/nav.ts), identical to snap's and the two motion probes'. */
 async function driveAction(page: AuditPage, action: AuditAction, waitMs: number): Promise<number> {
+  // @orb-gate-ignore caught-failure-ownership(empty:e): printed as ACTION FAILED and returned as 1 — the JSDoc above states an action that didn't land is never silent and reddens the audit's verdict through this return value. Ends if the returned count stops being summed into the verdict.
   try {
     if (action.kind === "click") {
       const loc = page.locator(action.selector).first();
@@ -81,6 +82,7 @@ export async function navigateAndReveal(page: AuditPage, opts: Args, url: string
   // Graceful for a `file://` fixture (which never runs the app) — but the OUTCOME is now reported, because
   // on an app origin a missing readiness signal means the walk is about to census a shell (lib/evidence.ts
   // `readinessGap`, #678).
+  // @orb-gate-ignore caught-failure-ownership(promise:waitFor): the comment above states the outcome IS reported — appReady:false feeds lib/evidence.ts's readinessGap check (#678), so a missing readiness signal is surfaced as a verdict input, not swallowed. Ends if appReady stops being read downstream.
   const appReady = await page
     .locator("html[data-app-ready]")
     .waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS })
