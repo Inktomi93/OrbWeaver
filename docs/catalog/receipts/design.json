@@ -2217,12 +2217,12 @@
     },
     {
       "path": "docs/design/card-atlas-art-forward.md",
-      "assignedSha256": "f420df59bfcdba9e2f97c72a67d8fd61abe3a8dca0cf5b04c62c18f472181629",
+      "assignedSha256": "d0e1b186f26b77b57325c26a1f9a4631fc2e6e1303eead2e8e989ae3802c3850",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "f420df59bfcdba9e2f97c72a67d8fd61abe3a8dca0cf5b04c62c18f472181629",
-      "verifiedCommit": "bf548270384e39cba31385a29eb45e1ac08e9e27",
+      "verifiedSha256": "d0e1b186f26b77b57325c26a1f9a4631fc2e6e1303eead2e8e989ae3802c3850",
+      "verifiedCommit": "c7dbfa525429962b19286de2e3e250288a4afa9e",
       "verifiedAt": "2026-08-29",
       "evidence": [
         "docs/design/card-atlas-art-forward.md:1 (authored + built in the same lane; every §1 premise live-probed or path:line-cited)"
