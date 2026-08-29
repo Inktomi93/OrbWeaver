@@ -30,8 +30,37 @@ export interface CardFrameRequest {
 /** Per-tab memo so a re-render, a collapse/expand, or a lightbox open re-uses one handle instead of minting
  *  a fresh document per paint. Keyed on the SERIALIZED REQUEST BODY, which is both the natural cache key
  *  and the effect's only dependency — a theme flip or a different character changes the bytes, hence the
- *  key, hence mints anew rather than serving a frame built under a stale palette or a stale policy. */
+ *  key, hence mints anew rather than serving a frame built under a stale palette or a stale policy.
+ *
+ *  BOUNDED (#711 D3): each distinct body is a fresh key, so a long session with many theme flips / cards
+ *  would grow this map without limit. `rememberBounded` caps it at {@link MINTED_CACHE_CAP} with LRU
+ *  eviction — a re-served frame just re-mints, which is exactly what a genuinely-evicted stale key already does. */
 const minted = new Map<string, Promise<string | undefined>>();
+
+/** Cap on the per-tab mint memo. Comfortably above the handful of distinct card bodies a chat shows at once;
+ *  older keys (a since-replaced theme, a closed archive) evict rather than accreting for the tab's lifetime. */
+const MINTED_CACHE_CAP = 128;
+
+/**
+ * Insert `value` under `key` in a bounded LRU map: an existing key is re-inserted at the tail (a touch), and
+ * once the map holds `cap` entries the OLDEST evicts before a new key lands — so the map can never grow past
+ * `cap`. Mutates `map` in place (Map preserves insertion order, which IS the LRU order here). The
+ * module-private `minted` memo is its one production caller; exported so the bounding — invisible through the
+ * hook — can be pinned directly.
+ *
+ * @public Test-anchored module surface.
+ */
+export function rememberBounded<K, V>(map: Map<K, V>, key: K, value: V, cap: number): void {
+  if (map.has(key)) {
+    map.delete(key);
+  } else if (map.size >= cap) {
+    const oldest = map.keys().next();
+    if (!oldest.done) {
+      map.delete(oldest.value);
+    }
+  }
+  map.set(key, value);
+}
 
 /** The wire body for one card. Pure + exported so the shape is testable without a browser. */
 export function cardFrameMintBody(request: CardFrameRequest): CardFrameMintRequest {
@@ -89,7 +118,7 @@ export function useCardFrameSrc(request: CardFrameRequest | undefined): string |
     }
     let live = true;
     const pending = minted.get(body) ?? mintCardFrame(body);
-    minted.set(body, pending);
+    rememberBounded(minted, body, pending, MINTED_CACHE_CAP);
     // @orb-gate-ignore caught-failure-ownership(promise:pending): mintCardFrame's own catch already collapsed any failure to `undefined`; the reject arm here only exists for symmetry and sets the same render-floor state as the resolve arm. Ends if mintCardFrame stops swallowing its own failures.
     pending.then(
       (url) => {

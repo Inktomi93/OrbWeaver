@@ -10,6 +10,7 @@ import type { VariantKind } from "@orb/contracts/assets";
 import { BLOB_ROUTE, variantKindSchema } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { SessionId, UserId } from "@orb/kit/ids";
+import { sniffMime } from "@orb/kit/image-sniff";
 import type { Hono } from "hono";
 import type { AssetMetadata } from "#domain/assets";
 import { getLog } from "#foundation/observability";
@@ -159,7 +160,13 @@ async function serveVariant(
   if (variant === undefined) {
     return new Response(null, { status: NOT_FOUND });
   }
-  return serveBytes(variant, WEBP_MIME);
+  // The resolver RE-ENCODES a static original to webp but serves an ANIMATED gif/apng/webp original VERBATIM
+  // (sharp's webp encoder drops animation). Sniff the bytes actually being served so an animated gif isn't
+  // mislabeled `image/webp` (a still webp) — the sniffed type IS the served format on every arm. A buffer that
+  // sniffs to nothing (never a real variant) falls back to the historic webp label rather than an octet-stream
+  // download, preserving the "serve what we can as an image" spirit.
+  const sniffed = sniffMime(variant);
+  return serveBytes(variant, sniffed === OCTET_STREAM ? WEBP_MIME : sniffed);
 }
 
 function serveBytes(bytes: Uint8Array, mime: string): Response {

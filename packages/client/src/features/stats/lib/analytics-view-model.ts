@@ -47,6 +47,8 @@ export const ANALYTICS_DEFAULT_SORT = "assistantTurns" as const;
 const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60_000;
 const MS_PER_HOUR = 3_600_000;
+const SECONDS_PER_MINUTE = 60;
+const MINUTES_PER_HOUR = 60;
 const THOUSAND = 1000;
 const MILLION = 1_000_000;
 const PERCENT = 100;
@@ -68,21 +70,35 @@ const EM_DASH = "—";
  *  they expected a number needs to be told it means "never measured", not "measured zero". */
 export const UNRECORDED_NOTE = "A dash means the figure was never recorded — imported histories and agent-sdk turns carry no token or cost accounting.";
 
-/** A human duration: `340ms` · `1.2s` · `3m 20s` · `2h 5m`. */
+/** A human duration: `340ms` · `1.2s` · `3m 20s` · `2h 5m`. Rounding at a unit boundary CARRIES into the
+ *  next unit — a value that rounds to 60s reads `1m 0s`, not `60.0s`; 60s-of-remainder reads `Nm+1 0s`, not
+ *  `Nm 60s`; 60m-of-remainder reads `Nh+1 0m`. Each tier rounds to its own precision first, then promotes
+ *  when the rounded component reaches the next unit, so no out-of-range component is ever printed. */
 export function formatDurationMs(ms: number): string {
   if (ms < MS_PER_SECOND) {
     return `${Math.round(ms)}ms`;
   }
   if (ms < MS_PER_MINUTE) {
-    return `${(ms / MS_PER_SECOND).toFixed(SECONDS_PRECISION)}s`;
+    const seconds = Number((ms / MS_PER_SECOND).toFixed(SECONDS_PRECISION));
+    // A value like 59_999 rounds to 60.0s — fall through to the m/s tier so it reads `1m 0s`.
+    if (seconds < SECONDS_PER_MINUTE) {
+      return `${seconds.toFixed(SECONDS_PRECISION)}s`;
+    }
   }
   if (ms < MS_PER_HOUR) {
-    const minutes = Math.floor(ms / MS_PER_MINUTE);
-    const seconds = Math.round((ms % MS_PER_MINUTE) / MS_PER_SECOND);
-    return `${minutes}m ${seconds}s`;
+    // Round to whole seconds ONCE, then split — a remainder rounding to 60s carries a whole minute.
+    const totalSeconds = Math.round(ms / MS_PER_SECOND);
+    const minutes = Math.floor(totalSeconds / SECONDS_PER_MINUTE);
+    const seconds = totalSeconds % SECONDS_PER_MINUTE;
+    // A remainder rounding to 60m (e.g. 3_599_999) carries a whole hour — fall through to the h/m tier.
+    if (minutes < MINUTES_PER_HOUR) {
+      return `${minutes}m ${seconds}s`;
+    }
   }
-  const hours = Math.floor(ms / MS_PER_HOUR);
-  const minutes = Math.round((ms % MS_PER_HOUR) / MS_PER_MINUTE);
+  // Round to whole minutes ONCE, then split — a remainder rounding to 60m carries a whole hour.
+  const totalMinutes = Math.round(ms / MS_PER_MINUTE);
+  const hours = Math.floor(totalMinutes / MINUTES_PER_HOUR);
+  const minutes = totalMinutes % MINUTES_PER_HOUR;
   return `${hours}h ${minutes}m`;
 }
 
