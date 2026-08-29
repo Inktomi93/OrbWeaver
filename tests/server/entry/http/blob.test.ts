@@ -68,7 +68,12 @@ function blobHandler(deps: BlobDeps): Handler {
 
 const PNG_META: { mime: string; size: number } = { mime: "image/png", size: 3 };
 const ORIGINAL = new Uint8Array([1, 2, 3]);
-const WEBP = new Uint8Array([9, 9]);
+// Real magic bytes so the serve boundary stamps the ACTUAL served format, not a blanket webp: a re-encoded
+// variant IS webp (RIFF….WEBP), but the animated passthrough (resolve-variant serves gif/apng verbatim —
+// sharp's webp encoder drops animation) must keep its own type or an animated gif serves as a still webp.
+const WEBP = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]);
+const GIF = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 1, 0, 1, 0]); // "GIF89a" + a minimal header
+const APNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]); // PNG signature (apng sniffs as image/png)
 
 describe("registerBlob", () => {
   test("anonymous caller → 401, no body", async () => {
@@ -121,6 +126,32 @@ describe("registerBlob", () => {
     expect(res.headers.get("content-type")).toBe("image/webp");
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(WEBP);
     expect(casRead).toBe(false);
+  });
+
+  // C12: the animated passthrough. `resolveVariant` serves an animated gif/apng original VERBATIM (sharp's
+  // webp encoder drops animation), so the serve boundary must stamp the bytes' REAL type — a blanket
+  // `image/webp` mislabels an animated gif as a still webp and a strict decoder rejects it.
+  test("?w= gif passthrough → 200 with image/gif (not a blanket webp)", async () => {
+    const assets: BlobAssetsPort = {
+      getMetadata: (): Promise<undefined> => Promise.resolve(undefined),
+      resolveVariant: (): Promise<Uint8Array> => Promise.resolve(GIF),
+    };
+    const cas: BlobCasPort = { read: (): Promise<Uint8Array> => Promise.resolve(ORIGINAL) };
+    const res = await blobHandler({ assets, cas })(makeCtx(OWNER, { params: { hash: HASH }, query: { w: "96" } }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/gif");
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(GIF);
+  });
+
+  test("?w= apng passthrough → 200 with image/png (the codec models apng under the PNG signature)", async () => {
+    const assets: BlobAssetsPort = {
+      getMetadata: (): Promise<undefined> => Promise.resolve(undefined),
+      resolveVariant: (): Promise<Uint8Array> => Promise.resolve(APNG),
+    };
+    const cas: BlobCasPort = { read: (): Promise<Uint8Array> => Promise.resolve(ORIGINAL) };
+    const res = await blobHandler({ assets, cas })(makeCtx(OWNER, { params: { hash: HASH }, query: { w: "96" } }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
   });
 
   test("off-ladder width (resolveVariant → undefined) → 404", async () => {

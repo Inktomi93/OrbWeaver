@@ -51,6 +51,23 @@ describe("formatDurationMs", () => {
     expect(formatDurationMs(3_600_000)).toBe("1h 0m");
     expect(formatDurationMs(7_500_000)).toBe("2h 5m");
   });
+  // Rounding at a unit boundary must CARRY into the next unit, never print an out-of-range component. The
+  // pre-fix formatter avoided every boundary in its tests and shipped `60.0s` / `1m 60s` / `1h 60m` — each
+  // is a value that should have rolled over. These pin every rollover point.
+  test("a sub-minute value that rounds up to 60s rolls over to 1m 0s", () => {
+    expect(formatDurationMs(59_999)).toBe("1m 0s");
+    expect(formatDurationMs(59_950)).toBe("1m 0s");
+    // Just below the carry — still seconds.
+    expect(formatDurationMs(59_949)).toBe("59.9s");
+  });
+  test("a seconds remainder that rounds up to 60 carries into the minute", () => {
+    expect(formatDurationMs(119_700)).toBe("2m 0s");
+    // Deep inside the m/s band, a remainder rounding to 60 carries one minute.
+    expect(formatDurationMs(3_599_999)).toBe("1h 0m");
+  });
+  test("a minutes remainder that rounds up to 60 carries into the hour", () => {
+    expect(formatDurationMs(7_170_000)).toBe("2h 0m");
+  });
 });
 
 describe("formatMs", () => {

@@ -135,7 +135,7 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
           ) : null}
 
           <CommandList className="max-h-64">
-            {view.loadingCustom ? (
+            {view.loading ? (
               <CommandLoading label="Fetching models…">
                 <Stack gap="field" className="p-field">
                   <Skeleton className="h-control-sm w-full" />
@@ -144,7 +144,10 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
               </CommandLoading>
             ) : null}
 
-            <CommandEmpty>No models match.</CommandEmpty>
+            {/* cmdk's Empty renders on a zero item count regardless of loading, so it MUST be suppressed while
+                a fetch is in flight — otherwise a loading catalog (empty pool, no free-text item) shows the
+                skeleton AND "No models match." at once. */}
+            {view.loading ? null : <CommandEmpty>No models match.</CommandEmpty>}
 
             {view.recentEntries.length > 0 ? (
               <CommandGroup heading="Recent">
@@ -199,10 +202,10 @@ function usePickerView(
   readonly recentEntries: readonly SourceModelEntry[];
   readonly showChips: boolean;
   readonly allowsFreeText: boolean;
-  readonly loadingCustom: boolean;
+  readonly loading: boolean;
   readonly curatedFallback: boolean;
 } {
-  const { source, result, customModels, customModelsPending } = props;
+  const { source, result, customModels, customModelsPending, isLoading } = props;
   const showChips = source === "openrouter";
   const allowsFreeText = result?.allowsFreeText ?? false;
 
@@ -227,7 +230,12 @@ function usePickerView(
     recentEntries: resolveRecentEntries(recentIds, poolById, query.trim() === ""),
     showChips,
     allowsFreeText,
-    loadingCustom: customModelsPending === true,
+    // Both the catalog fetch (`isLoading`, the source-driven query the surface owns) and the custom_openai
+    // /models probe (`customModelsPending`) mean the pool is not settled yet. The catalog arm previously
+    // threaded `isLoading` into a prop nothing read, so a loading catalog fell through to the empty pool and
+    // flashed "No models match." — the custom arm was only saved from the same flash by its always-present
+    // free-text CommandItem keeping cmdk's Empty count non-zero.
+    loading: isLoading || customModelsPending === true,
     curatedFallback: isCuratedFallback(pool),
   };
 }

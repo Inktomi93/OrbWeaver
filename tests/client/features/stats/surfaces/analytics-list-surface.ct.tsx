@@ -4,7 +4,7 @@
 // first row changes; a row exposes its replies + tokens summary.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { AnalyticsListSurfaceStory } from "../_ct-stories.tsx";
 
 const ARIA = {
@@ -74,6 +74,28 @@ test("duplicate names are disambiguated in the row and in its accessible name", 
   // apart by a screen reader too, not only by eye.
   await expect(component.getByRole("button", { name: "Hikari (#k3f9)" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Hikari (#q7x2)" })).toBeVisible();
+});
+
+// D13 (#711 re-audit): on a FIRST-LOAD failure the query settles `isError` true while `page` is still
+// undefined. The body checked `page === undefined` for its skeleton BEFORE the error arm, so a failed load
+// pinned a permanent skeleton and the retry affordance was unreachable. The error arm now wins; a scripted
+// fail-then-succeed proves the retry actually refetches into the rows.
+test("a first-load leaderboard error shows the retry surface (not a permanent skeleton), and Retry recovers", async ({ mount, page }) => {
+  let calls = 0;
+  await routeTrpc(page, {
+    "stats.leaderboard": (): unknown => (calls++ === 0 ? trpcError({ message: "leaderboard boom" }) : leaderboardResponder({ sort: "assistantTurns" })),
+  });
+  const component = await mount(<AnalyticsListSurfaceStory />);
+
+  // The error surface renders — NOT the six-row skeleton the pre-fix order pinned forever.
+  await expect(component.getByText("Couldn't load the leaderboard.")).toBeVisible();
+  const retry = component.getByRole("button", { name: "Retry" });
+  await expect(retry).toBeVisible();
+
+  // Retry refetches; the second response succeeds and the ranked rows arrive.
+  await retry.click();
+  await expect(component.getByText("Aria Nightshade")).toBeVisible();
+  await expect(component.getByText("Couldn't load the leaderboard.")).toHaveCount(0);
 });
 
 test("switching the sort re-dispatches and re-ranks the rows", async ({ mount, page }) => {

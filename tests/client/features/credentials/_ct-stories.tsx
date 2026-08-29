@@ -136,9 +136,13 @@ export function RevokedCredentialKeyRowStory(): ReactElement {
 export function ModelPickerStory({
   source,
   result,
+  isLoading = false,
 }: {
   readonly source: ComponentProps<typeof ModelPicker>["source"];
   readonly result: ComponentProps<typeof ModelPicker>["result"];
+  /** Drives the catalog-loading arm (default false) — the D5 pin that a loading catalog shows the loading
+   *  skeleton, not the "No models match." empty message. */
+  readonly isLoading?: boolean;
 }): ReactElement {
   const [value, setValue] = useState("");
   return (
@@ -149,7 +153,7 @@ export function ModelPickerStory({
         value={value}
         onValueChange={setValue}
         result={result}
-        isLoading={false}
+        isLoading={isLoading}
         ghostLabel="Choose a model"
       />
       <div data-testid="model-picker-value">{value}</div>
