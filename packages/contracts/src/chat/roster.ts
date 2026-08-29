@@ -56,7 +56,7 @@ const TALKATIVENESS_MAX = 1;
 /** The default talkativeness weight (Part III §1) — the natural-arbitration sampling weight. */
 export const TALKATIVENESS_DEFAULT = 0.5;
 // `talkativenessSchema` (a .catch/.default-ing 0–1 clamp) was DELETED 2026-08-28 (#26 pre-merge F5): its
-// `@public future` consumer — the roster-preset seat-knobs projection — arrived and stores the knob
+// predicted-future consumer — the roster-preset seat-knobs projection — arrived and stores the knob
 // through `characterMemberSpecSchema`'s inline clamp instead (NULL-means-inherit semantics, which the
 // defaulting schema could not express), so the prediction died on arrival and the export had no consumer.
 

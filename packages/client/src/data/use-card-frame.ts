@@ -55,7 +55,7 @@ export function rememberBounded<K, V>(map: Map<K, V>, key: K, value: V, cap: num
     map.delete(key);
   } else if (map.size >= cap) {
     const oldest = map.keys().next();
-    if (!oldest.done) {
+    if (oldest.done !== true) {
       map.delete(oldest.value);
     }
   }
