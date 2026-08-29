@@ -200,6 +200,14 @@ const DOMAIN_FRESHNESS: Readonly<Record<string, FreshnessRow>> = {
       why: "SEATED — `chat_regex_scripts` FKs `regex_scripts.id`, and a DISPLAY-tier script can change the bytes a member reads in the transcript (`chat/substrate/regex-tier.ts`). DEFERRED BY OWNER RULING (bridge design §8 + fork F-E, 2026-08-14): whether script CONTENT edits owe a room fan needs its own read of the display path — which tier actually re-renders, and whether the member's transcript re-reads at all. Named candidate `bridge` row. Ends with that read.",
     },
   },
+  "roster-preset": {
+    plane: "user-bus:rosterPresetsChanged",
+    why: "roster-preset/verbs emit rosterPresetsChanged on every library CRUD (#26 — D61 B6); applyToChat mutates the CHAT, whose freshness is chat's own chatUpdated fan through the injected verbs.",
+    roomReach: {
+      lane: "none",
+      why: "a saved party is LIBRARY data — no chat-anchored table FKs roster_presets (a preset is a stamp, not a live link: deliberately no back-reference column on chats), so no room seats it.",
+    },
+  },
   rpg: {
     plane: "own-bus:rpg",
     why: "domain/rpg/bus.ts is the sanctioned domain-minted singleton (G10/O4); 16 verb/flush sites emit its six members.",

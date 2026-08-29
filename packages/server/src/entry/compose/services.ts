@@ -128,6 +128,7 @@ import { mapProviderCredentialResolver } from "./provider-credential.ts";
 import { buildRefinery } from "./refinery.ts";
 import { buildRegex } from "./regex.ts";
 import { bindRoleClientsForUser } from "./role-clients.ts";
+import { buildRosterPreset } from "./roster-preset.ts";
 import type { RpgComposeResult } from "./rpg.ts";
 import { buildRpg } from "./rpg.ts";
 import { buildSearchDiscovery } from "./search-discovery.ts";
@@ -774,6 +775,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
 
+  // ── roster-preset (saved parties, D61 B6) — built AFTER chat: `applyToChat` drives chat's own
+  // host-gated verbs + chat's own `requireHost` guard through injected ops (one authority home).
+  const rosterPreset = buildRosterPreset({ db, now, audit, emitUserEvent: publishUserEvent, can, chat });
+
   // The preset-ownership gate (fork-clones-the-game §3.2) — `forkGame` asks whether a source game's `gmPresetId`
   // is SAFE for the forker to carry (readable BY them). Off the preset front door `get` (the ONLY legal preset
   // import): it returns the preset for an owned row OR the shared system default, and throws `PresetNotFoundError`
@@ -1002,6 +1007,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     preset,
     refinery,
     regex: regexCompose.regex,
+    rosterPreset,
     rpg,
     search,
     sessions,

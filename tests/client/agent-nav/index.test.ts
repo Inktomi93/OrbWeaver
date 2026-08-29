@@ -89,6 +89,7 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
       "imageEdit",
       "pluginDialog",
       "pluginCommandArgs",
+      "savedCasts",
     ],
     settingsCategories: ["personas", "appearance", "workloads", "backup", "chat-behavior", "connections", "automation", "plugins", "admin"],
     contextTabs: ["runs", "setup"],

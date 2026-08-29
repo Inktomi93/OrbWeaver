@@ -21,6 +21,7 @@ import { pluginRouter } from "./routers/plugin.ts";
 import { presetRouter } from "./routers/preset.ts";
 import { refineryRouter } from "./routers/refinery.ts";
 import { regexRouter } from "./routers/regex.ts";
+import { rosterPresetRouter } from "./routers/roster-preset.ts";
 import { rpgRouter } from "./routers/rpg.ts";
 import { searchRouter } from "./routers/search.ts";
 import { sessionsRouter } from "./routers/sessions.ts";
@@ -80,6 +81,7 @@ export const appRouter = t.router({
   plugin: pluginRouter,
   preset: presetRouter,
   refinery: refineryRouter,
+  rosterPreset: rosterPresetRouter,
   rpg: rpgRouter,
 
   search: searchRouter,

@@ -25,6 +25,9 @@ export const OWNERID_ALLOWLIST: ExemptionTable = {
   refinery_schemas: {
     why: "D23 true producer (R3/SF0 — the custom payload-schema LIBRARY; a schema is authored library tooling with no owning parent to derive through, the presets shape)",
   },
+  roster_presets: {
+    why: "D23 true producer (D61 B6 — a saved party is the user's authored artifact; its character references are a LIST via the roster_preset_members junction, so there is no single required FK to derive the owner through)",
+  },
   tags: { why: "D23 true producer" },
   user_credentials: { why: "D23 true producer" },
   workloads: { why: "D23 true producer" },

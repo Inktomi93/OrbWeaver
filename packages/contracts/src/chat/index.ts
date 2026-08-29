@@ -285,7 +285,6 @@ export {
   seatKnobsSchema,
   stepFromRenderPolicyOverride,
   TALKATIVENESS_DEFAULT,
-  talkativenessSchema,
 } from "./roster.ts";
 export type {
   CompareAndSetImportedTokenUsage,
