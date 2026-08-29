@@ -180,7 +180,18 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
   };
   const summary = grantSummaryLine(draft);
   return (
-    <Stack aria-label={`What ${plugin.name} asks for beyond what you've allowed`} gap="block" role="alert">
+    // THE WARNING-CALLOUT SKIN (owner rework 2026-08-29 — "no hierarchy"): this block is the one thing on
+    // the row that NEEDS the owner, and it used to render as more of the same prose wall. The house callout
+    // grammar (the params-deck/capability-gate/payload-view spelling) sets it apart — softened to /40 border
+    // + /10 tint WITHOUT `text-warning`, because a paragraph of consent copy recolored amber would spend its
+    // own contrast (the badge already carries the warning intent; the box carries the boundary). The copy
+    // itself is byte-identical — the skin is the only change here.
+    <Stack
+      aria-label={`What ${plugin.name} asks for beyond what you've allowed`}
+      className="rounded-base border border-warning/40 bg-warning/10 p-block"
+      gap="block"
+      role="alert"
+    >
       <Text voice="promoted">{reConsentLine(ungranted, plugin.widenedNetHosts)}</Text>
       <Text prose={true} voice="gloss">
         Orbweaver did not grant the extra permissions, so {plugin.name} stayed off. Tick what you're willing to allow and confirm below — turning it back on is

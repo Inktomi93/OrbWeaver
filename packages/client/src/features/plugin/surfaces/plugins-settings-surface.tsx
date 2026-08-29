@@ -24,6 +24,16 @@ import { PluginInstallCard } from "../components/plugin-install-card.tsx";
 import { PluginRow } from "../components/plugin-row.tsx";
 import { PLUGINS_SUBCATEGORY_IDS } from "../lib/plugins-nav.ts";
 
+/** A row that is waiting on its OWNER — a pending re-consent (the system refused reach on their behalf) or
+ *  a crash-stop. These sort FIRST (owner rework 2026-08-29: "consider order — rows needing attention
+ *  first"): the one screen where burying the open question under a page of settled rows is a real cost.
+ *  Deliberately NOT sorted by enabled/disabled — a status the owner toggles must never make the row jump
+ *  mid-interaction; resolving an attention state is a settled act, and the row settling back into install
+ *  order is legible. */
+function needsAttention(plugin: { readonly reconsentPending: boolean; readonly status: string }): boolean {
+  return plugin.reconsentPending || plugin.status === "errored";
+}
+
 /** The live list. Suspends on `plugin.list` — the section owns its `QueryBoundary`. */
 function InstalledPluginsList(): ReactElement {
   const trpc = useTRPC();
@@ -37,9 +47,11 @@ function InstalledPluginsList(): ReactElement {
       </Text>
     );
   }
+  // Stable sort: attention rows first, server order preserved within each band.
+  const ordered = [...plugins].sort((a, b) => Number(needsAttention(b)) - Number(needsAttention(a)));
   return (
-    <Stack gap="section">
-      {plugins.map((plugin) => (
+    <Stack gap="block">
+      {ordered.map((plugin) => (
         <PluginRow key={plugin.id} plugin={plugin} />
       ))}
     </Stack>
