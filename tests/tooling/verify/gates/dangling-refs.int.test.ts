@@ -8,7 +8,7 @@
 // The PASS half is un-provable in conformance: the exemption arms are guarded on the real-tree anchor, and
 // planting that anchor in a mini-project turns on every OTHER stale arm at once. So the honoured case lives
 // here, against the real tree, with planted controls in BOTH directions.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { describe } from "vitest";
 import { gate as danglingRefs } from "../../../../tooling/src/verify/gates/dangling-refs.ts";
@@ -50,5 +50,30 @@ describe("dangling-refs — gitignored paths are absent by design, not phantoms"
     // anywhere in the core docs still reds. (A green here that came from a broken scan is caught by the
     // gate's own zero-scan alarm at report scope.)
     expect(findings).toEqual([]);
+  }, 600_000);
+
+  // The OTHER direction (#26 regression): #775's original fix moved the env-dependence rather than removing
+  // it — with the gitignored subtree PRESENT on a full checkout the path resolves, so it was never a phantom,
+  // so the shared phantom-hitRefs stale arm falsely red its GITIGNORED_ABSENT row ("matches no live phantom").
+  // The verdict must be identical whether or not the subtree is checked out here, so we plant it and re-run.
+  test("the real-tree run stays clean when the gitignored subtree IS present on THIS checkout", ({ repoRoot }) => {
+    const abs = join(repoRoot, ABSENT_PATH);
+    const planted = !existsSync(abs); // a full checkout already has it — only plant (and clean up) if absent
+    if (planted) {
+      mkdirSync(abs, { recursive: true });
+    }
+    try {
+      expect(existsSync(abs), "the gitignored subtree must be present for this direction of the arm").toBe(true);
+      const result = runPass([danglingRefs], projectCtx(repoRoot));
+      expect(result.toolErrors).toEqual([]);
+      const findings: readonly Finding[] = result.gates.find((g) => g.name === GATE)?.findings ?? [];
+      // No stale-row red for the now-RESOLVING gitignored path, and the whole gate is still clean.
+      expect(findings.filter((f) => (f.message ?? "").includes(ABSENT_PATH))).toEqual([]);
+      expect(findings).toEqual([]);
+    } finally {
+      if (planted) {
+        rmSync(abs, { recursive: true, force: true });
+      }
+    }
   }, 600_000);
 });

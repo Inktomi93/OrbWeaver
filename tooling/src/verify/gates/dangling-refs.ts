@@ -446,9 +446,12 @@ interface PathLineArgs {
   readonly lineNo: number;
   readonly allow: ExemptionTable;
   readonly hitRefs: Set<string>;
+  /** Every path-shaped backtick cite seen (resolved OR not) — the resolution-agnostic set that owns the
+   *  absent-by-design rows' "docs stopped referencing it" side (#775 fix; see GITIGNORED_ABSENT). */
+  readonly referencedRefs: Set<string>;
 }
 
-function pathTokensInLine({ root, rel, rawLine, lineNo, allow, hitRefs }: PathLineArgs): Violation[] {
+function pathTokensInLine({ root, rel, rawLine, lineNo, allow, hitRefs, referencedRefs }: PathLineArgs): Violation[] {
   if (RIDER_LINE_RE.test(rawLine)) {
     return []; // rider convention: deliberately names dead/purged homes as history
   }
@@ -463,6 +466,7 @@ function pathTokensInLine({ root, rel, rawLine, lineNo, allow, hitRefs }: PathLi
     if (ref.length === 0 || NON_LITERAL_TOKEN_RE.test(ref) || PLACEHOLDER_SEGMENT_RE.test(ref) || !PATH_PREFIXES.some((p) => ref.startsWith(p))) {
       continue;
     }
+    referencedRefs.add(ref); // a live path-shaped cite, regardless of whether it resolves on THIS checkout
     if (shorthandExists(root, ref)) {
       continue;
     }
@@ -475,19 +479,23 @@ function pathTokensInLine({ root, rel, rawLine, lineNo, allow, hitRefs }: PathLi
   return out;
 }
 
-function scanPathTokens(root: string, allow: ExemptionTable): { readonly violations: Violation[]; readonly hitRefs: Set<string> } {
+function scanPathTokens(
+  root: string,
+  allow: ExemptionTable,
+): { readonly violations: Violation[]; readonly hitRefs: Set<string>; readonly referencedRefs: Set<string> } {
   const violations: Violation[] = [];
   const hitRefs = new Set<string>();
+  const referencedRefs = new Set<string>();
   for (const rel of listCoreDocs(root)) {
     const lines = readFileSync(join(root, rel), "utf8").split("\n");
     if (hasHeadRider(lines)) {
       continue; // the whole doc is declared historical/frozen — every mention below is covered by it
     }
     lines.forEach((rawLine, i) => {
-      violations.push(...pathTokensInLine({ root, rel, rawLine, lineNo: i + 1, allow, hitRefs }));
+      violations.push(...pathTokensInLine({ root, rel, rawLine, lineNo: i + 1, allow, hitRefs, referencedRefs }));
     });
   }
-  return { violations, hitRefs };
+  return { violations, hitRefs, referencedRefs };
 }
 
 // ── arm 4: backticked-SYMBOL existence in docs/architecture/core/**/*.md ──────────────────────────────
@@ -669,9 +677,20 @@ const ARM4_ALLOW: ExemptionTable = {
 // was green on main and RED in every fresh worktree, on the same commit, for the same doc line. An
 // instrument whose answer depends on where it runs is lying in one of the two places. `tsconfig-entry-liveness`
 // already carries the identical row for the identical path; this is the same ruling on the doc side.
-// THREE-SIDED, so the exemption cannot outlive its justification: the row reds when the docs stop
-// referencing it (the shared stale arm), when its `cite` stops resolving, and when the path stops being
-// GITIGNORED — the moment "absent by design" becomes false.
+// THREE-SIDED, so the exemption cannot outlive its justification — and ALL THREE sides are computed in
+// `absentByDesignViolations` from env-INDEPENDENT inputs (committed docs, the committed `.gitignore`, the
+// committed cite), NEVER via the phantom-hitRefs stale arm: the row reds when the docs stop REFERENCING the
+// path (its token is no longer a live backtick path-cite anywhere in the core corpus — counted resolved-or-
+// not by `referencedRefs`, so presence on disk is irrelevant), when its `cite` stops resolving, and when the
+// path stops being GITIGNORED (the moment "absent by design" becomes false).
+//
+// WHY NOT the shared `staleAllowlistViolations` arm (the #775-era mistake this fix corrects): that arm keys
+// off `hitRefs` = UNRESOLVED tokens only. On a fresh worktree the gitignored path is absent → a phantom → in
+// hitRefs → not-stale; on a FULL checkout it resolves → never a phantom → NOT in hitRefs → the stale arm
+// falsely red it. So #775 did not remove the env-dependence, it MOVED it from the worktree side to the main
+// side (dangling-refs became the one structure red on a full checkout). GITIGNORED_ABSENT is therefore
+// DELIBERATELY excluded from the arm-3 stale arm below; its "docs stopped referencing it" side lives on the
+// resolution-agnostic `referencedRefs` set instead, which answers identically in both checkouts.
 interface AbsentByDesign {
   readonly why: string;
   /** The doc that establishes the path is deliberately gitignored. */
@@ -717,7 +736,16 @@ const DEAD_CITE_MSG = (key: string): string =>
   `absent-by-design row \`${key}\`'s cite no longer resolves — the doc that justified the exemption moved or was ` +
   "deleted. Re-derive the cite, or delete the row from GITIGNORED_ABSENT in tooling/src/verify/gates/dangling-refs.ts.";
 
-function absentByDesignViolations(root: string): Violation[] {
+const UNREFERENCED_MSG = (key: string): string =>
+  `absent-by-design row \`${key}\` matches no live backtick path-cite in any core doc — the exemption forgives a ` +
+  "reference that no longer exists, so it is stale dead-weight. Delete the row from GITIGNORED_ABSENT in " +
+  "tooling/src/verify/gates/dangling-refs.ts (this is the resolution-agnostic 'docs stopped referencing it' side, " +
+  "computed off referencedRefs rather than the phantom stale arm so it holds on both a present and an absent checkout).";
+
+/** The three-sided liveness check for the ABSENT-BY-DESIGN rows (#775) — ALL sides env-independent. `referenced`
+ *  is every path-shaped backtick cite in the core corpus (resolved OR not), so the "docs stopped referencing it"
+ *  side is a property of the committed docs, never of whether the gitignored subtree is checked out here. */
+function absentByDesignViolations(root: string, referenced: ReadonlySet<string>): Violation[] {
   const out: Violation[] = [];
   for (const [key, row] of Object.entries(GITIGNORED_ABSENT)) {
     if (!gitignoredLiterally(root, key)) {
@@ -725,6 +753,9 @@ function absentByDesignViolations(root: string): Violation[] {
     }
     if (!existsSync(join(root, row.cite))) {
       out.push({ file: ARM34_SCAN_DIR, line: 0, message: DEAD_CITE_MSG(key) });
+    }
+    if (!referenced.has(key)) {
+      out.push({ file: ARM34_SCAN_DIR, line: 0, message: UNREFERENCED_MSG(key) });
     }
   }
   return out;
@@ -772,9 +803,12 @@ export const gate: GateDescriptor = {
     // mini-projects, which would fire a stale-arm there and red the gate's own self-proof.
     if (existsSync(join(ctx.root, "docs/architecture/core/AGENTS.md"))) {
       for (const v of [
-        ...staleAllowlistViolations("arm 3 path", arm3Allow, arm3.hitRefs),
+        // ARM3_ALLOW ONLY — never arm3Allow. The GITIGNORED_ABSENT rows are DELIBERATELY excluded from the
+        // phantom-hitRefs stale arm (it is env-dependent for a gitignored path — see GITIGNORED_ABSENT);
+        // their three-sided liveness is owned entirely by absentByDesignViolations below.
+        ...staleAllowlistViolations("arm 3 path", ARM3_ALLOW, arm3.hitRefs),
         ...staleAllowlistViolations("arm 4 symbol", ARM4_ALLOW, arm4.hitRefs),
-        ...absentByDesignViolations(ctx.root),
+        ...absentByDesignViolations(ctx.root, arm3.referencedRefs),
       ]) {
         ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
       }
