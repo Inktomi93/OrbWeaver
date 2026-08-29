@@ -25,6 +25,12 @@ export const SOFT_REF_ALLOWLIST: ExemptionTable = {
   // The upstream OpenRouter generation handle (`gen-…`) a variant billed under — an EXTERNAL provider id
   // (`connection.orGenerationCost`'s key, PD-137), not a reference to any orbweaver table (D24).
   "message_variants.generationId": { why: "external OpenRouter generation handle, not an FK" },
+  // A rule-preset CATALOGUE id (`RULE_PRESET_IDS`, @orb/contracts/automation) — a member of a closed
+  // CODE tuple, not a row of any table, so there is nothing to FK (interaction-direction spec §3-S3;
+  // B10's rules rider, build record saved-rosters §6.1/§6.2). Coherence is the wire's z.enum at write
+  // + the live-catalogue re-check at read/apply (an orphaned id degrades to a reported skip).
+  "automation_rules.rulePresetId": { why: "rule-preset catalogue id (a code tuple member, D24-external) — mint provenance, not an FK" },
+  "roster_preset_rules.rulePresetId": { why: "rule-preset catalogue id (a code tuple member, D24-external) — the cast's captured rule, not an FK" },
 };
 
 const SOFT_MESSAGE = (pair: string): string =>

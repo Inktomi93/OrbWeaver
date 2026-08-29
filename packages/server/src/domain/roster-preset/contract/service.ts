@@ -5,11 +5,13 @@
 // the gate, no guard slot); `applyToChat` additionally requires target-chat HOST authority, established
 // through chat's OWN injected guard (never re-implemented here — see {@link RosterPresetChatOps}).
 
+import type { RulePresetId, RulePresetKnobValues } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
 import type { ApplyRosterPresetResult, RosterPresetMemberView, RosterPresetSummary, RosterPresetView } from "@orb/contracts/roster-preset";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
+import type { AutomationService, RulePresetKnobOverrides } from "#domain/automation";
 import type { ChatService } from "#domain/chat";
 import type { AuditEntry } from "#foundation/observability";
 import type {
@@ -63,6 +65,28 @@ export interface RosterPresetChatOps extends Pick<ChatService, "addCharacterToCh
   readonly listPresentCharacterSeats: (chatId: ChatId) => Promise<readonly PresentCharacterSeat[]>;
 }
 
+/** One cast rule as the write verbs stamp it (B10's rules rider, build record §6) — wire order re-stamped
+ *  dense 0..n-1, the knob bag RESOLVED through the injected automation belt (stored as OUTPUT — the
+ *  `groupConfig` posture). The `MemberWrite` sibling. */
+export interface CastRuleWrite {
+  readonly rulePresetId: RulePresetId;
+  readonly position: number;
+  readonly knobs: RulePresetKnobValues;
+}
+
+/** The automation-owned ops the rules rider drives — the SAME sanctioned shape as
+ *  {@link RosterPresetChatOps}: verb types `Pick`ed off automation's OWN service (type-only through the
+ *  front door, wired at compose) so signatures cannot drift, plus automation's exported capture belt.
+ *  Every write op is host-gated INSIDE automation (`requireRuleAuthority` / `requireChatHost`) and the
+ *  ONE rule write path stays automation's — this domain writes only its own junction. */
+export interface RosterPresetAutomationOps
+  extends Pick<AutomationService, "createRuleFromPreset" | "deleteRule" | "listRulePresets" | "listRules" | "setRuleEnabled"> {
+  /** The capture-side validation belt (`resolveChatRulePresetKnobs`, automation's front door): catalogue
+   *  membership + chat scope + full descriptor resolution. Throws automation's own `RuleValidationError`
+   *  (kit `DomainOperationError` → BAD_REQUEST) — the injected-guard error posture `requireHost` set. */
+  readonly resolveChatRulePresetKnobs: (rulePresetId: RulePresetId, overrides: RulePresetKnobOverrides) => RulePresetKnobValues;
+}
+
 /** The DI bundle every roster-preset verb closes over, wired at the composition root. */
 export interface RosterPresetContext {
   readonly db: Db;
@@ -81,6 +105,7 @@ export interface RosterPresetContext {
   /** The anchor-persona belt — absent/foreign ⇒ false (leak-free). The chat-compose precedent. */
   readonly verifyPersonaOwned: (ownerId: UserId, personaId: PersonaId) => Promise<boolean>;
   readonly chat: RosterPresetChatOps;
+  readonly automation: RosterPresetAutomationOps;
 }
 
 export interface RosterPresetService {

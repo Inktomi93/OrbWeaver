@@ -78,6 +78,10 @@ export function createCreateRuleFromPreset(createRule: AutomationService["create
         actions: def.arms,
         cooldownSeconds: def.cooldownSeconds ?? 0,
         ...(def.maxFiresPerHour !== undefined ? { maxFiresPerHour: def.maxFiresPerHour } : {}),
+        // The §3-S3 provenance stamp: EVERY rule of the set carries the preset id + the COMPLETE
+        // resolved bag (not the caller's partial overrides), so a reader re-mints byte-identically
+        // even after a descriptor DEFAULT later changes.
+        presetProvenance: { rulePresetId: params.presetId, knobs },
       });
       created.push(view);
     }

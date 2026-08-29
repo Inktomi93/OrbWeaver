@@ -14,6 +14,8 @@
 import type { CharacterId, PersonaId, RosterPresetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import type { RulePresetId, RulePresetKnobValues } from "#automation";
+import { RULE_PRESET_IDS, rulePresetIdSchema, rulePresetKnobValuesSchema } from "#automation";
 import type { GroupConfigInput } from "#chat";
 import { characterMemberSpecSchema, groupConfigSchema } from "#chat";
 
@@ -37,6 +39,26 @@ export const rosterPresetMembersSchema = z
     message: "a party lists each character once",
   });
 
+/** One captured automation rule preset on the wire (B10's rules rider — build record §6): the CLOSED
+ *  catalogue id + the knob bag as the capture read it (`RuleView.rulePresetKnobs` — the room rule's own
+ *  mint provenance). Shape-only here; the write verb fully re-resolves the bag against the preset's own
+ *  descriptors through automation's injected belt and stores the resolved OUTPUT (the `groupConfig`
+ *  posture: garbage refuses at the boundary, a stale bag degrades loudly at apply). */
+export const rosterPresetRuleSchema = z.object({
+  rulePresetId: rulePresetIdSchema,
+  knobs: rulePresetKnobValuesSchema.default({}),
+});
+
+/** The captured rule-preset list. Array order IS capture/apply order (re-stamped dense at the write
+ *  verb — the members posture, minus the explicit position field the D80 member vocabulary carries);
+ *  one instance per rule preset (the junction PK made wire-visible), bounded by the catalogue itself. */
+export const rosterPresetRulesSchema = z
+  .array(rosterPresetRuleSchema)
+  .max(RULE_PRESET_IDS.length)
+  .refine((rules) => new Set(rules.map((r) => r.rulePresetId)).size === rules.length, {
+    message: "a cast lists each rule preset once",
+  });
+
 /** `create` — the authored artifact: a name + the curated cast, plus the optional chat-open POV anchor
  *  and the optional room-behavior blob. `update` deliberately reuses this WHOLE shape (full replace,
  *  member list included) — a preset is small enough that patch semantics would only buy drift. */
@@ -48,6 +70,10 @@ export const createRosterPresetSchema = z.object({
   anchorPersonaId: typeIdSchema(ID_PREFIX.persona).nullable().optional(),
   groupConfig: groupConfigSchema.nullable().optional(),
   members: rosterPresetMembersSchema,
+  /** B10's rules rider — the room's captured ENABLED rule presets. Defaulted `[]` (a cast without
+   *  rules never touches a room's rules at apply); full-replace like every other field, so the
+   *  library editor's rename ECHOES the stored list back verbatim. */
+  rules: rosterPresetRulesSchema.default([]),
 });
 /** The LENIENT input (`z.input` — pre-default, pre-brand): what a caller hands the verb. The ROUTER
  *  parses the wire through {@link createRosterPresetSchema} (strict TypeIDs, caps); the VERB re-parses
@@ -69,7 +95,16 @@ export interface RosterPresetMemberView {
   readonly avatarHash: string | null;
 }
 
-/** The full preset (`get`/`create`/`update` result) — the row + ordered members. */
+/** One stored cast rule (`get`/`list`) — the captured rule preset + its resolved knob bag, in stored
+ *  position order (the array carries the order; no explicit field). `rulePresetId` is projected
+ *  verbatim: an id a later catalogue removal orphaned still displays (degraded, by the client's own
+ *  catalogue join) and reports as skipped at apply. */
+export interface RosterPresetRuleView {
+  readonly rulePresetId: RulePresetId;
+  readonly knobs: RulePresetKnobValues;
+}
+
+/** The full preset (`get`/`create`/`update` result) — the row + ordered members + captured rules. */
 export interface RosterPresetView {
   readonly id: RosterPresetId;
   readonly name: string;
@@ -78,6 +113,8 @@ export interface RosterPresetView {
   /** The stored room-behavior blob (lenient input — chat re-parses at apply). NULL = cast only. */
   readonly groupConfig: GroupConfigInput | null;
   readonly members: readonly RosterPresetMemberView[];
+  /** B10's rules rider — capture order (= apply order). Empty = the cast carries no rules. */
+  readonly rules: readonly RosterPresetRuleView[];
   readonly createdAt: number;
   readonly updatedAt: number;
 }
@@ -93,6 +130,9 @@ export interface RosterPresetSummary {
   readonly members: readonly RosterPresetMemberView[];
   readonly anchorPersonaId: PersonaId | null;
   readonly hasGroupConfig: boolean;
+  /** B10's rules rider — the picker's "N rules" badge reads the length; a cast row caps at the
+   *  catalogue size, so the "preview" is simply all of them (the members posture). */
+  readonly rules: readonly RosterPresetRuleView[];
   readonly updatedAt: number;
 }
 
@@ -105,9 +145,28 @@ export interface RosterPresetSummary {
  *  window, or the room dying mid-apply) SURFACES and aborts the loop; it is NOT collected into
  *  `skipped`. That is safe by construction: the apply is additive and every landed seat is idempotent,
  *  so a retry converges (already-landed members classify `alreadyPresent`). */
+/** One cast rule the apply could not land — the EXPECTED per-preset refusal class (build record §6.4):
+ *  automation's own mint validation said no (the lore presets' book-attachment consent gate in a room
+ *  without the book, a knob a catalogue evolution retired, a preset no longer offered). `reason` is
+ *  automation's own host-vocabulary message, surfaced verbatim. */
+export interface RosterPresetRuleSkip {
+  readonly rulePresetId: RulePresetId;
+  readonly reason: string;
+}
+
 export interface ApplyRosterPresetResult {
   readonly added: readonly CharacterId[];
   readonly alreadyPresent: readonly CharacterId[];
   readonly skipped: readonly CharacterId[];
   readonly configApplied: boolean;
+  /** B10's rules rider — rule presets minted fresh into the room (INCLUDING a re-mint that replaced a
+   *  knob-drifted or incomplete earlier mint), then enabled: the apply is the host's consent act for
+   *  the target room (build record §6.5). */
+  readonly rulesMinted: readonly RulePresetId[];
+  /** Rule presets the room already held complete with knob-equal provenance — nothing re-minted;
+   *  enablement re-asserted (the member knob re-stamp posture). */
+  readonly rulesAlreadyPresent: readonly RulePresetId[];
+  /** The collected per-preset refusals ({@link RosterPresetRuleSkip}); a NON-refusal failure (a dying
+   *  room) still surfaces and aborts — the member-drive posture, and a retry converges. */
+  readonly rulesSkipped: readonly RosterPresetRuleSkip[];
 }

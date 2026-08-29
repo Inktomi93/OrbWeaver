@@ -775,10 +775,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
 
-  // ── roster-preset (saved parties, D61 B6) — built AFTER chat: `applyToChat` drives chat's own
-  // host-gated verbs + chat's own `requireHost` guard through injected ops (one authority home).
-  const rosterPreset = buildRosterPreset({ db, now, audit, emitUserEvent: publishUserEvent, can, chat });
-
   // The preset-ownership gate (fork-clones-the-game §3.2) — `forkGame` asks whether a source game's `gmPresetId`
   // is SAFE for the forker to carry (readable BY them). Off the preset front door `get` (the ONLY legal preset
   // import): it returns the preset for an owned row OR the shared system default, and throws `PresetNotFoundError`
@@ -922,6 +918,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       return runInstallerCharacterImport(installerUserId, owned.bytes);
     },
   });
+
+  // ── roster-preset (saved parties, D61 B6) — built AFTER chat AND after automation (moved below the
+  // automation-plugin seam when B10's rules rider landed): `applyToChat` drives chat's own host-gated
+  // verbs + chat's own `requireHost` guard, and the rules rider drives automation's own front-door
+  // verbs, all through injected ops (one authority home per domain).
+  const rosterPreset = buildRosterPreset({ db, now, audit, emitUserEvent: publishUserEvent, can, chat, automation });
 
   // ── portability + the workloads runner-env (the portability-runner seam) — built LAST.
   const { portability, importWorkloads } = buildPortabilityRunner({

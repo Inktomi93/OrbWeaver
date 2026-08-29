@@ -39,6 +39,7 @@ function CastLibraryRow({
       markers={
         <Text as="span" voice="datum">
           {cast.memberCount}
+          {cast.rules.length > 0 ? ` · ${cast.rules.length} rule${cast.rules.length === 1 ? "" : "s"}` : ""}
         </Text>
       }
       onSelect={onSelect}

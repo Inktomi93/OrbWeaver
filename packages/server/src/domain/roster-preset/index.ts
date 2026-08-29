@@ -10,5 +10,12 @@ export {
   RosterPresetNotFoundError,
   RosterPresetPersonaNotFoundError,
 } from "./contract/errors.ts";
-export type { MemberWrite, PresentCharacterSeat, RosterPresetChatOps, RosterPresetService } from "./contract/service.ts";
+export type {
+  CastRuleWrite,
+  MemberWrite,
+  PresentCharacterSeat,
+  RosterPresetAutomationOps,
+  RosterPresetChatOps,
+  RosterPresetService,
+} from "./contract/service.ts";
 export { createRosterPresetService } from "./service.ts";

@@ -34,6 +34,8 @@ async function seedRule(
     triggerType: "messageCommitted",
     predicateCel: null,
     actions: [SET_ARM],
+    rulePresetId: null,
+    rulePresetKnobs: null,
     matchAutomationEvents: false,
     cooldownSeconds: 0,
     maxFiresPerHour: 30,

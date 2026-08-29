@@ -8,15 +8,21 @@
 // the real `groupConfigSchema` — so a harness-level apply exercises the same shapes the composed graph
 // serves.
 
+import type { RulePresetId, RulePresetKnobValues } from "@orb/contracts/automation";
+import { automationTriggerFor } from "@orb/contracts/automation";
 import type { GroupConfig, ParticipantView } from "@orb/contracts/chat";
 import { groupConfigSchema, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { characters, personas } from "@orb/db";
-import type { CharacterId, ChatId, ChatParticipantId, RosterPresetId, UserId } from "@orb/kit/ids";
+import type { AutomationRuleId, CharacterId, ChatId, ChatParticipantId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
+import { RuleValidationError } from "../../../../packages/server/src/domain/automation/contract/errors.ts";
+import { RULE_PRESETS } from "../../../../packages/server/src/domain/automation/contract/presets.ts";
+import type { RuleView } from "../../../../packages/server/src/domain/automation/contract/results.ts";
+import { resolveChatRulePresetKnobs, toRulePresetView } from "../../../../packages/server/src/domain/automation/substrate/presets.ts";
 import type { PresentCharacterSeat, RosterPresetContext } from "../../../../packages/server/src/domain/roster-preset/contract/service.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
@@ -53,6 +59,17 @@ interface HostCall {
   readonly chatId: ChatId;
 }
 
+interface RuleMintCall {
+  readonly chatId: ChatId | null;
+  readonly rulePresetId: RulePresetId;
+  readonly knobs: RulePresetKnobValues;
+}
+
+interface RuleEnableCall {
+  readonly ruleId: AutomationRuleId;
+  readonly enabled: boolean;
+}
+
 export interface RosterPresetHarness {
   readonly ctx: RosterPresetContext;
   readonly audits: AuditCall[];
@@ -65,7 +82,55 @@ export interface RosterPresetHarness {
   /** The target chat's PRESENT character seats the fake pre-read serves — tests seed it; the fake
    *  `addCharacterToChat` ALSO appends to it (chat's present-seat idempotency floor, modeled). */
   readonly presentSeats: PresentCharacterSeat[];
+  /** The target chat's rules the fake `listRules` serves — tests seed it (via {@link seededRuleView});
+   *  the fake mint APPENDS to it and the fake delete REMOVES from it, so re-apply arms see the room
+   *  move exactly as automation's own verbs would move it. */
+  readonly roomRules: RuleView[];
+  /** The recorded injected-automation-op calls (B10's rules rider), in fire order. */
+  readonly ruleMints: RuleMintCall[];
+  readonly ruleEnables: RuleEnableCall[];
+  readonly ruleDeletes: AutomationRuleId[];
+  /** `listRules` invocation count — the sans-rules-cast ZERO-OPS pin reads this (a read is an op too). */
+  readonly ruleListReads: { count: number };
+  /** PLANTED per-preset mint refusals — the fake `createRuleFromPreset` throws automation's own
+   *  `RuleValidationError` with the planted reason (the book-attachment consent class the REAL graph
+   *  raises; the composed-real proof is `tests/server/entry/compose/roster-preset.int.test.ts`). */
+  readonly refuseMints: Map<RulePresetId, string>;
   readonly advance: (ms: number) => void;
+}
+
+/** A fully-typed room RuleView the fake automation plane serves — provenance stamped when given. */
+export function seededRuleView(args: {
+  readonly id: AutomationRuleId;
+  readonly chatId: ChatId;
+  readonly name: string;
+  readonly enabled: boolean;
+  readonly position: number;
+  readonly rulePresetId: RulePresetId | null;
+  readonly rulePresetKnobs: RulePresetKnobValues | null;
+  readonly createdAt?: number;
+}): RuleView {
+  return {
+    id: args.id,
+    chatId: args.chatId,
+    name: args.name,
+    description: null,
+    enabled: args.enabled,
+    position: args.position,
+    trigger: automationTriggerFor("messageCommitted"),
+    predicateCel: null,
+    actions: [],
+    rulePresetId: args.rulePresetId,
+    rulePresetKnobs: args.rulePresetKnobs,
+    matchAutomationEvents: false,
+    cooldownSeconds: 0,
+    maxFiresPerHour: 30,
+    consecutiveErrors: 0,
+    lastError: null,
+    lastFiredAt: null,
+    createdAt: args.createdAt ?? FROZEN_AT_MS,
+    updatedAt: args.createdAt ?? FROZEN_AT_MS,
+  };
 }
 
 /** A minimal fully-typed ParticipantView for a character seat the fake add returns. */
@@ -102,6 +167,12 @@ export function makeHarness(db: Db, overrides: Partial<RosterPresetContext> = {}
   const knobs: KnobCall[] = [];
   const configs: ConfigCall[] = [];
   const presentSeats: PresentCharacterSeat[] = [];
+  const roomRules: RuleView[] = [];
+  const ruleMints: RuleMintCall[] = [];
+  const ruleEnables: RuleEnableCall[] = [];
+  const ruleDeletes: AutomationRuleId[] = [];
+  const ruleListReads = { count: 0 };
+  const refuseMints = new Map<RulePresetId, string>();
   const ctx: RosterPresetContext = {
     db,
     now: (): number => clock.now(),
@@ -159,6 +230,60 @@ export function makeHarness(db: Db, overrides: Partial<RosterPresetContext> = {}
         return Promise.resolve(parsed);
       },
     },
+    // B10's rules rider — the injected automation ops. The VALIDATION arms are REAL (the same
+    // catalogue + resolver the compose seam wires: the knob law is data, not wiring, so faking it
+    // would fake the subject); the WRITE arms are recording fakes modeling automation's contracts —
+    // mint appends `ruleCount` born-DISABLED provenance-stamped views, delete removes, enable flips.
+    automation: {
+      resolveChatRulePresetKnobs,
+      listRulePresets: () => Object.values(RULE_PRESETS).map(toRulePresetView),
+      listRules: () => {
+        ruleListReads.count += 1;
+        return Promise.resolve([...roomRules]);
+      },
+      createRuleFromPreset: ({ chatId, presetId: rulePresetId, knobs: overrideKnobs }): Promise<RuleView[]> => {
+        const refusal = refuseMints.get(rulePresetId);
+        if (refusal !== undefined) {
+          // The planted consent-class refusal (automation's OWN error class — what the catch narrows on).
+          return Promise.reject(new RuleValidationError("book_not_attached", refusal));
+        }
+        const resolved = resolveChatRulePresetKnobs(rulePresetId, overrideKnobs ?? {});
+        ruleMints.push({ chatId, rulePresetId, knobs: resolved });
+        const minted: RuleView[] = [];
+        for (let index = 0; index < RULE_PRESETS[rulePresetId].ruleCount; index += 1) {
+          const view = seededRuleView({
+            id: castId<AutomationRuleId>(ids.next("automation_rule")),
+            chatId: chatId ?? castId<ChatId>("chat_unscoped"),
+            name: `${RULE_PRESETS[rulePresetId].title} (${index + 1}/${RULE_PRESETS[rulePresetId].ruleCount})`,
+            enabled: false,
+            position: roomRules.length,
+            rulePresetId,
+            rulePresetKnobs: resolved,
+            createdAt: clock.now(),
+          });
+          roomRules.push(view);
+          minted.push(view);
+        }
+        return Promise.resolve(minted);
+      },
+      setRuleEnabled: ({ ruleId, enabled }): Promise<void> => {
+        ruleEnables.push({ ruleId, enabled });
+        const index = roomRules.findIndex((rule) => rule.id === ruleId);
+        const held = roomRules[index];
+        if (held !== undefined) {
+          roomRules[index] = { ...held, enabled };
+        }
+        return Promise.resolve();
+      },
+      deleteRule: ({ ruleId }): Promise<void> => {
+        ruleDeletes.push(ruleId);
+        const index = roomRules.findIndex((rule) => rule.id === ruleId);
+        if (index >= 0) {
+          roomRules.splice(index, 1);
+        }
+        return Promise.resolve();
+      },
+    },
     ...overrides,
   };
   return {
@@ -170,6 +295,12 @@ export function makeHarness(db: Db, overrides: Partial<RosterPresetContext> = {}
     knobs,
     configs,
     presentSeats,
+    roomRules,
+    ruleMints,
+    ruleEnables,
+    ruleDeletes,
+    ruleListReads,
+    refuseMints,
     advance: (ms: number): void => clock.advance(ms),
   };
 }

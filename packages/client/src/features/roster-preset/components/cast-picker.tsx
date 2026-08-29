@@ -7,8 +7,9 @@
 //     rendered only when a room is open (the server's host gate refuses a non-host with chat's own
 //     leak-free error — the affordance itself stays capability-quiet rather than lying);
 //   · the header — SAVE the open room's CURRENT cast as a new saved cast (author-by-example: present
-//     character seats + their live knobs + the room's effective group config + the anchor persona),
-//     rendered only when the viewer HOSTS the open room.
+//     character seats + their live knobs + the room's effective group config + the anchor persona +
+//     the room's ENABLED rule presets, B10's rules rider — capture derives from `listRules` mint
+//     provenance and the include-line shows what rides), rendered only when the viewer HOSTS the room.
 //
 // All three states ship (features/README §4.6): the designed EMPTY state (with the save-current action
 // when hosting), the shape-matched skeleton (the modal def's QueryBoundary), and QueryBoundary's error
@@ -30,17 +31,21 @@ import { useInvalidation, useStartChat, useTRPC } from "#data";
 import { notify } from "#lib";
 import { closeModal, openModal } from "#state";
 import { useApplyRosterPreset, useCreateRosterPreset, useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
-import { useActiveCastChat, useSavedCasts } from "../hooks/use-saved-casts.ts";
+import type { CapturedCastRule } from "../hooks/use-saved-casts.ts";
+import { useActiveCastChat, useCastRuleCapture, useSavedCasts } from "../hooks/use-saved-casts.ts";
 
-/** Derived, not re-minted (no-inline-types): the hook's own return shapes. */
+/** Derived, not re-minted (no-inline-types): the hook's own return shape. */
 type SavedCastSummary = RosterPresetSummary;
-type ActiveCastChat = NonNullable<ReturnType<typeof useActiveCastChat>>;
 
-/** The apply outcome, said as one short sentence (the §6 result toast). */
+/** The apply outcome, said as one short sentence (the §6 result toast; B10's rules rider adds the
+ *  rule arms — "rule", never bare "preset", the 2026-08-24 vocabulary ruling). */
 function applySentence(result: {
   readonly added: readonly unknown[];
   readonly alreadyPresent: readonly unknown[];
   readonly skipped: readonly unknown[];
+  readonly rulesMinted: readonly unknown[];
+  readonly rulesAlreadyPresent: readonly unknown[];
+  readonly rulesSkipped: readonly unknown[];
 }): string {
   const parts = [`Added ${result.added.length}`];
   if (result.alreadyPresent.length > 0) {
@@ -48,6 +53,13 @@ function applySentence(result: {
   }
   if (result.skipped.length > 0) {
     parts.push(`${result.skipped.length} skipped`);
+  }
+  const rulesOn = result.rulesMinted.length + result.rulesAlreadyPresent.length;
+  if (rulesOn > 0) {
+    parts.push(`${rulesOn} rule${rulesOn === 1 ? "" : "s"} on`);
+  }
+  if (result.rulesSkipped.length > 0) {
+    parts.push(`${result.rulesSkipped.length} rule${result.rulesSkipped.length === 1 ? "" : "s"} skipped`);
   }
   return parts.join(" · ");
 }
@@ -76,6 +88,11 @@ function CastRow(props: {
           <Badge intent="neutral" tone="soft">
             {cast.memberCount}
           </Badge>
+          {cast.rules.length > 0 ? (
+            <Badge intent="neutral" tone="soft">
+              {cast.rules.length} rule{cast.rules.length === 1 ? "" : "s"}
+            </Badge>
+          ) : null}
         </Row>
         <Text voice="gloss" className="truncate">
           {memberNames}
@@ -100,33 +117,58 @@ function CastRow(props: {
   );
 }
 
-/** The header's author-by-example door — snapshot the OPEN room's cast into a named cast. */
-function SaveCurrentCast(props: { readonly active: ActiveCastChat; readonly busy: boolean; readonly onSave: (name: string) => void }): ReactElement {
+/** The header's author-by-example door — snapshot the OPEN room's cast into a named cast. B10's rules
+ *  rider: the room's enabled rule presets ride the save (capture-all — the same author-by-example
+ *  semantics as the member snapshot: curate by configuring the room, then save), and the include-line
+ *  SHOWS what rides so the later apply's consent is informed (build record §6.5). Save waits for the
+ *  capture read (`rules === null`) — a cast silently missing its rules would be the worse failure. */
+function SaveCurrentCast(props: {
+  readonly busy: boolean;
+  readonly capturedRules: readonly CapturedCastRule[] | null;
+  readonly ruleTitleOf: (id: CapturedCastRule["rulePresetId"]) => string;
+  readonly onSave: (name: string) => void;
+}): ReactElement {
   const [name, setName] = useState("");
   const trimmed = name.trim();
+  const { capturedRules, ruleTitleOf } = props;
   return (
-    <Row align="center" gap="field">
-      <Input aria-label="New cast name" placeholder="Name this cast…" value={name} onChange={(e): void => setName(e.target.value)} className="min-w-0 flex-1" />
-      <Button
-        className="shrink-0"
-        disabled={props.busy || trimmed.length === 0}
-        intent="outline"
-        size="sm"
-        onClick={(): void => {
-          props.onSave(trimmed);
-          setName("");
-        }}
-      >
-        <Icon icon={Users} size="sm" />
-        Save current cast
-      </Button>
-    </Row>
+    <Stack gap="tight">
+      <Row align="center" gap="field">
+        <Input
+          aria-label="New cast name"
+          placeholder="Name this cast…"
+          value={name}
+          onChange={(e): void => setName(e.target.value)}
+          className="min-w-0 flex-1"
+        />
+        <Button
+          className="shrink-0"
+          disabled={props.busy || trimmed.length === 0 || capturedRules === null}
+          intent="outline"
+          size="sm"
+          onClick={(): void => {
+            props.onSave(trimmed);
+            setName("");
+          }}
+        >
+          <Icon icon={Users} size="sm" />
+          Save current cast
+        </Button>
+      </Row>
+      {capturedRules !== null && capturedRules.length > 0 ? (
+        <Text voice="gloss" data-slot="cast-rules-include">
+          Includes {capturedRules.length} enabled rule{capturedRules.length === 1 ? "" : "s"}:{" "}
+          {capturedRules.map((rule) => ruleTitleOf(rule.rulePresetId)).join(", ")}
+        </Text>
+      ) : null}
+    </Stack>
   );
 }
 
 export function CastPicker(): ReactElement {
   const casts = useSavedCasts();
   const active = useActiveCastChat();
+  const ruleCapture = useCastRuleCapture(active);
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const create = useCreateRosterPreset({ trpc, invalidation });
@@ -197,15 +239,22 @@ export function CastPicker(): ReactElement {
             talkativeness: seat.talkativeness,
             disabled: seat.disabled,
           })),
+          // B10's rules rider — the room's enabled rule presets ride the snapshot (the Save button
+          // waits for the capture read, so `?? []` only covers the impossible-by-gating mount).
+          rules: (ruleCapture.rules ?? []).map((rule) => ({ rulePresetId: rule.rulePresetId, knobs: rule.knobs })),
         },
       })
-      .then((view) => notify.success(`Saved “${view.name}” — ${view.members.length} member${view.members.length === 1 ? "" : "s"}.`))
+      .then((view) =>
+        notify.success(
+          `Saved “${view.name}” — ${view.members.length} member${view.members.length === 1 ? "" : "s"}${view.rules.length > 0 ? `, ${view.rules.length} rule${view.rules.length === 1 ? "" : "s"}` : ""}.`,
+        ),
+      )
       .catch(() => undefined); // errorToast owns the failure copy (e.g. the duplicate-name conflict).
   };
 
   return (
     <Stack gap="section">
-      {active?.isHost === true ? <SaveCurrentCast active={active} busy={busy} onSave={onSave} /> : null}
+      {active?.isHost === true ? <SaveCurrentCast busy={busy} capturedRules={ruleCapture.rules} ruleTitleOf={ruleCapture.titleOf} onSave={onSave} /> : null}
       {casts.length === 0 ? (
         <EmptyState
           icon={<Icon icon={Users} size="lg" />}

@@ -4,7 +4,7 @@
 // nukes the chat's rule list — 04 §1). Position is a total order per chat; `applyReorder` rewrites it in one
 // batch.
 
-import type { AutomationAction, AutomationTrigger } from "@orb/contracts/automation";
+import type { AutomationAction, AutomationTrigger, RulePresetId, RulePresetKnobValues } from "@orb/contracts/automation";
 import { automationActionsSchema } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
@@ -30,6 +30,10 @@ interface RuleInsert {
   readonly triggerType: AutomationTrigger["type"];
   readonly predicateCel: string | null;
   readonly actions: readonly AutomationAction[];
+  /** Mint provenance (both-or-neither — the paired db CHECK): non-null ONLY on `createRuleFromPreset`'s
+   *  writes. */
+  readonly rulePresetId: RulePresetId | null;
+  readonly rulePresetKnobs: RulePresetKnobValues | null;
   readonly matchAutomationEvents: boolean;
   readonly cooldownSeconds: number;
   readonly maxFiresPerHour: number;
@@ -46,6 +50,11 @@ interface RuleUpdate {
   readonly triggerType: AutomationTrigger["type"];
   readonly predicateCel: string | null;
   readonly actions: readonly AutomationAction[];
+  /** ALWAYS null on an update — an edit clears the mint provenance (the row is no longer exactly what
+   *  the preset mints; v1 knob-edit stays re-mint, §3-S3). Spelled here rather than defaulted inside
+   *  `applyRuleUpdate` so the clearing is part of the verb's stated patch, not a hidden side effect. */
+  readonly rulePresetId: null;
+  readonly rulePresetKnobs: null;
   readonly matchAutomationEvents: boolean;
   readonly cooldownSeconds: number;
   readonly maxFiresPerHour: number;
@@ -73,6 +82,8 @@ export function toRuleView(row: RuleRow): RuleView {
     trigger: toTrigger(row),
     predicateCel: row.predicateCel,
     actions: parsed.success ? parsed.data : [],
+    rulePresetId: row.rulePresetId,
+    rulePresetKnobs: row.rulePresetKnobs,
     matchAutomationEvents: row.matchAutomationEvents,
     cooldownSeconds: row.cooldownSeconds,
     maxFiresPerHour: row.maxFiresPerHour,

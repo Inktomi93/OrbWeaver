@@ -78,6 +78,8 @@ CREATE TABLE `automation_rules` (
 	`trigger_bus` text NOT NULL,
 	`trigger_type` text NOT NULL,
 	`predicate_cel` text,
+	`rule_preset_id` text,
+	`rule_preset_knobs` text,
 	`actions` text NOT NULL,
 	`match_automation_events` integer DEFAULT false NOT NULL,
 	`cooldown_seconds` integer DEFAULT 0 NOT NULL,
@@ -90,6 +92,7 @@ CREATE TABLE `automation_rules` (
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "automation_rules_name_check" CHECK(length(name) <= 120),
+	CONSTRAINT "automation_rules_rule_preset_check" CHECK((rule_preset_id IS NULL) = (rule_preset_knobs IS NULL)),
 	CONSTRAINT "automation_rules_trigger_bus_check" CHECK(trigger_bus in ('chat', 'domain')),
 	CONSTRAINT "automation_rules_trigger_type_check" CHECK((trigger_bus = 'chat' AND trigger_type in ('chatOpened', 'messageCommitted', 'messageEdited', 'variantSelected', 'turnStarted', 'turnCompleted', 'turnAborted', 'worldInfoActivated', 'personaSwitched', 'chatCreated', 'reactionsChanged', 'messageHidden', 'messagesDeleted', 'chatUpdated', 'wiEntryAttached', 'wiEntryDetached')) OR (trigger_bus = 'domain' AND trigger_type in ('character.updated', 'asset.created', 'persona.updated', 'world-info.updated')))
 );
@@ -979,6 +982,15 @@ CREATE TABLE `roster_preset_members` (
 );
 --> statement-breakpoint
 CREATE INDEX `roster_preset_members_character_idx` ON `roster_preset_members` (`character_id`);--> statement-breakpoint
+CREATE TABLE `roster_preset_rules` (
+	`preset_id` text NOT NULL,
+	`rule_preset_id` text NOT NULL,
+	`position` integer NOT NULL,
+	`knobs` text NOT NULL,
+	PRIMARY KEY(`preset_id`, `rule_preset_id`),
+	FOREIGN KEY (`preset_id`) REFERENCES `roster_presets`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
 CREATE TABLE `roster_presets` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,

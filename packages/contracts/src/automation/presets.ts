@@ -1,9 +1,11 @@
 // @orb/contracts/automation — the RULE-PRESET wire slice (S3). A preset is the user-facing vocabulary of the
 // automation platform: a named, knob-parameterized recipe that MINTS an ordered set of ordinary
 // `automation_rules` rows through the existing `createRule` validation. Nothing here is a second rule model —
-// after a mint the rows are indistinguishable from hand-authored ones (v1's knob-EDIT path is re-mint, so no
-// `preset_id`/`knobs` provenance column exists; the post-mint flip shape is recorded-unbuilt in the
-// interaction-direction spec §3-S3).
+// after a mint the rows are BEHAVIORALLY indistinguishable from hand-authored ones, but they carry
+// PROVENANCE (`rule_preset_id` + `rule_preset_knobs` on `automation_rules` — the §3-S3 flip shape, landed
+// with B10's rules rider): stamped at mint, CLEARED by `updateRule` (a hand-edited rule is no longer the
+// preset's mint — v1's knob-EDIT path stays re-mint), and projected on `RuleView` so a room's enabled
+// rule-preset accrual is readable (the saved-cast capture; B2's future in-place knob editor).
 //
 // WHAT LIVES HERE vs the domain: the ID TUPLE + the client-visible PROJECTION (id/title/summary/knob
 // descriptors) — the picker's whole read model. The CEL predicate sources, the arm templates and the mint
@@ -241,6 +243,43 @@ export const rulePresetKnobValuesSchema = z.record(z.string(), z.union([z.number
 export type RulePresetKnobValueInputs = z.input<typeof rulePresetKnobValuesSchema>;
 /** ONE knob's value in that bag. */
 export type RulePresetKnobValueInput = RulePresetKnobValueInputs[string];
+
+/** A RESOLVED knob bag — every declared knob present, each value validated by its own descriptor (the
+ *  output shape of the domain's `resolveRulePresetKnobs`). This is the bag STORED as mint provenance on
+ *  `automation_rules.rule_preset_knobs` and as a saved cast's rule row (`roster_preset_rules.knobs`), and
+ *  the bag a re-mint hands back to `createRuleFromPreset` (a complete bag is a valid override bag — every
+ *  key known, every value in bounds; a knob the preset gained SINCE the bag was stored resolves to its
+ *  descriptor default, and a knob it LOST refuses loudly at the re-mint, never silently). */
+export type RulePresetKnobValues = Readonly<Record<string, RulePresetKnobValue>>;
+
+/** A stored/resolved bag re-spelled as the WIRE INPUT bag (mutable arrays — the values schema's
+ *  `z.input` takes `string[]`, and a `readonly string[]` will not assign into it). For surfaces that
+ *  ECHO a view's bag back into a write (the saved-cast capture + the library editor's full-replace
+ *  rename), so neither hand-rolls the readonly→mutable conversion or reaches for a cast. */
+export function rulePresetKnobBagToInputs(bag: RulePresetKnobValues): RulePresetKnobValueInputs {
+  return Object.fromEntries(Object.entries(bag).map(([key, value]) => [key, typeof value === "string" || typeof value === "number" ? value : [...value]]));
+}
+
+/** Deep equality over two resolved knob bags — the re-apply idempotency comparison (a saved cast's rule
+ *  vs a room rule's stored provenance). The value union is closed (number | string | list-of-strings), so
+ *  this is a total structural compare, not a generic deep-equal. */
+export function rulePresetKnobBagsEqual(a: RulePresetKnobValues, b: RulePresetKnobValues): boolean {
+  const aKeys = Object.keys(a);
+  if (aKeys.length !== Object.keys(b).length) {
+    return false;
+  }
+  return aKeys.every((key) => {
+    const left = a[key];
+    const right = b[key];
+    if (left === undefined || right === undefined) {
+      return left === right;
+    }
+    if (typeof left === "number" || typeof left === "string" || typeof right === "number" || typeof right === "string") {
+      return left === right;
+    }
+    return left.length === right.length && left.every((entry, index) => entry === right[index]);
+  });
+}
 
 /** One knob descriptor as the picker reads it — the descriptor plus the key it is addressed by (the domain
  *  holds knobs as a keyed schema; the projection flattens it). */

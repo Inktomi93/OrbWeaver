@@ -42,6 +42,11 @@ export function createUpdateRule(ctx: AutomationContext): AutomationService["upd
       triggerType: params.trigger.type,
       predicateCel: params.predicateCel ?? null,
       actions,
+      // ANY edit clears the mint provenance — the row is no longer exactly what its preset mints, and
+      // the saved-cast capture / B2's knob editor must not read a knob bag that lies about the rule
+      // (v1's knob-edit path stays re-mint, §3-S3).
+      rulePresetId: null,
+      rulePresetKnobs: null,
       matchAutomationEvents: params.matchAutomationEvents ?? false,
       cooldownSeconds,
       maxFiresPerHour,

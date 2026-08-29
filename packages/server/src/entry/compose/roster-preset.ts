@@ -13,6 +13,8 @@ import type { Db } from "@orb/db";
 import { characters, chatParticipants, personas } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import type { AutomationService } from "#domain/automation";
+import { resolveChatRulePresetKnobs } from "#domain/automation";
 import type { ChatService } from "#domain/chat";
 import { requireHost } from "#domain/chat";
 import type { PresentCharacterSeat, RosterPresetContext, RosterPresetService } from "#domain/roster-preset";
@@ -27,10 +29,11 @@ interface RosterPresetComposeInput {
   readonly emitUserEvent: EmitUserEvent;
   readonly can: Can;
   readonly chat: ChatService;
+  readonly automation: AutomationService;
 }
 
 export function buildRosterPreset(input: RosterPresetComposeInput): RosterPresetService {
-  const { db, now, audit, emitUserEvent, can, chat } = input;
+  const { db, now, audit, emitUserEvent, can, chat, automation } = input;
   const ctx: RosterPresetContext = {
     db,
     now,
@@ -72,6 +75,17 @@ export function buildRosterPreset(input: RosterPresetComposeInput): RosterPreset
           .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq)));
         return rows.flatMap((row) => (row.characterId === null ? [] : [{ characterId: row.characterId, participantId: row.participantId }]));
       },
+    },
+    // B10's rules rider — automation's OWN front-door verbs (every write host-gated inside automation;
+    // the ONE rule write path stays automation's) + its exported capture belt. The same sanctioned
+    // shape as the chat ops above.
+    automation: {
+      createRuleFromPreset: automation.createRuleFromPreset,
+      deleteRule: automation.deleteRule,
+      listRulePresets: automation.listRulePresets,
+      listRules: automation.listRules,
+      setRuleEnabled: automation.setRuleEnabled,
+      resolveChatRulePresetKnobs,
     },
   };
   return createRosterPresetService(ctx);

@@ -6,12 +6,14 @@ import type { Db } from "@orb/db";
 import { characters, personas, rosterPresetMembers, rosterPresets, users } from "@orb/db";
 import type { CharacterId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { CastRuleWrite } from "@orb/server/domain/roster-preset";
 import { RosterPresetNotFoundError } from "@orb/server/domain/roster-preset";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import {
   insertPresetWithMembers,
   listOwnedPresetRows,
+  loadCastRuleRows,
   loadMemberCardRows,
   loadMemberRows,
   loadOwnedPresetRow,
@@ -33,6 +35,8 @@ interface SeedPresetArgs {
   readonly name: string;
   readonly anchorPersonaId?: PersonaId | null;
   readonly memberIds: readonly CharacterId[];
+  /** B10's rules rider — captured rule-preset junction rows to seed beside the members. */
+  readonly rules?: readonly CastRuleWrite[];
 }
 
 async function seedPreset(db: Db, args: SeedPresetArgs): Promise<RosterPresetId> {
@@ -50,6 +54,7 @@ async function seedPreset(db: Db, args: SeedPresetArgs): Promise<RosterPresetId>
       updatedAt: AT,
     },
     args.memberIds.map((characterId, i) => ({ characterId, position: i, talkativeness: null, disabled: false })),
+    args.rules ?? [],
   );
   return presetId;
 }
@@ -98,6 +103,27 @@ describe("roster-preset persistence — FK physics", () => {
     expect(await db.select().from(rosterPresetMembers)).toHaveLength(0);
   });
 
+  test("cast-rule rows round-trip (id + resolved bag, stored order) and CASCADE with the preset (B10's rules rider)", async () => {
+    const db = await freshDb();
+    const owner = (await seedUser(db)).id;
+    const c = (await seedCharacter(db, { ownerId: owner })).id;
+    const rules: CastRuleWrite[] = [
+      { rulePresetId: "sceneVeil", position: 0, knobs: { veilWord: "((veil))", redirect: "Cut away." } },
+      { rulePresetId: "pacingNudge", position: 1, knobs: { everyN: 8, steer: "Shift the pacing." } },
+    ];
+    const ruled = await seedPreset(db, { id: "roster_preset_rk1", ownerId: owner, name: "Ruled", memberIds: [c], rules });
+    const bystander = await seedPreset(db, { id: "roster_preset_rk2", ownerId: owner, name: "Plain", memberIds: [c] });
+
+    const rows = await loadCastRuleRows(db, [ruled, bystander]);
+    expect(rows.map((row) => row.rulePresetId)).toEqual(["sceneVeil", "pacingNudge"]);
+    expect(rows[0]?.knobs).toEqual({ veilWord: "((veil))", redirect: "Cut away." });
+
+    await db.delete(rosterPresets).where(eq(rosterPresets.id, ruled));
+    expect(await loadCastRuleRows(db, [ruled])).toHaveLength(0);
+    // The bystander preset (and its absence of rules) is untouched.
+    expect(await loadMemberRows(db, bystander)).toHaveLength(1);
+  });
+
   test("updatePresetWithMembers with a MISMATCHED owner refuses leak-free and mutates NO cross-owner member (stickler F2 — the direct belt probe the verb path can't reach)", async () => {
     const db = await freshDb();
     const alice = (await seedUser(db)).id;
@@ -114,6 +140,7 @@ describe("roster-preset persistence — FK physics", () => {
         presetId: alicesPreset,
         patch: { name: "stolen", description: "", anchorPersonaId: null, groupConfig: null, updatedAt: AT + 1 },
         members: [{ characterId: bobsChar, position: 0, talkativeness: null, disabled: false }],
+        rules: [],
       }),
     ).rejects.toBeInstanceOf(RosterPresetNotFoundError);
 
@@ -129,6 +156,7 @@ describe("roster-preset persistence — FK physics", () => {
       presetId: alicesPreset,
       patch: { name: "Alice's party", description: "", anchorPersonaId: null, groupConfig: null, updatedAt: AT + 2 },
       members: [{ characterId: alicesChar, position: 0, talkativeness: 0.9, disabled: false }],
+      rules: [],
     });
     expect((await loadMemberRows(db, alicesPreset))[0]?.talkativeness).toBe(0.9);
   });

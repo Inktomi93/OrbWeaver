@@ -31,6 +31,8 @@ const RULE: RuleView = {
   trigger: { bus: "chat", type: "messageCommitted" },
   predicateCel: null,
   actions: [{ type: "set_variable", scope: "chat", key: "greeted", op: "set", value: "1" }],
+  rulePresetId: null,
+  rulePresetKnobs: null,
   matchAutomationEvents: false,
   cooldownSeconds: 0,
   maxFiresPerHour: 30,

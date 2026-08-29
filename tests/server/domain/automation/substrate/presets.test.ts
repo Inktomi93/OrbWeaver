@@ -10,6 +10,7 @@ import { RuleValidationError } from "@orb/server/domain/automation";
 import type { ErasedRulePresetDef } from "../../../../../packages/server/src/domain/automation/contract/presets.ts";
 import { RULE_PRESETS } from "../../../../../packages/server/src/domain/automation/contract/presets.ts";
 import {
+  resolveChatRulePresetKnobs,
   resolveRulePresetKnobs,
   rulePresetSpendsAtDefaults,
   toRulePresetView,
@@ -181,4 +182,15 @@ test("every committed preset projects a complete, well-formed picker view", () =
   expect(views.filter((v) => v.title.length === 0 || v.summary.length === 0 || v.ruleCount < 1)).toEqual([]);
   // A knob with no label is an unrenderable editor; every descriptor carries one.
   expect(views.flatMap((v) => v.knobs).filter((knob) => knob.label.length === 0 || knob.key.length === 0)).toEqual([]);
+});
+
+test("resolveChatRulePresetKnobs (B10's capture belt): resolves a chat preset's bag COMPLETE, refuses a GLOBAL preset by name, refusals stay the knob law's own", () => {
+  // A partial override completes from the descriptor defaults — the bag a cast stores.
+  expect(resolveChatRulePresetKnobs("pacingNudge", { everyN: 4 })).toMatchObject({ everyN: 4 });
+  expect(Object.keys(resolveChatRulePresetKnobs("pacingNudge", {})).toSorted()).toEqual(["everyN", "steer"]);
+  // A cast is a ROOM artifact — the one global catalogue row refuses by name.
+  expect(() => resolveChatRulePresetKnobs("livingLibrary", {})).toThrow(/cannot ride a saved cast/);
+  expect(() => resolveChatRulePresetKnobs("livingLibrary", {})).toThrow(RuleValidationError);
+  // The knob law rides through unchanged (bounds refused, never clamped).
+  expect(() => resolveChatRulePresetKnobs("pacingNudge", { everyN: 5000 })).toThrow(RuleValidationError);
 });

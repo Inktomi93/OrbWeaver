@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-08-28
+updated: 2026-08-29
 ---
 
 # THE INTERACTION DIRECTION — the one specification (substrate · platform · path · catalogue)
@@ -205,8 +205,12 @@ AND the client-visible projection (id/title/knob descriptors) in `@orb/contracts
 (CEL sources and handlers stay domain-side). ENFORCER: exhaustive
 `Record<RulePresetId, RulePresetDef>` (arms typed against the action union); per-preset
 create→fire int test through the real engine. v1 knob-edit path: re-mint from the picker; the
-post-mint knob-editing flip shape (`preset_id` + `knobs` provenance on `automation_rules`,
-merge-window) is recorded-unbuilt.
+post-mint knob-editing flip shape — provenance on `automation_rules` — LANDED with B10's rules
+rider (2026-08-29, columns spelled `rule_preset_id` + `rule_preset_knobs` per the 2026-08-24
+Rule-prefixed vocabulary ruling): stamped by `createRuleFromPreset` with the COMPLETE resolved bag,
+CLEARED by `updateRule`, projected on `RuleView` (the saved-cast capture reads it; the in-place knob
+EDITOR over it stays unbuilt — edit is still re-mint). As-built record:
+`saved-rosters-build-record.md` §6.
 
 **THE SCOPE AXIS, born whole (the platform ruling — bridge 011; "not in v1" only ever means
 UNWIRED-but-typed, never unshaped):**

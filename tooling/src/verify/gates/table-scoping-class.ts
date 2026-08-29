@@ -45,10 +45,11 @@ type ScopingRow = ExemptionRow & { readonly scope: ScopingClass };
  *  a listed table the schema no longer declares is RED. The (a) rows mirror `ownerid-registry`'s
  *  OWNERID_ALLOWLIST (that gate owns WHETHER the stamp is legal; this one owns what the stamp MEANS for a
  *  read), so their reasons stay short and cite it. Verified against the schema 2026-08-08 (refinery R0 —
- *  which also corrected a two-row drift the previous census missed): 85 tables — 23 ownerId ·
- *  19 membership · 15 junction · 23 parent · 5 global (D121-E added the regex library + its four scope
+ *  which also corrected a two-row drift the previous census missed): 86 tables — 23 ownerId ·
+ *  19 membership · 15 junction · 24 parent · 5 global (D121-E added the regex library + its four scope
  *  junctions; refinery R0 added its two parent-scoped tables; #273 added `image_index_skips`, parent;
- *  #26 saved-rosters added `roster_presets` (ownerId) + `roster_preset_members` (junction)). */
+ *  #26 saved-rosters added `roster_presets` (ownerId) + `roster_preset_members` (junction); B10's rules
+ *  rider added `roster_preset_rules` (parent — one FK, the catalogue side is code)). */
 export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
   // ── (a) ownerId-scoped — the D23 stamp. Reasons live in ownerid-registry's OWNERID_ALLOWLIST. ──────────
   assets: { scope: "ownerId", why: "D21 single-owned; reads go through `fetchOwned` (ownerid-registry owns the stamp's justification)." },
@@ -176,6 +177,10 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
   world_book_tags: { scope: "junction", why: "world_book ↔ tag attachment; both parents are (a) ownerId tables." },
 
   // ── (d) parent-derived — scope inherits ONE owning FK; the read joins up. ──────────────────────────────
+  roster_preset_rules: {
+    scope: "parent",
+    why: "B10's rules rider — a cast's captured automation RULE PRESETS. NOT `junction` even though it links two concepts: a rule preset is a CODE-catalogue id (`RULE_PRESET_IDS`), not a row, so there is no second independently-scoped parent to reach (the message_reactions reasoning) — scope derives through the ONE owning FK, presetId → roster_presets.ownerId (D23). rule_preset_id/position/knobs are captured DATA riding the link, never a read key.",
+  },
   automation_rule_state: {
     scope: "parent",
     why: "S5 (C1) the run_analysis arm's plot state — scope derives ruleId → automation_rules (ownerId, chatId); D23-clean, no member/plugin read surface (interaction-direction-spec §3-S5.2).",

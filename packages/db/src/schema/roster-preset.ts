@@ -14,6 +14,7 @@
 // seat row gone, preset survives smaller; persona delete → anchor NULL; preset delete → members CASCADE,
 // chats started from it untouched; owner delete → everything CASCADEs.
 
+import type { RulePresetId, RulePresetKnobValues } from "@orb/contracts/automation";
 import type { GroupConfigInput } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
@@ -90,5 +91,40 @@ export const rosterPresetMembers = sqliteTable(
     // The character-delete cascade's parent scan (`fk-columns-indexed`: characterId sits SECOND in the
     // PK, which is unindexed for a predicate that knows only the characterId).
     index("roster_preset_members_character_idx").on(t.characterId),
+  ],
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// roster_preset_rules — B10's rules rider (build record §6): the cast's captured automation RULE PRESETS
+// (catalogue id + the RESOLVED knob bag), re-minted through automation's own `createRuleFromPreset` at
+// apply. `rule_preset_id` carries NO FK and NO CHECK — rule presets are a CODE catalogue
+// (`RULE_PRESET_IDS`, @orb/contracts/automation), not rows, and the tuple grows by design; the id is
+// wire-validated (closed z.enum) at write and re-checked against the live catalogue at apply (a stale id
+// after a catalogue removal degrades to a reported skip, never a constraint violation). Owner scope
+// DERIVES through the required `presetId` FK (D23 — the `roster_preset_members` posture; no ownerId).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const rosterPresetRules = sqliteTable(
+  "roster_preset_rules",
+  {
+    presetId: text("preset_id")
+      .$type<RosterPresetId>()
+      .notNull()
+      .references(() => rosterPresets.id, { onDelete: "cascade" }),
+    // A member of the automation catalogue's closed id tuple (see the header for why no DDL pin).
+    rulePresetId: text("rule_preset_id").$type<RulePresetId>().notNull(),
+    // Capture order = apply order (dense 0..n-1, normalized at the write verb — the members posture).
+    // Cross-preset mint order is SEMANTICS (one write-through CEL env per dispatch batch), so the apply
+    // re-mints in this order deterministically.
+    position: integer("position").notNull(),
+    // The complete RESOLVED knob bag (`resolveChatRulePresetKnobs` output — validated at the write verb,
+    // stored as OUTPUT: the `groupConfig` posture, re-validated by the mint at apply so a bag that
+    // predates a catalogue evolution degrades loudly there, never silently).
+    knobs: text("knobs", { mode: "json" }).$type<RulePresetKnobValues>().notNull(),
+  },
+  (t) => [
+    // ONE instance of a rule preset per cast (the capture flattens a multi-mint room to its latest
+    // mint's bag — build record §6.3); `presetId` LEADS, so the cascade + the rules read are indexed.
+    primaryKey({ columns: [t.presetId, t.rulePresetId] }),
   ],
 );

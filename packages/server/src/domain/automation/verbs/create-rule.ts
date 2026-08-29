@@ -48,6 +48,9 @@ export function createCreateRule(ctx: AutomationContext): AutomationService["cre
     );
     const now = ctx.now();
     const id = ctx.newRuleId();
+    // Mint provenance (§3-S3 flip shape) — present ONLY when `createRuleFromPreset` is the caller (the
+    // field is verb-only, never on the tRPC wire; a hand-authored rule stores the null pair).
+    const provenance = params.presetProvenance ?? null;
     const position = (await maxPosition(ctx.db, chatId, params.principal.userId)) + 1;
     await insertRule(ctx.db, {
       id,
@@ -60,6 +63,8 @@ export function createCreateRule(ctx: AutomationContext): AutomationService["cre
       triggerType: params.trigger.type,
       predicateCel: params.predicateCel ?? null,
       actions,
+      rulePresetId: provenance === null ? null : provenance.rulePresetId,
+      rulePresetKnobs: provenance === null ? null : provenance.knobs,
       matchAutomationEvents: params.matchAutomationEvents ?? false,
       cooldownSeconds,
       maxFiresPerHour,

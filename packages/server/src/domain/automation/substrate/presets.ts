@@ -11,10 +11,18 @@
 // Bounds are refused, never clamped: a host who typed 500 for a 2..200 cadence made a mistake worth telling
 // them about, and a silent clamp is the kind of quiet wrongness this codebase's gates exist to prevent.
 
-import type { RulePresetKnobDescriptor, RulePresetKnobValue, RulePresetKnobView, RulePresetView } from "@orb/contracts/automation";
+import type {
+  RulePresetId,
+  RulePresetKnobDescriptor,
+  RulePresetKnobValue,
+  RulePresetKnobValues,
+  RulePresetKnobView,
+  RulePresetView,
+} from "@orb/contracts/automation";
 import { RULE_PRESET_ENTITY_NOUNS, RULE_PRESET_ENTITY_REF_SCHEMAS, SPEND_ARM_TYPES } from "@orb/contracts/automation";
 import { RuleValidationError } from "../contract/errors.ts";
 import type { ErasedRulePresetDef, RulePresetKnobOverrides, RulePresetKnobSchema } from "../contract/presets.ts";
+import { RULE_PRESETS } from "../contract/presets.ts";
 
 function refuse(key: string, reason: string): never {
   throw new RuleValidationError("preset_knob", `knob '${key}': ${reason}`);
@@ -140,6 +148,21 @@ export function resolveRulePresetKnobs(knobs: RulePresetKnobSchema, overrides: R
     resolved[key] = resolveKnob(key, descriptor, overrides[key]);
   }
   return resolved;
+}
+
+/** B10's saved-cast capture belt (build record §6.3) — resolve a caller's bag against a CHAT-scope
+ *  preset's own descriptors, refusing a global one by name: a cast is a ROOM artifact, and a room's
+ *  rule list structurally cannot hold a global preset's rules (`chat_id IS NULL`), so a global id in a
+ *  cast is an authoring mistake worth naming, never a configuration. Exported through the front door
+ *  for the roster-preset compose seam (the `resolveNotificationRecipients` posture) — the VALIDATION
+ *  stays automation's one home; the caller injects it, never re-derives it. Returns the COMPLETE
+ *  resolved bag (what the cast stores, and what a later re-mint hands back as overrides). */
+export function resolveChatRulePresetKnobs(presetId: RulePresetId, overrides: RulePresetKnobOverrides): RulePresetKnobValues {
+  const preset = RULE_PRESETS[presetId];
+  if (preset.scope !== "chat") {
+    throw new RuleValidationError("preset_scope", `"${preset.title}" is a library-wide rule preset — it cannot ride a saved cast`);
+  }
+  return resolveRulePresetKnobs(preset.knobs, overrides);
 }
 
 /** The knob value a SPEND PROBE hands a builder for one descriptor — its own default, and for the one kind
