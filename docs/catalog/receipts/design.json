@@ -686,9 +686,7 @@
       "verifiedSha256": "284780ad6d0041881be0134b091fbf378b5f1485b579b1a570c1c8a8c7373ab9",
       "verifiedCommit": "e69f96774a1606587feaf155b952fc701ef85a87",
       "verifiedAt": "2026-08-24",
-      "evidence": [
-        "docs/design/interaction-substrate-spec.md:1-9 supersession header pointing at interaction-direction-spec.md (e69f96774)"
-      ],
+      "evidence": ["docs/design/interaction-substrate-spec.md:1-9 supersession header pointing at interaction-direction-spec.md (e69f96774)"],
       "summary": "Superseded commissioning draft (2026-08-23) of the interaction direction; provenance only."
     },
     {
@@ -2195,9 +2193,7 @@
       "verifiedSha256": "3a30bcb2aa906a2279966171eb39fd44c9ded421b2fc4bc3889f1f0470a6da5b",
       "verifiedCommit": "fc48ca68b7a407dc9624884cfd774d24a6a324b8",
       "verifiedAt": "2026-08-29",
-      "evidence": [
-        "docs/design/issue-754-batch-boundary-spike.md:1 (full read; measured rejection of the E6 structural-gate proxy)"
-      ],
+      "evidence": ["docs/design/issue-754-batch-boundary-spike.md:1 (full read; measured rejection of the E6 structural-gate proxy)"],
       "summary": "Issue #754 batch-boundary spike: REJECTS the proposed E6 structural gate (1 true positive vs 11 false positives naive, 25% with control-flow disjointness); E6 stays review-tier per the #712 ruling.",
       "claims": [
         {
@@ -2217,17 +2213,15 @@
     },
     {
       "path": "docs/design/card-atlas-art-forward.md",
-      "assignedSha256": "d0e1b186f26b77b57325c26a1f9a4631fc2e6e1303eead2e8e989ae3802c3850",
+      "assignedSha256": "989eb77dc8efa2c8648058e7259b7086c3533d44d4f29891598832c56d47f990",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "d0e1b186f26b77b57325c26a1f9a4631fc2e6e1303eead2e8e989ae3802c3850",
-      "verifiedCommit": "c7dbfa525429962b19286de2e3e250288a4afa9e",
+      "verifiedSha256": "989eb77dc8efa2c8648058e7259b7086c3533d44d4f29891598832c56d47f990",
+      "verifiedCommit": "80908a0d84a0702e9976e722a916bd82d490ed22",
       "verifiedAt": "2026-08-29",
-      "evidence": [
-        "docs/design/card-atlas-art-forward.md:1 (authored + built in the same lane; every §1 premise live-probed or path:line-cited)"
-      ],
-      "summary": "Card Atlas art-forward design/build record: #798 fetchAsset-driven covers + bound hero, one normalized row + plugin-side sort across both hubs, PNG-first summon with JSON fold, the ONE-key art cache budgeting the shared egress belt, renderer F2 reading-measure cap + F4 house EmptyState + the hero height cap; build-time premise correction: the art batch FLOATS past the ~6s invocation settlement wall (measured live); rejected arms, coupled sites, found gaps (GC-bait fetched assets, belt sizing fork).",
+      "evidence": ["docs/design/card-atlas-art-forward.md:1 (authored + built in the same lane; every §1/§7a premise live-probed or path:line-cited)"],
+      "summary": "Card Atlas design/build record, v1.1.0 art-forward (§1-§6) + hub v1.2 (§7): six-hub source seam (tavern/realm/chub/wyvern/aicc/charavault) with per-hub capability facts, one page control over server-paged and held-set hubs, include/exclude tag filters applied where each hub can answer, tile tag chips + detail Tags row, live Hub/Sort selects (select actionId arm), Summon→Add to library, the #801 belt split (fetchAsset 1200/hr, net.fetch 360/hr) + the 5 MiB asset byte cap, the tavern query= premise kill, NET_HOSTS_MAX 8→16; probes, rejected arms, coupled sites, roster skips with receipts (botbooru content posture; pygmalion/janitorai/datacat never built).",
       "claims": [
         {
           "claim": "The detail stage caps its column at the house --reading-measure token and an empty grid renders the house EmptyState (stickler F2/F4), both landed red-first in the renderer.",
