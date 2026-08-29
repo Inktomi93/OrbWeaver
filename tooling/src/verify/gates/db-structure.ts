@@ -100,8 +100,16 @@ function scanDbStructure(ctx: CheckContext): Violation[] {
   let entries: readonly string[];
   try {
     entries = readdirSync(join(ctx.root, SCHEMA_REL));
-  } catch {
-    return []; // no schema dir yet (pre-Phase-3) — nothing to assert.
+  } catch (error) {
+    // ENOENT is the ONE benign case: the schema dir genuinely does not exist (a pre-Phase snapshot / a
+    // conformance mini-project with no db package) — nothing to assert. Every OTHER failure (EACCES, ENOTDIR,
+    // a broken symlink) means this gate could not READ a dir that is a live, always-present part of the tree:
+    // a checker that BROKE is not a clean verdict, so it REFUSES as a tool-error (exit 2, the harness turns a
+    // throw from `run` into a per-gate ToolError) rather than swallowing the failure into a false ✓.
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return []; // schema dir genuinely absent — nothing to assert.
+    }
+    throw error;
   }
   const files = entries.filter((f) => f.endsWith(".ts") && f !== BARREL_FILE);
   if (files.length === 0) {
