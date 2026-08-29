@@ -13,7 +13,7 @@
 // prevent. `listSurfaces` only ever returns the caller's own enabled plugins, so this arm is a race (a disable
 // between the two reads settling), not a state.
 
-import type { PluginSurfaceSpec } from "@orb/contracts/plugin";
+import type { PluginSurfaceSpec, PluginSurfaceTier } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
@@ -30,7 +30,12 @@ export interface PluginPageView {
   readonly pluginName: string;
   /** The surface's own `title` — the switcher row and the band's second line. */
   readonly title: string;
-  /** The declarative tree, absent for a scripted-tier surface whose client guest lands at U4. */
+  /** WHO computes the surface (#787). `static`/`scripted` render a declarative tree through the shell; `frame`
+   *  (U7) draws the plugin's own document in an isolated iframe and carries no `spec` at all — the content pane
+   *  branches on this to mount a `PluginFrame` instead of the renderer. */
+  readonly tier: PluginSurfaceTier;
+  /** The declarative tree, absent for a scripted-tier surface whose client guest lands at U4 (and for every
+   *  `frame`-tier surface, which produces a document, not a tree). */
   readonly spec: PluginSurfaceSpec | undefined;
 }
 
@@ -62,6 +67,7 @@ export function usePluginPages(): readonly PluginPageView[] {
       surfaceId: surface.id,
       pluginName,
       title: surface.title,
+      tier: surface.tier,
       spec: surface.spec,
     });
   }

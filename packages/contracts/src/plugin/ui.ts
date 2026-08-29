@@ -180,15 +180,18 @@ export const PLUGIN_ANCHOR_TIERS = {
   // "lots of bits and bobs" extension needs client-immediate interaction on (U4 lands its guest), and a dialog
   // is a page-scale body in a modal shell. Neither multiplies per row.
   //
-  // `frame: false` for BOTH, and it is a DELIBERATE conservative default at the U5×U7 merge, NOT the design's
-  // final word. §6.2 names `page` and `dialog` among the hatch's anchors, so both are frame-ELIGIBLE — but a
-  // frame tier that an anchor admits with no first-party mount to render it is the "empty labelled box" the
-  // flank law forbids (a listed-but-undrawn surface). U7 wired the frame mount for chat-flank/settings/tool-card
-  // only; U5's page/dialog surfaces render declarative specs, not a `PluginFrame`. So the anchor REFUSES a frame
-  // here until the client mount lands — flip to `true` WITH that mount, never before it (root-slot-lands-with-
-  // occupant, one axis over). Reported as a U7-follow-up at the merge.
-  page: { static: true, scripted: true, frame: false },
-  dialog: { static: true, scripted: true, frame: false },
+  // `frame: true` for BOTH (#787 — the deliberate decision the U5×U7 merge deferred). §6.2 names `page` and
+  // `dialog` among the hatch's anchors; the merge shipped them `frame: false` as a conservative default because a
+  // frame tier an anchor admits with NO first-party mount to render it is the "empty labelled box" the flank law
+  // forbids (a listed-but-undrawn surface). #787 is the follow-up that default named: the client mount now exists
+  // at BOTH anchors — `ExtensionsPageSurface` renders a `page` frame inside its page-scale shell (the §9
+  // impersonation band, the biggest canvas here), and `PluginDialogBody` renders a `dialog` frame inside the
+  // house modal. So the anchor admits the tier WITH its occupant (root-slot-lands-with-occupant, one axis over),
+  // never before it. A page/dialog frame is the §6.1 arbitrary-pixels arm at page/modal scale, and the priority
+  // law still stands (§6.2 — a surface the vocabulary can express ships in the vocabulary; the frame is last
+  // resort).
+  page: { static: true, scripted: true, frame: true },
+  dialog: { static: true, scripted: true, frame: true },
 } as const satisfies Record<PluginSurfaceAnchor, Record<PluginSurfaceTier, boolean>>;
 
 /** WHICH HOST FUNCTION MAY MINT WHICH TIER — the CAPABILITY fork, coded (U7).
