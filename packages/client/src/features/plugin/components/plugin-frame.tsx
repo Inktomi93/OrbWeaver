@@ -133,7 +133,10 @@ export function PluginFrame({ pluginId, surfaceId, pluginName, title, hostCall, 
       <SandboxFrame
         html=""
         src={src}
-        title={`${pluginName} — ${title}`}
+        // The name-once rule (P3-7, plugin-surface-shell.tsx): a frame titled exactly like its plugin would
+        // announce "Card Atlas — Card Atlas" to the one audience (AT, via the iframe's `title`) that hears
+        // every word.
+        title={title === pluginName ? pluginName : `${pluginName} — ${title}`}
         onHostMessage={onHostMessage}
         className="w-full rounded-base border border-border bg-card"
       />

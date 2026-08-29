@@ -81,6 +81,21 @@ test.describe("the page switcher", () => {
     await expect(page.getByRole("button", { name: /Chips.*Scene Chips/u })).toBeVisible();
   });
 
+  test("a row whose page title equals its plugin name is not doubled (P3-7)", async ({ mount, page }) => {
+    // The qualifier/subtitle exist to ATTRIBUTE the page to its plugin — when the two strings are equal the
+    // attribution is already the title, and "Card Atlas" over a "Card Atlas" subtitle (spoken twice by AT)
+    // is noise, not disambiguation.
+    await routeTrpc(page, {
+      "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck")],
+      "plugin.listSurfaces": () => [pageRow(ORACLE_ID, "deck_page", "Oracle Deck", DECK_SPEC)],
+    });
+    await mount(<ExtensionsSwitcherStory />);
+
+    const row = page.getByRole("button", { name: "Oracle Deck" });
+    await expect(row).toBeVisible();
+    await expect(row.getByText("Oracle Deck")).toHaveCount(1);
+  });
+
   test("ZERO pages ⇒ the TEACHING empty, with the action that leads to installing one", async ({ mount, page }) => {
     await routeTrpc(page, NO_PAGES);
     await mount(<ExtensionsSwitcherStory />);
@@ -126,6 +141,38 @@ test.describe("the page-scale shell", () => {
     await expect(page.getByText("No extension pages yet")).toHaveCount(0);
     // …and no band, because no page is being attributed.
     await expect(page.getByTestId("plugin-page-attribution")).toHaveCount(0);
+  });
+
+  test("ZERO pages + no selection ⇒ the CONTENT pane mirrors the teaching empty, never 'pick one on the left' (P3-6)", async ({ mount, page }) => {
+    // The contradictory double empty-state (side-eye 2026-08-29): with no pages registered the LIST said
+    // "No extension pages yet" while this pane said "Choose a page on the left" — telling a first-timer to
+    // pick from a list that is itself explaining there is nothing to pick. The mirror reuses the LIST's own
+    // copy constants, so the two panes cannot drift apart.
+    await routeTrpc(page, NO_PAGES);
+    await mount(<ExtensionsPageStory selectKey={null} />);
+
+    await expect(page.getByText("No extension pages yet")).toBeVisible();
+    await expect(page.getByText("Install a plugin with page surfaces and it will appear here.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Open Plugins" })).toBeVisible();
+    await expect(page.getByText("Pick an extension page")).toHaveCount(0);
+  });
+
+  test("a page titled exactly like its plugin says the name ONCE in the band (P3-7)", async ({ mount, page }) => {
+    // "Card Atlas · Card Atlas" read as a placeholder bug and wasted the title line. The wall loses
+    // nothing: the band's job is the plugin's NAME, which still renders — only the redundant echo goes,
+    // and the kicker still names the class.
+    await routeTrpc(page, {
+      "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck")],
+      "plugin.listSurfaces": () => [pageRow(ORACLE_ID, "deck_page", "Oracle Deck", DECK_SPEC)],
+      "plugin.getSurfaceState": () => ({ status: "Session open · 2 dealt" }),
+    });
+    await mount(<ExtensionsPageStory selectKey={`${ORACLE_ID}:deck_page`} />);
+
+    const band = page.getByTestId("plugin-page-attribution");
+    await expect(band).toBeVisible();
+    await expect(band).toContainText("Extension");
+    await expect(band.getByText("Oracle Deck")).toHaveCount(1);
+    await expect(band.getByText("·")).toHaveCount(0);
   });
 
   test("a page whose plugin went away renders the honest GONE line, never a blank pane", async ({ mount, page }) => {
