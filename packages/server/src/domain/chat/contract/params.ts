@@ -434,6 +434,39 @@ export interface GetRuntimeVariablesParams extends ChatScopedParams {}
 export interface ToggleReactionParams extends ChatScopedParams {
   readonly variantId: MessageVariantId;
   readonly emoji: ReactionEmoji;
+  /** B7/MR3 — the segment CLAIM: target ONE `parseSpeakerSpans` line of the variant's CANON (absent =
+   *  whole-message, the default at every pointer). The verb re-parses the canon itself and stores ITS OWN
+   *  speaker + snippet; the claim is only compared (a mismatch is `invalid_segment`), never persisted —
+   *  a member cannot write free text into a column every transcript renders. `segmentSpeaker` is the span
+   *  label the CLIENT parsed at that index (`null` = a narration span), carried so a content/cast race
+   *  refuses instead of landing the click on somebody else's line. */
+  readonly segmentIndex?: number | undefined;
+  readonly segmentSpeaker?: string | null | undefined;
+}
+
+/** The B7 segment-anchor trio as one PERSISTED value (`message_reactions.segment_*`; `null` at the write
+ *  seam = a whole-message reaction). Minted ONLY from the server's own canon parse (`mintSegmentAnchor` /
+ *  `resolveToSpeakerAnchor` in `verbs/reactions.ts`) — never from wire text. The SPEAKER may be null inside
+ *  a present anchor (a narration span has no label); the snippet may not (the schema CHECK). Homed here
+ *  (the domain's contract) because the write statement (`persistence/reactions.ts::insertReaction`) and
+ *  both writers share it. */
+export interface StoredSegmentAnchor {
+  readonly segmentIndex: number;
+  readonly segmentSpeaker: string | null;
+  readonly segmentSnippet: string;
+}
+
+/** `reactAsCharacter` (B7/MR5) — the `react` TOOL's write half: attach ONE emoji to the room's NEWEST
+ *  committed message, attributed to a PRESENT character's seat. NOT a `ChatService` member: its one
+ *  consumer is the composition root (the tool definition closes over it), so it ships as a standalone
+ *  factory (`createReactAsCharacter`) rather than growing the routed surface. `principal` is the TURN's
+ *  resolved host (the tool exec context's identity); the character named must hold a present seat.
+ *  `toSpeaker` narrows to that speaker's LAST canon span (the model targets by name — Marinara's proven
+ *  surface; it cannot know ids). ADD-ONLY: a model retry must never un-react a human's click. */
+export interface ReactAsCharacterParams extends ChatScopedParams {
+  readonly characterName: string;
+  readonly emoji: ReactionEmoji;
+  readonly toSpeaker?: string | undefined;
 }
 
 /** `listReactions` (B6/MR0) — the room's bounded grouped reaction window, member-gated and floor-clamped.
@@ -556,6 +589,23 @@ export interface SetHostDisplayScriptsParams extends ChatScopedParams {
  *  inherit case). Governs PROMPT CONTENT — with it on, the turn teaches the model the standing `:::choices`
  *  fence — so it is host authority, not a viewer preference. */
 export interface SetOfferChoicesParams extends ChatScopedParams {
+  readonly enabled: boolean;
+}
+
+/** `setCharactersCanReact` — host-only write of the B7 react-tool ATTACH posture
+ *  (`chatMetadata.charactersCanReact`). The `setOfferChoices` twin: `enabled` pins this room; a fresh room
+ *  (never written) inherits the host's per-user default, which itself defaults OFF — the react tool is
+ *  opt-in at both tiers (owner requirement). Governs PROMPT CONTENT (the tool + its description reach the
+ *  wire), so host authority. */
+export interface SetCharactersCanReactParams extends ChatScopedParams {
+  readonly enabled: boolean;
+}
+
+/** `setReactionsEnabled` — host-only write of the B7 reaction-plane MASTER posture
+ *  (`chatMetadata.reactionsEnabled`). Same tri-state shape; the per-user default ships ON (B6 is a live
+ *  feature — this knob makes it disableable). Resolved OFF is enforced at the verbs (`toggleReaction`
+ *  refuses, `listReactions` answers empty-with-verdict), not merely hidden. */
+export interface SetReactionsEnabledParams extends ChatScopedParams {
   readonly enabled: boolean;
 }
 

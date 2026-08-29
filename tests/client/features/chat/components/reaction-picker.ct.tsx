@@ -16,7 +16,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
-import { ReactionPickerStory } from "../_reaction-stories.tsx";
+import { NarratorActionsDoorsStory, ReactionPickerStory, StandardLabeledDoorsStory } from "../_reaction-stories.tsx";
 
 // Must MATCH `fixtures.ts::makeMessageView` — the picker's pressed state selects this room's window by the
 // message's own `selectedVariantId`, so a mismatched fixture renders an all-unpressed grid that passes.
@@ -35,17 +35,38 @@ const CHAT_DETAIL = {
   ],
 };
 
-/** The viewer already holds 👍 on this variant; 😂 is somebody else's. */
+/** The viewer already holds 👍 on this variant; 😂 is somebody else's. Whole-message groups (all-null
+ *  trio — B7): the picker's pressed state is per TARGET, and these must read pressed for the DEFAULT
+ *  (whole-message) target exactly as they did before segments existed. */
 const GROUPS = [
-  { variantId: VARIANT_ID, emoji: "👍", emojiImageAssetId: null, reactorParticipantIds: [VIEWER_SEAT] },
-  { variantId: VARIANT_ID, emoji: "😂", emojiImageAssetId: null, reactorParticipantIds: [OTHER_SEAT] },
+  {
+    variantId: VARIANT_ID,
+    emoji: "👍",
+    emojiImageAssetId: null,
+    segmentIndex: null,
+    segmentSpeaker: null,
+    segmentSnippet: null,
+    reactorParticipantIds: [VIEWER_SEAT],
+  },
+  {
+    variantId: VARIANT_ID,
+    emoji: "😂",
+    emojiImageAssetId: null,
+    segmentIndex: null,
+    segmentSpeaker: null,
+    segmentSnippet: null,
+    reactorParticipantIds: [OTHER_SEAT],
+  },
 ];
+
+/** The B7 wire view — `listReactions` carries the room's resolved posture beside the groups. */
+const VIEW = { reactionsEnabled: true, groups: GROUPS };
 
 const PICKER = '[data-slot="reaction-picker"]';
 
 test.describe("the reaction picker", () => {
   test("opens with the CONTRACT vocabulary, and the viewer's own reactions read pressed", async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listReactions": GROUPS, "chat.getChat": CHAT_DETAIL });
+    await routeTrpc(page, { "chat.listReactions": VIEW, "chat.getChat": CHAT_DETAIL });
     const component = await mount(<ReactionPickerStory />);
 
     await expect(page.locator(PICKER)).toHaveCount(0);
@@ -66,7 +87,7 @@ test.describe("the reaction picker", () => {
   });
 
   test("a pick reaches the WIRE with this variant's ids, and closes the dialog", async ({ mount, page }) => {
-    const trpc = await routeTrpc(page, { "chat.listReactions": GROUPS, "chat.getChat": CHAT_DETAIL, "chat.toggleReaction": true });
+    const trpc = await routeTrpc(page, { "chat.listReactions": VIEW, "chat.getChat": CHAT_DETAIL, "chat.toggleReaction": true });
     const component = await mount(<ReactionPickerStory />);
 
     await component.getByRole("button", { name: "Open the picker" }).click();
@@ -83,7 +104,7 @@ test.describe("the reaction picker", () => {
   });
 
   test("an UN-react goes through the same one write path — no second verb for the reverse direction", async ({ mount, page }) => {
-    const trpc = await routeTrpc(page, { "chat.listReactions": GROUPS, "chat.getChat": CHAT_DETAIL, "chat.toggleReaction": false });
+    const trpc = await routeTrpc(page, { "chat.listReactions": VIEW, "chat.getChat": CHAT_DETAIL, "chat.toggleReaction": false });
     const component = await mount(<ReactionPickerStory />);
 
     await component.getByRole("button", { name: "Open the picker" }).click();
@@ -95,7 +116,7 @@ test.describe("the reaction picker", () => {
   });
 
   test("DISMISS closes it and writes NOTHING — and the trigger reopens a live picker", async ({ mount, page }) => {
-    const trpc = await routeTrpc(page, { "chat.listReactions": GROUPS, "chat.getChat": CHAT_DETAIL, "chat.toggleReaction": true });
+    const trpc = await routeTrpc(page, { "chat.listReactions": VIEW, "chat.getChat": CHAT_DETAIL, "chat.toggleReaction": true });
     const component = await mount(<ReactionPickerStory />);
 
     const trigger = component.getByRole("button", { name: "Open the picker" });
@@ -116,6 +137,52 @@ test.describe("the reaction picker", () => {
   });
 });
 
+// B7/MR3 — the TARGET row: react to the whole message (the default) or to ONE speaker's line. Driven
+// through the REAL row (`MessageActionsRow` → its picker mount), because the narrator gate lives THERE:
+// the row narrator-gates the cast names against `message.kind` before the picker ever parses.
+test.describe("the segment target row (B7)", () => {
+  test("a NARRATOR body offers per-speaker targets, whole-message is the DEFAULT, and a segment pick carries the CLAIM", async ({ mount, page }) => {
+    const trpc = await routeTrpc(page, {
+      "chat.listReactions": { reactionsEnabled: true, groups: [] },
+      "chat.getChat": CHAT_DETAIL,
+      "chat.toggleReaction": true,
+    });
+    const component = await mount(<NarratorActionsDoorsStory />);
+
+    await component.getByRole("button", { name: "Add a reaction" }).click();
+    const picker = page.locator(PICKER);
+    await expect(picker).toBeVisible();
+    // Whole-message leads and is PRESSED — the spec's "whole-message default at coarse" is satisfied by
+    // defaulting everywhere; a segment is an explicit narrowing per visit.
+    await expect(picker.getByRole("button", { name: "React to the whole message" })).toHaveAttribute("aria-pressed", "true");
+    await expect(picker.getByRole("button", { name: "React to Alice's line" })).toBeVisible();
+
+    // Narrow to Bob's line (span index 1 — Alice's line occupies 0), then pick.
+    await picker.getByRole("button", { name: "React to Bob's line" }).click();
+    await picker.getByRole("button", { name: "React with 🔥" }).click();
+
+    // The wire carries the parsed CLAIM (index + the span's speaker) — the identical inputs the server's
+    // own validation parse re-derives, which is what makes the pick survive the round trip.
+    await expect
+      .poll(() => trpc.inputs("chat.toggleReaction"))
+      .toEqual([{ chatId: CHAT_ID, variantId: VARIANT_ID, emoji: "🔥", segmentIndex: 1, segmentSpeaker: "Bob" }]);
+    await expect(page.locator(PICKER)).toHaveCount(0);
+  });
+
+  test("the SAME labelled body on a STANDARD row offers NO targets — the narrator gate, client side", async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listReactions": { reactionsEnabled: true, groups: [] }, "chat.getChat": CHAT_DETAIL });
+    const component = await mount(<StandardLabeledDoorsStory />);
+
+    await component.getByRole("button", { name: "Add a reaction" }).click();
+    const picker = page.locator(PICKER);
+    // The grid is alive (the barrier) — and the target row simply does not exist: in a standard row
+    // `Alice:` is prose, so offering her line would mint an anchor the server's parse refuses.
+    await expect(picker.getByRole("button", { name: /React with/ })).toHaveCount(10);
+    await expect(picker.getByRole("button", { name: "React to the whole message" })).toHaveCount(0);
+    await expect(picker.getByRole("button", { name: /'s line$/ })).toHaveCount(0);
+  });
+});
+
 test.describe("the reaction picker at a coarse pointer", () => {
   test.use({ hasTouch: true });
 
@@ -123,7 +190,7 @@ test.describe("the reaction picker at a coarse pointer", () => {
     // PROVE the emulation before trusting any geometry it produces: `--spacing-touch-target` is
     // pointer-CONDITIONAL, so read at a fine pointer it answers 28 and the assertion means nothing.
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-    await routeTrpc(page, { "chat.listReactions": GROUPS, "chat.getChat": CHAT_DETAIL });
+    await routeTrpc(page, { "chat.listReactions": VIEW, "chat.getChat": CHAT_DETAIL });
     const component = await mount(<ReactionPickerStory />);
     await component.getByRole("button", { name: "Open the picker" }).click();
 

@@ -21,7 +21,7 @@
 // popover: the overflow is an honest tally of a long tail nobody is reading, and a click target there would
 // promise an inspection surface that MR2 does not ship.
 
-import type { MessageReactionGroup, MessageView, ReactionEmoji } from "@orb/contracts/chat";
+import type { MessageReactionGroup, MessageView } from "@orb/contracts/chat";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
@@ -37,7 +37,18 @@ const VISIBLE_CHIP_CAP = 6;
 interface ReactionPillProps {
   readonly group: MessageReactionGroup;
   readonly viewerReacted: boolean;
-  readonly onToggle: (emoji: ReactionEmoji) => void;
+  /** Pressing a chip toggles THAT chip's exact target — a segment chip re-keys the same anchor, a
+   *  whole-message chip keys none (the two are independent toggles, MA-2 §4). */
+  readonly onToggle: (group: MessageReactionGroup) => void;
+}
+
+/** ONE chip's TARGET qualifier (B7/MR3): a segment-anchored group names whose line it points at; a
+ *  whole-message group names nothing. `segmentSpeaker` null inside a present anchor = a narration span. */
+function segmentQualifier(group: MessageReactionGroup): string | null {
+  if (group.segmentIndex === null) {
+    return null;
+  }
+  return group.segmentSpeaker ?? "narration";
 }
 
 /** ONE emoji's chip: the glyph, the reactor count, and the viewer's own pressed state.
@@ -45,18 +56,28 @@ interface ReactionPillProps {
  *  THE COUNT IS PRINTED, not only announced — it is the datum ("four people laughed"), and a chip that
  *  showed a bare glyph would make the row unreadable at a glance. The accessible NAME says the whole
  *  sentence because an emoji's own text is not one (§13.10 N3: stable identity first, volatile count after,
- *  so a `getByRole("button", {name: /React with/})` query survives the count changing). */
+ *  so a `getByRole("button", {name: /React with/})` query survives the count changing).
+ *
+ *  A SEGMENT-anchored chip (B7) prints its target as a gloss (`→ Bob`) and carries the captured snippet on
+ *  `title` — the stored qualifier is DATA display; staleness against an edited body is re-judged where it
+ *  changes behavior (the write validation + the prompt attribution), never re-parsed per painted chip. */
 function ReactionPill({ group, viewerReacted, onToggle }: ReactionPillProps): ReactElement {
   const count = group.reactorParticipantIds.length;
+  const qualifier = segmentQualifier(group);
   return (
     <Toggle
-      aria-label={`React with ${group.emoji} — ${String(count)} so far`}
+      aria-label={
+        qualifier === null
+          ? `React with ${group.emoji} — ${String(count)} so far`
+          : `React with ${group.emoji} to ${qualifier}'s line — ${String(count)} so far`
+      }
       data-slot="message-reaction-pill"
       intent="outline"
-      onPressedChange={(): void => onToggle(group.emoji)}
+      onPressedChange={(): void => onToggle(group)}
       pressed={viewerReacted}
       shape="pill"
       size="chip"
+      {...(group.segmentSnippet !== null ? { title: group.segmentSnippet } : {})}
     >
       {/* The glyph is decoration for AT — the accessible name above already says which emoji it is, and a
           screen reader announcing the raw codepoint's own name a second time is noise. */}
@@ -64,6 +85,11 @@ function ReactionPill({ group, viewerReacted, onToggle }: ReactionPillProps): Re
       <Text as="span" voice="gloss">
         {count}
       </Text>
+      {qualifier !== null ? (
+        <Text as="span" voice="gloss">
+          → {qualifier}
+        </Text>
+      ) : null}
     </Toggle>
   );
 }
@@ -88,18 +114,25 @@ export function MessageReactions({ message }: MessageReactionsProps): ReactEleme
   }
   const shown = groups.slice(0, VISIBLE_CHIP_CAP);
   const hidden = groups.slice(VISIBLE_CHIP_CAP);
-  const onToggle = (emoji: ReactionEmoji): void => {
+  const onToggle = (group: MessageReactionGroup): void => {
     if (toggle.isPending) {
       return;
     }
-    toggle.mutate({ chatId: message.chatId, variantId: message.selectedVariantId, emoji });
+    toggle.mutate({
+      chatId: message.chatId,
+      variantId: message.selectedVariantId,
+      emoji: group.emoji,
+      // A segment chip toggles the SAME anchor it displays; the stored speaker is the claim the server
+      // re-validates (a stale chip on an edited body refuses rather than retargeting).
+      ...(group.segmentIndex !== null ? { segmentIndex: group.segmentIndex, segmentSpeaker: group.segmentSpeaker } : {}),
+    });
   };
   return (
     <Row align="center" data-slot="message-reactions" gap="tight">
       {shown.map((group) => (
         <ReactionPill
           group={group}
-          key={group.emoji}
+          key={`${group.emoji}:${group.segmentIndex ?? "w"}`}
           onToggle={onToggle}
           viewerReacted={viewerSeatId !== null && group.reactorParticipantIds.includes(viewerSeatId)}
         />

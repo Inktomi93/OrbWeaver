@@ -20,6 +20,12 @@ export interface ToggleReactionVars {
   readonly chatId: ChatId;
   readonly variantId: MessageVariantId;
   readonly emoji: ReactionEmoji;
+  /** B7/MR3 — the segment CLAIM (absent = whole-message): the picker's parsed span index + that span's
+   *  speaker. The server re-parses the canon itself and stores its OWN speaker/snippet; the claim is only
+   *  compared (a race refuses `invalid_segment`), so nothing typed here can land in another reader's
+   *  transcript. */
+  readonly segmentIndex?: number | undefined;
+  readonly segmentSpeaker?: string | null | undefined;
 }
 
 export const useToggleReactionMutation = createEntityMutation<ToggleReactionVars, unknown>({

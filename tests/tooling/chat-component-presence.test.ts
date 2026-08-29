@@ -117,6 +117,14 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "settings-context-tab",
     why: "the host-only per-room 'Offer choices' switch (B1) renders inside CommittedSettingsTab's Host controls group; settings-context-tab.ct drives it end-to-end (host sees + toggles → setOfferChoices fires; the never-pinned room seats from the host's per-user default; member sees no control), the host-display-scripts-control precedent.",
   },
+  "row-reaction-picker": {
+    coveredBy: "reaction-picker",
+    why: "the row's picker MOUNT (split out of message-actions-row under the component-size cap): reaction-picker.ct's B7 segment describe drives it through the REAL row (NarratorActionsDoorsStory/StandardLabeledDoorsStory mount MessageActionsRow → RowReactionPicker → the picker), pinning the narrator gate and the segment claim's wire round-trip; message-reactions.ct's doors arms open it too.",
+  },
+  "reaction-toggles": {
+    coveredBy: "settings-context-tab",
+    why: "the two host-only B7 reaction switches (the plane's master + the react-tool opt-in) render inside CommittedSettingsTab's Reactions section; settings-context-tab.ct drives both end-to-end (host sees + toggles → setReactionsEnabled/setCharactersCanReact fire; the never-pinned room seats from the host's per-user defaults through the ONE contracts resolvers; member sees neither), the offer-choices-control precedent.",
+  },
   "chat-list-header": { coveredBy: "chat-list-surface", why: "the list header renders inside the list surface; chat-list-surface.ct covers it." },
   "chat-list-character-filter": {
     coveredBy: "chat-list-surface",

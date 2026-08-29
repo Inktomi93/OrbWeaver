@@ -75,6 +75,39 @@ export function MessageActionsDoorsStory(): ReactElement {
   );
 }
 
+// B7/MR3 — the segment-target stories: the SAME multi-speaker labelled body under the two kinds the
+// row-level narrator gate distinguishes. The cast names are what production threads (the row passes
+// `speakerThemesByName`'s keys); the KIND is what decides whether they reach the parse — `narrator` offers
+// per-speaker targets, `standard` must offer none (a `Alice:` line in a one-speaker row is prose).
+const NARRATOR_STATE = {
+  message: makeMessageView({ role: "assistant", kind: "narrator", content: "Alice: Hello there.\nBob: Fine day." }),
+} as const;
+const STANDARD_LABELED_STATE = {
+  message: makeMessageView({ role: "assistant", kind: "standard", content: "Alice: Hello there.\nBob: Fine day." }),
+} as const;
+
+/** The action cluster on a NARRATOR row with the room's cast threaded — the segment-target path. */
+export function NarratorActionsDoorsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div data-testid="actions-host" style={{ width: 320 }}>
+        <MessageActionsRow castNames={["Alice", "Bob"]} message={NARRATOR_STATE.message} messageActions="expanded" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The SAME body + cast on a STANDARD row — the narrator gate's negative arm (no targets may be offered). */
+export function StandardLabeledDoorsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div data-testid="actions-host" style={{ width: 320 }}>
+        <MessageActionsRow castNames={["Alice", "Bob"]} message={STANDARD_LABELED_STATE.message} messageActions="expanded" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** The picker's own wiring, lifted from `message-actions-row.tsx` verbatim — controlled `open`, the row's
  *  live groups + seat, and the REAL toggle mutation. Lifting it (rather than passing a spy `onPick`) is what
  *  makes the round-trip arm honest: the pick travels the production hook to the production proc, so the CT
@@ -94,12 +127,19 @@ function ReactionPickerHarness(): ReactElement {
       </Button>
       {open ? (
         <ReactionPicker
+          castNames={[]}
           chatId={chatId}
+          content={FOOTER_STATE.message.content}
           groups={groups}
           onOpenChange={setOpen}
-          onPick={(emoji): void => {
+          onPick={(emoji, segment): void => {
             if (!toggle.isPending) {
-              toggle.mutate({ chatId, variantId: selectedVariantId, emoji });
+              toggle.mutate({
+                chatId,
+                variantId: selectedVariantId,
+                emoji,
+                ...(segment !== null ? { segmentIndex: segment.index, segmentSpeaker: segment.speaker } : {}),
+              });
             }
           }}
           open={open}

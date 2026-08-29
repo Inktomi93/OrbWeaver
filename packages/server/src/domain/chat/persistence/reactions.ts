@@ -19,10 +19,12 @@
 // reader is not allowed to see is the same leak one seq lower. The floor arrives on the guard's resolved
 // membership (`requireParticipant` → `historyFloorSeq`), so the verb passes it and cannot forget it.
 
+import type { MessageKind } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { chatParticipants, messageReactions, messages, messageVariants } from "@orb/db";
+import { characters, chatParticipants, messageReactions, messages, messageVariants, personas } from "@orb/db";
 import type { AssetId, ChatId, ChatParticipantId, MessageId, MessageReactionId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, gte, inArray, isNull, max } from "drizzle-orm";
+import type { StoredSegmentAnchor } from "../contract/params.ts";
 
 const LIMIT_ONE = 1;
 
@@ -38,6 +40,9 @@ interface ReactionRow {
   readonly reactorParticipantId: ChatParticipantId;
   readonly emoji: string;
   readonly emojiImageAssetId: AssetId | null;
+  readonly segmentIndex: number | null;
+  readonly segmentSpeaker: string | null;
+  readonly segmentSnippet: string | null;
 }
 
 /** The caller's PRESENT seat in this room (D80) — the reactor id every write stamps.
@@ -59,15 +64,16 @@ export async function loadReactorSeatId(db: Db, chatId: ChatId, userId: UserId):
  *  This is the `variantId` half's own belt (the `getVariantWire` precedent): the chatId gate refuses a
  *  stranger, and this refuses a MEMBER who aims a foreign — or below-floor — variant id at their own room.
  *  `undefined` is the one answer for all three misses (absent / other room / below floor), so a caller
- *  cannot distinguish them. */
+ *  cannot distinguish them. `content` rides along for the B7 segment write: the verb re-parses the CANON
+ *  bytes itself to validate a claimed anchor, and a second point read for them would be the same query. */
 export async function loadVariantSlotInChat(
   db: Db,
   chatId: ChatId,
   variantId: MessageVariantId,
   floorSeq: number,
-): Promise<{ readonly messageId: MessageId } | undefined> {
+): Promise<{ readonly messageId: MessageId; readonly kind: MessageKind; readonly content: string } | undefined> {
   const rows = await db
-    .select({ messageId: messages.id })
+    .select({ messageId: messages.id, kind: messages.kind, content: messageVariants.content })
     .from(messageVariants)
     .innerJoin(messages, eq(messages.id, messageVariants.messageId))
     .where(and(eq(messageVariants.id, variantId), eq(messages.chatId, chatId), gte(messages.seq, floorSeq)))
@@ -75,8 +81,71 @@ export async function loadVariantSlotInChat(
   return rows.at(0);
 }
 
+/** The room's PRESENT CAST-NAME set — every present character seat's character name, the plain-`Name:`
+ *  span grammar's key set. The SERVER-SIDE MIRROR of the client's `speakerThemesByName` keys
+ *  (`features/chat/lib/attribution.ts` — character seats only): the two must key the same names or a
+ *  picker-computed segment index and this side's validation parse would disagree about the same bytes. */
+export async function loadPresentCastNames(db: Db, chatId: ChatId): Promise<readonly string[]> {
+  const rows = await db
+    .select({ name: characters.name })
+    .from(chatParticipants)
+    .innerJoin(characters, eq(characters.id, chatParticipants.characterId))
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq)));
+  return rows.map((r) => r.name);
+}
+
+/** The room's PRESENT HOST's userId, or `undefined` for a hostless/stale room. Served by the partial
+ *  `chat_participants_chat_host_unique` index (one present host as physics — #390), so this is a point
+ *  read. The B7 verb-time gates resolve the host's per-user reaction defaults under THIS identity — the
+ *  host governs the room's posture (the `resolveOfferChoices` precedence), never the caller. */
+export async function loadPresentHostUserId(db: Db, chatId: ChatId): Promise<UserId | undefined> {
+  const rows = await db
+    .select({ userId: chatParticipants.userId })
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
+    .limit(LIMIT_ONE);
+  const userId = rows.at(0)?.userId;
+  return userId ?? undefined;
+}
+
+/** A PRESENT character seat by its character's EXACT (trimmed) name — the `react` tool's actor resolution
+ *  (the model speaks names, never ids). `undefined` for an absent/departed/non-character match; the tool
+ *  narrates that as errors-as-data. */
+export async function loadCharacterSeatByName(
+  db: Db,
+  chatId: ChatId,
+  name: string,
+): Promise<{ readonly participantId: ChatParticipantId; readonly characterName: string } | undefined> {
+  const rows = await db
+    .select({ participantId: chatParticipants.id, characterName: characters.name })
+    .from(chatParticipants)
+    .innerJoin(characters, eq(characters.id, chatParticipants.characterId))
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq), eq(characters.name, name.trim())))
+    .limit(LIMIT_ONE);
+  return rows.at(0);
+}
+
+/** The room's NEWEST committed slot with its SELECTED variant — the `react` tool's one target (the model
+ *  reacts to what just happened; it cannot name a message id and is not taught one). `undefined` for an
+ *  empty room or a slot whose selection pointer is unset/dangling. */
+export async function loadNewestSelectedSlot(
+  db: Db,
+  chatId: ChatId,
+): Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId; readonly kind: MessageKind; readonly content: string } | undefined> {
+  const rows = await db
+    .select({ messageId: messages.id, variantId: messageVariants.id, kind: messages.kind, content: messageVariants.content })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(eq(messages.chatId, chatId))
+    .orderBy(desc(messages.seq))
+    .limit(LIMIT_ONE);
+  return rows.at(0);
+}
+
 /** Add one reaction. Returns TRUE only when a row was actually inserted — a repeat of a reaction the seat
- *  already holds conflicts away to nothing, and the verb must not announce a change that did not happen. */
+ *  already holds conflicts away to nothing, and the verb must not announce a change that did not happen.
+ *  `segment` null = whole-message (the partial-unique's first arm dedupes it; the second dedupes an
+ *  anchored one). */
 export async function insertReaction(
   db: Db,
   values: {
@@ -84,17 +153,24 @@ export async function insertReaction(
     readonly variantId: MessageVariantId;
     readonly reactorParticipantId: ChatParticipantId;
     readonly emoji: string;
+    readonly segment: StoredSegmentAnchor | null;
     readonly createdAt: number;
   },
 ): Promise<boolean> {
-  const rows = await db.insert(messageReactions).values(values).onConflictDoNothing().returning({ id: messageReactions.id });
+  const { segment, ...base } = values;
+  const rows = await db
+    .insert(messageReactions)
+    .values({ ...base, ...(segment ?? { segmentIndex: null, segmentSpeaker: null, segmentSnippet: null }) })
+    .onConflictDoNothing()
+    .returning({ id: messageReactions.id });
   return rows.length > 0;
 }
 
-/** Remove one reaction, keyed by the UNIQUE. Returns TRUE only when a row was actually deleted. */
+/** Remove one reaction, keyed by its owning PARTIAL unique (whole-message vs segment-anchored — the two
+ *  are independent toggles, MA-2 §4). Returns TRUE only when a row was actually deleted. */
 export async function deleteReaction(
   db: Db,
-  key: { readonly variantId: MessageVariantId; readonly reactorParticipantId: ChatParticipantId; readonly emoji: string },
+  key: { readonly variantId: MessageVariantId; readonly reactorParticipantId: ChatParticipantId; readonly emoji: string; readonly segmentIndex: number | null },
 ): Promise<boolean> {
   const rows = await db
     .delete(messageReactions)
@@ -103,6 +179,7 @@ export async function deleteReaction(
         eq(messageReactions.variantId, key.variantId),
         eq(messageReactions.reactorParticipantId, key.reactorParticipantId),
         eq(messageReactions.emoji, key.emoji),
+        key.segmentIndex === null ? isNull(messageReactions.segmentIndex) : eq(messageReactions.segmentIndex, key.segmentIndex),
       ),
     )
     .returning({ id: messageReactions.id });
@@ -131,6 +208,9 @@ export function listChatReactions(db: Db, chatId: ChatId, opts: { readonly slotW
         reactorParticipantId: messageReactions.reactorParticipantId,
         emoji: messageReactions.emoji,
         emojiImageAssetId: messageReactions.emojiImageAssetId,
+        segmentIndex: messageReactions.segmentIndex,
+        segmentSpeaker: messageReactions.segmentSpeaker,
+        segmentSnippet: messageReactions.segmentSnippet,
       })
       .from(messageReactions)
       .innerJoin(messageVariants, eq(messageVariants.id, messageReactions.variantId))
@@ -138,5 +218,73 @@ export function listChatReactions(db: Db, chatId: ChatId, opts: { readonly slotW
       // Deterministic group order: oldest reaction first WITHIN a chip, so the pill row's reactor list is
       // "who reacted, in the order they did" rather than whatever the planner returns.
       .orderBy(messageReactions.createdAt, messageReactions.id)
+  );
+}
+
+/** The MR4 attribution read: every reaction on the newest `slotWindow` reacted slots' SELECTED variants,
+ *  above the HOST's floor, with the variant's canon bytes and the reactor's DISPLAY identity flattened on.
+ *
+ *  SELECTED-ONLY, unlike {@link listChatReactions}: the prompt contains selected variants, so a reaction
+ *  parked on a dead swipe must not be narrated into a turn that never shows that text. The reactor's name
+ *  resolves here rather than in the contribution because it is ONE LEFT-JOIN pair on a read this bounded —
+ *  a character seat carries its character's name, a human seat its active persona's (the in-fiction
+ *  identity; the "User" floor is the caller's, matching the engine's `userSpeakerName` posture). */
+export function listAttributionReactions(
+  db: Db,
+  chatId: ChatId,
+  opts: { readonly slotWindow: number; readonly floorSeq: number },
+): Promise<
+  readonly {
+    readonly messageId: MessageId;
+    readonly messageSeq: number;
+    readonly messageKind: MessageKind;
+    readonly variantId: MessageVariantId;
+    readonly content: string;
+    readonly emoji: string;
+    readonly segmentIndex: number | null;
+    readonly segmentSpeaker: string | null;
+    readonly segmentSnippet: string | null;
+    readonly createdAt: number;
+    readonly reactorCharacterName: string | null;
+    readonly reactorPersonaName: string | null;
+    readonly createdAtId: MessageReactionId;
+  }[]
+> {
+  const recentSlots = db
+    .select({ messageId: messages.id })
+    .from(messageReactions)
+    .innerJoin(messageVariants, eq(messageVariants.id, messageReactions.variantId))
+    .innerJoin(messages, and(eq(messages.id, messageVariants.messageId), eq(messages.selectedVariantId, messageVariants.id)))
+    .where(and(eq(messages.chatId, chatId), gte(messages.seq, opts.floorSeq)))
+    .groupBy(messages.id)
+    .orderBy(desc(max(messageReactions.createdAt)), desc(max(messageReactions.id)))
+    .limit(opts.slotWindow);
+  return (
+    db
+      .select({
+        messageId: messages.id,
+        messageSeq: messages.seq,
+        messageKind: messages.kind,
+        variantId: messageReactions.variantId,
+        content: messageVariants.content,
+        emoji: messageReactions.emoji,
+        segmentIndex: messageReactions.segmentIndex,
+        segmentSpeaker: messageReactions.segmentSpeaker,
+        segmentSnippet: messageReactions.segmentSnippet,
+        createdAt: messageReactions.createdAt,
+        reactorCharacterName: characters.name,
+        reactorPersonaName: personas.name,
+        createdAtId: messageReactions.id,
+      })
+      .from(messageReactions)
+      .innerJoin(messageVariants, eq(messageVariants.id, messageReactions.variantId))
+      .innerJoin(messages, and(eq(messages.id, messageVariants.messageId), eq(messages.selectedVariantId, messageVariants.id)))
+      .innerJoin(chatParticipants, eq(chatParticipants.id, messageReactions.reactorParticipantId))
+      .leftJoin(characters, eq(characters.id, chatParticipants.characterId))
+      .leftJoin(personas, eq(personas.id, chatParticipants.activePersonaId))
+      .where(inArray(messages.id, recentSlots))
+      // Chronological by slot, then by reaction age — the contribution walks this in narration order and
+      // applies the per-message K cap on the NEWEST rows (it slices from the tail per message).
+      .orderBy(messages.seq, messageReactions.createdAt, messageReactions.id)
   );
 }

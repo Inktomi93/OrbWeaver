@@ -15,7 +15,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 const TCTX: TeachingContext = {
   chatId: castId<ChatId>("chat_teach"),
   runAsUserId: castId<UserId>("user_host"),
-  knobs: { offerChoices: false },
+  knobs: { offerChoices: false, charactersCanReact: false, reactionsEnabled: true },
   prose: {},
   identity: { user: "Nate", char: "Aria" },
   rpgGather: null,
@@ -137,14 +137,29 @@ describe("collectTeaching — the S2 fold", () => {
 // `??` would pass three of these four and silently make "off for this room" unrepresentable.
 describe("resolveTeachingKnobs — room over host default", () => {
   const hostDefault = (offerChoices: boolean): typeof DEFAULT_CHAT_BEHAVIOR => ({ ...DEFAULT_CHAT_BEHAVIOR, offerChoices });
+  // The B7 knobs at their SHIPPED resolution (the DEFAULT_CHAT_BEHAVIOR floor: react tool OFF, plane ON) —
+  // spelled once so the offerChoices pins below stay about offerChoices.
+  const b7Shipped = { charactersCanReact: false, reactionsEnabled: true } as const;
 
   test("an ABSENT room value inherits the host's default (both polarities)", () => {
-    expect(resolveTeachingKnobs({}, hostDefault(true))).toEqual({ offerChoices: true });
-    expect(resolveTeachingKnobs({}, hostDefault(false))).toEqual({ offerChoices: false });
+    expect(resolveTeachingKnobs({}, hostDefault(true))).toEqual({ offerChoices: true, ...b7Shipped });
+    expect(resolveTeachingKnobs({}, hostDefault(false))).toEqual({ offerChoices: false, ...b7Shipped });
   });
 
   test("an EXPLICIT room value wins over the host's default (both polarities)", () => {
-    expect(resolveTeachingKnobs({ offerChoices: true }, hostDefault(false))).toEqual({ offerChoices: true });
-    expect(resolveTeachingKnobs({ offerChoices: false }, hostDefault(true))).toEqual({ offerChoices: false });
+    expect(resolveTeachingKnobs({ offerChoices: true }, hostDefault(false))).toEqual({ offerChoices: true, ...b7Shipped });
+    expect(resolveTeachingKnobs({ offerChoices: false }, hostDefault(true))).toEqual({ offerChoices: false, ...b7Shipped });
+  });
+
+  test("B7: each reaction knob resolves its OWN pair the same way — room wins, absent inherits", () => {
+    const flipped = { ...DEFAULT_CHAT_BEHAVIOR, charactersCanReact: true, reactionsEnabled: false };
+    // Absent room values inherit the host's (flipped) defaults.
+    expect(resolveTeachingKnobs({}, flipped)).toEqual({ offerChoices: false, charactersCanReact: true, reactionsEnabled: false });
+    // Explicit room values win over both, per knob independently.
+    expect(resolveTeachingKnobs({ charactersCanReact: false, reactionsEnabled: true }, flipped)).toEqual({
+      offerChoices: false,
+      charactersCanReact: false,
+      reactionsEnabled: true,
+    });
   });
 });

@@ -146,6 +146,9 @@ const BUS_FILTERS: BusFilterMap = {
     // `chats.variableValues`, read through its own proc, and `setVariables`/`clearVariables` emit this
     // catch-all.
     trpc.chat.getVariablePicks.queryFilter({ chatId: e.chatId }),
+    // B7 — `listReactions` carries the room's RESOLVED `reactionsEnabled` verdict and `setReactionsEnabled` emits
+    // THIS catch-all; on `reactionsChanged` alone a host's off-flip would leave every member's pills/doors standing.
+    trpc.chat.listReactions.queryFilter({ chatId: e.chatId }),
     // `databank.listActiveForChat` — the per-chat documents rack, riding this event for TWO drivers:
     //   • MEMBERSHIP. The D85 union is membership-derived (`databank/persistence/scope.ts`): a human member
     //     joining/leaving credits or withdraws THEIR global documents, and a roster character

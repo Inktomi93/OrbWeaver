@@ -19,6 +19,7 @@ import {
   guidedSteerSchema,
   messageContentBlockSchema,
   openingPolicySchema,
+  REACTION_SPEAKER_NAME_MAX,
   reactionEmojiSchema,
   reattributeScopeSchema,
   roomOverridesSchema,
@@ -310,6 +311,12 @@ const toggleReactionSchema = z.object({
   chatId: brandedId<ChatId>(),
   variantId: brandedId<MessageVariantId>(),
   emoji: reactionEmojiSchema,
+  // B7/MR3 — the segment CLAIM (absent = whole-message). The wire carries an index + the client's claimed
+  // speaker ONLY; the verb re-parses the variant's CANON itself and stores ITS OWN speaker + snippet, so
+  // free text never crosses this boundary into a rendered column (the emoji-vocabulary posture). The name
+  // cap DERIVES the contracts bound (the `<speaker>` tag grammar's own).
+  segmentIndex: z.number().int().min(0).optional(),
+  segmentSpeaker: z.string().max(REACTION_SPEAKER_NAME_MAX).nullable().optional(),
 });
 const listReactionsSchema = z.object({ chatId: brandedId<ChatId>() });
 
@@ -584,6 +591,16 @@ export const chatRouter = t.router({
   setOfferChoices: authedProcedure
     .input(z.object({ chatId: brandedId<ChatId>(), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.chat.setOfferChoices({ principal: ctx.auth, ...input })),
+
+  // B7 — the two reaction toggles (the setOfferChoices twins; host-gated in the verb). `charactersCanReact`
+  // gates the `react` tool's attach; `reactionsEnabled` is the reaction plane's master switch, ENFORCED at
+  // the reaction verbs (toggle refuses, list answers empty-with-verdict) rather than merely hidden.
+  setCharactersCanReact: authedProcedure
+    .input(z.object({ chatId: brandedId<ChatId>(), enabled: z.boolean() }))
+    .mutation(({ ctx, input }) => ctx.services.chat.setCharactersCanReact({ principal: ctx.auth, ...input })),
+  setReactionsEnabled: authedProcedure
+    .input(z.object({ chatId: brandedId<ChatId>(), enabled: z.boolean() }))
+    .mutation(({ ctx, input }) => ctx.services.chat.setReactionsEnabled({ principal: ctx.auth, ...input })),
   setToolRecurseLimit: authedProcedure
     .input(setToolRecurseLimitSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setToolRecurseLimit({ principal: ctx.auth, ...input })),

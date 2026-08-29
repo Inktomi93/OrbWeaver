@@ -140,6 +140,41 @@ function splitOnPlainLabels(content: string, castNames: readonly string[]): read
   return spans;
 }
 
+/** A stored reaction's segment anchor — the persisted trio a B7 segment-targeted reaction carries
+ *  (`message_reactions.segment_*`). `speaker` is the span's OWN label at capture (`null` = a narration
+ *  span); `snippet` is the span text's trimmed head at capture, the fingerprint that closes the anchoring
+ *  suite's same-speaker-insert hole (`tests/kit/speaker-label/anchoring.suite.test.ts` — `(index, speaker)`
+ *  alone silently mis-targets when another line by the same speaker is inserted above the target). */
+export interface SegmentAnchor {
+  readonly index: number;
+  readonly speaker: string | null;
+  readonly snippet: string;
+}
+
+/** The one snippet derivation both WRITERS (the toggle verb, the `react` tool) and the validator share —
+ *  trimmed head, caller-capped. One home so a stored snippet and a validation-time comparison can never
+ *  disagree about whitespace. */
+export function segmentSnippet(text: string, max: number): string {
+  return text.trim().slice(0, max);
+}
+
+/** Re-resolve a stored {@link SegmentAnchor} against a body's CURRENT segmentation — the ONE staleness
+ *  rule for every consumer (the client pill/picker display and the server's prompt-attribution read; a
+ *  second spelling is how display and attribution drift, MA-2's headline lesson).
+ *
+ *  Valid ⇔ the index is in range AND the span's speaker equals the stored one AND the span's trimmed text
+ *  still begins with the stored snippet (prefix, not equality — a tail edit to the same line keeps the
+ *  anchor; a different inserted line breaks it). Anything else returns `null` and the caller DEGRADES to
+ *  whole-message (projections degrade, never throw — the `contentSpansToBlocks` doctrine). */
+export function resolveSegmentAnchor(content: string, castNames: readonly string[], anchor: SegmentAnchor): SpeakerSpan | null {
+  const spans = parseSpeakerSpans(content, castNames);
+  const span = spans[anchor.index];
+  if (span === undefined || span.speaker !== anchor.speaker) {
+    return null;
+  }
+  return span.text.trim().startsWith(anchor.snippet) ? span : null;
+}
+
 /** Convert a narrator message's inline `<speaker>NAME</speaker>` markers to plain `NAME: ` attribution
  *  for PROMPT HISTORY — the renderer needs the tags (per-speaker coloring) so STORED canon keeps them,
  *  but re-feeding the raw XML into every subsequent prompt wastes tokens AND trains the model to parrot

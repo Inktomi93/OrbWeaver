@@ -332,4 +332,29 @@ export const CHAT_PROSE_SLOTS = {
     title: "Prose-less turn recovery ask",
     fires: "A completion that produced tool calls and no prose — the recovery pass that rescues the turn instead of discarding it.",
   },
+  "chat.tool.reactDescription": {
+    id: "chat.tool.reactDescription",
+    home: "user",
+    version: 1,
+    // The B7 `react` tool's model-facing contract (the `imagery.tool.generateImageDescription` shape:
+    // resolved to its shipped default at compose registration — no user in scope there). The description
+    // IS the teach: the tool-use posture ships no prose injection beside a wire description, so everything
+    // the model needs — who may react, what to target, restraint — lives in this one text.
+    text:
+      "React to the newest message with an emoji, as one of the present characters. Use it sparingly — only " +
+      "when a character would visibly react in the moment (amusement, shock, delight, dread). `character` is " +
+      "the reacting character's exact name; `emoji` is one emoji from the offered set; `toSpeaker` " +
+      "optionally names whose lines within that message the reaction points at (omit it to react to the " +
+      "whole message). The reaction appears as a small chip on the message for everyone in the room; it " +
+      "posts no text and does not replace your reply.",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "react tool description",
+    fires: "The `react` tool's model-facing description, on every turn the room's characters-can-react toggle resolves on.",
+  },
 } as const satisfies Partial<Record<ProseSlotId, ProseSlotDef>>;
+
+/** The `react` tool's registered description — the slot's SHIPPED default, resolved at module load (the
+ *  `IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION` posture: compose-time registration has no user in scope). */
+export const CHAT_REACT_TOOL_DESCRIPTION = CHAT_PROSE_SLOTS["chat.tool.reactDescription"].text;

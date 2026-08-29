@@ -28,7 +28,14 @@ const GUIDANCE = "Plant the courier's absence — do not explain it. {{getglobal
 
 function tctxFor(chatId: ChatId, runAsUserId: UserId): TeachingContext {
   // knobs/prose/identity are inert here — this contribution reads ONLY chatId + runAsUserId.
-  return { chatId, runAsUserId, knobs: { offerChoices: false }, prose: {}, identity: { user: "User", char: "Aria" }, rpgGather: null };
+  return {
+    chatId,
+    runAsUserId,
+    knobs: { offerChoices: false, charactersCanReact: false, reactionsEnabled: true },
+    prose: {},
+    identity: { user: "User", char: "Aria" },
+    rpgGather: null,
+  };
 }
 
 async function seedAnalysisRule(

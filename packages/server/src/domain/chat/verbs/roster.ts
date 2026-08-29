@@ -49,12 +49,14 @@ import type {
   NominateHostHandoffParams,
   RemoveCharacterFromChatParams,
   SelfLeaveParams,
+  SetCharactersCanReactParams,
   SetChatBackgroundParams,
   SetChatDocumentVisibilityParams,
   SetGroupConfigParams,
   SetHostDisplayScriptsParams,
   SetMemberHistoryVisibilityParams,
   SetOfferChoicesParams,
+  SetReactionsEnabledParams,
   SetRoomOverridesParams,
   SetSeatKnobsParams,
   SetToolRecurseLimitParams,
@@ -111,6 +113,8 @@ type RosterVerbs = Pick<
   | "setChatBackground"
   | "setHostDisplayScripts"
   | "setOfferChoices"
+  | "setCharactersCanReact"
+  | "setReactionsEnabled"
   | "setToolRecurseLimit"
   | "getGroupConfigForChat"
   | "getRoomOverridesForChat"
@@ -164,6 +168,8 @@ export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
     setChatBackground: createSetChatBackground(ctx, emit, claimChat),
     setHostDisplayScripts: createSetHostDisplayScripts(ctx, emit, claimChat),
     setOfferChoices: createSetOfferChoices(ctx, emit, claimChat),
+    setCharactersCanReact: createSetCharactersCanReact(ctx, emit, claimChat),
+    setReactionsEnabled: createSetReactionsEnabled(ctx, emit, claimChat),
     setToolRecurseLimit: createSetToolRecurseLimit(ctx, emit, claimChat),
     getGroupConfigForChat: createGetGroupConfigForChat(ctx),
     getRoomOverridesForChat: createGetRoomOverridesForChat(ctx),
@@ -366,6 +372,47 @@ function createSetOfferChoices(ctx: ChatContext, emit: EmitChatEvent, claimChat:
     await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit({ actorUserId: principal.userId, action: "chat.setOfferChoices", entityType: "chat", entityId: chatId, metadata: { enabled } }, ctx.now());
+    return enabled;
+  };
+}
+
+/** `setCharactersCanReact` — host-only. Writes the B7 react-tool ATTACH posture into
+ *  `chatMetadata.charactersCanReact` (the `setOfferChoices` twin — same merge-write, same tri-state:
+ *  an absent key inherits the host's per-user default, an explicit `false` pins this room off, and BOTH
+ *  tiers default OFF because an autonomous AI reacting is opt-in, owner requirement). Governs PROMPT
+ *  CONTENT (the `react` tool + its description reach the wire), so host authority. */
+function createSetCharactersCanReact(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setCharactersCanReact"] {
+  return async ({ principal, chatId, enabled }: SetCharactersCanReactParams): Promise<boolean> => {
+    const { chat } = await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
+    const nextMetadata = { ...chat.metadata, charactersCanReact: enabled };
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "carried" });
+    await emit({ type: "chatUpdated", chatId });
+    await ctx.audit(
+      { actorUserId: principal.userId, action: "chat.setCharactersCanReact", entityType: "chat", entityId: chatId, metadata: { enabled } },
+      ctx.now(),
+    );
+    return enabled;
+  };
+}
+
+/** `setReactionsEnabled` — host-only. Writes the B7 reaction-plane MASTER posture into
+ *  `chatMetadata.reactionsEnabled`. Same shape as its sibling above, opposite default direction: the
+ *  per-user default ships ON (B6 is a live feature — this knob makes it disableable, never quietly off).
+ *  Resolved OFF is ENFORCED at the verbs (`toggleReaction` refuses `reactions_disabled`, `listReactions`
+ *  answers `{enabled:false, groups:[]}`, the react tool refuses errors-as-data) — the client hiding is a
+ *  courtesy over that enforcement, not the mechanism. */
+function createSetReactionsEnabled(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setReactionsEnabled"] {
+  return async ({ principal, chatId, enabled }: SetReactionsEnabledParams): Promise<boolean> => {
+    const { chat } = await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
+    const nextMetadata = { ...chat.metadata, reactionsEnabled: enabled };
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "carried" });
+    await emit({ type: "chatUpdated", chatId });
+    await ctx.audit(
+      { actorUserId: principal.userId, action: "chat.setReactionsEnabled", entityType: "chat", entityId: chatId, metadata: { enabled } },
+      ctx.now(),
+    );
     return enabled;
   };
 }

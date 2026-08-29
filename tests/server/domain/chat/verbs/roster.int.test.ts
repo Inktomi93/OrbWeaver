@@ -1712,3 +1712,57 @@ describe("setOfferChoices — the per-room offer-choices posture", () => {
     expect(emitted).toEqual([]);
   });
 });
+
+// ── B7: the two reaction toggles (`setCharactersCanReact` + `setReactionsEnabled`) — the setOfferChoices
+// twins, byte-for-byte: same merge-write, same tri-state (absent = INHERIT the host's per-user default),
+// same host gate. Their ENFORCEMENT (a resolved-OFF room refusing toggleReaction / answering
+// empty-with-verdict / silencing the react tool) is the reactions verb suite's; this describe proves the
+// WRITE half — the key lands merged, the tri-state survives, and a member cannot reach either knob.
+describe("setCharactersCanReact / setReactionsEnabled — the B7 reaction postures", () => {
+  test("the host pins both keys, MERGING beside the sibling sub-blobs, one chatUpdated each", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+
+    await roster.setRoomOverrides({ principal: principal(host), chatId, overrides: roomOverridesSchema.parse({ scenario: "keep me" }) });
+    emitted.length = 0;
+
+    expect(await roster.setCharactersCanReact({ principal: principal(host), chatId, enabled: true })).toBe(true);
+    expect(await roster.setReactionsEnabled({ principal: principal(host), chatId, enabled: false })).toBe(false);
+
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    const metadata = row?.metadata as { charactersCanReact?: boolean; reactionsEnabled?: boolean; roomOverrides?: { scenario?: string } };
+    expect(metadata.charactersCanReact).toBe(true);
+    // The tri-state's teeth: an explicit `false` is a STORED value — "this room, specifically, is off" —
+    // never confused with a never-written room that follows the host's default.
+    expect(metadata.reactionsEnabled).toBe(false);
+    expect(metadata.roomOverrides?.scenario).toBe("keep me");
+    expect(emitted).toEqual([
+      { type: "chatUpdated", chatId },
+      { type: "chatUpdated", chatId },
+    ]);
+  });
+
+  test("a plain MEMBER is refused with not_host on BOTH knobs — no write, no emit", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+
+    // One knob reaches the PROMPT (the react-tool attach), the other every member's write path — both are
+    // room-wide behavior, so host is the floor for each.
+    const reactErr = await roster.setCharactersCanReact({ principal: principal(member), chatId, enabled: true }).catch((e: unknown) => e);
+    expect((reactErr as ChatOperationError).code).toBe("not_host");
+    const planeErr = await roster.setReactionsEnabled({ principal: principal(member), chatId, enabled: false }).catch((e: unknown) => e);
+    expect((planeErr as ChatOperationError).code).toBe("not_host");
+
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    const metadata = row?.metadata as { charactersCanReact?: boolean; reactionsEnabled?: boolean } | null;
+    expect(metadata?.charactersCanReact).toBeUndefined();
+    expect(metadata?.reactionsEnabled).toBeUndefined();
+    expect(emitted).toEqual([]);
+  });
+});
