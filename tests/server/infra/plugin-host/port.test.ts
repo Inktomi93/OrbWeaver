@@ -1555,6 +1555,31 @@ describe("port.invoke — per-instance FIFO serialization (concurrency belt on t
     sandbox.dispose();
   });
 
+  test("ui.register UPSERTS by surface id — a re-registration REPLACES the row, never appends a duplicate", async () => {
+    // The hub-v1.3 revision path: the atlas registers its default posture synchronously at activation, then
+    // re-registers the SAME id once its kv-persisted SFW setting lands. Without the upsert the stale first
+    // row would project twice through listSurfaces and win every `find` — a lying surface. Driven over the
+    // REAL Sandbox collect path (the fake-collect membrane tests cannot see this; it lives in ResidentState).
+    const fake = fakeBridge();
+    const sandbox = await Sandbox.create(makeSeams(), {
+      membrane: { grants: new Set<PluginCapability>(["ui.surface"]), bridge: fake.bridge, netHosts: [] },
+    });
+    const activated = await sandbox.evalGuest(`
+      const host = orb.host(1);
+      host.ui.register({ id: "panel", anchor: "settings", title: "First", tier: "static", spec: { kind: "text", value: "a" }, onAction: () => {} });
+      host.ui.register({ id: "panel", anchor: "settings", title: "Second", tier: "static", spec: { kind: "toggle", name: "sfw", label: "SFW only", value: true }, onAction: () => {} });
+      host.ui.register({ id: "other", anchor: "settings", title: "Other", tier: "static", spec: { kind: "text", value: "b" } });
+      "ok"`);
+    expect(activated.ok).toBe(true);
+    // ONE row per id, the LATEST registration's meta — and a distinct id still appends.
+    expect(sandbox.collectedSurfaces.map((s) => [s.id, s.title])).toEqual([
+      ["panel", "Second"],
+      ["other", "Other"],
+    ]);
+    expect(JSON.stringify(sandbox.collectedSurfaces[0]?.spec)).toContain('"name":"sfw"');
+    sandbox.dispose();
+  });
+
   test("different resident instances still run CONCURRENTLY (per-instance, not global, serialization)", { timeout: LONG }, async () => {
     const host = makeHost();
     const fake = racingBridge();

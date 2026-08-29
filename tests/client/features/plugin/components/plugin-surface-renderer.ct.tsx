@@ -356,3 +356,83 @@ test("hub v1.2: a bound grid tile carrying `tags` renders its chip row — the f
   await expect(tagRow.getByText("fantasy")).toBeVisible();
   await expect(tagRow.getByText("vampire")).toBeVisible();
 });
+
+test("hub v1.3: a BOUND select (`optionsFrom`) renders its options from published state — a per-hub sort menu is data", async ({ mount, page }) => {
+  // Red-first control: against the pre-v1.3 renderer this spec either fails validation (unknown arm) or
+  // crashes the select on its missing `options` — the pin cannot pass vacuously.
+  const spec = {
+    kind: "stack",
+    children: [{ kind: "select", name: "sort", label: "Sort", optionsFrom: { $state: "sortOptions" }, value: "relevance", actionId: "search" }],
+  };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    "plugin.getSurfaceState": () => ({
+      sortOptions: [
+        { value: "relevance", label: "Hub default" },
+        { value: "views", label: "Most viewed" },
+        { bogus: true }, // malformed entry — dropped by the resolve gate, never fatal.
+      ],
+    }),
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  const trigger = page.getByRole("combobox", { name: "Sort" });
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  await expect(page.getByRole("option", { name: "Most viewed" })).toBeVisible();
+  await expect(page.getByRole("option")).toHaveCount(2); // the malformed third entry was dropped at resolve.
+});
+
+test("hub v1.3: a BOUND keyValue (`rowsFrom`) renders its rows from published state — a per-hub stat sheet is data", async ({ mount, page }) => {
+  const spec = { kind: "keyValue", rowsFrom: { $state: "detail.stats" } };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    "plugin.getSurfaceState": () => ({
+      detail: {
+        stats: [
+          { key: "Downloads", value: "7.4k" },
+          { key: "Favorites", value: "212" },
+          { key: 5 }, // malformed — dropped, never fatal.
+        ],
+      },
+    }),
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  await expect(page.getByText("Downloads")).toBeVisible();
+  await expect(page.getByText("7.4k")).toBeVisible();
+  await expect(page.getByText("Favorites")).toBeVisible();
+  await expect(page.getByText("212")).toBeVisible();
+});
+
+test("hub v1.3: a LIVE toggle (`actionId`) fires its action on flip with the fresh value riding as an extra", async ({ mount, page }) => {
+  const spec = { kind: "toggle", name: "sfw", label: "SFW only", value: false, actionId: "search" };
+  const recorder: TrpcRecorder = await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    "plugin.getSurfaceState": () => null,
+    "plugin.invokeUiAction": () => null,
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  const toggle = page.getByRole("switch", { name: "SFW only" });
+  await expect(toggle).toBeVisible();
+  await toggle.click();
+
+  // The pick IS the act: the round-trip fires with the FRESH value (the async React state write cannot
+  // race it — the select's v1.2 `extra` mechanism, same seam).
+  await expect
+    .poll(() => recorder.lastInput("plugin.invokeUiAction"))
+    .toEqual({ pluginId: AFFINITY_ID, surfaceId: "atlas", actionId: "search", values: { sfw: "true" } });
+});

@@ -765,8 +765,9 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
     caller,
     slug: "card-atlas",
     grant: ["storage.kv", "ui.surface", "net.fetch", "net.fetch_asset", "character.ingest", "character.card_state"],
-    // The acknowledged list mirrors the manifest EXACTLY (the anti-TOCTOU pin): six hub APIs plus each
-    // hub's art CDN — netHosts matching is exact-host, so every CDN is its own consent line.
+    // The acknowledged list mirrors the manifest EXACTLY (the anti-TOCTOU pin): nine hub APIs plus each
+    // hub's art CDN — netHosts matching is exact-host, so every CDN is its own consent line. Sixteen
+    // entries = NET_HOSTS_MAX exactly (v1.3 landed at the cap without a bump).
     netHosts: [
       "character-tavern.com",
       "ct-cards.storage.character-tavern.com",
@@ -778,21 +779,35 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
       "imagedelivery.net",
       "api.aicharactercards.com",
       "charavault.net",
+      "botbooru.com",
+      "server.pygmalion.chat",
+      "assets.pygmalion.chat",
+      "datacat.run",
+      "media.datacat.run",
+      "ella.janitorai.com",
     ],
   });
 
   // The masterDetail + searchBar + BOUND-grid page passed the REAL registration validation over the
-  // WASM runtime — the flagship's whole vocabulary, end to end.
+  // WASM runtime — the flagship's whole vocabulary, end to end. v1.3 registers the default posture
+  // SYNCHRONOUSLY at activation (a floated-only registration measurably raced this very read — the pin
+  // that killed that design) and revises via the `ui.register` upsert when the kv SFW read lands; the
+  // toEqual (not arrayContaining) is ALSO the upsert pin: a re-register that APPENDED instead of
+  // replacing would project two atlas_page rows here.
   const surfaces = await h.service.listSurfaces({ caller });
   expect(surfaces).toEqual([expect.objectContaining({ id: "atlas_page", anchor: "page", tier: "static" })]);
-  // The v1.2 spec shapes (card-atlas-hub-v2): the Hub + Sort selects stay ALWAYS-VISIBLE (never inside the
-  // searchBar disclosure — that ruling survives; its input changed), the TAG FILTERS are exactly what the
-  // disclosure holds (the long tail it exists for), the pager row exists, the detail stage binds its hero to
-  // runtime-fetched art (`assetFrom` — #798) and shows the Tags provenance row, and the plain-named
-  // "Add to library" replaced the cute verb (owner ask, v1.2).
+  // The v1.3 spec shapes (card-atlas-next-level): the Hub + Sort selects and the SFW toggle stay
+  // ALWAYS-VISIBLE (never inside the searchBar disclosure — that ruling survives), the Sort select's
+  // options are BOUND per-hub vocabulary (`optionsFrom` — a hub only advertises orderings it honors),
+  // the detail's stat sheet is BOUND rows (`rowsFrom` — each hub shows the counters it returned), the
+  // TAG FILTERS are exactly what the disclosure holds, the pager row exists, the detail stage binds its
+  // hero to runtime-fetched art (`assetFrom` — #798), and the plain-named "Add to library" stands.
   const spec = JSON.stringify(surfaces[0]?.["spec"] ?? {});
   expect(spec).toContain('"name":"source"');
   expect(spec).toContain('"name":"sort"');
+  expect(spec).toContain('"optionsFrom":{"$state":"sortOptions"}');
+  expect(spec).toContain('"name":"sfw"');
+  expect(spec).toContain('"rowsFrom":{"$state":"detail.stats"}');
   expect(spec).toContain('"name":"include_tags"');
   expect(spec).toContain('"name":"exclude_tags"');
   expect(spec).toContain('"actionId":"prev_page"');
@@ -800,6 +815,10 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
   expect(spec).toContain('"label":"Add to library"');
   expect(spec).not.toContain("Summon");
   expect(spec).toContain('"assetFrom":{"$state":"detail.art"}');
+  // The nine-hub roster rides the Hub select's declared options.
+  for (const hub of ["tavern", "realm", "chub", "wyvern", "aicc", "charavault", "botbooru", "pygmalion", "datacat"]) {
+    expect(spec).toContain(`"value":"${hub}"`);
+  }
   // The DISCLOSURE holds ONLY the tag textFields — a select inside it would be the buried-switcher failure
   // the always-visible pin above exists to prevent. Structured read, not a substring: the filters array is
   // the searchBar's own field.
@@ -809,10 +828,14 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
   const searchBar = atlasSpec.stages[0]?.body.children.find((node) => node.kind === "searchBar");
   expect(searchBar?.filters?.map((node) => node.kind)).toEqual(["textField", "textField"]);
 
-  // The activation publish: an empty atlas is a PUBLISHABLE state (bound specs render only once state lands).
+  // The activation publish: an empty atlas is a PUBLISHABLE state (bound specs render only once state
+  // lands) — and it carries the DEFAULT hub's sort menu (the bound select's vocabulary, v1.3).
   const initial = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "atlas_page" });
   expect(initial?.["stage"]).toBe("browse");
   expect(initial?.["tiles"]).toEqual([]);
+  expect(initial?.["sortOptions"]).toEqual(
+    expect.arrayContaining([expect.objectContaining({ value: "relevance" }), expect.objectContaining({ value: "downloads", label: "Most downloaded" })]),
+  );
 
   // The no-network arms (an empty query now legitimately BROWSES the hub, so its wire half moved to the live
   // drive's checklist): a pager click with no session answers in the status line, never a fetch; a stale tile

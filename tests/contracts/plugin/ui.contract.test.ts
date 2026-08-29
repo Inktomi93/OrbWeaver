@@ -42,6 +42,8 @@ import {
   pluginSurfaceSpecSchema,
   pluginToolWireName,
   resolvePluginBoundAssetId,
+  resolvePluginBoundKeyValueRows,
+  resolvePluginBoundSelectOptions,
   resolvePluginBoundTiles,
   UI_PROXYABLE_HOST_FUNCTIONS,
 } from "@orb/contracts/plugin";
@@ -691,4 +693,64 @@ test("ARM C: resolvePluginBoundAssetId is the FORMAT wall — only a well-formed
   expect(resolvePluginBoundAssetId({ cover: "chat_01h455vb4pex5vsknk084sn02q" }, { $state: "cover" })).toBeUndefined();
   expect(resolvePluginBoundAssetId({ cover: 7 }, { $state: "cover" })).toBeUndefined();
   expect(resolvePluginBoundAssetId({}, { $state: "cover" })).toBeUndefined();
+});
+
+// ── hub v1.3 — the bound-vocabulary arms (`select.optionsFrom`, `keyValue.rowsFrom`, live `toggle`) ──────────
+
+test("hub v1.3: a select names exactly one of `options` / `optionsFrom` — both and neither are refused", () => {
+  const declared = { kind: "select", name: "sort", label: "Sort", options: [{ value: "a", label: "A" }] };
+  const bound = { kind: "select", name: "sort", label: "Sort", optionsFrom: { $state: "sortOptions" } };
+  expect(pluginSurfaceSpecSchema.safeParse(declared).success).toBe(true);
+  expect(pluginSurfaceSpecSchema.safeParse(bound).success).toBe(true);
+  expect(pluginSurfaceSpecSchema.safeParse({ ...declared, optionsFrom: { $state: "sortOptions" } }).success).toBe(false);
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "select", name: "sort", label: "Sort" }).success).toBe(false);
+});
+
+test("hub v1.3: a keyValue names exactly one of `rows` / `rowsFrom` — both and neither are refused, and the belt reaches nested subtrees", () => {
+  const declared = { kind: "keyValue", rows: [{ key: "Creator", value: "nobody" }] };
+  const bound = { kind: "keyValue", rowsFrom: { $state: "detail.stats" } };
+  expect(pluginSurfaceSpecSchema.safeParse(declared).success).toBe(true);
+  expect(pluginSurfaceSpecSchema.safeParse(bound).success).toBe(true);
+  expect(pluginSurfaceSpecSchema.safeParse({ ...declared, rowsFrom: { $state: "detail.stats" } }).success).toBe(false);
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "keyValue" }).success).toBe(false);
+  // Nested reach: the belt walks the shared child seam, so a violating node inside a stack is still caught.
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "stack", children: [{ kind: "keyValue" }] }).success).toBe(false);
+});
+
+test("hub v1.3: a live toggle's `actionId` rides the ident grammar — arbitrary text is refused", () => {
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "toggle", name: "sfw", label: "SFW only", actionId: "search" }).success).toBe(true);
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "toggle", name: "sfw", label: "SFW only", actionId: "NOT AN IDENT" }).success).toBe(false);
+});
+
+test("hub v1.3: resolvePluginBoundSelectOptions validates, drops, and clamps — the tile-resolve posture", () => {
+  const state = {
+    sortOptions: [
+      { value: "relevance", label: "Hub default" },
+      { value: 7, label: "mistyped" }, // dropped
+      { bogus: true }, // dropped
+      { value: "views", label: "Most viewed" },
+    ],
+  };
+  expect(resolvePluginBoundSelectOptions(state, { $state: "sortOptions" }).map((o) => o.value)).toEqual(["relevance", "views"]);
+  expect(resolvePluginBoundSelectOptions(state, { $state: "nope" })).toEqual([]);
+  expect(resolvePluginBoundSelectOptions({ sortOptions: "not an array" }, { $state: "sortOptions" })).toEqual([]);
+  const flood = { sortOptions: Array.from({ length: PLUGIN_ROWS_MAX + 5 }, (_u, i) => ({ value: `v${i}`, label: "L" })) };
+  expect(resolvePluginBoundSelectOptions(flood, { $state: "sortOptions" })).toHaveLength(PLUGIN_ROWS_MAX);
+});
+
+test("hub v1.3: resolvePluginBoundKeyValueRows validates, drops, and clamps — plain strings on both fields", () => {
+  const state = {
+    detail: {
+      stats: [
+        { key: "Downloads", value: "7.4k" },
+        { key: 5 }, // dropped
+        { key: "Bound?", value: { $state: "nope" } }, // a binding inside state is NOT a string ⇒ dropped
+        { key: "Favorites", value: "212" },
+      ],
+    },
+  };
+  expect(resolvePluginBoundKeyValueRows(state, { $state: "detail.stats" }).map((r) => r.key)).toEqual(["Downloads", "Favorites"]);
+  expect(resolvePluginBoundKeyValueRows(state, { $state: "detail.nope" })).toEqual([]);
+  const flood = { rows: Array.from({ length: PLUGIN_ROWS_MAX + 5 }, (_u, i) => ({ key: `k${i}`, value: "v" })) };
+  expect(resolvePluginBoundKeyValueRows(flood, { $state: "rows" })).toHaveLength(PLUGIN_ROWS_MAX);
 });
