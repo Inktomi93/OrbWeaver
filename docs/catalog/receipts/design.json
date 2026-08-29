@@ -2157,17 +2157,17 @@
     },
     {
       "path": "docs/design/saved-rosters-build-record.md",
-      "assignedSha256": "3bcc3d82454f7a61a3859f03ce9b906495d119d19151a4040cf3a6826aeaa4c2",
+      "assignedSha256": "13d4c4747f9a22518635cb746b2ad2b0268eb98f9a36f317a8f347514cf1fb10",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "3bcc3d82454f7a61a3859f03ce9b906495d119d19151a4040cf3a6826aeaa4c2",
-      "verifiedCommit": "b39ec367beef5ad10d29fc7e947b60e0fc86fc23",
+      "verifiedSha256": "13d4c4747f9a22518635cb746b2ad2b0268eb98f9a36f317a8f347514cf1fb10",
+      "verifiedCommit": "d760c3bad13eb5428eb43991d623a33e7311760e",
       "verifiedAt": "2026-08-28",
       "evidence": [
         "docs/design/saved-rosters-build-record.md:1 (design; active)",
-        "authored by lane roster-26 with the RP1+RP2 build; re-attested after the pre-merge stickler truth-repairs (F3/F6) at b39ec367b",
-        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "re-attested after the B10 reconciliation (nomenclature/surfaces/doc-retirement; the rule-preset-accrual rider flagged) at d760c3bad"
       ],
       "summary": "Saved rosters (roster presets) — the as-built RP1+RP2 design record (#26, lane roster-26, 2026-08-28): premise repair vs the parked program doc, the D80/requireHost deltas, the coupled-site inventory, and the test plan.",
       "claims": [

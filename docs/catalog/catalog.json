@@ -2373,9 +2373,9 @@
       "path": "docs/architecture/history/Marinara-Residue-Non-RPG.md",
       "lane": "architecture-history",
       "issue": 3,
-      "lines": 97,
-      "bytes": 11464,
-      "sha256": "e4a629bfd6de14798fd10bdeddfc6cb9eaec2472c64edea981d6682a49871059",
+      "lines": 100,
+      "bytes": 11898,
+      "sha256": "e969057957dd2261180e147351f27de1294ffdf56086686275ab5f63363b2700",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -2388,17 +2388,18 @@
       },
       "receipt": {
         "path": "docs/architecture/history/Marinara-Residue-Non-RPG.md",
-        "assignedSha256": "e4a629bfd6de14798fd10bdeddfc6cb9eaec2472c64edea981d6682a49871059",
+        "assignedSha256": "e969057957dd2261180e147351f27de1294ffdf56086686275ab5f63363b2700",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "e4a629bfd6de14798fd10bdeddfc6cb9eaec2472c64edea981d6682a49871059",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "e969057957dd2261180e147351f27de1294ffdf56086686275ab5f63363b2700",
+        "verifiedCommit": "d760c3bad13eb5428eb43991d623a33e7311760e",
+        "verifiedAt": "2026-08-28",
         "evidence": [
           "docs/architecture/history/Marinara-Residue-Non-RPG.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+          "re-attested after the #26 B10 reconciliation repointed its saved-rosters-design.md links to interaction-direction-spec B10 at d760c3bad"
         ],
         "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
       },
@@ -4301,8 +4302,8 @@
       "lane": "architecture-proposed",
       "issue": 4,
       "lines": 37,
-      "bytes": 2356,
-      "sha256": "0aa60694d006d9a7109ff495246622ca6387822f7fb202fb0c6d6669c7f2b1fb",
+      "bytes": 2621,
+      "sha256": "0d81e2d65babd1fd82fdbdd6bb3e6bc2668789a7a4e1ab4237883d57643d6fce",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -4315,18 +4316,19 @@
       },
       "receipt": {
         "path": "docs/architecture/proposed/INDEX.md",
-        "assignedSha256": "1bc9377962b5fb33e8a91dae64905dc0b8c1065a3ee1e4465a9af424be203f0a",
+        "assignedSha256": "0d81e2d65babd1fd82fdbdd6bb3e6bc2668789a7a4e1ab4237883d57643d6fce",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "0aa60694d006d9a7109ff495246622ca6387822f7fb202fb0c6d6669c7f2b1fb",
-        "verifiedCommit": "5e00b582d6ab78d0cdaeebc5e90350cf4280acaf",
-        "verifiedAt": "2026-08-25",
+        "verifiedSha256": "0d81e2d65babd1fd82fdbdd6bb3e6bc2668789a7a4e1ab4237883d57643d6fce",
+        "verifiedCommit": "d760c3bad13eb5428eb43991d623a33e7311760e",
+        "verifiedAt": "2026-08-28",
         "evidence": [
           "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",
           "GitHub issue #4 sub-issues re-derived: #13-#29 match the unfinished program rows",
           "2026-08-23 re-derivations: databank-design REALIZED (DB1-DB8 slice-by-slice tree receipts incl. DB6 byte-identity + DB5 scope-leak tests, #19 closed); automation-design PARTIAL (A1-A7 + transport symbol-verified built, A8 client surface unbuilt, #15 corrected, #592 filed); plugin-design PARTIAL (P1-P4+P6 built: infra/plugin-host membrane+realm+budgets, domain/plugin 8-slot, contracts/plugin host-v1, escape.suite.test.ts, entry/compose/automation-plugin.ts; client echo + manager UI absent)",
-          "git:88022d21a85ea44894b3d23aa071caa224fe391e contains the exact program-index blob"
+          "git:88022d21a85ea44894b3d23aa071caa224fe391e contains the exact program-index blob",
+          "re-attested after the #26 B10 reconciliation retired saved-rosters-design.md (row struck + repointed) at d760c3bad"
         ],
         "summary": "Current three-column routing index for committed programs; code/tests own built state and Project owns mutable lifecycle.",
         "claims": [
@@ -9708,73 +9710,6 @@
       "receiptCurrent": true
     },
     {
-      "path": "docs/architecture/proposed/saved-rosters-design.md",
-      "lane": "architecture-proposed",
-      "issue": 4,
-      "lines": 250,
-      "bytes": 16370,
-      "sha256": "7b421781e7686718870681091689636dc472f55deb807b906d126219898eb240",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "spec",
-          "status": "active",
-          "updated": "2026-07-03"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/architecture/proposed/saved-rosters-design.md",
-        "assignedSha256": "7b421781e7686718870681091689636dc472f55deb807b906d126219898eb240",
-        "disposition": "needs-owner",
-        "authority": "design",
-        "fullRead": true,
-        "verifiedSha256": "7b421781e7686718870681091689636dc472f55deb807b906d126219898eb240",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-        "verifiedAt": "2026-08-14",
-        "evidence": [
-          "docs/architecture/proposed/saved-rosters-design.md:1 (full read; lifecycle/frontmatter evaluated)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-          "docs/architecture/proposed/INDEX.md:18 (PARTIAL disposition and stated wake/dependencies)"
-        ],
-        "summary": "Committed PARTIAL proposed program (saved-rosters); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:18.",
-        "claims": [
-          {
-            "claim": "Committed saved-rosters future-program inventory is tracked by #26; it is not current implementation authority and must be revalidated at activation.",
-            "evidence": [
-              {
-                "kind": "issue",
-                "target": "#26"
-              },
-              {
-                "kind": "ruling",
-                "target": "D139"
-              }
-            ]
-          },
-          {
-            "claim": "Verified substrate: the current chat roster contract defines roster-member specifications; #26 retains revalidation of the saved-roster program and remaining verbs/client work.",
-            "evidence": [
-              {
-                "kind": "issue",
-                "target": "#26"
-              },
-              {
-                "kind": "ruling",
-                "target": "D139"
-              },
-              {
-                "kind": "code",
-                "target": "packages/contracts/src/chat/roster.ts:99"
-              }
-            ]
-          }
-        ]
-      },
-      "receiptCurrent": true
-    },
-    {
       "path": "docs/architecture/proposed/spatial-maps-design-capture.md",
       "lane": "architecture-proposed",
       "issue": 4,
@@ -13458,9 +13393,9 @@
       "path": "docs/design/saved-rosters-build-record.md",
       "lane": "design",
       "issue": 5,
-      "lines": 169,
-      "bytes": 13630,
-      "sha256": "3bcc3d82454f7a61a3859f03ce9b906495d119d19151a4040cf3a6826aeaa4c2",
+      "lines": 180,
+      "bytes": 14645,
+      "sha256": "13d4c4747f9a22518635cb746b2ad2b0268eb98f9a36f317a8f347514cf1fb10",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13473,17 +13408,17 @@
       },
       "receipt": {
         "path": "docs/design/saved-rosters-build-record.md",
-        "assignedSha256": "3bcc3d82454f7a61a3859f03ce9b906495d119d19151a4040cf3a6826aeaa4c2",
+        "assignedSha256": "13d4c4747f9a22518635cb746b2ad2b0268eb98f9a36f317a8f347514cf1fb10",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "3bcc3d82454f7a61a3859f03ce9b906495d119d19151a4040cf3a6826aeaa4c2",
-        "verifiedCommit": "b39ec367beef5ad10d29fc7e947b60e0fc86fc23",
+        "verifiedSha256": "13d4c4747f9a22518635cb746b2ad2b0268eb98f9a36f317a8f347514cf1fb10",
+        "verifiedCommit": "d760c3bad13eb5428eb43991d623a33e7311760e",
         "verifiedAt": "2026-08-28",
         "evidence": [
           "docs/design/saved-rosters-build-record.md:1 (design; active)",
-          "authored by lane roster-26 with the RP1+RP2 build; re-attested after the pre-merge stickler truth-repairs (F3/F6) at b39ec367b",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+          "re-attested after the B10 reconciliation (nomenclature/surfaces/doc-retirement; the rule-preset-accrual rider flagged) at d760c3bad"
         ],
         "summary": "Saved rosters (roster presets) — the as-built RP1+RP2 design record (#26, lane roster-26, 2026-08-28): premise repair vs the parked program doc, the D80/requireHost deltas, the coupled-site inventory, and the test plan.",
         "claims": [
