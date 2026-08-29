@@ -17,6 +17,7 @@ import { buildConfirmedActRunner } from "../../../../../packages/server/src/doma
 import { createNotifyFloor } from "../../../../../packages/server/src/domain/plugin/substrate/notify-floor.ts";
 import {
   createPluginRateFloor,
+  PLUGIN_ASSET_EGRESS_PER_HOUR,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
 } from "../../../../../packages/server/src/domain/plugin/substrate/rate-floor.ts";
@@ -37,6 +38,7 @@ function belts(): PluginBelts {
   return {
     notify: createNotifyFloor(() => FROZEN_AT_MS),
     egress: createPluginRateFloor(() => FROZEN_AT_MS, { capability: "net.fetch", limit: PLUGIN_EGRESS_PER_HOUR }),
+    assetEgress: createPluginRateFloor(() => FROZEN_AT_MS, { capability: "net.fetchAsset", limit: PLUGIN_ASSET_EGRESS_PER_HOUR }),
     quietLlm: createPluginRateFloor(() => FROZEN_AT_MS, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
   };
 }

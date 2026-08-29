@@ -29,9 +29,11 @@ import {
   PLUGIN_SURFACE_TIERS,
   PLUGIN_TIER_REGISTRAR,
   PLUGIN_TIER_REGISTRARS,
+  PLUGIN_TILE_TAGS_MAX,
   PLUGIN_TOAST_LEVELS,
   PLUGIN_TOOL_NAME_PREFIX,
   PLUGIN_TOOL_NAME_RE,
+  pluginBoundGridTileSchema,
   pluginCommandArgSpecSchema,
   pluginCommandArgsSchema,
   pluginCommandRegistrationMetaSchema,
@@ -611,6 +613,26 @@ test("ARM C: a grid names exactly one of `tiles` / `tilesFrom`, and `tileAction`
   expect(pluginSurfaceSpecSchema.safeParse({ kind: "grid", tiles: [{ id: "a1", title: "One" }], tilesFrom: { $state: "results" } }).success).toBe(false);
   expect(pluginSurfaceSpecSchema.safeParse({ kind: "grid" }).success).toBe(false);
   expect(pluginSurfaceSpecSchema.safeParse({ kind: "grid", tiles: [{ id: "a1", title: "One" }], tileAction: "open" }).success).toBe(false);
+});
+
+test("hub v1.2: tile `tags` ride BOTH arms count-capped, and a live select declares its `actionId`", () => {
+  // Declared arm: tags accepted up to the cap; one past it refused (a chip row is a scent, not a dump).
+  const tags = (n: number): string[] => Array.from({ length: n }, (_unused, i) => `tag${i}`);
+  const declared = (n: number): unknown => ({ kind: "grid", tiles: [{ id: "a1", title: "One", tags: tags(n) }] });
+  expect(pluginSurfaceSpecSchema.safeParse(declared(PLUGIN_TILE_TAGS_MAX)).success).toBe(true);
+  expect(pluginSurfaceSpecSchema.safeParse(declared(PLUGIN_TILE_TAGS_MAX + 1)).success).toBe(false);
+  // Bound arm (published state, judged at RESOLVE): same cap — an over-cap entry is DROPPED, never fatal.
+  expect(pluginBoundGridTileSchema.safeParse({ id: "r0", title: "Aria", tags: tags(PLUGIN_TILE_TAGS_MAX) }).success).toBe(true);
+  expect(pluginBoundGridTileSchema.safeParse({ id: "r0", title: "Aria", tags: tags(PLUGIN_TILE_TAGS_MAX + 1) }).success).toBe(false);
+  // The LIVE select (the hub/sort switchers): `actionId` is legal and ident-gated, absence stays legal (U0).
+  expect(
+    pluginSurfaceSpecSchema.safeParse({ kind: "select", name: "source", label: "Hub", options: [{ value: "a", label: "A" }], actionId: "search" }).success,
+  ).toBe(true);
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "select", name: "source", label: "Hub", options: [{ value: "a", label: "A" }] }).success).toBe(true);
+  expect(
+    pluginSurfaceSpecSchema.safeParse({ kind: "select", name: "source", label: "Hub", options: [{ value: "a", label: "A" }], actionId: "NOT AN IDENT" })
+      .success,
+  ).toBe(false);
 });
 
 test("ARM C: an image names exactly one of `assetId` / `assetFrom` — and the belt reaches nested subtrees", () => {

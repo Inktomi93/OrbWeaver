@@ -401,6 +401,7 @@ function fakeBridge(): {
     admitEgress: (): void => {
       egress.count += 1;
     },
+    admitAssetEgress: (): void => undefined,
     // POSTURE 2 — records what the membrane stashed instead of performing, so a test can tell "asked" from
     // "refused" from "did it". Those three are different outcomes and only the first is correct here.
     suggest: (_chatId, act): Promise<void> => {

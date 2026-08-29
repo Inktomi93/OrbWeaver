@@ -69,6 +69,15 @@ export const HOST_FN_RESULT_CAP_BYTES = 1_048_576;
  *  as a CONTAINED result-cap refusal (never a leak). LEAN — tune against measured plugin API sizes. */
 export const PLUGIN_NET_MAX_BYTES = 1_000_000;
 
+/** `net.fetchAsset` download byte cap — SPLIT from {@link PLUGIN_NET_MAX_BYTES} (#801, the belt-split's size
+ *  sibling). The 1 MiB net.fetch cap exists because that body crosses BACK INTO THE GUEST under the
+ *  marshalling result cap; a fetched asset's bytes never do (the guest receives only an assetId), so the
+ *  honest bound here is "what is a plausible cover/card image", not the wire cap. Real hub covers measured
+ *  2026-08-29: RisuRealm serves full-size ~2.6 MB JPEGs with no resize variant (a 1 MiB cap rejected most of
+ *  its art), and card-PNG downloads run to a few MB. 5 MiB admits those while the image guard's
+ *  dimension/pixel caps keep holding the decompression-bomb wall. */
+export const PLUGIN_ASSET_MAX_BYTES = 5_242_880;
+
 /** Max prompt LENGTH (UTF-16 code units) a guest may hand `llm.quiet`. The generic inbound arg cap
  *  (`HOST_FN_ARGS_MAX_BYTES`, 1 MiB) is a DoS bound and is far too loose for a SPEND surface: a 1 MiB prompt
  *  is a quarter-million tokens of the installer's money per call. This is the money-shaped bound, and it

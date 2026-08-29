@@ -20,6 +20,9 @@ export interface MediaTileItem {
   readonly imageUrl?: string | undefined;
   /** The cover's alt text. Absent ⇒ the cover is decorative and the tile's title carries the name. */
   readonly alt?: string | undefined;
+  /** Short tag/genre words rendered as ONE clipped row of soft chips under the text — the browse genre's
+   *  filter vocabulary, on the tile where the filtering decision is made. Absent/empty ⇒ no row. */
+  readonly tags?: readonly string[] | undefined;
 }
 
 type TileSlots = ReturnType<typeof mediaTileGridVariants>;
@@ -63,6 +66,15 @@ function MediaTile({
           {item.subtitle}
         </Text>
       )}
+      {item.tags === undefined || item.tags.length === 0 ? null : (
+        <span className={slots.tagRow()} data-slot="media-tile-tags">
+          {item.tags.map((tag) => (
+            <Badge key={tag} size="sm" tone="soft">
+              {tag}
+            </Badge>
+          ))}
+        </span>
+      )}
     </>
   );
   if (onActivate === undefined) {
@@ -73,7 +85,15 @@ function MediaTile({
     );
   }
   return (
-    <button className={slots.tile()} data-slot="media-tile" onClick={(): void => onActivate(item.id)} type="button">
+    // The EXPLICIT accessible name: content-derived naming runs the title and subtitle together with no
+    // boundary ("World RPrickrocka · 7.4k↓"). A comma-joined label keeps both halves in the name, distinct.
+    <button
+      aria-label={item.subtitle === undefined ? item.title : `${item.title}, ${item.subtitle}`}
+      className={slots.tile()}
+      data-slot="media-tile"
+      onClick={(): void => onActivate(item.id)}
+      type="button"
+    >
       {body}
     </button>
   );

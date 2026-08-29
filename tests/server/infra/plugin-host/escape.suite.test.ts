@@ -218,6 +218,7 @@ describe("escape — the guest→host argument boundary is inert (no callable/li
       // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
+      admitAssetEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
       ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
       databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
@@ -314,6 +315,7 @@ describe("escape — a stale chat handle cannot read a prior/other chat (single-
       // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
+      admitAssetEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
       ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
       databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
@@ -406,6 +408,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
+      admitAssetEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
       ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
       databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
@@ -482,6 +485,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
+      admitAssetEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
       ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
       databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
@@ -565,6 +569,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
+      admitAssetEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
       ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
       databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
@@ -629,6 +634,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
+      admitAssetEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
       ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
       databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
@@ -716,6 +722,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
       surfaceQuickReply: () => Promise.resolve(),
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
+      admitAssetEgress: (): void => undefined,
       suggest: () => Promise.resolve(),
       ui: {
         setState: () => Promise.resolve(),

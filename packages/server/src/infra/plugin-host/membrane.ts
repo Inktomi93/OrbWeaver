@@ -69,6 +69,7 @@ import {
   HOST_FN_ARGS_MAX_BYTES,
   HOST_FN_DEADLINE_MS,
   HOST_FN_RESULT_CAP_BYTES,
+  PLUGIN_ASSET_MAX_BYTES,
   PLUGIN_DUMP_DEPTH_GUARD,
   PLUGIN_DUMP_NODE_GUARD,
   PLUGIN_NET_MAX_BYTES,
@@ -1562,8 +1563,9 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
   // guest-supplied host), validates the downloaded bytes with the remote-image guard (magic bytes — the remote
   // Content-Type is never trusted — plus the dimension/pixel decompression-bomb caps), then hands the domain
   // ONLY the validated bytes + the SNIFFED mime to write into the installer's own CAS. The guest gets back an
-  // assetId string. Egress delta zero: it claims the SAME hourly egress belt (`admitEgress`) and reaches only
-  // the manifest hosts, so it adds a CAS-write, not egress reach.
+  // assetId string. Egress REACH delta zero: it claims its OWN hourly belt (`admitAssetEgress`, #801 — split
+  // from `net.fetch`'s so an art grid can't starve text egress) and reaches only the manifest hosts, so it
+  // adds a CAS-write, not egress reach.
   attachAsync(ctx, net, {
     name: "fetchAsset",
     inFlight: runtime.inFlight,
@@ -1574,9 +1576,10 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
       if (typeof url !== "string") {
         throw new Error("plugin host: net.fetchAsset requires a URL string");
       }
-      // The SAME hourly egress belt `net.fetch` claims, BEFORE the fetch and the first await (atomic against the
-      // ≤32 concurrent host calls) — egress delta zero, keyed by a pluginId infra never sees.
-      runtime.bridge.admitEgress();
+      // Its OWN hourly belt (#801 — split from `net.fetch`'s so covers never starve text egress), claimed
+      // BEFORE the fetch and the first await (atomic against the ≤32 concurrent host calls) — egress REACH
+      // delta still zero (same allowlist, GET-only), keyed by a pluginId infra never sees.
+      runtime.bridge.admitAssetEgress();
       const res = await safeFetch(url, buildAssetFetchOptions(runtime.netHosts, signal));
       if (res.status < HTTP_OK_MIN || res.status >= HTTP_OK_MAX) {
         res.dispose?.(); // drop the non-2xx body + close the pinned Agent before throwing
@@ -1586,7 +1589,9 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
       // The remote-image guard: magic-byte sniff (NEVER the remote Content-Type) + dimension/pixel bomb caps.
       // Throws `ImageRejectedError` on a non-image / oversize / over-dimension body → a guest promise rejection.
       // The SNIFFED mime (from the magic bytes) is what the CAS write records — never the header the server sent.
-      const sniffed = isAllowedImageBuffer(bytes, { maxBytes: PLUGIN_NET_MAX_BYTES });
+      // The ASSET byte cap, not net.fetch's (#801): these bytes never cross into the guest, so the marshalling
+      // result cap that sizes PLUGIN_NET_MAX_BYTES does not apply here.
+      const sniffed = isAllowedImageBuffer(bytes, { maxBytes: PLUGIN_ASSET_MAX_BYTES });
       return await runtime.bridge.assets.storeFetched(bytes, sniffed.mime);
     },
   });
@@ -1625,14 +1630,15 @@ function buildNetOptions(netHosts: readonly string[], rawInit: unknown, signal: 
 }
 
 /** The `net.fetchAsset` fetch options (#798): a plain GET pinned to the manifest allowlist (never `ANY_HOST`,
- *  never a guest-supplied host), the same 1 MiB body cap + host deadline `net.fetch` carries. No guest init at
- *  all — no method, no headers, no body — so the attack surface is exactly "download this allowlisted image".
- *  The scheme/allowlist/private-range/redirect walls all live inside `safeFetch`, re-run per hop. */
+ *  never a guest-supplied host), the ASSET byte cap (`PLUGIN_ASSET_MAX_BYTES`, #801 — real hub art outgrows
+ *  the wire cap and these bytes never enter the guest) + the same host deadline `net.fetch` carries. No guest
+ *  init at all — no method, no headers, no body — so the attack surface is exactly "download this allowlisted
+ *  image". The scheme/allowlist/private-range/redirect walls all live inside `safeFetch`, re-run per hop. */
 function buildAssetFetchOptions(netHosts: readonly string[], signal: AbortSignal): SafeFetchOptions {
   return {
     allowedHosts: netHosts,
     method: "GET",
-    maxBytes: PLUGIN_NET_MAX_BYTES,
+    maxBytes: PLUGIN_ASSET_MAX_BYTES,
     deadlineMs: HOST_FN_DEADLINE_MS,
     signal,
   };

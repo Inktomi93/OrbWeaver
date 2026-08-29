@@ -29,6 +29,9 @@ export const mediaTileGridVariants = tv({
     // The no-cover fallback still occupies the reserved box, so a mixed grid stays on its rows.
     coverEmpty: "flex h-full w-full items-center justify-center text-muted-foreground",
     badge: "absolute top-field right-field",
+    // The tag chip row: ONE row, clipped at the tile edge (no wrap — a tile is a card, not a taxonomy; the
+    // chips that fit are the scent, the rest are the detail view's job).
+    tagRow: "flex gap-tight overflow-hidden",
   },
   variants: {
     aspect: {

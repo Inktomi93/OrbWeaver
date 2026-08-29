@@ -64,6 +64,21 @@ export function MixedTileGrid({ widthPx }: { readonly widthPx: number }): ReactE
   );
 }
 
+/** A TAGGED interactive grid — one tile with tag chips, one without (hub v1.2: chips + the a11y name). */
+export function TaggedTileGrid({ widthPx }: { readonly widthPx: number }): ReactElement {
+  return (
+    <div style={{ overflow: "visible", width: widthPx }}>
+      <MediaTileGrid
+        items={[
+          { id: "tagged", title: "World RP", subtitle: "rickrocka · 7.4k↓", tags: ["fantasy", "vampire"] },
+          { id: "bare", title: "Bare", subtitle: "nobody" },
+        ]}
+        onActivate={(): void => undefined}
+      />
+    </div>
+  );
+}
+
 /** The shape-matched loading state, at the SAME width + aspect as its real grid. */
 export function TileGridSkeleton({ widthPx, aspect = "portrait" }: { readonly widthPx: number; readonly aspect?: MediaTileAspect }): ReactElement {
   return (

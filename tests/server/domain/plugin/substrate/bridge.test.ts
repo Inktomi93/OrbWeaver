@@ -17,6 +17,7 @@ import { buildPluginBridge } from "../../../../../packages/server/src/domain/plu
 import { createNotifyFloor } from "../../../../../packages/server/src/domain/plugin/substrate/notify-floor.ts";
 import {
   createPluginRateFloor,
+  PLUGIN_ASSET_EGRESS_PER_HOUR,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
 } from "../../../../../packages/server/src/domain/plugin/substrate/rate-floor.ts";
@@ -60,6 +61,7 @@ function beltsWith(over: Partial<PluginBelts>): PluginBelts {
   return {
     notify: over.notify ?? createNotifyFloor(() => FROZEN_AT_MS),
     egress: over.egress ?? createPluginRateFloor(() => FROZEN_AT_MS, { capability: "net.fetch", limit: PLUGIN_EGRESS_PER_HOUR }),
+    assetEgress: over.assetEgress ?? createPluginRateFloor(() => FROZEN_AT_MS, { capability: "net.fetchAsset", limit: PLUGIN_ASSET_EGRESS_PER_HOUR }),
     quietLlm: over.quietLlm ?? createPluginRateFloor(() => FROZEN_AT_MS, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
   };
 }

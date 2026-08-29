@@ -35,6 +35,7 @@ import {
   createPluginUiOutbox,
   createSnippetGate,
   createUiHostCallGate,
+  PLUGIN_ASSET_EGRESS_PER_HOUR,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
 } from "../../../../packages/server/src/domain/plugin/index.ts";
@@ -178,7 +179,7 @@ export function makePluginHarness(
     readonly snippetConcurrency?: number;
     /** Narrow the two HOURLY per-plugin ceilings (default: the production constants) so a suite can reach one
      *  in a couple of calls. The floors themselves stay REAL — only the limit moves. */
-    readonly rateLimits?: { readonly egress?: number; readonly quietLlm?: number };
+    readonly rateLimits?: { readonly egress?: number; readonly assetEgress?: number; readonly quietLlm?: number };
     /** The fan-out's recipient list (D147 clause (d)). Default EMPTY — a distribution suite states its own
      *  cast, and every other suite is unaffected by a fan-out it never calls. */
     readonly listRecipients?: PluginDistributionDeps["listRecipients"];
@@ -244,6 +245,10 @@ export function makePluginHarness(
     belts: {
       notify: createNotifyFloor(() => clock.now()),
       egress: createPluginRateFloor(() => clock.now(), { capability: "net.fetch", limit: overrides.rateLimits?.egress ?? PLUGIN_EGRESS_PER_HOUR }),
+      assetEgress: createPluginRateFloor(() => clock.now(), {
+        capability: "net.fetchAsset",
+        limit: overrides.rateLimits?.assetEgress ?? PLUGIN_ASSET_EGRESS_PER_HOUR,
+      }),
       quietLlm: createPluginRateFloor(() => clock.now(), {
         capability: "llm.quiet",
         limit: overrides.rateLimits?.quietLlm ?? PLUGIN_QUIET_LLM_PER_HOUR,

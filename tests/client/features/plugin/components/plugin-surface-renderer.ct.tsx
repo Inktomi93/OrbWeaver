@@ -329,3 +329,30 @@ test("F4: an empty grid renders the house EmptyState carrying the plugin's own t
   await expect(page.locator('[data-slot="empty-state-root"]')).toBeVisible();
   await expect(page.getByText("Search to begin — the atlas covers Character Tavern and RisuRealm.")).toBeVisible();
 });
+
+test("hub v1.2: a bound grid tile carrying `tags` renders its chip row — the filter vocabulary reaches the tile", async ({ mount, page }) => {
+  // The tags ride PUBLISHED STATE through `pluginBoundGridTileSchema` (which STRIPS unknown keys — so this
+  // pin is red against a vocabulary without the field: the schema itself is the planted control) and land as
+  // the MediaTileGrid chip row. A tile without tags renders no row at all (the second tile).
+  const spec = { kind: "grid", tilesFrom: { $state: "tiles" }, tileAction: "open_result" };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    "plugin.getSurfaceState": () => ({
+      tiles: [
+        { id: "r0", title: "Aria", subtitle: "cartographer · 1.2k↓", tags: ["fantasy", "vampire"] },
+        { id: "r1", title: "Bram", subtitle: "untagged" },
+      ],
+    }),
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  await expect(page.getByText("Aria")).toBeVisible();
+  const tagRow = page.locator('[data-slot="media-tile-tags"]');
+  await expect(tagRow).toHaveCount(1); // exactly the tagged tile's — an untagged tile renders no empty shell.
+  await expect(tagRow.getByText("fantasy")).toBeVisible();
+  await expect(tagRow.getByText("vampire")).toBeVisible();
+});

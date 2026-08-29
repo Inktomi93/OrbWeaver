@@ -1,11 +1,22 @@
 {
   "id": "card-atlas",
   "name": "Card Atlas",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "hostVersion": 1,
   "entry": "main.js",
-  "description": "Browse the community's character cards without leaving the app: search Character Tavern and RisuRealm with real cover art, read a card properly, and summon it straight into your library — art and all, provenance-stamped, dedupe-aware.",
+  "description": "Browse the community's character cards without leaving the app: search six hubs — Character Tavern, RisuRealm, Chub, Wyvern, AI Character Cards, CharaVault — with real cover art, page through the results, filter by tags, read a card properly, and add it straight to your library — art and all, provenance-stamped, dedupe-aware.",
   "author": "Orbweaver",
   "capabilities": ["storage.kv", "ui.surface", "net.fetch", "net.fetch_asset", "character.ingest", "character.card_state"],
-  "netHosts": ["character-tavern.com", "ct-cards.storage.character-tavern.com", "realm.risuai.net", "sv.risuai.xyz"]
+  "netHosts": [
+    "character-tavern.com",
+    "ct-cards.storage.character-tavern.com",
+    "realm.risuai.net",
+    "sv.risuai.xyz",
+    "api.chub.ai",
+    "avatars.charhub.io",
+    "api.wyvern.chat",
+    "imagedelivery.net",
+    "api.aicharactercards.com",
+    "charavault.net"
+  ]
 }

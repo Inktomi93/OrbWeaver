@@ -352,7 +352,7 @@ export interface PluginHostV1 {
     // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     ingest: (card: Record<string, unknown>) => Promise<{ characterId: string; created: boolean }>;
     /** Ingest a character from a PNG ASSET the guest already has in the INSTALLER's OWN CAS (plugin-remote-image
-     *  #798 — the "Summon to your library WITH its art" arm). The guest names an `assetId` (e.g. one
+     *  #798 — the "Add to your library WITH its art" arm). The guest names an `assetId` (e.g. one
      *  `net.fetchAsset` just returned for a hub cover); the host resolves the installer's OWN CAS through the
      *  OWNER-GATED read (a foreign/absent id rejects leak-free — the `readOwnedAssetBytes` posture, no existence
      *  oracle) and runs the SAME `importCharacter` PNG funnel a file upload takes: it parses the ccv3/chara
@@ -511,13 +511,15 @@ export interface PluginHostV1 {
      *  the BYTES never enter the guest realm and NO URL is ever spellable inside a rendered node — the
      *  `image`/`hero` DSL nodes stay assetId-only, so the seam-11 anti-exfil-pixel wall is unchanged.
      *
-     *  THE HOST performs everything: it claims the SAME hourly egress belt `net.fetch` claims (egress delta
-     *  zero — an allowlisted GET is already expressible via `net.fetch`, so this adds a CAS-WRITE, not egress
-     *  reach), GETs the url through the audited SSRF guard pinned to the manifest `netHosts` allowlist (every
+     *  THE HOST performs everything: it claims its OWN hourly belt (`PluginBridge.admitAssetEgress`, #801 —
+     *  split from `net.fetch`'s so an art grid's honest cover spend can never starve text egress; the REACH
+     *  delta stays zero — an allowlisted GET is already expressible via `net.fetch`, so this adds a
+     *  CAS-WRITE, not egress reach), GETs the url through the audited SSRF guard pinned to the manifest `netHosts` allowlist (every
      *  hop re-validates https + the allowlist + private-range denial — a loopback/internal/off-allowlist/
      *  scheme-downgrade target is refused), runs the remote-image guard on the downloaded bytes (magic-byte
      *  sniff — the remote Content-Type is NEVER trusted — plus the dimension/pixel decompression-bomb caps and
-     *  the 1 MiB byte cap), and writes the validated bytes to the installer's OWN CAS under the sniffed mime. A
+     *  the 5 MiB asset byte cap, #801: real hub art outgrows the 1 MiB wire cap and these bytes never enter
+     *  the guest), and writes the validated bytes to the installer's OWN CAS under the sniffed mime. A
      *  non-2xx, an SSRF/oversize/non-image refusal, or a network error is a typed REJECTION of the call (there
      *  is no assetId to return), never a silent empty asset. The CAS write is owner-scoped by construction (the
      *  bridge closes the installer over it — a guest names no owner), the `character.ingest`/`assets.read`
@@ -711,9 +713,10 @@ export const HOST_FUNCTION_CAPABILITY = {
   "transforms.registerDisplay": "chat.transform",
   "macros.register": "chat.transform",
   "net.fetch": "net.fetch",
-  // #798 — the remote-image-into-CAS arm, its OWN `net.fetch_asset` consent line (identical egress reach to
-  // `net.fetch` — same allowlist + same hourly belt — plus a CAS write, which is the distinct reach a person
-  // weighs). Keyed 1:1 to its capability; the netHosts biconditional treats both as egress capabilities.
+  // #798 — the remote-image-into-CAS arm, its OWN `net.fetch_asset` consent line (identical egress REACH to
+  // `net.fetch` — same allowlist; since #801 it claims its own art-sized hourly belt — plus a CAS write, which
+  // is the distinct reach a person weighs). Keyed 1:1 to its capability; the netHosts biconditional treats both
+  // as egress capabilities.
   "net.fetchAsset": "net.fetch_asset",
   "ui.register": "ui.surface",
   "ui.setState": "ui.surface",
