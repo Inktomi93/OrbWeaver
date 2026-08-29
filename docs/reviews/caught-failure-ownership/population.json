@@ -4,11 +4,11 @@
   "totals": {
     "sites": 406,
     "enforced": 403,
-    "reported": 357,
+    "reported": 329,
     "byVerdict": {
-      "deliberate-absorb": 46,
+      "deliberate-absorb": 74,
       "detached-owned": 3,
-      "unproven": 357
+      "unproven": 329
     },
     "byGrammar": {
       "promise": 119,
@@ -3998,54 +3998,54 @@
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::1",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 311,
+      "line": 312,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally.",
+      "markerLine": 306
     },
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::2",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 335,
+      "line": 337,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
       "ordinal": 2,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block.",
+      "markerLine": 334
     },
     {
       "siteId": "tooling/src/_shared/entrypoint.ts::empty:catch::1",
       "path": "tooling/src/_shared/entrypoint.ts",
-      "line": 16,
+      "line": 17,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "a deleted or virtual argv[1] fails to resolve; the caller's own doc says exactly that case is expected, so falling back to the input verbatim is the correct optional-read-as-absent behavior, not a lost failure. Ends if a resolve failure here starts meaning something other than \"no real path\".",
+      "markerLine": 14
     },
     {
       "siteId": "tooling/src/_shared/nav.ts::promise:evaluate::1",
       "path": "tooling/src/_shared/nav.ts",
-      "line": 66,
+      "line": 67,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
       "ordinal": 1,
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "a best-effort readiness ping before the real bridge call two lines below — any genuine failure (no bridge, mid-navigation) is caught by the surrounding try and returned as ok:false with the message. Ends if this becomes the only readiness signal checked.",
+      "markerLine": 66
     },
     {
       "siteId": "tooling/src/_shared/proc.ts::empty:error::1",
@@ -4076,72 +4076,72 @@
     {
       "siteId": "tooling/src/_shared/run-tool.ts::default:e::1",
       "path": "tooling/src/_shared/run-tool.ts",
-      "line": 47,
+      "line": 48,
       "column": 5,
       "grammar": "default",
       "position": "default:e",
       "ordinal": 1,
       "snippet": "} catch (e) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "the exit-contract's own door — UsageError writes ARG ERROR and escalates misuse, anything else routes through crashExit which writes stderr, escalates toolError and hard-exits. Ends if a branch here stops writing stderr or escalating.",
+      "markerLine": 45
     },
     {
       "siteId": "tooling/src/_shared/upload.ts::promise:evaluate::1",
       "path": "tooling/src/_shared/upload.ts",
-      "line": 59,
+      "line": 60,
       "column": 29,
       "grammar": "promise",
       "position": "promise:evaluate",
       "ordinal": 1,
       "snippet": "const isFileInput = await loc",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "best-effort type probe on the caller's selector — a failure here (detached node, not-yet-attached) just means \"assume not a file input\" and falls through to the nested input[type=file] search below, or returns the original locator; any real failure surfaces loudly when the caller later interacts with the resolved locator. Ends if this stops falling through to the nested search.",
+      "markerLine": 59
     },
     {
       "siteId": "tooling/src/ast/cli.ts::empty:e::1",
       "path": "tooling/src/ast/cli.ts",
-      "line": 125,
+      "line": 126,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
       "ordinal": 1,
       "snippet": "} catch (e) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "the verb's thrown error is mapped to a typed exit code via mapKnownError, not dropped — the return value is main()'s own contract, propagated to the process exit code. Ends if mapKnownError stops covering a real error class and silently returns clean.",
+      "markerLine": 123
     },
     {
       "siteId": "tooling/src/codemod/lib/diagnostics.ts::default:err::1",
       "path": "tooling/src/codemod/lib/diagnostics.ts",
-      "line": 86,
+      "line": 87,
       "column": 5,
       "grammar": "default",
       "position": "default:err",
       "ordinal": 1,
       "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "an unwritable /tmp falls back to printing the whole buffer plus an explicit warning banner naming the failure — the comment above states the intent directly (\"better noisy than silent loss\"). Ends if the fallback stops printing the warning.",
+      "markerLine": 84
     },
     {
       "siteId": "tooling/src/cpu-profile/ops/drive.ts::empty:e::1",
       "path": "tooling/src/cpu-profile/ops/drive.ts",
-      "line": 100,
+      "line": 101,
       "column": 7,
       "grammar": "empty",
       "position": "empty:e",
       "ordinal": 1,
       "snippet": "} catch (e) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "printed as a STEP FAILED line and counted into the failures total this function returns — its one caller (ops/run.ts) reads that count as the run's verdict, so the failure is not dropped. Ends if the returned count stops being read by the caller.",
+      "markerLine": 95
     },
     {
       "siteId": "tooling/src/doc-catalog/ops/tree.ts::default:catch::1",
       "path": "tooling/src/doc-catalog/ops/tree.ts",
-      "line": 62,
+      "line": 63,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4154,7 +4154,7 @@
     {
       "siteId": "tooling/src/doc-catalog/ops/tree.ts::default:catch::2",
       "path": "tooling/src/doc-catalog/ops/tree.ts",
-      "line": 70,
+      "line": 72,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4167,41 +4167,41 @@
     {
       "siteId": "tooling/src/model-ab/lib/verify.ts::empty:catch::1",
       "path": "tooling/src/model-ab/lib/verify.ts",
-      "line": 73,
+      "line": 74,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "the function's whole job is to return a verdict string or null — a JSON.parse failure IS one of the verdicts (\"arguments not valid JSON\"), not a swallowed failure. Ends if the return type stops being read as the probe's verdict.",
+      "markerLine": 70
     },
     {
       "siteId": "tooling/src/model-ab/lib/verify.ts::empty:catch::2",
       "path": "tooling/src/model-ab/lib/verify.ts",
-      "line": 82,
+      "line": 84,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 2,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "same verdict-string contract as parseToolArguments above — a parse failure returns the verdict \"content is not the schema JSON\" rather than swallowing it. Ends if the return type stops being read as the probe's verdict.",
+      "markerLine": 80
     },
     {
       "siteId": "tooling/src/model-ab/ops/probe.ts::promise:json::1",
       "path": "tooling/src/model-ab/ops/probe.ts",
-      "line": 25,
+      "line": 26,
       "column": 25,
       "grammar": "promise",
       "position": "promise:json",
       "ordinal": 1,
       "snippet": "const json = (await res.json().catch(() => ({}))) as ChatResponse;",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "res.ok/status are read independently of json — a non-JSON error body just means the `message` field falls back to empty in the failure branch below; the HTTP failure itself is never lost. Ends if the ok/status path starts depending on json having parsed.",
+      "markerLine": 25
     },
     {
       "siteId": "tooling/src/model-ab/ops/serve.ts::empty:catch::1",
@@ -4232,15 +4232,15 @@
     {
       "siteId": "tooling/src/motion-audit/lib/verdicts.ts::empty:catch::1",
       "path": "tooling/src/motion-audit/lib/verdicts.ts",
-      "line": 50,
+      "line": 51,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "an unparseable sourceURL falls back to the raw string, which the pathname.includes() checks below just won't match — degrading to \"unknown\" attribution rather than throwing, consistent with this function's documented \"veto, not proof\" contract. Ends if callers start requiring pathname to be a real URL path.",
+      "markerLine": 48
     },
     {
       "siteId": "tooling/src/motion-audit/ops/drive.ts::default:e::1",
@@ -4284,119 +4284,119 @@
     {
       "siteId": "tooling/src/motion-audit/ops/trace.ts::empty:e::1",
       "path": "tooling/src/motion-audit/ops/trace.ts",
-      "line": 36,
+      "line": 37,
       "column": 9,
       "grammar": "empty",
       "position": "empty:e",
       "ordinal": 1,
       "snippet": "} catch (e) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "sets stepFailed, which is returned in the AuditData the caller reads as part of the verdict, and prints STEP FAILED — not dropped. Ends if stepFailed stops being read from the returned AuditData.",
+      "markerLine": 34
     },
     {
       "siteId": "tooling/src/motion-audit/ops/trace.ts::promise:evaluate::1",
       "path": "tooling/src/motion-audit/ops/trace.ts",
-      "line": 50,
+      "line": 52,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
       "ordinal": 1,
       "snippet": "await page.evaluate(\"globalThis.__orb?.setMotionAuditDropTrackingPaused(false)\").catch(() => undefined);",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "best-effort cleanup unpausing an in-page flag in a finally block — the page may already be closed/navigated by the time this runs, and there is nothing further downstream that could act on this failure. Ends if this flag gates behavior a later step depends on.",
+      "markerLine": 51
     },
     {
       "siteId": "tooling/src/mutation-probe/ops/probe.ts::empty:catch::1",
       "path": "tooling/src/mutation-probe/ops/probe.ts",
-      "line": 48,
+      "line": 49,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "the readable:false verdict IS the return contract — the JSDoc above states this distinguishes \"the report was not there\" from \"the suite named no failing test\", so a read/parse failure is reported through the return value, not swallowed. Ends if a caller starts treating readable:false the same as readable:true.",
+      "markerLine": 41
     },
     {
       "siteId": "tooling/src/render-trace/ops/fire.ts::empty:catch::1",
       "path": "tooling/src/render-trace/ops/fire.ts",
-      "line": 90,
+      "line": 91,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "a connection-refused/fetch failure during boot polling is expected while the server isn't listening yet — the loop retries until deadlineMs, then throws its own timeout error below. Ends if this stops eventually throwing on deadline.",
+      "markerLine": 84
     },
     {
       "siteId": "tooling/src/render-trace/ops/fire.ts::empty:catch::2",
       "path": "tooling/src/render-trace/ops/fire.ts",
-      "line": 191,
+      "line": 193,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 2,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "best-effort teardown of a scratch tempDir on process exit — force:true already tolerates a missing path, and there is no caller left to hand a failure to at this point. Ends if this tempDir starts holding anything a later step depends on existing/not-existing.",
+      "markerLine": 190
     },
     {
       "siteId": "tooling/src/review-mirror/ops/generate.ts::empty:error::1",
       "path": "tooling/src/review-mirror/ops/generate.ts",
-      "line": 121,
+      "line": 122,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "pushed into the errors[] array returned to the caller as part of the mirror result, not dropped. Ends if the errors array stops being surfaced in the return value.",
+      "markerLine": 100
     },
     {
       "siteId": "tooling/src/screen-record/ops/drive.ts::empty:e::1",
       "path": "tooling/src/screen-record/ops/drive.ts",
-      "line": 75,
+      "line": 76,
       "column": 7,
       "grammar": "empty",
       "position": "empty:e",
       "ordinal": 1,
       "snippet": "} catch (e) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "printed as a STEP FAILED line and counted into the failures total this function returns to its caller as the run's verdict. Ends if the returned count stops being read by the caller.",
+      "markerLine": 71
     },
     {
       "siteId": "tooling/src/seed/ops/demo.ts::empty:err::1",
       "path": "tooling/src/seed/ops/demo.ts",
-      "line": 118,
+      "line": 119,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
       "ordinal": 1,
       "snippet": "} catch (err) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "the JSDoc above states the intent directly — a best-effort seeded turn where the greeting transcript is already committed, so an offline-model failure is logged with the honest limitation and the demo db stays valid. Ends if the failure stops being logged.",
+      "markerLine": 115
     },
     {
       "siteId": "tooling/src/seed/ops/demo.ts::empty:error::1",
       "path": "tooling/src/seed/ops/demo.ts",
-      "line": 296,
+      "line": 298,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "the message is warned to the operator and the function returns EXIT.toolError — propagated through both channels, not dropped. Ends if either the warn or the return code is removed.",
+      "markerLine": 295
     },
     {
       "siteId": "tooling/src/snap/ops/capture.ts::empty:catch::1",
@@ -4986,41 +4986,41 @@
     {
       "siteId": "tooling/src/ui-audit/ops/drive.ts::empty:e::1",
       "path": "tooling/src/ui-audit/ops/drive.ts",
-      "line": 65,
+      "line": 66,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
       "ordinal": 1,
       "snippet": "} catch (e) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "printed as ACTION FAILED and returned as 1 — the JSDoc above states an action that didn't land is never silent and reddens the audit's verdict through this return value. Ends if the returned count stops being summed into the verdict.",
+      "markerLine": 51
     },
     {
       "siteId": "tooling/src/ui-audit/ops/drive.ts::promise:waitFor::1",
       "path": "tooling/src/ui-audit/ops/drive.ts",
-      "line": 84,
+      "line": 86,
       "column": 26,
       "grammar": "promise",
       "position": "promise:waitFor",
       "ordinal": 1,
       "snippet": "const appReady = await page",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "the comment above states the outcome IS reported — appReady:false feeds lib/evidence.ts's readinessGap check (#678), so a missing readiness signal is surfaced as a verdict input, not swallowed. Ends if appReady stops being read downstream.",
+      "markerLine": 85
     },
     {
       "siteId": "tooling/src/ui-audit/ops/stage.ts::empty:error::1",
       "path": "tooling/src/ui-audit/ops/stage.ts",
-      "line": 54,
+      "line": 55,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "the stage boot failure is printed via stageBootRefusal and returned as EXIT.toolError — propagated through both the message and the exit code. Ends if either is dropped.",
+      "markerLine": 42
     },
     {
       "siteId": "tooling/src/verify/gates/db-structure.ts::default:catch::1",
@@ -5259,41 +5259,41 @@
     {
       "siteId": "tooling/src/wire-tap/ops/trpc.ts::empty:catch::1",
       "path": "tooling/src/wire-tap/ops/trpc.ts",
-      "line": 85,
+      "line": 86,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "a non-JSON response body just prints the raw text as-is (the comment states this directly) — the response body itself is never lost, only the pretty-print step is skipped. Ends if the raw text stops being printed on this path.",
+      "markerLine": 83
     },
     {
       "siteId": "tooling/src/workboard/ops/gh.ts::empty:catch::1",
       "path": "tooling/src/workboard/ops/gh.ts",
-      "line": 31,
+      "line": 32,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "only used to make an already-thrown rate-limit error message more specific — a failed probe of the reset time just falls back to a vaguer but still-actionable phrase in that same message, it never suppresses the real rate-limit failure itself. Ends if this return value starts being used outside a message string.",
+      "markerLine": 25
     },
     {
       "siteId": "tooling/src/workboard/ops/project.ts::empty:catch::1",
       "path": "tooling/src/workboard/ops/project.ts",
-      "line": 46,
+      "line": 47,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "the comment states the intent directly — a missing or corrupt cache file falls through to fetchProjectContext() below, which is the real source of truth; the cache is purely an optimization. Ends if this stops falling through to the cold fetch.",
+      "markerLine": 41
     }
   ]
 }
