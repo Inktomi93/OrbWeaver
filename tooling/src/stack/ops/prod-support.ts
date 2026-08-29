@@ -40,7 +40,6 @@ const CLIENT_SOURCE_DIRS = [
 const CLIENT_SOURCE_FILES = ["packages/client/index.html", "packages/client/vite.config.ts"];
 
 function safeMtimeMs(path: string): number | null {
-  // @orb-gate-ignore caught-failure-ownership(default:error): ENOENT means the measured path is absent; every unreadable/unmeasurable stat failure propagates so null cannot fabricate a fresh build. Ends if another absence code is supported.
   try {
     return statSync(path).mtimeMs;
   } catch (error) {

@@ -30,7 +30,6 @@ export function generateProseBaseline(root: string): number {
   const sha256 = (text: string): string => createHash("sha256").update(text, "utf8").digest("hex");
 
   function readCommitted(): Record<string, BaselineRow> {
-    // @orb-gate-ignore caught-failure-ownership(default:error): ENOENT is the only first-run baseline state; unreadable or invalid existing manifests throw rather than erase the version/hash witness. Ends if the manifest gains another explicit absence state.
     try {
       const parsed: unknown = JSON.parse(readFileSync(ManifestPath, "utf8"));
       const slots = (parsed as { slots?: unknown }).slots;

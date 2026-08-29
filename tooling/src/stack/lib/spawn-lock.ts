@@ -31,7 +31,6 @@ function errnoIs(error: unknown, code: string): boolean {
 /** kill(2) liveness: ESRCH is absent, EPERM proves a live process we may not signal, everything else is an
  * operator/tool failure rather than permission to break its lock. The signal door is injectable for proof. */
 export function pidIsAlive(pid: number, signal: (pid: number, signal: 0) => void = process.kill): boolean {
-  // @orb-gate-ignore caught-failure-ownership(default:error): kill-zero ESRCH proves absence and EPERM proves a live process; all other errors surface rather than permit lock theft. Ends if platform liveness semantics add another proved state.
   try {
     signal(pid, 0);
     return true;
@@ -73,7 +72,6 @@ export function acquireSpawnLock(opts: SpawnLockOpts): boolean {
 
 /** The atomic take. `wx` fails if the file exists — that failure IS the mutual exclusion. */
 function takeSpawnLock(opts: SpawnLockOpts): boolean {
-  // @orb-gate-ignore caught-failure-ownership(default:error): EEXIST alone means another lock holder; every other exclusive-create failure is rethrown. Ends if exclusive create changes its collision code.
   try {
     writeFileSync(opts.lockPath, `${opts.selfPid}\n`, { flag: "wx" });
     return true;
