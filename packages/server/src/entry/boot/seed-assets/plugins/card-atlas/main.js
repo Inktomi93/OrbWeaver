@@ -1493,27 +1493,48 @@ function cachedArt(cache, key) {
   return entry.a;
 }
 
-/** Fetch every listed row's cover that the cache does not hold — IN PARALLEL (the membrane admits the
- *  concurrency; each call claims the art belt, which is sized for exactly this). A per-cover failure is a
- *  placeholder, never fatal; one summarizing log line reports the batch. Mutates + persists the cache;
- *  returns how many new covers landed. */
+/** The guest's own parallelism ceiling. The membrane admits ≤32 concurrent host calls PER PLUGIN and
+ *  THROWS on the 33rd — and that budget is shared across everything in flight: a floating cover batch
+ *  from the last search plus the next action's own publish reads. An unbounded 30-wide batch measurably
+ *  killed the next action mid-handler on the live stage ("too many concurrent host calls (>32)" — the
+ *  drive receipt this constant exists for). 8 keeps two overlapping batches + incidentals well under. */
+const GUEST_PARALLEL_MAX = 8;
+
+/** Run `fn` over `items` at most {@link GUEST_PARALLEL_MAX} at a time, results in item order. `fn` must
+ *  fold its own failures (both callers do) — a rejection here would abandon the remaining lanes. */
+async function mapLimit(items, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  const lane = async () => {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      results[index] = await fn(items[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(GUEST_PARALLEL_MAX, items.length) }, lane));
+  return results;
+}
+
+/** Fetch every listed row's cover that the cache does not hold — in BOUNDED parallel waves (see
+ *  {@link GUEST_PARALLEL_MAX}; each call claims the art belt). A per-cover failure is a placeholder,
+ *  never fatal; one summarizing log line reports the batch. Mutates + persists the cache; returns how
+ *  many new covers landed. */
 async function fetchMissingArt(cache, rows, keyOf, urlOf) {
   const misses = rows.filter((row) => urlOf(row) !== "" && cachedArt(cache, keyOf(row)) === undefined);
   if (misses.length === 0 || !canFetchArt()) {
     return 0;
   }
-  const settled = await Promise.all(
-    misses.map(async (row) => {
-      try {
-        const { assetId } = await host.net.fetchAsset(urlOf(row));
-        cache[keyOf(row)] = { a: assetId, t: host.clock.nowEpochMs() };
-        return true;
-      } catch (err) {
-        host.log.info(`cover skipped (${keyOf(row)}): ${String(err)}`);
-        return false;
-      }
-    }),
-  );
+  const settled = await mapLimit(misses, async (row) => {
+    try {
+      const { assetId } = await host.net.fetchAsset(urlOf(row));
+      cache[keyOf(row)] = { a: assetId, t: host.clock.nowEpochMs() };
+      return true;
+    } catch (err) {
+      host.log.info(`cover skipped (${keyOf(row)}): ${String(err)}`);
+      return false;
+    }
+  });
   const landed = settled.filter(Boolean).length;
   if (landed < misses.length) {
     host.log.warn(`art: ${misses.length - landed} of ${misses.length} covers didn't land (size caps / hub hiccups) — placeholders stand in.`);
@@ -1766,7 +1787,8 @@ function tileTags(result) {
 async function publishBrowse(status, sourceKey) {
   const cache = await loadArtCache();
   const rows = session === null ? [] : session.pageRows;
-  const owned = await Promise.all(rows.map((result) => host.storage.get(ownedKey(result))));
+  // Bounded, and each read folds its own failure — the owned badge is decoration, never worth an action.
+  const owned = await mapLimit(rows, (result) => host.storage.get(ownedKey(result)).catch(() => null));
   const menuKey = sourceKey ?? (session === null ? "tavern" : session.sourceKey);
   await host.ui.setState("atlas_page", {
     stage: "browse",
