@@ -54,6 +54,33 @@ describe("pruneUnusedTags", () => {
   });
 });
 
+describe("pruneUnusedTags — authority reaches the write (cross-owner, #755)", () => {
+  // `tag.prune` takes NO foreign id (a caller prunes only its OWN library), so it is EXEMPT from the
+  // cross-tenant IDOR sweep — it is the ONE E5 authority candidate that sweep cannot reach. The proof that
+  // its bulk DELETE carries the caller's authority into the commit is therefore purely the owner scope folded
+  // into the statement (persistence/queries.ts::pruneZeroUsageTags): the owner-scoped candidate scan
+  // (`listOwnedTagsWithUsage(db, ownerId)`) AND the DELETE's own `ownerId` predicate — defense in depth, each
+  // sufficient alone. Drop BOTH (the plausible "consolidate the prune into one global sweep" refactor) and a
+  // single user's prune becomes a box-wide zero-usage mass-delete across EVERY owner. This pins the end-to-end
+  // owner scope so that regression goes red: owner A's prune leaves owner B's identical zero-usage tag intact.
+  test("owner A's prune never deletes owner B's zero-usage tags", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const bob = await seedUser(db, "user_bob");
+    const h = makeTagHarness(db);
+    const svc = createTagService(h.ctx);
+    // Both owners hold an identically-named, zero-usage tag — the exact shape a dropped owner scope conflates.
+    await seedTag(db, alice, { id: "tag_alice_dead", name: "dead" });
+    const bobTag = await seedTag(db, bob, { id: "tag_bob_dead", name: "dead" });
+
+    const result = await svc.pruneUnusedTags({ principal: principal(alice) });
+
+    expect(result).toStrictEqual({ removed: 1 }); // ONLY Alice's dead tag — never Bob's
+    // Bob's tag survives, taken as Bob's own scoped read (a per-owner read is evidence about the asker).
+    expect((await svc.listTags({ principal: principal(bob) })).map((t) => t.id)).toEqual([bobTag]);
+  });
+});
+
 describe("pruneUnusedTags — audit", () => {
   test("a pruning pass writes ONE tag.prune row with the count; a zero-work pass writes nothing", async () => {
     const db = await freshDb();
