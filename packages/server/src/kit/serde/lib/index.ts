@@ -107,6 +107,9 @@ function refuse<T>(reason: PortableParseFailure): PortableParse<T> {
 /** The bytes as a plain JSON object, or the reason they are not one. */
 function decodeObject(bytes: Uint8Array): PortableParse<Record<string, unknown>> {
   let raw: unknown;
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): typed refusal — returns a PortableParse
+  // "not-json" reason, consumed via portableParseError for the operator-facing message. Ends if the
+  // caller stops rendering the reason.
   try {
     raw = JSON.parse(DEC.decode(bytes));
   } catch {
