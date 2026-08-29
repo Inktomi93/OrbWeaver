@@ -169,6 +169,9 @@ export const MARKDOWN_SHIKI_PLUGIN: CodeHighlighterPlugin = {
   getSupportedLanguages: () => Object.keys(LANGUAGE_LOADERS) as never[],
   supportsLanguage: (language) => language in LANGUAGE_LOADERS,
   highlight(options: HighlightOptions, callback?: (result: ShikiHighlightResult) => void): ShikiHighlightResult | null {
+    // @orb-gate-ignore caught-failure-ownership(promise:highlightAsync): documented below — a grammar
+    // fetch/tokenize failure leaves the block unhighlighted rather than crashing the render; the callback
+    // simply never fires. Ends if the render path stops tolerating an unfired callback.
     highlightAsync(options.code, options.language)
       .then((result) => callback?.(result))
       .catch(() => {

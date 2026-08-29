@@ -277,6 +277,9 @@ export function newId<T extends Branded<string>>(): T {
  *  is the worked example, and is what actually fixed the case #641 mis-cited as this seam's evidence. */
 export function typeIdSchema<P extends string>(prefix: P): z.ZodType<TypeIdOf<P>, string> {
   return z.string().transform((value, ctx): TypeIdOf<P> => {
+    // @orb-gate-ignore caught-failure-ownership(empty:err): zod transform pattern — fromString's throw is
+    // caught and converted to ctx.addIssue + z.NEVER, zod's own consumption channel for a failed transform.
+    // Ends if the transform stops routing the caught error through ctx.addIssue.
     try {
       // fromString validates shape AND prefix; throws on mismatch/malformed.
       return fromString(value, prefix) as string as TypeIdOf<P>;

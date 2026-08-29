@@ -108,6 +108,8 @@ function evalKnownCall(handler: MacroHandler, node: MacroCallNode, registry: Mac
   }
   // Locate the handler at its call span so a diagnostic-emitting handler ({{expr::…}}) can attach it.
   ctx.__currentSpan = node.span;
+  // @orb-gate-ignore caught-failure-ownership(empty:err): documented fail-open policy below — consumed
+  // via ctx.onWarn?.() and a literal `{{name}}` fallback. Ends if the handler stops calling onWarn.
   try {
     const val = handler(padded, ctx);
     return ctx.postProcess ? ctx.postProcess(val) : val;
@@ -159,6 +161,8 @@ function evalKnownBlock(handler: MacroHandler, node: MacroBlockNode, registry: M
   const meta = registry.getMetadata(node.name);
   const resolvedArgs = lazyArgs(node, registry) ? [...node.args] : node.args.map((arg) => resolveArg(arg, ctx));
   ctx.__currentSpan = node.span;
+  // @orb-gate-ignore caught-failure-ownership(empty:err): same fail-open policy as evalKnownCall — consumed
+  // via ctx.onWarn?.() plus a reconstructed open-tag fallback. Ends if the handler stops calling onWarn.
   try {
     if (registry.getOptions(node.name)?.blockChildren === true) {
       const padded = applyArgDefaults(meta, resolvedArgs);
