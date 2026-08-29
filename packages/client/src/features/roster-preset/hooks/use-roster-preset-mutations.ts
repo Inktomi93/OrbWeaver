@@ -2,14 +2,13 @@
 // create/remove emit `rosterPresetsChanged`, invalidated by the always-on user-bus subscription, so both
 // are busDriven (a self-invalidates would double-refetch). `applyToChat` mutates the CHAT, not the
 // library: its covering event is the chat bus's `chatUpdated` (the injected chat verbs fan it), so it is
-// busDriven too — the roster/config surfaces of an OPEN room refetch off that tick.
+// busDriven too — the roster/config surfaces of an OPEN room refetch off that tick. Result/view types
+// come from `@orb/contracts/roster-preset` (the one wire home — no local type mint).
 
-import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
+import type { ApplyRosterPresetResult, RosterPresetView } from "@orb/contracts/roster-preset";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
-
-type RosterPresetView = inferOutput<Trpc["rosterPreset"]["create"]>;
-export type ApplyRosterPresetResult = inferOutput<Trpc["rosterPreset"]["applyToChat"]>;
 
 export const useCreateRosterPreset = createEntityMutation<inferInput<Trpc["rosterPreset"]["create"]>, RosterPresetView>({
   options: (trpc) => trpc.rosterPreset.create.mutationOptions(),

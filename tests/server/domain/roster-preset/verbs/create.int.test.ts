@@ -128,6 +128,7 @@ describe("create", () => {
         input: {
           name: "Garbage",
           description: "",
+          // FABRICATION-OK: a deliberately MALFORMED blob — the verb-seam refusal is this test's subject.
           groupConfig: { output: "narrator", bogusKnob: true } as never,
           members: [memberSpec(c, 0)],
         },

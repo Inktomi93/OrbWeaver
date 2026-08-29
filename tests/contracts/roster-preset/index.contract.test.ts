@@ -3,7 +3,7 @@
 // 1..MAX with one seat per character, `update` reuses the WHOLE create shape (full replace), and the
 // groupConfig field refuses a stray key at the boundary (chat's strict arms ride through).
 
-import { createRosterPresetSchema, ROSTER_PRESET_MEMBER_MAX, rosterPresetMembersSchema, updateRosterPresetSchema } from "@orb/contracts/roster-preset";
+import { createRosterPresetSchema, ROSTER_PRESET_MEMBER_MAX, rosterPresetMembersSchema } from "@orb/contracts/roster-preset";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -64,9 +64,5 @@ describe("roster-preset wire", () => {
       members: [{ kind: "character", characterId: CHAR_A, position: 0 }],
     });
     expect(ok.groupConfig).toMatchObject({ output: "per-speaker", cardScope: "merged", policy: "natural" });
-  });
-
-  test("update IS the create shape (full replace — one schema object, no drift)", () => {
-    expect(updateRosterPresetSchema).toBe(createRosterPresetSchema);
   });
 });

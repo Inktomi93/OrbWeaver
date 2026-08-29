@@ -627,7 +627,8 @@ const ARM3_ALLOW: ExemptionTable = {
   "@orb/ui/MessageMedia": { why: CERD_WHY },
   "@orb/tokens": { why: CERD_WHY },
   "domain/hub": { why: CERD_WHY },
-  "domain/roster-preset": { why: CERD_WHY },
+  // "domain/roster-preset" removed 2026-08-28 (#26) — the domain now EXISTS on the tree, so the phantom
+  // resolved and the gate's own stale arm demanded the row's deletion (two-sided exemptions).
   "infra/network/hubs/": { why: CERD_WHY },
   "domain/buddy": { why: CERD_WHY },
   "transport/trpc/buddy-bus.ts": { why: CERD_WHY },

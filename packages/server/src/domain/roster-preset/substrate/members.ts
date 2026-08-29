@@ -9,10 +9,10 @@
 // `ensureMembersOwned` on the result BEFORE any row lands — a fabricated id matches no owned row and
 // collapses to the same leak-free NotFound a foreign one does.
 
-import type { CreateRosterPresetInput } from "@orb/contracts/roster-preset";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CreateRosterPresetInput, RosterPresetMemberView } from "@orb/contracts/roster-preset";
+import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { MemberWrite } from "../contract/service.ts";
+import type { MemberCardRow, MemberWrite } from "../contract/service.ts";
 
 /** Wire seats → normalized junction writes: sorted by wire position, re-stamped dense 0..n-1, knob
  *  absence canonicalized (`talkativeness` absent → NULL = inherit; `disabled` absent → false). */
@@ -25,4 +25,19 @@ export function normalizeMembers(members: CreateRosterPresetInput["members"]): M
       talkativeness: member.talkativeness ?? null,
       disabled: member.disabled ?? false,
     }));
+}
+
+/** Group the FLAT joined member rows per preset (order-preserving — the query already sorted by
+ *  (presetId, position)). Pure, so it lives HERE: persistence is queries-only and holds no Map. */
+export function groupMemberViews(rows: readonly MemberCardRow[]): Map<RosterPresetId, RosterPresetMemberView[]> {
+  const byPreset = new Map<RosterPresetId, RosterPresetMemberView[]>();
+  for (const row of rows) {
+    const bucket = byPreset.get(row.presetId);
+    if (bucket === undefined) {
+      byPreset.set(row.presetId, [row.view]);
+    } else {
+      bucket.push(row.view);
+    }
+  }
+  return byPreset;
 }

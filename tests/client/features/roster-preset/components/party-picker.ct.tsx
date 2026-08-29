@@ -68,9 +68,11 @@ test("delete rides the ConfirmDialog and fires the REAL remove wire call with th
   await mount(<PartyPickerStory />);
 
   await page.getByRole("button", { name: "Delete Adventuring Party" }).click();
-  // The confirm ceremony — a destructive action never fires off the row click alone.
+  // The confirm ceremony — a destructive action never fires off the row click alone. The dialog's
+  // visibility is the settled barrier; the zero read is retrying-form for the oneshot gate, and the
+  // ==1 transition below is what gives it teeth (a fired-early remove can never come back to 0).
   await expect(page.getByText("Delete this party?")).toBeVisible();
-  expect(trpc.count("rosterPreset.remove")).toBe(0);
+  await expect.poll(() => trpc.count("rosterPreset.remove")).toBe(0);
   await page.getByRole("button", { name: "Delete", exact: true }).click();
 
   await expect.poll(() => trpc.count("rosterPreset.remove")).toBe(1);

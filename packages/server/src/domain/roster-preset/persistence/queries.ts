@@ -14,7 +14,7 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { RosterPresetId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
-import type { MemberWrite } from "../contract/service.ts";
+import type { MemberCardRow, MemberWrite } from "../contract/service.ts";
 
 const LIMIT_ONE = 1;
 
@@ -53,11 +53,11 @@ export async function ownedPresetNameTaken(db: Db, ownerId: UserId, name: string
   return rows.length > 0;
 }
 
-/** The position-ordered members of `presetIds`, each with its live card's display floor. */
-export async function loadMembersWithCards(db: Db, presetIds: readonly RosterPresetId[]): Promise<Map<RosterPresetId, RosterPresetMemberView[]>> {
-  const byPreset = new Map<RosterPresetId, RosterPresetMemberView[]>();
+/** The members of `presetIds` with their card joins, FLAT and ordered (presetId, position) — the
+ *  per-preset grouping is the pure `groupMemberViews` in `substrate/members.ts` (persistence holds no Map). */
+export async function loadMemberCardRows(db: Db, presetIds: readonly RosterPresetId[]): Promise<MemberCardRow[]> {
   if (presetIds.length === 0) {
-    return byPreset;
+    return [];
   }
   const rows = await db
     .select({ member: rosterPresetMembers, name: characters.name, avatarHash: assets.hash })
@@ -66,23 +66,17 @@ export async function loadMembersWithCards(db: Db, presetIds: readonly RosterPre
     .leftJoin(assets, eq(characters.avatarAssetId, assets.id))
     .where(inArray(rosterPresetMembers.presetId, [...presetIds]))
     .orderBy(asc(rosterPresetMembers.presetId), asc(rosterPresetMembers.position));
-  for (const row of rows) {
-    const view: RosterPresetMemberView = {
+  return rows.map((row) => ({
+    presetId: row.member.presetId,
+    view: {
       characterId: row.member.characterId,
       position: row.member.position,
       talkativeness: row.member.talkativeness,
       disabled: row.member.disabled,
       name: row.name,
       avatarHash: row.avatarHash ?? null,
-    };
-    const bucket = byPreset.get(row.member.presetId);
-    if (bucket === undefined) {
-      byPreset.set(row.member.presetId, [view]);
-    } else {
-      bucket.push(view);
-    }
-  }
-  return byPreset;
+    },
+  }));
 }
 
 /** The BARE member rows of one preset in position order — applyToChat's read (no card join; the knob
@@ -101,24 +95,34 @@ export async function insertPresetWithMembers(db: Db, preset: typeof rosterPrese
   await db.batch(batchMany(statements));
 }
 
-/** Full-replace update: patch the row + swap the whole member list in ONE batch. */
+/** Full-replace update: patch the row + swap the whole member list in ONE batch. The owner predicate
+ *  rides the WRITE itself (the verb already gated on an owned read — this is the belt against the
+ *  cross-tenant write hole: whatever the caller's id, only the owner's row can move). */
 export async function updatePresetWithMembers(
   db: Db,
-  presetId: RosterPresetId,
-  patch: Pick<typeof rosterPresets.$inferInsert, "anchorPersonaId" | "description" | "groupConfig" | "name" | "updatedAt">,
-  members: readonly MemberWrite[],
+  args: {
+    readonly ownerId: UserId;
+    readonly presetId: RosterPresetId;
+    readonly patch: Pick<typeof rosterPresets.$inferInsert, "anchorPersonaId" | "description" | "groupConfig" | "name" | "updatedAt">;
+    readonly members: readonly MemberWrite[];
+  },
 ): Promise<void> {
+  const { ownerId, presetId, patch, members } = args;
   const statements: BatchStmt[] = [
-    db.update(rosterPresets).set(patch).where(eq(rosterPresets.id, presetId)),
+    db
+      .update(rosterPresets)
+      .set(patch)
+      .where(and(eq(rosterPresets.id, presetId), eq(rosterPresets.ownerId, ownerId))),
     db.delete(rosterPresetMembers).where(eq(rosterPresetMembers.presetId, presetId)),
     db.insert(rosterPresetMembers).values(members.map((m) => ({ ...m, presetId }))),
   ];
   await db.batch(batchMany(statements));
 }
 
-/** Delete the preset row (seats CASCADE; chats started from it are untouched — no back-reference). */
-export async function deletePresetRow(db: Db, presetId: RosterPresetId): Promise<void> {
-  await db.delete(rosterPresets).where(eq(rosterPresets.id, presetId));
+/** Delete the preset row (seats CASCADE; chats started from it are untouched — no back-reference). Owner
+ *  predicate in the WRITE, same belt as the update above. */
+export async function deletePresetRow(db: Db, ownerId: UserId, presetId: RosterPresetId): Promise<void> {
+  await db.delete(rosterPresets).where(and(eq(rosterPresets.id, presetId), eq(rosterPresets.ownerId, ownerId)));
 }
 
 /** Project a row + its resolved members into the full wire view. */

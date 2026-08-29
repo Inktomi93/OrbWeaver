@@ -20,6 +20,7 @@ describe("authored-input belts", () => {
     expect(parsedGroupConfig(null)).toBeNull();
     expect(parsedGroupConfig(undefined)).toBeNull();
     // A stray key on chat's STRICT arms is REFUSED loudly, never stripped-and-healed.
+    // FABRICATION-OK: a deliberately MALFORMED blob — the strict-arm refusal is this assertion's subject.
     expect(() => parsedGroupConfig({ output: "narrator", bogusKnob: true } as unknown as GroupConfigInput)).toThrow(ZodError);
     expect(parsedGroupConfig({ output: "per-speaker" })).toMatchObject({ output: "per-speaker", cardScope: "merged" });
   });

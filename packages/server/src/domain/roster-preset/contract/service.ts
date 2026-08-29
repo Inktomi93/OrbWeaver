@@ -6,7 +6,7 @@
 // through chat's OWN injected guard (never re-implemented here — see {@link RosterPresetChatOps}).
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ApplyRosterPresetResult, RosterPresetSummary, RosterPresetView } from "@orb/contracts/roster-preset";
+import type { ApplyRosterPresetResult, RosterPresetMemberView, RosterPresetSummary, RosterPresetView } from "@orb/contracts/roster-preset";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
@@ -37,6 +37,14 @@ export interface MemberWrite {
   /** NULL = inherit the chat default at apply — never stamped as a knob. */
   readonly talkativeness: number | null;
   readonly disabled: boolean;
+}
+
+/** One member row + its live card's display floor, FLAT as persistence serves it (queries only — the
+ *  per-preset grouping is the pure `groupMemberViews` in `substrate/members.ts`). Homed here, the
+ *  `MemberWrite` posture. */
+export interface MemberCardRow {
+  readonly presetId: RosterPresetId;
+  readonly view: RosterPresetMemberView;
 }
 
 /** The chat-owned ops `applyToChat` drives — wired at the composition root, never a sideways import.

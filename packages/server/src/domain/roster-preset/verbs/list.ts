@@ -5,14 +5,17 @@
 import type { RosterPresetContext } from "../context.ts";
 import type { ListRosterPresetsParams } from "../contract/params.ts";
 import type { RosterPresetService } from "../contract/service.ts";
-import { listOwnedPresetRows, loadMembersWithCards, summaryOf } from "../persistence/queries.ts";
+import { listOwnedPresetRows, loadMemberCardRows, summaryOf } from "../persistence/queries.ts";
+import { groupMemberViews } from "../substrate/members.ts";
 
 export function createList(ctx: RosterPresetContext): RosterPresetService["list"] {
   return async ({ principal }: ListRosterPresetsParams) => {
     const rows = await listOwnedPresetRows(ctx.db, principal.userId);
-    const members = await loadMembersWithCards(
-      ctx.db,
-      rows.map((row) => row.id),
+    const members = groupMemberViews(
+      await loadMemberCardRows(
+        ctx.db,
+        rows.map((row) => row.id),
+      ),
     );
     return rows.map((row) => summaryOf(row, members.get(row.id) ?? []));
   };

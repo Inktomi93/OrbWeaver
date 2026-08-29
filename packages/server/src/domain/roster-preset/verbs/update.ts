@@ -30,12 +30,12 @@ export function createUpdate(ctx: RosterPresetContext): RosterPresetService["upd
       throw new RosterPresetNameConflictError(input.name);
     }
     const at = ctx.now();
-    await updatePresetWithMembers(
-      ctx.db,
+    await updatePresetWithMembers(ctx.db, {
+      ownerId,
       presetId,
-      { name: input.name, description: input.description ?? "", anchorPersonaId, groupConfig, updatedAt: at },
+      patch: { name: input.name, description: input.description ?? "", anchorPersonaId, groupConfig, updatedAt: at },
       members,
-    );
+    });
     await ctx.audit(
       {
         actorUserId: ownerId,
