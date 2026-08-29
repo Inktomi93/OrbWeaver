@@ -176,6 +176,7 @@ test("the OWNER rate ceiling autosaves the FINAL value on blur, never a mid-type
   await expect(field).toHaveValue("50");
   // Still mid-edit — the belt has not tightened. A count of ZERO is the assertion and it can only be
   // falsified by a call that ALREADY happened, so there is nothing to poll-wait for.
+  // ONESHOT-OK: a settled count of ZERO has no positive call to poll-barrier for; the toHaveValue("50") above settled the edit, and onValueCommitted fires only on blur/Enter, so no write can be in flight while focused.
   expect(trpc.count("automation.setOwnerBudgets")).toBe(0);
 
   // Blur commits the FINAL value — 50, never the transient 5.
@@ -215,6 +216,7 @@ test("committing an UNCHANGED value writes nothing — the belt only saves a rea
   await field.blur();
   // Settled: a count of ZERO is the assertion. It can only be falsified by a call that has ALREADY happened
   // by the time this line runs, so polling a zero would wait for something that must never arrive.
+  // ONESHOT-OK: the guard skips the mutate synchronously when settled === ceiling, so a settled count of ZERO after blur has no positive call to poll for.
   expect(trpc.count("automation.setOwnerBudgets")).toBe(0);
 });
 
