@@ -584,6 +584,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     using argsH = ctx.getProp(defHandle, "args");
     const onRun = ctx.getProp(defHandle, "onRun");
     let parsed: ReturnType<typeof pluginCommandRegistrationMetaSchema.safeParse>;
+    // @orb-gate-ignore caught-failure-ownership(empty:err): guest-supplied command metadata that fails to dump/validate is REFUSED registration (onRun handle disposed, warn logged) — a malformed untrusted plugin def can never register a live command, the fail-closed direction. Ends if a dump/parse failure ever returns a live command instead of ctx.undefined.
     try {
       const name = tryDumpGuestValue(ctx, nameH);
       const describe = tryDumpGuestValue(ctx, describeH);
