@@ -186,19 +186,25 @@ test("PLUGIN_TIER_REGISTRAR is TOTAL — every tier names the host function that
 
 test("the `frame` column of PLUGIN_ANCHOR_TIERS is the §6.2 anchor list — and message-footer is FALSE permanently", () => {
   // ADMITTED: the hatch's own anchors (§6.2) — the flank (the owner test's chess board), the installer's own
-  // settings screen (§6.1's arbitrary-HTML row), and tool cards (§6.1's arbitrary card art, lazy).
+  // settings screen (§6.1's arbitrary-HTML row), tool cards (§6.1's arbitrary card art, lazy), and — since #787
+  // wired the client mount at both — a full extension PAGE and a house DIALOG (§6.2 names both; the U5×U7 merge
+  // held them false only until their `PluginFrame` mount existed).
   expect(PLUGIN_ANCHOR_TIERS["chat-flank"].frame).toBe(true);
   expect(PLUGIN_ANCHOR_TIERS.settings.frame).toBe(true);
   expect(PLUGIN_ANCHOR_TIERS["tool-card"].frame).toBe(true);
+  expect(PLUGIN_ANCHOR_TIERS.page.frame).toBe(true);
+  expect(PLUGIN_ANCHOR_TIERS.dialog.frame).toBe(true);
   // REFUSED, and both refusals are decisions rather than omissions. `message-footer` is PERMANENT: one document
   // per transcript row. `chat-settings-section` is the host-controls band, which §6.2's anchor list does not name.
   expect(PLUGIN_ANCHOR_TIERS["message-footer"].frame).toBe(false);
   expect(PLUGIN_ANCHOR_TIERS["chat-settings-section"].frame).toBe(false);
 });
 
-test("a frame surface is REFUSED at message-footer and admitted at the flank — the anchor belt bites on the new tier", () => {
+test("a frame surface is REFUSED at message-footer and admitted at the flank/page/dialog — the anchor belt bites on the new tier", () => {
   const frameAt = (anchor: string): unknown => ({ id: "board", anchor, title: "Board", tier: "frame" });
   expect(pluginSurfaceRegistrationMetaSchema.safeParse(frameAt("chat-flank")).success).toBe(true);
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(frameAt("page")).success).toBe(true);
+  expect(pluginSurfaceRegistrationMetaSchema.safeParse(frameAt("dialog")).success).toBe(true);
   expect(pluginSurfaceRegistrationMetaSchema.safeParse(frameAt("message-footer")).success).toBe(false);
   expect(pluginSurfaceRegistrationMetaSchema.safeParse(frameAt("chat-settings-section")).success).toBe(false);
 });
