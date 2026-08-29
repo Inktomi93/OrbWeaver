@@ -108,6 +108,16 @@ const ALLOWLIST: ExemptionTable = {
       "own CTA). The next step lives in the sibling list, so this state legitimately has no action of its own: " +
       "the preset-library-welcome.tsx precedent, same species, same reasoning.",
   },
+  "packages/client/src/features/plugin/components/plugin-browse-nodes.tsx": {
+    why:
+      "the plugin GRID's empty state (card-atlas-hub-polish, stickler 2026-08-29 F4). The renderer STRUCTURALLY " +
+      "cannot mint an action here: a CTA would need a plugin `actionId`, and inventing one the plugin never " +
+      "declared is the impersonation wall the closed vocabulary exists to hold — while the copy itself is the " +
+      "plugin's own teaching line, whose next step is the affordance the SAME surface renders above it (the " +
+      "atlas's searchBar; the preset-library-welcome sibling-control species). Deletable the day the vocabulary " +
+      "grows a plugin-authored empty-action arm (e.g. `grid.emptyAction`), which would let the renderer pass a " +
+      "real CTA through instead.",
+  },
 };
 
 const MESSAGE =
