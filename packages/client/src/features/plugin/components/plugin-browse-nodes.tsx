@@ -133,7 +133,11 @@ export function MasterDetail({
     // columns with the same token); the slot names the stage for the styles tier and the CT pin.
     <Stack className="max-w-(--reading-measure)" data-slot="plugin-detail-stage" gap="block">
       {stage.hero === undefined || heroUrl === undefined ? null : (
-        <MessageMedia alt={stage.hero.alt ?? ""} media="image" src={{ kind: "asset", url: heroUrl }} />
+        // `max-h-96` (the house big-art cap — the gallery lightbox's own number): an uncapped portrait
+        // cover at column width fills the whole viewport and shoves the decision cluster below the fold,
+        // which is the exact failure the detail stage exists to prevent. `object-contain` (the primitive's
+        // default) keeps the ratio; the hero reads as a cover, not a wall.
+        <MessageMedia alt={stage.hero.alt ?? ""} className="max-h-96" media="image" src={{ kind: "asset", url: heroUrl }} />
       )}
       {title === undefined ? null : <Text voice="focal">{title}</Text>}
       {body}
