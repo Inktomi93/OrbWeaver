@@ -10617,6 +10617,78 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/card-atlas-art-forward.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 200,
+      "bytes": 17514,
+      "sha256": "c22101eaff0160022fe1ad0834580f978a0a4edf0e4883370be3cec018918ae3",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/card-atlas-art-forward.md",
+        "assignedSha256": "c22101eaff0160022fe1ad0834580f978a0a4edf0e4883370be3cec018918ae3",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "c22101eaff0160022fe1ad0834580f978a0a4edf0e4883370be3cec018918ae3",
+        "verifiedCommit": "cee8ed62a33a717c78e2caa37e433de6afc22c20",
+        "verifiedAt": "2026-08-29",
+        "evidence": ["docs/design/card-atlas-art-forward.md:1 (authored + built in the same lane; every §1 premise live-probed or path:line-cited)"],
+        "summary": "Card Atlas art-forward design/build record: #798 fetchAsset-driven covers + bound hero, one normalized row + plugin-side sort across both hubs, PNG-first summon with JSON fold, the ONE-key art cache budgeting the shared egress belt, renderer F2 reading-measure cap + F4 house EmptyState; rejected arms, coupled sites, found gaps (GC-bait fetched assets, belt sizing fork).",
+        "claims": [
+          {
+            "claim": "The detail stage caps its column at the house --reading-measure token and an empty grid renders the house EmptyState (stickler F2/F4), both landed red-first in the renderer.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/plugin/components/plugin-browse-nodes.tsx:57"
+              },
+              {
+                "kind": "test",
+                "target": "tests/client/features/plugin/components/plugin-surface-renderer.ct.tsx:253"
+              }
+            ]
+          },
+          {
+            "claim": "fetchAsset shares one hourly egress belt with net.fetch (120/plugin), which is why the plugin's one-key art cache is load-bearing rather than an optimization.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/plugin/substrate/rate-floor.ts:42"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/entry/boot/seed-assets/plugins/card-atlas/main.js:60"
+              }
+            ]
+          },
+          {
+            "claim": "netHosts matching is exact-host (suffix only for leading-dot entries), so each hub's art CDN is its own manifest entry and its own consent line.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/server/src/infra/network/egress.ts:478"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/entry/boot/seed-assets/plugins/card-atlas/manifest.json:10"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/chat-creation-draft-mode-replacement.md",
       "lane": "design",
       "issue": 5,
