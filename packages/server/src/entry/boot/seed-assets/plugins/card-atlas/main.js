@@ -939,7 +939,7 @@ function pageStatus(source, q) {
   if (session === null) {
     return "";
   }
-  const what = q.length === 0 ? `Browsing ${source.label}` : `${source.label} for "${q}"`;
+  const what = q.length === 0 ? source.label : `${source.label} for "${q}"`;
   const note = filterNote(source, session.include, session.exclude);
   if (session.pageRows.length === 0) {
     return `Nothing from ${what}${note}.`;
