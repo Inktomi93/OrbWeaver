@@ -14,6 +14,7 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { RosterPresetId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { RosterPresetNotFoundError } from "../contract/errors.ts";
 import type { MemberCardRow, MemberWrite } from "../contract/service.ts";
 
 const LIMIT_ONE = 1;
@@ -95,9 +96,14 @@ export async function insertPresetWithMembers(db: Db, preset: typeof rosterPrese
   await db.batch(batchMany(statements));
 }
 
-/** Full-replace update: patch the row + swap the whole member list in ONE batch. The owner predicate
- *  rides the WRITE itself (the verb already gated on an owned read — this is the belt against the
- *  cross-tenant write hole: whatever the caller's id, only the owner's row can move). */
+/** Full-replace update: patch the row + swap the whole member list in ONE batch. The whole op is GATED
+ *  on the owner (a mismatched caller throws the same leak-free NotFound the verb throws — the persona
+ *  `ensureAssetOwned` posture), and the owner predicate ALSO rides every write: the row UPDATE directly,
+ *  and the junction DELETE through an owned-preset subquery. The junction has no ownerId by design
+ *  (D23 derive-don't-stamp), so its belt IS the join — without it a verb-bypassing caller's bare
+ *  presetId would no-op the row yet silently WIPE+replace a foreign preset's member list (stickler F2).
+ *  The gate precedes the batch, so the re-INSERT can never target a foreign preset either; ownership
+ *  never transfers (no such verb exists), so gate-then-batch has no exploitable window. */
 export async function updatePresetWithMembers(
   db: Db,
   args: {
@@ -108,12 +114,17 @@ export async function updatePresetWithMembers(
   },
 ): Promise<void> {
   const { ownerId, presetId, patch, members } = args;
+  const owned = await loadOwnedPresetRow(db, ownerId, presetId);
+  if (owned === undefined) {
+    throw new RosterPresetNotFoundError(presetId);
+  }
+  const ownedPresetIds = db.select({ id: rosterPresets.id }).from(rosterPresets).where(eq(rosterPresets.ownerId, ownerId));
   const statements: BatchStmt[] = [
     db
       .update(rosterPresets)
       .set(patch)
       .where(and(eq(rosterPresets.id, presetId), eq(rosterPresets.ownerId, ownerId))),
-    db.delete(rosterPresetMembers).where(eq(rosterPresetMembers.presetId, presetId)),
+    db.delete(rosterPresetMembers).where(and(eq(rosterPresetMembers.presetId, presetId), inArray(rosterPresetMembers.presetId, ownedPresetIds))),
     db.insert(rosterPresetMembers).values(members.map((m) => ({ ...m, presetId }))),
   ];
   await db.batch(batchMany(statements));

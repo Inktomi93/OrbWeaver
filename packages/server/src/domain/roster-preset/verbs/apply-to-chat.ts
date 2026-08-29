@@ -10,9 +10,13 @@
 // `disabled` always (NOT NULL in the junction, so the stored value IS the preset's answer),
 // `talkativeness` only when the preset stores one (NULL = inherit the chat default). Members apply
 // SEQUENTIALLY in position order — join order is visible in the roster UI, so the awaits in the loop
-// are the semantics, not an accident. `skipped` is the delete-mid-apply race arm: the FK CASCADE makes
-// a stale member unrepresentable at rest (a deleted character deletes its seat rows), so the re-verify
-// belt only ever catches the microsecond window — reported, never an abort.
+// are the semantics, not an accident. `skipped` is the PRE-DRIVE re-verify arm ONLY (stickler F3
+// truth-repair): the FK CASCADE makes a stale member unrepresentable at rest, so the re-verify catches
+// just the delete-between-read-and-verify window and drops those members from the drive, reported. A
+// failure INSIDE the drive (an injected chat verb throwing) SURFACES and aborts the loop — deliberately
+// not collected: distinguishing "this member's character died" from "the room died" inside a
+// DomainNotFoundError would need error-class sniffing across the domain line, and the additive +
+// idempotent contract already makes a retry converge (landed seats re-classify alreadyPresent).
 
 import type { CharacterId } from "@orb/kit/ids";
 import type { RosterPresetContext } from "../context.ts";

@@ -16,7 +16,6 @@
 // the room the apply mutated.
 
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
-import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -53,16 +52,19 @@ function applySentence(result: {
   return parts.join(" · ");
 }
 
-/** One party row: name + member preview + the row actions. */
+/** One party row: name + member preview + the row actions. `canAddToChat` = a room is open AND the
+ *  viewer HOSTS it (program doc §6 — the add door is capability-driven and HIDDEN for a non-host, the
+ *  D16 precedent; the server's own host gate stays the enforcement, this is just not offering a
+ *  dead-end). */
 function PartyRow(props: {
   readonly party: SavedPartySummary;
-  readonly activeChatId: ChatId | null;
+  readonly canAddToChat: boolean;
   readonly busy: boolean;
   readonly onStart: (party: SavedPartySummary) => void;
   readonly onAddToChat: (party: SavedPartySummary) => void;
   readonly onDelete: (party: SavedPartySummary) => void;
 }): ReactElement {
-  const { party, activeChatId, busy, onStart, onAddToChat, onDelete } = props;
+  const { party, canAddToChat, busy, onStart, onAddToChat, onDelete } = props;
   const memberNames = party.members.map((m) => m.name).join(", ");
   return (
     <Row align="center" gap="field" padding="block" className="border-border border-b last:border-b-0" data-slot="party-row">
@@ -84,12 +86,12 @@ function PartyRow(props: {
           <Icon icon={MessagesSquare} size="sm" />
           Start
         </Button>
-        {activeChatId === null ? null : (
+        {canAddToChat ? (
           <Button disabled={busy} intent="ghost" size="sm" onClick={(): void => onAddToChat(party)} aria-label={`Add ${party.name} to this chat`}>
             <Icon icon={UserPlus} size="sm" />
             Add to chat
           </Button>
-        )}
+        ) : null}
         <Button disabled={busy} intent="ghost" size="icon-sm" onClick={(): void => onDelete(party)} aria-label={`Delete ${party.name}`}>
           <Icon icon={Trash2} size="sm" />
         </Button>
@@ -236,7 +238,7 @@ export function PartyPicker(): ReactElement {
         <Stack gap="row">
           {parties.map((party) => (
             <PartyRow
-              activeChatId={active?.chatId ?? null}
+              canAddToChat={active?.isHost === true}
               busy={busy}
               key={party.id}
               onAddToChat={onAddToChat}
