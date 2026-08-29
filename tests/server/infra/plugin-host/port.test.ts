@@ -348,7 +348,7 @@ function fakeBridge(): {
       listBooks: () => Promise.resolve([]),
       listEntries: () => Promise.resolve([]),
     },
-    assets: { read: () => Promise.resolve(null) },
+    assets: { read: () => Promise.resolve(null), storeFetched: () => Promise.resolve({ assetId: "asset_test000000000000000000" }) },
     search: { documents: () => Promise.resolve([]) },
     imagery: {
       generatePicture: () => {
@@ -411,6 +411,7 @@ function fakeBridge(): {
     databank: { ingest: () => Promise.resolve({ documentId: "doc_test" }) },
     character: {
       ingest: () => Promise.resolve({ characterId: "char_test", created: true }),
+      ingestAsset: () => Promise.resolve({ characterId: "char_test", created: true }),
       setCardData: () => Promise.resolve(),
       getCardData: () => Promise.resolve(null),
     },

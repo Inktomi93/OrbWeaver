@@ -21,6 +21,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { getPluginQuickJS, HOST_FN_DEADLINE_MS } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 import { describe } from "vitest";
+import { __setEgressResolverForTest } from "../../../../packages/server/src/infra/network/egress.ts";
 import type { MembraneRuntime } from "../../../../packages/server/src/infra/plugin-host/membrane.ts";
 import { attachMembrane } from "../../../../packages/server/src/infra/plugin-host/membrane.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -48,6 +49,10 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
     uiDialogs: string[];
     databankIngests: { name: string; text: string }[];
     characterIngests: Record<string, unknown>[];
+    // #798 — the bytes + sniffed mime the membrane handed the CAS-write op, and the assetIds it handed
+    // `character.ingestAsset`. Recorded so a test proves what crossed the infra→domain seam (never the guest).
+    fetchedAssets: { bytes: Uint8Array; mime: string }[];
+    ingestedAssets: string[];
     // @foreign-id-ok(characterId): the fake bridge records the guest's untrusted wire string verbatim (the PluginBridge.character.setCardData param is a bare `string` under the same marker); branding it would diverge from the interface it mirrors.
     cardDataWrites: { characterId: string; data: Record<string, unknown> }[];
     cardDataReads: string[];
@@ -60,6 +65,8 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
   const uiDialogs: string[] = [];
   const databankIngests: { name: string; text: string }[] = [];
   const characterIngests: Record<string, unknown>[] = [];
+  const fetchedAssets: { bytes: Uint8Array; mime: string }[] = [];
+  const ingestedAssets: string[] = [];
   // @foreign-id-ok(characterId): the fake bridge records the guest's untrusted wire string verbatim (the PluginBridge.character.setCardData param is a bare `string` under the same marker); branding it would diverge from the interface it mirrors.
   const cardDataWrites: { characterId: string; data: Record<string, unknown> }[] = [];
   const cardDataReads: string[] = [];
@@ -74,6 +81,8 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
     uiDialogs,
     databankIngests,
     characterIngests,
+    fetchedAssets,
+    ingestedAssets,
     cardDataWrites,
     cardDataReads,
     pubsubEmits,
@@ -130,8 +139,15 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
       },
     },
     variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
-    // #788 seam-11 — a canned owned-asset read so the gate + forward path is observable.
-    assets: { read: () => Promise.resolve({ mime: "image/png", sizeBytes: 3, dataBase64: "AAAA" }) },
+    // #788 seam-11 — a canned owned-asset read so the gate + forward path is observable. #798 storeFetched
+    // records the bytes + sniffed mime the membrane handed down (never the guest), returning a canned assetId.
+    assets: {
+      read: () => Promise.resolve({ mime: "image/png", sizeBytes: 3, dataBase64: "AAAA" }),
+      storeFetched: (bytes, mime) => {
+        performed.fetchedAssets.push({ bytes, mime });
+        return Promise.resolve({ assetId: "asset_fetched000000000000000" });
+      },
+    },
     // #788 F1 — a canned search hit so the gate + forward path is observable.
     search: { documents: () => Promise.resolve([{ documentId: "doc_hit000000000000000000000", documentName: "Notes", content: "match", score: 0.9 }]) },
     storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
@@ -171,6 +187,12 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
       ingest: (card) => {
         performed.characterIngests.push(card);
         return Promise.resolve({ characterId: `char_${performed.characterIngests.length}`, created: true });
+      },
+      // #798 — records the assetId the membrane forwarded to `ingestAsset` (and, by its absence, that an
+      // ungranted call never reaches the bridge). Returns a canned freshly-created result.
+      ingestAsset: (assetId) => {
+        performed.ingestedAssets.push(assetId);
+        return Promise.resolve({ characterId: `char_asset_${performed.ingestedAssets.length}`, created: true });
       },
       // D148 per-card state — recorded so a test can prove the membrane forwarded the validated payload (and, by
       // its absence, that an ungranted call never reaches the bridge). `getCardData` returns a canned blob so the
@@ -669,6 +691,150 @@ describe("attachMembrane — net.fetch is gated + walled to the manifest netHost
       expect(out).not.toContain("REACHED");
       expect(out).toContain("https");
     });
+  });
+});
+
+// A valid 1×1 transparent PNG — the magic-byte truth the image guard sniffs (never the served Content-Type).
+const ONE_PX_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
+/** The SAME PNG with a forged IHDR reporting 20000×20000 — a decompression bomb by PIXEL COUNT, tiny on the
+ *  wire (safeFetch's byte cap can't see it; the image guard's dimension cap is what stops it). IHDR width is at
+ *  bytes 16–19, height at 20–23 (8 sig + 4 len + 4 "IHDR"), big-endian. */
+function bombPng(): Buffer {
+  const bytes = Buffer.from(ONE_PX_PNG);
+  bytes.writeUInt32BE(20_000, 16);
+  bytes.writeUInt32BE(20_000, 20);
+  return bytes;
+}
+
+/** Drive `host.net.fetchAsset(url)` with the DNS resolver stubbed to a PUBLIC address (so safeFetch's private-
+ *  range denial passes) and the global fetch stubbed to serve `served`. Restores both after. `served` is the
+ *  raw body bytes; `contentType` is what the server CLAIMS (the guard must ignore it and trust the magic bytes). */
+async function withStubbedFetchAsset(
+  served: Uint8Array,
+  contentType: string,
+  runtime: MembraneRuntime,
+  fn: (ctx: QuickJSContext) => Promise<void>,
+): Promise<void> {
+  __setEgressResolverForTest(() => Promise.resolve(["93.184.216.34"])); // a public IP — clears the SSRF wall
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = ((): Promise<Response> =>
+    Promise.resolve(new Response(new Uint8Array(served), { status: 200, headers: { "content-type": contentType } }))) as typeof fetch;
+  try {
+    await withRuntime(runtime, fn);
+  } finally {
+    globalThis.fetch = realFetch;
+    __setEgressResolverForTest(null);
+  }
+}
+
+describe("attachMembrane — net.fetchAsset downloads a remote image into the installer's OWN CAS (#798)", () => {
+  test("WITHOUT the net.fetch_asset grant it rejects (capability gate) — never fetches, never claims egress, never stores", async () => {
+    const { bridge, egress, performed } = fakeBridge();
+    // Grant net.fetch (text) but NOT net.fetch_asset — the two are DISTINCT consent lines, so a text-fetch grant
+    // must not reach the CAS-write arm.
+    const runtime = makeRuntime(["net.fetch"], false, bridge, { netHosts: ["img.allowed.test"] });
+    await withRuntime(runtime, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { const r = await host.net.fetchAsset('https://img.allowed.test/c.png'); return 'REACHED:' + JSON.stringify(r) } catch (e) { return 'caught:' + e.message } })()",
+      );
+      expect(out).not.toContain("REACHED");
+      expect(out).toContain("net.fetch_asset");
+    });
+    expect(egress.count).toBe(0);
+    expect(performed.fetchedAssets).toHaveLength(0);
+  });
+
+  test("the SSRF wall: a host NOT in netHosts is refused at the allowlist before any network — the guest URL is not the wall", async () => {
+    const { bridge, performed } = fakeBridge();
+    const runtime = makeRuntime(["net.fetch_asset"], false, bridge, { netHosts: ["img.allowed.test"] });
+    await withRuntime(runtime, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.net.fetchAsset('https://evil.example/steal.png'); return 'REACHED' } catch (e) { return 'caught:' + e.message } })()",
+      );
+      expect(out).not.toContain("REACHED");
+      expect(out).toContain("allowlist");
+    });
+    expect(performed.fetchedAssets).toHaveLength(0);
+  });
+
+  test("the SSRF wall: a loopback / metadata IP-literal target is refused (not in the hostname allowlist)", async () => {
+    const { bridge } = fakeBridge();
+    const runtime = makeRuntime(["net.fetch_asset"], false, bridge, { netHosts: ["img.allowed.test"] });
+    await withRuntime(runtime, async (ctx) => {
+      // The classic cloud-metadata SSRF target and a bare loopback — neither is an allowlisted hostname, so both
+      // are refused before a socket opens (an IP literal is ALSO rejected on the non-owner-configured path).
+      const out = await runAsync(
+        ctx,
+        "(async () => { const rs = await Promise.all([host.net.fetchAsset('https://169.254.169.254/latest/meta-data/').then(()=> 'REACHED-meta').catch(e=>'b:'+e.message), host.net.fetchAsset('https://127.0.0.1/x.png').then(()=>'REACHED-loop').catch(e=>'b:'+e.message)]); return rs.join('|') })()",
+      );
+      expect(out).not.toContain("REACHED");
+    });
+  });
+
+  test("an EMPTY netHosts list fail-closes: every host is refused even WITH the grant", async () => {
+    const { bridge } = fakeBridge();
+    const runtime = makeRuntime(["net.fetch_asset"], false, bridge, { netHosts: [] });
+    await withRuntime(runtime, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.net.fetchAsset('https://img.allowed.test/c.png'); return 'REACHED' } catch (e) { return 'caught:' + e.message } })()",
+      );
+      expect(out).not.toContain("REACHED");
+      expect(out).toContain("allowlist");
+    });
+  });
+
+  test("the HAPPY PATH: an allowlisted PNG is fetched, guarded, stored, and only an assetId (never bytes, never a URL) crosses to the guest", async () => {
+    const { bridge, egress, performed } = fakeBridge();
+    const runtime = makeRuntime(["net.fetch_asset"], false, bridge, { netHosts: ["img.allowed.test"] });
+    await withStubbedFetchAsset(ONE_PX_PNG, "image/png", runtime, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { const r = await host.net.fetchAsset('https://img.allowed.test/cover.png'); return JSON.stringify({ keys: Object.keys(r), assetId: r.assetId }) })()",
+      );
+      // @foreign-id-ok(assetId): the guest-returned wire DTO shape asserted verbatim — the membrane hands this back as inert text, never branded; branding it would diverge from the `PluginHostV1.net.fetchAsset` return it mirrors.
+      const parsed = JSON.parse(out) as { keys: string[]; assetId: string };
+      // The guest received EXACTLY one property, the asset id — no bytes, no url, no mime.
+      expect(parsed.keys).toEqual(["assetId"]);
+      expect(parsed.assetId).toBe("asset_fetched000000000000000");
+    });
+    // The egress belt was claimed, and the DOMAIN got the validated bytes + the SNIFFED mime (image/png), never
+    // the guest — the bytes crossed the infra→domain seam only.
+    expect(egress.count).toBe(1);
+    expect(performed.fetchedAssets).toHaveLength(1);
+    expect(performed.fetchedAssets[0]?.mime).toBe("image/png");
+    expect(performed.fetchedAssets[0]?.bytes.byteLength).toBe(ONE_PX_PNG.byteLength);
+  });
+
+  test("the image guard uses MAGIC BYTES, not the Content-Type: an HTML error page served as image/png is refused and NOT stored", async () => {
+    const { bridge, performed } = fakeBridge();
+    const runtime = makeRuntime(["net.fetch_asset"], false, bridge, { netHosts: ["img.allowed.test"] });
+    const html = new TextEncoder().encode("<!doctype html><title>404</title>");
+    await withStubbedFetchAsset(html, "image/png", runtime, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.net.fetchAsset('https://img.allowed.test/notreally.png'); return 'REACHED' } catch (e) { return 'caught:' + e.message } })()",
+      );
+      expect(out).not.toContain("REACHED");
+      expect(out).toContain("caught");
+    });
+    // The guard rejected before any CAS write — a lying Content-Type cannot smuggle non-image bytes into storage.
+    expect(performed.fetchedAssets).toHaveLength(0);
+  });
+
+  test("the decompression-bomb dimension cap: a tiny PNG whose header declares 20000×20000 is refused and NOT stored", async () => {
+    const { bridge, performed } = fakeBridge();
+    const runtime = makeRuntime(["net.fetch_asset"], false, bridge, { netHosts: ["img.allowed.test"] });
+    await withStubbedFetchAsset(bombPng(), "image/png", runtime, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        "(async () => { try { await host.net.fetchAsset('https://img.allowed.test/bomb.png'); return 'REACHED' } catch (e) { return 'caught:' + e.message } })()",
+      );
+      expect(out).not.toContain("REACHED");
+    });
+    expect(performed.fetchedAssets).toHaveLength(0);
   });
 });
 

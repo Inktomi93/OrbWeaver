@@ -46,6 +46,23 @@ describe("collectImageAssetIds (state-aware, ARM C)", () => {
     collectImageAssetIds(spec, state, out);
     expect(out).toEqual([]);
   });
+
+  test("#798: a detail-stage HERO joins the sweep through BOTH arms — a declared id and a bound cover resolve identically", () => {
+    const spec: PluginSurfaceNode = {
+      kind: "masterDetail",
+      stages: [
+        { id: "declared", kind: "detail", hero: { assetId: OWNED }, body: { kind: "text", value: "x" } },
+        { id: "bound", kind: "detail", hero: { assetFrom: { $state: "cover" } }, body: { kind: "text", value: "y" } },
+      ],
+    };
+    const out: AssetId[] = [];
+    collectImageAssetIds(spec, { cover: OWNED }, out);
+    expect(out).toEqual([OWNED, OWNED]);
+    // A URL smuggled through the bound hero's state is format-gated out of the resolve set (the anti-exfil wall).
+    const bad: AssetId[] = [];
+    collectImageAssetIds(spec, { cover: "https://evil.example/x.png" }, bad);
+    expect(bad).toEqual([OWNED]); // only the DECLARED hero's id; the bound one dropped by the format wall
+  });
 });
 
 describe("gridTiles (the two-arm collapse)", () => {
@@ -66,5 +83,19 @@ describe("specBindsState (the §4.9 silence test learns the new arms)", () => {
     // …and the declared arms stay static, exactly as before the widening.
     expect(specBindsState({ kind: "grid", tiles: [{ id: "a1", title: "One" }] })).toBe(false);
     expect(specBindsState({ kind: "image", assetId: OWNED })).toBe(false);
+  });
+
+  test("#798: a masterDetail whose ONLY binding is a bound HERO counts as bound — its no-cover fallback never paints as room chrome", () => {
+    const boundHero: PluginSurfaceNode = {
+      kind: "masterDetail",
+      stages: [{ id: "d", kind: "detail", hero: { assetFrom: { $state: "cover" } }, body: { kind: "text", value: "static" } }],
+    };
+    expect(specBindsState(boundHero)).toBe(true);
+    // A DECLARED hero (no binding) stays static — nothing to wait for.
+    const declaredHero: PluginSurfaceNode = {
+      kind: "masterDetail",
+      stages: [{ id: "d", kind: "detail", hero: { assetId: OWNED }, body: { kind: "text", value: "static" } }],
+    };
+    expect(specBindsState(declaredHero)).toBe(false);
   });
 });

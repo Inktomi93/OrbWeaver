@@ -11,7 +11,7 @@
 // owner-scoped url, a filter field never getting its default. One seam, and the same seam the spec's own DoS
 // caps count through.
 
-import type { PluginBoundNumber, PluginBoundString, PluginGridTile, PluginSurfaceNode } from "@orb/contracts/plugin";
+import type { PluginBoundNumber, PluginBoundString, PluginGridTile, PluginPageHero, PluginSurfaceNode } from "@orb/contracts/plugin";
 import { pluginChildNodes, resolvePluginBoundAssetId, resolvePluginBoundTiles } from "@orb/contracts/plugin";
 import type { AssetId } from "@orb/kit/ids";
 
@@ -99,7 +99,13 @@ function ownBinding(node: PluginSurfaceNode): boolean {
     return node.assetFrom !== undefined;
   }
   if (node.kind === "masterDetail") {
-    return (node.active !== undefined && isBinding(node.active)) || node.stages.some((stage) => stage.title !== undefined && isBinding(stage.title));
+    return (
+      (node.active !== undefined && isBinding(node.active)) ||
+      // A bound hero (`assetFrom`, #798) is a binding by construction — so is a bound stage title. Without the
+      // hero arm a page whose only binding is a state-driven cover would read as "purely static" and paint its
+      // no-cover fallback as room chrome (the §4.9 silence rule).
+      node.stages.some((stage) => (stage.title !== undefined && isBinding(stage.title)) || stage.hero?.assetFrom !== undefined)
+    );
   }
   // The form/action kinds carry no bindable value (their values are client-transient until an action submits
   // them), so a form-only surface is static by construction.
@@ -135,12 +141,25 @@ export function collectImageAssetIds(node: PluginSurfaceNode, state: Record<stri
   }
   if (node.kind === "masterDetail") {
     for (const stage of node.stages) {
-      pushDefined(out, stage.hero?.assetId);
+      // BOTH hero arms collapse through `heroAssetId` (#798): the declared id, or the `assetFrom` binding
+      // resolved (format-gated) against state — so a bound cover joins the ONE owner-scoped resolve, never
+      // painting on its own.
+      pushDefined(out, stage.hero === undefined ? undefined : heroAssetId(stage.hero, state));
     }
   }
   for (const child of pluginChildNodes(node)) {
     collectImageAssetIds(child, state, out);
   }
+}
+
+/** A stage hero's effective asset id — the declared arm, or the bound arm (`assetFrom`, #798) resolved
+ *  (format-gated) against state. The exactly-one-of belt means at most one arm is present. The `image` node's
+ *  `imageNodeAssetId` one plane over, so both surfaces resolve a bound cover identically. */
+export function heroAssetId(hero: PluginPageHero, state: Record<string, unknown>): AssetId | undefined {
+  if (hero.assetId !== undefined) {
+    return hero.assetId;
+  }
+  return hero.assetFrom === undefined ? undefined : resolvePluginBoundAssetId(state, hero.assetFrom);
 }
 
 function pushDefined(out: AssetId[], id: AssetId | undefined): void {

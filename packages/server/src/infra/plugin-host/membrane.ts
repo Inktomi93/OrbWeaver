@@ -63,6 +63,7 @@ import { z } from "zod";
 import { superviseDetached } from "#foundation/observability";
 import type { SafeFetchOptions } from "../network/egress.ts";
 import { safeFetch } from "../network/egress.ts";
+import { isAllowedImageBuffer } from "../network/image-guard.ts";
 import {
   HOST_CALLS_IN_FLIGHT_MAX,
   HOST_FN_ARGS_MAX_BYTES,
@@ -1182,6 +1183,25 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     },
   });
 
+  // ingestAsset(assetId) — capability character.ingest (#798). The guest supplies ONLY an assetId string naming
+  // a PNG in the INSTALLER's OWN CAS (e.g. one `net.fetchAsset` just returned); the bridge closes the installer
+  // over the op, reads that asset owner-gated (foreign/absent → leak-free rejection) and runs the SAME
+  // importCharacter funnel `ingest` does — so the character arrives WITH its embedded avatar. Rides the SAME
+  // `character.ingest` grant (identical reach, only the input form differs). A non-string id is refused here.
+  attachAsync(ctx, character, {
+    name: "ingestAsset",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "character.ingestAsset");
+      const assetId = args[0];
+      if (typeof assetId !== "string") {
+        throw new Error("plugin host: character.ingestAsset requires an assetId string");
+      }
+      return await runtime.bridge.character.ingestAsset(assetId);
+    },
+  });
+
   // setCardData(characterId, data) — the D148 per-card state WRITE. The guest supplies ONLY the characterId
   // string + an inert JSON object; the SLUG is stamped host-side (DOMAIN-side, the bridge) and the OWNER-SCOPE +
   // the leak-free NOT_FOUND for a foreign character are the domain's — infra stays authority-blind, forwarding
@@ -1535,8 +1555,47 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
       return { status: res.status, body };
     },
   });
+
+  // fetchAsset — capability net.fetch_asset (#798). Download a REMOTE IMAGE into the INSTALLER's OWN CAS and
+  // return an assetId. The whole point is that NO URL and NO BYTES ever reach the guest realm: the host GETs the
+  // url through the SAME audited SSRF guard + manifest allowlist `net.fetch` uses (never ANY_HOST, never a
+  // guest-supplied host), validates the downloaded bytes with the remote-image guard (magic bytes — the remote
+  // Content-Type is never trusted — plus the dimension/pixel decompression-bomb caps), then hands the domain
+  // ONLY the validated bytes + the SNIFFED mime to write into the installer's own CAS. The guest gets back an
+  // assetId string. Egress delta zero: it claims the SAME hourly egress belt (`admitEgress`) and reaches only
+  // the manifest hosts, so it adds a CAS-write, not egress reach.
+  attachAsync(ctx, net, {
+    name: "fetchAsset",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args, signal) => {
+      requireCapability(runtime, "net.fetchAsset");
+      const url = args[0];
+      if (typeof url !== "string") {
+        throw new Error("plugin host: net.fetchAsset requires a URL string");
+      }
+      // The SAME hourly egress belt `net.fetch` claims, BEFORE the fetch and the first await (atomic against the
+      // ≤32 concurrent host calls) — egress delta zero, keyed by a pluginId infra never sees.
+      runtime.bridge.admitEgress();
+      const res = await safeFetch(url, buildAssetFetchOptions(runtime.netHosts, signal));
+      if (res.status < HTTP_OK_MIN || res.status >= HTTP_OK_MAX) {
+        res.dispose?.(); // drop the non-2xx body + close the pinned Agent before throwing
+        throw new Error(`plugin host: net.fetchAsset got a non-2xx response (HTTP ${res.status})`);
+      }
+      const bytes = await res.bytes();
+      // The remote-image guard: magic-byte sniff (NEVER the remote Content-Type) + dimension/pixel bomb caps.
+      // Throws `ImageRejectedError` on a non-image / oversize / over-dimension body → a guest promise rejection.
+      // The SNIFFED mime (from the magic bytes) is what the CAS write records — never the header the server sent.
+      const sniffed = isAllowedImageBuffer(bytes, { maxBytes: PLUGIN_NET_MAX_BYTES });
+      return await runtime.bridge.assets.storeFetched(bytes, sniffed.mime);
+    },
+  });
   ctx.setProp(surface, "net", net);
 }
+
+/** The 2xx status window `net.fetchAsset` requires (a non-2xx has no asset to return). */
+const HTTP_OK_MIN = 200;
+const HTTP_OK_MAX = 300;
 
 /** UTF-8 decoder for the net.fetch body (stateless without `{stream}`, so one shared instance is safe). */
 const NET_TEXT_DECODER = new TextDecoder();
@@ -1562,6 +1621,20 @@ function buildNetOptions(netHosts: readonly string[], rawInit: unknown, signal: 
     ...(method !== undefined ? { method } : {}),
     ...(headers !== undefined ? { headers } : {}),
     ...(body !== undefined ? { body } : {}),
+  };
+}
+
+/** The `net.fetchAsset` fetch options (#798): a plain GET pinned to the manifest allowlist (never `ANY_HOST`,
+ *  never a guest-supplied host), the same 1 MiB body cap + host deadline `net.fetch` carries. No guest init at
+ *  all — no method, no headers, no body — so the attack surface is exactly "download this allowlisted image".
+ *  The scheme/allowlist/private-range/redirect walls all live inside `safeFetch`, re-run per hop. */
+function buildAssetFetchOptions(netHosts: readonly string[], signal: AbortSignal): SafeFetchOptions {
+  return {
+    allowedHosts: netHosts,
+    method: "GET",
+    maxBytes: PLUGIN_NET_MAX_BYTES,
+    deadlineMs: HOST_FN_DEADLINE_MS,
+    signal,
   };
 }
 

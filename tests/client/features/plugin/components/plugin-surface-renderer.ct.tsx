@@ -193,3 +193,46 @@ test("renderer coverage — a spec mixing container, display, and form kinds ren
   await expect(page.getByRole("switch", { name: "Enabled" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Reset" })).toBeVisible();
 });
+
+test("#798: a card-atlas-style detail stage shows its cover — the BOUND hero (assetFrom) resolves a fetched assetId from state and renders the art", async ({
+  mount,
+  page,
+}) => {
+  // The whole point of #798's render half: an art-medium plugin (the card-atlas hub) `net.fetchAsset`s a remote
+  // cover into the installer's CAS, publishes the returned assetId in state, and a data-driven detail stage binds
+  // its hero to that state path. The declared-hero path could never carry a fetched id (the spec is fixed at
+  // registration); this proves the bound arm closes that gap.
+  const coverId = mintTypeId(ID_PREFIX.asset);
+  const spec = {
+    kind: "masterDetail",
+    stages: [
+      {
+        id: "detail",
+        kind: "detail",
+        title: "Aria",
+        // The hero's id lives in PUBLISHED STATE — not the spec — so a hub whose covers are fetched at runtime can
+        // show them. NO URL is spellable here (assetFrom is a $state path); the resolved id is format-gated + then
+        // owner-scope-resolved server-side, exactly like a declared cover.
+        hero: { assetFrom: { $state: "coverId" }, alt: "Aria's cover" },
+        body: { kind: "text", value: "A wandering cartographer." },
+      },
+    ],
+  };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    // The plugin published the fetched cover's assetId into state (what `net.fetchAsset` would have returned).
+    "plugin.getSurfaceState": () => ({ coverId }),
+    "plugin.getLog": () => [],
+    // The owner-scoped resolve returns a ref for the installer's OWN fetched asset — the state-bound id rides the
+    // SAME resolve a declared cover does.
+    "assets.resolveBlobRefs": () => [{ assetId: coverId, hash: "0".repeat(64), mime: "image/png" }],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await page.route(`**${BLOB_ROUTE}/**`, (route) => route.fulfill({ contentType: "image/png", body: Buffer.from(ONE_PX_PNG_B64, "base64") }));
+  await mount(<PluginsSurfaceStory />);
+
+  // The stage renders, and its hero — resolved from the state-bound assetId — is a real <img> pointing at the blob.
+  await expect(page.getByText("A wandering cartographer.")).toBeVisible();
+  await expect(page.locator('img[alt="Aria\'s cover"]')).toHaveCount(1);
+});

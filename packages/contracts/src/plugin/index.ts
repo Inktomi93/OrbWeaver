@@ -125,6 +125,7 @@ export type {
   PluginMeterNode,
   PluginNodeKind,
   PluginNumberFieldNode,
+  PluginPageHero,
   PluginPageStage,
   PluginPageStageKind,
   PluginRowNode,

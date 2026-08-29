@@ -43,7 +43,7 @@ import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResu
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
-import type { ChatId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import type { AssetId, ChatId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
@@ -859,6 +859,28 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   const { worldInfo, importWorldInfo, bulkImportChats, bulkImportPersonas, resolveOwnerPrincipal } = worldInfoCompose;
 
+  // #679 U8 seam 17 + #798 — the ONE per-installer character-import closure both plugin canon-write arms share.
+  // It runs the SAME `importCharacter` funnel a file upload takes over the given bytes (the ContentChanged-
+  // emitting path: importHash dedup, book/regex relink, `character.create`'s `contentChanged:true` emit). The
+  // input form is the only difference between the arms: `character.ingest` serializes a guest JSON card (no
+  // avatar); `character.ingestAsset` (#798) hands the funnel a PNG the installer owns, and a PNG carries its
+  // EMBEDDED avatar through (`isPng` → `parseCardPng` → CAS-store the avatar), which is the whole point of #798.
+  // @foreign-id-ok(characterId): the import funnel mints this under the installer; it flows out to the guest as inert text through the bridge, never re-parsed as one of ours here. Ends if this helper starts branding its result.
+  const runInstallerCharacterImport = async (installerUserId: UserId, bytes: Uint8Array): Promise<{ characterId: string; created: boolean }> => {
+    const principal = await resolveOwnerPrincipal(installerUserId);
+    const importCtx = buildImportContext({
+      principal,
+      character,
+      storeAvatar: assets.store,
+      attachCardTag: tag.attachCardTagByName,
+      importLorebook: importWorldInfo.importLorebook,
+      linkCarriedBooks: importWorldInfo.linkCarriedBooks,
+      importCardScripts: regexCompose.importCardScripts,
+    });
+    const { characterId, created } = await createImportService(importCtx).importCharacter({ card: { bytes } });
+    return { characterId, created };
+  };
+
   // ── automation + plugin (the automation-plugin seam) — built LAST of the domain services (both close over
   // chat/world-info/imagery/notifications + resolveOwnerPrincipal; plugin reuses automation's op objects).
   const { automation, plugin } = await buildAutomationPlugin({
@@ -887,25 +909,17 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // #679 U8 seams 15/17 — the two canon-write ops the plugin membrane rides under the installer. databank's
     // own createFromText content-addresses + dedups + enqueues the ingest workload (the indexer).
     databankCreateFromText: databank.createFromText,
-    // Built PER-INSTALLER here because the import-context wiring (character/assets/tag/world-info/regex ports)
-    // lives at the root: resolve the installer's Principal by ROW READ, then run the SAME importCharacter funnel
-    // a file upload takes over the guest card serialized to JSON bytes — the ContentChanged-emitting path
-    // (byte-identical importHash dedup, book/regex relink, character.create's `contentChanged:true` emit).
-    ingestCharacterCard: async ({ installerUserId, card }) => {
+    // #679 U8 seam 17 — the guest JSON card serialized to bytes (no embedded avatar) through the shared funnel.
+    ingestCharacterCard: ({ installerUserId, card }) => runInstallerCharacterImport(installerUserId, new TextEncoder().encode(JSON.stringify(card))),
+    // #798 — the remote-image "summon with art" arm. Read the PNG from the installer's OWN CAS through the
+    // OWNER-GATED `readOwnedAssetBytes` (a foreign/absent id throws leak-free — `AssetNotFoundError` collapses
+    // "not yours" and "absent", no existence oracle), then run the SAME funnel: a PNG carries its embedded
+    // avatar, so the summoned character arrives WITH its art. Owner-scoped by construction (the read AND the
+    // import both run under the installer's own resolved Principal).
+    ingestCharacterAsset: async ({ installerUserId, assetId }) => {
       const principal = await resolveOwnerPrincipal(installerUserId);
-      const importCtx = buildImportContext({
-        principal,
-        character,
-        storeAvatar: assets.store,
-        attachCardTag: tag.attachCardTagByName,
-        importLorebook: importWorldInfo.importLorebook,
-        linkCarriedBooks: importWorldInfo.linkCarriedBooks,
-        importCardScripts: regexCompose.importCardScripts,
-      });
-      const { characterId, created } = await createImportService(importCtx).importCharacter({
-        card: { bytes: new TextEncoder().encode(JSON.stringify(card)) },
-      });
-      return { characterId, created };
+      const owned = await assets.readOwnedAssetBytes(principal, castId<AssetId>(assetId));
+      return runInstallerCharacterImport(installerUserId, owned.bytes);
     },
   });
 
