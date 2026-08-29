@@ -683,7 +683,7 @@
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-frame.tsx::promise:hostCall::1",
       "path": "packages/client/src/features/plugin/components/plugin-frame.tsx",
-      "line": 103,
+      "line": 108,
       "column": 5,
       "grammar": "promise",
       "position": "promise:hostCall",
