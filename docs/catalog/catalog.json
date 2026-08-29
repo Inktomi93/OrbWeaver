@@ -13455,6 +13455,52 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/saved-rosters-build-record.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 163,
+      "bytes": 13033,
+      "sha256": "b7fc49c1ddd9c4c118d24bd8ee9604a1cce0ba711f07d068a3368cc6cf09702a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-28"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/saved-rosters-build-record.md",
+        "assignedSha256": "b7fc49c1ddd9c4c118d24bd8ee9604a1cce0ba711f07d068a3368cc6cf09702a",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "b7fc49c1ddd9c4c118d24bd8ee9604a1cce0ba711f07d068a3368cc6cf09702a",
+        "verifiedCommit": "936501dfb1b7a7a8f3a99a0cc8a501051baaf37e",
+        "verifiedAt": "2026-08-28",
+        "evidence": [
+          "docs/design/saved-rosters-build-record.md:1 (design; active)",
+          "authored by lane roster-26 with the RP1+RP2 build (the two-commit born-reviewed dance: the build commit carries the doc, this receipt pins it)",
+          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+        ],
+        "summary": "Saved rosters (roster presets) — the as-built RP1+RP2 design record (#26, lane roster-26, 2026-08-28): premise repair vs the parked program doc, the D80/requireHost deltas, the coupled-site inventory, and the test plan.",
+        "claims": [
+          {
+            "claim": "Mutable resolution for this artifact is tracked in GitHub issue #26.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#26"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/server-usage-settlement-2026-08-20.md",
       "lane": "design",
       "issue": 5,
