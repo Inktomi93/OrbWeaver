@@ -132,6 +132,18 @@ test("a genuinely config-owned pool (vllm's one env entry) still reads 'from con
   await expect(page.getByTestId("model-picker-curated-notice")).toHaveCount(0);
 });
 
+// D5 (#711 re-audit): the catalog arm threaded `isLoading` into a picker prop nothing consumed, so a
+// loading catalog (undefined result ⇒ empty pool, and — unlike custom_openai — no free-text CommandItem to
+// keep cmdk's Empty count non-zero) flashed "No models match." instead of a loading state. The picker now
+// consumes `isLoading` and renders the CommandLoading skeleton while the catalog resolves.
+test("a loading catalog shows the loading skeleton, not the 'No models match.' empty message", async ({ mount, page }) => {
+  await mount(<ModelPickerStory source="openrouter" result={undefined} isLoading={true} />);
+  await page.getByRole("button", { name: "Chat model" }).click();
+
+  await expect(page.locator('[data-slot="command-loading"]')).toBeVisible();
+  await expect(page.getByText("No models match.")).toHaveCount(0);
+});
+
 test("a live catalog shows NO fallback notice", async ({ mount, page }) => {
   await mount(
     <ModelPickerStory
