@@ -219,6 +219,17 @@ export const CAPABILITY_COPY_ROWS = [
     risk: true,
     consequence: "Makes requests to the exact hosts its manifest lists, and nowhere else — at most 120 an hour.",
   },
+  {
+    // #798 — the remote-image-into-CAS arm. `risk`, on the `net.fetch` precedent (it reaches the open internet),
+    // AND it writes durable personal state (an image into your library), so the consequence names both walls: the
+    // same allowlisted hosts + the same hourly egress limit as "Reach the internet", plus that the download lands
+    // in your storage. NOT `spends` — it draws no paid model/image budget, only your own local storage.
+    id: "net.fetch_asset",
+    label: "Save images from the internet",
+    risk: true,
+    consequence:
+      "Downloads images from the exact hosts its manifest lists — the same hosts and the same hourly limit as 'Reach the internet' — into your own storage. Your library only, never another person's.",
+  },
 ] as const satisfies readonly CapabilityCopy[];
 
 /**

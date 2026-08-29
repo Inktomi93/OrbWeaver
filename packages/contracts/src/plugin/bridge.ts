@@ -98,6 +98,15 @@ export interface PluginBridge {
   readonly assets: {
     // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON string, owner-scope-gated by the domain read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
     readonly read: (assetId: string) => Promise<PluginAssetView | null>;
+    /** Write ALREADY-FETCHED-AND-VALIDATED image bytes into the installer's OWN CAS and return the assetId
+     *  (`net.fetchAsset`, capability `net.fetch_asset` — plugin-remote-image #798). Infra PERFORMS the fetch +
+     *  the SSRF egress wall + the remote-image guard (all live in `infra/network`, which a domain may not
+     *  import), then hands the domain ONLY the validated bytes + the SNIFFED mime (never the remote
+     *  Content-Type); the domain builder closes the INSTALLER over the store so the asset lands owner-scoped (a
+     *  guest names no owner). The bytes cross the infra→domain seam but NEVER the guest realm — the guest
+     *  receives an assetId string only. Authority-agnostic like every bridge op — infra holds no principal. */
+    // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new asset; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    readonly storeFetched: (bytes: Uint8Array, mime: string) => Promise<{ readonly assetId: string }>;
   };
   /** Semantic document search over the installer's OWN indexed corpus (`search.documents`, search.query — #788
    *  F1). The membrane passes ONLY the guest-supplied query text + the (host-clamped) limit; the domain builder
@@ -225,6 +234,17 @@ export interface PluginBridge {
   readonly character: {
     // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     readonly ingest: (card: Record<string, unknown>) => Promise<{ readonly characterId: string; readonly created: boolean }>;
+    /** Ingest a character from a PNG ASSET in the installer's OWN CAS (`host.character.ingestAsset`, capability
+     *  `character.ingest` — plugin-remote-image #798). The membrane passes ONLY the guest-supplied `assetId`;
+     *  the domain builder closes the installer over the op, reads the PNG bytes through the assets domain's
+     *  OWNER-GATED front door (a foreign/absent id rejects leak-free), and runs the SAME `importCharacter` funnel
+     *  a file upload takes — which parses the card chunk AND CAS-stores the embedded avatar, so the character
+     *  arrives WITH its art. Same owner-scoped, no-chat, no-host posture as `ingest`; rides its SAME grant (the
+     *  reach is identical, only the input form differs). Returns the new character id + whether it was freshly
+     *  created (a byte-identical re-ingest deduplicates by importHash). */
+    // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON string naming an asset in the installer's OWN CAS, owner-scope-gated by the domain read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
+    // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    readonly ingestAsset: (assetId: string) => Promise<{ readonly characterId: string; readonly created: boolean }>;
     /** Store this plugin's per-card state under `data.extensions.plugin_<slug>` on one of the installer's OWN
      *  characters (`host.character.setCardData`, capability `character.card_state` — D148). The membrane passes
      *  ONLY the guest-supplied `characterId` + inert `data`; the domain builder closes over the INSTALLER (the

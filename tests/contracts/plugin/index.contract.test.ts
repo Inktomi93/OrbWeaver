@@ -38,7 +38,11 @@ test("HOST_FUNCTION_CAPABILITY maps 40 gated functions, every value a real capab
   // symmetry of the write surfaces, each owner-scoped + leak-free.
   // 39 → 40 at #788 F1: `search.documents` keys to the ONE NEW `search.query` grant — first-party retrieval over
   // the installer's OWN corpus, owner-scoped (the bridge closes ownerId over the scope), plain (no rate floor).
-  expect(entries).toHaveLength(40);
+  // 40 → 42 at #798 (plugin-remote-image): `net.fetchAsset` keys to the ONE NEW `net.fetch_asset` grant (identical
+  // egress reach to `net.fetch` plus a CAS write — its own consent line), and `character.ingestAsset` rides the
+  // EXISTING `character.ingest` grant (identical reach — a character import into the installer's own library —
+  // only the input form differs: a PNG asset vs. a JSON card). One new capability, two new gated functions.
+  expect(entries).toHaveLength(42);
 
   const values = new Set(Object.values(HOST_FUNCTION_CAPABILITY));
   // Every mapped capability is a member of the axis.
