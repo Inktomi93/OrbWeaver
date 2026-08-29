@@ -59,14 +59,15 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Icon, MessagesSquare, Plus } from "@orb/ui/icons";
+import { Icon, MessagesSquare, Plus, Users } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker } from "#components";
-import { useStartChat } from "#data";
-import { clearNewChatIntent, closeModal, useNewChatIntent } from "#state";
+import { useStartChat, useTRPC } from "#data";
+import { clearNewChatIntent, closeModal, openModal, useNewChatIntent } from "#state";
 
 const SKELETON_ROW_COUNT = 6;
 
@@ -136,6 +137,12 @@ export function NewChatPicker(): ReactElement {
   // modal remains logically open. Every opener also overwrites it before opening.
   const intent = useNewChatIntent();
   const { startChat, isPending } = useStartChat();
+  const trpc = useTRPC();
+  // #26 — the "Start from saved cast" door, shown only when the library HAS saved casts (the program doc's
+  // empty-library rule: the AFFORDANCE hides; the modal itself keeps its designed empty state). Cache-first
+  // at staleTime:Infinity, bus-driven fresh via `rosterPresetsChanged`.
+  const { data: parties } = useQuery(trpc.rosterPreset.list.queryOptions());
+  const hasParties = (parties?.length ?? 0) > 0;
 
   const dismiss = (): void => {
     clearNewChatIntent();
@@ -189,6 +196,24 @@ export function NewChatPicker(): ReactElement {
           <Text size="label" tone="muted">
             This room won't join your chats list, and you can't switch it later.
           </Text>
+        </Row>
+      ) : null}
+      {hasParties ? (
+        <Row justify="end" padding="block">
+          {/* #26 — hop to the saved-cast picker (the slot is the destination — no feature import). The
+              intent is cleared like any dismiss: a party start carries its own creation parameters. */}
+          <Button
+            intent="ghost"
+            size="sm"
+            onClick={(): void => {
+              clearNewChatIntent();
+              closeModal();
+              openModal("savedCasts");
+            }}
+          >
+            <Icon icon={Users} size="sm" />
+            Start from saved cast
+          </Button>
         </Row>
       ) : null}
       <CharacterPicker

@@ -29,6 +29,7 @@ import type {
   RefinerySchemaId,
   RefinerySessionId,
   RegexScriptId,
+  RosterPresetId,
   RpgCheckpointId,
   RpgJournalId,
   RpgQuestId,
@@ -91,6 +92,11 @@ const MARK = {
   // stranger's patch overwrote the name, so both spellings are load-bearing. (The name must satisfy the
   // ResponseFormat identifier grammar `^[a-zA-Z_][a-zA-Z0-9_]*$` — hence no punctuation.)
   refinerySchema: "AlphaSecretSchema",
+  // #26 — A's saved party (roster preset). The marker rides the preset NAME (a leaked view/summary
+  // carries it verbatim); its one member is A's marker character, so a leaked member preview betrays
+  // itself twice. `list` is PROBED (not EXEMPT) per the WHERE-partition rule: drop the ownerId predicate
+  // and every user reads one shared party list.
+  rosterPreset: "AlphaSecretParty",
   // D147 — an installed plugin owned by A. `plugins.ownerId` is the partition key and every management verb
   // gates on it ALONE (there is no role gate any more, and deliberately no admin any-row branch), so these
   // probes are the transport-tier proof of the whole authority model. The marker rides the plugin's `name`,
@@ -143,6 +149,9 @@ interface OwnerIds {
   // plugin (D46/D147) — A's real installed plugin. Its whole authority model is `getById(db, caller.userId,
   // pluginId)`, so a stranger holding this id is the exact shape the belt exists to refuse.
   pluginId: PluginId;
+  // #26 — A's saved party; every rosterPreset verb derives authority from `roster_presets.ownerId`, so a
+  // stranger passing this id must collapse to leak-free NOT_FOUND.
+  rosterPresetId: RosterPresetId;
 }
 
 /** tRPC's cross-realm error duck-type (matchers.ts precedent): an Error named "TRPCError" with a code. */
@@ -415,6 +424,59 @@ const PROBES: readonly Probe[] = [
   // verb's own readable-preset predicate (which is what this probe attacks), and, behind it, the
   // membership filter on the rooms.
   { path: "preset.listUsage", call: (c, i) => c.preset.listUsage({ id: i.presetId }) },
+  // ── rosterPreset (#26 — saved parties, single-owner + the chat-host second scope) ──
+  { path: "rosterPreset.get", call: (c, i) => c.rosterPreset.get({ presetId: i.rosterPresetId }) },
+  {
+    // A resolve would echo the MEMBER's card name (A's character marker) even though the stranger's patch
+    // overwrote the preset name — the refinery updateSchema double-marker posture.
+    path: "rosterPreset.update",
+    call: (c, i) =>
+      c.rosterPreset.update({
+        presetId: i.rosterPresetId,
+        input: { name: "hacked", description: "", members: [{ kind: "character", characterId: i.characterId, position: 0 }] },
+      }),
+  },
+  {
+    // `remove` returns void — a silent resolve is a write-IDOR the marker detector cannot see, so the
+    // authority contract must REJECT (and the post-sweep integrity re-read proves A's party survived).
+    path: "rosterPreset.remove",
+    call: (c, i) => c.rosterPreset.remove({ presetId: i.rosterPresetId }),
+    requireNotFound: true,
+  },
+  {
+    // The WHERE-partition plane (listOwnerRules class): no id input, but drop the ownerId predicate and
+    // every user reads one shared party list — A's marker NAME in the stranger's resolve is the leak.
+    path: "rosterPreset.list",
+    call: (c) => c.rosterPreset.list(),
+  },
+  {
+    // A foreign member characterId at CREATE must refuse — the FK proves existence, never ownership; a
+    // resolve means the producer belt was dropped and the stranger minted a party over A's card.
+    path: "rosterPreset.create",
+    call: (c, i) =>
+      c.rosterPreset.create({ input: { name: "TheftParty", description: "", members: [{ kind: "character", characterId: i.characterId, position: 0 }] } }),
+    requireNotFound: true,
+  },
+  {
+    // Scope 1: A's preset (+ A's chat) — the preset-ownership arm must refuse before anything room-shaped.
+    path: "rosterPreset.applyToChat",
+    call: (c, i) => c.rosterPreset.applyToChat({ presetId: i.rosterPresetId, chatId: i.chatId }),
+    requireNotFound: true,
+  },
+  {
+    // Scope 2 (the C5 second-scope rule): the stranger's OWN valid preset aimed at A's chat — the arm under
+    // probe is chat's HOST authority through the injected guard; a resolve would mean the stranger stamped
+    // seats onto A's room (the post-sweep chat integrity re-read backs this up).
+    path: "rosterPreset.applyToChat",
+    call: async (c, i) => {
+      const myChar = await c.character.create({ input: { handle: "b-party-char", name: "StrangerPartyChar", description: "owned by B" } });
+      const myParty = await c.rosterPreset.create({
+        input: { name: "StrangerParty", description: "", members: [{ kind: "character", characterId: myChar.id, position: 0 }] },
+      });
+      return c.rosterPreset.applyToChat({ presetId: myParty.id, chatId: i.chatId });
+    },
+    requireNotFound: true,
+  },
   // ── world-info (owner-scoped) ──
   { path: "worldInfo.getBook", call: (c, i) => c.worldInfo.getBook({ bookId: i.bookId }) },
   {
@@ -1665,6 +1727,11 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       input: { name: MARK.persona, description: "owned by A" },
     });
     const preset = await owner.preset.create({ name: MARK.preset, kind: "chat" });
+    // #26 — A's saved party (front door): the NAME carries A's marker; its one member is A's marker
+    // character, so a leaked view/summary betrays itself twice (name + member preview).
+    const rosterPreset = await owner.rosterPreset.create({
+      input: { name: MARK.rosterPreset, description: "owned by A", members: [{ kind: "character", characterId: character.id, position: 0 }] },
+    });
     const book = await owner.worldInfo.createBook({ input: { name: MARK.book } });
     const entry = await owner.worldInfo.createEntry({
       bookId: book.id,
@@ -1929,6 +1996,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       refinerySessionId: refinerySession.id,
       refinerySchemaId: refinerySchema.id,
       pluginId,
+      rosterPresetId: rosterPreset.id,
     };
   }
 
@@ -1957,6 +2025,10 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(chatStill.title).toBe("AlphaSecretChatTitle"); // untouched by the stranger's chat-mutation probes
     const docStill = await ownerCaller.databank.get({ id: ids.documentId });
     expect(docStill.name).toBe(MARK.databankDoc); // untouched by the stranger's databank.rename/remove probes
+    // #26 — A's saved party survived the stranger's update/remove/apply probes byte-intact.
+    const partyStill = await ownerCaller.rosterPreset.get({ presetId: ids.rosterPresetId });
+    expect(partyStill.name).toBe(MARK.rosterPreset);
+    expect(partyStill.members.map((m) => m.characterId)).toEqual([ids.characterId]);
     const docAttachments = await ownerCaller.databank.listAttachments({ id: ids.documentId });
     expect(docAttachments.characters.map((c) => c.id)).toEqual([ids.characterId]); // the character junction survived detachFromCharacter
     const rulesStill = await ownerCaller.automation.listRules({ chatId: ids.chatId });

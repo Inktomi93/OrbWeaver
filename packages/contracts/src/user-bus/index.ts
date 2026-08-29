@@ -54,6 +54,7 @@ import type {
   PresetId,
   RefinerySessionId,
   RegexScriptId,
+  RosterPresetId,
   TagId,
   ThemeId,
   UserCredentialId,
@@ -75,6 +76,11 @@ export type UserBusEvent =
   | { type: "settingsChanged" }
   | { type: "credentialsChanged"; credentialId?: UserCredentialId }
   | { type: "chatsChanged"; chatId?: ChatId }
+  // The saved-party library (D61 B6 — roster presets): single-owned per-user rows in the exact "an entity
+  // you own changed" posture (the refinery/databank reasoning verbatim). Every roster-preset CRUD verb
+  // emits it; `applyToChat` does NOT (an apply mutates the CHAT's roster, which fans `chatUpdated` on the
+  // chat bus through the injected chat verbs — the library rows are untouched).
+  | { type: "rosterPresetsChanged"; rosterPresetId?: RosterPresetId }
   // The refinery workspace: sessions · runs · accepts · the custom-schema library. ONE coarse member for the
   // whole domain (the client path-invalidates `trpc.refinery`), so the SCHEMA-library writes carry no id at
   // all — a second optional `schemaId` would buy nothing the root invalidate does not already do, and the
@@ -120,6 +126,7 @@ export const USER_BUS_EVENT_TYPES = {
   settingsChanged: true,
   credentialsChanged: true,
   chatsChanged: true,
+  rosterPresetsChanged: true,
   refineryChanged: true,
   databankChanged: true,
   corpusRecomputed: true,
@@ -154,6 +161,7 @@ export const COARSE_USER_BUS_EVENT = {
   settingsChanged: { type: "settingsChanged" },
   credentialsChanged: { type: "credentialsChanged" },
   chatsChanged: { type: "chatsChanged" },
+  rosterPresetsChanged: { type: "rosterPresetsChanged" },
   refineryChanged: { type: "refineryChanged" },
   databankChanged: { type: "databankChanged" },
   corpusRecomputed: { type: "corpusRecomputed" },

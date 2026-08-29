@@ -40,6 +40,11 @@ export const RPG_LITE_TOOL_NAMES = [
 ] as const;
 export type RpgToolName = (typeof RPG_LITE_TOOL_NAMES)[number];
 
+/** The `roll_dice` wire tool name — the ONE spelling B8's in-thread `tool-renderers` contribution claims
+ *  (`match: "name"`). Named + `satisfies`-pinned to the validated tuple so the client renderer's claim can
+ *  never drift from a typo (the plugin plane's `PLUGIN_TOOL_NAME_PREFIX` precedent for a claimed wire name). */
+export const ROLL_DICE_TOOL_NAME = "roll_dice" satisfies RpgToolName;
+
 // ── shared arg fragments ──────────────────────────────────────────────────────────────────────────────
 // A model-facing actor reference: a NAME the server alias-resolves to a character/user/cast actor (never
 // a branded id — projection-clean). The wallet/inventory-on-every-actor ruling means this reaches cast too.
@@ -282,3 +287,18 @@ export const rollDiceArgsSchema = z.object({
 /** @public twin: rollDiceArgsSchema — the typed roll_dice args surface inferred from the schema, which is
  *  cross-package PUBLIC (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export type RollDiceArgs = z.infer<typeof rollDiceArgsSchema>;
+
+/** `roll_dice`'s persisted TOOL RESULT (the JSON `ToolCallRecord.result` the model round's dice call writes —
+ *  `domain/rpg/tools/index.ts` handler value). B8's in-thread `tool-renderers` contribution parses
+ *  `record.result` through THIS rather than re-spelling the shape inline (`no-inline-types`; same home as
+ *  `rollDiceArgsSchema`). `faces` are the per-die rolls, `total` the summed value the server baked; `reason`
+ *  echoes the model's optional `reason` arg. A malformed/absent blob is the renderer's own fall-back-to-generic
+ *  decision (a tool call is CANON — the record is never dropped), never a parse throw here. */
+export const rollDiceToolResultSchema = z.object({
+  notation: z.string(),
+  total: z.number(),
+  faces: z.array(z.number()),
+  reason: z.string().optional(),
+});
+/** @public twin: rollDiceToolResultSchema — the typed roll_dice result surface the in-thread renderer reads. */
+export type RollDiceToolResult = z.infer<typeof rollDiceToolResultSchema>;

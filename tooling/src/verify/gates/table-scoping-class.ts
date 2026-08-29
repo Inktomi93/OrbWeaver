@@ -47,7 +47,8 @@ type ScopingRow = ExemptionRow & { readonly scope: ScopingClass };
  *  read), so their reasons stay short and cite it. Verified against the schema 2026-08-08 (refinery R0 —
  *  which also corrected a two-row drift the previous census missed): 85 tables — 23 ownerId ·
  *  19 membership · 15 junction · 23 parent · 5 global (D121-E added the regex library + its four scope
- *  junctions; refinery R0 added its two parent-scoped tables; #273 added `image_index_skips`, parent). */
+ *  junctions; refinery R0 added its two parent-scoped tables; #273 added `image_index_skips`, parent;
+ *  #26 saved-rosters added `roster_presets` (ownerId) + `roster_preset_members` (junction)). */
 export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
   // ── (a) ownerId-scoped — the D23 stamp. Reasons live in ownerid-registry's OWNERID_ALLOWLIST. ──────────
   assets: { scope: "ownerId", why: "D21 single-owned; reads go through `fetchOwned` (ownerid-registry owns the stamp's justification)." },
@@ -70,6 +71,10 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
   owner_stats: { scope: "ownerId", why: "D23 parentless per-user aggregate." },
   stats_canon_versions: { scope: "ownerId", why: "D23 parentless per-user aggregate — monotonic rebuild ownership token." },
   personas: { scope: "ownerId", why: "D23 true producer — personas are single-owned." },
+  roster_presets: {
+    scope: "ownerId",
+    why: "D61 B6 true producer — a saved party is the user's authored artifact; its character references are a LIST via the members junction, so there is no single owning FK to derive through (ownerid-registry owns the stamp's justification).",
+  },
   plugin_kv: {
     scope: "ownerId",
     why: "D46 denormalized belt on the plugin_id partition — the (plugin_id, owner_id) WHERE makes a cross-owner KV read structurally impossible.",
@@ -162,6 +167,10 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
     why: "the structural message ↔ asset link (#67) — the message side is (b), the asset side is (a); it exists so the ref registry can SEE an inline chat image.",
   },
   persona_books: { scope: "junction", why: "persona ↔ world_book attachment; both parents are (a) ownerId tables." },
+  roster_preset_members: {
+    scope: "junction",
+    why: "D61 B6 — roster_preset ↔ character seat; both parents are (a) ownerId tables (same owner, gated at the write verb), and the read joins through the preset. position/talkativeness/disabled are seat DATA riding the link, never a read key (the message_reactions posture).",
+  },
   persona_tags: { scope: "junction", why: "persona ↔ tag attachment; both parents are (a) ownerId tables." },
   preset_tags: { scope: "junction", why: "preset ↔ tag attachment; both parents are (a) ownerId tables." },
   world_book_tags: { scope: "junction", why: "world_book ↔ tag attachment; both parents are (a) ownerId tables." },

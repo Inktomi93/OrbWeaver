@@ -63,7 +63,8 @@ import {
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexCollection } from "#features/regex";
-import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "#features/rpg";
+import { castCollection, savedCastsModal } from "#features/roster-preset";
+import { makeRpgContextTabs, makeRpgHudRegion, rpgDiceAskSource, rpgDiceToolRenderer, rpgTurnToolCallsSurface } from "#features/rpg";
 import { appearancePane, chatBehaviorPane, settingsModal, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import { tagCollection } from "#features/tag";
@@ -162,7 +163,14 @@ const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContex
 // no control seam — but the array is no longer empty, so the honest statement of the property is now "a room
 // with no live control renders no band chrome", which each source delivers by publishing nothing until its
 // own bus event arrives.
-const chatControlSources = createContributorRegistry<ChatControlSource>("chat-controls", [automationSuggestionSource, automationQuickReplySource]);
+// …and B8's THIRD tenant + first game arm: rpg's dice ASK (interaction-direction-spec §7 B8). A clean tuple
+// append — the chips appear only on an engaged game chat (the source's own `isRpgEngaged` gate), so a plain
+// chat is byte-identical. rpg raises it; chat renders it blind; neither imports the other.
+const chatControlSources = createContributorRegistry<ChatControlSource>("chat-controls", [
+  automationSuggestionSource,
+  automationQuickReplySource,
+  rpgDiceAskSource,
+]);
 
 const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [
   rpgTurnToolCallsSurface,
@@ -198,7 +206,11 @@ const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContributio
 // plugin (G8). A tool with no claiming renderer still renders the generic @orb/ui `ToolCallBlock`, and so does
 // a `plugin_*` tool whose owner registered no card: the fallback is the null state for a tool call, because a
 // call is canon and the transcript owes the reader a record of it.
-const toolRenderers = createContributorRegistry<ToolRenderer>("tool-renderers", [pluginToolRenderer]);
+// B8's SECOND tenant (interaction-direction-spec §7): rpg's in-thread dice renderer, an EXACT `roll_dice`
+// claim (`match: "name"`, which wins over the plugin plane's `plugin_*` prefix claim above). A `roll_dice`
+// call with no well-formed roll — and any tool with no claiming renderer — still renders the generic
+// `ToolCallBlock`, so the seam's zero-registrant fallback is untouched.
+const toolRenderers = createContributorRegistry<ToolRenderer>("tool-renderers", [pluginToolRenderer, rpgDiceToolRenderer]);
 
 // The WHOLE-MESSAGE tool-renderer seam (§6c): the per-message override that renders ALL of a message's tool
 // records together so a contributor can AGGREGATE across them (the per-tool registry above cannot see across
@@ -235,7 +247,13 @@ const characterDetailContributors = createContributorRegistry<CharacterDetailCon
 // the Configuration workspace's whole content: the DOOR ARRAY IS THE ROSTER, in group order. Moving a
 // library between the rail and this workspace is one line HERE and zero edits to the library itself; the
 // host (`features/config`) imports none of them.
-const configCollections = createContributorRegistry<CollectionContribution>("config-collections", [tagCollection, regexCollection, worldInfoCollection]);
+const configCollections = createContributorRegistry<CollectionContribution>("config-collections", [
+  tagCollection,
+  regexCollection,
+  worldInfoCollection,
+  // #26/B10 — the saved-cast library's management surface (order 40, after world-info's 30).
+  castCollection,
+]);
 
 // The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
@@ -286,6 +304,9 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   // #791: the ONE house modal that collects a plugin command's DECLARED typed args when it is picked from the
   // command palette — opened by `openPluginCommandArgs` (the palette source's row `run`), never an affordance.
   pluginCommandArgs: pluginCommandArgsModal,
+  // #26 (D61 B6): the saved-cast picker — opened from the new-chat picker's "Start from saved cast" and the
+  // members panel's host action via `openModal("savedCasts")` (all `placement:"surface"`).
+  savedCasts: savedCastsModal,
 });
 
 // The ONE chrome assembly (shell-chrome-unification.md §A/§D/§E-2, G8): `assembleChrome` DERIVES the rail

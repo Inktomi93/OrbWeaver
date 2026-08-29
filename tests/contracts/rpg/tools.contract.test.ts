@@ -6,8 +6,10 @@ import {
   addJournalEntryArgsSchema,
   journalTitleFor,
   journalTypeFor,
+  ROLL_DICE_TOOL_NAME,
   RPG_LITE_TOOL_NAMES,
   rollDiceArgsSchema,
+  rollDiceToolResultSchema,
   setTrackerArgsSchema,
   updateInventoryArgsSchema,
   updatePartyArgsSchema,
@@ -135,6 +137,24 @@ test("add_journal_entry: a type-LESS entry PARSES and heals to `note`; a content
   // A content-less entry has nothing to log (the title derives FROM the content) — it is malformed, and every
   // delivery path drops exactly that ENTRY (never the turn's other planes — EXT-4a).
   expect(addJournalEntryArgsSchema.safeParse({ type: "note", title: "a title, no body" }).success).toBe(false);
+});
+
+// B8 — the `roll_dice` RESULT wire shape the in-thread renderer parses (and the wire name it claims).
+test("ROLL_DICE_TOOL_NAME is the roll_dice member of the lite tuple", () => {
+  expect(ROLL_DICE_TOOL_NAME).toBe("roll_dice");
+  expect(RPG_LITE_TOOL_NAMES).toContain(ROLL_DICE_TOOL_NAME);
+});
+
+test("rollDiceToolResultSchema parses a baked roll and rejects a foreign blob", () => {
+  const parsed = rollDiceToolResultSchema.safeParse({ notation: "2d6", total: 7, faces: [3, 4], reason: "attack roll" });
+  expect(parsed.success).toBe(true);
+  expect(parsed.success && parsed.data.total).toBe(7);
+  expect(parsed.success && parsed.data.faces).toEqual([3, 4]);
+  // `reason` is optional — a bare roll parses.
+  expect(rollDiceToolResultSchema.safeParse({ notation: "d20", total: 14, faces: [14] }).success).toBe(true);
+  // A foreign shape is rejected — the renderer's fall-back-to-generic signal, never a coerced partial.
+  expect(rollDiceToolResultSchema.safeParse({ foo: 1 }).success).toBe(false);
+  expect(rollDiceToolResultSchema.safeParse({ notation: "d20", total: "14", faces: [14] }).success).toBe(false);
 });
 
 test("journalTitleFor: model title wins; absent → derived from the content head, capped", () => {

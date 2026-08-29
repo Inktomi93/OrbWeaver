@@ -55,24 +55,23 @@ const TALKATIVENESS_MIN = 0;
 const TALKATIVENESS_MAX = 1;
 /** The default talkativeness weight (Part III §1) — the natural-arbitration sampling weight. */
 export const TALKATIVENESS_DEFAULT = 0.5;
-/** The 0–1 talkativeness weight schema (default {@link TALKATIVENESS_DEFAULT}).
- *
- *  @public future: the roster-preset seat-knobs projection (D80, unbuilt) — the shared 0-1 RANGE clamp that
- *  projection will reference; `seatKnobsSchema` currently INLINES the clamp, so this schema has no consumer yet. */
-export const talkativenessSchema = z.number().min(TALKATIVENESS_MIN).max(TALKATIVENESS_MAX).catch(TALKATIVENESS_DEFAULT).default(TALKATIVENESS_DEFAULT);
+// `talkativenessSchema` (a .catch/.default-ing 0–1 clamp) was DELETED 2026-08-28 (#26 pre-merge F5): its
+// `@public future` consumer — the roster-preset seat-knobs projection — arrived and stores the knob
+// through `characterMemberSpecSchema`'s inline clamp instead (NULL-means-inherit semantics, which the
+// defaulting schema could not express), so the prediction died on arrival and the export had no consumer.
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE ONE ROSTER-MEMBER VOCABULARY (D80 — the participant five-plane model). Homed HERE (chat owns the
-// runtime seats + already exports PARTICIPANT_KINDS / SpeakerRef / GroupConfig; a roster-preset domain, if
-// it returns, would import from chat — identity stays the DAG root). Defined below talkativenessSchema so
-// the value reference resolves.
+// runtime seats + already exports PARTICIPANT_KINDS / SpeakerRef / GroupConfig; the roster-preset domain
+// imports from chat — identity stays the DAG root; #26 is the live consumer).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The knobs every AI seat carries — ONE home (D80). The participantId-keyed `setSeatKnobs` verb projects
  *  this shape; the per-kind knob-verb forking is retired (it guaranteed skipped arms — the mute +
- *  talkativeness gaps proved the class). Roster presets/founding casts are unbuilt (purged with the
- *  2026-07-25 rollback) — they'd project this same shape if they return. `talkativeness` absent = inherit
- *  the chat default ({@link TALKATIVENESS_DEFAULT}); the RANGE clamp is the raw `talkativenessSchema` (0–1). */
+ *  talkativeness gaps proved the class). Roster presets are BUILT (#26, D61 B6 — `domain/roster-preset`):
+ *  the `roster_preset_members` junction's talkativeness/disabled columns and `applyToChat`'s `setSeatKnobs`
+ *  patch project exactly this shape. Founding casts stay unbuilt (they graft onto the same shape if they
+ *  return). `talkativeness` absent = inherit the chat default ({@link TALKATIVENESS_DEFAULT}). */
 export const seatKnobsSchema = z.object({
   talkativeness: z.number().min(TALKATIVENESS_MIN).max(TALKATIVENESS_MAX).optional(),
   disabled: z.boolean().optional(),
@@ -80,8 +79,9 @@ export const seatKnobsSchema = z.object({
 export type SeatKnobs = z.infer<typeof seatKnobsSchema>;
 
 /** The `character` arm of {@link rosterMemberSpecSchema} — extracted so a surface that persists characters
- *  ONLY (roster presets v1, RP-D1) narrows to it without re-spelling the shape (derive, one home). A card
- *  seat: a `characterId` + `position` + the AI-seat knobs. */
+ *  ONLY narrows to it without re-spelling the shape (derive, one home). LIVE consumer: roster presets v1
+ *  (#26 — `@orb/contracts/roster-preset`'s `rosterPresetMemberSchema` IS this schema). A card seat: a
+ *  `characterId` + `position` + the AI-seat knobs. */
 export const characterMemberSpecSchema = z.object({
   kind: z.literal("character"),
   characterId: typeIdSchema(ID_PREFIX.character),
@@ -90,12 +90,12 @@ export const characterMemberSpecSchema = z.object({
 });
 
 /** A seat the caller WANTS to exist — the ONE template/creation-time member vocabulary (D16/D61/D60). Every
- *  membership-template lifetime (roster presets, founding casts, saved-rosters v2 — none built today; the
- *  rebuild grafts onto this shape) PROJECTS through it; nothing mints a flat characterId array beside it.
- *  Kind-discriminated like {@link SpeakerRef}. `human` is UNREPRESENTABLE by design (invites are the only
- *  human join path — a template cannot carry an invite's runtime preconditions); `observer` and `agent` were
- *  purged 2026-07-25 (the rebuild re-adds their arms here if either domain returns) — `character` is the
- *  only live arm. */
+ *  membership-template lifetime PROJECTS through it; nothing mints a flat characterId array beside it.
+ *  Roster presets are BUILT (#26) and project through the `character` arm; founding casts and
+ *  saved-rosters v2 remain unbuilt (they graft onto this shape). Kind-discriminated like
+ *  {@link SpeakerRef}. `human` is UNREPRESENTABLE by design (invites are the only human join path — a
+ *  template cannot carry an invite's runtime preconditions); `observer` and `agent` were purged 2026-07-25
+ *  (the rebuild re-adds their arms here if either domain returns) — `character` is the only live arm. */
 export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMemberSpecSchema]);
 
 /** The RESOLVED per-participant content-render policy (D44 §12.0/§12.3). The chat domain resolves each
