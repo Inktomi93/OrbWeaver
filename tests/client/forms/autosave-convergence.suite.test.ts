@@ -63,6 +63,9 @@ describe("convergence: chat-behavior message handling", () => {
     {
       // B1: NON-default, for the same reason the two below it are.
       offerChoices: true,
+      // B7: both NON-default (schema defaults are OFF and ON respectively) — same fixed-point argument.
+      charactersCanReact: true,
+      reactionsEnabled: false,
       enterSends: false,
       continueOnSend: false,
       generateOnEmptySend: false,

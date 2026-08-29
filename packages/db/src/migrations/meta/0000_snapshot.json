@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "78bfedab-1f44-44e7-85fb-cf381302ffcb",
+  "id": "9f9579e5-70c1-4f16-87d8-242751fd0675",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -2203,6 +2203,27 @@
           "notNull": false,
           "autoincrement": false
         },
+        "segment_index": {
+          "name": "segment_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "segment_speaker": {
+          "name": "segment_speaker",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "segment_snippet": {
+          "name": "segment_snippet",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -2213,10 +2234,17 @@
         }
       },
       "indexes": {
-        "message_reactions_variant_reactor_emoji_unique": {
-          "name": "message_reactions_variant_reactor_emoji_unique",
+        "message_reactions_whole_message_unique": {
+          "name": "message_reactions_whole_message_unique",
           "columns": ["variant_id", "reactor_participant_id", "emoji"],
-          "isUnique": true
+          "isUnique": true,
+          "where": "segment_index is null"
+        },
+        "message_reactions_segment_unique": {
+          "name": "message_reactions_segment_unique",
+          "columns": ["variant_id", "reactor_participant_id", "emoji", "segment_index"],
+          "isUnique": true,
+          "where": "segment_index is not null"
         },
         "message_reactions_reactor_idx": {
           "name": "message_reactions_reactor_idx",
@@ -2260,7 +2288,12 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "message_reactions_segment_shape": {
+          "name": "message_reactions_segment_shape",
+          "value": "(segment_index IS NULL AND segment_speaker IS NULL AND segment_snippet IS NULL) OR (segment_index IS NOT NULL AND segment_snippet IS NOT NULL)"
+        }
+      }
     },
     "message_variants": {
       "name": "message_variants",

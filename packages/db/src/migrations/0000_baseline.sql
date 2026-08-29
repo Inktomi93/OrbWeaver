@@ -340,13 +340,18 @@ CREATE TABLE `message_reactions` (
 	`reactor_participant_id` text NOT NULL,
 	`emoji` text NOT NULL,
 	`emoji_image_asset_id` text,
+	`segment_index` integer,
+	`segment_speaker` text,
+	`segment_snippet` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`variant_id`) REFERENCES `message_variants`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`reactor_participant_id`) REFERENCES `chat_participants`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`emoji_image_asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE set null
+	FOREIGN KEY (`emoji_image_asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "message_reactions_segment_shape" CHECK((segment_index IS NULL AND segment_speaker IS NULL AND segment_snippet IS NULL) OR (segment_index IS NOT NULL AND segment_snippet IS NOT NULL))
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `message_reactions_variant_reactor_emoji_unique` ON `message_reactions` (`variant_id`,`reactor_participant_id`,`emoji`);--> statement-breakpoint
+CREATE UNIQUE INDEX `message_reactions_whole_message_unique` ON `message_reactions` (`variant_id`,`reactor_participant_id`,`emoji`) WHERE segment_index is null;--> statement-breakpoint
+CREATE UNIQUE INDEX `message_reactions_segment_unique` ON `message_reactions` (`variant_id`,`reactor_participant_id`,`emoji`,`segment_index`) WHERE segment_index is not null;--> statement-breakpoint
 CREATE INDEX `message_reactions_reactor_idx` ON `message_reactions` (`reactor_participant_id`);--> statement-breakpoint
 CREATE INDEX `message_reactions_emoji_asset_idx` ON `message_reactions` (`emoji_image_asset_id`);--> statement-breakpoint
 CREATE TABLE `message_variants` (

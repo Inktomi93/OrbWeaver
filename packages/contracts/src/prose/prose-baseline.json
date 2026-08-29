@@ -232,6 +232,10 @@
       "version": 1,
       "sha256": "2f50d1b107f24221389ce4920ed783cf7c0238abf63188cf00495d2d2b08ef3d"
     },
+    "chat.tool.reactDescription": {
+      "version": 1,
+      "sha256": "ba63a44fbc39d4474d733c77e9f347f99fd5982ddb683e4b7059059a64548369"
+    },
     "automation.autobg.task": {
       "version": 1,
       "sha256": "81ef44c82af57107b320e37c8ff9183c10e1195b7a0b353f3fd22c1877f3be4a"

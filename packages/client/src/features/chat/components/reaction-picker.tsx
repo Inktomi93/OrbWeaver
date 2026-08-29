@@ -42,7 +42,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 
 /** The picked segment target: a span index + that span's speaker (the CLAIM the server re-validates). */
-export interface ReactionSegmentTarget {
+interface ReactionSegmentTarget {
   readonly index: number;
   readonly speaker: string | null;
 }

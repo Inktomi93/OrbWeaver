@@ -12,6 +12,7 @@
 // would turn "I switched my plugin off" into a failed turn. The row below proves the union stays resolvable.
 
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
+import type { Db } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -30,6 +31,12 @@ const ALICE = makePrincipal(castId<UserId>("user_alice"), { handle: castId("alic
 const BOB = makePrincipal(castId<UserId>("user_bob"), { handle: castId("bob") });
 
 const allowAll: Can = (() => undefined) as Can;
+
+/** This suite drives ONLY the tool-attach axis; chat's attribution contributor (the one db reader) stays
+ *  off the db via the tctx's plane-off knob, so the registry takes an inert handle (the chat unit suite's
+ *  own `UNIT_DB` spelling). */
+// FABRICATION-OK: a deliberately INERT Db stand-in — nothing here may touch a database, and any collect that did would throw loudly on it.
+const UNIT_DB = {} as Db;
 
 function serviceOf(): Service {
   return createToolUseService({ can: allowAll, clock: (): number => FROZEN_AT_MS });
@@ -52,10 +59,14 @@ function tctxFor(runAsUserId: UserId): TeachingContext {
   // knobs/prose/identity are inert for this suite — it drives ONLY the tool-attach axis (toolNames),
   // never the offer-choices teach — so the empty/off shape B1's contribution test uses is the minimal
   // valid TeachingContext here. `prose` + `identity` became REQUIRED at B1 (byte-identity of the teach text).
+  // `reactionsEnabled` is OFF here BY NECESSITY, not preference (B7): this unit tier's registry closes over
+  // the inert {@link UNIT_DB}, and chat's attribution contributor is the one collector that would READ it —
+  // the plane knob off is what keeps every collect below db-free while the union still folds the real
+  // registry. The knob steers nothing this suite asserts (the plugin attach axis is tool-use's own).
   return {
     chatId: castId<ChatId>("chat_x"),
     runAsUserId,
-    knobs: { offerChoices: false, charactersCanReact: false, reactionsEnabled: true },
+    knobs: { offerChoices: false, charactersCanReact: false, reactionsEnabled: false },
     prose: {},
     identity: { user: "User", char: "Aria" },
     rpgGather: null,
