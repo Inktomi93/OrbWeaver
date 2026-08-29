@@ -16,7 +16,6 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcResponder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { setNumber } from "../../../../support/ct/set-number.ts";
 import { OwnerAutomationSurfaceStory } from "../_ct-stories.tsx";
 
 /** A FIXED epoch, never `Date.now()` (test-determinism): the row renders relative time. */
@@ -153,7 +152,7 @@ test("a row's lifecycle actions address the OWNER list, not a chat's", async ({ 
   expect(trpc.lastInput("automation.setRuleEnabled")).toMatchObject({ ruleId: GLOBAL_RULE.id, enabled: true });
 });
 
-test("the OWNER rate ceiling renders its current value and saves only a real change", async ({ mount, page }) => {
+test("the OWNER rate ceiling autosaves the FINAL value on blur, never a mid-type partial", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, ownerRoutes({ "automation.getOwnerBudgets": { maxFiresPerHour: 42 }, "automation.setOwnerBudgets": null }));
   const surface = await mount(<OwnerAutomationSurfaceStory />);
 
@@ -162,18 +161,61 @@ test("the OWNER rate ceiling renders its current value and saves only a real cha
   // nothing). The same locator convention every other numeric settings knob's CT uses.
   const field = surface.getByRole("textbox", { name: "Runs per hour" });
   await expect(field).toHaveValue("42");
-  // A BELT is saved deliberately, never on every keystroke: an unchanged value has nothing to save, so the
-  // action is disabled until the host actually moves it (a half-typed number briefly meaning "3" instead of
-  // "30" would be a belt that silently tightened mid-edit).
-  await expect(surface.getByRole("button", { name: "Save limit" })).toBeDisabled();
-  // `setNumber`, never `fill`: a Base UI NumberField COMMITS on blur, and a bare `fill` leaves the prior
-  // digits in place (typing "7" over "42" produced 427 → clamped to the 240 ceiling — a green-looking write
-  // of a value nobody asked for). Select-all → type → blur is the house idiom for exactly this.
-  await setNumber(field, "7");
-  await surface.getByRole("button", { name: "Save limit" }).click();
+  // The explicit "Save limit" button is GONE — the belt autosaves now (the ruling survives, its mechanism
+  // changed: on-blur commit instead of a discrete button). Its removal is the point of this change.
+  await expect(surface.getByRole("button", { name: "Save limit" })).toHaveCount(0);
+
+  // THE MID-TYPE GUARANTEE. Focus and type a partial digit toward a larger number WITHOUT leaving the
+  // field: typing `5` en route to `50` must never persist a clamp to 5. The keystrokes fire `onValueChange`
+  // (draft only) — no `setOwnerBudgets` may have been recorded while the field still has focus.
+  await field.focus();
+  await field.press("ControlOrMeta+a");
+  await field.pressSequentially("5");
+  await expect(field).toHaveValue("5");
+  await field.pressSequentially("0");
+  await expect(field).toHaveValue("50");
+  // Still mid-edit — the belt has not tightened. A count of ZERO is the assertion and it can only be
+  // falsified by a call that ALREADY happened, so there is nothing to poll-wait for.
+  expect(trpc.count("automation.setOwnerBudgets")).toBe(0);
+
+  // Blur commits the FINAL value — 50, never the transient 5.
+  await field.blur();
+  await expect.poll(() => trpc.count("automation.setOwnerBudgets")).toBe(1);
+  // ONESHOT-OK: the poll above already barriered on the call having been recorded; its input cannot change.
+  expect(trpc.lastInput("automation.setOwnerBudgets")).toMatchObject({ maxFiresPerHour: 50 });
+});
+
+test("the OWNER rate ceiling commits on Enter with the final value", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, ownerRoutes({ "automation.getOwnerBudgets": { maxFiresPerHour: 42 }, "automation.setOwnerBudgets": null }));
+  const surface = await mount(<OwnerAutomationSurfaceStory />);
+
+  const field = surface.getByRole("textbox", { name: "Runs per hour" });
+  await expect(field).toHaveValue("42");
+
+  // Enter is a commit, not just blur. Base UI treats Enter as a NAVIGATE key that does not commit on its
+  // own, so the component blurs the input on Enter to route it through the same single commit path.
+  await field.press("ControlOrMeta+a");
+  await field.pressSequentially("7");
+  await field.press("Enter");
   await expect.poll(() => trpc.count("automation.setOwnerBudgets")).toBe(1);
   // ONESHOT-OK: the poll above already barriered on the call having been recorded; its input cannot change.
   expect(trpc.lastInput("automation.setOwnerBudgets")).toMatchObject({ maxFiresPerHour: 7 });
+});
+
+test("committing an UNCHANGED value writes nothing — the belt only saves a real change", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, ownerRoutes({ "automation.getOwnerBudgets": { maxFiresPerHour: 42 }, "automation.setOwnerBudgets": null }));
+  const surface = await mount(<OwnerAutomationSurfaceStory />);
+
+  const field = surface.getByRole("textbox", { name: "Runs per hour" });
+  await expect(field).toHaveValue("42");
+
+  // Focus then blur without editing: the commit fires but the settled value equals the current ceiling, so
+  // the guard writes nothing. No optimistic patch and no phantom save on a bare focus/blur.
+  await field.focus();
+  await field.blur();
+  // Settled: a count of ZERO is the assertion. It can only be falsified by a call that has ALREADY happened
+  // by the time this line runs, so polling a zero would wait for something that must never arrive.
+  expect(trpc.count("automation.setOwnerBudgets")).toBe(0);
 });
 
 test("an empty lane says what to do about it — the empty state is the teaching copy", async ({ mount, page }) => {
