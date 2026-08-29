@@ -48,7 +48,15 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ConfirmDialog } from "#components";
-import { imageNodeAssetId, METER_DEFAULT_MAX, numFromValues, resolveNumber, resolveString } from "../lib/plugin-surface-bindings.ts";
+import {
+  imageNodeAssetId,
+  keyValueRows,
+  METER_DEFAULT_MAX,
+  numFromValues,
+  resolveNumber,
+  resolveString,
+  selectOptions,
+} from "../lib/plugin-surface-bindings.ts";
 import { SurfaceGrid } from "./plugin-browse-nodes.tsx";
 
 /** The display leaves (no form state) and the form/action leaves — partition the non-container node union so
@@ -110,7 +118,9 @@ export function SurfaceLeaf({
   readonly imageUrls: ReadonlyMap<string, string>;
 }): ReactElement {
   return isFormNode(node) ? (
-    <FormLeaf node={node} setValue={setValue} submit={submit} submitting={submitting} values={values} />
+    // `state` reaches the form family too (hub v1.3): a bound select's OPTION LIST lives in published
+    // state even though its picked value stays in the client draft.
+    <FormLeaf node={node} setValue={setValue} state={state} submit={submit} submitting={submitting} values={values} />
   ) : (
     <DisplayLeaf imageUrls={imageUrls} node={node} state={state} submit={submit} />
   );
@@ -172,9 +182,11 @@ function DisplayLeaf({
     );
   }
   if (node.kind === "keyValue") {
+    // BOTH ARMS collapse through `keyValueRows` (hub v1.3): declared rows verbatim, or the `rowsFrom`
+    // binding resolved (validated + clamped) against published state. Arm-blind below.
     return (
       <Stack gap="tight">
-        {node.rows.map((kv) => (
+        {keyValueRows(node, state).map((kv) => (
           <Row align="baseline" gap="field" justify="between" key={kv.key}>
             <Text voice="label">{kv.key}</Text>
             <Text prose={true} voice="gloss">
@@ -243,12 +255,14 @@ function FormLeaf({
   setValue,
   submit,
   submitting,
+  state,
 }: {
   readonly node: FormNode;
   readonly values: Record<string, string>;
   readonly setValue: (name: string, value: string) => void;
   readonly submit: SubmitAction;
   readonly submitting: boolean;
+  readonly state: Record<string, unknown>;
 }): ReactElement {
   if (node.kind === "textField") {
     return (
@@ -275,7 +289,18 @@ function FormLeaf({
       <Field label={node.label} orientation="horizontal">
         {/* aria-label carries the field label onto the control itself — Field renders the visible label, but
             the a11y rule wants the Switch to carry its OWN accessible name (same string, no double-voicing). */}
-        <Switch aria-label={node.label} checked={values[node.name] === "true"} onCheckedChange={(next): void => setValue(node.name, String(next))} />
+        <Switch
+          aria-label={node.label}
+          checked={values[node.name] === "true"}
+          onCheckedChange={(next): void => {
+            setValue(node.name, String(next));
+            // A LIVE toggle (hub v1.3): the flip IS the act — fire its action with the fresh value riding
+            // as `extra` (the select's v1.2 mechanism; the async React state write cannot race it).
+            if (node.actionId !== undefined) {
+              submit(node.actionId, { [node.name]: String(next) });
+            }
+          }}
+        />
       </Field>
     );
   }
@@ -286,7 +311,7 @@ function FormLeaf({
             trigger's aria-labelledby standalone, and the static a11y rule wants the control's own name. */}
         <Select
           aria-label={node.label}
-          items={node.options.map((o) => ({ label: o.label, value: o.value }))}
+          items={selectOptions(node, state).map((o) => ({ label: o.label, value: o.value }))}
           onValueChange={(next: string | null): void => {
             setValue(node.name, next ?? "");
             // A LIVE select (hub v1.2): the pick IS the act — fire its action with the fresh value riding

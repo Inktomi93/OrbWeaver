@@ -11,8 +11,22 @@
 // owner-scoped url, a filter field never getting its default. One seam, and the same seam the spec's own DoS
 // caps count through.
 
-import type { PluginBoundNumber, PluginBoundString, PluginGridTile, PluginPageHero, PluginSurfaceNode } from "@orb/contracts/plugin";
-import { pluginChildNodes, resolvePluginBoundAssetId, resolvePluginBoundTiles } from "@orb/contracts/plugin";
+import type {
+  PluginBoundNumber,
+  PluginBoundString,
+  PluginGridTile,
+  PluginKeyValueRow,
+  PluginPageHero,
+  PluginSelectOption,
+  PluginSurfaceNode,
+} from "@orb/contracts/plugin";
+import {
+  pluginChildNodes,
+  resolvePluginBoundAssetId,
+  resolvePluginBoundKeyValueRows,
+  resolvePluginBoundSelectOptions,
+  resolvePluginBoundTiles,
+} from "@orb/contracts/plugin";
 import type { AssetId } from "@orb/kit/ids";
 
 /** A `meter` with no explicit `max` scales to 100 (the house percentage default). */
@@ -79,7 +93,9 @@ function ownBinding(node: PluginSurfaceNode): boolean {
     return isBinding(node.text);
   }
   if (node.kind === "keyValue") {
-    return node.rows.some((row) => isBinding(row.value));
+    // The bound arm (`rowsFrom`, hub v1.3) is a binding by construction — a detail page whose only
+    // binding is a state-driven stat sheet must not read as "purely static" (the §4.9 silence rule).
+    return node.rowsFrom !== undefined || (node.rows ?? []).some((row) => isBinding(row.value));
   }
   if (node.kind === "list") {
     return node.items.some((item) => isBinding(item));
@@ -107,8 +123,14 @@ function ownBinding(node: PluginSurfaceNode): boolean {
       node.stages.some((stage) => (stage.title !== undefined && isBinding(stage.title)) || stage.hero?.assetFrom !== undefined)
     );
   }
-  // The form/action kinds carry no bindable value (their values are client-transient until an action submits
-  // them), so a form-only surface is static by construction.
+  // A bound select (`optionsFrom`, hub v1.3) binds its VOCABULARY to state even though its picked value
+  // stays client-transient — without this arm a page whose only binding is a per-hub sort menu would
+  // read as "purely static" and render an empty select as room chrome (the §4.9 silence rule).
+  if (node.kind === "select") {
+    return node.optionsFrom !== undefined;
+  }
+  // The remaining form/action kinds carry no bindable value (their values are client-transient until an
+  // action submits them), so a form-only surface is static by construction.
   return false;
 }
 
@@ -186,6 +208,26 @@ export function gridTiles(node: Extract<PluginSurfaceNode, { kind: "grid" }>, st
     return node.tiles;
   }
   return node.tilesFrom === undefined ? [] : resolvePluginBoundTiles(state, node.tilesFrom);
+}
+
+/** A select's effective option list (hub v1.3) — declared options verbatim, or the bound arm resolved
+ *  (validated + clamped) against state. The `gridTiles` collapse one kind over: both arms meet at the
+ *  common shape so the renderer never knows which arm fed it. */
+export function selectOptions(node: Extract<PluginSurfaceNode, { kind: "select" }>, state: Record<string, unknown>): readonly PluginSelectOption[] {
+  if (node.options !== undefined) {
+    return node.options;
+  }
+  return node.optionsFrom === undefined ? [] : resolvePluginBoundSelectOptions(state, node.optionsFrom);
+}
+
+/** A keyValue's effective row list (hub v1.3) — declared rows verbatim (values may still bind), or the
+ *  bound arm resolved (validated + clamped) against state. A bound row's plain-string value IS a
+ *  `PluginBoundString`, so both arms meet at the declared row shape. */
+export function keyValueRows(node: Extract<PluginSurfaceNode, { kind: "keyValue" }>, state: Record<string, unknown>): readonly PluginKeyValueRow[] {
+  if (node.rows !== undefined) {
+    return node.rows;
+  }
+  return node.rowsFrom === undefined ? [] : resolvePluginBoundKeyValueRows(state, node.rowsFrom);
 }
 
 /** Stringify a primitive form default. Concretely typed so the toString is the primitive's own, never a

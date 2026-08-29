@@ -4,10 +4,11 @@
 safely, a multi-stage page, real pagination, honest filtering, canon writes with provenance. Start here
 if your idea is "browse something out there and bring it home".
 
-Search SIX community hubs — Character Tavern, RisuRealm, Chub, Wyvern, AI Character Cards, CharaVault —
-without leaving the app: real cover art in the grid, page through the results, filter by tags, a proper
-detail page with a hero — and ADD a card to your library with its avatar riding along: search → art
-grid → filter → page → preview → import, dedupe-aware and provenance-stamped.
+Search NINE community hubs — Character Tavern, RisuRealm, Chub, Wyvern, AI Character Cards, CharaVault,
+BotBooru, Pygmalion, Datacat — without leaving the app: real cover art in the grid, each hub's OWN sort
+menu, page through the results, filter by tags and content rating, a proper detail page with a hero and
+the card's full stat sheet — and ADD a card to your library with its avatar riding along: search → art
+grid → sort/filter → page → preview → import, dedupe-aware and provenance-stamped.
 
 ## Copy me
 
@@ -23,12 +24,13 @@ pnpm plugin:pack card-atlas ./out
 "capabilities": ["storage.kv", "ui.surface", "net.fetch", "net.fetch_asset", "character.ingest", "character.card_state"],
 "netHosts": ["character-tavern.com", "ct-cards.storage.character-tavern.com", "realm.risuai.net", "sv.risuai.xyz",
              "api.chub.ai", "avatars.charhub.io", "api.wyvern.chat", "imagedelivery.net",
-             "api.aicharactercards.com", "charavault.net"]
+             "api.aicharactercards.com", "charavault.net", "botbooru.com", "server.pygmalion.chat",
+             "assets.pygmalion.chat", "datacat.run", "media.datacat.run", "ella.janitorai.com"]
 ```
 
 `netHosts` is the SSRF allowlist AND the consent artifact — matching is EXACT, so each hub's art CDN is
-its own entry (the grant screen shows all ten, and adding one later is WIDENED REACH: the upgrade lands
-disabled pending re-consent, by design). `net.fetch_asset` is the art door: the host downloads an image
+its own entry (the grant screen shows all sixteen, and adding one later is WIDENED REACH: the upgrade
+lands disabled pending re-consent, by design). `net.fetch_asset` is the art door: the host downloads an image
 from an allowlisted host into YOUR OWN storage and hands back a bare assetId — no URL is ever spellable
 in a rendered node, and no bytes ever enter the plugin. `character.ingest` is a canon write into the
 installer's OWN library; `character.card_state` is the per-card provenance stamp.
@@ -37,21 +39,47 @@ installer's OWN library; `character.card_state` is the per-card provenance stamp
 
 One `ui.page` registration, one `masterDetail`, one action router (`runAtlasAction`) with one small
 function per verb. The BROWSE stage: a `searchBar` whose collapsed disclosure holds the tag filters (the
-long tail belongs in the disclosure; the Hub switcher does NOT — it sits always-visible with Sort right
-below the query, and BOTH are LIVE: a pick re-runs the search via the select's `actionId`, never sits
-inert behind a second click), one status line every failure folds into, a BOUND grid (`tilesFrom` —
-twelve results are twelve tiles, three are three) whose covers are real art and whose tiles wear their
-tag chips, and a pager row. The DETAIL stage is where a person decides, so it gets the design: hero art,
-the provenance rows (tags included), the add-to-library decision above the fold, the description at
-reading width. `active: {$state:"stage"}` makes navigation ordinary published state — leave the
-Extensions section and come back, and you are where you were.
+long tail belongs in the disclosure; the Hub switcher does NOT — it sits always-visible with Sort and
+the SFW toggle right below the query, and ALL THREE are LIVE via `actionId`: a pick or a flip re-runs
+the search, never sits inert behind a second click), one status line every failure folds into, a BOUND
+grid (`tilesFrom` — twelve results are twelve tiles, three are three) whose covers are real art and
+whose tiles wear their tag chips, and a pager row. The Sort select's OPTIONS ARE BOUND (`optionsFrom`):
+each hub publishes exactly the orderings it honors, so the menu is per-hub truth, not a superset wish.
+The DETAIL stage is where a person decides, so it gets the design: hero art, the BOUND stat sheet
+(`rowsFrom` — provenance plus exactly the counters this hub returned), the add-to-library decision above
+the fold, the description at reading width. `active: {$state:"stage"}` makes navigation ordinary
+published state — leave the Extensions section and come back, and you are where you were.
+
+## Sorting — mined menus, one comparator dialect
+
+Every hub's sort menu is exactly what it provably honors (probed live 2026-08-29): Chub's six server
+sorts (which need `asc=false` or they silently no-op — and which chub itself ignores under a text query,
+so the plugin re-sorts the page in hand to keep the display promise), RisuRealm's `trending`/`downloads`
+on its data route, AICC's three `orderBy`s, CharaVault's `newest`/`oldest`, BotBooru's
+`downloads`/`favorites`/`views`, Pygmalion's `downloads`/`stars`/`views`/`created`, Datacat's
+`chat_count`. Where rows carry a counter the hub won't sort by (Character Tavern's downloads and likes),
+the ordering runs page-side — and Name A–Z runs page-side everywhere. One comparator map over the
+normalized stat bag (`n`) serves every arm; rows missing a datum sort last, never as zero.
+
+## The SFW filter — a per-person config, honestly plumbed
+
+Default OFF = show everything (no gate, no blur). ON: the hubs that speak a rating param get it
+server-side (Chub's `nsfw` include-switch, RisuRealm's `nsfw` opt-in, BotBooru's `sfw_only`); the hubs
+that only FLAG rows are filtered row-side (`isNSFW`/`isNsfw`/`nsfw`/Wyvern's rating markers/BotBooru's
+Meta tags — the flag is also a belt on the server-filtered hubs). Pygmalion's public catalog is
+SFW-curated by the hub itself, so the toggle has nothing to do there. Labeling is SEPARATE honesty:
+a flagged row wears an `nsfw` chip and a "Content" stat row whether or not the filter is on. The
+setting persists in `storage.kv` and seeds the toggle's registered value at the next activation —
+the switch shows the truth after a respawn instead of quietly resetting.
 
 ## Paging — normalize the CONTROL, not the provider
 
-The hubs page differently and the person gets ONE Previous/Next control anyway. Five hubs serve real
+The hubs page differently and the person gets ONE Previous/Next control anyway. Eight hubs serve real
 server pages (Character Tavern's fixed 30 + `totalPages`; Chub's `first=`/`page=` + `count`; Wyvern's
 fixed 10 + `totalPages`; AI Character Cards' `limit`/`skip` + `pagination.total`; CharaVault's
-`limit`/`offset` + `total`), so Next is one more fetch with the same query and filters. RisuRealm
+`limit`/`offset` + `total`; BotBooru's `page`/`limit` + `total`; Pygmalion's 0-based `page`/`pageSize` +
+`totalItems`; Datacat's `limit`/`offset` + `totalCount`), so Next is one more fetch with the same query
+and filters. RisuRealm
 serves ONE whole result set (~60 rows; its route 500s on any `page` > 1), so the session holds the set
 — filtered and sorted once — and page flips slice it locally, no wire at all. The session (`session` in
 `main.js`) is where that provider difference lives and dies; the handlers and the pager row never know
@@ -71,9 +99,13 @@ equal by construction. Where each applies is a PROVIDER FACT each source object 
   `tags=a,b` AND-filter → includes apply server-side (whole-corpus, filtered page counts), excludes
   CANNOT apply — and the status line says so instead of silently no-opping. Its tiles carry no chips
   and its detail's Tags row reads "—", because pretending would be worse.
-* **RisuRealm, Wyvern, AI Character Cards, CharaVault** publish per-row tags → include AND exclude
-  apply plugin-side (over the whole held set for RisuRealm; per fetched page for the server-paged
-  three), and chips render on tiles and the detail.
+* **RisuRealm, Wyvern, AI Character Cards, CharaVault, BotBooru** publish per-row tags → include AND
+  exclude apply plugin-side (over the whole held set for RisuRealm; per fetched page for the
+  server-paged four), and chips render on tiles and the detail. (BotBooru's legacy `tags=` param is
+  dead on today's wire — row-side is the honest arm.)
+* **Pygmalion and Datacat** publish NO usable tags (pyg's include param returns empty for common words
+  and its rows carry none; datacat's tags live only on the detail payload) → tag filters cannot judge
+  there, and the status line says so instead of silently no-opping.
 
 ## The art plane — `net.fetchAsset` on its own belt
 
@@ -96,13 +128,14 @@ Every cover is `net.fetchAsset(url)` → an assetId in the installer's CAS → p
 
 ## The sources — one object per hub, ONE normalized row
 
-Each hub is one `SOURCES` entry emitting the same normalized row `{source, ref, name, creator,
-downloadsN, downloadsLabel, tokens, tagline, art, tags}` — which is why all six render
-pixel-identically, sort identically (one plugin-side pass over `downloadsN`, plus a hub's own server
-sort where it has one), and filter through one dialect. Each entry also DECLARES its capability facts
-(`paging`, `rowTags`, `serverInclude`, `serverExclude`, `headers`) so the session and the status line
-adapt without special-casing hub names. **Adding a hub is adding one object here plus its hosts to
-`netHosts`** — nothing else changes; that seam is the design.
+Each hub is one `SOURCES` entry emitting the same normalized row `{source, ref, name, creator, pop, n,
+nsfw, tagline, art, tags}` — `pop` its best live popularity label, `n` the mined stat bag (each hub a
+different honest subset), `nsfw` a tri-state content flag — which is why all nine render
+pixel-identically, sort through one comparator dialect, and filter through one tag dialect. Each entry
+also DECLARES its capability facts (`paging`, `rowTags`, `serverInclude`, `serverExclude`, `headers`,
+`sortOptions`) so the session, the Sort menu and the status line adapt without special-casing hub
+names. **Adding a hub is adding one object here plus its hosts to `netHosts`** — nothing else changes;
+that seam is the design.
 
 * **Character Tavern** — a clean JSON search (`/api/search/cards?query=&tags=&page=` — the `query`
   param spelling matters: the older `q=` silently returns the unfiltered firehose) and a detail
@@ -128,6 +161,24 @@ adapt without special-casing hub names. **Adding a hub is adding one object here
 * **CharaVault** — the 95K-card aggregator (mirrors chub/janitor content — the import-side byte dedupe
   matters most here). Bot-filters a bare UA (same header pair as chub). Its card PNG doubles as its
   cover — heavy but honest; an outsized one folds to the placeholder.
+* **BotBooru** — the booru-model archive: its browse JSON gates on an `X-Requested-With:
+  XMLHttpRequest` header (without it you get the SPA shell), rows carry the widest counter set
+  (downloads/favorites/views/comments/tokens) plus CATEGORIZED tags (the machine-housekeeping "Auto"
+  category stays off the chips), and its rating IS a tag (`sfw`/`nsfw`/`nsfl`). No JSON detail route
+  exists — the detail is the downloaded native-V2 card body itself, which then doubles as the JSON
+  import fold; `/download/png/{id}` is the PNG-first arm and the cover (no thumbnail variant exists).
+* **Pygmalion** — a connect-RPC service (`POST CharacterSearch`/`Character` with a JSON message; page
+  is 0-based). The public catalog is SFW-curated and answers UNAUTHENTICATED with rich counters
+  (downloads/stars/views/chats) — the legacy-era "every path 404s" verdict is dead. The detail's
+  `personality` (persona + greeting) is the JSON import fold; avatars ride `assets.pygmalion.chat`.
+  No card file, no usable tag vocabulary.
+* **Datacat** — the working JanitorAI mirror ("liberator"): mint an anonymous session token once
+  (`POST /api/liberator/identify`, cached in kv, re-minted on a 401), then browse `recent-public` with
+  the token header. Rows carry chat/message/favorite counters and a real `isNsfw` flag; covers ride
+  its variant CDN (`media.datacat.run` — thumb for tiles, card for the hero). The card download route
+  sits behind a Turnstile wall, so the import fold reads the detail's recovered `chara_card_v2_json`
+  (or the recovered fields) — a DEGRADED row (profile recovered, definition not) answers an honest
+  error toast.
 
 Every response is UNTRUSTED DATA: parsed defensively, malformed rows dropped (one bad hit must not blank
 a page), every failure a status-line sentence. The fetches themselves are host-performed — allowlisted,
@@ -141,8 +192,9 @@ hand-uploaded card file takes, so the embedded definition AND avatar land in one
 (byte-identical re-adds dedupe via importHash; `created: false` tells you). Where a hub serves card
 JSON instead, the fold rides `character.ingest`: Character Tavern's `definition_*` reshape (fixed field
 order — deterministic bytes are what make the dedupe hold), RisuRealm's native `json-v3`, Wyvern's
-native-V2 detail payload. A PNG-ONLY hub (Chub, AI Character Cards, CharaVault) whose PNG arm fails
-answers an honest error toast — never a lossy fabricated card.
+native-V2 detail payload, BotBooru's downloaded card body, Pygmalion's `personality` reshape, Datacat's
+recovered `chara_card_v2_json`. A PNG-ONLY hub (Chub, AI Character Cards, CharaVault) whose PNG arm
+fails answers an honest error toast — never a lossy fabricated card.
 
 Then provenance, two planes, two jobs: `setCardData(characterId, {source, ref, importedAtMs})` stamps
 the origin onto the card itself under this plugin's own reserved `data.extensions.plugin_card-atlas` key
@@ -162,22 +214,31 @@ the plane by the data's lifetime.
   its search hits, `tavernRow` + `rowTags: true` is the whole fix.
 * **RisuRealm's deep corpus is unreachable** — one response is the whole set its route will give
   (~60 rows; `page` > 1 500s server-side). Paging slices what exists.
-* **Server-paged hubs sort the page in hand, not the corpus** — except where a server sort exists and
-  is passed through (Chub's `star_count`, AICC's `downloadCount`). RisuRealm sorts its whole held set.
+* **Server-paged hubs sort the page in hand where no server sort exists** (Character Tavern's
+  downloads/likes, Name A–Z everywhere) — and Chub keeps relevance order under a text query no matter
+  what `sort=` says, so its page is re-sorted in hand too. RisuRealm sorts its whole held set. The
+  menu only ever offers what one of those two mechanisms can honestly deliver.
 * **A card added before the art era re-adds as a twin.** The PNG path and the old JSON path produce
   different bytes, so importHash cannot connect them. One-time edge across the upgrade.
 * **PNG downloads are per-card on RisuRealm.** Many realm cards license `json-v3` only (the `png-v3`
   arm 403s); those import art-less via the JSON fold. A PNG bigger than the 5 MiB asset cap folds the
   same way (or, on a PNG-only hub, answers the honest toast).
-* **SFW by default.** Per-row content flags (`isNSFW`/`nsfw_image`/`isNsfw`/`nsfw`, Wyvern's rating
-  markers) are honored in the row mappers; Chub gets `nsfw=false`; the realm search omits its nsfw
-  param. A copy that wants otherwise owns that decision explicitly.
+* **The SFW filter is only as good as the hub's own flags.** Where a hub neither speaks a rating param
+  nor flags rows consistently, an unflagged NSFW card passes the filter — the filter honors what the
+  hub says, it cannot out-know it. Pygmalion needs an account token for its NSFW catalog
+  (`includeSensitive` is auth-gated), which a seeded example does not carry — its rows are the hub's
+  own SFW curation either way.
+* **Datacat is a scrape-mirror.** It surfaces JanitorAI's catalog through its own recovery pipeline —
+  DEGRADED rows recovered a profile but not the definition (those answer an honest toast at
+  add-to-library), its card download route is Turnstile-walled (never used), and its `nsfw=` param is
+  ignored (the row flag is judged instead).
+* **JanitorAI itself is NOT wired.** It has no public API; the jannyai mirror route needs scraped
+  search tokens through a third-party CORS proxy — a pattern this codebase gate-bans. Datacat is the
+  janitor catalog through a real API; that is the honest arm.
 * **Row-tag filters on server-paged hubs filter the fetched page**, so a filtered page can show fewer
   than a full page while Next still advances — the status line's count is the honest one.
-* **Hub APIs drift.** Every wired hub's search shape (and its art host) was probed live on 2026-08-29 —
-  and one had ALREADY drifted since the legacy adapters (`q=` → `query=`, chub's `nDownloads` gone
-  null); every decoder degrades to "no results" + a log line on drift rather than crashing.
-* **The wider roster** (pygmalion, janitorai, datacat…) was never built anywhere — each needs its own
-  probe campaign (endpoints, shapes, art hosts, quirks) before it can be one more `SOURCES` object.
-  BotBooru has a built legacy adapter but its DEFAULT feed includes NSFW (rating derived from tags) —
-  wiring it into a seeded SFW example is a content-posture call this copy does not make.
+* **Hub APIs drift.** Every wired hub's search shape, sort menu, rating plumbing and art host was
+  probed live on 2026-08-29 — and three had ALREADY drifted since the legacy adapters (`q=` →
+  `query=`, chub's `nDownloads` gone null and its sorts needing `asc=false`, botbooru's `tags=` and
+  curated sorts dead) while one had come back from the dead (pygmalion answers today). Every decoder
+  degrades to "no results" + a log line on drift rather than crashing.

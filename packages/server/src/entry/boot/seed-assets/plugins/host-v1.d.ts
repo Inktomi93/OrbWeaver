@@ -306,9 +306,13 @@ interface PluginKeyValueRow {
   readonly key: string;
   readonly value: PluginBoundString;
 }
+/** A fact sheet. Exactly one of `rows` (declared — values may still bind) / `rowsFrom` (bound: the row
+ *  set itself is published state, `[{key, value}]` plain strings — for a sheet whose cardinality is data,
+ *  like a per-provider stat list; validated + clamped at resolve). */
 interface PluginKeyValueNode {
   readonly kind: "keyValue";
-  readonly rows: readonly PluginKeyValueRow[];
+  readonly rows?: readonly PluginKeyValueRow[] | undefined;
+  readonly rowsFrom?: PluginStateBinding | undefined;
 }
 interface PluginListNode {
   readonly kind: "list";
@@ -349,17 +353,24 @@ interface PluginToggleNode {
   readonly name: string;
   readonly label: string;
   readonly value?: boolean | undefined;
+  /** LIVE toggle: the flip fires this action immediately (the fresh value rides the round-trip). */
+  readonly actionId?: string | undefined;
 }
 interface PluginSelectOption {
   readonly value: string;
   readonly label: string;
 }
+/** Exactly one of `options` (declared, registration-fixed) / `optionsFrom` (bound: the option set is
+ *  published state, `[{value, label}]` — for a menu whose vocabulary is data, like a per-hub sort list;
+ *  validated + clamped at resolve). A select naming `actionId` is LIVE: a pick fires it immediately. */
 interface PluginSelectNode {
   readonly kind: "select";
   readonly name: string;
   readonly label: string;
-  readonly options: readonly PluginSelectOption[];
+  readonly options?: readonly PluginSelectOption[] | undefined;
+  readonly optionsFrom?: PluginStateBinding | undefined;
   readonly value?: string | undefined;
+  readonly actionId?: string | undefined;
 }
 interface PluginSliderNode {
   readonly kind: "slider";

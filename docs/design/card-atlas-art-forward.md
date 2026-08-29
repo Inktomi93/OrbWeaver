@@ -344,6 +344,161 @@ degrade (#801, "no budget idgaf"). Base: `ff8ba2f7c` (v1.1.0).
 - **v1.1.0 shipped the dead `q=` param** — every Tavern search was unfiltered. Fixed here; flagged to
   the orchestrator because v1.1.0 sits on a branch awaiting owner render review.
 
+## §8 Hub v1.3 — full sort/stat mining, the SFW config, the nine-hub roster (lane card-atlas-next-level)
+
+Owner ask, verbatim summary: every sort mode + every stat variable each hub exposes, per-hub sort
+vocabulary in the Sort select; a per-user SFW toggle (#800 — default OFF = show all, no gate/blur);
+wire botbooru; attempt pygmalion/janitorai/datacat; richer detail. Base: `1be90fa94` (v1.2).
+
+### 8a Live probes (2026-08-29, three batches, all saved to the lane scratchpad — TWO premise kills)
+
+| Premise | Receipt |
+| - | - |
+| **PREMISE KILL — pygmalion is ALIVE.** The legacy "every server.pygmalion.chat connect-RPC path 404s" verdict (2026-07-18, `legacy-main:packages/contracts/src/hub/index.ts` header) is DEAD: unauthenticated `POST /galatea.v1.PublicCharacterService/CharacterSearch` returns 200 with `{totalItems:"4452", characters:[…]}`. Rows carry stars/views/downloads/chatCount/personalityTokenCount/createdAt/updatedAt/owner. `orderBy` honored for downloads·stars·views (distinct orders); created order is createdAt-monotonic-desc (verified on the data). `tagsNamesInclude:["fantasy"]`→0 hits (opaque taxonomy) and rows carry NO tags → tag filters not wired for pyg. Unauthenticated = SFW-curated only (`includeSensitive` needs a Bearer token — not a seeded plugin's to carry). Detail `POST /Character {characterMetaId}` carries `personality:{name,persona,greeting}` = the JSON import fold. Avatar `assets.pygmalion.chat` bare-GET 200 image/png (fetchAsset-compatible, no headers needed). | probe batch 1-3 |
+| **PREMISE KILL — realm HAS server sort + an nsfw param.** v1.2 wired realm sort plugin-side only; live: `__data.json?search=&sort=downloads` and `sort=trending` return distinct server-sorted sets (30 rows), and `nsfw=true` returns a different (NSFW-inclusive) set. The legacy adapter carried exactly these (`risurealm.ts` SORT_PARAM + `nsfw=true` when not excluding). | batch 1 |
+| Tavern: no server sort — `sort=downloads:desc`/`sortBy=`/`order=` all byte-identical (third era of refutation). Rows also carry `likes`, `messages`, `hasLorebook`, `contentWarnings` beyond v1.2's fields. | batch 1 |
+| Chub: sorts REQUIRE `asc=false` (without it the order is not monotonic — v1.2's `star_count` wiring was silently relevance-ordered); with it: `star_count`·`n_favorites`·`rating`·`created_at`·`last_activity_at`·`trending_downloads` all verified monotonic/plausible on a query-less browse. With a TEXT query chub keeps relevance order regardless of `sort` (probed monotonicity refuted) — the plugin-side page re-sort makes the display promise true anyway. `download_count` returns the star_count order (nDownloads is dead on the wire) — not offered. `nsfw=true` works (5213 vs 559 hits). Rows carry rating/ratingCount/n_favorites/nChats/nMessages/forksCount/createdAt/lastActivityAt + `avatar_url`/`max_res_url`. | batches 1-3 |
+| AICC `orderBy`: downloadCount ✓, ratingAvg ✓, createdAt ✓ (= the default, newest-first). Rows carry ratingAvg/ratingCount/aiScore/isAnimated/createdAt/language. | batch 1 |
+| CharaVault: `sort=newest` ✓ and `sort=oldest` ✓ (distinct orders); `rating`/`tokens` refuted (ignored). Rows carry avg_rating/rating_count/comment_count/file_size/has_lorebook/indexed_at. | batch 2 |
+| Wyvern: sort param ignored (re-confirmed); rows carry token_count/created_at/updated_at/likes + `entity_statistics.total_messages`; the stat rows look freshly minted on read (views=1 on an old card) so only tokens/dates/messages are displayed. | batches 1-2 |
+| BotBooru (`botbooru.com`): browse JSON gates on `X-Requested-With: XMLHttpRequest` (legacy fact holds). `total`+`posts`; posts carry downloads/favorite_count/views/comments_count/token_count/created_at/fork_count/tags-with-categories. Sorts verified: default=latest, `downloads` ✓, `favorites` ✓, `views` ✓; `curated`+`curated_sort` REFUTED (same order — the legacy top_rated/trending arms are dead), `rating`/`top_rated`/`trending` direct spellings refuted too. `sfw_only=true` ✓ (3163 vs 3178). The legacy `tags=` param REFUTED (ignored); `q=` matches tags/text (`q=elf`→38) but `-tag` negation refuted → tag filters run ROW-SIDE (rows carry tags). NO thumbnail variant exists (`images/<filename>` = the full ~1 MB card PNG; `?width` ignored) — the cover IS the card PNG, the CharaVault precedent. Card: `/download/json/<id>` native chara_card_v2 (no XHR header needed); a >1 MiB card body folds to the row-preview detail honestly. | batches 1-3 |
+| Datacat (`datacat.run` — the working JanitorAI mirror): `POST /api/liberator/identify {deviceToken:<uuid-shaped>}` mints an anonymous `sessionToken` (a FIXED uuid string works); browse `GET /api/characters/recent-public?limit=&offset=&summary=1&minTotalTokens=0&search=` with `X-Session-Token` ✓; `sortBy=chat_count` ✓ (distinct order); `nsfw=false` param REFUTED (rows still isNsfw:true) → SFW judges row-side via `isNsfw`. Rows carry stats.chat/stats.message/favoritesCount/totalTokens/isNsfw/creatorName/firstPublishedAt + `avatarVariantUrls` (thumb/card/original on `media.datacat.run`, bare-GET 200 webp 44 KB — fetchAsset-perfect) with `avatar` (an `ella.janitorai.com/bot-avatars/` path) as the legacy fallback. Detail `/api/characters/{id}` carries the definition fields (`chara_card_v2_json`, personality/scenario/first_message) — EMPTY on "DEGRADED"-recovery rows → the import fold answers an honest error there. **The `/download` route is Turnstile-walled** (`{turnstile, characterDownloadVerification}`) — not used. | batch 2-3 + marinara `bot-browser-datacat.routes.ts` |
+| JanitorAI proper: no public API; the jannyai mirror is the scrape-token + corsproxy pattern legacy REJECTED and the `no-raw-egress` gate bans. Datacat IS the janitor mirror that works. NOT WIRED — recorded here + README. | legacy `02-domain-and-adapters.md` §4 |
+| `net.fetch` honors POST + a string→string header map (Origin/Referer/X-Session-Token all pass); `fetchAsset` is HEADER-LESS by design — every wired art host was probed bare-GET. | `membrane.ts:1612-1630,1637` + probes |
+| `ui.register` collects into LIVE sandbox state (`state.surfaces.push`; `listSurfaces` reads `resident.instance.surfaces` per call) — a registration from a floated continuation lands; the seed-int test's listSurfaces/getSurfaceState-right-after-enable pins prove the pump drains it in CI. | `sandbox.ts:267-279,341` · `verbs/list-surfaces.ts:52` · int test :786-815 |
+| netHosts arithmetic: 10 + botbooru.com + server.pygmalion.chat + assets.pygmalion.chat + datacat.run + media.datacat.run + ella.janitorai.com = **16 = NET_HOSTS_MAX exactly** — no cap bump needed. | `manifest.ts:164` |
+
+Memory lessons consulted: `guest-job-pump-outside-the-interrupt-handler`, `check-main-for-the-original-consumer`
+(the marinara + legacy-adapter reads), `empty-states-are-load-bearing`, `isolated-snap-stage-boots-empty-db`,
+`ct-test-gotchas-hub` posture via `.claude/rules/browser-and-instruments.md`.
+
+### 8b The architecture
+
+**Three vocabulary extensions, all the established ARM-C shape (declared XOR bound), each landing with
+its first consumer (the atlas):**
+
+1. **`select.optionsFrom`** — the bound options arm. Why: the owner asked for each hub's REAL sort
+   vocabulary in the Sort select; select options are registration-static, and per-hub sort menus are
+   data (cardinality + labels vary by hub) — the exact argument that ratified `tilesFrom`. `options`
+   becomes optional; exactly-one-of belt at the spec root; `resolvePluginBoundSelectOptions` validates
+   entries (`{value,label}` strings, malformed dropped, clamped to `PLUGIN_ROWS_MAX`) at resolve.
+2. **`keyValue.rowsFrom`** — the bound rows arm. Why: the mined stats are per-hub sparse (wyvern has
+   3, botbooru 7); a fixed superset of rows showing "—" for half is the info-in-the-wrong-places noise
+   the owner named — bound rows show exactly what the hub answers. Same belt + `resolvePluginBoundKeyValueRows`.
+3. **`toggle.actionId`** — the live-toggle arm (the select's v1.2 `actionId` shape, one control over):
+   the SFW flip re-runs the search immediately, fresh value riding `extra`.
+
+**The normalized row v3**: `{source, ref, name, creator, tagline, art, tags, nsfw, pop, n}` — `nsfw` a
+tri-state (true/false/undefined = hub doesn't say), `pop` the tile's one popularity label (per-hub best
+signal: ↓ downloads, ★ stars, 💬-free "chats" label for datacat), `n` a numeric stat bag
+(`downloads/stars/likes/favorites/views/chats/messages/rating/tokens/created/updated`, absent =
+unknowable) feeding BOTH the sort comparators and the detail's stat rows. `statRows(row)` is the ONE
+formatter from `n` → ordered `[{key,value}]` display rows (dates YYYY-MM-DD, counts compact, rating
+"4.2 / 5"), published as `detail.stats` and bound via `rowsFrom` — Creator/From/Content/Tags rows
+folded in, so every hub's detail is uniform-by-construction and shows only real data.
+
+**Per-hub sort vocabulary** (each hub's `sortOptions` published as state; the select binds
+`optionsFrom: {$state:"sortOptions"}`; every list opens with `relevance` labeled per-hub — botbooru's
+and datacat's say "Newest (default)" since that IS their default order): tavern
+relevance·downloads·likes·name (page-side over row stats — the v1.2 posture); realm
+relevance·trending·downloads (server)+name; chub relevance·trending·stars·favorites·rating·newest·
+updated (server, always `asc=false`)+name; wyvern relevance·name; aicc relevance·downloads·rating·
+newest (server)+name; charavault relevance·newest·oldest (server)+name; botbooru
+newest(default)·downloads·favorites·views (server)+name; pygmalion relevance·downloads·stars·views·
+newest (server)+name; datacat newest(default)·chats (server)+name. `sortRows` generalizes to one
+comparator map over `n` (unknown-datum rows sort last; held-set sorts the whole set, server-paged the
+page in hand — so the page's display order is always the promised one even where a hub ignores its
+sort under a text query, the chub finding). An unknown/unsupported sortKey folds to relevance at
+search time; the status line names the active sort.
+
+**The SFW config (#800)**: a `toggle` (name `sfw`, label "SFW only", `actionId:"search"`) joins the
+Hub/Sort row. Default OFF = show all (the owner-ruled posture inversion: every v1.2 row mapper that
+DROPPED flagged rows now keeps + flags them). ON: chub `nsfw=false` · realm omits `nsfw=true` ·
+botbooru `sfw_only=true` (server params); tavern/wyvern/aicc/charavault/datacat drop `nsfw===true`
+rows row-side. OFF: chub `nsfw=true` · realm `nsfw=true` · botbooru default feed. Pygmalion is
+SFW-curated regardless (honest no-op). Flagged rows get an `nsfw` chip prepended to their tag row and
+a "Content: NSFW" stat row (explicit-SFW hubs get "Content: SFW"; silent hubs no row). The value
+persists per-install in kv (`sfw_mode`) and seeds the NEXT registration.
+**BUILD-TIME PREMISE REFUTATION (the pin worked):** the floated-only registration
+(`load kv → register → publish` as one boot continuation) RACED the very next `listSurfaces` — the int
+test's read right after enable returned `[]` (the pump does not reliably drain the boot chain before the
+verb returns, even though the v1.2 activation PUBLISH always landed before the later `getSurfaceState`
+read). Shipped mechanism instead: activation registers the DEFAULT posture synchronously (the page
+exists the moment activation returns), and the floated boot continuation RE-registers only when the kv
+value differs — carried by a small host change, **`ui.register` now UPSERTS by surface id**
+(`sandbox.ts` `upsertSurface`: a re-registration REPLACES the row; previously it appended, so a
+duplicate id would project twice through `listSurfaces` and the stale first row won every `find`). The
+upsert is pinned in `tests/server/infra/plugin-host/port.test.ts` over the real Sandbox collect path
+(replace + distinct-id append both asserted); rejected-alternative 5's "lying switch" is avoided because
+the revision lands one pump beat after activation, orders of magnitude before a human opens the page.
+
+**The three new sources** ride the existing seam untouched: botbooru (XHR header, row-side tag
+filters, PNG-first import via `/download/png`, cover = the card PNG); pygmalion (POST search via
+`net.fetch`'s POST arm, JSON fold from `personality`, no tag filters, no PNG); datacat (module-held +
+kv-cached session token, one re-mint on 401/403, `search`+`sortBy=chat_count`, cover =
+`avatarVariantUrls.thumb`, hero = `.card`, JSON fold from detail `chara_card_v2_json` →
+personality/scenario/first_message → honest "this mirror only recovered the profile" error on
+DEGRADED rows; the Turnstile-walled download route is not touched). JanitorAI proper: refused with
+the receipt above. Manifest: 1.3.0, +6 hosts (= 16, at cap), capabilities unchanged — widened reach ⇒
+re-consent, by design.
+
+### 8c Rejected alternatives
+
+1. **A static superset Sort select** (all ~10 keys, unsupported ones folding) — shows modes a hub
+   cannot answer; the owner asked for per-hub real vocabulary. Rejected for `optionsFrom`.
+2. **A fixed detail keyValue with "—" padding** — half-empty rows on sparse hubs is the exact
+   "info in the right places" failure. Rejected for `rowsFrom`.
+3. **SFW as a plugin `settings`-anchor surface** — a second surface + the same registration-seeding
+   problem, and the control leaves the page it affects. Rejected for the in-row live toggle.
+4. **SFW session-only (reset on respawn)** — a "per-user setting" that silently forgets is a soft
+   lie. Rejected for kv-seeded registration (the floated-boot mechanism is already the publish path).
+5. **Registering synchronously with a default-OFF toggle + kv authority at search time** — the UI
+   would show OFF while filtering ON after a respawn (a lying control). Rejected.
+6. **Wiring pygmalion/datacat tag filters** — pyg: include with a common word returns 0 (opaque
+   taxonomy) and rows carry no tags; datacat: tags exist only on detail. A filter that mostly returns
+   empty teaches distrust. Not wired; the status line says so where a person tries.
+7. **Chub `download_count` sort** — returns the star order (the counter is dead on the wire); offering
+   it would label stars as downloads. Rejected.
+8. **BotBooru topRated/trending** (the legacy curated arms) — refuted live in five spellings. Not wired.
+9. **JanitorAI via jannyai scrape-mirror** — the corsproxy/scraped-token pattern is gate-banned
+   (`no-raw-egress`); datacat delivers the same catalog through a real API. Refused.
+10. **A NET_HOSTS_MAX bump** — the roster lands at exactly 16; a speculative widening buys nothing.
+
+### 8d Coupled sites (v1.3 fan-out)
+
+1. `packages/contracts/src/plugin/ui.ts` — the three arms + schemas + XOR belts + the two resolvers + `ownBinding`-relevant docs.
+2. `packages/client/src/features/plugin/lib/plugin-surface-bindings.ts` — `selectOptions`/`keyValueRows` collapse helpers + `ownBinding` counts the new bound arms.
+3. `packages/client/src/features/plugin/components/plugin-leaf-nodes.tsx` — select uses resolved options; keyValue uses resolved rows; toggle fires its `actionId`.
+4. `packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts` — the guest-facing vocabulary mirror.
+5. `packages/contracts/src/plugin/host-v1.ts` — doc-comment truth where it names the select/toggle arms.
+6. `…/card-atlas/main.js` — row v3, stat mining, per-hub sortOptions, SFW, three new sources, sync-register + upsert-revision boot, header truth.
+7. `…/card-atlas/manifest.json` — 1.3.0, +6 hosts, description.
+8. `…/card-atlas/README.md` — roster/sort/stat/SFW teaching + honest gaps (janitor, pyg NSFW, datacat degraded rows, botbooru heavy covers).
+9. `packages/server/src/infra/plugin-host/sandbox.ts` — the `upsertSurface` collect change (the SFW revision's carrier — see 8b's refutation record).
+10. `tests/server/infra/plugin-host/port.test.ts` — the upsert pin over the real Sandbox collect path.
+11. `tests/contracts/plugin/ui.contract.test.ts` — XOR belts both directions + resolver clamps/drops for both new arms + toggle actionId ident grammar.
+12. `tests/client/features/plugin/components/plugin-surface-renderer.ct.tsx` — red-first: bound select options render; bound keyValue rows render; toggle actionId round-trips with the fresh value.
+13. `tests/server/entry/boot/seed-example-plugins.int.test.ts` — atlas slice: 16-host mirror, SFW-toggle + optionsFrom + rowsFrom spec pins, sortOptions in the activation publish, roster pins.
+14. This file + its catalog receipt (re-attest).
+
+Checked NOT coupled: `plugin-browse-nodes.tsx` (no browse-genre node changes), `media-tile-grid`
+(tags slot unchanged), `pluginChildNodes` (no new child-bearing kind), the ui-guest realm (renders
+through the same schema + leaves), `ui.test-d.ts` (no new kind), footer-allowed record (no new kind).
+
+### 8e Test plan + verification
+
+- **Red-first CT** (against the unmodified renderer): the bound-select and bound-keyValue pins fail
+  today by construction — the registration schema refuses `optionsFrom`/`rowsFrom` (unknown key +
+  missing required arm) so the story renders the safe fallback; that IS the planted control.
+- **Floors**: `pnpm ct:scoped tests/client/features/plugin/components/plugin-surface-renderer.ct.tsx --workers=2` ·
+  `pnpm test:scoped tests/server/entry/boot/seed-example-plugins.int.test.ts tests/contracts/plugin/ui.contract.test.ts --maxWorkers=4` ·
+  per-package `pnpm typecheck` (owns the .ct.tsx) · `node scripts/ts7.cjs --noEmit -p tsconfig.json` ·
+  scoped biome · scoped `pnpm check:docs`.
+- **Live drive** (the wire arms are live-only): pack 1.3.0 → `snap --isolated --ref <sha>` → the real
+  upgrade verb → re-consent naming the six new hosts → enable → per hub: grid + a NON-DEFAULT sort
+  receipt (top tile's stat ≥ the next) + the SFW toggle both states (a flagged hub's set shrinking) +
+  a detail with the full stat rows → renders desktop + ~390px for the owner.
+
 ### 7g Mid-lane scope adds (owner + side-eye, relayed 2026-08-29 — all folded in)
 
 - **LIVE Hub/Sort selects** (side-eye P2): the `select` vocabulary gains an optional `actionId`

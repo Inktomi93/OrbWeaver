@@ -1,10 +1,10 @@
 {
   "id": "card-atlas",
   "name": "Card Atlas",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "hostVersion": 1,
   "entry": "main.js",
-  "description": "Browse the community's character cards without leaving the app: search six hubs — Character Tavern, RisuRealm, Chub, Wyvern, AI Character Cards, CharaVault — with real cover art, page through the results, filter by tags, read a card properly, and add it straight to your library — art and all, provenance-stamped, dedupe-aware.",
+  "description": "Browse the community's character cards without leaving the app: search nine hubs — Character Tavern, RisuRealm, Chub, Wyvern, AI Character Cards, CharaVault, BotBooru, Pygmalion, Datacat — with real cover art, each hub's own sort menu, tag and content-rating filters, a full per-card stat sheet, and add any card straight to your library — art and all, provenance-stamped, dedupe-aware.",
   "author": "Orbweaver",
   "capabilities": ["storage.kv", "ui.surface", "net.fetch", "net.fetch_asset", "character.ingest", "character.card_state"],
   "netHosts": [
@@ -17,6 +17,12 @@
     "api.wyvern.chat",
     "imagedelivery.net",
     "api.aicharactercards.com",
-    "charavault.net"
+    "charavault.net",
+    "botbooru.com",
+    "server.pygmalion.chat",
+    "assets.pygmalion.chat",
+    "datacat.run",
+    "media.datacat.run",
+    "ella.janitorai.com"
   ]
 }

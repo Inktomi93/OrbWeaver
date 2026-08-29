@@ -353,7 +353,16 @@ export interface PluginKeyValueRow {
 }
 export interface PluginKeyValueNode {
   readonly kind: "keyValue";
-  readonly rows: readonly PluginKeyValueRow[];
+  /** Declared rows — spec structure, fixed at registration (values may still bind). Exactly ONE of
+   *  `rows`/`rowsFrom` (the spec-level belt enforces it — the grid's declared-vs-bound discipline). */
+  readonly rows?: readonly PluginKeyValueRow[] | undefined;
+  /** THE BOUND ARM (hub v1.3): the row set itself is PUBLISHED STATE (`{ $state: "path" }` naming an
+   *  array of `{key, value}` strings) — for a fact sheet whose CARDINALITY is data (a hub detail's
+   *  per-provider stat rows: one hub answers three, another seven, and a fixed row set would show
+   *  half a page of "—"). Resolved by {@link resolvePluginBoundKeyValueRows}: entries are UNTRUSTED
+   *  STATE, so each is schema-validated (malformed ⇒ dropped) and the count clamps to
+   *  {@link PLUGIN_ROWS_MAX} — state is never a loophole past the declared arm's bound. */
+  readonly rowsFrom?: PluginStateBinding | undefined;
 }
 export interface PluginListNode {
   readonly kind: "list";
@@ -402,6 +411,10 @@ export interface PluginToggleNode {
   readonly name: string;
   readonly label: string;
   readonly value?: boolean | undefined;
+  /** Fired when the person FLIPS the switch (hub v1.3) — the select's `actionId` arm one control over,
+   *  for a toggle that drives the page (a content filter) rather than riding a later submit. The
+   *  round-trip carries the whole collected `values` bag with the fresh value riding as an extra. */
+  readonly actionId?: string | undefined;
 }
 export interface PluginSelectOption {
   readonly value: string;
@@ -411,7 +424,15 @@ export interface PluginSelectNode {
   readonly kind: "select";
   readonly name: string;
   readonly label: string;
-  readonly options: readonly PluginSelectOption[];
+  /** Declared options — spec structure, fixed at registration. Exactly ONE of `options`/`optionsFrom`
+   *  (the spec-level belt enforces it). */
+  readonly options?: readonly PluginSelectOption[] | undefined;
+  /** THE BOUND ARM (hub v1.3): the option set is PUBLISHED STATE (`{ $state: "path" }` naming an array
+   *  of `{value, label}` strings) — for a select whose vocabulary is DATA (a per-hub sort menu: the
+   *  members and their labels differ by which hub is picked, which a registration-fixed list
+   *  structurally cannot express). Resolved by {@link resolvePluginBoundSelectOptions}: entries are
+   *  UNTRUSTED STATE (validated, malformed dropped, clamped to {@link PLUGIN_ROWS_MAX}). */
+  readonly optionsFrom?: PluginStateBinding | undefined;
   readonly value?: string | undefined;
   /** Fired when the person PICKS a value (hub v1.2) — the `searchBar.actionId` shape one control over, so a
    *  select that drives the page (a source switcher, a sort order) applies on change instead of sitting inert
@@ -626,7 +647,14 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
     z.object({ kind: z.literal("text"), value: boundString(PLUGIN_TEXT_MAX_BYTES), voice: z.enum(PLUGIN_TEXT_VOICES).optional() }),
     z.object({ kind: z.literal("badge"), text: boundString(LABEL_MAX), intent: z.enum(PLUGIN_BADGE_INTENTS).optional() }),
     z.object({ kind: z.literal("meter"), value: boundNumber, max: finiteNumber.optional(), label: labelSchema.optional() }),
-    z.object({ kind: z.literal("keyValue"), rows: z.array(z.object({ key: labelSchema, value: boundString(LABEL_MAX) })).max(PLUGIN_ROWS_MAX) }),
+    z.object({
+      kind: z.literal("keyValue"),
+      rows: z
+        .array(z.object({ key: labelSchema, value: boundString(LABEL_MAX) }))
+        .max(PLUGIN_ROWS_MAX)
+        .optional(),
+      rowsFrom: stateBindingSchema.optional(),
+    }),
     z.object({ kind: z.literal("list"), items: z.array(boundString(LABEL_MAX)).max(PLUGIN_ROWS_MAX) }),
     z.object({
       kind: z.literal("image"),
@@ -652,12 +680,16 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
       max: finiteNumber.optional(),
       step: finiteNumber.optional(),
     }),
-    z.object({ kind: z.literal("toggle"), name: identSchema, label: labelSchema, value: z.boolean().optional() }),
+    z.object({ kind: z.literal("toggle"), name: identSchema, label: labelSchema, value: z.boolean().optional(), actionId: identSchema.optional() }),
     z.object({
       kind: z.literal("select"),
       name: identSchema,
       label: labelSchema,
-      options: z.array(z.object({ value: z.string().max(LABEL_MAX), label: labelSchema })).max(PLUGIN_ROWS_MAX),
+      options: z
+        .array(z.object({ value: z.string().max(LABEL_MAX), label: labelSchema }))
+        .max(PLUGIN_ROWS_MAX)
+        .optional(),
+      optionsFrom: stateBindingSchema.optional(),
       value: z.string().max(LABEL_MAX).optional(),
       actionId: identSchema.optional(),
     }),
@@ -814,6 +846,14 @@ function collectArmViolations(node: PluginSurfaceNode, out: string[]): void {
   if (node.kind === "image" && (node.assetId === undefined) === (node.assetFrom === undefined)) {
     out.push("an image names exactly one of `assetId` (declared) or `assetFrom` (bound)");
   }
+  // The hub-v1.3 bound arms carry the identical exactly-one-of discipline: a node naming both is two
+  // descriptions of one control, and a node naming neither renders nothing while claiming to be a control.
+  if (node.kind === "select" && (node.options === undefined) === (node.optionsFrom === undefined)) {
+    out.push("a select names exactly one of `options` (declared) or `optionsFrom` (bound)");
+  }
+  if (node.kind === "keyValue" && (node.rows === undefined) === (node.rowsFrom === undefined)) {
+    out.push("a keyValue names exactly one of `rows` (declared) or `rowsFrom` (bound)");
+  }
   // A detail stage's hero carries the SAME exactly-one-of belt as an `image` node (#798). `pluginChildNodes`
   // walks only stage BODIES, so the hero — which is not itself a node — is checked in `collectHeroViolations`
   // against its parent masterDetail; without this a hero could declare both arms (or neither) and slip past.
@@ -880,27 +920,64 @@ export const pluginBoundGridTileSchema = z.object({
  *  Pure + isomorphic: the client renderer resolves with it, and a test can drive it with no DOM. The
  *  aggregate payload is already bounded upstream by the `ui.setState` 16 KiB cap. */
 export function resolvePluginBoundTiles(state: Record<string, unknown>, binding: PluginStateBinding): readonly PluginBoundGridTile[] {
+  return resolveBoundArray(state, binding, pluginBoundGridTileSchema, PLUGIN_GRID_TILES_MAX);
+}
+
+/** The dotted-path read every bound-arm resolver shares: `{ $state: "a.b" }` against published state,
+ *  `undefined` for any miss or non-object hop (the binding-miss posture every `$state` slot has). */
+function readBindingPath(state: Record<string, unknown>, binding: PluginStateBinding): unknown {
   let cursor: unknown = state;
   for (const segment of binding.$state.split(".")) {
     if (typeof cursor !== "object" || cursor === null) {
-      return [];
+      return;
     }
     cursor = (cursor as Record<string, unknown>)[segment];
   }
+  return cursor;
+}
+
+/** The shared bound-ARRAY resolve (tiles / select options / keyValue rows): read the path, validate
+ *  EVERY entry against the arm's own schema (malformed ⇒ DROPPED, never fatal — one bad row must not
+ *  blank a page), clamp the count to the same cap the declared arm's schema enforces (state is never a
+ *  loophole past a registration bound). Pure + isomorphic, like every resolver here. */
+function resolveBoundArray<T>(state: Record<string, unknown>, binding: PluginStateBinding, schema: z.ZodType<T>, cap: number): readonly T[] {
+  const cursor = readBindingPath(state, binding);
   if (!Array.isArray(cursor)) {
     return [];
   }
-  const out: PluginBoundGridTile[] = [];
+  const out: T[] = [];
   for (const entry of cursor) {
-    if (out.length >= PLUGIN_GRID_TILES_MAX) {
+    if (out.length >= cap) {
       break;
     }
-    const parsed = pluginBoundGridTileSchema.safeParse(entry);
+    const parsed = schema.safeParse(entry);
     if (parsed.success) {
       out.push(parsed.data);
     }
   }
   return out;
+}
+
+/** ONE bound select option as published state — the declared `PluginSelectOption` shape, judged at
+ *  RESOLVE (the registration gate cannot see state). */
+export const pluginBoundSelectOptionSchema = z.object({ value: z.string().max(LABEL_MAX), label: labelSchema });
+
+/** Resolve a select's `optionsFrom` binding (hub v1.3): the per-entry gate + the {@link PLUGIN_ROWS_MAX}
+ *  clamp, the `resolvePluginBoundTiles` posture exactly. A miss resolves to NO options — the renderer
+ *  shows an empty select rather than crashing (the plugin publishes its vocabulary with the same state
+ *  write that populates the page). */
+export function resolvePluginBoundSelectOptions(state: Record<string, unknown>, binding: PluginStateBinding): readonly PluginSelectOption[] {
+  return resolveBoundArray(state, binding, pluginBoundSelectOptionSchema, PLUGIN_ROWS_MAX);
+}
+
+/** ONE bound keyValue row as published state — key AND value are plain strings on this arm (the row set
+ *  itself is data; a binding inside published state would be a hall of mirrors, the bound-tile rule). */
+export const pluginBoundKeyValueRowSchema = z.object({ key: labelSchema, value: z.string().max(LABEL_MAX) });
+export type PluginBoundKeyValueRow = z.infer<typeof pluginBoundKeyValueRowSchema>;
+
+/** Resolve a keyValue's `rowsFrom` binding (hub v1.3) — same gate, same clamp, same miss posture. */
+export function resolvePluginBoundKeyValueRows(state: Record<string, unknown>, binding: PluginStateBinding): readonly PluginBoundKeyValueRow[] {
+  return resolveBoundArray(state, binding, pluginBoundKeyValueRowSchema, PLUGIN_ROWS_MAX);
 }
 
 /** Resolve an image's `assetFrom` binding: the path's value IFF it is a well-formed asset id — the same

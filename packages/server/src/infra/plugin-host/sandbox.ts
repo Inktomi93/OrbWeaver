@@ -151,6 +151,21 @@ function serializeGuest(ctx: QuickJSContext, handle: QuickJSHandle): string {
 
 /** The mutable per-instance state the membrane reads (shared between the realm-installed host fns and the
  *  Sandbox instance — created before either so both close over the same holders). */
+/** UPSERT one surface registration by its id (hub v1.3): re-registering an id REPLACES the row — the
+ *  mechanism a guest uses to revise its own spec after an async read (the atlas registers its default
+ *  synchronously at activation, then re-registers with the kv-persisted SFW toggle once the read lands).
+ *  Without this, a duplicate id would project twice through `listSurfaces` and the STALE first row would
+ *  win every `find` — a lying surface. A replaced row's handler REF stays in `state.handlers`
+ *  (unreachable, disposed with the instance like every resident handle — never double-freed here). */
+function upsertSurface(surfaces: PluginSurfaceRegistration[], registration: PluginSurfaceRegistration): void {
+  const existing = surfaces.findIndex((candidate) => candidate.id === registration.id);
+  if (existing >= 0) {
+    surfaces[existing] = registration;
+    return;
+  }
+  surfaces.push(registration);
+}
+
 interface ResidentState {
   chat: InvocationChat | null;
   token: string | null;
@@ -270,12 +285,12 @@ export class Sandbox implements Disposable {
               // meta would ship every frame document to the client through `listSurfaces`.
               const body = frame === undefined ? {} : { frame };
               if (onAction === null) {
-                state.surfaces.push({ ...meta, ...body });
+                upsertSurface(state.surfaces, { ...meta, ...body });
                 return;
               }
               const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
               state.handlers.set(ref, onAction);
-              state.surfaces.push({ ...meta, ...body, onAction: ref });
+              upsertSurface(state.surfaces, { ...meta, ...body, onAction: ref });
             },
             collectCommand: (meta, onRun): void => {
               const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
