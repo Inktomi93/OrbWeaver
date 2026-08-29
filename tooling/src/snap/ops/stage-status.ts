@@ -139,6 +139,7 @@ export function sweepStages(): string {
   }
   if (markerIsDangling(active, verdict) && active !== null) {
     // Best-effort: the dir may already be gone (a hand-cleaned strand), which is not a failure to report.
+    // @orb-gate-ignore caught-failure-ownership(empty:catch): best-effort cleanup per the comment above — the marker (cleared unconditionally below) is the actual deliverable of this branch, not the dir removal. Ends if the marker clear stops happening unconditionally.
     try {
       removeStageDir(root, active);
     } catch {

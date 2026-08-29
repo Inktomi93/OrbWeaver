@@ -180,7 +180,9 @@ function buildMapScript(selector: string, includeHidden: boolean): string {
 
 async function mapSelectorIsExecutable(page: Page, selector: string, includeHidden: boolean): Promise<boolean> {
   const locator = page.locator(selector);
+  // @orb-gate-ignore caught-failure-ownership(promise:count): probe-whose-failure-is-its-return-value — a count failure becomes 0, which fails the `=== 1` check below and reports the selector as not executable. Ends if that check stops gating on count.
   const count = await locator.count().catch(() => 0);
+  // @orb-gate-ignore caught-failure-ownership(promise:isVisible): probe-whose-failure-is-its-return-value — an isVisible failure becomes false, which is exactly the "not executable" verdict this function returns. Ends if the return stops being read as pass/fail.
   return count === 1 && (includeHidden || locator.isVisible().catch(() => false));
 }
 

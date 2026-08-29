@@ -235,6 +235,7 @@ function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report" | 
 
 function guard(gate: string, phase: ToolError["phase"], errors: ToolError[], fn: () => void): void {
   currentPhase = phase;
+  // @orb-gate-ignore caught-failure-ownership(empty:err): pushed into the errors array as a ToolError — the exit-contract's tool-error class, never a silent pass. Ends if the errors array stops being read into the run's exit code.
   try {
     fn();
   } catch (err) {

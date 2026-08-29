@@ -33,6 +33,7 @@ const PAINT_SETTLE_MAX_FRAMES = 24;
 const PAINT_SETTLE_FRAME_TIMEOUT_MS = 50;
 
 async function waitForPaintSettle(page: Page): Promise<void> {
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): documented best-effort optimisation — a torn context makes the shot one frame stale, never absent, per the trailing comment. Ends if the shot stops happening regardless of this failure.
   try {
     // RAW STRING, not a function — the tooling program is DOM-less (document/requestAnimationFrame are
     // browser names), and a serialized function body picks up toolchain name-decoration; the string
