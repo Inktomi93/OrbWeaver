@@ -54,16 +54,21 @@ Memory lessons consulted (by filename): `check-main-for-the-original-consumer`,
   normalized → sorted → clamped to 24 → published with whatever covers the art cache already holds
   (instant text grid); (3) missing covers fetched in PARALLEL, cache updated, ONE final republish.
   Per-cover failure ⇒ placeholder + one summarizing log line, never a blank page.
-  **BUILD-TIME PREMISE CORRECTION (measured live, then redesigned): phase (3) must FLOAT.** The
-  invocation SETTLEMENT WALL (`PLUGIN_INVOCATION_CPU_MS` 1000 + `HOST_FN_DEADLINE_MS` 5000,
-  `sandbox.ts` header — in no doc the phase-1 read covered) bounds a whole action handler at ~6 s of
-  real time; a realm search + 24 fresh covers blew it, which was a deadline kill + crash strike + a
-  respawned session (observed: a stranded "Searching…" status and a fresh `ready` log line). The
-  batch now rides a FLOATING promise the host's job pump advances between invocations (the
-  activation-time `void publishBrowse("")` precedent; the `guest-job-pump-outside-the-interrupt-handler`
-  memory), republish guarded by session identity (`lastResults === rows`). Same float for the detail
-  hero upgrade; the summon arm stays IN-invocation (its toasts ride the round-trip outcome and its
-  typical spend is ~2 s) and drops its post-summon detail refetch (the session's own blurb republishes).
+  **BUILD-TIME PREMISE CORRECTION (measured live, twice, then redesigned): ALL hub awaits must
+  FLOAT.** The invocation SETTLEMENT WALL (`PLUGIN_INVOCATION_CPU_MS` 1000 + `HOST_FN_DEADLINE_MS`
+  5000, `sandbox.ts` header — in no doc the phase-1 read covered) bounds a whole action handler at
+  ~6 s of real time. Round 1: a realm search + 24 fresh covers blew it (deadline kill + crash strike +
+  respawned session — a stranded "Searching…" status and a fresh `ready` log line); the batch was
+  floated. Round 2 refuted the residual premise too: the hub's response BODY itself can stream past
+  the wall (the host-fn deadline bounds connect+headers+redirects, not the body read — stage receipt:
+  `invocation ended — it did not settle within its 6000ms wall`, durationMs 6009, `port.ts:309`). So
+  handlers now ONLY validate + publish an honest status ("Searching…"/"Opening…") + schedule
+  `runSearch`/`runOpen` — floating continuations the host's job pump advances between invocations
+  (the activation-time `void publishBrowse("")` precedent; the
+  `guest-job-pump-outside-the-interrupt-handler` memory) — guarded by a session SEQUENCE (`sessionSeq`,
+  bumped by search/open/back) so a superseded fetch never overwrites a newer page. The summon arm
+  stays IN-invocation (its toasts ride the round-trip outcome; a pathologically slow hub 500s the
+  mutation, which the client toasts honestly — priced) and drops its post-summon detail refetch.
 - **The art cache is ONE kv key** (`art_cache`: `{ "<source>:<ref>": { a, t } }`, trimmed oldest-first
   at 300 entries, 24h TTL). Why: the 256-key budget already carries the `owned:` index (per-key would
   starve it); the egress belt is 120/hr SHARED with search — an uncached hub burns 25 calls/search

@@ -24,11 +24,14 @@
 //    one call, and every art failure degrades to the placeholder tile, never a broken page. When you copy
 //    this plugin, copy the budget thinking too.
 //
-//  * WORKING PAST THE SETTLEMENT WALL. An action handler has ~6 s of real time to settle; a search plus a
-//    two-dozen-cover batch does not fit, and blowing the wall is a crash strike + a respawned session. So the
-//    handler publishes the TEXT grid and returns, and the art batch rides a FLOATING promise the host pumps
-//    between invocations (`scheduleArtLoad` — the same mechanism as the activation-time publish), guarded by
-//    session identity so an older batch never overwrites a newer search. Long work floats; handlers answer.
+//  * WORKING PAST THE SETTLEMENT WALL. An action handler has ~6 s of real time to settle — and a community
+//    hub can stream a response body SLOWER than that (measured: a realm search held its body past the wall;
+//    that is a deadline kill, a crash strike, and a respawned session). So NO handler awaits the hubs: it
+//    validates, publishes an honest status, and SCHEDULES a floating continuation the host pumps between
+//    invocations (`runSearch`/`runOpen` — the same mechanism as the activation-time publish), guarded by a
+//    session sequence so a superseded fetch never overwrites a newer page. Long work floats; handlers answer.
+//    The one priced exception is `summon` — its toasts ride the invocation's own outcome, so it stays inline
+//    and accepts the (rare, honest, client-toasted) 500 on a pathologically slow hub.
 //
 //  * TALKING TO THE OUTSIDE WORLD PROPERLY. Fetches are host-performed, allowlisted to the hosts the
 //    manifest declares, 5 s / 1 MiB bounded, SSRF-guarded — and every response here is treated as UNTRUSTED
@@ -466,42 +469,71 @@ async function fetchMissingArt(cache, rows, keyOf, urlOf) {
 const artKey = (result) => `${result.source}:${result.ref}`;
 const heroKey = (result) => `${result.source}:${result.ref}:hero`;
 
-// ── the FLOATING art continuations (the settlement-wall discipline) ────────────────────────────────────────
-// An action invocation is bounded by the host's SETTLEMENT WALL (~6 s of real time for the WHOLE handler),
-// and a fresh 24-cover batch structurally cannot fit inside it — one slow hub plus two dozen downloads is a
-// deadline kill, a crash strike, and a respawned session (measured live, 2026-08-29). So the HANDLER publishes
-// the text grid and RETURNS, and the art batch rides a FLOATING promise the host's job pump advances between
-// invocations (the same mechanism the activation-time `void publishBrowse("")` below already rides). Each
-// republish is guarded by SESSION IDENTITY, so a newer search is never overwritten by an older batch's art.
+// ── the FLOATING wire continuations (the settlement-wall discipline) ───────────────────────────────────────
+// An action invocation is bounded by the host's SETTLEMENT WALL (~6 s of real time for the WHOLE handler) —
+// and a community hub can stream a response body SLOWER than that (measured live 2026-08-29: a realm search
+// held its body past the wall; "invocation ended — it did not settle within its 6000ms wall", a crash strike,
+// a respawned session). So NO handler awaits the hubs: it validates, publishes an honest status, SCHEDULES a
+// floating continuation the host's job pump advances between invocations (the same mechanism as the
+// activation-time `void publishBrowse("")` below), and returns in milliseconds. Every continuation's publish
+// is guarded by a SESSION SEQUENCE so a superseded search/open never overwrites a newer one. The ONE priced
+// exception is `summon` (its toasts ride the invocation's own outcome — see its header).
 
-/** Fetch the missing covers for `rows` after the current invocation settles, then republish ONCE. */
-function scheduleArtLoad(rows, status) {
+/** The browse-session sequence: each search/open bumps it, and a continuation publishes only while it still
+ *  owns the page. Module state, like the session it guards. */
+let sessionSeq = 0;
+
+/** The floating SEARCH continuation: fetch → normalize+sort+clamp → publish text grid → land the missing
+ *  covers → republish once. Every hub await lives HERE, past the settlement wall. */
+async function runSearch(seq, job) {
+  const { sourceKey, sortKey, label, q } = job;
+  const results = await SOURCES[sourceKey].search(q);
+  if (seq !== sessionSeq) {
+    return; // Superseded — a newer search/open owns the page.
+  }
+  if (results === null) {
+    await publishBrowse(`${label} didn't answer — try again in a moment.`);
+    return;
+  }
+  lastResults = sortRows(results, sortKey).slice(0, PAGE_SIZE);
+  openResult = null;
+  const status = lastResults.length === 0 ? `Nothing on ${label} for "${q}".` : `${lastResults.length} from ${label} for "${q}".`;
+  // Paint 1: the text grid, plus whatever covers the cache already holds — instant.
+  await publishBrowse(status);
   if (!canFetchArt()) {
     return;
   }
-  void (async () => {
-    const cache = await loadArtCache();
-    const landed = await fetchMissingArt(cache, rows, artKey, (row) => row.art);
-    if (landed > 0 && lastResults === rows) {
-      await publishBrowse(status);
-    }
-  })().catch((err) => host.log.warn(`art batch failed: ${String(err)}`));
+  // Paint 2: the cover batch, republished once when it lands (still guarded — a newer session may have
+  // taken the page while the batch flew).
+  const cache = await loadArtCache();
+  const landed = await fetchMissingArt(cache, lastResults, artKey, (row) => row.art);
+  if (landed > 0 && seq === sessionSeq) {
+    await publishBrowse(status);
+  }
 }
 
-/** Fetch the sharper hero variant (where the hub serves one) after the invocation settles, then republish the
- *  still-open detail in place. */
-function scheduleHeroUpgrade(result, blurb) {
+/** The floating OPEN continuation: fetch the detail → flip the stage → lazily upgrade the hero where the hub
+ *  serves a sharper variant. */
+async function runOpen(seq, result) {
+  const detail = await SOURCES[result.source].detail(result);
+  if (seq !== sessionSeq) {
+    return;
+  }
+  if (detail === null) {
+    await publishBrowse(`${SOURCES[result.source].label} wouldn't show that card — try another.`);
+    return;
+  }
+  openResult = { result, raw: detail.raw, blurb: detail.blurb };
+  await publishDetail(result, detail.blurb); // Instant art: the hero rides the cached grid cover.
   const heroUrl = SOURCES[result.source].heroUrl(result);
   if (heroUrl === null || !canFetchArt()) {
     return;
   }
-  void (async () => {
-    const cache = await loadArtCache();
-    const landed = await fetchMissingArt(cache, [result], heroKey, () => heroUrl);
-    if (landed > 0 && openResult !== null && openResult.result === result) {
-      await publishDetail(result, blurb);
-    }
-  })().catch((err) => host.log.warn(`hero upgrade failed: ${String(err)}`));
+  const cache = await loadArtCache();
+  const landed = await fetchMissingArt(cache, [result], heroKey, () => heroUrl);
+  if (landed > 0 && seq === sessionSeq && openResult !== null && openResult.result === result) {
+    await publishDetail(result, detail.blurb); // The in-place upgrade to the sharper hero.
+  }
 }
 
 // ── the owned-index (fast lookup) + the card stamp (durable provenance) ────────────────────────────────────
@@ -740,8 +772,8 @@ function sortRows(rows, key) {
   return rows; // relevance = the hub's own order.
 }
 
-/** `search`: run the picked hub's search, sort + clamp, publish the text grid INSTANTLY, then land the art
- *  and republish once. Two paints, one honest status line each. */
+/** `search`: validate, speak, SCHEDULE — the wire work floats (see the continuations' header). The handler
+ *  settles in milliseconds no matter how a hub behaves. */
 async function searchAction(values) {
   const q = String(values.q ?? "").trim();
   if (q.length === 0) {
@@ -751,26 +783,14 @@ async function searchAction(values) {
   const sourceKey = values.source === "realm" ? "realm" : "tavern";
   const sortKey = values.sort === "downloads" || values.sort === "name" ? values.sort : "relevance";
   const label = SOURCES[sourceKey].label;
+  const seq = ++sessionSeq;
   // Feedback BEFORE the wire (the vocabulary has no loading skeleton yet): the status line speaks, the
   // previous results stay put — content-preserving, never a blank flash.
   await publishBrowse(`Searching ${label} for "${q}"…`);
-  const results = await SOURCES[sourceKey].search(q);
-  if (results === null) {
-    await publishBrowse(`${label} didn't answer — try again in a moment.`);
-    return;
-  }
-  lastResults = sortRows(results, sortKey).slice(0, PAGE_SIZE);
-  openResult = null;
-  const status = lastResults.length === 0 ? `Nothing on ${label} for "${q}".` : `${lastResults.length} from ${label} for "${q}".`;
-  // Paint 1: the text grid, plus whatever covers the cache already holds — instant, inside the invocation.
-  await publishBrowse(status);
-  // Paint 2: the cover batch FLOATS past the settlement wall (see the continuation's own header) and
-  // republishes once when it lands.
-  scheduleArtLoad(lastResults, status);
+  void runSearch(seq, { sourceKey, sortKey, label, q }).catch((err) => host.log.warn(`search failed: ${String(err)}`));
 }
 
-/** `open_result`: resolve the clicked tile against the resident session, fetch the detail, flip the stage —
- *  then lazily upgrade the hero to the sharper variant where the hub serves one. */
+/** `open_result`: resolve the clicked tile against the resident session, speak, SCHEDULE the detail fetch. */
 async function openAction(values) {
   const index = Number(String(values.tile ?? "").slice(1));
   const result = lastResults[index];
@@ -778,14 +798,9 @@ async function openAction(values) {
     await publishBrowse("That result went stale — search again."); // A respawn between search and click.
     return;
   }
-  const detail = await SOURCES[result.source].detail(result);
-  if (detail === null) {
-    await publishBrowse(`${SOURCES[result.source].label} wouldn't show that card — try another.`);
-    return;
-  }
-  openResult = { result, raw: detail.raw, blurb: detail.blurb };
-  await publishDetail(result, detail.blurb); // Instant: the hero rides the cached grid cover.
-  scheduleHeroUpgrade(result, detail.blurb); // The in-place upgrade floats past the settlement wall.
+  const seq = ++sessionSeq;
+  await publishBrowse(`Opening ${result.name}…`);
+  void runOpen(seq, result).catch((err) => host.log.warn(`open failed: ${String(err)}`));
 }
 
 /** `summon`: the canon write, feature-detected at USE, then the detail republished with its owned line. */
@@ -813,6 +828,9 @@ async function runAtlasAction(actionId, values) {
   } else if (actionId === "summon") {
     await summonAction();
   } else {
+    // `back` (and any unknown id) goes home — and BUMPS the session, so an in-flight open/search
+    // continuation from the stage a person just left can never flip them back to it.
+    sessionSeq += 1;
     openResult = null;
     await publishBrowse("");
   }

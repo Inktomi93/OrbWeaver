@@ -49,11 +49,12 @@ Every cover is `net.fetchAsset(url)` → an assetId in the installer's CAS → p
 * **One shared budget.** `net.fetch` and `net.fetchAsset` draw on ONE hourly belt (120/plugin), and a
   fresh 24-tile search spends ~25 claims — so uncached art would starve search itself. The `art_cache`
   (ONE kv key, LRU-trimmed, 24 h TTL) makes repeat searches cost a single claim.
-* **Two paints per search — and the second one FLOATS.** The action handler publishes the text grid the
-  instant results land (with whatever covers the cache holds) and RETURNS: an invocation has ~6 s of
-  real time to settle, and a search plus a 24-cover batch does not fit inside it. The cover batch rides
-  a floating promise the host pumps between invocations, then republishes once — guarded by session
-  identity so an older batch never overwrites a newer search. The status line speaks during the wait.
+* **Handlers answer; the wire FLOATS.** An action invocation has ~6 s of real time to settle, and a
+  community hub can stream a body slower than that (measured live) — so no handler awaits the hubs.
+  Search and open validate, publish an honest status ("Searching…", "Opening…"), and schedule a
+  floating continuation the host pumps between invocations: fetch → text grid → cover batch → one
+  republish, each publish guarded by a session sequence so a superseded fetch never overwrites a newer
+  page. Summon is the one priced exception (its toasts ride the invocation's own outcome).
 * **Placeholders, never breakage.** Any cover that fails (rate floor, the 1 MiB cap, a hub hiccup)
   degrades to the shape-matched placeholder tile with a log line. Ungranted `net.fetch_asset` degrades
   the whole plugin to the art-less browse it was before — feature-detect, never crash.
