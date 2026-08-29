@@ -212,6 +212,12 @@ function parseTagList(raw) {
   return normTags(String(raw ?? "").split(",")).slice(0, FILTER_TAGS_MAX);
 }
 
+/** Query-string builder for the GUEST REALM — QuickJS ships no `URLSearchParams` (measured live: a floated
+ *  search died on the ReferenceError), so the param dialect is encodeURIComponent + join, nothing fancier. */
+function qs(pairs) {
+  return pairs.map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&");
+}
+
 /** Page count from a corpus total + a page size; 1 when the hub reports none. */
 function pagesOf(total, perPage) {
   return typeof total === "number" && Number.isFinite(total) && total > 0 ? Math.max(1, Math.ceil(total / perPage)) : 1;
@@ -518,11 +524,14 @@ const SOURCES = {
       // returns the unfiltered firehose), `tags=a,b` is a server-side AND filter over the hub's own tag
       // index (rows never carry the tags back — see `rowTags`), `page=` is real (30 hits fixed, `totalPages`
       // in every response). No sort, exclude or genre params exist (all probed ignored).
-      const params = new URLSearchParams({ query: q, page: String(page) });
+      const params = [
+        ["query", q],
+        ["page", String(page)],
+      ];
       if (include.length > 0) {
-        params.set("tags", include.join(","));
+        params.push(["tags", include.join(",")]);
       }
-      const json = await getJson(`https://character-tavern.com/api/search/cards?${params.toString()}`);
+      const json = await getJson(`https://character-tavern.com/api/search/cards?${qs(params)}`);
       const hits = isObj(json) && Array.isArray(json.hits) ? json.hits : null;
       if (hits === null) {
         return null;
@@ -629,15 +638,21 @@ const SOURCES = {
       // hub with a server exclude — plus a server sort. `first=30` harmonizes its page size with the roster;
       // `nsfw=false` is the SFW seed posture. (The legacy geo-block note did not reproduce — probed 200 from
       // this box 2026-08-29.)
-      const params = new URLSearchParams({ search: q, namespace: "characters", first: String(PAGE_SIZE), page: String(page), nsfw: "false" });
-      params.set("sort", sortKey === "downloads" ? "star_count" : "default");
+      const params = [
+        ["search", q],
+        ["namespace", "characters"],
+        ["first", String(PAGE_SIZE)],
+        ["page", String(page)],
+        ["nsfw", "false"],
+        ["sort", sortKey === "downloads" ? "star_count" : "default"],
+      ];
       if (include.length > 0) {
-        params.set("topics", include.join(","));
+        params.push(["topics", include.join(",")]);
       }
       if (exclude.length > 0) {
-        params.set("excludetopics", exclude.join(","));
+        params.push(["excludetopics", exclude.join(",")]);
       }
-      const json = await getJson(`https://api.chub.ai/search?${params.toString()}`, BROWSER_HEADERS);
+      const json = await getJson(`https://api.chub.ai/search?${qs(params)}`, BROWSER_HEADERS);
       const body = isObj(json) && isObj(json.data) ? json.data : json;
       const nodes = isObj(body) && Array.isArray(body.nodes) ? body.nodes : null;
       if (nodes === null) {
@@ -715,11 +730,15 @@ const SOURCES = {
       // Curated, low-volume: `?search=&limit=&skip=&orderBy=` (orderBy honors downloadCount — verified by the
       // legacy probe; relevance otherwise). No tag params — filters apply row-side per page. Per-card `isNsfw`
       // is honored in the row mapper (SFW posture).
-      const params = new URLSearchParams({ search: q, limit: String(PAGE_SIZE), skip: String((page - 1) * PAGE_SIZE) });
+      const params = [
+        ["search", q],
+        ["limit", String(PAGE_SIZE)],
+        ["skip", String((page - 1) * PAGE_SIZE)],
+      ];
       if (sortKey === "downloads") {
-        params.set("orderBy", "downloadCount");
+        params.push(["orderBy", "downloadCount"]);
       }
-      const json = await getJson(`${AICC_BASE}/api/cards?${params.toString()}`);
+      const json = await getJson(`${AICC_BASE}/api/cards?${qs(params)}`);
       const data = isObj(json) && Array.isArray(json.data) ? json.data : null;
       if (data === null) {
         return null;
@@ -758,8 +777,12 @@ const SOURCES = {
       // The 95K-card aggregator: `?q=&limit=&offset=` (+ the browser-UA pair — it bot-filters a bare client
       // UA). No tag/sort params — filters apply row-side per page; per-card `nsfw` is honored in the mapper.
       // Mirrors chub/janitor content, so the import-side byte dedupe matters here most.
-      const params = new URLSearchParams({ q, limit: String(PAGE_SIZE), offset: String((page - 1) * PAGE_SIZE) });
-      const json = await getJson(`${CHARAVAULT_BASE}/api/cards?${params.toString()}`, BROWSER_HEADERS);
+      const params = [
+        ["q", q],
+        ["limit", String(PAGE_SIZE)],
+        ["offset", String((page - 1) * PAGE_SIZE)],
+      ];
+      const json = await getJson(`${CHARAVAULT_BASE}/api/cards?${qs(params)}`, BROWSER_HEADERS);
       const results = isObj(json) && Array.isArray(json.results) ? json.results : null;
       if (results === null) {
         return null;
