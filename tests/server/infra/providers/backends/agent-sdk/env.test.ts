@@ -219,11 +219,12 @@ describe("mode-1 (Max sub) firewall", () => {
 //   • PATH 1 (host creds ABSENT): nothing to isolate → degrade to the un-isolated default (still firewalled).
 //   • PATH 2 (host creds PRESENT but the symlink FAILED): isolation could not be established → REFUSE the
 //     spawn. Silently degrading here would run the RP subprocess against the REAL ~/.claude — the leak.
-// The module memoizes its isolation decision, so these tests reset the module registry and mock `node:fs`
-// per case; the mock is scoped (existsSync only answers for the credentials path) so the rest of the graph
-// keeps real fs. The refusal surfaces as a `ProviderError { kind: "forbidden", retryable: false }`, which
-// `disciplineOptions` (mode-1 chat) and `fetchAgentSdkModels` (model discovery) both propagate as a turn/
-// discovery error rather than an un-isolated spawn.
+// The module memoizes its isolation decision, so these tests reset the module registry and re-import the
+// backend per case, mocking only the two fs calls the isolation path branches on: existsSync (scoped to the
+// credentials path) and symlinkSync (forced to fail). mkdtempSync/rmSync stay REAL, so the temp dir is
+// genuinely created and cleaned up — nothing to hand-shape or fabricate. The refusal surfaces as a
+// `ProviderError { kind: "forbidden", retryable: false }`, which `disciplineOptions` (mode-1 chat) and
+// `fetchAgentSdkModels` (model discovery) both propagate as a turn/discovery error rather than an un-isolated spawn.
 const CREDS_SUFFIX = ".credentials.json";
 const ISO_REFUSAL_RE = /mode-1 isolation could not be established/u;
 const AGENT_SDK_BARREL = "@orb/server/infra/providers/backends/agent-sdk";
@@ -235,18 +236,17 @@ describe("mode-1 isolation FAIL-CLOSED (host creds present, symlink fails → re
   });
 
   test("symlink FAILS with host creds present → REFUSES (throws forbidden), never returns an un-isolated env", async () => {
-    const fakeDir = "/tmp/orbweaver-claude-sub-FAKEPROBE";
     vi.doMock("node:fs", async (importOriginal) => {
       const actual = await importOriginal<typeof import("node:fs")>();
       return {
         ...actual,
+        // Host creds "present": only the credentials probe is forced true; every other existsSync is real.
         existsSync: (p: Parameters<typeof actual.existsSync>[0]) => (typeof p === "string" && p.endsWith(CREDS_SUFFIX) ? true : actual.existsSync(p)),
-        // mkdtempSync is overloaded (string | Buffer return) so the arrow can't match a single signature — cast through unknown.
-        mkdtempSync: ((_prefix: string) => fakeDir) as unknown as typeof actual.mkdtempSync,
-        symlinkSync: (() => {
-          throw new Error("EPERM: operation not permitted, symlink");
-        }) as typeof actual.symlinkSync,
-        rmSync: (() => undefined) as typeof actual.rmSync,
+        // Isolation can't be established: the symlink into the (real) temp dir fails. mkdtempSync + rmSync stay
+        // real, so the temp dir is created and cleaned up for real — no fabricated fs return to hand-shape.
+        symlinkSync: (target: string, path: string) => {
+          throw new Error(`EPERM: operation not permitted, symlink '${target}' -> '${path}'`);
+        },
       };
     });
     vi.resetModules();
