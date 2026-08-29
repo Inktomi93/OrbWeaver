@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 404,
-    "enforced": 401,
+    "sites": 407,
+    "enforced": 404,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 401,
+      "deliberate-absorb": 404,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
-      "promise": 119,
+      "promise": 121,
       "default": 117,
-      "empty": 168
+      "empty": 169
     }
   },
   "rows": [
@@ -189,7 +189,7 @@
     {
       "siteId": "packages/client/src/data/invalidation.ts::promise:invalidateQueries::1",
       "path": "packages/client/src/data/invalidation.ts",
-      "line": 401,
+      "line": 408,
       "column": 7,
       "grammar": "promise",
       "position": "promise:invalidateQueries",
@@ -197,7 +197,7 @@
       "snippet": "deps.queryClient.invalidateQueries(filter).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "refetch failures surface on the queries' own error state; consume the aggregate Promise here.",
-      "markerLine": 400
+      "markerLine": 407
     },
     {
       "siteId": "packages/client/src/data/session-freshness.ts::promise:probe::1",
@@ -293,7 +293,7 @@
     {
       "siteId": "packages/client/src/data/use-card-frame.ts::default:catch::1",
       "path": "packages/client/src/data/use-card-frame.ts",
-      "line": 62,
+      "line": 91,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -301,12 +301,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented in the JSDoc above — any failure resolves to undefined and the caller renders the floor. Ends if the floor stops being an acceptable fallback UI.",
-      "markerLine": 51
+      "markerLine": 80
     },
     {
       "siteId": "packages/client/src/data/use-card-frame.ts::promise:pending::1",
       "path": "packages/client/src/data/use-card-frame.ts",
-      "line": 94,
+      "line": 123,
       "column": 5,
       "grammar": "promise",
       "position": "promise:pending",
@@ -314,7 +314,7 @@
       "snippet": "pending.then(",
       "verdict": "deliberate-absorb",
       "reason": "mintCardFrame's own catch already collapsed any failure to `undefined`; the reject arm here only exists for symmetry and sets the same render-floor state as the resolve arm. Ends if mintCardFrame stops swallowing its own failures.",
-      "markerLine": 93
+      "markerLine": 122
     },
     {
       "siteId": "packages/client/src/data/use-plugin-frame.ts::default:catch::1",
@@ -462,7 +462,7 @@
     {
       "siteId": "packages/client/src/features/chat/components/message-actions-row.tsx::empty:catch::1",
       "path": "packages/client/src/features/chat/components/message-actions-row.tsx",
-      "line": 257,
+      "line": 284,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -470,7 +470,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the fork mutation's sticky error + global errorToast already surfaced the failure. Ends if the mutation drops its errorToast.",
-      "markerLine": 252
+      "markerLine": 279
     },
     {
       "siteId": "packages/client/src/features/chat/components/message-edit-textarea.tsx::empty:catch::1",
@@ -527,7 +527,7 @@
     {
       "siteId": "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx::promise:startChat::1",
       "path": "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx",
-      "line": 166,
+      "line": 173,
       "column": 5,
       "grammar": "promise",
       "position": "promise:startChat",
@@ -535,7 +535,7 @@
       "snippet": "startChat({ ...intent, ...(characterIds.length > 0 ? { characterIds } : {}) })",
       "verdict": "deliberate-absorb",
       "reason": "useStartChat's mutation carries",
-      "markerLine": 163
+      "markerLine": 170
     },
     {
       "siteId": "packages/client/src/features/credentials/components/add-credential-dialog.tsx::promise:mutateAsync::1",
@@ -1058,6 +1058,45 @@
       "markerLine": 152
     },
     {
+      "siteId": "packages/client/src/features/roster-preset/components/cast-picker.tsx::promise:startChat::1",
+      "path": "packages/client/src/features/roster-preset/components/cast-picker.tsx",
+      "line": 144,
+      "column": 5,
+      "grammar": "promise",
+      "position": "promise:startChat",
+      "ordinal": 1,
+      "snippet": "startChat({ characterIds: cast.members.map((m) => m.characterId), anchorPersonaId: cast.anchorPersonaId })",
+      "verdict": "deliberate-absorb",
+      "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the picked cast survives for retry. Ends if either mutation stops owning its failure copy.",
+      "markerLine": 143
+    },
+    {
+      "siteId": "packages/client/src/features/roster-preset/surfaces/cast-member-surface.tsx::promise:startChat::1",
+      "path": "packages/client/src/features/roster-preset/surfaces/cast-member-surface.tsx",
+      "line": 78,
+      "column": 5,
+      "grammar": "promise",
+      "position": "promise:startChat",
+      "ordinal": 1,
+      "snippet": "startChat({ characterIds: cast.members.map((m) => m.characterId), anchorPersonaId: cast.anchorPersonaId })",
+      "verdict": "deliberate-absorb",
+      "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning. Ends if either mutation stops owning its failure copy.",
+      "markerLine": 77
+    },
+    {
+      "siteId": "packages/client/src/features/rpg/components/rpg-dice-tool-card.tsx::empty:catch::1",
+      "path": "packages/client/src/features/rpg/components/rpg-dice-tool-card.tsx",
+      "line": 42,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a roll_dice result is provenance-faithful; a malformed blob is the renderer's own fall-back-to-generic decision (a tool call is CANON — the record is never dropped, it renders in the generic ToolCallBlock below), so the parse leaves `json` unset for the schema to reject, never a swallow. Ends if the caller stops rendering the generic block on a null parse.",
+      "markerLine": 39
+    },
+    {
       "siteId": "packages/client/src/features/rpg/components/rpg-game-tab.tsx::empty:catch::1",
       "path": "packages/client/src/features/rpg/components/rpg-game-tab.tsx",
       "line": 327,
@@ -1489,7 +1528,7 @@
     {
       "siteId": "packages/kit/src/ids/index.ts::empty:err::1",
       "path": "packages/kit/src/ids/index.ts",
-      "line": 286,
+      "line": 292,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -1497,7 +1536,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "zod transform pattern — fromString's throw is",
-      "markerLine": 280
+      "markerLine": 286
     },
     {
       "siteId": "packages/kit/src/json-schema/lift.ts::default:catch::1",
@@ -2711,7 +2750,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 969,
+      "line": 971,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -2719,12 +2758,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
-      "markerLine": 965
+      "markerLine": 967
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 916,
+      "line": 918,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2732,12 +2771,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort cleanup — the trailing comment",
-      "markerLine": 899
+      "markerLine": 901
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1002,
+      "line": 1004,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2745,12 +2784,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 991
+      "markerLine": 993
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::3",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1039,
+      "line": 1041,
       "column": 11,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2758,12 +2797,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 1031
+      "markerLine": 1033
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:err::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 747,
+      "line": 749,
       "column": 9,
       "grammar": "empty",
       "position": "empty:err",
@@ -2771,12 +2810,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — documented below: only a",
-      "markerLine": 742
+      "markerLine": 744
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::promise:runChatTurn::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 670,
+      "line": 672,
       "column": 10,
       "grammar": "promise",
       "position": "promise:runChatTurn",
@@ -2784,7 +2823,7 @@
       "snippet": "void deps",
       "verdict": "deliberate-absorb",
       "reason": "propagated — the rejection reaches",
-      "markerLine": 667
+      "markerLine": 669
     },
     {
       "siteId": "packages/server/src/entry/compose/emit-chat-changed.ts::empty:catch::1",
@@ -2841,7 +2880,7 @@
     {
       "siteId": "packages/server/src/entry/compose/services.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/services.ts",
-      "line": 444,
+      "line": 445,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -2849,7 +2888,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the ONE `requireOwner`/`can()`",
-      "markerLine": 438
+      "markerLine": 439
     },
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::default:catch::1",
@@ -2867,7 +2906,7 @@
     {
       "siteId": "packages/server/src/entry/http/blob.ts::empty:catch::1",
       "path": "packages/server/src/entry/http/blob.ts",
-      "line": 121,
+      "line": 122,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2875,7 +2914,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a LEAK-FREE COLLAPSE, stated in this function's own JSDoc — a torn CAS entry and a foreign/missing blob must return the identical 404, or the response distinguishes \"exists but unreadable\" from \"not yours\" and becomes an existence oracle. The ownership gate above already ran. Ends if torn-blob repair gains an operator surface that can be told apart from a miss.",
-      "markerLine": 117
+      "markerLine": 118
     },
     {
       "siteId": "packages/server/src/entry/http/card-frame.ts::empty:catch::1",
