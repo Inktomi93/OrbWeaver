@@ -1723,6 +1723,120 @@
         }
       ],
       "summary": "Completeness audit vs our own plan (juice doc + plugin-ui-plane + interaction-spec catalogue): 15/15 juice survivors, 20/20 presets, 9/9 plugin phases, 0/13 graveyarded rebuilt, 1/5 §5a purchased (plugin_events). Findings: R1 URL-install client surface missing (#792, MEDIUM), R3 seed exercisers (#774), R4 /vote optional. No completeness lies; three stale doc tenses."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-28-interaction-program-soundness.md",
+      "assignedSha256": "357382ac8952e793b858086ba9df746cee365204c85043c42a96e2792abc940a",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "357382ac8952e793b858086ba9df746cee365204c85043c42a96e2792abc940a",
+      "verifiedCommit": "fc48ca68b7a407dc9624884cfd774d24a6a324b8",
+      "verifiedAt": "2026-08-29",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-28-interaction-program-soundness.md:1 (full read; frontier audit of the interaction-direction program vs its spec)"
+      ],
+      "summary": "Interaction-direction program soundness audit (spec vs main, 2026-08-28): verdict SOUND — every substrate seam and catalogue row is on the tree; four doc-level truth-repair items plus the known #26 branch-side B10 drift, not on main.",
+      "claims": [
+        {
+          "claim": "run_tool (D146) is deliberately narrower than the design's \"every builtin AND plugin tool\" line, and the correction is folded at the code with two receipts, not yet folded into the spec.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/automation/engine/arm-executors.ts:18"
+            },
+            {
+              "kind": "issue",
+              "target": "#26"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-28-roster-preset-26-premerge.md",
+      "assignedSha256": "1af6817df0a3002afb700803c0b1df40dd9273a5dba14ba30c9a01d1d4829bef",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "1af6817df0a3002afb700803c0b1df40dd9273a5dba14ba30c9a01d1d4829bef",
+      "verifiedCommit": "fc48ca68b7a407dc9624884cfd774d24a6a324b8",
+      "verifiedAt": "2026-08-29",
+      "evidence": ["docs/reviews/stickler/2026-08-28-roster-preset-26-premerge.md:1 (full read; pre-merge review of the #26 saved-rosters lane)"],
+      "summary": "Stickler pre-merge review of #26 saved rosters: MERGE-BLOCKED on one trivial biome-format gate red (F1); the security-sensitive requireHost-first delta verified genuine and correctly ordered; F2-F6 are non-leaking follow-ups.",
+      "claims": [
+        {
+          "claim": "updatePresetWithMembers's junction DELETE+re-INSERT now rides the owner-gated batch, closing the F2 half-belt the review flagged.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/roster-preset/persistence/queries.ts:98"
+            },
+            {
+              "kind": "issue",
+              "target": "#26"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-28-stranded-branch-integration-manifest.md",
+      "assignedSha256": "1f1c650449b530c683f4d6e56a55215b3abb8c0343ba84b9f7622ca25c3fa0ac",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "1f1c650449b530c683f4d6e56a55215b3abb8c0343ba84b9f7622ca25c3fa0ac",
+      "verifiedCommit": "fc48ca68b7a407dc9624884cfd774d24a6a324b8",
+      "verifiedAt": "2026-08-29",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-28-stranded-branch-integration-manifest.md:1 (full read; 11-branch stranded-work integration manifest vs main)"
+      ],
+      "summary": "Stranded-branch integration manifest: 1 of 11 branches (the #751 caught-failure-ownership gate build) carries genuinely missing work; the other 10 are 100% superseded, most patch-id-identical to landed commits.",
+      "claims": [
+        {
+          "claim": "The #775 GITIGNORED_ABSENT three-sided exemption in dangling-refs.ts is the missing branch's fix, absent from main at investigation time and named as the integration target.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/gates/dangling-refs.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#751"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-29-issue-711-reaudit.md",
+      "assignedSha256": "a54498989f22f544f3d857177536b76cd28fefb91dfac137a7e78dfa9376372d",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "a54498989f22f544f3d857177536b76cd28fefb91dfac137a7e78dfa9376372d",
+      "verifiedCommit": "fc48ca68b7a407dc9624884cfd774d24a6a324b8",
+      "verifiedAt": "2026-08-29",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-29-issue-711-reaudit.md:1 (full read; re-audit of the #711 recon-remediation backlog + #765 marker debt vs main)"
+      ],
+      "summary": "Re-audit of #711 (51 rows) + #765 against main: 45 FIXED-ON-MAIN, 2 SUPERSEDED/N-A, 6 STILL-OPEN; #765 resolved by the #751 landing; pnpm check PASS 16/16 static stages.",
+      "claims": [
+        {
+          "claim": "A1 (memory pre-join leak) is fixed on main: filterPool fails closed on a horizon-present-but-unwitnessed span.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/memory/recall/recall.ts:249"
+            },
+            {
+              "kind": "issue",
+              "target": "#711"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

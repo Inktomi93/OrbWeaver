@@ -2183,6 +2183,33 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/design/issue-754-batch-boundary-spike.md",
+      "assignedSha256": "3a30bcb2aa906a2279966171eb39fd44c9ded421b2fc4bc3889f1f0470a6da5b",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "3a30bcb2aa906a2279966171eb39fd44c9ded421b2fc4bc3889f1f0470a6da5b",
+      "verifiedCommit": "fc48ca68b7a407dc9624884cfd774d24a6a324b8",
+      "verifiedAt": "2026-08-29",
+      "evidence": ["docs/design/issue-754-batch-boundary-spike.md:1 (full read; measured rejection of the E6 structural-gate proxy)"],
+      "summary": "Issue #754 batch-boundary spike: REJECTS the proposed E6 structural gate (1 true positive vs 11 false positives naive, 25% with control-flow disjointness); E6 stays review-tier per the #712 ruling.",
+      "claims": [
+        {
+          "claim": "AwaitableBatchStmt deliberately types a statement as both batchable and directly awaitable, refuting the proxy's premise that builders structurally cannot execute writes.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/db/src/kit/batch.ts:36"
+            },
+            {
+              "kind": "issue",
+              "target": "#754"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
