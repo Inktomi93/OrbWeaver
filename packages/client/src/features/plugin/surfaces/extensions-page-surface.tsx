@@ -7,15 +7,23 @@
 // the plugin's name, its glyph and an "Extension" kicker with NO opt-out — and the CT floor pins its presence on
 // every page rather than on one.
 //
-// THREE STATES, all designed, none generic (§11): NOTHING SELECTED (a switcher with rows and no pick), GONE (the
-// selected page's plugin was disabled or removed while it was open — the drill is ephemeral and never
-// self-heals by writing, D138 rule 2), and the page itself. A scripted-tier page with no `spec` renders the
-// shell with an honest line rather than a blank body: its client guest lands at U4, and a blank page inside a
-// labelled band reads as a broken plugin.
+// FOUR STATES, all designed, none generic (§11): NO PAGES AT ALL (this pane mirrors the LIST's teaching
+// empty), NOTHING SELECTED (a switcher with rows and no pick), GONE (the selected page's plugin was disabled
+// or removed while it was open — the drill is ephemeral and never self-heals by writing, D138 rule 2), and
+// the page itself. A scripted-tier page with no `spec` renders the shell with an honest line rather than a
+// blank body: its client guest lands at U4, and a blank page inside a labelled band reads as a broken plugin.
 //
-// BOTH non-page states carry an ACTION, and they are DIFFERENT actions, which is the whole reason the two
-// states exist separately: "nothing is picked" sends you back to the switcher's own affordance (nothing to fix),
-// while "that page is gone" sends you to Plugins, where the plugin you lost can be turned back on.
+// THE ZERO-PAGES ARM MIRRORS THE LIST'S TEACHING EMPTY VERBATIM (side-eye 2026-08-29 P3-6): with no pages
+// registered, "Pick an extension page / Choose a page on the left" told a first-timer to choose from a list
+// that was itself saying "No extension pages yet" — two panes giving contradictory guidance about the same
+// fact. The mirror reuses the SAME `EXTENSIONS_EMPTY_*` constants (one home for the guidance, so the two
+// panes can never drift), and the no-selection copy survives for the pages>0 arm — "pick one" and "there are
+// none" are still different facts (the CT pins the distinction).
+//
+// EVERY non-page state carries an ACTION, and they are DIFFERENT actions, which is the whole reason the
+// states exist separately: "there are none" and "that page is gone" send you to Plugins (install, or turn
+// the lost plugin back on), while "nothing is picked" sends you back to the switcher's own affordance
+// (nothing to fix).
 
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -32,6 +40,8 @@ import { PluginSurfaceShell } from "../components/plugin-surface-shell.tsx";
 import { usePluginPages } from "../hooks/use-plugin-pages.ts";
 import {
   EXTENSIONS_EMPTY_ACTION,
+  EXTENSIONS_EMPTY_BODY,
+  EXTENSIONS_EMPTY_TITLE,
   EXTENSIONS_GONE_BODY,
   EXTENSIONS_GONE_TITLE,
   EXTENSIONS_NO_SELECTION_BODY,
@@ -48,6 +58,26 @@ export function ExtensionsPageSurface(): ReactElement {
   const page = key === null ? undefined : pages.find((candidate) => candidate.key === key);
 
   if (key === null) {
+    // ZERO PAGES: mirror the LIST's teaching empty rather than pointing at an empty list (file header).
+    if (pages.length === 0) {
+      return (
+        <Container className="h-full outline-none" data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
+          <Stack align="center" className="h-full" justify="center">
+            <EmptyState
+              action={
+                <Button intent="secondary" onClick={(): void => openSettingsTo("plugins")} size="sm">
+                  {EXTENSIONS_EMPTY_ACTION}
+                </Button>
+              }
+              description={EXTENSIONS_EMPTY_BODY}
+              icon={<Icon icon={Blocks} size="md" />}
+              measure="wide"
+              title={EXTENSIONS_EMPTY_TITLE}
+            />
+          </Stack>
+        </Container>
+      );
+    }
     return (
       <Container className="h-full outline-none" data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
         <Stack align="center" className="h-full" justify="center">

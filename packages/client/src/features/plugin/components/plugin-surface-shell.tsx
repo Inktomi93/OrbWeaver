@@ -46,6 +46,13 @@ interface PluginSurfaceShellProps {
 
 /** Wrap a rendered plugin surface in its first-party attribution chrome. */
 export function PluginSurfaceShell({ pluginName, title, scale = "panel", children, chrome = "panel" }: PluginSurfaceShellProps): ReactElement {
+  // A SURFACE TITLED EXACTLY LIKE ITS PLUGIN SAYS THE NAME ONCE (side-eye 2026-08-29 P3-7: Card Atlas's
+  // page rendered "Card Atlas · Card Atlas", which reads as a placeholder bug and wastes the title line).
+  // The wall loses nothing — the band's whole job is the plugin's NAME, and that still renders on every
+  // arm; only the redundant echo goes. Same rule for the group's accessible name, which would otherwise
+  // read the doubled pair aloud.
+  const showTitle = title !== pluginName;
+  const regionName = showTitle ? `${pluginName} — ${title}` : pluginName;
   // PAGE scale (U5, §9): the biggest impersonation canvas in the design gets the pinned attribution BAND above a
   // scrolling body. Checked first — a `page` surface is never also `inline`.
   if (scale === "page") {
@@ -57,8 +64,12 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
         <Row align="center" className="shrink-0 border-border border-b bg-card/40 px-block py-field" data-testid={testId("pluginPageAttribution")} gap="field">
           <Icon icon={Blocks} size="sm" />
           <Text voice="label">{pluginName}</Text>
-          <Text voice="gloss">·</Text>
-          <Text voice="gloss">{title}</Text>
+          {showTitle ? (
+            <>
+              <Text voice="gloss">·</Text>
+              <Text voice="gloss">{title}</Text>
+            </>
+          ) : null}
           {/* The KICKER names the CLASS, not the instance: "this is an extension", which is the sentence a
               faked settings screen most needs contradicted. */}
           <Text className="ms-auto" voice="kicker">
@@ -69,7 +80,7 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
             its own, so every `position:absolute` descendant a plugin's rendered tree carries — starting with
             the `sr-only` text house primitives ship — would escape to the nearest positioned ancestor and
             scroll away from the thing it names. */}
-        <Stack aria-label={`${pluginName} — ${title}`} className="relative min-h-0 grow overflow-y-auto p-block" gap="block" role="group">
+        <Stack aria-label={regionName} className="relative min-h-0 grow overflow-y-auto p-block" gap="block" role="group">
           {children}
         </Stack>
       </Stack>
@@ -81,7 +92,7 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
       <Row align="center" className="flex-wrap" gap="field">
         <Icon icon={Blocks} size="sm" />
         <Text voice="label">{pluginName}</Text>
-        <Row align="center" aria-label={`${pluginName} — ${title}`} className="flex-wrap" gap="tight" role="group">
+        <Row align="center" aria-label={regionName} className="flex-wrap" gap="tight" role="group">
           {children}
         </Row>
       </Row>
@@ -94,10 +105,14 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
       <Row align="center" gap="field">
         <Icon icon={Blocks} size="sm" />
         <Text voice="label">{pluginName}</Text>
-        <Text voice="gloss">·</Text>
-        <Text voice="gloss">{title}</Text>
+        {showTitle ? (
+          <>
+            <Text voice="gloss">·</Text>
+            <Text voice="gloss">{title}</Text>
+          </>
+        ) : null}
       </Row>
-      <Stack aria-label={`${pluginName} — ${title}`} gap="block" role="group">
+      <Stack aria-label={regionName} gap="block" role="group">
         {children}
       </Stack>
     </Stack>

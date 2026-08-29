@@ -39,6 +39,7 @@
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import { Row, Stack } from "@orb/ui/layout";
@@ -78,7 +79,7 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const enableAdmission = useRef(false);
 
-  const status = statusCopy(plugin.status, plugin.reconsentPending);
+  const status = statusCopy(plugin.status, plugin.reconsentPending, plugin.grantedCapabilities.length);
   const provenance = builtAgainstLine(plugin.builtAgainst);
 
   const onEnabledChange = (next: boolean): void => {
@@ -121,152 +122,182 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
   };
 
   return (
-    <Stack gap="block">
-      <Row align="start" gap="block" justify="between">
-        <Stack className="min-w-0 flex-1" gap="tight">
-          <Row align="center" gap="field">
-            <Text voice="promoted">{plugin.name}</Text>
-            <Badge intent={status.intent} size="sm" tone="soft">
-              {status.label}
-            </Badge>
+    // THE CARD IS THE ROW'S BOUNDARY (owner rework, 2026-08-29). The installed list used to separate its
+    // plugins with a Stack gap alone, and a plugin row is TALL — identity, a possible re-consent notice, the
+    // plugin's own surfaces, two disclosures — so the pane read as one continuous wall with no edge saying
+    // where one plugin's consent story ends and the next begins. A bordered Card per plugin is that edge;
+    // the automation pane's gap-only rows stay gap-only because a rule row is four lines, not a wall.
+    <Card>
+      <Stack gap="block">
+        {/* THE HEADER is a distinct block — identity left, lifecycle controls right — closed by a hairline
+            (the Section-divider grammar), so the acts (toggle/update/remove) read as chrome OF the plugin
+            rather than floating in its prose. Two reflow arms, both container-queried against the pane
+            (the surface's own <Container>):
+              · the name row is `flex-wrap`, so a LONG status badge ("Off — asked for more than you
+                allowed") wraps onto its own line instead of overflowing the min-w-0 column and painting
+                UNDER the shrink-0 controls cluster — the exact ~390px collision side-eye 2026-08-29 P2-1
+                photographed (Badge is whitespace-nowrap by design; the row must be the thing that bends);
+              · below @md the controls cluster drops onto its own line under the identity block, so the
+                toggle/Update/⋯ never compete with the badge for one cramped line at all. */}
+        <Stack className="border-border border-b pb-block" gap="tight">
+          <Row align="start" className="@max-md:flex-col @max-md:items-stretch" gap="block" justify="between">
+            <Stack className="min-w-0 flex-1" gap="tight">
+              <Row align="center" className="flex-wrap" gap="field">
+                <Text voice="promoted">{plugin.name}</Text>
+                <Badge intent={status.intent} size="sm" tone="soft">
+                  {status.label}
+                </Badge>
+              </Row>
+              <Text prose={true} voice="gloss">
+                Version {plugin.version}
+                {provenance === null ? "" : ` · ${provenance}`}
+              </Text>
+              {plugin.lastError === null ? null : (
+                <Text className="text-destructive" prose={true} voice="gloss">
+                  {plugin.lastError}
+                </Text>
+              )}
+            </Stack>
+            <Row align="center" className="shrink-0" gap="field">
+              <Switch
+                aria-label={`Turn ${plugin.name} on`}
+                checked={plugin.status === "enabled"}
+                disabled={setEnabled.isPending}
+                onCheckedChange={onEnabledChange}
+              />
+              {/* Update sits IN the cluster (it is reversible-ish and the common maintenance act); Remove is
+                  demoted into the overflow behind the composite's ConfirmDialog, so the irreversible action
+                  cannot be reached by a single click beside the toggle. */}
+              <FileTrigger
+                accept=".zip"
+                onFilesSelected={(files): void => {
+                  const [file] = files;
+                  if (file !== undefined) {
+                    onUpgradeFile(file);
+                  }
+                }}
+              >
+                {({ open }): ReactElement => (
+                  <Button aria-label={`Update ${plugin.name} from a bundle`} intent="secondary" loading={upgrade.isPending} onClick={open} size="sm">
+                    Update
+                  </Button>
+                )}
+              </FileTrigger>
+              <RowActionsMenu
+                destructive={{
+                  // Every OTHER string on this feature says "Remove" (the row's own confirm button, the
+                  // re-consent notice's escape action below); this menu item defaulted to "Delete" and was the
+                  // one place a person read a different verb for the same act (side-eye P2-7).
+                  confirmLabel: "Remove plugin",
+                  description: REMOVE_PLUGIN_DESCRIPTION,
+                  label: "Remove",
+                  onConfirm: (): void => uninstall.mutate({ pluginId: plugin.id }),
+                  title: `Remove "${plugin.name}"?`,
+                }}
+                label={`More actions for ${plugin.name}`}
+              />
+            </Row>
           </Row>
-          <Text prose={true} voice="gloss">
-            Version {plugin.version}
-            {provenance === null ? "" : ` · ${provenance}`}
-          </Text>
-          {plugin.lastError === null ? null : (
-            <Text className="text-destructive" prose={true} voice="gloss">
-              {plugin.lastError}
-            </Text>
-          )}
         </Stack>
-        <Row align="center" className="shrink-0" gap="field">
-          <Switch
-            aria-label={`Turn ${plugin.name} on`}
-            checked={plugin.status === "enabled"}
-            disabled={setEnabled.isPending}
-            onCheckedChange={onEnabledChange}
-          />
-          {/* Update sits IN the cluster (it is reversible-ish and the common maintenance act); Remove is
-              demoted into the overflow behind the composite's ConfirmDialog, so the irreversible action
-              cannot be reached by a single click beside the toggle. */}
-          <FileTrigger
-            accept=".zip"
-            onFilesSelected={(files): void => {
-              const [file] = files;
-              if (file !== undefined) {
-                onUpgradeFile(file);
-              }
-            }}
-          >
-            {({ open }): ReactElement => (
-              <Button aria-label={`Update ${plugin.name} from a bundle`} intent="secondary" loading={upgrade.isPending} onClick={open} size="sm">
-                Update
-              </Button>
-            )}
-          </FileTrigger>
-          <RowActionsMenu
-            destructive={{
-              // Every OTHER string on this feature says "Remove" (the row's own confirm button, the
-              // re-consent notice's escape action below); this menu item defaulted to "Delete" and was the
-              // one place a person read a different verb for the same act (side-eye P2-7).
-              confirmLabel: "Remove plugin",
-              description: REMOVE_PLUGIN_DESCRIPTION,
-              label: "Remove",
-              onConfirm: (): void => uninstall.mutate({ pluginId: plugin.id }),
-              title: `Remove "${plugin.name}"?`,
-            }}
-            label={`More actions for ${plugin.name}`}
-          />
-        </Row>
-      </Row>
 
-      {uploadError === null ? null : (
-        <Text className="text-destructive" prose={true} role="alert">
-          {uploadError}
-        </Text>
-      )}
+        {uploadError === null ? null : (
+          <Text className="text-destructive" prose={true} role="alert">
+            {uploadError}
+          </Text>
+        )}
 
-      {/* U8 2b — the auto update-check + one-click upgrade, ONLY for a `url`-origin install (it remembers where
+        {/* U8 2b — the auto update-check + one-click upgrade, ONLY for a `url`-origin install (it remembers where
           it was fetched from). A file install has no remembered source, so it keeps only the manual "Update"
           bundle upload above. The one-click upgrade rides the SAME server upgrade verb, so a reach-widening
           update lands `disabled` and the ReConsentNotice below renders — never silent. */}
-      {plugin.origin === "url" ? <UpdateCheckRow plugin={plugin} /> : null}
+        {plugin.origin === "url" ? <UpdateCheckRow plugin={plugin} /> : null}
 
-      {/* The plugin's OWN settings surfaces (plugin-ui-plane #679 U1) — rendered inside the first-party
+        {/* The plugin's OWN settings surfaces (plugin-ui-plane #679 U1) — rendered inside the first-party
           labelled shell, per §4.5. Renders nothing when the plugin is disabled or ships no settings surface. */}
-      <PluginSurfacesPanel grants={plugin.grantedCapabilities} pluginId={plugin.id} pluginName={plugin.name} />
+        <PluginSurfacesPanel grants={plugin.grantedCapabilities} pluginId={plugin.id} pluginName={plugin.name} />
 
-      {plugin.reconsentPending ? (
-        <ReConsentNotice
-          allowing={setGrant.isPending}
-          // THE ECHO IS THE LIST THAT WAS RENDERED, not a function of what the person ticked (file header):
-          // it is read straight off the same `plugin.netHosts` the notice hands `PluginGrantList`, so the
-          // server can refuse a manifest that moved under the screen. `grant` is the person's own subset.
-          onAllow={(grant): void => {
-            setGrant.mutate({ acknowledgedNetHosts: [...(plugin.netHosts ?? [])], grant: [...grant], pluginId: plugin.id });
-          }}
-          onRemove={(): void => uninstall.mutate({ pluginId: plugin.id })}
-          plugin={plugin}
-          removing={uninstall.isPending}
-          // RESET THE DRAFT when the server's own truth moves under it — a landed partial grant, or another
-          // update arriving while this notice sits open. React's sanctioned state reset; without it the
-          // checkboxes would keep describing a version and a grant that no longer exist. (A stale draft can
-          // only ever UNDER-grant — the server refuses anything outside the persisted manifest, and the
-          // netHosts echo is re-read from the fresh row — so this is honesty, not a security control.)
-          key={`${plugin.version}:${plugin.grantedCapabilities.join(",")}`}
-        />
-      ) : null}
+        {plugin.reconsentPending ? (
+          <ReConsentNotice
+            allowing={setGrant.isPending}
+            // THE ECHO IS THE LIST THAT WAS RENDERED, not a function of what the person ticked (file header):
+            // it is read straight off the same `plugin.netHosts` the notice hands `PluginGrantList`, so the
+            // server can refuse a manifest that moved under the screen. `grant` is the person's own subset.
+            onAllow={(grant): void => {
+              setGrant.mutate({ acknowledgedNetHosts: [...(plugin.netHosts ?? [])], grant: [...grant], pluginId: plugin.id });
+            }}
+            onRemove={(): void => uninstall.mutate({ pluginId: plugin.id })}
+            plugin={plugin}
+            removing={uninstall.isPending}
+            // RESET THE DRAFT when the server's own truth moves under it — a landed partial grant, or another
+            // update arriving while this notice sits open. React's sanctioned state reset; without it the
+            // checkboxes would keep describing a version and a grant that no longer exist. (A stale draft can
+            // only ever UNDER-grant — the server refuses anything outside the persisted manifest, and the
+            // netHosts echo is re-read from the fresh row — so this is honesty, not a security control.)
+            key={`${plugin.version}:${plugin.grantedCapabilities.join(",")}`}
+          />
+        ) : null}
 
-      <Collapsible>
-        <CollapsibleTrigger aria-label={`What ${plugin.name} is allowed to do`}>
-          <Text voice="label">What it's allowed to do</Text>
-        </CollapsibleTrigger>
-        {/* `pe-3` clears the checkbox's own touch-target pseudo (P2-11): the panel's `overflow-hidden` is
-            load-bearing for the collapse-height animation (`packages/ui/src/primitives/collapsible/
-            variants.ts`), and a right-docked control's ≥44px coarse-pointer hit area (13px of the pseudo
-            past the visible 18px box on each side, `--spacing-touch-target` vs `--spacing-checkbox`) bled
-            past that boundary and got clipped on the side facing it — the panel's own edge, not the
-            checkbox's. Scoped here rather than widened in `@orb/ui`: only a right-docked control inside a
-            height-animated panel hits this, and this is the one place plugin-grant-list.tsx pairs the two. */}
-        <CollapsiblePanel className="pe-3">
-          {plugin.declaredCapabilities.length === 0 ? (
-            <Text prose={true} voice="gloss">
-              Nothing. It can run its own code and reach nothing else.
-            </Text>
-          ) : (
-            // `declared` is the FULL current ask (#650 P1-2) — a plugin an owner granted only a paranoid
-            // subset of now shows the ungranted rows too ("Not granted" statements, plugin-grant-list.tsx),
-            // which is the whole point of the asked-vs-allowed pair: this disclosure used to be able to show
-            // only the allowed half, which cannot say "this plugin asks for X and you allowed Y".
-            //
-            // The `netHosts` prop is GATED ON `net.fetch` BEING GRANTED, not merely declared — this
-            // disclosure's copy is "what it's allowed to do" (past tense, confirmed), and "the exact hosts it
-            // can reach" is a false claim for a paranoid owner who declined `net.fetch` itself: the plugin
-            // cannot reach ANY of those hosts without the capability, so the sentence must not appear at all.
-            <PluginGrantList
-              capabilitiesLabel={`What ${plugin.name} is allowed to do`}
-              declared={plugin.declaredCapabilities}
-              granted={plugin.grantedCapabilities}
-              netHosts={plugin.grantedCapabilities.includes("net.fetch") ? (plugin.netHosts ?? []) : []}
-            />
-          )}
-        </CollapsiblePanel>
-      </Collapsible>
+        <Collapsible>
+          {/* `size="control"` — the disclosure IS a row of its own (the automation rule-row precedent, minted
+            for the identical defect): it shipped `inline` at ~746×16 with `::after` resolving `content:
+            none`, below WCAG 2.5.8's 24px floor on ANY pointer (side-eye 2026-08-29 P2-3). The `control`
+            arm pins the pointer-conditional `--spacing-control-sm` floor (44px coarse / 32px fine).
+            The aria-label CONTAINS the visible words (WCAG 2.5.3 label-in-name, side-eye P3-4): the old
+            "What ${name} is allowed to do" re-ordered them, so a voice-control user saying the words on
+            the screen could not match the control. The plugin name still disambiguates — after the em
+            dash, outside the visible phrase. */}
+          <CollapsibleTrigger aria-label={`What it's allowed to do — ${plugin.name}`} size="control">
+            <Text voice="label">What it's allowed to do</Text>
+          </CollapsibleTrigger>
+          {/* `ps-block` clears the checkbox's touch-target pseudo on the side it now docks (P2-11's rule, side
+            flipped by the grant-list rework): the panel's `overflow-hidden` is load-bearing for the
+            collapse-height animation (`packages/ui/src/primitives/collapsible/variants.ts`), and a LEADING
+            control's ≥44px coarse-pointer hit area (13px of pseudo past the visible 18px box each side,
+            `--spacing-touch-target` vs `--spacing-checkbox`) bleeds past the panel's START edge now that the
+            checkbox leads the row. The old `pe-3` cleared the END edge for the right-docked column that no
+            longer exists. Scoped here rather than widened in `@orb/ui`: only a panel-adjacent docked control
+            inside a height-animated panel hits this, and this is the one place that pairs the two. */}
+          <CollapsiblePanel className="ps-block">
+            {plugin.declaredCapabilities.length === 0 ? (
+              <Text prose={true} voice="gloss">
+                Nothing. It can run its own code and reach nothing else.
+              </Text>
+            ) : (
+              // `declared` is the FULL current ask (#650 P1-2) — a plugin an owner granted only a paranoid
+              // subset of now shows the ungranted rows too ("Not granted" statements, plugin-grant-list.tsx),
+              // which is the whole point of the asked-vs-allowed pair: this disclosure used to be able to show
+              // only the allowed half, which cannot say "this plugin asks for X and you allowed Y".
+              //
+              // The `netHosts` prop is GATED ON `net.fetch` BEING GRANTED, not merely declared — this
+              // disclosure's copy is "what it's allowed to do" (past tense, confirmed), and "the exact hosts it
+              // can reach" is a false claim for a paranoid owner who declined `net.fetch` itself: the plugin
+              // cannot reach ANY of those hosts without the capability, so the sentence must not appear at all.
+              <PluginGrantList
+                capabilitiesLabel={`What it's allowed to do — ${plugin.name}`}
+                declared={plugin.declaredCapabilities}
+                granted={plugin.grantedCapabilities}
+                netHosts={plugin.grantedCapabilities.includes("net.fetch") ? (plugin.netHosts ?? []) : []}
+              />
+            )}
+          </CollapsiblePanel>
+        </Collapsible>
 
-      <Collapsible>
-        <CollapsibleTrigger aria-label={`Recent activity for ${plugin.name}`}>
-          <Text voice="label">Recent activity</Text>
-        </CollapsibleTrigger>
-        <CollapsiblePanel>
-          <QueryBoundary
-            fallback={<SkeletonRows count={2} shape="line" />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="this plugin's activity" onRetry={retry} />}
-          >
-            <PluginLogPanel name={plugin.name} pluginId={plugin.id} />
-          </QueryBoundary>
-        </CollapsiblePanel>
-      </Collapsible>
-    </Stack>
+        <Collapsible>
+          {/* "Recent activity for ${name}" already CONTAINS its visible words (2.5.3 containment — the
+            rule-row precedent's own phrasing); only the size arm was missing here. */}
+          <CollapsibleTrigger aria-label={`Recent activity for ${plugin.name}`} size="control">
+            <Text voice="label">Recent activity</Text>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <QueryBoundary
+              fallback={<SkeletonRows count={2} shape="line" />}
+              renderError={(_error, retry): ReactElement => <QueryErrorState label="this plugin's activity" onRetry={retry} />}
+            >
+              <PluginLogPanel name={plugin.name} pluginId={plugin.id} />
+            </QueryBoundary>
+          </CollapsiblePanel>
+        </Collapsible>
+      </Stack>
+    </Card>
   );
 }

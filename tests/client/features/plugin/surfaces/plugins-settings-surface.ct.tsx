@@ -26,6 +26,7 @@ import type { Page } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import { PluginsSurfaceStory, SnippetConsoleStory } from "../_ct-stories.tsx";
 
 const DROPZONE_INPUT = '[data-slot="file-dropzone-input"]';
@@ -338,7 +339,10 @@ test("an installed plugin says whether it is on and what it is allowed to do", a
   await expect(page.getByText("Off", { exact: true })).toBeVisible();
 
   // The granted set is readable WITHOUT turning it on — consent you can re-read is consent you can revisit.
-  await page.getByRole("button", { name: "What Weather Teller is allowed to do" }).click();
+  // The disclosure's accessible name CONTAINS its visible words (WCAG 2.5.3, side-eye 2026-08-29 P3-4) —
+  // the old "What Weather Teller is allowed to do" re-ordered them and a voice-control user saying the
+  // words on the screen could not match the control.
+  await page.getByRole("button", { name: "What it's allowed to do — Weather Teller" }).click();
   await expect(page.getByText("Read this room's messages")).toBeVisible();
   await expect(page.getByText("Reach the internet")).toBeVisible();
   // THE ASKED-VS-ALLOWED PAIR (#650 P1-2): it was granted a SUBSET at install (`turn.trigger` declared, not
@@ -664,6 +668,89 @@ test("an up-to-date url plugin says so; a file plugin offers no update check (U8
   // The URL install offers it; checking reports up-to-date in the person's own words.
   await page.getByRole("button", { name: "Check URL Teller for updates" }).click();
   await expect(page.getByText("Up to date", { exact: false })).toBeVisible();
+});
+
+// ── The 2026-08-29 rework pins: header reflow, tap floors, the inert-on hint ───────────────────────────────
+
+/** A row mid re-consent — the LONG status badge ("Off — asked for more than you allowed") and the notice.
+ *  Shape mirrors the widened-upgrade fixture: declared ⊋ granted, `reconsentPending: true`. */
+const PENDING_ROW = {
+  ...INSTALLED_ROW,
+  version: "2.0.0",
+  declaredCapabilities: ["chat.read", "net.fetch", "worldinfo.write"],
+  grantedCapabilities: ["chat.read", "net.fetch"],
+  reconsentPending: true,
+};
+
+/** Two boxes overlap iff both axes overlap — the header-collision read (side-eye 2026-08-29 P2-1). */
+function overlaps(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): boolean {
+  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+}
+
+test("at a phone-width pane the LONG status badge never collides with the row's controls (P2-1)", async ({ mount, page }) => {
+  // The measured defect: at ~390px the whitespace-nowrap badge overflowed the min-w-0 identity column and
+  // painted UNDER the shrink-0 toggle + Update cluster (the switch knob sat on top of "…more than…"). The
+  // fix is a wrap-capable name row + the header stacking its controls below the identity at @max-md — so
+  // the pin is geometric: the badge's box is disjoint from the toggle's AND the Update button's, and it
+  // stays inside the pane.
+  await routeTrpc(page, { "plugin.list": () => [PENDING_ROW], "plugin.getLog": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
+  await mount(<PluginsSurfaceStory width={390} />);
+
+  const badge = page.getByText("Off — asked for more than you allowed");
+  await expect(badge).toBeVisible();
+  const badgeBox = await badge.boundingBox();
+  const switchBox = await page.getByRole("switch", { name: "Turn Weather Teller on" }).boundingBox();
+  const updateBox = await page.getByRole("button", { name: "Update Weather Teller from a bundle" }).boundingBox();
+  expect(badgeBox === null || switchBox === null || updateBox === null).toBe(false);
+  if (badgeBox === null || switchBox === null || updateBox === null) {
+    return;
+  }
+  expect(overlaps(badgeBox, switchBox)).toBe(false);
+  expect(overlaps(badgeBox, updateBox)).toBe(false);
+  // …and the badge itself stays inside the 390px pane rather than escaping it (the overflow that made the
+  // collision possible in the first place).
+  expect(badgeBox.x + badgeBox.width).toBeLessThanOrEqual(390);
+});
+
+test("a plugin switched ON with nothing granted says so on its status badge (owner observation, 2026-08-29)", async ({ mount, page }) => {
+  // Enabled-but-inert: every capability "Not granted" means the plugin runs and can reach nothing — the
+  // least-privilege posture working as designed, but "I turned it on and nothing happened" needed an answer
+  // on the row itself.
+  const inertRow = { ...INSTALLED_ROW, status: "enabled", declaredCapabilities: ["chat.read"], grantedCapabilities: [], netHosts: null };
+  await routeTrpc(page, { "plugin.list": () => [inertRow], "plugin.getLog": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
+  await mount(<PluginsSurfaceStory />);
+
+  await expect(page.getByText("On — nothing granted yet")).toBeVisible();
+  await expect(page.getByText("On", { exact: true })).toHaveCount(0);
+});
+
+// The two disclosures are the only doors to "what can this plugin do" and "what has it done" — measured
+// 746×16 with `::after` resolving `content: none` (side-eye 2026-08-29 P2-3), below WCAG 2.5.8's 24px on
+// ANY pointer. `size="control"` pins the pointer-conditional `--spacing-control-sm` floor; this is the
+// coarse (44px) arm, the automation rule-row's own pin shape.
+test.describe("coarse pointer — the disclosure triggers meet the touch floor (P2-3)", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 900 } });
+
+  test("both plugin-row disclosures are reachable with a finger", async ({ mount, page }) => {
+    await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await routeTrpc(page, {
+      "plugin.list": () => [INSTALLED_ROW],
+      "plugin.getLog": () => [],
+      "plugin.listSurfaces": () => [],
+      "sessions.me": () => USER_VIEWER,
+    });
+    await mount(<PluginsSurfaceStory width={390} />);
+
+    const floor = await touchFloorPx(page);
+    expect(floor).toBeGreaterThanOrEqual(44);
+    const allowed = page.getByRole("button", { name: "What it's allowed to do — Weather Teller" });
+    await expect(allowed).toBeVisible();
+    // The box IS the target (`size="control"` is a real min-height, not an overflowing pseudo) — the same
+    // measured-choice note as the automation pin this mirrors.
+    await expect.poll(async () => (await allowed.boundingBox())?.height, { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);
+    const activity = page.getByRole("button", { name: "Recent activity for Weather Teller" });
+    await expect.poll(async () => (await activity.boundingBox())?.height, { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);
+  });
 });
 
 test("the snippet console shows what a run logged, and shows a contained failure instead of hanging", async ({ mount, page }) => {
