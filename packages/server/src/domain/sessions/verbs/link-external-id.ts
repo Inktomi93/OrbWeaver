@@ -61,6 +61,10 @@ export function createLinkExternalId(ctx: SessionsContext): Pick<SessionsService
       return { outcome: "subject-taken" };
     }
     let claimed: boolean;
+    // @orb-gate-ignore caught-failure-ownership(empty:failure): propagated — `settleMissedClaim` re-reads
+    // durable state to converge the concurrent loser to a typed outcome, and (comment below) RETHROWS the
+    // real database error when state does not explain the failure. Never a silent swallow. Ends if
+    // `settleMissedClaim` stops rethrowing an unexplained failure.
     try {
       claimed = await claimExternalIdIfUnbound(ctx.db, userId, externalId, ctx.now());
     } catch (failure) {

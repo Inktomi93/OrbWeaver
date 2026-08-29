@@ -20,6 +20,7 @@ import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool, UsageError } from "../_shared/run-tool.ts";
 import {
   generateBaseuiSurface,
+  generateCaughtFailurePopulation,
   generateDensityBaseline,
   generateDuplicateActionDoorsBaseline,
   generateOverArtPlateBaseline,
@@ -47,6 +48,9 @@ import {
  *  spelled anywhere. */
 const BASELINES: Readonly<Record<string, (root: string) => number>> = {
   "baseui-surface": generateBaseuiSurface,
+  // NOT a ratchet: a derived REVIEW RECORD no gate reads (#751). It rides the same single-writer door so
+  // the census cannot be hand-edited into agreement with itself.
+  "caught-failure-population": generateCaughtFailurePopulation,
   density: generateDensityBaseline,
   "duplicate-action-doors": generateDuplicateActionDoorsBaseline,
   "over-art-plate-arm": generateOverArtPlateBaseline,

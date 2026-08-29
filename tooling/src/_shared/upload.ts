@@ -56,6 +56,7 @@ export function resolveUploadPaths(raw: readonly string[]): UploadPathResolution
  *  FolderPicker call site (character/chat/preset import, avatar upload, background upload, databank
  *  add-document, workloads import-library, and the plugin install card this row exists for) is reached. */
 export async function resolveFileInputLocator(loc: Locator): Promise<Locator> {
+  // @orb-gate-ignore caught-failure-ownership(promise:evaluate): best-effort type probe on the caller's selector — a failure here (detached node, not-yet-attached) just means "assume not a file input" and falls through to the nested input[type=file] search below, or returns the original locator; any real failure surfaces loudly when the caller later interacts with the resolved locator. Ends if this stops falling through to the nested search.
   const isFileInput = await loc
     .evaluate((el) => {
       const node = el as unknown as { tagName: string; getAttribute: (name: string) => string | null };

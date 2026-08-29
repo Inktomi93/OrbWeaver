@@ -33,6 +33,9 @@ function runProbe(
   setResult: (next: EndpointInspection | null) => void,
   setFailed: (next: boolean) => void,
 ): void {
+  // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): the .catch below sets `failed` to true and
+  // clears the result — a rendered error state the dialog stays open to show. Ends if the failure branch stops
+  // writing that state.
   void mutateAsync({ credentialId })
     .then((next): void => {
       setFailed(false);

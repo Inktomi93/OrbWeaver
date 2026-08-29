@@ -89,6 +89,8 @@ export function useLibraryImport(): LibraryImport {
     const epoch = ++requestEpoch.current;
     setState({ status: "uploading", filename: first.name });
     if (isZip(first)) {
+      // @orb-gate-ignore caught-failure-ownership(promise:importBundle): the .catch below calls fail(), which
+      // sets an error state and toasts — a rendered failure surface. Ends if fail() stops writing that state.
       importBundle(first)
         .then(({ workloadId }) => {
           if (epoch === requestEpoch.current) {
@@ -98,6 +100,8 @@ export function useLibraryImport(): LibraryImport {
         .catch((error: unknown) => fail(epoch, errorMessage(error)));
       return;
     }
+    // @orb-gate-ignore caught-failure-ownership(promise:importCharacters): the .catch below calls fail(), which
+    // sets an error state and toasts — a rendered failure surface. Ends if fail() stops writing that state.
     importCharacters(files)
       .then((result) => finish(epoch, summarizeCardImport(result)))
       .catch((error: unknown) => fail(epoch, errorMessage(error)));
@@ -110,6 +114,8 @@ export function useLibraryImport(): LibraryImport {
     }
     const epoch = ++requestEpoch.current;
     setState({ status: "uploading", filename: relativePathOf(first) });
+    // @orb-gate-ignore caught-failure-ownership(promise:importTree): the .catch below calls fail(), which sets
+    // an error state and toasts — a rendered failure surface. Ends if fail() stops writing that state.
     importTree(files)
       .then(({ workloadId }) => {
         if (epoch === requestEpoch.current) {

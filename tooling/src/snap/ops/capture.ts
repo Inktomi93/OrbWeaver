@@ -70,6 +70,7 @@ export async function capture(page: Page, opts: Args, plan: PagePlan, evidence: 
   const out = planOut(plan, pageIndex, totalPages);
   // Volatile-region masks (pink overlay) shared by the main shot, --shot-of, and crop.
   const mask = opts.mask.map((s) => page.locator(s));
+  // @orb-gate-ignore caught-failure-ownership(empty:e): captured into outcome.navError, which the caller counts into the verdict's navigation total and prints as NAV ERROR. Ends if navError stops being read.
   try {
     outcome.navError = plan.navigatePage === false ? null : await navigate(page, opts, plan.url);
     if (opts.checkpoint) {
@@ -101,6 +102,7 @@ export async function capture(page: Page, opts: Args, plan: PagePlan, evidence: 
     outcome.navError = `nav/wait threw: ${errorMessage(e)}`;
     // Try to screenshot whatever we got anyway.
     if (plan.produceShot) {
+      // @orb-gate-ignore caught-failure-ownership(empty:catch): best-effort fallback shot after the nav already failed — the RESULT line's navError still reports the real failure. Ends if the comment's "still lands" claim stops holding.
       try {
         await captureShot(page, opts, out, mask);
       } catch {

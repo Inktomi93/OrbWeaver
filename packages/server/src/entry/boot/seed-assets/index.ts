@@ -24,6 +24,9 @@ export interface SeedAssetBytes {
 }
 
 async function readBundled(relPath: string, mime: string): Promise<SeedAssetBytes | null> {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — a missing/unreadable
+  // bundled asset means "this pack ships none for this handle" (`null`), so the caller skips ONE seed item
+  // instead of failing the whole seed. Ends if the seed pack becomes required rather than best-effort.
   try {
     const buf = await readFile(join(HERE, relPath));
     return { bytes: new Uint8Array(buf), mime };
@@ -63,6 +66,9 @@ const PLUGIN_BUNDLE_MTIME_MS = 331_257_600_000;
  *  slug), a missing `ui.js` means "this example is Tier-S" (pack two entries). Collapsing them would make a
  *  typo'd `ui.js` filename silently ship a plugin with no client guest. */
 async function readOptionalEntry(slug: string, entry: string): Promise<Buffer | null> {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — the header states the
+  // contract: a missing `ui.js` means "this example is Tier-S" (skip that entry), not a failure. Ends if this
+  // entry becomes required rather than optional.
   try {
     return await readFile(join(HERE, "plugins", slug, entry));
   } catch {
@@ -87,6 +93,9 @@ async function readOptionalEntry(slug: string, entry: string): Promise<Buffer | 
  *  it to emit a distributable `.zip` for a hand install. There is no committed zip artifact to drift. */
 export async function packSeedPluginBundle(slug: string): Promise<Uint8Array | null> {
   let read: Buffer[];
+  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — SCOPED to the read
+  // only (the comment below states why: a blanket catch around the whole function once turned a real fflate
+  // refusal into a silent "example missing"). Ends if the zip step below is folded back into this try.
   try {
     read = await Promise.all(PLUGIN_BUNDLE_ENTRIES.map((entry) => readFile(join(HERE, "plugins", slug, entry))));
   } catch {
@@ -111,6 +120,9 @@ export async function packSeedPluginBundle(slug: string): Promise<Uint8Array | n
  *  (`GET /api/export/chat/:id?format=jsonl`) produced for the live-generated conversation. `null` when the
  *  file is absent, so a missing transcript skips ONE example instead of failing the seed. */
 export async function readSeedDemoChat(slug: string): Promise<string | null> {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — the header states the
+  // contract: a missing transcript skips ONE example instead of failing the seed. Ends if this transcript
+  // becomes required rather than best-effort.
   try {
     return await readFile(join(HERE, "demo-chats", `${slug}.jsonl`), "utf8");
   } catch {

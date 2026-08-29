@@ -76,11 +76,12 @@ function PanelBody({ presentation }: { readonly presentation: ChromePresentation
     setSeed.mutate({ section: "seeds", patch: { currentPersonaId: personaId } });
   };
   const onCreate = async (): Promise<void> => {
+    // @orb-gate-ignore caught-failure-ownership(empty:catch): createEntityMutation's own errorToast already surfaced the failure — nothing to expand. Ends if useCreatePersona drops its errorToast.
     try {
       const created = await create.mutateAsync({ input: { name: "New persona", description: "" } });
       setExpandedId(created.id);
     } catch {
-      // `createEntityMutation`'s errorToast already surfaced the failure — nothing to expand.
+      // createEntityMutation's errorToast already surfaced the failure — nothing to expand.
     }
   };
   // F3: IMPORT is a band affordance beside the ONE primary (the ruled anatomy) — it used to live in a

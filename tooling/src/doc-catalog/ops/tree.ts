@@ -57,6 +57,7 @@ export function stableJson(value: unknown): string {
 }
 
 function gitResult(args: readonly string[]): string | null {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): every caller (receiptFacts) treats a git command failure as "this receipt fact is unverified", not as a tool crash — null downgrades verifiedCommitExists/IsAncestor/blob to false/null rather than aborting the whole catalog build. Ends if a caller starts treating null as "verified".
   try {
     return execNicedSync("git", args, { cwd: root }).trim();
   } catch {
@@ -65,6 +66,7 @@ function gitResult(args: readonly string[]): string | null {
 }
 
 function gitBlob(args: readonly string[]): Buffer | null {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): same optional-read contract as gitResult above — only called when verifiedCommitExists is already true, and a failed `git show` just means the blob hash comes back null (unverified), not that the build aborts. Ends if a caller starts treating null as "verified".
   try {
     return execNicedSyncBuffer("git", args, { cwd: root });
   } catch {

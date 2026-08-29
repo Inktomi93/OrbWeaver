@@ -423,6 +423,9 @@ export interface RpgToolCall {
 // Parse a tool call's raw JSON args, or null on non-JSON (a malformed call is DROPPED — errors-as-data for
 // canon, mirroring the structured path's non-conforming-drop; never a throw into the flush).
 function parseArgs(raw: string): unknown {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): errors-as-data — a malformed tool call is
+  // DROPPED, mirroring the structured path's non-conforming-drop; the null return is consumed by the
+  // canon flush's non-JSON-args skip. Ends if the flush stops treating null as "drop this call".
   try {
     return JSON.parse(raw);
   } catch {

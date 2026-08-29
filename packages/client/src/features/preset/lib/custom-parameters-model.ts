@@ -35,6 +35,9 @@ export function parseCustomParameterValue(text: string): { readonly value: unkno
     return;
   }
   let parsed: unknown;
+  // @orb-gate-ignore caught-failure-ownership(default:catch): the doc comment above explains — undefined is the
+  // "not JSON yet" pending marker the caller renders as the row's error and holds out of the wire schema.
+  // Ends if the caller stops treating undefined as the pending marker.
   try {
     parsed = JSON.parse(trimmed);
   } catch {

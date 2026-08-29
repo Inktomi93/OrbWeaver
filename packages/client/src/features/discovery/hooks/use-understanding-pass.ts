@@ -207,6 +207,9 @@ export function useUnderstandingPass(): UnderstandingPassView {
     if (run !== null || startRun.isPending) {
       return;
     }
+    // @orb-gate-ignore caught-failure-ownership(promise:promise): useStartUnderstandingRun carries
+    // errorToast: "Couldn't start the understanding pass — a run may already be going." — the toast is the
+    // surface for every mutation in this chain. Ends if that mutation drops its errorToast.
     (async (): Promise<void> => {
       const distill = await startRun.mutateAsync({ input: { kind: "distill-characters", params: {} }, mode: "singular" });
       if (memoryDisabled) {

@@ -488,6 +488,7 @@ export async function runResponsesTurn(client: OpenRouterResponsesClient, req: O
     );
 
   let drain: ResponsesDrain;
+  // @orb-gate-ignore caught-failure-ownership(empty:err): the caught error drives a single reasoning-fallback retry ONLY for the mandatory-reasoning rejection; every other error is re-thrown verbatim (else → throw err) — propagated, not swallowed. Ends if the else branch stops re-throwing.
   try {
     drain = await run(true);
   } catch (err) {

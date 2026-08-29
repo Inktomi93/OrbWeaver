@@ -47,6 +47,7 @@ function programRoots(root: string, cfg: string): ReadonlySet<string> | undefine
     return;
   }
   let parsed: ShowConfig;
+  // @orb-gate-ignore caught-failure-ownership(default:catch): returns undefined, which measure() routes into `toolError` — a tsgo/config failure is a tool error, not a clean parity verdict (per the doc comment above). Ends if measure() stops reading undefined as a tool error.
   try {
     parsed = JSON.parse(res.stdout) as ShowConfig;
   } catch {

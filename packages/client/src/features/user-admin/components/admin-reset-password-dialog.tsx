@@ -52,6 +52,9 @@ function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readon
       setShowTooShort(true);
       return;
     }
+    // @orb-gate-ignore caught-failure-ownership(default:catch): the comment below explains — the sticky
+    // mutation error renders below plus the factory's errorToast; the dialog just stays open. Ends if
+    // useResetPassword drops its errorToast.
     try {
       await resetPassword.mutateAsync({ userId, password });
     } catch {

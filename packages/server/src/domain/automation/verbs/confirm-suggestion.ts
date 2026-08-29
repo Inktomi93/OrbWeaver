@@ -149,6 +149,10 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
   const nowMs = ctx.now();
   let outcome: AutomationRunOutcome;
   let error: string | null = null;
+  // @orb-gate-ignore caught-failure-ownership(empty:err): errors-as-data — the file header states the contract:
+  // a refusal is an `action_error` outcome the host reads, never a thrown 500 (the ask is already spent). The
+  // caught message is preserved into `error` and surfaces on the recorded fire below. Ends if this act stops
+  // being errors-as-data.
   try {
     await runAnalysisConfirm({ db: ctx.db, ops: ctx.ops, nowMs, applyProseRewrite: ctx.applyProseRewrite }, pending, rule, payload.act);
     outcome = "fired";
