@@ -283,6 +283,7 @@ export async function snapScenario(opts: Args): Promise<number> {
     return EXIT.misuse;
   }
   let prepared: PreparedScenario;
+  // @orb-gate-ignore caught-failure-ownership(empty:error): printed as SCENARIO ERROR and routed through EXIT.misuse, the process's own exit code. Ends if that exit code stops being surfaced.
   try {
     prepared = await prepareScenario(opts, scenarioPath);
   } catch (error) {
