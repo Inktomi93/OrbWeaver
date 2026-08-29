@@ -181,22 +181,29 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
   const summary = grantSummaryLine(draft);
   return (
     // THE WARNING-CALLOUT SKIN (owner rework 2026-08-29 — "no hierarchy"): this block is the one thing on
-    // the row that NEEDS the owner, and it used to render as more of the same prose wall. The house callout
-    // grammar (the params-deck/capability-gate/payload-view spelling) sets it apart, taken at the GHOST
-    // tone — a /40 warning border with NO fill and NO `text-warning`. Both quieter arms are measured, not
-    // taste: a `bg-warning/10` tint under this block composited the badge pills' own translucent tints over
-    // an amber-lifted ground and dropped them under AA (design-audit on the staged sha: "New" 4.44:1,
-    // "Reaches further" 4.19:1, 54×P1 — the alpha-token-composited class), and recoloring a paragraph of
-    // consent copy amber would spend the prose's contrast the same way. The border carries the boundary;
-    // the copy itself is byte-identical — the skin is the only change here.
-    <Stack
-      aria-label={`What ${plugin.name} asks for beyond what you've allowed`}
-      className="rounded-base border border-warning/40 p-block"
-      gap="block"
-      role="alert"
-    >
-      <Text voice="promoted">{reConsentLine(ungranted, plugin.widenedNetHosts)}</Text>
-      <Text prose={true} voice="gloss">
+    // the row that NEEDS the owner, and it used to render as more of the same prose wall. It is set apart by
+    // a LEADING ACCENT RULE (the list-row ember-bar / rpg-hud-rail kicker grammar — `border-l-2` +
+    // `ps-block`), NOT a full bordered box. The full `/40` warning border shipped by the rework nested a
+    // second box INSIDE the plugin's own Card border, and nested borders read cheap — tightest at ~390px,
+    // where the two edges sit a handful of px apart (side-eye 2026-08-29 residual P3). A left rule carries
+    // the same "attend to this" boundary with one edge, not two — at SOLID `border-l-warning`, not the box's
+    // `/40`, because a single 2px edge needs the full-weight amber to register where a four-side box could
+    // whisper (the ember-bar precedent is `border-l-primary` at full opacity for exactly this reason).
+    // STILL NO FILL, and that arm is measured, not taste: a `bg-warning/10` tint under this block composited
+    // the badge pills' own translucent tints over an amber-lifted ground and dropped them under AA
+    // (design-audit on the staged sha: "New" 4.44:1, "Reaches further" 4.19:1, 54×P1 — the
+    // alpha-token-composited class), and recoloring a paragraph of consent copy amber would spend the
+    // prose's contrast the same way. So a border-only leading rule is the zero-contrast-tax boundary: it
+    // paints no ground behind the pills at all. The ruling survives ("state it apart with a warning edge,
+    // never a fill"); its INPUT changed from a full box to a leading rule.
+    <Stack aria-label={`What ${plugin.name} asks for beyond what you've allowed`} className="border-l-2 border-l-warning ps-block" gap="block" role="alert">
+      <Text className="max-w-prose" voice="promoted">
+        {reConsentLine(ungranted, plugin.widenedNetHosts)}
+      </Text>
+      {/* `max-w-prose` caps the body + headline to the house 65-75ch reading measure (side-eye 2026-08-29
+          residual P2): at pane width the consent copy ran edge-to-edge near ~90ch, past the comfortable line
+          length. The per-capability consequence lines are capped at their own home (plugin-grant-list.tsx). */}
+      <Text className="max-w-prose" prose={true} voice="gloss">
         Orbweaver did not grant the extra permissions, so {plugin.name} stayed off. Tick what you're willing to allow and confirm below — turning it back on is
         still a separate step, above — or remove it.
       </Text>
