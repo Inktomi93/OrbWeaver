@@ -4,11 +4,11 @@
   "totals": {
     "sites": 406,
     "enforced": 403,
-    "reported": 3,
+    "reported": 2,
     "byVerdict": {
-      "deliberate-absorb": 400,
+      "deliberate-absorb": 401,
       "detached-owned": 3,
-      "unproven": 3
+      "unproven": 2
     },
     "byGrammar": {
       "promise": 119,
@@ -3335,15 +3335,15 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/env.ts::empty:catch::1",
       "path": "packages/server/src/infra/providers/backends/agent-sdk/env.ts",
-      "line": 192,
+      "line": 193,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "best-effort temp-dir cleanup on the symlink-failure path — the symlink already failed so `dir` holds no credential; a cleanup miss leaks only an empty tmp dir, never an auth decision. Ends if this cleanup becomes load-bearing or `dir` can ever hold a live credential.",
+      "markerLine": 190
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/host-token.ts::default:catch::1",
@@ -4544,7 +4544,7 @@
     {
       "siteId": "tooling/src/snap/ops/evidence.ts::default:catch::1",
       "path": "tooling/src/snap/ops/evidence.ts",
-      "line": 158,
+      "line": 157,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4552,12 +4552,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — perf evidence is a nice-to-have from window.__orb, null on any failure (old build, dev-only bridge absent) and the caller treats null as \"no perf evidence\", never a failure. Ends if a caller starts requiring perf evidence to be present.",
-      "markerLine": 145
+      "markerLine": 144
     },
     {
       "siteId": "tooling/src/snap/ops/evidence.ts::empty:e::1",
       "path": "tooling/src/snap/ops/evidence.ts",
-      "line": 45,
+      "line": 44,
       "column": 7,
       "grammar": "empty",
       "position": "empty:e",
@@ -4565,12 +4565,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "captured into the EvalOutcome as `failed: true` + an \"EVAL ERROR\" text, pushed into `results` and returned to the caller that prints/counts it. Ends if `failed`/`text` stop being read from the outcome.",
-      "markerLine": 40
+      "markerLine": 39
     },
     {
       "siteId": "tooling/src/snap/ops/evidence.ts::empty:error::1",
       "path": "tooling/src/snap/ops/evidence.ts",
-      "line": 137,
+      "line": 136,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -4578,12 +4578,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "captured as an ERROR outcome line pushed into the returned outcomes array, which the caller counts as failed and reports. Ends if the outcomes array stops being read.",
-      "markerLine": 134
+      "markerLine": 133
     },
     {
       "siteId": "tooling/src/snap/ops/evidence.ts::promise:isVisible::1",
       "path": "tooling/src/snap/ops/evidence.ts",
-      "line": 122,
+      "line": 121,
       "column": 24,
       "grammar": "promise",
       "position": "promise:isVisible",
@@ -4591,7 +4591,7 @@
       "snippet": "const pass = await locator",
       "verdict": "deliberate-absorb",
       "reason": "probe-whose-failure-is-its-return-value — a locator failure converts to pass=false, which the very next line reports as ASSERT visible … FAIL. Ends if that FAIL line stops being printed/read.",
-      "markerLine": 121
+      "markerLine": 120
     },
     {
       "siteId": "tooling/src/snap/ops/fixture.ts::default:catch::1",
