@@ -18,7 +18,6 @@ interface AriaOutcome {
 }
 
 export async function captureAria(page: Page, opts: Args): Promise<AriaOutcome> {
-  // @orb-gate-ignore caught-failure-ownership(empty:e): captured into AriaOutcome.error, which capture.ts assigns to outcome.ariaError — consumed by the report/verdict the same way navError is. Ends if ariaError stops being read.
   try {
     const root = page.locator(opts.ariaSelector).first();
     await root.waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS });
