@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 378,
-    "enforced": 375,
-    "reported": 329,
+    "sites": 406,
+    "enforced": 403,
+    "reported": 357,
     "byVerdict": {
       "deliberate-absorb": 46,
       "detached-owned": 3,
-      "unproven": 329
+      "unproven": 357
     },
     "byGrammar": {
-      "promise": 105,
-      "default": 111,
-      "empty": 162
+      "promise": 119,
+      "default": 119,
+      "empty": 168
     }
   },
   "rows": [
@@ -307,6 +307,32 @@
       "siteId": "packages/client/src/data/use-card-frame.ts::promise:pending::1",
       "path": "packages/client/src/data/use-card-frame.ts",
       "line": 92,
+      "column": 5,
+      "grammar": "promise",
+      "position": "promise:pending",
+      "ordinal": 1,
+      "snippet": "pending.then(",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/data/use-plugin-frame.ts::default:catch::1",
+      "path": "packages/client/src/data/use-plugin-frame.ts",
+      "line": 62,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/data/use-plugin-frame.ts::promise:pending::1",
+      "path": "packages/client/src/data/use-plugin-frame.ts",
+      "line": 86,
       "column": 5,
       "grammar": "promise",
       "position": "promise:pending",
@@ -655,14 +681,92 @@
       "markerLine": null
     },
     {
+      "siteId": "packages/client/src/features/plugin/components/plugin-frame.tsx::promise:hostCall::1",
+      "path": "packages/client/src/features/plugin/components/plugin-frame.tsx",
+      "line": 103,
+      "column": 5,
+      "grammar": "promise",
+      "position": "promise:hostCall",
+      "ordinal": 1,
+      "snippet": "hostCall({ pluginId, fn: call.fn, args: call.args })",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
       "siteId": "packages/client/src/features/plugin/components/plugin-install-card.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/plugin/components/plugin-install-card.tsx",
-      "line": 127,
+      "line": 120,
       "column": 5,
       "grammar": "promise",
       "position": "promise:mutateAsync",
       "ordinal": 1,
-      "snippet": "install.mutateAsync({ bundleBase64: toBundleBase64(state.preview.bytes), grant: [...state.granted] }).then(",
+      "snippet": "previewFromUrl.mutateAsync({ url: trimmedUrl }).then(",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-install-card.tsx::promise:settled::1",
+      "path": "packages/client/src/features/plugin/components/plugin-install-card.tsx",
+      "line": 236,
+      "column": 5,
+      "grammar": "promise",
+      "position": "promise:settled",
+      "ordinal": 1,
+      "snippet": "settled.then(onDone, () => undefined);",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:applyStoredUpgrade::1",
+      "path": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx",
+      "line": 108,
+      "column": 18,
+      "grammar": "promise",
+      "position": "promise:applyStoredUpgrade",
+      "ordinal": 1,
+      "snippet": "void applyStoredUpgrade().catch(() => undefined);",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:mutateAsync::1",
+      "path": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx",
+      "line": 54,
+      "column": 27,
+      "grammar": "promise",
+      "position": "promise:mutateAsync",
+      "ordinal": 1,
+      "snippet": "const results = await check.mutateAsync(undefined).catch(() => undefined);",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:mutateAsync::2",
+      "path": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx",
+      "line": 74,
+      "column": 27,
+      "grammar": "promise",
+      "position": "promise:mutateAsync",
+      "ordinal": 2,
+      "snippet": "const updated = await upgradeStored.mutateAsync({ pluginId: plugin.id }).catch(() => undefined);",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:runCheck::1",
+      "path": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx",
+      "line": 96,
+      "column": 16,
+      "grammar": "promise",
+      "position": "promise:runCheck",
+      "ordinal": 1,
+      "snippet": "void runCheck().catch(() => undefined);",
       "verdict": "unproven",
       "reason": null,
       "markerLine": null
@@ -670,12 +774,38 @@
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-row.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/plugin/components/plugin-row.tsx",
-      "line": 98,
+      "line": 100,
       "column": 27,
       "grammar": "promise",
       "position": "promise:mutateAsync",
       "ordinal": 1,
       "snippet": "const updated = await upgrade.mutateAsync({ pluginId: plugin.id, bundleBase64: toBundleBase64(preview.bytes) }).catch(() => undefined);",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-scripted-surface.tsx::promise:boot::1",
+      "path": "packages/client/src/features/plugin/components/plugin-scripted-surface.tsx",
+      "line": 122,
+      "column": 10,
+      "grammar": "promise",
+      "position": "promise:boot",
+      "ordinal": 1,
+      "snippet": "void boot().catch(() => undefined);",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/components/plugin-surface-renderer.tsx::promise:mutateAsync::1",
+      "path": "packages/client/src/features/plugin/components/plugin-surface-renderer.tsx",
+      "line": 168,
+      "column": 12,
+      "grammar": "promise",
+      "position": "promise:mutateAsync",
+      "ordinal": 1,
+      "snippet": "void invoke",
       "verdict": "unproven",
       "reason": null,
       "markerLine": null
@@ -694,6 +824,19 @@
       "markerLine": null
     },
     {
+      "siteId": "packages/client/src/features/plugin/hooks/use-plugin-commands.ts::promise:mutateAsync::1",
+      "path": "packages/client/src/features/plugin/hooks/use-plugin-commands.ts",
+      "line": 66,
+      "column": 10,
+      "grammar": "promise",
+      "position": "promise:mutateAsync",
+      "ordinal": 1,
+      "snippet": "void invoke",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
       "siteId": "packages/client/src/features/plugin/lib/plugin-tool-card-state.ts::empty:catch::1",
       "path": "packages/client/src/features/plugin/lib/plugin-tool-card-state.ts",
       "line": 19,
@@ -702,6 +845,110 @@
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/plugin-ui-guest-host.ts::default:catch::1",
+      "path": "packages/client/src/features/plugin/lib/ui-guest/plugin-ui-guest-host.ts",
+      "line": 122,
+      "column": 7,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/plugin-ui-guest-host.ts::empty:err::1",
+      "path": "packages/client/src/features/plugin/lib/ui-guest/plugin-ui-guest-host.ts",
+      "line": 145,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:err",
+      "ordinal": 1,
+      "snippet": "} catch (err) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/plugin-ui-guest-host.ts::promise:handleHostCall::1",
+      "path": "packages/client/src/features/plugin/lib/ui-guest/plugin-ui-guest-host.ts",
+      "line": 174,
+      "column": 12,
+      "grammar": "promise",
+      "position": "promise:handleHostCall",
+      "ordinal": 1,
+      "snippet": "void handleHostCall(message.callId, message.fn, message.argsJson).catch(() => undefined);",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest-realm.ts::promise:promise::1",
+      "path": "packages/client/src/features/plugin/lib/ui-guest/ui-guest-realm.ts",
+      "line": 267,
+      "column": 16,
+      "grammar": "promise",
+      "position": "promise:promise",
+      "ordinal": 1,
+      "snippet": "void deferred.settled.then(pump(ctx), pump(ctx));",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest-realm.ts::promise:promise::2",
+      "path": "packages/client/src/features/plugin/lib/ui-guest/ui-guest-realm.ts",
+      "line": 286,
+      "column": 14,
+      "grammar": "promise",
+      "position": "promise:promise",
+      "ordinal": 2,
+      "snippet": "void deferred.settled.then(pump(ctx), pump(ctx));",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts::empty:err::1",
+      "path": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts",
+      "line": 102,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:err",
+      "ordinal": 1,
+      "snippet": "} catch (err) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts::promise:boot::1",
+      "path": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts",
+      "line": 180,
+      "column": 10,
+      "grammar": "promise",
+      "position": "promise:boot",
+      "ordinal": 1,
+      "snippet": "void boot(message).catch((err: unknown) => {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts::promise:deliver::1",
+      "path": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts",
+      "line": 186,
+      "column": 10,
+      "grammar": "promise",
+      "position": "promise:deliver",
+      "ordinal": 1,
+      "snippet": "void deliver(message).catch((err: unknown) => {",
       "verdict": "unproven",
       "reason": null,
       "markerLine": null
@@ -1682,6 +1929,19 @@
       "markerLine": null
     },
     {
+      "siteId": "packages/server/src/domain/chat/substrate/prompt-transforms.ts::empty:catch::1",
+      "path": "packages/server/src/domain/chat/substrate/prompt-transforms.ts",
+      "line": 61,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
       "siteId": "packages/server/src/domain/chat/verbs/claim-chat.ts::promise:incumbent::1",
       "path": "packages/server/src/domain/chat/verbs/claim-chat.ts",
       "line": 178,
@@ -1697,7 +1957,7 @@
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::default:catch::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 1198,
+      "line": 1212,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1710,7 +1970,7 @@
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::empty:err::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2426,
+      "line": 2440,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -1971,6 +2231,32 @@
       "siteId": "packages/server/src/domain/import/substrate/world.ts::default:catch::1",
       "path": "packages/server/src/domain/import/substrate/world.ts",
       "line": 82,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/server/src/domain/plugin/substrate/plugin-macros.ts::default:catch::1",
+      "path": "packages/server/src/domain/plugin/substrate/plugin-macros.ts",
+      "line": 68,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/server/src/domain/plugin/verbs/transform-for-display.ts::default:catch::1",
+      "path": "packages/server/src/domain/plugin/verbs/transform-for-display.ts",
+      "line": 52,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2321,7 +2607,7 @@
     {
       "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::1",
       "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 29,
+      "line": 30,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2334,7 +2620,7 @@
     {
       "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::2",
       "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 71,
+      "line": 68,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2347,7 +2633,7 @@
     {
       "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::3",
       "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 91,
+      "line": 92,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2358,9 +2644,22 @@
       "markerLine": null
     },
     {
+      "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::4",
+      "path": "packages/server/src/entry/boot/seed-assets/index.ts",
+      "line": 116,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 4,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 442,
+      "line": 515,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2371,9 +2670,48 @@
       "markerLine": null
     },
     {
+      "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::2",
+      "path": "packages/server/src/entry/compose/automation-plugin.ts",
+      "line": 531,
+      "column": 11,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::3",
+      "path": "packages/server/src/entry/compose/automation-plugin.ts",
+      "line": 548,
+      "column": 11,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::4",
+      "path": "packages/server/src/entry/compose/automation-plugin.ts",
+      "line": 678,
+      "column": 11,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 4,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 954,
+      "line": 959,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -2386,7 +2724,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 902,
+      "line": 907,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2399,7 +2737,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 984,
+      "line": 989,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2412,7 +2750,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::3",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1017,
+      "line": 1022,
       "column": 11,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2425,7 +2763,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:err::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 736,
+      "line": 741,
       "column": 9,
       "grammar": "empty",
       "position": "empty:err",
@@ -2438,7 +2776,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::promise:runChatTurn::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 662,
+      "line": 667,
       "column": 10,
       "grammar": "promise",
       "position": "promise:runChatTurn",
@@ -2503,7 +2841,7 @@
     {
       "siteId": "packages/server/src/entry/compose/services.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/services.ts",
-      "line": 438,
+      "line": 441,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -2542,7 +2880,7 @@
     {
       "siteId": "packages/server/src/entry/http/card-frame.ts::empty:catch::1",
       "path": "packages/server/src/entry/http/card-frame.ts",
-      "line": 168,
+      "line": 147,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2550,12 +2888,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a LEAK-FREE COLLAPSE to the SAFE FLOOR, stated in the comment below — a non-participant throwing out of the membership gate and an unknown character must land on the identical restrictive policy, or the frame's permissiveness reveals chat membership. Every failure arm here tightens, never widens. Ends if the floor stops being the safe posture.",
-      "markerLine": 165
+      "markerLine": 144
     },
     {
       "siteId": "packages/server/src/entry/http/card-frame.ts::empty:catch::2",
       "path": "packages/server/src/entry/http/card-frame.ts",
-      "line": 267,
+      "line": 194,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2563,7 +2901,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the CLIENT is the owner and the 400 is the surface — an unparseable request body is the caller's error, answered with `invalid JSON body`, exactly as the schema-parse failure two lines below is. A malformed inbound payload is not an operator event. Ends if body decoding gains a server-side fault worth distinguishing from bad input.",
-      "markerLine": 264
+      "markerLine": 191
     },
     {
       "siteId": "packages/server/src/entry/http/import-tree.ts::empty:err::1",
@@ -2574,6 +2912,45 @@
       "position": "empty:err",
       "ordinal": 1,
       "snippet": "} catch (err) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/server/src/entry/http/plugin-frame.ts::empty:catch::1",
+      "path": "packages/server/src/entry/http/plugin-frame.ts",
+      "line": 139,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/server/src/entry/http/plugin-frame.ts::empty:catch::2",
+      "path": "packages/server/src/entry/http/plugin-frame.ts",
+      "line": 150,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/server/src/entry/http/plugin-ui.ts::empty:catch::1",
+      "path": "packages/server/src/entry/http/plugin-ui.ts",
+      "line": 70,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
       "verdict": "unproven",
       "reason": null,
       "markerLine": null
@@ -2854,7 +3231,7 @@
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::empty:err::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 356,
+      "line": 595,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -2867,7 +3244,7 @@
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:race::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1110,
+      "line": 1711,
       "column": 10,
       "grammar": "promise",
       "position": "promise:race",
@@ -2875,12 +3252,12 @@
       "snippet": "void Promise.race([running, timeout])",
       "verdict": "deliberate-absorb",
       "reason": "the GUEST owns it — the rejection arm below reaches `deferred.reject(err)`, preserving the Error's NAME so a plugin can feature-detect by type. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Ends if a disposed context gains a safe late-failure sink.",
-      "markerLine": 1109
+      "markerLine": 1710
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:running::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1106,
+      "line": 1707,
       "column": 18,
       "grammar": "promise",
       "position": "promise:running",
@@ -2888,25 +3265,12 @@
       "snippet": "settlement = running.then(releaseSlot, releaseSlot);",
       "verdict": "deliberate-absorb",
       "reason": "BOOKKEEPING ONLY — this chain exists so teardown can await in-flight work, and both arms deliberately do the same thing (exactly one release per acquisition, so the counter cannot drift). The REJECTION of `running` is owned by the sibling race chain below, which routes it to `deferred.reject` and thence to the guest. Ends if this chain becomes the only reader of `running`.",
-      "markerLine": 1105
-    },
-    {
-      "siteId": "packages/server/src/infra/plugin-host/port.ts::promise:promise::1",
-      "path": "packages/server/src/infra/plugin-host/port.ts",
-      "line": 378,
-      "column": 9,
-      "grammar": "promise",
-      "position": "promise:promise",
-      "ordinal": 1,
-      "snippet": "resident.tail.then(() => resident.sandbox.settleHostOperations()).then(finish, finish),",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "markerLine": 1706
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/port.ts::promise:run::1",
       "path": "packages/server/src/infra/plugin-host/port.ts",
-      "line": 310,
+      "line": 317,
       "column": 23,
       "grammar": "promise",
       "position": "promise:run",
@@ -2914,12 +3278,12 @@
       "snippet": "resident.tail = run.then(",
       "verdict": "deliberate-absorb",
       "reason": "the comment above is the contract — the tail is a `void`-typed BARRIER that must never reject, or one deadlined invoke wedges the chain for every later one. Both arms do the identical bookkeeping on purpose, and the caller still gets the real outcome from `return await run` on the next line. Ends if the tail becomes the only reader of `run`.",
-      "markerLine": 309
+      "markerLine": 316
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/sandbox.ts::promise:race::1",
       "path": "packages/server/src/infra/plugin-host/sandbox.ts",
-      "line": 597,
+      "line": 681,
       "column": 10,
       "grammar": "promise",
       "position": "promise:race",
@@ -2927,7 +3291,7 @@
       "snippet": "void Promise.race([out, timeout])",
       "verdict": "deliberate-absorb",
       "reason": "the GUEST owns it — the rejection arm below reaches `deferred.reject(handle)`. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Guard-equivalent to the membrane's `attachAsync` by design (LOW-1). Ends if a disposed context gains a safe late-failure sink.",
-      "markerLine": 596
+      "markerLine": 680
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/agent-runner.ts::empty:catch::1",
