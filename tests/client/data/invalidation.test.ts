@@ -336,6 +336,9 @@ const USER_TRACKED_KEYS = [
   // set, the "Active in" chips, the per-chat rack. Before `databankChanged` every one of the nine databank
   // mutations named its own reads, and nothing reconciled a SECOND tab (event-bus coverage survey H3).
   "databank",
+  // The saved-party router root (#26 — `trpc.rosterPreset`): the picker's list. Every roster-preset CRUD
+  // verb emits `rosterPresetsChanged`; an APPLY deliberately does not (it moves the CHAT, on the chat bus).
+  "rosterPreset",
   // The corpus-analytics router root (`trpc.discovery`) — all 27 dashboard reads. Their writers are
   // background workloads, so before `corpusRecomputed` they had no driver of any kind (§2.5).
   "discovery",
@@ -380,6 +383,9 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // `character.list` — the CROSS-DEVICE half of the FIX #2 denorm freshness (device B's only chat-derived
   // signal for a character's `lastChattedAt` / chat membership change).
   chatsChanged: ["character", "chatGet", "chatList", "stats"],
+  // The saved-party root and nothing else (#26): library CRUD only — an apply moves the CHAT (chat bus),
+  // so no chat read rides this member.
+  rosterPresetsChanged: ["rosterPreset"],
   // The refinery root + the card detail, and deliberately NOT the character root: a refinery write moves
   // one card's derived signals, never the library (that is `charactersChanged`'s job). Every persisting
   // refinery verb emits this, which is what turned the whole feature's mutations busDriven.
@@ -441,6 +447,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         memberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
         stats: trpc.stats.overview.queryKey(),
         refinery: trpc.refinery.listSessions.queryKey(),
+        rosterPreset: trpc.rosterPreset.list.queryKey(),
         characterGet: trpc.character.get.queryKey({ characterId: CHARACTER_ID }),
         databank: trpc.databank.list.queryKey({}),
         discovery: trpc.discovery.home.queryKey(),

@@ -34,6 +34,34 @@ test("renders the character rows + the Blank chat escape hatch", async ({ mount,
   await expect(component.getByText("Aria")).toBeVisible();
   await expect(component.getByText("Bolt")).toBeVisible();
   await expect(page.getByText("Blank chat")).toBeVisible();
+  // #26 — the ambient default is an EMPTY party library, so the "Start from party…" door stays hidden
+  // (the program doc's empty-library rule: the AFFORDANCE hides, the modal keeps its own empty state).
+  await expect(page.getByRole("button", { name: "Start from party…" })).toHaveCount(0);
+});
+
+// #26 — the saved-party door appears exactly when the library HAS parties (override after the spread —
+// the CHAT_AMBIENT_ROUTES posture). The row is the two-sided pin for the ambient-empty assertion above.
+test("a non-empty party library reveals the 'Start from party…' door", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    "character.list": charPage,
+    "rosterPreset.list": [
+      {
+        id: "roster_preset_ct",
+        name: "The Troupe",
+        description: "",
+        memberCount: 1,
+        members: [{ characterId: "char_aria", position: 0, talkativeness: null, disabled: false, name: "Aria", avatarHash: null }],
+        anchorPersonaId: null,
+        hasGroupConfig: false,
+        updatedAt: 1,
+      },
+    ],
+  });
+
+  await mount(<NewChatPickerStory />);
+
+  await expect(page.getByRole("button", { name: "Start from party…" })).toBeVisible();
 });
 
 test("the confirm item's label reflects the multi-select count", async ({ mount, page }) => {

@@ -65,6 +65,7 @@ import {
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import { regexCollection } from "@orb/client/features/regex";
+import { savedPartiesModal } from "@orb/client/features/roster-preset";
 import { appearancePane, chatBehaviorPane, settingsModal, themeModal } from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
 import { tagCollection } from "@orb/client/features/tag";
@@ -256,6 +257,7 @@ const REAL_MODALS: Record<ModalSlotId, ModalDefinition> = {
   imageEdit: imageEditModal,
   pluginDialog: pluginDialogModal,
   pluginCommandArgs: pluginCommandArgsModal,
+  savedParties: savedPartiesModal,
 };
 
 const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefinition>("modals", MODAL_SLOT_IDS, REAL_MODALS);

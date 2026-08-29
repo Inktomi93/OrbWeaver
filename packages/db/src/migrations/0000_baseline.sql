@@ -962,6 +962,33 @@ CREATE TABLE `regex_scripts` (
 );
 --> statement-breakpoint
 CREATE INDEX `regex_scripts_owner_idx` ON `regex_scripts` (`owner_id`);--> statement-breakpoint
+CREATE TABLE `roster_preset_members` (
+	`preset_id` text NOT NULL,
+	`character_id` text NOT NULL,
+	`position` integer NOT NULL,
+	`talkativeness` real,
+	`disabled` integer DEFAULT false NOT NULL,
+	PRIMARY KEY(`preset_id`, `character_id`),
+	FOREIGN KEY (`preset_id`) REFERENCES `roster_presets`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `roster_preset_members_character_idx` ON `roster_preset_members` (`character_id`);--> statement-breakpoint
+CREATE TABLE `roster_presets` (
+	`id` text PRIMARY KEY NOT NULL,
+	`owner_id` text NOT NULL,
+	`name` text NOT NULL,
+	`description` text DEFAULT '' NOT NULL,
+	`anchor_persona_id` text,
+	`group_config` text,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`anchor_persona_id`) REFERENCES `personas`(`id`) ON UPDATE no action ON DELETE set null
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `roster_presets_owner_name_unique` ON `roster_presets` (`owner_id`,`name`);--> statement-breakpoint
+CREATE INDEX `roster_presets_anchor_persona_idx` ON `roster_presets` (`anchor_persona_id`);--> statement-breakpoint
 CREATE TABLE `rpg_checkpoints` (
 	`id` text PRIMARY KEY NOT NULL,
 	`game_id` text NOT NULL,
