@@ -138,7 +138,7 @@ export function NewChatPicker(): ReactElement {
   const intent = useNewChatIntent();
   const { startChat, isPending } = useStartChat();
   const trpc = useTRPC();
-  // #26 — the "Start from party…" door, shown only when the library HAS parties (the program doc's
+  // #26 — the "Start from saved cast" door, shown only when the library HAS saved casts (the program doc's
   // empty-library rule: the AFFORDANCE hides; the modal itself keeps its designed empty state). Cache-first
   // at staleTime:Infinity, bus-driven fresh via `rosterPresetsChanged`.
   const { data: parties } = useQuery(trpc.rosterPreset.list.queryOptions());
@@ -197,7 +197,7 @@ export function NewChatPicker(): ReactElement {
       ) : null}
       {hasParties ? (
         <Row justify="end" padding="block">
-          {/* #26 — hop to the saved-party picker (the slot is the destination — no feature import). The
+          {/* #26 — hop to the saved-cast picker (the slot is the destination — no feature import). The
               intent is cleared like any dismiss: a party start carries its own creation parameters. */}
           <Button
             intent="ghost"
@@ -205,11 +205,11 @@ export function NewChatPicker(): ReactElement {
             onClick={(): void => {
               clearNewChatIntent();
               closeModal();
-              openModal("savedParties");
+              openModal("savedCasts");
             }}
           >
             <Icon icon={Users} size="sm" />
-            Start from party…
+            Start from saved cast
           </Button>
         </Row>
       ) : null}

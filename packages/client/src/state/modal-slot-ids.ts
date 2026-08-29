@@ -44,10 +44,10 @@ export const MODAL_SLOT_IDS = [
   // plugin-command-args store, never a chrome affordance. ONE slot for the platform; the per-command fan is the
   // subject. The composer collects the same args inline (`name=value`), so this slot is the palette half only.
   "pluginCommandArgs",
-  // The saved-party picker (#26 — D61 B6): a CREATION/LIBRARY ceremony reachable from more than one
+  // The saved-cast picker (B10 'saved casts') (#26 — D61 B6): a CREATION/LIBRARY ceremony reachable from more than one
   // surface (the new-chat picker's "Start from party…" and the members panel's host action) — the
   // `addDocument` reasoning verbatim: a slot makes the picker itself the destination, from anywhere,
-  // with one opener spelling. Owned by `features/roster-preset` (savedPartiesModal).
-  "savedParties",
+  // with one opener spelling. Owned by `features/roster-preset` (savedCastsModal).
+  "savedCasts",
 ] as const;
 export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];

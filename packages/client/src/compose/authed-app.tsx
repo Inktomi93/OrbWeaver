@@ -63,7 +63,7 @@ import {
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexCollection } from "#features/regex";
-import { savedPartiesModal } from "#features/roster-preset";
+import { castCollection, savedCastsModal } from "#features/roster-preset";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "#features/rpg";
 import { appearancePane, chatBehaviorPane, settingsModal, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
@@ -236,7 +236,13 @@ const characterDetailContributors = createContributorRegistry<CharacterDetailCon
 // the Configuration workspace's whole content: the DOOR ARRAY IS THE ROSTER, in group order. Moving a
 // library between the rail and this workspace is one line HERE and zero edits to the library itself; the
 // host (`features/config`) imports none of them.
-const configCollections = createContributorRegistry<CollectionContribution>("config-collections", [tagCollection, regexCollection, worldInfoCollection]);
+const configCollections = createContributorRegistry<CollectionContribution>("config-collections", [
+  tagCollection,
+  regexCollection,
+  worldInfoCollection,
+  // #26/B10 — the saved-cast library's management surface (order 40, after world-info's 30).
+  castCollection,
+]);
 
 // The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
@@ -287,9 +293,9 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   // #791: the ONE house modal that collects a plugin command's DECLARED typed args when it is picked from the
   // command palette — opened by `openPluginCommandArgs` (the palette source's row `run`), never an affordance.
   pluginCommandArgs: pluginCommandArgsModal,
-  // #26 (D61 B6): the saved-party picker — opened from the new-chat picker's "Start from party…" and the
-  // members panel's host action via `openModal("savedParties")` (all `placement:"surface"`).
-  savedParties: savedPartiesModal,
+  // #26 (D61 B6): the saved-cast picker — opened from the new-chat picker's "Start from saved cast" and the
+  // members panel's host action via `openModal("savedCasts")` (all `placement:"surface"`).
+  savedCasts: savedCastsModal,
 });
 
 // The ONE chrome assembly (shell-chrome-unification.md §A/§D/§E-2, G8): `assembleChrome` DERIVES the rail
