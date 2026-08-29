@@ -140,6 +140,9 @@ export function toView(contributions: WorkloadContributions, row: WorkloadSelect
   }
   const base = toRowBase(row);
   let params: Record<string, unknown>;
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): documented above — a params-schema failure
+  // surfaces as a visible POISON row (`params: null, poison: true`) rather than vanishing from list/get,
+  // never silently dropped.
   try {
     params = contributions[row.kind].params.parse(row.params) as Record<string, unknown>;
   } catch {

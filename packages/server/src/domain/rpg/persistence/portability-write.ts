@@ -225,6 +225,9 @@ export function createImportRpgGame(ctx: RpgPortabilityContext): ImportRpgGame {
             ];
       }),
     ];
+    // @orb-gate-ignore caught-failure-ownership(empty:err): only the ONE known unique/primary-key race
+    // (the one-game-per-chat arbiter) is absorbed, and only after a re-read PROVES a winner row exists;
+    // every other constraint kind — and an absorbed race with no proven winner — is rethrown below.
     try {
       await ctx.db.batch(batchMany(stmts));
     } catch (err) {

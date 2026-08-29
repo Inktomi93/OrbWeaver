@@ -92,6 +92,9 @@ export function stPresetFromJson(raw: unknown, name: string, powerUser?: unknown
   if (!isPlainObject(raw)) {
     return null;
   }
+  // @orb-gate-ignore caught-failure-ownership(default:catch): documented above — "Never throws (the shared
+  // mapper DOES throw on a non-preset, which is contained here)"; a non-preset degrades to the consumed
+  // `null` the caller checks.
   try {
     const result = importStChatCompletionPreset(raw, powerUser);
     const { regexScripts, dropped } = parsePresetExtensions(raw);
@@ -104,6 +107,8 @@ export function stPresetFromJson(raw: unknown, name: string, powerUser?: unknown
 /** Parse one saved `OpenAI Settings/<stem>.json` upload. Null on unparseable bytes / a non-preset object. */
 export function parseStPresetFile(bytes: Uint8Array, stem: string): ParsedStPreset | null {
   let raw: unknown;
+  // @orb-gate-ignore caught-failure-ownership(default:catch): pure `JSON.parse` over untrusted upload
+  // bytes — documented above: "Null on unparseable bytes / a non-preset object."
   try {
     raw = JSON.parse(new TextDecoder("utf-8").decode(bytes));
   } catch {

@@ -107,6 +107,10 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
     eligibleNamed.map((c) => c.name),
   );
   let reply: string;
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): classified below by signal state — a settled
+  // signal returns CANCELLED (the user stopped it, not a failure); anything else degrades to the
+  // deterministic `fallback()`, the consumed result the side-LLM's best-effort contract promises. Ends if
+  // the arbiter becomes load-bearing (then a failure must surface, not fall back).
   try {
     const result = await params.summarize([{ systemPrompt: resolveProseText("chat.arbiter.system", params.prose), userPrompt }], {
       ...params.sampling,
