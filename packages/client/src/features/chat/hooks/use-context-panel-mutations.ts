@@ -68,6 +68,33 @@ export const useSetOfferChoices = createEntityMutation<SetOfferChoicesVars, unkn
   errorToast: "Couldn't change whether this chat offers choices.",
 });
 
+/** `chat.setCharactersCanReact` vars (B7) — the host's per-room react-tool attach posture. */
+interface SetCharactersCanReactVars {
+  readonly chatId: ChatId;
+  readonly enabled: boolean;
+}
+
+export const useSetCharactersCanReact = createEntityMutation<SetCharactersCanReactVars, unknown>({
+  options: (trpc) => trpc.chat.setCharactersCanReact.mutationOptions(),
+  // The setOfferChoices twin: `chatUpdated` → getChat → `ChatDetail.charactersCanReact`.
+  busDriven: true,
+  errorToast: "Couldn't change whether characters can react here.",
+});
+
+/** `chat.setReactionsEnabled` vars (B7) — the host's per-room reaction-plane master posture. */
+interface SetReactionsEnabledVars {
+  readonly chatId: ChatId;
+  readonly enabled: boolean;
+}
+
+export const useSetReactionsEnabled = createEntityMutation<SetReactionsEnabledVars, unknown>({
+  options: (trpc) => trpc.chat.setReactionsEnabled.mutationOptions(),
+  // `chatUpdated` covers the toggle's own read-back; the pills/doors follow on the next `listReactions`
+  // read (chatReads invalidation reaches it via the same bus round).
+  busDriven: true,
+  errorToast: "Couldn't change whether this chat has reactions.",
+});
+
 export const useSetToolRecurseLimit = createEntityMutation<SetToolRecurseLimitVars, unknown>({
   options: (trpc) => trpc.chat.setToolRecurseLimit.mutationOptions(),
   // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat, where the cap

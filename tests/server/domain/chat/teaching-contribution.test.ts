@@ -4,12 +4,19 @@
 // contribute nothing at all.
 
 import type { ChatInjection } from "@orb/contracts/chat";
+import { CHAT_REACT_TOOL_NAME } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
+import type { Db } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { ChatRpgGatherResult, TeachingContext, TeachingContribution } from "../../../../packages/server/src/domain/chat/contract/context.ts";
+import type {
+  ChatRpgGatherResult,
+  TeachingContext,
+  TeachingContribution,
+  TeachingKnobs,
+} from "../../../../packages/server/src/domain/chat/contract/context.ts";
 import { createChatTeachingContributions } from "../../../../packages/server/src/domain/chat/teaching-contribution.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -18,11 +25,21 @@ const STATE_BLOCK: ChatInjection = { position: "in_chat", depth: 0, role: "syste
 /** The shipped choices teach — the same slot bytes rpg's reminder resolves (S2: NO second prose home). */
 const CHOICES_TEACH = PROSE_SLOTS["rpg.reminder.cyoaTeach"].text;
 
+/** The unit tier has no database; only the ATTRIBUTION contributor reads one, and no test here collects
+ *  it (its behavior is `teaching-contribution.int.test.ts`'s). The `workloads/_support.ts` spelling. */
+// FABRICATION-OK: a deliberately INERT Db stand-in — nothing here may touch a database, and any collect that did would throw loudly on it.
+const UNIT_DB = {} as Db;
+
+/** Every knob at its SHIPPED default (plane on, react tool off), overridable per test. */
+function knobsOf(over: Partial<TeachingKnobs> = {}): TeachingKnobs {
+  return { offerChoices: false, charactersCanReact: false, reactionsEnabled: true, ...over };
+}
+
 function tctxOf(rpgGather: ChatRpgGatherResult | null, over: Partial<TeachingContext> = {}): TeachingContext {
   return {
     chatId: castId<ChatId>("chat_game"),
     runAsUserId: castId<UserId>("user_host"),
-    knobs: { offerChoices: false },
+    knobs: knobsOf(),
     prose: {},
     identity: { user: "Alex", char: "Aria" },
     rpgGather,
@@ -30,13 +47,18 @@ function tctxOf(rpgGather: ChatRpgGatherResult | null, over: Partial<TeachingCon
   };
 }
 
-/** Contributor #1 (`chat.offer-choices`) — resolved off the shipped registry, never re-declared here. */
-function offerChoices(): TeachingContribution {
-  const found = createChatTeachingContributions().find((c) => c.id === "chat.offer-choices");
+/** One shipped contributor by id — resolved off the shipped registry, never re-declared here. */
+function contributor(id: string): TeachingContribution {
+  const found = createChatTeachingContributions({ db: UNIT_DB }).find((c) => c.id === id);
   if (found === undefined) {
-    throw new Error("chat.offer-choices is not registered");
+    throw new Error(`${id} is not registered`);
   }
   return found;
+}
+
+/** Contributor #1 (`chat.offer-choices`). */
+function offerChoices(): TeachingContribution {
+  return contributor("chat.offer-choices");
 }
 
 function gatherOf(over: Partial<ChatRpgGatherResult> = {}): ChatRpgGatherResult {
@@ -44,37 +66,39 @@ function gatherOf(over: Partial<ChatRpgGatherResult> = {}): ChatRpgGatherResult 
 }
 
 describe("createChatTeachingContributions — chat's own contributions", () => {
-  test("chat contributes the gather projection FIRST, then its own offer-choices teach", () => {
-    const contributions = createChatTeachingContributions();
+  test("chat contributes the gather projection FIRST, then choices / attribution / react-attach in order", () => {
+    const contributions = createChatTeachingContributions({ db: UNIT_DB });
 
     expect(contributions.map((c) => [c.id, c.order])).toEqual([
       ["chat.rpg-gather", 0],
       ["chat.offer-choices", 1],
+      ["chat.reaction-attribution", 2],
+      ["chat.react-tool", 3],
     ]);
   });
 
   test("a NON-GAME chat contributes nothing — the byte-identical arm every plain chat takes", async () => {
-    const out = await createChatTeachingContributions()[0]?.collect(tctxOf(null));
+    const out = await createChatTeachingContributions({ db: UNIT_DB })[0]?.collect(tctxOf(null));
 
     expect(out).toEqual({ injections: [], toolNames: [] });
   });
 
   test("a game turn's injections ride through VERBATIM, stamped `game-state` (the stamp's one home)", async () => {
-    const out = await createChatTeachingContributions()[0]?.collect(tctxOf(gatherOf()));
+    const out = await createChatTeachingContributions({ db: UNIT_DB })[0]?.collect(tctxOf(gatherOf()));
 
     expect(out?.injections).toEqual([{ ...STATE_BLOCK, origin: "game-state" }]);
   });
 
   test("multiple gather injections keep their ORDER (the reminder + a reconcile note are one ordered pair)", async () => {
     const second: ChatInjection = { ...STATE_BLOCK, content: "[Reconcile] restate the panel" };
-    const out = await createChatTeachingContributions()[0]?.collect(tctxOf(gatherOf({ injections: [STATE_BLOCK, second] })));
+    const out = await createChatTeachingContributions({ db: UNIT_DB })[0]?.collect(tctxOf(gatherOf({ injections: [STATE_BLOCK, second] })));
 
     expect(out?.injections.map((i) => i.content)).toEqual([STATE_BLOCK.content, second.content]);
   });
 
   test("the gather's own `tools` become the contribution's toolNames — not a hard-coded empty set", async () => {
-    const empty = await createChatTeachingContributions()[0]?.collect(tctxOf(gatherOf()));
-    const withTools = await createChatTeachingContributions()[0]?.collect(tctxOf(gatherOf({ tools: ["skill_check"] })));
+    const empty = await createChatTeachingContributions({ db: UNIT_DB })[0]?.collect(tctxOf(gatherOf()));
+    const withTools = await createChatTeachingContributions({ db: UNIT_DB })[0]?.collect(tctxOf(gatherOf({ tools: ["skill_check"] })));
 
     // As built, every rpg mode pins `tools: []` (the fold rides `terminalTools`, which is NOT a registry
     // attach) — so today's turn attaches nothing. The projection still carries what the gather declares, so a
@@ -92,7 +116,7 @@ describe("createChatTeachingContributions — the offer-choices teach", () => {
   });
 
   test("the knob ON teaches the SHIPPED SLOT's bytes at the reminder's own placement, attaching no tools", async () => {
-    const out = await offerChoices().collect(tctxOf(null, { knobs: { offerChoices: true } }));
+    const out = await offerChoices().collect(tctxOf(null, { knobs: knobsOf({ offerChoices: true }) }));
 
     expect(out).toEqual({ injections: [{ position: "in_chat", depth: 0, role: "system", content: CHOICES_TEACH }], toolNames: [] });
   });
@@ -101,7 +125,7 @@ describe("createChatTeachingContributions — the offer-choices teach", () => {
     const text = "CHOICES: offer three, in the voice of the scene.";
     const prose: ProseOverrides = { "rpg.reminder.cyoaTeach": { text, baseVersion: 1 } };
 
-    const out = await offerChoices().collect(tctxOf(null, { knobs: { offerChoices: true }, prose }));
+    const out = await offerChoices().collect(tctxOf(null, { knobs: knobsOf({ offerChoices: true }), prose }));
 
     expect(out.injections.map((i) => i.content)).toEqual([text]);
   });
@@ -109,7 +133,7 @@ describe("createChatTeachingContributions — the offer-choices teach", () => {
   test("an override typing {{user}}/{{char}} renders the NAMES — a teach never ships literal braces", async () => {
     const prose: ProseOverrides = { "rpg.reminder.cyoaTeach": { text: "Offer {{user}} three ways to answer {{char}}.", baseVersion: 1 } };
 
-    const out = await offerChoices().collect(tctxOf(null, { knobs: { offerChoices: true }, prose }));
+    const out = await offerChoices().collect(tctxOf(null, { knobs: knobsOf({ offerChoices: true }), prose }));
 
     expect(out.injections.map((i) => i.content)).toEqual(["Offer Alex three ways to answer Aria."]);
   });
@@ -121,7 +145,7 @@ describe("createChatTeachingContributions — the offer-choices teach", () => {
   test("with no active persona, {{user}} floors to the SAME word rpg's gather floors it to", async () => {
     const prose: ProseOverrides = { "rpg.reminder.cyoaTeach": { text: "Offer {{user}} three ways.", baseVersion: 1 } };
 
-    const out = await offerChoices().collect(tctxOf(null, { knobs: { offerChoices: true }, prose, identity: { user: undefined, char: "Aria" } }));
+    const out = await offerChoices().collect(tctxOf(null, { knobs: knobsOf({ offerChoices: true }), prose, identity: { user: undefined, char: "Aria" } }));
 
     expect(out.injections.map((i) => i.content)).toEqual(["Offer User three ways."]);
   });
@@ -131,14 +155,44 @@ describe("createChatTeachingContributions — the offer-choices teach", () => {
   test("the gather ALREADY carrying the teach inside its reminder blob ⇒ chat stands down", async () => {
     const gather = gatherOf({ injections: [{ ...STATE_BLOCK, content: `${STATE_BLOCK.content}\n\n${CHOICES_TEACH}` }] });
 
-    const out = await offerChoices().collect(tctxOf(gather, { knobs: { offerChoices: true } }));
+    const out = await offerChoices().collect(tctxOf(gather, { knobs: knobsOf({ offerChoices: true }) }));
 
     expect(out).toEqual({ injections: [], toolNames: [] });
   });
 
   test("a game gather WITHOUT the teach ⇒ chat still teaches (the suppression is not 'any game chat')", async () => {
-    const out = await offerChoices().collect(tctxOf(gatherOf(), { knobs: { offerChoices: true } }));
+    const out = await offerChoices().collect(tctxOf(gatherOf(), { knobs: knobsOf({ offerChoices: true }) }));
 
     expect(out.injections.map((i) => i.content)).toEqual([CHOICES_TEACH]);
+  });
+});
+
+// CONTRIBUTOR #3 — the B7 `react` tool ATTACH: the FIRST non-empty `toolNames` contributor (R2's whole
+// point), and the OWNER'S OFF-TOGGLE RECEIPT. The full two-knob matrix, because the gate is a conjunction
+// and a conjunction tested one arm at a time is a gate tested not at all: the tool reaches the wire ONLY
+// when `charactersCanReact` (the opt-in, OFF at both tiers by default) AND `reactionsEnabled` (the plane's
+// master) both resolve on. No injections in ANY arm — the tool's wire `description` is the teach (the
+// tool-use contribution's posture).
+describe("createChatTeachingContributions — the react-tool attach", () => {
+  test("the SHIPPED DEFAULTS attach nothing — a room nobody opted in is byte-identical (the owner receipt)", async () => {
+    expect(await contributor("chat.react-tool").collect(tctxOf(null))).toEqual({ injections: [], toolNames: [] });
+  });
+
+  test("charactersCanReact ON + reactionsEnabled ON ⇒ exactly the react tool, no injections", async () => {
+    const out = await contributor("chat.react-tool").collect(tctxOf(null, { knobs: knobsOf({ charactersCanReact: true }) }));
+
+    expect(out).toEqual({ injections: [], toolNames: [CHAT_REACT_TOOL_NAME] });
+  });
+
+  test("charactersCanReact ON but the reaction PLANE off ⇒ nothing — the master switch outranks the opt-in", async () => {
+    const out = await contributor("chat.react-tool").collect(tctxOf(null, { knobs: knobsOf({ charactersCanReact: true, reactionsEnabled: false }) }));
+
+    expect(out).toEqual({ injections: [], toolNames: [] });
+  });
+
+  test("the plane on but charactersCanReact OFF ⇒ nothing — reactions for humans never imply the tool", async () => {
+    const out = await contributor("chat.react-tool").collect(tctxOf(null, { knobs: knobsOf({ reactionsEnabled: true }) }));
+
+    expect(out).toEqual({ injections: [], toolNames: [] });
   });
 });

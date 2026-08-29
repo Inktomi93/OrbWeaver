@@ -181,15 +181,20 @@ export {
   MEMBER_CARD_VISIBILITY_LEVELS,
   memberCardVisibilitySchema,
   openingPolicySchema,
+  resolveCharactersCanReact,
   resolveOfferChoices,
+  resolveReactionsEnabled,
   roomOverridesSchema,
   storedGroupConfigSchema,
 } from "./metadata.ts";
 export type { MessageKind, MessageKindPolicy, ParticipantKind, SpeakerRef } from "./participants.ts";
+// B7 — the narrator-voice predicate, promoted from the client (the server's segment-anchor validation and
+// the client picker must gate the plain-label span grammar identically).
 export {
   AI_DRIVEN_KINDS,
   DEFAULT_MESSAGE_KIND,
   isAiDriven,
+  isNarratorVoiced,
   isUserBacked,
   MEMORY_INGEST_KINDS,
   MESSAGE_KIND_POLICY,
@@ -216,10 +221,21 @@ export {
   castKey,
 } from "./producers.ts";
 // The PROSE-1 app-tier slot table (census 74-81) — `#prose` imports it to compose `PROSE_SLOTS`.
-export { CHAT_PROSE_SLOTS } from "./prose.ts";
-// B6/MR0 — the message-reaction vocabulary + the grouped read projection (MA-2).
-export type { MessageReactionGroup, ReactionEmoji } from "./reactions.ts";
-export { CHAT_REACTION_SLOT_WINDOW, REACTION_EMOJIS, reactionEmojiSchema } from "./reactions.ts";
+export { CHAT_PROSE_SLOTS, CHAT_REACT_TOOL_DESCRIPTION } from "./prose.ts";
+// B6/MR0 — the message-reaction vocabulary + the grouped read projection (MA-2); B7 adds the segment
+// anchor, the `react` tool name and the attribution caps.
+export type { ChatReactionsView, MessageReactionGroup, ReactionEmoji } from "./reactions.ts";
+export {
+  CHAT_REACT_TOOL_NAME,
+  CHAT_REACTION_SLOT_WINDOW,
+  REACTION_ATTRIBUTION_CONTENT_CAP,
+  REACTION_ATTRIBUTION_MAX_PER_MESSAGE,
+  REACTION_ATTRIBUTION_SLOT_WINDOW,
+  REACTION_EMOJIS,
+  REACTION_SEGMENT_SNIPPET_MAX,
+  REACTION_SPEAKER_NAME_MAX,
+  reactionEmojiSchema,
+} from "./reactions.ts";
 export type {
   AcceptInviteInput,
   CarriedAppearanceCast,

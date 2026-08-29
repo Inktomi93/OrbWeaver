@@ -10,7 +10,7 @@
 // one participant-insert chokepoint AND the only public human-join path — there is no standalone `join`
 // verb. The two-party host handoff is modelled as two verbs (nominate + accept).
 
-import type { GroupConfig, MemberCardView, MessageReactionGroup, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatReactionsView, GroupConfig, MemberCardView, RoomOverrides } from "@orb/contracts/chat";
 import type { ChatSendAvailability } from "@orb/contracts/connection";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -83,6 +83,7 @@ import type {
   SelectVariantParams,
   SelfLeaveParams,
   SendParams,
+  SetCharactersCanReactParams,
   SetChatAnchorPersonaParams,
   SetChatBackgroundParams,
   SetChatDocumentVisibilityParams,
@@ -92,6 +93,7 @@ import type {
   SetMemberHistoryVisibilityParams,
   SetMessageHiddenParams,
   SetOfferChoicesParams,
+  SetReactionsEnabledParams,
   SetRoomOverridesParams,
   SetSeatKnobsParams,
   SetSeededGreetingParams,
@@ -306,13 +308,17 @@ export interface ChatService {
   /** Toggle ONE emoji on ONE variant as the caller's own participant seat. Member-gated (the membership
    *  floor — reactions are room-public canon, not a host surface) and floor-clamped: a variant that is not
    *  in this chat, or is below the caller's D16 read floor, is a leak-free NOT_FOUND. Idempotent in BOTH
-   *  directions by the `(variantId, seat, emoji)` UNIQUE — a repeat add and a repeat remove each write
-   *  nothing and emit nothing. Returns the resulting state for THIS seat (`true` = the reaction now
-   *  exists), so a client can settle its own control without waiting for the bus. */
+   *  directions by the partial UNIQUEs — a repeat add and a repeat remove each write nothing and emit
+   *  nothing. B7: an optional segment CLAIM targets one canon span (server-validated, `invalid_segment` on
+   *  a race); the room's resolved `reactionsEnabled` posture OFF refuses coded (`reactions_disabled`).
+   *  Returns the resulting state for THIS seat (`true` = the reaction now exists), so a client can settle
+   *  its own control without waiting for the bus. */
   readonly toggleReaction: (params: ToggleReactionParams) => Promise<boolean>;
   /** The room's grouped reaction window (member-gated, floor-clamped) — one bounded read the client indexes
-   *  by `variantId`, so swiping a row re-targets data it already holds. */
-  readonly listReactions: (params: ListReactionsParams) => Promise<readonly MessageReactionGroup[]>;
+   *  by `variantId`, so swiping a row re-targets data it already holds. B7: the view carries the room's
+   *  RESOLVED `reactionsEnabled` verdict (OFF ⇒ `{enabled:false, groups:[]}` — the one wire every reaction
+   *  surface consumes, so the pills and the picker doors vanish for every member off one read). */
+  readonly listReactions: (params: ListReactionsParams) => Promise<ChatReactionsView>;
 
   // ── chat-row ──────────────────────────────────────────────────────────────────
   /** Delete the chat (host-only; cascades messages/roster/invites/etc.). */
@@ -363,6 +369,16 @@ export interface ChatService {
    *  value. Unlike its display-scripts neighbour this one reaches the PROMPT: on, the turn teaches the model
    *  the standing `:::choices` fence. */
   readonly setOfferChoices: (params: SetOfferChoicesParams) => Promise<boolean>;
+
+  /** B7 — the per-room "characters can react" posture (`chatMetadata.charactersCanReact`), host-only.
+   *  Returns the stored value. The `setOfferChoices` twin: with it resolving ON (and the reaction plane
+   *  on), the room's turns attach the `react` tool. Opt-in at both tiers — the default is OFF. */
+  readonly setCharactersCanReact: (params: SetCharactersCanReactParams) => Promise<boolean>;
+
+  /** B7 — the per-room reaction-plane MASTER posture (`chatMetadata.reactionsEnabled`), host-only.
+   *  Returns the stored value. Resolved OFF is enforced at the verbs (`toggleReaction` refuses,
+   *  `listReactions` answers empty-with-verdict, the react tool refuses), never merely hidden. */
+  readonly setReactionsEnabled: (params: SetReactionsEnabledParams) => Promise<boolean>;
 
   /** Host-only write of the per-chat tool-call recursion cap (`chatMetadata.toolRecurseLimit`, 1..20).
    *  Returns the stored value. */

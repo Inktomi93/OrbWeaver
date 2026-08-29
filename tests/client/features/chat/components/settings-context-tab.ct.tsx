@@ -424,6 +424,103 @@ test("member: the offer-choices switch is ABSENT (host-only omit — this key st
   await expect(component.getByRole("switch", OFFER_CHOICES_SWITCH)).toHaveCount(0);
 });
 
+// B7 — the two reaction switches (the Reactions section of the host band): the plane's master
+// (`reactionsEnabled`, per-user default ON) + the react-tool opt-in (`charactersCanReact`, per-user
+// default OFF). The offer-choices shape verbatim — tri-state room value over the host's own default,
+// through the ONE contracts resolvers — with the OPPOSITE default directions pinned, because that
+// asymmetry is the design (B6 shipped ON and stays disableable; an autonomous AI reacting is opt-in).
+const UPDATE_REACTIONS_ENABLED = "chat.setReactionsEnabled";
+const UPDATE_CHARACTERS_CAN_REACT = "chat.setCharactersCanReact";
+const REACTIONS_SWITCH = { name: "Reactions", exact: true } as const;
+const CHAR_REACT_SWITCH = { name: "Characters can react" } as const;
+
+/** The tab's stubs with the reads BOTH reaction switches resolve from made explicit. */
+function stubReactionToggles(
+  page: Page,
+  args: {
+    readonly room: { readonly reactionsEnabled: boolean | null; readonly charactersCanReact: boolean | null };
+    readonly userDefaults: { readonly reactionsEnabled: boolean; readonly charactersCanReact: boolean };
+  },
+): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => ({ config: { ...USER_SETTINGS.config, chat: { ...args.userDefaults } } }),
+    "chat.getChat": () => ({ ...CHAT_DETAIL, ...args.room }),
+    [UPDATE_REACTIONS_ENABLED]: () => true,
+    [UPDATE_CHARACTERS_CAN_REACT]: () => true,
+  });
+}
+
+// THE SHIPPED-DEFAULTS ARM leads (both rooms never pinned, both user defaults untouched): the master
+// seats ON and the opt-in seats OFF — the asymmetry a single shared default constant would erase.
+for (const arm of [
+  {
+    room: { reactionsEnabled: null, charactersCanReact: null },
+    userDefaults: { reactionsEnabled: true, charactersCanReact: false },
+    master: true,
+    optIn: false,
+    label: "shipped defaults ⇒ master ON, opt-in OFF",
+  },
+  {
+    room: { reactionsEnabled: null, charactersCanReact: null },
+    userDefaults: { reactionsEnabled: false, charactersCanReact: true },
+    master: false,
+    optIn: true,
+    label: "flipped user defaults inherit (never pinned)",
+  },
+  {
+    room: { reactionsEnabled: false, charactersCanReact: true },
+    userDefaults: { reactionsEnabled: true, charactersCanReact: false },
+    master: false,
+    optIn: true,
+    label: "pinned room values beat both defaults",
+  },
+] as const) {
+  test(`host: the reaction switches seat from room-over-default — ${arm.label}`, async ({ mount, page }) => {
+    await stubReactionToggles(page, { room: arm.room, userDefaults: arm.userDefaults });
+    const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+    const master = component.getByRole("switch", REACTIONS_SWITCH);
+    await expect(master).toBeVisible();
+    await expect(master).toHaveAttribute("aria-checked", String(arm.master));
+    await expect(component.getByRole("switch", CHAR_REACT_SWITCH)).toHaveAttribute("aria-checked", String(arm.optIn));
+  });
+}
+
+test("host: each reaction switch fires ITS OWN verb with the new state", async ({ mount, page }) => {
+  const trpc = await stubReactionToggles(page, {
+    room: { reactionsEnabled: null, charactersCanReact: null },
+    userDefaults: { reactionsEnabled: true, charactersCanReact: false },
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await component.getByRole("switch", REACTIONS_SWITCH).click();
+  await expect.poll(() => (trpc.lastInput(UPDATE_REACTIONS_ENABLED) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(false);
+  await component.getByRole("switch", CHAR_REACT_SWITCH).click();
+  await expect.poll(() => (trpc.lastInput(UPDATE_CHARACTERS_CAN_REACT) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(true);
+});
+
+test("member: NEITHER reaction switch exists (host-only omit — one gates their writes, one the room's prompt)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
+  // Barrier on the member tree's last settled section before the absence reads (the #629 lesson).
+  await expect(component.getByText("Ashfall Canon")).toBeVisible();
+  await expect(component.getByRole("switch", REACTIONS_SWITCH)).toHaveCount(0);
+  await expect(component.getByRole("switch", CHAR_REACT_SWITCH)).toHaveCount(0);
+});
+
 // The at-a-glance kicker-count chips (panel-redesign): a "N set" chip on Field overrides (count of set
 // override fields, from the roomOverrides prop) and a "N" chip on Injections (from listChatInjections).
 test("count chips: Field overrides shows 'N set' and Injections shows its count when non-empty", async ({ mount, page }) => {

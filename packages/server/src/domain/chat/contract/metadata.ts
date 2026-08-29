@@ -44,6 +44,11 @@ const chatMetadataSchema = z
     // boolean neighbour above: absent means INHERIT the host's per-user default, not "off", so the heal arm
     // (a corrupt value ⇒ absent) lands on inherit rather than on a silently-forced posture.
     offerChoices: z.boolean().optional().catch(undefined),
+    // B7 — the two reaction toggles, the same load-bearing `.optional()`: absent = INHERIT the host's
+    // per-user default (`resolveCharactersCanReact` / `resolveReactionsEnabled`), so a corrupt value heals
+    // to inherit, never to a forced posture.
+    charactersCanReact: z.boolean().optional().catch(undefined),
+    reactionsEnabled: z.boolean().optional().catch(undefined),
   })
   .loose();
 

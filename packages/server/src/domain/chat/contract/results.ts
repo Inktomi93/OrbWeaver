@@ -12,6 +12,7 @@ import type {
   InviteView,
   MessageView,
   ParticipantView,
+  ReactionEmoji,
   SpeakerRef,
   TurnAbortReason,
   TurnInitiator,
@@ -27,7 +28,7 @@ import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/m
 import type { MessageRole } from "@orb/kit/message-role";
 import type { HistoryRole, ToolCallInput, ToolChoice, WarningCode, WireTool } from "#infra/providers";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
-import type { RequestTurnParams } from "./params.ts";
+import type { ReactAsCharacterParams, RequestTurnParams } from "./params.ts";
 import type { ChatDetail, ChatVariables } from "./views.ts";
 
 export type { TurnIntent } from "@orb/contracts/chat";
@@ -462,3 +463,17 @@ export interface RedeemInviteResult {
   readonly chat: ChatDetail;
   readonly participant: ParticipantView;
 }
+
+/** `reactAsCharacter` (B7/MR5) — the `react` tool's answer, shaped for a MODEL to narrate: every refusal
+ *  is `ok:false` with words (errors-as-data — a thrown error would read as a platform fault, and "no
+ *  character named that here" is a legality answer the model should route around). `alreadyReacted` names
+ *  the idempotent-repeat case; `target` says what the reaction landed on ("the whole message" /
+ *  "<name>'s line" / the narrated whole-message degrade for an unmatched `toSpeaker`). */
+export type ReactAsCharacterResult =
+  | { readonly ok: true; readonly alreadyReacted: boolean; readonly character: string; readonly emoji: ReactionEmoji; readonly target: string }
+  | { readonly ok: false; readonly reason: string };
+
+/** The standalone `reactAsCharacter` op (`verbs/reactions.ts::createReactAsCharacter`) — NOT a
+ *  `ChatService` member (its one consumer is the composition root's `react` tool definition; see
+ *  `contract/params.ts::ReactAsCharacterParams`). */
+export type ReactAsCharacterOp = (params: ReactAsCharacterParams) => Promise<ReactAsCharacterResult>;

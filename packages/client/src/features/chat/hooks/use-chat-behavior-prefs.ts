@@ -27,6 +27,13 @@ export interface ChatBehaviorPrefs {
    *  which is this value. Combine with `ChatDetail.offerChoices` through `resolveOfferChoices`, never with a
    *  second inline `??`. */
   readonly offerChoices: ChatSettings["offerChoices"];
+  /** B7 — this user's DEFAULT "characters can react" posture for rooms they host (the offerChoices twin:
+   *  server-honored; read here only to seat the host's per-room toggle through
+   *  `resolveCharactersCanReact`). Ships OFF at both tiers. */
+  readonly charactersCanReact: ChatSettings["charactersCanReact"];
+  /** B7 — this user's DEFAULT reaction-plane posture for rooms they host (ships ON — B6 is a live
+   *  feature). Same seat-the-toggle-only role, via `resolveReactionsEnabled`. */
+  readonly reactionsEnabled: ChatSettings["reactionsEnabled"];
 }
 
 export function useChatBehaviorPrefs(): ChatBehaviorPrefs {
@@ -42,5 +49,7 @@ export function useChatBehaviorPrefs(): ChatBehaviorPrefs {
     streamScrollMode: chat.streamScrollMode,
     reasoningAutoCollapse: chat.reasoningAutoCollapse,
     offerChoices: chat.offerChoices,
+    charactersCanReact: chat.charactersCanReact,
+    reactionsEnabled: chat.reactionsEnabled,
   };
 }

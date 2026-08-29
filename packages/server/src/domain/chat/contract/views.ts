@@ -196,6 +196,17 @@ export interface ChatDetail {
    *  `chat.setOfferChoices` (host-gated). Room-public on the read — a member may see why the model keeps
    *  offering choices. */
   readonly offerChoices: boolean | null;
+  /** B7 — this room's OWN "characters can react" posture (`metadata.charactersCanReact`), or `null` for
+   *  inherit. The same RAW tri-state as `offerChoices` above, for the same reason (the resolution needs
+   *  the HOST's per-user default, which only the host's own toggle holds). WRITE:
+   *  `chat.setCharactersCanReact` (host-gated). Room-public — a member may see why a character just
+   *  dropped an emoji on their line. */
+  readonly charactersCanReact: boolean | null;
+  /** B7 — this room's OWN reaction-plane posture (`metadata.reactionsEnabled`), or `null` for inherit.
+   *  RAW tri-state (see `offerChoices`); the RESOLVED verdict every member needs rides `listReactions`
+   *  (`ChatReactionsView.reactionsEnabled`) — the read the pills and picker doors already consume. WRITE:
+   *  `chat.setReactionsEnabled` (host-gated). */
+  readonly reactionsEnabled: boolean | null;
   /** BG-C — the host-set per-chat carried BACKGROUND source (parsed `metadata.background`), or `null` when
    *  unset. Applied at the app-root background layer in a TRUE-SOLO room, above the card-carried twin; INERT
    *  for every viewer in any other composition (client-resolved). */

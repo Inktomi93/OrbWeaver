@@ -840,6 +840,21 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.chat.setOfferChoices({ chatId: i.chatId, enabled: true }),
   },
   {
+    // B7 — the react-tool attach posture (the setOfferChoices twin, and the SAME "reaches the PROMPT"
+    // stakes: a stranger who could pin it ON would be arming an autonomous tool in someone else's room).
+    // `requireHost` → `requireParticipant` miss on a stranger's chatId is a leak-free NOT_FOUND before any
+    // metadata write.
+    path: "chat.setCharactersCanReact",
+    call: (c, i) => c.chat.setCharactersCanReact({ chatId: i.chatId, enabled: true }),
+  },
+  {
+    // B7 — the reaction-plane MASTER posture. Same shape; the stake is every member's write path (a
+    // stranger flipping it OFF would silence a room's reactions for everyone in it). Leak-free NOT_FOUND
+    // before any metadata write.
+    path: "chat.setReactionsEnabled",
+    call: (c, i) => c.chat.setReactionsEnabled({ chatId: i.chatId, enabled: false }),
+  },
+  {
     // WAVE MU: the per-chat user-macro INPUT picks flush — `requireParticipant` miss on a stranger's chatId is
     // a leak-free NOT_FOUND (the setVariables/member shape) BEFORE any `chats.user_macro_values` write.
     path: "chat.setUserMacroValues",

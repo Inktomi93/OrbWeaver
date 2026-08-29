@@ -648,10 +648,15 @@ export const chatParticipants = sqliteTable(
 // the ownership key: scope DERIVES variantId → messages → chats → the roster (D23 derive-don't-stamp — the
 // `gallery_items`/`character_tags` class), so there is no `ownerId` and no `chatId` here.
 //
-// NO SEGMENT COLUMNS YET. MR0-MR2 is whole-message; B7's segment anchor lands ADDITIVELY (a nullable index
-// PLUS the captured speaker beside it, because a speaker-span index is not edit-stable — a stale pair must
-// DEGRADE to whole-message rather than mis-attach). Nothing here forecloses that: the UNIQUE below widens by
-// adding the index column to it, which is the same baseline squash any new column costs.
+// THE SEGMENT ANCHOR (B7/MR3) is the nullable TRIO `(segment_index, segment_speaker, segment_snippet)` —
+// a `parseSpeakerSpans` LINE index over the variant's STORED CANON, plus the span's own speaker label and
+// its trimmed-head snippet. All three because the anchoring fitness suite proved the escalation: a bare
+// index is not edit-stable, `(index, speaker)` is defeated by a same-speaker insert, and only a text
+// fingerprint detects that silently-mis-targeting case (`tests/kit/speaker-label/anchoring.suite.test.ts`).
+// The trio is written FROM THE SERVER'S OWN PARSE (`verbs/reactions.ts` — a member's claim is validated,
+// never stored), and a stale trio DEGRADES to whole-message at read (kit `resolveSegmentAnchor`), so these
+// columns gate nothing and can never mis-attach. NULL index = a whole-message reaction (the coarse/default
+// arm, and every MR0-MR2 row).
 //
 // `emoji` IS PLAIN TEXT WITH NO CHECK, and that is a decision (see `@orb/contracts/chat/reactions`): the
 // vocabulary is OPEN BY DESIGN — Open-Q D ruled CUSTOM (CAS-backed) emoji ship — so a tuple-derived CHECK
@@ -686,13 +691,30 @@ export const messageReactions = sqliteTable(
     emojiImageAssetId: text("emoji_image_asset_id")
       .$type<AssetId>()
       .references(() => assets.id, { onDelete: "set null" }),
+    // The B7 segment-anchor trio (see the header). Nullable TOGETHER-OR-NOT (the CHECK below): NULL index
+    // = whole-message; a non-null index always carries its snippet (speaker stays nullable — a narration
+    // span's label is legitimately `null`).
+    segmentIndex: integer("segment_index"),
+    segmentSpeaker: text("segment_speaker"),
+    segmentSnippet: text("segment_snippet"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // ONE reactor · ONE emoji · ONE target. This is what makes the toggle idempotent as PHYSICS rather than
-    // as writer discipline: a double-add is an `ON CONFLICT DO NOTHING` no-op and a remove is a keyed DELETE,
-    // so two racing members cannot corrupt the set (§2.3 — the enforcer is the index, not a comment).
-    uniqueIndex("message_reactions_variant_reactor_emoji_unique").on(t.variantId, t.reactorParticipantId, t.emoji),
+    // ONE reactor · ONE emoji · ONE target — as PHYSICS (a double-add is an `ON CONFLICT DO NOTHING` no-op,
+    // a remove is a keyed DELETE; §2.3 the enforcer is the index). TWO PARTIAL uniques rather than one over
+    // the nullable index, because SQLite treats NULLs as DISTINCT in a unique index — a single
+    // `(…, segment_index)` unique would silently stop deduplicating every whole-message row, which is the
+    // entire MR0 concurrency story. The whole-message arm IS the old MR0 unique, unchanged in effect; the
+    // segment arm keys the same trio plus the index, so "😂 on Bob's line 2" and "😂 on the whole message"
+    // are independent toggles (the Marinara/MA-2 §4 semantics).
+    uniqueIndex("message_reactions_whole_message_unique").on(t.variantId, t.reactorParticipantId, t.emoji).where(sql`segment_index is null`),
+    uniqueIndex("message_reactions_segment_unique").on(t.variantId, t.reactorParticipantId, t.emoji, t.segmentIndex).where(sql`segment_index is not null`),
+    // The trio's coherence, born (the kind_shape precedent): an anchor is whole (index + snippet, speaker
+    // free to be null) or absent whole — a row with a snippet and no index is unrepresentable.
+    check(
+      "message_reactions_segment_shape",
+      sql.raw("(segment_index IS NULL AND segment_speaker IS NULL AND segment_snippet IS NULL) OR (segment_index IS NOT NULL AND segment_snippet IS NOT NULL)"),
+    ),
     // The pill row's own read ("this variant's reactions") AND the variant CASCADE parent — the unique above
     // already LEADS with `variantId`, so SQLite serves both from it; this index would be redundant. The two
     // FKs that do NOT lead an index each get one (`fk-columns-indexed` gate): a participant delete and an

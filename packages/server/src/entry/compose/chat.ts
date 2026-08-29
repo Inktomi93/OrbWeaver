@@ -62,6 +62,7 @@ import {
   createGetPendingUserText,
   createPostNarratorMessage,
   createPromptTransformRegistry,
+  createReactAsCharacter,
   createResolveCanonWindow,
   createResolveRpgCardCorpus,
   createResolveRpgRoster,
@@ -95,6 +96,7 @@ import { AGENT_PROMPT_TAIL_JOINER, createAgentToolServer } from "#infra/provider
 import { createRegexApplyReplace, createRegexTest } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit.ts";
 import { publishNotification } from "../../transport/trpc/index.ts";
+import { createReactToolDefinition } from "./chat-tools.ts";
 import { createChatChangedEmitter } from "./emit-chat-changed.ts";
 import { resolveImageRefToUrl } from "./resolve-image-ref.ts";
 
@@ -1283,6 +1285,13 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     getRoomOverrides: (rawMetadata) => getRoomOverrides(rawMetadata),
     // ⑧(a) — the caller's temporary-chat reap TTL (hours), from the settings domain via the FOREIGN op.
     resolveTempChatTtlHours: async (userId) => (await input.settings.loadUserSettings(userId)).chat.tempChatTtlHours,
+    // B7 — the VERB-TIME half of the reaction-posture resolve (the reaction verbs gate on the PRESENT
+    // host's per-user defaults; the turn path reads the same two fields off `chatBehavior` below). The
+    // same settings FOREIGN op as its TTL neighbour — chat never imports settings.
+    readReactionDefaults: async (userId) => {
+      const us = await input.settings.loadUserSettings(userId);
+      return { charactersCanReact: us.chat.charactersCanReact, reactionsEnabled: us.chat.reactionsEnabled };
+    },
     resolvePromptVariables,
     resolvePromptUserMacros,
     // Null ⇒ expressions not wired (byte-identical no-op — the `tools` precedent). The classify hook fires
@@ -1295,7 +1304,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // projection, order 0) plus whatever later rows wire in (C1's automation guidance is the next one).
     // Absent input ⇒ chat's alone ⇒ byte-identical, and the registry is never null so a game turn's state
     // block can never be silently dropped by a forgotten wiring.
-    teaching: [...createChatTeachingContributions(), ...(input.teaching ?? [])],
+    teaching: [...createChatTeachingContributions({ db }), ...(input.teaching ?? [])],
     // The D50 PromptTransform apply op — the registry's `apply`. Zero registrants ⇒ byte-identical.
     promptTransforms: promptTransformRegistry.apply,
     // The per-turn plugin-macro resolve (U6). Null ⇒ no plugin host wired (byte-identical no-op).
@@ -1389,6 +1398,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
           // B1 — the host's per-user offer-choices DEFAULT; the room's own `chatMetadata.offerChoices`
           // overrides it at `resolveTeachingKnobs`. Under the frozen host (D19), like every other field here.
           offerChoices: us.chat.offerChoices,
+          // B7 — the two reaction defaults, the same seam + meeting point (their room halves override at
+          // `resolveTeachingKnobs`; the verb-time gates read them via `readReactionDefaults` above).
+          charactersCanReact: us.chat.charactersCanReact,
+          reactionsEnabled: us.chat.reactionsEnabled,
         },
         // DB6: the host's databank retrieval params (k/minScore/rerank) the gather passes to search.documents,
         // plus the {{databank}} slot budget — the FOREIGN-inputs seam (settings read chat delegates).
@@ -1409,6 +1422,13 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   };
 
   const chatBundle = createChatService(chatCtx, chatDeps);
+  // B7 — the `react` tool: chat's standalone write op closed into the ONE tool-use registry (the
+  // definition is compose-homed, `./chat-tools.ts` — a domain-side file would close a `no-circular` loop
+  // through tool-use's teaching contribution). Registered only when tool-use is wired, matching
+  // `ChatContext.tools`'s null arm — an unwired deploy is byte-identical.
+  if (input.toolUse !== undefined) {
+    input.toolUse.register(createReactToolDefinition({ reactAsCharacter: createReactAsCharacter(chatCtx, { emit: emitChatEvent }) }));
+  }
   return {
     service: chatBundle.service,
     emitBusEvent: emitChatEvent,

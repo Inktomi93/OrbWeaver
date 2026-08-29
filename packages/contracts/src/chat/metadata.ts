@@ -280,6 +280,24 @@ export interface ChatMetadata {
    *  model keeps offering choices). Distinct from the GAME's own `features.cyoa` knob, which is rpg's and
    *  untouched — a chat with both on gets ONE teach (the S2 double-teach guard, `substrate/teaching.ts`). */
   offerChoices?: boolean;
+  /** B7 — the per-room "characters can react" POSTURE: whether this chat's turns attach the `react` tool,
+   *  letting the model have a PRESENT character drop an emoji reaction on the newest message mid-turn.
+   *
+   *  The `offerChoices` shape exactly: tri-state by absence — `true`/`false` are the host's explicit
+   *  per-room choice, ABSENT inherits the host's per-user default (`UserSettings.chat.charactersCanReact`).
+   *  Resolve through {@link resolveCharactersCanReact}, never an ad-hoc `?? false`. Host-set
+   *  (`chat.setCharactersCanReact`). DEFAULT OFF end to end (owner requirement): an autonomous AI reacting
+   *  is opt-in — a room whose host never touched either tier never attaches the tool. Also gated by
+   *  {@link ChatMetadata.reactionsEnabled}: a room with the reaction plane off attaches nothing. */
+  charactersCanReact?: boolean;
+  /** B7 — the per-room MASTER switch for the B6 reaction plane (pills, picker, toggles, the react tool,
+   *  the prompt-attribution loop). Same tri-state shape; per-user default
+   *  `UserSettings.chat.reactionsEnabled`, which DEFAULTS ON — the shipped feature stays on; this knob
+   *  makes it disableable, never silently off. Resolve through {@link resolveReactionsEnabled}. Host-set
+   *  (`chat.setReactionsEnabled`). Resolved OFF is ENFORCED server-side: `listReactions` answers
+   *  `{enabled:false, groups:[]}` and `toggleReaction`/the react tool refuse — hidden is not the
+   *  mechanism, refused is. */
+  reactionsEnabled?: boolean;
 }
 
 /** THE PRECEDENCE, one home: **the room's explicit choice wins; an absent room value inherits the host's
@@ -288,5 +306,22 @@ export interface ChatMetadata {
  *  toggle — so the rule lives here in `contracts` rather than being spelled `?? default` on both sides of the
  *  wire, where the two spellings could drift into a toggle that lies about what the model is being told. */
 export function resolveOfferChoices(roomValue: boolean | undefined, userDefault: boolean): boolean {
+  return roomValue ?? userDefault;
+}
+
+/** The B7 "characters can react" precedence — the {@link resolveOfferChoices} rule for its knob: the
+ *  room's explicit choice wins, absent inherits the host's per-user default (itself defaulting OFF —
+ *  the react tool is opt-in at both tiers). Same two callers by design: the server resolves it into the
+ *  S2 teaching knobs, the client resolves it to seat the host's toggle. */
+export function resolveCharactersCanReact(roomValue: boolean | undefined, userDefault: boolean): boolean {
+  return roomValue ?? userDefault;
+}
+
+/** The B7 reaction-plane master precedence — same rule, OPPOSITE default direction: the per-user default
+ *  ships ON (`UserSettings.chat.reactionsEnabled` defaults `true` — B6 is a shipped feature, this knob
+ *  makes it disableable rather than quietly off). One home because THREE surfaces resolve the same pair —
+ *  the toggle-verb gate, the `listReactions` verdict, and the host's switch — and a drifted spelling here
+ *  is a room whose pills disagree with its writes. */
+export function resolveReactionsEnabled(roomValue: boolean | undefined, userDefault: boolean): boolean {
   return roomValue ?? userDefault;
 }

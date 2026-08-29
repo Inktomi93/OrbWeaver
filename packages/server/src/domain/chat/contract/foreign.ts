@@ -31,10 +31,20 @@ import type { MemoryConfig } from "./memory.ts";
  *                               HERE rather than being read chat-side because it is a settings value under the
  *                               frozen host (D19), which is exactly what this seam resolves; the room half is
  *                               chat's own metadata, and the two meet at `resolveTeachingKnobs`.
+ *   • `charactersCanReact`    — B7: the host's per-USER DEFAULT for the react-tool attach posture (the
+ *                               `offerChoices` twin — same seam, same `resolveTeachingKnobs` meeting point).
+ *   • `reactionsEnabled`      — B7: the host's per-USER DEFAULT for the reaction-plane master switch. Read at
+ *                               the SAME meeting point for the teaching knobs; the VERB-time gates
+ *                               (`toggleReaction`/`listReactions`) resolve it through their own injected op
+ *                               because no ForeignInputs exists outside the turn path.
  *  `enterSends`/`continueOnSend`/`smoothStream*` are CLIENT-honored (composer keydown / empty-send / stream
- *  pacer) and carry no server arm, so they are deliberately absent here. All fields default off/empty ⇒ a
- *  host who never touched the pane sees byte-identical behavior. */
-export type ChatBehaviorInputs = Pick<ChatSettings, "autoContinue" | "autoContinueRounds" | "autoSwipe" | "customStoppingStrings" | "offerChoices">;
+ *  pacer) and carry no server arm, so they are deliberately absent here. All fields default to their shipped
+ *  posture (off/empty, except `reactionsEnabled` whose shipped posture is ON) ⇒ a host who never touched the
+ *  pane sees byte-identical behavior. */
+export type ChatBehaviorInputs = Pick<
+  ChatSettings,
+  "autoContinue" | "autoContinueRounds" | "autoSwipe" | "charactersCanReact" | "customStoppingStrings" | "offerChoices" | "reactionsEnabled"
+>;
 
 /** The resolved personas for a turn (the persona domain owns the read — FOREIGN). `anchor` is `{{user}}` for
  *  card-derived sections (the chat-open anchor — `chats.anchorPersonaId`); `active` is `{{user}}` for
@@ -125,8 +135,12 @@ export const DEFAULT_CHAT_BEHAVIOR: ChatBehaviorInputs = {
   autoContinue: false,
   autoContinueRounds: 1,
   autoSwipe: { enabled: false, minLength: 0, blacklist: [], maxRetries: 1 },
+  charactersCanReact: false,
   customStoppingStrings: [],
   offerChoices: false,
+  // ON is this floor's byte-identical value, not an exception to it: the B6 reaction plane shipped
+  // always-on, so the do-nothing default must keep it on (`contracts/settings` defaults it `true` too).
+  reactionsEnabled: true,
 };
 
 /**

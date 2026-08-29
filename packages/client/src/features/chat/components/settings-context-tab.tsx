@@ -58,6 +58,7 @@ import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
 import { InjectionsManager } from "./injections-manager.tsx";
 import { MacroPicksSection } from "./macro-picks-section.tsx";
 import { OfferChoicesControl } from "./offer-choices-control.tsx";
+import { CharactersCanReactControl, ReactionsEnabledControl } from "./reaction-toggles.tsx";
 import { ChatBackgroundSection, RoomOverridesTab } from "./room-overrides-tab.tsx";
 import { ToolRecurseControl } from "./tool-recurse-control.tsx";
 
@@ -251,6 +252,18 @@ function HostControls({
             renderError={(_error, retry): ReactElement => <QueryErrorState label="the offer-choices setting" onRetry={retry} />}
           >
             <OfferChoicesControl chatId={chatId} />
+          </QueryBoundary>
+        </Section>
+        {/* Reactions (B7) — the plane's master switch + the react-tool opt-in, SIDE BY SIDE (owner ask:
+            one place for both reactions knobs). Host band for the same reason as its neighbours: both
+            reach every member (one gates their writes, one the room's prompt). */}
+        <Section kicker="Reactions">
+          <QueryBoundary
+            fallback={<SkeletonRows count={2} shape="line" />}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="the reaction settings" onRetry={retry} />}
+          >
+            <ReactionsEnabledControl chatId={chatId} />
+            <CharactersCanReactControl chatId={chatId} />
           </QueryBoundary>
         </Section>
         {/* Tool use — reads getChat (already loaded for this tab) for the current cap; the QueryBoundary

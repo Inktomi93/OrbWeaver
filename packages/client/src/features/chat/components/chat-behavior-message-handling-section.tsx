@@ -193,6 +193,25 @@ function MessageHandlingBody({ sectionId, session }: { readonly sectionId: strin
             />
           )}
         </form.AppField>
+        {/* B7 — the two reaction DEFAULTS, side by side (the offerChoices inherit shape: a room's own value
+            always wins; these seed rooms that never chose). Opposite default directions by design — see the
+            model's OWNS comment. */}
+        <form.AppField name="reactionsEnabled">
+          {(field): ReactElement => (
+            <field.SwitchField
+              label="Reactions in new chats"
+              description="New chats you host let members react to messages with emoji. Existing chats keep whatever they are set to — change one in its This chat tab."
+            />
+          )}
+        </form.AppField>
+        <form.AppField name="charactersCanReact">
+          {(field): ReactElement => (
+            <field.SwitchField
+              label="Characters can react in new chats"
+              description="New chats you host let the model drop an emoji reaction from a present character while it replies. Off by default — turning it on is the opt-in. Existing chats keep whatever they are set to."
+            />
+          )}
+        </form.AppField>
         <form.AppField name="tempChatTtlHours">
           {(field): ReactElement => (
             <field.NumberField

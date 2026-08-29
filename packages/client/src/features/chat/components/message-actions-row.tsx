@@ -44,10 +44,9 @@ import { HIDE_AT_COARSE, ROW_ACTION_INLINE, RowActionsMenu } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { cn, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { startEditingMessage } from "#state";
-import { useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
+import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
-import { useToggleReactionMutation } from "../lib/reaction-mutations.ts";
-import { ReactionPicker } from "./reaction-picker.tsx";
+import { RowReactionPicker } from "./row-reaction-picker.tsx";
 import { VariantWireViewer } from "./variant-wire-viewer.tsx";
 
 interface HideVars {
@@ -107,11 +106,27 @@ function isEditableRole(role: MessageView["role"]): boolean {
   return role === "user" || role === "assistant";
 }
 
+/** The undo/revert phase-gate's disabled reason (absent snapshot ⇒ the "continue this reply first" title).
+ *  Hoisted out of the component body for the cognitive-complexity budget only. */
+function continueRestoreReasonFor(hasContinuation: boolean): string | undefined {
+  return hasContinuation ? undefined : NEEDS_CONTINUATION;
+}
+
+/** Wire-trace applicability (see the in-component comment) — hoisted for the complexity budget only. */
+function showWireTraceFor(viewerIsHost: boolean, role: MessageView["role"]): boolean {
+  return viewerIsHost && role === "assistant";
+}
+
 export interface MessageActionsRowProps {
   readonly message: MessageView;
   /** Optional — a caller without it still forks + notifies, just doesn't switch the active chat. */
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   readonly messageActions?: "expanded" | "hover" | undefined;
+  /** B7/MR3 — the room's PRESENT CAST-NAME set (`speakerThemesByName`'s keys, threaded from the row). The
+   *  picker's segment-target list parses the CANON body with these under the narrator-voice gate — the
+   *  identical inputs the server's write validation uses, so a picked index survives the round trip.
+   *  Absent ⇒ `[]` ⇒ only `<speaker>`-tagged bodies offer segment targets. */
+  readonly castNames?: readonly string[] | undefined;
   /** WIREBTN — the viewer holds the room HOST role (`ChatDetail.viewerIsHost`). Gates "View wire trace…":
    *  `chat.getVariantWire` is `requireHost` server-side, so a member is never offered an item that would only
    *  ever refuse — and is never told the plane exists. Absent ⇒ NOT host (fail-closed: a caller that forgets
@@ -180,7 +195,14 @@ function renderModelCredit(model: string | null | undefined): ReactElement | nul
   );
 }
 
-export function MessageActionsRow({ message, onChatForked, messageActions, viewerIsHost = false, modelCredit }: MessageActionsRowProps): ReactElement {
+export function MessageActionsRow({
+  message,
+  onChatForked,
+  messageActions,
+  viewerIsHost = false,
+  modelCredit,
+  castNames = [],
+}: MessageActionsRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const hide = useHideMutation({ trpc, invalidation });
@@ -193,9 +215,14 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
   // gives: a `MenuItem` click closes the menu, so a popup rendered inside the popup would unmount in the
   // same tick it was asked to open. Both doors below set this one flag.
   const [pickerOpen, setPickerOpen] = useState(false);
-  const toggleReaction = useToggleReactionMutation({ trpc, invalidation });
   const reactionGroups = useReactionsForVariant(message.chatId, message.selectedVariantId);
   const viewerSeatId = useViewerSeatId(message.chatId);
+  // B7 — the room's RESOLVED reactions posture (room value ?? the HOST's per-user default, resolved
+  // server-side on the listReactions read). OFF removes BOTH picker doors — APPLICABILITY, not a phase
+  // gate (the `showWireTrace` class): the host turned the plane off, so "Add a reaction" is not a verb
+  // this room has, and the server refuses it anyway (`reactions_disabled`). The pill rows self-hide the
+  // same way (the read answers zero groups).
+  const reactionsEnabled = useReactionsEnabled(message.chatId);
   const clusterRef = useRef<HTMLDivElement | null>(null);
 
   const { chatId, id: messageId, role, content, excludedFromPrompt, hasContinuation } = message;
@@ -205,12 +232,12 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
   // no reduced menus). Both stay enabled once a continuation exists (the snapshot is retained across an undo,
   // so revert re-applies it); the row simply toggles between the pre-continue and continued text.
   const showContinueRestore = role === "assistant";
-  const continueRestoreReason = hasContinuation ? undefined : NEEDS_CONTINUATION;
+  const continueRestoreReason = continueRestoreReasonFor(hasContinuation);
   // A row whose shown swipe cannot HAVE a prompt gets no item at all: a `user` row is authored, never
   // generated (its variant's `promptSnapshot` is null by construction), and a `system` row is a room notice.
   // Absence here is a real answer — the assistant replies that DID generate are exactly the ones a host asks
   // "what did this send?" about. Not a disabled-with-reason item: this is APPLICABILITY, not a phase gate.
-  const showWireTrace = viewerIsHost && role === "assistant";
+  const showWireTrace = showWireTraceFor(viewerIsHost, role);
 
   // #245 — MEASURE THE ROW'S FOOTPRINT HERE, in the click handler, because this is the last moment it
   // exists: React has already committed the read→edit swap by the time any effect runs, and a render-time
@@ -307,9 +334,11 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
           and the applicability question a reaction asks ("is this canon?") is already answered by the row
           being rendered at all. Ordered AFTER the Edit/Fork primary actions (#786, owner ruling): a row's
           roving Tab stop must reach "Edit message" before "Add a reaction". */}
-      <Button aria-label="Add a reaction" className={ROW_ACTION_INLINE} intent="ghost" onClick={(): void => setPickerOpen(true)} size="icon">
-        <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={SmilePlus} size="sm" />
-      </Button>
+      {reactionsEnabled ? (
+        <Button aria-label="Add a reaction" className={ROW_ACTION_INLINE} intent="ghost" onClick={(): void => setPickerOpen(true)} size="icon">
+          <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={SmilePlus} size="sm" />
+        </Button>
+      ) : null}
       <RowActionsMenu
         label="More message actions"
         destructive={{
@@ -342,11 +371,14 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
         ) : null}
         {/* B6 — the COARSE door, and by the mirror-parity ruling it is present at EVERY pointer (a
             coarse-only twin would put the verb in the menu on touch and nowhere on desktop the moment the
-            inline arm is reworked — the same argument the Edit/Fork items above carry). */}
-        <MenuItem onClick={(): void => setPickerOpen(true)}>
-          <Icon icon={SmilePlus} size="sm" />
-          Add a reaction
-        </MenuItem>
+            inline arm is reworked — the same argument the Edit/Fork items above carry). B7: gone entirely
+            when the room's reactions posture resolves OFF — applicability, mirroring the inline door. */}
+        {reactionsEnabled ? (
+          <MenuItem onClick={(): void => setPickerOpen(true)}>
+            <Icon icon={SmilePlus} size="sm" />
+            Add a reaction
+          </MenuItem>
+        ) : null}
         <MenuItem onClick={(): void => void onCopy()}>
           <Icon icon={Copy} size="sm" />
           Copy
@@ -375,21 +407,10 @@ export function MessageActionsRow({ message, onChatForked, messageActions, viewe
       {/* Mounted only once opened — an unopened row builds no query key and no dialog subtree (the viewer's
           own read is `enabled: open`, so this is belt-and-braces on the same gate). */}
       {wireOpen ? <VariantWireViewer chatId={chatId} variantId={message.selectedVariantId} open={wireOpen} onOpenChange={setWireOpen} /> : null}
-      {/* Same mount discipline as the wire viewer: an unopened row builds no picker subtree. */}
+      {/* Same mount discipline as the wire viewer: an unopened row builds no picker subtree (the picker
+          wiring itself — the canon parse + the segment claim — lives in `row-reaction-picker.tsx`). */}
       {pickerOpen ? (
-        <ReactionPicker
-          chatId={chatId}
-          groups={reactionGroups}
-          onOpenChange={setPickerOpen}
-          onPick={(emoji): void => {
-            if (!toggleReaction.isPending) {
-              toggleReaction.mutate({ chatId, variantId: message.selectedVariantId, emoji });
-            }
-          }}
-          open={pickerOpen}
-          variantId={message.selectedVariantId}
-          viewerSeatId={viewerSeatId}
-        />
+        <RowReactionPicker castNames={castNames} groups={reactionGroups} message={message} onOpenChange={setPickerOpen} viewerSeatId={viewerSeatId} />
       ) : null}
     </Row>
   );
