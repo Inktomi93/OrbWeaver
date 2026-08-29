@@ -6,12 +6,13 @@
 
 import type { GroupConfigInput } from "@orb/contracts/chat";
 import { groupConfigSchema } from "@orb/contracts/chat";
-import type { RosterPresetView } from "@orb/contracts/roster-preset";
+import type { CreateRosterPresetInput, RosterPresetView } from "@orb/contracts/roster-preset";
 import type { PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { RosterPresetCharacterNotFoundError, RosterPresetNotFoundError, RosterPresetPersonaNotFoundError } from "../contract/errors.ts";
-import type { MemberWrite, RosterPresetContext } from "../contract/service.ts";
-import { loadMemberCardRows, loadOwnedPresetRow, viewOf } from "../persistence/queries.ts";
+import type { CastRuleWrite, MemberWrite, RosterPresetContext } from "../contract/service.ts";
+import { loadCastRuleRows, loadMemberCardRows, loadOwnedPresetRow, viewOf } from "../persistence/queries.ts";
 import { groupMemberViews } from "./members.ts";
+import { groupCastRuleViews } from "./rules.ts";
 
 /** The member-ownership belt — throws on the FIRST member that is missing / another user's. */
 export async function ensureMembersOwned(ctx: RosterPresetContext, ownerId: UserId, members: readonly MemberWrite[]): Promise<void> {
@@ -39,13 +40,30 @@ export function parsedGroupConfig(groupConfig: GroupConfigInput | null | undefin
   return groupConfig === null || groupConfig === undefined ? null : groupConfigSchema.parse(groupConfig);
 }
 
+/** The cast-rule belt (B10's rules rider — the `parsedGroupConfig` posture, one knob bag at a time):
+ *  every captured spec resolves through automation's OWN injected belt — catalogue membership, chat
+ *  scope, full descriptor validation — and what is STORED is the resolved OUTPUT (every key present,
+ *  valid TODAY). `createRuleFromPreset` re-resolves at apply, so a bag that predates a catalogue
+ *  evolution degrades loudly there (a reported skip), never silently. Wire array order IS the order —
+ *  re-stamped dense 0..n-1 (the members posture); uniqueness of `rulePresetId` is the wire schema's
+ *  refinement (and the junction PK's physics), not re-checked here. */
+export function resolveCastRules(ctx: RosterPresetContext, rules: CreateRosterPresetInput["rules"]): CastRuleWrite[] {
+  return (rules ?? []).map((rule, index) => ({
+    rulePresetId: rule.rulePresetId,
+    position: index,
+    knobs: ctx.automation.resolveChatRulePresetKnobs(rule.rulePresetId, rule.knobs ?? {}),
+  }));
+}
+
 /** The detail read create/update/get share (card names + avatar hashes joined; members in position
- *  order). The not-owned and not-found answers collapse into one leak-free NotFound. */
+ *  order; cast rules in stored order). The not-owned and not-found answers collapse into one leak-free
+ *  NotFound. */
 export async function loadView(ctx: RosterPresetContext, ownerId: UserId, presetId: RosterPresetId): Promise<RosterPresetView> {
   const row = await loadOwnedPresetRow(ctx.db, ownerId, presetId);
   if (row === undefined) {
     throw new RosterPresetNotFoundError(presetId);
   }
   const members = groupMemberViews(await loadMemberCardRows(ctx.db, [presetId])).get(presetId) ?? [];
-  return viewOf(row, members);
+  const rules = groupCastRuleViews(await loadCastRuleRows(ctx.db, [presetId])).get(presetId) ?? [];
+  return viewOf(row, members, rules);
 }

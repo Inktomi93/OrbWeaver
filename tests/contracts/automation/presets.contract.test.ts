@@ -13,6 +13,8 @@ import {
   RULE_PRESET_KNOB_KINDS,
   RULE_PRESET_SCOPES,
   rulePresetIdSchema,
+  rulePresetKnobBagsEqual,
+  rulePresetKnobBagToInputs,
   rulePresetKnobValuesSchema,
   rulePresetScopeSchema,
 } from "@orb/contracts/automation";
@@ -167,4 +169,25 @@ test("C5: exactly ONE catalogue row is owner-global, and every other declares th
   // un-mintable card in front of a host (the affordance-that-cannot-work class, #655).
   expect(rulePresetScopeSchema.options).toEqual([...RULE_PRESET_SCOPES]);
   expect(RULE_PRESET_SCOPES).toEqual(["chat", "global"]);
+});
+
+test("rulePresetKnobBagsEqual is a TOTAL structural compare over the closed value union (B10's re-apply idempotency arm)", () => {
+  const bag = { n: 6, word: "((veil))", labels: ["a", "b"] };
+  expect(rulePresetKnobBagsEqual(bag, { n: 6, word: "((veil))", labels: ["a", "b"] })).toBe(true);
+  expect(rulePresetKnobBagsEqual(bag, { ...bag, n: 7 })).toBe(false); // scalar drift
+  expect(rulePresetKnobBagsEqual(bag, { ...bag, labels: ["a"] })).toBe(false); // list length drift
+  expect(rulePresetKnobBagsEqual(bag, { ...bag, labels: ["a", "c"] })).toBe(false); // list element drift
+  expect(rulePresetKnobBagsEqual(bag, { n: 6, word: "((veil))" })).toBe(false); // missing key
+  expect(rulePresetKnobBagsEqual({ n: 6, word: "((veil))" }, bag)).toBe(false); // extra key, symmetric
+  expect(rulePresetKnobBagsEqual({}, {})).toBe(true);
+  // A number is never equal to its string spelling — the compare is typed, not coerced.
+  expect(rulePresetKnobBagsEqual({ n: 6 }, { n: "6" })).toBe(false);
+});
+
+test("rulePresetKnobBagToInputs re-spells a resolved bag as the WIRE INPUT bag — lists copied MUTABLE, scalars verbatim", () => {
+  const readonlyBag: Readonly<Record<string, number | string | readonly string[]>> = { n: 6, word: "x", labels: ["a", "b"] };
+  const inputs = rulePresetKnobBagToInputs(readonlyBag);
+  expect(inputs).toEqual({ n: 6, word: "x", labels: ["a", "b"] });
+  // The list is a COPY, not the same reference — an editor mutating the echo can't reach the view's bag.
+  expect(inputs["labels"]).not.toBe(readonlyBag["labels"]);
 });

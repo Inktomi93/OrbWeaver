@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "9f9579e5-70c1-4f16-87d8-242751fd0675",
+  "id": "2a93f794-d418-42a8-8e81-ad549d205c0d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -510,6 +510,20 @@
           "notNull": false,
           "autoincrement": false
         },
+        "rule_preset_id": {
+          "name": "rule_preset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "rule_preset_knobs": {
+          "name": "rule_preset_knobs",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "actions": {
           "name": "actions",
           "type": "text",
@@ -618,6 +632,10 @@
         "automation_rules_name_check": {
           "name": "automation_rules_name_check",
           "value": "length(name) <= 120"
+        },
+        "automation_rules_rule_preset_check": {
+          "name": "automation_rules_rule_preset_check",
+          "value": "(rule_preset_id IS NULL) = (rule_preset_knobs IS NULL)"
         },
         "automation_rules_trigger_bus_check": {
           "name": "automation_rules_trigger_bus_check",
@@ -6296,6 +6314,59 @@
         "roster_preset_members_preset_id_character_id_pk": {
           "columns": ["preset_id", "character_id"],
           "name": "roster_preset_members_preset_id_character_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "roster_preset_rules": {
+      "name": "roster_preset_rules",
+      "columns": {
+        "preset_id": {
+          "name": "preset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rule_preset_id": {
+          "name": "rule_preset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "knobs": {
+          "name": "knobs",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "roster_preset_rules_preset_id_roster_presets_id_fk": {
+          "name": "roster_preset_rules_preset_id_roster_presets_id_fk",
+          "tableFrom": "roster_preset_rules",
+          "tableTo": "roster_presets",
+          "columnsFrom": ["preset_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "roster_preset_rules_preset_id_rule_preset_id_pk": {
+          "columns": ["preset_id", "rule_preset_id"],
+          "name": "roster_preset_rules_preset_id_rule_preset_id_pk"
         }
       },
       "uniqueConstraints": {},

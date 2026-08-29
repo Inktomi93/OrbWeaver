@@ -29,8 +29,9 @@
 // CEL is built through `celString`/`celInt` ONLY — never raw interpolation. Variable KEYS are fixed
 // constants, never knobs: a knob-supplied key would be interpolated into an IDENTIFIER position
 // (`has(vars.<k>)` — CEL's `has()` macro takes a field selection, not an index), which is both an injection
-// surface and the key B9's clock widget has to know. The v1 knob-EDIT path is RE-MINT (spec §3-S3); no
-// `preset_id`/`knobs` provenance column exists and none is added here.
+// surface and the key B9's clock widget has to know. The v1 knob-EDIT path is RE-MINT (spec §3-S3); the
+// mint verb stamps `rule_preset_id`/`rule_preset_knobs` PROVENANCE on every rule it creates (the §3-S3
+// flip shape, landed with B10's saved-cast rules rider) — nothing HERE reads it; a def stays pure data.
 
 import type {
   AutomationActionInput,

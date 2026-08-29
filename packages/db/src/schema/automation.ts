@@ -24,7 +24,7 @@
 // one internal `reserved` admission state that list projections never expose. CHECKs are static DDL built
 // from the tuples — never re-spelled (users.ts pattern).
 
-import type { ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
+import type { ChatTriggerType, DomainTriggerType, RulePresetId, RulePresetKnobValues } from "@orb/contracts/automation";
 import {
   ANALYSIS_GUIDANCE_MAX,
   AUTOMATION_CHAT_BUDGET_DEFAULTS,
@@ -97,6 +97,17 @@ export const automationRules = sqliteTable(
     triggerType: text("trigger_type").$type<ChatTriggerType | DomainTriggerType>().notNull(),
     // NULL = always fire (trigger + budgets still gate). Parse-validated at write.
     predicateCel: text("predicate_cel"),
+    // ── MINT PROVENANCE (the §3-S3 flip shape, landed with B10's saved-cast rules rider) ──
+    // Which RULE PRESET minted this rule, and with which RESOLVED knob bag. Stamped ONLY by
+    // `createRuleFromPreset`; CLEARED by `updateRule` (a hand-edited rule is no longer the preset's mint);
+    // both-or-neither by the paired CHECK below. NO FK and NO CHECK on the id — rule presets are a CODE
+    // catalogue (`RULE_PRESET_IDS`, @orb/contracts/automation), not rows, and the tuple GROWS by design
+    // (a DDL pin would turn every catalogue addition into a merge-window schema change). A stored id a
+    // later catalogue removal orphans degrades at the read/apply seam (reported skip), never at rest.
+    rulePresetId: text("rule_preset_id").$type<RulePresetId>(),
+    // The complete resolved bag (`resolveRulePresetKnobs` output) — zod-validated at mint, typed opaque
+    // here (the `actions` posture).
+    rulePresetKnobs: text("rule_preset_knobs", { mode: "json" }).$type<RulePresetKnobValues>(),
     // The ordered action arms — `AutomationAction[]` (the union lands with the domain).
     // Zod-validated at write + lazy-parsed at read (fault-isolation — see header).
     actions: text("actions", { mode: "json" }).$type<readonly Record<string, unknown>[]>().notNull(),
@@ -119,6 +130,9 @@ export const automationRules = sqliteTable(
     // hard-delete would scan every rule (`fk-columns-indexed` gate).
     index("automation_rules_owner_idx").on(t.ownerId),
     check("automation_rules_name_check", sql.raw(`length(name) <= ${RULE_NAME_MAX_CHARS}`)),
+    // Provenance is both-or-neither — a half-stamped row (an id with no bag, a bag with no id) is
+    // unrepresentable, so every reader may treat one field's presence as the pair's.
+    check("automation_rules_rule_preset_check", sql.raw("(rule_preset_id IS NULL) = (rule_preset_knobs IS NULL)")),
     check("automation_rules_trigger_bus_check", sql.raw(`trigger_bus in (${checkList(AUTOMATION_TRIGGER_BUSES)})`)),
     // The bus↔tuple pairing (the kind-shape CHECK pattern): each bus admits ONLY its own tuple's
     // members, both derived from the contracts tuples — a cross-bus trigger name is unrepresentable.

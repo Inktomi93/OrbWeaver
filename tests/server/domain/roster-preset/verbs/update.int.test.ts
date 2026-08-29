@@ -104,4 +104,35 @@ describe("update", () => {
       }),
     ).rejects.toBeInstanceOf(RosterPresetNotFoundError);
   });
+
+  test("full-replaces the RULES like every other field: a new list swaps in, an omitted list clears (B10 — the editor ECHOES to preserve)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createRosterPresetService(h.ctx);
+    const owner = (await seedUser(db)).id;
+    const a = (await seedCharacter(db, { ownerId: owner })).id;
+    const created = await svc.create({
+      principal: principal(owner),
+      input: { name: "Ruled", description: "", members: [memberSpec(a, 0)], rules: [{ rulePresetId: "sceneVeil", knobs: {} }] },
+    });
+    expect(created.rules.map((rule) => rule.rulePresetId)).toEqual(["sceneVeil"]);
+
+    // Replace with a DIFFERENT rule list — the old junction rows swap out wholesale.
+    const swapped = await svc.update({
+      principal: principal(owner),
+      presetId: created.id,
+      input: { name: "Ruled", description: "", members: [memberSpec(a, 0)], rules: [{ rulePresetId: "pacingNudge", knobs: { everyN: 3 } }] },
+    });
+    expect(swapped.rules.map((rule) => rule.rulePresetId)).toEqual(["pacingNudge"]);
+    expect(swapped.rules[0]?.knobs).toMatchObject({ everyN: 3 });
+
+    // Omitting `rules` is the FULL-REPLACE semantics saying "none" — the library editor echoes the
+    // stored list back on a rename precisely because of this.
+    const cleared = await svc.update({
+      principal: principal(owner),
+      presetId: created.id,
+      input: { name: "Ruled", description: "", members: [memberSpec(a, 0)] },
+    });
+    expect(cleared.rules).toEqual([]);
+  });
 });

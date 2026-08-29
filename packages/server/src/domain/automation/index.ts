@@ -51,6 +51,7 @@ export type {
   ListGlobalVariablesParams,
   ListRulesParams,
   ReorderRulesParams,
+  RulePresetProvenance,
   RunRuleNowParams,
   SetBudgetsParams,
   SetGlobalVariableParams,
@@ -74,6 +75,10 @@ export { createEnabledRuleIndex } from "./substrate/enabled-index.ts";
 // same durable inbox the `post_notification` arm writes (one axis, one resolution, both producers).
 export { resolveNotificationRecipients } from "./substrate/notification-recipients.ts";
 export { createPluginSubscriberRegistry } from "./substrate/plugin-subscribers.ts";
+// B10 — the saved-cast capture belt: roster-preset's compose seam injects this so a cast stores only
+// bags the catalogue itself validated (chat-scope only, full descriptor resolution). One home for the
+// knob law; the caller never re-derives it.
+export { resolveChatRulePresetKnobs } from "./substrate/presets.ts";
 // S4 — the in-RAM pending-ask store (RULED F1). Created ONCE at the composition root and injected on the
 // context, exactly like the enabled-rule index beside it.
 export { AUTOMATION_SUGGESTION_TTL_MS, createPluginSuggestionRaiser, createSuggestionStore } from "./substrate/suggestions.ts";

@@ -5,6 +5,7 @@
 // a second composer for the same artifact. The server's update verb is a FULL REPLACE, so a rename
 // resends the stored members verbatim (the view carries them, knobs included).
 
+import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import type { RosterPresetView } from "@orb/contracts/roster-preset";
 import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -13,7 +14,7 @@ import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { useInvalidation, useStartChat, useTRPC } from "#data";
@@ -39,12 +40,26 @@ function memberInputsOf(view: RosterPresetView): {
   }));
 }
 
+/** The stored cast RULES, resent VERBATIM on a rename (B10's rules rider — the update verb full-replaces
+ *  them like every other field; without this echo a rename would silently WIPE the cast's rules). The
+ *  view's resolved bag re-spells as the wire INPUT bag through the one contracts adapter. */
+function ruleInputsOf(
+  view: RosterPresetView,
+): { rulePresetId: RosterPresetView["rules"][number]["rulePresetId"]; knobs: ReturnType<typeof rulePresetKnobBagToInputs> }[] {
+  return view.rules.map((rule) => ({ rulePresetId: rule.rulePresetId, knobs: rulePresetKnobBagToInputs(rule.knobs) }));
+}
+
 export function CastMemberSurface({ view }: { readonly view: CollectionDetailView }): ReactElement {
   // The stamped-id posture: the seam's memberId is opaque; the owner re-brands through its own id space.
   const presetId = castId<RosterPresetId>(view.memberId);
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: cast } = useSuspenseQuery(trpc.rosterPreset.get.queryOptions({ presetId }));
+  // B10's rules rider — titles for the cast's captured rule presets (the catalogue is static; the
+  // query is gated off rules-free casts). A stored id the catalogue no longer offers falls back to the
+  // raw id — degraded but visible, matching the apply's reported skip.
+  const { data: ruleCatalogue } = useQuery({ ...trpc.automation.listRulePresets.queryOptions(), enabled: cast.rules.length > 0 });
+  const ruleTitles = new Map((ruleCatalogue ?? []).map((preset) => [preset.id, preset.title]));
   const update = useUpdateRosterPreset({ trpc, invalidation });
   const apply = useApplyRosterPreset({ trpc, invalidation });
   const { startChat, isPending: isStarting } = useStartChat();
@@ -66,6 +81,7 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
         anchorPersonaId: cast.anchorPersonaId,
         groupConfig: cast.groupConfig,
         members: memberInputsOf(cast),
+        rules: ruleInputsOf(cast),
       },
     });
   };
@@ -116,6 +132,19 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
           ))}
           <Text voice="gloss">To re-compose the cast, arrange a room you host and save it as a new cast — the saved-casts door in Members.</Text>
         </Stack>
+        {cast.rules.length > 0 ? (
+          <Stack gap="tight" data-slot="cast-rules">
+            <Text as="span" voice="kicker">
+              Rules
+            </Text>
+            {cast.rules.map((rule) => (
+              <Text voice="label" key={rule.rulePresetId} className="truncate">
+                {ruleTitles.get(rule.rulePresetId) ?? rule.rulePresetId}
+              </Text>
+            ))}
+            <Text voice="gloss">Applied with the cast — re-minted into the room and switched on. To change them, configure a room and save a new cast.</Text>
+          </Stack>
+        ) : null}
       </Stack>
     </Container>
   );

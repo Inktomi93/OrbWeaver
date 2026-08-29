@@ -7,20 +7,21 @@
 // NO `chat_participants` access anywhere in this directory — `applyToChat` drives chat's own verbs via
 // injected ops (the no-second-add-path law, D61 B6; grep-provable, dep-cruiser-backstopped).
 
-import type { RosterPresetMemberView, RosterPresetSummary, RosterPresetView } from "@orb/contracts/roster-preset";
+import type { RosterPresetMemberView, RosterPresetRuleView, RosterPresetSummary, RosterPresetView } from "@orb/contracts/roster-preset";
 import type { Db } from "@orb/db";
-import { assets, characters, rosterPresetMembers, rosterPresets } from "@orb/db";
+import { assets, characters, rosterPresetMembers, rosterPresetRules, rosterPresets } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { RosterPresetId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { RosterPresetNotFoundError } from "../contract/errors.ts";
-import type { MemberCardRow, MemberWrite } from "../contract/service.ts";
+import type { CastRuleWrite, MemberCardRow, MemberWrite } from "../contract/service.ts";
 
 const LIMIT_ONE = 1;
 
 type PresetRow = typeof rosterPresets.$inferSelect;
 type MemberRow = typeof rosterPresetMembers.$inferSelect;
+type CastRuleRow = typeof rosterPresetRules.$inferSelect;
 
 /** One owned preset row, or undefined when not found / not the caller's (one answer — leak-free). */
 export async function loadOwnedPresetRow(db: Db, ownerId: UserId, presetId: RosterPresetId): Promise<PresetRow | undefined> {
@@ -87,12 +88,38 @@ export async function loadMemberRows(db: Db, presetId: RosterPresetId): Promise<
   return rows;
 }
 
-/** Insert a preset + its seats as ONE batch (atomic — a crash can never land a memberless party). */
-export async function insertPresetWithMembers(db: Db, preset: typeof rosterPresets.$inferInsert, members: readonly MemberWrite[]): Promise<void> {
+/** The cast rules of `presetIds`, FLAT and ordered (presetId, position) — the per-preset grouping is
+ *  the pure `groupCastRuleViews` in `substrate/rules.ts` (persistence holds no Map; the
+ *  `loadMemberCardRows` posture). No join: a rule preset is a CODE catalogue member, so the id + bag
+ *  columns are the whole row. */
+export async function loadCastRuleRows(db: Db, presetIds: readonly RosterPresetId[]): Promise<CastRuleRow[]> {
+  if (presetIds.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select()
+    .from(rosterPresetRules)
+    .where(inArray(rosterPresetRules.presetId, [...presetIds]))
+    .orderBy(asc(rosterPresetRules.presetId), asc(rosterPresetRules.position));
+  return rows;
+}
+
+/** Insert a preset + its seats + its cast rules as ONE batch (atomic — a crash can never land a
+ *  memberless party or a half-captured rule list). The rules insert is CONDITIONAL: drizzle's
+ *  `.values([])` throws, and an empty capture is the common (rules-free) cast. */
+export async function insertPresetWithMembers(
+  db: Db,
+  preset: typeof rosterPresets.$inferInsert,
+  members: readonly MemberWrite[],
+  rules: readonly CastRuleWrite[],
+): Promise<void> {
   const statements: BatchStmt[] = [
     db.insert(rosterPresets).values(preset),
     db.insert(rosterPresetMembers).values(members.map((m) => ({ ...m, presetId: preset.id }))),
   ];
+  if (rules.length > 0) {
+    statements.push(db.insert(rosterPresetRules).values(rules.map((r) => ({ ...r, presetId: preset.id }))));
+  }
   await db.batch(batchMany(statements));
 }
 
@@ -111,9 +138,10 @@ export async function updatePresetWithMembers(
     readonly presetId: RosterPresetId;
     readonly patch: Pick<typeof rosterPresets.$inferInsert, "anchorPersonaId" | "description" | "groupConfig" | "name" | "updatedAt">;
     readonly members: readonly MemberWrite[];
+    readonly rules: readonly CastRuleWrite[];
   },
 ): Promise<void> {
-  const { ownerId, presetId, patch, members } = args;
+  const { ownerId, presetId, patch, members, rules } = args;
   const owned = await loadOwnedPresetRow(db, ownerId, presetId);
   if (owned === undefined) {
     throw new RosterPresetNotFoundError(presetId);
@@ -126,7 +154,13 @@ export async function updatePresetWithMembers(
       .where(and(eq(rosterPresets.id, presetId), eq(rosterPresets.ownerId, ownerId))),
     db.delete(rosterPresetMembers).where(and(eq(rosterPresetMembers.presetId, presetId), inArray(rosterPresetMembers.presetId, ownedPresetIds))),
     db.insert(rosterPresetMembers).values(members.map((m) => ({ ...m, presetId }))),
+    // The cast-rule full replace rides the same batch + the same owned-preset belt as the member swap
+    // (the junction has no ownerId by design — D23 derive-don't-stamp — so its belt IS the join).
+    db.delete(rosterPresetRules).where(and(eq(rosterPresetRules.presetId, presetId), inArray(rosterPresetRules.presetId, ownedPresetIds))),
   ];
+  if (rules.length > 0) {
+    statements.push(db.insert(rosterPresetRules).values(rules.map((r) => ({ ...r, presetId }))));
+  }
   await db.batch(batchMany(statements));
 }
 
@@ -136,8 +170,8 @@ export async function deletePresetRow(db: Db, ownerId: UserId, presetId: RosterP
   await db.delete(rosterPresets).where(and(eq(rosterPresets.id, presetId), eq(rosterPresets.ownerId, ownerId)));
 }
 
-/** Project a row + its resolved members into the full wire view. */
-export function viewOf(row: PresetRow, members: readonly RosterPresetMemberView[]): RosterPresetView {
+/** Project a row + its resolved members + its cast rules into the full wire view. */
+export function viewOf(row: PresetRow, members: readonly RosterPresetMemberView[], rules: readonly RosterPresetRuleView[]): RosterPresetView {
   return {
     id: row.id,
     name: row.name,
@@ -145,13 +179,14 @@ export function viewOf(row: PresetRow, members: readonly RosterPresetMemberView[
     anchorPersonaId: row.anchorPersonaId,
     groupConfig: row.groupConfig ?? null,
     members,
+    rules,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }
 
-/** Project a row + members into the picker's summary. */
-export function summaryOf(row: PresetRow, members: readonly RosterPresetMemberView[]): RosterPresetSummary {
+/** Project a row + members + cast rules into the picker's summary. */
+export function summaryOf(row: PresetRow, members: readonly RosterPresetMemberView[], rules: readonly RosterPresetRuleView[]): RosterPresetSummary {
   return {
     id: row.id,
     name: row.name,
@@ -160,6 +195,7 @@ export function summaryOf(row: PresetRow, members: readonly RosterPresetMemberVi
     members,
     anchorPersonaId: row.anchorPersonaId,
     hasGroupConfig: row.groupConfig !== null,
+    rules,
     updatedAt: row.updatedAt,
   };
 }

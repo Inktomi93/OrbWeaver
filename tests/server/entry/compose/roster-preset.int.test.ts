@@ -6,6 +6,7 @@
 // mis-mapped compose op cannot pass on fakes alone. SERIAL_INT: full-createServices class (cold graph
 // import on the first test flakes the parallel 5s timeout).
 
+import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import { chatParticipants } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
@@ -73,6 +74,85 @@ describe("roster-preset applyToChat — composed-real (createServices)", () => {
       .from(chatParticipants)
       .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq)));
     expect(seatsAfter).toHaveLength(3);
+  });
+
+  // ── B10's rules rider, composed-real: the cast's captured rule presets re-mint through automation's
+  // ACTUAL verbs (real provenance stamps, real knob resolution, real enable, real book-consent gate).
+  test("cast rules re-mint into a fresh room ENABLED with the stored knobs; the lore preset's unattached-book consent REFUSES into rulesSkipped; re-apply mints nothing", async ({
+    services,
+    db,
+  }) => {
+    const host = await seedUser(db, castId<Handle>("rprules"));
+    const hostP = principal(host);
+    const c1 = await seedCharacter(db, host, "rp_ruled");
+
+    // Room A — the SOURCE: a book attached HERE (the lore rule's consent), rules minted + enabled.
+    const roomA = (await services.chat.startChat({ principal: hostP, characterIds: [c1], opening: "none" })).chat.id;
+    const book = await services.worldInfo.createBook({ principal: hostP, input: { name: "Rules-rider annals" } });
+    await services.worldInfo.attachToChat({ principal: hostP, chatId: roomA, bookId: book.id });
+    const veilRules = await services.automation.createRuleFromPreset({
+      principal: hostP,
+      chatId: roomA,
+      presetId: "sceneVeil",
+      knobs: { veilWord: "((curtain))" },
+    });
+    const loreRules = await services.automation.createRuleFromPreset({
+      principal: hostP,
+      chatId: roomA,
+      presetId: "autoAddLore",
+      knobs: { bookId: book.id },
+    });
+    for (const rule of [...veilRules, ...loreRules]) {
+      await services.automation.setRuleEnabled({ principal: hostP, ruleId: rule.id, enabled: true });
+    }
+    // The capture read the client derives from: PROVENANCE on the real listRules projection.
+    const sourceRules = await services.automation.listRules({ principal: hostP, chatId: roomA });
+    expect(sourceRules.map((r) => r.rulePresetId)).toEqual(["sceneVeil", "autoAddLore"]);
+    const veilBag = sourceRules[0]?.rulePresetKnobs;
+    const loreBag = sourceRules[1]?.rulePresetKnobs;
+    if (veilBag === null || veilBag === undefined || loreBag === null || loreBag === undefined) {
+      throw new Error("premise: the real mint stamped provenance");
+    }
+
+    const cast = await services.rosterPreset.create({
+      principal: hostP,
+      input: {
+        name: "Ruled troupe",
+        description: "",
+        members: [{ kind: "character", characterId: c1, position: 0 }],
+        // The provenance bags re-spelled as WIRE INPUT bags — the same adapter the client's capture uses.
+        rules: [
+          { rulePresetId: "sceneVeil", knobs: rulePresetKnobBagToInputs(veilBag) },
+          { rulePresetId: "autoAddLore", knobs: rulePresetKnobBagToInputs(loreBag) },
+        ],
+      },
+    });
+    expect(cast.rules.map((r) => r.rulePresetId)).toEqual(["sceneVeil", "autoAddLore"]);
+
+    // Room B — the TARGET: fresh, NO book attached. The veil re-mints + enables; the lore preset's own
+    // consent gate (the REAL `validateRuleInput` book probe) refuses into `rulesSkipped`.
+    const roomB = (await services.chat.startChat({ principal: hostP, characterIds: [c1], opening: "none" })).chat.id;
+    const applied = await services.rosterPreset.applyToChat({ principal: hostP, presetId: cast.id, chatId: roomB });
+    expect(applied.rulesMinted).toEqual(["sceneVeil"]);
+    expect(applied.rulesSkipped).toHaveLength(1);
+    expect(applied.rulesSkipped[0]?.rulePresetId).toBe("autoAddLore");
+    expect(applied.rulesSkipped[0]?.reason).toMatch(/not attached to this chat/);
+
+    const roomBRules = await services.automation.listRules({ principal: hostP, chatId: roomB });
+    expect(roomBRules).toHaveLength(1);
+    expect(roomBRules[0]?.rulePresetId).toBe("sceneVeil");
+    expect(roomBRules[0]?.rulePresetKnobs).toEqual(veilBag);
+    expect(roomBRules[0]?.enabled).toBe(true); // the apply IS the consent act (build record §6.5)
+    expect(roomBRules[0]?.predicateCel).toContain("((curtain))"); // the knob substituted into the REAL mint
+
+    // Re-apply: the complete knob-equal group classifies alreadyPresent — no duplicate set.
+    const again = await services.rosterPreset.applyToChat({ principal: hostP, presetId: cast.id, chatId: roomB });
+    expect(again.rulesMinted).toEqual([]);
+    expect(again.rulesAlreadyPresent).toEqual(["sceneVeil"]);
+    expect(await services.automation.listRules({ principal: hostP, chatId: roomB })).toHaveLength(1);
+
+    // The SOURCE room's rules are byte-untouched by both applies.
+    expect(await services.automation.listRules({ principal: hostP, chatId: roomA })).toHaveLength(2);
   });
 
   test("a NON-HOST apply is chat's own leak-free NOT_FOUND through the injected guard, and the room is untouched", async ({ services, db }) => {

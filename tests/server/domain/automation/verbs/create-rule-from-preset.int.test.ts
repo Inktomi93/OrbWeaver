@@ -321,6 +321,38 @@ describe("createRuleFromPreset — the mint", () => {
     await expect(f.svc.createRuleFromPreset({ principal: principal(stranger), chatId: f.chatId, presetId: "cutaways" })).rejects.toThrow();
     expect(await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId })).toEqual([]);
   });
+
+  test("stamps MINT PROVENANCE on every rule of the set — the id + the COMPLETE resolved bag, not the partial overrides (§3-S3 flip shape)", async () => {
+    const f = await setup();
+    // Partial overrides: `steer` rides its descriptor default, so the stored bag must carry BOTH keys.
+    const views = await f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "clockFires", knobs: { n: 6 } });
+    expect(views).toHaveLength(2);
+    for (const view of views) {
+      expect(view.rulePresetId).toBe("clockFires");
+      expect(view.rulePresetKnobs).toEqual({
+        n: 6,
+        firedArm: "narrate",
+        firedText: "The pressure that has been building finally breaks into the scene.",
+      });
+    }
+    // The projection survives the round trip — listRules serves the same provenance.
+    const listed = await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId });
+    expect(listed.map((rule) => rule.rulePresetId)).toEqual(["clockFires", "clockFires"]);
+  });
+
+  test("a HAND-authored rule carries the NULL provenance pair (the biconditional's other side)", async () => {
+    const f = await setup();
+    const view = await f.svc.createRule({
+      principal: principal(f.host),
+      chatId: f.chatId,
+      name: "hand-made",
+      trigger: { bus: "chat", type: "messageCommitted" },
+      predicateCel: null,
+      actions: [{ type: "set_variable", scope: "chat", key: "k", op: "set", value: "v" }],
+    });
+    expect(view.rulePresetId).toBeNull();
+    expect(view.rulePresetKnobs).toBeNull();
+  });
 });
 
 // ── per-preset create → fire receipts, through the real engine ────────────────────────────────────────

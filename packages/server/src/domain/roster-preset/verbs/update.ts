@@ -10,7 +10,7 @@ import { RosterPresetNameConflictError, RosterPresetNotFoundError } from "../con
 import type { UpdateRosterPresetParams } from "../contract/params.ts";
 import type { RosterPresetService } from "../contract/service.ts";
 import { loadOwnedPresetRow, ownedPresetNameTaken, updatePresetWithMembers } from "../persistence/queries.ts";
-import { ensureAnchorOwned, ensureMembersOwned, loadView, parsedGroupConfig } from "../substrate/authored-input.ts";
+import { ensureAnchorOwned, ensureMembersOwned, loadView, parsedGroupConfig, resolveCastRules } from "../substrate/authored-input.ts";
 import { normalizeMembers } from "../substrate/members.ts";
 
 export function createUpdate(ctx: RosterPresetContext): RosterPresetService["update"] {
@@ -26,6 +26,7 @@ export function createUpdate(ctx: RosterPresetContext): RosterPresetService["upd
     const anchorPersonaId = input.anchorPersonaId === null || input.anchorPersonaId === undefined ? null : castId<PersonaId>(input.anchorPersonaId);
     await ensureAnchorOwned(ctx, ownerId, anchorPersonaId);
     const groupConfig = parsedGroupConfig(input.groupConfig);
+    const rules = resolveCastRules(ctx, input.rules);
     if (await ownedPresetNameTaken(ctx.db, ownerId, input.name, presetId)) {
       throw new RosterPresetNameConflictError(input.name);
     }
@@ -35,6 +36,7 @@ export function createUpdate(ctx: RosterPresetContext): RosterPresetService["upd
       presetId,
       patch: { name: input.name, description: input.description ?? "", anchorPersonaId, groupConfig, updatedAt: at },
       members,
+      rules,
     });
     await ctx.audit(
       {
@@ -42,7 +44,7 @@ export function createUpdate(ctx: RosterPresetContext): RosterPresetService["upd
         action: "rosterPreset.update",
         entityType: "roster_preset",
         entityId: presetId,
-        metadata: { name: input.name, members: members.length },
+        metadata: { name: input.name, members: members.length, rules: rules.length },
       },
       at,
     );

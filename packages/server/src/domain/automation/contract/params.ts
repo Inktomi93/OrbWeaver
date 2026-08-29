@@ -4,7 +4,7 @@
 // vocabulary (trigger/action shapes) lives in `@orb/contracts/automation`; these are server-internal call
 // shapes.
 
-import type { AutomationActionInput, AutomationTrigger, RulePresetId, TriggerFact } from "@orb/contracts/automation";
+import type { AutomationActionInput, AutomationTrigger, RulePresetId, RulePresetKnobValues, TriggerFact } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
 import type { AutomationRuleId, AutomationSuggestionId, ChatId } from "@orb/kit/ids";
 import type { RulePresetKnobOverrides } from "./presets.ts";
@@ -52,12 +52,24 @@ interface RuleEditableParams {
   readonly maxFiresPerHour?: number;
 }
 
+/** Mint provenance (the §3-S3 flip shape) — WHICH rule preset a mint came from, with the COMPLETE
+ *  resolved knob bag. Written to `automation_rules.rule_preset_id`/`rule_preset_knobs`. */
+export interface RulePresetProvenance {
+  readonly rulePresetId: RulePresetId;
+  readonly knobs: RulePresetKnobValues;
+}
+
 export interface CreateRuleParams extends AutomationActorParams, RuleEditableParams {
   /** WHERE the rule lives: a chat, or NULL for the owner-GLOBAL lane (C5). The two scopes take two different
    *  authority gates and two different arm sets — `verbs/create-rule.ts` states both. Required-and-nullable
    *  rather than optional, deliberately: a caller must SAY which lane it means, so an omitted field can never
    *  silently mint a global rule. */
   readonly chatId: ChatId | null;
+  /** VERB-ONLY (never on the tRPC wire — the router's schema does not spell it, so a hand-authored rule
+   *  can never claim a preset's mint): `createRuleFromPreset` stamps this on each rule of its set, which
+   *  is what holds the provenance biconditional (present ⟺ the row is exactly that preset's mint —
+   *  `updateRule` clears it on any edit). */
+  readonly presetProvenance?: RulePresetProvenance;
 }
 
 export interface UpdateRuleParams extends AutomationActorParams, RuleEditableParams {

@@ -20,6 +20,18 @@ test("updateRule replaces the editable fields and announces the edit", async () 
   ]);
 });
 
+test("ANY edit clears the mint provenance — a hand-edited rule is no longer the preset's mint (§3-S3; B10's capture must not read a lying bag)", async () => {
+  const { host, chatId, svc } = await ruleFixture();
+  const [minted] = await svc.createRuleFromPreset({ principal: principal(host), chatId, presetId: "pacingNudge", knobs: { everyN: 4 } });
+  expect(minted?.rulePresetId).toBe("pacingNudge"); // the stamp landed (the premise, proven)
+  if (minted === undefined) {
+    throw new Error("mint returned no rule");
+  }
+  const updated = await svc.updateRule({ principal: principal(host), ruleId: minted.id, name: minted.name, trigger: minted.trigger, actions: [SET_VAR] });
+  expect(updated.rulePresetId).toBeNull();
+  expect(updated.rulePresetKnobs).toBeNull();
+});
+
 test("an update that fails validation writes nothing and announces nothing", async () => {
   const { host, chatId, svc, events } = await ruleFixture();
   const rule = await svc.createRule({ principal: principal(host), chatId, name: "greet", trigger: MSG_COMMITTED, actions: [SET_VAR] });

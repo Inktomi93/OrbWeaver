@@ -3,7 +3,8 @@
 // 1..MAX with one seat per character, `update` reuses the WHOLE create shape (full replace), and the
 // groupConfig field refuses a stray key at the boundary (chat's strict arms ride through).
 
-import { createRosterPresetSchema, ROSTER_PRESET_MEMBER_MAX, rosterPresetMembersSchema } from "@orb/contracts/roster-preset";
+import { RULE_PRESET_IDS } from "@orb/contracts/automation";
+import { createRosterPresetSchema, ROSTER_PRESET_MEMBER_MAX, rosterPresetMembersSchema, rosterPresetRulesSchema } from "@orb/contracts/roster-preset";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -64,5 +65,23 @@ describe("roster-preset wire", () => {
       members: [{ kind: "character", characterId: CHAR_A, position: 0 }],
     });
     expect(ok.groupConfig).toMatchObject({ output: "per-speaker", cardScope: "merged", policy: "natural" });
+  });
+
+  test("the RULES rider (B10): absent defaults to [], the id is the CLOSED catalogue enum, one instance per preset, knobs default {}", () => {
+    // Absent → [] (a legacy caller's input stays valid; a rules-free cast never touches a room's rules).
+    expect(createRosterPresetSchema.parse({ name: "P", members: [{ kind: "character", characterId: CHAR_A, position: 0 }] }).rules).toEqual([]);
+    const ok = createRosterPresetSchema.parse({
+      name: "P",
+      members: [{ kind: "character", characterId: CHAR_A, position: 0 }],
+      rules: [{ rulePresetId: "sceneVeil" }, { rulePresetId: "pacingNudge", knobs: { everyN: 4 } }],
+    });
+    expect(ok.rules.map((rule) => rule.rulePresetId)).toEqual(["sceneVeil", "pacingNudge"]);
+    expect(ok.rules[0]?.knobs).toEqual({});
+    // An id outside the catalogue refuses at the wire (there is no "foreign" — only unknown).
+    expect(rosterPresetRulesSchema.safeParse([{ rulePresetId: "notARulePreset" }]).success).toBe(false);
+    // The junction PK made wire-visible: one instance per rule preset.
+    expect(rosterPresetRulesSchema.safeParse([{ rulePresetId: "sceneVeil" }, { rulePresetId: "sceneVeil" }]).success).toBe(false);
+    // Bounded by the catalogue itself.
+    expect(rosterPresetRulesSchema.safeParse(RULE_PRESET_IDS.map((id) => ({ rulePresetId: id }))).success).toBe(true);
   });
 });

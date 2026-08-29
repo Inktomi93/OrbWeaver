@@ -38,6 +38,8 @@ async function seedRule(
     triggerType: chatId === null ? "character.updated" : "messageCommitted",
     predicateCel: null,
     actions: [{ type: "set_variable", scope: "chat", key: "k", op: "set", value: "v" }],
+    rulePresetId: null,
+    rulePresetKnobs: null,
     matchAutomationEvents: false,
     cooldownSeconds: opts.cooldownSeconds ?? 0,
     maxFiresPerHour: opts.maxFiresPerHour ?? 30,

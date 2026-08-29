@@ -172,3 +172,69 @@ describe("create", () => {
     expect(seats).toHaveLength(2);
   });
 });
+
+describe("create — the rules rider (B10)", () => {
+  test("captured rule specs store the RESOLVED bag (partial knobs completed by their descriptor defaults), array order preserved", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createRosterPresetService(h.ctx);
+    const owner = (await seedUser(db)).id;
+    const a = (await seedCharacter(db, { ownerId: owner })).id;
+
+    const view = await svc.create({
+      principal: principal(owner),
+      input: {
+        name: "Ruled",
+        description: "",
+        members: [memberSpec(a, 0)],
+        // Partial bags — resolution fills the rest from the catalogue's own defaults (the REAL resolver;
+        // the harness wires automation's actual belt).
+        rules: [
+          { rulePresetId: "sceneVeil", knobs: { veilWord: "((fade))" } },
+          { rulePresetId: "pacingNudge", knobs: { everyN: 4 } },
+        ],
+      },
+    });
+
+    expect(view.rules.map((rule) => rule.rulePresetId)).toEqual(["sceneVeil", "pacingNudge"]);
+    expect(view.rules[0]?.knobs).toEqual({
+      veilWord: "((fade))",
+      redirect: "Draw the veil: cut away from that beat and resume afterward, in a new moment.",
+    });
+    expect(view.rules[1]?.knobs).toMatchObject({ everyN: 4 });
+    // A rules-free create stays rules-free (the summary's badge premise).
+    const plain = await svc.create({ principal: principal(owner), input: { name: "Plain", description: "", members: [memberSpec(a, 0)] } });
+    expect(plain.rules).toEqual([]);
+  });
+
+  test("a BAD knob refuses through automation's own typed validation — no row lands", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createRosterPresetService(h.ctx);
+    const owner = (await seedUser(db)).id;
+    const a = (await seedCharacter(db, { ownerId: owner })).id;
+
+    await expect(
+      svc.create({
+        principal: principal(owner),
+        input: { name: "Bad", description: "", members: [memberSpec(a, 0)], rules: [{ rulePresetId: "pacingNudge", knobs: { everyN: 5000 } }] },
+      }),
+    ).rejects.toThrow(/between 2 and 200/);
+    expect(await db.select().from(rosterPresets)).toHaveLength(0);
+    expect(h.userEvents).toEqual([]);
+  });
+
+  test("a GLOBAL-scope rule preset refuses by name — a cast is a ROOM artifact", async () => {
+    const db = await freshDb();
+    const svc = createRosterPresetService(makeHarness(db).ctx);
+    const owner = (await seedUser(db)).id;
+    const a = (await seedCharacter(db, { ownerId: owner })).id;
+
+    await expect(
+      svc.create({
+        principal: principal(owner),
+        input: { name: "Global", description: "", members: [memberSpec(a, 0)], rules: [{ rulePresetId: "livingLibrary", knobs: {} }] },
+      }),
+    ).rejects.toThrow(/cannot ride a saved cast/);
+  });
+});

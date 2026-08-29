@@ -3,7 +3,15 @@
 // the AdminUserView precedent. They project the persistence rows onto the closed contract vocabulary
 // (`AutomationTrigger`/`AutomationAction`/`AutomationFireOutcome`), never re-spelling those shapes.
 
-import type { AutomationAction, AutomationActionType, AutomationFireOutcome, AutomationRunOutcome, AutomationTrigger } from "@orb/contracts/automation";
+import type {
+  AutomationAction,
+  AutomationActionType,
+  AutomationFireOutcome,
+  AutomationRunOutcome,
+  AutomationTrigger,
+  RulePresetId,
+  RulePresetKnobValues,
+} from "@orb/contracts/automation";
 import type { AutomationFireId, AutomationRuleId, ChatId } from "@orb/kit/ids";
 
 /** One host-authored automation rule, projected for the editor + list surfaces. `actions` is the
@@ -18,6 +26,12 @@ export interface RuleView {
   readonly trigger: AutomationTrigger;
   readonly predicateCel: string | null;
   readonly actions: readonly AutomationAction[];
+  /** Mint provenance (§3-S3 flip shape): the rule preset this rule was minted from, or NULL for a
+   *  hand-authored/hand-EDITED rule (`updateRule` clears the pair). Both-or-neither with
+   *  {@link RuleView.rulePresetKnobs} (db CHECK). The saved-cast capture + B2's knob editor read these. */
+  readonly rulePresetId: RulePresetId | null;
+  /** The COMPLETE resolved knob bag the mint ran with. */
+  readonly rulePresetKnobs: RulePresetKnobValues | null;
   readonly matchAutomationEvents: boolean;
   readonly cooldownSeconds: number;
   readonly maxFiresPerHour: number;

@@ -900,6 +900,7 @@ export type {
   RulePresetKnobValueInput,
   RulePresetKnobValueInputs,
   RulePresetKnobValueOf,
+  RulePresetKnobValues,
   RulePresetKnobView,
   RulePresetNumberKnobDescriptor,
   RulePresetScope,
@@ -915,6 +916,8 @@ export {
   RULE_PRESET_KNOB_KINDS,
   RULE_PRESET_SCOPES,
   rulePresetIdSchema,
+  rulePresetKnobBagsEqual,
+  rulePresetKnobBagToInputs,
   rulePresetKnobValuesSchema,
   rulePresetScopeSchema,
 } from "./presets.ts";

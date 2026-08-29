@@ -23,6 +23,11 @@ const CAST_A: RosterPresetSummary = {
   ],
   anchorPersonaId: null,
   hasGroupConfig: true,
+  // B10's rules rider — TWO captured rule presets; the row badge below reads the length.
+  rules: [
+    { rulePresetId: "sceneVeil", knobs: { veilWord: "((fade))", redirect: "cut" } },
+    { rulePresetId: "pacingNudge", knobs: { everyN: 4, steer: "s" } },
+  ],
   updatedAt: 1,
 };
 const CAST_B: RosterPresetSummary = {
@@ -33,6 +38,7 @@ const CAST_B: RosterPresetSummary = {
   members: [{ characterId: castId<CharacterId>("character_ct_3"), position: 0, talkativeness: null, disabled: false, name: "Cinder", avatarHash: null }],
   anchorPersonaId: null,
   hasGroupConfig: false,
+  rules: [],
   updatedAt: 1,
 };
 
@@ -44,6 +50,10 @@ test("renders the routed library: names, member counts, previews; chat-scoped af
   await expect(page.getByText("Adventuring Cast")).toBeVisible();
   await expect(page.getByText("Book Club")).toBeVisible();
   await expect(page.getByText("Ash, Brook")).toBeVisible();
+  // B10's rules rider — the badge names the count on a ruled cast and is ABSENT on a rules-free one
+  // (copy says "rules", never bare "preset" — the 2026-08-24 vocabulary ruling).
+  await expect(page.getByText("2 rules")).toBeVisible();
+  await expect(page.getByText(/rule/).filter({ hasText: "0" })).toHaveCount(0);
   // Per-row START is reachable…
   await expect(page.getByRole("button", { name: "Start a chat with Adventuring Cast" })).toBeEnabled();
   // …while the chat-scoped affordances are ABSENT (no room open): no add-to-chat, no save-current.
