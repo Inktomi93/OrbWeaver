@@ -129,11 +129,16 @@ function LeaderboardBody({
   readonly selectedId: CharacterId | null;
   readonly trimmed: string;
 }): ReactElement {
-  if (isPending || page === undefined) {
-    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
-  }
+  // The error arm MUST win before the undefined-page skeleton: on a first-load failure the query settles
+  // with `isError` true AND `page` still undefined, so a `page === undefined` skeleton check first would
+  // pin a PERMANENT skeleton and the retry affordance would be unreachable. `keepPreviousData` keeps prior
+  // rows (a defined page) across a keystroke, so this only blanks to the error surface when there is
+  // genuinely nothing to keep showing.
   if (isError) {
     return <QueryErrorState label="the leaderboard" onRetry={onRetry} />;
+  }
+  if (isPending || page === undefined) {
+    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
   }
   if (page.rows.length === 0) {
     return trimmed === "" ? (
