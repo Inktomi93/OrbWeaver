@@ -514,8 +514,22 @@ export interface PluginPageStage {
   /** The stage's headline (a detail stage's subject name; a browse stage's result-set label). */
   readonly title?: PluginBoundString | undefined;
   /** The DETAIL stage's hero art — the moment a person decides. Ignored on a `browse` stage. */
-  readonly hero?: { readonly assetId: AssetId; readonly alt?: string | undefined } | undefined;
+  readonly hero?: PluginPageHero | undefined;
   readonly body: PluginSurfaceNode;
+}
+
+/** A detail stage's hero art. Exactly ONE of `assetId`/`assetFrom` (the spec-level belt enforces it), the
+ *  `image` node's rule one plane over: `assetId` is declared for art the SPEC knows, `assetFrom` (#774 ARM C /
+ *  plugin-remote-image #798) BINDS the id from published state — for a hero whose subject is DATA (a hub cover
+ *  a plugin just `net.fetchAsset`ed, a photo plugin's detail view). Both arms are asset-ID-ONLY: NO URL is ever
+ *  spellable here (the seam-11 anti-exfil-pixel wall), and the bound arm's resolved value is UNTRUSTED STATE —
+ *  format-validated at resolve (a non-TypeID string paints nothing) and then owner-scope-resolved server-side
+ *  exactly like a declared id, so a foreign owner's id yields no ref and the hero renders nothing, never
+ *  another user's blob. */
+export interface PluginPageHero {
+  readonly assetId?: AssetId | undefined;
+  readonly assetFrom?: PluginStateBinding | undefined;
+  readonly alt?: string | undefined;
 }
 
 /** The PAGE ARRANGEMENT (U5): declared stages, one active. `active` is a bound string so the ACTIVE STAGE is
@@ -680,7 +694,13 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
             id: identSchema,
             kind: z.enum(PLUGIN_PAGE_STAGE_KINDS),
             title: boundString(LABEL_MAX).optional(),
-            hero: z.object({ assetId: typeIdSchema(ID_PREFIX.asset), alt: z.string().max(LABEL_MAX).optional() }).optional(),
+            hero: z
+              .object({
+                assetId: typeIdSchema(ID_PREFIX.asset).optional(),
+                assetFrom: stateBindingSchema.optional(),
+                alt: z.string().max(LABEL_MAX).optional(),
+              })
+              .optional(),
             body: pluginSurfaceNodeSchema,
           }),
         )
@@ -756,6 +776,16 @@ function countSearchBars(node: PluginSurfaceNode): number {
  *  level rather than on the node schemas because a `z.discriminatedUnion` member must be a plain object
  *  schema (`.refine` would make it a ZodEffects and the union refuses it) — the same reason the per-anchor
  *  belts live on the registration meta. One issue per offending node, in walk order. */
+/** Each stage hero's exactly-one-of belt (#798) — split out of {@link collectArmViolations} so that function
+ *  stays under the cognitive-complexity ceiling. One issue per offending hero, in stage order. */
+function collectHeroViolations(node: Extract<PluginSurfaceNode, { kind: "masterDetail" }>, out: string[]): void {
+  for (const stage of node.stages) {
+    if (stage.hero !== undefined && (stage.hero.assetId === undefined) === (stage.hero.assetFrom === undefined)) {
+      out.push("a stage hero names exactly one of `assetId` (declared) or `assetFrom` (bound)");
+    }
+  }
+}
+
 function collectArmViolations(node: PluginSurfaceNode, out: string[]): void {
   if (node.kind === "grid") {
     if ((node.tiles === undefined) === (node.tilesFrom === undefined)) {
@@ -767,6 +797,12 @@ function collectArmViolations(node: PluginSurfaceNode, out: string[]): void {
   }
   if (node.kind === "image" && (node.assetId === undefined) === (node.assetFrom === undefined)) {
     out.push("an image names exactly one of `assetId` (declared) or `assetFrom` (bound)");
+  }
+  // A detail stage's hero carries the SAME exactly-one-of belt as an `image` node (#798). `pluginChildNodes`
+  // walks only stage BODIES, so the hero — which is not itself a node — is checked in `collectHeroViolations`
+  // against its parent masterDetail; without this a hero could declare both arms (or neither) and slip past.
+  if (node.kind === "masterDetail") {
+    collectHeroViolations(node, out);
   }
   for (const child of pluginChildNodes(node)) {
     collectArmViolations(child, out);

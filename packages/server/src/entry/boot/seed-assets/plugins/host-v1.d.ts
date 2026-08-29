@@ -57,7 +57,8 @@ type PluginCapability =
   | "events.subscribe"
   | "plugin_events"
   | "tools.register"
-  | "net.fetch";
+  | "net.fetch"
+  | "net.fetch_asset";
 
 // ── shared wire shapes ──────────────────────────────────────────────────────────────────────────────────────
 
@@ -418,7 +419,7 @@ interface PluginPageStage {
   readonly id: string;
   readonly kind: PluginPageStageKind;
   readonly title?: PluginBoundString | undefined;
-  readonly hero?: { readonly assetId: string; readonly alt?: string | undefined } | undefined;
+  readonly hero?: { readonly assetId?: string | undefined; readonly assetFrom?: PluginStateBinding | undefined; readonly alt?: string | undefined } | undefined;
   readonly body: PluginSurfaceNode;
 }
 /** The page arrangement: declared stages, one active — and `active` is a BINDING, so stage navigation is
@@ -599,6 +600,11 @@ interface PluginHostV1 {
      *  takes (validation, dedup by importHash: `created:false` = byte-identical re-ingest).
      *  capability: character.ingest */
     ingest: (card: Record<string, unknown>) => Promise<{ characterId: string; created: boolean }>;
+    /** Import a character from a PNG ASSET you already have in the installer's CAS (e.g. one `net.fetchAsset`
+     *  just returned) — the SAME funnel `ingest` uses, but a PNG carries its embedded avatar through, so the
+     *  character arrives WITH its art (the JSON `ingest` path cannot). A foreign/absent id rejects leak-free.
+     *  capability: character.ingest */
+    ingestAsset: (assetId: string) => Promise<{ characterId: string; created: boolean }>;
     /** Store YOUR plugin's own blob on one of the installer's OWN characters, under the reserved
      *  `data.extensions.plugin_<your-slug>` key (host-stamped — you cannot name another plugin's). Portable:
      *  survives export→import. A foreign/absent character rejects leak-free.
@@ -658,6 +664,13 @@ interface PluginHostV1 {
      *  response cap, SSRF-guarded, 120/hour per plugin. The body is text — there are no bytes in the realm.
      *  capability: net.fetch */
     fetch: (url: string, init?: { method?: "GET" | "POST"; headers?: Record<string, string>; body?: string }) => Promise<{ status: number; body: string }>;
+    /** Download a remote IMAGE into the installer's OWN storage and get back an assetId — allowlisted to your
+     *  manifest's `netHosts` ONLY (the same hosts and the same hourly limit as `fetch`), SSRF-guarded, and
+     *  image-validated (magic bytes, not the server's Content-Type; dimension/size caps; 1 MiB). You never see
+     *  the bytes or a URL — only the assetId, which you can render in an `image`/`hero` node or hand to
+     *  `character.ingestAsset`. Rejects on a non-image, an oversize download, or a blocked host.
+     *  capability: net.fetch_asset */
+    fetchAsset: (url: string) => Promise<{ assetId: string }>;
   };
 
   /** The declarative UI plane — see the authoring guide's "The UI plane" and the oracle-deck example.

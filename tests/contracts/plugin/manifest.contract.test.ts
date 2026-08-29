@@ -30,7 +30,7 @@ const BASE = {
 // (the same "may this plugin draw" question, answered with an isolated frame that can beacon over a channel no
 // policy closes), so a reader weighing one has the other in the same glance. It is RISK class where `ui.surface`
 // is not — the only UI capability that reaches past the plugin's own sandbox. Moving a member is a UX decision.
-test("PLUGIN_CAPABILITIES is the pinned 23-member axis (02 §1; ui.surface + ui.frame #679; U8 ingest pair + card_state + plugin_events; #788 worldinfo.read + assets.read + search.query) in confirm-dialog order", () => {
+test("PLUGIN_CAPABILITIES is the pinned 24-member axis (02 §1; ui.surface + ui.frame #679; U8 ingest pair + card_state + plugin_events; #788 worldinfo.read + assets.read + search.query; #798 net.fetch_asset) in confirm-dialog order", () => {
   expect(PLUGIN_CAPABILITIES).toEqual([
     "chat.read",
     "chat.variables.write",
@@ -71,6 +71,11 @@ test("PLUGIN_CAPABILITIES is the pinned 23-member axis (02 §1; ui.surface + ui.
     "plugin_events",
     "tools.register",
     "net.fetch",
+    // #798 (plugin-remote-image) — the remote-image-into-CAS capability, placed right after `net.fetch`: both
+    // reach the open internet through the same manifest allowlist + the same hourly egress belt (egress delta
+    // zero), so a reader weighing "what can this fetch" meets them together. RISK (it reaches the internet AND
+    // writes a durable asset into your library), not SPEND (no paid credential — the CAS write is local storage).
+    "net.fetch_asset",
   ]);
 });
 
@@ -141,6 +146,19 @@ test("manifest matrix — the netHosts ⟺ net.fetch biconditional is enforced b
   expect(pluginManifestSchema.safeParse({ ...BASE, capabilities: ["net.fetch"], netHosts: [] }).success).toBe(false);
   // hosts declared WITHOUT net.fetch → refused (a meaningless dangling allowlist).
   expect(pluginManifestSchema.safeParse({ ...BASE, netHosts: ["api.example.com"] }).success).toBe(false);
+});
+
+test("#798: the netHosts biconditional generalizes over EVERY egress capability — net.fetch_asset counts too", () => {
+  // net.fetch_asset is a NEW egress capability: it needs the SAME allowlist net.fetch needs.
+  expect(pluginManifestSchema.parse({ ...BASE, capabilities: ["net.fetch_asset"], netHosts: ["img.example.com"] }).netHosts).toEqual(["img.example.com"]);
+  // Declared but no hosts / an empty list → refused (fail-closed, the net.fetch posture).
+  expect(pluginManifestSchema.safeParse({ ...BASE, capabilities: ["net.fetch_asset"] }).success).toBe(false);
+  expect(pluginManifestSchema.safeParse({ ...BASE, capabilities: ["net.fetch_asset"], netHosts: [] }).success).toBe(false);
+  // netHosts is satisfied by EITHER egress capability — a dangling allowlist needs one of them, and net.fetch_asset
+  // alone is enough (so the "hosts require the net.fetch capability" test above is not weakened into a hole).
+  expect(pluginManifestSchema.safeParse({ ...BASE, capabilities: ["net.fetch_asset"], netHosts: ["img.example.com"] }).success).toBe(true);
+  // Both egress capabilities together share the one allowlist.
+  expect(pluginManifestSchema.safeParse({ ...BASE, capabilities: ["net.fetch", "net.fetch_asset"], netHosts: ["img.example.com"] }).success).toBe(true);
 });
 
 test("manifest matrix — netHosts refuses wildcards, schemes, and over-count (the SSRF posture)", () => {

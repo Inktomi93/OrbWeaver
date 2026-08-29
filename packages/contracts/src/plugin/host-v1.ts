@@ -351,6 +351,24 @@ export interface PluginHostV1 {
      *  was freshly created (`false` = a byte-identical re-ingest deduped by importHash). */
     // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     ingest: (card: Record<string, unknown>) => Promise<{ characterId: string; created: boolean }>;
+    /** Ingest a character from a PNG ASSET the guest already has in the INSTALLER's OWN CAS (plugin-remote-image
+     *  #798 — the "Summon to your library WITH its art" arm). The guest names an `assetId` (e.g. one
+     *  `net.fetchAsset` just returned for a hub cover); the host resolves the installer's OWN CAS through the
+     *  OWNER-GATED read (a foreign/absent id rejects leak-free — the `readOwnedAssetBytes` posture, no existence
+     *  oracle) and runs the SAME `importCharacter` PNG funnel a file upload takes: it parses the ccv3/chara
+     *  chunk AND CAS-stores the embedded avatar, so the created character arrives WITH its art (avatarAssetId
+     *  non-null) — which the plain `ingest(card)` JSON path cannot carry. capability: character.ingest.
+     *
+     *  IT RIDES THE SAME `character.ingest` GRANT as {@link ingest}, and that is the correct classification, not
+     *  a shortcut: the REACH is identical (a character import into the installer's OWN library, owner-scoped, no
+     *  chat scope, no host authority — the ContentChanged-emitting path so the indexer auto-runs); only the
+     *  INPUT FORM differs (a PNG asset the installer owns vs. a raw JSON card). A person who agreed to "add
+     *  characters to your library" agreed to this whether the card arrives as JSON or as a fetched PNG. Returns
+     *  the new character id + whether it was freshly created (`false` = a byte-identical re-ingest, importHash
+     *  dedup). */
+    // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON string naming an asset in the installer's OWN CAS, owner-scope-gated by the host read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
+    // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    ingestAsset: (assetId: string) => Promise<{ characterId: string; created: boolean }>;
     /** Store this plugin's OWN per-card state on one of the INSTALLER's OWN characters (D148 — the ST
      *  `writeExtensionField` parity arm). capability: `character.card_state`.
      *
@@ -488,6 +506,24 @@ export interface PluginHostV1 {
      *  5 s deadline, 1 MiB response cap, no redirects off-allowlist, SSRF-guarded (infra/network safeFetch,
      *  D61 B5a). */
     fetch: (url: string, init?: { method?: "GET" | "POST"; headers?: Record<string, string>; body?: string }) => Promise<{ status: number; body: string }>;
+    /** capability: net.fetch_asset — download a REMOTE IMAGE into the INSTALLER's OWN CAS and get back an
+     *  assetId (plugin-remote-image #798). The guest supplies ONLY the url string and receives ONLY an assetId;
+     *  the BYTES never enter the guest realm and NO URL is ever spellable inside a rendered node — the
+     *  `image`/`hero` DSL nodes stay assetId-only, so the seam-11 anti-exfil-pixel wall is unchanged.
+     *
+     *  THE HOST performs everything: it claims the SAME hourly egress belt `net.fetch` claims (egress delta
+     *  zero — an allowlisted GET is already expressible via `net.fetch`, so this adds a CAS-WRITE, not egress
+     *  reach), GETs the url through the audited SSRF guard pinned to the manifest `netHosts` allowlist (every
+     *  hop re-validates https + the allowlist + private-range denial — a loopback/internal/off-allowlist/
+     *  scheme-downgrade target is refused), runs the remote-image guard on the downloaded bytes (magic-byte
+     *  sniff — the remote Content-Type is NEVER trusted — plus the dimension/pixel decompression-bomb caps and
+     *  the 1 MiB byte cap), and writes the validated bytes to the installer's OWN CAS under the sniffed mime. A
+     *  non-2xx, an SSRF/oversize/non-image refusal, or a network error is a typed REJECTION of the call (there
+     *  is no assetId to return), never a silent empty asset. The CAS write is owner-scoped by construction (the
+     *  bridge closes the installer over it — a guest names no owner), the `character.ingest`/`assets.read`
+     *  ceiling: the installer's own storage, no paid credential. */
+    // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new asset, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    fetchAsset: (url: string) => Promise<{ assetId: string }>;
   };
 
   /** The DECLARATIVE UI plane (plugin-ui-plane #679, U0 vocabulary). A plugin registers surfaces built from the
@@ -650,6 +686,11 @@ export const HOST_FUNCTION_CAPABILITY = {
   // over each op, so there is no `canWrite` gate here — the grant is the whole membrane-tier wall.
   "databank.ingest": "databank.ingest",
   "character.ingest": "character.ingest",
+  // #798 — the remote-image "summon with art" arm rides the SAME `character.ingest` grant as `character.ingest`:
+  // its reach is identical (a character import into the installer's own library), only the input form differs (a
+  // PNG asset the installer owns vs. a JSON card), so it is not a distinct consent line (the `card_state`
+  // read/write pair riding ONE grant is the precedent).
+  "character.ingestAsset": "character.ingest",
   // U8 D148 — the per-card plugin-state write + read, BOTH keyed to the ONE `character.card_state` grant (a
   // symmetric consent line: "store its own data on your characters" covers reading back what it stored). Owner-
   // scoped metadata writes to the installer's OWN characters, not room writes: no `canWrite` gate, the grant is
@@ -670,6 +711,10 @@ export const HOST_FUNCTION_CAPABILITY = {
   "transforms.registerDisplay": "chat.transform",
   "macros.register": "chat.transform",
   "net.fetch": "net.fetch",
+  // #798 — the remote-image-into-CAS arm, its OWN `net.fetch_asset` consent line (identical egress reach to
+  // `net.fetch` — same allowlist + same hourly belt — plus a CAS write, which is the distinct reach a person
+  // weighs). Keyed 1:1 to its capability; the netHosts biconditional treats both as egress capabilities.
+  "net.fetchAsset": "net.fetch_asset",
   "ui.register": "ui.surface",
   "ui.setState": "ui.surface",
   // U5's three host-mediated affordances ride the SAME `ui.surface` grant, and that is a decision, not an
