@@ -565,7 +565,9 @@ function realmRow(card) {
     name: name.slice(0, NAME_MAX_CHARS),
     creator: str(card.authorname) ?? "unknown",
     pop: downloads === undefined ? "" : `${fmtCount(downloads)}↓`,
-    n: { downloads, created: epochMs(card.date) },
+    // NO `created` here: realm's `date` field is not a recognizable epoch (a live drive rendered 1970
+    // dates from it) — an unverifiable datum stays OFF the sheet rather than showing nonsense.
+    n: { downloads },
     nsfw: undefined,
     tagline: "",
     // The cover by content hash on realm's resource CDN — full-size already, so it doubles as the hero.
@@ -606,7 +608,9 @@ function chubRow(node) {
     },
     nsfw: node.nsfw_image === true,
     tagline: str(node.tagline) ?? "",
-    art: `${CHUB_CDN}/avatars/${encPath(ref)}/avatar.webp`,
+    // Prefer the row's OWN avatar_url when it lives on the allowlisted CDN — the constructed path 404s
+    // for a minority of cards (live-drive finding); fall back to the constructed spelling otherwise.
+    art: str(node.avatar_url)?.startsWith(`${CHUB_CDN}/`) === true ? node.avatar_url : `${CHUB_CDN}/avatars/${encPath(ref)}/avatar.webp`,
     tags: normTags(node.topics),
   };
 }
@@ -1323,7 +1327,13 @@ const SOURCES = {
       if (character === null) {
         return null;
       }
-      return { blurb: (str(character.description) ?? str(character.rawDescription) ?? "").slice(0, BLURB_MAX_CHARS), raw: character };
+      // Janitor descriptions arrive as HTML fragments; the markdown node escapes tags (untrusted tier),
+      // so they would render as literal `<p>` noise — strip the tags, keep the words.
+      const blurb = (str(character.description) ?? str(character.rawDescription) ?? "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+      return { blurb: blurb.slice(0, BLURB_MAX_CHARS), raw: character };
     },
     /** The sharper hero is the row's `card`/`original` variant URL (held on the normalized row — datacat's
      *  variant CDN has no deterministic per-ref path to rebuild it from). */
