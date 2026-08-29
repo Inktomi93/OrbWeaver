@@ -160,7 +160,10 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
             </Stack>
             <Row align="center" className="shrink-0" gap="field">
               <Switch
-                aria-label={`Turn ${plugin.name} on`}
+                // The label follows STATE: an enabled plugin's switch says what clicking DOES ("Turn … off").
+                // The static "Turn … on" told a screen reader (and a driving instrument — measured, it toggled
+                // a live plugin off) that the enabled plugin was off.
+                aria-label={plugin.status === "enabled" ? `Turn ${plugin.name} off` : `Turn ${plugin.name} on`}
                 checked={plugin.status === "enabled"}
                 disabled={setEnabled.isPending}
                 onCheckedChange={onEnabledChange}

@@ -499,6 +499,57 @@ through the same schema + leaves), `ui.test-d.ts` (no new kind), footer-allowed 
   receipt (top tile's stat ≥ the next) + the SFW toggle both states (a flagged hub's set shrinking) +
   a detail with the full stat rows → renders desktop + ~390px for the owner.
 
+### 8f Live-drive record (2026-08-29 — what landed, what a HOST defect blocks, three defects found)
+
+**Two drive tiers ran.** (1) An offline-realm harness (node, stubbed `orb.host`, REAL fetches) drove
+the exact shipped `main.js` against all NINE live hubs end-to-end: per-hub default + one non-default
+sort (orderings verified against the stat labels), SFW both states (chub 27 flagged tiles at OFF → 0
+at ON; datacat 30 → 0 with the honest empty; realm's server param flipping the set), detail stat
+sheets per hub, tag chips, dc-token mint + reuse (`dc_token` in kv), `sfw_mode` persistence. (2) The
+REAL stage drive: pack → `plugin.upgrade` (wire receipt) → the widened-reach re-consent (6 checkboxes,
+16 acknowledged hosts on the `setGrant` wire) → enable → drives.
+
+**Stage-rendered receipts** (`reports/snaps/reports/l-hubX/` in the lane worktree — MOVE BEFORE
+TEARDOWN): Character Tavern sorted grid (real covers, `· most downloaded.` status, monotonic 8.2k →
+5.6k), RisuRealm sorted grid (812.1k → 533.8k, tag chips), Pygmalion full grid ("30 from Pygmalion.",
+covers off `assets.pygmalion.chat`, its 6-entry sort menu open), BotBooru/Datacat/Chub sort-menu-open
+receipts (each hub's EXACT mined vocabulary in the bound select, per-hub default labels), the SFW
+toggle ON (`· SFW only.` status, live-toggle-fired search), the detail stage (hero + the bound stat
+sheet: Downloads/Likes/Messages/Tokens/Content — the v1.3 mined rows), the empty page, and the full
+desktop/mobile × light/dark matrix (the 3-control row wraps cleanly at mobile width).
+
+**THE HOST DEFECT (filed for its own lane — plugin-host, P2):** on the live stage, a hub search whose
+response body is LARGE (wyvern ~202 KB; chub@30-with-definitions; aicc@30-with-descriptions) PARKS
+FOREVER after the fetch: the host side completes wholly (instrumented stage receipts: impl enter →
+status 200 → body decoded → race resolved `alive=true` → `deferred` resolved → post-settle pump ran
+4 jobs, `failed=false`, `hasPendingJob()=false` after) yet the guest continuation never resumes —
+no throw, no `.catch`, no crash strike, no log. Small-bodied hubs (tavern 11 KB, realm 51 KB,
+pygmalion ~12 KB) complete on the same resident. The 1.3.1 `mapLimit` commit closed the SEPARATE
+`>32 concurrent host calls` kill (its own live receipt) but not this. Suspects recorded for the
+follow-up: the shared-runtime interrupt handler vs per-context CPU windows (`installCpuGuard` is
+per-context on ONE shared QuickJS runtime), and `executePendingJobs`' early-yield semantics. Probe
+kit: the settle-chain instrumentation left in the STAGE COPY's `membrane.ts`/`cpu-guard.ts` (never
+the tree), plus a 1.3.3 probe bundle with ring-bracketed `getJson`.
+
+**Defect 2 (observability, filed):** post-invocation guest log lines are DESTROYED, not shown —
+`runToSettlement` begins with `this.log.reset()`, so everything a floating continuation logged since
+the last invocation is silently discarded before the drain. Every continuation-era `host.log.*` line
+is structurally invisible in `plugin.getLog` — which is exactly where a floated search failure would
+land. The ring must survive across invocations (drain-append instead of reset, or a resident-level
+ring).
+
+**Defect 3 (a11y, FIXED here):** the plugin row's enable Switch carried a STATIC
+`aria-label="Turn <name> on"` regardless of state — an enabled plugin's switch announced as "Turn on"
+(and measurably fooled the driving instrument into disabling a live plugin). The label now follows
+state (`plugin-row.tsx`).
+
+**Honest roster verdict at graduation:** all nine hubs verified end-to-end at the wire tier; on the
+stage, tavern/realm/pygmalion verified fully rendered, chub/wyvern/aicc/botbooru/datacat verified
+through registration/menus/immediate-publish with their searches blocked by the host defect above
+(NOT by their adapters — the identical guest code completes against the identical live APIs in the
+node harness). JanitorAI stays refused (no public API; the jannyai mirror is the gate-banned
+scrape+corsproxy pattern; datacat IS the janitor catalog through a real API).
+
 ### 7g Mid-lane scope adds (owner + side-eye, relayed 2026-08-29 — all folded in)
 
 - **LIVE Hub/Sort selects** (side-eye P2): the `select` vocabulary gains an optional `actionId`
