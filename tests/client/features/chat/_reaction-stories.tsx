@@ -94,12 +94,19 @@ function ReactionPickerHarness(): ReactElement {
       </Button>
       {open ? (
         <ReactionPicker
+          castNames={[]}
           chatId={chatId}
+          content={FOOTER_STATE.message.content}
           groups={groups}
           onOpenChange={setOpen}
-          onPick={(emoji): void => {
+          onPick={(emoji, segment): void => {
             if (!toggle.isPending) {
-              toggle.mutate({ chatId, variantId: selectedVariantId, emoji });
+              toggle.mutate({
+                chatId,
+                variantId: selectedVariantId,
+                emoji,
+                ...(segment !== null ? { segmentIndex: segment.index, segmentSpeaker: segment.speaker } : {}),
+              });
             }
           }}
           open={open}

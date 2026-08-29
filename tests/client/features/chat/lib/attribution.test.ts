@@ -5,18 +5,13 @@
 // viewing participant's active persona for legacy rows; everything else renders no chrome.
 
 import type { ParticipantView } from "@orb/contracts/chat";
-import { carriedCastFromParticipants, MESSAGE_KINDS } from "@orb/contracts/chat";
+import { carriedCastFromParticipants, isNarratorVoiced, MESSAGE_KINDS } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
-import {
-  isNarratorVoiced,
-  resolveRoomTheme,
-  resolveRowAttribution,
-  speakerThemesByName,
-} from "../../../../../packages/client/src/features/chat/lib/attribution.ts";
+import { resolveRoomTheme, resolveRowAttribution, speakerThemesByName } from "../../../../../packages/client/src/features/chat/lib/attribution.ts";
 import { colorForCharacter } from "../../../../../packages/client/src/features/chat/lib/speaker-color.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeParticipant } from "./_support.ts";

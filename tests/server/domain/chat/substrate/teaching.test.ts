@@ -15,7 +15,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 const TCTX: TeachingContext = {
   chatId: castId<ChatId>("chat_teach"),
   runAsUserId: castId<UserId>("user_host"),
-  knobs: { offerChoices: false },
+  knobs: { offerChoices: false, charactersCanReact: false, reactionsEnabled: true },
   prose: {},
   identity: { user: "Nate", char: "Aria" },
   rpgGather: null,

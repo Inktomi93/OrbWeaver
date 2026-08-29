@@ -689,6 +689,19 @@ const chatSchema = z
     // SERVER-honored, on the same `UserSettings.chat` → `ChatBehaviorInputs` FOREIGN seam `autoContinue` and
     // `customStoppingStrings` ride. Default OFF ⇒ byte-identical to a tree that never heard of the knob.
     offerChoices: z.boolean().catch(false).default(false),
+    // B7 — the per-USER default for the room-level "characters can react" posture (the `react` tool's
+    // attach gate). The offerChoices twin on the same FOREIGN seam. Default OFF at BOTH tiers (owner
+    // requirement): an autonomous AI dropping reactions is opt-in — a host enables it per room or flips
+    // this default; nothing turns it on by silence. Room value wins; ONE precedence home
+    // (`resolveCharactersCanReact`, @orb/contracts/chat).
+    charactersCanReact: z.boolean().catch(false).default(false),
+    // B7 — the per-USER default for the room-level reaction-plane MASTER switch (pills + picker +
+    // toggleReaction + the react tool + the attribution loop). Default ON, deliberately opposite its
+    // sibling: B6 reactions are a SHIPPED feature, so this knob exists to make them disableable — a
+    // default of off would silently retire a live surface. Room value wins; ONE precedence home
+    // (`resolveReactionsEnabled`, @orb/contracts/chat). SERVER-honored (the verb gate + the
+    // `listReactions` verdict) and client-read only to seat the host's toggle.
+    reactionsEnabled: z.boolean().catch(true).default(true),
   })
   .prefault({});
 

@@ -60,6 +60,12 @@ export const CHAT_MESSAGE_HANDLING_KEYS = [
   // storytelling posture is a chat BEHAVIOR the same way auto-continue is. Forking a third section for one
   // switch would cost a nav row and a save footer to say less.
   "offerChoices",
+  // B7 — the two per-user reaction DEFAULTS a room inherits when its own key is absent (the offerChoices
+  // twins, same section for the same reason). Opposite default directions BY DESIGN: `reactionsEnabled`
+  // ships ON (B6 is live; the knob makes it disableable), `charactersCanReact` ships OFF (an autonomous AI
+  // reacting is opt-in — owner requirement).
+  "reactionsEnabled",
+  "charactersCanReact",
 ] as const;
 
 export const AUTO_SWIPE_MIN_LENGTH_MIN = 0;
@@ -85,6 +91,8 @@ export interface ChatMessageHandlingForm {
   readonly customStoppingStrings: string;
   readonly tempChatTtlHours: number;
   readonly offerChoices: boolean;
+  readonly reactionsEnabled: boolean;
+  readonly charactersCanReact: boolean;
 }
 
 /** The section's WRITE shape, DERIVED from the `OWNS` tuple: exactly the owned keys, with `autoSwipe`
@@ -117,6 +125,8 @@ export function projectMessageHandlingForm(chat: ChatSettings): ChatMessageHandl
     customStoppingStrings: chat.customStoppingStrings.join("\n"),
     tempChatTtlHours: chat.tempChatTtlHours,
     offerChoices: chat.offerChoices,
+    reactionsEnabled: chat.reactionsEnabled,
+    charactersCanReact: chat.charactersCanReact,
   };
 }
 
@@ -135,5 +145,7 @@ export function toMessageHandlingPatch(form: ChatMessageHandlingForm): ChatMessa
     customStoppingStrings: linesToList(form.customStoppingStrings),
     tempChatTtlHours: form.tempChatTtlHours,
     offerChoices: form.offerChoices,
+    reactionsEnabled: form.reactionsEnabled,
+    charactersCanReact: form.charactersCanReact,
   };
 }

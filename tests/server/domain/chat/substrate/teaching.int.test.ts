@@ -106,7 +106,7 @@ async function mergedInjections(args: {
   const teaching = await collectTeaching(args.ctx.teaching, {
     chatId: args.chatId,
     runAsUserId: args.host,
-    knobs: { offerChoices: args.offerChoices ?? false },
+    knobs: { offerChoices: args.offerChoices ?? false, charactersCanReact: false, reactionsEnabled: true },
     prose: args.prose ?? {},
     identity: { user: "Nate", char: "Aria" },
     rpgGather: args.rpgGather,
@@ -127,7 +127,7 @@ async function mergedInjections(args: {
 }
 
 function ctxOf(extra: ChatTeachingRegistry = []): ChatContext {
-  return makeChatContext(db, { teaching: [...createChatTeachingContributions(), ...extra] });
+  return makeChatContext(db, { teaching: [...createChatTeachingContributions({ db }), ...extra] });
 }
 
 /** A foreign contribution that teaches the choices fence as its OWN injection — the shape the collector's

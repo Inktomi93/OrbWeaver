@@ -5,6 +5,7 @@
 // assistant/LLM/imported content by default (the indirect-prompt-injection boundary).
 
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
+import { isNarratorVoiced } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
@@ -18,7 +19,7 @@ import { cn, resolveRowRenderPolicy } from "#lib";
 import { toggleMessageSelected, useIsEditingMessage, useIsMessageSelected, useMessageEditReservedInlineSize, useSelectionActive } from "#state";
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider.tsx";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
-import { isNarratorVoiced, resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
+import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
@@ -292,7 +293,9 @@ export function MessageRow({
       showTimestamp: metadataVisibility.showTimestamps,
       stickyAttribution,
       placement: skin.headerPlacement,
-      actions: renderRowActions({ editing, selecting, message, onChatForked, messageActions, viewerIsHost, modelCredit }),
+      // B7 — the picker's segment-target parse keys the SAME cast-name set the span renderer uses
+      // (`speakerThemesByName`'s keys); the actions row narrator-gates it against `message.kind` itself.
+      actions: renderRowActions({ editing, selecting, message, onChatForked, messageActions, viewerIsHost, modelCredit, castNames: [...speakerThemes.keys()] }),
     }),
     skin.headerPlacement,
   );

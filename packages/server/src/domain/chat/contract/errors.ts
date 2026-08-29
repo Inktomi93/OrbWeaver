@@ -126,6 +126,16 @@ export const CHAT_OP_CODES = {
    *  saying the turn must not happen, and the author is owed the difference. The reason string travels in the
    *  message (it is the transform's own words, capped at `PROMPT_TRANSFORM_ABORT_REASON_MAX`). */
   promptTransformAborted: "prompt_transform_aborted",
+  /** B7 — a reaction write/read arrived while the room's resolved `reactionsEnabled` posture is OFF
+   *  (`chatMetadata.reactionsEnabled` over the host's per-user default). The caller IS a member (the
+   *  membership gate passed), so this is a coded posture refusal, not a NOT_FOUND collapse — hidden
+   *  client affordances are the courtesy; THIS is the enforcement. */
+  reactionsDisabled: "reactions_disabled",
+  /** B7 — a segment-targeted `toggleReaction` whose claimed anchor does not resolve against the SERVER's
+   *  own parse of the variant's canon (index out of range, or the span at that index is not the claimed
+   *  speaker's). Almost always a benign race — the content or cast changed between the picker's parse and
+   *  the write — and refusing beats silently retargeting the member's click at the whole message. */
+  invalidSegment: "invalid_segment",
 } as const;
 
 /** The reason-code union (derived from the one tuple of values — never re-spelled). */

@@ -483,12 +483,16 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // test overrides with a recorder to assert the fire-and-forget after commit.
     expressions: null,
     rpg: null,
-    // The S2 teaching registry, wired EXACTLY as the composition root wires it: chat's own contributor #0
-    // (the rpg-gather projection). A suite that registers a foreign contribution overrides this with
-    // `[...createChatTeachingContributions(), <its own>]`.
+    // The S2 teaching registry, wired EXACTLY as the composition root wires it: chat's own contributors
+    // (the rpg-gather projection + B7's attribution/react-attach rows, which read this same test db). A
+    // suite that registers a foreign contribution overrides this with
+    // `[...createChatTeachingContributions({ db }), <its own>]`.
     // U6 §5.15 — no plugin host in a chat-domain test (byte-identical no-op).
     pluginMacros: null,
-    teaching: createChatTeachingContributions(),
+    teaching: createChatTeachingContributions({ db }),
+    // B7 — the verb-time reaction defaults (the shipped posture: plane ON, react tool OFF). A toggle test
+    // that wants a different host default overrides this op, the `resolveForeignInputs` pattern.
+    readReactionDefaults: () => Promise.resolve({ charactersCanReact: false, reactionsEnabled: true }),
     // Default = null ⇒ no PromptTransform registrar wired (byte-identical no-op — automation-design/04 §6). A
     // transform test overrides with a `createPromptTransformRegistry(...).apply`.
     promptTransforms: null,

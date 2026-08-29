@@ -524,6 +524,67 @@ Preview (host-only, crown)** — `features/chat/lib/chats-section.tsx:54-88`.
 | B10 | saved casts (#26) | — | `rosterMemberSpecSchema`/`seatKnobsSchema` (`contracts/chat/roster.ts:76-99` — pre-cut; D80 `setSeatKnobs`) + the room's enabled PRESET IDS + KNOB VALUES re-minted on apply (the accrual travels; doubles as B2's provenance flip-shape record) | save a cast + rules; one click into a new chat | save: Members tab host action; apply-new: the `newChat` picker modal gains "Start from saved cast"; apply-existing: Members "Add cast…"; library management: a Configuration-section `CollectionContribution` | **merge-window** (schema) | seat knobs + preset ids |
 | B11 | room Activity tab + inbox doorway (#687; owner-placed 2026-08-24) | — | the EXISTING durable stores read cross-source: the automation fire log (confirmed-suggestion executions carry the confirmer stamp), notices, plugin invocations for this chat — ONE-HOME: no second store, the tab is a READ of what the Rules-section fire log already consumes; (digest) B6's reactions plane when it lands | open the Activity tab: this room's fires/cards/plugin actions listed; the shell badge opens the inbox | tab: a CONTEXT-strip sibling of Members/"This chat"/Preview (CONTEXT→sheet mobile); cross-room stays the EXISTING notifications inbox — the top-bar/room-list spot is a BADGE/entry to it, never a second feed (the #227 reachability fix rides this) | ordinary | none new. Rides the B6 wave (the reactions-while-away digest pairs). Pending S4 cards stay F1 in-RAM: the feed = live-pending + durable history; "missed cards" = the recorded R5 durable-row flip, priced separately |
 
+**§7-B7a — THE B7 BUILD RECORD (2026-08-28, the B7 lane; design-first, decisions + rejected arms).**
+B7 = MR3 (segment targeting) + MR4 (the bounded attribution loop) + MR5 (the `react` tool), plus TWO
+owner-required per-chat toggles. The MA-2 mini-spec (`../architecture/proposed/message-reactions-mini-spec.md`)
+is REFERENCE; where it and this record differ, this record is what was built.
+
+1. **Segment anchor = a `parseSpeakerSpans` LINE index over STORED CANON, cast = present CHARACTER
+   seats' names.** The fitness suite (`tests/kit/speaker-label/anchoring.suite.test.ts`, df18b191f)
+   ruled the parser FIT with no grouping layer — line-level spans ARE the index space (narration
+   occupies indices; consecutive same-speaker lines are distinct targets). *(Rejected: the mini-spec's
+   `@orb/kit/speaker-segments` port — a second recognizer over the ONE parser.)* The anchor substrate
+   is canon bytes, NEVER display text: the client renderer parses `renderMessageForDisplay` output
+   (`message-content.tsx:135-140`), which regex/macros/plugins can reshape, so display indices are not
+   shared truth. Cast mirror: `speakerThemesByName` keys client-side (`lib/attribution.ts:286` —
+   character seats only) = `loadPresentCastNames` server-side.
+2. **The row stores `(segmentIndex, segmentSpeaker, segmentSnippet)`; a stale trio DEGRADES to
+   whole-message.** The suite's sharpest finding: `(index, speaker)` alone is defeated by a
+   same-speaker structural insert (silent mis-target). The snippet (canon span text, capped
+   `REACTION_SEGMENT_SNIPPET_MAX`) is the fingerprint that detects it, and doubles as the attribution
+   quote. Validation is ONE kit helper (`resolveSegmentAnchor`, speaker-label — both consumers, one
+   rule). The WRITE re-derives server-side: the wire carries the index + the claimed speaker; the
+   server parses canon itself, refuses a mismatch typed, and stores ITS OWN speaker/snippet — a
+   member never writes free text into a column every transcript renders (the emoji-tuple lesson).
+   UNIQUE widens as two PARTIAL indexes (whole-message / segment-keyed) — a single unique over a
+   nullable `segment_index` would stop deduplicating whole-message rows (SQLite NULLs are distinct).
+3. **MR4 attribution = an S2 teaching contribution (chat's own, order 2), ONE `in_chat` depth-0
+   system injection.** *(Rejected: the mini-spec's per-message inline splice — a second prompt-mutation
+   plane; §3-S2's convergence law puts all prose steering on the ONE ChatInjection channel.)* Reads
+   the newest `REACTION_ATTRIBUTION_SLOT_WINDOW` reacted slots, SELECTED variants only, above the
+   HOST's D16 floor; caps: `REACTION_ATTRIBUTION_MAX_PER_MESSAGE` (K=8, most-recent) + the 32k
+   `REACTION_ATTRIBUTION_CONTENT_CAP` (past it, no re-parse — whole-message note). Constants in
+   `contracts/chat/reactions.ts`; the owner-tunable knob surface is a recorded flip, not built. No
+   reactions ⇒ `[]` ⇒ byte-identical (the A1 property, per contributor).
+4. **MR5 = a builtin `react` tool in the ONE registry (imagery's `tool/` mirror), attached through
+   the S2 `toolNames` axis — the first non-empty contributor.** Name minted ONCE
+   (`CHAT_REACT_TOOL_NAME`). Args `{ character, emoji, toSpeaker? }`: the target is the room's newest
+   committed message's selected variant; `toSpeaker` narrows to that speaker's LAST span. *(Rejected:
+   model-supplied message/variant ids — the model cannot know ids; name-targeting is Marinara's own
+   proven surface.)* Write = `createReactAsCharacter`, a standalone chat verb factory (compose-wired
+   into the tool def; *rejected: a `ChatService` member — its only consumer is the composition root,
+   and the service tax lands on every double*). ADD-ONLY (a model retry must not un-react),
+   attributed to the CHARACTER's seat, durable-first `reactionsChanged` emit, errors-as-data
+   refusals. Description = a `chat.tool.reactDescription` prose slot (home `user`, the imagery #578
+   shape); NO teach injection (the tool-use posture — the wire description IS the teach).
+5. **TWO per-chat toggles, the `offerChoices` pattern EXACTLY (metadata boolean · host-set `chat.set…`
+   verb · absent = inherit the host's per-user default · a contracts resolve helper), side by side in
+   the room's chat-behavior surfaces:**
+   - `charactersCanReact` — gates the react-tool ATTACH (contribution emits the tool name only when
+     the resolved knob is ON). Default **OFF / opt-in** (owner: autonomous AI reacting is opt-in).
+   - `reactionsEnabled` — the B6 plane's master switch. Default **ON** (the shipped feature stays
+     on; it becomes disableable). Resolved OFF ⇒ `listReactions` answers `{enabled:false, groups:[]}`
+     (the pill row and picker doors vanish for EVERY member off one read), `toggleReaction` and the
+     react tool REFUSE server-side, the attach contribution and the attribution contribution both go
+     empty. The wire read is the verdict carrier *(rejected: stamping a resolved boolean on
+     `ChatDetail` — the room read has no settings access, and a member's client can never resolve the
+     HOST's default locally)*. Verb-time resolution rides a narrow injected `ChatContext` op (the
+     host's `UserSettings.chat` reaction fields under the present host seat).
+6. **Merge class CORRECTION: B7 is a MERGE-WINDOW row, not ordinary.** The B6 schema header
+   deliberately deferred the segment columns ("NO SEGMENT COLUMNS YET… the same baseline squash any
+   new column costs", `db/schema/chat.ts:651-654`); the B7 row's "ordinary" cell predates that
+   deferral. The squash is baseline-only (pre-launch), regenerated from the isolated B7 worktree.
+
 **Phase C — the analysis arm + the platform machinery:**
 
 | Step | Contents | Class | Owner's test | HOME | Merge class | Status |

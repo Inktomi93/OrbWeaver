@@ -15,10 +15,13 @@
 //     `extra.reactions` blob does NOT port: it is single-user by construction (a read-modify-write of the
 //     whole array), and two members toggling the same message concurrently lose-update it.
 //
-// SEGMENT TARGETING IS B7 (MR3-MR5), not here: MR0-MR2 ships WHOLE-MESSAGE reactions. The persisted row
-// carries no segment columns yet, and when they land they join ADDITIVELY — the recorded probe condition is
-// that a speaker-span index is NOT edit-stable, so any future segment anchor co-stores the captured speaker
-// beside the index and a stale pair DEGRADES to whole-message rather than mis-attaching (MA-2 §2).
+// SEGMENT TARGETING (B7/MR3): a reaction may anchor to ONE speaker's line — a `parseSpeakerSpans` LINE
+// index over the variant's STORED CANON (never display text; the renderer parses post-regex/macro bytes
+// no other surface shares). The persisted trio is `(segmentIndex, segmentSpeaker, segmentSnippet)`: the
+// anchoring fitness suite (`tests/kit/speaker-label/anchoring.suite.test.ts`) proved a bare index is not
+// edit-stable and `(index, speaker)` is defeated by a same-speaker insert, so the snippet is the
+// fingerprint — and a stale trio DEGRADES to whole-message rather than mis-attaching (MA-2 §2; the one
+// rule is kit's `resolveSegmentAnchor`, shared by the client display and the server attribution read).
 
 import type { AssetId, ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -58,6 +61,13 @@ export const CHAT_REACTION_SLOT_WINDOW = 200;
  *  unicode-only, so a custom-emoji ask is refused by {@link reactionEmojiSchema} until its arm lands. */
 export interface MessageReactionGroup {
   readonly variantId: MessageVariantId;
+  /** The segment anchor (B7/MR3), or all-null for a whole-message reaction. The trio is stored FROM THE
+   *  SERVER'S OWN PARSE at write time (a member's claim is validated, never stored — no free-text write
+   *  surface into a column every transcript renders). Staleness is the READER's job: re-resolve through
+   *  kit's `resolveSegmentAnchor` and render a failed anchor as whole-message. */
+  readonly segmentIndex: number | null;
+  readonly segmentSpeaker: string | null;
+  readonly segmentSnippet: string | null;
   /** The stored token, typed to the VOCABULARY rather than to the column.
    *
    *  The column is plain TEXT (the vocabulary is open by design — the custom `:name:` arm), so this is a
@@ -71,3 +81,40 @@ export interface MessageReactionGroup {
   readonly emojiImageAssetId: AssetId | null;
   readonly reactorParticipantIds: readonly ChatParticipantId[];
 }
+
+/** The `listReactions` wire (B7) — the grouped window PLUS the room's RESOLVED reactions posture.
+ *
+ *  WHY THE VERDICT RIDES THIS READ and not `ChatDetail`: `reactionsEnabled` resolves room-value-else-HOST-
+ *  default (`resolveReactionsEnabled`), and only the SERVER can read the host's `UserSettings.chat` — a
+ *  member's client cannot resolve a null room value locally, and stamping a resolved boolean onto the chat
+ *  detail would put a settings read on a canon projection. This is the read every reaction surface already
+ *  consumes, so `enabled:false` makes the pills AND the picker doors vanish for every member off one wire. */
+export interface ChatReactionsView {
+  readonly reactionsEnabled: boolean;
+  readonly groups: readonly MessageReactionGroup[];
+}
+
+/** The `react` tool's registry key + wire `function.name` — minted ONCE (the plugin-tool one-mint law):
+ *  the ToolDefinition, the S2 attach contribution and every test spell it from here. */
+export const CHAT_REACT_TOOL_NAME = "react";
+
+/** The stored segment snippet's cap (chars, over the span's TRIMMED text — kit `segmentSnippet`). Long
+ *  enough to fingerprint a line against a same-speaker insert; short enough that a row is never a second
+ *  copy of the message. */
+export const REACTION_SEGMENT_SNIPPET_MAX = 120;
+
+/** The wire bound for a speaker/character NAME argument on the reaction surfaces (the `toggleReaction`
+ *  segment claim, the `react` tool's `character`/`toSpeaker`) — the `<speaker>` tag grammar's own cap
+ *  (`SPEAKER_TAG_PAIR` tolerates up to 200 chars between the tags), so a name the span parser could have
+ *  produced always fits and anything longer is refused at the boundary. */
+export const REACTION_SPEAKER_NAME_MAX = 200;
+
+/** B7/MR4 — the prompt-attribution loop's bounds (the mini-spec §6 caps, ruled owner-tunable in shape;
+ *  the tunable SURFACE is a recorded flip — these constants are the one built home).
+ *  `MAX_PER_MESSAGE` = most-recent K reactions attributed per message (a brigaded message cannot blow the
+ *  prompt budget); `CONTENT_CAP` = bodies past it skip re-segmentation (whole-message note only — the
+ *  Marinara `REACTION_ANNOTATION_CONTENT_CAP` precedent); `SLOT_WINDOW` = how many newest reacted slots
+ *  the loop reads at all (recency is the loop's whole value — the model acknowledges what just happened). */
+export const REACTION_ATTRIBUTION_MAX_PER_MESSAGE = 8;
+export const REACTION_ATTRIBUTION_CONTENT_CAP = 32_000;
+export const REACTION_ATTRIBUTION_SLOT_WINDOW = 10;

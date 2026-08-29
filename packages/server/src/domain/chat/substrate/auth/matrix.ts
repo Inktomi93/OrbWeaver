@@ -146,6 +146,8 @@ export const CHAT_VERB_AUTHORITY = {
   setChatDocumentVisibility: "host", // D85 — the host governs which databank documents feed the shared room's retrieval (room-wide prompt content is the host's authority, the setRoomOverrides twin)
   setHostDisplayScripts: "host", // D121-E — a room-wide RENDER option is the host's authority (the setChatBackground/setRoomOverrides twin); render-only, so it can never reach canon or the wire
   setOfferChoices: "host", // B1 — unlike its render-only neighbour above, this one reaches the PROMPT (it teaches the model the standing `:::choices` fence for everyone in the room), so host is the floor, not a courtesy
+  setCharactersCanReact: "host", // B7 — the setOfferChoices twin: it reaches the PROMPT (attaches the `react` tool for everyone's turns), so host is the floor; opt-in at both tiers (the per-user default also ships OFF)
+  setReactionsEnabled: "host", // B7 — the reaction-plane master switch is room-wide behavior (it gates every member's toggleReaction + the pills), the setRoomOverrides class; enforcement lives in the reaction verbs' resolved-posture gate
   setChatBackground: "host", // BG-C — the host sets the per-chat carried background (room-wide chrome is the host's authority, the setRoomOverrides twin); asset-ownership additionally gated inside the verb
   setToolRecurseLimit: "host", // the host sets the per-chat tool-call recursion cap (room-wide turn behavior is the host's authority, the setRoomOverrides twin)
 

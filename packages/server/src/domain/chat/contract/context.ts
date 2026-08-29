@@ -62,7 +62,7 @@ import type { ResolveRegexSources } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
 import type { RoleClientsWithSignal, ToolCallInput, WireTool } from "#infra/providers";
 import type { ActiveTurns } from "./active-turns.ts";
-import type { ResolveForeignInputsOp } from "./foreign.ts";
+import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { ResolvedMediaRef, TurnKind, TurnRequest, TurnStreamChunk } from "./results.ts";
 
@@ -258,6 +258,11 @@ type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<SideGenSampling>;
  *  generations, so a chat's digests / arbiter / summary marker must not change voice depending on who spoke.
  *  A hostless/stale room resolves `{}` ⇒ every slot falls to its shipped default, byte-identical. */
 type ResolveChatProseOp = (chatId: ChatId) => Promise<ProseOverrides>;
+
+/** B7 — a user's per-user reaction defaults, picked off the same schema-real `UserSettings.chat` arm the
+ *  turn path consumes as `ChatBehaviorInputs` (never a re-spelled shape). The op half of
+ *  {@link ChatContext.readReactionDefaults}. */
+export type ReadReactionDefaultsOp = (userId: UserId) => Promise<Pick<ChatBehaviorInputs, "charactersCanReact" | "reactionsEnabled">>;
 
 /** The imagery quiet-extraction shaper (imagery-design/02 §2) — a STANDALONE op (not on ChatContext; built
  *  at compose from db + summarize + getCard, the `loadTurnForClassify` precedent). Chat owns the history
@@ -1074,6 +1079,16 @@ export interface TeachingKnobs {
   /** Whether this chat asks the model to offer choices (the standing `:::choices` fence) — the room's own
    *  `chatMetadata.offerChoices` when set, else the frozen host's per-user default (`resolveOfferChoices`). */
   readonly offerChoices: boolean;
+  /** B7 — whether this chat's turns attach the `react` tool (`chatMetadata.charactersCanReact` over the
+   *  host's per-user default, `resolveCharactersCanReact`; OFF by default at both tiers). The attach
+   *  contribution additionally requires {@link TeachingKnobs.reactionsEnabled} — a room with the plane off
+   *  attaches nothing regardless of this knob. */
+  readonly charactersCanReact: boolean;
+  /** B7 — the reaction plane's resolved master switch (`chatMetadata.reactionsEnabled` over the host's
+   *  per-user default, `resolveReactionsEnabled`; ON by default). OFF silences the attribution
+   *  contribution and the react attach; the verb-side enforcement resolves the same pair through its own
+   *  injected op. */
+  readonly reactionsEnabled: boolean;
 }
 
 /** The NAMES a `names-only` macro render binds when a teach slot's host OVERRIDE types `{{user}}`/`{{char}}`
@@ -1185,6 +1200,12 @@ export interface ChatContext {
   /** The room host's app-tier prose overrides — read by assembly (the anchor identity lead-in), the smart
    *  arbiter, compaction and the memory build. Empty ⇒ the shipped defaults. */
   readonly resolveChatProse: ResolveChatProseOp;
+  /** B7 — a user's per-user reaction defaults (`UserSettings.chat.{reactionsEnabled,charactersCanReact}`),
+   *  the VERB-TIME half of the resolve pair: `toggleReaction`/`listReactions`/`reactAsCharacter` gate on
+   *  `resolveReactionsEnabled(room, hostDefault)` and no ForeignInputs exists outside the turn path (the
+   *  turn's own reads ride `ChatBehaviorInputs`). Called with the room's PRESENT HOST id — the host governs
+   *  the posture, never the caller. Wired at compose over the settings read (chat never imports settings). */
+  readonly readReactionDefaults: ReadReactionDefaultsOp;
   /** Null means tool-use isn't wired — byte-identical no-op. */
   readonly tools: ChatToolOps | null;
   readonly resolveChat: ResolveChatConnectionOp;
