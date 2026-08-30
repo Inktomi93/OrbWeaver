@@ -19,7 +19,7 @@
 // (1280px > 48rem) the desktop icon column shows, matching production.
 
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
-import type { ContextRegionDef, ContextRegionView, ContextTabDef, ContributorRegistry, ResolvedContextTab } from "@orb/client/lib";
+import type { ContextRegionDef, ContextTabDef, ContributorRegistry, ResolvedContextTab } from "@orb/client/lib";
 import { createContributorRegistry, defineContextRegion, defineContextTabs, notify, VOID_STATE } from "@orb/client/lib";
 import type { ChromeEntry, SectionDefinition, SectionId } from "@orb/client/state";
 import {
@@ -48,6 +48,10 @@ import { ContextTabsPanel } from "../../../../packages/client/src/features/app-s
 import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style.tsx";
 import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail.tsx";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
+// The chats topbar identity passenger, reached the same way the Rail leaf is (a story may reach a feature
+// internal the front door does not re-export). Same absolute file the app resolves, so the React/provider
+// context is the one `CtDataProviders` mounts — the `tests/client/features/chat` stories reach it this way.
+import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
 import type { ModalSlotId } from "../../../../packages/client/src/state/modal-slot-ids.ts";
 import { openModal, setActiveSection, useActiveSection, useContextTab } from "../../../../packages/client/src/state/shell-store.ts";
@@ -99,6 +103,39 @@ export function AppShellStory(): ReactElement {
         <LandOn section="chats" />
         {/* The real "You" bottom-sheet body arrives via the modal registry (CtFakeSectionRegistry nests
             the real modal registry), so the mobile CT exercises the real sheet, not a placeholder. */}
+        <AppShell />
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The chat id the topbar-identity story seats. MINTED, never a hand-written literal — `typeIdSchema`
+ *  validates the 26-char suffix at runtime, so a made-up string fails inside the real header's query key. */
+const TOPBAR_IDENTITY_CHAT_ID = mintTypeId(ID_PREFIX.chat);
+
+/** THE TOPBAR YIELDS THE ROOM'S IDENTITY TO THE DOCKED CONTEXT PANE (#846 by relocation, #860) — the REAL
+ *  chats identity cluster riding the shell's topbar LEAD, with both panes available so the CT can drive the
+ *  pane states the rule keys on. The header passenger is the PRODUCTION `ChatHeaderSurface`, not a stand-in
+ *  that re-spells its class names (a fixture that can agree with the bug). Its roster arrives from the
+ *  `.ct.tsx`'s own `chat.getChat` route stub, and the `.ct.tsx` also seats the notifications bell — the
+ *  `snap --isolated` stage renders the trail without it, 42px lighter than a real account's row. */
+export function AppShellChatTopbarIdentityStory(): ReactElement {
+  useEffect(() => {
+    selectChat(TOPBAR_IDENTITY_CHAT_ID);
+  }, []);
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry
+        sections={{
+          chats: {
+            list: <p>chats list pane</p>,
+            content: <p>chats content pane</p>,
+            context: <p>chats context pane</p>,
+            header: <ChatHeaderSurface chatId={TOPBAR_IDENTITY_CHAT_ID} />,
+          },
+        }}
+      >
+        <LandOn section="chats" />
         <AppShell />
       </CtFakeSectionRegistry>
     </CtDataProviders>
@@ -617,11 +654,17 @@ const FAKE_HEADER_CONTEXT = defineContextTabs<void>({
 });
 
 /** The definition-owned CONTEXT header channel (N4): a fake section mints a `header` through
- *  `defineContextTabs`; `SectionContextHeader` renders it blind in the band (no per-section switch). */
+ *  `defineContextTabs`; the shell renders it blind (no per-section switch) — in the BRACKET's head band via
+ *  `SectionContextHost` since #860, while the shell's own band slot (`SectionContextHeader`) stays empty. */
 export function SectionContextHeaderChannelStory(): ReactElement {
   return (
     <CtDataProviders>
-      <SectionContextHeader definition={fakeHeaderSection(FAKE_HEADER_CONTEXT)} />
+      <div data-testid="band-slot">
+        <SectionContextHeader definition={fakeHeaderSection(FAKE_HEADER_CONTEXT)} />
+      </div>
+      <div style={{ width: 291, height: 320 }} data-testid="body-slot">
+        <SectionContextHost definition={fakeHeaderSection(FAKE_HEADER_CONTEXT)} />
+      </div>
     </CtDataProviders>
   );
 }
@@ -635,14 +678,14 @@ export function SectionContextHeaderDefaultStory(): ReactElement {
   );
 }
 
-// ── The CONTEXT tab strip (context-tabs-panel.tsx) ──────────────────────────────────────────────────
-// Mounts the real ContextTabsPanel inside a FIXED-width container the `.ct.tsx` sets, so the shell.css
-// `.ctx-tab-strip` cell + track sizing resolve against a KNOWN width. Since #208 the cell is icon+label at
-// every width (the @container icon-mode this comment used to describe is deleted), so the widths exist to
-// exercise the strip's SLACK: 291px = the real default panel (tracks at their `max-content` minimum, the
-// row may scroll), 600px = a wide host (the `1fr` maximum, equal cells filling the row). A `showTrackers`
-// flag adds the 5th tab (the CP-1 ceiling); a fake icon-LESS contributor tab proves a tab with no glyph
-// still reads as the same cell.
+// ── The CONTEXT BRACKET as the generic pane renders it (context-tabs-panel.tsx → context-bracket.tsx) ──
+// Mounts the real ContextTabsPanel inside a FIXED-size container the `.ct.tsx` sets, so the rail's track
+// sizing resolves against a KNOWN width and the foot rail has a real pane bottom to be pinned to. Since #208
+// the cell is icon+label at every width, so the widths exist to exercise the rail's SLACK: 291px = the real
+// default panel (tracks at their `max-content` minimum, the row may scroll), 600px = a wide host (the `1fr`
+// maximum, equal cells filling the row). A `showTrackers` flag adds the 5th tab (the CP-1 ceiling); a fake
+// icon-LESS contributor tab proves a tab with no glyph still reads as the same cell; `withBand`/`withDismiss`
+// seat the head band and the floating pane's own way out (#860).
 
 /** A resolved-tab builder that fills the §4.11 defaults (strip "meta", no badge, enabled) so a story only
  *  spells the axis it exercises — mirrors `resolveContextTabs`'s own defaulting. */
@@ -661,15 +704,29 @@ const CTX_TRACKERS_TAB: ResolvedContextTab = resolvedTab({ id: "trackers", label
 const CTX_ICONLESS_TAB: ResolvedContextTab = resolvedTab({ id: "iconless", label: "Iconless", node: <div>iconless</div> });
 
 export interface ContextTabStripStoryProps {
-  /** The container width (px) the strip's @container resolves against. */
+  /** The container width (px) the rail's tracks resolve against. */
   readonly width: number;
+  /** The container HEIGHT (px) — the pane the foot rail is pinned to the bottom of. @defaultValue 480 */
+  readonly height?: number;
   /** Add the 5th (Trackers) tab — the CP-1 ceiling headroom pin. @defaultValue false */
   readonly showTrackers?: boolean;
   /** Append an icon-LESS tab — proves it keeps its word unconditionally. @defaultValue false */
   readonly withIconless?: boolean;
+  /** Seat a head band (the section's `header`). @defaultValue false */
+  readonly withBand?: boolean;
+  /** Seat the floating pane's own way out (overlay mode) — a dismiss the story counts. @defaultValue false */
+  readonly withDismiss?: boolean;
 }
 
-export function ContextTabStripStory({ width, showTrackers = false, withIconless = false }: ContextTabStripStoryProps): ReactElement {
+export function ContextTabStripStory({
+  width,
+  height = 480,
+  showTrackers = false,
+  withIconless = false,
+  withBand = false,
+  withDismiss = false,
+}: ContextTabStripStoryProps): ReactElement {
+  const [dismissed, setDismissed] = useState(0);
   const tabs: ResolvedContextTab[] = [...CTX_STRIP_TABS];
   if (showTrackers) {
     tabs.push(CTX_TRACKERS_TAB);
@@ -678,18 +735,23 @@ export function ContextTabStripStory({ width, showTrackers = false, withIconless
     tabs.push(CTX_ICONLESS_TAB);
   }
   return (
-    <div style={{ width }} data-testid="ctx-strip-container">
-      <ContextTabsPanel tabs={tabs} />
+    <div style={{ width, height }} data-testid="ctx-strip-container" data-dismissed={dismissed}>
+      <ContextTabsPanel
+        tabs={tabs}
+        railLabel="Chat"
+        {...(withBand ? { header: <p data-testid="ctx-band-content">Example — Midnight Run</p> } : {})}
+        {...(withDismiss ? { dismissLabel: "Close Chats details", onDismiss: (): void => setDismissed((n) => n + 1) } : {})}
+      />
     </div>
   );
 }
 
-// ── Tab STATES in the generic (unclaimed) panel — the §4.6 badge + PHASE-disable vocabulary ──────────
-// The two-strip bracket is DELETED (HUD-1 §5.1): a bracket is a claimant's own arrangement, and a claimant
-// now owns the whole pane instead of renting slots here. What survives is the state vocabulary the generic
-// panel still owns — the badge (dot + count, never on the active tab) and disable-with-reason (native
-// disabled + title; the visible label keeps the reason discoverable). The set deliberately MIXES `strip` values: rail membership is a
-// claimant's vocabulary, so the generic panel must IGNORE it and render ONE strip carrying every tab.
+// ── Tab STATES in the bracket — the §4.6 badge + the PHASE-locked cell, over BOTH rails ─────────────────
+// The set deliberately MIXES `strip` values: since #860 the bracket is the ONE composition for every pane,
+// so a `game` tab lands in the state rail above the viewport (named "Game state") and a `meta` tab in the
+// foot rail (named by the section) — the generic pane no longer flattens rail membership into one strip.
+// The state vocabulary: the badge (dot + count, never on the active tab) and the LOCKED cell (padlock +
+// reason on `title`, NOT `aria-disabled` — it OPENS onto its reason, RV-7, in every pane).
 
 const CTX_TAB_STATE_TABS: readonly ResolvedContextTab[] = [
   resolvedTab({ id: "rpg.status", label: "Status", icon: Gauge, node: <div data-testid="ctx-body-status">status</div>, strip: "game" }),
@@ -710,11 +772,11 @@ const CTX_TAB_STATE_TABS: readonly ResolvedContextTab[] = [
   resolvedTab({ id: "settings", label: "Settings", icon: Settings, node: <div data-testid="ctx-body-settings">settings</div>, strip: "meta" }),
 ];
 
-/** The generic panel at a fixed width — ONE strip over a mixed-`strip` set, badges + a disabled tab. */
-export function ContextTabStatesStory({ width = 291 }: { readonly width?: number }): ReactElement {
+/** The bracket at a fixed size — TWO rails over a mixed-`strip` set, badges + a locked cell. */
+export function ContextTabStatesStory({ width = 291, height = 560 }: { readonly width?: number; readonly height?: number }): ReactElement {
   return (
-    <div style={{ width }} data-testid="ctx-strip-container">
-      <ContextTabsPanel tabs={CTX_TAB_STATE_TABS} />
+    <div style={{ width, height }} data-testid="ctx-strip-container">
+      <ContextTabsPanel tabs={CTX_TAB_STATE_TABS} railLabel="Chat" />
     </div>
   );
 }
@@ -732,8 +794,8 @@ const CTX_DEFAULT_TAB_TABS: readonly ResolvedContextTab[] = [
  *  `defaultTab`, so a fresh panel (no stored contextTab) must land on Status, not Members. */
 export function ContextDefaultTabStory({ width = 291 }: { readonly width?: number }): ReactElement {
   return (
-    <div style={{ width }} data-testid="ctx-strip-container">
-      <ContextTabsPanel tabs={CTX_DEFAULT_TAB_TABS} />
+    <div style={{ width, height: 480 }} data-testid="ctx-strip-container">
+      <ContextTabsPanel tabs={CTX_DEFAULT_TAB_TABS} railLabel="Chat" />
     </div>
   );
 }
@@ -752,11 +814,11 @@ export function CustomThemeStyleStory({ css }: { readonly css: string }): ReactE
   );
 }
 
-// ── The whole-pane REGION CLAIM (HUD-1 §3.1/§3.2) ────────────────────────────────────────────────────
+// ── The HEAD-BAND REGION CLAIM through the REAL path (HUD-1 §3.1/§3.2, re-shaped by #860) ────────────
 // A FAKE claimant (no rpg import — the mechanism is generic) mounted through the REAL path: a
 // `defineContextTabs` mint carrying a `regions` contributor registry → `resolveContextTabs` → the
-// `SectionContextHost`/`SectionContextHeader` pair. The claimant renders its OWN pane from the handed
-// view and writes the shared `contextTab` seam through `view.selectTab` — never a local mirror.
+// `SectionContextHost`/`SectionContextHeader` pair. The claimant supplies ONLY the head band; the bracket
+// (rails, viewport, ground) is the shell's in every case, and its cells write the shared `contextTab` seam.
 
 const REGION_TABS: readonly ContextTabDef<void>[] = [
   { id: "members", label: "Members", strip: "meta", body: (): ReactNode => <div data-testid="ctx-body-members">members</div> },
@@ -770,26 +832,8 @@ const REGION_TABS: readonly ContextTabDef<void>[] = [
   { id: "fake.scene", label: "Scene", strip: "game", body: (): ReactNode => <div data-testid="ctx-body-scene">scene</div> },
 ];
 
-/** The claimant's pane: it proves it received the FULL resolved set, echoes the handed selection, renders
- *  the active tab's node, and drives the selection through `view.selectTab`. */
-function FakeClaimedPane({ view }: { readonly view: ContextRegionView }): ReactElement {
-  const active = view.tabs.find((tab) => tab.id === view.activeTab);
-  return (
-    <div data-testid="fake-hud">
-      <p data-testid="fake-hud-tabs">{view.tabs.map((tab) => tab.id).join(",")}</p>
-      <p data-testid="fake-hud-active">{view.activeTab ?? "none"}</p>
-      {view.tabs.map((tab) => (
-        <button key={tab.id} type="button" onClick={(): void => view.selectTab(tab.id)}>
-          {tab.label}
-        </button>
-      ))}
-      <div data-testid="fake-hud-viewport">{active?.node}</div>
-    </div>
-  );
-}
-
-/** A store PROBE beside the claimant — reads `contextTab` straight from `#state`, so a click assertion
- *  proves the shared seam was WRITTEN, not that the claimant re-rendered its own local state. */
+/** A store PROBE beside the pane — reads `contextTab` straight from `#state`, so a click assertion
+ *  proves the shared seam was WRITTEN, not that the bracket re-rendered its own local state. */
 function ContextTabStoreProbe(): ReactElement {
   return <p data-testid="ctx-tab-store">{useContextTab() ?? "unset"}</p>;
 }
@@ -801,22 +845,30 @@ function regionSection(regions: ContributorRegistry<ContextRegionDef<void>>): Se
     panelDefaults: { list: "docked", context: "docked" },
     placeholder: { title: "Chats", description: "Fake section for the region-claim CT." },
     content: { planned: "ct" },
-    context: defineContextTabs<void>({ useContextState: () => VOID_STATE, tabs: REGION_TABS, regions }),
+    context: defineContextTabs<void>({
+      useContextState: () => VOID_STATE,
+      tabs: REGION_TABS,
+      // The section's OWN band — what a claim must REPLACE, never sit beside ("never a second head").
+      header: (): ReactNode => <p data-testid="section-band">Section identity</p>,
+      railLabel: "Chat",
+      regions,
+    }),
     useSelectionTitle: NO_SELECTION_TITLE,
   };
 }
 
 // Minted at MODULE scope (like every production section) so `useResolved` has a stable identity.
 const CLAIMING_REGIONS = createContributorRegistry<ContextRegionDef<void>>("ct-regions-claiming", [
-  defineContextRegion<void>({ id: "fake.hud", claims: () => true, render: (view) => <FakeClaimedPane view={view} /> }),
+  defineContextRegion<void>({ id: "fake.hud", claims: () => true, band: () => <p data-testid="fake-band">Fake waystone</p> }),
 ]);
 const IDLE_REGIONS = createContributorRegistry<ContextRegionDef<void>>("ct-regions-idle", [
-  defineContextRegion<void>({ id: "fake.hud", claims: () => false, render: (view) => <FakeClaimedPane view={view} /> }),
+  defineContextRegion<void>({ id: "fake.hud", claims: () => false, band: () => <p data-testid="fake-band">Fake waystone</p> }),
 ]);
 const CLAIMED_SECTION = regionSection(CLAIMING_REGIONS);
 const UNCLAIMED_SECTION = regionSection(IDLE_REGIONS);
 
-/** A CLAIMING region owns the pane: the generic strip never renders, the claimant does. */
+/** A CLAIMING region takes the head band: the shell's bracket renders around it, the section's own band
+ *  does not render. */
 export function ContextRegionClaimStory(): ReactElement {
   return (
     <CtDataProviders>
@@ -828,7 +880,7 @@ export function ContextRegionClaimStory(): ReactElement {
   );
 }
 
-/** A NON-claiming region contributor is ignored — the generic panel renders, byte-identical (§3.3). */
+/** A NON-claiming region contributor is ignored — the section's own band renders (§3.3). */
 export function ContextRegionNoClaimStory(): ReactElement {
   return (
     <CtDataProviders>
@@ -839,13 +891,13 @@ export function ContextRegionNoClaimStory(): ReactElement {
   );
 }
 
-/** The BAND under a claim: `SectionContextHeader` renders NOTHING (the claimant owns the pane's top
- *  edge) — not the neutral "Details" fallback. */
-export function ContextRegionHeaderStory(): ReactElement {
+/** The shell's BAND slot over a tabs pane: `SectionContextHeader` renders NOTHING (the bracket owns the
+ *  pane's head, claimed or not) — never the neutral "Details" fallback. `claimed` picks the section. */
+export function ContextRegionHeaderStory({ claimed = true }: { readonly claimed?: boolean }): ReactElement {
   return (
     <CtDataProviders>
       <div data-testid="band-slot">
-        <SectionContextHeader definition={CLAIMED_SECTION} />
+        <SectionContextHeader definition={claimed ? CLAIMED_SECTION : UNCLAIMED_SECTION} />
       </div>
     </CtDataProviders>
   );

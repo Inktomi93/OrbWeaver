@@ -15,8 +15,9 @@
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatContextPanelStory, ChatContextTabContributorStory, ChatDeletedWhileOpenStory, RoomActivityTabStory } from "../_ct-stories.tsx";
@@ -39,6 +40,14 @@ const THIS_CHAT_TAB_READS = {
   // for, and the unfed-read ratchet named the procedure in the same run. Empty = the section's empty state.
   "worldInfo.listForChat": (): unknown => [],
 };
+
+/** One CELL of the pane's FOOT rail (the context bracket, #860): a BUTTON inside the toolbar named "Chat"
+ *  (the section's `railLabel`), carrying `aria-current` while it holds the view — never a `tab` (#112, the
+ *  rail model is universal now). `exact`, because the head band's roster chip is named "Members — N" and a
+ *  loose match would seat the chip where the cell was meant. */
+function cell(component: Locator, name: string): Locator {
+  return component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name, exact: true });
+}
 
 const NATE_HOST_RE = /Alex — host/u;
 const ARIA_CAST_RE = /Aria — character/u;
@@ -201,14 +210,14 @@ test("host sees the consolidated tabs (This chat · Preview)", async ({ mount, p
   // Members · This chat · Preview. Overrides + Injections are no longer their own tabs — they are SECTIONS
   // inside "This chat". (Members leads the declared order, so it is also the DEFAULT tab; a host always has
   // it now — #162's floor-zero ruling — hence the explicit click before asserting this tab's body.)
-  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
-  await expect(component.getByRole("tab", { name: "Settings" })).toHaveCount(0);
-  await expect(component.getByRole("tab", { name: "Overrides" })).toHaveCount(0);
-  await expect(component.getByRole("tab", { name: "Injections" })).toHaveCount(0);
-  await expect(component.getByRole("tab", { name: "Group" })).toHaveCount(0);
-  await expect(component.getByRole("tab", { name: "Preview" })).toBeVisible();
+  await expect(cell(component, "This chat")).toBeVisible();
+  await expect(cell(component, "Settings")).toHaveCount(0);
+  await expect(cell(component, "Overrides")).toHaveCount(0);
+  await expect(cell(component, "Injections")).toHaveCount(0);
+  await expect(cell(component, "Group")).toHaveCount(0);
+  await expect(cell(component, "Preview")).toBeVisible();
   // Field overrides + Injections are SECTIONS inside the tab, with real h3s.
-  await component.getByRole("tab", { name: "This chat" }).click();
+  await cell(component, "This chat").click();
   await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Injections", level: 3 })).toBeVisible();
   // …and the sections actually RENDERED, rather than each heading standing over a read-error body (#629).
@@ -217,6 +226,54 @@ test("host sees the consolidated tabs (This chat · Preview)", async ({ mount, p
   // section in the tab at once — including one added tomorrow.
   await expect(component.getByText("declares no variables and no macro inputs", { exact: false })).toBeVisible();
   await expect(component.getByText("Couldn't load", { exact: false })).toHaveCount(0);
+});
+
+// ── #860 / #846: THE HEAD BAND names the room, whole, over its chips ────────────────────────────────────
+test("#860: the context bracket's head band carries the room's title WHOLE and the members · memory · preset chips; the meta rail sits at the foot", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...THIS_CHAT_TAB_READS,
+    // A long, crushable name (the seeded prefix every room shares) on a three-seat roster — every seat
+    // PRESENT (`leftSeq: null`), which is what the chip counts.
+    "chat.getChat": () => ({
+      ...(multiHumanChat(true, [humanSeat("ct", "Alex", "host")]) as object),
+      participants: [humanSeat("ct", "Alex", "host"), character("aria"), character("buddy")],
+      title: "Example — The Ashen Spire",
+    }),
+    "preset.list": () => [{ id: "preset_ct_house", name: "House style" }],
+    // The "This chat" cell is clicked below, and its Injections kicker reads the list for its count chip.
+    "chat.listChatInjections": () => [],
+    "settings.getUserSettings": () => ({
+      userId: "user_ct",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: "preset_ct_house" } },
+      updatedAt: 0,
+    }),
+  });
+  const component = await mount(<ChatContextPanelStory />);
+
+  const band = component.locator('[data-slot="context-bracket-band"]');
+  const title = band.locator('[data-slot="chat-context-band-title"]');
+  await expect(title).toHaveText("Example — The Ashen Spire");
+  // WHOLE — a 2-line clamp is allowed, an ellipsis is not: the rendered box holds the whole run.
+  await expect.poll(() => title.evaluate((el) => el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  // The chips: the roster chip (the ONE roster doorway, with its word), the standing memory control, the
+  // viewer's active preset by NAME (a chat carries no preset binding — this is the viewer's, D58).
+  await expect(band.getByRole("button", { name: "Members — 3" })).toBeVisible();
+  await expect(band.getByRole("button", { name: /^Memory — / })).toBeVisible();
+  await expect(band.locator('[data-slot="chat-context-band-preset"]')).toHaveText("House style");
+  // The band is ABOVE the rail, and the rail is the pane's foot: no tablist, no head strip.
+  await expect(component.getByRole("tablist")).toHaveCount(0);
+  const [bandBox, railBox] = await Promise.all([band.boundingBox(), component.getByRole("toolbar", { name: "Chat" }).boundingBox()]);
+  expect((bandBox?.y ?? Number.NaN) + (bandBox?.height ?? 0)).toBeLessThan(railBox?.y ?? Number.NaN);
+  // The roster chip opens the Members cell.
+  await cell(component, "This chat").click();
+  await expect(cell(component, "This chat")).toHaveAttribute("aria-current", "true");
+  await band.getByRole("button", { name: "Members — 3" }).click();
+  await expect(cell(component, "Members")).toHaveAttribute("aria-current", "true");
 });
 
 // RULING CHANGED (#162, owner 2026-08-17). This case used to assert the OPPOSITE — "host in a SOLO
@@ -236,9 +293,9 @@ test("host in a SOLO (1-character) chat GETS the Members tab — its cast is its
 
   const component = await mount(<ChatContextPanelStory />);
 
-  await expect(component.getByRole("tab", { name: "Preview" })).toBeVisible();
-  await expect(component.getByRole("tab", { name: "Members" })).toBeVisible();
-  await component.getByRole("tab", { name: "Members" }).click();
+  await expect(cell(component, "Preview")).toBeVisible();
+  await expect(cell(component, "Members")).toBeVisible();
+  await cell(component, "Members").click();
   await expect(page.getByTestId("members-panel").getByRole("button", { name: ARIA_CAST_RE })).toBeVisible();
 });
 
@@ -256,7 +313,7 @@ test("a HOST with NO cast still gets the Members tab — the empty state IS the 
 
   const component = await mount(<ChatContextPanelStory />);
 
-  await component.getByRole("tab", { name: "Members" }).click();
+  await cell(component, "Members").click();
   const panel = page.getByTestId("members-panel");
   await expect(panel).toContainText("No characters in this chat yet");
   await expect(panel.getByRole("button", { name: "Add a character" })).toBeVisible();
@@ -272,8 +329,8 @@ test("a MEMBER with no cast and no People arm still has no Members tab (nothing 
 
   const component = await mount(<ChatContextPanelStory />);
 
-  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
-  await expect(component.getByRole("tab", { name: "Members" })).toHaveCount(0);
+  await expect(cell(component, "This chat")).toBeVisible();
+  await expect(cell(component, "Members")).toHaveCount(0);
 });
 
 test("host in a GROUP (2-character) chat sees the Members tab AND it is the default tab (§7)", async ({ mount, page }) => {
@@ -287,10 +344,10 @@ test("host in a GROUP (2-character) chat sees the Members tab AND it is the defa
 
   const component = await mount(<ChatContextPanelStory />);
 
-  const members = component.getByRole("tab", { name: "Members" });
+  const members = cell(component, "Members");
   await expect(members).toBeVisible();
   // The §7 ONE rule: with no tab requested, a group composition opens to Members.
-  await expect(members).toHaveAttribute("aria-selected", "true");
+  await expect(members).toHaveAttribute("aria-current", "true");
   // The Cast rows render with the row contract's accessible names.
   await expect(component.getByRole("button", { name: "Aria — character" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Bryn — character" })).toBeVisible();
@@ -313,7 +370,7 @@ test("CP-1: HOST of a group chat sees the Group behavior section inside Settings
 
   const component = await mount(<ChatContextPanelStory />);
   // Members is the default in a group; open "This chat" to reach the sections.
-  await component.getByRole("tab", { name: "This chat" }).click();
+  await cell(component, "This chat").click();
 
   await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toBeVisible();
@@ -328,7 +385,7 @@ test("CP-1: MEMBER of a group chat sees Settings but NOT the Group behavior sect
   });
 
   const component = await mount(<ChatContextPanelStory />);
-  await component.getByRole("tab", { name: "This chat" }).click();
+  await cell(component, "This chat").click();
 
   // Field overrides is present (read-only for a member); Group behavior is omitted for a non-host.
   await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
@@ -347,10 +404,10 @@ test("NOT multi-human capable → no People section anywhere (single-user render
   // The default story mounts WITHOUT the capability prop — the single-user composition.
   const component = await mount(<ChatContextPanelStory />);
 
-  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
+  await expect(cell(component, "This chat")).toBeVisible();
   // The Members tab EXISTS (it is the room's roster — one character is seated), but the whole PEOPLE half is
   // absent on a single-user install: no People section, and therefore no invite door anywhere.
-  await component.getByRole("tab", { name: "Members" }).click();
+  await cell(component, "Members").click();
   const panel = page.getByTestId("members-panel");
   await expect(panel.locator('[data-slot="members-cast"]')).toBeVisible();
   await expect(panel.locator('[data-slot="members-people"]')).toHaveCount(0);
@@ -373,7 +430,7 @@ test("capable HOST: Members lists the humans (host chip) and the invite dialog m
   await stubMultiHumanCapable(page, true);
 
   const component = await mount(<ChatContextPanelStory />);
-  await component.getByRole("tab", { name: "Members" }).click();
+  await cell(component, "Members").click();
 
   // The People section — humans differentiated from the seated cast, host crowned; the server
   // `viewerIsHost:true` also means the viewer's own seat carries the "you" marker on the owner's row.
@@ -413,7 +470,7 @@ test("capable MEMBER: Members shows who's here but NO invite/kick controls (host
   await stubMultiHumanCapable(page, true);
 
   const component = await mount(<ChatContextPanelStory />);
-  await component.getByRole("tab", { name: "Members" }).click();
+  await cell(component, "Members").click();
 
   const panel = page.getByTestId("members-panel");
   await expect(panel.getByRole("button", { name: NATE_HOST_RE })).toBeVisible();
@@ -433,12 +490,12 @@ test("member loses the Preview tab and the overrides are read-only", async ({ mo
 
   const component = await mount(<ChatContextPanelStory />);
 
-  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
+  await expect(cell(component, "This chat")).toBeVisible();
   // Injections is now a SECTION inside "This chat", not its own tab.
-  await expect(component.getByRole("tab", { name: "Injections" })).toHaveCount(0);
+  await expect(cell(component, "Injections")).toHaveCount(0);
   await expect(component.getByRole("heading", { name: "Injections", level: 3 })).toBeVisible();
   // Preview is host-only (previewAssembly is a host debug surface) — hidden for a member.
-  await expect(component.getByRole("tab", { name: "Preview" })).toHaveCount(0);
+  await expect(cell(component, "Preview")).toHaveCount(0);
   // A non-host member sees NO "Group behavior" section (the §8.1 host-only omit, moved to section level).
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toHaveCount(0);
   // The Field-overrides main-prompt field seeded from the server value, but disabled (a member cannot edit)
@@ -467,8 +524,8 @@ test("migrated tabs obey the server host field, NOT the first-seat proxy (member
   const component = await mount(<ChatContextPanelStory />);
 
   // Preview is host-only → hidden despite the host-first roster that would trip the proxy.
-  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
-  await expect(component.getByRole("tab", { name: "Preview" })).toHaveCount(0);
+  await expect(cell(component, "This chat")).toBeVisible();
+  await expect(cell(component, "Preview")).toHaveCount(0);
   // The Group-behavior SECTION obeys the server host field too — a member behind a host seat sees none.
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toHaveCount(0);
   // Overrides seed from the server value but stay read-only — the member cannot edit even though a
@@ -496,7 +553,7 @@ test("the Preview tab renders the assembled prompt + trace", async ({ mount, pag
   });
 
   const component = await mount(<ChatContextPanelStory />);
-  await component.getByRole("tab", { name: "Preview" }).click();
+  await cell(component, "Preview").click();
 
   // The budget instrument renders (the D-4 rebuild): the used/ceiling line + the System source row.
   await expect(component.getByText("120 / 8,192 tok")).toBeVisible();
@@ -523,7 +580,7 @@ test("host adds an injection (setChatInjection fires with no id ⇒ create)", as
 
   const component = await mount(<ChatContextPanelStory />);
   // Injections is a section inside "This chat" (the default tab for this solo host chat).
-  await component.getByRole("tab", { name: "This chat" }).click();
+  await cell(component, "This chat").click();
   await expect(component.getByText("No injections yet.")).toBeVisible();
 
   await component.getByRole("button", { name: "Add injection" }).click();
@@ -555,7 +612,7 @@ test("host removes an injection (deleteChatInjection fires with the row id)", as
 
   const component = await mount(<ChatContextPanelStory />);
   // Injections is a section inside "This chat" (the default tab for this solo host chat).
-  await component.getByRole("tab", { name: "This chat" }).click();
+  await cell(component, "This chat").click();
   await expect(component.getByText("It is raining.")).toBeVisible();
 
   await component.getByRole("button", { name: "Remove injection" }).click();
@@ -578,7 +635,7 @@ test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omit
 
   const component = await mount(<ChatContextPanelStory />);
   // Members leads the strip and is the default tab for a host (#162), so name the tab under test.
-  await component.getByRole("tab", { name: "This chat" }).click();
+  await cell(component, "This chat").click();
   // Field overrides are collapse-until-needed rows — expand Scenario, then edit it.
   await component.getByRole("button", { name: "Scenario" }).click();
   await component.getByLabel("Scenario", { exact: true }).fill("A rainy dock.");
@@ -610,7 +667,7 @@ test("the Field-overrides section has NO author's-note field — only the three 
   });
 
   const component = await mount(<ChatContextPanelStory />);
-  await component.getByRole("tab", { name: "This chat" }).click();
+  await cell(component, "This chat").click();
   // The three surviving collapse rows are reachable…
   await expect(component.getByRole("button", { name: "Main prompt" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Post-history" })).toBeVisible();
@@ -639,8 +696,8 @@ test("a fake context-tab contributor renders as a tab, in the real tab strip", a
 
   const component = await mount(<ChatContextTabContributorStory visible={true} />);
 
-  await expect(component.getByRole("tab", { name: "Fake Tab" })).toBeVisible();
-  await component.getByRole("tab", { name: "Fake Tab" }).click();
+  await expect(cell(component, "Fake Tab")).toBeVisible();
+  await cell(component, "Fake Tab").click();
   await expect(component.getByTestId("ct-fake-context-tab-body")).toBeVisible();
 });
 
@@ -655,8 +712,8 @@ test("a fake context-tab contributor's `when:false` hides it from the real tab s
 
   const component = await mount(<ChatContextTabContributorStory visible={false} />);
 
-  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
-  await expect(component.getByRole("tab", { name: "Fake Tab" })).toHaveCount(0);
+  await expect(cell(component, "This chat")).toBeVisible();
+  await expect(cell(component, "Fake Tab")).toHaveCount(0);
 });
 
 // ── THE ROOM DIED UNDER YOU (R3 — the fresh-context verifier's R1-3) ───────────────────────────────
@@ -738,7 +795,7 @@ test("B11: a HOST sees the Activity tab and it lists this room's fires (with the
 
   const component = await mount(<RoomActivityTabStory />);
 
-  await component.getByRole("tab", { name: "Activity" }).click();
+  await cell(component, "Activity").click();
   // The fired row: its outcome badge + the trigger phrase + the confirmer marker.
   await expect(component.getByText("Fired", { exact: true })).toBeVisible();
   await expect(component.getByText("Confirmed", { exact: true })).toBeVisible();
@@ -758,8 +815,8 @@ test("B11: a MEMBER does NOT see the Activity tab (host-only, the fire log is th
 
   const component = await mount(<RoomActivityTabStory />);
 
-  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
-  await expect(component.getByRole("tab", { name: "Activity" })).toHaveCount(0);
+  await expect(cell(component, "This chat")).toBeVisible();
+  await expect(cell(component, "Activity")).toHaveCount(0);
 });
 
 test("B11: a HOST with no out-of-band activity sees the load-bearing empty state", async ({ mount, page }) => {
@@ -774,6 +831,6 @@ test("B11: a HOST with no out-of-band activity sees the load-bearing empty state
 
   const component = await mount(<RoomActivityTabStory />);
 
-  await component.getByRole("tab", { name: "Activity" }).click();
+  await cell(component, "Activity").click();
   await expect(component.getByText("Nothing yet", { exact: false })).toBeVisible();
 });

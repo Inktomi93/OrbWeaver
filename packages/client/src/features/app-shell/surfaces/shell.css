@@ -589,77 +589,23 @@
   justify-content: space-between;
   gap: var(--spacing-row);
 }
-/* A CLAIMED context pane, floating: the group is genuinely childless (`SectionContextHeader` returns
- * nothing), so the band collapses exactly as the docked `:empty` rule collapses it — the claimant owns its
- * top edge AND its own way out (HUD-1 §3.1). Without this the dismiss alone would keep the band non-empty
- * and paint a chrome row the claim exists to remove. */
+/* A BRACKETED (tabs) context pane, floating: the group is genuinely childless (`SectionContextHeader`
+ * returns nothing for a tabs context), so the band collapses exactly as the docked `:empty` rule collapses
+ * it — the bracket owns its top edge AND its own way out (the dismiss rides INSIDE its head band, #860 —
+ * side-eye 2026-08-06 P2 survives: the close sits where the thing it closes is). Without this the shell's
+ * own dismiss would keep the band non-empty and paint the chrome row the bracket exists to remove. */
 .shell-panel[data-panel-side="context"] .shell-panel-header:has(> .shell-panel-header-group:empty) {
   display: none;
 }
-/* ── THE CONTEXT TAB STRIP: ICON + LABEL ON EVERY TAB, ALWAYS (owner ruling 2026-08-18, #208) ─────────
- * SUPERSEDES the container-responsive icon-mode this block carried until today. The superseded design,
- * stated so a later reader does not "restore" it: the strip was an `inline-size` @container, labels were
- * hidden by DEFAULT on any tab that had an icon (`data-has-icon`), and a per-COUNT `@container` threshold
- * (7/14/21/28/35rem for 1-5 tabs) revealed the words again. Its own comment recorded why it never fired:
- * "the panel clamps to 26rem max, so even 4 word labels (~28rem need) only reveal in a container wider
- * than this panel ever gets". So the shell's ONLY fine-pointer form was icon-only, permanently — while the
- * rpg HUD's rails (which render THE SAME resolved chat tabs on a game chat) always print glyph over
- * caption. One product, one tab set, two treatments decided by which renderer owned the pane. MEASURED on
- * main before this change (reports/snaps/rail-chats-ctx-1to1-tabs.png vs -ctx-group-tabs-crop.png): four
- * nameless glyphs on a 1:1 chat, "Members · This chat · Preview · Game" with icons on a game chat.
- * The owner ruled ONE treatment: icon + label, everywhere. The coarse-pointer form below WAS already that
- * treatment (it had to be — a phone cannot hover a `title`), so this is not a new grammar: the coarse arm
- * became the only arm, and the pointer fork, the @container thresholds and `data-tab-count` all went with
- * the mode they existed to switch between.
- *
- * THE BRACKET STILL FILLS ITS ROW (Context-Panel-Program §4.0 — owner live ruling 2026-07-28): equal cells
- * spanning the strip, never bitsy buttons bunched left. What changes is the track MINIMUM. */
-.ctx-tab-strip[data-slot="tabs-list"] {
-  display: grid;
-  grid-auto-flow: column;
-  /* `minmax(max-content, 1fr)` — the same track-sizing function the rpg rail's own no-clip arm uses
-   * (RPG_RAIL_WRAP, pointer-variants.ts), for the same reason and now on both strips: the `1fr` MAX keeps
-   * the cells equal and the strip full whenever there is slack, and the `max-content` MIN refuses to
-   * shrink a cell below its whole word. Where the words no longer fit, the tracks overflow and the
-   * strip's `overflow-x-auto` scrolls them. Degrade to a SCROLL, never into an ellipsis — a strip of
-   * three-letter stubs is the icon-only defect wearing text (#102's readable-caption floor). */
-  grid-auto-columns: minmax(max-content, 1fr);
-}
-/* The cell: glyph over caption, a resting surface, a clear hover fill, and an ember-tinted active fill
- * (the OSRS active-tab tint) — the app's own tab-cell grammar, identical to `.shell-rail-button`'s mobile
- * bottom bar and to the rpg HUD cell's `layout="stacked"`. The block size is a FLOOR, not a fixed height
- * (two lines), which is what keeps the D62 P1 ≥44px touch floor — `--spacing-control-md` is 48px at a
- * coarse pointer by token construction. Overrides the tabs variant's `h-control-sm px-block`. */
-.ctx-tab-strip [data-slot="tabs-tab"] {
-  flex-direction: column;
-  gap: 0.125rem;
-  block-size: auto;
-  min-block-size: var(--spacing-control-md);
-  min-inline-size: var(--spacing-control-md);
-  padding-inline: var(--spacing-field);
-  padding-block: var(--spacing-field);
-  border-radius: var(--radius-control);
-  background: color-mix(in oklab, var(--color-sidebar-accent) 55%, transparent);
-  transition:
-    background var(--motion-fast) var(--ease-out-expo),
-    color var(--motion-fast) var(--ease-out-expo);
-}
-.ctx-tab-strip [data-slot="tabs-tab"]:hover {
-  background: var(--color-sidebar-accent);
-}
-.ctx-tab-strip [data-slot="tabs-tab"][data-active] {
-  background: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-accent));
-  color: var(--color-foreground);
-}
-/* The caption's LAST-RESORT net, not its normal state: the track minimum above is `max-content`, so a
- * label only meets this rule when the strip has already overflowed and been scrolled to. The full name
- * stays the accessible name either way (aria-label — context-tabs-panel.tsx). */
-.ctx-tab-strip .ctx-tab-label {
-  max-inline-size: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+/* THE BRACKET'S EMBER EDGE IS NOT HERE (owner ruling 2026-08-30: shell.css is GEOMETRY — no colour). A tabs
+ * pane's head band lives inside the body now (the context bracket), and the 2px content↔context binding
+ * (north-star §4 N4 / P4) is painted by the bracket ROOT itself from the theme's own primary token
+ * (`border-primary/55`, `context-bracket.tsx`) — exactly as the rpg HUD's band painted it since HUD-1. */
+/* THE CONTEXT TAB STRIP IS GONE (#860, 2026-08-30). The `.ctx-tab-strip` block that lived here styled the
+ * generic pane's single head `tablist` — the renderer the context bracket retired. Every tabs pane's rails
+ * are the bracket's own (`context-rail.tsx`), composed from `@orb/ui` primitives + token utilities with no
+ * shell CSS; the no-clip `minmax(max-content, 1fr)` tracks, the icon+caption cell (#208) and the ember
+ * active fill all live there now, once, for every room. */
 
 .shell-panel-body {
   flex: 1 1 auto;
@@ -675,14 +621,14 @@
   padding-inline: var(--spacing-row);
   padding-block: var(--spacing-row);
 }
-/* A CLAIMED context pane owns the pane's EDGES, not just its content (HUD-1 §5.2 — "the claimant owns the
- * pane's TOP EDGE, including the 2px ember content↔context binding, which it must paint"). With this
- * padding in place the claimant's ember edge painted 8px down and 8px shy of the panel's inline edges,
- * while the generic band's inset one paints flush at row 0 across the full width — the same binding, two
- * geometries (2026-08-01 side-eye, measured). `:has()` keys off the single-writer `data-context-region`
- * attribute, so nothing new has to be plumbed and an unclaimed pane is untouched. The claimant re-pays the
- * padding on its own viewport, so tab BODIES are unchanged. */
-.shell-panel[data-panel-side="context"] .shell-panel-body:has([data-context-region]) {
+/* A BRACKETED context pane owns the pane's EDGES, not just its content (HUD-1 §5.2, universal since #860 —
+ * the band and both rails reach the pane's edges full-bleed). With this padding in place the bracket's
+ * ember edge painted 8px down and 8px shy of the panel's inline edges, while the generic band's inset one
+ * painted flush at row 0 across the full width — the same binding, two geometries (2026-08-01 side-eye,
+ * measured). `:has()` keys off the single-writer `data-context-bracket` attribute, so nothing new has to be
+ * plumbed and a `single`/`none` pane is untouched. The bracket re-pays the padding on its own viewport, so
+ * tab BODIES are unchanged. */
+.shell-panel[data-panel-side="context"] .shell-panel-body:has([data-context-bracket]) {
   padding-inline: 0;
   padding-block: 0;
 }
@@ -760,15 +706,37 @@
   min-width: 6ch;
 }
 
+/* THE TOPBAR YIELDS THE ROOM'S IDENTITY TO THE PANE (#846 by relocation, #860 — owner-ruled 2026-08-30).
+ * MEASURED at 1280×800 with BOTH panes docked: the content column is 568px and the room title rendered 104px
+ * of its 220px natural width ("Example — …", the prefix every seeded room shares); the row's fixed furniture
+ * is 476px (lead 34 + 48 + 53 + 40 · trail 225 · 5×8 gaps · 24 padding), so a 220px name needs a ~696px
+ * column. It failed in exactly the state where the CONTEXT pane — whose head band now NAMES the room — was
+ * open beside it, 300px away. So while the context pane is DOCKED the topbar sheds the name and the two
+ * chips whose home is that pane (the members chip opens the Members cell; the recall chip lives in the
+ * band): the band is the identity's one home while it is on screen (§13 IA de-dup — the same rule that
+ * killed the pre-CP-1 twin, pointed the other way). Keyed on the shell's own `data-context-mode`, never a
+ * width: the crush is a band, not a cliff (1440 dock+dock rendered 176/220), and the rule is IA, not
+ * arithmetic. A collapsed or floating pane leaves the row exactly as it was — chats default to a collapsed
+ * pane, and a room with no name on screen is the injury #846 describes, made permanent. The avatar cluster
+ * stays as the row's anchor. */
+.shell-grid[data-context-mode="docked"] .shell-topbar-identity[data-identity="wide"] .shell-topbar-title,
+.shell-grid[data-context-mode="docked"] .shell-topbar-identity[data-identity="wide"] .shell-chat-member-chip,
+.shell-grid[data-context-mode="docked"] .shell-topbar-identity[data-identity="wide"] .shell-chat-recall-chip {
+  display: none;
+}
+
 /* Progressive-disclosure shed on a narrow content column (@container, matched off .shell-main). At the
- * mobile column width the identity + trail can't share the row without starving the title, so two
+ * mobile column width the identity + trail can't share the row without starving the title, so three
  * low-value items step aside to give the title real room (not just its 6ch floor):
  *  · the member-count chip — single-homed in the Context › Members tab (chat-header §13/§14), so dropping
- *    it from the topbar loses nothing; and
+ *    it from the topbar loses nothing;
+ *  · the memory-recall chip — its own marker since #846 (it wore the roster chip's class by accident and
+ *    inherited this shed without saying so); its standing home is the context band; and
  *  · the ⌘K chip's "jump" TEXT label (~87px) — redundant on a phone with no ⌘K key. The chip itself
  *    stays (icon-only) so the command menu is still reachable; only its word label sheds. */
 @container shell-main (max-width: 30rem) {
   .shell-chat-member-chip,
+  .shell-chat-recall-chip,
   .shell-topbar-jump-label {
     display: none;
   }

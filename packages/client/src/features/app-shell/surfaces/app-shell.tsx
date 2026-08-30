@@ -20,6 +20,7 @@ import { NoticeBand } from "../components/notice-band.tsx";
 import { PanelChrome } from "../components/panel-chrome.tsx";
 import { Rail } from "../components/rail.tsx";
 import { SectionContent } from "../components/section-content.tsx";
+import type { SectionContextHostProps } from "../components/section-context-host.tsx";
 import { SectionContextHeader, SectionContextHost } from "../components/section-context-host.tsx";
 import { SectionPlaceholder } from "../components/section-placeholder.tsx";
 import { SectionTopbarTitle } from "../components/section-topbar-title.tsx";
@@ -49,6 +50,17 @@ function dismissOverlays(layout: ShellLayout): void {
   if (layout.contextMode === "overlay") {
     layout.collapsePanel("context");
   }
+}
+
+/** A FLOATING context pane's own way out, handed to the bracket to seat inside its head band (side-eye
+ *  2026-08-06 P2 — the close sits where the thing it closes is; a phone cannot reach the scrim under a 100dvw
+ *  sheet). Docked/collapsed panes carry none: the topbar toggle is the ONE detail-panel control there. The
+ *  label is the same one `PanelChrome` would print, so a reader hears one name for one control. */
+function contextDismiss(layout: ShellLayout): Pick<SectionContextHostProps, "dismissLabel" | "onDismiss"> {
+  if (layout.contextMode !== "overlay") {
+    return {};
+  }
+  return { dismissLabel: `Close ${layout.activeSectionLabel} details`, onDismiss: (): void => layout.collapsePanel("context") };
 }
 
 /** Renders the `topbar.trail` zone's chrome widgets — the registry list is frozen at the door, so
@@ -170,7 +182,7 @@ export function AppShell(): ReactElement {
         header: <SectionContextHeader key={layout.activeSection} definition={activeDef} />,
         body: (
           <RegionAnchor region="context">
-            <SectionContextHost key={layout.activeSection} definition={activeDef} />
+            <SectionContextHost key={layout.activeSection} definition={activeDef} {...contextDismiss(layout)} />
           </RegionAnchor>
         ),
       }

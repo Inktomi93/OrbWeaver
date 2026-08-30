@@ -10,12 +10,18 @@
 // and assembles the result into `createContributorRegistry("chat-context", …)`, which flows to chat's
 // `defineContextTabs` `contributors` arm (one-directional flow; `client-features-no-cross` enforces it).
 //
-// The APPLICABILITY gate (game-ness) is `rpg-game-chat.ts` — ONE predicate shared with the whole-pane HUD
-// CLAIM (`rpg-hud-region.tsx`), so a claimed pane and its tabs appear and disappear together. These defs own
-// the tabs; the HUD owns the ARRANGEMENT (band, rails, viewport) and the BAND identity, which is why no tab
-// here reaches for the shell's `.shell-panel-header` slot any more (that channel is deleted).
+// The APPLICABILITY gate (game-ness) is `rpg-game-chat.ts` — ONE predicate shared with the HEAD-BAND CLAIM
+// (`rpg-hud-region.tsx`), so the Waystone band and the game tabs appear and disappear together. These defs
+// own the tabs; the SHELL owns the arrangement (the context bracket — band slot, rails, viewport, ground —
+// `app-shell/components/context-bracket.tsx`, #860) and rpg owns only the band's content.
+//
+// THE INSTRUMENT TIER RIDES THE BODIES (§7.4; density-pass-spec §3.1 names the game pane as this exact
+// surface): every game tab body is wrapped in `<Surface tier="instrument">` here — read-mostly, glanceable,
+// many data per cm² — and the band wraps itself (`rpg-hud-band.tsx`). NEVER the rails: those are the shell's
+// and must render identically in a normal room and a game room, which is the whole ruling.
 
 import { Backpack, BookOpen, Crown, Drama, Flag, HeartPulse, MapIcon } from "@orb/ui/icons";
+import { Surface } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary } from "#data";
@@ -55,17 +61,19 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
     (label: string, render: (state: RpgPanelState) => ReactNode) =>
     (s: ChatContextState): ReactNode =>
       isGameChat(s) ? (
-        <QueryBoundary
-          fallback={<Text voice="gloss">{`Loading ${label.toLowerCase()}…`}</Text>}
-          // The ONE consolidated, ANNOUNCED error surface (FIX 3): the game-tab body owns it; the header BAND
-          // collapses to nothing on error (below) so a failed read is a single `role="alert"` region, never two
-          // fragmented unannounced blocks. Scene-named copy + a ≥44px Retry live in `RpgErrorState`. A NOT_FOUND
-          // read = the DANGLING POINTER state: `RpgErrorState` discriminates it and renders the typed
-          // gone-copy + the host's detach heal instead of a doomed Retry (host = the same cached `viewerIsHost`).
-          renderError={(error, retry): ReactElement => <RpgErrorState chatId={s.chatId} isHost={isHostGameChat(s)} error={error} onRetry={retry} />}
-        >
-          <RpgGameTabBody chatId={s.chatId} render={render} />
-        </QueryBoundary>
+        <Surface tier="instrument">
+          <QueryBoundary
+            fallback={<Text voice="gloss">{`Loading ${label.toLowerCase()}…`}</Text>}
+            // The ONE consolidated, ANNOUNCED error surface (FIX 3): the game-tab body owns it; the header BAND
+            // collapses to nothing on error so a failed read is a single `role="alert"` region, never two
+            // fragmented unannounced blocks. Scene-named copy + a ≥44px Retry live in `RpgErrorState`. A NOT_FOUND
+            // read = the DANGLING POINTER state: `RpgErrorState` discriminates it and renders the typed
+            // gone-copy + the host's detach heal instead of a doomed Retry (host = the same cached `viewerIsHost`).
+            renderError={(error, retry): ReactElement => <RpgErrorState chatId={s.chatId} isHost={isHostGameChat(s)} error={error} onRetry={retry} />}
+          >
+            <RpgGameTabBody chatId={s.chatId} render={render} />
+          </QueryBoundary>
+        </Surface>
       ) : null;
 
   return [
@@ -116,9 +124,9 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       // The ONE PHASE-locked tab ("Map"): visible, wearing a lock glyph with its reason
       // on `title` — the promise visible, the gate honest. RV-7: it OPENS, onto the coming-soon body the
       // mock drew (`map.html`); MA-3 replaces that with the region map. Because it opens for every input,
-      // the HUD's cell does NOT mark it `aria-disabled` (2026-08-01 side-eye: announcing "unavailable" over
-      // a tab that Enter and a click both open is two stories) — `disabledReason` is the LOCK's reason here,
-      // and the cell decides how to wear it.
+      // the bracket's cell does NOT mark it `aria-disabled` (2026-08-01 side-eye: announcing "unavailable"
+      // over a tab that Enter and a click both open is two stories) — `disabledReason` is the LOCK's reason
+      // here, and the cell decides how to wear it.
       id: "rpg.map",
       label: "Map",
       icon: MapIcon,
@@ -127,7 +135,12 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       // No internal arc id in player-facing copy (side-eye 2026-08-06 P3 — the panel body's "arrives with
       // MA-3" chip went for the same reason; a ticket number is a fact a player cannot use).
       disabledReason: (): string => "Maps unlock with the map arc",
-      body: (s): ReactNode => (isGameChat(s) ? <RpgMapTab /> : null),
+      body: (s): ReactNode =>
+        isGameChat(s) ? (
+          <Surface tier="instrument">
+            <RpgMapTab />
+          </Surface>
+        ) : null,
     },
     {
       // The crown Game tab ("Game") — the host-admin home AND the #40 FRONT DOOR.
