@@ -266,7 +266,9 @@ export const PLUGIN_FOOTER_NODE_KIND_ALLOWED = {
 /** A frame body's HTML cap. The card frame's own proven bound (`contracts/chat/card-frame.ts`), reused rather than
  *  re-guessed: generous for self-contained interface code, and it bounds per-instance retention with the count cap
  *  below. STATED LIMIT: a bundle-shipped BINARY asset (a live2d/VRM model) does not fit here and is not meant to —
- *  large assets ride the bundle `ui/assets/` → installer-CAS route (seam 11), which is a later phase. */
+ *  large assets ride the bundle `ui/assets/` → installer-CAS route (seam 11), which is OPEN work tracked as
+ *  #820 (the #788 residue: its READ half `assets.read` shipped, the install-time CAS WRITE half did not, so an
+ *  `image`/`hero` node can still only name an assetId the installer already holds). */
 export const PLUGIN_FRAME_HTML_MAX_CHARS = 64_000;
 /** A frame body's CSS cap — the card frame's bound, same reasoning. */
 export const PLUGIN_FRAME_CSS_MAX_CHARS = 16_000;
