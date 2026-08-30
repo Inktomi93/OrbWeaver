@@ -25,7 +25,7 @@ import { SettingSwitchRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { BLUR_STRENGTH_MAX, BLUR_STRENGTH_MIN } from "../lib/appearance-bounds.ts";
 import { APPEARANCE_EFFECTS_KEYS, APPEARANCE_EFFECTS_SUBCATEGORY } from "../lib/appearance-effects-model.ts";
 import { BLUR_SURFACE_ITEMS, SURFACE_TEXTURE_ITEMS } from "../lib/appearance-select-items.ts";
@@ -82,7 +82,7 @@ function EffectsBody({ sectionId, session }: { readonly sectionId: string; reado
       className="@container"
       divider={true}
       heading={APPEARANCE_EFFECTS_SUBCATEGORY.label}
-      id={settingsAnchorId("appearance", APPEARANCE_EFFECTS_SUBCATEGORY.id)}
+      id={configAnchorId("appearance", APPEARANCE_EFFECTS_SUBCATEGORY.id)}
     >
       <FieldLayout orientation="horizontal">
         <Stack gap="field">

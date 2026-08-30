@@ -32,7 +32,7 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
 import { WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
 import { SCHEDULE_CADENCE_LABELS } from "../lib/workloads-schedule-model.ts";
@@ -83,7 +83,7 @@ function SchedulesBody(): ReactElement {
       className="@container"
       divider={true}
       heading={WORKLOADS_SCHEDULES_SUBCATEGORY.label}
-      id={settingsAnchorId("workloads", WORKLOADS_SCHEDULES_SUBCATEGORY.id)}
+      id={configAnchorId("workloads", WORKLOADS_SCHEDULES_SUBCATEGORY.id)}
     >
       <Stack gap="block" data-testid={testId("workloadsSchedulesSection")}>
         <Row align="center" justify="between" gap="row">

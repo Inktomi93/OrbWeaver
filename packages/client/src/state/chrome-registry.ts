@@ -16,8 +16,9 @@ import type { MobileCuration, SectionGroup } from "./section-registry.ts";
 import { RAIL_ZONES, SECTION_GROUPS } from "./section-registry.ts";
 
 // The rail's own zones DERIVE from `RAIL_ZONES` (its one home, beside `RailEntry.zone` in
-// section-registry.ts) — re-spelling them here would be the parallel map the lockdown kills.
-export const CHROME_ZONES = [...RAIL_ZONES, "rail.end", "topbar.trail"] as const;
+// section-registry.ts — `rail.nav`, `rail.brand`, `rail.end`) — re-spelling them here would be the
+// parallel map the lockdown kills. `topbar.trail` is the one non-rail zone.
+export const CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"] as const;
 export type ChromeZone = (typeof CHROME_ZONES)[number];
 
 /** A rail entry's mobile fate (`MobileCuration`) is homed in `section-registry.ts` beside the rail's
@@ -105,9 +106,15 @@ export function sheetOverflowChrome(entries: readonly ChromeEntry[]): readonly C
  */
 export function mobileBarCuration(entries: readonly ChromeEntry[], activeSection: SectionId): ReadonlyMap<string, MobileCuration> {
   const curation = new Map<string, MobileCuration>(entries.map((entry) => [entry.id, entry.mobile ?? (entry.zone === "topbar.trail" ? "tab" : "sheet")]));
-  // Only a GROUPED `rail.nav` section can hold a bar slot: the rail renders its nav list group by group, so
-  // an ungrouped entry has no cell to take and displacing a tab for it would shrink the bar to three.
-  const barSections = entries.filter((entry) => entry.zone === "rail.nav" && entry.behavior.kind === "section" && entry.group !== undefined);
+  // Only a GROUPED `rail.nav` section — or a `rail.end` section — can hold a bar slot: the rail renders its
+  // nav list group by group, so an ungrouped nav entry has no cell to take and displacing a tab for it
+  // would shrink the bar to three. A `rail.end` SECTION (Settings since the config revamp, #866 S1) renders
+  // in `.shell-rail-actions`, which the bar paints `display: contents` (shell.css) — it HAS a cell, so it
+  // borrows a slot like any other overflow section. Without this arm, standing in Settings on a phone would
+  // resurrect the exact #484 lie: `aria-current="page"` on a `display:none` control and four unlit tabs.
+  const barSections = entries.filter(
+    (entry) => entry.behavior.kind === "section" && ((entry.zone === "rail.nav" && entry.group !== undefined) || entry.zone === "rail.end"),
+  );
   const active = barSections.find((entry) => entry.behavior.kind === "section" && entry.behavior.sectionId === activeSection);
   if (active === undefined || curation.get(active.id) === "tab") {
     return curation;

@@ -97,13 +97,13 @@ test("the Frosted glass explanation stays contained on mobile without moving the
   await stub(page);
   await mount(<AppearanceEffectsSectionStory width={390} />);
   const gloss = page.getByText(FROSTED_GLASS_GLOSS_RE);
-  const section = page.locator("#settings-anchor-appearance-effects");
+  const section = page.locator("#config-anchor-appearance-effects");
   await expect(gloss).toContainText("Messages carry glass poorly (scrolling prose over blur), so they stay off unless you opt in.");
   await expect(section).toHaveCount(1);
 
   const readGeometryAtAssertion = async (): Promise<typeof geometry> =>
     await page.evaluate(() => {
-      const sectionElement = document.querySelector("#settings-anchor-appearance-effects");
+      const sectionElement = document.querySelector("#config-anchor-appearance-effects");
       const glossElement = Array.from(document.querySelectorAll("p")).find((element) => element.textContent?.startsWith("Backdrop blur +"));
       const switchElements = Array.from(document.querySelectorAll<HTMLElement>('[role="switch"]'));
       if (!(sectionElement instanceof HTMLElement && glossElement instanceof HTMLElement) || switchElements.length === 0) {
@@ -118,7 +118,7 @@ test("the Frosted glass explanation stays contained on mobile without moving the
       };
     });
   const geometry = await page.evaluate(() => {
-    const sectionElement = document.querySelector("#settings-anchor-appearance-effects");
+    const sectionElement = document.querySelector("#config-anchor-appearance-effects");
     const glossElement = Array.from(document.querySelectorAll("p")).find((element) => element.textContent?.startsWith("Backdrop blur +"));
     const switchElements = Array.from(document.querySelectorAll<HTMLElement>('[role="switch"]'));
     if (!(sectionElement instanceof HTMLElement && glossElement instanceof HTMLElement) || switchElements.length === 0) {

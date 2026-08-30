@@ -181,7 +181,7 @@ export type NavResult = { readonly ok: true } | { readonly ok: false; readonly r
 export interface OrbNavCapabilities {
   readonly sections: readonly string[];
   readonly modalSlots: readonly string[];
-  readonly settingsCategories: readonly string[];
+  readonly configGroups: readonly string[];
   readonly contextTabs: readonly string[];
   /** Stable id paired with the exact visible label accepted by `contextTab`. */
   readonly contextTabNames: ReadonlyArray<{ readonly id: string; readonly label: string }>;
@@ -224,7 +224,7 @@ export interface OrbAgentHandles {
 }
 
 /** Dev-only SPA-navigation bridge: drive the app's client-state navigation (rail section, modals,
- *  settings category, context tab, open chat) through the SAME store actions the real UI calls — the app
+ *  config group, context tab, open chat) through the SAME store actions the real UI calls — the app
  *  has only `/` + `/login` as URL routes, so this is how a harness reaches every surface without a click
  *  chain. Built at the composition tier (`client/src/agent-nav/`, a door-owned dir module that may legally
  *  compose #state/#features/#data — the lib/ floor may not) and injected into `installAgentDebugHandle`. */
@@ -235,8 +235,8 @@ export interface OrbNavHandle {
   readonly section: (id: string) => NavResult;
   /** Open a rail modal by slot (validated against MODAL_SLOT_IDS). */
   readonly openModal: (slot: string) => NavResult;
-  /** Open the settings modal at a category (validated against SETTINGS_CATEGORY_IDS). */
-  readonly openSettings: (category: string) => NavResult;
+  /** Open the Settings section on a group (CONFIG_GROUP_IDS), optionally on a section anchor (#866 S1). */
+  readonly openConfig: (group: string, sub?: string) => NavResult;
   /** Reveal the active content's context panel by stable id OR unique visible label, and RESOLVE ONLY ONCE
    *  THE PANEL HAS PUBLISHED ITS TABS (issue #656 — it used to report `ok:true` against the not-yet-mounted
    *  panel's EMPTY vocabulary and leave a different tab showing, so every one-call probe chain censused the
@@ -439,7 +439,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     durableLocalUserId,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .rpg() · .pluginLog(slug?) · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence()/.motionFlaggersSettled()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .rpg() · .pluginLog(slug?) · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence()/.motionFlaggersSettled()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openConfig/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

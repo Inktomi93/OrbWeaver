@@ -5,11 +5,11 @@
 // No `owns` claim: the section persists nothing through the settings tiers — it drives the `workloads.*`
 // verbs (start/cancel/retry), so it is exempt from the §2.3 key partition.
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { WorkloadsJobsSection } from "../components/workloads-jobs-section.tsx";
 import { WORKLOADS_JOBS_SUBCATEGORY } from "./workloads-jobs-nav.ts";
 
-export const workloadsJobsSection: SettingsSectionContribution = {
+export const workloadsJobsSection: ConfigSectionContribution = {
   id: "workloads-jobs",
   anchor: "workloads",
   nav: WORKLOADS_JOBS_SUBCATEGORY,

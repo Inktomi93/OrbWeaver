@@ -1,5 +1,5 @@
 // The "Chat & message handling" chat-behavior SECTION MODEL (SET-SEAMS §6, stage 2) — the section's non-JSX
-// facts: the ONE `SettingsSubcategory` shared by the contribution def and the section body's `<Section>`
+// facts: the ONE `ConfigSubcategory` shared by the contribution def and the section body's `<Section>`
 // anchor stamp (split out so neither imports the other), the `OWNS` key tuple, and the form↔patch
 // projection. The `(anchor, subId)` pair is byte-identical to the pre-split pane's own subcategory (§7.1).
 //
@@ -18,9 +18,9 @@
 // than forking a third section.
 
 import type { ChatSettings } from "@orb/contracts/settings";
-import type { SettingsSubcategory } from "#state";
+import type { ConfigSubcategory } from "#state";
 
-export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: SettingsSubcategory = {
+export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
   id: "message-handling",
   label: "Chat & message handling",
   // The full name overflows the 220px nav column; the heading keeps it. Inside the Chat behavior pane the

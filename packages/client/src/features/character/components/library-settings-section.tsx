@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import type { SaveLifecycleState } from "#state";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { LIBRARY_SETTINGS_SUBCATEGORY } from "../lib/library-settings-nav.ts";
 
 interface UpdateLibraryVars {
@@ -70,7 +70,7 @@ function LibraryPageSizeRow({ sectionId }: { readonly sectionId: string }): Reac
     }
   };
   return (
-    <Section divider={true} heading={LIBRARY_SETTINGS_SUBCATEGORY.label} id={settingsAnchorId("appearance", LIBRARY_SETTINGS_SUBCATEGORY.id)}>
+    <Section divider={true} heading={LIBRARY_SETTINGS_SUBCATEGORY.label} id={configAnchorId("appearance", LIBRARY_SETTINGS_SUBCATEGORY.id)}>
       <Field label="Rows per page" description="How many entries the library lists load per page as you scroll." orientation="horizontal">
         <NumberField
           aria-label="Rows per page"

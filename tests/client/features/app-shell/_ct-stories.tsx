@@ -219,7 +219,7 @@ function openMemberIn(section: SectionId): void {
     selectDocumentFromList(mintTypeId(ID_PREFIX.document));
     return;
   }
-  selectCollectionMember("tag", "tag-ct-member");
+  selectCollectionMember("tags", "tag-ct-member");
 }
 
 /** The story's stand-in for a section's `useSelectionTitle`: the OPEN member's name, resolved REACTIVELY

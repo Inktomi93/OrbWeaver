@@ -20,7 +20,7 @@ import { useRef } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { useSetEnabled } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_APPROVALS_SUBCATEGORY } from "../lib/admin-approvals-nav.ts";
 
@@ -47,7 +47,7 @@ function AdminApprovalsBody(): ReactElement {
   const pending = users.filter((user) => !user.enabled && user.role !== "owner");
 
   return (
-    <Section className="@container" divider={true} heading={ADMIN_APPROVALS_SUBCATEGORY.label} id={settingsAnchorId("admin", ADMIN_APPROVALS_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={ADMIN_APPROVALS_SUBCATEGORY.label} id={configAnchorId("admin", ADMIN_APPROVALS_SUBCATEGORY.id)}>
       <Stack gap="row" data-testid={testId("adminApprovalsSection")}>
         <Text voice="label" className="text-muted-foreground">
           Accounts awaiting approval can't sign in until you enable them. New SSO users land here when OIDC_REQUIRE_APPROVAL is on.

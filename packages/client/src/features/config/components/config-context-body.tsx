@@ -13,24 +13,31 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { Anchor, Icon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import type { CollectionContribution, ContributorRegistry } from "#lib";
-import { useCollectionSelection } from "#state";
+import type { CollectionGroupDefinition, ConfigGroupRegistry } from "#state";
+import { isCollectionGroup, useCollectionSelection } from "#state";
 import { CONFIG_CONTEXT_BAND_NEUTRAL, CONFIG_CONTEXT_EMPTY } from "../lib/config-copy.ts";
 
 export interface ConfigContextBodyProps {
-  readonly collections: ContributorRegistry<CollectionContribution>;
+  readonly groups: ConfigGroupRegistry;
 }
 
-export function ConfigContextBody({ collections }: ConfigContextBodyProps): ReactElement {
+/** The open member's collection group — a selection can only name one (its rows are the only writers). */
+function selectedCollection(groups: ConfigGroupRegistry, kind: string): CollectionGroupDefinition | null {
+  const group = groups.get(kind as Parameters<ConfigGroupRegistry["get"]>[0]);
+  return isCollectionGroup(group) ? group : null;
+}
+
+export function ConfigContextBody({ groups }: ConfigContextBodyProps): ReactElement {
   const selection = useCollectionSelection();
-  if (selection === null) {
+  const group = selection === null ? null : selectedCollection(groups, selection.kind);
+  if (selection === null || group === null) {
     return <EmptyState description={CONFIG_CONTEXT_EMPTY.description} icon={<Icon icon={Anchor} size="lg" />} title={CONFIG_CONTEXT_EMPTY.title} />;
   }
-  const collection = collections.get(selection.kind);
-  if (collection.context.kind === "none") {
-    return <EmptyState description={collection.context.description} icon={<Icon icon={collection.icon} size="lg" />} title={collection.context.title} />;
+  const context = group.body.collection.context;
+  if (context.kind === "none") {
+    return <EmptyState description={context.description} icon={<Icon icon={group.icon} size="lg" />} title={context.title} />;
   }
-  return <>{collection.context.render({ memberId: selection.memberId })}</>;
+  return <>{context.render({ memberId: selection.memberId })}</>;
 }
 
 /** The CONTEXT BAND's identity for this workspace (`ContextDefinition.header`, the §6b P4 slot). It names
@@ -45,10 +52,11 @@ export function ConfigContextBody({ collections }: ConfigContextBodyProps): Reac
  *  fall back to {@link CONFIG_CONTEXT_BAND_NEUTRAL}, which is the frame `empty-states.html` draws for both
  *  (band "Details" over body "Nothing to attach") and is why this cannot simply render nothing: an empty
  *  band collapses to 0px and takes the pane's D66 A1 horizon with it. */
-export function ConfigContextHeader({ collections }: ConfigContextBodyProps): ReactElement {
+export function ConfigContextHeader({ groups }: ConfigContextBodyProps): ReactElement {
   const selection = useCollectionSelection();
-  const collection = selection === null ? null : collections.get(selection.kind);
-  const title = collection === null || collection.context.kind === "none" ? CONFIG_CONTEXT_BAND_NEUTRAL : collection.context.title;
+  const group = selection === null ? null : selectedCollection(groups, selection.kind);
+  const context = group?.body.collection.context;
+  const title = context === undefined || context.kind === "none" ? CONFIG_CONTEXT_BAND_NEUTRAL : context.title;
   return (
     // `kicker`, not `label`: this is a BAND's name, and the LIST band 1000px to its left on the same 48px
     // horizon paints micro-caps (`ListPaneHeader`'s `micro/caps/semibold/muted`). At `label` the two bands

@@ -16,7 +16,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import { RATE_LIMITS_SUBCATEGORY } from "../lib/rate-limits-nav.ts";
@@ -95,7 +95,7 @@ function RateLimitsBody({ sectionId }: { readonly sectionId: string }): ReactEle
   };
 
   return (
-    <Section divider={true} heading={RATE_LIMITS_SUBCATEGORY.label} id={settingsAnchorId("admin", RATE_LIMITS_SUBCATEGORY.id)}>
+    <Section divider={true} heading={RATE_LIMITS_SUBCATEGORY.label} id={configAnchorId("admin", RATE_LIMITS_SUBCATEGORY.id)}>
       <Stack gap="field">
         {FIELDS.map(({ key, label, hint }) => (
           <AdminOverrideField

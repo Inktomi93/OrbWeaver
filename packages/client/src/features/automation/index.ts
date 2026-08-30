@@ -11,22 +11,23 @@
 // #16's NEEDLE METER is the third graft, and the first onto the transcript itself: a `thread-flank`
 // contribution rendering the tension score the needle preset publishes into this room's chat variables.
 //
-// It also owns the Automation SETTINGS PANE, moved here from `features/settings` with A4 for two reasons
+// It also owns the Automation CONFIG GROUP, moved here from `features/settings` with A4 for two reasons
 // that agree: the `feature-owns-definition` gate requires a feature dir to own a registered definition, and
-// the pane IS automation's surface (spec §3-S3 names it as the owner-global rules home when C5 lands).
+// the group IS automation's surface (spec §3-S3 names it as the owner-global rules home when C5 lands).
 
 export type { ClockMeterProps } from "./components/clock-meter.tsx";
 export { ClockMeter } from "./components/clock-meter.tsx";
 export type { NeedleMeterProps } from "./components/needle-meter.tsx";
 export { NeedleMeter } from "./components/needle-meter.tsx";
-/** C5 — the Automation settings pane's BODY. Exported for the pane definition's own `render` (which is in
- *  this feature) and for its CT story; nothing outside the feature mounts it directly. */
-export { OwnerAutomationSurface } from "./components/owner-rules-surface.tsx";
 export { RulesSection } from "./components/rules-section.tsx";
 export { automationActivityTab } from "./lib/activity-context-tab.tsx";
 export type { PendingAsk } from "./lib/apply-automation-bus-event.ts";
 export { applyAutomationBusEvent, pruneExpiredAsks } from "./lib/apply-automation-bus-event.ts";
-export { automationPane } from "./lib/automation-pane.tsx";
+// C5 — the Automation config group's two contributed SECTIONS (config-revamp-design.md §6.8): the owner-global
+// rule list + picker, and the owner rate ceiling. Assembled at the door; the CT mounts them through their defs.
+export { automationBudgetSection } from "./lib/automation-budget-section.tsx";
+export { automationGroup } from "./lib/automation-group.tsx";
+export { automationLibraryRulesSection } from "./lib/automation-library-rules-section.tsx";
 export { automationClockMeterSurface } from "./lib/clock-meter-surface.tsx";
 export { automationNeedleMeterSurface } from "./lib/needle-meter-surface.tsx";
 export { automationQuickReplySource } from "./lib/quick-reply-control-source.ts";

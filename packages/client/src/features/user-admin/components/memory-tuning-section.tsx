@@ -25,7 +25,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { anyFieldOverridden, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import { MEMORY_TUNING_SUBCATEGORY } from "../lib/memory-tuning-nav.ts";
@@ -193,7 +193,7 @@ function MemoryTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
   };
 
   return (
-    <Section divider={true} heading={MEMORY_TUNING_SUBCATEGORY.label} id={settingsAnchorId("admin", MEMORY_TUNING_SUBCATEGORY.id)}>
+    <Section divider={true} heading={MEMORY_TUNING_SUBCATEGORY.label} id={configAnchorId("admin", MEMORY_TUNING_SUBCATEGORY.id)}>
       <Stack gap="section">
         <Stack gap="field">
           <Text voice="label" className="text-muted-foreground">

@@ -2,7 +2,7 @@
 // the appearance pane's own CT so every stage can run it on the pane it decomposes, BEFORE and AFTER.
 //
 // The invariant (owner ruling — Discord grammar): a pane is a SINGLE COLUMN of section boxes. Every
-// `[id^="settings-anchor-<pane>-"]` box shares one left edge, fills (nearly) the column width, and stacks
+// `[id^="config-anchor-<pane>-"]` box shares one left edge, fills (nearly) the column width, and stacks
 // in strictly increasing vertical order — never two sections side by side. A decomposition that changes the
 // pixels is a defect (`done ≠ rendered`), and a green CT over stubbed tRPC can't see that on its own.
 
@@ -26,7 +26,7 @@ export interface SettingsPaneGeometry {
 /** Measure every anchored section box in one pane, in DOM order. */
 export function readSettingsPaneGeometry(page: Page, paneId: string): Promise<SettingsPaneGeometry> {
   return page.evaluate((pane: string): SettingsPaneGeometry => {
-    const sections = [...document.querySelectorAll<HTMLElement>(`[id^="settings-anchor-${pane}-"]`)];
+    const sections = [...document.querySelectorAll<HTMLElement>(`[id^="config-anchor-${pane}-"]`)];
     const parent = sections[0]?.parentElement;
     return {
       count: sections.length,

@@ -49,7 +49,7 @@ test("mounts on the resolved values and stamps its own admin anchor", async ({ m
   // #111 leg 3 — the deployment kill-switch for card scripts, and it renders OFF on the shipped floor.
   await expect(page.getByRole("switch", { name: INTERACTIVE_SWITCH })).not.toBeChecked();
   await expect(page.getByRole("textbox", { name: "Max generated-image download (MB)" })).toHaveValue("5");
-  await expect(page.locator("#settings-anchor-admin-media-trust")).toBeVisible();
+  await expect(page.locator("#config-anchor-admin-media-trust")).toBeVisible();
 });
 
 // The kill-switch is the ONLY control over the grant's WebRTC residual, so its copy has to name that cost

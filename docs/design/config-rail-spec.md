@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: draft
-updated: 2026-08-14
+updated: 2026-08-30
 ---
 
 # CONFIG RAIL — the Configuration workspace (R1 design set)
@@ -33,16 +33,16 @@ Each row is either a RECOMMENDATION carried forward from the review (cite in the
 | C-2 | **Create lives at the GROUP header** — a per-group ghost `+` whose accessible name is the contribution's own `create.label`. The LIST band carries NO aggregate primary. | REC — closes review F-8's "mock-pass question" |
 | C-3 | **Selection is kinded** — `{kind, memberId} \| null` through a kinded overload on `createDrillSelectionStore`; the host pre-binds `kind` per group, so a contribution's `list` view sees `selectedId: string \| null` already scoped to itself. | REC (review F-7) |
 | C-4 | **Rows are OWNER-rendered inside a HOST frame.** The host draws icon + kicker + count + create; nothing inside the row list. | RULED (F-5) |
-| C-5 | **Placement is the door array, no `anchor` field.** Moving a collection between the rail and the roster is one array line. | RULED (F-3) |
+| C-5 | **Placement is the door array, no `anchor` field.** Moving a collection between the rail and the roster is one array line. **AMENDED by the config revamp (#866 S1, `config-revamp-design.md` F-1 + §6.8): a collection is a member of the CLOSED `CONFIG_GROUP_IDS` tuple, registered as a `collection` GROUP (`features/<owner>/lib/*-group.tsx`, body = its `CollectionContribution`), assembled into the door's TOTAL `config-groups` Record; placement is the group's `shelf` (`collections`) + `order`. Moving one is still one line — a tuple member + a Record key, tsc-forced.** | RULED (F-3) · AMENDED #866 S1 |
 | C-6 | **Host-controls vocabulary.** HOST owns: the section frame, the LIST band, every group band, the welcome, the context-empty frame, the selection. CONTRIBUTION owns: rows, the member editor, the context body, its own queries and mutations. | RULED |
 | C-7 | **The member editor is MOUNTED in CONTENT, never a dialog.** Regex's editor is the worked example: the same fields as `RegexEditorDialog` (name · find pattern via the code editor · replace · placement chips · enabled · run-on-edit), the autosave status moving to the band. No field is added, removed or reworded. | REC (D66 A2 "real per-object editors, no popups") |
 | C-8 | **Empty is first-class at three levels:** a zero-member group keeps its band and shows a dashed one-liner with its create verb; no-selection CONTENT is a designed welcome with a launcher card per collection (never null); a collection with no `context` gets ITS OWN empty copy, not a host-generic one. | REC |
 | C-9 | **The rail glyph is `Package`** (sealed, unused elsewhere), alternates `LayoutGrid` and `Archive`. `Settings` is ruled out on purpose — the gear is the settings-modal trigger and the whole point of the migration is to stop conflating the two. | FORK (owner picks; all three are already in the seal) |
 | C-10 | **Mobile curation is `"sheet"`** — reached through You, matching every other authoring section, leaving the four-tab bar untouched. | FORK F-13 (below) |
-| C-12 | **Groups start COLLAPSED, and the expanded set is remembered per device.** The band (icon · kicker · count · create `+`) is the map; one click opens a group. Past ~30 members an expanded group gets the host's FILTER input (count-driven chrome, applied by the owner's rows through `CollectionListView.filter`) and the owner windows its rows through the sealed `VirtualList`. | **RULED (owner, 2026-08-02) — SUPERSEDES the mocks' always-expanded drawing.** The real library is ~400 tags: an always-expanded group buries every sibling collection below its scroll, and the roster stops being the map of what EXISTS. REJECTED alternative, recorded so it is not re-proposed: a MODE PICKER that swaps the list wholesale to one collection at a time — that is tabs reborn, and it costs the roster's whole teaching job |
+| C-12 | **Groups start COLLAPSED, and the expanded set is remembered per device.** The band (icon · kicker · count · create `+`) is the map; one click opens a group. Past \~30 members an expanded group gets the host's FILTER input (count-driven chrome, applied by the owner's rows through `CollectionListView.filter`) and the owner windows its rows through the sealed `VirtualList`. | **RULED (owner, 2026-08-02) — SUPERSEDES the mocks' always-expanded drawing.** The real library is \~400 tags: an always-expanded group buries every sibling collection below its scroll, and the roster stops being the map of what EXISTS. REJECTED alternative, recorded so it is not re-proposed: a MODE PICKER that swaps the list wholesale to one collection at a time — that is tabs reborn, and it costs the roster's whole teaching job |
 | C-11 | **Vacated homes:** `SETTINGS_CATEGORY_IDS` loses `tags` and `regex` at R1; the settings "Library" group disappears with them; nothing tombstones. | REC — needs the redirect work in §4 |
 
-## 3. The build's coupled-site walk (lockdown §6a, the SECTION_IDS playbook)
+## 3. The build's coupled-site walk (lockdown §6a, the SECTION\_IDS playbook)
 
 The build phase walks the ten-step playbook **added 2026-08-03** at `client-architecture-lockdown.md` §6a, in order, ONCE per stage. What each step means for this surface:
 
@@ -60,6 +60,8 @@ The build phase walks the ten-step playbook **added 2026-08-03** at `client-arch
 **And the settings twin, done in the same commit as step 1** (the playbook's closing sentence): `SETTINGS_CATEGORY_IDS` minus `tags`/`regex`, the two pane defs deleted, the door assembly shrunk, and `settings-pane-registry.test.ts`'s partition mirror updated. `assertSettingsKeyPartition` throws at the door if the partition and the tuple disagree — that throw is the proof the twin was walked.
 
 ## 4. Deep links, settings search, and what a stale URL does
+
+> **SUPERSEDED by the config revamp (#866 S1, `config-revamp-design.md` §3.3 / §6.2 / §6.8):** the settings modal and its search are gone; `openSettingsTo` and `goToCollection` are ONE verb `openConfigTo(group, sub?, setting?)` for every kind of group (a collection included); anchors are `configAnchorId(group, sub)`; the Settings section's search (S2) is ONE index over every group — a collection's members are its dynamic rows, so no stub/tombstone row exists. The bullets below are the R1-era record.
 
 The migrated collections have three live entry points that must not 404 (the one piece of §3 the playbook does not spell for you):
 

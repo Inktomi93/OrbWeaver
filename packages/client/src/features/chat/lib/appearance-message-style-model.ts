@@ -1,5 +1,5 @@
 // The Message-style appearance-section MODEL (SET-SEAMS §6, stage 1) — the section's two non-JSX facts: the ONE
-// `SettingsSubcategory` shared by the contribution def (appearance-message-style-section.tsx) and the section body's
+// `ConfigSubcategory` shared by the contribution def (appearance-message-style-section.tsx) and the section body's
 // `<Section>` anchor stamp; split out so neither imports the other (the library-settings-nav precedent, plus the
 // owned-key tuple below).
 //
@@ -8,9 +8,9 @@
 // The `density`/`elevation` leaves moved OUT to the app-shell sizing section — app-shell reads those two knobs, and
 // ownership follows the reader (§6).
 
-import type { SettingsSubcategory } from "#state";
+import type { ConfigSubcategory } from "#state";
 
-export const APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: SettingsSubcategory = {
+export const APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: ConfigSubcategory = {
   id: "message-style",
   label: "Message style",
   settings: [

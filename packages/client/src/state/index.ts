@@ -118,11 +118,45 @@ export {
   useComposerDraft,
 } from "./composer-draft-store.ts";
 export { requestComposerFocus, useComposerFocusRequest } from "./composer-focus-store.ts";
-export { __resetCollectionGroupOpen, openCollectionGroup, toggleCollectionGroup, useCollectionGroupOpen } from "./config-group-open-store.ts";
+export type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
+export { CONFIG_GROUP_IDS, CONFIG_SHELVES, isConfigGroupId, isConfigShelf } from "./config-group-ids.ts";
+export { __resetConfigGroupOpen, openConfigGroup, toggleConfigGroup, useConfigGroupOpen } from "./config-group-open-store.ts";
+export type {
+  CollectionGroupDefinition,
+  ConfigGroupBase,
+  ConfigGroupBody,
+  ConfigGroupDefinition,
+  ConfigGroupRegistry,
+  ConfigSearchRow,
+  ConfigSettingLeaf,
+  ConfigSubcategory,
+  SettingsViewerView,
+} from "./config-group-registry.ts";
+export { configAnchorId, isCollectionGroup, isPushingGroup } from "./config-group-registry.ts";
+export type { ConfigTarget } from "./config-nav-store.ts";
+export {
+  __resetConfigNav,
+  clearActiveConfigGroup,
+  getActiveConfigGroup,
+  openConfigTo,
+  selectConfigGroup,
+  selectConfigSub,
+  setActiveConfigSub,
+  subscribeConfigNav,
+  useActiveConfigGroup,
+  useActiveConfigSub,
+  useConfigTarget,
+} from "./config-nav-store.ts";
+export type { UnclaimedSettingsKey } from "./config-section-partition.ts";
+export { assertSettingsKeyPartition, UNCLAIMED_SETTINGS_KEYS } from "./config-section-partition.ts";
+export type { AppSettingsClaimPath, ConfigSectionContribution, ResolvedConfigSection, SettingsKeyClaim } from "./config-section-registry.ts";
+export { configSectionNavs, resolveConfigSections } from "./config-section-registry.ts";
+export type { ConfigSectionRegistry } from "./config-section-registry-context.ts";
+export { useConfigSectionRegistry, useConfigSections } from "./config-section-registry-context.ts";
+export { ConfigSectionRegistryProvider } from "./config-section-registry-provider.tsx";
 export {
   clearCollectionSelection,
-  configSectionSelection,
-  goToCollection,
+  collectionMemberSelection,
   selectCollectionMember,
   selectCollectionMemberFromList,
   useCollectionSelection,
@@ -328,31 +362,6 @@ export { NO_SELECTION_TITLE, RAIL_ZONES, SECTION_GROUPS } from "./section-regist
 export type { SectionRegistry } from "./section-registry-context.ts";
 export { useSectionRegistry } from "./section-registry-context.ts";
 export { SectionRegistryProvider } from "./section-registry-provider.tsx";
-export type { SettingsCategoryId } from "./settings-categories.ts";
-export { SETTINGS_CATEGORY_IDS } from "./settings-categories.ts";
-export type {
-  AppSettingsClaimPath,
-  ResolvedSettingsSection,
-  SettingsGroup,
-  SettingsKeyClaim,
-  SettingsPaneBody,
-  SettingsPaneDefinition,
-  SettingsSectionContribution,
-  SettingsSubcategory,
-  SettingsViewerView,
-  UnclaimedSettingsKey,
-} from "./settings-pane-registry.ts";
-export {
-  assertSettingsKeyPartition,
-  resolveSettingsSections,
-  SETTINGS_GROUPS,
-  settingsAnchorId,
-  settingsSectionNavs,
-  UNCLAIMED_SETTINGS_KEYS,
-} from "./settings-pane-registry.ts";
-export type { SettingsPaneRegistry } from "./settings-pane-registry-context.ts";
-export { useSettingsPaneRegistry } from "./settings-pane-registry-context.ts";
-export { SettingsPaneRegistryProvider } from "./settings-pane-registry-provider.tsx";
 export type { SaveLifecycleState } from "./settings-save-status-store.ts";
 export {
   clearSectionSaveStatus,
@@ -362,9 +371,6 @@ export {
   useBlockedSaveSections,
   useErroredSaveSections,
 } from "./settings-save-status-store.ts";
-export type { SettingsSectionRegistry } from "./settings-section-registry-context.ts";
-export { useSettingsSectionRegistry, useSettingsSections } from "./settings-section-registry-context.ts";
-export { SettingsSectionRegistryProvider } from "./settings-section-registry-provider.tsx";
 export type { PublishedContextTab } from "./shell-store.ts";
 export {
   closeModal,
@@ -372,7 +378,6 @@ export {
   getAvailableContextTabs,
   getContextTab,
   openModal,
-  openSettingsTo,
   publishContextTabIds,
   publishContextTabs,
   revealContextPanel,
@@ -393,8 +398,6 @@ export {
   useOpenModal,
   useOpenOverlayPanel,
   usePanelOverride,
-  useSettingsSubTarget,
-  useSettingsTarget,
 } from "./shell-store.ts";
 export type { SlashCommandRegistry } from "./slash-command-registry-context.ts";
 export { SlashCommandRegistryContext } from "./slash-command-registry-context.ts";

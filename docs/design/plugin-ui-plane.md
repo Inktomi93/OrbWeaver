@@ -82,7 +82,7 @@ import, style, or subclass it).
 | **HISTORICAL (closed 2026-08-28 by U3, `03480da00` / `21ebaf174`).** As-was: a plugin CANNOT register a client ToolRenderer — the registry was first-party, door-assembled EMPTY; unknown names fell back to the generic block. The `pluginToolRenderer` now claims `plugin_*` wire names through a closed match axis (exact-before-prefix). The row is kept, not deleted: it is the premise §4.5's `tool-card` row and §5.18 were written against | `docs/reviews/stickler/2026-08-24-plugin-automation-juice.md:197-203` (A2-F5) · `packages/client/src/compose/authed-app.tsx:187-190` · `packages/client/src/lib/contribution-contracts.ts:244-254` |
 | The contribution architecture (D70) gives the mount seams for free: chat surface anchors (`thread-flank`/`above-composer`/`message-footer`, `contribution-contracts.ts:29`), the "This chat" section family (already carrying `pluginSnippetConsoleSection`, `authed-app.tsx:146-149`), tool renderers, slash commands, settings panes/sections — all door-assembled, zero registrants ⇒ byte-identical | `docs/architecture/core/client-architecture-lockdown.md` §5-§6c |
 | The flank/band law: a silent contributor renders null and the anchor collapses (`empty:hidden`); data-gated widgets mount-and-render-null; no `useSuspenseQuery` at the flank (no boundary) | `packages/client/src/features/chat/surfaces/chat-room-surface.tsx:151,171` · the needle-meter precedent `authed-app.tsx:181-184` |
-| The client plugin feature EXISTS: Plugins settings pane (admin-`when`-gated today), install/grant/log/row surfaces, snippet console section | `packages/client/src/features/plugin/lib/plugins-pane.tsx:21-48` (`when: viewer.isAdmin` :27) · `surfaces/plugins-settings-surface.tsx` |
+| The client plugin feature EXISTS: the Plugins config GROUP (ungated since D147; a `sections` skimmer since #866 S1 — Installed · Add-a-plugin · the admin-gated Distribute section), install/grant/log/row surfaces, snippet console section | `packages/client/src/features/plugin/lib/plugins-group.tsx` · `lib/plugins-installed-section.tsx` · `lib/plugins-install-section.tsx` · `components/plugins-installed-section.tsx` |
 | #675 (in flight) widens management to user-scoped self-install; the runtime already executes under the INSTALLING principal's ceiling (#610); admin-global gates on the verbs are the v1 narrowing (`domain/plugin/verbs/install.ts:17` as of 2026-08-24) | issue #675 |
 | The house already OWNS a sandboxed-iframe substrate with its own CSP doorway, trust rungs, measured navigation/exfil census, and the #124 WebRTC standing watch | `packages/kit/src/card-frame/index.ts:28-99` · `packages/server/src/entry/http/card-frame.ts` · `packages/ui/src/content/sandbox-frame/sandbox-frame.tsx` |
 | The app CSP is strict: prod `script-src 'self'`, `frame-src 'self'` named explicitly, `connect-src 'self'` | `packages/server/src/entry/http/security-headers.ts:99,106,113` |
@@ -287,7 +287,7 @@ by fixed first-party members, never per-plugin (the one-assembly law, G8):
 
 | Anchor | Rides | Mount shape | Enforcer |
 | - | - | - | - |
-| `settings` | the Plugins pane (per-plugin detail) | spec rendered inside the plugin's row/detail — ST's per-extension settings drawer, in the screen users already grant from | the pane (`plugins-pane.tsx`); #675 flips its `when` per-user |
+| `settings` | the Plugins GROUP's Installed section (per-plugin detail) | spec rendered inside the plugin's row/detail — ST's per-extension settings drawer, in the screen users already grant from | the group (`plugins-group.tsx`, a skimmer since #866 S1) + its Installed contribution (`plugins-installed-section.tsx`); #675 flipped its `when` per-user |
 | `chat-flank` | `chatSurfaceContributors` `thread-flank` | ONE `pluginFlankSurface` contribution fanning per-plugin by `listSurfaces` data; mount-and-null when none (the flank activates on a sync `when` that cannot see query data — render null, `empty:hidden` collapses; NEVER `useSuspenseQuery` here) | `chat-room-surface.tsx:151` + a CT pinning null-render width-identity |
 | `chat-settings-section` | `chatSettingsSections` (host-controls band) | one first-party contribution per the `pluginSnippetConsoleSection` precedent (`authed-app.tsx:146-149`); host-gated by MOUNT (`contribution-contracts.ts:78-83`) | the family's own walls |
 | `tool-card` | the `toolRenderers` registry (`authed-app.tsx:187-190`) | ONE first-party `pluginToolRenderer` claiming `plugin_*`-prefixed wire names, rendering the owning plugin's registered card spec; unclaimed/unregistered names keep the generic `ToolCallBlock` fallback. **Closes the A2-F5 renderer gap.** Key scoping follows whatever #677 lands | `contribution-contracts.ts:244-254` |
@@ -335,7 +335,6 @@ by fixed first-party members, never per-plugin (the one-assembly law, G8):
 >    registrations when the outbox drains — so a plugin cannot open another plugin's dialog, cannot smuggle a
 >    `page` into the modal shell, and a stale id costs the ask and nothing else (§4.9's soft-refusal posture).
 
-
 - **`dialog`** — a fifth surface KIND (not an anchor): a house modal shell, plugin-attributed
   title, DSL body (Tier S or C), opened only by an explicit user act on one of the plugin's own
   surfaces/commands (never spontaneously — focus theft stays unspellable). Covers ST's custom
@@ -362,7 +361,6 @@ by fixed first-party members, never per-plugin (the one-assembly law, G8):
 >   exported seam, `pluginChildNodes` in `@orb/contracts/plugin/ui.ts`, that every walk recurses through; a
 >   sixth recursive kind is one edit. The caps' blindness is pinned by a contract test that nests past the
 >   depth cap THROUGH the new fields.
-
 
 **The need:** an extension with "lots of bits and bobs" — the motivating example is a HUB BROWSER
 (search → results → preview → import) — has no home in panel-scale anchors. `ui.page` is a

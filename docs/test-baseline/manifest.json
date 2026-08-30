@@ -96,7 +96,7 @@
     "tests/client/features/auth/surfaces/login-surface.ct.tsx",
     "tests/client/features/automation/components/clock-meter.ct.tsx",
     "tests/client/features/automation/components/needle-meter.ct.tsx",
-    "tests/client/features/automation/components/owner-rules-surface.ct.tsx",
+    "tests/client/features/automation/components/owner-automation-sections.ct.tsx",
     "tests/client/features/automation/components/quick-reply-chip-mount.ct.tsx",
     "tests/client/features/automation/components/rules-section.ct.tsx",
     "tests/client/features/automation/components/suggestion-card-mount.ct.tsx",
@@ -112,7 +112,6 @@
     "tests/client/features/character/components/character-facet-row.ct.tsx",
     "tests/client/features/character/components/character-history-tab.ct.tsx",
     "tests/client/features/character/components/character-library-welcome.ct.tsx",
-    "tests/client/features/character/components/character-options-tab.ct.tsx",
     "tests/client/features/character/components/character-tags-row.ct.tsx",
     "tests/client/features/character/hooks/use-tag-suggestion-mutations.ct.tsx",
     "tests/client/features/character/lib/character-actions.test.ts",
@@ -227,15 +226,19 @@
     "tests/client/features/chat/surfaces/message-list-surface.ct.tsx",
     "tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx",
     "tests/client/features/config/components/config-context-body.ct.tsx",
+    "tests/client/features/config/components/config-group-placeholder.ct.tsx",
+    "tests/client/features/config/components/config-save-footer.ct.tsx",
     "tests/client/features/config/components/config-welcome.ct.tsx",
-    "tests/client/features/config/surfaces/config-roster-surface.ct.tsx",
+    "tests/client/features/config/lib/config-search.test.ts",
+    "tests/client/features/config/surfaces/config-content-surface.ct.tsx",
+    "tests/client/features/config/surfaces/config-list-surface.ct.tsx",
     "tests/client/features/credentials/components/add-credential-dialog.ct.tsx",
+    "tests/client/features/credentials/components/connections-roles-section.ct.tsx",
     "tests/client/features/credentials/components/credential-key-row.ct.tsx",
     "tests/client/features/credentials/components/endpoint-inspector-dialog.ct.tsx",
     "tests/client/features/credentials/components/model-picker.ct.tsx",
     "tests/client/features/credentials/lib/connections-model.test.ts",
     "tests/client/features/credentials/lib/model-picker-model.test.ts",
-    "tests/client/features/credentials/surfaces/connections-settings-surface.ct.tsx",
     "tests/client/features/databank/components/databank-context-body.ct.tsx",
     "tests/client/features/databank/components/databank-list-header.ct.tsx",
     "tests/client/features/databank/lib/databank-model.test.ts",
@@ -285,6 +288,7 @@
     "tests/client/features/plugin/components/plugin-primary-cta.suite.ct.tsx",
     "tests/client/features/plugin/components/plugin-scripted-surface.ct.tsx",
     "tests/client/features/plugin/components/plugin-surface-renderer.ct.tsx",
+    "tests/client/features/plugin/components/plugins-install-section.ct.tsx",
     "tests/client/features/plugin/lib/chat-anchors.ct.tsx",
     "tests/client/features/plugin/lib/extensions-section.ct.tsx",
     "tests/client/features/plugin/lib/plugin-command-dispatch.test.ts",
@@ -293,7 +297,6 @@
     "tests/client/features/plugin/lib/plugin-tool-card-state.test.ts",
     "tests/client/features/plugin/lib/tool-card.ct.tsx",
     "tests/client/features/plugin/surfaces/page-dialog-frame.suite.ct.tsx",
-    "tests/client/features/plugin/surfaces/plugins-settings-surface.ct.tsx",
     "tests/client/features/preset/components/actions-view.ct.tsx",
     "tests/client/features/preset/components/macro-text.ct.tsx",
     "tests/client/features/preset/components/message-handling-section.ct.tsx",
@@ -363,13 +366,9 @@
     "tests/client/features/rpg/lib/dice-ask-source.ct.tsx",
     "tests/client/features/rpg/lib/dice-tool-renderer.ct.tsx",
     "tests/client/features/rpg/lib/rpg-context-section.ct.tsx",
-    "tests/client/features/settings/components/settings-pane-placeholder.ct.tsx",
-    "tests/client/features/settings/components/settings-save-footer.ct.tsx",
-    "tests/client/features/settings/lib/appearance-pane.ct.tsx",
-    "tests/client/features/settings/lib/chat-behavior-pane.ct.tsx",
-    "tests/client/features/settings/lib/settings-search.test.ts",
+    "tests/client/features/settings/lib/appearance-group.ct.tsx",
+    "tests/client/features/settings/lib/chat-behavior-group.ct.tsx",
     "tests/client/features/settings/lib/theme-editor-model.test.ts",
-    "tests/client/features/settings/surfaces/settings-shell-surface.ct.tsx",
     "tests/client/features/settings/surfaces/theme-picker-surface.ct.tsx",
     "tests/client/features/stats/components/analytics-context-tabs.suite.ct.tsx",
     "tests/client/features/stats/components/analytics-models-tab.ct.tsx",
@@ -394,18 +393,18 @@
     "tests/client/features/user-admin/components/rate-limits-section.ct.tsx",
     "tests/client/features/user-admin/components/structured-output-section.ct.tsx",
     "tests/client/features/user-admin/components/system-tuning-section.ct.tsx",
-    "tests/client/features/user-admin/lib/admin-pane.ct.tsx",
+    "tests/client/features/user-admin/lib/admin-group.ct.tsx",
+    "tests/client/features/workloads/components/backup-export-section.ct.tsx",
     "tests/client/features/workloads/components/import-library-section.ct.tsx",
     "tests/client/features/workloads/components/schedules-section.ct.tsx",
     "tests/client/features/workloads/components/workloads-jobs-section.ct.tsx",
     "tests/client/features/workloads/components/workloads-tuning-section.ct.tsx",
     "tests/client/features/workloads/lib/portability-model.test.ts",
+    "tests/client/features/workloads/lib/workloads-group.ct.tsx",
     "tests/client/features/workloads/lib/workloads-model.test.ts",
-    "tests/client/features/workloads/lib/workloads-pane.ct.tsx",
     "tests/client/features/workloads/lib/workloads-result-copy.test.ts",
     "tests/client/features/workloads/lib/workloads-run-model.test.ts",
     "tests/client/features/workloads/lib/workloads-schedule-model.test.ts",
-    "tests/client/features/workloads/surfaces/backup-settings-surface.ct.tsx",
     "tests/client/features/world-info/components/entry-editor.ct.tsx",
     "tests/client/features/world-info/components/world-info-collection-rows.ct.tsx",
     "tests/client/features/world-info/components/world-info-context-body.ct.tsx",
@@ -474,7 +473,13 @@
     "tests/client/state/composer-draft-store.ct.tsx",
     "tests/client/state/composer-draft-store.test.ts",
     "tests/client/state/composer-focus-store.ct.tsx",
+    "tests/client/state/config-group-ids.test.ts",
     "tests/client/state/config-group-open-store.ct.tsx",
+    "tests/client/state/config-group-registry.test.ts",
+    "tests/client/state/config-nav-store.ct.tsx",
+    "tests/client/state/config-section-partition.test.ts",
+    "tests/client/state/config-section-registry-context.ct.tsx",
+    "tests/client/state/config-section-registry.test.ts",
     "tests/client/state/config-selection-store.ct.tsx",
     "tests/client/state/corpus-compare-store.ct.tsx",
     "tests/client/state/corpus-search-store.ct.tsx",
@@ -512,11 +517,7 @@
     "tests/client/state/section-registry-context.ct.tsx",
     "tests/client/state/section-registry-provider.ct.tsx",
     "tests/client/state/section-registry.ct.tsx",
-    "tests/client/state/settings-pane-registry-context.ct.tsx",
-    "tests/client/state/settings-pane-registry-provider.ct.tsx",
-    "tests/client/state/settings-pane-registry.test.ts",
     "tests/client/state/settings-save-status-store.ct.tsx",
-    "tests/client/state/settings-section-registry-context.ct.tsx",
     "tests/client/state/shell-store.ct.tsx",
     "tests/client/state/steer-recovery-store.test.ts",
     "tests/client/state/surface-box-store.test.ts",
@@ -2327,6 +2328,54 @@
     },
     "tests/tooling/baseui-surface-reader.int.test.ts": {
       "why": "RELOCATED, not dropped: the @orb/tooling P6 move put the check/verify system at tooling/src/verify/, and test-layout's tooling mirror (docs/design/tooling-package.md §4.7) then requires this suite at the prefix-swap of its subject — it now lives at tests/tooling/verify/lib/baseui-read.int.test.ts with every case verbatim. Un-deletes only if the verify tool leaves tooling/src/ or the suite stops mirroring a single module (a corpus-level suite belongs in the §4.7 endgame-flat tier beside check-gates.int, not here)."
+    },
+    "tests/client/features/settings/surfaces/settings-shell-surface.ct.tsx": {
+      "why": "MOVED, not dropped — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. Its subject (`settings-shell-surface.tsx`) is deleted; every still-valid pin (the named shelves, the disclosure band + one-current-leaf rule, the sub rows, Automation/Connections/Admin content, the D147 plugin gate pair, the when-gated deep link, the SUB-level and group-only deep links, the #549 fence, the containing-block + phantom-scroll pins, the scroll-spy bottom arm, the suppressed-spy jump, the flash geometry, the fits arm, the navLabel row/heading/tooltip, the no-clip sweep) is re-homed verbatim onto the new host in tests/client/features/config/surfaces/config-content-surface.ct.tsx. Its cmdk search tests move to S2's tests/client/features/config/components/config-search-input.ct.tsx (the search is S2's one index); its modal-chrome divider test dies with the modal; its columns-fill-row and 430px push-detail arms are the app-shell's one-shell rule (tests/client/features/app-shell/surfaces/app-shell.ct.tsx; ConfigMobileRosterStory pins the LIST-is-the-screen half). Un-deletes only if a settings modal returns."
+    },
+    "tests/client/features/settings/components/settings-pane-placeholder.ct.tsx": {
+      "why": "MOVED — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. `settings-pane-placeholder.tsx` is `features/config/components/config-group-placeholder.tsx`; the spec is tests/client/features/config/components/config-group-placeholder.ct.tsx, mounting the real host over the #696 placeholder group registry."
+    },
+    "tests/client/features/settings/components/settings-save-footer.ct.tsx": {
+      "why": "MOVED — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. `settings-save-footer.tsx` is `features/config/components/config-save-footer.tsx`; the spec is tests/client/features/config/components/config-save-footer.ct.tsx (same pins, the host story in place of the shell story)."
+    },
+    "tests/client/features/settings/lib/appearance-pane.ct.tsx": {
+      "why": "MOVED — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. `appearance-pane.tsx` is `appearance-group.tsx`; the spec is tests/client/features/settings/lib/appearance-group.ct.tsx. Its one search-driven pin (a leaf whose section was absorbed still jumps) moves to S2's config-search-input.ct.tsx."
+    },
+    "tests/client/features/settings/lib/chat-behavior-pane.ct.tsx": {
+      "why": "MOVED — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. `chat-behavior-pane.tsx` is `chat-behavior-group.tsx`; the spec is tests/client/features/settings/lib/chat-behavior-group.ct.tsx. Its one search-driven pin moves to S2's config-search-input.ct.tsx."
+    },
+    "tests/client/features/settings/lib/settings-search.test.ts": {
+      "why": "MOVED — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. `settings-search.ts` is `features/config/lib/config-search.ts`; the spec is tests/client/features/config/lib/config-search.test.ts."
+    },
+    "tests/client/features/workloads/lib/workloads-pane.ct.tsx": {
+      "why": "MOVED — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. `workloads-pane.tsx` is `workloads-group.tsx`; the spec is tests/client/features/workloads/lib/workloads-group.ct.tsx. Its search-driven jump pin moves to S2's config-search-input.ct.tsx (the flash-ring pin now jumps by the LIST row — the same scrollToAnchor path); its 430px push-detail arm is the app-shell's one-shell rule."
+    },
+    "tests/client/features/workloads/surfaces/backup-settings-surface.ct.tsx": {
+      "why": "MOVED — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. `backup-settings-surface.tsx` decomposed into the export/import contributed sections; the spec is tests/client/features/workloads/components/backup-export-section.ct.tsx, mounting both contributions through the host's own resolver (CtConfigGroupBody)."
+    },
+    "tests/client/features/credentials/surfaces/connections-settings-surface.ct.tsx": {
+      "why": "MOVED — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. `connections-settings-surface.tsx` decomposed into the roles/host-Claude/keys contributed sections; the spec is tests/client/features/credentials/components/connections-roles-section.ct.tsx, mounting the three contributions through the host's own resolver."
+    },
+    "tests/client/features/plugin/surfaces/plugins-settings-surface.ct.tsx": {
+      "why": "MOVED — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. `plugins-settings-surface.tsx` decomposed into the Installed/Add-a-plugin contributed sections; the spec is tests/client/features/plugin/components/plugins-install-section.ct.tsx, mounting the group's three contributions (incl. the admin-gated distribute section) through the host's own resolver."
+    },
+    "tests/client/features/automation/components/owner-rules-surface.ct.tsx": {
+      "why": "MOVED — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. `owner-rules-surface.tsx` is `owner-automation-sections.tsx` (two anchored, heading-bearing sections); the spec is tests/client/features/automation/components/owner-automation-sections.ct.tsx."
+    },
+    "tests/client/features/config/surfaces/config-roster-surface.ct.tsx": {
+      "why": "MOVED — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. `config-roster-surface.tsx` is `config-list-surface.tsx` (four shelves over the 13-group registry); the spec is tests/client/features/config/surfaces/config-list-surface.ct.tsx."
+    },
+    "tests/client/state/settings-pane-registry.test.ts": {
+      "why": "SPLIT — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. `settings-pane-registry.ts` became three state modules, and this spec became their three mirrors: tests/client/state/config-group-registry.test.ts (configAnchorId + the body narrowings), tests/client/state/config-section-registry.test.ts (resolveConfigSections/configSectionNavs) and tests/client/state/config-section-partition.test.ts (assertSettingsKeyPartition + the real door's claims). Nothing dropped."
+    },
+    "tests/client/state/settings-pane-registry-context.ct.tsx": {
+      "why": "RETIRED WITH ITS SUBJECT — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. the pane registry's Context+Provider pair is gone: the config-group registry is delivered to the host by FACTORY (`makeConfigSection(groups)`, the home-tiles precedent — the host is its only reader), so there is no context to pin. The surviving context pair (the config-SECTION registry) keeps its pin in tests/client/state/config-section-registry-context.ct.tsx."
+    },
+    "tests/client/state/settings-pane-registry-provider.ct.tsx": {
+      "why": "RETIRED WITH ITS SUBJECT — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. see settings-pane-registry-context.ct.tsx: the pane registry has no Provider any more (factory-delivered)."
+    },
+    "tests/client/state/settings-section-registry-context.ct.tsx": {
+      "why": "MOVED — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. `settings-section-registry-context.ts` is `config-section-registry-context.ts`; the spec is tests/client/state/config-section-registry-context.ct.tsx."
     }
   }
 }

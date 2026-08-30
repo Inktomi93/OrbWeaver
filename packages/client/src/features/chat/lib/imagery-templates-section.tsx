@@ -4,7 +4,7 @@
 // imagery consumption (the quiet-extraction shaper + the /imagine composer), so it lands here — never
 // features/settings (the databank-settings-section precedent).
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { ImageryTemplatesSection } from "../components/imagery-templates-section.tsx";
 import { IMAGERY_TEMPLATES_SUBCATEGORY } from "./imagery-templates-section-nav.ts";
 
@@ -12,7 +12,7 @@ import { IMAGERY_TEMPLATES_SUBCATEGORY } from "./imagery-templates-section-nav.t
 // its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.
 const SECTION_ID = "chat-imagery-templates";
 
-export const imageryTemplatesSection: SettingsSectionContribution = {
+export const imageryTemplatesSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "chat-behavior",
   nav: IMAGERY_TEMPLATES_SUBCATEGORY,

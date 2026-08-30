@@ -21,7 +21,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import { MULTI_USER_SUBCATEGORY, SHARED_ACCESS_SUBCATEGORY } from "../lib/system-config-nav.ts";
@@ -102,7 +102,7 @@ function SharedAccessBody({ sectionId }: { readonly sectionId: string }): ReactE
   };
 
   return (
-    <Section className="@container" divider={true} heading={SHARED_ACCESS_SUBCATEGORY.label} id={settingsAnchorId("admin", SHARED_ACCESS_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={SHARED_ACCESS_SUBCATEGORY.label} id={configAnchorId("admin", SHARED_ACCESS_SUBCATEGORY.id)}>
       <Stack gap="field">
         <Text voice="gloss">Who may spend this box's shared compute. Only the box owner can change these.</Text>
         <AdminOverrideSwitch
@@ -186,7 +186,7 @@ function MultiUserBody({ sectionId }: { readonly sectionId: string }): ReactElem
   };
 
   return (
-    <Section className="@container" divider={true} heading={MULTI_USER_SUBCATEGORY.label} id={settingsAnchorId("admin", MULTI_USER_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={MULTI_USER_SUBCATEGORY.label} id={configAnchorId("admin", MULTI_USER_SUBCATEGORY.id)}>
       <Stack gap="field">
         <Text voice="gloss">Seating and sign-in posture. Multi-CHARACTER chats always work; this is about additional HUMANS.</Text>
         <AdminOverrideSwitch

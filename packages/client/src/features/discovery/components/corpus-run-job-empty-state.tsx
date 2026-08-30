@@ -6,7 +6,7 @@
 // truthful nothing reads as a broken screen.
 //
 // THE DOOR IS THE REAL ONE, not a re-implementation: Settings → Jobs is where "Run a job…" lives, and
-// `openSettingsTo` is the shell's deep-link seam. Features never import each other, so mounting the run
+// `openConfigTo` is the shell's deep-link seam. Features never import each other, so mounting the run
 // dialog here is unspellable by design — and it would be a second home for the same verb anyway.
 //
 // CALLERS NAME THE JOBS BY THEIR RENDERED LABELS (`WORKLOAD_KIND_LABELS`: "Distill characters",
@@ -19,7 +19,7 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Sparkles } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
-import { openSettingsTo } from "#state";
+import { openConfigTo } from "#state";
 
 export interface CorpusRunJobEmptyStateProps {
   readonly title: ReactNode;
@@ -45,7 +45,7 @@ export function CorpusRunJobEmptyState({ title, description, offerDoor = true }:
       {...(offerDoor
         ? {
             action: (
-              <Button intent="primary" size="sm" onClick={(): void => openSettingsTo("workloads", "jobs")}>
+              <Button intent="primary" size="sm" onClick={(): void => openConfigTo("workloads", "jobs")}>
                 <Icon icon={Sparkles} size="sm" />
                 Run a job…
               </Button>

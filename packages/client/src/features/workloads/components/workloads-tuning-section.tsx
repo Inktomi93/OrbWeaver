@@ -18,7 +18,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { SectionSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { WORKLOADS_TUNING_ENTITY_ID, WorkloadsTuningAutosaveForm } from "../hooks/use-workloads-tuning-form.ts";
 import type { WorkloadsTuningForm } from "../lib/workloads-tuning-model.ts";
 import {
@@ -75,7 +75,7 @@ function WorkloadsTuningFormBody({ sectionId }: { readonly sectionId: string }):
 function WorkloadsTuningBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<WorkloadsTuningForm> }): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section divider={true} heading={WORKLOADS_TUNING_SUBCATEGORY.label} id={settingsAnchorId("workloads", WORKLOADS_TUNING_SUBCATEGORY.id)}>
+    <Section divider={true} heading={WORKLOADS_TUNING_SUBCATEGORY.label} id={configAnchorId("workloads", WORKLOADS_TUNING_SUBCATEGORY.id)}>
       <FieldLayout orientation="horizontal">
         <Container>
           <Stack gap="field">

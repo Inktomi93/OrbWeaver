@@ -1,159 +1,13 @@
-// Settings feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The
-// settings shell comes through the feature front door, wrapped in the real data layer (`routeTrpc` stubs
-// `settings.getUserSettings` so the Appearance pane resolves; the placeholder panes need no network).
+// Settings feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). What is
+// LEFT of the feature after the config revamp (#866 S1): the THEME picker, and the two `sections`-skimmer
+// group definitions (Appearance · Chat behavior) — which mount ONLY through the config host, so their
+// stories delegate to `ConfigHostStory` (the shell's LIST + CONTENT over the real registries).
 
-import { SettingsShell, ThemePickerSurface } from "@orb/client/features/settings";
-import type { SettingsCategoryId } from "@orb/client/state";
-import { openSettingsTo } from "@orb/client/state";
-import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { ThemePickerSurface } from "@orb/client/features/settings";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
-import { useState } from "react";
-// shell.css (the `.shell-modal-header` chrome) is loaded transitively by globals.css, but import it
-// directly so the modal-chrome story below has the header/divider styles even in isolation.
-import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
-import { CtDataProviders, CtPlaceholderPaneRegistry, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
-
-/** The settings shell with one category (connections) rendered as a DECLARED-PLACEHOLDER pane (#696) — a
- *  live subject for `SettingsPanePlaceholder`, the honest "not built yet" body whose production subjects all
- *  graduated to real surfaces at C5. Mounts the REAL shell under {@link CtPlaceholderPaneRegistry} so the
- *  placeholder is reached exactly the way a deferred category is: click its nav row and the shell's
- *  `body: { placeholder: true }` branch (settings-shell-surface.tsx:418) mounts the teaching copy. */
-export function SettingsShellPlaceholderStory(): ReactElement {
-  // Deep-link straight to the placeholder category so it lands on the placeholder body without first
-  // mounting the default (Appearance) pane — the placeholder body itself reads no network.
-  useState(() => {
-    openSettingsTo("connections");
-    return null;
-  });
-  return (
-    <CtDataProviders>
-      <CtPlaceholderPaneRegistry>
-        <div style={{ height: 560, width: 900 }}>
-          <SettingsShell />
-        </div>
-      </CtPlaceholderPaneRegistry>
-    </CtDataProviders>
-  );
-}
-
-/** The full-bleed settings shell in a fixed-height box + the real data layer (network stubbed per-test).
- *  SettingsShell reads `useSettingsPaneRegistry()`, so it must mount under the pane-registry provider —
- *  CtRealSectionRegistry nests it (mirrors main.tsx's door). */
-export function SettingsShellStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <CtRealSectionRegistry>
-        <div style={{ height: 560, width: 900 }}>
-          <SettingsShell />
-        </div>
-      </CtRealSectionRegistry>
-    </CtDataProviders>
-  );
-}
-
-/** The shell filling a PHONE viewport (pair with `test.use({ viewport: { width: 430, height: 740 } })` — the
- *  side-eye P0 receipt's device). Below the `@md` container step the shell is a push-detail flow: the nav
- *  list owns the whole pane until a section is selected. `position:fixed; inset:0` so the box IS the
- *  viewport (the harness body's 8px margin would otherwise push the pane off-screen and fake the defect). */
-export function SettingsShellNarrowStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <CtRealSectionRegistry>
-        <div style={{ position: "fixed", inset: 0 }}>
-          <SettingsShell />
-        </div>
-      </CtRealSectionRegistry>
-    </CtDataProviders>
-  );
-}
-
-/** The shell in a box TALLER than the appearance pane's content, so the pane region does not scroll at all.
- *  A non-scrolling pane is simultaneously at its top and its bottom — the scroll-spy's bottom arm used to
- *  resolve it to the LAST section while the reader is looking at the first. */
-export function SettingsShellFitsStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <CtRealSectionRegistry>
-        <div style={{ height: 4000, width: 1160 }}>
-          <SettingsShell />
-        </div>
-      </CtRealSectionRegistry>
-    </CtDataProviders>
-  );
-}
-
-/** The shell with a deep-link target seeded BEFORE first render (the `openSettingsTo` seam). The lazy
- *  useState initializer runs exactly once, synchronously, so `useSettingsTarget()` reads the target on the
- *  first render — reproducing a cold `__orb.nav.openSettings(target)` where the sessions.me probe is still in
- *  flight. Pair with a DELAYED viewer stub in the `.ct.tsx` to exercise the when-gated-pane deep-link race.
- *  `subId` exercises the SUB-level deep link (SET-SEAMS §10 Q4): the pane resolves in render, the jump to
- *  `settingsAnchorId(target, subId)` lands once the pane's DOM has the anchor. */
-export function SettingsShellDeepLinkStory({ target, subId }: { readonly target: SettingsCategoryId; readonly subId?: string }): ReactElement {
-  useState(() => {
-    openSettingsTo(target, subId);
-    return null;
-  });
-  return (
-    <CtDataProviders>
-      <CtRealSectionRegistry>
-        <div style={{ height: 560, width: 900 }}>
-          <SettingsShell />
-        </div>
-      </CtRealSectionRegistry>
-    </CtDataProviders>
-  );
-}
-
-/** The settings shell inside the REAL modal chrome (a faithful mirror of ModalHost's `DialogModal`: the
- *  `xl` DialogPopup, the `.shell-modal-header` + its divider, and the scroll-body div) — so the CT can
- *  measure the header→content gap and the divider width against the true modal content box. */
-export function SettingsModalStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <CtRealSectionRegistry>
-        <Dialog open={true}>
-          <DialogPopup size="xl">
-            <header className="shell-modal-header shrink-0">
-              <DialogTitle>Settings</DialogTitle>
-              <DialogClose
-                render={
-                  <button aria-label="Close" type="button">
-                    ×
-                  </button>
-                }
-              />
-            </header>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <SettingsShell />
-            </div>
-          </DialogPopup>
-        </Dialog>
-      </CtRealSectionRegistry>
-    </CtDataProviders>
-  );
-}
-
-/** The shell inside the RUNNING APP'S containing-block topology: a POSITIONED, height-capped,
- *  `overflow-y:auto` host. That is what `DialogPopup` resolves to live — measured on :5173 2026-08-14 with
- *  the settings modal open at 1920×1080: `[data-slot=dialog-popup]` clientHeight 1014, scrollHeight **2900**,
- *  `offsetParent` of the pane's `sr-only` Base UI boxes = the popup itself. The plain `SettingsModalStory`
- *  CANNOT see this: in the CT harness the popup computes `position: static`, so the escaping boxes land on
- *  the fixed `dialog-viewport` instead of a scroller and inflate nothing. This story restores the one
- *  property the harness drops (a positioned scrolling host) and nothing else. */
-export function SettingsShellInScrollingHostStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <CtRealSectionRegistry>
-        <div data-testid="scrolling-host" style={{ height: 560, overflowY: "auto", position: "relative", width: 900 }}>
-          <div style={{ height: "100%" }}>
-            <SettingsShell />
-          </div>
-        </div>
-      </CtRealSectionRegistry>
-    </CtDataProviders>
-  );
-}
+import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { ConfigHostStory } from "../config/_ct-stories.tsx";
 
 /** The real theme picker/library (D44 §12.1) — wrapped in the data layer (its `listThemes` +
  *  `getUserSettings` reads are stubbed per-test via routeTrpc) + TooltipProvider for the row chrome. */
@@ -186,40 +40,19 @@ export function ThemePickerNarrowStory(): ReactElement {
   );
 }
 
-/** The REAL appearance pane, driven through the shell — the ONLY way to mount it since SET-SEAMS stage 1
- *  made it a `{kind:"sections"}` skimmer with no surface of its own. `appearance` is the shell's default
- *  active category, so this lands on it cold, with the REAL door-ordered section registry, the shell's
- *  aggregate save-status footer (`SaveStatusHostContext`) and the derived nav — the production path.
- *  A tall/wide box: the pane stacks eight sections and would clip in a short one. */
-export function AppearancePaneStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <CtRealSectionRegistry>
-        <div style={{ height: 900, width: 1160 }}>
-          <SettingsShell />
-        </div>
-      </CtRealSectionRegistry>
-    </CtDataProviders>
-  );
+/** The REAL appearance group, driven through the config host — the ONLY way to mount it since SET-SEAMS
+ *  stage 1 made it a `{kind:"sections"}` skimmer with no surface of its own. Deep-linked so it lands cold on
+ *  appearance with the REAL door-ordered section registry, the host's aggregate save-status footer
+ *  (`SaveStatusHostContext`) and the derived LIST rows — the production path. A tall/wide box: the group
+ *  stacks eight sections and would clip in a short one. */
+export function AppearanceGroupStory(): ReactElement {
+  return <ConfigHostStory target="appearance" height={900} width={1160} />;
 }
 
-/** The REAL chat-behavior pane, driven through the shell — the ONLY way to mount it since SET-SEAMS stage 2
- *  made it a `{kind:"sections"}` skimmer with no surface of its own. Deep-linked (the shell's default active
- *  category is `appearance`) so it lands cold on chat-behavior with the REAL door-ordered section registry,
- *  the shell's aggregate save-status footer (`SaveStatusHostContext`) and the derived nav — the production
- *  path. A tall/wide box: the pane stacks six sections and would clip in a short one. */
-export function ChatBehaviorPaneStory(): ReactElement {
-  useState(() => {
-    openSettingsTo("chat-behavior");
-    return null;
-  });
-  return (
-    <CtDataProviders>
-      <CtRealSectionRegistry>
-        <div style={{ height: 900, width: 1160 }}>
-          <SettingsShell />
-        </div>
-      </CtRealSectionRegistry>
-    </CtDataProviders>
-  );
+/** The REAL chat-behavior group, driven through the config host — the ONLY way to mount it since SET-SEAMS
+ *  stage 2 made it a `{kind:"sections"}` skimmer with no surface of its own. Deep-linked so it lands cold on
+ *  chat-behavior with the REAL door-ordered section registry, the host's aggregate save-status footer and
+ *  the derived LIST rows — the production path. A tall/wide box: the group stacks six sections. */
+export function ChatBehaviorGroupStory(): ReactElement {
+  return <ConfigHostStory target="chat-behavior" height={900} width={1160} />;
 }

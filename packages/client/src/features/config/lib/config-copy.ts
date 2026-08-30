@@ -22,6 +22,10 @@ export const CONFIG_WELCOME = {
     "Tags label your library. Regex scripts rewrite text on its way in or out. World books hold the lore your characters draw on. Nothing here is required, and nothing here is spent once: build a part, then attach it wherever you need it.",
 } as const;
 
+/** The section's rail label AND its LIST band title (owner fork F-9, 2026-08-30): the id stays `config`, the
+ *  word says what the surface holds now that the settings modal retired into it. ONE home for both. */
+export const CONFIG_SECTION_LABEL = "Settings";
+
 /** CONTEXT with nothing selected. Distinct from a collection's `{kind:"none"}` copy, which says the
  *  opposite thing: there something IS selected and simply has nothing to attach. */
 export const CONFIG_CONTEXT_EMPTY = {

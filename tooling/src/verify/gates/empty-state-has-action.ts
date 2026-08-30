@@ -24,8 +24,8 @@ const ALLOWLIST: ExemptionTable = {
       "the generic unbuilt-section placeholder (modal-body-not-placeholder's SectionPlaceholder sibling) " +
       "— has no section-specific next step to offer; the flag is on the eventual real section body, not here.",
   },
-  "packages/client/src/features/settings/components/settings-pane-placeholder.tsx": {
-    why: "the settings equivalent of section-placeholder.tsx — same reasoning.",
+  "packages/client/src/features/config/components/config-group-placeholder.tsx": {
+    why: "the config-group equivalent of section-placeholder.tsx — same reasoning (the settings-pane placeholder, re-homed by the config revamp #866 S1).",
   },
   "packages/client/src/features/preset/components/preset-library-welcome.tsx": {
     why:

@@ -115,6 +115,22 @@ test("a section that already holds a tab changes nothing — and neither does th
   expect(barTabs(entries, "home")).toEqual(["chats"]);
 });
 
+// #866 S1 — a `rail.end` SECTION (Settings at the rail foot) HAS a cell on the phone (`.shell-rail-actions` paints
+// `display: contents`), so standing in it borrows a slot exactly like an overflow nav section. Without this arm
+// the #484 lie returns: `aria-current="page"` on a `display:none` control and four unlit tabs.
+test("a rail.end SECTION curated to the sheet takes the last standing tab's slot when active", () => {
+  const entries: readonly ChromeEntry[] = [
+    section("chats", "primary", "tab"),
+    section("characters", "primary", "tab"),
+    section("corpus", "primary", "tab"),
+    section("config", "authoring", "sheet", "rail.end"),
+  ];
+  const curation = mobileBarCuration(entries, "config");
+  expect(curation.get("config")).toBe("tab");
+  expect(curation.get("corpus")).toBe("sheet");
+  expect(curation.get("chats")).toBe("tab");
+});
+
 test("an UNGROUPED nav section may not take a slot — it has no cell to paint in, so nothing is lent", () => {
   const entries: readonly ChromeEntry[] = [section("chats", "primary", "tab"), ungroupedSection("corpus", "sheet")];
 

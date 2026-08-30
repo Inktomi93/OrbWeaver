@@ -20,7 +20,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import type { ChatMessageHandlingForm } from "../lib/chat-behavior-message-handling-model.ts";
 import {
   AUTO_CONTINUE_ROUNDS_MAX,
@@ -83,7 +83,7 @@ function MessageHandlingBody({ sectionId, session }: { readonly sectionId: strin
       className="@container"
       divider={true}
       heading={CHAT_MESSAGE_HANDLING_SUBCATEGORY.label}
-      id={settingsAnchorId("chat-behavior", CHAT_MESSAGE_HANDLING_SUBCATEGORY.id)}
+      id={configAnchorId("chat-behavior", CHAT_MESSAGE_HANDLING_SUBCATEGORY.id)}
     >
       <FieldLayout orientation="horizontal">
         <form.AppField name="enterSends">

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-14
+updated: 2026-08-30
 ---
 
 <!-- Promoted proposed/ → core/ under D66 (2026-07-13): this is the @orb/ui law. §-numbers are
@@ -68,7 +68,7 @@ packages/ui/
       icons/              ← lucide-react (the ONE icon set; gate icons-lucide-only)
       + the Wave-3/carve-out set (checkbox · radio-group · toggle(-group) · textarea · autocomplete ·
         combobox · separator · collapsible · accordion · scroll-area · alert-dialog · progress ·
-        badge · skeleton · spinner · empty-state · card · list-row · setting-row · selection-bar ·
+        badge · skeleton · spinner · empty-state · card · list-row · selection-bar ·
         save-bar · status-chip · compare-blocks · avatar-stack · file-dropzone · file-trigger ·
         highlighted-text · log-viewer · color-field · tool-call-block · crossfade-image · reveal-gate)
       + aria-announcer/ · fieldset/ · kbd/ · table/ · text/  (BUILT — the small hand-authored

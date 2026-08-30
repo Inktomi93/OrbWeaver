@@ -22,7 +22,7 @@ import { AutosaveStatus } from "./autosave-status.tsx";
 import { useReportSaveStatus, useSaveStatusHosted } from "./save-status-seam.ts";
 
 export interface SectionSaveStatusProps {
-  /** The reporting section's registry id (`SettingsSectionContribution.id`) — the key the aggregate footer
+  /** The reporting section's registry id (`ConfigSectionContribution.id`) — the key the aggregate footer
    *  and the nav error marker locate the section by. */
   readonly id: string;
   readonly state: SaveLifecycleState;

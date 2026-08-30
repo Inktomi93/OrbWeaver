@@ -26,7 +26,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { APPEARANCE_MESSAGE_STYLE_KEYS, APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "../lib/appearance-message-style-model.ts";
 import { CHAT_STYLE_ITEMS } from "../lib/appearance-select-items.ts";
 
@@ -84,7 +84,7 @@ function MessageStyleBody({ sectionId, session }: { readonly sectionId: string; 
       className="@container"
       divider={true}
       heading={APPEARANCE_MESSAGE_STYLE_SUBCATEGORY.label}
-      id={settingsAnchorId("appearance", APPEARANCE_MESSAGE_STYLE_SUBCATEGORY.id)}
+      id={configAnchorId("appearance", APPEARANCE_MESSAGE_STYLE_SUBCATEGORY.id)}
     >
       <FieldLayout orientation="horizontal">
         <form.AppField name="chatStyle">

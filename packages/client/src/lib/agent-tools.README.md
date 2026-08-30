@@ -35,7 +35,7 @@ Example: `preview_eval("__orb.snap()")`, or in DevTools `copy(__orb.renders())`.
 The app has only 2 URL routes (`/`, `/login`); ALL navigation is client state (active rail section, open
 modal, settings category, context tab, open chat — `state/shell-store.ts` + `state/active-chat-store.ts`).
 `__orb.nav` drives that state through the SAME store actions the real UI calls (`setActiveSection`,
-`openModal`, `openSettingsTo`, `setContextTab`, `selectChat`) — no parallel mutation path — so an agent /
+`openModal`, `openConfigTo`, `setContextTab`, `selectChat`) — no parallel mutation path — so an agent /
 `pnpm snap` reaches any surface WITHOUT a click chain. Built at the composition root (`agent-nav/index.ts`,
 which may compose `#state`/`#features`/`#data` — the `lib/` floor may not) and injected into
 `installAgentDebugHandle`. Every call returns `{ok:true}` or `{ok:false, reason}` — a bad id is a LOUD

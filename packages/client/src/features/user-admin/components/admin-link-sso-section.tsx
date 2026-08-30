@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { ADMIN_LINK_SSO_SUBCATEGORY } from "../lib/admin-link-sso-nav.ts";
 import { AdminLinkSsoDialog } from "./admin-link-sso-dialog.tsx";
 
@@ -46,7 +46,7 @@ function AdminLinkSsoBody(): ReactElement {
   const linkable = users.filter((user) => user.role !== "owner" && user.externalId === null);
 
   return (
-    <Section className="@container" divider={true} heading={ADMIN_LINK_SSO_SUBCATEGORY.label} id={settingsAnchorId("admin", ADMIN_LINK_SSO_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={ADMIN_LINK_SSO_SUBCATEGORY.label} id={configAnchorId("admin", ADMIN_LINK_SSO_SUBCATEGORY.id)}>
       <Stack gap="row" data-testid={testId("adminLinkSsoSection")}>
         <Text voice="label" className="text-muted-foreground">
           Link a local account to its stable SSO subject so a switch to single sign-on migrates it in place — otherwise a user whose IdP username differs from

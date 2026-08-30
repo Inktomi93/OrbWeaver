@@ -1,15 +1,15 @@
 // The nav entries for the five sections the retired SYSTEM pane decomposed into (SET-SEAMS stage 4 / §10 Q2
-// — `system` merged INTO `admin`). Each `SettingsSubcategory` is the ONE home shared by its contribution def
+// — `system` merged INTO `admin`). Each `ConfigSubcategory` is the ONE home shared by its contribution def
 // and its `<Section>` anchor stamp, split out so neither imports the other (the rate-limits-nav precedent).
 //
 // The sub IDS and the search leaves are byte-identical to the retired `system-pane.tsx` (§7.1/§7.2 — a
 // section keeps its `(category, subId)` pair across a move). The CATEGORY half necessarily changed with the
-// pane merge — that is the one anchor break §10 Q2 authorises, and it is total: no `settings-anchor-system-*`
+// pane merge — that is the one anchor break §10 Q2 authorises, and it is total: no `config-anchor-system-*`
 // id survives anywhere.
 
-import type { SettingsSubcategory } from "#state";
+import type { ConfigSubcategory } from "#state";
 
-export const MEDIA_TRUST_SUBCATEGORY: SettingsSubcategory = {
+export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
   id: "media-trust",
   label: "Media & trust",
   keywords: ["security", "privacy", "safety"],
@@ -20,7 +20,7 @@ export const MEDIA_TRUST_SUBCATEGORY: SettingsSubcategory = {
   ],
 };
 
-export const COMPUTE_SUBCATEGORY: SettingsSubcategory = {
+export const COMPUTE_SUBCATEGORY: ConfigSubcategory = {
   id: "compute",
   label: "Compute",
   keywords: ["vllm", "gpu", "batch", "inference"],
@@ -30,7 +30,7 @@ export const COMPUTE_SUBCATEGORY: SettingsSubcategory = {
   ],
 };
 
-export const SHARED_ACCESS_SUBCATEGORY: SettingsSubcategory = {
+export const SHARED_ACCESS_SUBCATEGORY: ConfigSubcategory = {
   id: "shared-access",
   label: "Shared access",
   keywords: ["members", "owner", "governance", "sharing"],
@@ -41,7 +41,7 @@ export const SHARED_ACCESS_SUBCATEGORY: SettingsSubcategory = {
   ],
 };
 
-export const MULTI_USER_SUBCATEGORY: SettingsSubcategory = {
+export const MULTI_USER_SUBCATEGORY: ConfigSubcategory = {
   id: "multi-user",
   label: "Multi-user",
   keywords: ["auth", "login", "invite", "accounts", "humans", "discreet"],
@@ -51,7 +51,7 @@ export const MULTI_USER_SUBCATEGORY: SettingsSubcategory = {
   ],
 };
 
-export const OPERATIONS_SUBCATEGORY: SettingsSubcategory = {
+export const OPERATIONS_SUBCATEGORY: ConfigSubcategory = {
   id: "operations",
   label: "Operations",
   keywords: ["jobs", "logging", "diagnostics"],

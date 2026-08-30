@@ -1,10 +1,10 @@
 // B5 — the "Link SSO identity" section's nav entry (the db-surgery-free mode-switch migration surface). The
-// ONE `SettingsSubcategory` shared by the contribution def and the section body's `<Section>` anchor stamp;
+// ONE `ConfigSubcategory` shared by the contribution def and the section body's `<Section>` anchor stamp;
 // split out so neither imports the other (the admin-approvals-nav precedent).
 
-import type { SettingsSubcategory } from "#state";
+import type { ConfigSubcategory } from "#state";
 
-export const ADMIN_LINK_SSO_SUBCATEGORY: SettingsSubcategory = {
+export const ADMIN_LINK_SSO_SUBCATEGORY: ConfigSubcategory = {
   id: "link-sso",
   label: "Link SSO identity",
   keywords: ["sso", "oidc", "external id", "subject", "migrate", "mode switch", "link account", "orphan"],

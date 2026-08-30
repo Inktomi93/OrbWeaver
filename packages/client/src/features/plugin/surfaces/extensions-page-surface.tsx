@@ -33,7 +33,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { testId, useFocusOnMount } from "#lib";
-import { clearPluginPage, openSettingsTo, usePluginPageKey } from "#state";
+import { clearPluginPage, openConfigTo, usePluginPageKey } from "#state";
 import { PluginFrame } from "../components/plugin-frame.tsx";
 import { PluginSurfaceRenderer } from "../components/plugin-surface-renderer.tsx";
 import { PluginSurfaceShell } from "../components/plugin-surface-shell.tsx";
@@ -65,7 +65,7 @@ export function ExtensionsPageSurface(): ReactElement {
           <Stack align="center" className="h-full" justify="center">
             <EmptyState
               action={
-                <Button intent="secondary" onClick={(): void => openSettingsTo("plugins")} size="sm">
+                <Button intent="secondary" onClick={(): void => openConfigTo("plugins")} size="sm">
                   {EXTENSIONS_EMPTY_ACTION}
                 </Button>
               }
@@ -107,7 +107,7 @@ export function ExtensionsPageSurface(): ReactElement {
         <Stack align="center" className="h-full" justify="center">
           <EmptyState
             action={
-              <Button intent="secondary" onClick={(): void => openSettingsTo("plugins")} size="sm">
+              <Button intent="secondary" onClick={(): void => openConfigTo("plugins")} size="sm">
                 {EXTENSIONS_EMPTY_ACTION}
               </Button>
             }

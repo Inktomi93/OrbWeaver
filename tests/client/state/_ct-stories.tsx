@@ -9,22 +9,25 @@
 
 import type { ContributorRegistry } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
-import type { SectionDefinition, SettingsSectionContribution } from "@orb/client/state";
+import type { ConfigSectionContribution, SectionDefinition } from "@orb/client/state";
 import {
   __dismissPresetSectionForTest,
   __migrateActiveChatForTest,
   __readComposerDraftsForTest,
   __resetAppearanceBootHint,
   __resetChatContextSections,
-  __resetCollectionGroupOpen,
   __resetComposerDrafts,
+  __resetConfigGroupOpen,
+  __resetConfigNav,
   __resetDeploymentBootHint,
   __resetPresetSection,
   __resetPresetSelection,
   __resetTagFilter,
   activeChatId,
   COMPOSER_DRAFT_CAP,
+  ConfigSectionRegistryProvider,
   chatDeletedFromList,
+  clearActiveConfigGroup,
   clearAnalyticsSelection,
   clearCharacterFacet,
   clearCharacterFilters,
@@ -41,16 +44,16 @@ import {
   cycleTagFilter,
   dockListPanel,
   enterCreatedChat,
+  getActiveConfigGroup,
   getAvailableContextTabIds,
   getAvailableContextTabs,
   getContextTab,
-  goToCollection,
   goToLanding,
   isCommitted,
-  openCollectionGroup,
+  openConfigGroup,
+  openConfigTo,
   openModal,
   openNewChatPicker,
-  openSettingsTo,
   publishContextTabIds,
   publishContextTabs,
   publishNoticeBand,
@@ -65,7 +68,6 @@ import {
   revealContextPanel,
   revealContextPanelBesideContent,
   SECTION_IDS,
-  SettingsSectionRegistryProvider,
   selectAnalyticsCharacter,
   selectCharacter,
   selectCharacterFacet,
@@ -73,11 +75,14 @@ import {
   selectChatFromList,
   selectCollectionMember,
   selectCollectionMemberFromList,
+  selectConfigGroup,
+  selectConfigSub,
   selectCorpusCharacter,
   selectPreset,
   selectPresetFromList,
   selectPresetSection,
   selectWorldEntry,
+  setActiveConfigSub,
   setActiveSection,
   setAnalyticsSearchQuery,
   setBulkMode,
@@ -104,14 +109,17 @@ import {
   setPresetSearchQuery,
   setTagSortMode,
   stampAppearanceBootHint,
+  subscribeConfigNav,
   subscribeHuskAbandoned,
   subscribeShellState,
-  toggleCollectionGroup,
+  toggleConfigGroup,
   toggleFavoritesOnly,
   toggleFiltersOpen,
   toggleShowArchived,
   toggleSpoilerBlur,
   useActiveChatHandle,
+  useActiveConfigGroup,
+  useActiveConfigSub,
   useActiveSection,
   useAggregateSaveStatus,
   useAnalyticsSearchQuery,
@@ -126,10 +134,13 @@ import {
   useChatListMonth,
   useChatListSearch,
   useChromeRegistry,
-  useCollectionGroupOpen,
   useCollectionSelection,
   useComposerDraft,
   useComposerFocusRequest,
+  useConfigGroupOpen,
+  useConfigSectionRegistry,
+  useConfigSections,
+  useConfigTarget,
   useContextTab,
   useCorpusCompareA,
   useCorpusCompareAName,
@@ -162,10 +173,6 @@ import {
   useSelectedPresetId,
   useSelectedPresetSectionId,
   useSelectedWorldEntryId,
-  useSettingsPaneRegistry,
-  useSettingsSectionRegistry,
-  useSettingsSections,
-  useSettingsTarget,
   useShowArchived,
   useSpoilerBlur,
   useTagFilter,
@@ -174,7 +181,7 @@ import {
 import type { CharacterId, ChatId, PresetId, TagId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState, useSyncExternalStore } from "react";
 // Deep, not the app-shell barrel: `NoticeBand` is the store's only in-app writer and the probe drives the
 // REAL component, so publishing and releasing are exercised exactly as the shell does them.
 import { NoticeBand } from "../../../packages/client/src/features/app-shell/components/notice-band.tsx";
@@ -208,7 +215,7 @@ function SectionListProjectionBody(): ReactElement {
       <button type="button" onClick={(): void => setOpenOverlayPanel("list")}>
         open list overlay
       </button>
-      <button type="button" onClick={(): void => selectCollectionMember("tag", "tag-projection-probe")}>
+      <button type="button" onClick={(): void => selectCollectionMember("tags", "tag-projection-probe")}>
         open member
       </button>
       <button type="button" onClick={(): void => clearCollectionSelection()}>
@@ -276,7 +283,7 @@ function ShellStoreProbeBody(): ReactElement {
   const list = usePanelOverride(section, "list") ?? "none";
   const context = usePanelOverride(section, "context") ?? "none";
   const modal = useOpenModal();
-  const settingsTarget = useSettingsTarget();
+  const settingsTarget = useConfigTarget()?.group ?? null;
   const contextTab = useContextTab();
   const openOverlayPanel = useOpenOverlayPanel();
   // `useSectionListMode` — the narrow #state projection a feature reads instead of `useShellLayout`. The
@@ -338,10 +345,10 @@ function ShellStoreProbeBody(): ReactElement {
       <button type="button" onClick={(): void => setPanelMode("list", "docked")}>
         dock list
       </button>
-      <button type="button" onClick={(): void => openModal("settings")}>
-        open settings
+      <button type="button" onClick={(): void => openModal("theme")}>
+        open theme
       </button>
-      <button type="button" onClick={(): void => openSettingsTo("personas")}>
+      <button type="button" onClick={(): void => openConfigTo("personas")}>
         open settings to personas
       </button>
       <button type="button" onClick={(): void => closeModal()}>
@@ -710,14 +717,14 @@ export function WorldEntrySelectionProbe(): ReactElement {
 
 /** ConfigSelectionProbe — the KINDED selection store (the config workspace's ONE selection across N
  *  sibling collections): select a member of one kind, select a member of ANOTHER kind, clear, and the
- *  LIST dual-write that also closes the slide-over. `goToCollection` is the deep-link intent the retired
- *  `openSettingsTo("tags"|"regex")` call sites became — it expands the group, clears the selection AND
- *  switches the rail, so the probe reads the active section too. */
+ *  LIST dual-write that also closes the slide-over. `openConfigTo` is the ONE deep-link intent for every
+ *  kind of group (config-revamp-design.md §3.3) — for a collection it clears the selection AND switches the
+ *  rail, so the probe reads the active section too. */
 export function ConfigSelectionProbe(): ReactElement {
   const selection = useCollectionSelection();
   const openOverlayPanel = useOpenOverlayPanel();
   const section = useActiveSection();
-  const tagsOpen = useCollectionGroupOpen("tags");
+  const tagsOpen = useConfigGroupOpen("tags");
   return (
     <div>
       <output>
@@ -741,7 +748,7 @@ export function ConfigSelectionProbe(): ReactElement {
       <button type="button" onClick={(): void => setActiveSection("chats")}>
         go to chats
       </button>
-      <button type="button" onClick={(): void => goToCollection("tags")}>
+      <button type="button" onClick={(): void => openConfigTo("tags")}>
         go to the tags collection
       </button>
     </div>
@@ -772,21 +779,21 @@ export function ChatContextSectionOpenProbe(): ReactElement {
 }
 
 /** ConfigGroupOpenProbe — the per-device group DISCLOSURE store. Groups start COLLAPSED (owner ruling), a
- *  toggle flips one group without touching its siblings, and `openCollectionGroup` is the idempotent
+ *  toggle flips one group without touching its siblings, and `openConfigGroup` is the idempotent
  *  deep-link arm (it may never collapse a group the user has open). */
 export function ConfigGroupOpenProbe(): ReactElement {
-  const tagsOpen = useCollectionGroupOpen("tags");
-  const regexOpen = useCollectionGroupOpen("regex");
+  const tagsOpen = useConfigGroupOpen("tags");
+  const regexOpen = useConfigGroupOpen("regex");
   return (
     <div>
       <output>{`tags=${String(tagsOpen)} regex=${String(regexOpen)}`}</output>
-      <button type="button" onClick={(): void => toggleCollectionGroup("tags")}>
+      <button type="button" onClick={(): void => toggleConfigGroup("tags")}>
         toggle tags group
       </button>
-      <button type="button" onClick={(): void => openCollectionGroup("tags")}>
+      <button type="button" onClick={(): void => openConfigGroup("tags")}>
         open tags group
       </button>
-      <button type="button" onClick={(): void => __resetCollectionGroupOpen()}>
+      <button type="button" onClick={(): void => __resetConfigGroupOpen()}>
         reset collection groups
       </button>
     </div>
@@ -1005,30 +1012,6 @@ function ChromeRegistryReader(): ReactElement {
   );
 }
 
-/** SettingsPaneRegistryProbe — reads the settings-pane registry via `useSettingsPaneRegistry` inside its
- *  provider (the mirror of ModalRegistryProbe), rendering the delivered vocabulary as text so a CT proves
- *  the context delivers the ordered, total pane list and `get()` resolves a member's label. */
-export function SettingsPaneRegistryProbe(): ReactElement {
-  return (
-    <CtFakeSectionRegistry>
-      <SettingsPaneRegistryReader />
-    </CtFakeSectionRegistry>
-  );
-}
-
-function SettingsPaneRegistryReader(): ReactElement {
-  const registry = useSettingsPaneRegistry();
-  const ids = registry
-    .list()
-    .map((d) => d.id)
-    .join(",");
-  return (
-    <div>
-      <output>{`ids=${ids} appearance=${registry.get("appearance").label}`}</output>
-    </div>
-  );
-}
-
 /** ComposerDraftProbe — drives the composer-draft store (D70 commons) through its module actions and
  *  reads the reactive `useComposerDraft` hook, so a CT can prove the item-12 restoration: the typed draft
  *  is MODULE-scoped state, so it survives a component REMOUNT (the papercut this store exists to kill).
@@ -1149,18 +1132,18 @@ function SettingsSaveStatusReader(): ReactElement {
   );
 }
 
-/** SettingsSectionRegistryProbe — reads the settings-SECTION registry through `useSettingsSectionRegistry`
- *  + `useSettingsSections` inside its provider (SET-SEAMS §5.2), rendering what a host pane would get: the
+/** SettingsSectionRegistryProbe — reads the settings-SECTION registry through `useConfigSectionRegistry`
+ *  + `useConfigSections` inside its provider (SET-SEAMS §5.2), rendering what a host pane would get: the
  *  sections anchored at ONE pane, in declared order, `when`-filtered by the supplied viewer. */
 export function SettingsSectionRegistryProbe({ isAdmin }: { readonly isAdmin: boolean }): ReactElement {
   return (
-    <SettingsSectionRegistryProvider value={probeSections}>
+    <ConfigSectionRegistryProvider value={probeSections}>
       <SettingsSectionRegistryReader isAdmin={isAdmin} />
-    </SettingsSectionRegistryProvider>
+    </ConfigSectionRegistryProvider>
   );
 }
 
-const probeSections: ContributorRegistry<SettingsSectionContribution> = createContributorRegistry<SettingsSectionContribution>("probe-settings-sections", [
+const probeSections: ContributorRegistry<ConfigSectionContribution> = createContributorRegistry<ConfigSectionContribution>("probe-settings-sections", [
   { id: "probe-chat", anchor: "chat-behavior", nav: { id: "probe-chat", label: "Probe chat" }, body: (): ReactElement => <output>chat body</output> },
   {
     id: "probe-admin",
@@ -1173,8 +1156,8 @@ const probeSections: ContributorRegistry<SettingsSectionContribution> = createCo
 ]);
 
 function SettingsSectionRegistryReader({ isAdmin }: { readonly isAdmin: boolean }): ReactElement {
-  const registry = useSettingsSectionRegistry();
-  const sections = useSettingsSections("chat-behavior", { isAdmin });
+  const registry = useConfigSectionRegistry();
+  const sections = useConfigSections("chat-behavior", { isAdmin, isOwner: isAdmin });
   return (
     <div>
       <output>{`all=${registry
@@ -1377,6 +1360,67 @@ export function ListFlipCarryProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => setPanelMode("list", "collapsed")}>
         collapse the list
+      </button>
+    </div>
+  );
+}
+
+/** ConfigNavProbe — drives the config NAV store (config-revamp-design.md §3.2/§6.2, #866 S1): the ONE
+ *  deep-link intent `openConfigTo(group, sub?, setting?)` for every kind of group, the LIST's band/row
+ *  clicks, the spy's write, and the derived EFFECTIVE active group (an open member's kind wins over the
+ *  explicitly activated group). A CT because every read surface is a reactive hook. Prints the target's
+ *  nonce so a repeated request is provably a NEW landing (a second click on the row you are on re-scrolls). */
+export function ConfigNavProbe(): ReactElement {
+  const group = useActiveConfigGroup();
+  // The SECTION SEAM's non-reactive pair (`makeConfigSection`'s `SectionSelection`): the same fact through
+  // subscribe + getState, so the shell's "is anything open?" answer can never disagree with the hook. Spelled
+  // as the explicit calls the seam makes, not a bare reference pair, so the pin drives them by name.
+  const seam = useSyncExternalStore(
+    (listener) => subscribeConfigNav(listener),
+    () => getActiveConfigGroup(),
+  );
+  const sub = useActiveConfigSub();
+  const target = useConfigTarget();
+  const section = useActiveSection();
+  const tagsOpen = useConfigGroupOpen("tags");
+  const selection = useCollectionSelection();
+  return (
+    <div>
+      <output>
+        {`group=${group ?? "none"} seam=${seam ?? "none"} sub=${sub ?? "none"} target=${target === null ? "none" : `${target.group}/${target.sub ?? "-"}/${target.setting ?? "-"}#${target.nonce}`} section=${section} tagsOpen=${String(tagsOpen)} selection=${selection === null ? "none" : `${selection.kind}:${selection.memberId}`}`}
+      </output>
+      <button type="button" onClick={(): void => openConfigTo("appearance")}>
+        open appearance
+      </button>
+      <button type="button" onClick={(): void => openConfigTo("appearance", "motion")}>
+        open appearance motion
+      </button>
+      <button type="button" onClick={(): void => openConfigTo("chat-behavior", "prose", "prose-arbiter")}>
+        open prose leaf
+      </button>
+      <button type="button" onClick={(): void => openConfigTo("tags")}>
+        open tags
+      </button>
+      <button type="button" onClick={(): void => selectConfigGroup("workloads", "jobs")}>
+        band click workloads
+      </button>
+      <button type="button" onClick={(): void => selectConfigSub("workloads", "schedules")}>
+        row click schedules
+      </button>
+      <button type="button" onClick={(): void => setActiveConfigSub("analysis")}>
+        spy analysis
+      </button>
+      <button type="button" onClick={(): void => selectCollectionMember("regex", "regex_nav_probe")}>
+        select regex member
+      </button>
+      <button type="button" onClick={(): void => clearActiveConfigGroup()}>
+        clear group
+      </button>
+      <button type="button" onClick={(): void => setActiveSection("chats")}>
+        go to chats
+      </button>
+      <button type="button" onClick={(): void => __resetConfigNav()}>
+        reset nav
       </button>
     </div>
   );

@@ -40,8 +40,8 @@ test("both sections stamp their own admin anchors", async ({ mount, page }) => {
   await stub(page, OWNER);
   await mount(<GovernanceSectionsStory />);
 
-  await expect(page.locator("#settings-anchor-admin-shared-access")).toBeVisible();
-  await expect(page.locator("#settings-anchor-admin-multi-user")).toBeVisible();
+  await expect(page.locator("#config-anchor-admin-shared-access")).toBeVisible();
+  await expect(page.locator("#config-anchor-admin-multi-user")).toBeVisible();
 });
 
 // The ONE predicate, across TWO sections: a delegated admin sees every D17 control disabled — including the
@@ -90,7 +90,7 @@ test("Multi-user's Reset clears only the keys the viewer may clear — owner", a
   const trpc = await stub(page, OWNER, { localMultiUser: true, discreetLogin: true });
   await mount(<GovernanceSectionsStory />);
 
-  await page.locator("#settings-anchor-admin-multi-user").getByRole("button", { name: "Reset to defaults" }).click();
+  await page.locator("#config-anchor-admin-multi-user").getByRole("button", { name: "Reset to defaults" }).click();
   await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ localMultiUser: null, discreetLogin: null });
 });
 
@@ -98,7 +98,7 @@ test("Multi-user's Reset clears only the keys the viewer may clear — delegated
   const trpc = await stub(page, DELEGATED_ADMIN, { localMultiUser: true, discreetLogin: true });
   await mount(<GovernanceSectionsStory />);
 
-  await page.locator("#settings-anchor-admin-multi-user").getByRole("button", { name: "Reset to defaults" }).click();
+  await page.locator("#config-anchor-admin-multi-user").getByRole("button", { name: "Reset to defaults" }).click();
   await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ discreetLogin: null });
 });
 
@@ -108,5 +108,5 @@ test("Shared access offers a delegated admin no Reset at all", async ({ mount, p
   await stub(page, DELEGATED_ADMIN, { allowNonOwnerMaxProSub: true });
   await mount(<GovernanceSectionsStory />);
 
-  await expect(page.locator("#settings-anchor-admin-shared-access").getByRole("button", { name: "Reset to defaults" })).toHaveCount(0);
+  await expect(page.locator("#config-anchor-admin-shared-access").getByRole("button", { name: "Reset to defaults" })).toHaveCount(0);
 });

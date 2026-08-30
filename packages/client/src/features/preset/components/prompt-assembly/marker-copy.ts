@@ -13,6 +13,7 @@ import type { DEFAULT_MARKER_TEMPLATES, MarkerType } from "@orb/contracts/preset
 import { NARRATOR_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
 import type { LucideIcon } from "@orb/ui/icons";
 import { BookOpen, CircleUser, Drama, FileText, History, Library, MapPin, MessagesSquare, Scroll, ScrollText, Sparkles, Zap } from "@orb/ui/icons";
+import type { ConfigGroupId } from "#state";
 
 export interface MarkerCopy {
   readonly label: string;
@@ -158,14 +159,15 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
 
 /** The "manage it over there" door. Every carrier whose substance is authored elsewhere is authored in a
  *  Configuration-workspace COLLECTION (world info left the rail at R2), so the door carries a collection KIND
- *  and the consumer fires `goToCollection`, which lands the reader on that library with its group already
+ *  and the consumer fires `openConfigTo`, which lands the reader on that library with its group already
  *  open rather than on a closed door. If a carrier's source is ever a rail SECTION again, this becomes a
  *  kinded union in the feature's `contract/` — not a second field here. */
 interface CarrierManageDoor {
   readonly label: string;
-  /** The `CollectionContribution.id` — a host-opaque string, spelled here because a cross-feature import of
-   *  the owning feature's constant is dep-cruiser RED (every landed `goToCollection` call site does the same). */
-  readonly collection: string;
+  /** The collection's config GROUP id (`CONFIG_GROUP_IDS`, owner fork F-1) — spelled here because a
+   *  cross-feature import of the owning feature's constant is dep-cruiser RED (every landed `openConfigTo`
+   *  call site does the same); the closed union is what makes the spelling a compile fact. */
+  readonly collection: ConfigGroupId;
 }
 
 /** Where a CARRIER's substance comes from, and where you go to manage it. `manage` is absent when the

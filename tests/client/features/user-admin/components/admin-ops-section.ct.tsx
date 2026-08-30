@@ -10,8 +10,8 @@ test("each ops section stamps its OWN admin anchor (the ids the nav + search jum
   await routeTrpc(page, {});
   await mount(<AdminOpsSectionsStory />);
 
-  await expect(page.locator("#settings-anchor-admin-model-catalog")).toBeVisible();
-  await expect(page.locator("#settings-anchor-admin-card-embeddings")).toBeVisible();
+  await expect(page.locator("#config-anchor-admin-model-catalog")).toBeVisible();
+  await expect(page.locator("#config-anchor-admin-card-embeddings")).toBeVisible();
 });
 
 test("the catalog refreshers fire their admin-gated verbs", async ({ mount, page }) => {

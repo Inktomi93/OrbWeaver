@@ -1,9 +1,26 @@
-// plugins-nav — the Plugins pane's subcategory ids, the ONE home for both ends of the anchor wiring (the
-// `connections-nav.ts` / `backup-nav.ts` precedent): the pane def spells its nav from these, the surface
-// stamps `settingsAnchorId("plugins", …)` from the same constants, so scroll-spy and fuzzy-search jump can
-// never point at an anchor nobody rendered.
+// plugins-nav — the Plugins group's nav entries, the ONE home for both ends of the anchor wiring (the
+// `workloads-jobs-nav.ts` precedent): each contribution def spells its `nav` from these, and each section body
+// stamps `configAnchorId("plugins", …)` from the same constant, so scroll-spy and search jump can never point
+// at an anchor nobody rendered. The group itself is a `sections` skimmer (config-revamp-design.md §6.8) —
+// these two plus the admin-gated distribute section ARE its rows.
 
-export const PLUGINS_SUBCATEGORY_IDS = {
-  installed: "installed",
-  install: "install",
-} as const;
+import type { ConfigSubcategory } from "#state";
+
+export const PLUGINS_INSTALLED_SUBCATEGORY: ConfigSubcategory = {
+  id: "installed",
+  label: "Installed",
+  keywords: ["plugin", "extension", "script", "sandbox", "enable", "disable", "remove", "uninstall", "update", "upgrade", "log"],
+  settings: [
+    {
+      id: "plugin-permissions",
+      label: "What a plugin is allowed to do",
+      keywords: ["permission", "capability", "grant", "consent", "reach", "hosts", "network", "allow"],
+    },
+  ],
+};
+
+export const PLUGINS_INSTALL_SUBCATEGORY: ConfigSubcategory = {
+  id: "install",
+  label: "Add a plugin",
+  keywords: ["install", "bundle", "zip", "manifest", "add", "sideload", "grant", "permission"],
+};

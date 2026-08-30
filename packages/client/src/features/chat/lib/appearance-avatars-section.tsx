@@ -2,13 +2,13 @@
 // chat feature exports on its front door; the composition root assembles it into the ONE settings-section
 // registry and the appearance skimmer pane renders it at its anchor.
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { AppearanceAvatarsSection } from "../components/appearance-avatars-section.tsx";
 import { APPEARANCE_AVATARS_KEYS, APPEARANCE_AVATARS_SUBCATEGORY } from "./appearance-avatars-model.ts";
 
 const SECTION_ID = "appearance-avatars";
 
-export const appearanceAvatarsSection: SettingsSectionContribution = {
+export const appearanceAvatarsSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "appearance",
   nav: APPEARANCE_AVATARS_SUBCATEGORY,

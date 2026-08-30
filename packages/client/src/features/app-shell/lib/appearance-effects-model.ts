@@ -1,11 +1,11 @@
 // The Effects appearance-section MODEL (SET-SEAMS §6, stage 1) — the section's two non-JSX facts: the ONE
-// `SettingsSubcategory` shared by the contribution def and the section body's `<Section>` anchor stamp; split out so
+// `ConfigSubcategory` shared by the contribution def and the section body's `<Section>` anchor stamp; split out so
 // neither imports the other. The `(anchor, subId)` pair is byte-identical to the pre-split pane's own subcategory
 // (§7.1).
 
-import type { SettingsSubcategory } from "#state";
+import type { ConfigSubcategory } from "#state";
 
-export const APPEARANCE_EFFECTS_SUBCATEGORY: SettingsSubcategory = {
+export const APPEARANCE_EFFECTS_SUBCATEGORY: ConfigSubcategory = {
   id: "effects",
   label: "Effects",
   settings: [

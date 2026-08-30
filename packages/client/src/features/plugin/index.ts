@@ -1,16 +1,17 @@
 // features/plugin — the D46 sandbox's client face (interaction-direction-spec §7-C7/§7-C7a). Two surfaces,
-// two homes, because they have two scopes: the PLUGINS settings pane (install · grant · enable · update ·
+// two homes, because they have two scopes: the PLUGINS config group (install · grant · enable · update ·
 // remove · log — PER-USER and ungated, matching the server's user-scoped verbs, D147: `plugin.list` is the
-// caller's own rows and every control acts on a row they own), and the per-room SNIPPET console contributed
-// into chat's "This chat" tab (`runSnippet` is chat-scoped).
+// caller's own rows and every control acts on a row they own — a `sections` skimmer whose rows are the
+// contributions below, config-revamp-design.md §6.8), and the per-room SNIPPET console contributed into
+// chat's "This chat" tab (`runSnippet` is chat-scoped).
 //
-// The front door exports only what the composition root assembles: the pane def and the section def. Every
-// component below them is internal — a consumer that wants a plugin surface takes it through the registry
-// the door builds, never by importing a component (client-architecture-lockdown.md §8/G8).
+// The front door exports only what the composition root assembles: the group def and the section defs.
+// Every component below them is internal — a consumer that wants a plugin surface takes it through the
+// registry the door builds, never by importing a component (client-architecture-lockdown.md §8/G8).
 
-// The two SURFACES are exported alongside the defs (the `RulesSection` precedent in features/automation):
-// a CT mounts only from a non-test module, and the surfaces are what the rendered proofs of the grant
-// screen and the console exercise.
+// The console SURFACE is exported alongside the defs (the `RulesSection` precedent in features/automation):
+// a CT mounts only from a non-test module, and the surface is what the rendered proof of the console
+// exercises. The grant screen's proofs mount the Installed / Add-a-plugin CONTRIBUTIONS themselves.
 
 export { SnippetConsole } from "./components/snippet-console.tsx";
 // The two U2 CHAT-anchor contributions (plugin-ui-plane #679 seam 7) — assembled into chat's surface + section
@@ -31,9 +32,10 @@ export { pluginCommandsChrome } from "./lib/plugin-commands-chrome.tsx";
 export { pluginDialogModal } from "./lib/plugin-dialog-modal.tsx";
 export { pluginDistributeSection } from "./lib/plugin-distribute-section.tsx";
 export { pluginSlashCommands } from "./lib/plugin-slash-commands.ts";
-export { pluginsPane } from "./lib/plugins-pane.tsx";
+export { pluginsGroup } from "./lib/plugins-group.tsx";
+export { pluginsInstallSection } from "./lib/plugins-install-section.tsx";
+export { pluginsInstalledSection } from "./lib/plugins-installed-section.tsx";
 export { pluginSnippetConsoleSection } from "./lib/snippet-console-section.tsx";
 // The U3 TOOL-CARD contribution (plugin-ui-plane #679 seam 7) — one member of chat's `toolRenderers` registry,
 // claiming the `plugin_` tool namespace; chat imports nothing from here.
 export { pluginToolRenderer } from "./lib/tool-card.tsx";
-export { PluginsSettingsSurface } from "./surfaces/plugins-settings-surface.tsx";

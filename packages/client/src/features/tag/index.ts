@@ -4,3 +4,4 @@
 // characters, chats, world books, personas and presets, so no other feature is their reader.
 
 export { tagCollection } from "./lib/tag-collection.tsx";
+export { tagsGroup } from "./lib/tags-group.tsx";

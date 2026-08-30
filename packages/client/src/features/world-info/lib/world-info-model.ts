@@ -3,7 +3,7 @@
 import type { BookWithUsage } from "@orb/contracts/world-info";
 
 /** The collection KIND — registry key, React key, selection kind axis. ONE home (the definition, the create
- *  and import verbs that select what they just made, and every cross-feature `goToCollection` caller all
+ *  and import verbs that select what they just made, and every cross-feature `openConfigTo` caller all
  *  read it). Deliberately the SAME string the retired rail section used as its `SectionId`: the two
  *  vocabularies never coexist (R2 removes the section in the commit that adds the collection), and reusing
  *  it means a user's muscle memory and every doc sentence about "worldInfo" still names the same thing. */

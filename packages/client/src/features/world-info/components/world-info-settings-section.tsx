@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { SectionSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { WORLD_INFO_SETTINGS_ENTITY_ID, WorldInfoSettingsAutosaveForm } from "../hooks/use-world-info-settings-form.ts";
 import { SCAN_DEPTH_MAX, SCAN_DEPTH_MIN, WI_TOKEN_BUDGET_MAX, WI_TOKEN_BUDGET_MIN } from "../lib/world-info-settings-model.ts";
 import { WORLD_INFO_SETTINGS_SUBCATEGORY } from "../lib/world-info-settings-nav.ts";
@@ -68,7 +68,7 @@ function WorldInfoSettingsFormBody({ sectionId }: { readonly sectionId: string }
 function WorldInfoSettingsBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<WorldInfoSettingsForm> }): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section divider={true} heading={WORLD_INFO_SETTINGS_SUBCATEGORY.label} id={settingsAnchorId("chat-behavior", WORLD_INFO_SETTINGS_SUBCATEGORY.id)}>
+    <Section divider={true} heading={WORLD_INFO_SETTINGS_SUBCATEGORY.label} id={configAnchorId("chat-behavior", WORLD_INFO_SETTINGS_SUBCATEGORY.id)}>
       <FieldLayout orientation="horizontal">
         <Container>
           <Stack gap="field">

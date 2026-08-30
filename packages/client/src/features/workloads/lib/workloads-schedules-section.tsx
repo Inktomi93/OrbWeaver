@@ -4,11 +4,11 @@
 // No `owns` claim: the section persists nothing through the settings tiers — recurring schedules are rows
 // behind the `workloads.*Schedule` verbs, so it is exempt from the §2.3 key partition.
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { SchedulesSection } from "../components/schedules-section.tsx";
 import { WORKLOADS_SCHEDULES_SUBCATEGORY } from "./workloads-schedules-nav.ts";
 
-export const workloadsSchedulesSection: SettingsSectionContribution = {
+export const workloadsSchedulesSection: ConfigSectionContribution = {
   id: "workloads-schedules",
   anchor: "workloads",
   nav: WORKLOADS_SCHEDULES_SUBCATEGORY,
