@@ -48,32 +48,34 @@
     },
     {
       "path": "docs/history/design/composer-action-anatomy.md",
-      "assignedSha256": "e27103ab2fef772b813b25284888a7421e198302a4cd34a8e0c9e231d1a52236",
+      "assignedSha256": "73102123c641010b99e7e8bcc29dcab7c1212ea9f0ca30f58c02a19db4d001da",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "e27103ab2fef772b813b25284888a7421e198302a4cd34a8e0c9e231d1a52236",
-      "verifiedCommit": "8faff2ff3f479e65540954e32af25f62c8561564",
-      "verifiedAt": "2026-08-20",
+      "verifiedSha256": "73102123c641010b99e7e8bcc29dcab7c1212ea9f0ca30f58c02a19db4d001da",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/design/composer-action-anatomy.md:1-69 full read as the superseded pre-grid design record",
         "git show 8faff2ff3f479e65540954e32af25f62c8561564:docs/history/design/composer-action-anatomy.md: SHA-256 e27103ab2fef772b813b25284888a7421e198302a4cd34a8e0c9e231d1a52236",
-        "docs/design/chat-visual-findings-364-366.md: current four-home explicit-grid design"
+        "docs/design/chat-visual-findings-364-366.md: current four-home explicit-grid design",
+        "docs/history/design/composer-action-anatomy.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Archived pre-grid composer design retained as historical evidence; its one-wrapping-row and three-group layout is explicitly superseded and is not current implementation authority."
     },
     {
       "path": "docs/history/design/home-section-spec.md",
-      "assignedSha256": "ad0016831e14476d781d3eda9ae43050ec849cb8265976490d45c5a16b79a763",
+      "assignedSha256": "891a10cb2ea26585a6146f2dac820da53be9c0c224c79e8267336146c015f475",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "ad0016831e14476d781d3eda9ae43050ec849cb8265976490d45c5a16b79a763",
-      "verifiedCommit": "e1b891d46194b20b6cae9f25868872763bd9f4c8",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "891a10cb2ea26585a6146f2dac820da53be9c0c224c79e8267336146c015f475",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/design/home-section-spec.md:1-581 full read; SHA-256 matches frozen manifest",
-        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
+        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
+        "docs/history/design/home-section-spec.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
@@ -156,32 +158,34 @@
     },
     {
       "path": "docs/history/dogfood-tracking-2026-08-08.md",
-      "assignedSha256": "71924ab85928e72ea6e73ec96280b82c31aceebdcd27f6fa7418167c6baaa73c",
+      "assignedSha256": "d9a24edf837aadceb7d9d5695d019ed374c79d8a1ef1f8083349976619d6e72d",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "71924ab85928e72ea6e73ec96280b82c31aceebdcd27f6fa7418167c6baaa73c",
-      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "d9a24edf837aadceb7d9d5695d019ed374c79d8a1ef1f8083349976619d6e72d",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/dogfood-tracking-2026-08-08.md:1-2289 full read; SHA-256 matches frozen manifest",
-        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
+        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
+        "docs/history/dogfood-tracking-2026-08-08.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
     {
       "path": "docs/history/retro-workboard-2026-08-03.md",
-      "assignedSha256": "fb1393e502d668fe5b872b55296fe4fd1eb9413fa62b36d5e7fa65b1373eda6d",
+      "assignedSha256": "eb503718dd74c85cacb67988df26ad44ae52b3b99a10482f8c198bb9c7d4daa8",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "fb1393e502d668fe5b872b55296fe4fd1eb9413fa62b36d5e7fa65b1373eda6d",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "eb503718dd74c85cacb67988df26ad44ae52b3b99a10482f8c198bb9c7d4daa8",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/retro-workboard-2026-08-03.md:1-4071 full read; SHA-256 matches frozen manifest",
         "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
-        "docs/history/retro-workboard-2026-08-03.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/retro-workboard-2026-08-03.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/retro-workboard-2026-08-03.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
@@ -202,49 +206,52 @@
     },
     {
       "path": "docs/history/retro-workboard-2026-08-08.md",
-      "assignedSha256": "87e9ef4844fa15e204827c9bbe91403802ec4417788c2a9ec2b9bc5a6e1a3ad7",
+      "assignedSha256": "d3bd81f350e82b580545a3dd4016c80a39eaccd6415185e05646a1fffe8c2ab4",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "87e9ef4844fa15e204827c9bbe91403802ec4417788c2a9ec2b9bc5a6e1a3ad7",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "d3bd81f350e82b580545a3dd4016c80a39eaccd6415185e05646a1fffe8c2ab4",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/retro-workboard-2026-08-08.md:1-2588 full read; SHA-256 matches frozen manifest",
         "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
-        "docs/history/retro-workboard-2026-08-08.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/retro-workboard-2026-08-08.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/retro-workboard-2026-08-08.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
     {
       "path": "docs/history/retro-workboard-2026-08-09.md",
-      "assignedSha256": "10f474df6afeefd21fb4fde827ffe0d0a8f20d81c66b97df217c55bd5a9aa277",
+      "assignedSha256": "6076b1429f3623f3e93b0d110f2378dd9cd94fed4e5088f039fd2a1b5be85f9f",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "10f474df6afeefd21fb4fde827ffe0d0a8f20d81c66b97df217c55bd5a9aa277",
-      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "6076b1429f3623f3e93b0d110f2378dd9cd94fed4e5088f039fd2a1b5be85f9f",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/retro-workboard-2026-08-09.md:1-1098 full read; SHA-256 matches frozen manifest",
-        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
+        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
+        "docs/history/retro-workboard-2026-08-09.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
     {
       "path": "docs/history/retro-workboard-2026-08-14.md",
-      "assignedSha256": "e57e940594934f881c71ece79637b3d11206505866318bc55689219943714389",
+      "assignedSha256": "cdc2e11a14b66eed3269276660b92df4cb95fd6762619f7ce4dbd7a7f5534f27",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "e57e940594934f881c71ece79637b3d11206505866318bc55689219943714389",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "cdc2e11a14b66eed3269276660b92df4cb95fd6762619f7ce4dbd7a7f5534f27",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/retro-workboard-2026-08-14.md:1-1816 full read; lifecycle banner and repaired relative links preserve the pre-split 1816-line address space",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 provenance and authority boundary)",
         "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived snapshot blob",
-        "docs/history/retro-workboard-2026-08-14.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/retro-workboard-2026-08-14.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/retro-workboard-2026-08-14.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Frozen pre-Project workboard retained as immutable provenance; its checkboxes and status prose are not executable current work."
     },
@@ -477,17 +484,18 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-03-avatar-pack-v2.md",
-      "assignedSha256": "dc262b97dbda3f6412f8d18062772b8d4849caab9e251c570a28444d053e1e2c",
+      "assignedSha256": "10c2d17ba854e11cb46fe3ec8104aefaf92e27dc3a39b413e3635fc377576e6b",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "dc262b97dbda3f6412f8d18062772b8d4849caab9e251c570a28444d053e1e2c",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "10c2d17ba854e11cb46fe3ec8104aefaf92e27dc3a39b413e3635fc377576e6b",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/reviews/misc/2026-08-03-avatar-pack-v2.md:1-141 full read; SHA-256 matches frozen manifest",
         "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
-        "docs/history/reviews/misc/2026-08-03-avatar-pack-v2.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/misc/2026-08-03-avatar-pack-v2.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/misc/2026-08-03-avatar-pack-v2.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
@@ -629,16 +637,17 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-08-followup-gap-audit.md",
-      "assignedSha256": "dab2d8a601b445d53db7bb4e96c1588f4db3a8a95daafd1b105386356e8d4cdd",
+      "assignedSha256": "7c1ef8080b663bdfb0612b125951dab10f6e2f0ebeb74c155802317926334826",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "dab2d8a601b445d53db7bb4e96c1588f4db3a8a95daafd1b105386356e8d4cdd",
-      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "7c1ef8080b663bdfb0612b125951dab10f6e2f0ebeb74c155802317926334826",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/reviews/misc/2026-08-08-followup-gap-audit.md:1-93 full read; SHA-256 matches frozen manifest",
-        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
+        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
+        "docs/history/reviews/misc/2026-08-08-followup-gap-audit.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
@@ -783,16 +792,17 @@
     },
     {
       "path": "docs/history/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md",
-      "assignedSha256": "7b4f6b9d0b9bf77901f24f6ec331355f3dd43935a4fec6eae7278ccfca0c8ac4",
+      "assignedSha256": "21733326d5cea5504cf5e33739d31e469b58a646a8b4613af53c51abbd00c8d7",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "7b4f6b9d0b9bf77901f24f6ec331355f3dd43935a4fec6eae7278ccfca0c8ac4",
-      "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
-      "verifiedAt": "2026-08-15",
+      "verifiedSha256": "21733326d5cea5504cf5e33739d31e469b58a646a8b4613af53c51abbd00c8d7",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md:1-201 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14",
+        "docs/history/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
     },
@@ -1135,16 +1145,17 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-07-27-w4-my-lane.md",
-      "assignedSha256": "150e9a2cf69a4a546c4fc293276a91e7c1eaba00f5cb1021059d73660b6a3858",
+      "assignedSha256": "fe5e0ee7eb95238c5bde9a56697de52364d69d223308832ca4858533ec748c31",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "150e9a2cf69a4a546c4fc293276a91e7c1eaba00f5cb1021059d73660b6a3858",
-      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "fe5e0ee7eb95238c5bde9a56697de52364d69d223308832ca4858533ec748c31",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/reviews/stickler/2026-07-27-w4-my-lane.md:1-173 full read; SHA-256 matches frozen manifest",
-        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
+        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
+        "docs/history/reviews/stickler/2026-07-27-w4-my-lane.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
@@ -1390,16 +1401,17 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-08-08-canon-message-identity.md",
-      "assignedSha256": "cdb8f2796ba2348e77d8b710aec0fc7921e2fd42cc24557a916e59484f48567e",
+      "assignedSha256": "0031ab7303facc3189357b143f80601b208d0992e7f914e5dd06f46245b89b9f",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "cdb8f2796ba2348e77d8b710aec0fc7921e2fd42cc24557a916e59484f48567e",
-      "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
-      "verifiedAt": "2026-08-15",
+      "verifiedSha256": "0031ab7303facc3189357b143f80601b208d0992e7f914e5dd06f46245b89b9f",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/stickler/2026-08-08-canon-message-identity.md:1-931 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14",
+        "docs/history/reviews/stickler/2026-08-08-canon-message-identity.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
     },
@@ -1526,17 +1538,18 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md",
-      "assignedSha256": "1433a608365977acbd0e166abbaa30136b3e22b52bb8db39b38a3536ce0ce5c0",
+      "assignedSha256": "e8f9d3415e13961c5e338ebd8cac50759fb4b240c91dd0f79cbc964dea159ef4",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "1433a608365977acbd0e166abbaa30136b3e22b52bb8db39b38a3536ce0ce5c0",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "e8f9d3415e13961c5e338ebd8cac50759fb4b240c91dd0f79cbc964dea159ef4",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md:1-347 full read; active review metadata verified",
         "packages/server/src/domain/chat/verbs/turn.ts:848 and GitHub issue #7 (OPEN) checked on 2026-08-14",
-        "docs/history/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -1588,17 +1601,18 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-14-dogfood-class-sweep.md",
-      "assignedSha256": "48ba51ec9b9f40c26ca4c7706410d6a840f7906a772ba90eb1e5386f23038a47",
+      "assignedSha256": "1be3378c8f891dd6c8271a2b61c6f32a76179a3c618e3bb4096b05288c522b8d",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "48ba51ec9b9f40c26ca4c7706410d6a840f7906a772ba90eb1e5386f23038a47",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "1be3378c8f891dd6c8271a2b61c6f32a76179a3c618e3bb4096b05288c522b8d",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/2026-08-14-dogfood-class-sweep.md:1-210 full read; active review metadata verified",
         "packages/client/src/components/character-picker.tsx:1 and GitHub issue #45 (OPEN) checked on 2026-08-14",
-        "docs/history/reviews/misc/2026-08-14-dogfood-class-sweep.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/misc/2026-08-14-dogfood-class-sweep.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/misc/2026-08-14-dogfood-class-sweep.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -1722,17 +1736,18 @@
     },
     {
       "path": "docs/history/reviews/misc/marinara-engine-parser-macro-audit.md",
-      "assignedSha256": "1636d10b1f41f7b45cf6d89ba9cca87f5d6c7e95b9df0ab77ec99f294132d187",
+      "assignedSha256": "c528ebb713ac96582d81a59ad808b8e819297c453784db2aaad0d55ec9fe33a7",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "1636d10b1f41f7b45cf6d89ba9cca87f5d6c7e95b9df0ab77ec99f294132d187",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "c528ebb713ac96582d81a59ad808b8e819297c453784db2aaad0d55ec9fe33a7",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/marinara-engine-parser-macro-audit.md:1-279 full read; active review metadata verified",
         "packages/kit/src/macro/engine.ts:1 and GitHub issue #28 (OPEN) checked on 2026-08-14",
-        "docs/history/reviews/misc/marinara-engine-parser-macro-audit.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/misc/marinara-engine-parser-macro-audit.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/misc/marinara-engine-parser-macro-audit.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -1915,12 +1930,12 @@
     },
     {
       "path": "docs/history/reviews/misc/server-usage-settlement-receipt-2026-08-20.md",
-      "assignedSha256": "b52b0ffb032e7cb82f77b3dc1cb47d4385bcbc4099a02fdbdbf5f0141f8648db",
+      "assignedSha256": "589dfc8a9b69a7039d38b62d2ba27dcd5f633b8d10492e764743277570ae321d",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "b52b0ffb032e7cb82f77b3dc1cb47d4385bcbc4099a02fdbdbf5f0141f8648db",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "589dfc8a9b69a7039d38b62d2ba27dcd5f633b8d10492e764743277570ae321d",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/server-usage-settlement-receipt-2026-08-20.md:1-119 full read against repair commit 746d686e0d76efc1772edf3199243a559311d71c",
@@ -1928,7 +1943,8 @@
         "stacked catalog commit 768af7dc0b8a2f72d0c0acdf8f846ea89b80027b passed the complete static pre-commit verifier",
         "scratch-real-corpus workload and live-source immutability receipts recorded in the reviewed document",
         "GitHub issues #290 and #291 re-derived on 2026-08-20",
-        "docs/history/reviews/misc/server-usage-settlement-receipt-2026-08-20.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/misc/server-usage-settlement-receipt-2026-08-20.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/misc/server-usage-settlement-receipt-2026-08-20.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Current verification receipt for #290 and #291: real-corpus scratch counts, idempotency, measured-wins CAS, nullable provider usage, live/rebuild parity, portable-state validation, bounded behavioral tests, and final static gates.",
       "claims": [
@@ -2375,17 +2391,18 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-08-14-staleness-diagnosis.md",
-      "assignedSha256": "fc8b08e866fa67b5db7d5142dd7941d78f61b8b2f27d7a06d49af2454ded9487",
+      "assignedSha256": "6fd422918c495dc278bceccf43ebced7b5ba39ee7a1f88d0f19b139379205a5b",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "fc8b08e866fa67b5db7d5142dd7941d78f61b8b2f27d7a06d49af2454ded9487",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "6fd422918c495dc278bceccf43ebced7b5ba39ee7a1f88d0f19b139379205a5b",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/stickler/2026-08-14-staleness-diagnosis.md:1-100 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14",
-        "docs/history/reviews/stickler/2026-08-14-staleness-diagnosis.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/stickler/2026-08-14-staleness-diagnosis.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/stickler/2026-08-14-staleness-diagnosis.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -2521,17 +2538,18 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-08-23-interaction-redesign-plan.md",
-      "assignedSha256": "8bed20530a754429e914f40b62cbedcc4bc35a59e6fb74b961d264a884426fb7",
+      "assignedSha256": "9354faa5a8dbe5b040b46b9fc4f2a4b3a0127c78f79c45b0e6f2f86f56b43072",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "8bed20530a754429e914f40b62cbedcc4bc35a59e6fb74b961d264a884426fb7",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "9354faa5a8dbe5b040b46b9fc4f2a4b3a0127c78f79c45b0e6f2f86f56b43072",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/interaction-direction-spec.md:571-588 (§10 PROVENANCE) cites the 2026-08-23 plan/audit lineage as superseded provenance",
         "landed uncommitted from the 2026-08-23 stickler lanes; committed as provenance at dd1921de7",
-        "docs/history/reviews/stickler/2026-08-23-interaction-redesign-plan.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/stickler/2026-08-23-interaction-redesign-plan.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/stickler/2026-08-23-interaction-redesign-plan.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Superseded lineage: the 2026-08-23 interaction redesign plan draft; consolidated into docs/design/interaction-direction-spec.md (spec §10 names it as provenance). Reading-material status: superseded by the spec; kept as the argument record."
     },
@@ -2603,18 +2621,19 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-08-25-issue-712-gate-family.md",
-      "assignedSha256": "9dd957a0820f5ecd05dbd6b8fd10316d22731895bc1437b2da188cb27b75cbbc",
+      "assignedSha256": "4c5a18b2c36a3283ba7fd40c662922d35eab47673c9d91c5c1531b10a08db9d2",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "9dd957a0820f5ecd05dbd6b8fd10316d22731895bc1437b2da188cb27b75cbbc",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "4c5a18b2c36a3283ba7fd40c662922d35eab47673c9d91c5c1531b10a08db9d2",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/stickler/2026-08-25-issue-712-gate-family.md:1-254 full read; all eight findings carry executable counterexamples and exact mechanism receipts",
         "repair commit 767fc44cc adds red-first controls for every confirmed finding and reports zero live-tree findings with nonzero scan denominators",
         "focused conformance, card-frame, and review-mirror suites passed 29/29; contracts, server, and tooling type programs passed",
-        "docs/history/reviews/stickler/2026-08-25-issue-712-gate-family.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/stickler/2026-08-25-issue-712-gate-family.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/stickler/2026-08-25-issue-712-gate-family.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Fresh-context review and repair receipt for issue #712: eight relational gate and evidence false-cleans were reproduced, repaired, and pinned; E7 remains an explicit 34-row review-tier census rather than a universal static gate.",
       "claims": [
@@ -2835,12 +2854,12 @@
     },
     {
       "path": "docs/history/reviews/tooling/2026-08-22-research-zone-assessment.md",
-      "assignedSha256": "b1dc67544399cbd7259c068b37117dc8810baa8ca543515c54873eca8b10cce6",
+      "assignedSha256": "208adbb79ea89841f598c815a02fd5362d47879444f2eff6b416e5a200b4ad45",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "b1dc67544399cbd7259c068b37117dc8810baa8ca543515c54873eca8b10cce6",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "208adbb79ea89841f598c815a02fd5362d47879444f2eff6b416e5a200b4ad45",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "claims": [
         {
@@ -2859,9 +2878,1447 @@
       ],
       "evidence": [
         "full read 1-323 at re-attest (2026-08-22); typecheck:graph exit 0 proves every scripts/*.ts compiles (tsconfig includes scripts); pnpm ast blind to scripts/ so liveness used scoped literal search",
-        "docs/history/reviews/tooling/2026-08-22-research-zone-assessment.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/tooling/2026-08-22-research-zone-assessment.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/tooling/2026-08-22-research-zone-assessment.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Research-zone assessment: three tool candidates ranked with effort, rpg-extraction identified as the delete shortlist, three classification challenges to scripts/README."
+    },
+    {
+      "path": "docs/history/design/actions-tab-information-architecture.md",
+      "assignedSha256": "f21796556fbc4c33a8b34f95f24ac353fe3155ab86ffa0c61064f4d590e284bf",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "f21796556fbc4c33a8b34f95f24ac353fe3155ab86ffa0c61064f4d590e284bf",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/actions-tab-information-architecture.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/actions-tab-information-architecture.md: 98adcec67 docs(design): Actions-tab IA truth-repaired to the merged tree — 67 rows / 41 extract / round=8; measured perf before/after recorded",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/actions-tab-information-architecture.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "The Actions tab at 67 rows — information architecture (FORGE lane, 2026-08-08): full content read against frozen tree; landed-state record retained as historical evidence.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #52.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/lib/collection-contracts.ts:43"
+            },
+            {
+              "kind": "issue",
+              "target": "#52"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/async-test-policy.md",
+      "assignedSha256": "3c99101ff9885bc5db07e3c38ece1ea153902d24d8fb3600da093a5af5541288",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "3c99101ff9885bc5db07e3c38ece1ea153902d24d8fb3600da093a5af5541288",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/async-test-policy.md:1-281 (full read; implemented design and measured migration census)",
+        "GitHub issue #730 (policy outcome and lifecycle authority)",
+        "focused verification at lane commit 10875820f: chat 72/72, workload runner 11/11, affected server 111/111, LogViewer CT 16/16, gate conformance 8/8, suppression/monotonic residuals 15/15, TS7 and typed ESLint green",
+        "cold integration recheck at commit 24c55baa9: a partial-stream provider failure with a held durable delta cannot settle or emit turnAborted before the delta drain; engine integration passed 72/72 and TS7 graph passed. The permanent held-delta control was transplanted onto old source 4ec7f9b75 and failed exactly because runTurn had already settled before release.",
+        "docs/history/design/async-test-policy.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Implemented #730 design of record: sequential work remains sequential, detached promises cross one supervised boundary, and unavailable versus required live evidence is represented truthfully.",
+      "claims": [
+        {
+          "claim": "Promise ownership is explicit: raw void no longer exempts floating promises, and genuinely detached server work crosses the named supervised boundary.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "eslint.config.js:341"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/foundation/observability/tracing.ts:347"
+            },
+            {
+              "kind": "issue",
+              "target": "#730"
+            }
+          ]
+        },
+        {
+          "claim": "The required live-test front door fails instead of reporting a clean run when every collected Playwright outcome is skipped.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "playwright.config.ts:33"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/ops/required-live-evidence-reporter.ts:31"
+            },
+            {
+              "kind": "issue",
+              "target": "#730"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/chat-creation-draft-mode-replacement.md",
+      "assignedSha256": "8ff65b44142b7b26e9b2db29c7d3a726e0b97d1cd4e1faafccec241bd298ee33",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "8ff65b44142b7b26e9b2db29c7d3a726e0b97d1cd4e1faafccec241bd298ee33",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/chat-creation-draft-mode-replacement.md:1 (design; proposed)",
+        "git log --oneline -1 -- docs/design/chat-creation-draft-mode-replacement.md: d05081dee feat(chat): forceCharacterTurn accepts its slot + F6 in-window join greeting",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/chat-creation-draft-mode-replacement.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Chat-creation draft mode → instant-create — cost inventory, research, design, migration: full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/chat-date-navigation-207.md",
+      "assignedSha256": "350d1b1e630f8c8c49311b5c0a62d50fb5c73c14231a93a6b489e3178093c20a",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "350d1b1e630f8c8c49311b5c0a62d50fb5c73c14231a93a6b489e3178093c20a",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/chat-date-navigation-207.md:1-63 (design; full read at 4cc29f609a1ece0daf95693d0c9c20af9e469180 — the truth-repair commit; the pre-repair prose described a keyed-REMOUNT the shipped code rejects)",
+        "packages/server/src/domain/chat/persistence/queries.ts:349 (exclusive displayed-recency scope)",
+        "packages/client/src/features/chat/lib/chat-list-scope.ts:15 (month boundary) and :43 (the composed scope identity of all three narrowing axes)",
+        "packages/ui/src/primitives/virtual-list/virtual-list.tsx:50 (the resetScrollKey/resetScrollReady in-place reset seam — no remount)",
+        "focused behavioral verification: chat-list component CT 54/54; virtual-list + input CT 28/28; chat lib unit 232/232",
+        "docs/history/design/chat-date-navigation-207.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Chat date navigation (#207): current design of record for the exclusive displayed-recency month lens, preserving D18 membership projection, deterministic keyset paging, and the existing virtualized collection. Truth-repaired 2026-08-21 (#385): the scroll reset is an in-place resetScrollKey/resetScrollReady handshake over ALL THREE narrowing axes, never a keyed remount.",
+      "claims": [
+        {
+          "claim": "The chat list accepts one exclusive displayed-recency upper bound, applies it inside the shared member scope, and resets the existing virtualizer IN PLACE — no remount — when any narrowing axis (character, search, month bound) changes. Mutable lifecycle remains in GitHub issues #207 and #385.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/contract/params.ts:98"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/persistence/queries.ts:349"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/lib/chat-list-scope.ts:43"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:366"
+            },
+            {
+              "kind": "issue",
+              "target": "#207"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/chat-video-input.md",
+      "assignedSha256": "c4590c7ce0d7e536e2c36dc38b5ae943a5a35030ba04163a47586df0263d947d",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "c4590c7ce0d7e536e2c36dc38b5ae943a5a35030ba04163a47586df0263d947d",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/chat-video-input.md:1 (design; full read at the merged tree, lane barrier-fixup)",
+        "git log --oneline -1 -- docs/design/chat-video-input.md: 0b05fed84 feat(chat): video input end-to-end — gif/mp4/webm to the VL model, D45 image wire finished (#317)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/chat-video-input.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Chat video input (#317) — gif/mp4/webm to the VL model, finishing the D45 image wire: full content read against the merged tree; the design-of-record for a shipped feature, retained as active design. Code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The wire model adds a `video` ChatContentPart union member (not a flag), reusing the D51 asset ref; media kind is classified at the resolve seam (video/* and animated gif → video). Mutable follow-up tracked in GitHub issue #317.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/chat/bus.ts:46"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/compose/resolve-image-ref.ts:26"
+            },
+            {
+              "kind": "issue",
+              "target": "#317"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/chat-visual-findings-364-366.md",
+      "assignedSha256": "0624045d111405e1d603fd3f0f1f15289b39c678e474d41d768ca8a91ecc837e",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "0624045d111405e1d603fd3f0f1f15289b39c678e474d41d768ca8a91ecc837e",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/chat-visual-findings-364-366.md:1-67 full read against implementation commit b3ab26baf62d236809c66e6ae524a95f2fda18ce",
+        "git show 8faff2ff3f479e65540954e32af25f62c8561564:docs/design/chat-visual-findings-364-366.md: SHA-256 4dc0dcdcbd2ba734c072073125f5720a243ad9b858d3c3e2fe14bcc03fb5f474",
+        "fresh Playwright CT: 54 passed across composer, face strip, and actionBar grid",
+        "private rendered matrix: 80/80 appearance arms plus Light, none, focus, context, and coarse-width controls",
+        "docs/history/design/chat-visual-findings-364-366.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Issues #364-#366 design and as-built receipt: four explicit composer action homes, the guided-control leaf split, semantic functional face labels, and immediate paint-transition-free keyboard focus, with scoped CT and private rendered evidence.",
+      "claims": [
+        {
+          "claim": "The composer cluster owns four semantic action homes on explicit responsive grid rows, including impersonation Stop under Your message, while four presentation leaves live in composer-guided-buttons.tsx and are imported directly by the cluster.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/components/composer-guided-cluster.tsx:39"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/components/composer-guided-buttons.tsx:29"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/features/chat/components/composer.ct.tsx:238"
+            },
+            {
+              "kind": "issue",
+              "target": "#364"
+            }
+          ]
+        },
+        {
+          "claim": "Visible face-filter captions and overflow labels use the semantic functional-label voice while Buttons retain their full accessible names.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/components/face-strip.tsx:255"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/components/face-strip.ct.tsx:93"
+            },
+            {
+              "kind": "issue",
+              "target": "#365"
+            }
+          ]
+        },
+        {
+          "claim": "Keyboard focus preserves the immediate composer ring and glow without a non-zero paint transition in full or reduced motion.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/components/composer.tsx:383"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/features/chat/components/composer.ct.tsx:461"
+            },
+            {
+              "kind": "issue",
+              "target": "#366"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/context-panel-fidelity-findings.md",
+      "assignedSha256": "b6d183a8746fbf73dae9866f31db353d715469dc5ac7dc8b56c8ad04558b8959",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "b6d183a8746fbf73dae9866f31db353d715469dc5ac7dc8b56c8ad04558b8959",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/context-panel-fidelity-findings.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/context-panel-fidelity-findings.md: f066b71b7 feat(chat): the context-budget bar is FILL-VS-HEADROOM (owner ruling D-4a)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/context-panel-fidelity-findings.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Context-panel meta-tabs + model picker — fidelity findings (the \"is it getting dirty\" audit): full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/default-character-roster.md",
+      "assignedSha256": "13d4ded2e4af45efdea69a2be495ad3118e6efbd7a50ee567c9ea6ec10a4754a",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "13d4ded2e4af45efdea69a2be495ad3118e6efbd7a50ee567c9ea6ec10a4754a",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/default-character-roster.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/default-character-roster.md: f01e98460 docs(design): roster — UI-copy rider: Charlotte's welcome-slot line now matches real menu copy ('Set as welcome greeter', character-actions-menu.tsx:67); old card's 'Set / Unset as Welcome Page Assistant / More…' was pre-existing rot (no such affordance). Receipt in wiring notes item 8.",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/default-character-roster.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Default character roster — authored pack v2: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #56.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/character/seeder/cards.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#56"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/draft-trust-render-policy-seam.md",
+      "assignedSha256": "71d9c66153971ce70335efc29ea34f7f782edc841a8d84fb64f6fb01832ef1c9",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "71d9c66153971ce70335efc29ea34f7f782edc841a8d84fb64f6fb01832ef1c9",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/draft-trust-render-policy-seam.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/draft-trust-render-policy-seam.md: 7e0301698 docs: #48 + #50 merged (a6133ffe4/02f0a91a0); draft-trust doc corrected (inverted mechanism, arm 1 built); C12 refused",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/draft-trust-render-policy-seam.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "DRAFT-TRUST render-policy seam — decision brief: full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/event-bus-coverage-survey.md",
+      "assignedSha256": "f5dc2ae9d2000733202021f9439ee8a7759f2693c59a05983904c630c4d7aa62",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "f5dc2ae9d2000733202021f9439ee8a7759f2693c59a05983904c630c4d7aa62",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/event-bus-coverage-survey.md:1 (design; active)",
+        "git log --oneline -1 -- docs/design/event-bus-coverage-survey.md: 7ba64dd95 feat(bus): rulesChanged wired + databankChanged + corpusRecomputed sweep terminals",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/design/event-bus-coverage-survey.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+        "docs/history/design/event-bus-coverage-survey.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Event-bus coverage survey — inventory · audit · gate expansion · the extension contract: full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/gate-ignore-mention-fence.md",
+      "assignedSha256": "4801bedf3ab487a63e66f00eb125ee10e884964995dbdbaaf9910cec7e9a3adf",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "4801bedf3ab487a63e66f00eb125ee10e884964995dbdbaaf9910cec7e9a3adf",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/gate-ignore-mention-fence.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob",
+        "docs/history/design/gate-ignore-mention-fence.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
+    },
+    {
+      "path": "docs/history/design/interaction-substrate-spec.md",
+      "assignedSha256": "509d1f10cf1321d93b123726c615be7dda5d3c11b255f283331e0c85fa0587b3",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "509d1f10cf1321d93b123726c615be7dda5d3c11b255f283331e0c85fa0587b3",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/interaction-substrate-spec.md:1-9 supersession header pointing at interaction-direction-spec.md (e69f96774)",
+        "docs/history/design/interaction-substrate-spec.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Superseded commissioning draft (2026-08-23) of the interaction direction; provenance only."
+    },
+    {
+      "path": "docs/history/design/issue-712-gate-family.md",
+      "assignedSha256": "25314f334cab08cdd4e7dca919fb7669139a1e77a5b790b2295a62aa347cb793",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "25314f334cab08cdd4e7dca919fb7669139a1e77a5b790b2295a62aa347cb793",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/issue-712-gate-family.md read in full after integration commit fac181a77; every E1-E8 disposition and the explicit 34-control E7 review residual were rechecked against issue #712, the live paired seams, and the generated 588-TSX / 67-control census",
+        "tooling/src/verify/gates/GATE-AUTHORING.md:49 fail-closed descriptor contract",
+        "docs/architecture/core/Core-0-Architecture-and-Structure.md:314 durable-tool versus research-zone boundary",
+        "docs/design/issue-712-gate-family.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+        "docs/history/design/issue-712-gate-family.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Issue #712 implementation design: extend the existing owner-write family; add three narrow active gates; keep E5/E6/E7 in generated review evidence; promote the review mirror to a fail-closed manual milestone tool under the D62 no-CI ruling.",
+      "claims": [
+        {
+          "claim": "The E1-E8 disposition implements issue #712 without claiming semantic dataflow properties as generic static gates.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#712"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/GATE-AUTHORING.md:480"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/issue-720-retry-safe-creation-handoff.md",
+      "assignedSha256": "46e10b53701edfaedef2ce66101ff454eecea69030fbf642334df496c890923e",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "46e10b53701edfaedef2ce66101ff454eecea69030fbf642334df496c890923e",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/issue-720-retry-safe-creation-handoff.md read in full before implementation and re-read against the integrated tree at 472424d8c",
+        "focused behavioral and DB integration verification at bc269a845: 15 files, 230 tests passed, including deterministic concurrent image/import controls and injected game/event/actor/bus failures",
+        "pnpm typecheck (TS7) green; Biome and typed ESLint green over every touched TypeScript file",
+        "docs/history/design/issue-720-retry-safe-creation-handoff.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Issue #720 implemented design of record: retry-only canonical imagery allocation, a character-scoped atomic import claim, one room/game/pointer/chatCreated birth batch, and host-handoff audit plus a durable resumable actor/event tail.",
+      "claims": [
+        {
+          "claim": "The four creation and handoff workflows converge under the concurrent and injected-failure cases required by issue #720.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#720"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/issue-721-runtime-bounds.md",
+      "assignedSha256": "1cbf35217de90b06eac379f175834a1bd4355e7ae7f7fa177dc5926796d811d0",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "1cbf35217de90b06eac379f175834a1bd4355e7ae7f7fa177dc5926796d811d0",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/issue-721-runtime-bounds.md read in full before implementation and re-read against the integrated union tree at c129d5a41",
+        "focused behavioral verification: vLLM ownership 51/51, bounded discovery 39/39, atomic automation admission 84/84, and DB schema/baseline/boot/backup/reset 37/37",
+        "normal integration hook at the union merge: DB baseline, Drizzle, package types, graph types, lint, and dependency cruise green; exact structure and Knip findings were repaired before this receipt barrier",
+        "docs/history/design/issue-721-runtime-bounds.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Issue #721 implemented design of record: sticky verified vLLM ownership, bounded streaming character-duplicate work, and storage-only atomic automation reservations under one post-#720 union baseline.",
+      "claims": [
+        {
+          "claim": "Managed runtime recovery retains launch ownership, character duplicate recomputation is explicitly bounded, and concurrent automation dispatches reserve shared budgets before effects.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#721"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/providers/vllm/engine/supervisor.ts:96"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/discovery/duplicates/generate.ts:35"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/automation/persistence/fires.ts:98"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/issue-723-rpg-recovery.md",
+      "assignedSha256": "8473041689d7de9c0e2204cbc22063a052b8b6d7916fb143c94ea77167eb288a",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "8473041689d7de9c0e2204cbc22063a052b8b6d7916fb143c94ea77167eb288a",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/issue-723-rpg-recovery.md read in full before implementation and re-read against the integrated tree at 86e433aed; implementation commit 2912fb7f1",
+        "focused behavioral and DB verification: 11 files with 157 tests, composed RPG with 71 tests, and fresh-box bundle round trip with 2 tests all passed",
+        "TS7 graph and tests-dom typechecks plus scoped Biome and typed ESLint passed",
+        "docs/history/design/issue-723-rpg-recovery.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Issue #723 implemented design of record: atomic snapshot and journal flushes, canonical bundle identity replay, level-triggered engaged mirrors, marked promotion recovery, and deletion metadata gated by listener authorization history.",
+      "claims": [
+        {
+          "claim": "All five interruption and authority seams converge without a schema addition or broad transaction framework.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#723"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/issue-724-provider-embedding-boundaries.md",
+      "assignedSha256": "f2e75567f93862d0431f4e606f80cf68cfb114fad4b0a8ea7ac40c5af15eda21",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "f2e75567f93862d0431f4e606f80cf68cfb114fad4b0a8ea7ac40c5af15eda21",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/issue-724-provider-embedding-boundaries.md read in full before implementation and re-read in its integrated complete form at 620a18041; implementation commit 0fed0b3ee",
+        "focused behavioral verification: 13 files with 211 tests passed, including model provenance, ordering, bounded readers, MIME, lease, forced-tool, and awake-cache controls",
+        "TS7 package, graph, and tests-dom typechecks plus scoped Biome and typed ESLint passed",
+        "docs/history/design/issue-724-provider-embedding-boundaries.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Issue #724 implemented provider and embedding boundary hardening while preserving the already-correct credential redaction home.",
+      "claims": [
+        {
+          "claim": "Nine current provider and embedding defects are bounded and regression-pinned; deterministic k-means seeding and credential-safe diagnostics were correctly retained rather than duplicated.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#724"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/issue-732-wal-safe-pre-migration-backup.md",
+      "assignedSha256": "8d832cb783ab810f2745321e12ab9948c62e853f0cd5baab46bd0444a0c21303",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "8d832cb783ab810f2745321e12ab9948c62e853f0cd5baab46bd0444a0c21303",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/issue-732-wal-safe-pre-migration-backup.md read in full before implementation and re-read against the integrated tree at 10268e08c; implementation commit 8e952f5de",
+        "real WAL-resident row restoration and backup-failure-before-reset controls passed in the focused DB and boot suites: 38/38 tests",
+        "the normal integration hook at 10268e08c passed 15/16 static stages, including 229/229 structure gates; only the then-missing receipt/catalog stage failed",
+        "docs/history/design/issue-732-wal-safe-pre-migration-backup.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Issue #732 implemented a WAL-consistent pre-migration snapshot through the live libSQL connection while preserving the existing backup naming, pinning, retention, and fail-before-reset contract.",
+      "claims": [
+        {
+          "claim": "A changing boot awaits one SQLite-consistent standalone backup before reset or migration, and a backup failure leaves the database untouched.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/db/src/client/index.ts:170"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/boot/migrate.ts:57"
+            },
+            {
+              "kind": "issue",
+              "target": "#732"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/issue-743-rpg-portability-atomicity.md",
+      "assignedSha256": "742e88cbdda0aaec7eaf637637911bd90197b032345dd630aaca51364d2a439c",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "742e88cbdda0aaec7eaf637637911bd90197b032345dd630aaca51364d2a439c",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/issue-743-rpg-portability-atomicity.md read in full before implementation and re-read against the integrated tree at 727e5d77f; implementation commit 379efa8ec",
+        "red-first concurrent-export and restore companion controls failed on the old source; the focused portability, checkpoint, restore, and narrator integration set then passed 19/19",
+        "the normal integration hook passed 14/16 static stages; its exact no-test-fabrication findings were repaired and the direct gate passed over 2,171 scanned test files before this receipt barrier",
+        "docs/history/design/issue-743-rpg-portability-atomicity.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Issue #743 implemented one bounded database snapshot for RPG export and one atomic chat-marker plus RPG-snapshot restore batch without a transaction framework.",
+      "claims": [
+        {
+          "claim": "RPG exports cannot mix source states, and a failed checkpoint restore exposes neither half of the marker and restored-snapshot pair.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#743"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/persistence/portability-write.ts:58"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/verbs/post-narrator-message.ts:100"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/issue-750-suppression-governance.md",
+      "assignedSha256": "bc59983504d89abe0671933f1cc09a846e9316445cceacc7a1baab983a634041",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "bc59983504d89abe0671933f1cc09a846e9316445cceacc7a1baab983a634041",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/issue-750-suppression-governance.md read in full after implementation commit 92011ffcf and current-main census refresh e9c655f40; scope, detector contract, policy disposition, rejected alternatives, proof plan, and detector-equivalent census rechecked against issue #750 and the live gate",
+        "detector-equivalent census: 5,822 project files; 3,645 governed TS/TSX files; 161 files with 310 directive sites across 48 rule classes; generated ledger 0 debt and 310 ratified",
+        "focused proof: pre-fix tooling/scripts plants were invisible; post-fix both plants red; gate conformance 8/8; suppression/config tests 19/19; scoped Biome, ESLint, tooling typecheck, and docs formatting green",
+        "docs/history/design/issue-750-suppression-governance.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Issue #750 design and implementation record: one governed typed-source predicate for package source, tooling, and scripts; exact directive detection; generated foreign-runtime fence; dead noSecrets/useTopLevelRegex cleanup; and a detector-equivalent zero-debt census.",
+      "claims": [
+        {
+          "claim": "The suppressions gate and generator share one governed source predicate and detector-equivalent census rather than budgeting raw text matches.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#750"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/suppressions.ts:235"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/list-pane-projection-proposal.md",
+      "assignedSha256": "5ddd692eb31846c4bc860f98916b121f050911eceb9dfcb9b0ad245459213c31",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "5ddd692eb31846c4bc860f98916b121f050911eceb9dfcb9b0ad245459213c31",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/list-pane-projection-proposal.md:1 (spec; archived, BUILT)",
+        "git log --oneline -1 -- docs/design/list-pane-projection-proposal.md: 54e813466 docs(list-pane-projection): truth-repair D2 citation authority (#264)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "as-built supersession note re-read 2026-08-22 (#501): §10 D2 self-recorded as a recommendation; the owner docked-library ruling supersedes it; swap machinery deleted in 23543697d",
+        "docs/history/design/list-pane-projection-proposal.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "LIST-PANE PROJECTION — the character screen's pane becomes her chats (face → history → play): full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/login-loading-screen.md",
+      "assignedSha256": "591883729da10a415f5f30b5110c847821f9d0206ff9a9086e711b2bddf5dae6",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "591883729da10a415f5f30b5110c847821f9d0206ff9a9086e711b2bddf5dae6",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/login-loading-screen.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/login-loading-screen.md: 20b70532e feat(brand): login + boot loading web-weave, brand A install, one-loader WebSpinner",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/login-loading-screen.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Login + loading screen — the web-weave design + brand pack (BUILT — see §9): full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/memory-retrieval-graceful-degrade.md",
+      "assignedSha256": "3cb1a6666ad9d637d89c96b7b46dfbe0419203645384f0ff3917ad5cb2754726",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "3cb1a6666ad9d637d89c96b7b46dfbe0419203645384f0ff3917ad5cb2754726",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/memory-retrieval-graceful-degrade.md:1 full read against repair commit b75860a08476cdf9276337b5009d003bd0ab31eb",
+        "packages/server/src/domain/search/verbs/digests.ts:76 local mixC fallback preserves the retrieved result",
+        "packages/server/src/domain/chat/engine/engine.ts:1299 emits the typed chat warning",
+        "tests/server/domain/search/verbs/digests.int.test.ts:221 verifies the complete retrieved-order fallback",
+        "tests/server/domain/chat/engine/engine.int.test.ts:764 verifies turn-scoped dedupe and a fresh episode",
+        "tests/client/features/user-admin/components/memory-tuning-section.ct.tsx:54 verifies rendered mode guidance and accessibility",
+        "tests/client/lib/motion-stats.ct.tsx:243 verifies real first and repeat sealed Select entrance evidence",
+        "tests/client/lib/motion-flaggers.ct.tsx:278 verifies CDP still sees a planted dropped-frame failure while duplicate dev collection is paused",
+        "tests/tooling/motion-audit.test.ts:91 proves the first-open allowance cannot renew onto a second app-owned block",
+        "GitHub issues #331, #332, #371, #374, and #389 re-derived on 2026-08-21",
+        "delta re-verify 2026-08-21 (P3 #393): the three motion-audit tool cites repointed scripts/probes/motion-audit.ts -> tooling/src/motion-audit (the tool moved; its verdict surface and ownership claims are unchanged)",
+        "delta re-verify 2026-08-22 (#321, owner ruling): re-read in full at the removal commit; the recency-honesty constraint is marked DEAD (its control no longer exists) and the two coupled sentences repaired — every other section re-derived and unchanged",
+        "docs/design/memory-retrieval-graceful-degrade.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+        "docs/history/design/memory-retrieval-graceful-degrade.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Memory retrieval guidance, graceful rerank fallback, responsive picker behavior, and the sealed Select motion-audit calibration are verified together without changing Base UI or product motion.",
+      "claims": [
+        {
+          "claim": "Memory retrieval modes use human consequence-first labels and no longer expose the retired experimental recency control (#321); mixC rerank failure preserves retrieved order with one turn-scoped warning; the sealed Base UI Select keeps its product behavior while motion-audit classifies only its confirmed entrance lifetime.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/user-admin/components/memory-tuning-section.tsx:87"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/search/verbs/digests.ts:76"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/engine/engine.ts:1299"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/domain/search/verbs/digests.int.test.ts:221"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/domain/chat/engine/engine.int.test.ts:764"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/features/user-admin/components/memory-tuning-section.ct.tsx:54"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/lib/select-entrance-evidence.ts:217"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/lib/motion-stats.ct.tsx:243"
+            },
+            {
+              "kind": "issue",
+              "target": "#331"
+            },
+            {
+              "kind": "issue",
+              "target": "#332"
+            },
+            {
+              "kind": "issue",
+              "target": "#374"
+            },
+            {
+              "kind": "issue",
+              "target": "#389"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/node-26-adoption-program.md",
+      "assignedSha256": "c408164a512efa5f8096f55e2975209af691b376e55572e1ea4a77b3228108f4",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "c408164a512efa5f8096f55e2975209af691b376e55572e1ea4a77b3228108f4",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/node-26-adoption-program.md:1 (design; proposed)",
+        "git log --oneline -1 -- docs/design/node-26-adoption-program.md: 8bf392be3 refactor(node-26): W4.5 withResolvers + W4.2 toSorted burn-down; both gate arms land",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/node-26-adoption-program.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Node 21 → 26 maximal-adoption program: full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/node-26-w4-residual-burndown.md",
+      "assignedSha256": "67d5d6f40ad22fe709e9af66aee684883b14a4bd1e0efcf6974fc45e563e204c",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "67d5d6f40ad22fe709e9af66aee684883b14a4bd1e0efcf6974fc45e563e204c",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/node-26-w4-residual-burndown.md:1 (design; landed)",
+        "git log --oneline -1 -- docs/design/node-26-w4-residual-burndown.md: 8bf392be3 refactor(node-26): W4.5 withResolvers + W4.2 toSorted burn-down; both gate arms land",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/node-26-w4-residual-burndown.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Node-26 program — W4 residual burn-down (W4.5 withResolvers + W4.2 toSorted): full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/openrouter-provider-findings.md",
+      "assignedSha256": "6a42e09baa904047f5044b839fefa9477047e04d2184356f4bd972f841ebd47d",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "6a42e09baa904047f5044b839fefa9477047e04d2184356f4bd972f841ebd47d",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/openrouter-provider-findings.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/openrouter-provider-findings.md: 05b69a9e9 fix(providers): cache breakpoints count conversational depth, + an admin depth knob",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/openrouter-provider-findings.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "OpenRouter chat-completions backend — measured findings & fixes: full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/parity-plus-program-spec.md",
+      "assignedSha256": "2557aab95d098cdd39c84d0e28a309f91687d0500393a57f8af7c17d31ac8545",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "2557aab95d098cdd39c84d0e28a309f91687d0500393a57f8af7c17d31ac8545",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/parity-plus-program-spec.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob",
+        "docs/design/parity-plus-program-spec.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+        "docs/history/design/parity-plus-program-spec.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
+    },
+    {
+      "path": "docs/history/design/preset-surface-redesign.md",
+      "assignedSha256": "4244b3cfa792d5b426b7e7a4d8d14e096c5b1f41cd1b0533a1126b7a0d04f08e",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "4244b3cfa792d5b426b7e7a4d8d14e096c5b1f41cd1b0533a1126b7a0d04f08e",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/preset-surface-redesign.md:1 (spec; closed (BUILT — see D121))",
+        "git log --oneline -1 -- docs/design/preset-surface-redesign.md: 83f0b21ce docs(history): graduate the preset-execution crunch list (36/36 accounted); repoint its three refs",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/preset-surface-redesign.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "PRESET SURFACE REDESIGN — make the generation deck crunchy (PRESET-1): full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/prose-1-populate-census.md",
+      "assignedSha256": "2f0d99f91dca9ac2f54ac2f17fcacaf84c41a4b97d42ea01f4230e8a1fddc89f",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "2f0d99f91dca9ac2f54ac2f17fcacaf84c41a4b97d42ea01f4230e8a1fddc89f",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/prose-1-populate-census.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/prose-1-populate-census.md: cc4404bf2 feat(prose): the populate round's last 7 hardcoded strings are host-editable slots",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/prose-1-populate-census.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "PROSE-1 — the populate round's own prose (post-census enumeration): full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/prose-1-rpg-extraction-followon.md",
+      "assignedSha256": "ffde91506571db5d913da72549512a7faa1a9063b3fb3bc986fc4480db5f7aa5",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "ffde91506571db5d913da72549512a7faa1a9063b3fb3bc986fc4480db5f7aa5",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/prose-1-rpg-extraction-followon.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/prose-1-rpg-extraction-followon.md: cc4404bf2 feat(prose): the populate round's last 7 hardcoded strings are host-editable slots",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/prose-1-rpg-extraction-followon.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "PROSE-1 — the rpg EXTRACTION seam (follow-on to the reminder-seam lane): full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/prose-1-spec.md",
+      "assignedSha256": "83e9dbc2d9450dc4f5509413af585260547ef7ac07d5f4b8b394edd51d10df83",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "83e9dbc2d9450dc4f5509413af585260547ef7ac07d5f4b8b394edd51d10df83",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/prose-1-spec.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob",
+        "docs/history/design/prose-1-spec.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
+    },
+    {
+      "path": "docs/history/design/refinery-og-extension-feedback.md",
+      "assignedSha256": "67a00ac4339ff77773fb1b7ee322885de8cab0d26147a2088f61dfa481c2a2f4",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "67a00ac4339ff77773fb1b7ee322885de8cab0d26147a2088f61dfa481c2a2f4",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/refinery-og-extension-feedback.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/refinery-og-extension-feedback.md: addb13faa docs(refinery): §19 supersession map — record banners, truth-repair pointers, mock deltas",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/refinery-og-extension-feedback.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Refinery — the OG extension's community feedback, mapped to orb (2026-08-08): full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/refinery-r0.md",
+      "assignedSha256": "cb6134fdd3eb16d54fa1168257f1fff80f32a670be303477298af63028502459",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "cb6134fdd3eb16d54fa1168257f1fff80f32a670be303477298af63028502459",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/refinery-r0.md:1 (design; active)",
+        "git log --oneline -1 -- docs/design/refinery-r0.md: addb13faa docs(refinery): §19 supersession map — record banners, truth-repair pointers, mock deltas",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/design/refinery-r0.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+        "docs/history/design/refinery-r0.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Refinery R0 — contracts + db foundation (FORGE lane, 2026-08-08): full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/refinery-r3-build-plan.md",
+      "assignedSha256": "234da450b1cb5000425b9252ef4c6edaad4eff9e92af9d73dc3bda144149f329",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "234da450b1cb5000425b9252ef4c6edaad4eff9e92af9d73dc3bda144149f329",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/refinery-r3-build-plan.md:1 (design; active)",
+        "git log --oneline -1 -- docs/design/refinery-r3-build-plan.md: bba4bb13e feat(refinery): R4 — library score sweep, score sorts + dossier readout, greeting APPEND arm",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/refinery-r3-build-plan.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Refinery R3 — build plan (the ratified design mapped onto code): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #40.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/refinery.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#40"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/refinery-schema-renderer.md",
+      "assignedSha256": "3ffc9a0039c81802b580518935bcb0af1f3c4e359a7a9c7a893d19c3d0425ff6",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "3ffc9a0039c81802b580518935bcb0af1f3c4e359a7a9c7a893d19c3d0425ff6",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/refinery-schema-renderer.md:1 (design; proposed)",
+        "git log --oneline -1 -- docs/design/refinery-schema-renderer.md: bba4bb13e feat(refinery): R4 — library score sweep, score sorts + dossier readout, greeting APPEND arm",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/refinery-schema-renderer.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Refinery R3 — the schema-driven result renderer (crowning-feature design workshop): full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/rpg-rewind-stuck-state.md",
+      "assignedSha256": "7af1661823cc310831d85aec3d7a247fdfc44b2915b727210184f1237598d855",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "7af1661823cc310831d85aec3d7a247fdfc44b2915b727210184f1237598d855",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/rpg-rewind-stuck-state.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/rpg-rewind-stuck-state.md: 3f02a6ef7 fix(rpg): stat attributes persist; a swipe actually rewinds the panel",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/rpg-rewind-stuck-state.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "RPG-LITE REWIND/SWIPE — \"state stuck\" — diagnosis + game plan: full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/server-usage-settlement-2026-08-20.md",
+      "assignedSha256": "c1988e5bd6e207ac6fcb76fb8bc9385a1fa0ed3e2b2a737e92e9bab6613704e5",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "c1988e5bd6e207ac6fcb76fb8bc9385a1fa0ed3e2b2a737e92e9bab6613704e5",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/server-usage-settlement-2026-08-20.md:1-188 full read against implementation commit 6e7293e41e7efa9293c1d59ed49996528eba289f",
+        "packages/contracts/src/chat/messages.ts:22 canonical provenance vocabulary and dominance rule",
+        "packages/server/src/domain/import/verbs/backfill-token-usage.ts:1 import-owned auditable catch-up loop",
+        "GitHub issues #290 and #291 re-derived on 2026-08-20",
+        "docs/history/design/server-usage-settlement-2026-08-20.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Active design of record for variant token provenance, import catch-up, reversible stats rollups, recorded provider cost, and honest client rendering delivered together for #290 and #291.",
+      "claims": [
+        {
+          "claim": "Variant accounting uses the canonical measured, estimated, and unrecorded vocabulary; import catch-up is a separate auditable workload. Mutable lifecycle remains tracked in issues #290 and #291.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/chat/messages.ts:22"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/import/verbs/backfill-token-usage.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#290"
+            },
+            {
+              "kind": "issue",
+              "target": "#291"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/st-import-completeness-2026-08-15.md",
+      "assignedSha256": "40de168cefe2d19dacfcf8fd87ede5390e3083dd1293bc390107d8f65e2e87b3",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "40de168cefe2d19dacfcf8fd87ede5390e3083dd1293bc390107d8f65e2e87b3",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/st-import-completeness-2026-08-15.md:1 (design; archived; full read 2026-08-16 — program #74 Done, doc is the durable record)",
+        "git log --oneline -1 -- docs/design/st-import-completeness-2026-08-15.md: fae4d5f6b docs(design): archive the #74 import-completeness design",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/st-import-completeness-2026-08-15.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "ST import completeness sweep (issue #74) — silent-gap inventory, corpus receipts against the real neo-tavern ST export, and the part-3 not-mapped re-judgment table; landed feature + deferred write-waves named with owner-sent forks.",
+      "claims": [
+        {
+          "claim": "Mutable resolution for this artifact is tracked in GitHub issue #74.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#74"
+            }
+          ],
+          "text": "The program landed and #74 is closed; the one deferred item (Data Bank + gallery write-waves) is tracked as parked issue #84."
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/st-import-plane-classification.md",
+      "assignedSha256": "19b73e4e3ce86209db98e37732272efeebdc71b2d5e225ca52943b4700854240",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "19b73e4e3ce86209db98e37732272efeebdc71b2d5e225ca52943b4700854240",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/st-import-plane-classification.md:1 (reference; active)",
+        "git log --oneline -1 -- docs/design/st-import-plane-classification.md: acf531a6a feat(import): ST backgrounds → background library, themes → safe-converted palettes, power_user → its real homes",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/st-import-plane-classification.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "SillyTavern import — the per-plane classification: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/import/loader/collect.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#45"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/st-message-shaping-atlas.md",
+      "assignedSha256": "bc4338846915ecc16d58caba3ae3bb4c75a7f53d6d2392415f7569e1dbd9b869",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "bc4338846915ecc16d58caba3ae3bb4c75a7f53d6d2392415f7569e1dbd9b869",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/st-message-shaping-atlas.md:1 (reference; active)",
+        "git log --oneline -1 -- docs/design/st-message-shaping-atlas.md: 23aaa625a docs(graduation,doctrine): dogfood doc graduates to history (refs repointed); the double campaign's orchestrator + lane lessons minted into onboarding and agent doctrine",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/st-message-shaping-atlas.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "SillyTavern message-shaping atlas — storage identity, wire identity, and our delta: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #18.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/character/seeder/cards.ts:348"
+            },
+            {
+              "kind": "issue",
+              "target": "#18"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/staleness-and-session-freshness.md",
+      "assignedSha256": "609d1e4e82c95deda8f3d179fcea8d68cd75e567b68bd52cf0778a13b3f7bbb5",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "609d1e4e82c95deda8f3d179fcea8d68cd75e567b68bd52cf0778a13b3f7bbb5",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/staleness-and-session-freshness.md:1 (design; active)",
+        "git log --oneline -1 -- docs/design/staleness-and-session-freshness.md: 786fe372c feat(bridge): chatDeleted goes live-only — R1-4a closed, quiet coalescer spans both planes, SEATED-red gate arm",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green",
+        "re-attested 2026-08-22 (#392, lane chat-client): §4.4 rung-0 + §4.4.1 corrected against the as-built ladder and §5d added for #387 (8d94ccf6f); receipted at f2abe368329e3212dcfdce59f9c83ac2541bb4c1; scoped check:docs green",
+        "docs/design/staleness-and-session-freshness.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+        "docs/history/design/staleness-and-session-freshness.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Staleness & session freshness — diagnosis + design + game plan: full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/streaming-reveal-42.md",
+      "assignedSha256": "0015a9c13e85b853701d919186412cc72f7c4104710beae74d19b7a6e890720b",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "0015a9c13e85b853701d919186412cc72f7c4104710beae74d19b7a6e890720b",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/streaming-reveal-42.md:1 (design; active)",
+        "git log --oneline -1 -- docs/design/streaming-reveal-42.md: 91ebf56ce feat(#48): ruled smalls — smoothStream ON, ⋯ to the composer, tag folders OPEN, preview render policy",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/streaming-reveal-42.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "#42 — Streaming reveal: measured root causes + the fix design: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #35.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/markdown/reveal-plugin.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#35"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/templating-fork-rows-53-73.md",
+      "assignedSha256": "5c5f0cdcafe2360d2e5af0bc1db9840d4e49de6397d07447750c18be50d2ca4a",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "5c5f0cdcafe2360d2e5af0bc1db9840d4e49de6397d07447750c18be50d2ca4a",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/templating-fork-rows-53-73.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob",
+        "docs/history/design/templating-fork-rows-53-73.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
+    },
+    {
+      "path": "docs/history/design/tsx-shedding-migration-spec.md",
+      "assignedSha256": "9cae2f935a91a4c8507fd5788b7b9824d74cb9fdb1a68aa173c03dec3a584173",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "9cae2f935a91a4c8507fd5788b7b9824d74cb9fdb1a68aa173c03dec3a584173",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/tsx-shedding-migration-spec.md:1 (design; landed)",
+        "git log --oneline -1 -- docs/design/tsx-shedding-migration-spec.md: e899498a5 feat(build): tsx-shedding STAGE 3 — all ~38 tooling invocations move to node; tsx leaves @orb/ui",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/history/design/tsx-shedding-migration-spec.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Shedding tsx — native-node TypeScript migration (quiet-tree work order): full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/history/design/web-weave-motion-fixes.md",
+      "assignedSha256": "cdc57c5394cb147bb7a78b9525e97197f102dfe9d6d49113a785a37e1556e3ee",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "cdc57c5394cb147bb7a78b9525e97197f102dfe9d6d49113a785a37e1556e3ee",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/web-weave-motion-fixes.md:1 (design; active)",
+        "git log --oneline -1 -- docs/design/web-weave-motion-fixes.md: f688f56d4 fix(ui): WebWeave motion — connected tips, containment, spider pathing, per-segment glint",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "archived by lane weave-motion (#161): all four fix classes verified ALREADY LANDED at f688f56d4 on today's tree (per-fix code receipts); pixel-parity side-by-side vs the reference at three aspect arms; orchestrator re-read the as-built delta in full",
+        "docs/history/design/web-weave-motion-fixes.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "WebWeave motion fixes — the Claude Design handoff spec: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "Mutable resolution for this artifact is tracked in GitHub issue #45.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#45"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/saved-rosters-build-record.md",
+      "assignedSha256": "e45a9d06f2f7bd6a5754b4c128000a6177b46407765ea54159d86049ad575c37",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "e45a9d06f2f7bd6a5754b4c128000a6177b46407765ea54159d86049ad575c37",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/saved-rosters-build-record.md:1 (design; active)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "re-attested after the B10 reconciliation (nomenclature/surfaces/doc-retirement; the rule-preset-accrual rider flagged) at d760c3bad",
+        "delta re-verify 2026-08-29 (3ff8bfe4b169c9aa73e2e7a072e334d37efb82db, B10 rules rider merged by the orchestrator, who read the diff in full): the deferred-rider callout flipped to BUILT and the new §6 (6.1 provenance flip · 6.2 roster_preset_rules junction · 6.3 client-composed capture via resolveChatRulePresetKnobs · 6.4 additive idempotent apply over automation's front door · 6.5 enable-on-apply flagged decision · 6.6 coupled sites · 6.7 test plan) records the as-built rider; every clause verified by the lane's suites (48/48 + 3/3 SERIAL + CT 19/19) on the merged commit",
+        "docs/history/design/saved-rosters-build-record.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Saved rosters (roster presets) — the as-built RP1+RP2 design record (#26, lane roster-26, 2026-08-28): premise repair vs the parked program doc, the D80/requireHost deltas, the coupled-site inventory, and the test plan.",
+      "claims": [
+        {
+          "claim": "Mutable resolution for this artifact is tracked in GitHub issue #26.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#26"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/issue-754-batch-boundary-spike.md",
+      "assignedSha256": "4f61e9667b0c4fbfdf9761c2d2b0a35ec7d2b920220e5b7cb8d7df2a0cac8f65",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "4f61e9667b0c4fbfdf9761c2d2b0a35ec7d2b920220e5b7cb8d7df2a0cac8f65",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/issue-754-batch-boundary-spike.md:1 (full read; measured rejection of the E6 structural-gate proxy)",
+        "docs/history/design/issue-754-batch-boundary-spike.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Issue #754 batch-boundary spike: REJECTS the proposed E6 structural gate (1 true positive vs 11 false positives naive, 25% with control-flow disjointness); E6 stays review-tier per the #712 ruling.",
+      "claims": [
+        {
+          "claim": "AwaitableBatchStmt deliberately types a statement as both batchable and directly awaitable, refuting the proxy's premise that builders structurally cannot execute writes.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/db/src/kit/batch.ts:36"
+            },
+            {
+              "kind": "issue",
+              "target": "#754"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/design/card-atlas-art-forward.md",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/card-atlas-art-forward.md:1 (authored + built in the same lane; every §1/§7a premise live-probed or path:line-cited)",
+        "docs/design/card-atlas-art-forward.md:521 (re-attested 2026-08-30 after the §8f TRUTH REPAIR: the 'host defect' framing is superseded by plugin-host-float-visibility.md; the rest is the formatter's escapes)",
+        "docs/history/design/card-atlas-art-forward.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Card Atlas design/build record, v1.1.0 art-forward (§1-§6) + hub v1.2 (§7): six-hub source seam (tavern/realm/chub/wyvern/aicc/charavault) with per-hub capability facts, one page control over server-paged and held-set hubs, include/exclude tag filters applied where each hub can answer, tile tag chips + detail Tags row, live Hub/Sort selects (select actionId arm), Summon→Add to library, the #801 belt split (fetchAsset 1200/hr, net.fetch 360/hr) + the 5 MiB asset byte cap, the tavern query= premise kill, NET_HOSTS_MAX 8→16; probes, rejected arms, coupled sites, roster skips with receipts (botbooru content posture; pygmalion/janitorai/datacat never built).",
+      "claims": [
+        {
+          "claim": "The detail stage caps its column at the house --reading-measure token and an empty grid renders the house EmptyState (stickler F2/F4), both landed red-first in the renderer.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/plugin/components/plugin-browse-nodes.tsx:57"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/features/plugin/components/plugin-surface-renderer.ct.tsx:253"
+            }
+          ]
+        },
+        {
+          "claim": "fetchAsset shares one hourly egress belt with net.fetch (120/plugin), which is why the plugin's one-key art cache is load-bearing rather than an optimization.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/plugin/substrate/rate-floor.ts:42"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/boot/seed-assets/plugins/card-atlas/main.js:60"
+            }
+          ]
+        },
+        {
+          "claim": "netHosts matching is exact-host (suffix only for leading-dot entries), so each hub's art CDN is its own manifest entry and its own consent line.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/network/egress.ts:478"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/boot/seed-assets/plugins/card-atlas/manifest.json:10"
+            }
+          ]
+        }
+      ],
+      "assignedSha256": "c7c4a793bf6abc761629af4b0666b2be298eb405357eee509c91ac07aed147ba",
+      "verifiedSha256": "c7c4a793bf6abc761629af4b0666b2be298eb405357eee509c91ac07aed147ba",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a"
+    },
+    {
+      "path": "docs/history/design/plugin-host-float-visibility.md",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/plugin-host-float-visibility.md:1 (designed by forge-plugin-float, re-verified + built by cb-plugin-float; §6 carries the premise receipts taken on the unmodified tree and the coupled sites the sweep missed)",
+        "docs/history/design/plugin-host-float-visibility.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "#805/#806 design + build record: the card-atlas 'large-body park' was the guest's `Date.parse` throwing inside the sandbox realm's ambient denial (D46), caught by the float's `.catch` and then destroyed by `runToSettlement`'s log reset; the fix is a pure-arithmetic guest date engine (manifest 1.3.2), a destructive `LogRing.drain()` with port-side residue pickup so floated log lines survive, and the observability wiring — a push-time mirror of labelled guest lines into the pino stream, the `/api/_debug/automation/fires` probe over the durable fire ledger, and the `__orb.pluginLog` / `__orb.automationFires` dev-bridge accessors; rejected arms (relaxing the realm's Date stubs, a host-side resume fix, a second debug route, an unhandled-rejection tracker the wrapper cannot expose), the realm-faithful node:vm harness over the realm's exported AMBIENT_STUBS, and the coupled-site inventory.",
+      "claims": [
+        {
+          "claim": "The five parked hubs fed an ISO string to `epochMs`, which called the realm's throwing `Date.parse` stub; the guest now parses the receipted wire shapes with pure civil arithmetic, and the realm-faithful suite drives the real main.js under the realm's own exported ambient denial.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/boot/seed-assets/plugins/card-atlas/main.js:390"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/plugin-host/realm.ts:111"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/boot/seed-atlas-realm-dates.suite.test.ts:218"
+            },
+            {
+              "kind": "issue",
+              "target": "#805"
+            }
+          ]
+        },
+        {
+          "claim": "`LogRing.drain()` is destructive and the port picks residue up before each invoke and on every readLog, so a floated continuation's log lines survive and `plugin.getLog` surfaces them live.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/plugin-host/realm.ts:87"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/plugin-host/port.ts:407"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/infra/plugin-host/port.test.ts:1949"
+            },
+            {
+              "kind": "issue",
+              "target": "#806"
+            }
+          ]
+        },
+        {
+          "claim": "A labelled instance mirrors every accepted guest line at push time into the ONE pino stream tagged `{plugin: <slug>}`, and the automation fire ledger is served principal-blind behind the debug gate at /api/_debug/automation/fires.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/plugin-host/port.ts:222"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/infra/plugin-host/port.test.ts:1980"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/foundation/observability/debug/routes.ts:489"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/foundation/observability/debug/routes.int.test.ts:168"
+            }
+          ]
+        }
+      ],
+      "assignedSha256": "441adf6d949e5d9c22451b935bc58563579484b6fe450dd6acba38ca085f533b",
+      "verifiedSha256": "441adf6d949e5d9c22451b935bc58563579484b6fe450dd6acba38ca085f533b",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a"
     }
   ]
 }

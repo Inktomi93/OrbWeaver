@@ -197,18 +197,19 @@
     },
     {
       "path": "docs/architecture/history/Marinara-Residue-Non-RPG.md",
-      "assignedSha256": "e969057957dd2261180e147351f27de1294ffdf56086686275ab5f63363b2700",
+      "assignedSha256": "81d760ee3d3417c4a217d04a04ce75acf833f34d32c0bf5ef98ffe70af91a260",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "e969057957dd2261180e147351f27de1294ffdf56086686275ab5f63363b2700",
-      "verifiedCommit": "d760c3bad13eb5428eb43991d623a33e7311760e",
-      "verifiedAt": "2026-08-28",
+      "verifiedSha256": "81d760ee3d3417c4a217d04a04ce75acf833f34d32c0bf5ef98ffe70af91a260",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/history/Marinara-Residue-Non-RPG.md:1 (full read; historical header/provenance evaluated)",
         "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "re-attested after the #26 B10 reconciliation repointed its saved-rosters-design.md links to interaction-direction-spec B10 at d760c3bad"
+        "re-attested after the #26 B10 reconciliation repointed its saved-rosters-design.md links to interaction-direction-spec B10 at d760c3bad",
+        "docs/architecture/history/Marinara-Residue-Non-RPG.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },

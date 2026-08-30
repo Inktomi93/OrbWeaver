@@ -21,17 +21,18 @@
     },
     {
       "path": "docs/history/reviews/repository-audit-2026-08-13/INTERIM-SYNTHESIS-2026-08-13.md",
-      "assignedSha256": "2bd08843ea9470cd67daa308a60e6c72abd25ac9d299ef1c55dfbc90fe6cdad3",
+      "assignedSha256": "c4dce4d559a4f18c50a46f7156595f33fa39e9e97dc9cc4b4b0115ffedc5c2d7",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "2bd08843ea9470cd67daa308a60e6c72abd25ac9d299ef1c55dfbc90fe6cdad3",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "c4dce4d559a4f18c50a46f7156595f33fa39e9e97dc9cc4b4b0115ffedc5c2d7",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/repository-audit-2026-08-13/INTERIM-SYNTHESIS-2026-08-13.md:1-170 full read; SHA-256 matches frozen manifest",
         "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot",
-        "docs/history/reviews/repository-audit-2026-08-13/INTERIM-SYNTHESIS-2026-08-13.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/repository-audit-2026-08-13/INTERIM-SYNTHESIS-2026-08-13.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/repository-audit-2026-08-13/INTERIM-SYNTHESIS-2026-08-13.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Dated repository-audit snapshot retained as historical evidence; mutable findings belong in GitHub Project 1."
     },
@@ -1109,17 +1110,18 @@
     },
     {
       "path": "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-design-g-m/report.md",
-      "assignedSha256": "60dbe82eb9e9e39f00a03aac511c43668611492c3e5f76e45dd8002be44346ad",
+      "assignedSha256": "1a8cabdef65fdef7783eabf45818043349a8784b4a7ba24ea742b0d93c0c9380",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "60dbe82eb9e9e39f00a03aac511c43668611492c3e5f76e45dd8002be44346ad",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "1a8cabdef65fdef7783eabf45818043349a8784b4a7ba24ea742b0d93c0c9380",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/repository-audit-2026-08-13/lanes/docs-design-g-m/report.md:1-128 full read; SHA-256 matches frozen manifest",
         "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot",
-        "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-design-g-m/report.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-design-g-m/report.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-design-g-m/report.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Dated repository-audit snapshot retained as historical evidence; mutable findings belong in GitHub Project 1."
     },
@@ -1141,17 +1143,18 @@
     },
     {
       "path": "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-design-mocks-other/report.md",
-      "assignedSha256": "97aea0a8fa1026a67a2114f73c04dfebe3ff046afc11a8d62d5d4d7e21e67a20",
+      "assignedSha256": "5a14a568fa43db421e26bed30c1b7c0f1f100bc796a805977fd59e0e9aa67d25",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "97aea0a8fa1026a67a2114f73c04dfebe3ff046afc11a8d62d5d4d7e21e67a20",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "5a14a568fa43db421e26bed30c1b7c0f1f100bc796a805977fd59e0e9aa67d25",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/repository-audit-2026-08-13/lanes/docs-design-mocks-other/report.md:1-86 full read; SHA-256 matches frozen manifest",
         "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot",
-        "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-design-mocks-other/report.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-design-mocks-other/report.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-design-mocks-other/report.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Dated repository-audit snapshot retained as historical evidence; mutable findings belong in GitHub Project 1."
     },
@@ -1301,17 +1304,18 @@
     },
     {
       "path": "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-history-n-z/report.md",
-      "assignedSha256": "1dec1ab7aca80595ebc8e94d104a5f86f98fed0568297479b83bbcbc5d25b854",
+      "assignedSha256": "7d9c3cacb1b427c67658dc47f025f8f1d0a1b59a0a56d8198e6b79dbace6db8e",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "1dec1ab7aca80595ebc8e94d104a5f86f98fed0568297479b83bbcbc5d25b854",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "7d9c3cacb1b427c67658dc47f025f8f1d0a1b59a0a56d8198e6b79dbace6db8e",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/repository-audit-2026-08-13/lanes/docs-history-n-z/report.md:1-99 full read; SHA-256 matches frozen manifest",
         "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot",
-        "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-history-n-z/report.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-history-n-z/report.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-history-n-z/report.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Dated repository-audit snapshot retained as historical evidence; mutable findings belong in GitHub Project 1."
     },
@@ -1493,17 +1497,18 @@
     },
     {
       "path": "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-n-z/report.md",
-      "assignedSha256": "8100755e2e15ce35d54bb3fdf28beb34a96b2e723341f5277c44fccd8d71920a",
+      "assignedSha256": "a46283e6b7281f7e547a80d79c3ca44c4f05def88e96f0e24a75a653ef9ebc98",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "8100755e2e15ce35d54bb3fdf28beb34a96b2e723341f5277c44fccd8d71920a",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "a46283e6b7281f7e547a80d79c3ca44c4f05def88e96f0e24a75a653ef9ebc98",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-n-z/report.md:1-74 full read; SHA-256 matches frozen manifest",
         "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot",
-        "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-n-z/report.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-n-z/report.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-n-z/report.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Dated repository-audit snapshot retained as historical evidence; mutable findings belong in GitHub Project 1."
     },
@@ -2485,17 +2490,18 @@
     },
     {
       "path": "docs/history/reviews/repository-audit-2026-08-13/lanes/server-search-refinery/report.md",
-      "assignedSha256": "ab0fa0d8b7c620f35d189d7a787513e037ea53934197c3de9df77f23f0c7cba2",
+      "assignedSha256": "a309ed3a3109ee39586eadec4ccb7901e30826f22910dcc77f5100334d8d0726",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "ab0fa0d8b7c620f35d189d7a787513e037ea53934197c3de9df77f23f0c7cba2",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "a309ed3a3109ee39586eadec4ccb7901e30826f22910dcc77f5100334d8d0726",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/repository-audit-2026-08-13/lanes/server-search-refinery/report.md:1-78 full read; SHA-256 matches frozen manifest",
         "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot",
-        "docs/history/reviews/repository-audit-2026-08-13/lanes/server-search-refinery/report.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/history/reviews/repository-audit-2026-08-13/lanes/server-search-refinery/report.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/history/reviews/repository-audit-2026-08-13/lanes/server-search-refinery/report.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Dated repository-audit snapshot retained as historical evidence; mutable findings belong in GitHub Project 1."
     },

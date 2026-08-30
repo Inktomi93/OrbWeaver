@@ -433,14 +433,17 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-28-roster-preset-26-premerge.md",
-      "assignedSha256": "1af6817df0a3002afb700803c0b1df40dd9273a5dba14ba30c9a01d1d4829bef",
+      "assignedSha256": "a0ad9821b735f8647cad5cb3e00470725ee84c6cfb78dacdfbeabce42076a266",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "1af6817df0a3002afb700803c0b1df40dd9273a5dba14ba30c9a01d1d4829bef",
-      "verifiedCommit": "fc48ca68b7a407dc9624884cfd774d24a6a324b8",
-      "verifiedAt": "2026-08-29",
-      "evidence": ["docs/reviews/stickler/2026-08-28-roster-preset-26-premerge.md:1 (full read; pre-merge review of the #26 saved-rosters lane)"],
+      "verifiedSha256": "a0ad9821b735f8647cad5cb3e00470725ee84c6cfb78dacdfbeabce42076a266",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-28-roster-preset-26-premerge.md:1 (full read; pre-merge review of the #26 saved-rosters lane)",
+        "docs/reviews/stickler/2026-08-28-roster-preset-26-premerge.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
       "summary": "Stickler pre-merge review of #26 saved rosters: MERGE-BLOCKED on one trivial biome-format gate red (F1); the security-sensitive requireHost-first delta verified genuine and correctly ordered; F2-F6 are non-leaking follow-ups.",
       "claims": [
         {
@@ -1073,15 +1076,16 @@
     },
     {
       "path": "docs/reviews/side-eye/2026-08-30-rail-chats-delta.md",
-      "assignedSha256": "7ee43ead37824663c6544288a41375d1242ca93417e2a5bae69eb1272ffa34fd",
+      "assignedSha256": "e99fa31c64aa5d00e7b105c3c30292b59e952c6e9c2c26b1eea3b56acb57de1a",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "7ee43ead37824663c6544288a41375d1242ca93417e2a5bae69eb1272ffa34fd",
-      "verifiedCommit": "728509af3e4db81fc89f0f2170b14369eec0fb07",
+      "verifiedSha256": "e99fa31c64aa5d00e7b105c3c30292b59e952c6e9c2c26b1eea3b56acb57de1a",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
-        "docs/reviews/side-eye/2026-08-30-rail-chats-delta.md:1-689 read in full by the orchestrator (claude-b) before commit; lane cb-rail-chats, the Ready-runs-dry CHATS delta pass on :5173 (main 64447bd2a) as Traveler, 6-room seed (scale claims confirmed in form only), streaming/send arms not driven (live-model policy); five retractions published incl. a scanline contrast estimator voided by its own planted control; findings filed as #845-#853"
+        "docs/reviews/side-eye/2026-08-30-rail-chats-delta.md:1-689 read in full by the orchestrator (claude-b) before commit; lane cb-rail-chats, the Ready-runs-dry CHATS delta pass on :5173 (main 64447bd2a) as Traveler, 6-room seed (scale claims confirmed in form only), streaming/send arms not driven (live-model policy); five retractions published incl. a scanline contrast estimator voided by its own planted control; findings filed as #845-#853",
+        "docs/reviews/side-eye/2026-08-30-rail-chats-delta.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "claims": [
         {

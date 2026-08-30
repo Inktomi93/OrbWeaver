@@ -151,12 +151,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "1e68289f39cd313ff85f03140df708dbe6d6a13ea0c55d3d80424493c9727419",
+      "assignedSha256": "a0310ed96390cabc736c39e23fb3516f9560581b0643fc08f0ec0738055d372a",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "1e68289f39cd313ff85f03140df708dbe6d6a13ea0c55d3d80424493c9727419",
-      "verifiedCommit": "13712214a12b6216f5ca9a1482757379fef54470",
+      "verifiedSha256": "a0310ed96390cabc736c39e23fb3516f9560581b0643fc08f0ec0738055d372a",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -187,7 +187,8 @@
         "delta re-verify 2026-08-27 (#769, lane fix-e1-alias, content commit b287ab649): the owner-scoped-writes and owner-scoped-upserts rows changed only where the landed descriptors did — the writes row now states THREE biting shapes (the third being the unresolvable target and its chain-free declared limit) and the upserts row its second shape, and both record the full schema-ident denominator plus the declaration-kind-agnostic alias resolver. Every changed clause re-read against the descriptors; red-first against HEAD failed 8/8 on the let/var/unresolvable arms with their const controls passing, whole-corpus gate conformance passed 8/8 (30.1s, down from 45.5s at HEAD under comparable load), the two permanent pins passed 17/17, and both gates ran the real 1,394-file tree with ZERO findings before planted let/var/parameter bypasses produced four.",
         "delta re-verify 2026-08-28 (#751/#775): the new caught-failure-ownership ACTIVE row, the detached-work-traced row's bracket-link + position-disambiguation extension, and the 232->233 count line (enforcement-registry-parity reconciles it against loadGates(): 233 gate descriptors on the tree). Full read of the delta; scoped check:docs green",
         "delta re-verify 2026-08-28 (#751/#775, post-merge of main 46c356b62): the only change since the prior attestation is the frontmatter updated: date, resolved to 2026-08-28 at the merge (both sides edited it the same day). The caught-failure-ownership ACTIVE row, the detached-work-traced bracket-link + position-disambiguation extension and the 233 count line are unchanged and re-read; 233 gate descriptors on the tree; scoped check:docs green (104 files)",
-        "delta re-verify 2026-08-30 (#773, commit 13712214a): re-read at the edited bytes. The `test-presence` Layer-3 row is the only line that moved — it now states the entry/transport TIER arm beside the domain arm and names both burn-down rows (772 + 773). The registered-gate COUNT is unchanged (no gate was added or removed; an arm was widened inside an existing descriptor)."
+        "delta re-verify 2026-08-30 (#773, commit 13712214a): re-read at the edited bytes. The `test-presence` Layer-3 row is the only line that moved — it now states the entry/transport TIER arm beside the domain arm and names both burn-down rows (772 + 773). The registered-gate COUNT is unchanged (no gate was added or removed; an arm was widened inside an existing descriptor).",
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "claims": [
         {
@@ -275,12 +276,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "3a1b8c327dfdb58a4041605364f7c3d439fdeb221904e3b31043b955115bae77",
+      "assignedSha256": "6286d02fbc94df5be63a54faa0ffe9a3fc39fbd8365fc6524d3c926a50d445ad",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "3a1b8c327dfdb58a4041605364f7c3d439fdeb221904e3b31043b955115bae77",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "6286d02fbc94df5be63a54faa0ffe9a3fc39fbd8365fc6524d3c926a50d445ad",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
@@ -300,7 +301,8 @@
         "docs(catalog): migrate archived reviews to history (#479) — mechanical repoint only: every backticked docs/reviews/<archived> D-ledger cite in this file updated to its new docs/history/reviews/<lane>/ home; no ruling text changed.",
         "D144 #487 rider (BACKGROUND_DIM_MIN floor) delta re-derived against packages/contracts/src/settings/appearance.ts + tests/ui/content/theme-scope/palette-contrast.suite.test.ts; standing full-read receipt of 09cd25525 carried forward over the 4-line rider delta",
         "D145 (the S2 teaching seam, five clauses) delta read IN FULL against the merged lane 7acd88465 (contract/context.ts, substrate/teaching.ts, teaching-contribution.ts, the cruiser stanza + feature-structure allowlist); header range D106-D141 -> D106-D145 + mint trailer for D142-D145 are mechanical truth (entries pre-existed); standing full-read receipt carried forward over the delta (orchestrator re-attest at 4bf95cf8d)",
-        "docs/architecture/core/Core-Path-Registry.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/architecture/core/Core-Path-Registry.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/architecture/core/Core-Path-Registry.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "claims": [
         {
@@ -636,18 +638,19 @@
     },
     {
       "path": "docs/architecture/core/Spine-TypeScript-and-Patterns.md",
-      "assignedSha256": "f91b819784e0ead35df4f744cf37957b872fa397c4ced03d65fbc0fe7c0102cd",
+      "assignedSha256": "6b868fe0e9dc52b3778b188ee663b9ce40c933d6223786445ddd37c8486b11fe",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "f91b819784e0ead35df4f744cf37957b872fa397c4ced03d65fbc0fe7c0102cd",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "6b868fe0e9dc52b3778b188ee663b9ce40c933d6223786445ddd37c8486b11fe",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/Spine-TypeScript-and-Patterns.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/core/Spine-TypeScript-and-Patterns.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/architecture/core/Spine-TypeScript-and-Patterns.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/architecture/core/Spine-TypeScript-and-Patterns.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "claims": [
         {
@@ -1018,18 +1021,19 @@
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",
-      "assignedSha256": "a87b638ab9528d76c225b2dc117b26051dcb86296d7f1fd868c9746ad0950a7c",
+      "assignedSha256": "6da9a764531b59300763a54ff6209fdf6ac1791d3d20c77b8ebfedb25ca9b4f0",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "a87b638ab9528d76c225b2dc117b26051dcb86296d7f1fd868c9746ad0950a7c",
-      "verifiedCommit": "facd32a604d0b6fa67d956689182ddc68331ebd2",
+      "verifiedSha256": "6da9a764531b59300763a54ff6209fdf6ac1791d3d20c77b8ebfedb25ca9b4f0",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
         "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-30; 0acef7a7f)",
         "pnpm check:docs (2026-08-30 re-attest after the plugin-host float-visibility build — §3 count four -> FIVE composition-tier dir modules with `agent-plugin/` (the `__orb.pluginLog` read impl) and §7's build list naming `buildAgentPlugin`; the dep-cruiser alternation widened in the same commit)",
-        "pnpm check:docs (2026-08-22 re-attest after #433 — §3 count correction two -> FOUR composition-tier dir modules: the doc listed agent-nav/ and agent-seed/ only, agent-rpg/ was already unlisted and unwalled before this change, and agent-handles/ is the new DEV-only assembly; §7 gains the boot-chunk law for that arm and the kit/contracts/ui sideEffects declarations)"
+        "pnpm check:docs (2026-08-22 re-attest after #433 — §3 count correction two -> FOUR composition-tier dir modules: the doc listed agent-nav/ and agent-seed/ only, agent-rpg/ was already unlisted and unwalled before this change, and agent-handles/ is the new DEV-only assembly; §7 gains the boot-chunk law for that arm and the kit/contracts/ui sideEffects declarations)",
+        "docs/architecture/core/client-architecture-lockdown.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "claims": [
         {
@@ -1046,12 +1050,12 @@
     },
     {
       "path": "docs/architecture/core/motion-and-animation-guide.md",
-      "assignedSha256": "99808117e555916836e1716ff4001c8769d08ecfba56169ab83033a19433fc53",
+      "assignedSha256": "acd1908ad34fd3ab41f1832998171fe7db1d054b942739abe50452ffd3876fc2",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "99808117e555916836e1716ff4001c8769d08ecfba56169ab83033a19433fc53",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "acd1908ad34fd3ab41f1832998171fe7db1d054b942739abe50452ffd3876fc2",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/motion-and-animation-guide.md:1 full read against repair commit b75860a08476cdf9276337b5009d003bd0ab31eb",
@@ -1062,7 +1066,8 @@
         "scripts/probes/motion-audit.ts:379 selects one chronological primary confirmed LoAF per first entrance before the fixed allowance is applied",
         "tests/client/lib/motion-stats.ct.tsx:243 verifies real first and repeat Select entrance evidence",
         "tests/tooling/motion-audit.test.ts:91 proves a second app-owned block in the same lifetime remains red",
-        "docs/architecture/core/motion-and-animation-guide.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/architecture/core/motion-and-animation-guide.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/architecture/core/motion-and-animation-guide.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "claims": [
         {
