@@ -34,6 +34,7 @@ const RULE: RuleView = {
   rulePresetId: null,
   rulePresetKnobs: null,
   matchAutomationEvents: false,
+  suggestOnRefusal: true,
   cooldownSeconds: 0,
   maxFiresPerHour: 30,
   consecutiveErrors: 0,
@@ -167,6 +168,30 @@ describe("automation.runRuleNow — R7 wire-through", () => {
     const runRuleNow = vi.fn<AutomationService["runRuleNow"]>(async () => ({ outcome: "fired" }));
     await caller(ctxWith({ runRuleNow })).automation.runRuleNow({ ruleId: RULE.id });
     expect(runRuleNow).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), ruleId: RULE.id });
+  });
+});
+
+describe("automation.setRuleSuggestOnRefusal — B4's per-rule F4 opt-out wire-through", () => {
+  test("threads the ruleId + the flag + the caller's principal", async () => {
+    const setRuleSuggestOnRefusal = vi.fn<AutomationService["setRuleSuggestOnRefusal"]>(async () => undefined);
+    await caller(ctxWith({ setRuleSuggestOnRefusal })).automation.setRuleSuggestOnRefusal({ ruleId: RULE.id, suggestOnRefusal: false });
+    expect(setRuleSuggestOnRefusal).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: OWNER }),
+      ruleId: RULE.id,
+      suggestOnRefusal: false,
+    });
+  });
+
+  test("the flag is REQUIRED on the wire — an omitted one is a BAD_REQUEST, never a silent default", async () => {
+    const setRuleSuggestOnRefusal = vi.fn<AutomationService["setRuleSuggestOnRefusal"]>(async () => undefined);
+    // FABRICATION-OK: the subject IS the invalid input — this probe exists to prove the wire schema refuses
+    // an omitted flag, which cannot be spelled without defeating the type that documents the requirement.
+    const call = caller(ctxWith({ setRuleSuggestOnRefusal })).automation.setRuleSuggestOnRefusal({
+      ruleId: RULE.id,
+    } as unknown as { ruleId: AutomationRuleId; suggestOnRefusal: boolean });
+    await expect(call).rejects.toThrow();
+    // The verb is never reached — a defaulted flag would silently mute (or unmute) a host's rule.
+    expect(setRuleSuggestOnRefusal).not.toHaveBeenCalled();
   });
 });
 

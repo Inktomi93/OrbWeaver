@@ -33,6 +33,11 @@ export interface RuleView {
   /** The COMPLETE resolved knob bag the mint ran with. */
   readonly rulePresetKnobs: RulePresetKnobValues | null;
   readonly matchAutomationEvents: boolean;
+  /** RULED F4's per-rule opt-out (spec row B4): whether a RATE REFUSAL of this rule still offers the host
+   *  the "run it now?" invitation. Defaults TRUE (the ruling's own default); the host turns it off per
+   *  rule via `setRuleSuggestOnRefusal`. Only observable on a rule carrying a SPEND arm — the arm shape
+   *  still decides whether a refusal could earn an ask at all. */
+  readonly suggestOnRefusal: boolean;
   readonly cooldownSeconds: number;
   readonly maxFiresPerHour: number;
   readonly consecutiveErrors: number;

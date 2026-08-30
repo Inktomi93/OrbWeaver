@@ -94,6 +94,15 @@ export interface SetRuleEnabledParams extends AutomationActorParams {
   readonly enabled: boolean;
 }
 
+/** RULED F4's per-rule OPT-OUT (interaction-direction-spec row B4): whether a RATE REFUSAL of this rule
+ *  still offers the host the "run it now?" invitation. A targeted one-column flip, shaped on
+ *  {@link SetRuleEnabledParams} rather than folded into the create/update field set — `updateRule` is a PUT
+ *  that CLEARS the mint provenance, and a preference toggle must not cost a host their saved-cast lineage. */
+export interface SetRuleSuggestOnRefusalParams extends AutomationActorParams {
+  readonly ruleId: AutomationRuleId;
+  readonly suggestOnRefusal: boolean;
+}
+
 export interface DeleteRuleParams extends AutomationActorParams {
   readonly ruleId: AutomationRuleId;
 }

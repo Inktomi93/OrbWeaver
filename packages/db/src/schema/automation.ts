@@ -113,6 +113,14 @@ export const automationRules = sqliteTable(
     actions: text("actions", { mode: "json" }).$type<readonly Record<string, unknown>[]>().notNull(),
     // The cascade opt-in — without it, automation-initiated events never re-trigger rules.
     matchAutomationEvents: integer("match_automation_events", { mode: "boolean" }).notNull().default(false),
+    // RULED F4's per-rule OPT-OUT (interaction-direction-spec row B4). TRUE = a rate refusal of this rule
+    // raises the "run it now?" INVITATION (the ruling's default — today's shipped behaviour, which is why
+    // the column defaults on); FALSE = this one rule stays quiet when its budget refuses it. Read at the
+    // dispatch gate (`engine/dispatch.ts::inviteOnRefusal`) BESIDE the arm-shape derivation, never instead
+    // of it: the arms still decide whether a refusal COULD earn an ask, and this decides whether the host
+    // still wants one. Operational state like `enabled` — its own targeted setter, so it is neither part of
+    // the create/update PUT nor of the mint-provenance biconditional below.
+    suggestOnRefusal: integer("suggest_on_refusal", { mode: "boolean" }).notNull().default(true),
     cooldownSeconds: integer("cooldown_seconds").notNull().default(0),
     maxFiresPerHour: integer("max_fires_per_hour").notNull().default(RULE_MAX_FIRES_PER_HOUR_DEFAULT),
     // Increments on predicate_error/action_error, resets on a clean fire; auto-disable at 20.

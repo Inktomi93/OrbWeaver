@@ -67,6 +67,25 @@ export const useSetRuleEnabled = createEntityMutation<
   errorToast: "Couldn't change whether that rule is on.",
 });
 
+/** B4 — RULED F4's per-rule opt-out: whether a RATE REFUSAL of this rule still offers the host the "run it
+ *  now?" card. OPTIMISTIC for the same reason the enable flip is: a discrete-write switch outside any
+ *  autosave form has to paint on press, and the settle invalidate reconciles it from the true server state.
+ *  Its own procedure server-side (the rule PUT would clear the rule's mint provenance), so its own hook. */
+export const useSetRuleSuggestOnRefusal = createEntityMutation<
+  inferInput<Trpc["automation"]["setRuleSuggestOnRefusal"]> & { readonly chatId: ChatId | null },
+  inferOutput<Trpc["automation"]["setRuleSuggestOnRefusal"]>,
+  RuleList
+>({
+  options: (trpc) => trpc.automation.setRuleSuggestOnRefusal.mutationOptions(),
+  optimistic: {
+    readKey: (trpc, vars) => ruleListKey(trpc, vars.chatId),
+    update: (old, vars) =>
+      old === undefined ? old : old.map((rule) => (rule.id === vars.ruleId ? { ...rule, suggestOnRefusal: vars.suggestOnRefusal } : rule)),
+  },
+  invalidates: (trpc, vars) => [ruleListFilter(trpc, vars.chatId)],
+  errorToast: "Couldn't change whether that rule offers to run when it's rate-capped.",
+});
+
 /** Delete a rule (host-only). No optimistic removal — a failed delete flashing a row back is worse than the
  *  brief settle-refetch, and the row carries no in-flight state a member could act on meanwhile. */
 export const useDeleteRule = createEntityMutation<RuleActionVars, inferOutput<Trpc["automation"]["deleteRule"]>>({

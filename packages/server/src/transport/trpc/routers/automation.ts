@@ -94,6 +94,16 @@ export const automationRouter = t.router({
     .input(z.object({ ruleId: brandedId<AutomationRuleId>(), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.automation.setRuleEnabled({ principal: ctx.auth, ruleId: input.ruleId, enabled: input.enabled })),
 
+  // RULED F4's per-rule OPT-OUT (spec row B4) — whether a RATE REFUSAL of this rule still offers the host
+  // the "run it now?" invitation. Its OWN procedure rather than a field on `ruleEditableSchema`, because the
+  // PUT clears the rule's mint provenance: a preference toggle must not cost a host their saved-cast
+  // lineage. Same rule-scoped host gate as `setRuleEnabled`, which is the procedure this one is shaped on.
+  setRuleSuggestOnRefusal: authedProcedure
+    .input(z.object({ ruleId: brandedId<AutomationRuleId>(), suggestOnRefusal: z.boolean() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.automation.setRuleSuggestOnRefusal({ principal: ctx.auth, ruleId: input.ruleId, suggestOnRefusal: input.suggestOnRefusal }),
+    ),
+
   deleteRule: authedProcedure
     .input(z.object({ ruleId: brandedId<AutomationRuleId>() }))
     .mutation(({ ctx, input }) => ctx.services.automation.deleteRule({ principal: ctx.auth, ruleId: input.ruleId })),

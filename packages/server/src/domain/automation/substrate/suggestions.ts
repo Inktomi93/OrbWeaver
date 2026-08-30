@@ -215,10 +215,15 @@ export function summarizeRateRefusal(ruleName: string, limitDetail: string): str
   return `“${ruleName}” hit its rate cap (${limitDetail}). Run it now?`.slice(0, AUTOMATION_SUGGESTION_SUMMARY_MAX);
 }
 
-/** RULED F4 — does a refusal of THIS rule earn an invitation? ON by default for spend arms, and derived from
- *  the arms rather than stored: `automation_rules` carries no `suggest_on_refusal` column, and the per-rule
- *  OPT-OUT is the same recorded-unbuilt column class as R5's suggestion fire-terminal (spec §6 R5 / §8 F1).
- *  Deriving it makes the SHIPPED behavior exactly the ruling's default with no authoring surface to drift. */
+/** RULED F4 — does a refusal of THIS rule's ARMS earn an invitation? ON for spend arms, derived from the
+ *  arms rather than stored, so the ruling's default needs no authoring surface to stay true.
+ *
+ *  This answers only half the question, and deliberately so. The HOST'S half — "do I still want to be asked
+ *  about this rule" — is the B4 per-rule opt-out, and it landed 2026-08-29 as the real
+ *  `automation_rules.suggest_on_refusal` column (this comment previously recorded it as unbuilt). The two
+ *  are ANDed at the one gate that raises the ask (`engine/dispatch.ts::inviteOnRefusal`): arm shape decides
+ *  what COULD be asked, the stored knob decides what IS. Keeping the derivation here means a rule that gains
+ *  a spend arm becomes ask-eligible with no migration, and a host's standing preference survives it. */
 export function invitesOnRefusal(actions: readonly AutomationAction[]): boolean {
   const spend: readonly string[] = SPEND_ARM_TYPES;
   return actions.some((action) => spend.includes(action.type));

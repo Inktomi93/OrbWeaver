@@ -82,6 +82,7 @@ CREATE TABLE `automation_rules` (
 	`rule_preset_knobs` text,
 	`actions` text NOT NULL,
 	`match_automation_events` integer DEFAULT false NOT NULL,
+	`suggest_on_refusal` integer DEFAULT true NOT NULL,
 	`cooldown_seconds` integer DEFAULT 0 NOT NULL,
 	`max_fires_per_hour` integer DEFAULT 30 NOT NULL,
 	`consecutive_errors` integer DEFAULT 0 NOT NULL,

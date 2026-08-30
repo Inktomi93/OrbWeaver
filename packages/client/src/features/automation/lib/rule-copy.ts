@@ -143,6 +143,28 @@ export function hasSpendArm(actions: readonly { readonly type: AutomationActionT
   return actions.some((action) => (SPEND_ARM_TYPES as readonly AutomationActionType[]).includes(action.type));
 }
 
+// ── B4, the rate-capped OFFER toggle's copy ─────────────────────────────────────────────────────────────
+// The wire calls it `suggestOnRefusal` and the spec calls it RULED F4; a host is told neither. What they
+// actually see when it is ON is the invitation card the server writes as `“<rule>” hit its rate cap (…).
+// Run it now?` (`domain/automation/substrate/suggestions.ts::summarizeRateRefusal`), so the switch is named
+// for THAT — the offer, not the ruling. It is shown only on a rule that can raise one at all (a SPEND arm),
+// because a switch that provably changes nothing is worse than no switch.
+
+/** The VISIBLE label beside the switch. The accessible name is built to CONTAIN this string verbatim
+ *  (WCAG 2.5.3 label-in-name) — see {@link suggestOnRefusalAccessibleName}. */
+export const SUGGEST_ON_REFUSAL_LABEL = "Offer to run it when rate-capped";
+
+/** The switch's help line — what the host will SEE if they leave it on, and what "off" buys them. */
+export const SUGGEST_ON_REFUSAL_HELP =
+  "When this rule hits a fire-rate cap, this chat offers you a card to run it anyway. Turn it off to let this one rule stay quiet when it's capped.";
+
+/** N rules give N identical switches, so the accessible name carries the rule's own name to tell them apart
+ *  — appended AFTER the visible label so the visible text is contained exactly, which is what 2.5.3 asks
+ *  and what a voice-control user speaks. */
+export function suggestOnRefusalAccessibleName(ruleName: string): string {
+  return `${SUGGEST_ON_REFUSAL_LABEL} — ${ruleName}`;
+}
+
 /** The rule row's SECOND line: what this rule does, in the words the rule itself carries. A minted rule
  *  stores its catalogue entry's own summary as `description` (`createRuleFromPreset` writes
  *  `description: preset.summary`), so the catalogue's plain-English sentence — the copy the review called

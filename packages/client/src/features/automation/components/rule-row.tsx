@@ -17,6 +17,11 @@
 //     ConfirmDialog. Three affordances at three weights, and the irreversible one can no longer be reached
 //     by a single click 12px from the one that spends.
 //
+// B4 (2026-08-29) added the row's SECOND switch: RULED F4's per-rule opt-out, "Offer to run it when
+// rate-capped". It is conditional on the rule carrying a SPEND arm — the same condition the server ANDs the
+// stored knob with — so most rows are unchanged, and it sits in its OWN labelled row rather than in the
+// trailing cluster, which was already measured tight at this pane's 384px context width.
+//
 // SCOPE rides as `chatId: ChatId | null` and reaches only the MUTATIONS, where it addresses which cached
 // rule list a settle repaints (`lib/rule-mutations.ts`). Nothing a host SEES differs between the two
 // surfaces, which is the point: a rule is a rule, and where it watches is what the enclosing list already
@@ -38,8 +43,17 @@ import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
-import { armLabel, hasSpendArm, lastRunLine, ruleGloss, runOutcomeNotice } from "../lib/rule-copy.ts";
-import { useDeleteRule, useRunRuleNow, useSetRuleEnabled, useTestRule } from "../lib/rule-mutations.ts";
+import {
+  armLabel,
+  hasSpendArm,
+  lastRunLine,
+  ruleGloss,
+  runOutcomeNotice,
+  SUGGEST_ON_REFUSAL_HELP,
+  SUGGEST_ON_REFUSAL_LABEL,
+  suggestOnRefusalAccessibleName,
+} from "../lib/rule-copy.ts";
+import { useDeleteRule, useRunRuleNow, useSetRuleEnabled, useSetRuleSuggestOnRefusal, useTestRule } from "../lib/rule-mutations.ts";
 import { RuleFireLog } from "./rule-fire-log.tsx";
 
 /** One row of the rule list — tRPC-inferred so a wire reshape breaks here at compile time. */
@@ -117,6 +131,7 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
   const testRule = useTestRule({ trpc, invalidation });
   const runNow = useRunRuleNow({ trpc, invalidation });
   const deleteRule = useDeleteRule({ trpc, invalidation });
+  const setSuggestOnRefusal = useSetRuleSuggestOnRefusal({ trpc, invalidation });
   const [testResult, setTestResult] = useState<TestRunResult | null>(null);
   const enableAdmission = useRef(false);
   const spends = hasSpendArm(rule.actions);
@@ -185,6 +200,32 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
           </RowActionsMenu>
         </Row>
       </Row>
+
+      {/* B4 — RULED F4's per-rule opt-out. Rendered ONLY on a rule that carries a SPEND arm, because only
+          those can raise a rate-refusal invitation at all (the server ANDs this knob with the same arm-shape
+          derivation — `substrate/suggestions.ts::invitesOnRefusal`): offering every rule a switch that
+          provably changes nothing on most of them would be a lie the width tax is paid for. Its own row
+          rather than a fourth control in the shrink-0 cluster, which already measures tight at this pane's
+          384px context width — and unlike the enable Switch this one carries VISIBLE label text, so it
+          needs the room a label deserves. */}
+      {spends ? (
+        <Stack gap="tight">
+          <Row gap="field" align="center" justify="between">
+            <Text as="span" voice="label">
+              {SUGGEST_ON_REFUSAL_LABEL}
+            </Text>
+            <Switch
+              aria-label={suggestOnRefusalAccessibleName(rule.name)}
+              checked={rule.suggestOnRefusal}
+              disabled={setSuggestOnRefusal.isPending}
+              onCheckedChange={(next: boolean): void => {
+                setSuggestOnRefusal.mutate({ ruleId: rule.id, suggestOnRefusal: next, chatId });
+              }}
+            />
+          </Row>
+          <Text voice="gloss">{SUGGEST_ON_REFUSAL_HELP}</Text>
+        </Stack>
+      ) : null}
 
       {testResult === null ? null : <TestResultView name={rule.name} result={testResult} />}
 
