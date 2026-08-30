@@ -187,6 +187,22 @@ export const gridVariants = tv({
       // on MORE cells and leaves the cell alone — the right answer wherever the cell is a picture of a
       // thing rather than a container for text. Same 8.5rem cell as `cell`, so the two agree at the floor.
       cellFixed: "grid-cols-[repeat(auto-fill,8.5rem)]",
+      // `cellFixed`'s PHONE ARM (added 2026-08-30, #864 — the Characters landing shelves). Identical at
+      // every pane width the desktop shape reaches; it differs only BELOW `@md`, where the fixed 8.5rem
+      // track stops being the right answer. Measured against the approved 430px artboard: a 430px CONTENT
+      // pane spends 2×`p-block` on its gutters and leaves ~398px, which `auto-fill` at a 136px track fills
+      // with exactly TWO cells and ~120px of dead trailing air — the shelf reads as two big pictures rather
+      // than a rank you scan. Three equal `1fr` columns spend that air on a third face at ~123px, which is
+      // still a legible portrait and is the composition the mock draws.
+      //
+      // A SEPARATE ARM, not a retune of `cellFixed` (the `leadEven`/`leadEarly` precedent): `cellFixed`'s
+      // other consumer is the chats HOME quick-picks shelf, which lives inside a home TILE — a box that is
+      // already narrower than its pane, so a container-level `@max-md` would fire there at widths where the
+      // fixed track is still correct. Reach for `cellShelf` when the shelf IS the pane's full width.
+      //
+      // Container-queried, `pair`'s precedent — it answers to the pane, not the viewport — so it REQUIRES an
+      // ancestor `<Container>` (an element cannot query itself).
+      cellShelf: "grid-cols-3 @md:grid-cols-[repeat(auto-fill,8.5rem)]",
       // `pair`'s LATE-BREATH twin (added 2026-08-16, side-eye #102 F3), for a pair that only makes sense
       // once the pane is genuinely wide: the two FOOTNOTE blocks at the foot of a `lead` rail, which the
       // approved shape puts side by side at the same >=100rem step where the rail itself widens. `pair`'s

@@ -29,6 +29,7 @@ import {
   useActiveChatId,
   useActiveSection,
   useSectionRegistry,
+  useSelectedCharacterId,
   useSelectedRefinerySessionId,
 } from "@orb/client/state";
 import type { CharacterHandle, CharacterId, TagId } from "@orb/kit/ids";
@@ -570,7 +571,16 @@ export function CharactersScreenStory({ deepLinkCharacterId }: CharactersScreenS
  *  lands the override on the previous section — measured, #434). The pane reads the RESOLVED mode, so any
  *  regime resolving `collapsed` exercises it; the override path's own resolution is pinned in
  *  `shell-store.ct` / `section-list-projection.ct`. Under the REAL registry, because the projection reads
- *  this section's declared `panelDefaults`. */
+ *  this section's declared `panelDefaults`.
+ *
+ *  THE MOUNT BOX IS THE VIEWPORT (#864): the pane is a LANDING now, and its shelf grid is CONTAINER-queried
+ *  (`Grid cols="cellShelf"`), so a fixed 720px box would answer every width test with 720. The CT sets the
+ *  viewport and this box takes it, which is what lets one story carry the 1280 pane and the 430 phone.
+ *
+ *  The `selected:` readout is the story's way of showing a SEAM through a user-visible affordance: pressing
+ *  a face selects that character, and in the app the section swaps to her editor — which this story does not
+ *  mount.
+ */
 export function CharacterLibraryWelcomeListModeStory(): ReactElement {
   return (
     <CtDataProviders>
@@ -581,10 +591,17 @@ export function CharacterLibraryWelcomeListModeStory(): ReactElement {
         <button onClick={(): void => setFocusMode(false)} type="button">
           put the list back
         </button>
-        <div style={{ height: 640, width: 720 }}>
+        <CharacterSelectionReadout />
+        <div style={{ height: "80vh", width: "100%" }}>
           <CharacterLibraryWelcome />
         </div>
       </CtRealSectionRegistry>
     </CtDataProviders>
   );
+}
+
+/** The selection store, as one line of text — see {@link CharacterLibraryWelcomeListModeStory}. */
+function CharacterSelectionReadout(): ReactElement {
+  const selected = useSelectedCharacterId();
+  return <p>selected: {selected ?? "nobody"}</p>;
 }
