@@ -112,7 +112,6 @@
     "tests/client/features/character/components/character-facet-row.ct.tsx",
     "tests/client/features/character/components/character-history-tab.ct.tsx",
     "tests/client/features/character/components/character-library-welcome.ct.tsx",
-    "tests/client/features/character/components/character-options-tab.ct.tsx",
     "tests/client/features/character/components/character-tags-row.ct.tsx",
     "tests/client/features/character/hooks/use-tag-suggestion-mutations.ct.tsx",
     "tests/client/features/character/lib/character-actions.test.ts",
