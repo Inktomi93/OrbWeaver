@@ -335,6 +335,48 @@ describe("the rate-refusal invitation (RULED F4)", () => {
     expect(fixture.ctx.suggestions.countForChat(fixture.chatId)).toBe(0);
   });
 
+  // ── B4, the PER-RULE OPT-OUT. The pair below is the whole knob: the SAME refusal, on the SAME
+  //    spend-armed rule, at the SAME cap, raises an ask when the rule offers and raises NOTHING when the
+  //    host has opted that one rule out. One of them is already pinned above ("a budget_refused on a SPEND
+  //    rule raises the invitation"), so the opted-out arm is the delta — and it is asserted on the ASK
+  //    COUNT, which is what a host actually sees, rather than on the flag it was set from. ──
+  test("B4 — an OPTED-OUT rule's refusal raises NO invitation, though its arms still qualify", async () => {
+    const { fixture } = await suggestFixture();
+    await enableRateCappedSpendRule(fixture);
+    const [rule] = await fixture.svc.listRules({ principal: principal(fixture.host), chatId: fixture.chatId });
+    if (rule === undefined) {
+      throw new Error("the rate-capped spend rule was not listed");
+    }
+    // The arm shape has NOT changed — this rule still carries `trigger_turn`, so `invitesOnRefusal` still
+    // says yes. Only the host's standing answer moved.
+    expect(rule.suggestOnRefusal).toBe(true);
+    await fixture.svc.setRuleSuggestOnRefusal({ principal: principal(fixture.host), ruleId: rule.id, suggestOnRefusal: false });
+
+    await fireChatOpened(fixture);
+
+    expect(fixture.ctx.suggestions.countForChat(fixture.chatId)).toBe(0);
+  });
+
+  test("B4 — turning the offer back ON restores the invitation on the very next refusal (no reload seam)", async () => {
+    const { fixture } = await suggestFixture();
+    await enableRateCappedSpendRule(fixture);
+    const [rule] = await fixture.svc.listRules({ principal: principal(fixture.host), chatId: fixture.chatId });
+    if (rule === undefined) {
+      throw new Error("the rate-capped spend rule was not listed");
+    }
+    await fixture.svc.setRuleSuggestOnRefusal({ principal: principal(fixture.host), ruleId: rule.id, suggestOnRefusal: false });
+    await fireChatOpened(fixture);
+    expect(fixture.ctx.suggestions.countForChat(fixture.chatId)).toBe(0);
+
+    await fixture.svc.setRuleSuggestOnRefusal({ principal: principal(fixture.host), ruleId: rule.id, suggestOnRefusal: true });
+    await fireChatOpened(fixture);
+
+    // The dispatch reads the column off the rule ROW it loads per fire, so there is no index to reconcile
+    // and no stale-cache window — the flip is live on the next event.
+    const [ask] = fixture.ctx.suggestions.listForChat(fixture.chatId, FIXED_NOW_MS);
+    expect(ask?.kind).toBe("invitation");
+  });
+
   test("repeated refusals REPLACE one invitation — a capped rule cannot wallpaper the band", async () => {
     const { fixture } = await suggestFixture();
     await enableRateCappedSpendRule(fixture);

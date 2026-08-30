@@ -1111,6 +1111,14 @@ const PROBES: readonly Probe[] = [
       }),
   },
   { path: "automation.setRuleEnabled", call: (c, i) => c.automation.setRuleEnabled({ ruleId: i.automationRuleId, enabled: true }) },
+  // B4's per-rule F4 opt-out — rule-scoped like `setRuleEnabled`, so it takes the SAME `requireRuleAuthority`
+  // chokepoint and a stranger collapses to RuleNotFoundError → NOT_FOUND before the one-column write. Probed
+  // with `false` (the OFF arm): if the gate ever dropped, A's rate-capped spend rules would silently stop
+  // offering A the run-now invitation — a foreigner muting another tenant's room, with no error to notice.
+  {
+    path: "automation.setRuleSuggestOnRefusal",
+    call: (c, i) => c.automation.setRuleSuggestOnRefusal({ ruleId: i.automationRuleId, suggestOnRefusal: false }),
+  },
   { path: "automation.deleteRule", call: (c, i) => c.automation.deleteRule({ ruleId: i.automationRuleId }) },
   { path: "automation.reorderRules", call: (c, i) => c.automation.reorderRules({ chatId: i.chatId, orderedIds: [i.automationRuleId] }) },
   { path: "automation.testRule", call: (c, i) => c.automation.testRule({ ruleId: i.automationRuleId }) },
@@ -1185,6 +1193,10 @@ const PROBES: readonly Probe[] = [
       }),
   },
   { path: "automation.setRuleEnabled", call: (c, i) => c.automation.setRuleEnabled({ ruleId: i.automationOwnerRuleId, enabled: true }) },
+  {
+    path: "automation.setRuleSuggestOnRefusal",
+    call: (c, i) => c.automation.setRuleSuggestOnRefusal({ ruleId: i.automationOwnerRuleId, suggestOnRefusal: false }),
+  },
   { path: "automation.deleteRule", call: (c, i) => c.automation.deleteRule({ ruleId: i.automationOwnerRuleId }) },
   { path: "automation.testRule", call: (c, i) => c.automation.testRule({ ruleId: i.automationOwnerRuleId }) },
   { path: "automation.runRuleNow", call: (c, i) => c.automation.runRuleNow({ ruleId: i.automationOwnerRuleId }) },
@@ -2050,6 +2062,9 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(rulesStill).toHaveLength(1); // the stranger's createRule enqueued no rule into A's chat
     expect(rulesStill[0]?.name).toBe(MARK.automationRule); // untouched by the stranger's automation.updateRule probe
     expect(rulesStill[0]?.enabled).toBe(false); // born disabled — untouched by the stranger's setRuleEnabled probe
+    // B4 — the stranger's `setRuleSuggestOnRefusal(false)` probe never muted A's F4 invitations. A write-IDOR
+    // here returns void and leaks nothing, so the ONLY way to see it is to re-read the column.
+    expect(rulesStill[0]?.suggestOnRefusal).toBe(true);
     // ── C5, the owner-GLOBAL lane. The sweep's marker detector covers the LIST leak; these pins cover what it
     //    structurally cannot see — the numeric rate belt, and the write arm of `requireRuleAuthority`'s
     //    owner-global branch. Both principals are read, because "the stranger sees nothing" and "A still sees
@@ -2060,6 +2075,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(ownerRulesStill).toHaveLength(1); // survived the stranger's deleteRule probe on A's global ruleId
     expect(ownerRulesStill[0]?.name).toBe(MARK.automationOwnerRule); // untouched by the stranger's updateRule probe
     expect(ownerRulesStill[0]?.enabled).toBe(false); // born disabled — the stranger's setRuleEnabled never flipped A's consent
+    expect(ownerRulesStill[0]?.suggestOnRefusal).toBe(true); // B4 — nor did its setRuleSuggestOnRefusal probe mute A's lane
     const strangerBudget = await otherCaller.automation.getOwnerBudgets();
     expect(strangerBudget.maxFiresPerHour).toBe(OWNER_BUDGET_STRANGER); // the stranger reads back its OWN written ceiling…
     const ownerBudgetStill = await ownerCaller.automation.getOwnerBudgets();

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2a93f794-d418-42a8-8e81-ad549d205c0d",
+  "id": "8c921fd4-15af-47cf-a2bf-8ba5b11b64c8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -538,6 +538,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": false
+        },
+        "suggest_on_refusal": {
+          "name": "suggest_on_refusal",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
         },
         "cooldown_seconds": {
           "name": "cooldown_seconds",

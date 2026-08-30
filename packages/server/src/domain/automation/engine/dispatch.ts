@@ -207,17 +207,22 @@ function holdsAuthority(rc: RuleCtx): Promise<boolean> {
 
 /** RULED F4 — the rate-refusal INVITATION. A `budget_refused` happens BEFORE the predicate and before the
  *  env exists, so there is no rendered arm to stash: the ask carries the RULE REFERENCE only, and its
- *  confirm is a fresh host run (R7). Raised only for a rule carrying a SPEND arm (the ruling's default; the
- *  per-rule opt-out is recorded-unbuilt — `substrate/suggestions.ts::invitesOnRefusal`), and never on a
- *  MANUAL run, which cannot reach this path at all (the manual gate skips the rate cap) — so a host who
- *  confirms an invitation can never be handed another one by the run they just asked for. */
+ *  confirm is a fresh host run (R7). Raised only for a rule carrying a SPEND arm (the ruling's default —
+ *  `substrate/suggestions.ts::invitesOnRefusal`) that has not OPTED OUT (B4's per-rule knob, landed
+ *  2026-08-29), and never on a MANUAL run, which cannot reach this path at all (the manual gate skips the
+ *  rate cap) — so a host who confirms an invitation can never be handed another one by the run they just
+ *  asked for. */
 function inviteOnRefusal(rc: RuleCtx, actions: readonly AutomationAction[], limitDetail: string): void {
   const chatId = rc.chatId;
   // An owner-GLOBAL rule raises no invitation, and that is the same wall the confirm-first mint refusal
   // states rather than a second decision: an S4 ask is a CARD, raised in a room on the per-chat bus and
   // answered by that room's host. There is no room here and no host to answer, so the honest surface is no
   // ask at all — the author's own "Run now" in the Automation pane is the affordance that already exists.
-  if (chatId === null || !invitesOnRefusal(actions)) {
+  //
+  // `suggestOnRefusal` is the HOST'S standing answer (B4), read off the rule row the engine already loaded
+  // — it sits BESIDE the arm-shape derivation, never instead of it: the arms decide whether a refusal could
+  // ever earn an ask, and the knob decides whether this host still wants the one it earned.
+  if (chatId === null || !rc.rule.suggestOnRefusal || !invitesOnRefusal(actions)) {
     return;
   }
   const id = rc.ctx.newSuggestionId();

@@ -45,6 +45,7 @@ import type {
   SetGlobalVariableParams,
   SetOwnerBudgetsParams,
   SetRuleEnabledParams,
+  SetRuleSuggestOnRefusalParams,
   TestRuleParams,
   UpdateRuleParams,
 } from "./params.ts";
@@ -134,6 +135,10 @@ export interface AutomationService {
   readonly updateRule: (params: UpdateRuleParams) => Promise<RuleView>;
   /** Enable/disable a rule (host-only) — the watcher's chat-Set is maintained off this. */
   readonly setRuleEnabled: (params: SetRuleEnabledParams) => Promise<void>;
+  /** RULED F4's per-rule opt-out (host-only; spec row B4) — flip whether a RATE REFUSAL of this rule still
+   *  offers the host the "run it now?" invitation. Touches ONE column: the rule's authored shape, its
+   *  enablement and its mint provenance are all untouched. */
+  readonly setRuleSuggestOnRefusal: (params: SetRuleSuggestOnRefusalParams) => Promise<void>;
   /** Delete a rule (host-only). */
   readonly deleteRule: (params: DeleteRuleParams) => Promise<void>;
   /** Rewrite `position` over a chat's rules (host-only; the ST-familiar drag list — a TOTAL reorder). */

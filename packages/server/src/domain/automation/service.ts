@@ -28,6 +28,7 @@ import { createSetBudgets } from "./verbs/set-budgets.ts";
 import { createSetGlobalVariable } from "./verbs/set-global-variable.ts";
 import { createSetOwnerBudgets } from "./verbs/set-owner-budgets.ts";
 import { createSetRuleEnabled } from "./verbs/set-rule-enabled.ts";
+import { createSetRuleSuggestOnRefusal } from "./verbs/set-rule-suggest-on-refusal.ts";
 import { createTestRule } from "./verbs/test-rule.ts";
 import { createUpdateRule } from "./verbs/update-rule.ts";
 
@@ -46,6 +47,7 @@ export function createAutomationService(ctx: AutomationContext): AutomationServi
     listRulePresets: createListRulePresets(),
     updateRule: createUpdateRule(ctx),
     setRuleEnabled: createSetRuleEnabled(ctx),
+    setRuleSuggestOnRefusal: createSetRuleSuggestOnRefusal(ctx),
     deleteRule: createDeleteRule(ctx),
     reorderRules: createReorderRules(ctx),
     listRules: createListRules(ctx),

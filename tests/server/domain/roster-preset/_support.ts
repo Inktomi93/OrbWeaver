@@ -123,6 +123,9 @@ export function seededRuleView(args: {
     rulePresetId: args.rulePresetId,
     rulePresetKnobs: args.rulePresetKnobs,
     matchAutomationEvents: false,
+    // B4 at the shipped default. This double stands in for rules the CAST re-mints, and a cast carries no
+    // opinion about the F4 offer — it captures preset ids + knobs, never per-rule preferences.
+    suggestOnRefusal: true,
     cooldownSeconds: 0,
     maxFiresPerHour: 30,
     consecutiveErrors: 0,

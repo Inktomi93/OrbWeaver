@@ -59,6 +59,8 @@ const RULE = {
   predicateCel: "int(chat.messageCount) % 10 == 0",
   actions: [{ type: "generate_image", mode: "scenario", n: 1, useAvatarReference: false, reuse: "prefer", quiet: false }],
   matchAutomationEvents: false,
+  // B4 — RULED F4's per-rule opt-out, at its shipped default (the rule OFFERS to run when rate-capped).
+  suggestOnRefusal: true,
   cooldownSeconds: 0,
   maxFiresPerHour: 30,
   consecutiveErrors: 0,
@@ -169,6 +171,7 @@ function stub(page: Page, overrides: StubOverrides = {}): Promise<TrpcRecorder> 
     "automation.listFires": () => overrides.fires ?? [],
     "automation.listRulePresets": () => overrides.presets ?? [PACING_PRESET],
     "automation.setRuleEnabled": overrides.setEnabled ?? (() => ({})),
+    "automation.setRuleSuggestOnRefusal": () => ({}),
     "automation.testRule": overrides.testRule ?? (() => ({ predicate: true, arms: [{ type: "generate_image", renderedPreview: "a moody scenario shot" }] })),
     "automation.runRuleNow": () => ({ outcome: "fired" }),
     "automation.createRuleFromPreset": overrides.mint ?? ((): unknown => [RULE]),
@@ -193,6 +196,48 @@ test("renders the chat's rules and toggles one — setRuleEnabled fires with the
 
   await expect.poll(() => trpc.count("automation.setRuleEnabled")).toBe(1);
   await expect.poll(() => trpc.lastInput("automation.setRuleEnabled")).toMatchObject({ ruleId: "automationrule_ct1", enabled: true });
+});
+
+// ── B4, the per-rule F4 opt-out (#804). Asserted through the AFFORDANCE, never the prop: the switch is
+//    found by its ACCESSIBLE NAME, which must CONTAIN the visible label verbatim (WCAG 2.5.3 label-in-name
+//    — a voice-control user says what they read), and the flip is proven by the proc + input the host's
+//    click actually sent. Both were RED against the pre-#804 source: the switch did not exist. ──
+const OFFER_LABEL = "Offer to run it when rate-capped";
+
+test("B4 — a SPEND rule shows the rate-capped OFFER switch, named so the visible label is speakable", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RulesSectionStory chatId={CHAT} />);
+
+  // The visible label is on the row itself, in the host's words — not "suggestOnRefusal", not "F4".
+  await expect(page.getByText(OFFER_LABEL, { exact: true })).toBeVisible();
+  // …and the switch's accessible name CONTAINS that exact string, plus the rule name to tell N rows apart.
+  const offer = page.getByRole("switch", { name: `${OFFER_LABEL} — Illustrate the scene` });
+  await expect(offer).toBeVisible();
+  // Shipped default: the rule offers. The opt-OUT is the host turning this off.
+  await expect(offer).toBeChecked();
+});
+
+test("B4 — flipping the offer off sends setRuleSuggestOnRefusal with the ruleId and `false`", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await mount(<RulesSectionStory chatId={CHAT} />);
+
+  await page.getByRole("switch", { name: `${OFFER_LABEL} — Illustrate the scene` }).click();
+
+  await expect.poll(() => trpc.count("automation.setRuleSuggestOnRefusal")).toBe(1);
+  await expect.poll(() => trpc.lastInput("automation.setRuleSuggestOnRefusal")).toMatchObject({ ruleId: "automationrule_ct1", suggestOnRefusal: false });
+  // The rule PUT is NOT how this travels — routing it there would clear the rule's mint provenance. Both
+  // calls would come from the SAME click handler, so the polls above are the settle: once the flip is
+  // recorded WITH its input, an updateRule from that handler is already issued and recorded too.
+  // ONESHOT-OK: settled by the two `expect.poll`s directly above — same click handler, no later emitter.
+  expect(trpc.count("automation.updateRule")).toBe(0);
+});
+
+test("B4 — a FREE rule shows no offer switch at all: it can never raise the invitation the switch governs", async ({ mount, page }) => {
+  await stub(page, { rules: [FREE_RULE] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+
+  await expect(page.getByText("Count the beats", { exact: true })).toBeVisible(); // the row rendered…
+  await expect(page.getByText(OFFER_LABEL, { exact: true })).toHaveCount(0); // …without the switch.
 });
 
 test("a same-task repeat admits one enable write, owns only its rule row, and rejection releases retry", async ({ mount, page }) => {

@@ -85,6 +85,7 @@ export function toRuleView(row: RuleRow): RuleView {
     rulePresetId: row.rulePresetId,
     rulePresetKnobs: row.rulePresetKnobs,
     matchAutomationEvents: row.matchAutomationEvents,
+    suggestOnRefusal: row.suggestOnRefusal,
     cooldownSeconds: row.cooldownSeconds,
     maxFiresPerHour: row.maxFiresPerHour,
     consecutiveErrors: row.consecutiveErrors,
@@ -156,6 +157,18 @@ export async function applyRuleUpdate(db: Db, ruleId: AutomationRuleId, patch: R
 // WEAKER check. Ends the day a verb writes a rule without that guard.
 export async function setRuleEnabledRow(db: Db, ruleId: AutomationRuleId, enabled: boolean, now: number): Promise<void> {
   await db.update(automationRules).set({ enabled, updatedAt: now }).where(eq(automationRules.id, ruleId));
+}
+
+/** RULED F4's per-rule opt-out (spec row B4) — flip whether a rate refusal of this rule still offers the
+ *  "run it now?" invitation. A ONE-COLUMN write, deliberately not folded into `applyRuleUpdate`: that patch
+ *  is the PUT and it NULLS the mint provenance, so routing a preference flip through it would destroy the
+ *  saved-cast provenance a host never asked to lose. The `setRuleEnabledRow` posture exactly. */
+// @owner-scope-write-ok: the D18 HOST rung, not the stamp — `requireRuleAuthority(ctx, principal, ruleId)`
+// runs in the calling verb (`set-rule-suggest-on-refusal`) and is STRICTER than `eq(ownerId, …)` (a rule's
+// owner is its author, but only the room's host may touch it), so an owner predicate here would encode the
+// WEAKER check. Ends the day a verb writes a rule without that guard.
+export async function setRuleSuggestOnRefusalRow(db: Db, ruleId: AutomationRuleId, suggestOnRefusal: boolean, now: number): Promise<void> {
+  await db.update(automationRules).set({ suggestOnRefusal, updatedAt: now }).where(eq(automationRules.id, ruleId));
 }
 
 // @owner-scope-write-ok: the D18 HOST rung, not the stamp — `requireRuleHost(ctx, principal, ruleId)` runs

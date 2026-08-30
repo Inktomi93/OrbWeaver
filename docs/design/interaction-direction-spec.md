@@ -271,7 +271,9 @@ no standing authority ⇒ a SUGGESTION the HOST confirms; structured-output-only
    take-once, delete-on-take (`legacy-main:.../buddy/agency/proposals.ts:40-47`) — re-checks
    rule-enabled + `holdsAuthority(author)` + (rewrites) variant-still-selected + hash, then
    executes the STORED arm. Double-clicks and replace-races refuse typed, never double-execute.
-2. **Rate-refusal invitations** (RULED F4, ON by default for spend arms): `budget_refused` fires
+2. **Rate-refusal invitations** (RULED F4, ON by default for spend arms — and per-rule OPT-OUTABLE since
+   2026-08-29, #804: `automation_rules.suggest_on_refusal`, the host's standing answer, ANDed with the
+   arm-shape derivation at the raise gate): `budget_refused` fires
    BEFORE predicate and env (`dispatch.ts:181-195`) so no arm can render there — the invitation
    carries the RULE REFERENCE only ("rate-capped — run it now?"); confirm = a fresh host run of
    that rule via R7 `runRuleNow`. No stored payload, no TOCTOU by construction. The
@@ -519,7 +521,7 @@ Preview (host-only, crown)** — `features/chat/lib/chats-section.tsx:54-88`.
 | B1 | offer-choices toggle + R3 | teaching | S2 | any chat: model offers; click composes | toggle: CONTEXT "This chat" chat-behavior section; per-user default: settings chat-behavior pane (`features/chat` owns it); wand: composer menu | ordinary | per-chat `offerChoices` (RULED F2 chat-homed) + the `groupDefaults`-tier per-user default (`contracts/settings/index.ts:827` precedent) |
 | B2 | rules list + preset picker + fire log + Test/Run-now | — | A3/A4 + `listFires`/`testRule` (both BUILT, unwired) + R7 | enable auto-illustrate; the fire log shows it; press Test and Run now | a "Rules" SECTION inside CONTEXT "This chat" (beside Tool-use/Background; host-gated per-section); picker = inline popover; CONTEXT→sheet mobile. The dormant home automation tile stays as-is until B3 | ordinary | per-preset knobs; v1 edit = re-mint |
 | B3 | quick-reply chips | 1 | S1 | a rule surfaces chips; click behaves per mode | the ONE above-composer S1 contribution; in-column mobile. RETIRE the home automation tile (its own contract) | ordinary | per-rule chip arms |
-| B4 | confirm cards + invitations | 1 | S1+S4 | flip a rule to confirm-first; its next fire suggests | same S1 mount (cards above chips; one visible) | ordinary (R5 unbuilt) | confirmFirst; the invite-on-refusal ask is unconditional for spend arms (RULED F4 ON) — the per-rule opt-out knob is recorded-unbuilt (`domain/automation/engine/dispatch.ts:208-212`) |
+| B4 | confirm cards + invitations | 1 | S1+S4 | flip a rule to confirm-first; its next fire suggests | same S1 mount (cards above chips; one visible) | ordinary (R5 unbuilt) | confirmFirst; the invite-on-refusal ask defaults ON for spend arms (RULED F4) and the **per-rule OPT-OUT LANDED 2026-08-29 (#804)** — `automation_rules.suggest_on_refusal` (boolean NOT NULL DEFAULT true), ANDed with the arm-shape derivation at the one gate that raises the ask (`domain/automation/engine/dispatch.ts::inviteOnRefusal`), flipped by its own host-gated `setRuleSuggestOnRefusal` verb + proc (NOT the rule PUT, which would clear the B10 mint provenance), and surfaced as a labelled switch on the rule row for SPEND rules only. Spelled `suggestOnRefusal` after the ruling's own name in §8 |
 | B5 | imagery client | — | the 3 unwired procs + `background` mode (`contracts/imagery:17`) | /imagine → edit → set-as-background → provenance | /imagine: slash-commands registry; preview→edit: lightbox → `imageEdit` modal (modal registry, chat-owned, content trigger); set-as-background: the "This chat" Background section + a same-action image shortcut; provenance: the lightbox detail strip | ordinary | none new |
 | B6 | reactions MR0–MR2 | 2-conc (human) | own plane + the `reactionsChanged` chat-bus member (FULL coupled-site list: union + belt + partition call + (if durable) the `chat_events.type` CHECK + the `toHaveLength(29)` pin `tests/contracts/chat/index.contract.test.ts:60` + the partition pin :73-76 + client apply-arm exhaustiveness `tests/client/data/bus/apply-chat-bus-event.test.ts:469-475` + the bus-coverage gate — the three test sites are vitest, behavioral suites owed) **+ the S7 trigger batch riding this window** | react; second tab sees live | pills: `message-footer` contribution (committed rows only; one line + "+N" overflow; ≥44px hit via the pointer token, small visual box); picker: hover cluster at fine, INSIDE the ⋯ menu at coarse | **merge-window** (db baseline + the batched tuple CHECK — pin the backup) | none new. Ordering flag (RULED F5 taste): schedule as the front half of a B6+B7 unit |
 | B7 | reactions MR3–MR5 + the first tool-attach | 2-conc (character via tool) | the speaker-span parser (`packages/kit/src/speaker-label/index.ts:64`; grouping fitness = MR3's first task) + A1's attach axis + a `react` tool in the ONE registry | react to one speaker's line; the model acknowledges; a character reacts back | segment targeting: the same cluster, whole-message default at coarse | ordinary | attribution caps (K + content) |
@@ -659,7 +661,10 @@ prompt data).
 F1 in-RAM+TTL (durable rows = the recorded flip, criterion: wanted suggestions expiring unseen
 in host-absent rooms) · F2 chat-homed `offerChoices` (+ the per-user default tier) · F3
 three-stop reactions (scope maximal, merge shape one stop at a time) · F4 `suggestOnRefusal` ON
-for spend arms · F5 ladder order = taste · F6 host-only-by-construction, NO UI (rule-state table
+for spend arms — **its per-rule opt-out landed 2026-08-29 (#804) under this exact name**, as
+`automation_rules.suggest_on_refusal` defaulting TRUE, so the ruling's default is now the column's
+default rather than the absence of a column · F5 ladder order = taste · F6
+host-only-by-construction, NO UI (rule-state table
 
 - ephemeral injection; `audience`/plot-panel = R6 recorded; the #28 member `previewSection`
   deferral is the tripwire) · F7 all three analysis presets SHIP (C1 direct steer; C2/C3
