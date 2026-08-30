@@ -12,6 +12,8 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { execOf } from "../_support.ts";
 
 test("a null capability (member floor) passes without calling can()", () => {
+  // FABRICATION-OK: Can is an overloaded call-signature interface (identity/index.ts) — vi.fn() cannot
+  // structurally satisfy it without a cast; the test only asserts call/no-call, never reads through the type.
   const can = vi.fn() as unknown as Can;
   expect(() => checkToolCapability(null, execOf(), can)).not.toThrow();
   expect(can).not.toHaveBeenCalled();
@@ -19,6 +21,7 @@ test("a null capability (member floor) passes without calling can()", () => {
 
 describe("global scope", () => {
   test("calls can() with a global resource and the declared action", () => {
+    // FABRICATION-OK: Can is an overloaded call-signature interface — vi.fn() needs the cast to stand in for it.
     const can = vi.fn() as unknown as Can;
     const exec = execOf();
     checkToolCapability({ scope: "global", action: "admin" }, exec, can);
@@ -26,6 +29,7 @@ describe("global scope", () => {
   });
 
   test("a can() denial propagates (the caller catches and converts to errors-as-data)", () => {
+    // FABRICATION-OK: a throwing stand-in for the overloaded Can interface — no mock library shape fits it structurally.
     const can: Can = ((): void => {
       throw new DomainForbiddenError("nope");
     }) as unknown as Can;
@@ -35,12 +39,14 @@ describe("global scope", () => {
 
 describe("chat scope", () => {
   test("a chat-scoped ceiling with NO roster (executed outside a chat) refuses BEFORE calling can()", () => {
+    // FABRICATION-OK: Can is an overloaded call-signature interface — vi.fn() needs the cast to stand in for it.
     const can = vi.fn() as unknown as Can;
     expect(() => checkToolCapability({ scope: "chat", action: "host" }, execOf({ roster: null }), can)).toThrow(DomainForbiddenError);
     expect(can).not.toHaveBeenCalled();
   });
 
   test("a chat-scoped ceiling with a roster forwards it verbatim to can()", () => {
+    // FABRICATION-OK: Can is an overloaded call-signature interface — vi.fn() needs the cast to stand in for it.
     const can = vi.fn() as unknown as Can;
     const roster = { role: "member" as const };
     const exec = execOf({ chatId: castId("chat_x"), roster });

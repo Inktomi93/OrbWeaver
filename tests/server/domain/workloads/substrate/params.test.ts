@@ -32,6 +32,7 @@ function contributionsWith(over: Partial<WorkloadContribution<"databank-ingest">
     run: () => Promise.reject(new Error("not invoked by this test")),
     ...over,
   };
+  // FABRICATION-OK: a minimal single-kind registry double — only the "databank-ingest" contribution this file's tests exercise.
   return { "databank-ingest": base } as WorkloadContributions;
 }
 
