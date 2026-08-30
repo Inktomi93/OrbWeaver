@@ -71,6 +71,23 @@ export type Assertion =
   | { kind: "overflow"; selector: string; page: number }
   | { kind: "focus"; selector: string; page: number };
 
+/** The `--network` vocabulary: Chrome DevTools' OWN predefined conditions, by their current DevTools
+ *  names (`front_end/core/sdk/NetworkManager.ts`). "Fast 3G" is DevTools' retired name for "Slow 4G" and
+ *  is accepted as an alias by the parser, never as a distinct profile — two spellings, one condition. The
+ *  numbers live with the resolver in lib/throttle.ts. */
+export const NETWORK_PROFILE_NAMES = ["fast-4g", "offline", "slow-3g", "slow-4g"] as const;
+export type NetworkProfileName = (typeof NETWORK_PROFILE_NAMES)[number];
+
+/** One CDP `Network.emulateNetworkConditions` payload. */
+export interface NetworkConditions {
+  readonly offline: boolean;
+  /** Bytes/second; -1 disables the limit (CDP's own sentinel). */
+  readonly downloadThroughput: number;
+  readonly uploadThroughput: number;
+  /** Additional minimum latency, ms. */
+  readonly latency: number;
+}
+
 export interface Args {
   /** Print the operator cookbook and exit without touching a browser or stage. */
   help: boolean;
@@ -213,6 +230,16 @@ export interface Args {
   mapSelector: string;
   /** Which --pages tab to map (default 0), set by a `@<idx>` suffix on --map. */
   mapPage: number;
+  // ── LOAD EMULATION (CDP — the margin a rest-state measurement cannot see) ───
+  /** `--cpu-throttle <n>`: CDP `Emulation.setCPUThrottlingRate`, applied to EVERY page before it
+   *  navigates. 1 = no throttle (the default). The measurement it exists for: a settle that is free at
+   *  rest (inside the browser's 500ms `hadRecentInput` window) becomes PAID under CPU load — 4× moved the
+   *  "This chat" tab's last wave from +384ms to +795ms and cost a real 0.30837 CLS (#819/#826). */
+  cpuThrottle: number;
+  /** `--network <profile>`: CDP `Network.emulateNetworkConditions` with DevTools' own presets. null = the
+   *  real link. NOTE (measured, #826): 4× CPU PLUS a 3G/4G profile never reaches `data-app-ready` on the
+   *  DEV build (~250 unbundled ESM resources) — throttle CPU alone unless you are on a prod build. */
+  network: NetworkProfileName | null;
   // ── DEVICE PRESETS ──────────────────────────────────────────────────────────
   /** A Playwright device descriptor name (e.g. "iPhone 14 Pro Max") — full touch + mobile-UA + DPR
    *  emulation, not just a narrow viewport. null = the raw `viewport` field drives (desktop). Last of

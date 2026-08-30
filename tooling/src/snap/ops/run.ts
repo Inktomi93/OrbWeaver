@@ -6,6 +6,7 @@ import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, ReportCtx, ShotPlan } from "../contract/types.ts";
 import { pageOut, shouldProduceShot } from "../lib/out-names.ts";
+import { throttleResultValue } from "../lib/throttle.ts";
 import { capturePages } from "./capture.ts";
 import { runBaselineOrDiff } from "./diff.ts";
 import { snapDestination } from "./guards.ts";
@@ -145,6 +146,7 @@ export async function snap(opts: Args): Promise<number> {
       ["json", manifestPath ?? "none"],
       ["crop", cropOutcome(opts, { ...plan, out: pageOut(out, 0, totalPages), failed, totalPages }) ?? "none"],
       ["motion", motionResultValue(opts)],
+      ["throttle", throttleResultValue(opts.cpuThrottle, opts.network)],
       ["nav", navResultVerdict(totals.navigation, totals.navActions)],
       ["nav-actions-failed", totals.navActions],
       ["steps-failed", totals.steps],

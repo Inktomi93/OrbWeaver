@@ -58,6 +58,12 @@ Preconditions and geography:
   keyboard without changing focus — N of them walk N stops, inside a Base UI focus trap included.
   `--key 'selector=Key'` FOCUSES the selector and then presses (the COMMIT idiom:
   `--fill 'input=q' --key 'input=Enter'`), so repeating it re-anchors every time and never walks.
+- **`--fill` takes an ENGINE selector.** `--fill 'role=textbox[name="Content"]=a line'` works: the
+  pair split steps over the `=` that ends an engine name (`role=`/`text=`/`css=`/`nth=`, including
+  per-part in a `>>` chain), so the engine form is part of the SELECTOR, not the value. Until
+  2026-08-30 it split at `role` and refused with `--fill selector "role" can never match`, and the
+  workaround was `:nth-match(textarea, 2)=value` — that spelling still works and is still the right
+  answer when nothing names the field. A value carrying its own `=` (a JS literal) is unaffected.
   Pair the bare form with a queued `--eval` on `document.activeElement` to read the focus order in
   one call, and **end a dialog walk on `--key Escape`, never Enter** (focus starts on Close; Enter
   dismisses, and in an editor it SAVES).
@@ -239,6 +245,24 @@ theme-polarity coverage rode only on chat rooms whose card carries a theme.
   screenshot + a re-run of every `--eval`, labeled by elapsed ms. THE instrument for streaming
   turns and transient states. It observes PAGE 0 only; `--no-shot --watch` is the cheap
   state-series path (evals without minting dozens of PNGs).
+
+## §6b Load emulation: `--cpu-throttle` / `--network` (the margin a rest measurement cannot see)
+
+- **`--cpu-throttle <n>` / `--network <slow-3g|fast-3g|slow-4g|fast-4g|offline>`** apply CDP
+  `Emulation.setCPUThrottlingRate` / `Network.emulateNetworkConditions` to EVERY page BEFORE it
+  navigates, so boot is measured under the arm too. Both are echoed on the RESULT line as
+  `throttle=cpu:4x/net:slow-4g` — every number in that run was measured under it.
+- **WHY it exists:** a layout shift within 500ms of a REAL click carries `hadRecentInput: true` and is
+  excluded from CLS, so an unthrottled reading of a "settles after you click it" surface reports
+  `0.000 paid` and says nothing about the margin. `--cpu-throttle 4` is what reveals it — measured on
+  the "This chat" tab (#819): the last settle wave moved from +384ms to +795ms and the host paid
+  0.30837 in one entry. Note a synthetic `el.click()` is UNTRUSTED and never sets `hadRecentInput`;
+  only `--click` (a real CDP input dispatch) reproduces the exclusion.
+- **MEASURED LIMIT — throttle CPU alone on the dev build.** 4× CPU **plus** a 3G/4G profile never
+  reaches `data-app-ready` within snap's readiness window on `:5173` (~250 unbundled ESM resources).
+  The network arm is for a production build or a `--file` fixture.
+- A bad rate or an unknown profile REFUSES at parse time (exit 3) — a silently-ignored throttle would
+  turn every verdict in that run into a false rest-state receipt.
 
 ## §7 Hover-reveal vs virtualized rows
 

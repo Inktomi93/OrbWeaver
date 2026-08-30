@@ -9,6 +9,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { FixtureTarget } from "../contract/fixture.ts";
 import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "../contract/types.ts";
 import { contextOut, shouldProduceShot } from "../lib/out-names.ts";
+import { throttleResultValue } from "../lib/throttle.ts";
 import { capture } from "./capture.ts";
 import { defaultFixtureUsers, fixtureRefusalLine, fixtureStatus, loginFixtureUser, resolveFixtureUsers } from "./fixture.ts";
 import { appliedAcrossContexts, writeManifestIfRequested } from "./manifest.ts";
@@ -225,6 +226,7 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
     ["json", manifestPath ?? "none"],
     ["crop", cropOutcome(opts, { ...plan, out: contextOut(out, 0, totalContexts), failed: [], totalPages: totalContexts }) ?? "none"],
     ["motion", motionResultValue(opts)],
+    ["throttle", throttleResultValue(opts.cpuThrottle, opts.network)],
     ["nav", navResultVerdict(totals.navigation, totals.navActions)],
     ["nav-actions-failed", totals.navActions],
     ["steps-failed", totals.steps],

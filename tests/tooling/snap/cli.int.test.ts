@@ -163,6 +163,67 @@ test("--upload misuse (no '=', or an empty path list) refuses before any browser
   await expect(emptyPaths).toExitWith(EXIT.misuse);
 });
 
+// ── load emulation: --cpu-throttle / --network (#826) ───────────────────────────────────────────────
+// @instrument-proof: the throttle must actually REACH the page, not just parse. A flag that no-ops turns
+// every "0.000 paid CLS" verdict taken under it into a false rest-state receipt — which is the exact
+// class the #819 review was fighting (a settle inside the 500ms hadRecentInput window is free at rest and
+// PAID under load). The probe is a fixed arithmetic loop run BETWEEN two animation frames, read from the
+// rAF callback's own DOMHighResTimeStamp: the loop blocks the main thread, so the frame it sits in
+// stretches by however long the CPU took. The assertion is on the DIFFERENCE (the ~16ms frame floor
+// cancels) and its threshold is far below the nominal 8×, so the pin measures "the CPU is throttled at
+// all", never the host's mood.
+//
+// WHY THE FRAME TIMESTAMP AND NOT `performance.now()`: the `test-determinism` gate bans every ambient
+// clock spelling under tests/, and it CANNOT be suppressed — it reports through the Finding overload
+// (file+line, no node), which lib/pass.ts's `@orb-gate-ignore` resolver never sees. Its two sanctioned
+// live-clock tiers (tests/support/, tests/e2e/) are scanRoot exclusions, and this proof belongs with the
+// tool it proves. rAF's timestamp argument is the frame clock, which is also the more honest instrument
+// for "did the main thread get slower".
+
+const CPU_LOOP_HTML = `<!doctype html><html data-app-ready="settled"><body style="background:#000">
+<p style="color:#fff;font-size:16px">load arm</p></body></html>`;
+/** Bare arrow — snap auto-invokes a function literal, and an ARROW IIFE double-invokes and throws. */
+const CPU_LOOP_EVAL =
+  "() => new Promise((resolve) => { requestAnimationFrame((t0) => { let x = 0; for (let i = 0; i < 12000000; i += 1) { x += Math.sqrt(i); } requestAnimationFrame((t1) => resolve(x > 0 ? Math.round(t1 - t0) : -1)); }); })";
+const EVAL_MS_RE = /EVAL\[0\][^\n]*\n(\d+)/u;
+
+function frameMs(stdout: string): number {
+  const raw = EVAL_MS_RE.exec(stdout)?.[1];
+  expect(raw, `the in-page loop must have reported a frame duration — got:\n${stdout}`).toBeDefined();
+  return Number(raw);
+}
+
+test("--cpu-throttle REACHES the page: the same in-page loop stretches its frame at 8x", { timeout: 3 * BROWSER_TIMEOUT_MS }, async ({
+  plantedTree,
+  runCli,
+}) => {
+  const root = await plantedTree({ "loop.html": CPU_LOOP_HTML });
+  const argv = ["--file", `${root}/loop.html`, "--eval", CPU_LOOP_EVAL, "--no-shot", "--no-failure-evidence"];
+  const rest = await runCli("snap", argv, { timeoutMs: BROWSER_TIMEOUT_MS });
+  const loaded = await runCli("snap", [...argv, "--cpu-throttle", "8"], { timeoutMs: BROWSER_TIMEOUT_MS });
+
+  const restMs = frameMs(rest.stdout);
+  const loadedMs = frameMs(loaded.stdout);
+  expect(restMs, "the unthrottled arm must have measured a frame at all").toBeGreaterThan(0);
+  expect(loadedMs - restMs, `8x CPU throttling must stretch the frame (rest ${restMs}ms vs loaded ${loadedMs}ms)`).toBeGreaterThan(60);
+  expect(loadedMs / restMs, `…and by a ratio, not just an absolute (rest ${restMs}ms vs loaded ${loadedMs}ms)`).toBeGreaterThan(1.8);
+  // …and the arm is published, so no reader has to re-derive it from the argv.
+  expect(rest.stdout).toContain("throttle=cpu:1x/net:live");
+  expect(loaded.stdout).toContain("throttle=cpu:8x/net:live");
+  await expect(loaded).toExitWith(EXIT.clean);
+});
+
+test("a bad --cpu-throttle/--network value refuses before any browser boots", async ({ runCli }) => {
+  const rate = await runCli("snap", ["--cpu-throttle", "0", "--no-failure-evidence"]);
+  expect(rate.stdout).toContain("ARG ERROR");
+  expect(rate.stdout).toContain("--cpu-throttle expects a rate >= 1");
+  await expect(rate).toExitWith(EXIT.misuse);
+
+  const profile = await runCli("snap", ["--network", "dial-up", "--no-failure-evidence"]);
+  expect(profile.stdout).toContain("--network expects one of");
+  await expect(profile).toExitWith(EXIT.misuse);
+});
+
 // The selector-DIALECT twin of the fix (#651's second, smaller gap): --contrast used to hand its
 // selector straight to `document.querySelectorAll`, which cannot parse Playwright engine forms
 // (`text=`) — the SAME dialect --wait-for requires. It now resolves through page.locator first.

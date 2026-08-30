@@ -8,11 +8,15 @@ import {
   hasSnapFailure,
   isSandboxTraceNoise,
   isViteDepChurn,
+  NETWORK_PROFILES,
+  NO_CPU_THROTTLE,
+  parseNetworkProfile,
   parseScenarioSpec,
   parseSnapArgs,
   partitionFailedRequests,
   selectConsoleMessagesForReport,
   splitTrailingEvals,
+  throttleResultValue,
 } from "../../../tooling/src/snap/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -192,6 +196,30 @@ test("snap --fill keeps both halves at once: an attribute selector AND a value c
   expect(args.errors).toEqual([]);
   const fillAction = args.actions.find((a) => a.type === "step" && a.action.kind === "fill");
   expect(fillAction).toMatchObject({ type: "step", action: { kind: "fill", selector: "[data-slot=composer-input]", value: "const a = 1;" } });
+});
+
+// #826: THE SAME RULING, ITS INPUT CHANGED AGAIN. A Playwright ENGINE prefix carries its own '=' inside
+// the selector, so the depth-0 split cut `role=textbox[name="Content"]=hello` at `role` and refused with
+// `--fill selector "role" can never match` — the flag could not target ANY role/text selector, and a live
+// review had to fall back to `:nth-match(textarea, 2)=value` (2026-08-30 CLS review §9-I4). The engine set
+// is CLOSED: `input=hello` must still split at the first '=' or this fix becomes the mirror of the bug.
+test("snap --fill takes a role= engine selector — the engine's own '=' is part of the selector", () => {
+  const args = parseSnapArgs(["/", "--fill", 'role=textbox[name="Content"]=a line of prose']);
+
+  expect(args.errors).toEqual([]);
+  const fillAction = args.actions.find((a) => a.type === "step" && a.action.kind === "fill");
+  expect(fillAction).toMatchObject({ type: "step", action: { kind: "fill", selector: 'role=textbox[name="Content"]', value: "a line of prose" } });
+});
+
+test("a >> chain keeps its per-part engines, and a plain CSS pair still splits at the first '='", () => {
+  const chained = parseSnapArgs(["/", "--fill", "role=textbox >> nth=1=second"]);
+  expect(chained.errors).toEqual([]);
+  expect(chained.actions.find((a) => a.type === "step")).toMatchObject({ action: { selector: "role=textbox >> nth=1", value: "second" } });
+
+  // The mirror-image regression this closes the door on: `input` is engine-SHAPED but is not an engine.
+  const plain = parseSnapArgs(["/", "--fill", "input=hello"]);
+  expect(plain.errors).toEqual([]);
+  expect(plain.actions.find((a) => a.type === "step")).toMatchObject({ action: { selector: "input", value: "hello" } });
 });
 
 test("snap --fill with no '=' at all still refuses, naming the expected sel=value shape", () => {
@@ -383,6 +411,48 @@ test("sandbox-trace noise is excluded from the error verdict but never from the 
   const selected = selectConsoleMessagesForReport([noise, realError, routedNoise], 10);
   expect(selected.omitted).toBe(0);
   expect(selected.messages).toHaveLength(3);
+});
+
+// ── load emulation: --cpu-throttle / --network (#826) ───────────────────────────────────────────────
+// The arm that decided #819 (does a click-adjacent settle cross the 500ms hadRecentInput cliff under
+// load) was unreachable from snap and cost 14 chrome-devtools MCP calls. Parse-side pins: the values
+// reach Args, a bad value REFUSES (a silently-ignored throttle flag would report a load arm that never
+// ran), the DevTools numbers are the DevTools numbers, and the RESULT line publishes the arm.
+
+test("snap parses the load-emulation arms into Args, defaulting to no throttle and the real link", () => {
+  const off = parseSnapArgs(["/"]);
+  expect(off.cpuThrottle).toBe(NO_CPU_THROTTLE);
+  expect(off.network).toBeNull();
+
+  const loaded = parseSnapArgs(["/", "--cpu-throttle", "4", "--network", "Slow 4G"]);
+  expect(loaded.errors).toEqual([]);
+  expect(loaded.cpuThrottle).toBe(4);
+  expect(loaded.network).toBe("slow-4g");
+});
+
+test("a bad throttle value REFUSES before a browser boots — never a silent fall back to 1x", () => {
+  expect(parseSnapArgs(["/", "--cpu-throttle", "banana"]).errors).toContain(
+    '--cpu-throttle expects a rate >= 1 (1 = off, 4 = the standard load arm), got "banana"',
+  );
+  expect(parseSnapArgs(["/", "--cpu-throttle", "0"]).errors.join(" ")).toContain("--cpu-throttle expects a rate >= 1");
+  expect(parseSnapArgs(["/", "--network", "3g"]).errors.join(" ")).toContain("--network expects one of");
+});
+
+test("the --network vocabulary is DevTools' own, case/separator-insensitive, with Fast 3G as the alias it is", () => {
+  // DevTools renamed "Fast 3G" to "Slow 4G"; both spellings must land on ONE condition, never a fifth.
+  expect(parseNetworkProfile("Fast 3G")).toBe("slow-4g");
+  expect(parseNetworkProfile("slow_4g")).toBe("slow-4g");
+  expect(parseNetworkProfile("OFFLINE")).toBe("offline");
+  expect(parseNetworkProfile("edge")).toBeNull();
+
+  // Verbatim from front_end/core/sdk/NetworkManager.ts: 1.6 Mbps × 0.9 ÷ 8, 750 Kbps × 0.9 ÷ 8, 150 × 3.75.
+  expect(NETWORK_PROFILES["slow-4g"]).toEqual({ offline: false, downloadThroughput: 180_000, uploadThroughput: 84_375, latency: 562.5 });
+  expect(NETWORK_PROFILES.offline.offline).toBe(true);
+});
+
+test("the RESULT line publishes the arm every number in the run was measured under", () => {
+  expect(throttleResultValue(NO_CPU_THROTTLE, null)).toBe("cpu:1x/net:live");
+  expect(throttleResultValue(4, "slow-4g")).toBe("cpu:4x/net:slow-4g");
 });
 
 // ── Cold-stage vite churn is not a failure (issue #148 item 3) ──────────────────────────────────────

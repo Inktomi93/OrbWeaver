@@ -41,6 +41,8 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   "--crop",
   "--out",
   "--viewport",
+  "--cpu-throttle",
+  "--network",
   ...APPEARANCE_VALUE_FLAGS,
   ...THEME_VALUE_FLAGS,
   "--eval",
