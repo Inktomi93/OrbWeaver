@@ -55,3 +55,21 @@ D71/D44 (`UI-Theming-and-Content.md` §12) — Looks apply through it; imported 
 `reattributePersona` semantics are chat-domain; the popover only invokes the verb. The S2 search and
 D120 contribution seams are the S1 registry's — everything here renders through `config-group`
 contributions, no new nav machinery.
+
+## The existing action inventory (verified 2026-08-30 — the design mints NO new verbs)
+
+Server `domain/persona/verbs/`: `create` · `createFromCharacter` (copies name/description/avatar,
+optional macro swap) · `duplicate` · `import` / `export` · `update` · `remove` · `setActivePersona`
+(per-chat, per-PARTICIPANT — `chat_participants.activePersonaId`; a non-null persona must be owned by
+the TARGET, so a host can never assign their own persona onto another participant) ·
+`connectToCharacter` / `disconnectFromCharacter` / `listConnectedToCharacter` · `resolvePersonasForRoster`
+(internal, D122). Chat-side: `chat.reattributePersona` (#60) with `reattributeScopeSchema` —
+`{kind:"messages", messageIds}` or `{kind:"mine", fromSeq?}`.
+
+Mappings, quick surface: switch-Everywhere = the existing playing-as mechanism; switch-This-chat =
+`setActivePersona(chatId, personaId)`; the re-attribute row = `reattributePersona(chatId,
+{kind:"mine"})` — all three already reached by `features/persona/hooks/use-chat-persona.ts`.
+The FULL Settings surface additionally exposes what the boards abbreviate: the list row's ⋯ =
+Edit · Duplicate · Export · Delete; the header doors = New · Import · From character; the editor adds
+the character-connection section (`listConnectedToCharacter` + connect/disconnect). Nothing else may
+be invented without a verb to back it.
