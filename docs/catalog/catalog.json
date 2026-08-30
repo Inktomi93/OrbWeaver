@@ -25995,6 +25995,54 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-30-this-chat-cls-verify.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 293,
+      "bytes": 13385,
+      "sha256": "1fe15b561bd57c83b2198809a9690a6af55d733c5c30b78fdc5e37b0c3162c45",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-30"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-30-this-chat-cls-verify.md",
+        "assignedSha256": "1fe15b561bd57c83b2198809a9690a6af55d733c5c30b78fdc5e37b0c3162c45",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "1fe15b561bd57c83b2198809a9690a6af55d733c5c30b78fdc5e37b0c3162c45",
+        "verifiedCommit": "428ebb71b537cc2ed06a97174d04782af8827ad3",
+        "verifiedAt": "2026-08-30",
+        "evidence": [
+          "docs/reviews/side-eye/2026-08-30-this-chat-cls-verify.md:1-293 read in full by the orchestrator (claude-b) before commit; lane cb-cls-verify, verify-only, on :5173 serving 76ee75493 as the host Traveler in the #819 fixture room; two throttled ledgers reproduce entry-for-entry; method deviation (snap --cpu-throttle from #826 instead of the MCP) accepted; criterion-2 judgment (free first-wave mount churn ≠ the +795ms annihilation) accepted by the orchestrator"
+        ],
+        "claims": [
+          {
+            "claim": "#821's throttled real-click done-criterion is met on 76ee75493: zero paid layout-shift entries after a real click at 4× CPU on 430×932 in two runs; the pre-fix 0.30837 paid shift and its +795ms wave no longer exist; the remaining above-the-fold residue is tracked by #830 and the kicker term by #829 (fixed in 17ee2b105).",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#821"
+              },
+              {
+                "kind": "issue",
+                "target": "#830"
+              }
+            ]
+          }
+        ],
+        "summary": "#821 re-verify on 76ee75493: PASS — mobile 430×932 at 4× CPU, real click, zero paid layout-shift entries in two identical runs (last wave +275/+219ms vs +795ms pre-fix; §Injections 920→307px); desktop after-click 0.145→0.075 observed, 0 paid; the residual §Documents >0h0 mover is free first-wave mount churn at 0.017, judged not the defect; Lorebooks still below the fold (→ #830); the ❗8 dev badge is a stale checker worker."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/side-eye/2026-08-30-this-chat-cls.md",
       "lane": "reviews",
       "issue": 7,
