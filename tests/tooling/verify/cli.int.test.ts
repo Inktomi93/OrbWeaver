@@ -1,4 +1,4 @@
-// @instrument-proof: `verify`'s front door must answer `--help` from ARGV ALONE, before any subcommand
+// Red-first receipt (#809 — NOT an @instrument-proof marker: `verify` is the gate harness, not an INSTRUMENT_TOOLS member): `verify`'s front door must answer `--help` from ARGV ALONE, before any subcommand
 // body runs. RED before #809, measured on this tree: `node --max-old-space-size=512
 // tooling/src/verify/cli.ts structure --help` aborted with exit 134 (heap OOM) in 5.4s, because the help
 // request fell through to `runStructure`, which loads the whole-repo ts-morph project. A help path that
