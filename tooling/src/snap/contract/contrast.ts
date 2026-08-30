@@ -1,6 +1,6 @@
 // The raw facts `--contrast`'s in-page script returns, before any verdict is formed. Split out of
 // ops/contrast.ts when the #466 exemption pushed that file past the tooling size cap; shapes live in
-// contract/ by the five-slot template (docs/design/tooling-package.md §2.5).
+// contract/ by the five-slot template (docs/architecture/core/Core-Tooling-Law.md §2.5).
 
 /** Every match is outside the viewport (#211): measuring one would be a verdict on pixels nobody saw. */
 export interface ContrastOffscreen {

@@ -9,13 +9,13 @@
     "count": 3,
     "ratified": 3,
     "why": "the CONTEXT-band neutral \"Details\" fallback (`size=\"label\" weight=\"medium\" tone=\"muted\"`) is a band-identity default, not prose or a directory entry — no closed voice combines label-step + medium weight + muted tone in that exact shape (spec §2.3's table is a fixed weight/tone per voice); a judgment call in the same class the spec rules non-forced for label+muted pairs.",
-    "cite": ["packages/client/src/features/app-shell/components/section-context-host.tsx#L37-L41", "docs/design/density-pass-spec.md#§2.3"]
+    "cite": ["packages/client/src/features/app-shell/components/section-context-host.tsx#L37-L41", "docs/architecture/core/UI-Density-Law.md#§2.3"]
   },
   "packages/client/src/features/app-shell/components/shell-topbar.tsx": {
     "count": 2,
     "ratified": 2,
     "why": "promoted-is-reserved: `size=\"title\" weight=\"semibold\"` is the shell topbar's PAGE title, not \"the one item in a shelf\" `promoted` names — the spec's §2.3 promoted definition is scoped to a single promoted item among siblings, never a page/topbar chrome title.",
-    "cite": ["packages/client/src/features/app-shell/components/shell-topbar.tsx#L136", "docs/design/density-pass-spec.md#§2.3"]
+    "cite": ["packages/client/src/features/app-shell/components/shell-topbar.tsx#L136", "docs/architecture/core/UI-Density-Law.md#§2.3"]
   },
   "packages/client/src/features/auth/components/login-local-form.tsx": {
     "count": 2,
@@ -30,7 +30,7 @@
     "cite": [
       "packages/client/src/features/auth/surfaces/account-surface.tsx#L56",
       "packages/client/src/features/auth/surfaces/account-surface.tsx#L75",
-      "docs/design/density-pass-spec.md#§2.3"
+      "docs/architecture/core/UI-Density-Law.md#§2.3"
     ]
   },
   "packages/client/src/features/auth/surfaces/login-surface.tsx": {
@@ -42,7 +42,7 @@
       "packages/client/src/features/auth/surfaces/login-surface.tsx#L128",
       "packages/client/src/features/auth/surfaces/login-surface.tsx#L138",
       "packages/client/src/features/auth/surfaces/login-surface.tsx#L187",
-      "docs/design/density-pass-spec.md#§2.3"
+      "docs/architecture/core/UI-Density-Law.md#§2.3"
     ]
   },
   "packages/client/src/features/character/components/character-facet-editor.tsx": {
@@ -78,7 +78,7 @@
       "packages/client/src/features/chat/anchors/join-invite-dialog.tsx#L109",
       "packages/client/src/features/chat/anchors/join-invite-dialog.tsx#L112",
       "packages/client/src/features/chat/anchors/join-invite-dialog.tsx#L115",
-      "docs/design/density-pass-spec.md#§2.3"
+      "docs/architecture/core/UI-Density-Law.md#§2.3"
     ]
   },
   "packages/client/src/features/chat/components/chat-header.tsx": {
@@ -88,7 +88,7 @@
     "cite": [
       "packages/client/src/features/chat/components/chat-header.tsx#L89",
       "packages/client/src/features/chat/components/chat-header.tsx#L148",
-      "docs/design/density-pass-spec.md#§2.3"
+      "docs/architecture/core/UI-Density-Law.md#§2.3"
     ]
   },
   "packages/client/src/features/chat/components/home-temp-chat-tile-body.tsx": {
@@ -98,14 +98,14 @@
     "cite": [
       "packages/client/src/features/chat/components/home-temp-chat-tile-body.tsx#L119",
       "packages/client/src/features/chat/components/home-temp-chat-tile-body.tsx#L121",
-      "docs/design/density-pass-spec.md#§2.3"
+      "docs/architecture/core/UI-Density-Law.md#§2.3"
     ]
   },
   "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx": {
     "count": 2,
     "ratified": 2,
     "why": "`size=\"label\" tone=\"muted\"` is one of the density burn-down's explicitly named label+muted judgment sites (new-chat-picker-surface) — a real tone decision, not a vocabulary gap.",
-    "cite": ["packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx#L186", "docs/design/density-pass-spec.md#§2.3"]
+    "cite": ["packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx#L186", "docs/architecture/core/UI-Density-Law.md#§2.3"]
   },
   "packages/client/src/features/notifications/components/notification-bell.tsx": {
     "count": 2,
@@ -132,7 +132,7 @@
     "cite": [
       "packages/client/src/features/persona/components/persona-this-chat-section.tsx#L121",
       "packages/client/src/features/persona/components/persona-this-chat-section.tsx#L147",
-      "docs/design/density-pass-spec.md#§2.3"
+      "docs/architecture/core/UI-Density-Law.md#§2.3"
     ]
   },
   "packages/client/src/features/persona/surfaces/persona-panel-surface.tsx": {
@@ -145,7 +145,7 @@
     "count": 2,
     "ratified": 2,
     "why": "the macro-syntax-error `tone=\"warning\"` line is the semantic-color-tones precedent named by #573's ratify comments (macro-browser is one of the two named sites): the SEMANTIC tone is the message — no voice carries a semantic color.",
-    "cite": ["packages/client/src/features/preset/components/macro-browser.tsx#L52", "docs/design/density-pass-spec.md#§2.3"]
+    "cite": ["packages/client/src/features/preset/components/macro-browser.tsx#L52", "docs/architecture/core/UI-Density-Law.md#§2.3"]
   },
   "packages/client/src/features/preset/components/prompt-assembly/assembly-preview.tsx": {
     "count": 5,
@@ -154,7 +154,7 @@
     "cite": [
       "packages/client/src/features/preset/components/prompt-assembly/assembly-preview.tsx#L79",
       "packages/client/src/features/preset/components/prompt-assembly/assembly-preview.tsx#L88",
-      "docs/design/density-pass-spec.md#§2.3"
+      "docs/architecture/core/UI-Density-Law.md#§2.3"
     ]
   }
 }

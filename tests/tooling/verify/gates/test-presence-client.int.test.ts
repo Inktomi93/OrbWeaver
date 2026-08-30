@@ -1,6 +1,6 @@
 // The PERMANENT PIN for `test-presence-client` (tooling/src/verify/gates/test-presence-client.ts), clause C
 // — issue #619. (Named for the GATE, not the clause: a tooling test prefix-swaps to its tool's module,
-// docs/design/tooling-package.md §4.7 — `test-layout` reds any other spelling.) Clause C was SILENTLY INERT on 15 of the tree's 34 state stores: it resolved a store's mirror
+// docs/architecture/core/Core-Tooling-Law.md §4.7 — `test-layout` reds any other spelling.) Clause C was SILENTLY INERT on 15 of the tree's 34 state stores: it resolved a store's mirror
 // as `.ct.tsx` ONLY and `return []` when that path did not exist, so every `.test.ts`-mirrored store went
 // UNJUDGED while the gate reported CLEAN. The gate's own header asserted "every existing state store mirror
 // is a .ct.tsx, never a .test.ts" — false by 15 files. A clause that cannot run must never report clean.

@@ -575,11 +575,11 @@ module.exports = {
     // (scripts/check/gates/) which matches the named table symbols at the ImportSpecifier level — the
     // same mechanism vector-scope-derived/no-direct-users-read use for barrel-resolved table seals.
 
-    // ════════════════════ @orb/tooling — the tool fleet ABOVE the cake (docs/design/tooling-package.md §4.6) ════════════════════
+    // ════════════════════ @orb/tooling — the tool fleet ABOVE the cake (docs/architecture/core/Core-Tooling-Law.md §4.6) ════════════════════
     {
       name: "packages-no-tooling",
       comment:
-        "One-way glass: nothing in packages/** may import @orb/tooling — tools sit ABOVE the cake (may import any app package; never the reverse). Primary enforcement is resolver physics (no package declares the dep); this is the deep-relative-escape backstop, the ui-cake posture. (tooling-package.md §1/§4.6.)",
+        "One-way glass: nothing in packages/** may import @orb/tooling — tools sit ABOVE the cake (may import any app package; never the reverse). Primary enforcement is resolver physics (no package declares the dep); this is the deep-relative-escape backstop, the ui-cake posture. (Core-Tooling-Law.md §1/§4.6.)",
       severity: "error",
       from: { path: "^packages/" },
       to: { path: "^tooling/" },
@@ -587,7 +587,7 @@ module.exports = {
     {
       name: "tooling-internal-direction",
       comment:
-        "Cross-tool imports enter through the sibling's index.ts — never its ops/lib/contract internals. NO type-only exemption (the domain-sibling-front-door precedent: the front-door law is a SHAPE rule). The ts-morph twin (tooling-front-door) is the lane-speed arm; this is the whole-graph resolved-edge backstop. (tooling-package.md §4.2/§4.6.)",
+        "Cross-tool imports enter through the sibling's index.ts — never its ops/lib/contract internals. NO type-only exemption (the domain-sibling-front-door precedent: the front-door law is a SHAPE rule). The ts-morph twin (tooling-front-door) is the lane-speed arm; this is the whole-graph resolved-edge backstop. (Core-Tooling-Law.md §4.2/§4.6.)",
       severity: "error",
       from: { path: "^tooling/src/([^/]+)/" },
       to: { path: "^tooling/src/([^/]+)/(ops|lib|contract)/", pathNot: "^tooling/src/$1/" },
@@ -595,7 +595,7 @@ module.exports = {
     {
       name: "tooling-cli-via-index",
       comment:
-        "A tool's cli.ts consumes its OWN tool only through ./index.ts (argv parse + dispatch fronts the programmatic API; a cli reaching into ops/lib couples the argv surface to internals). _shared imports stay legal (a different top dir, not matched here). (tooling-package.md §4.2/§4.6.)",
+        "A tool's cli.ts consumes its OWN tool only through ./index.ts (argv parse + dispatch fronts the programmatic API; a cli reaching into ops/lib couples the argv surface to internals). _shared imports stay legal (a different top dir, not matched here). (Core-Tooling-Law.md §4.2/§4.6.)",
       severity: "error",
       from: { path: "^tooling/src/([^/]+)/cli\\.ts$" },
       to: { path: "^tooling/src/$1/", pathNot: "^tooling/src/$1/index\\.ts$" },
@@ -603,7 +603,7 @@ module.exports = {
     {
       name: "tooling-shared-floor",
       comment:
-        "_shared/ is @orb/tooling's floor — read DOWN-into by every tool, reaching UP to none (the foundation-reaches-up-to-nothing mirror). (tooling-package.md §2.4/§4.6.)",
+        "_shared/ is @orb/tooling's floor — read DOWN-into by every tool, reaching UP to none (the foundation-reaches-up-to-nothing mirror). (Core-Tooling-Law.md §2.4/§4.6.)",
       severity: "error",
       from: { path: "^tooling/src/_shared/" },
       to: { path: "^tooling/src/", pathNot: "^tooling/src/_shared/" },
@@ -611,7 +611,7 @@ module.exports = {
     {
       name: "tooling-no-provider-families",
       comment:
-        "The tooling half of `providers-public-surface-only`. Tools sit ABOVE the cake and may import any app package (tooling-package.md §1), and the fleet launcher MUST share `vllm/engine`'s spawn-spec/wake-budget builders with the in-server supervisor or the two owners drift — that shared-builder invariant is the whole point of the ownership inversion (A.4). What stays SEALED against tooling is the part the original rule's WHY is about: the provider FAMILIES (backends/<x>, where the agent-sdk credential firewall lives) and the contract internals. A tool reaching either is RED. (tooling-package.md §1/§4.6; providers invariants #1/#4.)",
+        "The tooling half of `providers-public-surface-only`. Tools sit ABOVE the cake and may import any app package (Core-Tooling-Law.md §1), and the fleet launcher MUST share `vllm/engine`'s spawn-spec/wake-budget builders with the in-server supervisor or the two owners drift — that shared-builder invariant is the whole point of the ownership inversion (A.4). What stays SEALED against tooling is the part the original rule's WHY is about: the provider FAMILIES (backends/<x>, where the agent-sdk credential firewall lives) and the contract internals. A tool reaching either is RED. (Core-Tooling-Law.md §1/§4.6; providers invariants #1/#4.)",
       severity: "error",
       from: { path: "^tooling/" },
       to: {
@@ -696,7 +696,7 @@ module.exports = {
       // is the cheap in-graph tripwire for NEW orphans.
       name: "no-orphans",
       comment:
-        "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority. instruments.ts is carved: the tooling-instrument-proof gate reads it STRUCTURALLY (an AST read, no import edge exists by design — tooling-package.md §4.5); knip covers it via the tooling workspace entry. The seeded EXAMPLE-PLUGIN bundles are carved for a stronger reason: `seed-assets/plugins/<slug>/{main,ui}.js` is GUEST source, not host source — it is read as BYTES by `packSeedPluginBundle`, zipped, and executed inside a QuickJS sandbox against a global that does not exist in this graph (`orb.host(1)` on the server, `orb.ui(1)` in the browser worker — plugin-ui-plane #679 U4). An import edge is not merely absent, it is impossible: neither guest realm has a module loader. They ride `packages/server/src` because that is the only tree the image copies, and their liveness is proven behaviourally by `tests/server/entry/boot/seed-example-plugins.int.test.ts`, which installs each one and round-trips the scripted example's `ui.js` back out through `getUiBundle`.",
+        "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority. instruments.ts is carved: the tooling-instrument-proof gate reads it STRUCTURALLY (an AST read, no import edge exists by design — Core-Tooling-Law.md §4.5); knip covers it via the tooling workspace entry. The seeded EXAMPLE-PLUGIN bundles are carved for a stronger reason: `seed-assets/plugins/<slug>/{main,ui}.js` is GUEST source, not host source — it is read as BYTES by `packSeedPluginBundle`, zipped, and executed inside a QuickJS sandbox against a global that does not exist in this graph (`orb.host(1)` on the server, `orb.ui(1)` in the browser worker — plugin-ui-plane #679 U4). An import edge is not merely absent, it is impossible: neither guest realm has a module loader. They ride `packages/server/src` because that is the only tree the image copies, and their liveness is proven behaviourally by `tests/server/entry/boot/seed-example-plugins.int.test.ts`, which installs each one and round-trips the scripted example's `ui.js` back out through `getUiBundle`.",
       severity: "warn",
       from: {
         orphan: true,

@@ -1,4 +1,4 @@
-// Gate: test-fixture-imports (core/Spine-Testing.md §4; docs/design/tooling-package.md §4.8)
+// Gate: test-fixture-imports (core/Spine-Testing.md §4; docs/architecture/core/Core-Tooling-Law.md §4.8)
 // Fixture doctrine: A test imports { test, expect } from support/fixtures, never directly from vitest or
 // @playwright/test. Under tests/tooling/ the door is support/tool-fixtures (which EXTENDS the house test):
 // entering through plain fixtures there skips the RESULT snapshot serializer, so inline snapshots bake
@@ -13,7 +13,7 @@ import type { GateDescriptor } from "../contract/gate.ts";
 const BANNED_MODULES = new Set(["vitest", "@playwright/test"]);
 const FIXTURE_NAMES = new Set(["test", "it", "expect"]);
 const FIXTURE_MESSAGE =
-  "a test/it/expect import bypasses the composed fixture — import from 'support/fixtures' (or, under tests/tooling/, 'support/tool-fixtures' — the door that registers the RESULT serializer) (core/Spine-Testing.md §4; docs/design/tooling-package.md §4.8).";
+  "a test/it/expect import bypasses the composed fixture — import from 'support/fixtures' (or, under tests/tooling/, 'support/tool-fixtures' — the door that registers the RESULT serializer) (core/Spine-Testing.md §4; docs/architecture/core/Core-Tooling-Law.md §4.8).";
 
 // The plain-fixtures barrel, as a suffix of the (relative) module specifier.
 const PLAIN_FIXTURES_RE = /support\/fixtures(?:\.ts)?$/u;

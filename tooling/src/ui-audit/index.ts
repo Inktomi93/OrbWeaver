@@ -1,5 +1,5 @@
 // ui-audit's programmatic front door — what tests and sibling tools import; the cli fronts this surface.
-// One tool, one API (docs/design/tooling-package.md §2.5).
+// One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5).
 export type { Finding, RuleOrigin, Severity } from "./contract/findings.ts";
 export { SEVERITIES } from "./contract/findings.ts";
 export type {

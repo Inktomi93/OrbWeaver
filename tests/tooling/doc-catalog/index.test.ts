@@ -1,6 +1,6 @@
 // The receipt/frontmatter/ratchet RULES — the pure half of the documentation control plane, driven
 // through the tool's front door with hand-built facts (no git, no tree). Relocated from
-// tests/tooling/docs-catalog.test.ts at the #393 P5 move (tooling-package.md §4.7 mirror).
+// tests/tooling/docs-catalog.test.ts at the #393 P5 move (Core-Tooling-Law.md §4.7 mirror).
 import type { ReceiptClaim, ReceiptEntry, ReceiptFacts } from "../../../tooling/src/doc-catalog/index.ts";
 import { catalogReceipt, debtPathErrors, parseFrontmatter, validateReceiptEntry } from "../../../tooling/src/doc-catalog/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";

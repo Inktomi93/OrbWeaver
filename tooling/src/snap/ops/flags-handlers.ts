@@ -1,6 +1,6 @@
 // The flag table itself: one handler per flag (Record dispatch), driven by parseSnapArgs (ops/parse.ts)
 // in argv order. Split out of ops/flags.ts when that file crossed the tooling line cap
-// (docs/design/tooling-package.md §4.3) — the table is the single biggest seam in that file.
+// (docs/architecture/core/Core-Tooling-Law.md §4.3) — the table is the single biggest seam in that file.
 import { applyAppearanceFlag, FULL_MOTION_PATCH, loadAppearancePreset, mergeAppearancePatches, parseAppearancePatch } from "../../_shared/appearance.ts";
 import { parseViewport, splitFirstEq, splitLastEq, splitSelectorEq } from "../../_shared/argv.ts";
 import { DEFAULT_BASE } from "../../_shared/browser.ts";

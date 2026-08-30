@@ -30,7 +30,7 @@ updated: 2026-08-30
 `tooling/src/verify/contract/gate.ts` is the whole interface. A gate never walks anything itself: it declares the
 SyntaxKinds it wants and the runner (`pass.ts`) feeds it from ONE shared walk over the shared workspace
 (`tooling/src/_shared/ts-workspace.ts` `harnessGlobs` — `packages/*/src`, `tests/`, `tooling/src/verify/gates/`,
-and `tooling/src/` since the @orb/tooling P1 widening, docs/design/tooling-package.md §3.2).
+and `tooling/src/` since the @orb/tooling P1 widening, docs/architecture/core/Core-Tooling-Law.md §3.2).
 
 | Field | Required | Meaning / trap |
 | - | - | - |

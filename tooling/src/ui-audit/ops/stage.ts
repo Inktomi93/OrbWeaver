@@ -2,7 +2,7 @@
 // point the audit's base URL at it. The verdicts/copy are pure in lib/stage-request.ts.
 //
 // ONE HOME, ENTERED THROUGH THE FRONT DOOR: the stage itself (worktree, ports, band ownership marker, db
-// seed, teardown) is snap's — `docs/design/tooling-package.md` §2.4 classified it snap-specific when snap
+// seed, teardown) is snap's — `docs/architecture/core/Core-Tooling-Law.md` §2.4 classified it snap-specific when snap
 // was its only consumer, and that ruling SURVIVES; its input changed (a second consumer arrived), which the
 // front-door law already has an answer for (§4.2: a sibling tool enters through `index.ts`). So this module
 // imports `ensureStage`/`tryResolveRef` from `../../snap/index.ts` rather than re-homing four modules and

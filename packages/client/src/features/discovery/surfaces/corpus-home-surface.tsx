@@ -12,7 +12,7 @@
 // phase boundary, including the thin in-between (distilled, no story themes) where the map takes the focal
 // while the rail still honestly reads "Story themes & keywords — not run".
 //
-// CD3 IS WHAT MAKES THE SWAP MANDATORY (density-pass-spec.md §3.2): exactly one element per surface may
+// CD3 IS WHAT MAKES THE SWAP MANDATORY (UI-Density-Law.md §3.2): exactly one element per surface may
 // carry accent fill, glow, or elevated shadow at rest. Both islands can paint the focal treatment; exactly
 // one is ever told to. A CT pins `[data-corpus-focal]` at count 1 in every phase.
 //
@@ -54,7 +54,7 @@
 // The `discovery.themes` and `discovery.catalog.topTags` reads are untouched — the browse view and the
 // context tabs are their real consumers.
 //
-// ── THE TIER IS `form`, DELIBERATELY (density-pass-spec.md §3.1) ───────────────────────────────────────
+// ── THE TIER IS `form`, DELIBERATELY (UI-Density-Law.md §3.1) ───────────────────────────────────────
 // Corpus reads like analytics but it is a surface you LAND on and act from — prose, a focal island, one
 // primary door — which is home's own reasoning verbatim. It is the tier that resolves the island's
 // `--spacing-block` padding and `--radius-card` radius, which is what the mockup draws and what the glow's

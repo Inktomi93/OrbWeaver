@@ -396,7 +396,7 @@ test("#188 a tile band's rule is DECORATIVE — no unnamed separator stops betwe
   await expect(page.getByRole("separator")).toHaveCount(0);
 });
 
-// ── RENDERED fidelity against the mock (docs/design/mocks/home-section/home.html) ───────────────────
+// ── RENDERED fidelity against the mock (docs/history/design/mocks/home-section/home.html) ───────────────────
 
 test("a DORMANT doorway wears a DASHED RULE — not-built-yet, at a fraction of a dashed card's weight", async ({ mount }) => {
   // #102 moved the dashed edge from the tile's whole FRAME (a full dashed card, one per doorway) to a

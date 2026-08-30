@@ -8,7 +8,7 @@ import { FOCUS_RING, tv } from "#lib";
 export const toolCallBlockVariants = tv({
   slots: {
     // `rounded-base`, not `rounded-card`: a tool call is GROUPED CONTENT inside the transcript's message
-    // bubble, which is itself the elevated island (density-pass-spec.md §2.1 D6 — `card` is the floating step).
+    // bubble, which is itself the elevated island (UI-Density-Law.md §2.1 D6 — `card` is the floating step).
     root: "rounded-base border border-border bg-card text-card-foreground",
     summary: `flex cursor-pointer list-outside items-center gap-row px-block py-row text-body font-medium text-foreground outline-none ${FOCUS_RING}`,
     name: "font-mono text-code",

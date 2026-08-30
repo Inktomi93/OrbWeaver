@@ -1,4 +1,4 @@
-// Gate: tooling-front-door (docs/design/tooling-package.md §4.2) — cross-tool imports enter through the
+// Gate: tooling-front-door (docs/architecture/core/Core-Tooling-Law.md §4.2) — cross-tool imports enter through the
 // sibling's index.ts only ( `#<tool>` or `…/<tool>/index.ts`); `_shared/*` is per-MODULE by design (no
 // barrel — a _shared index would chain-load playwright/ts-morph for every consumer); cli.ts consumes its
 // own tool ONLY through ./index.ts (+ _shared) — the cli fronts the programmatic API, never ops/lib
@@ -12,7 +12,7 @@ import { fileLoaded } from "../lib/pass.ts";
 
 const TOOLING_PREFIX = "tooling/src/";
 
-/** ROOT-CONFIG imports (P4 of #393, docs/design/tooling-package.md §4.2): a tool may import a repo-root
+/** ROOT-CONFIG imports (P4 of #393, docs/architecture/core/Core-Tooling-Law.md §4.2): a tool may import a repo-root
  *  CONFIG whose data would otherwise be re-spelled — the exact one-home violation this tree exists to
  *  kill. Each row is the RESOLVED root-relative target + the consumer that justifies it. Two-sided: a
  *  row nothing imports any more is dead vocabulary — the stale sweep below REDs it (same posture as the
@@ -92,11 +92,11 @@ function checkImport(node: Node, sf: SourceFile): { readonly message: string; re
 
 export const gate: GateDescriptor = {
   name: "tooling-front-door",
-  docRow: "Core-Enforcement-Active-Gates.md (docs/design/tooling-package.md §4.2)",
+  docRow: "Core-Enforcement-Active-Gates.md (docs/architecture/core/Core-Tooling-Law.md §4.2)",
   status: "active",
   scopeSafety: "incremental-safe",
   message:
-    "a @orb/tooling import bypasses a front door — cross-tool enters through the sibling's index.ts; cli.ts consumes only its own index.ts (+ _shared); relative escapes out of tooling/ are banned (docs/design/tooling-package.md §4.2).",
+    "a @orb/tooling import bypasses a front door — cross-tool enters through the sibling's index.ts; cli.ts consumes only its own index.ts (+ _shared); relative escapes out of tooling/ are banned (docs/architecture/core/Core-Tooling-Law.md §4.2).",
   fix: "import the sibling's index.ts (or #<tool>); re-export what the cli needs from the tool's index.ts; use @orb/* specifiers for anything outside tooling/.",
   scanRoot: (p) => p.startsWith(TOOLING_PREFIX),
   kinds: [SyntaxKind.ImportDeclaration],
@@ -131,7 +131,7 @@ export const gate: GateDescriptor = {
           file: target,
           line: 0,
           column: 0,
-          message: `stale ROOT_CONFIG_IMPORTS row — no tooling module imports "${target}" any more (row why: ${why}). Delete the row (docs/design/tooling-package.md §4.2).`,
+          message: `stale ROOT_CONFIG_IMPORTS row — no tooling module imports "${target}" any more (row why: ${why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.2).`,
         });
       }
     }

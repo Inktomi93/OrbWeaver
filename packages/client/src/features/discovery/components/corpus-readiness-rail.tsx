@@ -7,7 +7,7 @@
 // has not run, which is what lets every other section simply not render when it has nothing: a section that
 // prints its own "No … computed yet." note is a wall built one true sentence at a time.
 //
-// BOXLESS BY LAW (CD1, density-pass-spec.md §3.2): a read-only grouping gets a kicker band and hairlines
+// BOXLESS BY LAW (CD1, UI-Density-Law.md §3.2): a read-only grouping gets a kicker band and hairlines
 // between its rows, never a border+radius+background. The surface's one box is whichever island currently
 // holds the focal, and this rail is deliberately not it.
 //

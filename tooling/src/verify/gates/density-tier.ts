@@ -1,4 +1,4 @@
-// Gate: density-tier (docs/design/density-pass-spec.md §5.1) — the assignment law the token SCALES never
+// Gate: density-tier (docs/architecture/core/UI-Density-Law.md §5.1) — the assignment law the token SCALES never
 // had. Four rules, each a measured defect from the 2026-07-31 audit:
 //   A1 radius-by-class — `rounded-card` is the ELEVATED/floating step only (D6). 45 of 51 non-pill radius
 //      choices in client/ were the largest step, which is what makes every surface read as boxes-in-boxes.
@@ -78,7 +78,7 @@ const ELEVATED_ALLOW: readonly string[] = [
 ];
 
 const MESSAGE =
-  "density-tier violation (docs/design/density-pass-spec.md §3/§5.1): `rounded-card` outside the ELEVATED " +
+  "density-tier violation (docs/architecture/core/UI-Density-Law.md §3/§5.1): `rounded-card` outside the ELEVATED " +
   "family (D6 — it is the floating-island step: modal/popover/drawer/toast/composer/chat bubble), a " +
   "border+radius+background box nested inside another one (CD2 — one box deep, maximum), a feature passing " +
   "the @orb/ui-internal type axes instead of `voice` (§2.3), a second writer of `data-surface-tier`, or a " +
@@ -353,7 +353,7 @@ const passSeenElevatedAllow = new Set<string>();
 
 export const gate: GateDescriptor = {
   name: "density-tier",
-  docRow: "docs/design/density-pass-spec.md §5.1 (the density pass)",
+  docRow: "docs/architecture/core/UI-Density-Law.md §5.1 (the density pass)",
   status: "active",
   scopeSafety: "whole-project", // the baseline budget is a per-file whole-tree count
   message: MESSAGE,
@@ -416,7 +416,7 @@ export const gate: GateDescriptor = {
           // token, and `Finding.column` spells that "0" (contract.ts). It read `1` until 2026-08-08, which
           // claimed an intra-line caret this gate cannot have.
           column: 0,
-          message: `${TIER_MAP_REL} maps [data-slot="${slot}"] but no file under ${UI_SRC} emits that slot — a mapped-but-dead rule paints nothing while the stylesheet reads as load-bearing (density-pass-spec.md §4.2). Emit the slot from the primitive that owns it, or drop the rule.`,
+          message: `${TIER_MAP_REL} maps [data-slot="${slot}"] but no file under ${UI_SRC} emits that slot — a mapped-but-dead rule paints nothing while the stylesheet reads as load-bearing (UI-Density-Law.md §4.2). Emit the slot from the primitive that owns it, or drop the rule.`,
         });
       }
     }

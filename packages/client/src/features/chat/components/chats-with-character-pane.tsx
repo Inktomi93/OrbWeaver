@@ -112,7 +112,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
   );
 
   return (
-    // INSTRUMENT tier (density-pass-spec.md §3.1): a side pane of rows, scanned — same steps as the chats pane it
+    // INSTRUMENT tier (UI-Density-Law.md §3.1): a side pane of rows, scanned — same steps as the chats pane it
     // mirrors, so the two lists of the same rows can never drift apart in density.
     <Surface tier="instrument">
       <Stack className="h-full min-h-0" gap="row">

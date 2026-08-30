@@ -4,7 +4,7 @@ import { tv } from "#lib";
 // A STYLED-INTRINSIC (`<kbd>`) — Base UI ships no kbd primitive (same class as Text/Badge), so this
 // IS the primitive, not a lib wrap. Mono glyphs on the `--muted` surface at the micro type-scale
 // (text-micro + the micro tracking), `rounded-inset` — a keycap is the canonical SUB-CONTROL mark
-// (density-pass-spec.md §2.1: `--radius-inset` is the step for marks INSIDE a component, and a keycap is
+// (UI-Density-Law.md §2.1: `--radius-inset` is the step for marks INSIDE a component, and a keycap is
 // the spec's own first example; `control` is for things you OPERATE, and a kbd hint is inert). Inert —
 // the 8-state doctrine's interactive arms don't apply, exactly like Badge. Sits on `--muted` (a
 // derived ramp member themes retint) not `--accent` — accent is reserved for hover/interaction

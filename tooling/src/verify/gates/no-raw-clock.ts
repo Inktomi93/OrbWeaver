@@ -33,7 +33,7 @@ export const gate: GateDescriptor = {
       p.startsWith("tests/") ||
       p.startsWith("scripts/") ||
       p.startsWith("tools/") ||
-      // tooling/ = the promoted dev-tool fleet (docs/design/tooling-package.md §3.2): tools MEASURE the
+      // tooling/ = the promoted dev-tool fleet (docs/architecture/core/Core-Tooling-Law.md §3.2): tools MEASURE the
       // real wall clock (watch-series elapsed, stage markers, artifact timestamps) — the injected-clock
       // determinism law governs app code, and the fence matches the scripts/ zone it was promoted from.
       p.startsWith("tooling/")

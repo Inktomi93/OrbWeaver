@@ -1,7 +1,7 @@
 // The consolidated "This chat" CONTEXT tab body — everything a host bends for THIS chat,
 // in ONE tab whose body is grouped sections (`Section` primitive, real h3 headings).
 //
-// THE PANE IS INSTRUMENT TIER, SO THE SECTIONS SPEAK IN THE KICKER VOICE (density-pass-spec §2.3/§3.1 —
+// THE PANE IS INSTRUMENT TIER, SO THE SECTIONS SPEAK IN THE KICKER VOICE (UI-Density-Law §2.3/§3.1 —
 // "CONTEXT panel viewport (rpg tabs, meta tabs)" is named there explicitly; side-eye 08-01 F8). They shipped
 // on `heading` — the FORM-tier h3, 16px/500 — inside the same pane where every rpg section names itself in
 // micro-caps over a hairline, so the meta tabs wore settings-modal clothes in an instrument. `kicker` is the

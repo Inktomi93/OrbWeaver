@@ -1,5 +1,5 @@
 // Generator for tooling/src/verify/gates/density-tier.baseline.json — the transition ratchet the density-tier
-// gate reads (docs/design/density-pass-spec.md §5.2). Runs the SAME detector the gate uses over every
+// gate reads (docs/architecture/core/UI-Density-Law.md §5.2). Runs the SAME detector the gate uses over every
 // client/ui source and writes {repo-relative path → violation count} for files with ≥1 budgeted (A1–A3)
 // finding. Re-run it at the END of every density sweep stage and commit the SHRINK in the same commit —
 // a baseline that GROWS in a diff is a review-blocking defect, and the terminal state is `{}` + this file

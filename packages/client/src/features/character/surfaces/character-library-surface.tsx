@@ -243,7 +243,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
   const selectedCount = collection.selection.selected.size;
 
   return (
-    // INSTRUMENT tier (density-pass-spec.md §3.1 LIST panes): the library is a list you SCAN for a face
+    // INSTRUMENT tier (UI-Density-Law.md §3.1 LIST panes): the library is a list you SCAN for a face
     // and a name, not a form you operate.
     <Surface tier="instrument">
       <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" gap="row">
