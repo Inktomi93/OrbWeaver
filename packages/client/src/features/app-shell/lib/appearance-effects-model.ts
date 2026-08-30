@@ -9,11 +9,47 @@ export const APPEARANCE_EFFECTS_SUBCATEGORY: ConfigSubcategory = {
   id: "effects",
   label: "Effects",
   settings: [
-    { id: "frosted-glass", label: "Frosted glass", keywords: ["blur", "glass", "backdrop"] },
-    { id: "glass-blur", label: "Glass blur radius" },
-    { id: "prose-shadow", label: "Prose shadow", keywords: ["halo", "readability"] },
-    { id: "surface-texture", label: "Surface texture", keywords: ["grain", "film", "noise"] },
-    { id: "accent-tint", label: "Tint the UI with the accent color", keywords: ["accent", "color", "border", "hairline"] },
+    {
+      id: "frosted-glass",
+      label: "Frosted glass",
+      keywords: ["blur", "glass", "backdrop"],
+      teach: {
+        summary:
+          "Backdrop blur plus a translucent fill on the surfaces you pick. Messages carry glass poorly (scrolling prose over blur), so they stay off unless you opt in.",
+        affects: ["the panels, topbar, dialogs and composer you switch on", "readability over a background image"],
+        related: [{ group: "appearance", sub: "background", setting: "background-image" }],
+      },
+    },
+    {
+      id: "glass-blur",
+      label: "Glass blur radius",
+      teach: { summary: "How strong the frosted-glass blur is, for any surface enabled above.", affects: ["every surface with Frosted glass on"] },
+    },
+    {
+      id: "prose-shadow",
+      label: "Prose shadow",
+      keywords: ["halo", "readability"],
+      teach: { summary: "A subtle readability halo on message text.", affects: ["message text over busy or translucent backdrops"] },
+    },
+    {
+      id: "surface-texture",
+      label: "Surface texture",
+      keywords: ["grain", "film", "noise"],
+      teach: {
+        summary:
+          "A subtle film-grain overlay across the whole app that breaks up flat-color banding. Off by default; dropped automatically if your system asks for higher contrast.",
+        affects: ["every surface in the app"],
+      },
+    },
+    {
+      id: "accent-tint",
+      label: "Tint the UI with the accent color",
+      keywords: ["accent", "color", "border", "hairline"],
+      teach: {
+        summary: "Retints borders and hairlines across panels, dialogs, and the composer from your accent color.",
+        affects: ["borders and hairlines app-wide"],
+      },
+    },
   ],
 };
 

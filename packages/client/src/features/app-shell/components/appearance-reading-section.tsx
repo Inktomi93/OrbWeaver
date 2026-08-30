@@ -17,6 +17,7 @@ import { Row, Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { ConfigTeachScope, SettingRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -90,68 +91,59 @@ function ReadingBody({ sectionId, session }: { readonly sectionId: string; reado
       heading={APPEARANCE_READING_SUBCATEGORY.label}
       id={configAnchorId("appearance", APPEARANCE_READING_SUBCATEGORY.id)}
     >
-      <FieldLayout orientation="horizontal">
-        <form.AppField name="readingLineHeight">
-          {(field): ReactElement => (
-            <field.SliderField
-              label="Line height"
-              description="Spacing between lines of message text."
-              min={READING_LINE_HEIGHT_MIN}
-              max={READING_LINE_HEIGHT_MAX}
-              step={READING_LINE_HEIGHT_STEP}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="readingLetterSpacing">
-          {(field): ReactElement => (
-            <field.SliderField
-              label="Letter spacing"
-              description="Tracking applied to message text (em)."
-              min={READING_LETTER_SPACING_MIN}
-              max={READING_LETTER_SPACING_MAX}
-              step={READING_LETTER_SPACING_STEP}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="readingParagraphSpacing">
-          {(field): ReactElement => (
-            <field.SliderField
-              label="Paragraph spacing"
-              description="Gap between paragraphs inside one message (rem)."
-              min={READING_PARAGRAPH_SPACING_MIN}
-              max={READING_PARAGRAPH_SPACING_MAX}
-              step={READING_PARAGRAPH_SPACING_STEP}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="readingNameScale">
-          {(field): ReactElement => (
-            <field.SliderField
-              label="Speaker name size"
-              description="A multiplier on the attribution name text."
-              min={READING_SCALE_MIN}
-              max={READING_SCALE_MAX}
-              step={READING_SCALE_STEP}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="readingBodyScale">
-          {(field): ReactElement => (
-            <field.SliderField
-              label="Message text size"
-              description="A multiplier on message body text, independent of the global text size above."
-              min={READING_SCALE_MIN}
-              max={READING_SCALE_MAX}
-              step={READING_SCALE_STEP}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="justifyBodyText">
-          {(field): ReactElement => (
-            <field.SwitchField label="Justify message text" description="Align both edges of wrapped message text (manuscript style)." />
-          )}
-        </form.AppField>
-      </FieldLayout>
+      {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`. */}
+      <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_READING_SUBCATEGORY }}>
+        <FieldLayout orientation="horizontal">
+          <SettingRow settingId="line-height">
+            <form.AppField name="readingLineHeight">
+              {(field): ReactElement => (
+                <field.SliderField label="Line height" min={READING_LINE_HEIGHT_MIN} max={READING_LINE_HEIGHT_MAX} step={READING_LINE_HEIGHT_STEP} />
+              )}
+            </form.AppField>
+          </SettingRow>
+          <SettingRow settingId="letter-spacing">
+            <form.AppField name="readingLetterSpacing">
+              {(field): ReactElement => (
+                <field.SliderField
+                  label="Letter spacing"
+                  min={READING_LETTER_SPACING_MIN}
+                  max={READING_LETTER_SPACING_MAX}
+                  step={READING_LETTER_SPACING_STEP}
+                />
+              )}
+            </form.AppField>
+          </SettingRow>
+          <SettingRow settingId="paragraph-spacing">
+            <form.AppField name="readingParagraphSpacing">
+              {(field): ReactElement => (
+                <field.SliderField
+                  label="Paragraph spacing"
+                  min={READING_PARAGRAPH_SPACING_MIN}
+                  max={READING_PARAGRAPH_SPACING_MAX}
+                  step={READING_PARAGRAPH_SPACING_STEP}
+                />
+              )}
+            </form.AppField>
+          </SettingRow>
+          <SettingRow settingId="name-scale">
+            <form.AppField name="readingNameScale">
+              {(field): ReactElement => (
+                <field.SliderField label="Speaker name size" min={READING_SCALE_MIN} max={READING_SCALE_MAX} step={READING_SCALE_STEP} />
+              )}
+            </form.AppField>
+          </SettingRow>
+          <SettingRow settingId="body-scale">
+            <form.AppField name="readingBodyScale">
+              {(field): ReactElement => (
+                <field.SliderField label="Message text size" min={READING_SCALE_MIN} max={READING_SCALE_MAX} step={READING_SCALE_STEP} />
+              )}
+            </form.AppField>
+          </SettingRow>
+          <SettingRow settingId="justify">
+            <form.AppField name="justifyBodyText">{(field): ReactElement => <field.SwitchField label="Justify message text" />}</form.AppField>
+          </SettingRow>
+        </FieldLayout>
+      </ConfigTeachScope>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
       </Row>

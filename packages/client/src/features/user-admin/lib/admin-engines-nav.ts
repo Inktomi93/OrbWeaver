@@ -13,6 +13,10 @@ export const ADMIN_ENGINES_SUBCATEGORY: ConfigSubcategory = {
       id: "engine-restart",
       label: "Restart an engine",
       keywords: ["vllm", "bounce", "hung", "failed", "embed", "rerank"],
+      teach: {
+        summary: "Bounce a local inference engine that hung or failed \u2014 embeddings, rerank and the rest report their health here.",
+        affects: ["that engine's in-flight work, briefly"],
+      },
     },
   ],
 };

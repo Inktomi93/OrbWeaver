@@ -10,10 +10,39 @@ export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
   label: "Background",
   keywords: ["wallpaper", "photo", "image"],
   settings: [
-    { id: "background-image", label: "Background image", keywords: ["photo", "wallpaper"] },
-    { id: "background-fit", label: "Fit", keywords: ["cover", "contain", "stretch"] },
-    { id: "background-dim", label: "Scrim opacity", keywords: ["darken", "overlay"] },
-    { id: "background-blur", label: "Image blur" },
+    {
+      id: "background-image",
+      label: "Background image",
+      keywords: ["photo", "wallpaper"],
+      teach: {
+        summary: "A decorative photo behind the app, with a scrim so text stays readable. Pick a bundled scene or one from your own library.",
+        affects: ["the layer behind every panel, on this account everywhere you sign in"],
+        related: [{ group: "appearance", sub: "effects", setting: "frosted-glass" }],
+      },
+    },
+    {
+      id: "background-fit",
+      label: "Fit",
+      keywords: ["cover", "contain", "stretch"],
+      teach: {
+        summary: "How the picked image maps onto the window — fill and crop, letterbox, actual size, or stretch.",
+        affects: ["the background layer only"],
+      },
+    },
+    {
+      id: "background-dim",
+      label: "Scrim opacity",
+      keywords: ["darken", "overlay"],
+      teach: {
+        summary: "Darkens the image so text stays legible — never fully off.",
+        affects: ["text contrast over the background image"],
+      },
+    },
+    {
+      id: "background-blur",
+      label: "Image blur",
+      teach: { summary: "Softens the photo itself; the darkening scrim above stays sharp.", affects: ["the background image only"] },
+    },
   ],
 };
 

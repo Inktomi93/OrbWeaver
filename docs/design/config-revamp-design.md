@@ -115,6 +115,18 @@ The LIST is the one place the macOS negative control is refuted: it ALWAYS shows
 
 ### 3.4 The CONTENT pane — dense rows, honest per-row state
 
+> **Deferral rider (2026-08-30, cb-config-s3s4, orchestrator-approved fork 4; owner re-ruling same day):**
+> the row chrome below is DEFERRED past S3 as its own tracked leg, and the owner SHRANK it: (1) the SCOPE
+> CHIP IS CUT — every config row writes per-user through `updateUserSettingsSection`, so the chip could
+> never vary; scope/override questions live ONLY in the teacher's Applies tab; (2) per-row Reset is a
+> CAPABILITY, never resting chrome — a reveal-on-hover/focus row-actions menu (#443 grammar) carrying
+> Reset · Copy id · Copy link on fine pointers, invisible at rest; touch reaches Reset through the About
+> tab's door; (3) the 2px modified stripe survives as designed, with the `useConfigLeaf` defaults
+> plumbing that also feeds About's default-vs-current. So the leg = stripe + revealed menu + defaults
+> plumbing, nothing else. Until it lands, S3 ships rows as label + control + `i`, and About teaches
+> summary/affects/related without the default-vs-current + Reset block. The S2 `@modified` search axis is
+> unaffected (it derives from `owns` claims via `use-modified-sections.ts`, not from this row chrome).
+
 - **Field · control · ≤1 line of gloss.** Every knob row rides ONE composite, `SettingRowFrame` (§4), around the section's existing control: leading MODIFIED rail (the VS Code left bar — present only when the derived modified flag is true) · label + the one-line `description` (the `Field` description slot, so it is also `aria-describedby`; the D126 rider's always-visible copy lives here, never in a tooltip) · the control · a trailing `⋯` menu (Reset to default · Copy setting id · Copy link) · a SCOPE chip (`user` / `app` / `device`, a `Badge` — derived from the owning section's `owns.tier`, never declared per row). The gloss is the ONLY teaching inline; everything longer moves to the context pane (§3.5). Sections keep their `<Section heading id={configAnchorId(...)}>` anatomy; nothing about a section's fields, order or wording changes in this program.
 - **Reset is the section's write, framed by the host.** The frame gets `onReset` from the section (the section owns its mutation seam and its patch shape — D120 S1 key-minimal writes; an app-tier row resets by clearing the override, the S4 pattern); the frame owns the chrome and the confirmation-free semantics (a reset is one undoable write, not a destructive act). Default and current values are read by the frame through one `#data` hook (`useConfigLeaf(section, key)` → `{current, default}`), the same read `@modified` uses.
 - **Collections are unchanged:** a member's editor mounts in CONTENT (C-7), the welcome with launcher cards renders with nothing selected; the hero's preview wall stays.
@@ -306,4 +318,271 @@ Red-first (each run against the pre-fix source first): the modal is gone (`rail.
 
 ---
 
-**Issue paragraph for #866 (paste verbatim):** Design landed at `docs/design/config-revamp-design.md` (draft, 2026-08-30). Premise repaired: Settings is the `settings` MODAL on `rail.end`, not a section — `SECTION_IDS` stays at ten; what retires is the modal, its gear, `settingsCategory`/`openSettingsTo`. The design: ONE closed config-group registry (`CONFIG_GROUP_IDS`, four shelves User/App/Collections/Extensions; body arms `sections` | `collection` | `placeholder` — `surface` retired by §6.8) that the nine settings panes, the three collections, the persona surface and the Plugins screen all register through, with the D120 section seam and key partition untouched and plugins riding the Extensions group's data rows; a LIST of shelves + group bands with the shipped `settings-scroll-spy.ts` re-homed as the one spy; ONE search index (groups · subcategories · leaves · collection members · persona names) over the sealed fuzzy-search hook with VS Code-style `@modified`/`@shelf:`/`@in:`/`@ext:`/`@advanced` tokens, in-place `HighlightedText` hits in both panes, a ⌘K `CommandPaletteSource`, and `openConfigTo(group, sub?, setting?)` replacing `openSettingsTo` + `goToCollection` (17 call sites); a dense CONTENT row frame (modified rail · gloss · control · reset/copy menu · scope chip); the CONTEXT pane as the TEACHER on the #860 bracket via `defineContextTabs<ConfigContextState>` (About · Applies · Learn) fed by a `configFocus` seam and per-leaf `SettingTeach` data; the rail persona slot as switcher · identity · log out. Zero new `@orb/ui` primitives; four client composites with CTs named. Nine owner forks with recommendations (closed tuple for collections; keep the Theme picker; retire the account modal; defer tags-as-facet; rename the label "Settings"). Sequence: S1 registry+surface and S2 search are dispatchable now; S3 teacher waits for #860; S4 rail slot after S1.
+## 7. S3 + S4 as designed — the lane design (cb-config-s3s4, 2026-08-30)
+
+Written BEFORE the build, against the tree at `6c3076ab6` (S1+S2 merged at `6923f33cb`). Where §3/§5 and
+this section disagree, this section carries the receipt; the D-ledger wins over both. The canvas
+(`mocks/config-revamp/DESIGN.md` + the four boards) is the owner-approved spec of record; where it
+abbreviates, its own contract paragraphs and the verified action inventory decide. Memory lessons used:
+`theme-pipeline-d71`, `persona-is-owner-sacred` (2026-08-30 corrected scope), `accent-is-inherited-not-derived`,
+`surface-flip-retires-the-ct-premise`, `settings-section-three-coupled-sites`, `empty-states-are-load-bearing`,
+`orb-ui-icons-seal`, `recreating-a-deleted-test-path-is-a-coupled-site`, `ratifying-gate-owes-two-receipts`.
+
+### 7.0 Owner riders (2026-08-30, mid-lane — binding, recorded here as the ruling home)
+
+- **R-TEACH — teach is LOCKED to its leaf.** `ConfigSettingLeaf.teach` is **REQUIRED**, typed
+  `SettingTeach | { none: string }` — an explicit opt-out WITH a stated reason, never `teach?:`. tsc forces
+  every NEW leaf to declare its teaching at birth. Honesty arms (each with a planted-RED receipt): empty
+  `summary` or empty `affects` on a non-none teach is RED; `{none: ""}` is RED; a `related` ref that does
+  not resolve against the registries is RED. Enforcer: `assertTeachHonesty(configSections, groups)` at the
+  compose door (the `assertSettingsKeyPartition` posture — a throw, not a gate approximation) + its mirror
+  unit test with planted fixtures + a derived-population test that iterates the REAL registry's leaves
+  (never a hand list) and asserts every leaf resolves a teach or is a declared none.
+- **R-BG — the background picker rebuilds on the Looks grammar** (owner: the Select-of-image-names picker
+  is "clunky as fuck and gross"; the BG-D library is invisible). Three tiers: PICK = ONE thumbnail grid
+  (None tile · the seeded plates as real thumbnails · every `backgroundLibrary` entry as a tile; selected
+  wears the ring; `backgroundImageKind` DIES as a user-facing control — it derives from the tapped tile);
+  MANAGE = library tiles carry ⋯ → Remove from library; ADD = upload + paste-URL as one "Add background"
+  door at the grid's end, both funnelling into the existing append+select path (the BG-D one-atomic-patch
+  invariant preserved verbatim). Fit/Scrim/Blur stay as rows below the grid. House media-grid cell family,
+  never a bespoke grid. Plus a report-only sweep of the "outcome is SEEN but the control is text" class
+  (§7.6) — recommendations only, no further rebuilds without an ack.
+
+### 7.1 Premises re-derived
+
+- **The canvas foot cells are scaffold, not contract.** `Main.dc.html:159` / `Personas.dc.html:156` draw
+  the bracket's foot cells as `About · Preview · Activity` while stacking About/Applies/Learn blocks in one
+  viewport. No Preview or Activity machinery exists for config anywhere on the tree; the boards' own head
+  gloss ("the focused setting · About · Applies · Learn"), §3.5 and the dispatch all name the tab roster
+  **About · Applies · Learn**. Built as three foot tabs, `defaultTab` About, Learn by APPLICABILITY.
+- **The `workloads`/`backup` labels are already "Jobs" / "Backup & Restore"** (`workloads-group.tsx:27`,
+  `backup-group.tsx:12`) — the Phone board's "labels updated" rows are BUILT; no edit.
+- **The persona editor's character-connection section has no persona-side READ.** The verbs are
+  `connectToCharacter` / `disconnectFromCharacter` / `listConnectedToCharacter(characterId)` — the
+  character-side read only (`domain/persona/verbs/connection/list-connected.ts`). The editor needs
+  "characters connected to THIS persona"; per-candidate fan-out is banned by taste. Built: ONE small read
+  verb `persona.listConnectedCharacters({personaId})` in the persona domain (the junction is
+  persona-produced), owner-scoped, mirroring `listConnectedToCharacter`. Fork stated with this default;
+  a read verb changes no resolution mechanics.
+- **The switcher's "your N messages" count has no read.** `ChatDetail` carries no viewer-authored-row
+  count and `reattributePersona {kind:"mine"}` needs none. The popover row renders without the count
+  ("Re-attribute your messages here → <persona>"); deviation noted, not worth a wire field.
+- **Theme rows carry no import provenance.** `Theme` = id/name/override/css/isSeed/timestamps — the
+  board's "imported · May 12" meta can only honestly render the AGE. Export/Import are built client-side
+  over the row's own bytes (`{name, override, css}` JSON download; import parses → `createTheme`) — no
+  new verbs; the provenance WORD is dropped (deviation noted; a schema field for one label is not minted here).
+
+### 7.2 S3 — the teacher, as designed
+
+**The focused-setting seam.** `state/config-focus-store.ts` (transient gated store, the
+`config-search-store` posture): `ConfigFocus = { group: ConfigGroupId; sub: string; setting: string | null }`,
+writers `setConfigFocus` / `__resetConfigFocus`, reader `useConfigFocus`. KEEP-LAST semantics: blur never
+clears (the reader who looked away keeps their lesson); a new focus replaces; leaving the group clears via
+the nav store's existing clear. NOT vocabulary (an open shape one host interprets — the `contextTab` test).
+
+**Teach as contribution data.** In `state/config-group-registry.ts`:
+`ConfigSettingRef = { group: ConfigGroupId; sub: string; setting?: string }`;
+`SettingTeach = { summary: string; affects: readonly string[]; overriddenBy?: readonly {label; open(): void}[]; related?: readonly ConfigSettingRef[]; more?: () => ReactNode }`;
+`SettingTeachDecl = SettingTeach | { none: string }`; `ConfigSettingLeaf.teach: SettingTeachDecl` (REQUIRED —
+R-TEACH); `ConfigSubcategory.teach?: SettingTeach` (the section-level lesson, optional — the rider binds
+leaves). Resolution ladder at the host: focused leaf's teach → (a `none` leaf or no focus) its section's
+teach → the group's `description`. *Rejected:* teach on the section BODY (a render prop) — teaching is data
+the host indexes and the honesty assert must see it without mounting anything.
+
+**The projection** (published in `lib/registry-contracts.ts` — the `context-definition-shape` G3 anchor;
+state-free by the `client-lib-floor` rule, so ids are resolved to DISPLAY data before crossing):
+`ConfigTeachDoor = { label; open(): void }`;
+`ConfigTeachView = { title; trail; summary; affects; applies: ConfigTeachDoor[]; related: ConfigTeachDoor[]; learn: (() => ReactNode) | null }`;
+`ConfigContextState = { teach: ConfigTeachView; member: { title: string; body: () => ReactNode } | null }`.
+`useConfigContextState` (in `features/config/lib/config-context.tsx`) resolves focus × selection × the two
+registries: member open ⇒ `member` = the collection's context arm (or its `none` copy as an EmptyState) and
+`teach` = the group lesson; focus ⇒ the leaf ladder; group active, nothing focused ⇒ the group lesson with
+its subcategories as `related` doors; nothing ⇒ `null` (the mint's `empty` arm = `CONFIG_CONTEXT_EMPTY`).
+`related` refs resolve through the registries into `openConfigTo(group, sub, setting)` doors.
+
+**The tabs.** `context: defineContextTabs<ConfigContextState>` replaces the `kind:"single"` arm in
+`makeConfigSection`: tabs `config.about` (About — summary · Affects · Related doors) · `config.applies`
+(Applies — `overriddenBy` doors; for an open member THIS tab renders the collection's arm — "Where it's
+attached" renamed) · `config.learn` (Learn — `more`, `when` only when supplied). `defaultTab` About;
+`railLabel` "Settings"; `header` = the focused subject's title + trail (the band names what the pane
+answers — the `ConfigContextHeader` lesson carried forward). `ConfigContextBody`/`ConfigContextHeader` and
+their CT retire (the bracket owns band + body now); the tab bodies live in
+`features/config/components/config-teacher.tsx`. Focus-follows-content over `contextTab`: swapping focus
+swaps head + body and KEEPS the tab (CP-4 §4.1) — free, because the tab selection is the shared seam.
+
+**The row seam.** `#components/setting-teach-row.tsx` (tier-2, the `SettingSwitchRow`/`character-picker`
+precedent — components may read #state): `ConfigTeachScope` (a React context of `{group, sub:
+ConfigSubcategory}` each knob section provides once from its nav const) + `SettingRow` (`settingId` prop;
+wraps the existing Field row): stamps `data-setting`, publishes `configFocus` on focus-within capture and
+on click, and on fine pointers on HOVER after a delay (F-8 — never on coarse); renders the trailing `i`
+(`HintTrigger`, sibling of the Field — tooltip = the teach summary's first sentence) whose ACTIVATION
+opens the teacher when the pane is closed (`setOpenOverlayPanel("context")` /
+`openContextOverlay` — F-6: the pane is never forced open by focus alone). `HintTrigger` gains an optional
+`onClick` (a two-line sealed-primitive widening; its CT arm asserts activation still shows the tooltip and
+fires the click). While `configSearchMatch` names the row it wears `data-search-match` + the flash ring —
+the in-LABEL `<mark>` of §3.4 is NOT built (the label renders inside the sealed form-field anatomy; the
+S2 results list already marks text) — deviation recorded.
+*Rejected:* per-row DOM listeners on the CONTENT surface mapping `event.target → [data-setting]` (no home
+for the `i`, and hover semantics would live in the host instead of the row).
+
+**The sweep (the bulk move).** Every knob-bearing `sections` group: each Field row's `description` prose
+RE-HOMES into its leaf's `teach.summary`/`affects` (copy preserved, not deleted); the row keeps label +
+control (+ `disabledReason`/warnings — task-vital facts stay inline, D126 rider) and gains its
+`SettingRow` wrapper + a leaf if it lacked one. List-shaped sections (admin users, jobs, plugins, backup,
+automation rules, connections keys, the persona roster/this-chat) keep their anatomy and get
+section-level `teach` only. Existing declared leaves gain `teach` (tsc drives the totality). CT fixtures
+declaring `ConfigSubcategory` literals are tsc-enumerated into the same sweep.
+
+**Deferred WITH receipt (not built in S3):** §3.4's row chrome — the modified rail, per-row Reset,
+scope chip, Copy-id/Copy-link menu, `useConfigLeaf` — is in the program design but in neither the canvas,
+the dispatch, nor the owner's ruling set; it needs a per-leaf value/write seam (`owns`-keyed reads + a
+reset patch per section) that deserves its own leg. The teacher's About tab therefore teaches
+summary/affects/related without the "default vs current + Reset door" block until that leg lands.
+
+### 7.3 S4 — Looks, the background grid, and the Appearance fold
+
+- **`appearanceLooksSection`** (`features/settings/lib/appearance-looks-section.tsx` + nav model; D114 —
+  settings owns theme): FIRST at the `appearance` anchor. Tier 1 PICK: the three seed rows off
+  `settings.listThemes` as fixed CARDS (swatch strip via `ThemeScope`, the picker's isActive rule:
+  `selectedThemeId === null` ⇒ Hearth) — picking calls `useSelectTheme` (the D71 pipeline, apply-not-mode);
+  the row is closed (seeds are ownerless and non-deletable). Tier 2 MANAGE: "Your themes" = the non-seed
+  rows as `ListRow`s (swatch · name · built/edited age · ⋯ = Apply · Edit in builder · Export · Delete
+  [confirm-gated, the `ThemeRowMenu` lineage]) + an Import file door. Tier 3 MAKE: ONE builder door "New
+  theme from <current>…" = the picker's draft/mint machinery verbatim (`duplicateTheme` of the current
+  theme at first real edit — nothing minted on the click); the builder (`ThemeEditor`) mounts INLINE as
+  the section's editing state with "← Back" (the ThemeManager swap, re-homed). NO freestanding accent
+  knob anywhere; every color decision saves as a named theme.
+- **The `theme` modal RETIRES**: `themeModal` def + `MODAL_SLOT_IDS` member + the rail-foot "Switch theme"
+  trigger die; `theme-picker-surface.tsx` dissolves into the Looks section (the draft/mint/swatch pieces
+  re-homed); the rail foot becomes Settings (gear) · persona slot, per the RailSwitcher board. Gates/tests
+  that key on it re-key with planted-RED receipts (§7.5).
+- **The "Customize this look" fold.** `ConfigSectionContribution.advanced?: boolean` +
+  `ConfigGroupBase.advancedFold?: { label: string; useCaption?: () => string | null }`: the skimmer
+  renders plain sections, then ONE `Collapsible` (trigger `size="control"`, collapsed by default) labelled
+  by the group's fold decl (Appearance: "Customize this look", caption "your changes, on top of <current
+  look>" via a hook reading the selected theme name) containing the `advanced` sections in door order.
+  Appearance marks every non-Looks section advanced. LIST rows are unchanged (the map stays total); a
+  landing whose target names an advanced section OPENS the fold before the jump (the content host's
+  landing effect learns the fold; the spy simply cannot light a closed section). Search visibility is
+  untouched (folded ≠ hidden — `@advanced` stays a leaf axis). *Rejected:* a Looks-local fold (any group
+  may need the D107 axis; the host owning disclosure keeps LIST/jump/spy honest) and marking folded
+  sections' search entries `advanced` (that would hide Reading/Density from default search).
+- **The background grid (R-BG).** `appearance-background-section.tsx` rebuilds its body: PICK = one
+  `media-grid` (the selectable house cell family — `selectedIds`/`aria-selected` built in): a None tile ·
+  `listSeededBackgrounds()` thumbnails (their `public/` urls) · every `backgroundLibrary` entry
+  (`blobUrl(assetHash)`); tap writes the derived patch through the SAME autosave form (seeded ⇒
+  `{backgroundImageKind:"seeded", backgroundSeededId}`; library ⇒ kind `asset` + the three asset fields;
+  None ⇒ kind `none`) — BG-D's one-atomic-patch invariant holds because it is still one form. MANAGE =
+  a per-library-tile ⋯ (Remove from library — filters the entry; removing the SELECTED entry also resets
+  kind to `none` in the same patch). ADD = one "Add background" door at the grid's end opening the
+  existing `BackgroundUploadField` + `ExternalBackgroundField` pair (both still funnel into
+  append+select). Fit/Scrim/Blur rows stay below (rendered while kind ≠ none). The `Image` kind Select
+  and the seeded-name Select DIE (`BACKGROUND_KIND_ITEMS`/`SEEDED_BACKGROUND_ITEMS` retire with their
+  consumers swept).
+- **`background-source-field.tsx` rides the SAME grid grammar (owner addendum to R-BG, 2026-08-30).** The
+  BG-C carried-background picker (tier-2 shared; the room-overrides Control A + the character-card
+  Control B) rebuilds as the grid variant with its own constraints kept: a DISCRETE immediate-write picker
+  (pick → the caller's mutate; no autosave session — D78 stays with the caller); None tile · seeded
+  thumbnails · the viewer's library thumbnails off its existing read seam; NO inline upload/manage — the
+  Add affordance stays the LINK to Settings → Appearance → Background; the kind DERIVES from the tapped
+  tile. If `BACKGROUND_KIND_ITEMS` loses its last Select consumer it is retired (recorded here, not left
+  dead). CT: both call-site postures red-first (a room-override pick mutates immediately; a card pick
+  lands in the card patch; a seeded tap yields the ThemeBackground value; None clears).
+
+- **ONE theme-swatch atom, three mounts (owner addendum #3, 2026-08-30).** `features/character/components/
+  character-appearance-tab.tsx`'s `StartFromThemeField` (a Select of theme NAMES) is the same seen-not-read
+  shoehorn — it adopts the Looks grammar. Minted: `@orb/ui/theme-swatch` (§13.9 — no `#data`, pure
+  presentation over the theme's REAL stored override values through `ThemeScope`, so a stripe is never a
+  hand-painted approximation): the swatch STRIPE plus a row/card composite (stripe · name · optional
+  trailing slot · selected ring). Consumers: the Looks section's shipped cards + Your-themes rows, the
+  builder's start-from state, and `StartFromThemeField` rebuilt as swatch rows — whose contract holds
+  exactly: selecting SEEDS the override form, never applies a theme (the tab's "one applying act" line);
+  the shared `theme-override-form.ts` flat-palette vocabulary is not forked; the tab's Font/Corner-radius
+  Selects are named enums and stay. CT: the atom renders the same stripe for the same theme row in both
+  mounts, red-first.
+
+### 7.4 S4 — Personas in full, the rail switcher, the You sheet
+
+- **Roster restructure** (the interior freeze is LIFTED — owner 2026-08-30; the pin/active RESOLUTION
+  mechanics stay frozen behind `persona-resolution.suite.int.test.ts`, byte-untouched): rows lean —
+  avatar · name (+ inline rename) · "playing" marker · the PIN affordance · ⋯ · chevron. **Pin-not-crown**:
+  the default marker `Crown`/`Star` pair is replaced by ONE inline `Pin` (solid = `seeds.defaultPersonaId`;
+  faint-on-hover elsewhere on fine pointers, always-faint at coarse; click = `setSeed defaultPersonaId`) —
+  crowns mean host, one glyph one meaning. Row ⋯ = **Edit · Duplicate · Export · Delete** (+ the
+  coarse-overflow Favorite twin): Edit expands the row's editor (the editing model's HOME is unchanged —
+  the expansion), Duplicate = `persona.duplicate` (was editor-only). Band doors = New · Import ·
+  **From character** (`createFromCharacter` — a small dialog: the shared `CharacterPicker` + a
+  "Swap {{char}}/{{user}}" switch). Editor gains the **Connected characters** `RelationManagerSection`
+  (`listConnectedCharacters` read of §7.1 + connect/disconnect). Pills per the board: "playing as" on the
+  current row, "pinned · {{user}}" on the default row.
+- **The rail switcher popover** (`persona-panel-surface.tsx` rebuilt; `personaChrome` entry unchanged):
+  bar lens = who-head (avatar · name · "Playing as · pinned — your default everywhere" when current =
+  default, else "Playing as") → "Switch persona" radio rows (avatar · name · pin · "playing" pill;
+  row-body = switch under the SCOPE) → the CONTEXTUAL block only while a chat room is open
+  (`useActiveChatId()`): "In <room title>" · Applies segment `Everywhere | This chat` (a LOCAL scope for
+  the next switch: Everywhere ⇒ `setSeed currentPersonaId` — the existing playing-as mechanism; This
+  chat ⇒ `setActivePersona(chatId, personaId)`) · the re-attribute row (`reattributePersona(chatId,
+  {kind:"mine"})`, target = the viewer's chat persona) → "Manage personas in Settings" =
+  `openConfigTo("personas")` → the account foot (handle · mode words · Log out). The roster/editor/lore/
+  this-chat management leaves the popover for Config (frequency law: only what travels with a switch).
+- **The `account` modal RETIRES** (owner-ruled F-3): its three facts + sign-out become the popover's head
+  and foot. `signOut` re-homes from `features/auth/surfaces/account-surface.tsx` to `#data` (beside
+  `logout`; `postSessionMessage` from #lib) so persona reaches it without a cross-feature import;
+  `account-modal.tsx` + `account-surface.tsx` + the `account` slot member + their CT retire (test-baseline
+  deletions ledger + manifest regen in-lane); the `accountLogout`/`accountSurface` test ids move to the
+  foot. D74 survives as You ⊃ Identity.
+- **The You sheet lens** shrinks to the same grammar: who-head · switch rows (with pins — the DESIGN.md
+  quick-surface ruling says EVERY switcher row carries the inline pin) · the account foot. No contextual
+  block (the board draws none; a phone switch is the Everywhere mechanism). `you-sheet.tsx` itself is
+  untouched (the widget's block still renders in the "Account and settings" group; the theme-modal row
+  disappears by derivation). DEVIATION: the board draws the account foot BELOW "Go to"; the derive-only
+  sheet renders the widget as one block, so the foot sits above "Go to" — recorded, not silently fixed
+  (re-ordering would need a new chrome lens vocabulary; priced and declined).
+
+### 7.5 Coupled sites (walked) and the test plan
+
+Coupled sites over §6.5: `state/config-focus-store.ts` (new) · `config-group-registry.ts` (teach types +
+`advancedFold`) · `config-section-registry.ts` (`advanced`) · `registry-contracts.ts` (`ConfigContextState`)
+· `modal-slot-ids.ts` (−theme, −account) · `compose/authed-app.tsx` (modal rows die; teach assert at the
+sections sibling) · `compose/config-sections.ts` (+`appearanceLooksSection`, `assertTeachHonesty`) ·
+`config-section.tsx` (context flips to tabs) · `config-content-surface.tsx` (fold + landing) ·
+`features/config/{lib/config-context.tsx,components/config-teacher.tsx}` (new) · `#components/
+setting-teach-row.tsx` (new) · `@orb/ui` `hint-trigger` (+onClick, CT) · every `*-nav.ts`/`*-model.ts`
+carrying leaves + every knob section body (the sweep) · `features/settings/{lib/appearance-looks-*,
+components/theme-*,hooks/use-theme-*}` (fold-in; `theme-modal.tsx`/`theme-picker-surface.tsx` die) ·
+`features/app-shell/components/{appearance-background-section, background-upload-field,
+external-background-field}` + `lib/appearance-select-items.ts` · `features/persona/**` (roster, row,
+editor, panel-surface, hooks +`use-persona-connections`, from-character dialog) · `features/auth`
+(account modal/surface die; signOut → #data) · server `domain/persona/verbs/connection/list-connected-characters.ts`
+(new, + contract/service/router rows + int test + presence mirror) · tests: `config-context-body.ct` →
+`config-teacher.ct` · `theme-picker-surface.ct` → `appearance-looks-section.ct` · `appearance-group.ct` ·
+`app-shell.ct`/`rail.ct` theme-modal drives · `modal-registry-provider.ct` fixtures ·
+`account-surface.ct` (deleted) · `persona-*.ct` (pills/pin/menu) · `config-list-surface.ct` fixtures
+(teach requiredness) · `tooling/src/snap/ops/scenarios/orb-app.json` `modal-theme` scenario → a
+`config:appearance` landing · `tests/e2e/live-settings-render-truth.spec.ts` if it drives the theme modal
+(owes `typecheck:tests-dom`) · `docs/test-baseline/manifest.json` + the deletions ledger · gate rows in
+`Core-Enforcement-Active-Gates.md` where a re-key lands.
+
+Red-first floor (each pin run against the pre-change source): the teacher CT (focus a planted row → the
+pane's head + About swap to it; the tab KEEPS across a focus change; Learn absent without `more`; nothing
+focused ⇒ the group lesson; no group ⇒ `CONFIG_CONTEXT_EMPTY`) · the derived-population teach test over
+the REAL registry + planted RED fixtures for the three honesty arms · the Looks CT (clicking Mocha's card
+issues the `selectedThemeId` patch — the real pipeline seam; three-shipped parameterization for any color
+assertion; Hearth = NO `data-theme`) · the background grid CT (seeded tap → kind+id patch; library tap →
+the three asset fields; None clears; the grid renders every seeded + planted-library entry — derived
+population, two seeds planted; Remove-from-library of the selected entry resets kind) · the fold CT (fold
+collapsed by default; a LIST click on an advanced section opens it and lands) · the pin CT (click a faint
+pin → `defaultPersonaId` patch; the solid pin moves; NEVER a crown glyph in the persona tree — a planted
+`Crown` import is the negative control) · the switcher CT (contextual block absent with no chat; present
+with one; Everywhere vs This-chat scope routes to the two verbs; re-attribute fires `{kind:"mine"}`) ·
+the You-sheet-lens CT (head · rows · foot; no editor) · `persona-resolution.suite.int.test.ts` run
+UNTOUCHED (the phase gate) · the new `list-connected-characters` int test.
+
+### 7.6 The "seen-not-read" sweep (report-only, per R-BG)
+
+Delivered as a candidate table in the lane report (recommendations only): `chatStyle` (8 chat skins as a
+Select — the strongest sibling; a skin is a visual anatomy), `density`/`elevation` (Selects whose outcome
+is spatial; a labelled `OptionStrip`/segment with a live mini-preview is the honest control), the reading
+font family Select (a typeface is seen), the theme-editor's token pickers (already visual — no change).
+No rebuild beyond background in this lane.
+ Design landed at `docs/design/config-revamp-design.md` (draft, 2026-08-30). Premise repaired: Settings is the `settings` MODAL on `rail.end`, not a section — `SECTION_IDS` stays at ten; what retires is the modal, its gear, `settingsCategory`/`openSettingsTo`. The design: ONE closed config-group registry (`CONFIG_GROUP_IDS`, four shelves User/App/Collections/Extensions; body arms `sections` | `collection` | `placeholder` — `surface` retired by §6.8) that the nine settings panes, the three collections, the persona surface and the Plugins screen all register through, with the D120 section seam and key partition untouched and plugins riding the Extensions group's data rows; a LIST of shelves + group bands with the shipped `settings-scroll-spy.ts` re-homed as the one spy; ONE search index (groups · subcategories · leaves · collection members · persona names) over the sealed fuzzy-search hook with VS Code-style `@modified`/`@shelf:`/`@in:`/`@ext:`/`@advanced` tokens, in-place `HighlightedText` hits in both panes, a ⌘K `CommandPaletteSource`, and `openConfigTo(group, sub?, setting?)` replacing `openSettingsTo` + `goToCollection` (17 call sites); a dense CONTENT row frame (modified rail · gloss · control · reset/copy menu · scope chip); the CONTEXT pane as the TEACHER on the #860 bracket via `defineContextTabs<ConfigContextState>` (About · Applies · Learn) fed by a `configFocus` seam and per-leaf `SettingTeach` data; the rail persona slot as switcher · identity · log out. Zero new `@orb/ui` primitives; four client composites with CTs named. Nine owner forks with recommendations (closed tuple for collections; keep the Theme picker; retire the account modal; defer tags-as-facet; rename the label "Settings"). Sequence: S1 registry+surface and S2 search are dispatchable now; S3 teacher waits for #860; S4 rail slot after S1.

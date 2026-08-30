@@ -49,7 +49,7 @@ import { backupExportSection, backupImportSection, workloadsJobsSection, workloa
 import { worldInfoSettingsSection } from "#features/world-info";
 import { createContributorRegistry } from "#lib";
 import type { ConfigSectionContribution } from "#state";
-import { assertSettingsKeyPartition } from "#state";
+import { assertSettingsKeyPartition, assertTeachHonesty } from "#state";
 
 export const configSections = createContributorRegistry<ConfigSectionContribution>("config-sections", [
   // personas ← the persona surface's FRAME as three sections (config-revamp-design.md §6.8.2): the notify
@@ -134,3 +134,8 @@ export const configSections = createContributorRegistry<ConfigSectionContributio
 // (including a claim NESTED inside another section's, e.g. two owners of one `engineLaunch`) or on an
 // uneditable knob inside a claimed user namespace.
 assertSettingsKeyPartition(configSections, DEFAULT_USER_SETTINGS);
+
+// S3 — teach honesty (owner rider R-TEACH). The TYPE makes a leaf's teach unforgettable; this sweep makes
+// it unfakeable: an empty summary/affects, a reasonless {none}, or a related ref that resolves to nothing
+// throws HERE, at assembly, over the real population — never a hollow pane at read time.
+assertTeachHonesty(configSections);

@@ -25,8 +25,44 @@
 // and a section's `when`; `#data`'s `useSettingsViewerView` is its ONE derivation home (§5 rule 6).
 
 import type { LucideIcon } from "@orb/ui/icons";
+import type { ReactNode } from "react";
 import type { CollectionContribution, Registry } from "#lib";
 import type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
+
+/** A reference to another knob (or section) — the teacher's "Related" link vocabulary (VS Code's
+ *  `#other.setting#`, config-revamp-design.md §3.5). The host resolves it into an `openConfigTo` door;
+ *  a ref that resolves to nothing is RED at the compose door (`assertTeachHonesty` — owner rider R-TEACH). */
+export interface ConfigSettingRef {
+  readonly group: ConfigGroupId;
+  readonly sub: string;
+  readonly setting?: string;
+}
+
+/** What the context pane TEACHES about a setting (or a section) — contribution DATA the host renders
+ *  (config-revamp-design.md §3.5/§7.2, #866 S3). The row itself stays label + control (the teacher law);
+ *  the prose lives here. */
+export interface SettingTeach {
+  /** The definition — one short paragraph, plain language. Never empty (R-TEACH honesty arm). */
+  readonly summary: string;
+  /** What changes when this moves ("every new chat's first turn", "the admin rail only"). Never empty. */
+  readonly affects: readonly string[];
+  /** Where a NARROWER scope wins — each a DOOR the reader can walk, never prose. */
+  readonly overriddenBy?: readonly { readonly label: string; readonly open: () => void }[];
+  /** Other knobs that interact — rendered as links that land + flash (`openConfigTo`). */
+  readonly related?: readonly ConfigSettingRef[];
+  /** "Learn more", IN-APP (trusted markdown, a diagram, a live example) — never a link-out. The Learn
+   *  tab exists only while this does (APPLICABILITY, never hiding). */
+  readonly more?: () => ReactNode;
+}
+
+/** A leaf's teaching DECLARATION — REQUIRED on every leaf (owner rider R-TEACH, 2026-08-30): either the
+ *  teach itself or an EXPLICIT opt-out with a stated reason (the planned-arm honesty precedent). tsc is
+ *  the wall — a new leaf without a declaration is a compile error, never a hollow pane. */
+export type SettingTeachDecl = SettingTeach | { readonly none: string };
+
+export function isTeachNone(decl: SettingTeachDecl): decl is { readonly none: string } {
+  return "none" in decl;
+}
 
 /** One searchable/jumpable setting inside a subcategory — the leaf of the config search index. */
 export interface ConfigSettingLeaf {
@@ -36,6 +72,8 @@ export interface ConfigSettingLeaf {
   /** Hidden from search unless the reader asks with `@advanced` (§3.3 — the D107 progressive-disclosure
    *  axis). Absent = an ordinary row. */
   readonly advanced?: boolean;
+  /** The teaching, LOCKED to the leaf so they cannot drift apart (R-TEACH). */
+  readonly teach: SettingTeachDecl;
 }
 
 /** A subcategory = one anchored section inside a group; each stamps a stable anchor node the spy reads and
@@ -54,6 +92,10 @@ export interface ConfigSubcategory {
   readonly navLabel?: string;
   readonly keywords?: readonly string[];
   readonly settings?: readonly ConfigSettingLeaf[];
+  /** The SECTION-level lesson (§3.5) — what the pane teaches when the section (not one of its leaves) has
+   *  the reader's attention, and the fallback for a `{none}` leaf. Optional: R-TEACH binds LEAVES; a
+   *  list-shaped section (a roster, a jobs table) states its lesson here and declares no leaves. */
+  readonly teach?: SettingTeach;
 }
 
 /** The state-owned viewer PROJECTION a group's / a section's `when` consumes — plain derived values only,

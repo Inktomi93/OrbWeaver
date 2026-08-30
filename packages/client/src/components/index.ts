@@ -46,6 +46,8 @@ export { ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP, RO
 export type { RowToggleActionFillProps, RowToggleActionProps } from "./row-toggle-action.tsx";
 export { RowToggleAction } from "./row-toggle-action.tsx";
 export { SettingCheckboxRow, SettingSwitchRow } from "./setting-switch-row.tsx";
+export type { ConfigTeachScopeValue, SettingRowProps } from "./setting-teach-row.tsx";
+export { ConfigTeachScope, SettingRow } from "./setting-teach-row.tsx";
 export type { TagPickerDialogProps } from "./tag-picker-dialog.tsx";
 export { TagPickerDialog } from "./tag-picker-dialog.tsx";
 export type {

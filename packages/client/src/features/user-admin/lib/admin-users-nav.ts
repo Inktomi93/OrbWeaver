@@ -14,16 +14,25 @@ export const ADMIN_USERS_SUBCATEGORY: ConfigSubcategory = {
       id: "create-user",
       label: "Create user",
       keywords: ["add", "invite", "account", "handle", "password"],
+      teach: {
+        summary: "Mint a local account with a handle and password. SSO deployments provision through the identity provider instead.",
+        affects: ["who can sign in to this deployment"],
+      },
     },
     {
       id: "user-roles",
       label: "Roles & access",
       keywords: ["role", "admin", "owner", "promote", "demote", "disable", "enable"],
+      teach: {
+        summary: "Each account's global role \u2014 what it may administer, not what it may chat about.",
+        affects: ["that account's reach across the whole deployment"],
+      },
     },
     {
       id: "user-sessions",
       label: "Sessions",
       keywords: ["devices", "revoke", "sign out", "kick", "password reset"],
+      teach: { summary: "An account's live sessions, revocable one by one.", affects: ["that account's signed-in devices"] },
     },
   ],
 };
