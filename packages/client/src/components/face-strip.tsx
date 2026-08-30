@@ -63,7 +63,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { FoldState } from "./face-strip-fold.ts";
-import { cellWidthClass, foldFaces, sameFold } from "./face-strip-fold.ts";
+import { cellWidthClass, foldFaces, sameFold, tileName } from "./face-strip-fold.ts";
 
 export interface FaceStripItem {
   readonly id: string;
@@ -142,14 +142,6 @@ const OVERFLOW_ATTR = "data-face-overflow";
 /** A squeezed face is rendered NARROWER than it wants to be — measuring it would poison the cache with the
  *  width the fold itself imposed, and the next fold would then "discover" that it fits unaided. */
 const SQUEEZED_ATTR = "data-face-squeezed";
-
-/** THE OVERFLOW TILE'S ACCESSIBLE NAME — LABEL IN NAME (WCAG 2.5.3, #208). A CAPTIONED tile prints "More"
- *  under its `+N`, and its name was the bare verb, so a speech-input user saying the word on screen
- *  addressed nothing. The name LEADS with the visible word (the talkativeness chip's shape); the
- *  UNCAPTIONED arm prints only `+N` — no word to contain — and keeps the bare verb. */
-function tileName(caption: boolean, label: string): string {
-  return caption ? `More — ${label}` : label;
-}
 
 /** Cache key: a face's width is its portrait AND its caption, so a rename must re-measure. */
 function faceKey(item: FaceStripItem): string {
@@ -389,6 +381,9 @@ export function FaceStrip({
   const squeezedKey = fold?.squeezed === true && last !== undefined ? faceKey(last) : null;
   // During the measuring pass the tile renders too — it is one of the widths the fold spends.
   const showTile = folding && (fold === null || fold.hidden > 0);
+  // The tile's `+N`, read ONCE — the visible digit and the accessible name are the same number by
+  // construction (#852), never two expressions that could drift across the measuring pass.
+  const hiddenCount = fold === null ? items.length : fold.hidden;
 
   const faces = (
     <InlineList aria-label={label} className={folding ? "overflow-hidden" : "overflow-x-auto"} gap="field" ref={rowRef}>
@@ -414,7 +409,7 @@ export function FaceStrip({
                 // (#169 — the multi-segment token was invisible to `ui-size-via-variant` until its value
                 // class learned hyphens); the captioned strip's uniform pitch (#153) rides cellWidthClass.
                 <Button
-                  aria-label={tileName(caption, overflow.label)}
+                  aria-label={tileName(caption, overflow.label, hiddenCount)}
                   className={`shrink-0${cellWidthClass(caption)}`}
                   data-face-overflow=""
                   intent="ghost"
@@ -428,7 +423,7 @@ export function FaceStrip({
                         character named "More". The header's rhythm ruling is about the BOX, not the DRESS — a
                         dashed ring on no fill reads as a slot rather than a person at the identical pitch. */}
                     <Row align="center" className="size-avatar-md rounded-full border border-border border-dashed" justify="center">
-                      <Text className="text-muted-foreground" voice="label">{`+${fold === null ? items.length : fold.hidden}`}</Text>
+                      <Text className="text-muted-foreground" voice="label">{`+${hiddenCount}`}</Text>
                     </Row>
                     {caption ? (
                       <Text className="text-muted-foreground" voice="label">

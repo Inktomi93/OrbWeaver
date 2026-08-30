@@ -19,6 +19,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
+import { HOST_BAND, openContextSections } from "../../../../support/ct/open-context-sections.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatContextPanelStory, ChatContextTabContributorStory, ChatDeletedWhileOpenStory, RoomActivityTabStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES } from "../fixtures.ts";
@@ -220,6 +221,10 @@ test("host sees the consolidated tabs (This chat · Preview)", async ({ mount, p
   await cell(component, "This chat").click();
   await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Injections", level: 3 })).toBeVisible();
+  // #830 made every section but Field overrides a CLOSED disclosure whose kicker IS its trigger, and a
+  // closed Base UI panel is REMOVED from the DOM — so the body read below presses Macro picks open first.
+  // The headings above are unaffected: the kicker renders whether the panel is open or not.
+  await openContextSections(component, "Macro picks");
   // …and the sections actually RENDERED, rather than each heading standing over a read-error body (#629).
   // The Macro-picks body is the read's own empty state, so this is the section's real output, not its
   // boundary's. `QueryErrorState` is the house's ONE read-error surface, so its absence covers every
@@ -373,6 +378,9 @@ test("CP-1: HOST of a group chat sees the Group behavior section inside Settings
   await cell(component, "This chat").click();
 
   await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
+  // Group behavior lives INSIDE the host-ops band, which #830 closed by default — its own trigger does not
+  // exist until the band is pressed open (the band's children then stay open, so one press reaches it).
+  await openContextSections(component, HOST_BAND);
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toBeVisible();
 });
 
@@ -581,6 +589,8 @@ test("host adds an injection (setChatInjection fires with no id ⇒ create)", as
   const component = await mount(<ChatContextPanelStory />);
   // Injections is a section inside "This chat" (the default tab for this solo host chat).
   await cell(component, "This chat").click();
+  // …behind its own disclosure since #830 (a closed panel is removed from the DOM).
+  await openContextSections(component, "Injections");
   await expect(component.getByText("No injections yet.")).toBeVisible();
 
   await component.getByRole("button", { name: "Add injection" }).click();
@@ -613,8 +623,13 @@ test("host removes an injection (deleteChatInjection fires with the row id)", as
   const component = await mount(<ChatContextPanelStory />);
   // Injections is a section inside "This chat" (the default tab for this solo host chat).
   await cell(component, "This chat").click();
+  // …behind its own disclosure since #830 (a closed panel is removed from the DOM).
+  await openContextSections(component, "Injections");
   await expect(component.getByText("It is raining.")).toBeVisible();
 
+  // Remove lives INSIDE the row's own editor panel (#821 put an irreversible action behind the disclosure,
+  // never one click off a collapsed scan-list), so the row is opened before it is reachable at all.
+  await component.getByRole("button", { name: /^Injection 1\b/u }).click();
   await component.getByRole("button", { name: "Remove injection" }).click();
 
   await expect.poll(() => trpc.count("chat.deleteChatInjection"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);

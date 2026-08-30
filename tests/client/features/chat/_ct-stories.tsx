@@ -2609,18 +2609,24 @@ export interface CommittedMembersTabStoryProps {
   /** Seats the room's sole character ALREADY MUTED — the state a group room could leave behind, and the
    *  reason mute keeps an exit in a solo room (committed-members-tab.tsx). */
   readonly mutedSoloSeat?: boolean;
+  /** The mount's width. Defaults to 420; pass the 320px CONTEXT-PANE FLOOR (`--dimension-panel`'s low
+   *  clamp less the body's inline padding) to measure the CAST header's door cluster where it is
+   *  narrowest — a wide mount agrees with an overflow bug (#848). */
+  readonly width?: number;
 }
 
 /** The REAL Members tab body (committed-members-tab.tsx) — the surface that decides which seams reach the
  *  panel. Mounted with a host viewer and `multiHumanCapable:false`, so the People section is absent and the
  *  arms under test are exactly the cast row's: which of the group-arbiter controls (#182) exist. */
-export function CommittedMembersTabStory({ soloCast = false, mutedSoloSeat = false }: CommittedMembersTabStoryProps = {}): ReactElement {
+export function CommittedMembersTabStory({ soloCast = false, mutedSoloSeat = false, width = 420 }: CommittedMembersTabStoryProps = {}): ReactElement {
   const aria = membersTabSeat("Aria", castId<CharacterId>("character_aria"));
   const solo = mutedSoloSeat ? { ...aria, disabled: true } : aria;
   const participants: readonly ParticipantView[] = soloCast ? [solo] : [aria, membersTabSeat("Bryn", castId<CharacterId>("character_bryn"))];
   return (
     <CtDataProviders>
-      <div style={{ width: 420 }}>
+      {/* `overflow: visible` on a FIXED width — a content-sized mount root grows to fit the cluster and
+          would agree with the very overflow this width exists to catch. */}
+      <div style={{ overflow: "visible", width }}>
         <CommittedMembersTab
           chatId={castId<ChatId>("chat_members_tab")}
           chat={{ participants, cast: [], viewerUserId: castId<UserId>("user_riley"), pendingHostUserId: null }}

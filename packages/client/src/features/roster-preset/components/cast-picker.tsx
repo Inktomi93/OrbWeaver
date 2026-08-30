@@ -205,6 +205,12 @@ function SaveCurrentCast(props: {
           Save current cast
         </Button>
       </Row>
+      {/* WHY THE BUTTON IS DIM, SAID OUT LOUD (#848). "Save current cast" is disabled until the field
+          carries a name, and nothing on screen said so — a host read a permanently-dead control beside an
+          empty box (side-eye 2026-08-30). The line appears only in the state it explains, and only when
+          the OTHER disabling condition (the rules capture still reading) is not the live one, so it can
+          never claim the wrong reason. */}
+      {trimmed.length === 0 && capture.status === "ready" ? <Text voice="gloss">Name this cast to save it.</Text> : null}
       <CastRulesIncludeLine capture={capture} presetOf={presetOf} />
     </Stack>
   );
@@ -328,19 +334,30 @@ export function CastPicker(): ReactElement {
               ? "Save this room's cast below, and it becomes a cast you can drop into any new chat."
               : "Open a chat you host and save it as a cast — then start new rooms from it in one pick."
           }
-          action={
-            <Button
-              intent="outline"
-              size="sm"
-              onClick={(): void => {
-                closeModal();
-                openModal("newChat");
-              }}
-            >
-              <Icon icon={MessagesSquare} size="sm" />
-              Start a new chat
-            </Button>
-          }
+          // THE EMPTY STATE'S CTA MAY NOT ABANDON THE ROOM IT WAS OPENED FROM (#848). "Start a new chat"
+          // was the emphasised action in EVERY empty arm — including the host's, where it closes this
+          // modal, closes the room the host is configuring, and offers a different errand entirely, while
+          // the thing they CAN do here ("Save current cast", one glance below) sat as a dim ghost. A host
+          // gets no competing CTA: the description already routes them to the save row below, which is the
+          // only action this surface can complete. The NON-host arm keeps it, because there the CTA is
+          // honest — saving needs a room you host, and starting one is how you get one.
+          {...(active?.isHost === true
+            ? {}
+            : {
+                action: (
+                  <Button
+                    intent="outline"
+                    size="sm"
+                    onClick={(): void => {
+                      closeModal();
+                      openModal("newChat");
+                    }}
+                  >
+                    <Icon icon={MessagesSquare} size="sm" />
+                    Start a new chat
+                  </Button>
+                ),
+              })}
         />
       ) : (
         <Stack gap="row">

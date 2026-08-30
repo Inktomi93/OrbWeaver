@@ -17,6 +17,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundtrip.ts";
+import { measureClamp } from "../../../../support/ct/measure-clamp.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { InjectionsManagerStory, InjectionsReserveStory } from "../_ct-stories.tsx";
 
@@ -127,6 +128,37 @@ test("an empty-content row is badged NOT DELIVERED, and the badge clears the mom
   // Real content ⇒ the row IS delivering; the warning must not linger.
   await component.getByLabel("Content").fill("The tavern is on fire.");
   await expect(component.getByText("Not delivered — no content")).toHaveCount(0);
+});
+
+// #847 — THE EXCERPT'S ONE-LINE CLAMP MUST END ON A LINE BOUNDARY. Shipped, the collapsed row's excerpt
+// rendered an ellipsis at the end of line 1 AND a second line sliced horizontally through its own x-height:
+// text damaged in two contradictory ways on the same paragraph.
+//
+// THE MECHANISM, RE-DERIVED (the side-eye report's `display: flow-root overrides the clamp` reading is
+// WRONG, and `flow-root` is a red herring — it is simply what Chrome computes for a blockified
+// `display: -webkit-box`, and the clamp IS engaged: measured `clientHeight: 25` = ONE 13.125px line plus
+// the element's own ~11.9px `pb-block`). The defect is that the clamp and the PADDING sat on the same
+// element: `overflow: hidden` clips at the PADDING box, so the ~11.9px of bottom padding is visible area
+// BELOW the clamp point, and the clamped-away line 2 paints into it. The fix moves the block padding onto a
+// wrapper, so the clamped element's own box ends exactly where its last line does.
+//
+// The oracle is the LINE GRID, not `scrollHeight > clientHeight` — that is the standard "is this text
+// truncated?" probe, so a correctly clamped run reports true and it answers a different question entirely
+// (see `measure-clamp.ts`). Long content only: a short excerpt fits on one line and cannot show the
+// defect (side-eye 2026-08-30 measured exactly this — "Injection 1 does not clip").
+const LONG_EXCERPT =
+  "The tavern is on fire and the roof beams are coming down; get everyone out through the cellar door before the stairs go, and do not stop for the strongbox.";
+
+test("#847: a long collapsed excerpt is clamped to WHOLE lines — no second line sliced through its x-height", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.listChatInjections": () => [{ ...INJECTION_ROW, content: LONG_EXCERPT }],
+  });
+
+  const component = await mount(<InjectionsManagerStory />);
+
+  const excerpt = component.getByText(LONG_EXCERPT, { exact: true });
+  await expect(excerpt).toBeVisible();
+  expect(await measureClamp(excerpt)).toMatchObject({ partialLinePx: 0, visibleLines: 1 });
 });
 
 test("the empty state shows when there are no injections", async ({ mount, page }) => {

@@ -97,9 +97,15 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
           </Row>
         </CollapsibleTrigger>
         {isSet && !open ? (
-          <Text voice="gloss" className="line-clamp-1 px-block pb-block">
-            {snippet}
-          </Text>
+          // The padding lives on the WRAPPER, not on the clamped run (#847) — `line-clamp-1` clamps the
+          // CONTENT box while `overflow: hidden` clips at the PADDING box, so a `pb-block` on the clamped
+          // element is ~12px of visible area below the clamp point that the clamped-away line 2 paints
+          // into. The injections-manager site carries the full derivation.
+          <Stack className="px-block pb-block">
+            <Text voice="gloss" className="line-clamp-1">
+              {snippet}
+            </Text>
+          </Stack>
         ) : null}
         <CollapsiblePanel>
           <Stack gap="field" className="px-block pb-block">
