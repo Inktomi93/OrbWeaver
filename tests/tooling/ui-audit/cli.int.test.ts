@@ -642,6 +642,51 @@ test("the same row with a narrow cluster keeps its label and mints nothing — t
   expect(Number(census)).toBeGreaterThan(0);
 });
 
+// ── truncation is a defect only WITHOUT an affordance (#825) ────────────────────────────────────────
+
+// @instrument-proof: the `text-overflow` rule fired on `scrollWidth > clientWidth` ALONE, so it minted a
+// P1 against the topbar chat title — `overflow:hidden; text-overflow:ellipsis; white-space:nowrap`,
+// scrollWidth 201 / clientWidth 116 — i.e. against the house's own correct truncation idiom, and would
+// have fired on every truncating label in the app (docs/reviews/side-eye/2026-08-30-this-chat-cls.md §6
+// retraction 6 / §9-I1). All three arms drive the REAL cli: the bare clip must still RED (a rule that
+// only learns to shut up is a deleted rule), and each affordance must silence it.
+
+/** One clipped label, 80px wide, holding ~200px of text. `affordance` is the whole knob. */
+function truncatedLabelPage(affordance: "ellipsis" | "none" | "title"): string {
+  const clip = "width:80px;overflow:hidden;white-space:nowrap;font-size:16px;margin:24px";
+  const style = affordance === "ellipsis" ? `${clip};text-overflow:ellipsis` : clip;
+  const title = affordance === "title" ? ` title="the reply that never came"` : "";
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff"><main>
+<div style="${style}"${title}>the reply that never came</div>
+</main></body></html>`;
+}
+
+test("a clipped label with NO ellipsis and no full-value affordance is still a text-overflow finding", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "bare-clip.html"), truncatedLabelPage("none"));
+  const res = await runCli("ui-audit", ["/bare-clip.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("text-overflow");
+  expect(res.stdout, "the finding must carry the measured spill, or it cannot be acted on").toMatch(/\d+px spill/u);
+  await expect(res).toExitWith(1);
+});
+
+test("the SAME label truncated with an ellipsis mints nothing — the shipped idiom is not a defect", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "ellipsis.html"), truncatedLabelPage("ellipsis"));
+  const res = await runCli("ui-audit", ["/ellipsis.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout, "text-overflow:ellipsis is the affordance the rule's own message asks for").not.toContain("text-overflow");
+  expect(res.stdout).toContain("p1=0");
+  // ZERO HYGIENE (#409): the silence is only a verdict when the walk censused nodes at all.
+  expect(Number(CENSUS_RE.exec(res.stdout)?.[1])).toBeGreaterThan(0);
+});
+
+test("a bare clip carrying the full value in a title mints nothing either — the value is one hover away", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "titled.html"), truncatedLabelPage("title"));
+  const res = await runCli("ui-audit", ["/titled.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).not.toContain("text-overflow");
+  expect(Number(CENSUS_RE.exec(res.stdout)?.[1])).toBeGreaterThan(0);
+});
+
 /** A badge and a button sharing a row. `buttonLeftPx` decides whether the button sits ON the badge (the
  *  measured defect: press the badge, activate the button) or beside it. */
 function overlapRowPage(buttonLeftPx: number): string {

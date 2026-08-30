@@ -37,6 +37,7 @@ import {
   WalkerScreenReaderOnlyStory,
   WalkerSliderCompositeStory,
   WalkerTranslucentTintStory,
+  WalkerTruncationAffordanceStory,
   WalkerViewportEdgeTargetStory,
 } from "./_ct-stories.tsx";
 
@@ -317,6 +318,51 @@ test("the revealed arm and an ordinary clipped box still fire text-overflow — 
     "[data-testid=revealed-skip]",
   );
   expect(flagged, `overflow:hidden WITHOUT a collapsing clip is the ordinary truncation defect. got ${seen}`).toContain("[data-testid=visible-overflow]");
+});
+
+// ── truncation is a DEFECT only without an affordance (#825) ──────────────────────────────────────
+// The rule fired on `scrollWidth > clientWidth` alone and minted a P1 against the topbar chat title —
+// `overflow:hidden; text-overflow:ellipsis; white-space:nowrap`, scrollWidth 201 / clientWidth 116 — i.e.
+// against the house's own correct truncation idiom, on a surface where it would have fired on every
+// truncating label (docs/reviews/side-eye/2026-08-30-this-chat-cls.md §6 retraction 6 / §9-I1). Both
+// directions are pinned here: the silences AND the bare clip that must still fire, because a rule that
+// only learns to shut up is a deleted rule.
+test("a truncation that PAINTS its ellipsis is not a finding — on the node or on the clipping ancestor", async ({ mount, page }) => {
+  await mount(<WalkerTruncationAffordanceStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const flagged = selectorsFor(findings, "text-overflow");
+  const seen = JSON.stringify(flagged);
+  expect(flagged, `text-overflow:ellipsis IS the truncation affordance — this is the shipped idiom. got ${seen}`).not.toContain(
+    "[data-testid=ellipsis-truncated]",
+  );
+  expect(flagged, `the app's real shape puts the clip+ellipsis on the wrapper and the text in an inline child. got ${seen}`).not.toContain(
+    "[data-testid=inline-in-ellipsis-clip]",
+  );
+  expect(flagged, `a title carrying the FULL value is the other honest affordance — the value is one hover away. got ${seen}`).not.toContain(
+    "[data-testid=titled-clip]",
+  );
+});
+
+test("a bare clip with no ellipsis and no full-value affordance still fires — both arms", async ({ mount, page }) => {
+  await mount(<WalkerTruncationAffordanceStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const flagged = selectorsFor(findings, "text-overflow");
+  const seen = JSON.stringify(flagged);
+  expect(flagged, `overflow:hidden with no ellipsis cuts the string mid-word and says nothing. got ${seen}`).toContain("[data-testid=clipped-no-affordance]");
+  expect(flagged, `the inline arm keeps the same law: a bare clipping wrapper is still a defect. got ${seen}`).toContain("[data-testid=inline-in-bare-clip]");
+});
+
+test("a label erased to 0px stays #816's family — the two rules never double-report", async ({ mount, page }) => {
+  await mount(<WalkerTruncationAffordanceStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`));
+  expect(selectorsFor(findings, "truncated-to-nothing"), `a name at 0px is GONE, not truncated. got ${seen}`).toContain("[data-testid=erased-label]");
+  expect(selectorsFor(findings, "text-overflow"), `an ellipsis on a zero-width box paints nothing — it is not this rule's silence. got ${seen}`).not.toContain(
+    "[data-testid=erased-label]",
+  );
 });
 
 test("an sr-only control is not a tap target, while a 20px visible button still is", async ({ mount, page }) => {

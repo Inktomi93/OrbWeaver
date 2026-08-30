@@ -814,3 +814,41 @@ export function WalkerCastRowStory({ badges }: { badges: number }): ReactElement
     </div>
   );
 }
+
+/** The truncation stage (#825). `text-overflow` used to fire on `scrollWidth > clientWidth` ALONE, which
+ *  is the shape of every correctly truncating label in the app — it minted a P1 against the topbar chat
+ *  title (`docs/reviews/side-eye/2026-08-30-this-chat-cls.md` §6 retraction 6). Each row here is one arm
+ *  of the honest rule: an ellipsis silences, a `title` carrying the full value silences, a bare clip does
+ *  not — and the ellipsis may live on the CLIPPING ANCESTOR while the spilling node is its inline child,
+ *  which is the app's actual markup shape. The last row is #816's family: a label at 0px is
+ *  `truncated-to-nothing`, never this rule. */
+export function WalkerTruncationAffordanceStory(): ReactElement {
+  const sentence = "the reply that never came";
+  const clip = { width: 60, overflow: "hidden", whiteSpace: "nowrap", fontSize: 16 } as const;
+  const row = { display: "flex", alignItems: "center", width: 220, fontSize: 16 } as const;
+  return (
+    <div style={{ padding: 24, width: 400 }}>
+      <div data-testid="ellipsis-truncated" style={{ ...clip, textOverflow: "ellipsis" }}>
+        {sentence}
+      </div>
+      <div data-testid="clipped-no-affordance" style={clip}>
+        {sentence}
+      </div>
+      <div data-testid="titled-clip" style={clip} title={sentence}>
+        {sentence}
+      </div>
+      <div style={{ ...clip, textOverflow: "ellipsis" }}>
+        <span data-testid="inline-in-ellipsis-clip">{sentence}</span>
+      </div>
+      <div style={clip}>
+        <span data-testid="inline-in-bare-clip">{sentence}</span>
+      </div>
+      <div style={row}>
+        <span data-testid="erased-label" style={{ flex: "1 1 0%", minWidth: 0, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+          Spire Trio
+        </span>
+        <span style={{ flex: "0 0 auto", width: 220, height: 24, backgroundColor: "rgb(52, 52, 60)" }}>actions</span>
+      </div>
+    </div>
+  );
+}

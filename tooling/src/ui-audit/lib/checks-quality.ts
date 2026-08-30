@@ -4,6 +4,9 @@
 import type { Finding } from "../contract/findings.ts";
 import type { ActionDoorInput, ClippedOverflowInput, EdgeFlushInput, RepeatedTextInput, TextOverflowInput, TruncatedTextInput } from "../contract/samples.ts";
 
+/** TRUNCATED WITH NOTHING TO SHOW FOR IT (#825). The walker has already excluded every truncation that
+ *  paints an ellipsis or carries the full value in a title/aria-label, so this finding is only ever about
+ *  text the reader can neither read nor recover — the message names the three exits it has. */
 export function checkTextOverflow(input: TextOverflowInput): Finding {
   return {
     rule: "text-overflow",
