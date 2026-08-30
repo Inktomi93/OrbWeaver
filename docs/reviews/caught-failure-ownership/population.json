@@ -319,7 +319,7 @@
     {
       "siteId": "packages/client/src/data/use-plugin-frame.ts::default:catch::1",
       "path": "packages/client/src/data/use-plugin-frame.ts",
-      "line": 63,
+      "line": 67,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -327,12 +327,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented in the JSDoc above — any failure resolves to undefined and the caller renders nothing. Ends if rendering nothing stops being an acceptable fallback.",
-      "markerLine": 52
+      "markerLine": 56
     },
     {
       "siteId": "packages/client/src/data/use-plugin-frame.ts::promise:pending::1",
       "path": "packages/client/src/data/use-plugin-frame.ts",
-      "line": 88,
+      "line": 92,
       "column": 5,
       "grammar": "promise",
       "position": "promise:pending",
@@ -340,7 +340,7 @@
       "snippet": "pending.then(",
       "verdict": "deliberate-absorb",
       "reason": "mintPluginFrame's own catch already collapsed any failure to `undefined`; the reject arm here only exists for symmetry and sets the same render-floor state as the resolve arm. Ends if mintPluginFrame stops swallowing its own failures.",
-      "markerLine": 87
+      "markerLine": 91
     },
     {
       "siteId": "packages/client/src/data/use-session-recovery.ts::promise:bindDurableLocalToUser::1",
@@ -2919,7 +2919,7 @@
     {
       "siteId": "packages/server/src/entry/http/card-frame.ts::empty:catch::1",
       "path": "packages/server/src/entry/http/card-frame.ts",
-      "line": 147,
+      "line": 148,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2927,12 +2927,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a LEAK-FREE COLLAPSE to the SAFE FLOOR, stated in the comment below — a non-participant throwing out of the membership gate and an unknown character must land on the identical restrictive policy, or the frame's permissiveness reveals chat membership. Every failure arm here tightens, never widens. Ends if the floor stops being the safe posture.",
-      "markerLine": 144
+      "markerLine": 145
     },
     {
       "siteId": "packages/server/src/entry/http/card-frame.ts::empty:catch::2",
       "path": "packages/server/src/entry/http/card-frame.ts",
-      "line": 194,
+      "line": 195,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2940,7 +2940,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the CLIENT is the owner and the 400 is the surface — an unparseable request body is the caller's error, answered with `invalid JSON body`, exactly as the schema-parse failure two lines below is. A malformed inbound payload is not an operator event. Ends if body decoding gains a server-side fault worth distinguishing from bad input.",
-      "markerLine": 191
+      "markerLine": 192
     },
     {
       "siteId": "packages/server/src/entry/http/import-tree.ts::empty:err::1",
@@ -2958,7 +2958,7 @@
     {
       "siteId": "packages/server/src/entry/http/plugin-frame.ts::empty:catch::1",
       "path": "packages/server/src/entry/http/plugin-frame.ts",
-      "line": 140,
+      "line": 141,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2966,12 +2966,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "client-input — a malformed JSON body answers the caller a leak-free 400, the standard HTTP body-parse refusal. Ends if this stops being an entry-point body parse.",
-      "markerLine": 137
+      "markerLine": 138
     },
     {
       "siteId": "packages/server/src/entry/http/plugin-frame.ts::empty:catch::2",
       "path": "packages/server/src/entry/http/plugin-frame.ts",
-      "line": 152,
+      "line": 153,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2979,7 +2979,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "leak-free collapse — documented below: a foreign/unknown pluginId, \"no such surface\", and \"grant revoked\" all answer the SAME NOT_FOUND, the card-frame doorway's fail-closed posture. Ends if a caller needs to distinguish those causes.",
-      "markerLine": 149
+      "markerLine": 150
     },
     {
       "siteId": "packages/server/src/entry/http/plugin-ui.ts::empty:catch::1",
