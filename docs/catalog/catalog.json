@@ -3,7 +3,7 @@
   "stats": {
     "pending": 0,
     "missingFrontmatter": 0,
-    "invalidFrontmatter": 0,
+    "invalidFrontmatter": 1,
     "malformedFrontmatter": 0
   },
   "documents": [
@@ -11580,16 +11580,16 @@
       "path": "docs/design/interaction-direction-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 704,
-      "bytes": 72828,
-      "sha256": "37f17a59300762d77fdb40a2ea8bf16cd0382e65c3382705be4830044f3fd095",
+      "lines": 708,
+      "bytes": 73206,
+      "sha256": "0d34fbb9bfeed437a68f058f8470a1ec86b5d8e7876832b714c9a9263653b535",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-08-28"
+          "updated": "2026-08-29"
         },
         "errors": []
       },
@@ -11625,7 +11625,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/interaction-substrate-spec.md",
@@ -13515,16 +13515,16 @@
       "path": "docs/design/saved-rosters-build-record.md",
       "lane": "design",
       "issue": 5,
-      "lines": 180,
-      "bytes": 14645,
-      "sha256": "13d4c4747f9a22518635cb746b2ad2b0268eb98f9a36f317a8f347514cf1fb10",
+      "lines": 292,
+      "bytes": 23275,
+      "sha256": "8a0d53b6b296c1db6ec56c0f2a3a57d173e2d7c401f2e131bb7258cc80c58fa4",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-08-28"
+          "updated": "2026-08-29"
         },
         "errors": []
       },
@@ -13555,7 +13555,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/server-usage-settlement-2026-08-20.md",
@@ -17688,6 +17688,564 @@
           }
         ],
         "summary": "Short operational recovery index: Project lifecycle, durable authority homes, agent-process routing, and hard stops only; no backlog or mirrored status."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/board-rederive/scout-A-plugin-cap.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 125,
+      "bytes": 7427,
+      "sha256": "5df901a281982de3ed27c62f1ef59c1531ae9b9fdb75558d394e4ed4dfcaeab7",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/board-rederive/scout-A-plugin-cap.md",
+        "assignedSha256": "5df901a281982de3ed27c62f1ef59c1531ae9b9fdb75558d394e4ed4dfcaeab7",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "5df901a281982de3ed27c62f1ef59c1531ae9b9fdb75558d394e4ed4dfcaeab7",
+        "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
+        "verifiedAt": "2026-08-29",
+        "evidence": [
+          "docs/reviews/board-rederive/scout-A-plugin-cap.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for #798, #801, #802, #774, #778 (plugin capability/host rows))"
+        ],
+        "claims": [
+          {
+            "claim": "Plugin-fetched CAS assets (net.fetchAsset's storeFetched) carry no accompanying FK/ASSET_REFS write, so an only-displayed (never-ingested) fetched asset is reaped by collectGarbage once the grace window expires — #802 is a confirmed, still-open defect.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#805"
+              }
+            ]
+          }
+        ],
+        "summary": "Board re-derivation of #798/#801/#802/#774/#778: #798 (net.fetchAsset+character.ingestAsset) and #801 (egress belt split) are DONE-ON-MAIN and closeable; #802 (plugin-fetched CAS assets missing ASSET_REFS coverage, GC-bait) is confirmed still unaddressed; #774 (seeded showcase plugins) is DONE-ON-MAIN; #778 (64-key surface-state LRU) is a deliberately parked wake-condition row, code confirms no eviction landed."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/board-rederive/scout-B-plugin-ui.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 86,
+      "bytes": 6159,
+      "sha256": "9b552265081b9361648f41f72521469dd4c398665ce4e4f96642d701541e730c",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/board-rederive/scout-B-plugin-ui.md",
+        "assignedSha256": "9b552265081b9361648f41f72521469dd4c398665ce4e4f96642d701541e730c",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "9b552265081b9361648f41f72521469dd4c398665ce4e4f96642d701541e730c",
+        "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
+        "verifiedAt": "2026-08-29",
+        "evidence": [
+          "docs/reviews/board-rederive/scout-B-plugin-ui.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for #796, #797, #799, #800, #791, #792 (plugin/UI rows))"
+        ],
+        "claims": [
+          {
+            "claim": "The plugin surface-node union (packages/contracts/src/plugin/ui.ts) has exactly 20 kinds and no loading/measure/icon/tabs/emptystate kind, no primary button variant, and the sandbox theme hook exposes only 2 color tokens + a font — all three visual-vocabulary gaps #799 names are confirmed absent by direct read.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#806"
+              }
+            ]
+          }
+        ],
+        "summary": "Board re-derivation of #796/#797/#799/#800/#791/#792: #791 (typed-arg grammar+autocomplete) and #792 (URL-install client surface) are DONE-ON-MAIN; #796 (Plugins pane mobile/a11y) has its base rework landed but residual polish items are unverified; #797 (design-audit viewport-edge phantom P1s + htmlFor-blindness) and #799 (plugin visual-vocabulary gaps — missing node kinds, no primary button variant, 2-token sandbox theme) are both confirmed still NOT-STARTED by direct code read; #800 (SFW/botbooru toggle) has zero code on main or its named branch, work is uncommitted in a live lane."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/board-rederive/scout-C-running.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 99,
+      "bytes": 7003,
+      "sha256": "7921c84543328fa63ad41ed670f99e24ebe426dba29aeb1550455f806aa01ae3",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/board-rederive/scout-C-running.md",
+        "assignedSha256": "7921c84543328fa63ad41ed670f99e24ebe426dba29aeb1550455f806aa01ae3",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "7921c84543328fa63ad41ed670f99e24ebe426dba29aeb1550455f806aa01ae3",
+        "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
+        "verifiedAt": "2026-08-29",
+        "evidence": [
+          "docs/reviews/board-rederive/scout-C-running.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for #777, #784, #599 (C-series), #751, #23, #26 (RUNNING-column rows))"
+        ],
+        "claims": [
+          {
+            "claim": "#599's C1-C5 interaction-direction rows are all committed/landed on main (spec §7 phase table cross-checked against independently-verified #23 reactions and #26 roster-preset code), recommended for verify-and-close.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#599"
+              }
+            ]
+          }
+        ],
+        "summary": "Board re-derivation of the RUNNING-column rows #777, #784, #599 (C-series), #751, #23, #26: all six are DONE-ON-MAIN with dedicated closing commits and recommended for verify-and-close; #599's C1-C5 interaction-direction rows all read 'committed' in the spec's own phase table, cross-checked independently for the reactions (#23) and roster (#26) chunks."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/board-rederive/scout-D1-server.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 67,
+      "bytes": 5389,
+      "sha256": "a831106cf3993a15c25a0ead582de2ace5bd34e0666d7524af247b50bff7429a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/board-rederive/scout-D1-server.md",
+        "assignedSha256": "a831106cf3993a15c25a0ead582de2ace5bd34e0666d7524af247b50bff7429a",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "a831106cf3993a15c25a0ead582de2ace5bd34e0666d7524af247b50bff7429a",
+        "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
+        "verifiedAt": "2026-08-29",
+        "evidence": [
+          "docs/reviews/board-rederive/scout-D1-server.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for #788, #794, #795, #84, #595, #676 (server domain rows))"
+        ],
+        "claims": [
+          {
+            "claim": "#794's two named batch-atomicity fixes (refinery submit-manual-rewrite, discovery distill commitSummaries) are both still unbatched/uncast — neither site calls batchMany from packages/db/src/kit/batch.ts — confirming the row is NOT STARTED.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#794"
+              }
+            ]
+          }
+        ],
+        "summary": "Board re-derivation of server rows #788, #794, #795, #84, #595, #676: #788 (ST-parity gaps) is 2-of-5 sub-items done (worldInfo.read, search.query), 3 remain unbuilt (character.read, tokens.count, seam-11 assets); #794 (refinery/distill batch-atomicity cleanup) is confirmed NOT STARTED on both cited call sites; #795 (cross-tenant sweep write-IDOR completeness) looks likely-done by pattern volume but not line-by-line certified; #84/#595/#676 are parked rows whose wake conditions remain unmet, premises confirmed still valid."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/board-rederive/scout-D2-oidc-infra.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 156,
+      "bytes": 9177,
+      "sha256": "8ec2107c9e932bfdb0addfd01addd8c1037801f40e775e1ac205522b61c0522f",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/board-rederive/scout-D2-oidc-infra.md",
+        "assignedSha256": "8ec2107c9e932bfdb0addfd01addd8c1037801f40e775e1ac205522b61c0522f",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "8ec2107c9e932bfdb0addfd01addd8c1037801f40e775e1ac205522b61c0522f",
+        "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
+        "verifiedAt": "2026-08-29",
+        "evidence": [
+          "docs/reviews/board-rederive/scout-D2-oidc-infra.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for #141, #762, #803, #316, #403, #495, #124 (OIDC/infra rows))"
+        ],
+        "claims": [
+          {
+            "claim": "#141's end-session URL is sent deliberately BARE (no id_token_hint, no post_logout_redirect_uri) after a reverted prior attempt 400'd against a real Authentik deployment; restoring it needs an owner-gated OIDC id_token-persistence decision, so the row should be re-scoped to that decision rather than left as 'in review' for its original title.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#141"
+              }
+            ]
+          },
+          {
+            "claim": "#762's OIDC discovery config cache (buildOidcDeps.getConfig) uses `cachedConfig ??= await discovery(...)`, which only memoizes the SETTLED result — concurrent cold-start callers before the first call resolves each independently re-dispatch to the IdP; not true single-flight.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#762"
+              }
+            ]
+          }
+        ],
+        "summary": "Board re-derivation of D2 OIDC/infra rows: #141 (id_token_hint + post_logout_redirect_uri) is stale-premise — the code deliberately sends the end-session URL BARE by design (a prior attempt was reverted after it broke against a real IdP), genuinely blocked on an owner-gated id_token-persistence decision; #762 (OIDC discovery caching) is settled-result-only with a cold-start double-fetch race, not true single-flight; #803/#316/#403/#124 premises are all confirmed still valid and parked; #495 could not be corroborated from the repo (an operational/infra fact, not code)."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/board-rederive/scout-E1-client-analytics.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 100,
+      "bytes": 7033,
+      "sha256": "515c1e5e2af149368ba76d3953344e5cfde1f86ec5fbcaa378b3863bcd93be8b",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/board-rederive/scout-E1-client-analytics.md",
+        "assignedSha256": "515c1e5e2af149368ba76d3953344e5cfde1f86ec5fbcaa378b3863bcd93be8b",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "515c1e5e2af149368ba76d3953344e5cfde1f86ec5fbcaa378b3863bcd93be8b",
+        "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
+        "verifiedAt": "2026-08-29",
+        "evidence": [
+          "docs/reviews/board-rederive/scout-E1-client-analytics.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for #159, #160, #227, #306, #418 (client/analytics rows))"
+        ],
+        "claims": [
+          {
+            "claim": "#159 (consolidate Analytics + tag management into Corpus) remains unbuilt design research with no docs/proposed corpus-consolidation doc anywhere on the tree — owner-gated, unchanged.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#159"
+              }
+            ]
+          }
+        ],
+        "summary": "Board re-derivation of E1 client/analytics rows #159, #160, #227, #306, #418: #159 (Analytics+tag-management-into-Corpus design research) remains unbuilt, owner-gated, no design doc exists; #160 (analytics/memory dead-click rows) was not independently re-located this pass, premise treated as unrefuted; #227 (You-sheet buries notifications) is stale-premise by source read — notifications render before the bulk 'More' list, not after — flagged for a rendered snap before closing; #306 and #418 premises are both confirmed unchanged, owner-gated."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/board-rederive/scout-E2-client-misc.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 78,
+      "bytes": 5508,
+      "sha256": "647ab0f9708d66e3ac28ed2cfb6bec728f17bc227c5b2c885b987fed6eaa656d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/board-rederive/scout-E2-client-misc.md",
+        "assignedSha256": "647ab0f9708d66e3ac28ed2cfb6bec728f17bc227c5b2c885b987fed6eaa656d",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "647ab0f9708d66e3ac28ed2cfb6bec728f17bc227c5b2c885b987fed6eaa656d",
+        "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
+        "verifiedAt": "2026-08-29",
+        "evidence": [
+          "docs/reviews/board-rederive/scout-E2-client-misc.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for #63, #69, #587, #604, #771 (client-misc rows))"
+        ],
+        "claims": [
+          {
+            "claim": "#69's cited census numbers (33 unwired procs, 9 client-gap contracts) are stale: a fresh `pnpm ast unwired`/`clientgap contracts` run finds 15 and 13 respectively — the underlying finding still holds directionally but the row's numbers must be re-derived before sizing any consuming program off them.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#69"
+              }
+            ]
+          }
+        ],
+        "summary": "Board re-derivation of E2 client-misc rows #63, #69, #587, #604, #771: #63 (comment-density gate) stays parked, gate undeclared; #69 (ast lens audit counts) is stale-premise — both cited counts (33 unwired procs, 9 client-gap contracts) are materially wrong today (now 15 and 13 respectively), underlying finding still holds directionally but numbers need re-derivation; #587 is parked but the cited owner-ruling isn't evidenced in the GitHub issue thread itself; #604 and #771 premises are both confirmed via direct code/issue-comment read, correctly parked."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/board-rederive/scout-F-test-presence.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 66,
+      "bytes": 4218,
+      "sha256": "4470b8cabed3ba9627885ecf509c4c46497a4a1c429390a0a8cd215000d434e7",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/board-rederive/scout-F-test-presence.md",
+        "assignedSha256": "4470b8cabed3ba9627885ecf509c4c46497a4a1c429390a0a8cd215000d434e7",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "4470b8cabed3ba9627885ecf509c4c46497a4a1c429390a0a8cd215000d434e7",
+        "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
+        "verifiedAt": "2026-08-29",
+        "evidence": [
+          "docs/reviews/board-rederive/scout-F-test-presence.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for #772, #773 (test-presence gate rows))"
+        ],
+        "claims": [
+          {
+            "claim": "#772's test-presence baseline (tooling/src/verify/gates/test-presence.baseline.json) still lists all 72 debt rows unchanged since its single creation commit (#767 merge) — zero burn-down has landed.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#772"
+              }
+            ]
+          },
+          {
+            "claim": "#773's premise — the test-presence gate has no entry/ or transport/ demand arm at all — is structurally confirmed (grepped test-presence.ts and contract-verb-presence.ts for entry/transport demand logic: none found); only the domain tree is scanned.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#773"
+              }
+            ]
+          }
+        ],
+        "summary": "Board re-derivation of the test-presence gate rows #772/#773: the gate's domain arm is demand-by-default with a 72-row committed debt baseline unchanged since its 2026-08-28 authoring commit (#772 zero cleared, NOT-STARTED); the gate has zero entry/transport coverage today (#773's core premise confirmed structurally), though its cited 25-untested (18+7) headline count is inherited from the prior #767 survey and was not independently re-run."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/board-rederive/scout-G-599-b4-b11.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 89,
+      "bytes": 5251,
+      "sha256": "a93db4081b6a24712c09e7c77cceb3a63473102294407f16a0778d41368355c5",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/board-rederive/scout-G-599-b4-b11.md",
+        "assignedSha256": "a93db4081b6a24712c09e7c77cceb3a63473102294407f16a0778d41368355c5",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "a93db4081b6a24712c09e7c77cceb3a63473102294407f16a0778d41368355c5",
+        "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
+        "verifiedAt": "2026-08-29",
+        "evidence": [
+          "docs/reviews/board-rederive/scout-G-599-b4-b11.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for #599 B4/B11 sub-rows, feeding the #804 follow-up split)"
+        ],
+        "claims": [
+          {
+            "claim": "B4's per-rule opt-out knob for the automation confirm-first spend-arm invitation is genuinely unbuilt: dispatch.ts's own in-code comment (line 211) states it is recorded-unbuilt, gating instead on the action SHAPE (invitesOnRefusal) rather than a stored per-rule flag — no field, persistence, read path, or client UI control exists anywhere on the tree.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#804"
+              }
+            ]
+          }
+        ],
+        "summary": "Re-derivation of #599's B4 (per-rule opt-out knob) and B11 (Activity tab + listChatActivity): B4 is confirmed UNBUILT by the implementer's own contemporaneous in-code comment (domain/automation/engine/dispatch.ts:211) — no field, persistence, read path, or UI exists; B11 is confirmed BUILT end-to-end (verb → contract → service → trpc router → client component → registered at the composition root's chat-context tab registry). Recommends closing #599 against everything else and filing B4 as its own follow-up issue (#804)."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/board-rederive/scout-H-227-160.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 64,
+      "bytes": 4927,
+      "sha256": "e5c01bf5adeed94dc73134c022ec1e938b94c46a9e9ad58553822412d8c9f6c8",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "report",
+          "status": "final",
+          "updated": "2026-08-29"
+        },
+        "errors": [
+          "docs/reviews/board-rederive/scout-H-227-160.md: invalid frontmatter kind report",
+          "docs/reviews/board-rederive/scout-H-227-160.md: invalid frontmatter status final"
+        ]
+      },
+      "receipt": {
+        "path": "docs/reviews/board-rederive/scout-H-227-160.md",
+        "assignedSha256": "e5c01bf5adeed94dc73134c022ec1e938b94c46a9e9ad58553822412d8c9f6c8",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "e5c01bf5adeed94dc73134c022ec1e938b94c46a9e9ad58553822412d8c9f6c8",
+        "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
+        "verifiedAt": "2026-08-29",
+        "evidence": [
+          "docs/reviews/board-rederive/scout-H-227-160.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for #227 and #160 (You-sheet placement + corpus row click claims))"
+        ],
+        "claims": [
+          {
+            "claim": "#227's claim that mobile You-sheet buries the notifications inbox at the foot of ~50 controls is false on current main: you-sheet.tsx renders the notifications overflow chrome (step 3) BEFORE the 'More'/overflowSections bulk list (step 4), not after it.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#227"
+              }
+            ]
+          },
+          {
+            "claim": "#160's claim that analytics/memory artifact rows are dead on click is false for the matching surface: discovery/components/corpus-hit-rows.tsx binds a real onClick to every row type, and its header comments document prior side-eye passes that specifically hunted and fixed look-clickable-does-nothing rows on this file.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#160"
+              }
+            ]
+          }
+        ],
+        "summary": "Scout findings on #227 (mobile You-sheet notifications placement) and #160 (analytics/memory row click): both verdicts are STALE-PREMISE, claims FALSE as currently worded. #227: the notifications-inbox overflow chrome renders in the THIRD slot, ahead of the 'More' bulk section list, not buried at its foot. #160: the closest matching surface (discovery's corpus-hit-rows.tsx) has every row type real-click-bound, including a documented history of prior side-eye passes explicitly fixing dead-click defects on this exact file; the one non-clickable row (an image no card uses) is intentionally non-interactive, not a bug."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/interaction-build-audit/scout-P-substrate-A-B1-6.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 148,
+      "bytes": 10370,
+      "sha256": "bceca4c52ce66fcaecc82a9164eea9cd82ae661dd3a94a7ddbbc31d19f8b7605",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/interaction-build-audit/scout-P-substrate-A-B1-6.md",
+        "assignedSha256": "bceca4c52ce66fcaecc82a9164eea9cd82ae661dd3a94a7ddbbc31d19f8b7605",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "bceca4c52ce66fcaecc82a9164eea9cd82ae661dd3a94a7ddbbc31d19f8b7605",
+        "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
+        "verifiedAt": "2026-08-29",
+        "evidence": [
+          "docs/reviews/interaction-build-audit/scout-P-substrate-A-B1-6.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for the interaction-direction spec's S1-S5/A1-A4/B1-B6 rows, corroborating the #804 gap)"
+        ],
+        "claims": [
+          {
+            "claim": "S1-S5, A1-A4 and B1-B6 of the interaction-direction spec are all confirmed BUILT on main (live imports, composition-root registration, or passing test files for every row); the only gap in this range is B4's per-rule opt-out knob, already tracked as #804.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#804"
+              }
+            ]
+          }
+        ],
+        "summary": "Interaction-direction build audit of S1-S5, A1-A4, B1-B6: every row climbs to at least composition-root registration or a passing-shaped test file; all are confirmed BUILT with no walked-back rows in this range. The one concrete gap found is B4's per-rule opt-out knob for confirm cards (already tracked as #804 per dispatch.ts:208-212), which is not a defect in the card mechanism itself. B2 (Rules section inside chat CONTEXT) is confirmed the non-blocker for the deferred B10 '+rules on a cast' leg."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/interaction-build-audit/scout-Q-B7-11-C-presets.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 128,
+      "bytes": 9319,
+      "sha256": "11d4af17044558edb82403644cddec050dd7229d4b1fcda834a19c8134683bbd",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-29"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/interaction-build-audit/scout-Q-B7-11-C-presets.md",
+        "assignedSha256": "11d4af17044558edb82403644cddec050dd7229d4b1fcda834a19c8134683bbd",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "11d4af17044558edb82403644cddec050dd7229d4b1fcda834a19c8134683bbd",
+        "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
+        "verifiedAt": "2026-08-29",
+        "evidence": [
+          "docs/reviews/interaction-build-audit/scout-Q-B7-11-C-presets.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for the interaction-direction spec's B7-B11/C1-C5/preset-catalogue rows, locating the B10 '+rules' gap)"
+        ],
+        "claims": [
+          {
+            "claim": "B10's saved-casts '+rules' leg (re-minting a room's enabled automation rule-presets + knob values at apply time, per interaction-direction-spec.md:524) has zero code anywhere: roster-preset's schema/domain/client all carry only character/persona/group-config state, with a confirmed-zero grep for rule-preset-linkage vocabulary across domain/roster-preset.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#26"
+              }
+            ]
+          }
+        ],
+        "summary": "Interaction-direction build audit of B7-B11, C1-C5, the preset catalogue, and cast/rules-apply: B7-B9 and B11 are confirmed BUILT full-ladder; the preset catalogue (22 specified) is an exact 22-built match, tsc-enforced exhaustive; C1-C5 are all confirmed BUILT. B10 (saved casts) is PARTIAL — the character/persona/group-config half is fully built and wired, but the '+rules' leg (re-minting a cast's enabled automation rule-presets at apply) has zero code anywhere: no schema column, no verb wiring, no client picker. Ships a 4-step build-order recommendation for that gap."
       },
       "receiptCurrent": true
     },
