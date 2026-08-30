@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 407,
-    "enforced": 404,
+    "sites": 408,
+    "enforced": 405,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 404,
+      "deliberate-absorb": 405,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 121,
-      "default": 117,
+      "default": 118,
       "empty": 169
     }
   },
@@ -800,7 +800,7 @@
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-surface-renderer.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/plugin/components/plugin-surface-renderer.tsx",
-      "line": 171,
+      "line": 194,
       "column": 12,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -808,7 +808,7 @@
       "snippet": "void invoke",
       "verdict": "deliberate-absorb",
       "reason": "the comment above explains — the",
-      "markerLine": 168
+      "markerLine": 191
     },
     {
       "siteId": "packages/client/src/features/plugin/components/snippet-console.tsx::promise:mutateAsync::1",
@@ -2685,15 +2685,28 @@
     {
       "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::4",
       "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 128,
+      "line": 140,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 4,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — an example with no",
+      "markerLine": 135
+    },
+    {
+      "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::5",
+      "path": "packages/server/src/entry/boot/seed-assets/index.ts",
+      "line": 160,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 5,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — the header states the",
-      "markerLine": 123
+      "markerLine": 155
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::1",
