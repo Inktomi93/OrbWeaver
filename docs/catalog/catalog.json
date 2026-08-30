@@ -3,7 +3,7 @@
   "stats": {
     "pending": 0,
     "missingFrontmatter": 0,
-    "invalidFrontmatter": 1,
+    "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
   },
   "documents": [
@@ -11626,7 +11626,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/interaction-substrate-spec.md",
@@ -13557,7 +13557,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/server-usage-settlement-2026-08-20.md",
@@ -18113,28 +18113,25 @@
       "issue": 7,
       "lines": 64,
       "bytes": 4927,
-      "sha256": "e5c01bf5adeed94dc73134c022ec1e938b94c46a9e9ad58553822412d8c9f6c8",
+      "sha256": "c666f2a04c2b426150864403c97277a895e075e82d24058e1f7fca09f1059c4e",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "report",
-          "status": "final",
+          "kind": "review",
+          "status": "draft",
           "updated": "2026-08-29"
         },
-        "errors": [
-          "docs/reviews/board-rederive/scout-H-227-160.md: invalid frontmatter kind report",
-          "docs/reviews/board-rederive/scout-H-227-160.md: invalid frontmatter status final"
-        ]
+        "errors": []
       },
       "receipt": {
         "path": "docs/reviews/board-rederive/scout-H-227-160.md",
-        "assignedSha256": "e5c01bf5adeed94dc73134c022ec1e938b94c46a9e9ad58553822412d8c9f6c8",
+        "assignedSha256": "c666f2a04c2b426150864403c97277a895e075e82d24058e1f7fca09f1059c4e",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "e5c01bf5adeed94dc73134c022ec1e938b94c46a9e9ad58553822412d8c9f6c8",
-        "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
+        "verifiedSha256": "c666f2a04c2b426150864403c97277a895e075e82d24058e1f7fca09f1059c4e",
+        "verifiedCommit": "86707e583ce77bb9fd340b97949af6ebdeb73e6e",
         "verifiedAt": "2026-08-29",
         "evidence": [
           "docs/reviews/board-rederive/scout-H-227-160.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for #227 and #160 (You-sheet placement + corpus row click claims))"

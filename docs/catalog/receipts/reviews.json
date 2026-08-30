@@ -899,9 +899,7 @@
           ]
         }
       ],
-      "evidence": [
-        "full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"
-      ],
+      "evidence": ["full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"],
       "summary": "Side-eye verdicts: widen the coarse Switch track (do not ship the crescent); #285 evidence pairs delivered with the fork's premise contradicted on-tree."
     },
     {
@@ -1215,9 +1213,7 @@
       "verifiedSha256": "cb9d92337442e3f0ece01e0ad8d6962625fb07d677a2a740193c25b4998c69a9",
       "verifiedCommit": "453ddf92309112b36fe3249d925eedd9f91f21da",
       "verifiedAt": "2026-08-21",
-      "evidence": [
-        "born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"
-      ],
+      "evidence": ["born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"],
       "summary": "Fresh-context stickler review of Codex's final merge 3cbb9602a..837e73853: sanctioned shape confirmed; 3 LOW findings routed to #405.",
       "claims": [
         {
@@ -1263,10 +1259,7 @@
       "verifiedSha256": "70194e286618c4a6d11c27546ddc0c0d7ec2da1501d3558a0a1d11deb4ec8229",
       "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
       "verifiedAt": "2026-08-24",
-      "evidence": [
-        "docs/design/interaction-direction-spec.md:571-588 (§10) cites the 2026-08-23 lineage",
-        "committed as provenance at dd1921de7"
-      ],
+      "evidence": ["docs/design/interaction-direction-spec.md:571-588 (§10) cites the 2026-08-23 lineage", "committed as provenance at dd1921de7"],
       "summary": "Superseded lineage: the 2026-08-23 interaction systems audit; its findings were folded through the 2026-08-24 panel into the committed spec (spec §10). Kept as the argument record."
     },
     {
@@ -1323,10 +1316,7 @@
       "verifiedSha256": "55a1b9470f8f5534f196334ee0bd28e672e18b6bec4f3eff49d9175a4c193b6e",
       "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
       "verifiedAt": "2026-08-24",
-      "evidence": [
-        "docs/design/interaction-direction-spec.md:576-577 (§10) names interaction-ia-placement.md",
-        "committed as provenance at dd1921de7"
-      ],
+      "evidence": ["docs/design/interaction-direction-spec.md:576-577 (§10) names interaction-ia-placement.md", "committed as provenance at dd1921de7"],
       "summary": "Provenance: every HOME in the spec's §7 path tables derives from this IA placement doc (one adversarial round, 7 findings folded — spec §10)."
     },
     {
@@ -1772,9 +1762,7 @@
       "verifiedSha256": "1af6817df0a3002afb700803c0b1df40dd9273a5dba14ba30c9a01d1d4829bef",
       "verifiedCommit": "fc48ca68b7a407dc9624884cfd774d24a6a324b8",
       "verifiedAt": "2026-08-29",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-28-roster-preset-26-premerge.md:1 (full read; pre-merge review of the #26 saved-rosters lane)"
-      ],
+      "evidence": ["docs/reviews/stickler/2026-08-28-roster-preset-26-premerge.md:1 (full read; pre-merge review of the #26 saved-rosters lane)"],
       "summary": "Stickler pre-merge review of #26 saved rosters: MERGE-BLOCKED on one trivial biome-format gate red (F1); the security-sensitive requireHost-first delta verified genuine and correctly ordered; F2-F6 are non-leaking follow-ups.",
       "claims": [
         {
@@ -1859,9 +1847,7 @@
       "verifiedSha256": "be1a8772247dda6bda1a1cf546e2500cdbe10622c6e337cedcdfb098bd4bdc82",
       "verifiedCommit": "c45dec5d2404c822159d303164beea2c811517c5",
       "verifiedAt": "2026-08-29",
-      "evidence": [
-        "docs/reviews/side-eye/2026-08-29-plugin-automation.md:1 (full read; the side-eye acceptance pass on the plugin/automation surfaces)"
-      ],
+      "evidence": ["docs/reviews/side-eye/2026-08-29-plugin-automation.md:1 (full read; the side-eye acceptance pass on the plugin/automation surfaces)"],
       "claims": [
         {
           "claim": "Plugin & automation surfaces are SHIP WITH FIXES: consent/onboarding UX is strong; confirmed defects tracked as follow-up issues.",
@@ -1884,9 +1870,7 @@
       "verifiedSha256": "1398f11f85e44d541e8a149a5f4f3d6896976a49be4b3f0fecb81e7175608dda",
       "verifiedCommit": "c45dec5d2404c822159d303164beea2c811517c5",
       "verifiedAt": "2026-08-29",
-      "evidence": [
-        "docs/reviews/side-eye/2026-08-29-plugins-rework-scored.md:1 (full read; the scored side-eye review of the plugins settings pane rework)"
-      ],
+      "evidence": ["docs/reviews/side-eye/2026-08-29-plugins-rework-scored.md:1 (full read; the scored side-eye review of the plugins settings pane rework)"],
       "claims": [
         {
           "claim": "The Plugins settings pane rework (bordered cards, checkbox-leading capability rows) is SHIP-ready per design-audit and Lighthouse scoring.",
@@ -2170,12 +2154,12 @@
     },
     {
       "path": "docs/reviews/board-rederive/scout-H-227-160.md",
-      "assignedSha256": "e5c01bf5adeed94dc73134c022ec1e938b94c46a9e9ad58553822412d8c9f6c8",
+      "assignedSha256": "c666f2a04c2b426150864403c97277a895e075e82d24058e1f7fca09f1059c4e",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "e5c01bf5adeed94dc73134c022ec1e938b94c46a9e9ad58553822412d8c9f6c8",
-      "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
+      "verifiedSha256": "c666f2a04c2b426150864403c97277a895e075e82d24058e1f7fca09f1059c4e",
+      "verifiedCommit": "86707e583ce77bb9fd340b97949af6ebdeb73e6e",
       "verifiedAt": "2026-08-29",
       "evidence": [
         "docs/reviews/board-rederive/scout-H-227-160.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for #227 and #160 (You-sheet placement + corpus row click claims))"
