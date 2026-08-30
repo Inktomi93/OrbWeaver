@@ -25994,6 +25994,58 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-30-this-chat-cls.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 524,
+      "bytes": 38066,
+      "sha256": "bc471010b41dc330897d5ea5c7dbd255c735533996441a64d3440106a671a480",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-30"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-30-this-chat-cls.md",
+        "assignedSha256": "bc471010b41dc330897d5ea5c7dbd255c735533996441a64d3440106a671a480",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "bc471010b41dc330897d5ea5c7dbd255c735533996441a64d3440106a671a480",
+        "verifiedCommit": "023b2e5ba3d6a6e97cef1cc5fe57c5474201e435",
+        "verifiedAt": "2026-08-30",
+        "evidence": [
+          "docs/reviews/side-eye/2026-08-30-this-chat-cls.md:1-524 read in full by the orchestrator (claude-b) before commit; lane cb-cls-attrib live buffered layout-shift replay on :5173 as Traveler with real content in every section (fixture room chat_01m18ywnnnf268dv5k9vw2hfz2); six retractions published in §6; findings filed as #821-#826"
+        ],
+        "claims": [
+          {
+            "claim": "Every finding is tracked as a live board row: Injections skeleton/proportion/Rules → #821, tap targets → #822, Macro picks → #823, Collapsible height animation → #824 (owner), design-audit text-overflow blindness → #825, snap throttle arms → #826; #819 itself is closed as diagnosed (the 0.3263 was the context-panel dock, free on the click path).",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#821"
+              },
+              {
+                "kind": "issue",
+                "target": "#825"
+              },
+              {
+                "kind": "issue",
+                "target": "#819"
+              }
+            ]
+          }
+        ],
+        "summary": "side-eye CLS attribution of the 'This chat' tab (#819): SHIP WITH FIXES — the B10 review's 0.3263 was the context-panel dock (shell-main 917→568px, free on a click, paid on programmatic nav); the tab body pays 0 CLS at rest but its Injections section's one-line skeleton stands in for ~830px of forms and at 4× CPU on mobile the settle crosses the 500ms hadRecentInput cliff (0.308 paid in one shift); 0-vs-2 injections control 4.1×; the #815 sibling-section lead retracted (victims, not movers); two instrument findings."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-08-14-staleness-diagnosis.md",
       "lane": "reviews",
       "issue": 7,
