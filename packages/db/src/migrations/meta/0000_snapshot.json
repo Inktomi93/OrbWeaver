@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8483d243-5266-44d9-893e-5f5981bd062c",
+  "id": "a3139f8d-7caa-4cf2-a10c-6f93ffeb87c9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -7513,6 +7513,27 @@
         },
         "user_agent": {
           "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "oidc_id_token_ciphertext": {
+          "name": "oidc_id_token_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "oidc_id_token_iv": {
+          "name": "oidc_id_token_iv",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "oidc_id_token_tag": {
+          "name": "oidc_id_token_tag",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

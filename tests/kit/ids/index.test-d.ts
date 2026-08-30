@@ -1,4 +1,4 @@
-import type { CharacterId, ChatId, MessageId, TypeIdOf, UserId, WorldBookId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, TypeIdOf, UserId, VerifiedUserId, WorldBookId } from "@orb/kit/ids";
 import { brandedId, castId, ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
 import { assertType, expectTypeOf, test } from "vitest";
 import type { z } from "zod";
@@ -19,6 +19,22 @@ test("a branded id is assignable TO string, but a plain string is NOT a brand", 
   expectTypeOf<ChatId>().toExtend<string>();
   // …but the reverse is blocked: a raw string cannot satisfy the brand.
   expectTypeOf<string>().not.toExtend<ChatId>();
+});
+
+// #854 — `VerifiedUserId` is a SUB-brand, not a sibling: `packages/client/src/state/durable-local.ts`
+// must accept only the session-verified viewer id at `bindDurableLocalToUser` while every other id it
+// handles (the browser-writable `orb:active-user` boot hint) stays a plain `UserId`. That needs BOTH
+// directions to hold, and only a type-level pin can see either.
+test("VerifiedUserId narrows UserId in ONE direction — a bare UserId can never reach a verified boundary", () => {
+  // A verified id IS a user id (it flows freely into every UserId-typed read).
+  expectTypeOf<VerifiedUserId>().toExtend<UserId>();
+  // ...and the reverse is blocked: this is what makes a client-derived id a compile error at the bind.
+  expectTypeOf<UserId>().not.toExtend<VerifiedUserId>();
+  // Not the same type, so the narrowing cannot be collapsed away by an alias.
+  expectTypeOf<VerifiedUserId>().not.toEqualTypeOf<UserId>();
+  // Still a string at the wire (it is the same runtime value — the brand is phantom).
+  expectTypeOf<VerifiedUserId>().toExtend<string>();
+  expectTypeOf<string>().not.toExtend<VerifiedUserId>();
 });
 
 test("castId produces exactly the requested brand", () => {

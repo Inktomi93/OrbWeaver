@@ -29,6 +29,8 @@ const HANDLE_CAP = IP_CAP * 3;
 const VICTIM_HANDLE = castId<Handle>("victim");
 /** The session row a logout ends — the id `revokeByToken` reports so the route can evict its sockets. */
 const REVOKED_SESSION_ID = castId<SessionId>("sess_logout");
+/** #141 — what `revokeByToken` now reports: the ended row + its OIDC end-session hint (none in these arms). */
+const REVOKED: { readonly sessionId: SessionId; readonly oidcIdToken: string | null } = { sessionId: REVOKED_SESSION_ID, oidcIdToken: null };
 // Distinct fake TCP peers so per-IP throttle buckets don't collide across tests (each test keys its own IP).
 const connEnv = (addr: string): { incoming: { socket: { remoteAddress: string; remotePort: number; remoteFamily: string } } } => ({
   incoming: { socket: { remoteAddress: addr, remotePort: 40_000, remoteFamily: "IPv4" } },
@@ -38,7 +40,7 @@ function sessionsStub(over: Partial<AuthSessionsPort> = {}): AuthSessionsPort {
   return {
     create: (): Promise<{ token: SessionToken; expiresAt: number }> =>
       Promise.resolve({ token: castId<SessionToken>("tok-123"), expiresAt: NOW + THIRTY_DAYS_MS }),
-    revokeByToken: (): Promise<SessionId | null> => Promise.resolve(REVOKED_SESSION_ID),
+    revokeByToken: (): Promise<typeof REVOKED | null> => Promise.resolve(REVOKED),
     provisionIdentity: (
       _identity: ResolvedIdentity,
     ): Promise<{ outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole; identityChanged: boolean } | { outcome: "denied" }> =>
@@ -376,9 +378,9 @@ describe("logout — CSRF gate (real app)", () => {
     let revoked: string | null = null;
     const app = await appWith({
       sessions: sessionsStub({
-        revokeByToken: (t: string): Promise<SessionId | null> => {
+        revokeByToken: (t: string): Promise<typeof REVOKED | null> => {
           revoked = t;
-          return Promise.resolve(REVOKED_SESSION_ID);
+          return Promise.resolve(REVOKED);
         },
       }),
     });
@@ -391,9 +393,9 @@ describe("logout — CSRF gate (real app)", () => {
     let revoked: string | null = null;
     const app = await appWith({
       sessions: sessionsStub({
-        revokeByToken: (t: string): Promise<SessionId | null> => {
+        revokeByToken: (t: string): Promise<typeof REVOKED | null> => {
           revoked = t;
-          return Promise.resolve(REVOKED_SESSION_ID);
+          return Promise.resolve(REVOKED);
         },
       }),
     });

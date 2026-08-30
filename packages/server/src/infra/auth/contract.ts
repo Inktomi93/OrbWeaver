@@ -4,6 +4,7 @@
 
 import type { AuthMode, ResolvedIdentity } from "@orb/contracts/identity";
 import type { ExternalId, Handle } from "@orb/kit/ids";
+import type { Configuration } from "openid-client";
 
 /** Parsed auth config, passed explicitly so unit tests can vary mode/fallback without re-parsing env. */
 export interface AuthConfig {
@@ -22,6 +23,12 @@ export interface AuthConfig {
   jwtIssuer?: string;
   jwtAudience?: string;
 }
+
+/** #762 — the injected OIDC issuer-discovery round-trip (`openid-client`'s `discovery(issuer, clientId,
+ *  clientSecret)` at the composition root; a deterministic fake in tests). The single-flight cache that
+ *  consumes it is `./oidc-discovery.ts`; the type homes here because a domain-internal shape belongs in the
+ *  slice's `contract/`, not beside its one consumer. */
+export type OidcDiscover = () => Promise<Configuration>;
 
 /** One OIDC PKCE/state transaction, minted at authorize and consumed single-use at the callback. */
 export interface OidcTransaction {

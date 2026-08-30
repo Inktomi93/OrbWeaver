@@ -10,6 +10,18 @@ import type { UserId } from "@orb/kit/ids";
 export interface CreateSessionParams {
   userId: UserId;
   userAgent?: string | null;
+  /**
+   * #141 — the RAW OIDC `id_token` from the code exchange, for ONE downstream use: the `id_token_hint` this
+   * session's own logout sends to the IdP's end-session endpoint. Supplied by the OIDC callback and by
+   * nothing else (local login and first-run carry no IdP token, and omit it).
+   *
+   * IT IS A SECRET AND IT NEVER LEAVES THIS PATH. `verbs/create` seals it (AES-256-GCM, AAD = the session
+   * row id) before it touches the database; it is never logged, never audited, never projected into a
+   * `SessionView`, and never returned by any read. The only reader is the logout revoke, which consumes and
+   * clears it. Absent/empty ⇒ the row stores nothing and logout falls back to the BARE end-session URL —
+   * the pre-#141 behaviour, which is degraded UX and never a weaker logout.
+   */
+  readonly oidcIdToken?: string | null;
 }
 
 /**

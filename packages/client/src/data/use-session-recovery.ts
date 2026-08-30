@@ -23,7 +23,8 @@
 // accessor returns a fresh object per render by design, and a churning dep would re-bind the host (and its
 // cross-tab subscription) on every commit. `queryClient` + the tRPC proxy are context values and stable.
 
-import type { ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { ChatId, Handle, UserId, VerifiedUserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { timeLib } from "#lib";
@@ -55,7 +56,13 @@ export function useSessionRecovery(): SessionRecoveryState {
   // The identity read every surface already dedupes on (the shared `sessions.me` query). It is non-suspense
   // so this hook can run the bind explicitly; `AppRoot` keeps durable consumers unmounted until it completes.
   const { data: me } = useQuery(trpc.sessions.me.queryOptions());
-  const userId = me?.userId ?? null;
+  // #854 — THE ONE MINT of `VerifiedUserId`, and the only place in the client that may perform it. `me`
+  // is the `sessions.me` payload: the server projected it from the request `Principal` the auth seam
+  // resolved, so this id is session-verified by construction and nothing the browser writes can reach it.
+  // `bindDurableLocalToUser` requires the brand precisely so a future caller cannot hand the durable-local
+  // namespace gate an id derived from client state (a route param, a cached blob, the browser-writable
+  // `orb:active-user` hint) — see `state/durable-local.ts`'s header.
+  const userId: VerifiedUserId | null = me === undefined ? null : castId<VerifiedUserId>(me.userId);
   const handle = me?.handle ?? null;
   const activeChatId = useActiveChatId();
   const [hydratedUserId, setHydratedUserId] = useState<UserId | null>(null);

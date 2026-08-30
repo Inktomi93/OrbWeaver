@@ -19,14 +19,17 @@ import {
   durableLocalWritesAllowed,
   registerDurableLocalStore,
 } from "@orb/client/state";
-import type { UserId } from "@orb/kit/ids";
+import type { UserId, VerifiedUserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, describe, vi } from "vitest";
 import type { StateStorage } from "zustand/middleware";
 import { expect, test } from "../../support/fixtures.ts";
 
-const ALICE = castId<UserId>("usr_alice");
-const BOB = castId<UserId>("usr_bob");
+// #854 — the bind boundary now takes the SESSION-VERIFIED brand (`VerifiedUserId`), so the doubles mint
+// it here exactly as the session-recovery seam does off `sessions.me`. It is a sub-brand of `UserId`, so
+// every other assertion in this file (keys, the forged-hint arm, `durableLocalReadyFor`) is unchanged.
+const ALICE = castId<VerifiedUserId>("usr_alice");
+const BOB = castId<VerifiedUserId>("usr_bob");
 
 interface StoreDouble {
   readonly api: DurableLocalPersistApi;

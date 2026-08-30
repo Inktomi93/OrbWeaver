@@ -88,6 +88,7 @@ export type {
   ForwardJwtVerifier,
   ForwardJwtVerifyArgs,
   IdentityResolution,
+  OidcDiscover,
   OidcTransaction,
   OidcTransactionStore,
   ResolveDeps,
@@ -97,6 +98,7 @@ export { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
 export { normalizeHost } from "./host.ts";
 export { createForwardJwtVerifier, jwksCacheSize, jwksFor, resetJwksCache } from "./jwks.ts";
 export { SESSION_COOKIE_NAME } from "./modes/cookie-session.ts";
+export { createOidcConfigCache } from "./oidc-discovery.ts";
 export {
   createPasswordHasher,
   DUMMY_PASSWORD_HASH,

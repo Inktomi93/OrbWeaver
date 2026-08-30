@@ -30,6 +30,14 @@ const THIRTY_DAYS_MS = 2_592_000_000;
 const COOKIE = "__Host-orb_session";
 /** The session row a logout ends — what `revokeByToken` reports and the route evicts sockets by (W7a). */
 const REVOKED_SESSION_ID = castId<SessionId>("sess_logout");
+/** #141 — what `revokeByToken` now reports: the ended row + the OIDC end-session hint it was carrying. */
+interface RevokedSessionStub {
+  readonly sessionId: SessionId;
+  readonly oidcIdToken: string | null;
+}
+/** A compact ID-token stand-in. Its BYTES are the assertion (it must arrive verbatim as `id_token_hint`);
+ *  no code under test parses it, so a real JWT would only add noise. */
+const ID_TOKEN = "eyJhbGciOiJSUzI1NiJ9.e30.sig-not-verified-here";
 /** For the deps literals whose test drives no revoke at all. */
 const INERT_EVICTION: SessionSocketEviction = { evictSession: (): number => 0, evictUser: (): number => 0 };
 
@@ -165,7 +173,11 @@ interface SessionRecorder {
   readonly sockets: SessionSocketEviction;
   createdFor: UserId | null;
   createdUa: string | null | undefined;
+  /** #141 — the raw OIDC id_token the callback handed `sessions.create` (undefined = never passed). */
+  createdIdToken: string | null | undefined;
   revoked: string | null;
+  /** #141 — the end-session hint the stubbed revoke hands back; overridden per-test for the OIDC arms. */
+  revokedIdToken: string | null;
   /** WHICH session the logout evicted (per-SESSION, F4) and WHICH users a subject-wide revoke did. */
   evictedSessions: SessionId[];
   evictedUsers: UserId[];
@@ -174,7 +186,9 @@ function recordingSessions(): SessionRecorder {
   const rec: SessionRecorder = {
     createdFor: null,
     createdUa: undefined,
+    createdIdToken: undefined,
     revoked: null,
+    revokedIdToken: null,
     evictedSessions: [],
     evictedUsers: [],
     sockets: {
@@ -191,11 +205,12 @@ function recordingSessions(): SessionRecorder {
       create: (p): Promise<{ token: SessionToken; expiresAt: number }> => {
         rec.createdFor = p.userId;
         rec.createdUa = p.userAgent;
+        rec.createdIdToken = p.oidcIdToken;
         return Promise.resolve({ token: castId<SessionToken>("tok-123"), expiresAt: NOW + THIRTY_DAYS_MS });
       },
-      revokeByToken: (token: SessionToken): Promise<SessionId | null> => {
+      revokeByToken: (token: SessionToken): Promise<RevokedSessionStub | null> => {
         rec.revoked = token;
-        return Promise.resolve(REVOKED_SESSION_ID);
+        return Promise.resolve({ sessionId: REVOKED_SESSION_ID, oidcIdToken: rec.revokedIdToken });
       },
       provisionIdentity: (
         _identity: ResolvedIdentity,
@@ -307,7 +322,7 @@ describe("logout — CSRF gate", () => {
 
   test("W7a an ALREADY-revoked cookie evicts nothing (the route ends no session, so it closes no socket)", async () => {
     const rec = recordingSessions();
-    const sessions: AuthSessionsPort = { ...rec.sessions, revokeByToken: (): Promise<SessionId | null> => Promise.resolve(null) };
+    const sessions: AuthSessionsPort = { ...rec.sessions, revokeByToken: (): Promise<RevokedSessionStub | null> => Promise.resolve(null) };
     const deps: AuthRoutesDeps = { sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
 
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }));
@@ -357,64 +372,119 @@ describe("logout — CSRF gate", () => {
     expect(((await res.json()) as { endSessionUrl: string | null }).endSessionUrl).toBe(endSession);
   });
 
-  // #141 — THE END-SESSION URL IS SENT BARE, AND THAT IS THE SECURITY-LOAD-BEARING SHAPE. A first attempt
-  // (8446a55ce) appended post_logout_redirect_uri=<orb>/login to fix the owner's UX papercut; it was reverted
-  // after being measured against the real IdP. authentik 2026.5.5's `EndSessionView.validate` raises
-  // `invalid_request`/`id_token_hint_missing` → a 400 page whenever post_logout_redirect_uri arrives with no
-  // id_token_hint AND the provider has any registered post-logout URI — and it raises BEFORE the flow planner,
-  // so the invalidation flow never runs and THE UPSTREAM SSO SESSION SURVIVES the sign-out. We persist no
-  // id_token (the sessions table stores only a token hash), so there is no hint to pair the param with.
+  // ══ #141 — THE END-SESSION URL'S THREE SHAPES (owner ruling 2026-08-30) ═══════════════════════════
   //
-  // These two pins are the regression fence: re-adding the param on EITHER origin arm reds them. The allowlist
-  // arm is the one that matters (an off-allowlist origin never resolved a redirect URI anyway) — it proves the
-  // param stays absent even when the origin WOULD validate, which is exactly the case that shipped the 400.
-  test("#141 with oidc deps + an ALLOWLISTED origin → the end-session URL is still BARE (no post_logout_redirect_uri)", async () => {
-    const rec = recordingSessions();
-    const endSession = "https://idp.example/application/o/orb/end-session/";
-    // fakeOidcDeps.redirectAllowlist = ["https://app.example/api/auth/oidc/callback"], so this origin resolves —
-    // and the URL must STILL carry no query at all.
-    const oidc = fakeOidcDeps({
+  // THE INVARIANT UNDER TEST IS AN IMPLICATION, NOT A LITERAL: `post_logout_redirect_uri` is present ONLY
+  // IF `id_token_hint` is. The earlier pins here asserted the URL was BARE, which was the correct shape
+  // only while the deployment persisted no id_token; the owner ruled that it now does, so the RULING
+  // survives and its INPUT changed. What must never regress is the pairing — #141's first attempt
+  // (8446a55ce, reverted) sent the redirect param ALONE, and authentik 2026.5.5's `EndSessionView.validate`
+  // raises `invalid_request`/`id_token_hint_missing` BEFORE the flow planner, so the invalidation flow
+  // never runs and THE UPSTREAM SSO SESSION SURVIVES the sign-out (regression #437). A redirect param
+  // without a hint is strictly worse than sending nothing.
+  //
+  // Three shapes, one pin each, plus the pairing pin that is the actual security fence.
+  const endSessionDeps = (rec: SessionRecorder, endSession: string): AuthRoutesDeps => ({
+    sessions: rec.sessions,
+    sockets: rec.sockets,
+    now: (): number => NOW,
+    db: STUB_DB,
+    resolveLoginLimit: (): number => 10,
+    oidc: fakeOidcDeps({
       getConfig: () => Promise.resolve(fakeConfig({ issuer: "https://idp.example", end_session_endpoint: endSession })),
-    });
-    const deps: AuthRoutesDeps = {
-      sessions: rec.sessions,
-      sockets: rec.sockets,
-      now: (): number => NOW,
-      db: STUB_DB,
-      resolveLoginLimit: (): number => 10,
-      oidc,
-    };
-    const res = await handlerFor(
-      deps,
-      "POST /api/auth/logout",
-    )(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1", "x-forwarded-proto": "https", "x-forwarded-host": "app.example" } }));
+    }),
+  });
+  /** fakeOidcDeps.redirectAllowlist = ["https://app.example/api/auth/oidc/callback"], so this origin resolves. */
+  const ALLOWLISTED_ORIGIN = { "x-forwarded-proto": "https", "x-forwarded-host": "app.example" };
+
+  async function logoutEndSessionUrl(deps: AuthRoutesDeps, origin: Record<string, string> = {}): Promise<string | null> {
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1", ...origin } }));
     expect(res.status).toBe(200);
-    const { endSessionUrl } = (await res.json()) as { endSessionUrl: string | null };
+    return ((await res.json()) as { endSessionUrl: string | null }).endSessionUrl;
+  }
+
+  test("#141 the token-bearing logout response is no-store", async () => {
+    const rec = recordingSessions();
+    rec.revokedIdToken = ID_TOKEN;
+    const deps = endSessionDeps(rec, "https://idp.example/application/o/orb/end-session/");
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1", ...ALLOWLISTED_ORIGIN } }));
+    // The body now carries the id_token inside the end-session URL, so it must never be cached anywhere.
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  test("#141 HINT + REDIRECT — an OIDC session on an ALLOWLISTED origin round-trips back to our own /login", async () => {
+    const rec = recordingSessions();
+    rec.revokedIdToken = ID_TOKEN; // this session was minted by the OIDC callback and carried an id_token
+    const endSession = "https://idp.example/application/o/orb/end-session/";
+    const url = new URL((await logoutEndSessionUrl(endSessionDeps(rec, endSession), ALLOWLISTED_ORIGIN)) ?? "");
+
+    expect(url.origin + url.pathname).toBe(endSession);
+    // The hint is the row's id_token VERBATIM — a mangled hint is one authentik rejects.
+    expect(url.searchParams.get("id_token_hint")).toBe(ID_TOKEN);
+    // The return target is derived from the ALLOWLISTED callback URL's origin, never from the raw header,
+    // and it is our login surface — this is the papercut #141 was filed against.
+    //
+    // BYTE-EXACT, and that is a protocol requirement, not tidiness: authentik matches
+    // `post_logout_redirect_uri` STRICTLY against the URL registered on the provider
+    // (`redirect_uri_type: logout`), so a trailing slash or a stray query makes the OP reject the request.
+    // `new URL("/login", <allowlisted callback>)` is what guarantees the shape; these two assertions are
+    // what would catch a future "helpful" normalisation adding either.
+    const returnTo = url.searchParams.get("post_logout_redirect_uri") ?? "";
+    expect(returnTo).toBe("https://app.example/login");
+    expect(returnTo.endsWith("/")).toBe(false);
+    expect(new URL(returnTo).search).toBe("");
+    // No third param crept in.
+    expect([...url.searchParams.keys()].sort()).toEqual(["id_token_hint", "post_logout_redirect_uri"]);
+  });
+
+  test("#141 HINT ONLY — an unresolvable origin drops the redirect param and keeps the hint", async () => {
+    const rec = recordingSessions();
+    rec.revokedIdToken = ID_TOKEN;
+    const endSession = "https://idp.example/application/o/orb/end-session/";
+    // No forwarded-host on this ctx ⇒ deriveRedirectUri resolves nothing ⇒ no return target to send.
+    const url = new URL((await logoutEndSessionUrl(endSessionDeps(rec, endSession))) ?? "");
+
+    expect(url.searchParams.get("id_token_hint")).toBe(ID_TOKEN);
+    expect(url.searchParams.has("post_logout_redirect_uri")).toBe(false);
+  });
+
+  test("#141 THE PAIRING FENCE — an OFF-ALLOWLIST forwarded-host is never reflected as the return target", async () => {
+    const rec = recordingSessions();
+    rec.revokedIdToken = ID_TOKEN;
+    const endSession = "https://idp.example/application/o/orb/end-session/";
+    // `evil.example` is not in OIDC_REDIRECT_URIS. Handing it to the IdP as post_logout_redirect_uri would
+    // be an open redirect laundered through the OP, so the param must be absent — the hint still rides.
+    const url = new URL(
+      (await logoutEndSessionUrl(endSessionDeps(rec, endSession), { "x-forwarded-proto": "https", "x-forwarded-host": "evil.example" })) ?? "",
+    );
+
+    expect(url.searchParams.has("post_logout_redirect_uri")).toBe(false);
+    expect(url.href).not.toContain("evil.example");
+    expect(url.searchParams.get("id_token_hint")).toBe(ID_TOKEN);
+  });
+
+  test("#141 BARE — NO stored id_token means NO redirect param either, even on an allowlisted origin (#437)", async () => {
+    const rec = recordingSessions();
+    rec.revokedIdToken = null; // a local login, a pre-#141 row, or a rotated SESSION_SECRET
+    const endSession = "https://idp.example/application/o/orb/end-session/";
+    const endSessionUrl = await logoutEndSessionUrl(endSessionDeps(rec, endSession), ALLOWLISTED_ORIGIN);
+
+    // Byte-identical to the discovery value. THIS is the fence: the origin WOULD have resolved, so a
+    // hint-less build that still appended the redirect param is exactly the 400 that left the SSO session
+    // alive. No param may be smuggled under another name either, hence the empty-search assertion.
     expect(endSessionUrl).toBe(endSession);
-    // Byte-identical to the discovery value: no param was appended, and none was smuggled under another name.
     expect(new URL(endSessionUrl ?? "").search).toBe("");
   });
 
-  test("#141 an off-allowlist forwarded-host changes nothing — the same bare end-session URL", async () => {
+  test("#141 an already-revoked cookie yields NO hint — the winning revoke consumed it", async () => {
     const rec = recordingSessions();
     const endSession = "https://idp.example/application/o/orb/end-session/";
-    const oidc = fakeOidcDeps({
-      getConfig: () => Promise.resolve(fakeConfig({ issuer: "https://idp.example", end_session_endpoint: endSession })),
-    });
-    const deps: AuthRoutesDeps = {
-      sessions: rec.sessions,
-      sockets: rec.sockets,
-      now: (): number => NOW,
-      db: STUB_DB,
-      resolveLoginLimit: (): number => 10,
-      oidc,
-    };
-    const res = await handlerFor(
-      deps,
-      "POST /api/auth/logout",
-    )(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1", "x-forwarded-proto": "https", "x-forwarded-host": "evil.example" } }));
-    expect(res.status).toBe(200);
-    const { endSessionUrl } = (await res.json()) as { endSessionUrl: string | null };
+    const deps = endSessionDeps(rec, endSession);
+    const sessions: AuthSessionsPort = { ...rec.sessions, revokeByToken: (): Promise<RevokedSessionStub | null> => Promise.resolve(null) };
+    const endSessionUrl = await logoutEndSessionUrl({ ...deps, sessions }, ALLOWLISTED_ORIGIN);
+
+    // A second logout on a dead cookie cannot resurrect the hint (the row's blob was cleared), so it gets
+    // the bare URL — and never the unpaired redirect param.
     expect(endSessionUrl).toBe(endSession);
     expect(new URL(endSessionUrl ?? "").search).toBe("");
   });

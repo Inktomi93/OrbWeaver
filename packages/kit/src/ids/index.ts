@@ -9,6 +9,9 @@ import { fromString, typeidUnboxed } from "typeid-js";
 import { z } from "zod";
 
 declare const brand: unique symbol;
+/** The SECOND phantom key, carried only by {@link VerifiedUserId} — see its doc for why it cannot reuse
+ *  `brand` (two disjoint literals on one key reduce the intersection to `never`). */
+declare const sessionVerified: unique symbol;
 
 /** A `string` tagged with a phantom `B` marker (erased at runtime). */
 export type Branded<B extends string> = string & { readonly [brand]: B };
@@ -103,6 +106,33 @@ export const ID_PREFIX = {
 
 // --- Identity / auth ---------------------------------------------------------
 export type UserId = Branded<"UserId">;
+/**
+ * A `UserId` THE SESSION VERIFIED — the viewer id as it came back from `sessions.me`, never one derived
+ * from anything the browser can write (#854, follow-up to #837).
+ *
+ * Why a second brand rather than a comment: `packages/client/src/state/durable-local.ts` decides whether a
+ * durable-local namespace stays live by comparing an incoming id against a BROWSER-WRITABLE boot hint
+ * (`orb:active-user`). That module's whole security property — a forged hint can choose which namespace to
+ * MINT on but can never keep another identity's namespace live — rests on `bindDurableLocalToUser` being
+ * handed the session-verified id, and the module cannot tell the difference by looking. Branding the
+ * parameter makes a bare `UserId` a TYPE ERROR at that boundary, so a future caller that reaches for a
+ * client-derived id has to write the cast out loud instead of silently laundering it through.
+ *
+ * THE SUBTYPING IS THE POINT: `VerifiedUserId` is assignable to `UserId` (it IS one — it flows into every
+ * `UserId`-typed read unchanged), and `UserId` is NOT assignable to `VerifiedUserId` (it lacks the second
+ * phantom). Pinned both directions in `tests/kit/ids/index.test-d.ts`.
+ *
+ * IT CARRIES ITS OWN PHANTOM KEY, NOT A SECOND `Branded` alias. Measured 2026-08-30: intersecting a second
+ * `Branded` reuses the ONE `brand` key, so tsc sees a discriminant property with two disjoint literal types
+ * and reduces the whole intersection to `never` — which type-checks (never is assignable everywhere) while
+ * making a `VerifiedUserId | null` slot collapse to `null` and every value of the type a lie. A distinct
+ * key is what makes this an actual sub-brand instead of a silently empty one.
+ *
+ * ONE MINT, and it is a `castId` at the session-recovery seam (`packages/client/src/data/use-session-recovery.ts`,
+ * off the `sessions.me` result). There is no second sanctioned site; `readBootHint()` and every other
+ * browser-storage read stay plain `UserId` on purpose.
+ */
+export type VerifiedUserId = UserId & { readonly [sessionVerified]: true };
 /** The BFF session ROW id (NOT the opaque cookie token — that's `SessionToken`). */
 export type SessionId = TypeIdOf<"session">;
 export type UserCredentialId = TypeIdOf<"user_credential">;

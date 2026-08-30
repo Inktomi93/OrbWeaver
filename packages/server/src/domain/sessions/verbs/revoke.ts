@@ -1,6 +1,7 @@
 import type { ExternalId, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { getLog, logAudit } from "#foundation/observability";
-import type { RevokedSessionsSummary } from "../contract/results.ts";
+import type { Sealed } from "#infra/crypto";
+import type { RevokedSession, RevokedSessionsSummary } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import { revokeAllForExternalId, revokeAllForUser as revokeAllForUserQuery, revokeById, revokeByTokenHash } from "../persistence/sessions.ts";
 
@@ -13,8 +14,34 @@ import { revokeAllForExternalId, revokeAllForUser as revokeAllForUserQuery, revo
 const AUTH_LOGOUT = "AUTH_LOGOUT";
 const SESSION_ENTITY = "session";
 
+/**
+ * #141 — open the revoked row's sealed OIDC id_token for use as the logout `id_token_hint`, or `null`.
+ *
+ * A DECRYPT FAILURE MUST NEVER FAIL A LOGOUT. By the time this runs the session is ALREADY revoked — the
+ * atomic UPDATE happened, the cookie is dead, the sockets are about to be evicted. The only thing at stake
+ * is whether the IdP end-session URL can carry a hint, and the honest degrade is to send it bare (the
+ * pre-#141 behaviour). The reachable cause is a rotated/changed `SESSION_SECRET`, which re-keys the HKDF
+ * and makes every id_token already at rest unopenable; throwing would turn a cosmetic redirect loss into
+ * "the sign-out button is broken" for every pre-rotation session.
+ *
+ * NOTHING ABOUT THE FAILURE IS LOGGED BEYOND THE FACT OF IT. The sealed bytes, the AAD and the raw GCM
+ * error stay out of the record — the `domain/credentials/substrate/decrypt` posture.
+ */
+function openIdTokenHint(ctx: SessionsContext, sealed: Sealed | null, sessionId: SessionId): string | null {
+  if (sealed === null) {
+    return null;
+  }
+  // @orb-gate-ignore caught-failure-ownership(default:catch): the DOCUMENTED degrade above — the session is already revoked when this runs, so a failed open costs only the end-session redirect (the URL goes out bare, as it did before #141) and never the logout itself. The one reachable cause is a rotated SESSION_SECRET. Ends if the end-session hint becomes required for a correct logout.
+  try {
+    return ctx.openIdToken(sealed, sessionId);
+  } catch {
+    getLog().warn({ sessionId }, "session: stored OIDC id_token could not be opened — signing out without an end-session hint");
+    return null;
+  }
+}
+
 export function createRevoke(ctx: SessionsContext): Pick<SessionsService, "revokeByToken" | "revoke" | "revokeAllForUser" | "revokeByExternalId"> {
-  async function revokeByToken(token: SessionToken): Promise<SessionId | null> {
+  async function revokeByToken(token: SessionToken): Promise<RevokedSession | null> {
     const now = ctx.now();
     const revoked = await revokeByTokenHash(ctx.db, ctx.hashToken(token), now);
     // The returned row attributes the logout to its user (the token is not identity).
@@ -31,11 +58,12 @@ export function createRevoke(ctx: SessionsContext): Pick<SessionsService, "revok
       },
       now,
     );
-    // WHICH session this logout ended (W7a). The row is the only place the id exists — the caller holds a
-    // token, and the token is not an identity. Returning it is what lets the logout ROUTE evict exactly this
-    // device's live sockets (F4 per-SESSION) instead of every device the human is signed in on. `null` when
-    // the row was already revoked: nothing was ended here, so nothing is evicted here either.
-    return revoked.id;
+    // WHICH session this logout ended (W7a) + its OIDC end-session hint (#141). The row is the only place
+    // the id exists — the caller holds a token, and the token is not an identity. Returning it is what lets
+    // the logout ROUTE evict exactly this device's live sockets (F4 per-SESSION) instead of every device the
+    // human is signed in on. `null` when the row was already revoked: nothing was ended here, so nothing is
+    // evicted here either.
+    return { sessionId: revoked.id, oidcIdToken: openIdTokenHint(ctx, revoked.oidcIdToken, revoked.id) };
   }
 
   async function revoke(sessionId: SessionId): Promise<UserId | null> {
