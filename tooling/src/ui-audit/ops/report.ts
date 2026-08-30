@@ -2,7 +2,7 @@
 import { print } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Finding, Severity } from "../contract/findings.ts";
-import type { CensusReachInput } from "../contract/samples.ts";
+import type { CensusReachInput, ObscuredScanInput } from "../contract/samples.ts";
 import type { BackdropRefusal } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
@@ -91,6 +91,25 @@ export function printCensusReach(reach: CensusReachInput | undefined): void {
       `NO FRAME     ${reach.frameTruncated} offered control(s) kept an incomplete ±22px hit-probe ring even after re-centring (clipped by a viewport edge) — their extent is a LOWER BOUND and their target-size verdict is WITHHELD, not passed`,
     );
   }
+  print("");
+}
+
+/** The OBSCURED census's denominator (#816), same law as the reach line above: silence is only evidence
+ *  when the reader knows what was looked at. A centre point outside the viewport is UNASKABLE — the
+ *  compositor answers `null` there and null reads as "nobody else owns it" (#797) — so an un-probed
+ *  candidate is counted and named rather than folded into the clean answer. */
+export function printObscuredScan(scan: ObscuredScanInput | undefined): void {
+  if (scan === undefined) {
+    print("OBSCURED     unreported — this sample set predates the obscured-target census (#816); nothing states whether any element lost its own centre");
+    print("");
+    return;
+  }
+  if (scan.unaskable === 0) {
+    return;
+  }
+  print(
+    `OBSCURED     ${scan.unaskable} of ${scan.candidates} candidate(s) had a centre point outside the viewport — elementFromPoint cannot be asked there, so their obscured verdict is WITHHELD, not passed`,
+  );
   print("");
 }
 

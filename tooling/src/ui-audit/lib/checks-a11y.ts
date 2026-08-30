@@ -1,8 +1,16 @@
 // CONTROL GEOMETRY + navigability: tap targets (pointer-conditional floors) + control silhouette +
-// accessible names + landmark + tabindex + heading order. Pure; thresholds cited.
+// OBSCURED targets (#816) + accessible names + landmark + tabindex + heading order. Pure; thresholds cited.
 // Provenance: lib/collect.ts header.
 import type { Finding, Severity } from "../contract/findings.ts";
-import type { AccessibleNameInput, ControlAspectInput, HeadingSample, LandmarkInput, TabIndexInput, TapTargetInput } from "../contract/samples.ts";
+import type {
+  AccessibleNameInput,
+  ControlAspectInput,
+  HeadingSample,
+  LandmarkInput,
+  ObscuredTargetInput,
+  TabIndexInput,
+  TapTargetInput,
+} from "../contract/samples.ts";
 
 // ── Tap targets ──────────────────────────────────────────────────────────────
 // The relevant floor is pointer-conditional (D62): coarse/touch owes the AAA 2.5.5 44px target,
@@ -117,6 +125,40 @@ export function checkControlAspect(input: ControlAspectInput): Finding | null {
     selector: input.selector,
     value: `${Math.round(input.width)}×${Math.round(input.height)}px, aspect ${aspect.toFixed(2)}`,
     message: `role="${input.role}" renders at aspect ${aspect.toFixed(2)} — below the ${CONTROL_ASPECT_FLOOR} silhouette floor; the role implies ${silhouette}, and a track collapsed toward square reads as a glyph rather than as a control`,
+    origin: "orbweaver",
+  };
+}
+
+// ── Obscured targets (#816) — the mis-tap, not the size ──────────────────────
+// The tap-target rules ask "is this control big enough". They cannot ask "is it still the thing at its
+// own centre", and that is the defect a whole mobile review found by hand: a "2 rules" badge overlapping
+// the Start button by 48px, where `elementFromPoint` at the badge's centre returns the button's <svg>.
+// Every geometric instrument passed it — the collision is INSIDE the dialog, so `--expect-no-overflow`
+// had nothing to say, and the badge measured a perfectly healthy box.
+//
+// The walker only reports a disagreement with a LOCAL neighbour (ops/walker/census-collision.ts), so a
+// menu over a row or a scrim over the page never reaches this check — deliberate stacking is not a
+// collision, and the hit test, not the geometry, is what tells them apart.
+
+/** The 0-1 ratio the walker reports, rendered as the percentage a human reads. */
+const PERCENT = 100;
+
+/** An INTERACTIVE loser is the worse defect: the user aims at a control and presses a different one. An
+ *  informative loser (a badge, a count, a label) is still a real defect — it looks pressable and the press
+ *  goes somewhere else — but it costs a mis-read rather than a mis-action. */
+export function checkObscuredTarget(input: ObscuredTargetInput): Finding {
+  const covered = `${Math.round(input.coveredRatio * PERCENT)}%`;
+  const what = input.text === "" ? "this element" : `"${input.text}"`;
+  return {
+    rule: "obscured-target",
+    severity: input.interactive ? "P0" : "P1",
+    selector: input.selector,
+    value: `${covered} covered, ${input.overlapPx}px overlap → hits ${input.hitSelector}`,
+    message: `${what} is painted here, but a press at its own centre lands on ${input.hitSelector} — a neighbour is sitting on top of it (${input.overlapPx}px of overlap). ${
+      input.interactive
+        ? "Aiming at this control activates the other one"
+        : "It reads as tappable and the tap goes somewhere else, and the text under the overlap cannot be read"
+    }: stop the row's action cluster from being shrink-0 at this width, wrap the row, or give the two a shared line each`,
     origin: "orbweaver",
   };
 }

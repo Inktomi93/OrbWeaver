@@ -1,8 +1,8 @@
-// Copy-surface quality: text overflow, repeated container text, clipped positioned children,
-// edge-flush scroller cards, uncaught page errors, duplicate action doors (the runtime half of
-// issue #252). Pure. Provenance: lib/collect.ts header.
+// Copy-surface quality: text overflow, TEXT TRUNCATED TO NOTHING (#816), repeated container text,
+// clipped positioned children, edge-flush scroller cards, uncaught page errors, duplicate action doors
+// (the runtime half of issue #252). Pure. Provenance: lib/collect.ts header.
 import type { Finding } from "../contract/findings.ts";
-import type { ActionDoorInput, ClippedOverflowInput, EdgeFlushInput, RepeatedTextInput, TextOverflowInput } from "../contract/samples.ts";
+import type { ActionDoorInput, ClippedOverflowInput, EdgeFlushInput, RepeatedTextInput, TextOverflowInput, TruncatedTextInput } from "../contract/samples.ts";
 
 export function checkTextOverflow(input: TextOverflowInput): Finding {
   return {
@@ -12,6 +12,24 @@ export function checkTextOverflow(input: TextOverflowInput): Finding {
     value: `${input.spillPx}px spill (${input.mode})`,
     message: `text overflows its ${input.mode === "block" ? "box" : "container"} by ${input.spillPx}px with no scroll affordance — wrap, truncate with a full-value affordance, or widen the container`,
     origin: "impeccable",
+  };
+}
+
+/** TEXT ERASED, NOT SPILLED (#816). `text-overflow` says "more content than box"; this says "the box went
+ *  to zero and the string is GONE" — a label that exists in the DOM, is read aloud by a screen reader, and
+ *  is not on the screen at all. Measured live on the saved-casts picker at `--mobile`: a cast name at 0px
+ *  rendered / 57px natural, beside an 11px twin, while the audit reported census 420 and zero findings.
+ *
+ *  P1 and not P2: on a phone this row could not say WHICH cast it was about. An identifying string the
+ *  layout deleted is a broken surface, the same class as `clipped-overflow`'s in-flow arm. */
+export function checkTruncatedText(input: TruncatedTextInput): Finding {
+  return {
+    rule: "truncated-to-nothing",
+    severity: "P1",
+    selector: input.selector,
+    value: `${input.visiblePx}px of ${input.naturalPx}px shown ("${input.text}")`,
+    message: `this text is laid out but painted at ~0px inside ${input.clipSelector} — it is in the DOM, in the accessibility tree, and invisible to the eye. A shrink-0 neighbour is taking the row's width: let the text keep a floor (flex-1 + min-w-0), let the row wrap, or move the neighbour to its own line`,
+    origin: "orbweaver",
   };
 }
 

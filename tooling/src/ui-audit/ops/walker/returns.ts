@@ -36,5 +36,8 @@ export const WALKER_RETURNS = `  return {
     repeatedTexts: repeatedTexts,
     clippedOverflows: clippedOverflows,
     edgeFlushCards: edgeFlushCards,
+    truncatedTexts: truncatedTexts,
+    obscuredTargets: obscuredTargets,
+    obscuredScan: obscuredScan,
   };
 `;

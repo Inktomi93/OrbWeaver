@@ -40,6 +40,60 @@ export function splitFirstEq(raw: string): EqSplit | null {
   return { head: raw.slice(0, eq), tail: raw.slice(eq + 1) };
 }
 
+/** What closes each span the scanner must step OVER rather than read: an attribute selector's brackets, a
+ *  functional pseudo-class's parens, and either quote. */
+const SPAN_CLOSERS: Readonly<Record<string, string>> = { "[": "]", "(": ")", '"': '"', "'": "'" };
+
+/** Index of the character closing the span that opens at `open`, or the end of the string when it is
+ *  unterminated (a malformed selector is the caller's refusal to make, not this scanner's). Quotes nest
+ *  inside brackets — `[data-x="a]b"]` closes at the LAST bracket, not the one inside the string. */
+function spanEnd(raw: string, open: number): number {
+  const closer = SPAN_CLOSERS[raw[open] ?? ""];
+  if (closer === undefined) {
+    return open;
+  }
+  for (let i = open + 1; i < raw.length; i += 1) {
+    const ch = raw[i] ?? "";
+    if (ch === closer) {
+      return i;
+    }
+    if (ch === '"' || ch === "'") {
+      i = spanEnd(raw, i);
+    }
+  }
+  return raw.length;
+}
+
+/** Index of the first `=` outside every bracket, paren and quoted string — or null when there is none. */
+function topLevelEqIndex(raw: string): number | null {
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw[i] ?? "";
+    if (ch === "=") {
+      return i;
+    }
+    if (SPAN_CLOSERS[ch] !== undefined) {
+      i = spanEnd(raw, i);
+    }
+  }
+  return null;
+}
+
+/** The SELECTOR-headed pair split: the first `=` that is not inside an attribute selector or a quoted
+ *  string (`--fill '[data-testid=cast-name]=hello'`).
+ *
+ *  THE #686 RULING SURVIVES — ITS INPUT CHANGED (#816). `--fill` splits on the FIRST `=` because its
+ *  VALUE is a JS literal that routinely contains one (`--fill '[data-composer]=const a = 1;'`), and that
+ *  is still exactly what this does. What the ruling assumed was that a SELECTOR never carries an `=`;
+ *  an attribute selector does, so the plain first-`=` split cut `[data-testid` off from `cast-name]` and
+ *  made every attribute selector unusable (paid live: a review had to tag its input through `--eval`
+ *  first — docs/reviews/side-eye/2026-08-29-saved-casts-rules.md §9). Depth-aware, so both hold at once.
+ *
+ *  Null when there is no top-level `=` or the selector would be empty — the caller's refusal, unchanged. */
+export function splitSelectorEq(raw: string): EqSplit | null {
+  const at = topLevelEqIndex(raw);
+  return at === null || at === 0 ? null : { head: raw.slice(0, at), tail: raw.slice(at + 1) };
+}
+
 /** Parse `--viewport "WxH"` (e.g. "1920x1080"). Null on anything malformed or non-positive. */
 export function parseViewport(raw: string): Viewport | null {
   const match = VIEWPORT_RE.exec(raw);

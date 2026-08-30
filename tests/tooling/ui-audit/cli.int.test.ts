@@ -597,3 +597,95 @@ test("the settled twin is a verdict — the refusal above is the plant, not a fe
   expect(walked, "a page whose fill already landed must be censused whole").toBeGreaterThan(60);
   expect(settled).toBe(walked);
 });
+
+// ── the two collision families a whole mobile review fell through (#816) ────────────────────────────
+
+// @instrument-absence-proof: MEASURED 2026-08-29 on the saved-casts picker at `--mobile`
+// (docs/reviews/side-eye/2026-08-29-saved-casts-rules.md §3 P1-1 / §9): `design-audit --mobile` censused
+// 420 nodes, reached 21 controls and returned ZERO P0/P1/P2 over a cast NAME rendered at 0px with a 57px
+// natural width, and a "2 rules" badge overlapping the Start button by 48px whose own centre hit-tests to
+// that button. `snap --expect-no-overflow [role=dialog]` passed too — the collision is INSIDE the dialog.
+// Only a screenshot plus hand geometry caught the class.
+//
+// The fixtures below reproduce both shapes with pure CSS, which is the point: neither needs an app, so
+// the walker's blindness was never about this surface being hard to reach.
+
+/** A row whose shrink-0 cluster eats the width: the label keeps `flex-1 min-w-0 overflow-hidden` and
+ *  collapses to 0px while its content is still 50-ish px wide. `clusterPx` is the whole defect knob. */
+function collapsedRowPage(clusterPx: number): string {
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff"><main><div style="display:flex;align-items:center;width:220px;padding:12px">
+  <div style="flex:1 1 0%;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:16px">Spire Trio</div>
+  <div style="flex:0 0 auto;width:${clusterPx}px;height:24px;background:#333;font-size:16px">actions</div>
+</div></main></body></html>`;
+}
+
+test("a label collapsed to 0px is a truncated-to-nothing finding — the text is in the DOM and off the screen", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "collapsed.html"), collapsedRowPage(220));
+  const res = await runCli("ui-audit", ["/collapsed.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("truncated-to-nothing");
+  expect(res.stdout, "the finding must carry the erased string, or a reader cannot tell WHAT vanished").toContain("Spire Trio");
+  // THE BLIND SPOT, PINNED: text-overflow's block arm needs clientWidth > 0 and its inline arm needs a
+  // painted rect, so the total collapse falls between them. If this ever starts firing, the two families
+  // have merged and one of them is now double-reporting.
+  expect(res.stdout, "text-overflow structurally cannot see a zero-width box — that is why this family exists").not.toContain("text-overflow");
+  await expect(res).toExitWith(1);
+});
+
+test("the same row with a narrow cluster keeps its label and mints nothing — the fence is the collapse, not the truncation", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "roomy.html"), collapsedRowPage(60));
+  const res = await runCli("ui-audit", ["/roomy.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).not.toContain("truncated-to-nothing");
+  // The absence is only a verdict when the walk censused nodes at all.
+  const census = CENSUS_RE.exec(res.stdout)?.[1];
+  expect(Number(census)).toBeGreaterThan(0);
+});
+
+/** A badge and a button sharing a row. `buttonLeftPx` decides whether the button sits ON the badge (the
+ *  measured defect: press the badge, activate the button) or beside it. */
+function overlapRowPage(buttonLeftPx: number): string {
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff"><main><div style="position:relative;width:320px;height:60px;margin:16px">
+  <span style="position:absolute;left:40px;top:16px;width:80px;height:28px;background:#333;font-size:14px">2 rules</span>
+  <button style="position:absolute;left:${buttonLeftPx}px;top:16px;width:140px;height:28px;font-size:14px">Start a chat</button>
+</div></main></body></html>`;
+}
+
+test("a badge whose own centre hit-tests to the button on top of it is an obscured-target finding", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "collide.html"), overlapRowPage(70));
+  const res = await runCli("ui-audit", ["/collide.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("obscured-target");
+  expect(res.stdout, "the finding must name what the press ACTUALLY lands on").toContain("button");
+  expect(res.stdout, "and the size of the collision, or it cannot be acted on").toMatch(/\d+px overlap/u);
+  await expect(res).toExitWith(1);
+});
+
+test("the same pair side by side mints nothing — the rule is the hit test, not the row", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "beside.html"), overlapRowPage(160));
+  const res = await runCli("ui-audit", ["/beside.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).not.toContain("obscured-target");
+  const census = CENSUS_RE.exec(res.stdout)?.[1];
+  expect(Number(census)).toBeGreaterThan(0);
+});
+
+// The FALSE-POSITIVE fence that decides whether this rule can live on a real app: deliberate stacking.
+// An open dialog covers the page it sits over, and every covered element loses its own centre to the
+// dialog — geometry alone would mint a finding per covered node. The walker requires the winner to be a
+// LOCAL neighbour (a shared ancestor within a few levels), so a page-level overlay is never a collision.
+test("a modal covering the page is NOT an obscured-target — deliberate stacking is not a collision", async ({ runCli, scratch }) => {
+  await writeFile(
+    join(scratch, "overlay.html"),
+    `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff"><main>
+  <section style="padding:24px"><p style="font-size:16px">the page underneath, fully covered</p><button style="font-size:14px;width:120px;height:32px">a covered button</button></section>
+  <div role="dialog" style="position:fixed;inset:0;background:#111"><p style="font-size:16px;padding:24px">the dialog on top</p></div>
+</main></body></html>`,
+  );
+  const res = await runCli("ui-audit", ["/overlay.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout, "every covered node would be a finding if geometry decided this").not.toContain("obscured-target");
+  const census = CENSUS_RE.exec(res.stdout)?.[1];
+  expect(Number(census)).toBeGreaterThan(0);
+});

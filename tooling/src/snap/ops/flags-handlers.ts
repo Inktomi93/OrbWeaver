@@ -2,7 +2,7 @@
 // in argv order. Split out of ops/flags.ts when that file crossed the tooling line cap
 // (docs/design/tooling-package.md §4.3) — the table is the single biggest seam in that file.
 import { applyAppearanceFlag, FULL_MOTION_PATCH, loadAppearancePreset, mergeAppearancePatches, parseAppearancePatch } from "../../_shared/appearance.ts";
-import { parseViewport, splitFirstEq, splitLastEq } from "../../_shared/argv.ts";
+import { parseViewport, splitFirstEq, splitLastEq, splitSelectorEq } from "../../_shared/argv.ts";
 import { DEFAULT_BASE } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { applyThemeFlag, parseThemeFlag } from "../../_shared/theme.ts";
@@ -99,10 +99,13 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
       a.localStorage.push({ key: seed.head, value: seed.tail });
     }
   },
-  // --fill "selector=value" — FIRST '=' splits (the value is a JS literal that routinely contains
-  // '=' itself, e.g. `--fill 'input=const a = 1;'`; the selector is the invariant, short prefix).
+  // --fill "selector=value" — the first TOP-LEVEL '=' splits (the value is a JS literal that
+  // routinely contains '=' itself, e.g. `--fill 'input=const a = 1;'`; the selector is the invariant
+  // prefix). Bracket-aware since #816: an attribute selector carries its own '=' and used to be cut
+  // in half here (`[data-testid=x]=v` filled `[data-testid`), which made the flag unusable for the
+  // one selector shape this app labels its inputs with.
   "--fill": (a, rest, page) => {
-    const s = splitFirstEq(rest.shift() ?? "") ?? { head: "", tail: "" };
+    const s = splitSelectorEq(rest.shift() ?? "") ?? { head: "", tail: "" };
     pushStep(a, { kind: "fill", selector: s.head, value: s.tail, page });
   },
   // TWO forms, picked by whether the value carries an '=':
