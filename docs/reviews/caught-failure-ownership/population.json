@@ -774,7 +774,7 @@
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-row.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/plugin/components/plugin-row.tsx",
-      "line": 103,
+      "line": 104,
       "column": 27,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -782,7 +782,7 @@
       "snippet": "const updated = await upgrade.mutateAsync({ pluginId: plugin.id, bundleBase64: toBundleBase64(preview.bytes) }).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "useUpgradePlugin carries",
-      "markerLine": 100
+      "markerLine": 101
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-scripted-surface.tsx::promise:boot::1",
@@ -1060,28 +1060,28 @@
     {
       "siteId": "packages/client/src/features/roster-preset/components/cast-picker.tsx::promise:startChat::1",
       "path": "packages/client/src/features/roster-preset/components/cast-picker.tsx",
-      "line": 144,
+      "line": 243,
       "column": 5,
       "grammar": "promise",
       "position": "promise:startChat",
       "ordinal": 1,
-      "snippet": "startChat({ characterIds: cast.members.map((m) => m.characterId), anchorPersonaId: cast.anchorPersonaId })",
+      "snippet": "startChat({",
       "verdict": "deliberate-absorb",
       "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the picked cast survives for retry. Ends if either mutation stops owning its failure copy.",
-      "markerLine": 143
+      "markerLine": 242
     },
     {
       "siteId": "packages/client/src/features/roster-preset/surfaces/cast-member-surface.tsx::promise:startChat::1",
       "path": "packages/client/src/features/roster-preset/surfaces/cast-member-surface.tsx",
-      "line": 78,
+      "line": 119,
       "column": 5,
       "grammar": "promise",
       "position": "promise:startChat",
       "ordinal": 1,
-      "snippet": "startChat({ characterIds: cast.members.map((m) => m.characterId), anchorPersonaId: cast.anchorPersonaId })",
+      "snippet": "startChat({",
       "verdict": "deliberate-absorb",
       "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning. Ends if either mutation stops owning its failure copy.",
-      "markerLine": 77
+      "markerLine": 118
     },
     {
       "siteId": "packages/client/src/features/rpg/components/rpg-dice-tool-card.tsx::empty:catch::1",
@@ -1281,7 +1281,7 @@
     {
       "siteId": "packages/client/src/lib/agent-bridge.ts::promise:ready::1",
       "path": "packages/client/src/lib/agent-bridge.ts",
-      "line": 112,
+      "line": 114,
       "column": 3,
       "grammar": "promise",
       "position": "promise:ready",
@@ -1289,12 +1289,12 @@
       "snippet": "ready.then(unsubscribe, unsubscribe);",
       "verdict": "deliberate-absorb",
       "reason": "both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.",
-      "markerLine": 111
+      "markerLine": 113
     },
     {
       "siteId": "packages/client/src/lib/agent-bridge.ts::promise:ready::2",
       "path": "packages/client/src/lib/agent-bridge.ts",
-      "line": 117,
+      "line": 119,
       "column": 3,
       "grammar": "promise",
       "position": "promise:ready",
@@ -1302,12 +1302,12 @@
       "snippet": "ready.then(unsubscribeBootReads, unsubscribeBootReads);",
       "verdict": "deliberate-absorb",
       "reason": "both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.",
-      "markerLine": 116
+      "markerLine": 118
     },
     {
       "siteId": "packages/client/src/lib/agent-bridge.ts::promise:ready::3",
       "path": "packages/client/src/lib/agent-bridge.ts",
-      "line": 148,
+      "line": 150,
       "column": 3,
       "grammar": "promise",
       "position": "promise:ready",
@@ -1315,7 +1315,7 @@
       "snippet": "ready.then(unsubscribeRoute, unsubscribeRoute);",
       "verdict": "deliberate-absorb",
       "reason": "both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.",
-      "markerLine": 147
+      "markerLine": 149
     },
     {
       "siteId": "packages/client/src/lib/error-boundary.tsx::empty:catch::1",
@@ -2100,7 +2100,7 @@
     {
       "siteId": "packages/server/src/domain/discovery/verbs/distill.ts::default:catch::1",
       "path": "packages/server/src/domain/discovery/verbs/distill.ts",
-      "line": 296,
+      "line": 297,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2108,7 +2108,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the header states the contract:",
-      "markerLine": 289
+      "markerLine": 290
     },
     {
       "siteId": "packages/server/src/domain/import/loader/collect.ts::default:error::1",
@@ -2698,7 +2698,7 @@
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 518,
+      "line": 531,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2706,12 +2706,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a refusal",
-      "markerLine": 512
+      "markerLine": 525
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::2",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 537,
+      "line": 550,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2719,12 +2719,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a",
-      "markerLine": 531
+      "markerLine": 544
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::3",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 557,
+      "line": 570,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2732,12 +2732,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: `[]` if",
-      "markerLine": 546
+      "markerLine": 559
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::4",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 690,
+      "line": 703,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2745,7 +2745,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: any",
-      "markerLine": 679
+      "markerLine": 692
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::1",
@@ -3088,7 +3088,7 @@
     {
       "siteId": "packages/server/src/foundation/observability/debug/routes.ts::default:catch::1",
       "path": "packages/server/src/foundation/observability/debug/routes.ts",
-      "line": 107,
+      "line": 108,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3096,12 +3096,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "null is consumed by both collectLogs and",
-      "markerLine": 102
+      "markerLine": 103
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/routes.ts::empty:catch::1",
       "path": "packages/server/src/foundation/observability/debug/routes.ts",
-      "line": 264,
+      "line": 265,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3109,7 +3109,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented below — a checker error falls",
-      "markerLine": 258
+      "markerLine": 259
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/wire-capture.ts::default:catch::1",
@@ -3270,7 +3270,7 @@
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::empty:err::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 596,
+      "line": 598,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3278,12 +3278,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "guest-supplied command metadata that fails to dump/validate is REFUSED registration (onRun handle disposed, warn logged) — a malformed untrusted plugin def can never register a live command, the fail-closed direction. Ends if a dump/parse failure ever returns a live command instead of ctx.undefined.",
-      "markerLine": 587
+      "markerLine": 589
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:race::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1712,
+      "line": 1791,
       "column": 10,
       "grammar": "promise",
       "position": "promise:race",
@@ -3291,12 +3291,12 @@
       "snippet": "void Promise.race([running, timeout])",
       "verdict": "deliberate-absorb",
       "reason": "the GUEST owns it — the rejection arm below reaches `deferred.reject(err)`, preserving the Error's NAME so a plugin can feature-detect by type. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Ends if a disposed context gains a safe late-failure sink.",
-      "markerLine": 1711
+      "markerLine": 1790
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:running::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1708,
+      "line": 1787,
       "column": 18,
       "grammar": "promise",
       "position": "promise:running",
@@ -3304,12 +3304,12 @@
       "snippet": "settlement = running.then(releaseSlot, releaseSlot);",
       "verdict": "deliberate-absorb",
       "reason": "BOOKKEEPING ONLY — this chain exists so teardown can await in-flight work, and both arms deliberately do the same thing (exactly one release per acquisition, so the counter cannot drift). The REJECTION of `running` is owned by the sibling race chain below, which routes it to `deferred.reject` and thence to the guest. Ends if this chain becomes the only reader of `running`.",
-      "markerLine": 1707
+      "markerLine": 1786
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/port.ts::promise:run::1",
       "path": "packages/server/src/infra/plugin-host/port.ts",
-      "line": 317,
+      "line": 354,
       "column": 23,
       "grammar": "promise",
       "position": "promise:run",
@@ -3317,12 +3317,12 @@
       "snippet": "resident.tail = run.then(",
       "verdict": "deliberate-absorb",
       "reason": "the comment above is the contract — the tail is a `void`-typed BARRIER that must never reject, or one deadlined invoke wedges the chain for every later one. Both arms do the identical bookkeeping on purpose, and the caller still gets the real outcome from `return await run` on the next line. Ends if the tail becomes the only reader of `run`.",
-      "markerLine": 316
+      "markerLine": 353
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/sandbox.ts::promise:race::1",
       "path": "packages/server/src/infra/plugin-host/sandbox.ts",
-      "line": 681,
+      "line": 713,
       "column": 10,
       "grammar": "promise",
       "position": "promise:race",
@@ -3330,7 +3330,7 @@
       "snippet": "void Promise.race([out, timeout])",
       "verdict": "deliberate-absorb",
       "reason": "the GUEST owns it — the rejection arm below reaches `deferred.reject(handle)`. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Guard-equivalent to the membrane's `attachAsync` by design (LOW-1). Ends if a disposed context gains a safe late-failure sink.",
-      "markerLine": 680
+      "markerLine": 712
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/agent-runner.ts::empty:catch::1",
