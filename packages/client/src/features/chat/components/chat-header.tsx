@@ -148,11 +148,11 @@ export function RosterChipButton({
   return (
     <Button
       type="button"
-      // THE ACTIONABLE CHIP WEARS THE DRAWN EDGE (#878 F12) — `outline` is `ghost`'s ink with `secondary`'s
-      // edge, and `pill` is the mock's one chip family. The band's inert datums stay soft `Badge`s, so the
-      // row stops marking the un-pressable things as the shaped ones. Both mounts take it: the topbar's
-      // trail is a control row, where a chip that reads as a control is right.
-      intent="outline"
+      // THE ACTIONABLE CHIP LIFTS ITS INK (#878 F12) — the axis is COLOUR, not the border: a `soft` Badge
+      // draws the same hairline, measured. The chip's own note in chat-recall-indicator.tsx carries the
+      // measurement. Both mounts take it: the topbar's trail is a control row, where a chip that reads as a
+      // control is right.
+      intent="secondary"
       shape="pill"
       size="sm"
       aria-label={`Members — ${count}`}
@@ -166,7 +166,7 @@ export function RosterChipButton({
           IS this composition — micro-caps, tracked, muted — at the 13px label step, so the chip keeps its
           instrument register and stops breaking the floor. Both mounts take it: the topbar's crush (#846)
           is measured in the state where this chip is SHED, so the extra ~10px is not spent there. */}
-      <Text as="span" voice="interactiveKicker" aria-hidden={true}>
+      <Text as="span" voice="interactiveKicker" className="text-inherit" aria-hidden={true}>
         {wordy ? `${count} ${count === 1 ? "member" : "members"}` : String(count)}
       </Text>
     </Button>

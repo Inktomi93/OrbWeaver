@@ -72,13 +72,17 @@ export function ChatRecallIndicator({ chatId, viewerIsHost, wordy = false }: Cha
         render={
           <Button
             type="button"
-            // THE ACTIONABLE CHIP WEARS THE DRAWN EDGE (#878 F12, side-eye 2026-08-30). Both bands' chip
+            // THE ACTIONABLE CHIP LIFTS ITS INK (#878 F12, side-eye 2026-08-30). Both bands' chip
             // rows had the grammar INVERTED: the pill shape marked the items you cannot click and the bare
-            // ghost marked the one you can. `outline` is the one intent that spells this — `ghost`'s ink
-            // with `secondary`'s edge, minted for filter chips — and `shape="pill"` keeps the mock's ONE
-            // chip family (`.chip`, a bordered pill on `--card`). An edge means you can press it; the inert
-            // datum chips stay the soft borderless-reading `Badge`.
-            intent="outline"
+            // ghost marked the one you can. MEASURED before choosing the axis — and the first attempt was
+            // WRONG: `intent="outline"` looked like "an edge means pressable", but a `soft` Badge draws the
+            // SAME 1px hairline (`bw:"1px"`, identical `borderTopColor` on all three chips), so the border
+            // could never be the distinction. The FILL/INK pair is: an inert datum holds the muted step on
+            // a tint, and the actionable chip lifts to the FOREGROUND on bare ground, with the hover/active
+            // fill, the focus ring and the pointer cursor no datum has. Colour-as-liveness is the axis the
+            // bracket already uses one slot up (the kicker's selection half, #102), so the pane teaches it
+            // once. `shape="pill"` keeps the mock's ONE chip family.
+            intent="secondary"
             shape="pill"
             size="sm"
             aria-label={recallLabel(recall)}
@@ -104,7 +108,7 @@ export function ChatRecallIndicator({ chatId, viewerIsHost, wordy = false }: Cha
                 arm (the label already carries it). `wordy` is the `RosterChipButton` precedent, and for the
                 same reason: the topbar row cannot spend the width, the band can. */}
             {wordy ? (
-              <Text as="span" voice="interactiveKicker" aria-hidden={true}>
+              <Text as="span" voice="interactiveKicker" className="text-inherit" aria-hidden={true}>
                 {recallLabel(recall)}
               </Text>
             ) : null}

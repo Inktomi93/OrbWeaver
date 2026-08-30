@@ -247,12 +247,14 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
     <Tooltip>
       <TooltipTrigger
         render={
-          // THE ACTIONABLE CHIP WEARS THE DRAWN EDGE (#878 F12): `outline` + `pill` at the `sm` control
-          // step, the same shape the chat band's members and memory chips take, so ONE grammar reads across
-          // both bands — a pill with an edge is pressable, a soft `Badge` is a datum. It replaces
-          // `ghost`+`size="inline"`, which drew nothing at rest and left the row marking `1 chat` and
-          // `1,257 tokens` (which you cannot press) as the shaped items and this one as bare text.
-          <Button intent="outline" shape="pill" size="sm" type="button">
+          // THE ACTIONABLE CHIP LIFTS ITS INK (#878 F12): `secondary` + `pill` at the `sm` control step,
+          // the same treatment the chat band's members and memory chips take, so ONE grammar reads across
+          // both bands — the live chip is at the foreground, a datum holds the muted step. (The axis is
+          // COLOUR, not the border: a `soft` Badge draws the same hairline — measured; the note in
+          // chat-recall-indicator.tsx carries it.) It replaces `ghost`+`size="inline"`, which drew nothing
+          // at rest and left the row marking `1 chat` and `1,257 tokens` — which you cannot press — as the
+          // shaped items and this one as bare text.
+          <Button intent="secondary" shape="pill" size="sm" type="button">
             <ThemeScope className="size-4 shrink-0 rounded-full bg-primary ring-1 ring-border" tokens={themeOverride}>
               {null}
             </ThemeScope>
@@ -262,7 +264,9 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
                 is the 10.5px micro step — under the 11px readable floor the context rail beside it refused
                 to break ("the readable-floor ruling stands", context-rail.tsx). design-audit measured it as
                 `undersized-ui-text` on both bands in every arm. Same instrument register, readable step. */}
-            <Text voice="interactiveKicker">Own look</Text>
+            <Text voice="interactiveKicker" className="text-inherit">
+              Own look
+            </Text>
           </Button>
         }
       />
