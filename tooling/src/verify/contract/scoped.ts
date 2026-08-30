@@ -1,6 +1,6 @@
 // Result shapes for the non-gate verify verbs: the SCOPED single-pass run, the gate self-proof
-// (conformance), the db schema-vs-baseline reconcile, and the client boot-chunk ratchet. Homed here per
-// the five-slot type law (docs/design/tooling-package.md §2.5).
+// (conformance), the db schema-vs-baseline reconcile, the client boot-chunk ratchet, and the committed-
+// ledger freshness stage. Homed here per the five-slot type law (docs/design/tooling-package.md §2.5).
 import type { GateDescriptor } from "./gate.ts";
 import type { PassResult } from "./pass.ts";
 
@@ -31,6 +31,22 @@ export interface SchemaBaselineComparison {
   readonly missingFromBaseline: readonly string[];
   /** In the baseline, absent from the live schema — a stale/hand-edited baseline. */
   readonly staleInBaseline: readonly string[];
+}
+
+/** One committed single-writer ledger judged against a FRESH derivation of itself (`ledgers:fresh`, #817).
+ *  `drift` empty ⇒ the committed file is what the tree derives today. It is a LIST, never a boolean: the
+ *  stage's whole job is naming the rows that moved, because "the census differs" sends a reader to a
+ *  1,700-row JSON diff and a named row sends them to the regen. */
+export interface LedgerFreshness {
+  /** The committed artifact, repo-relative. */
+  readonly ledger: string;
+  /** The single-writer command that rewrites it (GATE-AUTHORING §4.8) — printed with every drift line. */
+  readonly regen: string;
+  /** How many rows/paths the FRESH derivation produced. Zero on a real tree is the blindness tripwire
+   *  (the derivation went blind), never a clean verdict — the stage raises it as a tool error. */
+  readonly derived: number;
+  /** One line per difference, in a stable order. Empty ⇒ fresh. */
+  readonly drift: readonly string[];
 }
 
 /** One `dist/assets/*.js` file the emitted `index.html` puts on the boot path. */

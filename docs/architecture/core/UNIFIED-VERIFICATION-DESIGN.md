@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-24
+updated: 2026-08-30
 ---
 
 <!-- RETRO DRIFT NOTE (2026-07-24): carried from main at promotion. Verified against retro's as-built
@@ -109,13 +109,13 @@ static is the born-compliant TEST-FREE commit gate. The honest containment for t
 | tier | what it runs | role |
 | - | - | - |
 | `changed` | the scoped inner loop: lint/types(per-owner)/structure/imports/docs over the changed set + vitest `--changed` related tests | fast iteration; `verify --changed` |
-| `static` | biome + eslint + tsc×5 (`types:packages`/`graph`/`testd`/`tests-dom`/`tests-membership`) + `tests:execution-membership` + `structure:db-baseline` + `structure:drizzle-kit` + `structure:full` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
+| `static` | biome + eslint + tsc×5 (`types:packages`/`graph`/`testd`/`tests-dom`/`tests-membership`) + `tests:execution-membership` + `structure:db-baseline` + `structure:drizzle-kit` + `structure:full` + `ledgers:fresh` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
 | `push` | static + `tests:node` (vitest projects AND the CT suite) + `browser:e2e-smoke` + `deps:orphan-ratchet` (the export-rot ratchet — whole-graph liveness, too slow for the commit bar) + `quality:cpd` (promoted here from `full` 2026-08-03 — measured 0.86s) + `quality:boot-chunk` (the client boot-chunk byte ratchet, §3.7 — it runs a real vite build, so never the structural-fast commit bar) | pre-push bar; `verify --push` |
 | `full` | push + `browser:e2e` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
 The static tier is EXACTLY the ordered set `lint:biome, lint:eslint, types:packages, types:graph,
 types:testd, types:tests-dom, types:tests-membership, tests:execution-membership, structure:db-baseline,
-structure:drizzle-kit, structure:agent-config, structure:full, imports:depcruise, deps:knip, docs:format,
+structure:drizzle-kit, structure:agent-config, structure:full, ledgers:fresh, imports:depcruise, deps:knip, docs:format,
 docs:catalog` (pinned in the int test) — so `pnpm check` stays
 byte-compatible with the retired orchestrator, modulo the two membership-floor additions and the
 db-baseline promotion.
@@ -247,6 +247,24 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   it (latest: the `schema_version` DEFAULT 5→6 drift). The comparison is in-process via `drizzle-kit/api`
   (\~1s, no stack, no db file) — it was wired too LATE, not too heavy — and it is the SAME comparator
   `tests/tooling/verify/ops/db-baseline-parity.int.test.ts` calls (one home, two callers).
+- **`ledgers:fresh`** (`static`/`push`/`full`, #817 — `tooling/src/verify/ops/ledgers-fresh.ts`) — the two
+  committed SINGLE-WRITER ledgers vs a fresh derivation of themselves:
+  `docs/reviews/caught-failure-ownership/population.json` (the caught-failure census — every row carries the
+  `line`/`markerLine` of a site, so ANY merge that inserts lines above one re-stales it) and
+  `docs/test-baseline/manifest.json` (every tracked spec). Both already had a freshness check, but each was a
+  VITEST suite, so `pnpm check` stayed GREEN while main sat red on the next whole node run and regeneration
+  was an unscheduled orchestrator barrier ritual — three re-lines in one night (2026-08-30: the #799 merge
+  shifted `plugin-frame.ts` +5 and re-staled the census twenty minutes after the first regen). It runs the
+  SAME derivations the regenerators run (one home each; GATE-AUTHORING §4.8's single-writer door keeps the
+  WRITE) and writes nothing, printing the exact differing rows (`line 111 → 106`) and the regen command last,
+  so the fix survives into `failureExcerpt`. Consequence for a lane: a newly TRACKED spec now needs a manifest
+  regen before its commit (`git add` it first — the derivation reads `git ls-files`). Cost: the manifest half
+  is milliseconds; the census half builds the whole-repo ts-morph project, measured 19.7s wall on the
+  reference box — the same project `structure:full` already builds in the same tier, and the price of the
+  derivation itself rather than of this stage. WHOLE-ONLY BY ABSENCE: no `scopedArgv`, so a scoped tier
+  DEFERS it — a census derived from a scoped fileset is a census of a different tree and would call every row
+  it did not walk stale. An EMPTY derivation is exit 2 (blindness), never a clean ledger. The `--check` arm is
+  also reachable per-ledger: `cli.ts baseline <kind> --check`.
 - **`structure:drizzle-kit`** (`static`/`push`/`full` — `pnpm --filter @orb/db exec drizzle-kit check --config=drizzle.config.ts`) — drizzle-kit's OWN migration-chain validator, the ORTHOGONAL half of its
   sibling above: `structure:db-baseline` compares the schema to the baseline's CONTENT, this one validates
   the `migrations/meta` CHAIN (every `_journal.json` entry has its snapshot; no two snapshots claim the

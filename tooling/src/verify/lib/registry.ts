@@ -182,6 +182,23 @@ const GATING_STAGES: readonly StageDef[] = [
     scopedArgv: (sel) => sel.checkScopeArgv,
   },
 
+  {
+    name: "ledgers:fresh",
+    group: "structure",
+    tiers: STATIC,
+    argv: ["pnpm", "check:ledgers-fresh"],
+    // Our OWN 0/1/2/3-speaking op (tooling/src/verify/ops/ledgers-fresh.ts): the two committed single-writer
+    // ledgers — the caught-failure census (line-number-coupled: any merge inserting lines above a marker
+    // re-stales it) and the test-baseline manifest — vs a FRESH derivation. Both already had a freshness
+    // check, but each was a VITEST suite, so `pnpm check` stayed green while main sat red on the next whole
+    // node run and regeneration was an unscheduled barrier ritual (#817; three re-lines in one night). It
+    // USES the tool-error code: a derivation that comes back EMPTY is blindness, not a clean ledger.
+    classify: ownScheme,
+    // WHOLE-TREE by nature — a census derived from a scoped fileset is a census of a different tree, and
+    // would report every row it did not walk as stale. NO `scopedArgv` ⇒ deferred at a scoped tier, and the
+    // absence IS the guard (planStage in ops/run.ts).
+  },
+
   // ── imports stage-group ──
   {
     name: "imports:depcruise",
