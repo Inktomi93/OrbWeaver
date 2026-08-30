@@ -143,6 +143,9 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   lane polling a 90-min calibration at 45s intervals burned millions of token-equivalents saying
   "not done yet". A lane that launches a >10-min detached run REPORTS AND STOPS (its report names
   the log/exit-file); the orchestrator picks up the completion and resumes the lane by SendMessage.
+  **A finished subagent turn is NOT re-invoked by its own background jobs** (2026-08-30: a lane
+  stopped twice "waiting for the notification" and had to be resumed by hand) — a run under ~10 min
+  is redirected to a log and READ in a later call in the same turn, never backgrounded-and-waited-on.
 - **The harness AUTO-WRITES its artifacts — read them, never pipe or re-run to find a failure:**
   `pnpm check` → `reports/verify.json` + `reports/verify/<stage>.log`; `pnpm test` →
   `reports/test-report.json`. A `| tail`/`| grep` on live output eats the failure list.
