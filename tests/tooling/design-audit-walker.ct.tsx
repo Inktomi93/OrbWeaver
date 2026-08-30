@@ -35,6 +35,7 @@ import {
   WalkerProgrammaticFocusDoorStory,
   WalkerPseudoCarriedIsolatedGlyphStory,
   WalkerReadingMeasureStory,
+  WalkerRowWrappedGlyphStory,
   WalkerScreenReaderOnlyStory,
   WalkerSliderCompositeStory,
   WalkerTranslucentTintStory,
@@ -125,6 +126,33 @@ test("#662/#665: an overflowing ::after pseudo still carries the floor when its 
   // The ancestor clause's MINTED purpose (the pseudo has no DOM node of its own) must survive the fix —
   // this is the one shape ancestor-credit exists for, and closing #662/#665 must not also close this.
   expect(measured, "a glyph button's overflowing ::after must still reach the coarse touch floor").toBeGreaterThanOrEqual(FINE_POINTER_FLOOR);
+});
+
+// ── #807: credit only FORWARDING ancestors (owner ruling 2026-08-30) ─────────────────────────────
+// The composite/pseudo ancestor credit published a 44x44 target for the Settings→Plugins capability
+// control while the compositor said a PARAGRAPH owned the right-hand ring point and the row did not
+// toggle. A pseudo-carried control needs no ancestor to speak for it — elementFromPoint inside an
+// overflowing ::after returns its ORIGINATING element — so the credit only ever added the lie.
+test("#807: a lone control whose outward ring is owned by non-forwarding prose loses the composite credit", async ({ mount, page }) => {
+  await mount(<WalkerRowWrappedGlyphStory />);
+  const targets = await tapTargets(page);
+  const alone = smallestSide(targets, "glyph-alone");
+  const inRow = smallestSide(targets, "glyph-in-row");
+
+  expect(
+    inRow,
+    `the capability-row shape must measure the pixels it OWNS, not the row's — the prose column at +30px forwards nothing. alone=${alone} inRow=${inRow}`,
+  ).toBeLessThan(alone);
+});
+
+test("#807 does not disarm the probe: an isolated pseudo-carried glyph keeps its full extent", async ({ mount, page }) => {
+  await mount(<WalkerRowWrappedGlyphStory />);
+  // #662/#665's surviving half, asserted in the SAME mount as the row-wrapped arm: narrowing the credit
+  // must not turn every glyph button back into a bare-box sub-target.
+  expect(
+    smallestSide(await tapTargets(page), "glyph-alone"),
+    "a glyph button alone with its overflowing ::after still reaches the fine-pointer floor",
+  ).toBeGreaterThanOrEqual(FINE_POINTER_FLOOR);
 });
 
 test("a list-row wrapper around its one control is not a nested card, while a real inner panel remains red", async ({ mount, page }) => {
