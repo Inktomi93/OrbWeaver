@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-28
+updated: 2026-08-30
 ---
 
 # UI-Architecture-and-Layout
@@ -187,13 +187,16 @@ The macro layout is the **four-region shell**, realized THROUGH the §11.1 clamp
 
 ```
 DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
-  RAIL    — persistent thin icon column (~56px, `--dimension-rail`). NINE sections (D121 amended D62 P6's
+  RAIL    — persistent thin icon column (~56px, `--dimension-rail`). TEN sections (D121 amended D62 P6's
             seven — Presets stays in the rail, Connections lives in Settings per D66; `config`, the
             Configuration workspace, was added at the config rail's R1 and `worldInfo` LEFT at R2, its
             library becoming a collection inside `config`; `databank`, the documents library, was added by
             DATABANK S1 under owner ruling D-0/Arm A — the section↔collection question that R2's demotion
-            reopens is recorded, unclosed, in `features/databank/lib/databank-section.tsx`);
-            `SECTION_IDS` (`client/src/state/shell-store.ts`) is the truth and its ORDER is the rail's:
+            reopens is recorded, unclosed, in `features/databank/lib/databank-section.tsx`; `extensions`,
+            the ONE platform rail item for plugin pages, was added at plugin-ui-plane U5 (#679, §4.5b —
+            "beside `config`", never per-plugin), making the count TEN as of 2026-08-30);
+            `SECTION_IDS` (`client/src/state/section-ids.ts`, re-exported by `shell-store.ts`) is the
+            truth and its ORDER is the rail's:
             Home (the Weave glyph IS its affordance — the brand cell is a real named button; below 48rem
             the cell hides and home rides the mobile bar as its FIRST tab) | grouped by
             --spacing-section dividers: Chats · Characters · Corpus (primary; `corpus` is the
