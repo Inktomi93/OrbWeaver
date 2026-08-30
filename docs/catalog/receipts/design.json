@@ -647,12 +647,12 @@
     },
     {
       "path": "docs/design/interaction-direction-spec.md",
-      "assignedSha256": "bf2bb2a366cecbca13ca5274bbf8a6c09a100adda7b18db4fe583a78436f4bb4",
+      "assignedSha256": "0d34fbb9bfeed437a68f058f8470a1ec86b5d8e7876832b714c9a9263653b535",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "37f17a59300762d77fdb40a2ea8bf16cd0382e65c3382705be4830044f3fd095",
-      "verifiedCommit": "17f2f60f157740c0d5968ac8b0b44275cdf71fbb",
+      "verifiedSha256": "0d34fbb9bfeed437a68f058f8470a1ec86b5d8e7876832b714c9a9263653b535",
+      "verifiedCommit": "3ff8bfe4b169c9aa73e2e7a072e334d37efb82db",
       "verifiedAt": "2026-08-29",
       "evidence": [
         "docs/design/interaction-direction-spec.md read in full by the orchestrator before commit (1a7f20ed3); the needle ruling folded at both sites by the orchestrator after the owner's 2026-08-24 call",
@@ -662,7 +662,8 @@
         "delta re-verify 2026-08-24 (bde3acca3): C7's row flipped from AFTER-the-review to UNBLOCKED (the D46 review #605 and all seven findings CLOSED and security-verified; #24 out of Parked), and gained §7-C7a — the integration seams folded in from docs/reviews/stickler/2026-08-24-automation-platform-axes.md §3, which was written against the BUILT membrane unlike the parked plugin set. Six clauses, each re-derived on the tree at fold time: run_tool as the zero-arm-growth extensibility shape (registerPluginTool wired at entry/compose/automation-plugin.ts), rules-reach vs turn-attach as two doors, pause-not-rot, the installer-not-caller ceiling (#610), reach-based upgrade re-consent (#615), and the standing membrane walls (#611/#613).",
         "delta re-verify 2026-08-24 (9bc1cd142, lane cb-plugui-design — the spec was read IN FULL by this lane before the edit): the ONE changed passage is the new §7-C7b pointer block after §7-C7a — a one-home POINTER to docs/design/plugin-ui-plane.md (#679) naming its phases U0-U8, the six folded owner rulings, the §5a enablement price sheet, and two dated branch-side build-state receipts (D147 user-scoping 8340b7f87; seeded example plugins 79e89d255 — both verified NOT on local main at fold time via merge-base --is-ancestor); no other line changed and the typed claims are unaffected",
         "truth-repair re-verify 2026-08-28 (2c970e0196bfa79c2aa65d8c874c9a3bcbec40dc, lane spec-truthrepair — receipts re-derived against the shipped tree per docs/reviews/stickler/2026-08-28-interaction-program-soundness.md): §7-C7a.1 corrected to state run_tool's deliberate builtin narrowing (arm-executors.ts:18-30, D146-d, verified against source); B4's phantom suggestOnRefusal knob corrected to the recorded-unbuilt per-rule opt-out (dispatch.ts:208-212); §4 row 20 and §7-C7b's build-state receipts flipped from in-flight/branch-pending to LANDED (C5; D147/#675 8340b7f87; the seeded plugins 79e89d255 — both confirmed on local main via git log); preset 6 annotated with its authoritative built name. No other line changed; typed claims above are unaffected",
-        "delta re-verify 2026-08-29 (17f2f60f157740c0d5968ac8b0b44275cdf71fbb, lane build-b7-finish — the WIP diff and §7-B7a read in full by the finishing lane): the ONE changed passage is the new §7-B7a B7 BUILD RECORD after the Phase B table — six decision clauses (segment anchor = parseSpeakerSpans line index over stored canon with the (index, speaker, snippet) trio and two partial uniques; MR4 attribution as an S2 contribution order 2; MR5 react tool via the S2 toolNames axis with createReactAsCharacter as a standalone factory; the two offerChoices-pattern toggles with opposite default directions; the merge-class correction to MERGE-WINDOW for the baseline squash), each verified against the shipped tree by the finishing lane's suites (verbs/persistence/teaching int tests, the CT segment/toggle arms, the regenerated 0000_baseline). No other line changed; prior typed claims are unaffected"
+        "delta re-verify 2026-08-29 (17f2f60f157740c0d5968ac8b0b44275cdf71fbb, lane build-b7-finish — the WIP diff and §7-B7a read in full by the finishing lane): the ONE changed passage is the new §7-B7a B7 BUILD RECORD after the Phase B table — six decision clauses (segment anchor = parseSpeakerSpans line index over stored canon with the (index, speaker, snippet) trio and two partial uniques; MR4 attribution as an S2 contribution order 2; MR5 react tool via the S2 toolNames axis with createReactAsCharacter as a standalone factory; the two offerChoices-pattern toggles with opposite default directions; the merge-class correction to MERGE-WINDOW for the baseline squash), each verified against the shipped tree by the finishing lane's suites (verbs/persistence/teaching int tests, the CT segment/toggle arms, the regenerated 0000_baseline). No other line changed; prior typed claims are unaffected",
+        "delta re-verify 2026-08-29 (3ff8bfe4b169c9aa73e2e7a072e334d37efb82db, B10 rules rider merged by the orchestrator, who read the diff in full): the ONE changed passage is §3-S3's flip-shape sentence — 'recorded-unbuilt' flipped to LANDED with B10 (columns spelled rule_preset_id + rule_preset_knobs per the 2026-08-24 Rule-prefixed vocabulary ruling; stamped by createRuleFromPreset, cleared by updateRule, projected on RuleView; the in-place knob editor stays unbuilt) and points at saved-rosters-build-record.md §6. No other line changed; typed claims are unaffected"
       ],
       "summary": "THE ONE build-from specification for the interaction direction: inside/outside taxonomy + class walls, the authority law and seven authoring laws, the S1-S7 substrate (control seam, teaching seam with tool-attach, presets, suggest/confirm, quiet-analysis arm, run_tool bridge, trigger batch), the 20-row preset catalogue, the A/B/C path with per-row test/merge-class/knobs/home, the purged-capability disposition table, revamps R1-R7, and every ruling. Zero open items. §7-C7b (added 2026-08-24) points at the one-homed plugin UI plane design (docs/design/plugin-ui-plane.md, #679) — pointer, phases and rulings only.",
       "claims": [
@@ -2159,17 +2160,18 @@
     },
     {
       "path": "docs/design/saved-rosters-build-record.md",
-      "assignedSha256": "13d4c4747f9a22518635cb746b2ad2b0268eb98f9a36f317a8f347514cf1fb10",
+      "assignedSha256": "8a0d53b6b296c1db6ec56c0f2a3a57d173e2d7c401f2e131bb7258cc80c58fa4",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "13d4c4747f9a22518635cb746b2ad2b0268eb98f9a36f317a8f347514cf1fb10",
-      "verifiedCommit": "d760c3bad13eb5428eb43991d623a33e7311760e",
-      "verifiedAt": "2026-08-28",
+      "verifiedSha256": "8a0d53b6b296c1db6ec56c0f2a3a57d173e2d7c401f2e131bb7258cc80c58fa4",
+      "verifiedCommit": "3ff8bfe4b169c9aa73e2e7a072e334d37efb82db",
+      "verifiedAt": "2026-08-29",
       "evidence": [
         "docs/design/saved-rosters-build-record.md:1 (design; active)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "re-attested after the B10 reconciliation (nomenclature/surfaces/doc-retirement; the rule-preset-accrual rider flagged) at d760c3bad"
+        "re-attested after the B10 reconciliation (nomenclature/surfaces/doc-retirement; the rule-preset-accrual rider flagged) at d760c3bad",
+        "delta re-verify 2026-08-29 (3ff8bfe4b169c9aa73e2e7a072e334d37efb82db, B10 rules rider merged by the orchestrator, who read the diff in full): the deferred-rider callout flipped to BUILT and the new §6 (6.1 provenance flip · 6.2 roster_preset_rules junction · 6.3 client-composed capture via resolveChatRulePresetKnobs · 6.4 additive idempotent apply over automation's front door · 6.5 enable-on-apply flagged decision · 6.6 coupled sites · 6.7 test plan) records the as-built rider; every clause verified by the lane's suites (48/48 + 3/3 SERIAL + CT 19/19) on the merged commit"
       ],
       "summary": "Saved rosters (roster presets) — the as-built RP1+RP2 design record (#26, lane roster-26, 2026-08-28): premise repair vs the parked program doc, the D80/requireHost deltas, the coupled-site inventory, and the test plan.",
       "claims": [
