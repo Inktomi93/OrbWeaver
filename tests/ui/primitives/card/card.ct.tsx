@@ -1,5 +1,5 @@
 // CT: the card surface seal — the card token surface, the elevated opt-in, and the interactive clickable
-// affordance (ui-package-design §6.1). The `padding` variant is RETIRED (density-pass-spec.md D7): island
+// affordance (ui-package-design §6.1). The `padding` variant is RETIRED (UI-Density-Law.md D7): island
 // padding is resolved from the enclosing `<Surface tier>` by the unlayered tier map, and THAT is asserted
 // by computed value in tests/ui/density-tier.suite.ct.tsx — not here.
 

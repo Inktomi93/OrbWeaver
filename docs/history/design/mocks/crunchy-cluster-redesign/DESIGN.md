@@ -11,7 +11,7 @@ updated: 2026-08-14
 > uncommitted panel/assembly churn in the working tree was read as-is); file:line cites are from that
 > read. Law honored: `AGENTS.md` (read in full), `Core-Path-Registry.md` D86 + D106–D110, the
 > parity-plus spec (`docs/history/design/parity-plus-program-spec.md`), the panel redesign
-> (`docs/design/mocks/panel-redesign/DESIGN.md` incl. §12), the memory canon named in the brief.
+> (`docs/history/design/mocks/panel-redesign/DESIGN.md` incl. §12), the memory canon named in the brief.
 > KISS/YAGNI are SUSPENDED here — every solution is the maximal, extensible shape, derived not
 > re-declared.
 >
@@ -21,13 +21,13 @@ updated: 2026-08-14
 > TARGET and defers execution sequencing to the orchestrator. Everything else here is NEW design.
 >
 > **OWNER REVIEW (2026-07-28, round 1 — RATIFIED):** recommendations for items 1–6 + 8 signed as-is
-> (window@4k + reconcile-every-10 · resync = host-principal consent · Regenerate dual-home · "Generate
+> (window\@4k + reconcile-every-10 · resync = host-principal consent · Regenerate dual-home · "Generate
 > reply" naming — SUBSUMED by the new Response icon below · `generateOnEmptySend` ON — RE-HOMED onto
-> the Response icon, NOT the Send button · fork copies all sheets · RESTORE_MESSAGE restyle deferred).
+> the Response icon, NOT the Send button · fork copies all sheets · RESTORE\_MESSAGE restyle deferred).
 > **#7 (deception → tracker-prose leak) stays OPEN**: orchestrator recommendation **A — the tracker
 > tracks the players' SURFACE reality; the hidden truth stays in the reveal-eye / reasoning channel
 > (host-gated by P3)**. Item 1 (extraction prompt) + item 3 (fork clone) are designed for **A** below;
-> #7 is flagged for final owner sign-off (§6.7). **The wand (§2.3) is REPLACED by the owner's concrete
+> \#7 is flagged for final owner sign-off (§6.7). **The wand (§2.3) is REPLACED by the owner's concrete
 > SillyTavern-style control map** — rewritten below, reinforced against the funnel + the confirmed
 > defects, with the full draft/committed capability matrix the owner asked for.
 
@@ -36,7 +36,7 @@ updated: 2026-08-14
 ## 0. The cluster on one screen
 
 | # | Item | Root disease | The cure (one line) |
-|---|---|---|---|
+| - | - | - | - |
 | 1 | Extraction context/depth | The state round is CONTEXT-BLIND: `{state JSON} + {one beat}` | The state round rides the character turn's OWN loaded canon — a bounded, knob-gated transcript window threaded through the existing `RpgTurnConnection` seam; + a reconcile cadence + a host Resync verb |
 | 2 | Guided wand | The steer is INVISIBLE state — a hidden mode-switch on the composer + a menu anatomy that eats clicks | FOUR always-visible dual-mode guided icons (impersonate·swipe·response·continue) + a ✨ utility menu + the ☰ relocated chat-options; steer VISIBLE via hover cue; empty-Response generates (closes the fork-at-user-tail gap) |
 | 3 | Forking | A fork drops the game (stopgap); pre-fix forks crash the panel | `ChatRpgOps.forkGame` — rpg clones its 6-table vertical through the fork's id maps, pointer-write-last; + a typed dangling-pointer heal both server and client side |
@@ -110,7 +110,7 @@ The transcript the extraction needs is IN SCOPE; it just isn't threaded.
 **Canon window, not the assembled request.** Two candidate feeds were weighed:
 
 | Feed | Pros | Cons | Verdict |
-|---|---|---|---|
+| - | - | - | - |
 | The wire request (`result.request.history`, `pipeline.ts:106-108` / `results.ts:118-119`) | byte-identical to what the char turn saw; includes world-info/persona | carries the depth-0 rpg reminder (duplicates CURRENT STATE), guided steers, persona scaffolding — injection noise the extractor must NOT treat as story; role-squashed/egocentric-shaped per speaker | rejected as default |
 | The canon lineage (`canonAll`, selected variants, name-stamped) | pure STORY — exactly the evidence planes evolve from; stable across shape modes; no injection contamination | lacks world-info (acceptable: lore is setting, not state evidence) | **the feed** |
 
@@ -192,6 +192,7 @@ LATEST BEAT (the newest story turn above — your delta covers exactly this):
 ```
 
 System-prompt additions (content-quality, the schema stays the enforcement lever):
+
 - "The RECENT STORY is your evidence. The delta you output covers ONLY the LATEST BEAT — but you may
   use the whole story to understand it: a relationship that has been warming for several turns, an
   item a character picked up earlier and still carries, a quest implied across turns."
@@ -272,8 +273,8 @@ Cross-referencing `rpgExtractionSchema`/tool args (`contracts/rpg/tools.ts`) aga
 (`compose/rpg.ts:119-136, 411-431`):
 
 | Renderable plane | Model-writable? | Prompted (reliable)? | Prompted (cheap)? | Verdict |
-|---|---|---|---|---|
-| scene.location/timeOfDay/weather/calendarDate | ✓ `update_scene` | ✓ | ✓ (via update_scene line) | ok |
+| - | - | - | - | - |
+| scene.location/timeOfDay/weather/calendarDate | ✓ `update_scene` | ✓ | ✓ (via update\_scene line) | ok |
 | scene.day (structured dateMode) | ✓ (`day`) | ✗ | ✗ | **gap** — prompt the day counter ONLY when `dateMode:"structured"` (mode-aware fragment) |
 | recentEvent → recentBeats | ✓ | ✓ | ✓ | ok |
 | cast mood/appearance/outfit/thoughts/relationship | ✓ | ✓ | weak (one line) | ok after §1.3 restructure |
@@ -307,7 +308,7 @@ export const EXTRACTION_PLANE_PROMPTS: ReadonlyArray<{
 Enforcer: a contract test asserting every `rpgExtractionSchema` top-level key has a registry row
 (the D50 bus-coverage ratchet discipline — a new plane without a fragment is RED). Also strip
 `fieldLocks` from the `CURRENT TRACKED STATE` JSON and render locked paths as one line ("Locked by
-the players — do not rewrite: quests.q_abc, location") — today `JSON.stringify(baseState)`
+the players — do not rewrite: quests.q\_abc, location") — today `JSON.stringify(baseState)`
 (`compose/rpg.ts:314`) leaks the lock record as model-facing noise.
 
 **The #7 recommendation-A clause (deception → surface-only tracker, built into the registry).** When
@@ -395,9 +396,10 @@ become FOUR always-visible dual-mode icons on the right, the wand becomes a UTIL
 existing chat-options menu relocates to the composer's left. This is the *better* shape — it makes the
 four highest-frequency actions one-click (no menu at all), and it dissolves every §2.1 defect
 structurally rather than by tuning menu hover-intent. Verified against the funnel: `resolveGuidedSteer`
-+ the five verbs are byte-untouched; this is a client-surface rebuild plus ONE small server addition
-(`responseNudge`, §c). The composer wand file (`composer-wand.tsx`) is rewritten; `use-guided-actions.ts`
-gains the response-nudge threading and loses the text-gate.
+
+- the five verbs are byte-untouched; this is a client-surface rebuild plus ONE small server addition
+  (`responseNudge`, §c). The composer wand file (`composer-wand.tsx`) is rewritten; `use-guided-actions.ts`
+  gains the response-nudge threading and loses the text-gate.
 
 **The control map (composer bar, left → right):**
 
@@ -425,7 +427,7 @@ gains the response-nudge threading and loses the text-gate.
   **(owner-corrected round 2 — two items re-investigated against the tree.)**
 
   | Utility item | Backing (verified) | Render? |
-  |---|---|---|
+  | - | - | - |
   | **Recover input** ("bring back the last steer you used") | client ring `pushFiredSteer`/`useRecentSteers` (`state/steer-recovery-store.ts`) — the fired-steer recall, D57. Owner-clarified intent: recall the LAST STEER YOU USED back into the composer — which is EXACTLY what this ring does (its header: "the 'I fired something earlier, put it back' recall"). The mapping is correct; NO separate unfired-draft store is wanted. | ✓ (top item = recall the most-recent fired steer into the composer; a submenu lists the rest of the ring — the §2.1.6-hygiene'd list. Label it for the intent: "Recall last steer".) |
   | **Corrections** (rewrite / OOC) | `RewriteDialog` + `guided.fireRewrite` → `chat.swipe` guided:rewrite (exists) | ✓ (opens the dialog — the §c-hardened one) |
   | **Undo continuation** | `chat.undoContinue` (`turn.ts:1696`) — per-slot, targets `tailAssistantMessageId` | ✓ (disabled-with-reason unless the tail assistant slot HAS a continuation — `hasContinuation`, the `message-actions-row.tsx:136` predicate lifted to a shared selector) |
@@ -451,24 +453,30 @@ gains the response-nudge threading and loses the text-gate.
 the committed `userView` (`§3.6`-projected like the defer-path return at `turn.ts:1159`) instead of
 running the round. Factor the shared front half out of `createSend` so the two verbs can't drift (the
 D56 "roster-of-1 = byte-identical" discipline applied to the COMMIT half). Scope + shape:
+
 - `CommitMessageParams` = the send params minus `intent`/`guided` (no generation ⇒ no generation config,
   no steer): `{chatId, content, personaId?, blocks?, attachmentAssetIds?}`.
+
 - The rpg commit hook (`fireRpgUserCommit`) STILL fires — a Simple Send is a real user beat that locks
   in the prior assistant's snapshot (D109 `onUserCommit`); only the AI round is skipped.
+
 - Host-offline: `commitMessage` NEVER defers (there's no owed turn to defer — the whole point is no
   turn); it just commits. The `deferIfHostOffline` branch is absent from this verb.
-- Sweep-classified (a new tRPC proc → [[new-router-needs-sweep-classification]]); membership-gated
+
+- Sweep-classified (a new tRPC proc → \[\[new-router-needs-sweep-classification]]); membership-gated
   (`requireParticipant`), same as `send`.
+
 - Client: the ✨ Simple-send item calls `chat.commitMessage` with the current composer text and clears
   the composer on success (a normal message-post gesture). Disabled-with-reason on an empty composer
   (nothing to post) and on a draft (no chat to post into — send your first message normally first;
   Simple Send is a committed-chat affordance since a DRAFT's first message IS a startChat). The
   placeholder/Send semantics are unchanged — Simple Send is the explicit "post, I'll generate later"
   path, and the ▷ Response icon is how you then generate.
+
 - D56/D107 clean: `commitMessage` IS the verb D56 named; it ships wired to its one consumer.
 
 - **The FOUR guided icons (right of the textarea), order `🎭 impersonate · ⟳ swipe · ▷ response ·
-  ⏩ continue`** — ALWAYS VISIBLE, never hidden/swapped ([[no-separate-reduced-modes]] — the
+  ⏩ continue`** — ALWAYS VISIBLE, never hidden/swapped (\[\[no-separate-reduced-modes]] — the
   one-surface doctrine the owner named). Each is **DUAL-MODE**: empty composer = the plain action;
   typed text = the guided action (the text IS the steer, fired through the existing `steerFor` →
   `guided` funnel). Icons from the `@orb/ui/icons` seal (grow the allowlist per §11): impersonate =
@@ -533,18 +541,19 @@ is CONSUMED (composer clears) on the one-shot actions but PRESERVED on the repea
 rerolls with the same guidance without re-typing:
 
 | Icon | On fire | On failure | Why |
-|---|---|---|---|
+| - | - | - | - |
 | **🎭 Impersonate** | CONSUME — clear the composer (`fireAndClear`) | restore the just-fired steer to the composer (`onFireError` → `onChange`, D57) | one-shot: the impersonated line lands; the steer is spent |
 | **▷ Response** | CONSUME — clear | restore (same path) | one-shot: the reply lands; the steer is spent |
 | **⏩ Continue** | CONSUME — clear | restore (same path) | one-shot (owner's stated assumption; owner will flag if he wants Swipe-like retention) |
 | **⟳ Swipe** | **KEEP — do NOT clear** the composer; the steer stays | n/a (nothing was consumed) | REROLL ergonomic: swipe again and again with the SAME guidance until a variant satisfies; the steer persists across rerolls, never re-typed |
 
 Mechanically: the three consume-actions keep the current `fireAndClear` wrapper (`composer-wand.tsx:72`)
-+ the `onFireError` restore (`use-guided-actions.ts` `perFire`/`onFireError`, D57 client-only). Swipe
-fires WITHOUT the `onChange("")` clear — a one-line divergence in the Swipe icon's handler (fire the
-steer, leave the composer). The steer text still lands on the `pushFiredSteer` ring on every fire
-(consume or keep) so "Recover input" recalls it regardless. A user clears the retained Swipe steer with
-the ✨ Clear input item (or by editing/sending) when they're done rerolling.
+
+- the `onFireError` restore (`use-guided-actions.ts` `perFire`/`onFireError`, D57 client-only). Swipe
+  fires WITHOUT the `onChange("")` clear — a one-line divergence in the Swipe icon's handler (fire the
+  steer, leave the composer). The steer text still lands on the `pushFiredSteer` ring on every fire
+  (consume or keep) so "Recover input" recalls it regardless. A user clears the retained Swipe steer with
+  the ✨ Clear input item (or by editing/sending) when they're done rerolling.
 
 **(b) The visible-steer cue (owner insight #1, folded in).** The invisible mode-switch — typed text
 silently becoming a steer — is defused WITHOUT a persistent panel:
@@ -594,6 +603,7 @@ so Send stays unambiguously "send my message". Mechanics:
   (name the icon so the affordance is discoverable from the empty state).
 
 **(e) De-duplication (owner-consistent):**
+
 - **Swipe/Regenerate dual-home:** the ⟳ icon (composer) and the swipe-strip arrow (message) are the
   same verb in two homes — one at the composer with optional steer, one at the message for plain
   reroll. Owner ratified "Regenerate dual-home"; kept.
@@ -616,7 +626,7 @@ draft + committed — the four icons render always, phase gates them (§2.3.1).
 #### 2.3.1 The DRAFT vs COMMITTED capability matrix (owner ask — SPECIFIED + ENFORCED)
 
 **The show-everything requirement:** all four guided icons ALWAYS render — never hidden, never swapped
-for a sibling ([[no-separate-reduced-modes]]). A phase-unavailable icon is `aria-disabled` +
+for a sibling (\[\[no-separate-reduced-modes]]). A phase-unavailable icon is `aria-disabled` +
 `focusableWhenDisabled` (the `composer.tsx:372` idiom — stays hoverable/focusable) with its reason
 rendered **legibly and touch-accessibly**, not hover-only low-contrast (that was the §2.1.4 defect).
 Concretely: a disabled icon shows a small reason on `title` AND, because touch has no hover, the
@@ -628,13 +638,14 @@ reason on activation instead of silently no-oping). The four reasons live as nam
 Matrix — icon × phase (✓ = live, plain + guided both work; ⛔ = disabled-with-reason):
 
 | Icon | DRAFT (no committed chat) | COMMITTED · user tail | COMMITTED · assistant tail |
-|---|---|---|---|
+| - | - | - | - |
 | **🎭 Impersonate** | ⛔ `IMPERSONATE_NEEDS_CHAT` | ✓ writes a USER line — VALID (it doesn't need an assistant tail; it appends the user's next line regardless) | ✓ |
 | **⟳ Swipe** | ⛔ `SWIPE_NEEDS_REPLY` | ⛔ `SWIPE_NEEDS_REPLY` (no assistant tail to reroll) | ✓ |
 | **▷ Response** | ✓ **"Generate opening"** (`fireOpening` → `startChat opening:generate`; empty = plain opening, text = guided opening) | ✓ generate reply (empty = plain, **repeatable** — the consecutive-fire bug fixed; text = guided) | ✓ generate reply (with `responseNudge`, §a′) |
 | **⏩ Continue** | ⛔ `CONTINUE_NEEDS_REPLY` | ⛔ `CONTINUE_NEEDS_REPLY` (no assistant tail to extend) | ✓ |
 
 Reason strings (named, legible, plain-language — no jargon):
+
 - `IMPERSONATE_NEEDS_CHAT = "Send your first message to impersonate a reply."`
 - `SWIPE_NEEDS_REPLY = "Needs a reply to regenerate."`
 - `CONTINUE_NEEDS_REPLY = "Needs a reply to continue."`
@@ -660,8 +671,8 @@ is a DISTINCT capability it named `commitMessage`/`injectMessage` for — this b
 `responseNudge` format string + the `generateOnEmptySend` pref + the `commitMessage` verb all ship WITH
 their consumers) · extends the P5 wand re-home (D110-4 — the game steers move into the utility menu).
 **Proposed D111 clause:** *"The composer control map is ST-style: ☰ = the relocated chat-options menu ·
-✨ = the utility menu (Recover input [recall last fired steer] · Corrections · Undo/Revert continuation ·
-Clear input · Simple send [`chat.commitMessage` — commit the user row without firing the AI turn, the
+✨ = the utility menu (Recover input \[recall last fired steer] · Corrections · Undo/Revert continuation ·
+Clear input · Simple send \[`chat.commitMessage` — commit the user row without firing the AI turn, the
 D56-named `commitMessage` future] — omit-doctrine drops any ST item with no backing verb: reasoning
 toggle / spellcheck / help) · four always-visible dual-mode guided icons (impersonate·swipe·response·
 continue), phase-gated with legible disabled-reasons, never hidden or swapped; the one-shot three
@@ -669,7 +680,6 @@ CONSUME+restore-on-fail, Swipe KEEPS the steer for repeated rerolls · empty-Res
 fork-at-user-tail affordance, `responseNudge` making an assistant-tail reply coherent) · Send stays
 send-my-message. The typed-text-becomes-steer contract is taught by the at-action hover cue + the
 icons' charge state, recovered via Recover input."*
-
 
 ---
 
@@ -685,7 +695,7 @@ per-game = `rpg_games (chatId UNIQUE)` / `rpg_sheets (gameId, actor XOR)` / `rpg
 per-variant = `rpg_snapshots (variantId UNIQUE, CASCADE)` / `rpg_journal (gameId, variantId nullable)`;
 `rpg_checkpoints (gameId, snapshotId RESTRICT)`. Pre-fix forks carry a dangling pointer and
 `useSuspenseQueries` on `rpg.getGame`/`getTrackerView`
-(`features/rpg/hooks/use-rpg-context-state.ts:58-66`) throws NOT_FOUND into a boundary whose only arm
+(`features/rpg/hooks/use-rpg-context-state.ts:58-66`) throws NOT\_FOUND into a boundary whose only arm
 is "Couldn't load the scene. Retry" (`rpg-error-state.tsx`) — a permanent retry loop.
 
 ### 3.2 The design — `ChatRpgOps.forkGame`, pointer-write-LAST
@@ -721,8 +731,8 @@ pointer; the copied-metadata strip remains correct).
 **The copy rules (rpg-side, one `db.batch`):**
 
 | Table | Rule |
-|---|---|
-| `rpg_games` | new id; `chatId = newChatId`; copy mode/status/sessionNumber/config (post-strip, below); `gmUserId` → null in lite (seatless) — carry-if-forker-is-holder when full lands; `gmPresetId` → carried ONLY if the forker owns the preset (a foreign presetId in a game the forker now hosts is a cross-tenant read the moment `resolvePresetOverride` feeds it into their turns — the [[injected-op-caller-gate]] class). rpg can't read presets: compose wires a `resolvePresetOwned(presetId, userId) → boolean` op into `RpgContext` (`compose/rpg.ts` deps, off the preset front door — the `resolveHostPrincipal` precedent). |
+| - | - |
+| `rpg_games` | new id; `chatId = newChatId`; copy mode/status/sessionNumber/config (post-strip, below); `gmUserId` → null in lite (seatless) — carry-if-forker-is-holder when full lands; `gmPresetId` → carried ONLY if the forker owns the preset (a foreign presetId in a game the forker now hosts is a cross-tenant read the moment `resolvePresetOverride` feeds it into their turns — the \[\[injected-op-caller-gate]] class). rpg can't read presets: compose wires a `resolvePresetOwned(presetId, userId) → boolean` op into `RpgContext` (`compose/rpg.ts` deps, off the preset front door — the `resolveHostPrincipal` precedent). |
 | config strip | non-`readsHidden` forker: `lite.steeringNote` → `""` (host-secret — `RpgConfigView` deliberately never serves it to members, `views.ts:132-136`; a fork must not launder it). Everything else (statProfile, features, extraction knobs, userMacros) carries — play-style, member-visible by design. |
 | `rpg_sheets` | copy rows whose actor is IN the fork: the forker's `user` row + rows for `characterId ∈ keptCharacterSeats` (chat passes the kept set? No — rpg derives it: copy rows whose characterId maps to a fork participant via `resolveRoster(newChatId)`, or simpler and MAXIMAL: copy ALL sheet rows verbatim (new ids, new gameId) — the roster∪sheets projection (`tracker-view.ts:126-142`) only renders roster members, so a dropped seat's sheet is invisible-but-preserved, and a later re-invite/re-seat finds its sheet waiting. **Recommended: copy all** — it is the derive-don't-decide arm and costs rows, not correctness. Other humans' `user` sheets: copy too (same argument — an invited-back member finds their sheet). |
 | `rpg_hud_widgets` | copy all (new ids, new gameId). |
@@ -739,13 +749,14 @@ model-plane body). **Under recommendation A (§1.6 clause, owner-recommended for
 CLOSED AT THE SOURCE:** on a deception-active game the extraction is instructed to write only surface
 reality, so tracker prose never carries the hidden truth — the fork copies member-safe data, no strip
 needed. The fork clone therefore does NOT redact tracker prose (there's nothing to redact under A);
-it relies on the §1.6 prevention. **Belt (defense-in-depth, cheap): the fork strips `steeringNote`
+it relies on the §1.6 prevention. \*\*Belt (defense-in-depth, cheap): the fork strips `steeringNote`
 (host secret) regardless, and — pending the #7 sign-off — a non-host forker's snapshot `recentEvents`
-+ journal content MAY optionally run the same `stripHiddenSpans` the bodies get, in case a model ignored
-the surface-only clause. Recommend building the strip belt (it's a `stripHiddenSpans` call over two text
-fields, matching the body-copy precedent) so the fork is safe under BOTH #7 outcomes.** FLAGGED for the
-security-executor at W-F build (the fork batch is a cross-tenant write surface — the D108 carve rule 1
-lens applies to every new by-id copy) and for the owner's #7 sign-off (§6.7).
+
+- journal content MAY optionally run the same `stripHiddenSpans` the bodies get, in case a model ignored
+  the surface-only clause. Recommend building the strip belt (it's a `stripHiddenSpans` call over two text
+  fields, matching the body-copy precedent) so the fork is safe under BOTH #7 outcomes.\*\* FLAGGED for the
+  security-executor at W-F build (the fork batch is a cross-tenant write surface — the D108 carve rule 1
+  lens applies to every new by-id copy) and for the owner's #7 sign-off (§6.7).
 
 **Tests (the load-bearing set):** fork-with-game → panel renders on the fork (getGame + tracker view
 byte-equal modulo ids at the fork head) · swipe-consistency across the fork (fork at a slot with 2
@@ -759,8 +770,8 @@ because their variants are (by-construction assert). Cross-tenant probe per the 
 
 Two arms, both built (defense in depth):
 
-1. **Client: a typed NOT_FOUND state, not a retry loop.** The takeover's `QueryBoundary` gains a
-   NOT_FOUND discrimination (tRPC error code — transport already maps `DomainNotFoundError`):
+1. **Client: a typed NOT\_FOUND state, not a retry loop.** The takeover's `QueryBoundary` gains a
+   NOT\_FOUND discrimination (tRPC error code — transport already maps `DomainNotFoundError`):
    `RpgErrorState` grows a second arm rendering "This chat points at a game that no longer exists."
    with, for the HOST only, a "Detach game" action; members see the copy + nothing (PERMISSION-omit).
    Transient errors keep the Retry arm. (`rpg-error-state.tsx` is the home; the boundary already
@@ -769,7 +780,7 @@ Two arms, both built (defense in depth):
    (`requireHost` via the membership op), verifies `findGameByChat === undefined` (refuses to detach
    a LIVE game — that's `#40 engaged:false`'s job), then clears the pointer via a widened
    `setPointer(chatId, null)` (the chat op accepts null = delete the `metadata.rpg` sub-blob; today
-   it only writes). One verb, sweep-classified (D-entry: [[new-router-needs-sweep-classification]]),
+   it only writes). One verb, sweep-classified (D-entry: \[\[new-router-needs-sweep-classification]]),
    plus optional boot-time reporting is NOT built (a scan for dangling pointers is a scripts/probe,
    not product).
 
@@ -820,9 +831,9 @@ whole — context pollution + a per-edit cache-buster).
 
 The ratified target EXISTS (`panel-redesign/DESIGN.md` §1–§12 + the html mocks); the live panel
 (snaps above) diverges. The specific deltas, each cited to its mock rule — this is the punch list the
-builder executes and side-eye verifies against ([[side-eye-fix-all-findings]]):
+builder executes and side-eye verifies against (\[\[side-eye-fix-all-findings]]):
 
-1. **Waystone illegible** — live ~40px circle with unreadable overlay. Mock: 76px desktop / 64px
+1. **Waystone illegible** — live \~40px circle with unreadable overlay. Mock: 76px desktop / 64px
    mobile, dial ring + sky + horizon (`header-band.html`; DESIGN §2). Build the real
    kit composite (charts/meter sibling, §11 map) at mock size; `aria-hidden`, band text = datum.
    Unset state per §12.2.1.
@@ -841,7 +852,7 @@ builder executes and side-eye verifies against ([[side-eye-fix-all-findings]]):
    game-state LENS (mock: encounter banner + roster + veiled ledger); with 2 actors it is legitimately
    short — the fix is density + completeness, not filler: render the veiled section (host), the
    §12.1.5 doorway lines, and let the tab's natural height stand — but ALSO fix the band/strip
-   proportions so the viewport doesn't read as a void (the mock's card density is ~2× the live).
+   proportions so the viewport doesn't read as a void (the mock's card density is \~2× the live).
    NO decorative fill (Chanel pass, §9).
 5. **Bar-color grammar** — implement `trackColor(ordinal)` as specified (§12.1.2): ordinal in
    `poolDefs` order → `--color-track-{1..6}`, ONE derivation feeding GM swatch, orb, bar, budget
@@ -881,27 +892,27 @@ story reads as one system.
 ## 5. BUILD SEQUENCE
 
 Ordered for dependency + risk; each wave is whole-tree-gated per the constitution. **Lane routing per
-[[fable-5-orchestration-audit]]: the two SECURITY-SENSITIVE waves route to `security-executor` (not
+\[\[fable-5-orchestration-audit]]: the two SECURITY-SENSITIVE waves route to `security-executor` (not
 self-implemented, not Fable) — W-F (fork cross-tenant copy + host-secret strips + `resolvePresetOwned`)
 and W-C (`rpg.resyncFromStory` host-principal model-call verb).** The other waves are executor-lane
 (non-security) and GREENLIT to build after the owner signs this update; side-eye on every visible
 surface; verifier on every non-trivial claim.
 
 | Wave | Lane | Contents | Depends on | Verification |
-|---|---|---|---|---|
+| - | - | - | - | - |
 | **W-A** | executor | §4.1 state-anchor silent slots (postNarratorMessage opts + render filter) — small, unblocks every game-chat screenshot | — | verifier + side-eye (transcript) |
-| **W-B** | executor | §1.3 transcript threading: `RpgTurnContext` + engine projection + window slicing + prompt restructure + knobs (`extractionContext`/`extractionWindowTokens`/`reconcileEveryBeats`) + §1.6 plane-prompt registry + ratchet test + state-projection strip (§4.4) | — | verifier (composed-real int: window content, byte-compat `beat` arm) + LIVE probe on the 8B ([[e2e-live-verification-facts]] rig) — the 8B-quality question is empirically settled here |
+| **W-B** | executor | §1.3 transcript threading: `RpgTurnContext` + engine projection + window slicing + prompt restructure + knobs (`extractionContext`/`extractionWindowTokens`/`reconcileEveryBeats`) + §1.6 plane-prompt registry + ratchet test + state-projection strip (§4.4) | — | verifier (composed-real int: window content, byte-compat `beat` arm) + LIVE probe on the 8B (\[\[e2e-live-verification-facts]] rig) — the 8B-quality question is empirically settled here |
 | **W-C** | **security-executor** | §1.3 reconcile cadence + `rpg.resyncFromStory` (+ `resolveCanonWindow` chat op, GM console surface, panel doorway) — a NEW host-principal model-call site (the D109-F1 consent-seam class) | W-B | security-executor implements; verifier confirms |
 | **W-D** | executor | §2.3 wand control map: ☰ relocation · ✨ utility menu (omit-doctrine) · four dual-mode guided icons · `responseNudge` (one server touch, §a′) · `commitMessage` verb (Simple send, §a-BUILD — the other server touch: `createSend` front-half factored + a commit-only verb + sweep classification) · the per-action clear matrix (§a″ — Swipe keeps the steer) · the visible-steer hover cue + charge state · Corrections hardening · the draft/committed matrix (§2.3.1) | — | side-eye (mandatory — THE visible surface) + CT matrix (each icon × draft/user-tail/assistant-tail × empty/text × solo/multi; the Swipe-keeps-steer reroll ergonomic) + a verifier pass on `commitMessage` (the extracted `createSend` front-half must stay byte-identical) + the disabled-reason legibility/touch check |
 | **W-E** | executor | §2.3d empty-Response generate keyboard arm (`resolveEmptySendAction` generate branch + `generateOnEmptySend` pref + placeholder/glyph) — the icon home lands in W-D; this is the bare-Enter convenience | W-D (shared composer files) | verifier + side-eye; unit tests on the pure resolver |
 | **W-F** | **security-executor** | §3.2 forkGame op + fork.ts call + config strips (steeringNote/gmPresetId) + `resolvePresetOwned` op + the cross-tenant test set — a cross-tenant copy surface (D108 carve rule 1) | — | security-executor implements + the hidden-content audit (§3.2); verifier confirms |
-| **W-G** | executor | §3.3 dangling-pointer heal (client typed NOT_FOUND arm + `rpg.detachDanglingPointer` host verb + setPointer(null) widening) | — (unblocks pre-fix forks immediately; can land before W-F) | verifier + sweep classification |
+| **W-G** | executor | §3.3 dangling-pointer heal (client typed NOT\_FOUND arm + `rpg.detachDanglingPointer` host verb + setPointer(null) widening) | — (unblocks pre-fix forks immediately; can land before W-F) | verifier + sweep classification |
 | **W-H** | executor | §4.2 panel punch list + §4.3 coordination | a9361256 lane state | side-eye against the mocks, fix-ALL loop |
 | **W-I** | orchestrator | D111 mint + spec change-logs (parity-plus §change-log, lite-plus spec, workboard rows) | all | docs gate (`pnpm check:docs`) |
 
 Independence: W-A / W-D / W-G (and W-F once security-executor picks it up) are mutually disjoint —
-parallelizable in worktrees per [[worktree-isolate-concurrent-lanes]] (serialize main-tree commits per
-[[concurrent-main-lanes-gate-thrash]]). W-B is the critical path for the headline feature (W-C depends
+parallelizable in worktrees per \[\[worktree-isolate-concurrent-lanes]] (serialize main-tree commits per
+\[\[concurrent-main-lanes-gate-thrash]]). W-B is the critical path for the headline feature (W-C depends
 on it). Every wave lands with its tests in the same commit (test-presence); every schema-visible change
 is additive (no baseline regen — config blobs self-heal; the one column touched,
 `messages.excludedFromPrompt`, already exists; `responseNudge` is an additive `formatStrings` field).
@@ -953,5 +964,5 @@ actor,pointer}.ts · domain/rpg/{chat-ops/*,flush-barrier,snapshot-edit}.ts · d
 verbs/turn,assembly/context,engine/engine,engine/pipeline,contract/{context,results}}.ts ·
 db/schema/rpg.ts · client features/chat/{components/{composer,composer-wand,rewrite-dialog},
 hooks/use-guided-actions,lib/continue-on-empty} · features/rpg/{hooks/use-rpg-context-state,
-components/rpg-error-state} · reports/snaps/{freeform-game,_probe-d20-panel}.png · the D-ledger ·
-parity-plus spec §2.7/§3/§10.1/§10.1a · panel-redesign DESIGN.md §12 · docs/history/retro-workboard-2026-08-14.md.*
+components/rpg-error-state} · reports/snaps/{freeform-game,\_probe-d20-panel}.png · the D-ledger ·
+parity-plus spec §2.7/§3/§10.1/§10.1a · panel-redesign DESIGN.md §12 · docs/history/retro-workboard-2026-08-14.md.\*

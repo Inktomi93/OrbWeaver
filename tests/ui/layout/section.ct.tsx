@@ -42,7 +42,7 @@ test("hint renders an info trigger whose name derives from the heading, without 
 });
 
 test("kicker renders the section NAME as a real heading in the micro-caps voice, plus the hairline rule", async ({ mount }) => {
-  // The CD1 replacement for a box (density-pass-spec.md §3.2): a read-only grouping gets a name + a rule,
+  // The CD1 replacement for a box (UI-Density-Law.md §3.2): a read-only grouping gets a name + a rule,
   // never a border+radius+bg. Asserted by COMPUTED value against the document-resolved token, because the
   // whole point is the type STEP DOWN — an authored-class assertion would pass on the wrong size.
   const component = await mount(

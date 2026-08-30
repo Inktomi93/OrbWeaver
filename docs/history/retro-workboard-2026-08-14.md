@@ -324,7 +324,7 @@ restated):** an audit row's prescribed REMEDY can be a no-op for its own symptom
 right as a class name, wrong as an instruction; the tell was reading the actual WRITER, not the two
 verbs the row named.
 
-**WEAVE-LAB SECOND HANDOFF FETCHED + committed `bf1d3a654`** (spec: docs/design/weave-lab-upgrades.md;
+**WEAVE-LAB SECOND HANDOFF FETCHED + committed `bf1d3a654`** (spec: docs/history/design/weave-lab-upgrades.md;
 references vendored in mocks/): silk physics pure module (pluck/shiver/wind) · spider prey state
 machine (rest→alert→sprint→inspect→return) · character presets + araneid anatomy v2 + frame-laying
 itinerary · WebSpinner weave-loop redesign · WebWeave interactive/wind/character/tempo API.

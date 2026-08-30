@@ -174,7 +174,7 @@ const HIDE_WHILE_SETTLING = "has-[[data-config-settling]]:hidden";
 export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement {
   const ordered = orderCollections(collections);
   return (
-    // FORM tier (density-pass-spec.md §3.1): a landing surface you act from, the home precedent. Scoped to
+    // FORM tier (UI-Density-Law.md §3.1): a landing surface you act from, the home precedent. Scoped to
     // the WELCOME and not to the whole CONTENT region on purpose — the region also hosts the member
     // editors, and form tier resolves `--radius-card` where an un-tiered card resolves `--radius-base`, so
     // tiering the region would restyle every editor island in a pass that is not about them. `<Surface>`

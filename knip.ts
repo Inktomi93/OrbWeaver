@@ -69,9 +69,9 @@ const config: KnipConfig = {
     // (research-zone scripts import them by subpath until their tools promote).
     tooling: {
       // The three BASH-SPAWNED entries are invisible to the import graph: `stack` is a bash-fronted tool
-      // (tooling-package.md §4.1) whose .sh entrypoints exec these by path, so nothing imports them.
+      // (Core-Tooling-Law.md §4.1) whose .sh entrypoints exec these by path, so nothing imports them.
       // The GATE CORPUS is an entry glob for the same reason one level up: `verify`'s loader IS the registry
-      // — it `globSync`s `gates/*.ts` and imports each by URL at runtime (tooling-package.md §4.3), so every
+      // — it `globSync`s `gates/*.ts` and imports each by URL at runtime (Core-Tooling-Law.md §4.3), so every
       // descriptor is a plugin nothing statically imports. Without this row knip reads all 219 `export const
       // gate` as dead, and drops every helper they alone consume with them.
       entry: [

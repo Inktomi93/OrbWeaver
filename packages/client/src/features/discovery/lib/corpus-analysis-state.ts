@@ -6,7 +6,7 @@
 // library is un-analysed the map is thin (on the audited instance six of eight families are singletons and
 // every label is the unlabelled `"mixed"`), so it cannot carry a focal, and variant B's INVITATION takes it
 // instead. The moment real analysis output exists the map reclaims it. That is ONE surface whose focal is
-// data-driven, never two designs behind a flag — and CD3 (density-pass-spec.md §3.2: exactly one element
+// data-driven, never two designs behind a flag — and CD3 (UI-Density-Law.md §3.2: exactly one element
 // per surface may carry accent fill, glow, or elevated shadow at rest) is what makes the swap mandatory
 // rather than decorative: rendering both islands at focal weight would mean the surface has no focal.
 //

@@ -10,7 +10,7 @@ export const CONTROL_SIZE = {
 /** THE FILTER-CHIP BOX — the wrapping-rail cell, shared by button + toggle exactly the way CONTROL_SIZE
  *  is (one home, so a scope toggle and a tag button in the same rail cannot drift into two boxes).
  *
- *  It is NOT a step of the control ramp, and that is the point (density-pass-spec.md §2.1: a pill is
+ *  It is NOT a step of the control ramp, and that is the point (UI-Density-Law.md §2.1: a pill is
  *  "one of many small things to skim", a control is "something you operate"). The height is
  *  `--spacing-touch-target` — the POINTER-CONDITIONAL token, 28px under a mouse and 44px under a finger
  *  by construction rather than by a media query — so the box IS the tap floor and needs none of the

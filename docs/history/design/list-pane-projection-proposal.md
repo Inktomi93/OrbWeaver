@@ -46,9 +46,9 @@ the seven `UI-*.md`/lockdown/motion docs, `ui-cohesion-north-star.md`, `density-
 RENT, and the visual audit §F5/§F7 (`docs/reviews/stickler/2026-08-01-visual-blech-audit.md`).
 
 **Mocks (authored with this spec — the owner rules from pixels, not vibes):**
-`docs/design/mocks/list-pane-projection/character-launcher.html` (Arm A: picker ⇄ projection ⇄ empty,
+`docs/history/design/mocks/list-pane-projection/character-launcher.html` (Arm A: picker ⇄ projection ⇄ empty,
 the full row anatomy incl. the shared group room) ·
-`docs/design/mocks/list-pane-projection/unified-rail.html` (Arm C at its honest best beside Arm B —
+`docs/history/design/mocks/list-pane-projection/unified-rail.html` (Arm C at its honest best beside Arm B —
 the duplication cost rendered visibly). House style per the `panel-redesign/` set.
 
 **Sibling programs (this spec composes with, never fights):** `docs/history/design/hud-home-spec.md` (CONTEXT panel — zero
@@ -206,7 +206,7 @@ it is read-only identity, a kicker-weight header, not a card).
 | loading | shape-matched `SkeletonRows shape="avatar-row"` — but in practice a CACHE HIT: the library already holds `listChats` for its resume map (`character-library-surface.tsx:101`), so entering projection is usually zero-fetch | `data/skeleton-rows.tsx` |
 | no chats yet | `EmptyState` — icon `MessagesSquare`, title "No chats yet", description "No chats with {name} yet — start the first one.", action = primary **New chat**. The copy + action EXIST at `chat-list-surface.tsx:132-146` (the filter-chip empty state); the projection reuses the same body. Empty teaches and acts — never a dead end (rule 1; empty-states-are-load-bearing) | `empty-state-has-action` (LIVE) |
 | populated | rows newest-first (server order — `listChats` is newest-updated first, `read.ts:410`; no re-sort). Row = `ChatSummaryRow` verbatim: portrait/stack · title · snippet subtitle · relative time meta · markers · kebab (`ChatListRowMenu` — rename/star/archive/delete keep working from her pane) | §2 rows |
-| many chats | a search input appears above the rows when the projection exceeds ~8 rows (the `useDeferredValue` + `filterChats` pattern verbatim); the pane scrolls (`overflow-y-auto overscroll-contain`, the chats-list shape). No virtualization — parity with the chats pane (plain Stack; the projection is a subset of an already-unpaged list) | `chat-list-surface.tsx:53,165` |
+| many chats | a search input appears above the rows when the projection exceeds \~8 rows (the `useDeferredValue` + `filterChats` pattern verbatim); the pane scrolls (`overflow-y-auto overscroll-contain`, the chats-list shape). No virtualization — parity with the chats pane (plain Stack; the projection is a subset of an already-unpaged list) | `chat-list-surface.tsx:53,165` |
 | games mixed in | the `Swords` "Game chat" marker rides in from `ChatSummaryRow` untouched — a live game with her reads distinctly at a glance | `chat-summary-row.tsx:55` |
 | starred / archived | star `Icon label="Starred"` (warning hue); archived = TEXT badge + `opacity-60` recede, shown only when `includeArchived` — the projection passes the same list the chats pane shows (no separate archived policy; one list, one truth) | `chat-summary-row.tsx:56-61,79` |
 | a room she LEFT | included (the departed-seats contract, §2) — the row renders normally; her absence from `participantNames` means the title/subtitle name the PRESENT cast. No "departed" marker exists in `ChatSummary` and none is proposed (the history claim is "you had this chat with her", which is true) | `views.ts:78-84` |
@@ -297,7 +297,7 @@ In her pane every row contains her — the differentiator is the rest of the cas
 ### 4.2 The auto-collapse-to-rail arm — judged, and judged NO
 
 The workboard sketch (arm 1): once a chat is open, the LIST auto-collapses to a slim glyph rail,
-reclaiming ~280px. Against the code and the sibling programs:
+reclaiming \~280px. Against the code and the sibling programs:
 
 - The shell already has a THREE-mode panel model with persistence, per-section defaults, a focus
   toggle, and the 64rem auto-overlay regime (`resolvePanelMode` — lockdown §4/M10). A glyph-rail is a
@@ -373,7 +373,7 @@ threads, chip + empty-state + New-chat already built (`chat-list-surface.tsx:61,
   home), the character-list cache the pane already reads for portraits (`:112`).
 - Zero registry/rail surgery; the D18 grammar stays "filtered by", visibly a chip you can clear.
 - Cost: one more strip of chrome in the chats pane (density S5 must size it; instrument tier, no
-  boxes), and a curation rule for WHICH faces (recommend: `resumeTargets` recency order, capped ~8).
+  boxes), and a curation rule for WHICH faces (recommend: `resumeTargets` recency order, capped \~8).
 
 **Recommendation: ratify as the chats-screen arm** (owner decision D1) — Arm A gives the character
 screen its history; Arm B gives the chats screen its faces; together they are "the two slots
@@ -446,7 +446,7 @@ projection can never show a different truth than the Chats section (one cache en
 | **L0 — the predicate home** | extract `chatsWithCharacter` to `features/chat/lib/`; migrate the chip filter (`chat-list-surface.tsx:131`) + the hero count (`character-editor-surface.tsx:147`) onto it in the same commit | existing only; zero visual delta | unit tests (incl. departed-seat pin); scoped lane battery |
 | **L1 — the modal pane (Arm A)** | chat exports `ChatsWithCharacterPane`; `CharacterChatsProjectionView` published in `lib/registry-contracts.ts`; `makeCharactersSection` second param + door thread (`main.tsx`); character's `CharactersListPane` swap + `CharactersListHeader` (both band modes — this ALSO closes characters' A1/N2 band gap); identity row; back-focus restoration; VT wrap on select/clear; hero "N chats ›" re-pointed (§3.8) | existing seams only — **no server change, no contract change, no new store** | CTs: swap renders from a seeded cache · back restores focus to her row · New-chat fires `startNewChat` with her id (assert the store action fired, not a UI echo) · empty state renders with action · projection rows == `chatsWithCharacter(cache)` ids; snap: band baseline zero-drift (flat/ramp ± glass), projection at 1280/wide; side-eye pass |
 | **L2 — shared row upgrades** | `ChatSummaryRow` `portraits` (AvatarStack for ≥2 seats, both surfaces); snippet-search arm in `filterChats` (if D6 yes) | existing (`@orb/ui/avatar-stack`) | CT: stack renders + falls back; predicate tests |
-| **L3 — the chats-screen arm (Arm B, if ratified)** | faces strip over the filter-chip seam; curation = resume-recency, cap ~8 | existing (filter store, chip, `resumeTargets`, portrait map) | CT: face-tap sets the chip + scopes rows; snap + side-eye |
+| **L3 — the chats-screen arm (Arm B, if ratified)** | faces strip over the filter-chip seam; curation = resume-recency, cap \~8 | existing (filter store, chip, `resumeTargets`, portrait map) | CT: face-tap sets the chip + scopes rows; snap + side-eye |
 | **L4 — the band sweep** | `listHeader` for presets + worldInfo (the `LibraryListLayout` in-surface title collapses into the band; A2's ONE primary New per pane) | existing | snap: four-header baseline; §9 checklist lines |
 | **DEFERRED (contract-field items, post-SSE-multiplex)** | streaming-now ticks (rooms socket) · `viewerLastSeenSeq` unread cursor (participant-row write + field + row chrome) | NEW contract fields + emit/write paths — named here so nobody fakes them client-side | their own specs |
 
@@ -488,23 +488,23 @@ either way.
 
 ### 11.1 Element-by-element (both approved mocks)
 
-| mock element | verdict | renders as / mint spec |
-| - | - | - |
-| the chrome band container (48px, hairline) | EXISTS — shell-owned | `.shell-panel-header` via `PanelChrome` (`app-shell.tsx:186`); content arrives through `SectionDefinition.listHeader` — nothing to build |
-| the band title cluster (`CHATS · Azarael` + mono count) | **NEW tier-2 composite: `ListPaneHeader`** | Three landed headers hand-copy the identical `Row(Heading micro/caps/semibold + Text micro/mono/muted)` cluster today — `chat-list-header.tsx:27-36`, `corpus-list-header.tsx:22-33`, `analytics-list-header.tsx:16-27` — and Arm A adds two more modes: the §13.0 bar (3+ sites AND changing together) is met. Home `components/list-pane-header.tsx` (the LibrarySurfaceShell owner-ruling precedent: composites live client-shared, not `@orb/ui`). API: `{ back?: { label: string; onClick: () => void }; title: string; accent?: string; count?: number; action?: ReactNode }` — `accent` is the foreground entity-name half (`CHATS · <b>Azarael</b>`), `action` the panel's ONE primary. CT: cluster voices (micro/caps + mono) via `toHaveCSS` against `TOKENS`; back is focusable + labeled; exactly one `action` node renders |
-| the back affordance (`‹`) | EXISTS | `Button intent="ghost" size="icon"` + `Icon icon={ChevronLeft}` (in the icons seal — the characters stop landed "ChevronLeft Back"). The mock's 26px square yields to the token size (`size-control-md`: 34px fine / 48px coarse) — the mock is a look target, never a geometry override |
-| New / New chat primary | EXISTS | `Button intent="primary" size="sm"` + `Icon Plus` — the landed A2 pattern (`chat-list-header.tsx:37-40`) |
-| the pinned identity row (portrait · name · `7 chats · last 2h ago`) | EXISTS — feature composition, no mint | `Row align="center" gap="block" padding="row"` (the layout kit HAS a `padding` variant — `layout/variants.ts:12-18,41`) + `Avatar size="md"` + `Stack`(`Text` name, `Text size="micro" tone="muted" className="font-mono"` gloss — the landed mono-micro idiom). Instrument-tier island: no border box (CD1). Density S1's `Text.voice` re-voices it (`label`/`gloss`) when it lands — build on today's axes, S5 sweeps |
-| portrait / initials avatar | EXISTS | `Avatar` (`sm`/`md`, `hueSeed`, `blobUrl(hash)` src, initials fallback) — sizes are display tokens (24/32/40 post-PP4) |
-| the group-room stack | EXISTS at `sm` | `AvatarStack size="sm" max={4}` in the `ListRow` leading slot (`@orb/ui/avatar-stack` — overlap map has `sm/md/lg/hero`; display-only, right for a leading slot). The mock's 20px `xs` is NOT minted — it yields to the 24px `sm` token. **No `xs` avatar size** unless a real density defect appears in S5 |
-| the chat row (title / snippet / meta time / markers / actions) | EXISTS | `ListRow` — leading · `title` · `subtitle` (truncating) · `meta` (title-line mono stamp) · `actions` sibling · **`renderActions(collapsed)` + `collapseBelow`** (the collapse-aware arm §12 uses) · `density` · selection skin (2px ember bar + 10% tint). The `portraits` generalization is a prop change on the FEATURE composite `ChatSummaryRow`, not a primitive change |
-| markers (⚔ · ★ · Archived) | EXISTS | labeled `Icon` (`Swords`/`Star`) + `Badge intent="neutral" size="sm" tone="soft"` — landed F7 anatomy (`chat-summary-row.tsx:53-61`); the star's ROLE changes in §12 (marker → toggle), primitives unchanged |
-| the row state-toggle (star as a pressable) | **NEW tier-2 composite: `RowToggleAction`** (small) | 2 features render the same anatomy (character-card's inline star, `character-card.tsx:140-147`; the chats row gains it in §12) — R2 places a 2-feature composite at tier 2. Home `components/row-toggle-action.tsx`. API: `{ pressed: boolean; onToggle: () => void; labelOn: string; labelOff: string; icon: LucideIcon; pressedClassName?: string; rest: "always" | "when-on" }` — a `Button intent="ghost" size="icon"` carrying `aria-pressed`, the pressed tone (e.g. `text-warning` fill), and the `rest` posture (`when-on` = visible at rest only while pressed; unpressed rides `ROW_REVEAL`). CT: `aria-pressed` flips; coarse-pointer always-visible; the control box meets the per-pointer floor |
-| the faces strip + captioned face chip (Arm B) | **NEW tier-2 composite: `FaceStrip`** | Generalizes the landed `CharacterFavoritesStrip` (avatar-in-Button, no captions) — 2 features, same anatomy, changing together. Home `components/face-strip.tsx`; the favorites strip becomes its first consumer (retiring the private copy — no old-beside-new). API: `{ items: readonly { id: string; name: string; avatarHash: string | null }[]; selectedId: string | null; onSelect: (id: string) => void; caption?: boolean }`. Face = `Button intent="ghost" size="media"` (content-sized — the F2-safe size for a display-token child) wrapping `Avatar size="md" ring={selected ? "accent" : "none"}` + optional `Text size="micro"` caption (truncate ~6ch); `aria-current` on the selected face; `role="list"` strip, horizontal scroll. The active ring is the EXISTING `Avatar ring="accent"` variant — no new ring styling. CT: selected face carries ring + `aria-current`; caption truncates; per-pointer floor on the face button |
-| the filter chip row (`Filtered: Azarael ✕`) | EXISTS | landed feature composition (`chat-list-surface.tsx:83-97`): `Badge intent="info" tone="soft"` + ghost icon clear — stays chat-local (one consumer) |
-| the projection empty state | EXISTS | `EmptyState` (icon · title · description · `action` slot) — the landed copy + primary New chat at `chat-list-surface.tsx:132-146` moves into the pane body |
-| search input | EXISTS | `Input` + aria-label (landed) |
-| pane scroll shell | EXISTS | `Stack` + the landed `h-full min-h-0 overflow-y-auto overscroll-contain` className idiom (legal on primitives; values are token-free layout) |
+| mock element | verdict | renders as / mint spec | | |
+| - | - | - | - | - |
+| the chrome band container (48px, hairline) | EXISTS — shell-owned | `.shell-panel-header` via `PanelChrome` (`app-shell.tsx:186`); content arrives through `SectionDefinition.listHeader` — nothing to build | | |
+| the band title cluster (`CHATS · Azarael` + mono count) | **NEW tier-2 composite: `ListPaneHeader`** | Three landed headers hand-copy the identical `Row(Heading micro/caps/semibold + Text micro/mono/muted)` cluster today — `chat-list-header.tsx:27-36`, `corpus-list-header.tsx:22-33`, `analytics-list-header.tsx:16-27` — and Arm A adds two more modes: the §13.0 bar (3+ sites AND changing together) is met. Home `components/list-pane-header.tsx` (the LibrarySurfaceShell owner-ruling precedent: composites live client-shared, not `@orb/ui`). API: `{ back?: { label: string; onClick: () => void }; title: string; accent?: string; count?: number; action?: ReactNode }` — `accent` is the foreground entity-name half (`CHATS · <b>Azarael</b>`), `action` the panel's ONE primary. CT: cluster voices (micro/caps + mono) via `toHaveCSS` against `TOKENS`; back is focusable + labeled; exactly one `action` node renders | | |
+| the back affordance (`‹`) | EXISTS | `Button intent="ghost" size="icon"` + `Icon icon={ChevronLeft}` (in the icons seal — the characters stop landed "ChevronLeft Back"). The mock's 26px square yields to the token size (`size-control-md`: 34px fine / 48px coarse) — the mock is a look target, never a geometry override | | |
+| New / New chat primary | EXISTS | `Button intent="primary" size="sm"` + `Icon Plus` — the landed A2 pattern (`chat-list-header.tsx:37-40`) | | |
+| the pinned identity row (portrait · name · `7 chats · last 2h ago`) | EXISTS — feature composition, no mint | `Row align="center" gap="block" padding="row"` (the layout kit HAS a `padding` variant — `layout/variants.ts:12-18,41`) + `Avatar size="md"` + `Stack`(`Text` name, `Text size="micro" tone="muted" className="font-mono"` gloss — the landed mono-micro idiom). Instrument-tier island: no border box (CD1). Density S1's `Text.voice` re-voices it (`label`/`gloss`) when it lands — build on today's axes, S5 sweeps | | |
+| portrait / initials avatar | EXISTS | `Avatar` (`sm`/`md`, `hueSeed`, `blobUrl(hash)` src, initials fallback) — sizes are display tokens (24/32/40 post-PP4) | | |
+| the group-room stack | EXISTS at `sm` | `AvatarStack size="sm" max={4}` in the `ListRow` leading slot (`@orb/ui/avatar-stack` — overlap map has `sm/md/lg/hero`; display-only, right for a leading slot). The mock's 20px `xs` is NOT minted — it yields to the 24px `sm` token. **No `xs` avatar size** unless a real density defect appears in S5 | | |
+| the chat row (title / snippet / meta time / markers / actions) | EXISTS | `ListRow` — leading · `title` · `subtitle` (truncating) · `meta` (title-line mono stamp) · `actions` sibling · **`renderActions(collapsed)` + `collapseBelow`** (the collapse-aware arm §12 uses) · `density` · selection skin (2px ember bar + 10% tint). The `portraits` generalization is a prop change on the FEATURE composite `ChatSummaryRow`, not a primitive change | | |
+| markers (⚔ · ★ · Archived) | EXISTS | labeled `Icon` (`Swords`/`Star`) + `Badge intent="neutral" size="sm" tone="soft"` — landed F7 anatomy (`chat-summary-row.tsx:53-61`); the star's ROLE changes in §12 (marker → toggle), primitives unchanged | | |
+| the row state-toggle (star as a pressable) | **NEW tier-2 composite: `RowToggleAction`** (small) | 2 features render the same anatomy (character-card's inline star, `character-card.tsx:140-147`; the chats row gains it in §12) — R2 places a 2-feature composite at tier 2. Home `components/row-toggle-action.tsx`. API: \`{ pressed: boolean; onToggle: () => void; labelOn: string; labelOff: string; icon: LucideIcon; pressedClassName?: string; rest: "always" | "when-on" }`— a`Button intent="ghost" size="icon"`carrying`aria-pressed`, the pressed tone (e.g. `text-warning`fill), and the`rest` posture (`when-on`= visible at rest only while pressed; unpressed rides`ROW\_REVEAL`). CT: `aria-pressed\` flips; coarse-pointer always-visible; the control box meets the per-pointer floor | |
+| the faces strip + captioned face chip (Arm B) | **NEW tier-2 composite: `FaceStrip`** | Generalizes the landed `CharacterFavoritesStrip` (avatar-in-Button, no captions) — 2 features, same anatomy, changing together. Home `components/face-strip.tsx`; the favorites strip becomes its first consumer (retiring the private copy — no old-beside-new). API: \`{ items: readonly { id: string; name: string; avatarHash: string | null }\[]; selectedId: string | null; onSelect: (id: string) => void; caption?: boolean }`. Face = `Button intent="ghost" size="media"`(content-sized — the F2-safe size for a display-token child) wrapping`Avatar size="md" ring={selected ? "accent" : "none"}`+ optional`Text size="micro"`caption (truncate ~6ch);`aria-current`on the selected face;`role="list"`strip, horizontal scroll. The active ring is the EXISTING`Avatar ring="accent"`variant — no new ring styling. CT: selected face carries ring +`aria-current\`; caption truncates; per-pointer floor on the face button |
+| the filter chip row (`Filtered: Azarael ✕`) | EXISTS | landed feature composition (`chat-list-surface.tsx:83-97`): `Badge intent="info" tone="soft"` + ghost icon clear — stays chat-local (one consumer) | | |
+| the projection empty state | EXISTS | `EmptyState` (icon · title · description · `action` slot) — the landed copy + primary New chat at `chat-list-surface.tsx:132-146` moves into the pane body | | |
+| search input | EXISTS | `Input` + aria-label (landed) | | |
+| pane scroll shell | EXISTS | `Stack` + the landed `h-full min-h-0 overflow-y-auto overscroll-contain` className idiom (legal on primitives; values are token-free layout) | | |
 
 ### 11.2 The mint list (summary)
 
@@ -561,14 +561,14 @@ Per-list assignment (frequency-ranked from the menus above):
 
 - Inline icon buttons ride `size="icon"` = `size-control-md` — **34px fine / 48px coarse by token
   construction** (D62 P1); no hand math, no floor risk.
-- Row heights absorb them: `ListRow` default density = `min-h-control-md` + `py-field` (~46-52px
-  fine, ~60px coarse) — a 34px control fits the fine row, a 48px control fits the coarse row.
+- Row heights absorb them: `ListRow` default density = `min-h-control-md` + `py-field` (\~46-52px
+  fine, \~60px coarse) — a 34px control fits the fine row, a 48px control fits the coarse row.
 - Width at the 320px pane floor: leading (24-56px stack) + the `content` `min-w-24` title floor +
-  toggle 34 + kebab 34 + gaps ≈ 210px of fixed budget — fits with ~80px slack; a THIRD inline
-  (toggle + verb + kebab) still fits (~46px slack) but is the cap. **Hard cap: two icon affordances
-  + kebab.** Where a pane runs narrower (overlay/sheet edge cases), `ListRow.renderActions(collapsed)`
-  + `collapseBelow` is the built-in fallback: collapsed ⇒ render kebab-only (every action still
-  reachable). That arm exists in the primitive today — no new mechanism.
+  toggle 34 + kebab 34 + gaps ≈ 210px of fixed budget — fits with \~80px slack; a THIRD inline
+  (toggle + verb + kebab) still fits (\~46px slack) but is the cap. \*\*Hard cap: two icon affordances
+  - kebab.\*\* Where a pane runs narrower (overlay/sheet edge cases), `ListRow.renderActions(collapsed)`
+  - `collapseBelow` is the built-in fallback: collapsed ⇒ render kebab-only (every action still
+    reachable). That arm exists in the primitive today — no new mechanism.
 - Coarse rest-noise honesty: at coarse, `ROW_REVEAL` shows the cluster always (hover doesn't exist);
   with the cap that is at most toggle + verb + kebab = 3 quiet ghost glyphs per row — the A3
   flex-starvation hazard is absent (the cluster keeps its box; opacity changes no layout).
@@ -624,7 +624,7 @@ is a VARIANT, never a `className`).
 
 | file | change |
 | - | - |
-| `packages/ui/src/primitives/list-row/{list-row.tsx,variants.ts}` | NEW `actionsFloat` prop + `float` variant — a rest-HIDDEN trailing cluster leaves the flow (fine pointers) instead of reserving ~76px of the title column; coarse keeps it in flow, where it is permanently visible. Consumed by `ChatSummaryRow` (only when no marker is rest-visible) and `LibraryRow` |
+| `packages/ui/src/primitives/list-row/{list-row.tsx,variants.ts}` | NEW `actionsFloat` prop + `float` variant — a rest-HIDDEN trailing cluster leaves the flow (fine pointers) instead of reserving \~76px of the title column; coarse keeps it in flow, where it is permanently visible. Consumed by `ChatSummaryRow` (only when no marker is rest-visible) and `LibraryRow` |
 | `packages/ui/src/primitives/empty-state/variants.ts` | the teaching stack re-voices itself one type step down inside a narrow (`@max-sm`) container — a CONTAINER QUERY on its own root, never a `compact` prop (`no-layout-context-props` is the wall) |
 | `packages/kit/src/time/index.ts` | NEW `TimeLib.formatRelativeCompact` (`2h`/`1d`/`3w`) — the LIST-ROW stamp form beside `formatRelative`; the client singleton (`client/src/lib/time.ts`) freezes it under `--probe` like its long twin. Sentences (presets' "edited 5m ago") keep the long form |
 | `packages/client/src/components/row-reveal.ts` | `ROW_REVEAL` adds `pointer-events-none` at rest (cleared by every reveal arm) — an invisible control must not be hit-testable, which is also what lets the floated cluster sit over the text column safely |

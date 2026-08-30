@@ -2622,7 +2622,7 @@ test("#102 variant A: the game kicker binds DOWNWARD — 4px above its own cells
   expect(kickerBox.y).toBeCloseTo(railTop, 0);
   expect(railTop).toBeGreaterThan(bandBox.y + bandBox.height - 1);
 
-  // CD1/CD2 (density-pass-spec §3.2): a read-only grouping's name is a caps label + a hairline rule and
+  // CD1/CD2 (UI-Density-Law §3.2): a read-only grouping's name is a caps label + a hairline rule and
   // NOTHING ELSE — no fill, no radius, no top rule on the STATE rail (the band's own seam is that line);
   // the one hairline it carries is the rule under the word, the seam with its cells.
   await expect

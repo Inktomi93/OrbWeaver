@@ -42,7 +42,7 @@ function violationFor(root: string, rel: string, name: string): Violation | unde
   const segs = rel.split("/");
   const pkg = segs[0];
   // Non-mirror trees: support/ (fixtures), e2e/ (full-stack Playwright). tooling/ is CONDITIONAL since
-  // the @orb/tooling tree exists (docs/design/tooling-package.md §4.7): tests/tooling/<dir>/ MIRRORS
+  // the @orb/tooling tree exists (docs/architecture/core/Core-Tooling-Law.md §4.7): tests/tooling/<dir>/ MIRRORS
   // tooling/src/<dir>/ when that src dir exists; flat files + dirs with no src twin stay exempt (they
   // test root configs, the guard, and research-zone scripts).
   if (pkg === "support" || pkg === "e2e") {
@@ -119,7 +119,7 @@ function toolingViolationFor(root: string, rel: string, segs: readonly string[],
   return {
     file: `tests/${rel}`,
     line: 0,
-    message: `mirror miss — no source for tooling/src/${sub}/${base}.ts (a tooling test prefix-swaps to its tool's module — docs/design/tooling-package.md §4.7)`,
+    message: `mirror miss — no source for tooling/src/${sub}/${base}.ts (a tooling test prefix-swaps to its tool's module — docs/architecture/core/Core-Tooling-Law.md §4.7)`,
   };
 }
 

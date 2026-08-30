@@ -614,7 +614,7 @@ security lens.
   OWNER\_HANDLES+CREDENTIALS\_KEY in its env — a snap-stage propagation gap (tooling row); (b) the Prompt
   view's section drill has the SAME fork-eject class (local drill state) — the store-axis fix applies,
   out-of-scope follow-up.
-- **✅ FORGE #3 (persona/character design) DELIVERED** `docs/design/persona-character-kind-substrate.md`.
+- **✅ FORGE #3 (persona/character design) DELIVERED** `docs/history/design/persona-character-kind-substrate.md`.
   Phase D = kind-poly CAST (`CAST_KINDS`+`CAST_KIND_POLICY`, mirrors the message-identity collapse but
   needs NO stored column — cast kind is the stamp id-space); Phase C = `@orb/contracts/card-face`
   4-field substrate (wire limits measured identical; reference-equality one-home test). Sacred contract
@@ -2402,7 +2402,7 @@ neither deliverable has landed on the tree yet.
 
 ### Persona / prose cluster
 
-- **C1 · persona = character** — OWNER-SACRED. Design: `docs/design/persona-character-kind-substrate.md`
+- **C1 · persona = character** — OWNER-SACRED. Design: `docs/history/design/persona-character-kind-substrate.md`
   (5 forks in §10). **Rec: Phase D now** (kind-polymorphic cast producer — `CAST_KINDS`+`CAST_KIND_POLICY`,
   no table, no pin-layer moves), **then Phase C** (4-field card-face substrate `@orb/contracts/card-face`,
   shape-only). Reading B (persona-as-character-with-a-flag) is OFF THE TABLE (collides with D122/D131).

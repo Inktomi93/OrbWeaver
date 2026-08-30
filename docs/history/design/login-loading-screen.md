@@ -12,7 +12,7 @@ landed, and the test plan. §§0–8 are the design as approved; where §9 devia
 the brand pack (scope-add, owner 2026-08-09) is `reports/mocks/brand-orbweaver.html` +
 `reports/mocks/brand/orb-mark-{a,b,c}.svg` / `orb-favicon-{a,b,c}.svg` (all self-contained, open
 directly; `/reports/` is gitignored ephemera — on a GO taste ruling, freeze the winners into
-`docs/design/mocks/login-loading/` per the mocks README convention). This doc is the durable design:
+`docs/history/design/mocks/login-loading/` per the mocks README convention). This doc is the durable design:
 the web-weave technique, the SillyTavern-loader analysis, the mode matrix mapped to the shipped
 surface, the primitive plan, the token wiring, the brand rationale (§8), and the build lane's
 coupled-site inventory.
@@ -22,6 +22,7 @@ ST's spinning loader is "iconic, we need that too"; OIDC must be first-class; **
 a page per mode**; theme-token-driven throughout.
 
 Rulings already applied (orchestrator relay, 2026-08-09):
+
 - **No username advertisement / account picker** — the local/multiuser arm is a plain
   username + password form. (`discreetLogin` remains a *prefill* behavior — `defaultHandle` withheld —
   not a distinct visual variant.)
@@ -57,21 +58,21 @@ Rulings already applied (orchestrator relay, 2026-08-09):
 Real orb-weaver construction order, kept faithfully — each phase is a distinct visual beat with its own
 caption (micro text, muted):
 
-| Phase | What happens on screen | ~time |
+| Phase | What happens on screen | \~time |
 | - | - | - |
 | **Bridge** | a single strand drifts across the upper span, wavy (floating on wind), then snaps taut when it catches; the spider crosses to its midpoint | 0–0.9s |
 | **Y / frame** | the spider drops a vertical from the bridge midpoint — the Y-junction becomes the HUB; frame strands close the perimeter polygon | 0.9–1.9s |
-| **Radii** | ~16 spokes laid ONE AT A TIME, hub → frame, the spider at the leading tip extruding each; laying order alternates sides of the hub (real spiders balance tension) | 1.9–4.3s |
+| **Radii** | \~16 spokes laid ONE AT A TIME, hub → frame, the spider at the leading tip extruding each; laying order alternates sides of the hub (real spiders balance tension) | 1.9–4.3s |
 | **Auxiliary spiral** | a wide-pitch scaffold spiral, hub outward, thin and faint | 4.3–5.3s |
 | **Capture spiral** | the tight spiral laid from the RIM INWARD; the scaffold fades ahead of it (the spider consumes it — real behavior); stops short of the hub (the free zone) | 5.3–7.4s |
 | **Settle** | the spider returns to the hub and rests head-down (orbweaver posture); dew condenses on the capture spiral and twinkles; a slow accent-light glint sweeps the web; the whole web sways almost imperceptibly | 7.4s → hold |
 
 The loader is **indeterminate**: it holds in the settled/breathing state, never rebuilds in a loop
 (a rebuild loop reads frantic). The build is time-scalable — if boot finishes mid-weave the timeline
-accelerates to settle (minimum satisfying beat ~1.2s), then exits.
+accelerates to settle (minimum satisfying beat \~1.2s), then exits.
 
 **Exit beat (the ST-iconic moment, §2):** one fast glint flash around the spiral, then the whole veil
-dissolves ST-style — `filter: blur(15px)` + opacity → 0 over ~500ms — revealing the app (or the login
+dissolves ST-style — `filter: blur(15px)` + opacity → 0 over \~500ms — revealing the app (or the login
 card, which mounts under the same settled web).
 
 ### 1.2 Technique: Canvas 2D. Alternatives weighed
@@ -84,13 +85,14 @@ birth times, single rAF loop.
   sag-tension interpolation mutates geometry per frame, and dew/glint are per-point painters. SVG DOM
   churn at that density janks; canvas draws it flat-out.
 - *Rejected — CSS-only:* cannot express "a strand ends at the spider that is laying it."
-- *Rejected — WebGL:* power unneeded (≤ ~4k segments), costs shader opacity/token-color plumbing and
+- *Rejected — WebGL:* power unneeded (≤ \~4k segments), costs shader opacity/token-color plumbing and
   readability; Canvas 2D keeps the geometry module pure and testable like `waystone-geometry.ts`.
 - *Rejected — pre-rendered video/Lottie:* not token-recolorable, not seed-varied, dead on resize.
 
 Rendering details (the go-hard list):
+
 - **Strands sag.** Every strand is a quadratic curve with a gravity-perpendicular control offset ∝
-  length; a freshly laid strand sags loose and TENSIONS to its final catenary over ~300ms (two point
+  length; a freshly laid strand sags loose and TENSIONS to its final catenary over \~300ms (two point
   sets, lerp). Under sway, sag breathes.
 - **The spider lays the silk.** The strand's drawn extent ENDS at the spider — no dash trickery. The
   spider is procedural: abdomen + cephalothorax + 8 two-segment legs, phase-offset stepping gait while
@@ -99,14 +101,14 @@ Rendering details (the go-hard list):
 - **Light.** Strand alpha falls off with distance from the hub (bucketed, cheap); the capture spiral
   carries a faint accent glow (`shadowBlur` at low alpha); after settle a **glint sweep** — a slow
   rotating angular window where segments overdraw brighter accent — makes the web "catch the light"
-  once per ~8s.
+  once per \~8s.
 - **Dew.** On settle, droplets condense at deterministic points on the capture spiral and twinkle on
   individual phases (the waystone star-twinkle idiom).
 - **Determinism.** All jitter (radius angles, dew points, leg phase) comes from the waystone-style
   sin-hash (`jitter(a, b)` — `waystone-geometry.ts:259`), seeded — no `Math.random` in a component,
   identical web per seed, CT-assertable geometry.
 - **Performance.** Segments batched into a few `beginPath` buckets per style; settled web can be
-  blitted from an offscreen cache with only sway/dew/glint painted live; ≤ ~4k segments total.
+  blitted from an offscreen cache with only sway/dew/glint painted live; ≤ \~4k segments total.
 
 ### 1.3 Token → palette wiring
 
@@ -142,6 +144,7 @@ replaced by a white page; (3) a satisfying exit — the whole veil blurs and dis
 popping; (4) the same beat everywhere (boot and long actions), so it becomes a brand reflex.
 
 We take all four **qualities** and none of the parts (no gear, no font-awesome, no popup machinery):
+
 - Our emblem is the weaving web — already the brand mark (`favicon.svg` is an orb web in
   `--color-primary`); the loader is the favicon come alive.
 - Our veil is `--color-background` at boot (nothing behind it yet) and a `--color-scrim` +
@@ -154,7 +157,7 @@ We take all four **qualities** and none of the parts (no gear, no font-awesome, 
 ## 3. The unified login — one surface, the web behind it
 
 The settled web IS the login backdrop: boot weaves the web → the veil never fully leaves on an
-unauthenticated boot — it dims (silk × ~0.55) and the login card fades in near the hub. The card
+unauthenticated boot — it dims (silk × \~0.55) and the login card fades in near the hub. The card
 (the shipped `LoginShellAnchor` box: centered `max-w-sm` elevated Card) floats slightly below the hub,
 so the free zone + resting spider peek above the card. Wordmark (mini sigil + "orbweaver") sits above;
 in-card content is EXACTLY the shipped/lane `LoginBody` arms — this design adds no auth logic.
@@ -184,6 +187,7 @@ All three live in the sealed `@orb/ui` package (`kit ← ui ← client`), art-ti
 precedent: pure geometry module + thin component, tokens-only color, deterministic seed.
 
 ### 4.1 `WebWeave` — `packages/ui/src/art/web-weave/`
+
 - **Contract:** `<WebWeave state="weaving" | "settled" | "partial" | "strand-out" seed={n} hub={{x,y}}
   dim={0..1} onSettled={fn} />` + `web-weave-geometry.ts` (pure: anchors/frame/radii/spirals as
   polylines + birth times — the vitest-unit-testable half, mirroring `waystone-geometry.ts`).
@@ -196,6 +200,7 @@ precedent: pure geometry module + thin component, tokens-only color, determinist
   Planted positive control: a broken-palette fixture must fail the pixel probe.
 
 ### 4.2 `WebSpinner` — `packages/ui/src/primitives/spinner/` (there is no spinner primitive today)
+
 - **Contract:** `<WebSpinner size="sm" | "md" | "lg" label={string} />` — inline SVG orb-web glyph
   (the favicon geometry), spiral silk-pulse via `stroke-dasharray` keyframe + slow rotation
   (`--motion-ambient`-scale), `currentColor`/token strokes, `role="status"` + visually-hidden label.
@@ -206,12 +211,13 @@ precedent: pure geometry module + thin component, tokens-only color, determinist
   none` — assert computed, not class); a11y name present.
 
 ### 4.3 `WeaveVeil` — `packages/ui/src/art/web-weave/weave-veil.tsx`
+
 - **Contract:** `<WeaveVeil open onExited={fn}>` — the fullscreen veil owning the ST-style exit
   (transition on `filter` + `opacity`, `data-ending-style`-idiom, removed on transitionend), hosting
   `WebWeave`, z-token `--z-modal`+.
 - **Consumers:** app boot (pre-`data-app-ready`), the login route's backdrop.
 - **CT obligation:** exit transition fires and unmounts (transitionend, not timeout); reduced-motion
-  = instant unmount; veil color rides tokens.
+  \= instant unmount; veil color rides tokens.
 - **Boot note:** a pre-React beat (`packages/client/index.html`) may inline a tiny static web sigil +
   CSS pulse so the very first paint isn't blank; React's `WeaveVeil` takes over seamlessly (same
   geometry, same tokens via inline critical CSS). Design-note only — the CLS investigation doc owns
@@ -227,13 +233,13 @@ timing is DATA in the geometry module, like the waystone's lattice — not new d
 the existing `max-w-sm` anchor. The mock inlines the generated `theme.css` values verbatim (provenance
 comments in the file) — the real build imports the tokens, never copies.
 
-## 6. Build-lane coupled sites (enumerate before building — expect ~6+)
+## 6. Build-lane coupled sites (enumerate before building — expect \~6+)
 
 1. `packages/ui/src/art/web-weave/` (new dir: geometry + component + veil) + `packages/ui/package.json`
    export map entries + the ui barrel conventions.
 2. `packages/ui/src/primitives/spinner/` + export map.
 3. `packages/ui/src/styles/globals.css` — spinner keyframes (`orb-spin-*` names per house convention)
-   + reduced-motion floors already cover them (verify, don't assume).
+   - reduced-motion floors already cover them (verify, don't assume).
 4. `features/auth/anchors/login-shell-anchor.tsx` — backdrop slot (client feature edit, after the
    auth-entry lane's merge; rebase over `wt/agent-a7fe799fe9099f918`'s surface shape).
 5. Boot mount (`packages/client/src/main.tsx` / app root) for the veil + `data-app-ready` handoff.
@@ -252,7 +258,7 @@ comments in the file) — the real build imports the tokens, never copies.
   motion but keeps the resting spider).
 - **Phase captions** ("anchoring silk… spinning radii… laying the spiral…") — shipped in the mock,
   trivially removable.
-- **Build duration** (7.4s full weave, time-scalable down to ~1.2s) — the mock's replay shows full;
+- **Build duration** (7.4s full weave, time-scalable down to \~1.2s) — the mock's replay shows full;
   production accelerates to actual boot time.
 - **First-run half-woven web** — conceptual flourish; drop to "settled" if it reads as broken.
 
@@ -270,6 +276,7 @@ whose settled final frame IS the glyph) → login backdrop (the settled web). Th
 the loading screen — the loading screen is the mark, animated.
 
 Three directions for the owner's taste ruling:
+
 - **A — Open Orb** (evolution, default recommendation): eight spokes + one OPEN spiral + hub + a
   single dew drop. The open spiral end and the dew drop are the deliberate asymmetries that make it a
   WEB instead of a snowflake/asterisk; it is literally the weave's settled frame condensed. Closest to
@@ -360,7 +367,7 @@ gate correctly too.
   skeleton would replay a beat the user already watched (guide §3.8 — motion the user didn't cause).
 - **Veil→login continuity is a crossfade, not one canvas:** the veil (weaving web) dissolves over the
   login anchor's own settled dim web. Sharing one canvas instance across the router boundary was
-  rejected — cross-route imperative state for a ~400ms overlap.
+  rejected — cross-route imperative state for a \~400ms overlap.
 - **First-run "capture spiral completes on setup" is dropped:** `onDone` navigates home immediately,
   so the beat is dead-on-arrival; the half-woven (`partial`) web itself ships.
 - The A9 strand-out beat, A7 calm error, forward-header dimmest, and the OIDC hero button ship as
@@ -375,12 +382,12 @@ gate correctly too.
   `icon-192.png` · `icon-512.png` (display mark, transparent) · `icon-512-maskable.png` (safe-zone
   padded, opaque bg) — generated from the SVGs via sharp (librsvg), script under `scripts/` not kept
   (one-shot; the PNGs are committed artifacts).
-- `packages/client/public/manifest.webmanifest` (NEW — no manifest existed): name/short_name
+- `packages/client/public/manifest.webmanifest` (NEW — no manifest existed): name/short\_name
   `orbweaver`, `display: standalone`, theme/background colors = Hearth ember/background hex, the
   192/512/maskable icons.
 - `packages/client/index.html`: keeps the svg icon link; adds png 16/32 fallbacks, apple-touch-icon,
   manifest link, and `theme-color` metas (light+dark).
-- Frozen sources: `docs/design/mocks/login-loading/` (the animated mock + `orb-mark-a.svg` +
+- Frozen sources: `docs/history/design/mocks/login-loading/` (the animated mock + `orb-mark-a.svg` +
   `orb-favicon-a.svg`) — `reports/` is gitignored ephemera.
 
 ### 9.7 Coupled sites as landed
@@ -389,10 +396,10 @@ gate correctly too.
    math · render · spider · component · veil · variants · index — the geometry/render halves split
    twice more under the ACTIVE `component-size-ui` 450-line cap, which scans every ui source file,
    not just `.tsx`). 2. `packages/ui/src/primitives/icons/{orb-web.ts,index.ts}`
-   + `primitives/spinner/{web-spinner.tsx,index.ts}`. 3. `packages/ui/src/styles/globals.css` — the
-   weave-glow class (hub-positioned token gradient) + the `orb-web-spin`/`orb-web-pulse` spinner CSS
-   (`--motion-ambient` rotation, `--motion-shimmer` dash pulse, `linear` loops, `data-animate`-gated).
-4. client `lib/weave-glyph.tsx` (mark-A re-skin). 5. `features/auth/{anchors/login-shell-anchor,
+   - `primitives/spinner/{web-spinner.tsx,index.ts}`. 3. `packages/ui/src/styles/globals.css` — the
+     weave-glow class (hub-positioned token gradient) + the `orb-web-spin`/`orb-web-pulse` spinner CSS
+     (`--motion-ambient` rotation, `--motion-shimmer` dash pulse, `linear` loops, `data-animate`-gated).
+2. client `lib/weave-glyph.tsx` (mark-A re-skin). 5. `features/auth/{anchors/login-shell-anchor,
    components/login-weave-backdrop,surfaces/login-surface}` + `features/app-shell/{components/boot-veil,
    index}` + `main.tsx`. 6. index.html + public assets (favicon.svg · brand/orb-mark.svg · icons/ ·
    manifest.webmanifest). 7. The test tree (9.8). Token build untouched (zero new tokens — §5 holds).
@@ -418,7 +425,7 @@ gate correctly too.
   overflow, weave canvas painted, wordmark present).
 - `tests/client/features/app-shell/components/boot-veil.ct.tsx` — **the load-gated exit**: veil
   visible while `data-app-ready` is absent; stamping the attribute (settled OR `degraded`) dissolves
-  + unmounts it mid-weave; already-present at mount ⇒ renders nothing; reduced-motion ⇒ instant.
+  - unmounts it mid-weave; already-present at mount ⇒ renders nothing; reduced-motion ⇒ instant.
 - Existing suites re-run (shared-surface sweep): `tests/client/lib/weave-glyph.ct.tsx`,
   `tests/client/routes/route-pending.ct.tsx`, `tests/ui/primitives/empty-state/empty-state.ct.tsx`,
   `tests/client/features/auth/surfaces/login-surface.ct.tsx`, `tests/ui/primitives/spinner/spinner.ct.tsx`.

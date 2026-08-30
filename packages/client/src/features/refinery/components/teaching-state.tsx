@@ -20,7 +20,7 @@
 // in flight, and the pane says it in words rather than by greying its one affordance.
 //
 // ── NO 01/02/03 MARKERS — THE MOCK LOSES THIS ONE (owner ruling, board 2026-08-09) ───────────────────
-// The empty-states mock draws each step behind a big `01`/`02`/`03` numeral (docs/design/mocks/refinery/
+// The empty-states mock draws each step behind a big `01`/`02`/`03` numeral (docs/history/design/mocks/refinery/
 // empty-states.html:165), and this component shipped it verbatim as a `<Text voice="datum">`. The R3
 // graduation side-eye filed it as a house-taste question (docs/reviews/side-eye/2026-08-09-refinery-
 // graduation.md P3: "01/02/03 markers (mock-sanctioned — house-taste question)"), and the owner ruled,

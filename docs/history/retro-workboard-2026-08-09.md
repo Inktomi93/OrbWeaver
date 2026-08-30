@@ -719,7 +719,7 @@ Ranked by consequence within each category. Every item carries its receipt state
 **Persona / prose cluster**
 
 - **C1 · persona = character** — OWNER-SACRED. Design:
-  `docs/design/persona-character-kind-substrate.md` (5 forks §10). **Rec: Phase D now**
+  `docs/history/design/persona-character-kind-substrate.md` (5 forks §10). **Rec: Phase D now**
   (kind-polymorphic cast — `CAST_KINDS`+`CAST_KIND_POLICY`, no stored column), **then Phase C**
   (`@orb/contracts/card-face` 4-field substrate). Reading B is OFF THE TABLE (D122/D131 collision).
   Build lane mints **D137**; behavioral gate: `persona-resolution.suite.int.test.ts` byte-untouched.

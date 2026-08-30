@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-22
+updated: 2026-08-30
 ---
 
 # Documentation & Comments Law
@@ -132,13 +132,16 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 
 ### Relocation & retirement (run this BEFORE moving, renaming, or deleting any doc)
 
-Since the 2026-07-13 comment diet, CODE does not cite docs (the one exception: `FLAG[PD-n]`, which cites the debt REGISTRY, not a path) — so doc moves are a docs-tree concern plus two hard anchors:
+**CODE CITES DOCS, and a move OWES the citer sweep.** (Amended 2026-08-30, #873 — the previous text claimed the 2026-07-13 comment diet had ended code→doc citation. Measured at HEAD it had not: 44 distinct `docs/design` paths and 22 `docs/reviews` paths were cited from \~250 comment sites in `packages/`, `tooling/`, `tests/`, `scripts/` and root configs, and a prior archival pass had left eight comments pointing at paths that no longer existed.) The pointers are legitimate — a gate's `docRow`, a primitive's cite of the law that assigns its token, a config comment naming the law it implements — so the rule is not "stop citing", it is **a doc with live citers is not moved without repointing them in the same change**:
 
-1. **The two hard anchors, checked first:** (a) the `pd-citation-integrity` gate reads `Core-Audits-and-Debt.md` + `history/Core-Debt-Cleared-Ledger.md` by PATH — those two files never move without updating the gate in the same commit; (b) sweep the tool fleet + research zone for any other tool that reads a doc path (`/usr/bin/grep -rn 'docs/architecture' tooling/src scripts/`).
-2. **Doc-side sweep:** repoint every citation in the docs tree + `AGENTS.md`/`CLAUDE.md`, re-fix the moved file's OWN relative links (depth changed), update `proposed/README.md` if tracked there, `pnpm check:docs`, then re-run the sweep and prove zero references to the old path. One commit.
-3. **§-numbers of law docs stay stable** (`ui-package-design.md` is the canonical example) — other docs and future doc text cite them; renumbering is drift by another name.
-4. **Retirement paths:** SUBSUMED → `git rm` + repoint to the subsuming doc (never a tombstone) · CLOSED record / landed program → `git mv` to `history/` · BUILT → delete per the built-code rule, promoting cross-cutting WHY to `core/` first · NOT-YET → park in `proposed/` with an INDEX.md disposition row (the 2026-07-13 amendment; the out-of-repo eviction pattern is retired).
-5. **Never** invent a new directory tier, reintroduce doc citations into code comments, or move a file another live session has dirty.
+1. **The hard anchors, checked first:** (a) the `pd-citation-integrity` gate reads `Core-Audits-and-Debt.md` + `history/Core-Debt-Cleared-Ledger.md` by PATH — those two files never move without updating the gate in the same commit; (b) sweep the tool fleet + research zone for any other tool that reads a doc path (`/usr/bin/grep -rn 'docs/architecture' tooling/src scripts/`).
+2. **The CITER sweep, both trees.** `rg -n 'docs/(architecture|design|reviews|history)/' packages tooling tests scripts .claude *.js *.ts *.yaml` for the code side, plus the docs tree + `AGENTS.md`/`CLAUDE.md`. Repoint each site, or — where the no-bare-pointers rule (D141) applies — replace the pointer with the fact the comment actually needed and drop the path. Then re-run the sweep and prove ZERO references to the old path. The `dangling-doc-cite` gate is the backstop, not the method.
+3. **Re-express the moved file's OWN relative links** (its depth changed) — a separate pass from the citer sweep, and the one routinely forgotten.
+4. **Prefer a PATH-STABLE rewrite over a renumbering.** §-numbers of law docs stay stable (`ui-package-design.md` is the canonical example): other docs, code comments and gate messages cite them, so a move that preserves § numbers costs a path swap while a renumbering costs a per-site edit at every citer.
+5. **Frozen evidence is NOT repointed:** dated reviews, `history/reviews/**`, and a catalog receipt's `evidence`/`summary` free text are claims about a commit, so they keep the path that was true then. `history/design/**` and live indexes ARE repointed — a reader following them expects to arrive.
+6. **Retirement paths:** SUBSUMED → `git rm` + repoint to the subsuming doc (never a tombstone) · CLOSED record / landed program → `git mv` to `history/` · BUILT → delete per the built-code rule, promoting cross-cutting WHY to `core/` first · NOT-YET → park in `proposed/` with an INDEX.md disposition row. **A doc a live gate's `docRow` names, or whose ratchet has not reached its terminal state, is LIVE LAW and moves to `core/`, not to `history/`** — live enforcement citing resolved archeology is drift by the taxonomy's own definition.
+7. **A mock/render set follows its spec** — when the spec retires, the drawing retires with it.
+8. **Never** invent a new directory tier or move a file another live session has dirty.
 
 - **Structure.** One topic per file, under \~40 KB (sanctioned exception: `Core-Path-Registry.md` — the whole decision registry is ONE topic and ONE read; splitting it re-creates the range-lookup tax). Compact tables only — alignment-padding is pure token waste (mechanics + measured damage in the formatter law). No prose reflow.
 - **Frontmatter (required on authored docs, deliberately minimal):**
@@ -193,6 +196,7 @@ Since the 2026-07-13 comment diet, CODE does not cite docs (the one exception: `
 - `pnpm format:docs` / `check:docs` — compact tables + frontmatter (mechanics in `Core-Docs-Formatting-Law.md`).
 - `pnpm check:doc-catalog` — exact document↔lane↔receipt coverage, hash freshness, receipt schema, generated catalog, and monotonic migration floors.
 - `pd-citation-integrity` — every in-code `FLAG[PD-n]` ↔ a registry row.
+- `dangling-doc-cite` — a source COMMENT naming a `docs/**.md` that does not exist is RED. The backstop that makes §Relocation step 2 unskippable: the next archival pass structurally cannot leave a lie. Its twin `dangling-refs` owns the DOCS side (gate descriptors + markdown links + backtick path/symbol cites in `core/`).
 - Structural gates + a standing review rule: an inconsistent comment or doc is a **defect**, not a nit. The decision procedure in §Code comments is the review checklist.
 - **Doc-comment gates (wired 2026-07-03 on `server`/`kit`/`db`/`contracts` — the typed exported-API surface, both hard `error` gates):** `@typescript-eslint/no-deprecated` (type-aware) rejects any use of a `@deprecated` symbol. `tsdoc/syntax` (`eslint-plugin-tsdoc`, the official parser) rejects malformed doc comments + non-standard tags — a `{…}` prose token wants backticks, a bare `@orb/…` name wants `{@link}`. ESLint also runs on `ui`/`client`/`tests/ui` (the react-surface gates).
 

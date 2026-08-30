@@ -15,7 +15,7 @@ import { WEB_GLYPH_DISPLAY } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
 
 // Mark-A stroke tuning (the 32-space display cut — reports/mocks/brand/orb-mark-a.svg, frozen at
-// docs/design/mocks/login-loading/orb-mark-a.svg).
+// docs/history/design/mocks/login-loading/orb-mark-a.svg).
 const SPOKE_W = 1.3;
 const SPOKE_OPACITY = 0.9;
 const SPIRAL_W = 1.5;

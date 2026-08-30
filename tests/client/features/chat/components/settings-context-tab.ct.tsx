@@ -591,7 +591,7 @@ test("count chips: no chip when nothing is set (a '0' chip would be noise)", asy
 // ── SIDE-EYE 08-01 F8: THE PANE'S OWN VOICE, AND THE D-1 HOST-OPS GROUP ───────────────────────────────
 
 test("F8: the section names speak the INSTRUMENT tier's kicker voice, not the form tier's h3 title", async ({ mount, page }) => {
-  // The tab lives in the CONTEXT panel viewport, which density-pass-spec §3.1 names as INSTRUMENT tier —
+  // The tab lives in the CONTEXT panel viewport, which UI-Density-Law §3.1 names as INSTRUMENT tier —
   // beside rpg sections that all name themselves in micro-caps over a hairline. These shipped at the FORM
   // heading (16px/500), so one pane spoke two dialects. COMPUTED, not by class string: `voice` re-spells
   // every axis, so the only honest check is what the browser resolved.

@@ -1,6 +1,6 @@
 // The Codex mirror's real-tree conformance: the .codex tree is Claude-owned symlinks + generated
 // manifests, and `codexAgentSyncProblems()` is the same oracle `pnpm check:agents` runs. Relocated from
-// tests/tooling/codex-agent-config.int.test.ts at the #393 P5 move (tooling-package.md §4.7 mirror).
+// tests/tooling/codex-agent-config.int.test.ts at the #393 P5 move (Core-Tooling-Law.md §4.7 mirror).
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { join, relative } from "node:path";
 import { codexAgentSyncProblems, ROLE_MODELS } from "../../../../tooling/src/agent-sync/index.ts";

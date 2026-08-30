@@ -1,6 +1,6 @@
 // The three flag-class Sets ops/parse.ts's scanner validates argv against (required-value, optional
 // inline selector, page-targetable). Split out of ops/flags.ts alongside the handler table when that
-// file crossed the tooling line cap (docs/design/tooling-package.md §4.3) — these Sets are read-only
+// file crossed the tooling line cap (docs/architecture/core/Core-Tooling-Law.md §4.3) — these Sets are read-only
 // classification data, distinct from the dispatch table they describe.
 import { APPEARANCE_VALUE_FLAGS } from "../../_shared/appearance.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";

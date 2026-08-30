@@ -8,7 +8,7 @@ import { tv } from "#lib";
 // var(--color-<intent>) N%, transparent)` — north-star §2c), and `ghost` (NO fill at all — a hairline
 // outline + the intent's text color). Migrated status chips (Host / filter / member role) use `soft`;
 // `ghost` is for chips that must read quieter than the surface's primary CTA at rest even when there
-// are a dozen of them (density-pass-spec §3.2 CD3 — weight solves loudness, not count).
+// are a dozen of them (UI-Density-Law §3.2 CD3 — weight solves loudness, not count).
 // The tone's own `bg-*` wins over the intent's via tailwind-merge (tone is declared after intent).
 export const badgeVariants = tv({
   base: "inline-flex select-none items-center gap-field whitespace-nowrap rounded-full font-medium",

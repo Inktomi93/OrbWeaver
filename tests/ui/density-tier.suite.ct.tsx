@@ -1,4 +1,4 @@
-// CT: the density tier MECHANISM, asserted by COMPUTED VALUE (density-pass-spec.md §4.2 build step 0 +
+// CT: the density tier MECHANISM, asserted by COMPUTED VALUE (UI-Density-Law.md §4.2 build step 0 +
 // §5.3). This is the second lens the `density-tier` gate structurally cannot be: that gate reads literal
 // class shapes, so a computed className, a `cn(cond && X)`, or a stylesheet regression is INVISIBLE to it
 // and reports a silent GREEN. Everything here reads back what the browser actually resolved.
@@ -300,7 +300,7 @@ test('VOICE: `ink="inherit"` hands the color back to a filled control — the P1
 });
 
 test("VOICE: `monogram` is the decorative display glyph — title step, semibold, and it leaves COLOR to the skin", async ({ mount }) => {
-  // The fifth voice (density-pass-spec.md §2.3 as amended, S6): a single-letter mark an immersive row skin
+  // The fifth voice (UI-Density-Law.md §2.3 as amended, S6): a single-letter mark an immersive row skin
   // paints on its own band fill. None of the four CONTENT voices fits it — they would all shrink a glyph
   // whose entire job is to be large — and the feature-side alternative was spelling `size`/`weight` through
   // className, a dodge the density gate structurally cannot see. It deliberately sets NO color: the skin
@@ -669,7 +669,7 @@ test("the four LIST pane declarations resolve identically, and a form pane keeps
 const PIXEL_GIF = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 test("S2 CONFORMANCE: every @orb/ui island lands on its ASSIGNED radius step, none on the floating one", async ({ mount }) => {
-  // The rendered receipt for the S2 sweep of the ui internals (density-pass-spec.md §2.1 / D6): these five
+  // The rendered receipt for the S2 sweep of the ui internals (UI-Density-Law.md §2.1 / D6): these five
   // primitives all defaulted to `rounded-card`, the ELEVATED step, while every one of them renders INSIDE
   // something else — media/frames/tool calls inside the message bubble, an avatar in a row. Read by computed
   // value against the resolved tokens: an authored-class assertion would stay green if the utility stopped
@@ -698,7 +698,7 @@ test("S2 CONFORMANCE: every @orb/ui island lands on its ASSIGNED radius step, no
 });
 
 test("CD3: exactly ONE focal element at rest in a surface (accent fill or elevation shadow)", async ({ mount }) => {
-  // The Waystone hierarchy lesson generalized (density-pass-spec.md §3.2 CD3): everything around the one
+  // The Waystone hierarchy lesson generalized (UI-Density-Law.md §3.2 CD3): everything around the one
   // bold thing is deliberately quiet. Counted from COMPUTED style over the whole subtree — an authored-class
   // audit cannot see a second focal element that arrives through a variant or a nested primitive.
   const surface = await mount(

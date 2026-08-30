@@ -63,11 +63,11 @@ every claim below is grounded in full component-tree reads, and the build's own 
 rendered verification.
 
 **Mocks (authored with this spec — the owner rules from pixels):**
-`docs/design/mocks/preset-redesign/params-deck.html` (the Params view + its CONTEXT readout) ·
-`docs/design/mocks/preset-redesign/context-readouts.html` (all six per-view CONTEXT panels, §7) ·
-`docs/design/mocks/preset-redesign/prompt-rack.html` (the rack itself, first-class — §5.1) ·
-`docs/design/mocks/preset-redesign/actions-and-sections.html` (the Actions view + the consolidated
-section editor) · `docs/design/mocks/preset-redesign/list-pane.html` (the LIST projection). House mock
+`docs/history/design/mocks/preset-redesign/params-deck.html` (the Params view + its CONTEXT readout) ·
+`docs/history/design/mocks/preset-redesign/context-readouts.html` (all six per-view CONTEXT panels, §7) ·
+`docs/history/design/mocks/preset-redesign/prompt-rack.html` (the rack itself, first-class — §5.1) ·
+`docs/history/design/mocks/preset-redesign/actions-and-sections.html` (the Actions view + the consolidated
+section editor) · `docs/history/design/mocks/preset-redesign/list-pane.html` (the LIST projection). House mock
 pattern per `docs/design/mocks/README.md` — drawings, not code; the token/primitive law applies to the
 BUILD.
 
@@ -95,17 +95,17 @@ The orbweaver preset editor, as built (every receipt from this session's full re
 | # | defect | receipt |
 | - | - | - |
 | F1 | **Navigation depth.** Two stacked `Tabs` levels — 4 groups × 10 leaves (`preset-editor-surface.tsx:233-253`, `preset-nav.ts:19-55`). Reaching temperature: select preset → Generation → Sampling → flip its override Switch → drag. ST: scroll. | code |
-| F2 | **The datum hides.** An unset knob renders the prose *"Using the model default."* with NO number (`params-panel.tsx:233-235`) — and the prose can be FALSE: the quality dial feeds sampling defaults (`QUALITY_SAMPLING`, `contracts/preset/index.ts:62-66`), so on `quality: deep` the "model default" temperature is actually 1.0 from the funnel. The one thing an instrument exists to show — the value — is absent exactly when you're deciding whether to override it. |
-| F3 | **No typed entry.** `Slider.showValue` is display-only (`ui/primitives/slider/slider.tsx:21`); no numeric twin exists anywhere in the panel. Setting temperature to exactly 0.73 is a drag hunt. |
-| F4 | **Fragmentation.** The Quality leaf is an entire tab holding ONE 3-option radio (`params-panel.tsx:73-97`). The "Templates" leaf holds ONLY inline-reasoning-parse — nothing template-shaped (`preset-structure-tabs.tsx:179-198`). `thinkingDisplay` — a reasoning knob — lives in the PROMPT tab's "Message delivery" collapsible (`preset-structure-tabs.tsx:145-149`), two groups away from the Reasoning tab. |
-| F5 | **One object, three panes.** A section's body edits in the CENTER drill-in (`section-body-editor.tsx`), its placement/triggers/locks in the CONTEXT inspector (`preset-section-inspector.tsx:98-101`), its enable/reorder on the rack row. Editing one section is a three-geography trip. |
-| F6 | **Form-voice monotony + box-in-box.** The guided-actions surface is 8 `rounded-card border bg-card` boxes in a grid (`guided-actions-section.tsx:122`) inside a CLOSED disclosure inside the Prompt tab; rack rows carry `rounded-card border` each (`section-row.tsx:109`) — the exact chrome class density D6/CD2 demotes. Zero kicker/datum voices anywhere in the feature (the library pane's one `voice="kicker"` excepted). |
-| F7 | **Silent stored knobs.** A capability-absent knob renders ABSENT — correct doctrine (`capability-panel-model.ts:100-104`) — but a STORED explicit value on an unhonored knob (import, model swap) is then invisible in the editor AND dropped at the funnel (D68). Honest wire, lying editor: the preset carries a value no surface will ever show you. |
-| F8 | **Schema knobs with NO editor anywhere** (structural sweep, this session): `params.stop` · `params.topA` (schema-supported at `index.ts:192` yet the ST importer drops `top_a` claiming *"no neo sampling vocab"*, `index.ts:1417-1420` — the two halves contradict) · `params.maxBudgetUsd` · `params.providerContextCompression` · `params.compaction.verbatimTail` (minted as "the missing 4th compaction knob", `index.ts:168-172`, then never given an editor) · `formatStrings.responseNudge`. Plus the MISSING SINGLE-PRESET DOOR (corrected from v1's "dead pair" reading — the reuse-seam law's check-both-ends): `domain/preset/verbs/{export,import}.ts` are the LIVE portability-bundle descriptor arms (`"preset"` is a `PORTABLE_KINDS` member, `contracts/portability/index.ts:15,41`; whole-profile bundles round-trip presets today) — what has NO door is sharing/receiving ONE preset file (the client import dialog is ST-only, `preset-import-dialog.tsx`; no single-export affordance exists). |
-| F9 | **No effective truth.** The funnel (quality defaults → explicit knobs → capability clamp → engine floors) resolves server-side, correctly one-homed — and the editor never shows its output. You move a control and nothing tells you what the next turn will actually send. ST's directness is *what-you-set-is-what's-sent*; ours can't be that (the capability doctrine is right), so it must COMPENSATE by rendering the resolved result — today it doesn't, which is the deepest "does not feel good" cause. |
-| F10 | **Activation is pane chrome, not a row affordance.** Making a preset active is a `Select` above the search box (`preset-library-surface.tsx:113-121`); the row's Active badge is passive by design (`preset-library-row.tsx:4`). Two UI locations for one one-of-N state, and the frequent act (activate what I just forked) is a dropdown trip. |
+| F2 | **The datum hides.** An unset knob renders the prose *"Using the model default."* with NO number (`params-panel.tsx:233-235`) — and the prose can be FALSE: the quality dial feeds sampling defaults (`QUALITY_SAMPLING`, `contracts/preset/index.ts:62-66`), so on `quality: deep` the "model default" temperature is actually 1.0 from the funnel. The one thing an instrument exists to show — the value — is absent exactly when you're deciding whether to override it. | |
+| F3 | **No typed entry.** `Slider.showValue` is display-only (`ui/primitives/slider/slider.tsx:21`); no numeric twin exists anywhere in the panel. Setting temperature to exactly 0.73 is a drag hunt. | |
+| F4 | **Fragmentation.** The Quality leaf is an entire tab holding ONE 3-option radio (`params-panel.tsx:73-97`). The "Templates" leaf holds ONLY inline-reasoning-parse — nothing template-shaped (`preset-structure-tabs.tsx:179-198`). `thinkingDisplay` — a reasoning knob — lives in the PROMPT tab's "Message delivery" collapsible (`preset-structure-tabs.tsx:145-149`), two groups away from the Reasoning tab. | |
+| F5 | **One object, three panes.** A section's body edits in the CENTER drill-in (`section-body-editor.tsx`), its placement/triggers/locks in the CONTEXT inspector (`preset-section-inspector.tsx:98-101`), its enable/reorder on the rack row. Editing one section is a three-geography trip. | |
+| F6 | **Form-voice monotony + box-in-box.** The guided-actions surface is 8 `rounded-card border bg-card` boxes in a grid (`guided-actions-section.tsx:122`) inside a CLOSED disclosure inside the Prompt tab; rack rows carry `rounded-card border` each (`section-row.tsx:109`) — the exact chrome class density D6/CD2 demotes. Zero kicker/datum voices anywhere in the feature (the library pane's one `voice="kicker"` excepted). | |
+| F7 | **Silent stored knobs.** A capability-absent knob renders ABSENT — correct doctrine (`capability-panel-model.ts:100-104`) — but a STORED explicit value on an unhonored knob (import, model swap) is then invisible in the editor AND dropped at the funnel (D68). Honest wire, lying editor: the preset carries a value no surface will ever show you. | |
+| F8 | **Schema knobs with NO editor anywhere** (structural sweep, this session): `params.stop` · `params.topA` (schema-supported at `index.ts:192` yet the ST importer drops `top_a` claiming *"no neo sampling vocab"*, `index.ts:1417-1420` — the two halves contradict) · `params.maxBudgetUsd` · `params.providerContextCompression` · `params.compaction.verbatimTail` (minted as "the missing 4th compaction knob", `index.ts:168-172`, then never given an editor) · `formatStrings.responseNudge`. Plus the MISSING SINGLE-PRESET DOOR (corrected from v1's "dead pair" reading — the reuse-seam law's check-both-ends): `domain/preset/verbs/{export,import}.ts` are the LIVE portability-bundle descriptor arms (`"preset"` is a `PORTABLE_KINDS` member, `contracts/portability/index.ts:15,41`; whole-profile bundles round-trip presets today) — what has NO door is sharing/receiving ONE preset file (the client import dialog is ST-only, `preset-import-dialog.tsx`; no single-export affordance exists). | |
+| F9 | **No effective truth.** The funnel (quality defaults → explicit knobs → capability clamp → engine floors) resolves server-side, correctly one-homed — and the editor never shows its output. You move a control and nothing tells you what the next turn will actually send. ST's directness is *what-you-set-is-what's-sent*; ours can't be that (the capability doctrine is right), so it must COMPENSATE by rendering the resolved result — today it doesn't, which is the deepest "does not feel good" cause. | |
+| F10 | **Activation is pane chrome, not a row affordance.** Making a preset active is a `Select` above the search box (`preset-library-surface.tsx:113-121`); the row's Active badge is passive by design (`preset-library-row.tsx:4`). Two UI locations for one one-of-N state, and the frequent act (activate what I just forked) is a dropdown trip. | |
 
-**What is GOOD and explicitly kept:** the assembly rack (zones, pivot, per-row ~tokens, drag — already
+**What is GOOD and explicitly kept:** the assembly rack (zones, pivot, per-row \~tokens, drag — already
 the crunchiest thing on the surface, and recently built) · capability-gated absent-never-disabled knob
 rendering · the fork-once + retarget autosave chain (`use-preset-autosave.ts` — the ten-duplicates bug
 is dead; this spec does not touch the save path) · blank-means-default with effective placeholders in
@@ -253,7 +253,7 @@ CONTEXT/ADVANCED render regardless.
 
 ### 4.1 The knob grammar — `KnobRow`
 
-The anatomy (left → right, one ~32px instrument row):
+The anatomy (left → right, one \~32px instrument row):
 
 ```
 [label·voice]  [———————●———————slider————]  [0.85]  [↺]
@@ -273,14 +273,14 @@ The anatomy (left → right, one ~32px instrument row):
 - **Bounds/step from the descriptor `Range`** exactly as today; a typed out-of-range value clamps on
   commit with a one-beat gloss ("clamped to 2.0").
 - **The integer-range arm** (output/context — owner-ruled, mock round 3): the same grammar at large
-  ranges. Range from the capability, step 1, `largeStep` sized to the range (~1/64th, rounded to a
+  ranges. Range from the capability, step 1, `largeStep` sized to the range (\~1/64th, rounded to a
   power of two) for PageUp/PageDown; the twin accepts typed exact values, which is why 0..131072 needs
   no log scale.
 - Ember budget (CD3): the explicit state uses foreground WEIGHT, not accent; accent stays reserved for
   focus and the pane's one primary. NOTE for the build: the shipped Slider indicator is `bg-primary`
   (`slider/variants.ts`) — the ghost variant must tone it down, and whether EXPLICIT rows keep the
   ember fill across a seven-row cluster is a side-eye taste call (D10-class), flagged not legislated.
-- **The hover-hint rule (owner-ruled, mock round 3 — the [[hints→hover]] precedent generalized):** a
+- **The hover-hint rule (owner-ruled, mock round 3 — the \[\[hints→hover]] precedent generalized):** a
   row's VISIBLE text is the datum set — label, value, terse provenance (`default` · `← quality (deep)`
   · `clamped 1.2`). EXPLANATORY prose (what nucleus sampling is, what a provenance source means,
   bounds sentences, cluster teach lines) rides a hover hint — the landed `SettingRow.hint`
@@ -295,7 +295,7 @@ The anatomy (left → right, one ~32px instrument row):
 Below the SAMPLING knobs, ONLY when non-empty: a quiet warning row enumerating every `params` knob that
 carries a stored explicit value the CURRENT capability does not list —
 
-> ⚠ Set but not honored by this model: `top_a 0.2` · `min_p 0.05` — [Clear] [Keep]
+> ⚠ Set but not honored by this model: `top_a 0.2` · `min_p 0.05` — \[Clear] \[Keep]
 
 Derivation is client-side and mechanical: `storedKnobs ∖ capabilityKnobs` over the same
 `SAMPLING_KNOB_SPECS` table the panel renders from (one vocabulary, two consumers — no new home).
@@ -423,13 +423,13 @@ toggle, edit pencil, per-row token count, mandatory rows without delete), on our
 templated / carrier) · NAME button (= SELECT, the inspect act — §5.2's split) with the subtitle scent ·
 cue badges ONLY-WHEN-SET (splice `@depth·order` as a compact CUE — the fused form is legal as a
 read-only badge; the EDITOR fields stay split per round 3 · triggers · lock · custom-body dot ·
-non-system role) · the ~token estimate (mono, line-through when off) · the enable Switch (ABSENT on
+non-system role) · the \~token estimate (mono, line-through when off) · the enable Switch (ABSENT on
 the pivot) · the drill chevron/pencil (= EDIT). A disabled row dims whole; selection = ember tint +
 left bar; zone accents stay (steel-blue setup / warm-amber post) with the pivot band as the horizon.
 
 **ROW AMENDMENTS (crunch items 7/14/15/16 + owner O-7★, 2026-08-02).** The NAME's explainer prose moves
 to the row's HOVER (`fullTitle`, the native title on the name — owner-ruled: the inline descriptions are
-lame; this OVERRIDES the mock's inline-desc drawing), so the row line carries one datum. The ~token
+lame; this OVERRIDES the mock's inline-desc drawing), so the row line carries one datum. The \~token
 estimate takes a fixed-width right-aligned TABULAR MONO cell (the mock's own `.tok`), so a rack reads
 down one number edge. Cue badges are all `tone="soft"` (the mock paints 13% tints, never solid pills),
 and the registry may carry ONE fixed-by-product firing cue per marker (`MarkerCopy.firesCue`) for the
@@ -660,8 +660,8 @@ lives, so a "missing template" claim must first beat the mapping.
 Owner: adding a new template + its grouping must be cheap and declarative. The Actions view therefore
 DERIVES everything — groups, rows, kind badges, drill-in fields — from ONE definition table:
 
-- **Home: `contracts/preset`, beside `guidedActionsSchema`** (the REWRITE_TOGGLES /
-  GREETING_TRANSFORMS registry-as-data precedent — contracts owns shape+data both the client rows and
+- **Home: `contracts/preset`, beside `guidedActionsSchema`** (the REWRITE\_TOGGLES /
+  GREETING\_TRANSFORMS registry-as-data precedent — contracts owns shape+data both the client rows and
   any server consumer need). Shape:
 
   ```ts
@@ -691,7 +691,7 @@ DERIVES everything — groups, rows, kind badges, drill-in fields — from ONE d
   `Record<TemplateCapability["kind"], CapabilityRenderer>` (the house Record-not-switch dispatch) —
   a new capability KIND fails `tsc` at the Record until its renderer exists, and every template's
   editor is the template body + the mapped capability fields, nothing else. Adding a richer template
-  = one enum member + one def row (+ one capability member + renderer IF it needs a genuinely new
+  \= one enum member + one def row (+ one capability member + renderer IF it needs a genuinely new
   field class) — the D117 registration-cost shape, one level deeper.
 
 - **The registration cost is the D117 workloads shape** (the house new-kind pattern): a NEW template =
@@ -700,20 +700,23 @@ DERIVES everything — groups, rows, kind badges, drill-in fields — from ONE d
   retired in the same commit) and the schema's keyed map tsc-force every other site. The `caps` LIST
   is what keeps the drill-in honest BY DERIVATION: a formatString row renders text-only because it
   declares no capabilities, not because a component branches on a name.
+
 - **The G9/G10 additions land THROUGH the registry**: `newChatMarker` = one `format`-kind def row;
   `depth` = the caps flag the drill-in reads. The §6.5 census's ADD verdicts become def rows, never
   bespoke editors.
+
 - **Scope boundary (one-home):** the registry covers the ACTIONS-VIEW set only (`guidedActions` ∪
   `formatStrings`). Marker templates (scenario/personality/…) and `wiFormat` keep their §6.5
   one-homes in the Prompt view and the WI section editor — a registry row for them would mint the
   second home the census exists to prevent.
+
 - **Code-side extensibility ≠ user-side management:** §16 row 31 stands untouched — the SET is still
   a fixed product enum to the USER (no add/remove/reorder affordances); the registry makes it cheap
   for the PRODUCT to grow.
 
 **The KIND taxonomy (owner-required badges — derived from the §6.5 census, not invented):** `steer`
 (response · swipe · rewrite · opening · continue) · `voice` (impersonate) · `studio`
-(greeting_rewrite · greeting_new) · `format` (newChatMarker — G9) · `nudge` (continueNudge ·
+(greeting\_rewrite · greeting\_new) · `format` (newChatMarker — G9) · `nudge` (continueNudge ·
 impersonateNudge · responseNudge). The Actions list renders one GROUP per kind (kicker headers, tuple
 order) + a per-row KIND chip — the registry's `kind` field is the badge's source, one vocabulary.
 The chip rides the state-chip grammar at a DISTINCT hue family (info) so Default/Customized (muted/
@@ -726,8 +729,8 @@ ACTIVE VIEW's label + `readout` ("Params · readout", the mocks' `ACTIONS · REA
 neutral "Details": a pane whose whole content swaps per view cannot be titled by a word that describes
 none of them. It arrives through a `header` slot on the `single` context arm (the same P4 channel a
 `tabs` context already had), and it READS the view store — the tab strip stays the one writer (§16 row
-10). (b) The Actions panel ships the honest **Resolved preview** arm naming the D8 binding it waits on,
-instead of leaving ~90% of the pane blank — an empty pane reads as unbuilt, a named condition reads as
+10\). (b) The Actions panel ships the honest **Resolved preview** arm naming the D8 binding it waits on,
+instead of leaving \~90% of the pane blank — an empty pane reads as unbuilt, a named condition reads as
 pending.
 
 With the inspector consolidated into the drill-in (§5.2), CONTEXT stops renting editing and becomes
@@ -769,7 +772,7 @@ Params panel also appears in `params-deck.html` beside its CONTENT view):
 | - | - | - |
 | **no selection** (LIST browsing, no editor open) | the ACTIVE preset's effective profile — its name + the §4.3 datum rows + the capability line | "is what generation will use RIGHT NOW what I want — do I need to open, fork, or activate anything before my next turn?" It is the §4.3 read pointed at the active pick — zero new machinery, and the pane is useful before a row is ever clicked |
 | **Params** | the effective profile (every resolved knob + provenance) · the CAPABILITY card (model · window · output cap · the honored-knob list) · the quality-mapping line · the staleness COUNT | which knob to touch next (effective vs intent) · why a knob is absent or clamps (capability — today you cannot see WHY the panel shows only some sliders) · whether to trust the dial or go explicit (mapping) · whether stored intent is dead weight (staleness — the Keep/Clear AFFORDANCE stays in the deck, §4.2; the count is a pointer only) |
-| **Prompt** | the zone budget (SETUP/POST counts + ~tokens) · per-section token bars, the SELECTED section highlighted — **this selection echo IS the inspect view** (ST name-click parity: click a row to inspect here, chevron to edit) · a selected CARRIER's SOURCE ATTRIBUTION + expected shape (chat-free facts only — the source domain, a library-level count where one exists chat-free; never fake rows) · pivot-health echo · the assembled preview on demand (block-click selects the section) | what to trim or disable when the system block bloats (bars) · what a carrier IS and where to manage it (attribution) · where a section actually lands (preview) · the structural fix when the pivot is missing/duplicated (health) |
+| **Prompt** | the zone budget (SETUP/POST counts + \~tokens) · per-section token bars, the SELECTED section highlighted — **this selection echo IS the inspect view** (ST name-click parity: click a row to inspect here, chevron to edit) · a selected CARRIER's SOURCE ATTRIBUTION + expected shape (chat-free facts only — the source domain, a library-level count where one exists chat-free; never fake rows) · pivot-health echo · the assembled preview on demand (block-click selects the section) | what to trim or disable when the system block bloats (bars) · what a carrier IS and where to manage it (attribution) · where a section actually lands (preview) · the structural fix when the pivot is missing/duplicated (health) |
 | **Actions** | the DELIVERY PATH: the `guided_instruction` marker's health (healthy/off/absent) + its zone/position/depth in the current arrangement, with the section-select echo · the SELECTED action row's RESOLVED preview (the template with runtime tokens MARKED and only chat-independent macros resolved — the honesty pin above) | "will my customized template actually land, and where in the prompt?" — the §6 cross-link promoted from a chip you must notice to a standing readout · "what does the model actually receive when I fire this action?" (the resolved preview) |
 | **Data** | per-variable / per-macro REFERENCE COUNTS within this preset — which sections, templates, nudges, and macro bodies mention `{{name}}` (each reference is a section-select echo) · an unreferenced marker | "is this safe to rename or delete, and where do I look first?" — scoped honestly: a zero count reads "no references in THIS preset", never "dead" (chat-time consumers outside the preset are not claimed). The scan is a pure client derivation over the saved config — no new server read |
 | **Transforms** | the PIPELINE readout, two lanes in execution order: prompt-side (regex script counts per `REGEX_PLACEMENTS` slot, on/off) · reply-side (native reasoning → `reasoningParse` fallback → AI-output/display regex → each post-process step, on/off) | "why did the reply change / which stage do I edit?" — the ORDER is the datum; today it lives only in engine file headers |
@@ -798,7 +801,7 @@ screenshots capture is MID-PLAY preset tuning — which is also this owner's act
 weighed without anchoring on the current design:
 
 - **(a) select → CONTEXT echo (the current design).** Honest verdict: NOT equivalent. The echo shows
-  ONE aggregate ~token estimate per section, and for a CARRIER that estimate is measured over the
+  ONE aggregate \~token estimate per section, and for a CARRIER that estimate is measured over the
   TEMPLATE text — near zero — while the real cost (the whole conversation; the active WI set) is
   precisely what a tuner wants. (a) is an ARRANGEMENT instrument, not a materialization instrument. It
   stays correct as the unbound floor; calling it "the inspect" oversold it.
@@ -880,15 +883,15 @@ Per the ratified row-action grammar (`list-pane-projection-proposal.md` §12), w
   Delete (landed active-aware confirm copy).
 - **Lineage — stated seam, not faked. LANDED** (`presets.forked_from` self-FK; `PresetSummary.forkedFrom`
   carries the ID, `ChatSummary.parentChatId`-style). The subtitle now reads
-  "\[kind ·] forked from &lt;name&gt; · edited &lt;stamp&gt;", with the source NAME resolved by the surface
+  "\[kind ·] forked from \<name> · edited \<stamp>", with the source NAME resolved by the surface
   from the rows it already holds — a source it cannot see (a PACKAGED template is never in the readable
   list) prints no lineage at all. Nothing is derived from name-matching heuristics. The same column is the
   copy-on-write CONVERGENCE key: a second COW of the built-in retargets the owner's existing fork instead
   of minting "Default (edited) 2" (residual + why it is not a UNIQUE index: `domain/preset/verbs/update.ts`).
 - **The fork CHOICE — LANDED** (owner ruling). Convergence is right only while the owner has nothing to
   forget: the FIRST edit of the built-in still COWs silently, but once they already have a fork the editor
-  asks BEFORE the write — "keep editing &lt;fork&gt;" (the primary; the convergence pick, named) or "start a
-  new fork" (a name step, pre-filled "&lt;source&gt; fork N"). The write is PARKED on the answer at the one
+  asks BEFORE the write — "keep editing \<fork>" (the primary; the convergence pick, named) or "start a
+  new fork" (a name step, pre-filled "\<source> fork N"). The write is PARKED on the answer at the one
   place a built-in edit enters the mutation path (`use-preset-autosave.ts`); the server takes the answer as
   an explicit `fork` intent (`{mode:"converge"|"new"}` — absent stays the back-compat + race backstop, and
   N forks per source are legal because `(owner_id, forked_from)` is deliberately NON-unique).
@@ -905,7 +908,7 @@ Per the ratified row-action grammar (`list-pane-projection-proposal.md` §12), w
 | G5 | `responseNudge` row (Actions ▸ NUDGES) | S |
 | G6 | The SINGLE-preset door, as THIN ARMS over the live portability seam (owner-corrected — never a parallel path): **export** = client-side `buildPresetFile(name, config)` from the cached `preset.get` row → download (the contract fn IS the bundle arm's serde — one home, `verbs/export.ts:15`; the affordance hides on the built-in row, matching the bundle's own system-default exclusion, `export.ts:1-3`); **import** = a thin `preset.importFile` proc DELEGATING to the existing `ImportPreset` verb, surfaced as the orb arm of the ONE band dialog — bundle semantics by construction: idempotent on `(ownerId, name)`, same-named preset MERGED in place else created under kind `roleplay`, `presetsChanged` emitted (`verbs/import.ts:2-4,40-76` — cited, reused, not re-derived); the dialog states the merge semantic | S |
 | G11 | The TEMPLATE DEFINITION REGISTRY (§6.6): `TEMPLATE_KINDS` + `TemplateDef` + `TEMPLATE_DEFS` in `contracts/preset` beside `guidedActionsSchema`; the Actions view derives groups/rows/badges/drill-in fields from it; `GUIDED_ACTION_COPY` retires INTO it same-commit; G9/G10 land through it | S |
-| G10 | `guidedActions.<kind>.depth` (owner, round 4b): optional int 0..MAX_INJECTION_DEPTH on `guidedActionConfigSchema`; absent = 0 (the tail — byte-compatible, today's fixed behavior becomes the default); edited via the SHARED DeliveryCluster | S |
+| G10 | `guidedActions.<kind>.depth` (owner, round 4b): optional int 0..MAX\_INJECTION\_DEPTH on `guidedActionConfigSchema`; absent = 0 (the tail — byte-compatible, today's fixed behavior becomes the default); edited via the SHARED DeliveryCluster | S |
 | G9 | `formatStrings.newChatMarker` (census §6.5): blank-by-default history-start boundary; one slot serves chat + group (no split exists here); assembler emits only when non-blank | S |
 | G8 | The tri-state retirement lift (§5.2a): v4→v5 config lift mapping `template: ""` → `{template: undefined, enabled: false}`; the assembler's empty-template arm + the contract's "Empty = render nothing" clause deleted with it | S |
 | G7 | Editor header truth: the ACTIVE state chip + a quiet Activate affordance when not active (a §16 row-3 sanctioned echo — same mutation as the row toggle), and the capability provenance chip ("for <model>") — the fork-once retarget's activation move becomes visible where you're editing | S |
@@ -966,7 +969,7 @@ Rule-by-feel stays scheduled post-SET-SEAMS-seal, exactly as the workboard has i
 | - | - | - |
 | the slider control, INCLUDING large integer ranges (output 1..32768, context 1..131072) | **EXISTS** | `slider/slider.tsx:15` — the Base UI `SliderRootProps` pass-through carries `min`/`max`/`step`/`largeStep`; a large range is props, and precision entry belongs to the twin, so no log-scale machinery. NOT a mint |
 | slider ghost/inherited tone | **VARIANT-ROW** | `slider/variants.ts` has NO tone axis today, and the indicator is hardcoded `bg-primary` — add `tone: "default" \| "ghost"` dimming track-fill + thumb + indicator. Flag for the build: whether EXPLICIT rows keep the ember fill across a 7-row cluster is a CD3/D10-class side-eye call |
-| the editable numeric twin | **VARIANT-ROW** | `number-field/` EXISTS (Base UI; textbox role by design, bounds as accessible DESCRIPTION — `number-field.tsx:19-26`; placeholder-as-default built in; drag-to-scrub bonus). Today's skin is full-width + touch-target steppers + centered text (`variants.ts`) — add `size="inline"`: stepper-less compact group, mono tabular right-aligned ~9ch, scrub + bounds-description retained. CTs locate by textbox (the landed Base UI reality) |
+| the editable numeric twin | **VARIANT-ROW** | `number-field/` EXISTS (Base UI; textbox role by design, bounds as accessible DESCRIPTION — `number-field.tsx:19-26`; placeholder-as-default built in; drag-to-scrub bonus). Today's skin is full-width + touch-target steppers + centered text (`variants.ts`) — add `size="inline"`: stepper-less compact group, mono tabular right-aligned \~9ch, scrub + bounds-description retained. CTs locate by textbox (the landed Base UI reality) |
 | `DeliveryCluster` (role select + depth field, side by side — round-3 arrangement) | **COMPOSITE** (feature-local) | ONE composite serving the TWO drill-ins (section §5.2 · template §6.1) — one grammar, one home each; the owner's one-home charge made literal; role items from the shared `MESSAGE_ROLE_ITEMS`, depth via `NumberField size="inline"`; the conditional "tail prefill" mark (assistant + depth-0 only — §5.0) renders in ONE place |
 | `KnobRow` (label · slider · twin · reset · provenance) | **COMPOSITE** (feature-local) | `features/preset/components/knob-row.tsx` — Row + Field + Slider(tone) + NumberField(inline) + ghost reset Button + Text voices. ONE consumer today; promotes to `components/` when a second feature (rpg GM knobs, connections preview) adopts it — the R2 bar honored, not pre-paid |
 | the quality segmented strip | **EXISTS** | `ToggleGroup`/`Toggle` (single-select, deselectable — the assembly-toolbar idiom); `option-strip` is the listbox-flavored alternative if the descriptions return |
@@ -1007,7 +1010,7 @@ Rule-by-feel stays scheduled post-SET-SEAMS-seal, exactly as the workboard has i
 | **P4** | LIST projection: row activate toggle (D1), Select deleted, kebab Export + orb-native import arm (G6), header truth chip (G7) | independent of P1-P3 |
 | **P5** | density-baseline shrink for the surface + the CT set (§12) + side-eye fix-all + close-out ledger row | all |
 
-Every stage ends with its side-eye pass and ALL findings fixed ([[side-eye-fix-all-findings]]).
+Every stage ends with its side-eye pass and ALL findings fixed (\[\[side-eye-fix-all-findings]]).
 Verification recipes for the build (stage permitting): `pnpm snap --wide` on the presets section with
 `--context-tab` per view; computed-value assertions per density §5.3, never authored classes.
 
@@ -1041,12 +1044,13 @@ Verification recipes for the build (stage permitting): `pnpm snap --wide` on the
 | **D6** | `maxBudgetUsd`: build its OUTPUT editor, or delete the field (NO-LEGACY allows it pre-launch) | **verify the wire first, then decide** — if the funnel/runners actually enforce a budget, build the editor (S); if it is a dead schema field, delete it. This spec does not fake either |
 | **D7** | `customParameters`: read-only presence row + JSON view in ADVANCED, or stay invisible | **presence row** — an invisible stored blob that changes the wire (custom-byo) fails the no-silent-knobs bar; editing stays out (it is the server-side BYOK escape hatch by design) |
 
-| **D8** | **The inspect binding — RULED (owner, 08-02):** auto-bind to the LAST-OPEN chat, named + dismissible in the readout header; unbound/no-recent falls to the honest token view; one `presetOverride` preview read | landed as §7.1's ruled state; post-core build with the §4.4 binding freshness rows + §16 row 33 |
+\| **D8** | **The inspect binding — RULED (owner, 08-02):** auto-bind to the LAST-OPEN chat, named + dismissible in the readout header; unbound/no-recent falls to the honest token view; one `presetOverride` preview read | landed as §7.1's ruled state; post-core build with the §4.4 binding freshness rows + §16 row 33 |
 
 Everything else in this spec is design, not a fork: the five-view map (§3), the KnobRow anatomy
 (§4.1), the staleness row (§4.2), the Actions list grammar (§6), the gap-close register (§10 — G6/G7
 are wiring existing verbs/state, not policy), and the tier/voice assignments (§2) carry
 recommendations inline and need only the D1-D5 ratifications to build.
+
 ## 16. The one-home audit — every affordance, its ONE home, echoes justified (owner-required, 2026-08-01)
 
 Owner steer (verbatim): *"actions and things only have one home so it also needs to audit that."*
@@ -1058,7 +1062,7 @@ the v1 params-deck CONTEXT drawing carried Prompt-view elements (budget + previe
 
 | # | action | ONE primary home | sanctioned echoes (each justified) | enforcement |
 | - | - | - | - | - |
-| 1 | create preset | LIST band **New** (the pane's one primary) | the empty-state "New preset" action — an empty pane may not dead-end ([[empty-states-are-load-bearing]], the landed rule) | both call the one `useCreatePreset`; review |
+| 1 | create preset | LIST band **New** (the pane's one primary) | the empty-state "New preset" action — an empty pane may not dead-end (\[\[empty-states-are-load-bearing]], the landed rule) | both call the one `useCreatePreset`; review |
 | 2 | import (ST + orb-native) | LIST band ghost icon → the import dialog | none | — |
 | 3 | activate for generation | the row toggle (§9, `RowToggleAction`, one-of-N) | (a) row kebab "Activate" — keyboard/discoverability parity, the ratified §12.2 mirror rule; (b) the editor-header Activate (G7), rendered ONLY in the not-active state — the fork-once retarget changes activation UNDER the editor, and the LIST can be a closed sheet on mobile; a status chip naming an actionable state must act | the pane-level Select is DELETED in the same commit (the half-migration ban); all three paths call the ONE `setDefault` mutation — review + CT |
 | 4 | open a preset (edit) | the row body click | ⌘K (the global palette — an app-wide echo outside this surface's budget) | — |
@@ -1077,7 +1081,7 @@ the v1 params-deck CONTEXT drawing carried Prompt-view elements (budget + previe
 | 17 | reorder sections | rack drag (the handle; dnd-kit KEYBOARD sensors are the same home's no-pointer path — the sortable-keyboard-focus lesson applies: focus restores at DROP) | the drill-in ⋯ "Move above/below" — a ZONE flip (cross the pivot) is a semantic move distinct from positional drag | both go through `moveFieldValues`; review |
 | 18 | enable / disable a section | the rack row Switch (the PIVOT carries none — it cannot be disabled, §5.2) | the drill-in HEADER Switch (§5.2a — while drilled the primary home is off-screen, and editing a disabled section with no visible state hides the fact that makes every field moot; both bind the ONE `sections[i].enabled` form path) | the pivot band's landed Switch is deleted (`pivot-band.tsx:52-56`); CT: both switches converge on one field |
 | 19 | select a section (= INSPECT — the readout echo is the inspect view, §5.2/ST parity) vs DRILL to edit — TWO DISTINCT ACTS: row click selects; the row chevron / Enter drills | click = the row body; drill = the trailing chevron | select echoes: (a) CONTEXT preview block-click; (b) CONTEXT per-section bar click; (c) the Actions-view delivery-path echo; (d) Data-view reference clicks (§7) | EVERY selection write goes through the one `selectPresetSection` store action — a second writer is the store-door wall; a CT pins that row-click does NOT mount the drill-in |
-| 20 | edit a section whole (body · delivery [name · role · depth] · placement [zone · order] · triggers · locks) | the consolidated drill-in (§5.2) | none — the CONTEXT inspector is DELETED | compile-time: `preset-editor-bridge.ts` is gone; a re-import fails to resolve |
+| 20 | edit a section whole (body · delivery \[name · role · depth] · placement \[zone · order] · triggers · locks) | the consolidated drill-in (§5.2) | none — the CONTEXT inspector is DELETED | compile-time: `preset-editor-bridge.ts` is gone; a re-import fails to resolve |
 | 21 | duplicate / delete a section (LITERALS ONLY — §5.2 structural rule) · move-to-zone (any non-pivot) | the drill-in ⋯ menu (delete behind confirm) | none — a MARKER's menu OMITS Duplicate + Delete entirely (never disabled-Delete); the pivot's menu offers nothing | CT: a marker's menu renders no Delete/Duplicate items |
 | 22 | back to rack | the drill-in back button | none (Esc stays overlay-only — the house Esc rule) | — |
 | 23 | edit a guided template / nudge (text · role · depth) | its DRILL-IN — the ONE editing home, on the §5.0 one-list-grammar (name click = SELECT, echoed by the readout; chevron/Enter = DRILL; NO inline accordion exists) | none | mock + review: no expansion/accordion on any template row; CT: row-click does NOT mount the drill-in (the same pin as rack row 19) |
@@ -1097,6 +1101,7 @@ are the #19 selection echoes and the #29 reveal; (ii) every echo pair shares ONE
 writer, never a second code path; (iii) destructive actions each live in exactly one confirm-gated
 menu. The audit is a STANDING review artifact: a new affordance lands with its row here, or it does
 not land.
+
 ### 16.1 The preset LIFECYCLE — CRUD + portability, complete (owner-required)
 
 Every lifecycle operation, its server path, its ONE door (consistent with the audit above), and its
