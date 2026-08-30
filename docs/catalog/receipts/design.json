@@ -2135,12 +2135,12 @@
     },
     {
       "path": "docs/design/web-weave-motion-fixes.md",
-      "assignedSha256": "d83bd2a2b777c9b526affd1117a62965cc764e6fd38452be74da4c88238f72c8",
+      "assignedSha256": "2d3ecbe76dfaae8dc8bbf23d0fc46597f7e3a6075da50203949a5ab5009e758a",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "d83bd2a2b777c9b526affd1117a62965cc764e6fd38452be74da4c88238f72c8",
-      "verifiedCommit": "3ed6784ea0f7dd0a174eaaec91c78e47f93f7eb7",
+      "verifiedSha256": "2d3ecbe76dfaae8dc8bbf23d0fc46597f7e3a6075da50203949a5ab5009e758a",
+      "verifiedCommit": "7a24d70a9d3e243ceae895be38e779e7ae1e77ba",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/web-weave-motion-fixes.md:1 (design; active)",
