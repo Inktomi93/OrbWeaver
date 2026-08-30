@@ -106,6 +106,38 @@ test("a DORMANT tile is a doorway: name + teaser + reason, and ZERO interactive 
   await expect(tile.locator("[aria-busy]")).toHaveCount(0);
 });
 
+// ── THE DOORWAY GROUP'S BAND (#833) ────────────────────────────────────────────────────────────────
+// The fold shipped as a bare sentence-case trigger — the ONE right-column block with no section voice
+// beside six caps-kicker-over-hairline bands, which at 1920 lands it on the databank band's baseline
+// reading as a third databank control. The band is back and HOSTS the trigger; #482's control ruling is
+// untouched, so this pin asserts BOTH halves at once — a fix that regained the voice by dropping the tap
+// floor, or by renaming the control, fails here.
+/** WCAG 2.5.8 — the floor #482 minted `size="control"` for. Asserted RENDERED, never off a class. */
+const TAP_FLOOR_PX = 24;
+
+test("#833 the doorway fold wears the sibling band (kicker register + hairline) with #482's trigger intact", async ({ mount }) => {
+  const home = await mount(<HomeRegionStory />);
+
+  // EXACT, and computed rather than read off an attribute: the band's register is a `text-transform`,
+  // and a substring/prefix matcher matches the very run-on (or re-case) it would be written to prevent.
+  const trigger = home.getByRole("button", { exact: true, name: GROUP_LABEL });
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  const box = await trigger.boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(TAP_FLOOR_PX);
+  expect(box?.width ?? 0).toBeGreaterThanOrEqual(TAP_FLOOR_PX);
+
+  // The VOICE half: the trigger's visible label runs in the caps instrument register its sibling kickers
+  // do — at the readable label step, which is what keeps the tap floor and the register compatible.
+  const label = trigger.getByText(GROUP_LABEL, { exact: true });
+  await expect(label).toHaveCSS("text-transform", "uppercase");
+
+  // The RULE half: one hairline in the band, decorative exactly like every `TileBand` rule, and it is in
+  // the BAND rather than inside the panel (which is unmounted while the fold is closed).
+  const rule = home.locator(`section[aria-label="${GROUP_LABEL}"] [data-slot="separator"]`);
+  await expect(rule).toHaveCount(1);
+  await expect(rule).toHaveAttribute("aria-hidden", "true");
+});
+
 test("ZERO contributions renders the designed empty state with its action, never a blank grid", async ({ mount }) => {
   const home = await mount(<HomeEmptyStory />);
 
@@ -573,6 +605,64 @@ test("#129 the shipped first boot reserves the grid a FULL page settles into", a
   // skeleton row's pitch — below that the declaration cannot be made truer (a row is the smallest unit the
   // reservation is spelled in), above it the grid visibly re-flows behind the veil.
   expect(Math.abs(reserved - settled)).toBeLessThanOrEqual(rowPitch);
+});
+
+// ── A READ-LESS TILE MUST NOT RESIZE WHILE ITS NEIGHBOURS SETTLE (#835) ─────────────────────────────
+// `home.jump` reads nothing: its rows come from the section registry, a module-scope value the door hands
+// down by context, so its box is decided at the first commit and has nothing to wait for. A live boot
+// disagrees — the buffered layout-shift replay attributes 0.02208 to two movers, and one of them is this
+// tile's own box growing `[88,773,686,27] → [88,683,686,92]` as the five reads land (2026-08-30, live
+// :5173, reproduced on four localStorage arms). Whatever the mechanism turns out to be, the CONTRACT is
+// the one this pins: a tile with no read of its own is not entitled to change size when a sibling's read
+// resolves, and this fence is independent of every reservation number around it.
+//
+// IT IS A FENCE, NOT A DEFECT PROOF, AND THAT IS ITSELF THE FINDING. It passes against the unmodified
+// tree: with every read held and released here the jump tile's box does not move by a pixel, so the live
+// mover does NOT live in this surface's own code. Ruled out on the way to that: the remembered box (a
+// boot-two seeded with the app's own bytes replays byte-identical shifts), web fonts (`fontCount` 0 — the
+// app is on the system stack, so there is no swap to reflow the wrap), and a growing section registry
+// (`createRegistry` is a module-scope array). Left standing so a future change cannot make the read-less
+// tile data-dependent while the live mover is still unattributed.
+/** Sub-pixel layout rounding between two `getBoundingClientRect` reads of the same unchanged box. */
+const READ_LESS_TILE_EPSILON_PX = 1;
+
+test("#835 the read-less jump tile keeps its own box across every neighbour's resolve", async ({ mount, page }) => {
+  const chats = trpcHold();
+  const characters = trpcHold();
+  const settings = trpcHold();
+  const documents = trpcHold();
+  const health = trpcHold();
+  await stubDatabank(page, {
+    "chat.listChats": chats,
+    "chat.reapTemporaryChats": { reaped: 0 },
+    "character.list": characters,
+    "databank.bankHealth": health,
+    "databank.list": documents,
+    "settings.getUserSettings": settings,
+  });
+
+  const home = await mount(<HomeShippedFirstBootStory />);
+  await Promise.all([chats.requested, characters.requested, settings.requested, documents.requested, health.requested]);
+  const jump = home.locator('[data-home-tile="home.jump"]');
+  // Barrier on the tile's OWN rendered content, never on "the grid is up": its rows are what the fence is
+  // about, so a measurement taken before the first pill paints would compare two different things.
+  await expect(jump.getByRole("button", { name: "Go to Chats" })).toBeVisible();
+  const held = (await jump.boundingBox())?.height ?? 0;
+
+  chats.release(chatListResponder(FIRST_BOOT_ROOMS)({ limit: RECENTS_LIMIT }));
+  characters.release(characterListResponder(FIRST_BOOT_FACES)({ limit: QUICK_PICKS_FACES }));
+  settings.release({ config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_read_less" });
+  documents.release(FIRST_BOOT_BANK);
+  health.release(FIRST_BOOT_HEALTH);
+
+  // SETTLED, not "no longer busy" — every held tile must have committed its content before the second read.
+  await expect(home.locator('[data-home-hearth="chat_boot_0"]')).toBeVisible();
+  await expect(home.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(home.getByText("Doc 0", { exact: true })).toBeVisible();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+  const settled = (await jump.boundingBox())?.height ?? 0;
+
+  expect(Math.abs(settled - held)).toBeLessThanOrEqual(READ_LESS_TILE_EPSILON_PX);
 });
 
 // ── #177 the PER-TILE reservation, which the page total above cannot see ────────────────────────────

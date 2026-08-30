@@ -77,8 +77,9 @@ import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Plus } from "@orb/ui/icons";
-import { Container, Grid, Section, Stack, Surface } from "@orb/ui/layout";
-import { Heading } from "@orb/ui/text";
+import { Container, Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
+import { Separator } from "@orb/ui/separator";
+import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { ContributorRegistry } from "#lib";
@@ -210,22 +211,53 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                       <HomeTile key={tile.id} tile={tile} />
                     ))}
                     {doorways.length === 0 ? null : (
-                      // ONE FOLD over every declared doorway (#455). The band's `<Section kicker>` anatomy
-                      // (caps micro + a hairline to the edge) is what a group you can READ gets; a group
-                      // you have to OPEN is a control, so the kicker retires and its h2 becomes the
-                      // disclosure's own name. The `<h2>` WRAPS the trigger rather than sitting inside it —
-                      // that is the canonical disclosure shape (a button's content model is phrasing, so a
-                      // heading inside one is invalid HTML), and it keeps F6's ruling intact: this block is
-                      // still a PEER of home's other h2 blocks in the outline, and the doorways' own h3
-                      // titles are still its children. `voice="label"` + `size="control"` because the
-                      // trigger is a CONTROL, not a kicker (side-eye 2026-08-22 P2-4, the ruling #482
-                      // landed on the params deck's `Advanced`): the micro caps step measured under WCAG
-                      // 2.5.8's 24×24 floor on the one thing you can press.
+                      // ONE FOLD over every declared doorway (#455). The `<h2>` WRAPS the trigger rather
+                      // than sitting inside it — that is the canonical disclosure shape (a button's content
+                      // model is phrasing, so a heading inside one is invalid HTML), and it keeps F6's
+                      // ruling intact: this block is still a PEER of home's other h2 blocks in the outline,
+                      // and the doorways' own h3 titles are still its children. `size="control"` because
+                      // the trigger is a CONTROL (side-eye 2026-08-22 P2-4, the ruling #482 landed on the
+                      // params deck's `Advanced`): the micro caps step measured under WCAG 2.5.8's 24×24
+                      // floor on the one thing you can press.
+                      //
+                      // THAT RULING SURVIVES; ITS COROLLARY DID NOT. This clause used to continue "…a group
+                      // you have to OPEN is a control, so the kicker retires", and read the tap-target
+                      // finding as a verdict on the BAND as well as on the type step. See the band below
+                      // for what that cost at 1920 and how the two separate (#833).
                       <Section aria-label={DOORWAY_GROUP_LABEL}>
                         <Collapsible className="gap-block">
-                          <Heading level={2} voice="label">
-                            <CollapsibleTrigger size="control">{DOORWAY_GROUP_LABEL}</CollapsibleTrigger>
-                          </Heading>
+                          {/* …AND THE BAND CAME BACK, HOSTING THE TRIGGER RATHER THAN REPLACING IT (#833,
+                              side-eye HOME delta 2026-08-30). The clause above retired the kicker anatomy
+                              on the reasoning that "a group you have to OPEN is a control, not a band" —
+                              and the rendered consequence was that this was the ONE right-column block with
+                              no section voice: six caps kickers over hairlines (`START WITH`, `TEMP CHAT`,
+                              `DATABANK`, …) and a seventh block in sentence-case body weight with a chevron
+                              and no rule, so it had no visual parent. At 1920 the shelf's `pairWide` subgrid
+                              puts it BESIDE the databank band on the same baseline, where an unparented
+                              control reads as a third Databank action next to "All documents →".
+                              The two halves of that clause separate cleanly: the ANATOMY is a band (the
+                              `Row` + `Separator` every `<Section kicker>` and every `TileBand` on this
+                              surface draws), and the CONTROL keeps everything #482 ruled — the `<h2>` still
+                              WRAPS the trigger, the trigger still carries `size="control"`'s 24×24 floor,
+                              and its accessible name is still exactly the group's one name. Only the
+                              trigger's VISIBLE label changes register, to `interactiveKicker`: the voice
+                              minted for "a kicker that is itself the label of a control", i.e. the caps +
+                              tracked instrument register of the band at the READABLE label step rather than
+                              the 10.5px micro step #482 measured under the tap floor. Same pairing the
+                              config rail's collection bands already ship. */}
+                          <Row align="center" gap="field">
+                            <Heading level={2} voice="label">
+                              <CollapsibleTrigger size="control">
+                                <Text as="span" voice="interactiveKicker">
+                                  {DOORWAY_GROUP_LABEL}
+                                </Text>
+                              </CollapsibleTrigger>
+                            </Heading>
+                            {/* DECORATIVE, exactly as on every tile band (`home-tile.tsx` TileBand): the
+                                `h2` beside it already names the region, and a bare `role="separator"` here
+                                would add an unnamed stop to the home walk's a11y tree. */}
+                            <Separator aria-hidden={true} className="flex-1" />
+                          </Row>
                           <CollapsiblePanel>
                             <Stack gap="block">
                               {doorways.map((entry) => (
