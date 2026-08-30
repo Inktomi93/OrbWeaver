@@ -6,7 +6,18 @@
 // copy do not change here (S4 owns the rail slot).
 
 import { Drama } from "@orb/ui/icons";
-import type { ConfigGroupDefinition } from "#state";
+import { useQuery } from "@tanstack/react-query";
+import { useTRPC } from "#data";
+import type { ConfigGroupDefinition, ConfigSearchRow } from "#state";
+import { PERSONA_ROSTER_SUBCATEGORY } from "./personas-nav.ts";
+
+/** The persona NAMES as SEARCH rows (§3.3) — a hit lands on the roster section (a persona is edited in its
+ *  row, not on a member page). The roster's own cache-first read; non-suspense on purpose. */
+function usePersonaSearchRows(): readonly ConfigSearchRow[] {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.persona.list.queryOptions());
+  return (data ?? []).map((persona) => ({ id: persona.id, label: persona.name, subId: PERSONA_ROSTER_SUBCATEGORY.id }));
+}
 
 export const personasGroup: ConfigGroupDefinition = {
   id: "personas",
@@ -15,5 +26,6 @@ export const personasGroup: ConfigGroupDefinition = {
   icon: Drama,
   description: "Your personas — create, edit, import and export — plus the persona-change notification.",
   order: 10,
+  useSearchRows: usePersonaSearchRows,
   body: { kind: "sections" },
 };

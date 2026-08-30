@@ -30,6 +30,7 @@ import {
 } from "#state";
 import { ConfigListGroup } from "../components/config-list-group.tsx";
 import { ConfigMobileTeaching } from "../components/config-mobile-teaching.tsx";
+import { ConfigSearchInput } from "../components/config-search-input.tsx";
 import { CONFIG_SHELF_LABELS, configShelfLabelId } from "../lib/config-nav-model.ts";
 import { useConfigSubcategories } from "../lib/config-subcategories.ts";
 import { orderConfigGroups } from "../lib/order-groups.ts";
@@ -80,6 +81,8 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
         role="region"
         tabIndex={-1}
       >
+        {/* THE SEARCH (S2, §3.3) — one index over every group, typed `@` filters, results in place. */}
+        <ConfigSearchInput groups={groups} />
         {/* THE PHONE'S ONLY TEACHING FRAME (side-eye 2026-08-19 P2) — mobile viewport + no selection only. */}
         <ConfigMobileTeaching groups={groups} />
         {CONFIG_SHELVES.map((shelf) => {

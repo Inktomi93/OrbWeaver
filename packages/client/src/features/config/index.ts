@@ -5,4 +5,5 @@
 // imports ZERO group bodies — every group arrives through the `config-groups` registry assembled at the door
 // (the `features/home` precedent one family across).
 
+export { bindConfigPaletteGroups, configPaletteSource } from "./lib/config-palette-source.ts";
 export { makeConfigSection } from "./lib/config-section.tsx";

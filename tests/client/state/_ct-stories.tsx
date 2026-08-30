@@ -19,6 +19,7 @@ import {
   __resetComposerDrafts,
   __resetConfigGroupOpen,
   __resetConfigNav,
+  __resetConfigSearch,
   __resetDeploymentBootHint,
   __resetPresetSection,
   __resetPresetSelection,
@@ -35,6 +36,7 @@ import {
   clearCharacterSelection,
   clearChatListCharacterFilter,
   clearCollectionSelection,
+  clearConfigSearch,
   clearCorpusSelection,
   clearDatabankPhaseFilter,
   clearNewChatIntent,
@@ -97,6 +99,8 @@ import {
   setChatListMonth,
   setChatListSearch,
   setComposerDraft,
+  setConfigSearchMatch,
+  setConfigSearchQuery,
   setContextTab,
   setCorpusCompareA,
   setCorpusCompareB,
@@ -141,6 +145,8 @@ import {
   useComposerDraft,
   useComposerFocusRequest,
   useConfigGroupOpen,
+  useConfigSearchMatch,
+  useConfigSearchQuery,
   useConfigSectionRegistry,
   useConfigSections,
   useConfigTarget,
@@ -1451,6 +1457,34 @@ export function ConfigNavProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => __resetConfigNav()}>
         reset nav
+      </button>
+    </div>
+  );
+}
+
+/** ConfigSearchProbe — drives the config SEARCH store (#866 S2): the live query, the selected match, and the
+ *  clear-empties-both rule (a mark whose query is gone would be unexplainable). A CT because the reads are
+ *  reactive hooks. */
+export function ConfigSearchProbe(): ReactElement {
+  const query = useConfigSearchQuery();
+  const match = useConfigSearchMatch();
+  return (
+    <div>
+      <output>{`query=${query === "" ? "none" : query} match=${match === null ? "none" : `${match.group}/${match.sub ?? "-"}/${match.setting ?? "-"}/${match.memberId ?? "-"}`}`}</output>
+      <button type="button" onClick={(): void => setConfigSearchQuery("avatar @shelf:user")}>
+        type a query
+      </button>
+      <button type="button" onClick={(): void => setConfigSearchMatch({ group: "appearance", sub: "avatars", setting: "avatar-size", memberId: null })}>
+        select a hit
+      </button>
+      <button type="button" onClick={(): void => setConfigSearchQuery("")}>
+        empty the input
+      </button>
+      <button type="button" onClick={(): void => clearConfigSearch()}>
+        clear search
+      </button>
+      <button type="button" onClick={(): void => __resetConfigSearch()}>
+        reset search
       </button>
     </div>
   );

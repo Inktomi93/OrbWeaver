@@ -38,7 +38,7 @@ import {
   makeChatsSection,
   newChatModal,
 } from "#features/chat";
-import { makeConfigSection } from "#features/config";
+import { bindConfigPaletteGroups, configPaletteSource, makeConfigSection } from "#features/config";
 import { connectionsGroup } from "#features/credentials";
 import { addDocumentModal, databankSection } from "#features/databank";
 import { corpusSection } from "#features/discovery";
@@ -234,7 +234,7 @@ const slashCommands = createContributorRegistry<SlashCommandContribution>("slash
 // rows (a plugin's registered commands, read per-caller) into first-class command-palette rows. One member
 // today; like every contributor family, the door does not grow when a person installs a plugin (the per-plugin
 // fan lives inside the source's `useRows` off the caller's own `plugin.listCommands`).
-const commandPaletteSources = createContributorRegistry<CommandPaletteSource>("command-palette-sources", [pluginCommandPaletteSource]);
+const commandPaletteSources = createContributorRegistry<CommandPaletteSource>("command-palette-sources", [pluginCommandPaletteSource, configPaletteSource]);
 
 // The character-detail contributor seam (§6c): EMPTY but typed — the door → factory → editor-body anchor
 // path is compiled and exercised with zero contributions; the agents feature appends its card-evolution
@@ -264,6 +264,9 @@ const configGroups = createRegistry("config-groups", CONFIG_GROUP_IDS, {
   cast: castGroup,
   plugins: pluginsGroup,
 });
+// The ⌘K Settings source reads the door-held group registry through its bound module slot (§3.3 — the same
+// `makeConfigSection` delivery, spelled for a module-level hook; written exactly once, here).
+bindConfigPaletteGroups(configGroups);
 
 // The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
