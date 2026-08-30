@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-08-28
+updated: 2026-08-30
 ---
 
 # The Plugin UI Plane — full-featured add-ons over the sealed membrane (#679)
@@ -110,6 +110,16 @@ is a perf non-starter), and reopens the #124 exfil class wherever `allow-scripts
 (`card-frame/index.ts:80-90` — WebRTC/STUN beacon, no closing CSP directive). Its ONE honest
 advantage is arbitrary pixels. Verdict: DEMOTED to the parked hatch (§6).
 
+> **The injected SLICE was widened at #799, and the CLAMP was not.** It used to be two colors plus the
+> sans family, which the card-atlas review named "a two-color costume" — a frame could match the app's
+> surface and its text and nothing else. It is now the curated house slice: `--sandbox-bg`/`-fg`,
+> `-muted`/`-muted-fg`, `-accent`/`-accent-fg`, `-border` (all through the UNCHANGED `isSafeColor`
+> clamp), plus `--sandbox-radius` and `--sandbox-font-mono`, which ride a SECOND slot
+> (`CardFrameContent.styleTokens` → `clampCardFrameStyleTokens`) because `isSafeColor` is colour-only
+> and rejects a length and a family list by construction — the `fontFamily` slot's own precedent. The
+> two grammars are disjoint and both reject every CSS-escape / `url()` / `calc()` shape; nothing but
+> `--*` values crosses, and every clamp still runs server-side on OUR side of the boundary.
+
 **ARM C — hybrid.** The committed shape (as revised by the full-parity ruling): a FULL hybrid with
 a hard priority order — the declarative plane is primary and covers everything it can express; the
 `ui.frame` hatch is a scheduled phase (U7) covering exactly the arbitrary-pixels remainder. The
@@ -192,6 +202,15 @@ primitives. The house pattern: closed `as const` kind tuple + discriminated unio
 | `textField` / `numberField` / `toggle` / `select` / `slider` | house form primitives | labels required (a11y floor); values are CLIENT-transient until an action submits them |
 | `button` | house `Button` | `variant` clamped to neutral/outline — `primary` stays CONTENT's one primary (the S1 card law, `interaction-direction-spec.md:140-143`); `actionId` names the round-trip |
 | `confirmButton` | tier-2 `ConfirmDialog` | destructive confirms ride the HOUSE dialog, plugin-attributed title — a plugin cannot draw its own confirm |
+| `icon` (#799) | the sealed `@orb/ui` `Icon` | `name` from a CURATED closed tuple (`PLUGIN_ICON_NAMES`) that deliberately EXCLUDES chrome-identity (`Blocks`, the orb-web mark), consent/trust (lock/key/shield/ban) and identity/host-anatomy glyphs — a plugin must not be able to dress a fake consent row in the house's trust iconography. `label` absent ⇒ decorative (`aria-hidden`), the house default |
+| `tabs` (#799) | the house one-of-N strip (`ToggleGroup`/`Toggle` on their `radio` arm) | the page's own AXIS, every option visible at once — the `select`'s grammar (exactly one of `options`/`optionsFrom`, a live `actionId`) with a much smaller cap (`PLUGIN_TABS_OPTIONS_MAX` = 8: a strip that outgrows one row is a `select`). NOT house `Tabs`: this node owns no panels — what a pick changes is whatever the plugin republishes — and a `tablist` pointing at no `tabpanel` is dangling ARIA |
+
+**The three-states law inside `grid` (#799):** a `grid` names `empty` (the teaching EMPTY) and `loading`
+(a bound boolean → the shelf's shape- and aspect-matched `MediaTileGridSkeleton`). The renderer orders them
+`loading → empty → tiles`: a grid mid-fetch is neither showing last query's results nor empty. `loading` is
+reachable at BOTH tiers — a `scripted` guest flips it before it awaits; a `static` guest reaches it through
+the settlement-wall shape its handlers already use (publish `true`, FLOAT the wire work, republish `false`;
+the second `setState`'s bus poke repaints). `card-atlas`'s search/page handlers are the worked example.
 
 Global bounds (all zod, all host-side at registration AND client-side before mount — the server's
 call is the trust boundary, the client's is depth-in-depth, the `buildCardFrameDocument` clamp

@@ -270,6 +270,45 @@ interface PluginStateBinding {
 }
 type PluginBoundString = string | PluginStateBinding;
 type PluginBoundNumber = number | PluginStateBinding;
+type PluginBoundBoolean = boolean | PluginStateBinding;
+/** The curated glyph vocabulary an `icon` node may name. Chrome-identity, consent/trust and identity glyphs
+ *  are deliberately absent — a plugin cannot dress its content in the app's own trust iconography. */
+type PluginIconName =
+  | "star"
+  | "heart"
+  | "flame"
+  | "sparkles"
+  | "award"
+  | "crown"
+  | "gem"
+  | "bookmark"
+  | "download"
+  | "eye"
+  | "clock"
+  | "hash"
+  | "tag"
+  | "users"
+  | "chartColumn"
+  | "images"
+  | "fileText"
+  | "bookOpen"
+  | "scroll"
+  | "library"
+  | "drama"
+  | "swords"
+  | "leaf"
+  | "globe"
+  | "compass"
+  | "map"
+  | "check"
+  | "info"
+  | "circleAlert"
+  | "alertTriangle"
+  | "search"
+  | "externalLink"
+  | "chevronRight"
+  | "arrowLeft"
+  | "x";
 
 interface PluginStackNode {
   readonly kind: "stack";
@@ -372,6 +411,25 @@ interface PluginSelectNode {
   readonly value?: string | undefined;
   readonly actionId?: string | undefined;
 }
+/** A glyph from the curated set. `label` ABSENT = decorative (aria-hidden, the house default for an icon
+ *  beside text); naming one claims the glyph is the only thing saying this and gives it an accessible name. */
+interface PluginIconNode {
+  readonly kind: "icon";
+  readonly name: PluginIconName;
+  readonly label?: string | undefined;
+}
+/** The ONE-OF-N segmented strip — the page's own axis, every option visible (max 8; a bigger vocabulary is a
+ *  `select`). Same option arms as `select`: exactly one of `options`/`optionsFrom`. A pick fires `actionId`
+ *  immediately. It is NOT a tab panel container: what a pick changes is whatever you republish. */
+interface PluginTabsNode {
+  readonly kind: "tabs";
+  readonly name: string;
+  readonly label: string;
+  readonly options?: readonly PluginSelectOption[] | undefined;
+  readonly optionsFrom?: PluginStateBinding | undefined;
+  readonly value?: string | undefined;
+  readonly actionId?: string | undefined;
+}
 interface PluginSliderNode {
   readonly kind: "slider";
   readonly name: string;
@@ -425,6 +483,9 @@ interface PluginGridNode {
   readonly tileAction?: string | undefined;
   readonly aspect?: PluginImageAspect | undefined;
   readonly empty?: string | undefined;
+  /** TRUE ⇒ the grid renders a shape- and aspect-matched SKELETON instead of tiles or the empty line. Publish
+   *  `true` before you float the wire work and `false` with the results — the loading arm outranks both. */
+  readonly loading?: PluginBoundBoolean | undefined;
 }
 interface PluginPageStage {
   readonly id: string;
@@ -474,7 +535,9 @@ type PluginSurfaceNode =
   | PluginConfirmButtonNode
   | PluginGridNode
   | PluginMasterDetailNode
-  | PluginSearchBarNode;
+  | PluginSearchBarNode
+  | PluginIconNode
+  | PluginTabsNode;
 
 type PluginSurfaceSpec = PluginSurfaceNode;
 

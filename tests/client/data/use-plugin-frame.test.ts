@@ -26,6 +26,7 @@ const REQUEST: PluginFrameRequest = {
   pluginId: castId<PluginId>("plugin_01h455vb4pex5vsknk084sn02q"),
   surfaceId: "board",
   themeTokens: { "--sandbox-bg": "#101014" },
+  styleTokens: { "--sandbox-radius": "0.5rem" },
   fontFamily: undefined,
 };
 
@@ -40,7 +41,9 @@ function stubFetch(impl: () => unknown): void {
 describe("pluginFrameMintBody", () => {
   test("carries ONLY the selector + theme — no document bytes, nothing that looks like a policy", () => {
     const body = pluginFrameMintBody(REQUEST);
-    expect(Object.keys(body).toSorted()).toEqual(["pluginId", "surfaceId", "themeTokens"]);
+    // `styleTokens` joined the body at #799 (the non-color half of the widened house slice — radius + the
+    // mono family). The pin stays an EXACT key list on purpose: it is what makes a new field a decision.
+    expect(Object.keys(body).toSorted()).toEqual(["pluginId", "styleTokens", "surfaceId", "themeTokens"]);
     // The server holds the document and decides the policy; neither is even spellable from here.
     expect(JSON.stringify(body)).not.toMatch(FORBIDDEN_WORDS);
   });

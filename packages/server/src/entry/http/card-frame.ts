@@ -117,6 +117,7 @@ const MISS_DOC = buildCardFrameDocument({
   html: '<p style="font:14px system-ui;opacity:.6;padding:12px">This card frame expired. Reload to view it.</p>',
   css: undefined,
   themeTokens: undefined,
+  styleTokens: undefined,
   fontFamily: undefined,
 });
 
@@ -206,6 +207,10 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       html: body.html,
       css: body.css,
       themeTokens: body.themeTokens,
+      // `undefined`: the CHAT card mint carries no non-color slice (#799 widened the PLUGIN frame's
+      // injection, not the card's). Named rather than omitted — `CardFrameContent` has no optional fields,
+      // so a new slot is a decision every construction site is forced to take.
+      styleTokens: undefined,
       fontFamily: body.fontFamily,
     });
     const id = store.put({

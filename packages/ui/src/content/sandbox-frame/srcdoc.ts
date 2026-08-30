@@ -31,13 +31,14 @@ export function buildSrcDoc(params: {
   readonly html: string;
   readonly css: string | undefined;
   readonly themeTokens: Readonly<Record<string, string>> | undefined;
+  readonly styleTokens: Readonly<Record<string, string>> | undefined;
   readonly fontFamily: string | undefined;
   /** The resolved external-media verdict for the row this card belongs to. Absent ⇒ blocked (fail closed). */
   readonly allowExternalMedia?: boolean | undefined;
 }): string {
   const policy = { ...CARD_FRAME_SAFE_FLOOR, allowExternalMedia: params.allowExternalMedia === true };
   return buildCardFrameDocument(
-    { html: params.html, css: params.css, themeTokens: params.themeTokens, fontFamily: params.fontFamily },
+    { html: params.html, css: params.css, themeTokens: params.themeTokens, styleTokens: params.styleTokens, fontFamily: params.fontFamily },
     // `static`, always: the floor is script-dead by construction (sandbox `""` + an inherited
     // `script-src 'self'`), so the interactive posture is not expressible on this arm — passing it would
     // emit an `'unsafe-inline'` the embedder's policy intersects away, a directive that can never match

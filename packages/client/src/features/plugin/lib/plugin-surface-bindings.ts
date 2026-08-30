@@ -12,6 +12,7 @@
 // caps count through.
 
 import type {
+  PluginBoundBoolean,
   PluginBoundNumber,
   PluginBoundString,
   PluginGridTile,
@@ -23,8 +24,10 @@ import type {
 import {
   pluginChildNodes,
   resolvePluginBoundAssetId,
+  resolvePluginBoundBoolean,
   resolvePluginBoundKeyValueRows,
   resolvePluginBoundSelectOptions,
+  resolvePluginBoundTabOptions,
   resolvePluginBoundTiles,
 } from "@orb/contracts/plugin";
 import type { AssetId } from "@orb/kit/ids";
@@ -100,12 +103,23 @@ function ownBinding(node: PluginSurfaceNode): boolean {
   if (node.kind === "list") {
     return node.items.some((item) => isBinding(item));
   }
-  // The U5 browse kinds bind too, and they must be listed or a page whose entire content is a state-bound grid
-  // would read as "purely static" and render its empty fallbacks as room chrome (the §4.9 silence rule). A
-  // BOUND grid (`tilesFrom`, #774 ARM C) and a bound image (`assetFrom`) are bindings by construction.
+  // The U5/#799 browse + option kinds — and the "binds nothing" tail — live in {@link browseOwnBinding}.
+  return browseOwnBinding(node);
+}
+
+/** The BROWSE + OPTION kinds' own-binding arms — the TAIL of {@link ownBinding}, split out so that function
+ *  stays under the house cognitive-complexity ceiling. It owns the final `false` too, so the pair is a
+ *  straight continuation rather than a tri-state handshake. */
+function browseOwnBinding(node: PluginSurfaceNode): boolean {
+  // They must be listed or a page whose entire content is a state-bound grid would read as "purely static"
+  // and render its empty fallbacks as room chrome (the §4.9 silence rule). A BOUND grid (`tilesFrom`, #774
+  // ARM C), a bound `loading` (#799) and a bound image (`assetFrom`) are bindings by construction.
   if (node.kind === "grid") {
     return (
       node.tilesFrom !== undefined ||
+      // A bound `loading` (#799) is a binding by construction — a browse page whose grid is skeletoned by
+      // state must not read as "purely static" (the §4.9 silence rule).
+      (node.loading !== undefined && isBinding(node.loading)) ||
       (node.tiles ?? []).some(
         (tile) => isBinding(tile.title) || (tile.subtitle !== undefined && isBinding(tile.subtitle)) || (tile.badge !== undefined && isBinding(tile.badge)),
       )
@@ -126,7 +140,8 @@ function ownBinding(node: PluginSurfaceNode): boolean {
   // A bound select (`optionsFrom`, hub v1.3) binds its VOCABULARY to state even though its picked value
   // stays client-transient — without this arm a page whose only binding is a per-hub sort menu would
   // read as "purely static" and render an empty select as room chrome (the §4.9 silence rule).
-  if (node.kind === "select") {
+  // The `tabs` strip (#799) speaks the same grammar, so it binds for the same reason.
+  if (node.kind === "select" || node.kind === "tabs") {
     return node.optionsFrom !== undefined;
   }
   // The remaining form/action kinds carry no bindable value (their values are client-transient until an
@@ -136,8 +151,8 @@ function ownBinding(node: PluginSurfaceNode): boolean {
 
 /** A bindable slot holds either a primitive literal or the `{ $state }` object — so "is it bound" is "is it
  *  the object arm". */
-function isBinding(value: PluginBoundString | PluginBoundNumber): boolean {
-  return typeof value !== "string" && typeof value !== "number";
+function isBinding(value: PluginBoundString | PluginBoundNumber | PluginBoundBoolean): boolean {
+  return typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean";
 }
 
 /** Collect every asset id the spec paints — `image` nodes, `grid` tile covers and `masterDetail` stage heroes
@@ -220,6 +235,23 @@ export function selectOptions(node: Extract<PluginSurfaceNode, { kind: "select" 
   return node.optionsFrom === undefined ? [] : resolvePluginBoundSelectOptions(state, node.optionsFrom);
 }
 
+/** A `tabs` strip's effective option list (#799) — declared options verbatim, or the bound arm resolved
+ *  (validated + clamped to the STRIP's own smaller cap) against state. The `selectOptions` collapse one
+ *  kind over: both arms meet at the common shape so the renderer never knows which arm fed it. */
+export function tabOptions(node: Extract<PluginSurfaceNode, { kind: "tabs" }>, state: Record<string, unknown>): readonly PluginSelectOption[] {
+  if (node.options !== undefined) {
+    return node.options;
+  }
+  return node.optionsFrom === undefined ? [] : resolvePluginBoundTabOptions(state, node.optionsFrom);
+}
+
+/** A grid's effective LOADING verdict (#799) — the declared literal or the bound path, resolved through the
+ *  contracts-side gate (a miss or a non-boolean is FALSE, so a binding typo can never wedge a permanent
+ *  skeleton). Absent ⇒ not loading. */
+export function gridLoading(node: Extract<PluginSurfaceNode, { kind: "grid" }>, state: Record<string, unknown>): boolean {
+  return node.loading !== undefined && resolvePluginBoundBoolean(state, node.loading);
+}
+
 /** A keyValue's effective row list (hub v1.3) — declared rows verbatim (values may still bind), or the
  *  bound arm resolved (validated + clamped) against state. A bound row's plain-string value IS a
  *  `PluginBoundString`, so both arms meet at the declared row shape. */
@@ -242,7 +274,7 @@ function primToString(value: number | boolean): string {
 export function collectDefaults(node: PluginSurfaceNode, out: Record<string, string>): void {
   // `searchBar` seeds the query field it owns AND recurses into its filter tail — a filter field whose default
   // never landed would submit empty on the first search, which reads as "the filter did nothing".
-  if (node.kind === "textField" || node.kind === "select" || node.kind === "searchBar") {
+  if (node.kind === "textField" || node.kind === "select" || node.kind === "searchBar" || node.kind === "tabs") {
     out[node.name] = node.value ?? "";
   } else if (node.kind === "numberField" || node.kind === "slider") {
     out[node.name] = node.value === undefined ? "" : primToString(node.value);

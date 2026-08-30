@@ -83,6 +83,13 @@ export const pluginFrameMintRequestSchema = z.strictObject({
     .record(z.string().max(MAX_TOKEN_NAME_CHARS), z.string().max(MAX_TOKEN_VALUE_CHARS))
     .refine((r) => Object.keys(r).length <= MAX_THEME_TOKENS)
     .optional(),
+  /** The NON-COLOR `--*` slice (#799) — a radius, the mono family list. It is a SECOND record rather than
+   *  more keys in `themeTokens` because the server re-clamps the two with different grammars: `isSafeColor`
+   *  is color-only and would drop every value here. Same per-entry caps, same count bound. */
+  styleTokens: z
+    .record(z.string().max(MAX_TOKEN_NAME_CHARS), z.string().max(MAX_FONT_FAMILY_CHARS))
+    .refine((r) => Object.keys(r).length <= MAX_THEME_TOKENS)
+    .optional(),
   /** The resolved UI font-family list. Re-validated server-side against the kit font-list grammar. */
   fontFamily: z.string().max(MAX_FONT_FAMILY_CHARS).optional(),
 });

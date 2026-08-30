@@ -40,6 +40,7 @@ interface CardBodyProps {
   readonly html: string;
   readonly css: string | undefined;
   readonly themeTokens: Readonly<Record<string, string>>;
+  readonly styleTokens: Readonly<Record<string, string>>;
   readonly fontFamily: string | undefined;
   readonly label: string;
   readonly heightPx: number;
@@ -48,7 +49,19 @@ interface CardBodyProps {
 }
 
 /** The card's content pane: the sandboxed render, or (view-raw) the exact stored source as a code echo. */
-function CardBody({ fill, showRaw, html, css, themeTokens, fontFamily, label, heightPx, allowExternalMedia, frameSrc }: CardBodyProps): ReactElement {
+function CardBody({
+  fill,
+  showRaw,
+  html,
+  css,
+  themeTokens,
+  styleTokens,
+  fontFamily,
+  label,
+  heightPx,
+  allowExternalMedia,
+  frameSrc,
+}: CardBodyProps): ReactElement {
   const slots = immersiveCardVariants();
   if (showRaw) {
     return (
@@ -66,6 +79,7 @@ function CardBody({ fill, showRaw, html, css, themeTokens, fontFamily, label, he
       html={html}
       {...(css === undefined ? {} : { css })}
       themeTokens={themeTokens}
+      styleTokens={styleTokens}
       {...(fontFamily === undefined ? {} : { fontFamily })}
       title={label}
       allowExternalMedia={allowExternalMedia}
@@ -104,8 +118,8 @@ export function ImmersiveCard({
   const label = title !== undefined && title !== "" ? title : UNTITLED_LABEL;
   // The sandboxed iframe can't resolve the app's `var(--token)` cascade, so the base body rule is fed
   // CONCRETE theme-resolved surface/text/font values (recolors live on a theme switch).
-  const { themeTokens, fontFamily } = useSandboxTheme();
-  const bodyProps = { showRaw, html, css, themeTokens, fontFamily, label, heightPx, allowExternalMedia, frameSrc };
+  const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
+  const bodyProps = { showRaw, html, css, themeTokens, styleTokens, fontFamily, label, heightPx, allowExternalMedia, frameSrc };
 
   const rawToggle = (
     <Button

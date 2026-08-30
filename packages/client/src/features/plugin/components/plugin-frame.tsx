@@ -85,8 +85,8 @@ export interface PluginFrameProps {
  */
 export function PluginFrame({ pluginId, surfaceId, pluginName, title, hostCall, fallback = null, scale = "panel" }: PluginFrameProps): ReactElement | null {
   const inFlight = useRef(0);
-  const { themeTokens, fontFamily } = useSandboxTheme();
-  const src = usePluginFrameSrc({ pluginId, surfaceId, themeTokens, fontFamily });
+  const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
+  const src = usePluginFrameSrc({ pluginId, surfaceId, styleTokens, themeTokens, fontFamily });
 
   // `onHostMessage` fires ONLY for a message `SandboxFrame` has already authenticated as coming from this
   // frame's own window (check 1). `reply` posts back to that same window. Checks 2 (parse) and 3 (budget) are

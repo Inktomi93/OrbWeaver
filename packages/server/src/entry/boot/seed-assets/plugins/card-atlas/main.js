@@ -1928,8 +1928,9 @@ function tileTags(result) {
 
 /** Publish the browse page. `sourceKey` names WHICH hub's sort menu to publish — the picked hub during the
  *  immediate-feedback publish (its menu must swap the moment the select changes), the session's afterward,
- *  the default before any search. */
-async function publishBrowse(status, sourceKey) {
+ *  the default before any search. `loading` drives the grid's SKELETON (#799): true on the pre-wire publish
+ *  of a search or a page flip, false on every settled one. */
+async function publishBrowse(status, sourceKey, loading) {
   const cache = await loadArtCache();
   const rows = session === null ? [] : session.pageRows;
   // Bounded, and each read folds its own failure — the owned badge is decoration, never worth an action.
@@ -1938,6 +1939,7 @@ async function publishBrowse(status, sourceKey) {
   await host.ui.setState("atlas_page", {
     stage: "browse",
     status,
+    loading: loading === true,
     sortOptions: SOURCES[menuKey].sortOptions,
     pageLabel: session === null || session.totalPages <= 1 ? "" : `Page ${session.page} of ${session.totalPages}`,
     tiles: rows.map((result, i) => {
@@ -2081,6 +2083,10 @@ function registerAtlasPage(sfwOn) {
                 tileAction: "open_result",
                 aspect: "portrait",
                 empty: "Search to begin — the atlas covers nine community hubs.",
+                // The LOADING third of the three-states law (#799). It is reachable at the static tier
+                // because every handler here already publishes BEFORE it floats its wire work (the
+                // settlement wall): that first publish sets this true, the continuation's sets it false.
+                loading: { $state: "loading" },
               },
               // The pager — one control for every hub, whatever shape the provider pages in (see the
               // header's paging note). Structural (the vocabulary has no conditional visibility), so the
@@ -2214,10 +2220,13 @@ async function searchAction(values) {
     void host.storage.set(SFW_KEY, sfw ? "on" : "off").catch((err) => host.log.info(`sfw setting write failed: ${String(err)}`));
   }
   const seq = ++sessionSeq;
-  // Feedback BEFORE the wire (the vocabulary has no loading skeleton yet): the status line speaks, the
-  // previous results stay put — content-preserving, never a blank flash. The picked hub's sort menu rides
-  // this publish, so the Sort select swaps vocabularies the moment the Hub select changes.
-  await publishBrowse(q.length === 0 ? `Browsing ${source.label}…` : `Searching ${source.label} for "${q}"…`, sourceKey);
+  // Feedback BEFORE the wire: the status line speaks AND the grid goes to its skeleton (#799 — the ruling
+  // that this publish must never blank the page SURVIVES, its input changed: the vocabulary now HAS a
+  // shape- and aspect-matched skeleton, so the boxes stay reserved and nothing reflows. What the old
+  // content-preserving arm actually did was show the PREVIOUS query's results under a status line saying a
+  // different query was running, which is the state the three-states law calls neither). The picked hub's
+  // sort menu rides this publish, so the Sort select swaps vocabularies the moment the Hub select changes.
+  await publishBrowse(q.length === 0 ? `Browsing ${source.label}…` : `Searching ${source.label} for "${q}"…`, sourceKey, true);
   void runSearch(seq, { sourceKey, sortKey, q, include, exclude, sfw }).catch((err) => host.log.warn(`search failed: ${String(err)}`));
 }
 
@@ -2239,7 +2248,10 @@ async function pageAction(delta) {
   }
   session.page = target;
   const seq = ++sessionSeq;
-  await publishBrowse(`Fetching page ${target}…`);
+  // Same skeleton posture as a search (#799): a page flip replaces the grid's WHOLE content over a wire
+  // fetch, so leaving the previous page's tiles under "Fetching page 3…" claimed results that were on
+  // their way out. The edge-refusal publishes above stay settled — nothing is in flight for those.
+  await publishBrowse(`Fetching page ${target}…`, undefined, true);
   void runPage(seq).catch((err) => host.log.warn(`page failed: ${String(err)}`));
 }
 

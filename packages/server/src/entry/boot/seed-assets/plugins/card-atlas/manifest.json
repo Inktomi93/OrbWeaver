@@ -1,7 +1,7 @@
 {
   "id": "card-atlas",
   "name": "Card Atlas",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "hostVersion": 1,
   "entry": "main.js",
   "description": "Browse the community's character cards without leaving the app: search nine hubs — Character Tavern, RisuRealm, Chub, Wyvern, AI Character Cards, CharaVault, BotBooru, Pygmalion, Datacat — with real cover art, each hub's own sort menu, tag and content-rating filters, a full per-card stat sheet, and add any card straight to your library — art and all, provenance-stamped, dedupe-aware.",
