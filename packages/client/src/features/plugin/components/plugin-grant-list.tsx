@@ -39,15 +39,30 @@
 // the fix: it would grow a sealed primitive's axis for one consumer and still could not make the
 // DESCRIPTION clickable (Base UI wires the label only).
 //
-// THE ACCESSIBLE NAME IS `aria-label` ON THE CHECKBOX, not the label element's textContent — deliberately
-// (side-eye 2026-08-29 P3-5): the wrapping label holds the badge pills, and letting accname composition
-// concatenate them produced the run-on "Rewrite your outgoing messages (new in this update)NewReaches
-// further". `aria-label` wins the accname algorithm over the native label, so the name is exactly
-// `<label>` or `<label> (new in this update)` — the NEW mark still rides the NAME (a re-consent screen
-// read aloud has to distinguish the rows that changed, and a colour cannot say that), the visible words
-// remain a prefix of it (WCAG 2.5.3 containment), and the pills stay visual. The consequence reaches AT
-// via `aria-describedby`. The visible "(new in this update)" suffix is GONE from the label text — the
-// "New" badge beside it said the identical thing 8px away (P3-5's redundancy half).
+// THE ACCESSIBLE NAME IS AN EXPLICIT `aria-labelledby` NAMING EXACTLY TWO NODES — the capability's own
+// label Text, plus the "New" pill on a re-consent row. Never the wrapping label's textContent, and never
+// `aria-label` (side-eye 2026-08-29 P3-5, and the correction below).
+//
+// THE FIRST FIX WAS WRONG AND MEASURED SO. It set `aria-label` on the checkbox and claimed "`aria-label`
+// wins the accname algorithm over the native label". It does not when `aria-labelledby` is ALSO present,
+// and Base UI's `Checkbox.Root` emits one automatically from the `<label htmlFor>` this row wraps its text
+// in — so the aria-label was inert and the computed name was the WHOLE label subtree. Measured on
+// a2cb2ada7 with `Locator.ariaSnapshot()` (an accname computation; reading the `aria-label` ATTRIBUTE back
+// looks correct and proves nothing):
+//     checkbox "Write lorebook entries New Reaches further Adds and updates entries in lorebooks already
+//               attached to the room, up to 64 entries."
+// That is the original run-on plus the consequence — worse than what P3-5 filed, with the consequence read
+// twice (name + `aria-describedby`) and "(new in this update)" audible NOWHERE, having also been deleted
+// from the visible text.
+//
+// An explicit `aria-labelledby` outranks the generated one, so the name is exactly `<label>` or
+// `<label> New`. That keeps every claim the original ruling made, and one it could not: the NEW mark rides
+// the NAME (a re-consent screen read aloud has to distinguish the rows that changed, and a colour cannot
+// say that) — now in the pill's OWN visible words, so 2.5.3 containment is stronger than the invented
+// "(new in this update)" phrasing ever was. The other pills stay out of the name and remain plain readable
+// text in the a11y tree; the consequence reaches AT via `aria-describedby`, once. The visible "(new in this
+// update)" suffix stays GONE from the label text — the "New" badge beside it said the identical thing 8px
+// away (P3-5's redundancy half).
 //
 // A READ-ONLY row that is NOT granted renders a "Not granted" word-mark instead of a disabled checkbox
 // (side-eye #650 P1-3). A `disabled` Checkbox still computes `cursor:pointer` (the shared selection-control
@@ -123,14 +138,17 @@ interface GrantRowProps {
 
 function GrantRow({ capability, checked, isNew, onToggle }: GrantRowProps): ReactElement | null {
   const boxId = useId();
+  const nameId = useId();
+  const newMarkId = useId();
   const consequenceId = useId();
   const copy = capabilityCopy(capability);
   if (copy === undefined) {
     return null;
   }
-  // The NEW mark rides the accessible NAME (see the file header) — `aria-label` composes it, so the badge
-  // pills never concatenate into the name and the visible label stays a prefix of it (WCAG 2.5.3).
-  const srName = isNew ? `${copy.label} (new in this update)` : copy.label;
+  // The accessible name, as an EXPLICIT node list (see the file header): the label, plus the "New" pill on a
+  // re-consent row. Explicit beats the one Base UI derives from the wrapping `<label htmlFor>`, which is what
+  // silently swallowed the pills and the consequence.
+  const nameIds = isNew ? `${nameId} ${newMarkId}` : nameId;
   const interactive = onToggle !== undefined;
   const labelBlock = (
     // `cursor-pointer` when interactive: the WHOLE label row is the toggle's hit target (the bare `<label
@@ -139,7 +157,9 @@ function GrantRow({ capability, checked, isNew, onToggle }: GrantRowProps): Reac
     // area (side-eye 2026-08-29 residual P3). Read-only rows stay default-cursor.
     <Stack className={interactive ? "cursor-pointer" : undefined} gap="tight">
       <Row align="center" className="flex-wrap" gap="field">
-        <Text voice="label">{copy.label}</Text>
+        <Text id={nameId} voice="label">
+          {copy.label}
+        </Text>
         {/* An UNCHECKED read-only row's state, as a word beside the name it refuses — adjacent, where the
             far-docked control column used to strand it (file header). */}
         {!(interactive || checked) ? (
@@ -150,7 +170,7 @@ function GrantRow({ capability, checked, isNew, onToggle }: GrantRowProps): Reac
         {/* "New" reads INFO (informational — this row changed) against "Costs money"'s WARNING (a real
             caution) — two amber "warning/soft" pills at a glance were indistinguishable (side-eye P2-8). */}
         {isNew ? (
-          <Badge intent="info" size="sm" tone="soft">
+          <Badge id={newMarkId} intent="info" size="sm" tone="soft">
             New
           </Badge>
         ) : null}
@@ -193,7 +213,7 @@ function GrantRow({ capability, checked, isNew, onToggle }: GrantRowProps): Reac
       {interactive || checked ? (
         <Checkbox
           aria-describedby={consequenceId}
-          aria-label={srName}
+          aria-labelledby={nameIds}
           checked={checked}
           disabled={!interactive}
           id={boxId}
