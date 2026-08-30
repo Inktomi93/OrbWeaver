@@ -1,56 +1,113 @@
-// buildSettingsSearchEntries (features/config/lib/config-search.ts) — the keyword wiring for a section
-// whose LIST row is abbreviated. A `navLabel` shortens what the LIST column shows; if the index carried
-// only `label`, a reader who typed the name they actually READ would miss the section the abbreviation
-// hides. DOM-free pure logic → a browser-free unit test (Spine-Testing.md §7); deep-imports the lib module.
-// (S1 shape — S2 rebuilds the index over `@orb/ui/fuzzy-search`; this pin follows it there.)
+// `buildConfigSearchEntries` + `filterConfigEntries` (features/config/lib/config-search.ts) — the Settings
+// search's STATIC index derivation (config-revamp-design.md §3.3/§6.4): group rows · section rows · setting
+// leaves off the ONE nav derivation, `when`-hidden groups contributing NOTHING (search sees exactly what the
+// LIST shows), the navLabel keyword parity (an abbreviation must never hide its section), and the typed
+// `@` filter semantics — including `@modified` over a planted changed key and the `@advanced` flip.
+// DOM-free pure logic → a browser-free unit test (Spine-Testing.md §7); deep-imports the lib module.
 
-import type { ConfigGroupDefinition, ConfigGroupRegistry, ConfigSubcategory } from "@orb/client/state";
+import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigSubcategory, ModifiedSubIds } from "@orb/client/state";
 import { Settings } from "@orb/ui/icons";
-import { buildSettingsSearchEntries } from "../../../../../packages/client/src/features/config/lib/config-search.ts";
+import type { ConfigSearchEntry } from "../../../../../packages/client/src/features/config/lib/config-search.ts";
+import { buildConfigSearchEntries, filterConfigEntries } from "../../../../../packages/client/src/features/config/lib/config-search.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-/** A skimmer group; its ONE row comes from the section registry (`subcategoriesFor`), never from the group
- *  itself (config-revamp-design.md §6.8). The row's nav label is deliberately NOT a substring of its heading
- *  — so a match on it can only come from the `navLabel` keyword, never incidentally from `label`. */
-const GROUP: ConfigGroupDefinition = {
-  id: "appearance",
-  shelf: "user",
-  label: "Appearance",
-  icon: Settings,
-  description: "How the app looks.",
-  body: { kind: "sections" },
-};
-const ROWS: readonly ConfigSubcategory[] = [{ id: "message-details", label: "Message details & actions", navLabel: "Chips", keywords: ["metadata"] }];
-
-const REGISTRY: ConfigGroupRegistry = {
-  name: "test",
-  get: (): ConfigGroupDefinition => GROUP,
-  list: (): readonly ConfigGroupDefinition[] => [GROUP],
-  has: (): boolean => true,
-};
-
-function subcategoryEntry(): { readonly label: string; readonly keywords: readonly string[] } {
-  const entries = buildSettingsSearchEntries(
-    REGISTRY,
-    () => true,
-    () => ROWS,
-  );
-  const entry = entries.find((e) => e.subId === "message-details");
-  if (entry === undefined) {
-    throw new Error("no subcategory entry built");
-  }
-  return entry;
+function group(id: ConfigGroupId, shelf: ConfigGroupDefinition["shelf"], label: string): ConfigGroupDefinition {
+  return { id, shelf, label, icon: Settings, description: `${label} — the description.`, body: { kind: "sections" } };
 }
 
-test("a subcategory's search entry matches on BOTH its heading and its nav label", () => {
-  const { keywords } = subcategoryEntry();
-  expect(keywords).toContain("Message details & actions");
-  expect(keywords).toContain("Chips");
-  // The group's own name still rides along (a hit is reachable by group too), as do the sub's keywords.
-  expect(keywords).toContain("Appearance");
-  expect(keywords).toContain("metadata");
+const APPEARANCE = group("appearance", "user", "Appearance");
+const CONNECTIONS = group("connections", "app", "Connections");
+const ADMIN = group("admin", "app", "Admin");
+
+const ROWS: Readonly<Partial<Record<ConfigGroupId, readonly ConfigSubcategory[]>>> = {
+  appearance: [
+    {
+      id: "message-details",
+      label: "Message details & actions",
+      navLabel: "Chips",
+      keywords: ["metadata"],
+      settings: [
+        { id: "avatar-size", label: "Avatar size", keywords: ["scale"] },
+        { id: "debug-grid", label: "Layout debug grid", advanced: true },
+      ],
+    },
+  ],
+  connections: [{ id: "model-roles", label: "Model roles" }],
+  admin: [{ id: "users", label: "Users" }],
+};
+
+function registryOf(groups: readonly ConfigGroupDefinition[]): ConfigGroupRegistry {
+  const byId = new Map(groups.map((g) => [g.id, g]));
+  return {
+    name: "test",
+    get: (id): ConfigGroupDefinition => byId.get(id) as ConfigGroupDefinition,
+    list: (): readonly ConfigGroupDefinition[] => groups,
+    has: (id): boolean => byId.has(id),
+  };
+}
+
+const NO_FILTER = { modified: false, advanced: false } as const;
+const NO_MODIFIED: ModifiedSubIds = new Map();
+
+function build(visible: (id: ConfigGroupId) => boolean = () => true): readonly ConfigSearchEntry[] {
+  return buildConfigSearchEntries(registryOf([APPEARANCE, CONNECTIONS, ADMIN]), visible, (g) => ROWS[g.id] ?? []);
+}
+
+test("the derivation: one group row, one row per section, one per leaf — each carrying its full address", () => {
+  const entries = build();
+  expect(entries.map((e) => e.id)).toEqual([
+    "appearance",
+    "appearance::message-details",
+    "appearance::message-details::avatar-size",
+    "appearance::message-details::debug-grid",
+    "connections",
+    "connections::model-roles",
+    "admin",
+    "admin::users",
+  ]);
+  const leaf = entries.find((e) => e.id === "appearance::message-details::avatar-size");
+  expect(leaf).toMatchObject({ kind: "setting", shelf: "user", groupId: "appearance", subId: "message-details", settingId: "avatar-size" });
 });
 
-test("the entry READS as the heading — the abbreviation is a matcher, never the result's name", () => {
-  expect(subcategoryEntry().label).toBe("Message details & actions");
+test("a `when`-hidden group contributes NOTHING — search sees exactly what the LIST shows (D120)", () => {
+  const entries = build((id) => id !== "admin");
+  expect(entries.some((e) => e.groupId === "admin")).toBe(false);
+});
+
+test("a navLabel section matches by BOTH its heading and the abbreviation, and READS as the heading", () => {
+  const section = build().find((e) => e.id === "appearance::message-details");
+  expect(section?.label).toBe("Message details & actions");
+  expect(section?.keywords).toContain("Chips");
+  expect(section?.keywords).toContain("Message details & actions");
+  expect(section?.keywords).toContain("metadata");
+  expect(section?.keywords).toContain("Appearance");
+});
+
+test("@shelf: and @in: narrow by address; an unknown value matches nothing (the honest zero)", () => {
+  const entries = build();
+  expect(filterConfigEntries(entries, { ...NO_FILTER, shelf: "app" }, NO_MODIFIED).every((e) => e.shelf === "app")).toBe(true);
+  expect(filterConfigEntries(entries, { ...NO_FILTER, group: "APPEARANCE" }, NO_MODIFIED).every((e) => e.groupId === "appearance")).toBe(true);
+  expect(filterConfigEntries(entries, { ...NO_FILTER, shelf: "you" }, NO_MODIFIED)).toEqual([]);
+});
+
+test("@advanced FLIPS the axis: advanced leaves are hidden by default and are the ONLY rows when asked", () => {
+  const entries = build();
+  const plain = filterConfigEntries(entries, NO_FILTER, NO_MODIFIED);
+  expect(plain.some((e) => e.settingId === "debug-grid")).toBe(false);
+  const advanced = filterConfigEntries(entries, { ...NO_FILTER, advanced: true }, NO_MODIFIED);
+  expect(advanced.map((e) => e.settingId)).toEqual(["debug-grid"]);
+});
+
+test("@modified keeps a section (and its leaves, and its group row) only when its OWNED keys differ", () => {
+  const entries = build();
+  // The planted verdict: appearance/message-details differs from default; nothing else does.
+  const modified: ModifiedSubIds = new Map([["appearance", new Set(["message-details"])]]);
+  const hits = filterConfigEntries(entries, { ...NO_FILTER, modified: true }, modified);
+  expect(hits.map((e) => e.id)).toEqual(["appearance", "appearance::message-details", "appearance::message-details::avatar-size"]);
+  expect(filterConfigEntries(entries, { ...NO_FILTER, modified: true }, NO_MODIFIED)).toEqual([]);
+});
+
+test("@ext: narrows to the plugins group (the slug rides the TERMS, not this filter)", () => {
+  const entries = build();
+  expect(filterConfigEntries(entries, { ...NO_FILTER, ext: "weather-teller" }, NO_MODIFIED)).toEqual([]);
 });

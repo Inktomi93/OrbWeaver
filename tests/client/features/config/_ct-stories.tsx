@@ -10,8 +10,19 @@
 // The `reset groups` button is determinism, not product: the disclosure store is device-local
 // (localStorage), and a CT that inherited another run's expanded set would assert the wrong first frame.
 
+import { CommandPaletteSurface } from "@orb/client/features/chat";
+import { bindConfigPaletteGroups, configPaletteSource } from "@orb/client/features/config";
+import type { CommandPaletteSource } from "@orb/client/lib";
+import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigGroupId } from "@orb/client/state";
-import { __resetConfigGroupOpen, __resetConfigNav, clearCollectionSelection, openConfigTo, setMobileViewport } from "@orb/client/state";
+import {
+  __resetConfigGroupOpen,
+  __resetConfigNav,
+  CommandPaletteSourceRegistryProvider,
+  clearCollectionSelection,
+  openConfigTo,
+  setMobileViewport,
+} from "@orb/client/state";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
@@ -275,6 +286,24 @@ export function ConfigWorkspaceStory(): ReactElement {
             <ConfigContextBody groups={groups} />
           </div>
         </div>
+      </CtRealConfigSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The ⌘K palette with the SETTINGS source over the REAL group registry (§3.3 — one index, two hosts). The
+ *  bind is the door's own delivery, performed here exactly as `compose/authed-app.tsx` performs it. */
+export function ConfigPaletteStory(): ReactElement {
+  bindConfigPaletteGroups(realConfigGroups);
+  const registry = createContributorRegistry<CommandPaletteSource>("command-palette-sources", [configPaletteSource]);
+  return (
+    <CtDataProviders>
+      <CtRealConfigSectionRegistry>
+        <CommandPaletteSourceRegistryProvider value={registry}>
+          <div style={{ height: 480, width: 560 }}>
+            <CommandPaletteSurface goToSections={[]} />
+          </div>
+        </CommandPaletteSourceRegistryProvider>
       </CtRealConfigSectionRegistry>
     </CtDataProviders>
   );

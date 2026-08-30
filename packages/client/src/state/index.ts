@@ -147,6 +147,15 @@ export {
   useActiveConfigSub,
   useConfigTarget,
 } from "./config-nav-store.ts";
+export type { ConfigSearchMatch, ModifiedSubIds } from "./config-search-store.ts";
+export {
+  __resetConfigSearch,
+  clearConfigSearch,
+  setConfigSearchMatch,
+  setConfigSearchQuery,
+  useConfigSearchMatch,
+  useConfigSearchQuery,
+} from "./config-search-store.ts";
 export type { UnclaimedSettingsKey } from "./config-section-partition.ts";
 export { assertSettingsKeyPartition, UNCLAIMED_SETTINGS_KEYS } from "./config-section-partition.ts";
 export type { AppSettingsClaimPath, ConfigSectionContribution, ResolvedConfigSection, SettingsKeyClaim } from "./config-section-registry.ts";

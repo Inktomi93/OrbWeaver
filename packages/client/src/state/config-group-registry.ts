@@ -33,6 +33,9 @@ export interface ConfigSettingLeaf {
   readonly id: string;
   readonly label: string;
   readonly keywords?: readonly string[];
+  /** Hidden from search unless the reader asks with `@advanced` (§3.3 — the D107 progressive-disclosure
+   *  axis). Absent = an ordinary row. */
+  readonly advanced?: boolean;
 }
 
 /** A subcategory = one anchored section inside a group; each stamps a stable anchor node the spy reads and
