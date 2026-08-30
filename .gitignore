@@ -123,12 +123,6 @@ scratch/
 # how to read one is documented in packages/client/vite.config.ts's header.
 *.cpuprofile
 
-# design-sync (staged converter + build output + machine state)
-.ds-sync/
-ds-bundle/
-.design-sync/.cache/
-.design-sync/learnings/
-.design-sync/node_modules
 packages/ui/.ds-preview-tokens.css
 .claude/apisurface-*.txt
 packages/ui/.ds-preview-fonts/
