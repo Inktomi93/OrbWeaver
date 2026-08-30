@@ -1,9 +1,13 @@
 // domain/rpg/verbs/game/update-config — updateConfig (rpg-design/05 §4.4). The ONE config write door: the
 // profile mutability matrix (§2.3), the `steeringNote`, and the `gmPresetId` + `extractionMode` KNOBS (§4.11 #1
 // + the delivery-model amendment). Host-gated.
+//
+// It is also the RULESET door (#862): the setting the Game tab's segmented control writes. The apply is
+// ADDITIVE by owner ruling (2026-08-30) and the law lives in contracts (`applyRulesetVocabulary`) — the verb
+// only decides WHEN it runs (on a real change) and commits the result.
 
 import type { RpgGameConfig, RpgGameFeatures, RpgStatProfile } from "@orb/contracts/rpg";
-import { RPG_EXTRACTION_MODES, rpgGameConfigSchema } from "@orb/contracts/rpg";
+import { applyRulesetVocabulary, RPG_EXTRACTION_MODES, rpgGameConfigSchema } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { RpgGameId } from "@orb/kit/ids";
 import type { UpdateConfigParams } from "../../contract/params.ts";
@@ -79,15 +83,27 @@ function mergeExtractionKnobs(
  *  verb so `updateConfig` stays under the cognitive-complexity ceiling. */
 function mergeConfig(params: UpdateConfigParams, current: RpgGameConfig, nextProfile: RpgStatProfile | undefined): Record<string, unknown> {
   const patch = params.patch;
+  // THE RULESET SETTING (#862, owner ruling 2026-08-30 — ADDITIVE). A CHANGED ruleset merges that ruleset's
+  // vocabulary (attributes · skill map · seeded trackers) BESIDE what the game already carries; nothing is
+  // removed, renamed or confirmed, and switching back hides nothing (`freeform` adds nothing). The apply is
+  // gated on an actual CHANGE, never on presence: re-sending the current arm must not resurrect a packaged
+  // attribute or tracker the host deleted afterwards. An explicit `statProfile` in the same patch WINS (the
+  // stat-profile editor is authoring the vocabulary directly) — the merge then runs on that authored profile.
+  const ruleset = patch?.ruleset ?? current.ruleset;
+  const rulesetChanged = patch?.ruleset !== undefined && patch.ruleset !== current.ruleset;
+  const base = { statProfile: nextProfile ?? current.statProfile, trackers: patch?.trackers !== undefined ? [...patch.trackers] : current.trackers };
+  const vocabulary = rulesetChanged ? applyRulesetVocabulary(base, ruleset) : base;
   return {
+    ruleset,
     // The FRONT-DOOR toggle (#40) — keep-on-omit like every sibling (an unrelated config write must
     // never silently re-engage/disengage the game).
     engaged: patch?.engaged ?? current.engaged,
-    statProfile: nextProfile ?? current.statProfile,
+    statProfile: vocabulary.statProfile,
     // THE TRACKERS (the tracked-field unification) — whole-list replace on a passed array, keep on omit.
     // The same silent-reset trap `mergeFeatures` guards: this write door is the ONLY tracker def door, so
-    // an omitted `trackers` on an unrelated config edit MUST carry the current set through the parse.
-    trackers: patch?.trackers !== undefined ? [...patch.trackers] : current.trackers,
+    // an omitted `trackers` on an unrelated config edit MUST carry the current set through the parse. A
+    // ruleset CHANGE appends its seeded defs to whichever of those two the caller produced.
+    trackers: vocabulary.trackers,
     lite: { steeringNote: patch?.steeringNote ?? current.lite.steeringNote },
     extractionMode: params.extractionMode ?? current.extractionMode,
     // The §1.3 extraction-depth knobs — keep-on-omit.

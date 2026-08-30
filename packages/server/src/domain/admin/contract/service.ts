@@ -75,7 +75,7 @@ export interface AdminContext {
    * own `admin.listUsers` is writer-local and `invalidates` itself — see that key's cited
    * `query-freshness-coverage` entry). Getting this backwards would announce a grant to everyone except the
    * person who received it, which is precisely the D5 gap this closes
-   * (docs/design/staleness-and-session-freshness.md §2.3.4/§4.4.3, W7b).
+   * (docs/history/design/staleness-and-session-freshness.md §2.3.4/§4.4.3, W7b).
    *
    * FLAG[emit-is-total] — satisfied BY CONSTRUCTION: the op is synchronous, `void`-returning and
    * non-throwing (transport's `publishUserEvent` → `defineBusChannel.publish`, live-only, no durable row, no

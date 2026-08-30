@@ -101,7 +101,7 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     // #40 DRAFT-TIME birth (`chat.startChat` carried `startAsGame`): contribute RPG's row to the fresh room's
     // atomic batch. The startChat caller IS the just-minted host (chat's verb is the authority gate), and the
     // game exists before the opening turn so turn 1's gather sees it.
-    planGameBirth: (chatId, params): ReturnType<ChatRpgOps["planGameBirth"]> => planLiteGameBirth(ctx, { chatId, profile: params.profile }),
+    planGameBirth: (chatId, params): ReturnType<ChatRpgOps["planGameBirth"]> => planLiteGameBirth(ctx, { chatId, ruleset: params.ruleset }),
     gameBirthCommitted: (chatId): void => ctx.emitBus({ type: "gameChanged", chatId }),
     resolvePresetOverride,
     // The GAME-authored user macros (MU §12A.5 / owner ruling #20's game half): `config.userMacros`, handed

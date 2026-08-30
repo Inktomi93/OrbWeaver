@@ -69,3 +69,39 @@ test("a solo room whose seat is ALREADY muted keeps the unmute (and only the unm
   await expect(menu.getByRole("menuitem", { name: "Talkativeness…" })).toHaveCount(0);
   await expect(menu.getByRole("menuitem", { name: "Make Aria speak next" })).toHaveCount(0);
 });
+
+// ── #848: the CAST header's two add-doors are DISCRIMINABLE without hover ─────────────────────────────
+//
+// Shipped, the header offered "Add cast…" (108×32, opens a dialog titled "Saved casts") and, 4px away, an
+// UNLABELLED person-plus glyph (34×34, `aria-label="Add a character"`) that adds one character — two
+// person-glyph affordances in one row, one of them mute, after #490-8 had established exactly ONE
+// add-character door (side-eye 2026-08-30 P2). Both tap targets already passed; the defect is that a cold
+// reader cannot tell them apart. The discriminator is a VISIBLE noun on each — "cast" vs "character".
+test("#848: both CAST add-doors carry a visible word, and the two words are different nouns", async ({ mount }) => {
+  const component = await mount(<CommittedMembersTabStory soloCast={true} />);
+  const cast = component.locator(CAST);
+
+  const groupDoor = cast.getByRole("button", { name: "Add cast…" });
+  const characterDoor = cast.getByRole("button", { name: "Add a character" });
+  // VISIBLE text, not the accessible name — the empty string was the whole defect on the second door.
+  await expect(groupDoor).toHaveText(/cast/iu);
+  await expect(characterDoor).toHaveText(/character/iu);
+  // …and the accessible name still CONTAINS the visible label (WCAG 2.5.3) on the door that gained one.
+  await expect(characterDoor).toHaveAccessibleName("Add a character");
+});
+
+// A wide mount agrees with an overflow bug, so the door cluster is measured at the CONTEXT-PANE FLOOR
+// (320px). Two labelled buttons plus the "Cast" kicker have to share that row without either escaping the
+// pane — the failure mode a second visible label is most likely to introduce.
+test("#848: at the 320px pane floor both doors stay inside the pane", async ({ mount }) => {
+  const component = await mount(<CommittedMembersTabStory soloCast={true} width={320} />);
+  const cast = component.locator(CAST);
+
+  const overflow = await cast.evaluate((section: HTMLElement) => {
+    const bounds = section.getBoundingClientRect();
+    return [...section.querySelectorAll("button")]
+      .map((el) => el.getBoundingClientRect())
+      .filter((box) => box.right > bounds.right + 0.5 || box.left < bounds.left - 0.5).length;
+  });
+  expect(overflow, "no CAST-header control escapes the pane at its narrowest real width").toBe(0);
+});

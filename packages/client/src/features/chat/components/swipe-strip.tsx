@@ -19,7 +19,7 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
+import { ChevronLeft, ChevronRight, Icon, RefreshCw } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -199,9 +199,36 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
             </Text>
           </>
         ) : null}
-        <Button intent="ghost" size="icon" loading={busy} aria-label={nextChevronLabel} onClick={goNext}>
-          <Icon icon={ChevronRight} size="sm" />
-        </Button>
+        {/* THE SINGLE-VARIANT ARM IS A NAMED VERB, NOT A NAKED CHEVRON (#849). The pager arm above is
+            unchanged; this is the OTHER arm, and shipped it was the only affordance in the app whose visible
+            label is the empty string — a 34×34 transparent `›` floating over the room's background art
+            between the plate and the composer, with an empty `textContent` AND an empty parent text. A
+            right-pointing chevron universally means "next"; here it costs a model call.
+
+            TWO CHANGES, BOTH MINIMAL. The GLYPH becomes `RefreshCw` — the house's regenerate mark, already
+            carrying that meaning on the composer's ✨ Regenerate row 40px below (composer-utility-menu.tsx),
+            so the "next page" reading is gone even before the word is read. And the word is VISIBLE:
+            "Generate", in the `sm` control box rather than the icon square, so the control says what it does
+            without hover.
+
+            THE OLD RULING SURVIVES — ITS INPUT CHANGED. The header's "A PAGER NEEDS PAGES" ruling removed
+            the `1 / 1` counter and the dead back-chevron at one variant, and that mechanism is untouched
+            here: `showPager` still gates BOTH, and no counter comes back. What the ruling did not settle is
+            that the surviving verb rendered as a pager glyph with no name.
+
+            "Generate" IS A SUBSTRING OF THE ACCESSIBLE NAME, deliberately: #570 ruled the accname at one
+            variant is "Generate a variant", and WCAG 2.5.3 requires the visible label to appear in it, so
+            the visible word is the verb the accname already opens with rather than a synonym. */}
+        {showPager ? (
+          <Button intent="ghost" size="icon" loading={busy} aria-label={nextChevronLabel} onClick={goNext}>
+            <Icon icon={ChevronRight} size="sm" />
+          </Button>
+        ) : (
+          <Button intent="ghost" size="sm" loading={busy} aria-label={nextChevronLabel} onClick={goNext}>
+            <Icon icon={RefreshCw} size="sm" />
+            Generate
+          </Button>
+        )}
       </Row>
     </Stack>
   );

@@ -187,6 +187,22 @@ export const gridVariants = tv({
       // on MORE cells and leaves the cell alone — the right answer wherever the cell is a picture of a
       // thing rather than a container for text. Same 8.5rem cell as `cell`, so the two agree at the floor.
       cellFixed: "grid-cols-[repeat(auto-fill,8.5rem)]",
+      // `cellFixed`'s PHONE ARM (added 2026-08-30, #864 — the Characters landing shelves). Identical at
+      // every pane width the desktop shape reaches; it differs only BELOW `@md`, where the fixed 8.5rem
+      // track stops being the right answer. Measured against the approved 430px artboard: a 430px CONTENT
+      // pane spends 2×`p-block` on its gutters and leaves ~398px, which `auto-fill` at a 136px track fills
+      // with exactly TWO cells and ~120px of dead trailing air — the shelf reads as two big pictures rather
+      // than a rank you scan. Three equal `1fr` columns spend that air on a third face at ~123px, which is
+      // still a legible portrait and is the composition the mock draws.
+      //
+      // A SEPARATE ARM, not a retune of `cellFixed` (the `leadEven`/`leadEarly` precedent): `cellFixed`'s
+      // other consumer is the chats HOME quick-picks shelf, which lives inside a home TILE — a box that is
+      // already narrower than its pane, so a container-level `@max-md` would fire there at widths where the
+      // fixed track is still correct. Reach for `cellShelf` when the shelf IS the pane's full width.
+      //
+      // Container-queried, `pair`'s precedent — it answers to the pane, not the viewport — so it REQUIRES an
+      // ancestor `<Container>` (an element cannot query itself).
+      cellShelf: "grid-cols-3 @md:grid-cols-[repeat(auto-fill,8.5rem)]",
       // `pair`'s LATE-BREATH twin (added 2026-08-16, side-eye #102 F3), for a pair that only makes sense
       // once the pane is genuinely wide: the two FOOTNOTE blocks at the foot of a `lead` rail, which the
       // approved shape puts side by side at the same >=100rem step where the rail itself widens. `pair`'s
@@ -218,13 +234,35 @@ export const gridVariants = tv({
       // names fit, and grows past it exactly where they do not (the fixed box clipped "Max output tokens"
       // at EVERY pane width, 1864 included — the label cell also has to seat the hint trigger).
       //
-      // AND IT FOLDS TO ONE COLUMN BEFORE THE RAIL DIES. At a narrow pane the fixed name box + the number
-      // twin + the reset left the rail 0-28px — a thumb on no track at all. Below `@lg` every cell stacks,
-      // which hands the rail the whole width; `@lg` and not `@md` because the fold has to happen while
-      // there is still a rail worth keeping (measured: the three-track arm needs ~468px of pane before the
-      // middle track clears an aimable floor). The step is in `rem`, so it moves with `--font-scale` — the
-      // reading arm folds later, which is exactly right for bigger type.
-      knob: "grid-cols-1 @lg:grid-cols-[minmax(var(--width-label-col),max-content)_1fr_max-content]",
+      // AND IT FOLDS BEFORE THE RAIL DIES. At a narrow pane the fixed name box + the number twin + the reset
+      // left the rail 0-28px — a thumb on no track at all. Below `@lg` the rail takes the whole width;
+      // `@lg` and not `@md` because the fold has to happen while there is still a rail worth keeping
+      // (measured: the three-track arm needs ~468px of pane before the middle track clears an aimable
+      // floor). The step is in `rem`, so it moves with `--font-scale` — the reading arm folds later, which
+      // is exactly right for bigger type.
+      //
+      // THE FOLDED ARM IS TWO TRACKS, NOT ONE (side-eye 2026-08-30 P2-C). A single column stacked all four
+      // cells in turn, which cost two things at once. GEOMETRY: the value cluster took a row of its own with
+      // nothing to align to — measured at 430px, label x=12, rail 12→418 and the number cell 284→364, three
+      // elements on three different x's down ten consecutive rows, so "which knobs have I set?" (the single
+      // most common read on this tab) became ten separate hunts instead of one glance down a column. COST:
+      // 148px per row against 38px on desktop, ≈2,800px of scroll for one preset. Pairing the NAME with its
+      // VALUE on one line and giving the rail the row beneath restores a right-hand value column — the cell
+      // now ends exactly where the rail does — and gives the row back ~46px. The consumer places its own
+      // cells into these tracks (`features/preset/components/knob-row.tsx`); this recipe owns only the
+      // tracks, exactly as the wide arm does.
+      //
+      // `grid-flow-row-dense` IS THE MECHANISM, and it is not an optimisation. Every knob in a cluster is a
+      // cell of ONE grid (the rows are fragments — that is what makes the name column shared), so a row
+      // cannot be addressed by index: an explicit `row-start-1` would put TEN value cells on the first line.
+      // Dense packing gives the right answer from DOM order alone — the name takes the next free cell, the
+      // rail's `col-span-2` forces the line below it, and the value cell BACKFILLS the hole beside the name
+      // that the rail skipped. It is the one placement that survives a gloss row appearing on some knobs and
+      // not others, because it is derived per item rather than counted. It is scoped to the FOLDED arm and
+      // must stay there: measured, an unscoped `grid-flow-row-dense` backfills the wide arm's next NAME cell
+      // into the hole the gloss's `col-start-2` leaves at column one, which put a cluster's explainers on
+      // two different x's (398,398,398,966,966) — the very column P3 exists to hold.
+      knob: "grid-cols-[1fr_max-content] @max-lg:grid-flow-row-dense @lg:grid-cols-[minmax(var(--width-label-col),max-content)_1fr_max-content]",
       // Four ordered action homes. A wide container keeps the explicit four-track row (`1fr` at the third
       // home is the spacer that pushes the last two right).
       //

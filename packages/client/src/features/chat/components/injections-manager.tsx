@@ -197,9 +197,19 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                     </Row>
                   </CollapsibleTrigger>
                   {open || values.content.trim() === "" ? null : (
-                    <Text voice="gloss" className="line-clamp-1 px-block pb-block">
-                      {values.content}
-                    </Text>
+                    // THE PADDING LIVES ON THE WRAPPER, NOT ON THE CLAMPED RUN (#847). `line-clamp-1` clamps
+                    // the CONTENT box to one line, but `overflow: hidden` clips at the PADDING box — so a
+                    // `pb-block` on the clamped element is ~12px of visible area BELOW the clamp point, and
+                    // the clamped-away second line paints into it: an ellipsis on line 1 with a horizontally
+                    // sliced line 2 under it. With the padding one level out, the clamped box ends exactly
+                    // where its last line does. (Measured pre-fix: clientHeight 25 = one 13.125px line +
+                    // pb-block; the report's "display: flow-root defeats the clamp" reading was wrong —
+                    // `flow-root` is just Chrome's computed serialization of a blockified `-webkit-box`.)
+                    <Stack className="px-block pb-block">
+                      <Text voice="gloss" className="line-clamp-1">
+                        {values.content}
+                      </Text>
+                    </Stack>
                   )}
                 </>
               )}

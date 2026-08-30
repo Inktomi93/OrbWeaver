@@ -202,7 +202,7 @@ An exemption is a promise. This is how the promise is written.
    `// FABRICATION-OK:`, `// @swallowed-ok:`, `// @typeonly-ok:`, `// @server-only:`): the house grammar is
    `marker:\s*\S` — **the reason after the colon is REQUIRED**, and a bare marker must exempt NOTHING. A
    bare-marker-exempts rule is a rubber stamp. For the shared `@orb-gate-ignore` vocabulary the **MENTION
-   FENCE** applies (`pass.ts`, docs/design/gate-ignore-mention-fence.md, 2026-08-08): **a marker IS a `//`
+   FENCE** applies (`pass.ts`, docs/history/design/gate-ignore-mention-fence.md, 2026-08-08): **a marker IS a `//`
    comment whose own text begins with the vocabulary** — the suppressor anchors its parse there (a
    quotation embedded in a prose comment above a reported node must never absolve it; that was a live
    bypass) and the inventory counts only comment-OPENER matches, so a grammar quotation in prose/JSDoc

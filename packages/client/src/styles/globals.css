@@ -425,8 +425,17 @@ html[data-shadow] [data-slot="message-bubble"] {
 [data-slot="message-bubble"] p + p {
   margin-top: var(--reading-paragraph-spacing);
 }
+/* JUSTIFY SHIPS WITH HYPHENATION, ALWAYS (#852). Justified text without it opens rivers of white down the
+ * column — the browser can only stretch word spacing, so a long word that will not fit forces the line
+ * before it apart. `design-audit --appearance-preset reading` measured 44 × `justified-text` findings on
+ * `message-bubble` / `message-row-body` / `message-content-column` at 21.6px, which is the widest the
+ * rivers get and, worse, is the ONE appearance profile named for reading. Pairing at the SAME site is the
+ * fix rather than dropping justify: the setting is the reader's own choice (`justifyBodyText`), and
+ * `hyphens: auto` costs nothing when the text is not justified because this rule only exists when it is.
+ * `lang` is what feeds the hyphenation dictionary; the document carries it, so nothing is needed here. */
 html[data-justify-body-text] [data-slot="message-bubble"] {
   text-align: justify;
+  hyphens: auto;
 }
 [data-slot="message-attribution"] {
   font-size: calc(var(--text-label) * var(--reading-name-scale, 1));

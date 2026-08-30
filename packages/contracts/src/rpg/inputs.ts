@@ -28,6 +28,7 @@ import {
 } from "./config.ts";
 import { RPG_CYOA_CHOICE_BEHAVIORS, rpgGameModeSchema, rpgJournalTypeSchema, rpgQuestStatusSchema } from "./enums.ts";
 import { rpgStatProfileSchema } from "./profile.ts";
+import { rpgRulesetSchema } from "./ruleset.ts";
 import { rpgQuestObjectiveSchema } from "./snapshot.ts";
 import { RPG_HINT_MAX, rpgTrackerDefSchema } from "./tracker.ts";
 
@@ -35,11 +36,15 @@ import { RPG_HINT_MAX, rpgTrackerDefSchema } from "./tracker.ts";
 const chatIdField = brandedId<ChatId>();
 
 /** `createGame` — host-gated birth. `mode` rides the mode enum (`"full"` is wire-valid; the verb throws the
- *  typed PHASE refusal). `profile` is the caller-picked packaged/imported statProfile (omit ⇒ freeform). */
+ *  typed PHASE refusal). `ruleset` is the game's born vocabulary (omit ⇒ `freeform`, the birth default).
+ *
+ *  THE `profile` ARM IS GONE (#862, owner ruling 2026-08-30): a start-time statProfile pick was the door
+ *  half of a choice that is now a SETTING — one start action, and the host retunes `ruleset` on the Game tab
+ *  (additively). Pre-launch NO-LEGACY: replaced, not deprecated. */
 export const rpgCreateGameInputSchema = z.object({
   chatId: chatIdField,
   mode: rpgGameModeSchema,
-  profile: rpgStatProfileSchema.optional(),
+  ruleset: rpgRulesetSchema.optional(),
 });
 
 /** `updateConfig` — the ONE config write door (host). `patch` carries the profile + steering note; `gmPresetId`
@@ -50,6 +55,11 @@ export const rpgUpdateConfigInputSchema = z.object({
   patch: z
     .object({
       statProfile: rpgStatProfileSchema.optional(),
+      // THE RULESET SETTING (#862) — omit keeps. A CHANGED value applies that ruleset's vocabulary
+      // ADDITIVELY (owner ruling: adds attributes/skills/seeded trackers beside what exists, removes
+      // nothing, needs no confirmation); re-sending the CURRENT value is a no-op, so a host who deleted a
+      // packaged attribute never has it resurrected by an unrelated write.
+      ruleset: rpgRulesetSchema.optional(),
       steeringNote: z.string().max(RPG_STEERING_NOTE_MAX).optional(),
       // THE TRACKERS (the tracked-field unification) — the host's whole tracker set for this game, in ONE
       // write. Omit keeps the current list; a passed array REPLACES it (whole-list edit — the unified editor

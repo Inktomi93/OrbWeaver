@@ -64,6 +64,10 @@ export interface RpgGameView {
    *  (`compose` = draft the composer; `send` = fire the turn), so it rides the MEMBER slice. */
   readonly publicConfig: {
     readonly statProfile: RpgGameConfig["statProfile"];
+    /** The RULESET setting (#862) — member-safe, and member-NEEDED: the dice-ask row above the composer
+     *  publishes `RPG_RULESET_DICE[ruleset]`, so without it on the member slice the setting would have no
+     *  visible consequence for anyone but the host (the dead-toggle finding, side-eye 2026-08-30). */
+    readonly ruleset: RpgGameConfig["ruleset"];
     /** The #9 ambient-date mode — `narrated` (freeform date string, no day counter) | `structured`.
      *  Member-safe display knob: the band + Scene ambient render the date arm by it. */
     readonly dateMode: RpgGameConfig["dateMode"];
@@ -208,6 +212,9 @@ export interface RpgTurnToolCallsView {
  *  discipline). `extractionMode` is the delivery-model knob (the 2026-07-26 amendment). */
 export interface RpgConfigView {
   readonly statProfile: RpgGameConfig["statProfile"];
+  /** The RULESET setting (#862) — the Game tab's segmented control reads and writes THIS; the vocabulary
+   *  above is what an apply merged into. */
+  readonly ruleset: RpgGameConfig["ruleset"];
   readonly steeringNote: string;
   readonly gmPresetId: string | null;
   readonly extractionMode: RpgGameConfig["extractionMode"];

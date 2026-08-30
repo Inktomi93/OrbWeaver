@@ -2,7 +2,6 @@
 // NULL, `extractionMode` "folded"), the `createGame("full")` → RpgModeUnbuilt PHASE refusal, the
 // pointer-fired-once assertion, and the authority arms — all asserted at the ROW (assert-the-mutation-fired).
 
-import { RPG_PROFILE_D20 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
@@ -50,12 +49,13 @@ describe("createGame", () => {
     expect(fakes.busEvents).toEqual([]); // a refused create emits nothing
   });
 
-  test("a caller-picked packaged profile is stored on the config", async () => {
+  test("a caller-picked RULESET is stored on the config and derives its vocabulary", async () => {
     const chatId = await seedChat(db, "a");
     const { service, fakes } = makeRpgService(db);
     fakes.membership.set("user_host", "host");
-    await service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite", profile: RPG_PROFILE_D20 });
+    await service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite", ruleset: "d20" });
     const game = await findGameByChat(db, chatId);
+    expect(game?.config.ruleset).toBe("d20");
     expect(game?.config.statProfile.attributes.map((a) => a.key)).toEqual(["str", "dex", "con", "int", "wis", "cha"]);
   });
 

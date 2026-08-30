@@ -1,5 +1,5 @@
 // CT: the Settings → Connections model picker's LIST surface — the two fidelity findings
-// (docs/design/context-panel-fidelity-findings.md §3). MP-1: the catalog renders as per-provider
+// (docs/history/design/context-panel-fidelity-findings.md §3). MP-1: the catalog renders as per-provider
 // CommandGroups (headings + honest membership), fuzzy search still reaches every group, and the render cap
 // is spent across groups with a truthful "+N more" tail. MP-2: the curated cold-cache shortlist announces
 // itself instead of silently swapping the menu contents. Selection is asserted on the committed value the

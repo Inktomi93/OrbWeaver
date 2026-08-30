@@ -18,6 +18,7 @@ export function createGetConfigView(ctx: RpgContext): Pick<RpgService, "getConfi
     const presetMacros = await ctx.resolvePresetUserMacros(params.chatId);
     return {
       statProfile: game.config.statProfile,
+      ruleset: game.config.ruleset, // #862 — the Game tab's segmented ruleset control reads this
       steeringNote: game.config.lite.steeringNote,
       gmPresetId: game.gmPresetId,
       extractionMode: game.config.extractionMode,

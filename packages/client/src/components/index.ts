@@ -23,14 +23,15 @@ export type { ListPaneHeaderBack, ListPaneHeaderProps } from "./list-pane-header
 export { ListPaneHeader } from "./list-pane-header.tsx";
 export {
   CHIP_TOUCH_FLOOR_AT_COARSE,
+  CONTEXT_CELL_FLOOR_AT_COARSE,
+  CONTEXT_RAIL_WRAP,
+  CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF,
   DISCLOSURE_TOUCH_FLOOR_AT_COARSE,
   FINE_INERT_UNTIL_HOVER,
   HIDE_AT_COARSE,
   LABEL_TO_SR_ONLY_AT_COARSE,
   PICKER_GAP_AT_COARSE,
   REVEAL_AT_COARSE,
-  RPG_RAIL_WRAP,
-  RPG_RAIL_WRAPPED_EDGE_BAR_OFF,
 } from "./pointer-variants.ts";
 export type { RegexScopeOrderProps } from "./regex-scope-order.tsx";
 export { RegexScopeOrder } from "./regex-scope-order.tsx";

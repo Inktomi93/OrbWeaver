@@ -29,6 +29,7 @@ import {
   useActiveChatId,
   useActiveSection,
   useSectionRegistry,
+  useSelectedCharacterId,
   useSelectedRefinerySessionId,
 } from "@orb/client/state";
 import type { CharacterHandle, CharacterId, TagId } from "@orb/kit/ids";
@@ -430,15 +431,16 @@ export function CharactersListStory({ selectedCharacterId }: CharactersListPaneS
   );
 }
 
-/** Mirrors the shell's CONTEXT mount: `SectionContextHost` over the section definition — the real tab strip
- *  (Field · Chats · Links · Options) and the real body, at the docked panel's width. The cross-section
- *  probes ride along, because a projection row click is a store write, never a UI echo. */
-function CharactersContextHarness(): ReactElement {
+/** Mirrors the shell's CONTEXT mount: `SectionContextHost` over the section definition — the real context
+ *  bracket (the head band, the six-cell foot rail) and the real body, at the docked panel's width by default
+ *  (`paneWidth` = the phone sheet's 430 for the coarse arm). The cross-section probes ride along, because a
+ *  projection row click is a store write, never a UI echo. */
+function CharactersContextHarness({ paneWidth }: { readonly paneWidth: number }): ReactElement {
   const registry = useSectionRegistry();
   const activeSection = useActiveSection();
   const activeChatId = useActiveChatId();
   return (
-    <div style={{ height: 640, width: 384 }}>
+    <div style={{ height: 640, width: paneWidth }}>
       <SectionContextHost definition={registry.get("characters")} />
       <p data-testid="active-section">{activeSection}</p>
       <p data-testid="started-chat">{activeChatId ?? ""}</p>
@@ -449,10 +451,12 @@ function CharactersContextHarness(): ReactElement {
 export interface CharactersContextStoryProps {
   /** The open character whose CONTEXT the pane shows — the tabs' whole state projection. */
   readonly selectedCharacterId: string;
+  /** The pane's width — the docked panel's 384 unless the arm says otherwise (the phone sheet is 430). */
+  readonly paneWidth?: number;
 }
 
 /** The characters CONTEXT panel over the real registry + data layer (#501 — her chats live here now). */
-export function CharactersContextStory({ selectedCharacterId }: CharactersContextStoryProps): ReactElement {
+export function CharactersContextStory({ selectedCharacterId, paneWidth = 384 }: CharactersContextStoryProps): ReactElement {
   useEffect(() => {
     selectCharacter(castId<CharacterId>(selectedCharacterId));
     return (): void => clearCharacterSelection();
@@ -460,7 +464,7 @@ export function CharactersContextStory({ selectedCharacterId }: CharactersContex
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <CharactersContextHarness />
+        <CharactersContextHarness paneWidth={paneWidth} />
       </CtRealSectionRegistry>
     </CtDataProviders>
   );
@@ -567,7 +571,16 @@ export function CharactersScreenStory({ deepLinkCharacterId }: CharactersScreenS
  *  lands the override on the previous section — measured, #434). The pane reads the RESOLVED mode, so any
  *  regime resolving `collapsed` exercises it; the override path's own resolution is pinned in
  *  `shell-store.ct` / `section-list-projection.ct`. Under the REAL registry, because the projection reads
- *  this section's declared `panelDefaults`. */
+ *  this section's declared `panelDefaults`.
+ *
+ *  THE MOUNT BOX IS THE VIEWPORT (#864): the pane is a LANDING now, and its shelf grid is CONTAINER-queried
+ *  (`Grid cols="cellShelf"`), so a fixed 720px box would answer every width test with 720. The CT sets the
+ *  viewport and this box takes it, which is what lets one story carry the 1280 pane and the 430 phone.
+ *
+ *  The `selected:` readout is the story's way of showing a SEAM through a user-visible affordance: pressing
+ *  a face selects that character, and in the app the section swaps to her editor — which this story does not
+ *  mount.
+ */
 export function CharacterLibraryWelcomeListModeStory(): ReactElement {
   return (
     <CtDataProviders>
@@ -578,10 +591,17 @@ export function CharacterLibraryWelcomeListModeStory(): ReactElement {
         <button onClick={(): void => setFocusMode(false)} type="button">
           put the list back
         </button>
-        <div style={{ height: 640, width: 720 }}>
+        <CharacterSelectionReadout />
+        <div style={{ height: "80vh", width: "100%" }}>
           <CharacterLibraryWelcome />
         </div>
       </CtRealSectionRegistry>
     </CtDataProviders>
   );
+}
+
+/** The selection store, as one line of text — see {@link CharacterLibraryWelcomeListModeStory}. */
+function CharacterSelectionReadout(): ReactElement {
+  const selected = useSelectedCharacterId();
+  return <p>selected: {selected ?? "nobody"}</p>;
 }

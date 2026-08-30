@@ -310,24 +310,26 @@ export async function openDetailPanel(page: Page): Promise<void> {
   if ((await show.count()) > 0) {
     await show.first().click();
   }
-  // The panel's strip is EITHER the single "Detail" strip (a plain chat — every tab is `meta`, and a real
-  // `tablist`) OR the two-rail bracket a GAME chat summons (Context-Panel-Program §4.2, rpg-hud.tsx):
-  // "Game state" above the viewport, "Chat" (the same meta cells) pinned below it. The game bracket's rails
-  // announce as TOOLBARS, not tablists (#112 — two rails off one Tabs root cannot both be honest tab
-  // groups). Both mean "the panel is open", and a spec that reuses whatever chat the shared DB hands it
-  // must tolerate either.
-  const strip = page.getByRole("tablist", { name: "Detail" }).or(page.getByRole("toolbar", { name: "Chat" }));
+  // The panel is the context BRACKET in every room (#860, Context-Panel-Program §4.2): the "Chat" meta rail
+  // — a TOOLBAR of buttons carrying `aria-current` (#112) — pinned to the pane's foot, plus the "Game state"
+  // rail above the viewport on a game chat. The "Chat" rail is what means "the panel is open" for a plain
+  // chat and a game chat alike.
+  const strip = page.getByRole("toolbar", { name: "Chat" });
   await expect(strip.first()).toBeVisible({ timeout: 15_000 });
 }
 
-/** Select one CONTEXT tab by its visible label (Members / Group / Overrides / …). Assumes the detail
+/** Select one CONTEXT tab by its visible label (Members / This chat / Status / …). Assumes the detail
  *  panel is already open (`openDetailPanel`).
  *
- *  Two affordances, one gesture: a plain chat's strip is a real `tablist` of `tab`s, while a GAME chat's
- *  rails are toolbars of BUTTONS carrying `aria-current` (#112). Exact-name matched either way, so the
- *  `.or()` cannot widen onto some other control that merely contains the label. */
+ *  ONE affordance in every room (#860): a rail cell is a BUTTON carrying `aria-current` (#112), inside a
+ *  toolbar named "Chat" or "Game state". Exact-name matched, so the lookup cannot widen onto some other
+ *  control that merely contains the label; scoped to the rails so a body button named like a tab (the
+ *  band's "Members — N" chip is `exact`-safe already) can never be seated as the cell. */
 export async function openContextTab(page: Page, label: string): Promise<void> {
-  const tab = page.getByRole("tab", { name: label, exact: true }).or(page.getByRole("button", { name: label, exact: true }));
+  const tab = page
+    .getByRole("toolbar", { name: "Chat" })
+    .or(page.getByRole("toolbar", { name: "Game state" }))
+    .getByRole("button", { name: label, exact: true });
   await expect(tab).toBeVisible({ timeout: 15_000 });
   await tab.click();
 }

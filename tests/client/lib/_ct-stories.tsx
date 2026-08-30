@@ -31,7 +31,7 @@ import { __resetBootReads, setBootReadPending } from "../../../packages/client/s
 // re-export would drag the dev observers into the prod bundle), so the only way to reach it is the path.
 import { __resetLongTaskEvidence, installLongTaskTracer } from "../../../packages/client/src/lib/long-task-tracer.ts";
 import { setFrameDropTrackingPaused } from "../../../packages/client/src/lib/motion-animation-state.ts";
-import { motionFlaggersSettled } from "../../../packages/client/src/lib/motion-dead-class-flagger.ts";
+import { installDeadClassFlagger, motionFlaggersSettled } from "../../../packages/client/src/lib/motion-dead-class-flagger.ts";
 import { __resetMotionFlags, installMotionFlaggers, MOTION_BUDGETS } from "../../../packages/client/src/lib/motion-flaggers.ts";
 import {
   __resetMotionStats,
@@ -629,6 +629,47 @@ export function MotionFlaggersCssBatchStory(): ReactElement {
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** The class the confirm-before-report harness arms: shaped like a real vendor token, defined by nothing
+ *  in this page's CSS — so whether it is REPORTED depends purely on what the second CSSOM read answers. */
+const LATE_DEFINED_TOKEN = "orb-ct-late-defined-marker";
+
+/** #852 — the CONFIRM-BEFORE-REPORT harness. Drives `installDeadClassFlagger` DIRECTLY (not through
+ *  `installMotionFlaggers`), with the CSSOM read INJECTED: the first call is the stale cache and, when
+ *  `lateDefine` is set, every later call is the fresh read that now carries the rule — which is exactly
+ *  the shipped ordering, where Base UI's ScrollArea hoists its `<style>` around the commit that mounts
+ *  the element wearing the class. A real stylesheet cannot be made to land inside a draining slice on
+ *  demand, which is why the read is a seam rather than a live `<style>` append. */
+export function DeadClassConfirmStory({ lateDefine }: { readonly lateDefine: boolean }): ReactElement {
+  const [reported, setReported] = useState<readonly string[]>([]);
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    let reads = 0;
+    installDeadClassFlagger({
+      scanIntervalMs: 10,
+      onDeadClass: (token: string): void => {
+        setReported((prev) => (prev.includes(token) ? prev : [...prev, token]));
+      },
+      readDefined: (): ReadonlySet<string> => {
+        reads += 1;
+        return new Set<string>(lateDefine && reads > 1 ? [LATE_DEFINED_TOKEN] : []);
+      },
+    });
+  }, [lateDefine]);
+  return (
+    <div>
+      <button type="button" onClick={(): void => setArmed(true)}>
+        arm late class
+      </button>
+      <div className={armed ? LATE_DEFINED_TOKEN : undefined}>content</div>
+      {/* The control token arrives in the SAME mutation batch and nothing ever defines it, so its report
+          is the barrier that proves the post-arm scan RAN — without it, "the late token was not reported"
+          is satisfied by a scan that simply had not happened yet. */}
+      <div className={armed ? "orb-ct-always-dead-marker" : undefined}>control</div>
+      <div data-testid="dead-class-reports">{reported.join(",")}</div>
     </div>
   );
 }

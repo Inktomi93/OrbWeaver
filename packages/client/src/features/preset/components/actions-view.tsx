@@ -1,5 +1,5 @@
 // The ACTIONS view (preset-surface-redesign.md §3/§6 · the Actions-tab IA,
-// docs/design/actions-tab-information-architecture.md) — every prompt template the preset authors, as ONE
+// docs/history/design/actions-tab-information-architecture.md) — every prompt template the preset authors, as ONE
 // instrument list. D132 made this tab the one home for authorable prompt text, which took it from 15 rows to
 // 67; the IA that carries that: kind kickers (unchanged), disclosure-banded SUB-CLUSTERS for the kind that
 // outgrew a glance (extract, 41 rows — collapsed by default, the config collection-group grammar), and a

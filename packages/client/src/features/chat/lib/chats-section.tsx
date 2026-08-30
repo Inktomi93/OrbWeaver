@@ -27,6 +27,7 @@ import { chatDeletedFromList, chatSectionSelection, openNewChatPicker, selectCha
 import { ChatListAnchor } from "../anchors/chat-list-anchor.tsx";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel.tsx";
 import { ChatContent } from "../components/chat-content.tsx";
+import { ChatContextBand } from "../components/chat-context-band.tsx";
 import { ChatListHeader } from "../components/chat-list-header.tsx";
 import { ChatsTopbarHeader } from "../components/chats-topbar-header.tsx";
 import type { CommittedMembersTabProps } from "../components/committed-members-tab.tsx";
@@ -146,17 +147,22 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
     context: defineContextTabs<ChatContextState>({
       useContextState: useChatContextState,
       tabs: chatContextTabs(settingsSections),
-      // No panel-header identity slot (Context-Panel-Program §1 Q3 / §0 IA de-dup): the topbar owns the
-      // chat's avatar + title, so the CONTEXT band no longer re-renders the same cluster 300px away — the
-      // band reduces to neutral chrome above the tab strip. (`ChatContextHeader` was DELETED for knip;
-      // CP-4's scene banner will be a NEW component grafted into this `header` slot, not a resurrection.)
-      // No strip-trail actions today: the add-member door lives in the cast bar + the solo roster popover,
-      // both of which the room already renders. (It used to hold the DRAFT add-member popover — a rowless
-      // room's only way to grow its cast; the roster verb serves that now.)
+      // THE HEAD BAND (#860, owner-ruled 2026-08-30 — the context bracket): the room's title + the members ·
+      // memory · preset chips, in the bracket's band slot. This REVERSES the CP-1 de-dup that emptied this
+      // slot ("the topbar owns the chat's avatar + title") — the band is the identity's home now, and the
+      // TOPBAR sheds its title + chips while the context pane is docked (#846 by relocation, shell.css).
+      // A claiming region (the rpg Waystone on a game chat) takes this same slot instead.
+      header: (s) => <ChatContextBand state={s} />,
+      // The FOOT rail's name — the artifact noun, printed as its kicker ("CHAT · MEMBERS") and carried as
+      // its a11y group name. "Chat", not "Game": the crown host console is a TAB named "Game" in this rail.
+      railLabel: "Chat",
+      // No rail-trail actions today: the add-member door lives in the cast bar + the Members tab, both of
+      // which the room already renders. (It used to hold the DRAFT add-member popover — a rowless room's
+      // only way to grow its cast; the roster verb serves that now.)
       contributors: contextTabs,
-      // The whole-pane REGION-CLAIM arm (HUD-1 §3.2): chat consumes it BLIND — a claiming contributor
-      // (the rpg HUD on an engaged game chat) renders the entire CONTEXT pane from the tabs + selection
-      // this same mint resolved. Zero claimants ⇒ the generic panel, unchanged.
+      // The HEAD-BAND CLAIM arm (HUD-1 §3.2 as re-shaped by #860): chat consumes it BLIND — a claiming
+      // contributor (the rpg Waystone on an engaged game chat) supplies the band in place of `header`
+      // above; the rails, viewport and ground are the shell's bracket either way.
       regions: contextRegions,
       // The no-selection ARM (side-eye F-12) — this pane shared one voiceless
       // "Select something to see its details here." with two other sections.

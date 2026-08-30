@@ -252,6 +252,19 @@ export function PresetForkOnceStory(): ReactElement {
   );
 }
 
+/** The fork-once harness WITH the production toast outlet (#856). The silent copy-on-write now ANNOUNCES
+ *  over the `notify` seam, and `notify` is a MODULE-GLOBAL bind: without `CtToastSurface` (the one owner of
+ *  that bind + `AppToaster`) the call degrades to a console line and the pixels the spec asserts on never
+ *  exist. Only the stories that expect a toast mount the outlet — the bare harness above deliberately does
+ *  not (#247), and the FORK-ONCE mechanism pins must keep measuring the surface without one. */
+export function PresetForkOnceAnnouncedStory(): ReactElement {
+  return (
+    <CtToastSurface>
+      <PresetForkOnceStory />
+    </CtToastSurface>
+  );
+}
+
 /** The FORK-CHOICE harness: the fork-once story PLUS the live library list, because the choice is only
  *  legible against the rows it is choosing between — "keep editing <fork>" must land on the fork already in
  *  the list, and "start a new fork" must produce a SECOND row that reads "forked from Default" there. Same

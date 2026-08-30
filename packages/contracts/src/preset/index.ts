@@ -206,7 +206,7 @@ export const SIDE_GEN_POSTURES = {
   // Vision caption: an EMPTY floor — the caption call historically passed NO sampling options (the backend
   // defaults stood). An empty posture is the honest encoding; the caller's preset params CAN now reach it.
   caption: {},
-  // ── Refinery stage floors (R1 — docs/design/refinery-r0.md §9.7; study §5.3's values). The caller is
+  // ── Refinery stage floors (R1 — docs/history/design/refinery-r0.md §9.7; study §5.3's values). The caller is
   //    always the card owner, so the preset-params rung ALWAYS applies (no mixed-owner batch arm here). ──
   // Score: near-deterministic critique, budgeted for the per-field payload (bigger than distill's facets).
   refine_score: { temperature: 0.2, maxOutputTokens: 768 },
@@ -487,7 +487,7 @@ export const DEFAULT_GUIDED_ACTIONS: GuidedActionsConfig = {
 // stable `id`, a display `label`, and the PROSE SLOT holding the instruction sentence it contributes.
 //
 // THE FRAGMENT BYTES ARE NOT HERE (the templating fork, ARM B — owner ruling 2026-08-09,
-// `docs/design/templating-fork-rows-53-73.md`). They are host-editable prose slots
+// `docs/history/design/templating-fork-rows-53-73.md`). They are host-editable prose slots
 // (`PRESET_REWRITE_TOGGLE_PROSE_SLOTS`, ./prose.ts), resolved by the SERVER at the assembly seam that
 // already holds the preset's prose blob, and joined there by the same pure `composeRewriteSteer`
 // (`@orb/kit/guided`) — selected fragments join `. ` (the source's exact editIntros join) in CATALOG
@@ -890,7 +890,7 @@ export const TEMPLATE_KINDS = ["steer", "voice", "studio", "format", "nudge", "g
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 
 /** Sub-clusters for a kind whose row count outgrew a glance (the Actions-tab IA,
- *  `docs/design/actions-tab-information-architecture.md` §2.1). Today that is `extract` alone: its 40 rows
+ *  `docs/history/design/actions-tab-information-architecture.md` §2.1). Today that is `extract` alone: its 40 rows
  *  render as collapsed disclosure bands, one per member here, in THIS tuple's order. Membership is DECLARED
  *  per def (`TemplateDef.cluster`) rather than derived from the slot-id dot-prefixes, because the grouping
  *  follows what a HOST TUNES TOGETHER, not the engineering id structure (`rpg.extract.plane.party` clusters

@@ -952,6 +952,9 @@ test("EVERY rpg_games.config FIELD is classified — the ratchet the table-level
   expect(Object.keys(rpgGameConfigSchema.shape).sort()).toEqual(
     [
       "engaged",
+      // #862 — the RULESET setting; classified COPIED in `stripConfigForForker` (it rides `getGame`'s
+      // member-safe `publicConfig`, and the dice row every member sees derives from it).
+      "ruleset",
       "statProfile",
       "trackers",
       "lite",

@@ -57,7 +57,9 @@ const ALLOWLIST: ExemptionTable = {
   [`${CLIENT_SRC}features/rpg/lib/rpg-context-section.tsx`]: {
     why: "the game-tab BODY renders `RpgErrorState`, the pane's SINGLE role=alert region — QueryErrorState has no live region and would leave the failure unannounced against a panel that announces success. Ends if the pane drops its announced-failure intent, or the file moves",
   },
-  [`${CLIENT_SRC}features/rpg/components/rpg-hud.tsx`]: {
+  // Re-pointed 2026-08-30 (#860): `rpg-hud.tsx` became the band-only `rpg-hud-band.tsx` when the context
+  // bracket took the column into the shell. Same arm, same reason, new path.
+  [`${CLIENT_SRC}features/rpg/components/rpg-hud-band.tsx`]: {
     why: "the decorative BAND collapses to `() => null` so the pane has exactly one announced error surface (the BODY's). Same end conditions",
   },
 };
@@ -187,7 +189,7 @@ export const gate: GateDescriptor = {
         [`${CLIENT_SRC}features/chat/surfaces/command-palette-surface.tsx`]: "export const G = <B renderError={() => null} />;\n",
         [`${CLIENT_SRC}features/persona/surfaces/persona-panel-surface.tsx`]: "export const G = <B renderError={() => null} />;\n",
         [`${CLIENT_SRC}features/rpg/lib/rpg-context-section.tsx`]: "export const G = <B renderError={() => null} />;\n",
-        [`${CLIENT_SRC}features/rpg/components/rpg-hud.tsx`]: "export const G = null;\n",
+        [`${CLIENT_SRC}features/rpg/components/rpg-hud-band.tsx`]: "export const G = null;\n",
       },
       expect: { count: 1, messageIncludes: "carries NO `renderError` arm any more" },
       why: "THE STALE ARM, at row grain: the anchor is loaded so the allowlist is judged; three rows still carry their custom arm and pass, the fourth (rpg-hud) has none — its sanction is dead AND it is silently un-scanning the file, so exactly that row ratchets down",
@@ -197,7 +199,7 @@ export const gate: GateDescriptor = {
         [ANCHOR]: "export const QueryErrorState = null;\n",
         [`${CLIENT_SRC}features/chat/surfaces/command-palette-surface.tsx`]: "export const G = <B renderError={() => null} />;\n",
         [`${CLIENT_SRC}features/persona/surfaces/persona-panel-surface.tsx`]: "export const G = <B renderError={() => null} />;\n",
-        [`${CLIENT_SRC}features/rpg/components/rpg-hud.tsx`]: "export const G = <B renderError={() => null} />;\n",
+        [`${CLIENT_SRC}features/rpg/components/rpg-hud-band.tsx`]: "export const G = <B renderError={() => null} />;\n",
       },
       expect: { count: 1, messageIncludes: "no longer in the project" },
       why: "the other staleness: a row whose FILE is gone entirely (rpg-context-section) — path rot ratchets down too",

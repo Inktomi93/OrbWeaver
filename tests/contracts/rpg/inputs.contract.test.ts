@@ -30,8 +30,12 @@ test("createGame: mode is enum-gated at the wire (a bogus mode is refused, not p
   // `full` is wire-VALID (the verb throws the typed PHASE refusal) — the enum ships the vocabulary whole.
   expect(rpgCreateGameInputSchema.safeParse({ chatId: CHAT_ID, mode: "full" }).success).toBe(true);
   expect(rpgCreateGameInputSchema.safeParse({ chatId: CHAT_ID, mode: "sandbox" }).success).toBe(false);
-  // profile is optional — a bare create omits it (the verb falls to freeform).
-  expect(rpgCreateGameInputSchema.safeParse({ chatId: CHAT_ID, mode: "lite" }).data?.profile).toBeUndefined();
+  // #862 — `ruleset` is the create-time axis and it is OPTIONAL: a bare create omits it and the verb
+  // births `freeform`. The retired `profile` arm must not be wire-reachable (a start-time vocabulary PICK
+  // is exactly what the owner ruling replaced with a setting).
+  expect(rpgCreateGameInputSchema.safeParse({ chatId: CHAT_ID, mode: "lite" }).data?.ruleset).toBeUndefined();
+  expect(rpgCreateGameInputSchema.safeParse({ chatId: CHAT_ID, mode: "lite", ruleset: "d20" }).data?.ruleset).toBe("d20");
+  expect(rpgCreateGameInputSchema.safeParse({ chatId: CHAT_ID, mode: "lite", ruleset: "special" }).success).toBe(false);
 });
 
 test("updateConfig: the steeringNote cap rides through the derived shape; the knobs are all optional", () => {

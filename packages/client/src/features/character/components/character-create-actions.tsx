@@ -3,11 +3,18 @@
 // same "get a character" job. Replaces the former `+` split MENU, which buried both verbs one click deep
 // and homed import outside the band grammar.
 //
-// Two exports, because the band and the pane's empty states want different halves:
-//   • `CharacterCreateActions` — the BAND cluster (Import ghost + New primary). Import's ONE home.
-//   • `CharacterCreateButton`  — New alone, for the empty states (an empty pane may not dead-end); import
-//     is deliberately NOT echoed there — the band's ghost sits directly above the same pane.
-// Both share the one `NewCharacterDialog`, so the two entry points can never mint differently.
+// Two exports, one per SURFACE that carries a door:
+//   • `CharacterCreateActions` — the BAND cluster (Import ghost + New primary), the band's tuning.
+//   • `CharacterLandingDoors`  — the CONTENT landing's pair (#864), spelled out, and rendered only in the
+//     arm where the band is off screen (see its own note for how that squares with Import's ONE home).
+// Both share the one `NewCharacterDialog` and the one `CharacterImportDialog`, so no two entry points can
+// mint differently.
+//
+// `CharacterCreateButton` USED TO BE A THIRD EXPORT — New alone, for the empty states, on the ruling that
+// "an empty pane may not dead-end". The ruling stands; its CONSUMER is gone. The Characters CONTENT pane at
+// rest is a landing now (#864) and carries `CharacterLandingDoors` in exactly the arm the hero's lone New
+// used to cover, so the bare button is file-local again — the band's own primary and nothing else. Left
+// EXPORTED it is an unused export (knip), which is a door nobody opens.
 
 import { slugifyHandle } from "@orb/kit/slug";
 import { Button } from "@orb/ui/button";
@@ -135,8 +142,8 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
   );
 }
 
-/** The pane's ONE primary create affordance — also the empty states' un-dead-ending action. */
-export function CharacterCreateButton(): ReactElement {
+/** The band's primary, alone — file-local (see the header for why it is no longer exported). */
+function CharacterCreateButton(): ReactElement {
   const [createOpen, setCreateOpen] = useState(false);
   return (
     <>
@@ -146,6 +153,43 @@ export function CharacterCreateButton(): ReactElement {
       </Button>
       <NewCharacterDialog onOpenChange={setCreateOpen} open={createOpen} />
     </>
+  );
+}
+
+/**
+ * The LANDING's door pair — `New character` (primary) + `Import a card` (ghost), each with its LABEL
+ * spelled out (#864).
+ *
+ * WHY IT IS NOT `CharacterCreateActions`: that cluster is the BAND's, and it is tuned for a band — `New`
+ * alone (the band's own kicker supplies "characters"), Import as an icon-only ghost. The landing has no
+ * kicker over it and no adjacent list, so both verbs have to say what they make.
+ *
+ * WHY IT ECHOES IMPORT AT ALL, when this file's header records Import's ONE home as the band: THE RULING
+ * SURVIVES — ITS INPUT CHANGED. Its stated reason is "the band's ghost sits directly above the same pane",
+ * and this pair renders only in the arm where that sentence is FALSE — the list is collapsed, so the band
+ * went off screen with it (the same condition #520 puts the hero's New behind, and for the same reason:
+ * never two doors on screen at once, never a pane you cannot act from). With the list docked the landing
+ * renders no doors at all and points at the band's by its visible label.
+ *
+ * Both dialogs are the same two this file already owns, so the band and the landing can never mint
+ * differently.
+ */
+export function CharacterLandingDoors(): ReactElement {
+  const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  return (
+    <Row align="center" gap="field">
+      <Button intent="primary" onClick={(): void => setCreateOpen(true)} size="sm">
+        <Icon icon={Plus} size="sm" />
+        New character
+      </Button>
+      <Button intent="ghost" onClick={(): void => setImportOpen(true)} size="sm">
+        <Icon icon={Upload} size="sm" />
+        Import a card
+      </Button>
+      <NewCharacterDialog onOpenChange={setCreateOpen} open={createOpen} />
+      <CharacterImportDialog onOpenChange={setImportOpen} open={importOpen} />
+    </Row>
   );
 }
 

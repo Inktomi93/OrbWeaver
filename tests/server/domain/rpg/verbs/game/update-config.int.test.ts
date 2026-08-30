@@ -19,6 +19,65 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
+describe("updateConfig — the RULESET setting (#862)", () => {
+  test("a ruleset CHANGE applies its vocabulary additively — attributes + the seeded HP meter land beside the host's own", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    const host = principal(castId<Handle>("host"));
+    await h.service.updateConfig({
+      principal: host,
+      chatId,
+      patch: { trackers: [rpgTrackerDefSchema.parse({ key: "grit", label: "Grit", shape: "meter", write: "delta", subject: "actor", appliesTo: "party" })] },
+    });
+
+    await h.service.updateConfig({ principal: host, chatId, patch: { ruleset: "d20" } });
+
+    const game = await findGameByChat(db, chatId);
+    expect(game?.config.ruleset).toBe("d20");
+    expect(game?.config.statProfile.attributes.map((a) => a.key)).toEqual(["str", "dex", "con", "int", "wis", "cha"]);
+    // The host's own tracker is untouched and the ruleset's seeded HP joins it — never a replace.
+    expect(game?.config.trackers.map((t) => t.key)).toEqual(["grit", "hp"]);
+  });
+
+  test("THE OWNER RULING, at the write door: d20 → freeform → d20 keeps every tracker and every attribute", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    const host = principal(castId<Handle>("host"));
+    await h.service.updateConfig({ principal: host, chatId, patch: { ruleset: "d20" } });
+    await h.service.updateConfig({ principal: host, chatId, patch: { ruleset: "freeform" } });
+
+    const paused = await findGameByChat(db, chatId);
+    // Switching BACK hides nothing: the vocabulary stays, only the setting changes.
+    expect(paused?.config.ruleset).toBe("freeform");
+    expect(paused?.config.statProfile.attributes.map((a) => a.key)).toEqual(["str", "dex", "con", "int", "wis", "cha"]);
+    expect(paused?.config.trackers.map((t) => t.key)).toEqual(["hp"]);
+
+    await h.service.updateConfig({ principal: host, chatId, patch: { ruleset: "d20" } });
+    const back = await findGameByChat(db, chatId);
+    expect(back?.config.statProfile.attributes.map((a) => a.key)).toEqual(["str", "dex", "con", "int", "wis", "cha"]);
+    expect(back?.config.trackers.map((t) => t.key)).toEqual(["hp"]);
+  });
+
+  test("re-sending the CURRENT ruleset resurrects nothing a host deleted (the apply is gated on a CHANGE)", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    const host = principal(castId<Handle>("host"));
+    await h.service.updateConfig({ principal: host, chatId, patch: { ruleset: "d20" } });
+    // The host deletes the seeded meter, then makes an unrelated edit that re-sends the same ruleset.
+    await h.service.updateConfig({ principal: host, chatId, patch: { trackers: [] } });
+    await h.service.updateConfig({ principal: host, chatId, patch: { ruleset: "d20", steeringNote: "lean dark" } });
+
+    const game = await findGameByChat(db, chatId);
+    expect(game?.config.trackers).toEqual([]);
+    expect(game?.config.lite.steeringNote).toBe("lean dark");
+  });
+
+  test("an unrelated config write never disturbs the ruleset (keep-on-omit, like every sibling knob)", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    const host = principal(castId<Handle>("host"));
+    await h.service.updateConfig({ principal: host, chatId, patch: { ruleset: "d20" } });
+    await h.service.updateConfig({ principal: host, chatId, patch: { steeringNote: "unrelated" } });
+    expect((await findGameByChat(db, chatId))?.config.ruleset).toBe("d20");
+  });
+});
+
 describe("updateConfig — knobs + profile mutability", () => {
   test("sets the gmPresetId + extractionMode knobs (both validated)", async () => {
     const { chatId, h } = await seedLiteGame(db);

@@ -11,6 +11,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { rpgGames } from "@orb/db";
 import type { ChatId, Handle, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { SettingsService } from "../../../../packages/server/src/domain/settings/index.ts";
@@ -75,6 +76,41 @@ describe("compose/preset-usage — a preset's backward bindings", () => {
     expect(usage.gmRooms.map((room) => room.id)).toEqual([seated]);
     // The room they lost their seat in leaves nothing behind — the same no-residue rule the roster follows.
     expect(JSON.stringify(usage)).not.toContain(kicked);
+  });
+
+  // ── THE NULL PICK IS THE BUILT-IN (side-eye 2026-08-30 P1-A, #855) ──────────────────────────────────
+  //
+  // `seeds.defaultPresetId === null` means "no explicit pick", which the runner resolves to the SHARED
+  // system default — so on a fresh install, where the built-in is the only preset there is, the built-in IS
+  // the active pick. This resolver compared the seed to the asked-for id and nothing else, so the sentinel
+  // never matched `null` and the CONTEXT panel told a first-run user that nothing uses the preset every one
+  // of their chats generates with, on the same screen as an `Active` chip and a checked radio. Two client
+  // sites already spell the predicate (`preset-editor-surface.tsx`, `preset-library-surface.tsx`); these two
+  // pins make this the THIRD reader of one axis rather than a fourth semantics.
+  test("the BUILT-IN under NO explicit pick IS the active pick (the null pick's third reader)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const resolve = createResolvePresetUsage({
+      db,
+      loadUserSettings: settingsWithDefault(null),
+      resolveVisibleRooms: createResolveVisibleRooms(db),
+    });
+
+    expect(await resolve(principal(owner), SYSTEM_DEFAULT_PRESET_ID)).toEqual({ isUserDefault: true, gmRooms: [] });
+  });
+
+  test("an EXPLICIT pick elsewhere leaves the built-in un-active — the null arm is not a blanket exemption", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const resolve = createResolvePresetUsage({
+      db,
+      loadUserSettings: settingsWithDefault(PRESET),
+      resolveVisibleRooms: createResolveVisibleRooms(db),
+    });
+
+    expect(await resolve(principal(owner), SYSTEM_DEFAULT_PRESET_ID)).toEqual({ isUserDefault: false, gmRooms: [] });
+    // …and the preset that IS picked still reports itself, so the new arm did not move the ordinary answer.
+    expect((await resolve(principal(owner), PRESET)).isUserDefault).toBe(true);
   });
 
   test("a game pointing at ANOTHER preset is not a binding", async () => {

@@ -75,7 +75,9 @@ import {
   useNewChatIntent,
   useOpenModal,
   useOpenOverlayPanel,
+  usePanelOverride,
   useSectionRegistry,
+  useStatusAnnouncement,
   useTurnPhase,
 } from "@orb/client/state";
 import type { QuickReplyMode } from "@orb/contracts/automation";
@@ -98,10 +100,11 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
@@ -2411,6 +2414,48 @@ export function ChatOptionsMenuStory({ withCast = false }: ChatOptionsMenuStoryP
   );
 }
 
+/** The ⋯ menu WITH the two shell surfaces a game-mode transition writes into (#862/#863): the app's ONE
+ *  polite live region (mirroring `app-root`'s single-line wiring — the region is app-level, the menu is not)
+ *  and a plain readout of the context-panel landing the shell store holds. Both are the USER-VISIBLE result
+ *  of a transition, so the CT can assert what a screen-reader hears and where the panel lands without
+ *  reaching into store internals. */
+export function ChatGameModeMenuStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div>
+        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={[]} />
+        <GameModeShellReadout />
+        <GameMarkerCensus />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The chats LIST's half of the same fact (#863 P2): how many rows the list read currently marks as a game.
+ *  It is a SEPARATE tRPC read from the room's `chat.getChat`, which is exactly why a toggle that invalidates
+ *  only the room left this census stale for the whole session. */
+function GameMarkerCensus(): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.chat.listChats.queryOptions({ limit: 20 }));
+  const marked = (data?.items ?? []).filter((item) => item.isGame).length;
+  return <p>{`Game rows: ${String(marked)}`}</p>;
+}
+
+function GameModeShellReadout(): ReactElement {
+  const announcement = useStatusAnnouncement();
+  const contextTab = useContextTab();
+  // The reveal writes the ACTIVE section's context-panel override (`revealContextPanel` writes both regime
+  // channels; the docked one is what a wide viewport resolves).
+  const contextPanel = usePanelOverride(useActiveSection(), "context");
+  return (
+    <>
+      <AriaAnnouncer message={announcement} />
+      <p>{`Landing: ${contextTab ?? "none"}`}</p>
+      <p>{`Context panel: ${contextPanel ?? "unset"}`}</p>
+    </>
+  );
+}
+
 /** The chats-band transcript IMPORT dialog (chat-import-dialog.tsx) — the one home for getting a `.jsonl`
  *  into the library. Opens immediately (the band's ghost button is the only way in, and it has no other
  *  state), and records the two observable outcomes: whether the dialog asked to CLOSE (the "something
@@ -2564,18 +2609,24 @@ export interface CommittedMembersTabStoryProps {
   /** Seats the room's sole character ALREADY MUTED — the state a group room could leave behind, and the
    *  reason mute keeps an exit in a solo room (committed-members-tab.tsx). */
   readonly mutedSoloSeat?: boolean;
+  /** The mount's width. Defaults to 420; pass the 320px CONTEXT-PANE FLOOR (`--dimension-panel`'s low
+   *  clamp less the body's inline padding) to measure the CAST header's door cluster where it is
+   *  narrowest — a wide mount agrees with an overflow bug (#848). */
+  readonly width?: number;
 }
 
 /** The REAL Members tab body (committed-members-tab.tsx) — the surface that decides which seams reach the
  *  panel. Mounted with a host viewer and `multiHumanCapable:false`, so the People section is absent and the
  *  arms under test are exactly the cast row's: which of the group-arbiter controls (#182) exist. */
-export function CommittedMembersTabStory({ soloCast = false, mutedSoloSeat = false }: CommittedMembersTabStoryProps = {}): ReactElement {
+export function CommittedMembersTabStory({ soloCast = false, mutedSoloSeat = false, width = 420 }: CommittedMembersTabStoryProps = {}): ReactElement {
   const aria = membersTabSeat("Aria", castId<CharacterId>("character_aria"));
   const solo = mutedSoloSeat ? { ...aria, disabled: true } : aria;
   const participants: readonly ParticipantView[] = soloCast ? [solo] : [aria, membersTabSeat("Bryn", castId<CharacterId>("character_bryn"))];
   return (
     <CtDataProviders>
-      <div style={{ width: 420 }}>
+      {/* `overflow: visible` on a FIXED width — a content-sized mount root grows to fit the cluster and
+          would agree with the very overflow this width exists to catch. */}
+      <div style={{ overflow: "visible", width }}>
         <CommittedMembersTab
           chatId={castId<ChatId>("chat_members_tab")}
           chat={{ participants, cast: [], viewerUserId: castId<UserId>("user_riley"), pendingHostUserId: null }}

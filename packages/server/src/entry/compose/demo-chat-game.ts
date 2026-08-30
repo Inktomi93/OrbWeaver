@@ -25,7 +25,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { RpgActorRef } from "@orb/contracts/rpg";
-import { actorRefKey, RPG_PACKAGED_PROFILE_BY_KEY, rpgSeedTrackers } from "@orb/contracts/rpg";
+import { actorRefKey, RPG_RULESET_PROFILE, rpgSeedTrackers } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import type { DemoChatActorSeat, DemoChatGame, DemoChatGameActor, DemoChatSeat } from "#domain/chat";
 import type { HandDoorResult, RpgService } from "#domain/rpg";
@@ -159,7 +159,7 @@ export function createDemoChatGameDoor(deps: DemoChatGameDoorDeps): (args: DemoC
     //    panel would render against nothing. The write is whole-list, so the profile's own seeded defs are
     //    DERIVED here and the manifest only carries what it adds.
     if (setup.trackers !== undefined) {
-      const profile = RPG_PACKAGED_PROFILE_BY_KEY[game.profile];
+      const profile = RPG_RULESET_PROFILE[game.ruleset];
       await rpg.updateConfig({ principal, chatId, patch: { trackers: [...rpgSeedTrackers(profile), ...setup.trackers] } });
     }
 
@@ -194,7 +194,7 @@ export function createDemoChatGameDoor(deps: DemoChatGameDoorDeps): (args: DemoC
   return async (args: DemoChatGameDoorArgs): Promise<void> => {
     const { principal, chatId, game, mint } = args;
     if (mint) {
-      await rpg.createGame({ principal, chatId, mode: "lite", profile: RPG_PACKAGED_PROFILE_BY_KEY[game.profile] });
+      await rpg.createGame({ principal, chatId, mode: "lite", ruleset: game.ruleset });
     }
     await applySetup(args);
   };

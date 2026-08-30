@@ -4,7 +4,7 @@
 // THE TRANSCRIPTS ARE NOT HERE, AND ARE NOT HAND-WRITTEN. Owner law: demo chats are GENERATED LIVE against
 // a real model and exported through the real export verb — never authored by hand. Each conversation was
 // driven through `chat.startChat` → `chat.send` on a fresh install (the casting is
-// `docs/design/default-character-roster.md` §Demo-chat casting) and its transcript is the VERBATIM output
+// `docs/history/design/default-character-roster.md` §Demo-chat casting) and its transcript is the VERBATIM output
 // of `GET /api/export/chat/:id?format=jsonl`, bundled at `entry/boot/seed-assets/demo-chats/<slug>.jsonl`.
 // Re-generate a transcript; never edit one.
 //
@@ -689,7 +689,7 @@ export const DEMO_CHATS: readonly DemoChat[] = [
       opening: "greet-all",
       background: seededBackground("morgatha-bg"),
     },
-    game: { profile: "d20", setup: ASHEN_SPIRE_SETUP },
+    game: { ruleset: "d20", setup: ASHEN_SPIRE_SETUP },
   },
 ];
 
