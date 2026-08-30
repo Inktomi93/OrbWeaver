@@ -156,6 +156,7 @@ export type { ActiveTagFilterState, TagFilterEntry, TagFilterState } from "./tag
 export { cycleTagFilterEntries, NEXT_TAG_FILTER_STATE, TAG_FILTER_STATES, tagFilterStateOf } from "./tag-filter-state.ts";
 export type { SortableTag, TagSortMode } from "./tag-sort.ts";
 export { DEFAULT_TAG_SORT_MODE, sortTagsBy, TAG_SORT_MODES } from "./tag-sort.ts";
+export { talkativenessAccessibleName, talkativenessLevel } from "./talkativeness.ts";
 export { TEST_IDS, testId } from "./test-ids.ts";
 export { DENSITY_ITEMS } from "./theme-appearance-items.ts";
 export type { ThemeColorFields } from "./theme-override-form.ts";

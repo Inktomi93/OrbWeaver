@@ -5,6 +5,7 @@
 // a second composer for the same artifact. The server's update verb is a FULL REPLACE, so a rename
 // resends the stored members verbatim (the view carries them, knobs included).
 
+import type { RulePresetView } from "@orb/contracts/automation";
 import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import type { RosterPresetView } from "@orb/contracts/roster-preset";
 import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
@@ -12,15 +13,17 @@ import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
-import { Container, Row, Stack } from "@orb/ui/layout";
+import { Container, Row, Section, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { useInvalidation, useStartChat, useTRPC } from "#data";
 import type { CollectionDetailView } from "#lib";
-import { useFocusOnMount } from "#lib";
+import { notify, talkativenessLevel, useFocusOnMount } from "#lib";
 import { useApplyRosterPreset, useUpdateRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
+import { useRulePresetCatalogue } from "../hooks/use-saved-casts.ts";
+import { applyNotice, castRuleKnobGloss } from "../lib/cast-copy.ts";
 
 /** The stored seats, resent VERBATIM on a rename (the update verb is a full replace). The view's ids
  *  stay BRANDED end to end (`CharacterId` — brand-in-name-position; the wire's `z.input` accepts them). */
@@ -49,17 +52,39 @@ function ruleInputsOf(
   return view.rules.map((rule) => ({ rulePresetId: rule.rulePresetId, knobs: rulePresetKnobBagToInputs(rule.knobs) }));
 }
 
+/** ONE stored rule as the editor shows it: what it is called, and — the whole point of the rider storing
+ *  a bag rather than an id — the RESOLVED knobs, in the catalogue's own labels (side-eye P2-2). Without
+ *  them the block told a host to "configure a room and save a new cast" to change values it never showed,
+ *  and two casts carrying one preset at different knobs read byte-identically. */
+function CastRuleBlock(props: {
+  readonly preset: RulePresetView | undefined;
+  readonly rulePresetId: RosterPresetView["rules"][number]["rulePresetId"];
+  readonly knobs: RosterPresetView["rules"][number]["knobs"];
+}): ReactElement {
+  const { preset, rulePresetId, knobs } = props;
+  const gloss = castRuleKnobGloss(preset, knobs);
+  return (
+    <Stack gap="tight">
+      <Text voice="label" className="truncate">
+        {preset === undefined ? rulePresetId : preset.title}
+      </Text>
+      {gloss === null ? null : <Text voice="gloss">{gloss}</Text>}
+    </Stack>
+  );
+}
+
 export function CastMemberSurface({ view }: { readonly view: CollectionDetailView }): ReactElement {
   // The stamped-id posture: the seam's memberId is opaque; the owner re-brands through its own id space.
   const presetId = castId<RosterPresetId>(view.memberId);
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: cast } = useSuspenseQuery(trpc.rosterPreset.get.queryOptions({ presetId }));
-  // B10's rules rider — titles for the cast's captured rule presets (the catalogue is static; the
-  // query is gated off rules-free casts). A stored id the catalogue no longer offers falls back to the
-  // raw id — degraded but visible, matching the apply's reported skip.
-  const { data: ruleCatalogue } = useQuery({ ...trpc.automation.listRulePresets.queryOptions(), enabled: cast.rules.length > 0 });
-  const ruleTitles = new Map((ruleCatalogue ?? []).map((preset) => [preset.id, preset.title]));
+  // B10's rules rider — the catalogue row behind each captured rule preset: its TITLE, and the knob
+  // LABELS the stored bag's gloss is built from. Shared with the picker through the one hook (the query is
+  // gated off a rules-free cast, but the Start door below can report a REFUSED rule by name whatever this
+  // cast carries, so the gate is `true` once either use needs it). A stored id the catalogue no longer
+  // offers falls back to the raw id — degraded but visible, matching the apply's reported skip.
+  const { presetOf, titleOf } = useRulePresetCatalogue(true);
   const update = useUpdateRosterPreset({ trpc, invalidation });
   const apply = useApplyRosterPreset({ trpc, invalidation });
   const { startChat, isPending: isStarting } = useStartChat();
@@ -91,9 +116,17 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
       return; // one creation at a time.
     }
     // @orb-gate-ignore caught-failure-ownership(promise:startChat): startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning. Ends if either mutation stops owning its failure copy.
-    startChat({ characterIds: cast.members.map((m) => m.characterId), anchorPersonaId: cast.anchorPersonaId })
+    startChat({
+      characterIds: cast.members.map((m) => m.characterId),
+      anchorPersonaId: cast.anchorPersonaId,
+      // The room is named after the cast it was started from (side-eye P3-4).
+      title: cast.name,
+    })
       .then(async (chatId) => {
-        await apply.mutateAsync({ presetId, chatId });
+        // This door used to report NOTHING at all — not the member skips, not the rules it switched on,
+        // not the reason a rule refused (side-eye P1-2). One report, said by all three doors.
+        const notice = applyNotice({ castName: cast.name, result: await apply.mutateAsync({ presetId, chatId }), ruleTitleOf: titleOf });
+        notify[notice.channel](notice.line);
       })
       .catch(() => undefined); // both mutations toast their own failures.
   };
@@ -116,34 +149,40 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
             Start chat
           </Button>
         </Row>
-        <Stack gap="tight">
-          <Text as="span" voice="kicker">
-            Members
-          </Text>
+        {/* `Section kicker` renders the SAME caps-micro band the two groupings had as bare spans — and a
+            real <h3> under it (side-eye P2-5: the editor's only heading was the cast name, so heading
+            navigation gave a screen-reader user one stop in a two-section surface, while the sibling
+            "This chat" pane names every section at level 3). */}
+        <Section kicker="Members">
           {cast.members.map((member) => (
             <Row align="center" gap="field" key={member.characterId}>
               <Text voice="label" className="min-w-0 flex-1 truncate">
                 {member.name}
               </Text>
-              <Text as="span" voice="gloss">
-                {member.disabled ? "muted" : (member.talkativeness ?? "")}
-              </Text>
+              {member.disabled ? (
+                <Text as="span" voice="gloss">
+                  Muted
+                </Text>
+              ) : (
+                // ONE talkativeness spelling with the room's own Members tab (P2-5): the 0–100 dial, the
+                // word "Talks", no percent sign. The scale + wording live in `#lib` (a feature may not
+                // import another feature), so the cast can never drift from the room again. A seat that
+                // never had the knob touched carries `null` — the room's own default weight.
+                <Text as="span" voice="gloss">
+                  {member.talkativeness === null ? "Talks by default" : `Talks ${talkativenessLevel(member.talkativeness)}`}
+                </Text>
+              )}
             </Row>
           ))}
           <Text voice="gloss">To re-compose the cast, arrange a room you host and save it as a new cast — the saved-casts door in Members.</Text>
-        </Stack>
+        </Section>
         {cast.rules.length > 0 ? (
-          <Stack gap="tight" data-slot="cast-rules">
-            <Text as="span" voice="kicker">
-              Rules
-            </Text>
+          <Section kicker="Rules" data-slot="cast-rules">
             {cast.rules.map((rule) => (
-              <Text voice="label" key={rule.rulePresetId} className="truncate">
-                {ruleTitles.get(rule.rulePresetId) ?? rule.rulePresetId}
-              </Text>
+              <CastRuleBlock knobs={rule.knobs} key={rule.rulePresetId} preset={presetOf(rule.rulePresetId)} rulePresetId={rule.rulePresetId} />
             ))}
             <Text voice="gloss">Applied with the cast — re-minted into the room and switched on. To change them, configure a room and save a new cast.</Text>
-          </Stack>
+          </Section>
         ) : null}
       </Stack>
     </Container>
