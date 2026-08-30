@@ -24,6 +24,7 @@ import {
   WalkerDimmedContrastStory,
   WalkerDuplicateDoorStory,
   WalkerDuplicateSlotStory,
+  WalkerForwardingLabelStory,
   WalkerGradientBackdropStory,
   WalkerListRowCardStory,
   WalkerListRowSelectionStory,
@@ -35,12 +36,15 @@ import {
   WalkerScreenReaderOnlyStory,
   WalkerSliderCompositeStory,
   WalkerTranslucentTintStory,
+  WalkerViewportEdgeTargetStory,
 } from "./_ct-stories.tsx";
 
 interface TapTarget {
   readonly selector: string;
   readonly width: number;
   readonly height: number;
+  /** The #797 lower-bound flag: the outward probe ring was cut by a viewport edge. */
+  readonly extentTruncated?: boolean;
 }
 
 /** Run the REAL walker string in the mounted page and return its tap-target census.
@@ -644,6 +648,101 @@ test.describe("below-the-fold census reach", () => {
     // samples at the wrong pixels — a contrast verdict measured against someone else's background.
     expect(await host.evaluate((el) => el.scrollTop), "the reveal sweep must restore the scroll position it borrowed").toBe(120);
   });
+});
+
+// ── THE VIEWPORT EDGE IS A FRAME LIMIT, NOT AN OWNERSHIP VERDICT (issue #797) ─────────────────────
+// `document.elementFromPoint` answers `null` outside the viewport, and `ownsPoint` read that null as "some
+// other element owns this pixel". So a control straddling an edge lost every outward probe, the extent
+// collapsed to its bare border box, and the census minted a phantom sub-target P1. Measured on
+// Settings→Plugins: 18 P1s at the default viewport, p1=0 at `--viewport 1280x2200` from an IDENTICAL
+// element census (1364/125), with the ±21px four-cardinal ground truth showing the control owning a full
+// 44×44 ring. A target size that changes with the window height is not a fact about the design.
+//
+// Both directions, and the fence: the recentrable control must be MEASURED at its real extent (not merely
+// suppressed), the unrecentrable one must be REFUSED rather than reported as its box, and a genuinely
+// undersized control in the same mount must still fire.
+test.describe("viewport-edge probe frame (#797)", () => {
+  // Short enough that "the bottom edge" is a place a control can be parked deterministically.
+  test.use({ viewport: { width: 520, height: 420 } });
+
+  /** Park the ringed control so its box straddles the bottom viewport edge: top at `clientHeight - 12`,
+   *  i.e. centre 3px above the edge and every outward probe (11/16/22px) past it. The host is fixed and
+   *  exactly viewport-tall, so this offset is the viewport's own geometry, not the CT page's layout. */
+  async function parkAtBottomEdge(page: Page): Promise<void> {
+    await page.locator("[data-testid=cbtt-edge-host]").evaluate((el) => {
+      el.scrollTop = 600 - (el.clientHeight - 12);
+    });
+  }
+
+  test("a 44px ring straddling the bottom edge is RE-CENTRED and measured, not read off its 18px box", async ({ mount, page }) => {
+    await mount(<WalkerViewportEdgeTargetStory />);
+    await parkAtBottomEdge(page);
+    const targets = await tapTargets(page);
+
+    // The regression in one number: every probe fell past `innerHeight`, so the extent walk reported the
+    // bare 18×18 border box for a control whose `::after` owns 44×44 — a P1 nobody could act on.
+    expect(smallestSide(targets, "edge-recentrable"), `census: ${JSON.stringify(targets)}`).toBeGreaterThanOrEqual(44);
+  });
+
+  test("an edge-clipped control that cannot be re-centred has its verdict WITHHELD and counted, not minted from its box", async ({ mount, page }) => {
+    await mount(<WalkerViewportEdgeTargetStory />);
+    await parkAtBottomEdge(page);
+    const samples = await samplesOf(page);
+    const seen = JSON.stringify(samples.tapTargets);
+
+    // It stays IN the census — dropping it would trade a false positive for a false clean — but its
+    // measurement is marked a lower bound, and no sub-target finding may be minted from a lower bound.
+    expect(samples.tapTargets.map((t) => t.selector).join(" | "), `census: ${seen}`).toContain("edge-fixed-ring");
+    expect(
+      samples.tapTargets.find((t) => t.selector.includes("edge-fixed-ring"))?.extentTruncated,
+      `a fixed control clipped by the edge can never be re-centred: its ring is unaskable, so 18×18 is "at least", not "is". census: ${seen}`,
+    ).toBe(true);
+    expect(selectorsFor(collectFindings(samples), "tap-target"), `census: ${seen}`).not.toContain("[data-testid=edge-fixed-ring]");
+    // Silence is only honest when it is COUNTED: a withheld verdict must read as "could not measure", never
+    // as "measured, and fine" — the same law that makes `skippedOffViewport` a published number.
+    expect(samples.censusReach?.frameTruncated ?? 0, `reach: ${JSON.stringify(samples.censusReach)}`).toBeGreaterThanOrEqual(1);
+  });
+
+  test("a genuinely 18px control with no ring still fires — the frame guard is not a mute", async ({ mount, page }) => {
+    await mount(<WalkerViewportEdgeTargetStory />);
+    await parkAtBottomEdge(page);
+    const samples = await samplesOf(page);
+
+    expect(
+      samples.tapTargets.map((t) => t.selector).join(" | "),
+      `the real defect must be IN the census — a refusal that swallowed it would trade a false positive for a false clean. census: ${JSON.stringify(samples.tapTargets)}`,
+    ).toContain("edge-real-subtarget");
+    expect(selectorsFor(collectFindings(samples), "tap-target"), "18px is under the 24px fine-pointer floor").toContain("[data-testid=edge-real-subtarget]");
+  });
+});
+
+// ── A FORWARDING LABEL IS PART OF THE TARGET (issue #797, the census's second lie) ─────────────────
+// A `<label for=...>` activates its control from anywhere inside it, so the label's box IS the control's
+// target — that is what WCAG 2.5.5/2.5.8 measure. The probe credited self / pseudo-element / composite
+// hits only, so the checkbox-leading full-row consent pattern read as a bare 16px box wherever it is used.
+// The three negative arms are what keep the credit from becoming a blanket: the association is read from
+// the DOM's own `el.labels`, and a pixel inside the label owned by ANOTHER control is that control's.
+test("a 16px checkbox inside a 44px forwarding label measures the label's target, not its own box", async ({ mount, page }) => {
+  await mount(<WalkerForwardingLabelStory />);
+  const targets = await tapTargets(page);
+
+  expect(smallestSide(targets, "forwarded-checkbox"), `census: ${JSON.stringify(targets)}`).toBeGreaterThanOrEqual(44);
+});
+
+test("label credit does not widen: no label, a label naming another control, and a shared label all still fire", async ({ mount, page }) => {
+  await mount(<WalkerForwardingLabelStory />);
+  const samples = await samplesOf(page);
+  const flagged = selectorsFor(collectFindings(samples), "tap-target");
+  const seen = JSON.stringify(samples.tapTargets);
+
+  expect(flagged, `a 16px checkbox nothing forwards to is the defect this rule exists for. census: ${seen}`).toContain("[data-testid=unlabelled-checkbox]");
+  expect(
+    flagged,
+    `\`for\` names a different control, so the DOM gives this checkbox no labels at all — crediting it would licence every label-shaped wrapper. census: ${seen}`,
+  ).toContain("[data-testid=misdirected-checkbox]");
+  expect(flagged, `the "Manage" button's pixels belong to the button; what is left of the shared label is under the floor. census: ${seen}`).toContain(
+    "[data-testid=shared-label-checkbox]",
+  );
 });
 
 test("the healthy twin produces no clipped-overflow finding — scroll panes, sr-only stubs and padded badges are not cuts", async ({ mount, page }) => {

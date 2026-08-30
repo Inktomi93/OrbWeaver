@@ -13,6 +13,15 @@ const TAP_COARSE_FAIL_PX = 32; // below this even a coarse pointer can't reliabl
 const TAP_FINE_MIN_PX = 24; // WCAG 2.5.8 (AA) — the only target-size floor a mouse actually owes
 
 export function checkTapTarget(input: TapTargetInput, pointerCoarse: boolean): Finding | null {
+  // A LOWER BOUND IS NOT A SIZE (#797). The walker flags a measurement whose outward probe ring fell off
+  // the viewport with no in-frame radius having genuinely failed: the control may own more than the number
+  // below, so a sub-target verdict here is the phantom P1 that made this rule's raw count untrustworthy for
+  // a whole UX review (18 P1s at one viewport height, p1=0 at another, identical element census). The
+  // control is NOT dropped — `censusReach.frameTruncated` counts and the runner prints every withholding,
+  // because "unmeasured" and "fine" must never render identically.
+  if (input.extentTruncated === true) {
+    return null;
+  }
   const shortSide = Math.min(input.width, input.height);
   if (pointerCoarse) {
     if (shortSide >= TAP_COARSE_WARN_PX) {

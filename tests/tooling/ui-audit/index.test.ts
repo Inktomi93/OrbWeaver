@@ -389,6 +389,23 @@ test("fine pointer: a genuinely tiny <24px target still FAILs at P1", () => {
   expect(finding?.message).toContain("24px");
 });
 
+// A LOWER BOUND IS NOT A SIZE (#797). The walker marks a measurement whose outward hit-probe ring was cut
+// by a viewport edge with no in-frame radius having genuinely failed — the control may own more than the
+// number reported. Minting a sub-target finding from one is the phantom-P1 class that made this rule's raw
+// count untrustworthy for a whole UX review (18 P1s at the default viewport, p1=0 at 1280x2200, identical
+// element census). The withholding is COUNTED and printed by the runner (`censusReach.frameTruncated`), so
+// it never renders as "measured, and fine".
+test("a truncated-extent measurement WITHHOLDS the verdict rather than minting a phantom sub-target", () => {
+  expect(checkTapTarget({ selector: "button.edge", width: 18, height: 18, extentTruncated: true }, false)).toBeNull();
+  expect(checkTapTarget({ selector: "button.edge", width: 18, height: 18, extentTruncated: true }, true)).toBeNull();
+});
+
+test("the withholding is keyed on the FLAG, not on the number — the same box fully measured still FAILs", () => {
+  expect(checkTapTarget({ selector: "button.edge", width: 18, height: 18, extentTruncated: false }, false)?.severity).toBe("P1");
+  // Absent reads as "fully measured" — the fixture sample sets that predate the flag stay judged.
+  expect(checkTapTarget({ selector: "button.edge", width: 18, height: 18 }, false)?.severity).toBe("P1");
+});
+
 // ── #4b control silhouette (#430, from side-eye #420) ────────────────────────
 // The founding numbers are LIVE MEASUREMENTS, not invented fixtures
 // (docs/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md, "Measured geometry"):

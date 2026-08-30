@@ -135,104 +135,9 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     var inner = el.querySelector("img[alt]");
     return inner ? inner.getAttribute("alt") : null;
   };
-  // THE HIT AREA IS NOT THE BOX (2026-08-16 — 10 of 13 "sub-target" findings in one audit were this).
-  // @orb/ui Button's size="inline"/size="glyph-*" variants carry a pointer-conditional touch-target
-  // ::after (packages/ui/src/primitives/button/variants.ts:16-20, :76-82), so a 25x15 border box can own
-  // a 45x45 hit area. Probe what the COMPOSITOR says: sample points on the ring the ::after would cover
-  // and ask elementFromPoint whether this control still owns them. The measured extent is what WCAG
-  // 2.5.5/2.5.8 are about — "target size", not "border-box size".
-  var HIT_PROBE_RADII = [11, 16, 22]; // half-extents probed outward: 22 → a 44px target
-  // OWNERSHIP IS PER COMPOSITE, NOT PER ELEMENT (2026-08-16). A Base UI Slider's real pointer target is
-  // the whole Control row (h-control-sm — 44px coarse / 32px fine; a mouse press at the row's top edge
-  // 60px from the thumb moved the value 60 to 73), but the outward probe lands on
-  // [data-slot=slider-indicator], a SIBLING of the thumb inside the same control. The identity/containment
-  // test alone stalled the walk there and printed a fine-pointer P1 at 22px on a 32px row.
-  // A hit is now ALSO owned when the nearest ancestor el and hit share offers exactly ONE control and that
-  // control is el — a neighbouring button IS another offered control, so a genuine sub-target still fires.
-  var COMPOSITE_WALK_MAX = 4;
-  // The same "is this an offered target" filter the tap-target census itself applies (aria-hidden Base UI
-  // twins, dev chrome, 1-2px plumbing) — two vocabularies here would let a phantom control veto a real
-  // composite.
-  function isOfferedControl(el) {
-    if (!isVisible(el) || isDevChrome(el)) return false;
-    if (el.closest("[aria-hidden='true']")) return false;
-    var r = el.getBoundingClientRect();
-    return Math.min(r.width, r.height) > 2;
-  }
-  // BOX- vs NOT-BOX-CARRIED ANCESTOR CREDIT (#662/#665 — fixed from an unconditional hit.contains(el)
-  // that made a short control alone in a padded wrapper UN-FAILABLE: it measured 44 no matter how short,
-  // because walking off its own box always landed back on the wrapper). Ancestor credit — via EITHER the
-  // plain containment clause below OR sharedCompositeOwns — is legitimate for exactly two shapes, both of
-  // which have NO paintable box of their own at the probed point, so the ancestor is the only thing that
-  // CAN answer:
-  //   · PSEUDO-CARRIED: an overflowing ::after/::before touch-target pseudo (the @orb/ui Button glyph
-  //     ramp — packages/ui/src/primitives/button/variants.ts glyphBox, content-[''] + absolute
-  //     positioning) has no DOM node at all.
-  //   · VISUALLY-HIDDEN: Base UI's native range input inside a Slider Thumb (isVisuallyHidden, core.ts —
-  //     a collapsed clip-path) paints nothing; elementFromPoint on its own centre already resolves to
-  //     the Thumb div that visually represents it (verified live: the input's own rect sits UNDER the
-  //     Thumb, and even the probe at its own centre hits the Thumb, not the input).
-  // A control with NEITHER — a plain, visible, appropriately-sized button — carries its floor on its OWN
-  // border box (a real height/min-height, e.g. the CONTROL_SIZE ramp), so an ancestor is never evidence
-  // of ownership for it: this is the #662/#665 hole, and it is refused before either ancestor path runs.
-  function pseudoCarriesFloor(el) {
-    function extendsOutward(style) {
-      return style.content !== "none" && style.content !== "normal" && (style.position === "absolute" || style.position === "fixed");
-    }
-    return extendsOutward(getComputedStyle(el, "::after")) || extendsOutward(getComputedStyle(el, "::before"));
-  }
-  function ancestorCreditAllowed(el) {
-    return pseudoCarriesFloor(el) || isVisuallyHidden(el);
-  }
-  function sharedCompositeOwns(el, hit) {
-    var scope = el.parentElement;
-    for (var d = 0; d < COMPOSITE_WALK_MAX && scope !== null; d += 1) {
-      if (scope.contains(hit)) {
-        var controls = scope.querySelectorAll(INTERACTIVE_SELECTOR);
-        for (var c = 0; c < controls.length; c += 1) {
-          var other = controls[c];
-          if (other !== el && !el.contains(other) && isOfferedControl(other)) return false;
-        }
-        return true;
-      }
-      scope = scope.parentElement;
-    }
-    return false;
-  }
-  // DECLARED LIMIT: a lone control inside a larger non-interactive wrapper within COMPOSITE_WALK_MAX
-  // levels is STILL credited with the wrapper's extent when the control itself is pseudo-carried or
-  // visually-hidden (e.g. a glyph Button with no genuine composite siblings at all). That direction
-  // (crediting a control that is, rarely, genuinely alone) is the accepted trade against the measured FP
-  // class this file's tap-target census exists to avoid — see the THE HIT AREA IS NOT THE BOX note above.
-  function ownsPoint(el, x, y) {
-    if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) return false;
-    var hit = document.elementFromPoint(x, y);
-    if (hit === null) return false;
-    if (hit === el || el.contains(hit)) return true;
-    if (!ancestorCreditAllowed(el)) return false;
-    if (hit.contains(el)) return true;
-    return sharedCompositeOwns(el, hit);
-  }
-  // Grow outward from the centre while the control still answers on all four cardinal offsets. Returns
-  // the effective half-extent in px (>= the box's own, never less).
-  function effectiveHalfExtent(el, rect) {
-    var cx = rect.left + rect.width / 2;
-    var cy = rect.top + rect.height / 2;
-    if (!ownsPoint(el, cx, cy)) return Math.min(rect.width, rect.height) / 2; // occluded centre: trust the box
-    var best = Math.min(rect.width, rect.height) / 2;
-    for (var hp = 0; hp < HIT_PROBE_RADII.length; hp += 1) {
-      var r = HIT_PROBE_RADII[hp];
-      if (r <= best) continue;
-      if (ownsPoint(el, cx - r, cy) && ownsPoint(el, cx + r, cy) && ownsPoint(el, cx, cy - r) && ownsPoint(el, cx, cy + r)) best = r;
-    }
-    return best;
-  }
-  // A control whose HOST sits outside the visual viewport is a phantom (2026-08-16: an off-canvas detail
-  // panel at x=431 on a 430px viewport supplied a whole census of "failures" nobody could touch).
-  // It answers the OFFERED question, never the PAINT question — see the class table in the file header.
-  function inVisualViewport(rect) {
-    return rect.bottom > 0 && rect.right > 0 && rect.top < window.innerHeight && rect.left < window.innerWidth;
-  }
+  // The compositor hit-extent probe — ownsPoint / measureHitExtent / probeFrameFits /
+  // inVisualViewport and the ancestor-credit vocabulary — is the PRECEDING segment
+  // (ops/walker/hit-extent.ts, split out at #797 for the tooling line cap). Same function scope.
 
   // ── REACH (#653): the census's own denominator, and the sweep that earns it ──────────────────────
   // "nothing found" and "nothing looked at" must never render identically, so every control that is
@@ -245,6 +150,8 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     revealed: 0,
     revealScrolls: 0,
     skippedOffViewport: 0,
+    recentred: 0,
+    frameTruncated: 0,
     scrollersRestored: 0,
     revealBudget: REVEAL_SCROLL_BUDGET,
     budgetExhausted: false,
@@ -303,6 +210,17 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     } else {
       censusReach.skippedOffViewport += 1;
     }
+    // THE PROBE FRAME (#797). Intersecting the viewport is not the same as being MEASURABLE in it: the
+    // outward hit probe needs its whole +/-22px ring to exist, and a control straddling an edge answers
+    // \`null\` on the points that fell off — which the extent walk reads as "not owned" and collapses to
+    // the bare border box. That is how a 44x44 checkbox on the Settings→Plugins pane minted a P1 that
+    // vanished at --viewport 1280x2200 with an identical element census. So RE-CENTRE first (the same
+    // scrollIntoView the reveal uses, which resolves every scrollable ancestor), and only refuse where
+    // no scroll can produce a frame.
+    if (onScreen && !probeFrameFits(irect)) {
+      censusReach.recentred += 1;
+      if (revealIntoViewport(iel)) irect = iel.getBoundingClientRect();
+    }
     // A HIDDEN CONTROL IS NOT AUTOMATICALLY AN UNREACHABLE ONE. The shell skip link at rest is a clipped
     // 26x32 stub: no pointer can reach it, so a target-size verdict on it is a claim about nothing (it was
     // a P1 on every surface). But Base UI's Slider hands its native range input the SAME visually-hidden
@@ -313,13 +231,21 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     // census below keeps both — a screen-reader-only control is exactly the one that lives or dies by its name.
     var hiddenStub = isVisuallyHidden(iel) && !ownsPoint(iel, irect.left + irect.width / 2, irect.top + irect.height / 2);
     if (onScreen && !hiddenStub) {
-      var half = effectiveHalfExtent(iel, irect);
+      var extent = measureHitExtent(iel, irect);
       // Report the EFFECTIVE extent as the measured size; the box only ever raises it, never lowers it.
-      var effective = Math.max(Math.min(irect.width, irect.height), half * 2);
+      var effective = Math.max(Math.min(irect.width, irect.height), extent.half * 2);
+      // A LOWER BOUND UNDER THE WIDEST FLOOR IS NOT A VERDICT (#797). The probe ring was clipped by a
+      // viewport edge with no in-frame radius having genuinely failed, so this number is "at least this",
+      // never "this" — and a sub-target finding minted from it is the phantom P1 class. The CONTROL still
+      // rides in the census (dropping it would trade a false positive for a false clean); the FLAG is what
+      // lib/checks-a11y.ts withholds the verdict on, and the counter is what makes that legible on the run.
+      var lowerBound = extent.truncated && effective < HIT_PROBE_MAX * 2;
+      if (lowerBound) censusReach.frameTruncated += 1;
       tapTargets.push({
         selector: describe(iel),
         width: Math.max(irect.width, effective),
         height: Math.max(irect.height, effective),
+        extentTruncated: lowerBound,
       });
     }
     accessibleNames.push({
