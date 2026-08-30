@@ -29,7 +29,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PLUGIN_BUNDLE_MAX_BYTES, PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
 import { PLUGIN_DISTRIBUTE_SUBCATEGORY } from "../lib/plugin-distribute-nav.ts";
@@ -120,7 +120,7 @@ function PluginDistributeBody(): ReactElement {
       className="@container"
       divider={true}
       heading={PLUGIN_DISTRIBUTE_SUBCATEGORY.label}
-      id={settingsAnchorId("plugins", PLUGIN_DISTRIBUTE_SUBCATEGORY.id)}
+      id={configAnchorId("plugins", PLUGIN_DISTRIBUTE_SUBCATEGORY.id)}
     >
       <Stack gap="row">
         <Text prose={true} voice="gloss">

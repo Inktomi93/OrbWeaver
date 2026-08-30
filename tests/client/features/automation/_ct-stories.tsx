@@ -11,14 +11,22 @@
 // and the wiring between them exists only at the composition root.
 
 import { QueryBoundary, QueryErrorState } from "@orb/client/data";
-import { automationRulesSection, ClockMeter, NeedleMeter, OwnerAutomationSurface, RulesSection } from "@orb/client/features/automation";
+import {
+  automationBudgetSection,
+  automationLibraryRulesSection,
+  automationRulesSection,
+  ClockMeter,
+  NeedleMeter,
+  RulesSection,
+} from "@orb/client/features/automation";
 import type { ChatSettingsSectionContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
+import type { ConfigSectionContribution } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
-import { CtAppDataProviders, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtAppDataProviders, CtConfigGroupBody, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The narrowest REAL host for this surface — the CONTEXT pane at its docked width. A trailing control
@@ -81,17 +89,24 @@ export function RulesInThisChatTabStory({ chatId, isHost = true }: { readonly ch
   );
 }
 
-/** C5's OWNER-GLOBAL surface — the Automation settings pane's body, over the stubbed network. It carries
- *  its OWN `QueryBoundary` per section (the settings-surface posture), so unlike the Rules section it needs
- *  no wrapper boundary here: the story is exactly what `automationPane.body.render()` mounts.
+/** The Automation group's two contributed sections (config-revamp-design.md §6.8), assembled as at the
+ *  door and rendered through the config host's OWN resolver (`CtConfigGroupBody`). */
+const automationSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> = createContributorRegistry<ConfigSectionContribution>(
+  "config-sections",
+  [automationLibraryRulesSection, automationBudgetSection],
+);
+
+/** C5's OWNER-GLOBAL sections — the Automation config group's body, over the stubbed network. Each section
+ *  carries its OWN `QueryBoundary`, so unlike the Rules section it needs no wrapper boundary here: the story
+ *  is exactly what the config host's skimmer mounts for the `automation` anchor.
  *
- *  THE WIDTH IS THE SETTINGS PANE's, not the docked context pane's — a settings surface's narrowest real
- *  host is the modal's content column, and sizing this at 384px would measure a mount that does not exist. */
-export function OwnerAutomationSurfaceStory({ width = SETTINGS_PANE_WIDTH }: { readonly width?: number } = {}): ReactElement {
+ *  THE WIDTH IS THE CONTENT PANE's, not the docked context pane's — a config section's narrowest real host
+ *  is the CONTENT pane, and sizing this at 384px would measure a mount that does not exist. */
+export function OwnerAutomationSectionsStory({ width = SETTINGS_PANE_WIDTH }: { readonly width?: number } = {}): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width }}>
-        <OwnerAutomationSurface />
+        <CtConfigGroupBody anchor="automation" sections={automationSections} />
       </div>
     </CtDataProviders>
   );

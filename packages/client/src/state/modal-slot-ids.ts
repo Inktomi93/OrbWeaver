@@ -1,6 +1,6 @@
 // The shell's MODAL-SLOT vocabulary — the rail-triggered/content-triggered modal registry is total over this
 // tuple (assembled at the door). Extracted from `shell-store.ts` into its own module for `component-size`, the
-// `section-ids.ts`/`settings-categories.ts` precedent: it is a self-contained VOCABULARY with two readers (this
+// `section-ids.ts`/`config-group-ids.ts` precedent: it is a self-contained VOCABULARY with two readers (this
 // store's `openModal` state and the door's `ModalDefinition` totality check) and belongs to neither's subject
 // matter.
 
@@ -20,9 +20,12 @@
 // registry modals owned by `features/imagery` — opened by a `#state` action (openImagine / openImageDetail /
 // openImageEdit) that carries WHICH image through the imagery-store, the newChat precedent. They live at the
 // shell so they outlive a virtualized message row's unmount; `openModal` is transient, so no persist migrate.
+// `settings` LEFT this tuple with the config revamp (#866 S1, D62 physics rule 5 finally satisfied): the
+// settings overlay was the standing "section content in a modal" exception, and it retired into the
+// Configuration SECTION (rail label "Settings", the foot slot). Nothing tombstones — the union is closed,
+// so tsc enumerated every `openModal("settings")` and each became `openConfigTo(group)`.
 export const MODAL_SLOT_IDS = [
   "theme",
-  "settings",
   "account",
   "command",
   "newChat",

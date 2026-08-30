@@ -6,11 +6,11 @@
 // viewer gate (`when: viewer.isAdmin`), and nav/search/render of a section only ever run inside a visible
 // pane — a second predicate here would be a parallel truth that can drift.
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { AdminUsersSection } from "../components/admin-users-section.tsx";
 import { ADMIN_USERS_SUBCATEGORY } from "./admin-users-nav.ts";
 
-export const adminUsersSection: SettingsSectionContribution = {
+export const adminUsersSection: ConfigSectionContribution = {
   id: "admin-users",
   anchor: "admin",
   nav: ADMIN_USERS_SUBCATEGORY,

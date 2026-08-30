@@ -5,15 +5,14 @@
 // saved-casts modal (create opens that door — a from-scratch form would be a second composer for an
 // artifact the room already composes).
 
-import { Users } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import type { CollectionContribution, CollectionDetailView, CollectionListView } from "#lib";
 import { CastCollectionRows } from "../components/cast-collection-rows.tsx";
 import { useCastCount, useCastMemberTitle, useCreateCastMember } from "../hooks/use-cast-collection.ts";
 import { CastMemberSurface } from "../surfaces/cast-member-surface.tsx";
 
-/** The collection KIND (registry key + the selection store's kind axis). */
-const CAST_COLLECTION_ID = "cast";
+/** The collection KIND — the `cast` config group id (registry key + the selection store's kind axis). */
+export const CAST_COLLECTION_ID = "cast";
 
 function renderList(view: CollectionListView): ReactElement {
   return <CastCollectionRows view={view} />;
@@ -24,13 +23,6 @@ function renderDetail(view: CollectionDetailView): ReactElement {
 }
 
 export const castCollection: CollectionContribution = {
-  id: CAST_COLLECTION_ID,
-  label: "Casts",
-  icon: Users,
-  order: 40,
-  // B10's rules rider is named here because this card is the one place a user browsing the library learns
-  // what a cast IS — and applying one switches automation on in the room (side-eye 2026-08-29 P2-6).
-  blurb: "Saved casts — a named group of characters with their seat knobs and the room's enabled rules, ready to drop into any chat.",
   emptyText: "No saved casts yet.",
   useCount: useCastCount,
   useMemberTitle: useCastMemberTitle,

@@ -72,7 +72,7 @@ test("lists a schedule off its OWN read; toggle/delete fire the owner-scoped ver
   await expect(section.getByText("Index (embeddings)")).toBeVisible();
   await expect(section.getByText("Every day", { exact: false })).toBeVisible();
   // The section stamps its own anchor now (§7.1 — the id is byte-identical across the move).
-  await expect(page.locator("#settings-anchor-workloads-schedules")).toBeVisible();
+  await expect(page.locator("#config-anchor-workloads-schedules")).toBeVisible();
 
   // Toggling the enable Switch fires the owner-scoped setScheduleEnabled with the row id.
   await section.getByRole("switch", { name: "Enable Index (embeddings) schedule" }).click();

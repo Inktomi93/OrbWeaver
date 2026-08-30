@@ -22,7 +22,7 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
 import { DENSITY_ITEMS } from "#lib";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN, FONT_SCALE_STEP } from "../lib/appearance-bounds.ts";
 import { ELEVATION_ITEMS } from "../lib/appearance-select-items.ts";
 import { APPEARANCE_SIZING_KEYS, APPEARANCE_SIZING_SUBCATEGORY } from "../lib/appearance-sizing-model.ts";
@@ -79,7 +79,7 @@ function SizingBody({ sectionId, session }: { readonly sectionId: string; readon
       className="@container"
       divider={true}
       heading={APPEARANCE_SIZING_SUBCATEGORY.label}
-      id={settingsAnchorId("appearance", APPEARANCE_SIZING_SUBCATEGORY.id)}
+      id={configAnchorId("appearance", APPEARANCE_SIZING_SUBCATEGORY.id)}
     >
       <FieldLayout orientation="horizontal">
         <form.AppField name="chatWidthPct">

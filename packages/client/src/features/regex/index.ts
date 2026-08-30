@@ -5,3 +5,4 @@
 // pipeline — neither settings nor chat makes them its reader.
 
 export { regexCollection } from "./lib/regex-collection.tsx";
+export { regexGroup } from "./lib/regex-group.tsx";

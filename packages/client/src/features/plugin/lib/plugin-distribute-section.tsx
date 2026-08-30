@@ -11,11 +11,11 @@
 // No `owns` claim: the section persists nothing through the settings tiers — a distribution is a row behind
 // the `plugin.*` verbs — so it is exempt from the §2.3 key partition.
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { PluginDistributeSection } from "../components/plugin-distribute-section.tsx";
 import { PLUGIN_DISTRIBUTE_SUBCATEGORY } from "./plugin-distribute-nav.ts";
 
-export const pluginDistributeSection: SettingsSectionContribution = {
+export const pluginDistributeSection: ConfigSectionContribution = {
   id: "plugin-distribute",
   anchor: "plugins",
   nav: PLUGIN_DISTRIBUTE_SUBCATEGORY,

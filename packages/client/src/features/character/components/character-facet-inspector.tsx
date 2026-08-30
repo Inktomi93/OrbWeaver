@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
-import { goToCollection, useSelectedCharacterFacetId, useSelectedCharacterId } from "#state";
+import { openConfigTo, useSelectedCharacterFacetId, useSelectedCharacterId } from "#state";
 import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets.ts";
 import { facetById } from "../lib/character-card-facets.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
@@ -172,7 +172,7 @@ const FACET_CONTEXT_ARMS: Record<CharacterFacetId, FacetContextArm> = {
     kind: "none",
     title: "Nothing to attach here",
     description: "Attaching and ordering this character's scripts happens in the editor on the left. Writing new ones happens in your library.",
-    action: { label: "Open your script library", run: (): void => goToCollection(REGEX_COLLECTION) },
+    action: { label: "Open your script library", run: (): void => openConfigTo(REGEX_COLLECTION) },
   },
   creatorNotes: { kind: "detail", render: ({ form }) => <CountDetail form={form} name="creatorNotes" tokens={false} /> },
   description: { kind: "detail", render: ({ form }) => <CountDetail form={form} name="description" tokens={true} /> },

@@ -5,4 +5,5 @@
 // activation knobs (scan depth / token budget) stay a contributed SETTINGS section, unchanged.
 
 export { worldInfoCollection } from "./lib/world-info-collection.tsx";
+export { worldInfoGroup } from "./lib/world-info-group.tsx";
 export { worldInfoSettingsSection } from "./lib/world-info-settings-section.tsx";

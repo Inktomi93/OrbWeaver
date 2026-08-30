@@ -15,6 +15,8 @@ export type { ClientErrorPayload } from "./client-error-report.ts";
 export { buildClientErrorPayload } from "./client-error-report.ts";
 export type { CollectionContext, CollectionContribution, CollectionDetailView, CollectionListView, CollectionPreviewEntry } from "./collection-contracts.ts";
 export { COLLECTION_LARGE_GROUP, COLLECTION_PREVIEW_LIMIT, COLLECTION_WINDOW_MAX_HEIGHT } from "./collection-contracts.ts";
+export type { ConfigQueryToken, ParsedConfigQuery } from "./config-search-tokens.ts";
+export { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "./config-search-tokens.ts";
 export type {
   CharacterDetailAnchor,
   CharacterDetailContribution,

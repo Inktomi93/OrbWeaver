@@ -2,6 +2,9 @@
 // client-feature-front-door). The Identity chrome widget (`personaChrome`, shell-chrome-unification.md
 // §B) is registered at the main.tsx door; no feature imports this slice's internals, and this slice
 // imports no other feature (cross-domain reads ride trpc.*).
+//
+// The Personas config GROUP is a `sections` skimmer (config-revamp-design.md §6.8.2): its three sections
+// are the contributions below, assembled into the config-section registry at the door.
 
 // `PersonaPanelRow` is front-door-exported so its CT (the side-eye item-13 stretched-overlay rework)
 // drives it directly from a non-test story — the CharacterCardTile precedent.
@@ -9,4 +12,7 @@ export { FirstRunPersonaDialog } from "./anchors/first-run-persona-dialog.tsx";
 export type { PersonaPanelRowProps } from "./components/persona-panel-row.tsx";
 export { PersonaPanelRow } from "./components/persona-panel-row.tsx";
 export { personaChrome } from "./lib/persona-chrome.tsx";
-export { personasPane } from "./lib/personas-pane.tsx";
+export { personaNotificationsSection } from "./lib/persona-notifications-section.tsx";
+export { personaRosterSection } from "./lib/persona-roster-section.tsx";
+export { personaThisChatSection } from "./lib/persona-this-chat-section.tsx";
+export { personasGroup } from "./lib/personas-group.tsx";

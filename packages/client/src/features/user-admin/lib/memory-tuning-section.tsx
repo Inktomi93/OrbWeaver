@@ -3,7 +3,7 @@
 // settings-section registry (G8) at the `admin` anchor. Covers AppSettings.memoryDefaults +
 // memorySummarizer (admin-tier config → user-admin owns it).
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { MemoryTuningSection } from "../components/memory-tuning-section.tsx";
 import { MEMORY_TUNING_SUBCATEGORY } from "./memory-tuning-nav.ts";
 
@@ -11,7 +11,7 @@ import { MEMORY_TUNING_SUBCATEGORY } from "./memory-tuning-nav.ts";
 // its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.
 const SECTION_ID = "admin-memory-tuning";
 
-export const memoryTuningSection: SettingsSectionContribution = {
+export const memoryTuningSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "admin",
   nav: MEMORY_TUNING_SUBCATEGORY,

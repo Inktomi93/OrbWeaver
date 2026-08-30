@@ -1,10 +1,10 @@
-// The Library settings-section nav entry (⑪, D107) — the ONE `SettingsSubcategory` shared by the
+// The Library settings-section nav entry (⑪, D107) — the ONE `ConfigSubcategory` shared by the
 // contribution def (library-settings-section.tsx) and the section body's `<Section>` anchor stamp; split
 // out so neither imports the other (the world-info-settings-nav / chat-behavior-nav precedent).
 
-import type { SettingsSubcategory } from "#state";
+import type { ConfigSubcategory } from "#state";
 
-export const LIBRARY_SETTINGS_SUBCATEGORY: SettingsSubcategory = {
+export const LIBRARY_SETTINGS_SUBCATEGORY: ConfigSubcategory = {
   id: "library",
   label: "Library",
   keywords: ["library", "pagination", "page size", "rows"],

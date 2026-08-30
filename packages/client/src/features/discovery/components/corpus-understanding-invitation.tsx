@@ -39,7 +39,7 @@ import { Progress } from "@orb/ui/progress";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { openSettingsTo } from "#state";
+import { openConfigTo } from "#state";
 import type { UnderstandingPassView } from "../hooks/use-understanding-pass.ts";
 import { useUnderstandingPass, useUnderstandingPassTail } from "../hooks/use-understanding-pass.ts";
 
@@ -95,7 +95,7 @@ export function CorpusUnderstandingInvitation(): ReactElement {
               </Button>
             )}
             {/* The full runs console is still one click away — it just is not where the work starts any more. */}
-            <Button intent="ghost" onClick={(): void => openSettingsTo("workloads", "jobs")} size="sm">
+            <Button intent="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm">
               {pass.running ? "Watch in Settings → Jobs" : "All jobs in Settings → Jobs"}
             </Button>
           </Stack>
@@ -131,7 +131,7 @@ function MemoryOffNote(): ReactElement {
   return (
     <Row align="center" data-slot="understanding-pass-memory-off" gap="field">
       <Text voice="gloss">Story themes need chat memory, which is off — this pass will read your cards only.</Text>
-      <Button intent="ghost" onClick={(): void => openSettingsTo("chat-behavior", "memory")} size="sm">
+      <Button intent="ghost" onClick={(): void => openConfigTo("chat-behavior", "memory")} size="sm">
         Turn on memory
       </Button>
     </Row>

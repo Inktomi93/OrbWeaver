@@ -4,7 +4,7 @@
 // IT MOVED FROM `lib/` (tier 4) TO `state/` — under H10's OWN test, not against it. H10 put it in tier 4
 // "because it binds no state-owned vocabulary (`ReactNode` + `LucideIcon` only)" and ruled, in the same
 // breath: "if a tile ever needs `SectionId` in its own contract, it moves to `state/` under the same test
-// that moved `SettingsSectionContribution` there". `sectionId` is that day (side-eye 2026-08-08 P2-c): a
+// that moved `ConfigSectionContribution` there". `sectionId` is that day (side-eye 2026-08-08 P2-c): a
 // tile can now declare the section whose jump row it SUBSUMES, which is `SectionId`, which is
 // state-owned vocabulary. The seam, the entry point and every consumer's import shape are otherwise
 // unchanged — `#lib` became `#state`.

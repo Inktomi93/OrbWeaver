@@ -30,7 +30,7 @@ test("mounts on the resolved leaves and stamps its own admin anchor", async ({ m
 
   await expect(page.getByRole("textbox", { name: "Embedding concurrency" })).toHaveValue("4");
   await expect(page.getByRole("textbox", { name: "Summarize concurrency" })).toHaveValue("2");
-  await expect(page.locator("#settings-anchor-admin-compute")).toBeVisible();
+  await expect(page.locator("#config-anchor-admin-compute")).toBeVisible();
 });
 
 // P1 — key-minimality at the LEAF level: only the moved leaf is written, and no key outside

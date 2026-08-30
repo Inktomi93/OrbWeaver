@@ -1,12 +1,53 @@
-// Personas pane subcategory ids — shared by the pane def (personas-pane.tsx) and the surface's
-// `<Section>` anchor stamp; split out to avoid a pane↔surface import cycle.
+// The Personas group's nav entries (config-revamp-design.md §6.8.2) — the ONE `ConfigSubcategory` per
+// registered section, shared by the contribution def and the section body's anchor stamp (the
+// workloads-jobs-nav precedent), so a LIST row can never address an anchor no section renders.
 //
-// The id stays `personas` (it is a persisted nav anchor); only the LABEL changed — the pane and its one
-// subcategory both read "Personas", so the settings nav stacked two identical `button "Personas"` 40px
-// apart, one the group header and one the selected item (side-eye 2026-08-03 P2). A subcategory names what
-// is IN it, and what is in it is notification prefs.
-export const PERSONA_SUBCATEGORY_IDS = { personas: "personas" } as const;
+// FIVE reachable parts, THREE sections: the notification switch, the roster and the this-chat picker
+// register as sections; the EDITOR (a row's own inline expansion — persona-panel-row.tsx) and the PINNED row
+// (one row inside the this-chat section) structurally cannot be sections without moving where a persona is
+// edited or re-anchored, which is owner-sacred. They are search LEAVES of the section that contains them: a
+// hit lands on the owning section's anchor (fork F-14, default taken).
+//
+// The LABELS are what the LIST row and the heading both read, so the row and the section it scrolls to can
+// never say two different things (side-eye 2026-08-03 P2 — the pane and its one subcategory used to both
+// read "Personas", two identical buttons 40px apart).
 
-/** The subcategory's visible name — one home, read by the pane def AND the surface's `<Section>` heading, so
- *  the nav row and the heading it scrolls to can never say two different things. */
-export const PERSONA_SUBCATEGORY_LABEL = "Notifications";
+import type { ConfigSubcategory } from "#state";
+
+export const PERSONA_NOTIFICATIONS_SUBCATEGORY: ConfigSubcategory = {
+  id: "notifications",
+  label: "Notifications",
+  settings: [
+    {
+      id: "persona-notifications",
+      label: "Persona change notifications",
+      keywords: ["notify", "notification", "alert"],
+    },
+  ],
+};
+
+export const PERSONA_ROSTER_SUBCATEGORY: ConfigSubcategory = {
+  id: "your-personas",
+  label: "Your personas",
+  keywords: ["persona", "roster", "new persona", "import", "restore", "current", "default", "avatar"],
+  settings: [
+    {
+      id: "editor",
+      label: "Editing a persona",
+      keywords: ["title", "description", "starred", "injection", "depth", "lore book", "duplicate", "export"],
+    },
+  ],
+};
+
+export const PERSONA_THIS_CHAT_SUBCATEGORY: ConfigSubcategory = {
+  id: "this-chat",
+  label: "This chat",
+  keywords: ["playing as", "switch", "restamp", "reattribute", "chat"],
+  settings: [
+    {
+      id: "pinned",
+      label: "Pinned as {{user}}",
+      keywords: ["anchor", "pin", "re-pin", "card sees you as", "{{user}}"],
+    },
+  ],
+};

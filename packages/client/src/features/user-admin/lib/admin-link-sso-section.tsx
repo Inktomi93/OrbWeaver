@@ -5,11 +5,11 @@
 // `admin.*` verbs, so it is exempt from the §2.3 key partition. No `when`: the ADMIN PANE carries the viewer
 // gate (`when: viewer.isAdmin`), and a section only ever renders inside a visible pane.
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { AdminLinkSsoSection } from "../components/admin-link-sso-section.tsx";
 import { ADMIN_LINK_SSO_SUBCATEGORY } from "./admin-link-sso-nav.ts";
 
-export const adminLinkSsoSection: SettingsSectionContribution = {
+export const adminLinkSsoSection: ConfigSectionContribution = {
   id: "admin-link-sso",
   anchor: "admin",
   nav: ADMIN_LINK_SSO_SUBCATEGORY,

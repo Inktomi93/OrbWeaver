@@ -19,7 +19,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import {
@@ -71,12 +71,7 @@ function StructuredOutputBody({ sectionId }: { readonly sectionId: string }): Re
   };
 
   return (
-    <Section
-      className="@container"
-      divider={true}
-      heading={STRUCTURED_OUTPUT_SUBCATEGORY.label}
-      id={settingsAnchorId("admin", STRUCTURED_OUTPUT_SUBCATEGORY.id)}
-    >
+    <Section className="@container" divider={true} heading={STRUCTURED_OUTPUT_SUBCATEGORY.label} id={configAnchorId("admin", STRUCTURED_OUTPUT_SUBCATEGORY.id)}>
       <Stack gap="field">
         <Text voice="gloss">How schema-constrained requests describe their JSON to the model. Applies to the next request — no restart.</Text>
         <AdminOverrideSelect

@@ -4,9 +4,9 @@
 
 export { adminApprovalsSection } from "./lib/admin-approvals-section.tsx";
 export { adminEnginesSection } from "./lib/admin-engines-section.tsx";
+export { adminGroup } from "./lib/admin-group.tsx";
 export { adminLinkSsoSection } from "./lib/admin-link-sso-section.tsx";
 export { adminCatalogSection, adminEmbeddingsSection } from "./lib/admin-ops-sections.tsx";
-export { adminPane } from "./lib/admin-pane.tsx";
 export { adminUsersSection } from "./lib/admin-users-section.tsx";
 export { memoryTuningSection } from "./lib/memory-tuning-section.tsx";
 export { rateLimitsSection } from "./lib/rate-limits-section.tsx";

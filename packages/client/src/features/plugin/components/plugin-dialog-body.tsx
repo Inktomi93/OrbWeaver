@@ -18,7 +18,7 @@ import { Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { openSettingsTo, usePluginDialogSubject } from "#state";
+import { openConfigTo, usePluginDialogSubject } from "#state";
 import { PluginFrame } from "./plugin-frame.tsx";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
 import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
@@ -45,7 +45,7 @@ export function PluginDialogBody(): ReactElement {
           // The next step is real and specific: the plugin can be turned back on in Plugins. A modal whose body
           // says only "gone" strands a person inside a dialog they have to guess their way out of.
           action={
-            <Button intent="secondary" onClick={(): void => openSettingsTo("plugins")} size="sm">
+            <Button intent="secondary" onClick={(): void => openConfigTo("plugins")} size="sm">
               Open Plugins
             </Button>
           }

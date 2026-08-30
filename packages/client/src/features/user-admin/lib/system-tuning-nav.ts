@@ -1,10 +1,10 @@
-// The System-tuning admin-section nav entry (Phase B ⑩) — the ONE `SettingsSubcategory` shared by the
+// The System-tuning admin-section nav entry (Phase B ⑩) — the ONE `ConfigSubcategory` shared by the
 // contribution def and the section's `<Section>` anchor stamp; split out so neither imports the other (the
 // rate-limits-section-nav precedent).
 
-import type { SettingsSubcategory } from "#state";
+import type { ConfigSubcategory } from "#state";
 
-export const SYSTEM_TUNING_SUBCATEGORY: SettingsSubcategory = {
+export const SYSTEM_TUNING_SUBCATEGORY: ConfigSubcategory = {
   id: "system-tuning",
   label: "System tuning",
   keywords: [

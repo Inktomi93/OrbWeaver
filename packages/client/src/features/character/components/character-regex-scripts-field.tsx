@@ -18,7 +18,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { RegexScriptPicker } from "#components";
 import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
-import { goToCollection } from "#state";
+import { openConfigTo } from "#state";
 
 const PICKER_SKELETON_ROWS = 3;
 /** The library's own collection KIND in the Configuration workspace (it left the settings modal at the
@@ -45,7 +45,7 @@ export function CharacterRegexScriptsField({ characterId }: { readonly character
       <RegexScriptPicker
         scope={{ kind: "character", characterId }}
         helperText="Picked from your script library — these run whenever this character is in the room."
-        onOpenLibrary={(): void => goToCollection(REGEX_COLLECTION)}
+        onOpenLibrary={(): void => openConfigTo(REGEX_COLLECTION)}
       />
     </QueryBoundary>
   );

@@ -29,7 +29,7 @@ test("mounts on the resolved values, stamps its anchor, and offers no dead Save 
 
   await expect(page.getByRole("switch", { name: "Background corpus indexing" })).not.toBeChecked();
   await expect(page.getByRole("combobox", { name: "Log level" })).toContainText("Info");
-  await expect(page.locator("#settings-anchor-admin-operations")).toBeVisible();
+  await expect(page.locator("#config-anchor-admin-operations")).toBeVisible();
   // Every control here writes immediately — there is no draft, so there is no Save.
   await expect(page.getByRole("button", { name: "Save" })).toHaveCount(0);
 });

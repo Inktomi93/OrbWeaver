@@ -48,6 +48,11 @@ import {
  */
 const EMPTY_BANK_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, total: 0 };
 const SHELL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+  // The Settings section's LIST paints the four collection bands when a story lands on it — fed empty.
+  "tag.listTagsWithUsage": [],
+  "regex.listScripts": [],
+  "worldInfo.listBooksWithUsage": [],
+  "rosterPreset.list": [],
   // `ViewerView` — a projection of the request Principal (transport/trpc/routers/sessions.ts:25).
   "sessions.me": { userId: "user_ct_shell", handle: "ct_shell", globalRole: "user" },
   // The viewer's settings row at the production defaults — the appearance/tier readers the shell root
@@ -371,12 +376,13 @@ test("a collapsed CONTEXT body mounts only when opened, then follows the active 
 
 test("a footer modal trigger (derived from the modal registry) opens its real body", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
-  // The rail.end "Settings" button DERIVES from the modal registry (settingsModal.trigger).
-  await shell.getByRole("button", { name: "Settings" }).click();
+  // The rail.end "Switch theme" button DERIVES from the modal registry (themeModal.trigger) — the ONE
+  // rail-foot modal left once the settings modal retired into the `config` SECTION (#866 S1).
+  await shell.getByRole("button", { name: "Switch theme" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
-  // The registry-owned settings modal renders the real SettingsShell (title from the definition).
-  await expect(dialog).toContainText("Settings");
+  // The registry-owned theme modal renders the real picker (title from the definition).
+  await expect(dialog).toContainText("Theme");
   // Close returns to no dialog.
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -384,10 +390,10 @@ test("a footer modal trigger (derived from the modal registry) opens its real bo
 
 // finalFocus (§13.8 R1 · side-eye P3): the store-driven modal mounts already-open (no DialogTrigger), so
 // ModalHost captures the trigger at open and hands it to Base UI's `finalFocus` — on Escape-close, focus
-// returns to the Settings control, not lost to <body>. A keyboard user's place is preserved.
+// returns to the theme control, not lost to <body>. A keyboard user's place is preserved.
 test("closing a modal returns focus to the control that opened it (finalFocus)", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
-  const trigger = shell.getByRole("button", { name: "Settings" });
+  const trigger = shell.getByRole("button", { name: "Switch theme" });
   await trigger.focus();
   await trigger.press("Enter");
   await expect(page.getByRole("dialog")).toBeVisible();
@@ -526,18 +532,18 @@ test("rapid command shortcuts own one pending frame and unmount cancels it", asy
   expect(await readProbe()).toEqual({ canceled: 1, pending: 0, requested: 1 });
 });
 
-test("an open Settings modal owns the overlay and the command shortcut does nothing", async ({ mount, page }) => {
+test("an open Theme modal owns the overlay and the command shortcut does nothing", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
-  await shell.getByRole("button", { name: "Settings" }).click();
+  await shell.getByRole("button", { name: "Switch theme" }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toContainText("Settings");
+  await expect(dialog).toContainText("Theme");
   const close = dialog.getByRole("button", { name: "Close" });
   await close.focus();
 
   expect(await dispatchCommandKey(page, { metaKey: true })).toBe(false);
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
-  await expect(dialog).toContainText("Settings");
+  await expect(dialog).toContainText("Theme");
   await expect(page.getByRole("dialog", { name: "Jump to…" })).toHaveCount(0);
   await expect(close).toBeFocused();
 });
@@ -587,7 +593,6 @@ test("the command keydown listener does not duplicate across rerenders and is re
 
 for (const handoff of [
   { name: "Theme", trigger: "Switch theme" },
-  { name: "Settings", trigger: "Settings" },
   { name: "Jump", trigger: "Jump to…" },
 ] as const) {
   test(`MOBILE: You-sheet ${handoff.name} handoff returns focus to the durable You tab`, async ({ mount, page }) => {
@@ -731,7 +736,7 @@ test("the command palette reserves a compact, stable result viewport while filte
 // control, and the first Enter must not close it.
 test("a modal opens with focus in its BODY, not on Close — Enter must not immediately dismiss it", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
-  await shell.getByRole("button", { name: "Settings" }).click();
+  await shell.getByRole("button", { name: "Switch theme" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
 
@@ -1153,7 +1158,7 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
   await expect(page.getByText("Charts over your corpus land here", { exact: false })).toBeVisible();
 });
 
-test("mobile: the You sheet hands off to Settings in the shared modal slot (single-slot layered)", async ({ mount, page }) => {
+test("mobile: the You sheet's Settings row switches to the config SECTION and closes the sheet", async ({ mount, page }) => {
   await page.setViewportSize(MOBILE);
   // Stub the persona identity widget's sheet-lens reads so the projected sheet renders cleanly (§E-5).
   await routeTrpc(page, {
@@ -1163,15 +1168,16 @@ test("mobile: the You sheet hands off to Settings in the shared modal slot (sing
   });
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "You", exact: true }).click();
-  // Opening Settings REPLACES the You sheet in the shared openModal slot (not a nested modal): the You
-  // rows disappear, the Settings modal body appears. The You row's label DERIVES from the modal registry
-  // (settingsModal.title). Opening it lands the real registry-owned Settings body in the shared slot.
+  // Settings is a rail-foot SECTION since #866 S1 (`config`, `rail.zone: "rail.end"`, `mobile: "sheet"`),
+  // so its You-sheet row is a section row: tapping it switches the active section AND closes the sheet
+  // (setActiveSection + closeModal), exactly like the overflow sections beside it — no modal, no handoff.
   await page.getByRole("button", { name: "Settings" }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText("Settings");
-  // The You-sheet overflow row is gone (the slot now holds Settings, not You).
-  await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  // The shell-isolation registry injects no config LIST/CONTENT (its non-injected sections render their
+  // placeholder), so the landing is read at the SHELL: the CONTENT landmark is the Settings section's and
+  // the bar's Settings tab took the swapped slot (#484 — a `rail.end` section borrows one like any other).
+  await expect(page.getByRole("main", { name: "Settings content" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Settings" })).toHaveAttribute("aria-current", "page");
 });
 
 // ── THE REFINERY'S PHONE DOOR, AT A COARSE POINTER (owner ruling, board 2026-08-09) ────────────────
@@ -2227,7 +2233,7 @@ test("Escape closes an open modal without any panel-dismiss side effect (the yie
 
   // No panel overlay open; a modal IS open. scrimVisible is false here, so the shell's own listener is
   // not even attached (see the `!layout.scrimVisible` short-circuit) — Escape reaches Base UI untouched.
-  await shell.getByRole("button", { name: "Settings" }).click();
+  await shell.getByRole("button", { name: "Switch theme" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
 
@@ -4050,7 +4056,7 @@ const ONE_SHELL_SECTIONS: readonly { readonly id: SectionId; readonly label: str
   { id: "chats", label: "Chats" },
   { id: "characters", label: "Characters" },
   { id: "corpus", label: "Corpus" },
-  { id: "config", label: "Configuration" },
+  { id: "config", label: "Settings" },
   { id: "databank", label: "Databank" },
 ];
 
@@ -4137,7 +4143,7 @@ test("ONE-SHELL: the rule is applicability, not a mode — at 1280px the config 
 
   await shell.getByRole("button", { name: "open a member" }).click();
   await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
-  await expect(page.getByRole("button", { name: "Back to Configuration" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Back to Settings" })).toHaveCount(0);
   await expect(shell.getByRole("button", { name: LIST_TOGGLE_RE })).toBeVisible();
 });
 
@@ -4312,7 +4318,7 @@ test.describe("the mobile topbar at 320px, coarse pointer", () => {
   test("P2: the pushed frame's topbar names the MEMBER; the roster frame names the section", async ({ mount, page }) => {
     const shell = await mount(<AppShellMobileRuleStory section="config" />);
     const title = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
-    await expect(title).toHaveText("Configuration");
+    await expect(title).toHaveText("Settings");
 
     await shell.getByRole("button", { name: "open a member" }).click();
     await expect(title).toHaveText("Ashen Spire");

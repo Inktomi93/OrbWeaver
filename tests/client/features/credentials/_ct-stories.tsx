@@ -1,9 +1,14 @@
 // credentials feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
 // The story reaches a feature internal the front door doesn't re-export (the settings _ct-stories.tsx
-// precedent) — CredentialKeyRow is mounted by ConnectionsSettingsSurface itself, not exported standalone.
+// precedent) — CredentialKeyRow is mounted by the keys section itself, not exported standalone. The whole
+// Connections group mounts as its three CONTRIBUTED sections through the config host's own resolver
+// (`CtConfigGroupBody`, config-revamp-design.md §6.8) — the production render path, not a surface.
 
 import { useInvalidation, useTRPC } from "@orb/client/data";
+import { connectionsHostClaudeSection, connectionsKeysSection, connectionsRolesSection } from "@orb/client/features/credentials";
 import { SaveStatusHostContext } from "@orb/client/forms";
+import { createContributorRegistry } from "@orb/client/lib";
+import type { ConfigSectionContribution } from "@orb/client/state";
 import { useAggregateSaveStatus } from "@orb/client/state";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -13,8 +18,13 @@ import { useState } from "react";
 import { AddCredentialDialog } from "../../../../packages/client/src/features/credentials/components/add-credential-dialog.tsx";
 import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row.tsx";
 import { ModelPicker } from "../../../../packages/client/src/features/credentials/components/model-picker.tsx";
-import { ConnectionsSettingsSurface } from "../../../../packages/client/src/features/credentials/surfaces/connections-settings-surface.tsx";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtConfigGroupBody, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+
+/** The Connections group's three contributed sections, assembled as at the door. */
+const connectionsSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> = createContributorRegistry<ConfigSectionContribution>(
+  "config-sections",
+  [connectionsRolesSection, connectionsHostClaudeSection, connectionsKeysSection],
+);
 
 /** `<CredentialKeyRow>` under the data layer (`trpc`/`invalidation` read inside the provider tree — the
  *  row's own wiring); its mutations are stubbed per-test via routeTrpc. */
@@ -171,7 +181,7 @@ function ConnectionsPaneInner(): ReactElement {
   const queryClient = useQueryClient();
   return (
     <div>
-      <ConnectionsSettingsSurface />
+      <CtConfigGroupBody anchor="connections" sections={connectionsSections} />
       <button type="button" onClick={(): void => void queryClient.invalidateQueries()}>
         refetch settings
       </button>

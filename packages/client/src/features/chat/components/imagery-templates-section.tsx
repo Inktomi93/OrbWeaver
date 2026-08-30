@@ -21,7 +21,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, usePromptMacroSuggestions, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { SectionSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { IMAGERY_TEMPLATES_ENTITY_ID, ImageryTemplatesAutosaveForm } from "../hooks/use-imagery-templates-form.ts";
 import type { ImageryTemplatesForm } from "../lib/imagery-templates-model.ts";
 import { projectImageryTemplatesForm, toImageryTemplatesPatch } from "../lib/imagery-templates-model.ts";
@@ -133,7 +133,7 @@ function ImageryTemplatesBody({ sectionId, session }: { readonly sectionId: stri
   // IMGMAC — the author's user-macro plane, unioned onto the two identity macros for the EXTRACTION cards.
   const suggestions = extractionSuggestions(usePromptMacroSuggestions());
   return (
-    <Section divider={true} heading={IMAGERY_TEMPLATES_SUBCATEGORY.label} id={settingsAnchorId("chat-behavior", IMAGERY_TEMPLATES_SUBCATEGORY.id)}>
+    <Section divider={true} heading={IMAGERY_TEMPLATES_SUBCATEGORY.label} id={configAnchorId("chat-behavior", IMAGERY_TEMPLATES_SUBCATEGORY.id)}>
       <Stack gap="block">
         <Text voice="gloss">
           How each image-generation mode builds its prompt. Leave a field blank to use the built-in default (shown as the placeholder). Your opening line still

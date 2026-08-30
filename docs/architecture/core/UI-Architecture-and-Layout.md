@@ -116,7 +116,7 @@ packages/client/
                         #   that compose feature FRONT DOORS + #state actions. main.tsx is their ONLY
                         #   importer (dep-cruiser client-composition-tier-door-only)
     routes/             # 2 HAND-WRITTEN routes: / (app-root.tsx) · /login — no file-based codegen; admin
-                        #   is a pane in the Settings modal at /, NOT a standalone route (§6.1)
+                        #   is a group in the Settings SECTION at /, NOT a standalone route (§6.1)
     components/         # tier 2 — domain-AWARE cross-feature composites with no single feature owner
                         #   (ConfirmDialog · LibraryRow · CharacterPicker …); lockdown §3, gate G5
     data/               # the data-layer primitives (TanStack Query + tRPC) — §13.1
@@ -216,9 +216,11 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             LIST/CONTENT/CONTEXT grid; dialogs, preferences and one-shots go to modals/settings.
             The rail renders ONE assembled chrome registry
             (`assembleChrome` at the main.tsx door → `CHROME_ZONES`): `rail.nav` = section entries derived
-            from each `SectionDefinition.rail`, `rail.end` = the Theme/Settings modal triggers + the persona
-            Identity widget (`personaChrome`) — one flat DOM list, CSS-reflowed to the mobile bar (§C), never
-            a hand map (gate `no-parallel-section-map` chrome arm; `chrome-registry-completeness`).
+            from each `SectionDefinition.rail`, `rail.end` = the Theme modal trigger + the SETTINGS SECTION
+            (`config`, label "Settings", `rail.zone: "rail.end"` — a rail SECTION rendered at the foot, #297;
+            the settings MODAL retired into it, #866 S1) + the persona Identity widget (`personaChrome`) — one
+            flat DOM list, CSS-reflowed to the mobile bar (§C), never a hand map (gate
+            `no-parallel-section-map` chrome arm; `chrome-registry-completeness`).
   LIST    — the active section's collection: header row (micro-caps title + create "+") → search →
             ListRow rows. Side panel. Per-section DEFAULTS (user toggle wins thereafter):
             docked for Chats/Characters/Configuration/Databank/Presets AND Corpus (amended 2026-07-13: the built
@@ -258,12 +260,12 @@ The shell is Discord's anatomy with different nouns; the mapping is LAW so no la
 
 | Discord | Orbweaver | Owns |
 | - | - | - |
-| Server rail | RAIL | which facet — sections (`rail.nav`) + theme/settings/persona-Identity at the foot (`rail.end` chrome) |
+| Server rail | RAIL | which facet — sections (`rail.nav`) + theme · the Settings SECTION · persona-Identity at the foot (`rail.end` chrome) |
 | Channel sidebar | LIST | the section's collection: header row (micro-caps title + create `+`) → search → `ListRow`s. Finding. |
 | Chat pane | CONTENT | the artifact you're in: identity header + working surface. Doing. |
 | Members panel | CONTEXT | detail + config of CONTENT's active artifact. Closable; never navigation. |
 | Quick switcher | `command` modal (⌘K) | jump to any thread/section/create action |
-| User settings overlay | `settings` modal, full-bleed variant | USER group (Personas · Appearance · Chat behavior) + APP group (Connections · Automation · System · Admin). Generation config is NOT settings — it is the Presets section. (No Account PANE — Account is the leaf modal below.) |
+| User settings overlay | the `config` SECTION (rail foot, label "Settings"): a LIST of four shelves + CONTENT (+ CONTEXT collapsed) — `docs/design/config-revamp-design.md` §3 (#866 S1; the `settings` modal RETIRED) | USER shelf (Personas · Appearance · Chat behavior · Jobs · Backup & Restore) + APP shelf (Connections · Automation · Admin) + COLLECTIONS shelf (Tags · Regex scripts · World Info · Casts) + EXTENSIONS shelf (Plugins). Every non-collection group is a `sections` SKIMMER over the D120 contribution seam (config-revamp-design.md §6.8). Generation config is NOT settings — it is the Presets section. (No Account PANE — Account is the leaf modal below.) |
 | Identity widget | persona `rail.end` chrome (`personaChrome`) → `account` leaf modal | the persona switcher + Account strip; the account card (handle · role · sign-out) is a leaf MODAL reached from inside Identity, NOT a settings pane (§B, You ⊃ Identity ⊃ Account) |
 
 > \[!NOTE]
@@ -413,7 +415,7 @@ The tab title still tracks the active entity even with the URL pinned to `/`: re
 > | `../history/UI-Lib-Zustand.md` | the §5/§13.1 store conventions (frozen `EMPTY` + `useShallow`; `persist` partialize/migrate) |
 
 - **Query / Form / Virtual: keep** (load-bearing; dropping = reinventing worse).
-- **Router: use it MINIMALLY** — the single-route shell means 2 routes (`/`, `/login`), BUILT hand-written in `packages/client/src/routes/`; admin is a pane inside the Settings modal at `/`, not a standalone route. The file-based codegen plugin is DROPPED — **type-safety survives dropping it** (inference + one `declare module { Register }`, not codegen; `UI-Lib-TanStack-Router.md`). Two real traps: (1) `useBlocker` will NOT fire on the in-app editor pane-switch (a reducer state change, not a navigation) → the editor dirty-guard is **hand-rolled in-app**; (2) the router's built-in View Transitions fire only on the real URL commit (`/`↔`/login`), never on in-app section switches (same URL) → §4a's hand-rolled VT covers the in-app case. Steal-list: router-context DI (forward `queryClient`/`trpc`), `beforeLoad`+`redirect` auth gate, `lazyRouteComponent` for any heavy route added later, `createMemoryHistory` in tests, DEV-gated devtools.
+- **Router: use it MINIMALLY** — the single-route shell means 2 routes (`/`, `/login`), BUILT hand-written in `packages/client/src/routes/`; admin is a group inside the Settings SECTION at `/`, not a standalone route. The file-based codegen plugin is DROPPED — **type-safety survives dropping it** (inference + one `declare module { Register }`, not codegen; `UI-Lib-TanStack-Router.md`). Two real traps: (1) `useBlocker` will NOT fire on the in-app editor pane-switch (a reducer state change, not a navigation) → the editor dirty-guard is **hand-rolled in-app**; (2) the router's built-in View Transitions fire only on the real URL commit (`/`↔`/login`), never on in-app section switches (same URL) → §4a's hand-rolled VT covers the in-app case. Steal-list: router-context DI (forward `queryClient`/`trpc`), `beforeLoad`+`redirect` auth gate, `lazyRouteComponent` for any heavy route added later, `createMemoryHistory` in tests, DEV-gated devtools.
 - **Form threshold rule (CORRECTED — D54; "entity editors" was under-scoped):** a **form factory** (§13) is the home for **ANY multi-field form** — trigger = **≥3 fields OR validation OR save/draft semantics**, NOT "is it an entity." Covers settings panels, connection/credential add+edit, group-chat config, room overrides, the D44 theme editor, user-admin create/edit. Only genuinely trivial inputs stay plain controlled + the same Zod schema (a 1–2-field search box, a lone toggle, a single rename). Full surface→factory map: §13.4. RHF stays banned (Compiler-incompatible; never coming back).
 
 #### 6.2 Tests

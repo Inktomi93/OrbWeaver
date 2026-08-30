@@ -13,9 +13,9 @@
 
 import type { ProseOverride, ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
 import { PROSE_SLOTS, proseOverBy, USER_PROSE_SLOT_IDS } from "@orb/contracts/prose";
-import type { SettingsSubcategory } from "#state";
+import type { ConfigSubcategory } from "#state";
 
-export const PROSE_SETTINGS_SUBCATEGORY: SettingsSubcategory = {
+export const PROSE_SETTINGS_SUBCATEGORY: ConfigSubcategory = {
   id: "prose",
   label: "Model-facing prose",
   navLabel: "Prose",

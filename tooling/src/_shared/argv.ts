@@ -160,10 +160,12 @@ export function splitPageSuffix(tok: string): { flag: string; page: number } {
 }
 
 /** The decoded `--goto` target: which `__orb.nav` method reaches it + the argument to pass. A bare id is a
- *  rail SECTION; `settings:<cat>` opens Settings on a category; `modal:<slot>` opens a rail modal. */
+ *  rail SECTION; `settings:<group>` opens the Settings section on a config group (the CLI spelling kept its
+ *  word when the settings modal retired into the section, #866 S1 — the bridge method is `openConfig`);
+ *  `modal:<slot>` opens a rail modal. */
 export type GotoTarget =
   | { readonly method: "section"; readonly arg: string }
-  | { readonly method: "openSettings"; readonly arg: string }
+  | { readonly method: "openConfig"; readonly arg: string }
   | { readonly method: "openModal"; readonly arg: string };
 
 const SETTINGS_PREFIX = "settings:";
@@ -173,7 +175,7 @@ const MODAL_PREFIX = "modal:";
  *  in-page), so it's unit-testable in Node without a browser. */
 export function parseGotoTarget(target: string): GotoTarget {
   if (target.startsWith(SETTINGS_PREFIX)) {
-    return { method: "openSettings", arg: target.slice(SETTINGS_PREFIX.length) };
+    return { method: "openConfig", arg: target.slice(SETTINGS_PREFIX.length) };
   }
   if (target.startsWith(MODAL_PREFIX)) {
     return { method: "openModal", arg: target.slice(MODAL_PREFIX.length) };

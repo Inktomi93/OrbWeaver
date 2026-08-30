@@ -71,7 +71,7 @@ test("renders the engines list off its OWN polled read, anchored at the admin pa
   await expect(component.getByText(ENGINE_PORT_RE)).toBeVisible();
   await expect(component.getByText(ENGINE_STORE_PATH_RE).first()).toBeVisible();
   // The section stamps its own anchor now (§7.1 — the id is byte-identical across the move).
-  await expect(page.locator("#settings-anchor-admin-engines")).toBeVisible();
+  await expect(page.locator("#config-anchor-admin-engines")).toBeVisible();
 });
 
 test("engines: restart fires restartVllmEngine for THAT engine", async ({ mount, page }) => {

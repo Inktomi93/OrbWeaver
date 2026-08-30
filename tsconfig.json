@@ -102,7 +102,9 @@
     // init, i.e. a white screen, so the pre-image of that crash belongs in a test. Those front doors are
     // `.tsx` React surfaces → phantom lib.dom errors in this DOM-less node program. The subject SOURCE
     // stays dom-typechecked by packages/client/tsconfig.
-    "tests/client/state/settings-pane-registry.test.ts",
+    "tests/client/state/config-group-registry.test.ts",
+    "tests/client/state/config-section-partition.test.ts",
+    "tests/client/state/config-section-registry.test.ts",
     // Same class, RAF flavor: the subject hook (`use-message-items`, PD-147) calls bare
     // `requestAnimationFrame`/`cancelAnimationFrame` (lib.dom globals) → phantom lib.dom errors in this
     // DOM-less node program. The hook SOURCE stays dom-typechecked by packages/client/tsconfig.

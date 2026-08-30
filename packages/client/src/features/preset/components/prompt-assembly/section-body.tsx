@@ -26,7 +26,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import type { AppFormInstance } from "#forms";
-import { goToCollection } from "#state";
+import { openConfigTo } from "#state";
 import { isPlainMarkerSection, isTemplatedMarkerSection } from "../../lib/assembly-model.ts";
 import { PresetMacroSuggestions } from "../preset-macro-suggestions.tsx";
 import { CARRIER_ATTRIBUTION, MARKER_COPY } from "./marker-copy.ts";
@@ -146,7 +146,7 @@ function TemplateNoteDetail({ detail }: { readonly detail: { readonly label: str
 
 /** A PLAIN marker: the source-attribution panel (never editable, never blank) + world-info's shared
  *  entry wrapper. The nav link is the sanctioned cross-SURFACE navigation echo (§16 row 30) riding the
- *  standing `goToCollection` intent — never a route fork. It carries the collection KIND, not just the
+ *  standing `openConfigTo` intent — never a route fork. It carries the collection KIND, not just the
  *  section, because the Configuration roster's groups start collapsed: a bare section switch would land a
  *  reader who asked for world info on a closed door. */
 function CarrierBody({ form, section }: { readonly form: AssemblyForm; readonly section: PromptSection }): ReactElement | null {
@@ -163,7 +163,7 @@ function CarrierBody({ form, section }: { readonly form: AssemblyForm; readonly 
         <Stack className="min-w-0" gap="tight">
           <Text voice="label">{attribution.sentence}</Text>
           {manage === undefined ? null : (
-            <Button className="self-start" intent="ghost" onClick={(): void => goToCollection(manage.collection)} size="sm" type="button">
+            <Button className="self-start" intent="ghost" onClick={(): void => openConfigTo(manage.collection)} size="sm" type="button">
               {manage.label}
               <Icon icon={ExternalLink} size="xs" />
             </Button>

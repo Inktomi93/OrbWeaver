@@ -22,10 +22,16 @@
 // ROOM-TIER BOUNDARY: every collection here is a USER-TIER library. Room-tier overrides (a per-chat preset
 // binding, per-chat injections) never ride this seam — they stay on the chat context panel's machinery.
 //
+// IDENTITY LIVES ON THE GROUP (config-revamp-design.md §3.1, #866 S1 — owner fork F-1 closed the tuple): a
+// collection is the `collection` BODY of a `ConfigGroupDefinition`, so `id · label · icon · order · blurb`
+// lifted onto that state-owned base (`blurb` IS the group's `description`) and this contract keeps only what
+// the library DOES. It stays tier 4 because it still binds no state vocabulary: member ids are opaque at the
+// seam and re-branded at the owner's edge.
+//
 // DELIBERATE EXCLUSIONS, each with its why:
-//  · no `anchor` field — placement is the DOOR ARRAY (review F-3), which is what makes moving a collection
-//    between the rail and the roster one array line. The settings family needs `anchor` because ONE
-//    registry serves ten pane hosts; a collection host consumes its own registry whole.
+//  · no `anchor` field — placement is the group's `(shelf, order)` on the def (the C-5 amendment); the
+//    section family needs `anchor` because ONE registry serves thirteen group hosts, a collection body is
+//    consumed whole by its own group.
 //  · no `owns` / partition pin — D120's partition exists because N sections patch ONE settings blob.
 //    Collections write their OWN domain tables through their own verbs, so there is no shared write target
 //    and importing the pin would be cargo cult. Do not "complete" the mirror.
@@ -34,7 +40,6 @@
 //  · no `nav`/`search` field — cross-collection search is deferred (review F-10); per-collection filtering
 //    is the host's `filter` input applied by the owner's own rows.
 
-import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 
 /** Member count above which a group earns the host's FILTER input and the owner virtualizes its rows.
@@ -124,17 +129,6 @@ export type CollectionContext =
  *  imports ZERO contributors, so adding a library to Configuration is forever ONE co-located file plus ONE
  *  array member at the door (G8). */
 export interface CollectionContribution {
-  /** The collection KIND — registry key, React key, and the selection store's kind axis. Host-opaque (an
-   *  open id ONE host interprets is not shell vocabulary — §5 rule 5's test). A duplicate THROWS at the door. */
-  readonly id: string;
-  /** The group band's kicker voice + icon (host-rendered — a contribution never draws its own band). */
-  readonly label: string;
-  readonly icon: LucideIcon;
-  /** Canonical `(order, id)` — the assembleChrome/home-tile ordering precedent. */
-  readonly order?: number;
-  /** The ONE sentence the welcome's launcher card carries that the group band does not (fork F-12: the
-   *  contract owns it, because a host holding three strings breaks the moment a fourth collection registers). */
-  readonly blurb: string;
   /** The zero-member group's dashed one-liner ("No tags yet."). Collection-owned for the same reason the
    *  `none` context copy is: a host-generic "nothing here" reads as unbuilt (empty states are load-bearing). */
   readonly emptyText: string;

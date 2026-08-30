@@ -1,7 +1,8 @@
 // The Configuration WELCOME — CONTENT with no member selected (config-rail-spec.md §2 C-8). Never null:
 // a designed teaching frame plus one slot per registered collection, drawn from the contract fields the
 // group band uses (`label` · `icon` · `useCount` · `create`) plus the two the band does NOT carry —
-// `blurb` and `usePreview` — so a fourth collection appears in both places from ONE door row.
+// the group's `description` and the collection's `preview` — so a fourth collection appears in both places
+// from ONE door row (a `collection` config group, config-revamp-design.md §3.1).
 //
 // ═══ VARIANT C · "THE HEARTH" (program #102, owner-picked 2026-08-16) ═══════════════════════════════
 //
@@ -95,13 +96,13 @@ import { Icon } from "@orb/ui/icons";
 import { Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import type { CollectionContribution, ContributorRegistry } from "#lib";
-import { goToCollection } from "#state";
+import type { CollectionGroupDefinition, ConfigGroupRegistry } from "#state";
+import { openConfigTo } from "#state";
 import { CONFIG_WELCOME } from "../lib/config-copy.ts";
-import { orderCollections } from "../lib/order-collections.ts";
+import { collectionGroups } from "../lib/order-groups.ts";
 
 export interface ConfigWelcomeProps {
-  readonly collections: ContributorRegistry<CollectionContribution>;
+  readonly groups: ConfigGroupRegistry;
 }
 
 /** The CD3 focal, on the FIRST built library only (see the header). The glow rides a ::before at the
@@ -171,8 +172,8 @@ const HIDE_WITHOUT_UNBUILT = "not-has-[[data-config-unbuilt]]:hidden";
  *  geometry — which is the whole claim the in-flight guard was making. */
 const HIDE_WHILE_SETTLING = "has-[[data-config-settling]]:hidden";
 
-export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement {
-  const ordered = orderCollections(collections);
+export function ConfigWelcome({ groups }: ConfigWelcomeProps): ReactElement {
+  const ordered = collectionGroups(groups);
   return (
     // FORM tier (density-pass-spec.md §3.1): a landing surface you act from, the home precedent. Scoped to
     // the WELCOME and not to the whole CONTENT region on purpose — the region also hosts the member
@@ -209,8 +210,8 @@ export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement
               `min-width:auto`, so the track is floored at its content's min-content width and a chip wall's
               longest unbreakable run would silently override the declared ratio. */}
           <Stack className={`min-w-0 ${HIDE_WITHOUT_BUILT}`} gap="section">
-            {ordered.map((collection) => (
-              <BuiltLibrary collection={collection} key={collection.id} />
+            {ordered.map((group) => (
+              <BuiltLibrary group={group} key={group.id} />
             ))}
           </Stack>
           <Stack className={`min-w-0 ${HIDE_WITHOUT_UNBUILT}`} gap="section">
@@ -222,8 +223,8 @@ export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement
                   any count or width, in the narrow rail (1 across) and across the full pane when the lead
                   column is empty (the cold first run, where all three land here). */}
               <Grid cols="auto" gap="section">
-                {ordered.map((collection) => (
-                  <UnbuiltLibrary collection={collection} key={collection.id} />
+                {ordered.map((group) => (
+                  <UnbuiltLibrary group={group} key={group.id} />
                 ))}
               </Grid>
             </Section>
@@ -257,9 +258,10 @@ export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement
  *  The card keeps a mirroring `onClick` so a pointer user can still hit anywhere on the island; that is a
  *  CONVENIENCE, never the addressable control, which is why it is not paired with a key handler or a role.
  *
- *  `goToCollection` is the same intent every cross-surface "manage it over there" door fires; selection
- *  stays the roster's. Both doors call it, so a click on the button (which bubbles) is idempotent. */
-function BuiltLibrary({ collection }: { readonly collection: CollectionContribution }): ReactNode {
+ *  `openConfigTo` is the same intent every cross-surface "manage it over there" door fires; selection
+ *  stays the LIST's. Both doors call it, so a click on the button (which bubbles) is idempotent. */
+function BuiltLibrary({ group }: { readonly group: CollectionGroupDefinition }): ReactNode {
+  const collection = group.body.collection;
   const visible = collection.useVisible?.() ?? true;
   const count = collection.useCount?.();
   const entries = collection.preview?.useEntries();
@@ -268,7 +270,7 @@ function BuiltLibrary({ collection }: { readonly collection: CollectionContribut
   }
   const shown = entries ?? [];
   const remainder = count - shown.length;
-  const open = (): void => goToCollection(collection.id);
+  const open = (): void => openConfigTo(group.id);
   // A DETAIL THAT IS THE SAME ON EVERY CHIP IS NOT A DATUM (side-eye 2026-08-19 P2-2). The regex library
   // ranks by recency, so a library authored in one sitting printed twelve chips all reading "yesterday" —
   // the ugliest block on the surface, and a column of one repeated value reads as a rendering bug rather
@@ -293,15 +295,15 @@ function BuiltLibrary({ collection }: { readonly collection: CollectionContribut
     // `role=region` + `aria-label` is the ADDRESSABLE IDENTITY the ARIA sweep asked for (the welcome's three
     // cards were map-dom-fallbacks): naming a region does not replace its content the way naming a button
     // does, so the blurb and the census stay reachable — the whole point of the fork above.
-    <Card aria-label={collection.label} className={FOCAL} data-collection={collection.id} data-config-built={collection.id} onClick={open} role="region">
+    <Card aria-label={group.label} className={FOCAL} data-collection={group.id} data-config-built={group.id} onClick={open} role="region">
       <Stack gap="row">
         <Row align="center" gap="field">
-          <Icon icon={collection.icon} size="sm" />
+          <Icon icon={group.icon} size="sm" />
           {/* The HEADLINE step AND a real `h3` — legal now that the island is not a button (a heading inside
               one is not addressable by AT, which is why this used to be a `Text as="span"`). The `focal`
               voice still carries the type half of CD3. */}
           <Heading level={3} voice="focal">
-            {collection.label}
+            {group.label}
           </Heading>
         </Row>
         {/* CAPPED ON THE PARAGRAPH, like the masthead (side-eye 2026-08-19 P3: 161ch latent). A measure
@@ -312,7 +314,7 @@ function BuiltLibrary({ collection }: { readonly collection: CollectionContribut
             exactly that ("this text is sentences, not a label"): it lifts the step and relaxes the leading
             and changes nothing else, so the blurb is still unmistakably the gloss voice. */}
         <Text className="max-w-(--reading-measure)" prose={true} voice="gloss">
-          {collection.blurb}
+          {group.description}
         </Text>
         {shown.length === 0 ? null : (
           // WHAT IS ACTUALLY IN IT — the half that pays for the promotion (see the contract's `preview`).
@@ -357,7 +359,7 @@ function BuiltLibrary({ collection }: { readonly collection: CollectionContribut
             "All chats →" affordance uses (the `@orb/ui/icons` export list is a curated seal). */}
         <Row className="border-border border-t pt-row">
           <Button intent="secondary" onClick={open} size="sm" type="button">
-            Open {collection.label} →
+            Open {group.label} →
           </Button>
         </Row>
       </Stack>
@@ -369,7 +371,8 @@ function BuiltLibrary({ collection }: { readonly collection: CollectionContribut
  *  component for the same reason {@link BuiltLibrary} is: unconditional hooks in a fixed position, and a
  *  per-child verdict. Exactly one of the two renders for any collection at any count, so the pane's
  *  membership never depends on which arm is asked. */
-function UnbuiltLibrary({ collection }: { readonly collection: CollectionContribution }): ReactNode {
+function UnbuiltLibrary({ group }: { readonly group: CollectionGroupDefinition }): ReactNode {
+  const collection = group.body.collection;
   // A BUILD fact, not a read: whether a contribution declares a count hook at all is fixed at the door, so
   // this branch cannot change across renders (the `CollectionImportTrigger` discipline) and the hook below
   // it is still called unconditionally.
@@ -402,12 +405,12 @@ function UnbuiltLibrary({ collection }: { readonly collection: CollectionContrib
     return null;
   }
   return (
-    <Stack data-collection={collection.id} data-config-unbuilt={collection.id} gap="row">
+    <Stack data-collection={group.id} data-config-unbuilt={group.id} gap="row">
       <Row align="center" gap="field">
-        <Icon icon={collection.icon} size="sm" />
+        <Icon icon={group.icon} size="sm" />
         {/* The TITLE step, and a real `h3` under the band's `h2`: unlike the hero this slot is inert, so
             the name can carry document structure instead of only weight. */}
-        <Heading level={3}>{collection.label}</Heading>
+        <Heading level={3}>{group.label}</Heading>
         {/* AND IT SAYS ZERO — every populated band carries its count, so the one library with nothing in
             it must not be the one that declines to say how much, or "empty" and "the count has not landed"
             are indistinguishable at the moment the number is the point. `undefined` prints nothing rather
@@ -421,7 +424,7 @@ function UnbuiltLibrary({ collection }: { readonly collection: CollectionContrib
       {/* Capped on the paragraph AND read at the prose step — the hero's rule and the masthead's (side-eye
           2026-08-19 P3, both passes). This slot's blurb is the one a cold first-timer reads. */}
       <Text className="max-w-(--reading-measure)" prose={true} voice="gloss">
-        {collection.blurb}
+        {group.description}
       </Text>
       {/* THE VERB IS A BUTTON (side-eye 2026-08-06 P2). At `ghost` it was transparent, borderless and
           full-bleed, so the invitation read as a third line of copy. `secondary` is the house's
