@@ -28,7 +28,9 @@ export const castCollection: CollectionContribution = {
   label: "Casts",
   icon: Users,
   order: 40,
-  blurb: "Saved casts — a named group of characters with their seat knobs, ready to drop into any chat.",
+  // B10's rules rider is named here because this card is the one place a user browsing the library learns
+  // what a cast IS — and applying one switches automation on in the room (side-eye 2026-08-29 P2-6).
+  blurb: "Saved casts — a named group of characters with their seat knobs and the room's enabled rules, ready to drop into any chat.",
   emptyText: "No saved casts yet.",
   useCount: useCastCount,
   useMemberTitle: useCastMemberTitle,

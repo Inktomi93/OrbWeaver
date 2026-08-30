@@ -6,7 +6,7 @@
 // from `@orb/contracts/roster-preset` (one home); the active-room projection is deliberately UN-exported
 // (no-inline-types — a consumer derives it via `ReturnType<typeof useActiveCastChat>`).
 
-import type { RulePresetId, RulePresetKnobValueInputs } from "@orb/contracts/automation";
+import type { RulePresetId, RulePresetKnobValueInputs, RulePresetView } from "@orb/contracts/automation";
 import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { skipToken, useQuery, useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
@@ -76,20 +76,53 @@ function deriveEnabledCastRules(rules: readonly RoomRule[]): CapturedCastRule[] 
   return [...byPreset.values()].map((held) => held.spec);
 }
 
-/** The save-cast surface's rules capture (B10's rules rider): the open HOST room's enabled rule
- *  presets, ready to ride `create` — plus the catalogue titles the include-line renders. Both reads
- *  gate on hosting (a member's `listRules` collapses to a leak-free NOT_FOUND server-side; the gate
- *  here just avoids asking a question whose answer is a designed refusal). `rules` is `null` until the
- *  reads settle — the surface disables Save on null rather than silently saving a rules-free cast. */
-export function useCastRuleCapture(active: ActiveCastChat | null): { rules: readonly CapturedCastRule[] | null; titleOf: (id: RulePresetId) => string } {
+/** The rule-preset CATALOGUE as every cast surface reads it — the picker's include-line, its apply
+ *  reports, and the library editor all need the same two answers about a stored `rulePresetId`: what is it
+ *  CALLED, and what do its knob keys MEAN (the knob labels the gloss is built from — `lib/cast-copy.ts`).
+ *  One query key, so the surfaces share one cache entry. A stored id the catalogue no longer offers falls
+ *  back to the raw id — degraded but visible, matching what the apply reports as a skip. */
+export function useRulePresetCatalogue(enabled: boolean): {
+  presetOf: (id: RulePresetId) => RulePresetView | undefined;
+  titleOf: (id: RulePresetId) => string;
+} {
+  const trpc = useTRPC();
+  const catalogueQuery = useQuery({ ...trpc.automation.listRulePresets.queryOptions(), enabled });
+  const byId = new Map((catalogueQuery.data ?? []).map((preset) => [preset.id, preset]));
+  return {
+    presetOf: (id): RulePresetView | undefined => byId.get(id),
+    titleOf: (id): string => byId.get(id)?.title ?? id,
+  };
+}
+
+/** The save-cast surface's rules capture (B10's rules rider): the open HOST room's enabled rule presets,
+ *  ready to ride `create`. The read gates on hosting (a member's `listRules` collapses to a leak-free
+ *  NOT_FOUND server-side; the gate here just avoids asking a question whose answer is a designed refusal).
+ *
+ *  THE THREE ARMS ARE NAMED, not collapsed into a nullable (side-eye 2026-08-29 P2-3). `rules === null` for
+ *  any un-settled read meant "loading", "this room has no rules" and "the read FAILED" rendered the same
+ *  nothing — and since Save waits for the capture (a cast silently missing its rules is the worse failure),
+ *  a failed `listRules` disabled "Save current cast" forever with no reason and no retry. `retry` is the
+ *  affordance that arm owes. */
+export interface CastRuleCapture {
+  readonly status: "loading" | "error" | "ready";
+  /** The captured specs — empty on every arm but `ready`. */
+  readonly rules: readonly CapturedCastRule[];
+  readonly retry: () => void;
+}
+
+export function useCastRuleCapture(active: ActiveCastChat | null): CastRuleCapture {
   const trpc = useTRPC();
   const hostChatId = active !== null && active.isHost ? active.chatId : null;
   // `skipToken` keeps the key unbuilt for a non-host / no-room mount (the use-readout-binding gate idiom).
   const rulesQuery = useQuery(trpc.automation.listRules.queryOptions(hostChatId === null ? skipToken : { chatId: hostChatId }));
-  const catalogueQuery = useQuery({ ...trpc.automation.listRulePresets.queryOptions(), enabled: hostChatId !== null });
-  const titles = new Map((catalogueQuery.data ?? []).map((preset) => [preset.id, preset.title]));
-  return {
-    rules: rulesQuery.data === undefined ? null : deriveEnabledCastRules(rulesQuery.data),
-    titleOf: (id): string => titles.get(id) ?? id,
+  const retry = (): void => {
+    void rulesQuery.refetch();
   };
+  if (rulesQuery.isError) {
+    return { status: "error", rules: [], retry };
+  }
+  if (rulesQuery.data === undefined) {
+    return { status: "loading", rules: [], retry };
+  }
+  return { status: "ready", rules: deriveEnabledCastRules(rulesQuery.data), retry };
 }

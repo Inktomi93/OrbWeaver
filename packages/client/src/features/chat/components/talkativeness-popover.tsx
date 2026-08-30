@@ -12,18 +12,13 @@ import { Slider } from "@orb/ui/slider";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
+import { talkativenessAccessibleName, talkativenessLevel } from "#lib";
 import type { MemberCastRow } from "../lib/member-rows.ts";
 
-// THE NUMBER IS A RELATIVE WEIGHT, AND IT MUST NOT WEAR A PERCENT SIGN (#490).
-//
-// `talkativeness` feeds `selectSpeakers`' Efraimidis-Spirakis weighted sample (`engine/select-speakers.ts`:
-// `key = u ** (1 / weight)`, sorted desc). That is a RELATIVE weight over the eligible pool — not a
-// probability, and emphatically not a share of the room. Rendered as "Talks 50%" it read as a share, so a
-// three-character cast showed 50% · 50% · 50% and invited arithmetic that sums to 150 and means nothing
-// (side-eye 2026-08-22). Neither number was wrong; the UNIT was. The dial keeps its familiar 0–100 domain
-// (it IS the slider's own position) and loses the sign, which is the whole defect: nobody adds up levels.
-/** Display factor for the 0–1 weight — the slider's position on a 0–100 dial, NOT a percentage. */
-const DIAL_SCALE = 100;
+// THE NUMBER IS A RELATIVE WEIGHT, AND IT MUST NOT WEAR A PERCENT SIGN (#490) — the dial's scale, its
+// rounding and its spelled-out accessible name now live in ONE home, `#lib`'s `talkativeness.ts`, because
+// the saved-cast editor renders the same seat knob and spelled it `0.5` (side-eye 2026-08-29 P2-5); a
+// feature may not import another feature, so the seam sits on the tier-4 floor. The reasoning is there.
 
 /** The single-thumb scalar from a slider value (ours is single-thumb; a range carries an array). */
 function firstThumb(value: number | readonly number[]): number {
@@ -63,7 +58,7 @@ export function TalkativenessPopover({
             // stable identity still leads (`Talkativeness: <who>`) and the live LEVEL stays suffixed, so
             // a role+name lookup on the stable prefix survives every value change. #490 spelled the unit
             // out here ("level N of 100") because an aria-label has room for what a two-glyph chip does not.
-            aria-label={`Talkativeness: ${row.displayName} — talks at level ${Math.round(row.talkativeness * DIAL_SCALE)} of ${DIAL_SCALE}`}
+            aria-label={talkativenessAccessibleName(row.displayName, row.talkativeness)}
           >
             {/* Labeled value — a bare number fails the cold read (Context-Panel-Program §1 ride-along):
                 the "Talks" label names WHAT the number is; the level stays mono for column alignment.
@@ -74,7 +69,7 @@ export function TalkativenessPopover({
               Talks
             </Text>
             <Text as="span" voice="datum">
-              {Math.round(weight * DIAL_SCALE)}
+              {talkativenessLevel(weight)}
             </Text>
           </Button>
         }
