@@ -274,7 +274,20 @@ test("#860 a card with its own look carries the Own look mark in the band", asyn
   await expect(band.getByRole("button", { name: "Own look" })).toBeVisible();
   // …and the census reads the empty arm honestly — plural, zero — rather than hiding the chip.
   await expect(band.getByText("0 chats", { exact: true })).toBeVisible();
+
+  // #875 F6: the Own-look trigger is a BUTTON'S VISIBLE LABEL, and `context-rail.tsx` 300px away refuses
+  // to draw interactive text below 11px ("the readable-floor ruling stands") while the mock's 10.5px
+  // captions go unfollowed. This band shipped at the micro step anyway — `design-audit` reported
+  // `undersized-ui-text` on `character-context-band` in every arm. `interactiveKicker` is the same
+  // micro-caps instrument register at the readable 13px step; a design-audit row proves a day, this
+  // proves every day.
+  const ownLookLabel = band.getByRole("button", { name: "Own look" }).locator('[data-slot="text"]');
+  await expect.poll(() => ownLookLabel.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(READABLE_FLOOR_PX);
 });
+
+/** The 11px interactive-text floor (side-eye #102 — the ruling that drove sub-11px interactive text to
+ *  zero, restated at every band by #875 F6). A literal because it is the ruling's own number. */
+const READABLE_FLOOR_PX = 11;
 
 // THE PHONE ARM (#860 — `CharacterMobile.png`, the 430 sheet at a coarse pointer): the same column, every
 // cell at the coarse height floor, and the SIX cells + the actions kebab fit the sheet's width in ONE row

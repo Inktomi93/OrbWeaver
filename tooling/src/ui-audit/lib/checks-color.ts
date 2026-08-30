@@ -3,7 +3,9 @@
 
 import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
 import {
+  compositeForeground,
   contrastRatio,
+  FOREGROUND_OPACITY_EPS,
   INACTIVE_ADVISORY_MAX_RATIO,
   isContrastExempt,
   isLargeText,
@@ -17,18 +19,6 @@ import {
 import type { Finding } from "../contract/findings.ts";
 import type { ContrastInput } from "../contract/samples.ts";
 import { OPAQUE_STOP_MIN_ALPHA } from "./ramp.ts";
-
-/** Below this accumulated opacity the foreground is composited before measuring. Just under 1 so
- *  sub-pixel float noise (0.999…) never triggers a pointless composite. Same constant, same reason, as
- *  snap.ts's FOREGROUND_OPACITY_EPS — the two instruments must not disagree about what "dimmed" is. */
-const FOREGROUND_OPACITY_EPS = 0.999;
-
-/** Alpha-composite a foreground rgb at `opacity` over the backdrop (source-over) — the visible color of a
- *  glyph painted inside an `opacity<1` group. opacity 1 is a no-op; opacity 0 is the pure backdrop. */
-function compositeForeground(fg: Rgb, bg: Rgb, opacity: number): Rgb {
-  const mix = (f: number, b: number): number => Math.round(opacity * f + (1 - opacity) * b);
-  return { r: mix(fg.r, bg.r), g: mix(fg.g, bg.g), b: mix(fg.b, bg.b) };
-}
 
 /** Why `aria-disabled` earns a sharper note than `:disabled`: it stays focusable and announced. */
 const ARIA_OPERABLE_NOTE = " — and `aria-disabled` stays FOCUSABLE and announced, so a keyboard user can land on a control they cannot see";

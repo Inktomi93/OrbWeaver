@@ -92,7 +92,10 @@ const MAX_MOBILE_TAB_BUTTONS = 4;
 // exist to FIND the control regardless of its state, span both arms. A regex covering only the desktop
 // spelling would make every mobile `toHaveCount(0)` below pass for the wrong reason.
 const LIST_TOGGLE_RE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$/u;
-const CONTEXT_TOGGLE_RE = /^(?:Show|Hide) (?:detail panel|details)$/u;
+// ONE NAME AT EVERY WIDTH for the CONTEXT toggle (#875 F19, 2026-08-30) — the desktop `detail panel`
+// spelling is gone, so this matcher no longer spans two arms: it IS the pin that the two-name split does
+// not come back (a regex that still admitted the dead spelling would let it).
+const CONTEXT_TOGGLE_RE = /^(?:Show|Hide) details$/u;
 const FOCUS_TOGGLE_RE = /focus mode$/u;
 const JUMP_COMMAND_MENU_RE = /jump.*command menu/iu;
 
@@ -1608,7 +1611,7 @@ async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" 
   const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
   const current = await contextPanel.getAttribute("data-panel-mode");
   if (current !== mode) {
-    await shell.getByRole("button", { name: mode === "docked" ? "Show detail panel" : "Hide detail panel" }).click();
+    await shell.getByRole("button", { name: mode === "docked" ? "Show details" : "Hide details" }).click();
   }
   await expect(contextPanel).toHaveAttribute("data-panel-mode", mode);
   await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
@@ -1765,7 +1768,7 @@ for (const profileName of APPEARANCE_PROFILE_NAMES) {
 
     const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
     const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
-    const contextToggle = shell.getByRole("button", { name: "Show detail panel" });
+    const contextToggle = shell.getByRole("button", { name: "Show details" });
     const focusToggle = shell.getByRole("button", { name: FOCUS_TOGGLE_RE });
     await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
     await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
@@ -2100,13 +2103,13 @@ test("the ≤64rem detail-panel toggle opens the pane on the FIRST click — a c
   await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
   const before = await settledPersistedOverrides(page);
 
-  await shell.getByRole("button", { name: "Show detail panel" }).click();
+  await shell.getByRole("button", { name: "Show details" }).click();
   await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
   await expect(scrim).toHaveAttribute("data-visible", "true");
 
   // …and it closes again on the next click, still ephemeral — a narrow-width toggle never rewrites the
   // user's WIDE dock preference.
-  await shell.getByRole("button", { name: "Hide detail panel" }).click();
+  await shell.getByRole("button", { name: "Hide details" }).click();
   await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
   expect(await shellPersistedOverrides(page)).toEqual(before);
 });

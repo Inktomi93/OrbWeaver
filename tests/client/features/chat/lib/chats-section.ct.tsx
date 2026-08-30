@@ -21,6 +21,7 @@ import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { HOST_BAND, openContextSections } from "../../../../support/ct/open-context-sections.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { hitExtent, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import { ChatContextPanelStory, ChatContextTabContributorStory, ChatDeletedWhileOpenStory, RoomActivityTabStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES } from "../fixtures.ts";
 
@@ -279,6 +280,93 @@ test("#860: the context bracket's head band carries the room's title WHOLE and t
   await expect(cell(component, "This chat")).toHaveAttribute("aria-current", "true");
   await band.getByRole("button", { name: "Members — 3" }).click();
   await expect(cell(component, "Members")).toHaveAttribute("aria-current", "true");
+});
+
+// ── #875 F6: THE BAND'S INTERACTIVE TEXT OBEYS THE FLOOR THE RAIL BESIDE IT REFUSES TO BREAK ───────────
+// `context-rail.tsx` states it: the mock draws 10.5px cell captions and is NOT followed, because the
+// readable-floor ruling (side-eye #102, which drove sub-11px interactive text to zero) outranks the
+// artboard. The two bands shipped in the same commit pair at 10.5px anyway — `design-audit` reported
+// `undersized-ui-text` on `chat-context-band` AND `character-context-band` in every arm, and on mobile the
+// memory chip measured 40×44 against the 44px short side. A design-audit row proves a day; this proves
+// every day. The character band's twin is in characters-section.ct.tsx.
+const READABLE_FLOOR_PX = 11;
+/** The band's visible label census: the title, the roster chip's word, the preset chip. Stated so a story
+ *  or chip change that empties the sweep reds instead of passing on zero rows. */
+const CHAT_BAND_LABELS = 3;
+
+test("#875 F6: every visible label in the chat band clears the 11px readable floor", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...THIS_CHAT_TAB_READS,
+    "chat.getChat": () => ({
+      ...(multiHumanChat(true, [humanSeat("ct", "Nate", "host")]) as object),
+      participants: [humanSeat("ct", "Nate", "host"), character("aria"), character("buddy")],
+      title: "Example — Midnight Run",
+    }),
+    "preset.list": () => [{ id: "preset_ct_house", name: "House style" }],
+    // The preset chip is one of the two labels swept below, so its two cache-first reads are both fed.
+    "settings.getUserSettings": () => ({
+      userId: "user_ct",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: "preset_ct_house" } },
+      updatedAt: 0,
+    }),
+  });
+  const component = await mount(<ChatContextPanelStory />);
+  const band = component.locator('[data-slot="chat-context-band"]');
+  await expect(band).toBeVisible();
+  await expect(band.locator('[data-slot="chat-context-band-preset"]')).toHaveText("House style");
+
+  // Every VISIBLE label the band paints — the title, the roster chip's word, the preset chip. Swept as a
+  // set rather than named one by one, so a fourth chip added tomorrow is covered. The union spells BOTH
+  // slot families on purpose: a call site that passes its own `data-slot` REPLACES the primitive's (Badge
+  // spreads props after its own attribute), so a `[data-slot="badge"]`-only sweep silently misses every
+  // chip that named itself — which is every chip in this band.
+  const labels = band.locator('[data-slot="text"], [data-slot^="chat-context-band"]');
+  // The population is asserted on the auto-retrying matcher — a bare `await …count()` samples before the
+  // preset chip's two cache reads land, and a zero would pass the sweep below silently.
+  await expect(labels).toHaveCount(CHAT_BAND_LABELS);
+  for (let index = 0; index < CHAT_BAND_LABELS; index += 1) {
+    const label = labels.nth(index);
+    await expect
+      .poll(() => label.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize)), { message: `band label #${String(index)} font-size` })
+      .toBeGreaterThanOrEqual(READABLE_FLOOR_PX);
+  }
+});
+
+test.describe("#875 F6 — the band's chips at a coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  // DEMOTED HONESTLY: this arm is a FENCE, not a defect proof. Run against the pre-#875 source it PASSED —
+  // design-audit measured the 40×44 on the LIVE app at 430 coarse, and the CT mount does not reproduce that
+  // width (the band there is not carrying the live topbar's neighbours). The coarse INLINE floor
+  // (`CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE`) is still the right fix and this holds the floor from here on; the
+  // live row itself is verified on the stage, not here.
+  test("FENCE — the glyph-only memory chip clears the 44px floor on BOTH axes", async ({ mount, page }) => {
+    await page.setViewportSize({ width: 430, height: 860 });
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...THIS_CHAT_TAB_READS,
+      "chat.getChat": () => ({
+        ...(multiHumanChat(true, [humanSeat("ct", "Nate", "host")]) as object),
+        participants: [humanSeat("ct", "Nate", "host"), character("aria")],
+        title: "Example — Midnight Run",
+      }),
+    });
+    const component = await mount(<ChatContextPanelStory />);
+    // The emulation is PROVEN before any geometry is trusted — a narrow viewport at a FINE pointer renders
+    // a layout no phone produces, and `--spacing-touch-target` is pointer-conditional.
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    const floor = await touchFloorPx(page);
+    expect(floor).toBe(44);
+
+    const memory = component.locator('[data-slot="chat-context-band"]').getByRole("button", { name: /^Memory — / });
+    await expect(memory).toBeVisible();
+    // At rest this chip is glyph-only, so its SHORT side is its width — the axis `Button`'s height ramp
+    // cannot answer and the one design-audit measured at 40.
+    await expect.poll(() => hitExtent(memory, "x")).toBeGreaterThanOrEqual(floor);
+    await expect.poll(() => hitExtent(memory, "y")).toBeGreaterThanOrEqual(floor);
+  });
 });
 
 // RULING CHANGED (#162, owner 2026-08-17). This case used to assert the OPPOSITE — "host in a SOLO

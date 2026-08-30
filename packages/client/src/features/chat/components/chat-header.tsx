@@ -155,7 +155,13 @@ export function RosterChipButton({
       {...(onClick === undefined ? {} : { onClick })}
     >
       <Icon icon={Users} size="sm" />
-      <Text as="span" size="micro" tone="muted" transform="caps" aria-hidden={true}>
+      {/* THE CHIP'S VISIBLE LABEL RIDES THE READABLE STEP (#875 F6, 2026-08-30). It was the raw micro axes
+          (10.5px), i.e. the interactive text the context rail 300px away explicitly refuses to draw at that
+          size; design-audit flagged the band mount as `undersized-ui-text` in every arm. `interactiveKicker`
+          IS this composition — micro-caps, tracked, muted — at the 13px label step, so the chip keeps its
+          instrument register and stops breaking the floor. Both mounts take it: the topbar's crush (#846)
+          is measured in the state where this chip is SHED, so the extra ~10px is not spent there. */}
+      <Text as="span" voice="interactiveKicker" aria-hidden={true}>
         {wordy ? `${count} ${count === 1 ? "member" : "members"}` : String(count)}
       </Text>
     </Button>

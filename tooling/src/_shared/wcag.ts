@@ -75,6 +75,24 @@ export const LARGE_MIN_RATIO = 3;
  *  have passed. */
 export const MEASURABLE_OPACITY_MIN = 0.05;
 
+/** The accumulated opacity below which a foreground is COMPOSITED before it is measured. Just under 1 so
+ *  sub-pixel float noise (0.999…) never triggers a pointless composite. */
+export const FOREGROUND_OPACITY_EPS = 0.999;
+
+/** Alpha-composite a foreground rgb at `opacity` over the backdrop (source-over) — the visible color of a
+ *  glyph painted inside an `opacity<1` group. opacity 1 is a no-op; opacity 0 is the pure backdrop.
+ *
+ *  ONE HOME, FOR THE REASON THIS FILE EXISTS (lifted 2026-08-30). This function and the epsilon above were
+ *  spelled TWICE — `snap/lib/contrast-verdict.ts` and `ui-audit/lib/checks-color.ts` — byte-identically,
+ *  with the ui-audit copy carrying a comment asking the two not to drift ("the two instruments must not
+ *  disagree about what dimmed is"). A comment is not an enforcer. They now share the declaration, beside
+ *  the kernel they already both import, and a third consumer (the CT-browser sampler
+ *  `tests/support/ct/pixel-contrast.ts`) takes it from here rather than minting a fourth. */
+export function compositeForeground(fg: Rgb, bg: Rgb, opacity: number): Rgb {
+  const mix = (f: number, b: number): number => Math.round(opacity * f + (1 - opacity) * b);
+  return { r: mix(fg.r, bg.r), g: mix(fg.g, bg.g), b: mix(fg.b, bg.b) };
+}
+
 // ── Inactive controls (WCAG 1.4.3 / 1.4.11 exemption) ────────────────────────
 // THE ONE CLASSIFIER, shared by every instrument that samples the page. It lives here because two homes
 // for one rule is exactly how snap and design-audit drifted (#624): snap skipped a disabled control out

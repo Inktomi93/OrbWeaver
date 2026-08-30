@@ -44,6 +44,16 @@ export const FINE_INERT_UNTIL_HOVER =
  *  tests/client/features/rpg/components/rpg-actor-trackers.ct.tsx. */
 export const CHIP_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-target";
 
+/** A GLYPH-ONLY CHIP's coarse touch floor on its NARROW axis (#875 F6, side-eye 2026-08-30). `Button`'s
+ *  `sm` arm carries the 44px HEIGHT everywhere it matters, and an icon+word chip is wide by construction —
+ *  but the same control with the word absent is only as wide as its glyph plus padding, and design-audit
+ *  measured the chat context band's memory chip at **40×44** against the 44px short-side floor. The height
+ *  floor ({@link CHIP_TOUCH_FLOOR_AT_COARSE}) cannot answer that; this is its inline twin, and the two are
+ *  separate constants because a chip that is short and a chip that is narrow are different defects with
+ *  different call sites. Fine is untouched (a 34px chip in a dense topbar row).
+ *  CT: tests/client/features/chat/components/chat-recall-indicator.ct.tsx. */
+export const CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE = "pointer-coarse:min-w-touch-target";
+
 /** A TEXT-HEIGHT DISCLOSURE TRIGGER's coarse touch floor. `CollapsibleTrigger` is `inline-flex` with no
  *  control box (it is a line of prose that toggles), so unlike `Button`'s `inline`/`glyph-*` arms it carries
  *  NO hit-area `::after` at all — MEASURED at 430×740 DPR3 `pointer:coarse`, the rpg turn-tool-calls trigger

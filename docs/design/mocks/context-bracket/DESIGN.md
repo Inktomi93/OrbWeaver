@@ -62,3 +62,15 @@ the Characters section's context definition (head content + the six-tab roster) 
 (the title leaves it) · CT pins: `rpg-context-section.ct.tsx` (#112 arrows, `aria-current`, the ≤347px
 chrome pin), `app-shell.ct.tsx` (#846, bell-seated), the #208 icon+label pins · `shell.css` `.ctx-tab-strip`.
 Unchanged: D62 pane mechanics, CP-1's roster, `contextTab` as the one selection seam, the Waystone itself.
+
+**Deviation recorded 2026-08-30 (#875 F3, side-eye of the built bracket).** "The Waystone itself: Unchanged"
+above still holds for the STONE — the dial, the sky, the weather, the cues and the pool orbs are untouched.
+The TEXT COLUMN beside it is not: the game band's first line is now the ROOM's name as an `h2` at the band
+voice (the same `deriveChatTitle` the chat band and the topbar use), and the scene LOCATION demotes to the
+when-line's voice beneath it. Measured cause: the band printed the scene location where the other two bands
+print the artifact, so a DOCKED game room — where the topbar has correctly yielded (#846) — exposed no
+heading at all (`snap --aria` returned one flat text node, unreachable by a rotor), and at 1024 overlay the
+topbar's "Example — The Ashen Spire" and the band's "The Ashen Spire — the throne hall, a fire built off the
+draft-line…" were both on screen, disagreeing. The head band's own contract in the table above ("the band
+owns the name's budget") is what decides it. Code: `features/rpg/components/rpg-takeover-header.tsx`
+(`RoomName`), fed `RpgPanelState.roomTitle`.

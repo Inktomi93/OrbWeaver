@@ -306,7 +306,7 @@ export async function openChatByTitle(page: Page, title: string): Promise<void> 
 /** Expand the CONTEXT (detail) panel if it is collapsed — the ONE toggle is the topbar
  *  `ContextToggle` (context-toggle.tsx), whose label states the action it performs. Idempotent. */
 export async function openDetailPanel(page: Page): Promise<void> {
-  const show = page.getByRole("button", { name: "Show detail panel" });
+  const show = page.getByRole("button", { name: "Show details" });
   if ((await show.count()) > 0) {
     await show.first().click();
   }
