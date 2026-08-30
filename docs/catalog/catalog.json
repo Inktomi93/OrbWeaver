@@ -12342,9 +12342,9 @@
       "path": "docs/design/mocks/README.md",
       "lane": "design",
       "issue": 5,
-      "lines": 36,
-      "bytes": 4519,
-      "sha256": "b89b9f4f3c38c24cf2eee7d96a67e6b889489326e04125c5dcf68b3f6cf78b69",
+      "lines": 37,
+      "bytes": 4865,
+      "sha256": "f6b02e546b2ba9cc06b0fba7190d2ac08a808f807b81f2f9d86f2eb8bdc68970",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12357,19 +12357,67 @@
       },
       "receipt": {
         "path": "docs/design/mocks/README.md",
-        "assignedSha256": "b89b9f4f3c38c24cf2eee7d96a67e6b889489326e04125c5dcf68b3f6cf78b69",
+        "assignedSha256": "f6b02e546b2ba9cc06b0fba7190d2ac08a808f807b81f2f9d86f2eb8bdc68970",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "b89b9f4f3c38c24cf2eee7d96a67e6b889489326e04125c5dcf68b3f6cf78b69",
-        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
-        "verifiedAt": "2026-08-15",
+        "verifiedSha256": "f6b02e546b2ba9cc06b0fba7190d2ac08a808f807b81f2f9d86f2eb8bdc68970",
+        "verifiedCommit": "467378dd06ec9b9a85573132d632b71e9fc994ce",
+        "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/design/mocks/README.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
         ],
         "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/mocks/context-bracket/DESIGN.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 63,
+      "bytes": 5110,
+      "sha256": "2b0d7575fae503914829543673c667d714a90c86832f38a1148f5d3defc62684",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-30"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/mocks/context-bracket/DESIGN.md",
+        "assignedSha256": "2b0d7575fae503914829543673c667d714a90c86832f38a1148f5d3defc62684",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "2b0d7575fae503914829543673c667d714a90c86832f38a1148f5d3defc62684",
+        "verifiedCommit": "467378dd06ec9b9a85573132d632b71e9fc994ce",
+        "verifiedAt": "2026-08-30",
+        "evidence": [
+          "Authored by the orchestrator (claude-b) from the owner's live ruling on #860 (2026-08-30, 'I'm good with the mockup'); the canvas artifact 8f56d796 is the clickable form, these files are its repo source; the seven default-state PNGs were rendered at true size from the same artboards and read before commit"
+        ],
+        "claims": [
+          {
+            "claim": "The slot table and the surviving-rulings list match the canvas as ruled: head band (one slot, three contents) · optional top rail (applicability) · viewport · ground · foot rail with the kicker on top; §4.1, HUD-1 §5.1 and decision 6 survive with a changed input; #845 provenance, #846 relocation, #850/#861 fold in.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#860"
+              },
+              {
+                "kind": "issue",
+                "target": "#861"
+              }
+            ]
+          }
+        ],
+        "summary": "Context bracket mock (#860): the context panel as ONE head+foot chrome for chats, game rooms and characters — the canvas source (build.mjs → seven .dc.html + canvas.json), true-size default-state renders, the ruling, the slot table, the rulings that survive with a changed input, and the coupled sites for the build lane."
       },
       "receiptCurrent": true
     },

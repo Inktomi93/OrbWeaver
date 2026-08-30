@@ -1121,13 +1121,13 @@
     },
     {
       "path": "docs/design/mocks/README.md",
-      "assignedSha256": "b89b9f4f3c38c24cf2eee7d96a67e6b889489326e04125c5dcf68b3f6cf78b69",
+      "assignedSha256": "f6b02e546b2ba9cc06b0fba7190d2ac08a808f807b81f2f9d86f2eb8bdc68970",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "b89b9f4f3c38c24cf2eee7d96a67e6b889489326e04125c5dcf68b3f6cf78b69",
-      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
-      "verifiedAt": "2026-08-15",
+      "verifiedSha256": "f6b02e546b2ba9cc06b0fba7190d2ac08a808f807b81f2f9d86f2eb8bdc68970",
+      "verifiedCommit": "467378dd06ec9b9a85573132d632b71e9fc994ce",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/mocks/README.md:1 (design; unheaded)",
         "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup \u2014 15 fixed, 33 archive-no-action, 10 needs-owner",
@@ -2350,6 +2350,35 @@
       "assignedSha256": "59c275d744bfadcac65acc25415fbcfb7871b04370796893b32b78877f744832",
       "verifiedSha256": "59c275d744bfadcac65acc25415fbcfb7871b04370796893b32b78877f744832",
       "verifiedCommit": "0acef7a7fd9e04ce436e63932fe8f97309d24f17"
+    },
+    {
+      "path": "docs/design/mocks/context-bracket/DESIGN.md",
+      "assignedSha256": "2b0d7575fae503914829543673c667d714a90c86832f38a1148f5d3defc62684",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "2b0d7575fae503914829543673c667d714a90c86832f38a1148f5d3defc62684",
+      "verifiedCommit": "467378dd06ec9b9a85573132d632b71e9fc994ce",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "Authored by the orchestrator (claude-b) from the owner's live ruling on #860 (2026-08-30, 'I'm good with the mockup'); the canvas artifact 8f56d796 is the clickable form, these files are its repo source; the seven default-state PNGs were rendered at true size from the same artboards and read before commit"
+      ],
+      "claims": [
+        {
+          "claim": "The slot table and the surviving-rulings list match the canvas as ruled: head band (one slot, three contents) \u00b7 optional top rail (applicability) \u00b7 viewport \u00b7 ground \u00b7 foot rail with the kicker on top; \u00a74.1, HUD-1 \u00a75.1 and decision 6 survive with a changed input; #845 provenance, #846 relocation, #850/#861 fold in.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#860"
+            },
+            {
+              "kind": "issue",
+              "target": "#861"
+            }
+          ]
+        }
+      ],
+      "summary": "Context bracket mock (#860): the context panel as ONE head+foot chrome for chats, game rooms and characters \u2014 the canvas source (build.mjs \u2192 seven .dc.html + canvas.json), true-size default-state renders, the ruling, the slot table, the rulings that survive with a changed input, and the coupled sites for the build lane."
     }
   ]
 }
