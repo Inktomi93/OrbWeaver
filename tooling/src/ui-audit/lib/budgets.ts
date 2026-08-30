@@ -22,7 +22,7 @@ export const CENSUS_OBSERVE_MIN_MS = 2000;
 export const CENSUS_OBSERVE_CEILING_MS = 5000;
 /** Growth past this MULTIPLE of the population the walk could see means the census is a fraction of the
  *  surface, not a measurement of it. Every observed instance of this defect is order-of-magnitude
- *  (22 -> 1421 on Settings/Plugins, #808; 14 -> 332 on a cold stage, #678), so 1.5x sits far above
+ *  (22 -\> 1421 on Settings/Plugins, #808; 14 -\> 332 on a cold stage, #678), so 1.5x sits far above
  *  incidental late mounting (a tooltip, a lazy image) and far below the real shape. */
 export const THIN_CENSUS_GROWTH_RATIO = 1.5;
 /** …and at least this many elements, so a handful of nodes arriving on a tiny page is never a refusal. */
