@@ -18,6 +18,7 @@
 import process from "node:process";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool, UsageError } from "../_shared/run-tool.ts";
+import type { VerifyVerb } from "./index.ts";
 import {
   generateBaseuiSurface,
   generateCaughtFailurePopulation,
@@ -41,6 +42,9 @@ import {
   runTestsExecutionMembership,
   runTestsTypeMembership,
   runVerify,
+  SCOPED_USAGE,
+  SHOW_HELP,
+  VERIFY_VERBS,
 } from "./index.ts";
 
 /** The committed baselines this tool is the SINGLE writer of (GATE-AUTHORING §4.8). A `Record` rather than
@@ -60,23 +64,45 @@ const BASELINES: Readonly<Record<string, (root: string) => number>> = {
   "test-presence": generateTestPresenceBaseline,
 };
 
-const VERBS = [
-  "run",
-  "structure",
-  "show",
-  "scoped",
-  "new-gate",
-  "baseline",
-  "tests-membership",
-  "tests-execution-membership",
-  "db-baseline",
-  "orphan-ratchet",
-  "boot-chunk",
-  "debt",
-  "ratchet-gate",
-] as const;
+const USAGE = `usage: node tooling/src/verify/cli.ts <${VERIFY_VERBS.join("|")}> [args…]`;
 
-const USAGE = `usage: node tooling/src/verify/cli.ts <${VERBS.join("|")}> [args…]`;
+/** ONE usage line per verb, answered BEFORE dispatch (#809).
+ *
+ *  `structure --help` used to fall through to `runStructure`, which loads the whole-repo ts-morph project
+ *  before it ever looks at argv — measured on this tree: exit 134 (heap OOM) in 5.4s under bare node's
+ *  ~4GB self-cap. A help request must never do work; it is answered here, where nothing has been built yet.
+ *
+ *  A mapped-type `Record<VerifyVerb, …>` rather than a switch or a partial map: a new `VERIFY_VERBS`
+ *  member fails tsc until it has a help line, so the front door cannot grow a verb that OOMs on `--help`
+ *  (and the pin in tests/tooling/verify/cli.int.test.ts reads the same tuple, so it exercises it too).
+ *  The two verbs that own richer text supply it themselves (`show`, `scoped`) — one home each. */
+const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
+  run: "usage: node tooling/src/verify/cli.ts run [--static|--push|--full|--changed] [--scope <glob>|--package <name>|--file <paths…>] [--tier <name>] [--strict-scope] [--list] [--json] [--verbose]",
+  structure:
+    "usage: node tooling/src/verify/cli.ts structure\n  Runs every structural gate in one ts-morph pass; writes reports/check-structure.json (read it with `show`).",
+  show: SHOW_HELP,
+  scoped: SCOPED_USAGE,
+  "new-gate": "usage: node tooling/src/verify/cli.ts new-gate <kebab-name>\n  Scaffolds a gate descriptor + its conformance proofs (GATE-AUTHORING.md).",
+  baseline: `usage: node tooling/src/verify/cli.ts baseline <${Object.keys(BASELINES).sort().join("|")}>\n  Regenerates a COMMITTED baseline — the single-writer door (GATE-AUTHORING §4.8). Never run on a shared tree mid-lane.`,
+  "tests-membership":
+    "usage: node tooling/src/verify/cli.ts tests-membership\n  Reconciles which test files each TYPE program compiles — reports the escapees.",
+  "tests-execution-membership":
+    "usage: node tooling/src/verify/cli.ts tests-execution-membership\n  Reconciles which test files a vitest project actually RUNS — reports the unrun.",
+  "db-baseline": "usage: node tooling/src/verify/cli.ts db-baseline\n  Compares the drizzle schema against the committed 0000_baseline.sql.",
+  "orphan-ratchet": "usage: node tooling/src/verify/cli.ts orphan-ratchet [--update]\n  The orphan-export ratchet; --update rewrites its committed baseline.",
+  "boot-chunk": "usage: node tooling/src/verify/cli.ts boot-chunk\n  Measures the client boot chunk against its committed ceiling.",
+  debt: "usage: node tooling/src/verify/cli.ts debt [--gate <substr>] [--age]\n  A LENS over the ratchet ledgers — reports parked rows, oldest first with --age.",
+  "ratchet-gate": "usage: node tooling/src/verify/cli.ts ratchet-gate\n  The vitest-tier train-gate aggregate over the ratchets (#667).",
+};
+
+function isVerb(candidate: string): candidate is VerifyVerb {
+  return (VERIFY_VERBS as readonly string[]).includes(candidate);
+}
+
+/** A `--help`/`-h` ANYWHERE in a known verb's args is a help request — no verb takes those as a value. */
+function helpRequested(rest: readonly string[]): boolean {
+  return rest.some((arg) => arg === "--help" || arg === "-h");
+}
 
 function runBaseline(root: string, rest: readonly string[]): number {
   const kind = rest[0];
@@ -130,6 +156,12 @@ await runTool(async () => {
   if (verb === undefined || verb === "--help" || verb === "-h") {
     process.stdout.write(`${USAGE}\n`);
     return verb === undefined ? EXIT.misuse : EXIT.clean;
+  }
+  // ANSWER HELP BEFORE ANY WORK (#809) — see VERB_HELP. `structure --help` reached the subcommand body,
+  // which builds the whole-repo ts-morph project, and died at 134 before argv was ever consulted.
+  if (isVerb(verb) && helpRequested(rest)) {
+    process.stdout.write(`${VERB_HELP[verb]}\n`);
+    return EXIT.clean;
   }
   return await dispatch(verb, process.cwd(), rest);
 });

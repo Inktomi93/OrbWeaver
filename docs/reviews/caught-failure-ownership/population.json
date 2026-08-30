@@ -5012,7 +5012,7 @@
     {
       "siteId": "tooling/src/ui-audit/ops/drive.ts::empty:e::1",
       "path": "tooling/src/ui-audit/ops/drive.ts",
-      "line": 66,
+      "line": 73,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5020,12 +5020,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as ACTION FAILED and returned as 1 — the JSDoc above states an action that didn't land is never silent and reddens the audit's verdict through this return value. Ends if the returned count stops being summed into the verdict.",
-      "markerLine": 51
+      "markerLine": 58
     },
     {
       "siteId": "tooling/src/ui-audit/ops/drive.ts::promise:waitFor::1",
       "path": "tooling/src/ui-audit/ops/drive.ts",
-      "line": 86,
+      "line": 129,
       "column": 26,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -5033,7 +5033,7 @@
       "snippet": "const appReady = await page",
       "verdict": "deliberate-absorb",
       "reason": "the comment above states the outcome IS reported — appReady:false feeds lib/evidence.ts's readinessGap check (#678), so a missing readiness signal is surfaced as a verdict input, not swallowed. Ends if appReady stops being read downstream.",
-      "markerLine": 85
+      "markerLine": 128
     },
     {
       "siteId": "tooling/src/ui-audit/ops/stage.ts::empty:error::1",
