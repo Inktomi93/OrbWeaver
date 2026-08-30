@@ -138,27 +138,27 @@
       "path": "docs/architecture/Context-Panel-Program.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 406,
-      "bytes": 31784,
-      "sha256": "684ad8a0d362db5ca5222181b2220585f95f1b9511a9f6827e4e54ecd3cf9284",
+      "lines": 427,
+      "bytes": 33765,
+      "sha256": "0728153f0e4ec37f9b8d1e35d4228413f9a358ad2a2113b06dc2733126a32b74",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "spec",
           "status": "active",
-          "updated": "2026-08-14"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/Context-Panel-Program.md",
-        "assignedSha256": "684ad8a0d362db5ca5222181b2220585f95f1b9511a9f6827e4e54ecd3cf9284",
+        "assignedSha256": "0728153f0e4ec37f9b8d1e35d4228413f9a358ad2a2113b06dc2733126a32b74",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "684ad8a0d362db5ca5222181b2220585f95f1b9511a9f6827e4e54ecd3cf9284",
-        "verifiedCommit": "facd32a604d0b6fa67d956689182ddc68331ebd2",
+        "verifiedSha256": "0728153f0e4ec37f9b8d1e35d4228413f9a358ad2a2113b06dc2733126a32b74",
+        "verifiedCommit": "c2d6548ab0490944557cd829ab56b78d7bd7cb9a",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/architecture/Context-Panel-Program.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
@@ -623,27 +623,27 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 511,
-      "bytes": 274170,
-      "sha256": "3071cdb7d55a01e6291ccf8eb5817020d905b9b46254897d2b94fab2c8e602b1",
+      "lines": 513,
+      "bytes": 280299,
+      "sha256": "ac0afea13f467a7464e6492de1a7fbbe6f9644e1b2f8dbf495fb3b033030b891",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "reference",
           "status": "active",
-          "updated": "2026-08-28"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "3071cdb7d55a01e6291ccf8eb5817020d905b9b46254897d2b94fab2c8e602b1",
+        "assignedSha256": "ac0afea13f467a7464e6492de1a7fbbe6f9644e1b2f8dbf495fb3b033030b891",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "3071cdb7d55a01e6291ccf8eb5817020d905b9b46254897d2b94fab2c8e602b1",
-        "verifiedCommit": "facd32a604d0b6fa67d956689182ddc68331ebd2",
+        "verifiedSha256": "ac0afea13f467a7464e6492de1a7fbbe6f9644e1b2f8dbf495fb3b033030b891",
+        "verifiedCommit": "c2d6548ab0490944557cd829ab56b78d7bd7cb9a",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",

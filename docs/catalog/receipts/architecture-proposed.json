@@ -36,12 +36,12 @@
     },
     {
       "path": "docs/architecture/Context-Panel-Program.md",
-      "assignedSha256": "684ad8a0d362db5ca5222181b2220585f95f1b9511a9f6827e4e54ecd3cf9284",
+      "assignedSha256": "0728153f0e4ec37f9b8d1e35d4228413f9a358ad2a2113b06dc2733126a32b74",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "684ad8a0d362db5ca5222181b2220585f95f1b9511a9f6827e4e54ecd3cf9284",
-      "verifiedCommit": "facd32a604d0b6fa67d956689182ddc68331ebd2",
+      "verifiedSha256": "0728153f0e4ec37f9b8d1e35d4228413f9a358ad2a2113b06dc2733126a32b74",
+      "verifiedCommit": "c2d6548ab0490944557cd829ab56b78d7bd7cb9a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/Context-Panel-Program.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
