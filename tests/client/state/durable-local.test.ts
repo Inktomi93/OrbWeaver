@@ -5,9 +5,11 @@
 //
 // The store doubles here are hand-rolled rather than real zustand mints: what is under test is the KEY
 // SCHEME and the three bind arms (no-op / adopt / switch), and a real `persist` would add a rehydrate
-// pipeline that hides which of those arms actually ran.
+// pipeline that hides which of those arms actually ran. They are HALF the picture on purpose, and the
+// missing half is its own describe block at the bottom of this file: a double's `reset` writes nothing,
+// so no double can see what an arm does to the durable BYTES — which is precisely where #837 lived.
 
-import type { DurableLocalPersistApi, DurableLocalStorage } from "@orb/client/state";
+import type { DurableLocalPersistApi, DurableLocalStorage, PersistedStoreOptions } from "@orb/client/state";
 import {
   __resetDurableLocal,
   activeDurableLocalUserId,
@@ -20,6 +22,7 @@ import {
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, describe, vi } from "vitest";
+import type { StateStorage } from "zustand/middleware";
 import { expect, test } from "../../support/fixtures.ts";
 
 const ALICE = castId<UserId>("usr_alice");
@@ -50,7 +53,7 @@ function persistOf(double: StoreDouble): NonNullable<DurableLocalPersistApi["per
 }
 
 function storeDouble(map: Map<string, unknown>): StoreDouble {
-  const storage: DurableLocalStorage = {
+  const own: DurableLocalStorage = {
     getItem: (name): unknown => map.get(name) ?? null,
     setItem: (name, value): void => {
       map.set(name, value);
@@ -59,11 +62,19 @@ function storeDouble(map: Map<string, unknown>): StoreDouble {
       map.delete(name);
     },
   };
+  // zustand MERGES `setOptions` over the live options and swaps the storage when one is supplied, so the
+  // double must too — the rebind re-keys with `{ name }` and blindfolds with `{ storage }`.
+  let storage = own;
   const double: StoreDouble = {
     api: {
       persist: {
-        setOptions: ({ name }): void => {
-          double.keys.push(name);
+        setOptions: (options): void => {
+          if (options.name !== undefined) {
+            double.keys.push(options.name);
+          }
+          if (options.storage !== undefined) {
+            storage = options.storage;
+          }
         },
         rehydrate: (): Promise<void> | void => {
           double.rehydrates += 1;
@@ -80,9 +91,17 @@ function storeDouble(map: Map<string, unknown>): StoreDouble {
     rehydrate: (): void => {
       double.currentState = map.get(double.keys.at(-1) ?? "") ?? "DEFAULT";
     },
+    // Faithful to production: zustand's `persist` patches `setState`, so a reset WRITES the defaults to
+    // the key the store currently holds. Writing it through `storage` (not `own`) is what makes the
+    // blindfold observable here at all. Before the first `setOptions` the double cannot know its mint
+    // key, so a first-bind reset writes nowhere — that window is covered by the REAL-store block below.
     reset: (): void => {
       double.resets += 1;
       double.currentState = "DEFAULT";
+      const key = double.keys.at(-1);
+      if (key !== undefined) {
+        storage.setItem(key, "DEFAULT");
+      }
     },
   };
   return double;
@@ -479,6 +498,10 @@ describe("bindDurableLocalToUser — the three arms", () => {
     expect(durableLocalWritesAllowed()).toBe(true);
   });
 
+  // ALSO the guard on the same-user SKIP below: after a failed bind the namespace is already this user's,
+  // but the in-memory projection is still the PREVIOUS identity's. A retry that short-circuited on the
+  // namespace alone would open the write gate over Alice's state under Bob's key — so the retry must
+  // re-key and rehydrate (`resets`/`rehydrates` count it), never skip.
   test("a failed hydration remains gated and a same-user retry rehydrates before opening the stores", async () => {
     const store = storeDouble(new Map());
     registerDurableLocalStore({ prefix: "orb:", name: "shell", api: store.api, reset: store.reset });
@@ -492,7 +515,148 @@ describe("bindDurableLocalToUser — the three arms", () => {
     store.rehydrate = (): void => undefined;
     await bindDurableLocalToUser(BOB);
     expect(store.rehydrates).toBe(3);
+    expect(store.resets).toBe(3); // the retry did NOT take the same-user skip
     expect(durableLocalReadyFor(BOB)).toBe(true);
     expect(durableLocalWritesAllowed()).toBe(true);
+  });
+});
+
+// The arms above run over hand-rolled doubles, which prove WHICH arm ran but cannot prove what an arm
+// does to the durable BYTES: a double's `reset` writes nothing. Production's does — zustand's `persist`
+// patches `setState`, so a reset WRITES the emptied state to whichever key the store is currently pointed
+// at, and the rehydrate that follows reads back the blob the reset just erased (#837: every `orb:*` blob
+// reset-and-rebuilt on every boot, app-wide). These mint REAL persisted stores over an injected memory
+// storage and boot them the way a browser does: the `orb:active-user` hint is seeded BEFORE the module
+// graph loads, because `durable-local.ts` reads it at module scope and every store mints — and zustand
+// synchronously rehydrates it — against that namespace.
+describe("bindDurableLocalToUser — the boot arms over REAL persisted stores", () => {
+  interface Probe {
+    readonly count: number;
+    readonly label: string;
+  }
+
+  const defaultProbe: Probe = { count: 0, label: "default" };
+
+  /** TOTAL, and a PASS-THROUGH for a well-formed blob: a migrate that always returned the default would
+   *  make every assertion below vacuously "reset". */
+  function migrateProbe(persisted: unknown): Probe {
+    const p = persisted as { count?: unknown; label?: unknown } | null | undefined;
+    return {
+      count: typeof p?.count === "number" ? p.count : defaultProbe.count,
+      label: typeof p?.label === "string" ? p.label : defaultProbe.label,
+    };
+  }
+
+  function blob(probe: Probe): string {
+    return JSON.stringify({ state: probe, version: 1 });
+  }
+
+  interface Booted {
+    readonly mod: typeof import("@orb/client/state");
+    readonly map: Map<string, string>;
+    /** Every key the store's persist storage was asked to WRITE — a boot that preserves writes nothing. */
+    readonly writes: string[];
+    readonly options: PersistedStoreOptions<Probe, Probe>;
+  }
+
+  /** A fresh module graph booted like a browser tab: the hint exists before the first store mints. */
+  async function boot(hint: UserId | null, seed: Record<string, string>): Promise<Booted> {
+    const hints = new Map<string, string>(hint === null ? [] : [["orb:active-user", hint]]);
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string): string | null => hints.get(key) ?? null,
+      setItem: (key: string, value: string): void => {
+        hints.set(key, value);
+      },
+      removeItem: (key: string): void => {
+        hints.delete(key);
+      },
+    });
+    vi.resetModules();
+    const mod = await import("@orb/client/state");
+    const map = new Map<string, string>(Object.entries(seed));
+    const writes: string[] = [];
+    const storage: StateStorage = {
+      getItem: (name): string | null => map.get(name) ?? null,
+      setItem: (name, value): void => {
+        writes.push(name);
+        map.set(name, value);
+      },
+      removeItem: (name): void => {
+        map.delete(name);
+      },
+    };
+    return { mod, map, writes, options: { version: 1, migrate: migrateProbe, partialize: (s): Probe => s, storage } };
+  }
+
+  // THE HEADER'S CONTRACT (`durable-local.ts`, "THE BOOT HINT"): the same human returning is a no-op with
+  // zero rehydrate and zero flash. It was not — `readyUserId` is null at every boot, so this took the full
+  // rebind: reset (which erased the blob through persist) then rehydrate of what it had just erased.
+  test("the same human returning keeps every persisted byte — no reset write, no rehydrate over an erased blob", async () => {
+    const seeded = blob({ count: 42, label: "seeded" });
+    const { mod, map, writes, options } = await boot(ALICE, { [`orb:u/${ALICE}/t-return`]: seeded });
+    const store = mod.createPersistedStore<Probe, Probe>("t-return", (): Probe => defaultProbe, options);
+    // Positive control: the hint chose the namespace and zustand hydrated it AT THE MINT, writing nothing.
+    expect(store.getState()).toEqual({ count: 42, label: "seeded" });
+    expect(writes).toEqual([]);
+
+    await mod.bindDurableLocalToUser(ALICE);
+
+    expect(store.getState()).toEqual({ count: 42, label: "seeded" });
+    expect(map.get(`orb:u/${ALICE}/t-return`)).toBe(seeded); // byte-identical — the bind touched nothing
+    expect(writes).toEqual([]);
+    expect(mod.durableLocalReadyFor(ALICE)).toBe(true);
+    expect(mod.durableLocalWritesAllowed()).toBe(true);
+    mod.__resetDurableLocal();
+  });
+
+  // THE IDENTITY BOUNDARY, stated against a FORGED pointer: `orb:active-user` is browser-writable, so it
+  // is a HINT about which namespace to mint on, never an identity. Only the session-verified viewer
+  // (`sessions.me`, passed by `use-session-recovery`) may keep a namespace live — a hint naming someone
+  // else still pays the full reset + rehydrate, and must not cost that someone else their bytes either.
+  test("a hint naming ANOTHER identity never keeps that namespace live — the verified viewer decides", async () => {
+    const alices = blob({ count: 7, label: "alice-only" });
+    const { mod, map, writes, options } = await boot(ALICE, { [`orb:u/${ALICE}/t-forged`]: alices });
+    const store = mod.createPersistedStore<Probe, Probe>("t-forged", (): Probe => defaultProbe, options);
+    expect(store.getState().label).toBe("alice-only"); // the hint chose the mint namespace...
+
+    await mod.bindDurableLocalToUser(BOB); // ...but BOB is who the session verified
+
+    expect(store.getState()).toEqual(defaultProbe); // Alice's bytes are out of memory
+    expect(mod.durableLocalKey("orb:", "t-forged")).toBe(`orb:u/${BOB}/t-forged`);
+    expect(map.has(`orb:u/${BOB}/t-forged`)).toBe(false); // and never landed in Bob's namespace
+    expect(map.get(`orb:u/${ALICE}/t-forged`)).toBe(alices); // Alice's blob is untouched, byte for byte
+    expect(writes).toEqual([]);
+    expect(mod.durableLocalReadyFor(BOB)).toBe(true);
+    mod.__resetDurableLocal();
+  });
+
+  // The once-per-browser migration has to move the USER'S bytes. Resetting first emptied the legacy blob
+  // through persist and then adopted the emptied one, losing the pre-namespacing era's state at exactly
+  // the moment it was supposed to be rescued.
+  test("legacy adoption MOVES the bytes, never an emptied blob", async () => {
+    const legacy = blob({ count: 3, label: "legacy" });
+    const { mod, map, options } = await boot(null, { "orb:t-adopt": legacy });
+    const store = mod.createPersistedStore<Probe, Probe>("t-adopt", (): Probe => defaultProbe, options);
+    expect(store.getState().label).toBe("legacy"); // no hint → minted on the un-namespaced key
+
+    await mod.bindDurableLocalToUser(ALICE);
+
+    expect(JSON.parse(map.get(`orb:u/${ALICE}/t-adopt`) ?? "null")).toEqual({ state: { count: 3, label: "legacy" }, version: 1 });
+    expect(map.has("orb:t-adopt")).toBe(false);
+    expect(store.getState()).toEqual({ count: 3, label: "legacy" });
+    mod.__resetDurableLocal();
+  });
+
+  test("a cold boot with no hint and no legacy blob binds on defaults and writes nothing", async () => {
+    const { mod, map, writes, options } = await boot(null, {});
+    const store = mod.createPersistedStore<Probe, Probe>("t-cold", (): Probe => defaultProbe, options);
+
+    await mod.bindDurableLocalToUser(ALICE);
+
+    expect(store.getState()).toEqual(defaultProbe);
+    expect([...map.keys()]).toEqual([]); // nothing to adopt is nothing to write — not even a defaults blob
+    expect(writes).toEqual([]);
+    expect(mod.durableLocalKey("orb:", "t-cold")).toBe(`orb:u/${ALICE}/t-cold`);
+    mod.__resetDurableLocal();
   });
 });

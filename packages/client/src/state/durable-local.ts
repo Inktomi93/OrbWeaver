@@ -16,6 +16,16 @@
 // `bindDurableLocalToUser` once the viewer read lands and the common case — the same human returning — is a
 // no-op with zero rehydrate and zero flash. Only a genuine identity CHANGE pays a rehydrate.
 //
+// THE HINT IS NOT IDENTITY. It is browser-writable, so all it may decide is which namespace the MINT reads;
+// only the session-verified viewer (`sessions.me`, threaded through `data/use-session-recovery.ts`) decides
+// whether that namespace stays live. Every skip below therefore compares against the VERIFIED id, and a
+// hint naming anyone else takes the full reset + rehydrate onto the verified viewer's namespace.
+//
+// THE RESET IS IN-MEMORY, ALWAYS (`resetWithoutPersisting`). zustand's `persist` writes on every
+// `setState`, so dropping a projection through the store's own hook would overwrite whichever blob it is
+// currently pointed at — bytes that belong to the outgoing identity, to the legacy era about to be
+// adopted, or to the returning user. Nothing on this path may erase durable bytes.
+//
 // LEGACY ADOPTION runs exactly once per browser: with no hint recorded, stores mint on the OLD un-namespaced
 // key, and the first bind MOVES each blob to the user key and deletes the original. Every target is then
 // rehydrated before readiness: a prior partial attempt or reload may already have moved one blob, so the
@@ -49,7 +59,10 @@ function legacyKey(prefix: string, name: string): string {
 export interface DurableLocalPersistApi {
   readonly persist?:
     | {
-        readonly setOptions: (options: { readonly name: string }) => void;
+        /** zustand MERGES these over the live options, so either field alone is a legal call: `name`
+         *  re-keys the store, `storage` swaps the backend the middleware writes through (used to
+         *  blindfold a reset — see `resetWithoutPersisting`). */
+        readonly setOptions: (options: { readonly name?: string; readonly storage?: DurableLocalStorage }) => void;
         readonly rehydrate: () => Promise<void> | void;
         readonly getOptions: () => { readonly storage?: DurableLocalStorage | undefined };
       }
@@ -68,7 +81,9 @@ interface RegisteredStore {
   readonly prefix: string;
   readonly name: string;
   readonly api: DurableLocalPersistApi;
-  /** Drop the previous user's in-memory projection before a new namespace is allowed to hydrate. */
+  /** Drop the previous user's in-memory projection before a new namespace is allowed to hydrate. This is
+   *  an IN-MEMORY operation: every caller here goes through `resetWithoutPersisting`, which blindfolds the
+   *  store's persist storage so the drop cannot reach anyone's durable bytes. */
   readonly reset: () => void;
 }
 
@@ -76,6 +91,12 @@ const registry: RegisteredStore[] = [];
 
 /** The identity every durable-local key is currently scoped to, or null for the pre-adoption legacy world. */
 let activeUserId: UserId | null = readBootHint();
+/** The identity whose bytes the in-memory projections currently hold. At module load that is the BOOT HINT
+ *  and not null: every store mints on `durableLocalKey()` and zustand rehydrates it off that namespace
+ *  synchronously, so the mint IS a completed hydration of the hinted identity — which is what lets the
+ *  same human returning skip the rebind entirely. Distinct from `readyUserId` on purpose: this says whose
+ *  bytes are loaded, never that a session verified them, so it must not be used to open the write gate. */
+let projectionUserId: UserId | null = activeUserId;
 /** The session-verified identity whose hydration currently owns the in-memory stores. */
 let readyUserId: UserId | null = null;
 let desiredUserId: UserId | null = null;
@@ -165,9 +186,50 @@ function adoptLegacyBlob(entry: RegisteredStore, targetKey: string, storage: Dur
   storage.removeItem(legacyKey(entry.prefix, entry.name));
 }
 
+/** A storage that swallows every write — the blindfold `resetWithoutPersisting` wears. */
+const BLIND_STORAGE: DurableLocalStorage = {
+  getItem: (): null => null,
+  setItem: (): void => undefined,
+  removeItem: (): void => undefined,
+};
+
+/**
+ * Drop ONE store's in-memory projection without writing it through that store's persist storage.
+ *
+ * zustand's `persist` patches `setState` to write the new state to whatever key it currently holds
+ * (verified in the installed `zustand/esm/middleware.mjs`), so a plain reset does not merely clear
+ * memory — it OVERWRITES a real blob with the store's defaults, and the blob it lands on is always one
+ * this module is supposed to be protecting: the OUTGOING identity's on a switch, the still-unmoved
+ * LEGACY blob on an adoption (which then adopts the emptied one), and — before the same-user skip below
+ * — the returning user's OWN, which the following `rehydrate()` then read back as defaults. That last
+ * one made every `orb:*` blob app-wide inert on every boot (#837).
+ *
+ * So blindfold the storage for the duration and restore it in a `finally`: the reset is an in-memory
+ * operation by contract, and no durable byte here belongs to us to erase. A store with no persist api
+ * (the storage-less arm) persists nothing, so there is nothing to blindfold.
+ */
+function resetWithoutPersisting(entry: RegisteredStore): void {
+  const persist = entry.api.persist;
+  if (persist === undefined) {
+    entry.reset();
+    return;
+  }
+  const storage = persist.getOptions().storage;
+  if (storage === undefined) {
+    entry.reset();
+    return;
+  }
+  persist.setOptions({ storage: BLIND_STORAGE });
+  try {
+    entry.reset();
+  } finally {
+    persist.setOptions({ storage });
+  }
+}
+
 function resetRegisteredStores(): void {
   for (const entry of registry) {
-    entry.reset();
+    resetWithoutPersisting(entry);
   }
 }
 
@@ -194,6 +256,27 @@ async function bindQueuedUser(userId: UserId): Promise<void> {
     return; // superseded before this queued bind began
   }
   if (activeUserId === userId && readyUserId === userId) {
+    return; // already bound and hydrated in this page
+  }
+  // THE SAME HUMAN RETURNING — the header's contract, and the reason this file records a boot hint at
+  // all. The stores minted on THIS namespace and zustand rehydrated them off it synchronously, so their
+  // projection is already this identity's own bytes; a rebind would drop that projection only to load the
+  // same bytes back — and before `resetWithoutPersisting` the drop ERASED them on the way through, which
+  // is what made every `orb:*` blob inert on every boot (#837).
+  //
+  // The skip is narrow BY CONSTRUCTION, and each conjunct carries its own weight:
+  //   • `activeUserId === userId` — the bound namespace is the VERIFIED viewer's. `userId` comes from
+  //     `sessions.me` (`data/use-session-recovery.ts`); the boot hint is browser-writable and only ever
+  //     chose which namespace to MINT on, so a forged/stale hint naming anyone else fails here and pays
+  //     the full reset + rehydrate. The hint is never trusted as identity.
+  //   • `projectionUserId === userId` — the in-memory bytes are that namespace's. A bind that failed
+  //     part-way already moved `activeUserId` while leaving the PREVIOUS identity's projection in
+  //     memory; skipping on the namespace alone would open the write gate over it.
+  //   • `adoptionUserId === null` — a pending legacy adoption still has bytes to MOVE, so it is not a
+  //     no-op even when the namespace matches.
+  if (activeUserId === userId && projectionUserId === userId && adoptionUserId === null) {
+    readyUserId = userId;
+    writeBootHint(userId); // idempotent; the skip leaves exactly the post-state the full path would
     return;
   }
 
@@ -203,6 +286,7 @@ async function bindQueuedUser(userId: UserId): Promise<void> {
     writeAdoptionHint(userId);
   }
   readyUserId = null;
+  projectionUserId = null;
   activeUserId = userId;
   await rebindRegisteredStores(adopting);
   if (desiredUserId !== userId) {
@@ -211,6 +295,7 @@ async function bindQueuedUser(userId: UserId): Promise<void> {
     resetRegisteredStores();
     return;
   }
+  projectionUserId = userId;
   readyUserId = userId;
   writeBootHint(userId);
   if (adoptionUserId === userId) {
@@ -257,6 +342,7 @@ export function activeDurableLocalUserId(): UserId | null {
 export function __resetDurableLocal(): void {
   registry.length = 0;
   activeUserId = null;
+  projectionUserId = null;
   readyUserId = null;
   desiredUserId = null;
   adoptionUserId = null;
