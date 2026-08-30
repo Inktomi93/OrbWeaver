@@ -2353,12 +2353,12 @@
     },
     {
       "path": "docs/design/mocks/context-bracket/DESIGN.md",
-      "assignedSha256": "2b0d7575fae503914829543673c667d714a90c86832f38a1148f5d3defc62684",
+      "assignedSha256": "29e4a946468a5efb9a9c66e55d6dc78281f20696a61c08a50a545a63ce3d82f2",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "2b0d7575fae503914829543673c667d714a90c86832f38a1148f5d3defc62684",
-      "verifiedCommit": "467378dd06ec9b9a85573132d632b71e9fc994ce",
+      "verifiedSha256": "29e4a946468a5efb9a9c66e55d6dc78281f20696a61c08a50a545a63ce3d82f2",
+      "verifiedCommit": "31625cecb28537ff1db6544642cb118a2df6453b",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "Authored by the orchestrator (claude-b) from the owner's live ruling on #860 (2026-08-30, 'I'm good with the mockup'); the canvas artifact 8f56d796 is the clickable form, these files are its repo source; the seven default-state PNGs were rendered at true size from the same artboards and read before commit"
@@ -2437,6 +2437,39 @@
         }
       ],
       "summary": "Config revamp design (#866): ONE closed config-group registry (four shelves You/App/Collections/Extensions; body arms sections|surface|collection|placeholder) that settings panes, collections, persona and Plugins register through; the shipped scroll-spy re-homed as the one spy; one search index with VS Code-style @modified/@shelf/@in/@ext/@advanced tokens, in-place highlights and a \u2318K source; openConfigTo replacing openSettingsTo + goToCollection; dense SettingRowFrame rows; the context pane as the TEACHER (About \u00b7 Applies \u00b7 Learn) over a focused-setting seam and per-leaf SettingTeach data; the rail persona slot as switcher \u00b7 identity \u00b7 log out; four client composites, no new primitives; nine owner forks with recommendations; sequence S1-S5."
+    },
+    {
+      "path": "docs/design/context-bracket-build.md",
+      "assignedSha256": "1b8ca91e43710f3c4c7782f2287212ad2c6120ac95353797494c7c298f89488e",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "1b8ca91e43710f3c4c7782f2287212ad2c6120ac95353797494c7c298f89488e",
+      "verifiedCommit": "facd32a604d0b6fa67d956689182ddc68331ebd2",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/context-bracket-build.md read in full by the orchestrator (claude-b) at the #860 merge (lane cb-ctx-bracket; the build design record: recon with two premise kills (#861 kicker order, Status editor already in Game), the chosen architecture (the claim shrinks to a head-band claim; the shell owns the column), rejected alternatives, the coupled-site table, the test plan, the six forks with their 2026-08-30 rulings, the pre-existing #830 reds)"
+      ],
+      "claims": [
+        {
+          "claim": "The build record matches what landed in facd32a60 + 31625cecb: ContextBracket/ContextRail in app-shell, ContextRegionHost deleted, the region claim reduced to band(), rail names by section (railLabel), kicker above cells in both rails, the topbar yields only while docked (#846 by relocation), the receded rail's fill/floor (#861), coarse cells 56px, D150 minted and D119 amended.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#860"
+            },
+            {
+              "kind": "issue",
+              "target": "#846"
+            },
+            {
+              "kind": "issue",
+              "target": "#861"
+            }
+          ]
+        }
+      ],
+      "summary": "Context bracket build design (#860): the shell renders ONE column for every tabs context pane (head band \u2192 optional state rail \u2192 viewport \u2192 ground \u2192 meta rail at the foot); the rpg claim shrinks to a head-band claim; the generic Detail tablist and ContextRegionHost retire; rail model universal (#112); topbar yields to the band while docked (#846); the receded rail gets fill + floor (#861); six forks ruled; the #830 CT reds recorded as pre-existing."
     }
   ]
 }

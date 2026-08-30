@@ -138,9 +138,9 @@
       "path": "docs/architecture/Context-Panel-Program.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 396,
-      "bytes": 30625,
-      "sha256": "378f1c22302aba0ab1940c8ae8890c158c8368004ed34bf54c59a618e846bdd7",
+      "lines": 406,
+      "bytes": 31784,
+      "sha256": "684ad8a0d362db5ca5222181b2220585f95f1b9511a9f6827e4e54ecd3cf9284",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -153,13 +153,13 @@
       },
       "receipt": {
         "path": "docs/architecture/Context-Panel-Program.md",
-        "assignedSha256": "59af53f96294020580bcb15ab8c82fd163226afa5b44ba15e8da4cd5037fdb64",
+        "assignedSha256": "684ad8a0d362db5ca5222181b2220585f95f1b9511a9f6827e4e54ecd3cf9284",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "378f1c22302aba0ab1940c8ae8890c158c8368004ed34bf54c59a618e846bdd7",
-        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "684ad8a0d362db5ca5222181b2220585f95f1b9511a9f6827e4e54ecd3cf9284",
+        "verifiedCommit": "facd32a604d0b6fa67d956689182ddc68331ebd2",
+        "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/architecture/Context-Panel-Program.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
           "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
@@ -623,9 +623,9 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 509,
-      "bytes": 270753,
-      "sha256": "1ab90d6a34d2f9c2d994f4936d7fd578cb45243867e6dce447849e9d51de7369",
+      "lines": 511,
+      "bytes": 274170,
+      "sha256": "3071cdb7d55a01e6291ccf8eb5817020d905b9b46254897d2b94fab2c8e602b1",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -638,13 +638,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "979ccb192c1174b05d452f85b38a7e3743ca06b7dcbec176c28e4d41647da334",
+        "assignedSha256": "3071cdb7d55a01e6291ccf8eb5817020d905b9b46254897d2b94fab2c8e602b1",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "1ab90d6a34d2f9c2d994f4936d7fd578cb45243867e6dce447849e9d51de7369",
-        "verifiedCommit": "34fcf91847a8bbddbf920113ba161e243c058f9d",
-        "verifiedAt": "2026-08-25",
+        "verifiedSha256": "3071cdb7d55a01e6291ccf8eb5817020d905b9b46254897d2b94fab2c8e602b1",
+        "verifiedCommit": "facd32a604d0b6fa67d956689182ddc68331ebd2",
+        "verifiedAt": "2026-08-30",
         "evidence": [
           "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
           "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
@@ -1791,8 +1791,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 715,
-      "bytes": 128193,
-      "sha256": "97b7a5e3d14bc2543071b1d9b5c9d030152937aac37438b362312963b98a1942",
+      "bytes": 129080,
+      "sha256": "a87b638ab9528d76c225b2dc117b26051dcb86296d7f1fd868c9746ad0950a7c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1805,12 +1805,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/client-architecture-lockdown.md",
-        "assignedSha256": "48c5fe58d90c4aae5285c083334479cb15308c8c18c0d7e194e67ea68cdb1b2f",
+        "assignedSha256": "a87b638ab9528d76c225b2dc117b26051dcb86296d7f1fd868c9746ad0950a7c",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "97b7a5e3d14bc2543071b1d9b5c9d030152937aac37438b362312963b98a1942",
-        "verifiedCommit": "0acef7a7fd9e04ce436e63932fe8f97309d24f17",
+        "verifiedSha256": "a87b638ab9528d76c225b2dc117b26051dcb86296d7f1fd868c9746ad0950a7c",
+        "verifiedCommit": "facd32a604d0b6fa67d956689182ddc68331ebd2",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
@@ -11186,6 +11186,58 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/context-bracket-build.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 224,
+      "bytes": 20360,
+      "sha256": "1b8ca91e43710f3c4c7782f2287212ad2c6120ac95353797494c7c298f89488e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-30"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/context-bracket-build.md",
+        "assignedSha256": "1b8ca91e43710f3c4c7782f2287212ad2c6120ac95353797494c7c298f89488e",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "1b8ca91e43710f3c4c7782f2287212ad2c6120ac95353797494c7c298f89488e",
+        "verifiedCommit": "facd32a604d0b6fa67d956689182ddc68331ebd2",
+        "verifiedAt": "2026-08-30",
+        "evidence": [
+          "docs/design/context-bracket-build.md read in full by the orchestrator (claude-b) at the #860 merge (lane cb-ctx-bracket; the build design record: recon with two premise kills (#861 kicker order, Status editor already in Game), the chosen architecture (the claim shrinks to a head-band claim; the shell owns the column), rejected alternatives, the coupled-site table, the test plan, the six forks with their 2026-08-30 rulings, the pre-existing #830 reds)"
+        ],
+        "claims": [
+          {
+            "claim": "The build record matches what landed in facd32a60 + 31625cecb: ContextBracket/ContextRail in app-shell, ContextRegionHost deleted, the region claim reduced to band(), rail names by section (railLabel), kicker above cells in both rails, the topbar yields only while docked (#846 by relocation), the receded rail's fill/floor (#861), coarse cells 56px, D150 minted and D119 amended.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#860"
+              },
+              {
+                "kind": "issue",
+                "target": "#846"
+              },
+              {
+                "kind": "issue",
+                "target": "#861"
+              }
+            ]
+          }
+        ],
+        "summary": "Context bracket build design (#860): the shell renders ONE column for every tabs context pane (head band → optional state rail → viewport → ground → meta rail at the foot); the rpg claim shrinks to a head-band claim; the generic Detail tablist and ContextRegionHost retire; rail model universal (#112); topbar yields to the band while docked (#846); the receded rail gets fill + floor (#861); six forks ruled; the #830 CT reds recorded as pre-existing."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/context-panel-fidelity-findings.md",
       "lane": "design",
       "issue": 5,
@@ -12473,9 +12525,9 @@
       "path": "docs/design/mocks/context-bracket/DESIGN.md",
       "lane": "design",
       "issue": 5,
-      "lines": 63,
-      "bytes": 5110,
-      "sha256": "2b0d7575fae503914829543673c667d714a90c86832f38a1148f5d3defc62684",
+      "lines": 64,
+      "bytes": 5341,
+      "sha256": "29e4a946468a5efb9a9c66e55d6dc78281f20696a61c08a50a545a63ce3d82f2",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12488,12 +12540,12 @@
       },
       "receipt": {
         "path": "docs/design/mocks/context-bracket/DESIGN.md",
-        "assignedSha256": "2b0d7575fae503914829543673c667d714a90c86832f38a1148f5d3defc62684",
+        "assignedSha256": "29e4a946468a5efb9a9c66e55d6dc78281f20696a61c08a50a545a63ce3d82f2",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "2b0d7575fae503914829543673c667d714a90c86832f38a1148f5d3defc62684",
-        "verifiedCommit": "467378dd06ec9b9a85573132d632b71e9fc994ce",
+        "verifiedSha256": "29e4a946468a5efb9a9c66e55d6dc78281f20696a61c08a50a545a63ce3d82f2",
+        "verifiedCommit": "31625cecb28537ff1db6544642cb118a2df6453b",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "Authored by the orchestrator (claude-b) from the owner's live ruling on #860 (2026-08-30, 'I'm good with the mockup'); the canvas artifact 8f56d796 is the clickable form, these files are its repo source; the seven default-state PNGs were rendered at true size from the same artboards and read before commit"
