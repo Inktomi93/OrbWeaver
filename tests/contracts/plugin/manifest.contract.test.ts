@@ -3,7 +3,7 @@
 // typed — bad slug, unserved hostVersion, bad semver, wrong entry, the netHosts ⟺ net.fetch biconditional,
 // netHosts SSRF regex, caps superset), and the OPTIONAL builtAgainst provenance block. Mirror of manifest.ts.
 
-import { PLUGIN_CAPABILITIES, pluginManifestSchema } from "@orb/contracts/plugin";
+import { NET_HOSTS_MAX, PLUGIN_CAPABILITIES, pluginManifestSchema } from "@orb/contracts/plugin";
 import { expect, test } from "../../support/fixtures.ts";
 
 const BASE = {
@@ -165,7 +165,11 @@ test("manifest matrix — netHosts refuses wildcards, schemes, and over-count (t
   const withNet = { ...BASE, capabilities: ["net.fetch"] as const };
   expect(pluginManifestSchema.safeParse({ ...withNet, netHosts: ["*.example.com"] }).success).toBe(false);
   expect(pluginManifestSchema.safeParse({ ...withNet, netHosts: ["https://example.com"] }).success).toBe(false);
-  expect(pluginManifestSchema.safeParse({ ...withNet, netHosts: Array.from({ length: 9 }, (_, i) => `h${i}.example.com`) }).success).toBe(false);
+  // Over-count is judged against the CONSTANT, never a literal — the cap moved 8→16 with hub v1.2 (80908a0d8) and a
+  // literal 9 silently flipped this pin from "refused" to "accepted". At-cap is the accepted control.
+  const hosts = (n: number) => Array.from({ length: n }, (_, i) => `h${i}.example.com`);
+  expect(pluginManifestSchema.safeParse({ ...withNet, netHosts: hosts(NET_HOSTS_MAX) }).success).toBe(true);
+  expect(pluginManifestSchema.safeParse({ ...withNet, netHosts: hosts(NET_HOSTS_MAX + 1) }).success).toBe(false);
 });
 
 // THE HOLE THIS CLOSED (2026-08-02): `hostAllowed` (server/src/infra/network/egress.ts) treats a LEADING-DOT
