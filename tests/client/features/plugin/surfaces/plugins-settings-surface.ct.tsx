@@ -34,7 +34,9 @@ const DROPZONE_INPUT = '[data-slot="file-dropzone-input"]';
  *  from the install card's dropzone, so a different slot). */
 const FILE_TRIGGER_INPUT = '[data-slot="file-trigger-input"]';
 const CHAT = castId<ChatId>("chat_ct_plugin_0001");
-/** The re-consent row's accessible name carries "(new in this update)" after the label, so match by prefix. */
+/** A re-consent row's accessible name carries the "New" pill after the label, so match by prefix. (A prefix
+ *  matcher is right for a row whose identity is the point and wrong for the NAME's own shape — the exact-name
+ *  pin near the bottom of this file owns that, and is what caught a run-on these regexes matched happily.) */
 const NEW_LORE_CAPABILITY = /^Write lorebook entries/u;
 /** Same prefix-match reason: the spendy capability a partial re-consent deliberately leaves unticked. */
 const NEW_TURN_CAPABILITY = /^Ask for a reply on its own/u;
@@ -380,7 +382,13 @@ test("a same-task repeat admits one enable write, owns only its plugin row, and 
   });
   await held.requested;
 
-  await expect(first).toBeDisabled();
+  // THE PENDING SWITCH IS NAMED "off", NOT "on". `useSetPluginEnabled` carries an OPTIMISTIC update that
+  // flips the cached row's `status` the moment the write starts, and the switch's aria-label follows STATE
+  // (a4b008957) — so while the held mutation is in flight this control announces the act it now offers.
+  // The commit that made the label state-derived did not sweep this assertion, which had pinned the old
+  // static name; re-anchored here rather than weakened, because the rename IS the correct behaviour.
+  const firstPending = page.getByRole("switch", { name: "Turn Weather Teller off" });
+  await expect(firstPending).toBeDisabled();
   await expect(sibling).toBeEnabled();
   await expect.poll(() => recorder.count("plugin.setEnabled")).toBe(1);
 
@@ -769,6 +777,95 @@ test.describe("coarse pointer — the disclosure triggers meet the touch floor (
     const activity = page.getByRole("button", { name: "Recent activity for Weather Teller" });
     await expect.poll(async () => (await activity.boundingBox())?.height, { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);
   });
+});
+
+// THE CONSENT ROW'S TARGET IS THE WHOLE TEXT BLOCK, NOT THE 18px BOX (side-eye 2026-08-29 P2-2). The prior
+// `Field orientation="horizontal"` shape docked the checkbox in the fixed control column at the row's FAR
+// edge, so the only clickable pixels on a capability that grants net access / model spend / message rewrite
+// were an 18×18 square ~400px away from the words describing it. The fix is a checkbox-LEADING row whose
+// name, pills AND consequence sit inside a bare `<label htmlFor>` (plugin-grant-list.tsx).
+//
+// This asserts the fix the way a person meets it — a click on the CONSEQUENCE sentence, the text furthest
+// from the box, toggles the grant — plus the adjacency the far-docked column destroyed. Both are blind to
+// `aria-label`/`id` plumbing on purpose: the failure being pinned is "the words do nothing when clicked".
+test("clicking a capability's CONSEQUENCE text toggles its grant, and the box sits beside its own words (P2-2)", async ({ mount, page }) => {
+  // Stateful, so the barrier below is the SETTLED installed row the write's own invalidate repaints.
+  let installed = false;
+  const recorder = await routeTrpc(page, {
+    "plugin.list": () => (installed ? [{ ...INSTALLED_ROW, grantedCapabilities: ["turn.trigger", "net.fetch"] }] : []),
+    "plugin.install": () => {
+      installed = true;
+      return { ...INSTALLED_ROW, grantedCapabilities: ["turn.trigger", "net.fetch"] };
+    },
+    "plugin.getLog": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+  await pickBundle(page, WEATHER_MANIFEST);
+
+  // The install default is the full ask, CONFIRMED — so an unchecked box here can only come from this click.
+  const readBox = page.getByRole("checkbox", { name: "Read this room's messages" });
+  await expect(readBox).toBeChecked();
+
+  // ADJACENCY FIRST, on the settled screen: the control LEADS its words. The old shape put it right of them,
+  // a `justify-between` pane width away — so "is the box left of its label, within one row gap" is exactly
+  // the geometry that moved, and it is measured before any interaction disturbs the layout.
+  const boxRect = await readBox.boundingBox();
+  const wordsRect = await page.getByText("Read this room's messages", { exact: true }).boundingBox();
+  expect(boxRect === null || wordsRect === null).toBe(false);
+  expect(boxRect?.x ?? 0).toBeLessThan(wordsRect?.x ?? 0);
+  expect((wordsRect?.x ?? 0) - ((boxRect?.x ?? 0) + (boxRect?.width ?? 0))).toBeLessThanOrEqual(24);
+
+  // The sentence, not the name and not the box: the label's furthest text from the control.
+  await page.getByText("Sees recent messages and the room's variables", { exact: false }).click();
+  await expect(readBox).not.toBeChecked();
+  // …and it is a REAL grant edit, not a visual toggle — the narrowed subset is what actually gets installed.
+  await page.getByRole("button", { name: "Install" }).click();
+  // SETTLED: the row is in the list and the confirm step is gone, so the write is provably complete.
+  await expect(page.getByRole("switch", { name: "Turn Weather Teller on" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Install" })).toHaveCount(0);
+  // ONESHOT-OK: the settled read above only renders after `plugin.install` was called and recorded.
+  expect((recorder.lastInput("plugin.install") as { grant: readonly string[] } | undefined)?.grant).toEqual(["turn.trigger", "net.fetch"]);
+});
+
+// THE GRANT CHECKBOX'S ACCESSIBLE NAME IS EXACT (side-eye 2026-08-29 P3-5, and its first fix's correction).
+// Composed from the label element, the badge pills concatenated into the name and a screen reader read
+// "Write lorebook entries (new in this update)NewReaches further" on every changed row. The first fix moved
+// the name to `aria-label`, which Base UI's own generated `aria-labelledby` silently outranks — so the run-on
+// survived and GREW to swallow the consequence sentence as well. The name is now an explicit
+// `aria-labelledby` naming exactly the label node and, on a re-consent row, the "New" pill.
+//
+// `exact` IS THE PIN. Every other name assertion in this file is a prefix regex or a substring, and all of
+// them match the run-on — which is precisely why the first fix shipped broken behind a green suite. This
+// asserts what a screen reader actually says, so the consequence appearing in the NAME is a failure here.
+//
+// The VISIBLE half of the same finding: "(new in this update)" is gone from the rendered label, because the
+// "New" badge 8px away said the identical thing twice.
+test("a re-consent row's checkbox name is exactly the label + the new-mark, with no badge run-on (P3-5)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "plugin.list": () => [PENDING_ROW],
+    "plugin.getLog": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  const notice = page.getByRole("alert").filter({ hasText: "stayed off" });
+  await expect(notice).toBeVisible();
+  // The NEWLY-asked row carries BOTH pills and a consequence — the strictest case. Exact name ⇒ the "New"
+  // mark is spoken (a re-consent screen has to say which rows changed), "Reaches further" is not, and the
+  // consequence is not (it reaches AT via `aria-describedby`, once).
+  await expect(notice.getByRole("checkbox", { name: "Write lorebook entries New", exact: true })).toHaveCount(1);
+  // A carried-forward row has no mark at all — the mark is a fact about THIS update, never decoration.
+  await expect(notice.getByRole("checkbox", { name: "Read this room's messages", exact: true })).toHaveCount(1);
+  // Both pills are still on the screen and still in the a11y tree as plain text; they are simply not the NAME.
+  await expect(notice.getByText("New", { exact: true })).toHaveCount(1);
+  // `net.fetch` wears the same mark, so this counts 2 — the claim is that the pill still RENDERS, not that
+  // this row is the only risky one.
+  await expect(notice.getByText("Reaches further", { exact: true }).first()).toBeVisible();
+  // The visible label never repeats what the badge beside it already says.
+  await expect(notice.getByText("(new in this update)", { exact: false })).toHaveCount(0);
 });
 
 test("the snippet console shows what a run logged, and shows a contained failure instead of hanging", async ({ mount, page }) => {
