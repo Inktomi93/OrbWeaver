@@ -814,6 +814,10 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
   expect(spec).toContain('"actionId":"next_page"');
   expect(spec).toContain('"label":"Add to library"');
   expect(spec).not.toContain("Summon");
+  // #818: the decision CTA is the page's ONE primary, and it is the only claimant in the whole spec — so
+  // the renderer's first-in-document-order grant lands on it and cannot drift to the pager or "Back".
+  expect(spec).toContain('{"kind":"button","actionId":"add_to_library","label":"Add to library","variant":"primary"}');
+  expect(spec.match(/"variant":"primary"/g)).toHaveLength(1);
   expect(spec).toContain('"assetFrom":{"$state":"detail.art"}');
   // The nine-hub roster rides the Hub select's declared options.
   for (const hub of ["tavern", "realm", "chub", "wyvern", "aicc", "charavault", "botbooru", "pygmalion", "datacat"]) {

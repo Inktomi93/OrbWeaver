@@ -58,10 +58,10 @@ export function PluginSurfacesPanel({ pluginId, pluginName, grants }: PluginSurf
         return (
           <PluginSurfaceShell key={surface.id} pluginName={pluginName} title={surface.title}>
             {surface.tier === "scripted" ? (
-              <PluginScriptedSurface grants={grants} pluginId={pluginId} surfaceId={surface.id} surfaceIds={scriptedIds} />
+              <PluginScriptedSurface anchor="settings" grants={grants} pluginId={pluginId} surfaceId={surface.id} surfaceIds={scriptedIds} />
             ) : (
               // The filter guarantees a static surface has a spec; the guard keeps the type narrow.
-              surface.spec !== undefined && <PluginSurfaceRenderer pluginId={pluginId} spec={surface.spec} surfaceId={surface.id} />
+              surface.spec !== undefined && <PluginSurfaceRenderer anchor="settings" pluginId={pluginId} spec={surface.spec} surfaceId={surface.id} />
             )}
           </PluginSurfaceShell>
         );

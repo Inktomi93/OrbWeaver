@@ -72,7 +72,7 @@ export function PluginMessageFooterSurfaces(): ReactElement | null {
     <Row align="center" className="flex-wrap" gap="block">
       {visible.map((surface) => (
         <PluginSurfaceShell chrome="inline" key={`${surface.pluginId}:${surface.surfaceId}`} pluginName={surface.pluginName} title={surface.title}>
-          <PluginSurfaceRenderer pluginId={surface.pluginId} spec={surface.spec} surfaceId={surface.surfaceId} />
+          <PluginSurfaceRenderer anchor="message-footer" pluginId={surface.pluginId} spec={surface.spec} surfaceId={surface.surfaceId} />
         </PluginSurfaceShell>
       ))}
     </Row>

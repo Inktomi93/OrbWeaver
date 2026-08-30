@@ -115,6 +115,7 @@ export function SurfaceLeaf({
   submit,
   submitting,
   imageUrls,
+  primaryButton,
 }: {
   readonly node: DisplayNode | FormNode;
   readonly state: Record<string, unknown>;
@@ -123,11 +124,14 @@ export function SurfaceLeaf({
   readonly submit: SubmitAction;
   readonly submitting: boolean;
   readonly imageUrls: ReadonlyMap<string, string>;
+  /** The ONE button node the surface's anchor granted the primary weight (#818), or `null`. The walk decided it
+   *  over the WHOLE tree, so a leaf only has to ask "am I that node?" — see the `button` branch below. */
+  readonly primaryButton: PluginButtonNode | null;
 }): ReactElement {
   return isFormNode(node) ? (
     // `state` reaches the form family too (hub v1.3): a bound select's OPTION LIST lives in published
     // state even though its picked value stays in the client draft.
-    <FormLeaf node={node} setValue={setValue} state={state} submit={submit} submitting={submitting} values={values} />
+    <FormLeaf node={node} primaryButton={primaryButton} setValue={setValue} state={state} submit={submit} submitting={submitting} values={values} />
   ) : (
     <DisplayLeaf imageUrls={imageUrls} node={node} state={state} submit={submit} />
   );
@@ -264,6 +268,17 @@ function SurfaceImage({ node, url }: { readonly node: PluginImageNode; readonly 
   return <MessageMedia alt={node.alt ?? ""} media="image" src={{ kind: "asset", url }} />;
 }
 
+/** The house `Button` intent for one plugin `button` leaf (#818). The primary weight is granted by NODE
+ *  IDENTITY — the walk arbitrated it over the whole surface at its anchor — so a `variant: "primary"` this leaf
+ *  was NOT granted falls through to `secondary`, exactly like a `neutral` one. Reading `node.variant` for the
+ *  primary arm here is the bug this function exists to make unwritable: it would give every claimant the weight. */
+function buttonIntent(node: PluginButtonNode, primaryButton: PluginButtonNode | null): "primary" | "outline" | "secondary" {
+  if (node === primaryButton) {
+    return "primary";
+  }
+  return node.variant === "outline" ? "outline" : "secondary";
+}
+
 /** The FORM/ACTION leaves. Values are client-transient until an action submits the whole bag. An if-chain,
  *  not a switch: each guard narrows `node`, and the final `confirmButton` return doubles as the safe fallback. */
 function FormLeaf({
@@ -273,6 +288,7 @@ function FormLeaf({
   submit,
   submitting,
   state,
+  primaryButton,
 }: {
   readonly node: FormNode;
   readonly values: Record<string, string>;
@@ -280,6 +296,7 @@ function FormLeaf({
   readonly submit: SubmitAction;
   readonly submitting: boolean;
   readonly state: Record<string, unknown>;
+  readonly primaryButton: PluginButtonNode | null;
 }): ReactElement {
   if (node.kind === "textField") {
     return (
@@ -340,8 +357,12 @@ function FormLeaf({
     );
   }
   if (node.kind === "button") {
+    // #818 — the PRIMARY weight is granted by IDENTITY, never by reading `node.variant` here. A leaf asking
+    // "is my variant primary?" would give every claimant the weight; the walk already picked the one the
+    // anchor admits, so a second `primary` falls through to `secondary` exactly like a `neutral` one and the
+    // renderer has already told the plugin's author why (`warnPrimaryRefused`).
     return (
-      <Button intent={node.variant === "outline" ? "outline" : "secondary"} loading={submitting} onClick={(): void => submit(node.actionId)} size="sm">
+      <Button intent={buttonIntent(node, primaryButton)} loading={submitting} onClick={(): void => submit(node.actionId)} size="sm">
         {node.label}
       </Button>
     );

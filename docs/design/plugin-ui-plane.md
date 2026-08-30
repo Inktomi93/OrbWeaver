@@ -200,10 +200,21 @@ primitives. The house pattern: closed `as const` kind tuple + discriminated unio
 | `image` | house media primitive | **source = an `assetId` in the installer's CAS ONLY** — never a URL. No exfil pixel is expressible; external media stays behind the existing ceilings |
 | `markdown` | the sealed Streamdown renderer | the model-content class renderer, already hardened for untrusted text |
 | `textField` / `numberField` / `toggle` / `select` / `slider` | house form primitives | labels required (a11y floor); values are CLIENT-transient until an action submits them |
-| `button` | house `Button` | `variant` clamped to neutral/outline — `primary` stays CONTENT's one primary (the S1 card law, `interaction-direction-spec.md:140-143`); `actionId` names the round-trip |
+| `button` | house `Button` | `variant` ∈ {neutral, outline, primary}. **`primary` is PER-ANCHOR and one-per-anchor (#818, owner ruling 2026-08-30).** `PLUGIN_ANCHOR_PRIMARY_ALLOWED` admits it at `page`/`dialog` only; the renderer's `resolvePluginPrimaryButton` grants the FIRST claimant in document order and DEMOTES every other one to the neutral weight, telling the plugin's author on the browser console. Refused at RENDER, never at parse (a spec is registered once and mounted anywhere), so an over-claiming spec is weighted, never dead. `actionId` names the round-trip |
 | `confirmButton` | tier-2 `ConfirmDialog` | destructive confirms ride the HOUSE dialog, plugin-attributed title — a plugin cannot draw its own confirm |
 | `icon` (#799) | the sealed `@orb/ui` `Icon` | `name` from a CURATED closed tuple (`PLUGIN_ICON_NAMES`) that deliberately EXCLUDES chrome-identity (`Blocks`, the orb-web mark), consent/trust (lock/key/shield/ban) and identity/host-anatomy glyphs — a plugin must not be able to dress a fake consent row in the house's trust iconography. `label` absent ⇒ decorative (`aria-hidden`), the house default |
 | `tabs` (#799) | the house one-of-N strip (`ToggleGroup`/`Toggle` on their `radio` arm) | the page's own AXIS, every option visible at once — the `select`'s grammar (exactly one of `options`/`optionsFrom`, a live `actionId`) with a much smaller cap (`PLUGIN_TABS_OPTIONS_MAX` = 8: a strip that outgrows one row is a `select`). NOT house `Tabs`: this node owns no panels — what a pick changes is whatever the plugin republishes — and a `tablist` pointing at no `tabpanel` is dangling ARIA |
+
+**The one-primary law, and why it survived its input changing (#818).** The S1 card law
+(`interaction-direction-spec.md:140-143`) was minted for the chat CONTROL BAND, whose attention budget the
+host owns and a plugin borrows. On a `page`/`dialog` anchor the plugin's surface IS the whole region and owns
+its own budget — so the ruling is not repealed, its CONDITION is: the band (and `settings`, `tool-card`,
+`message-footer`) keeps the clamp; a page gets exactly one. The mechanism is deliberately RENDER-side and
+carries no security surface: the button still sits inside the no-opt-out attribution band
+(`plugin-surface-shell.tsx`), and a primary weight cannot draw host chrome, steal focus, or open anything the
+vocabulary could not already open. The defect it closed is stickler 2026-08-29 F3 — card-atlas's "Add to
+library" rendered at the same visual weight as "Back to results" on the surface where the whole page exists
+to make one decision.
 
 **The three-states law inside `grid` (#799):** a `grid` names `empty` (the teaching EMPTY) and `loading`
 (a bound boolean → the shelf's shape- and aspect-matched `MediaTileGridSkeleton`). The renderer orders them

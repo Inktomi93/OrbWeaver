@@ -14,6 +14,11 @@
 // U5 (seam 16) ADDED, each with its first consumer landing in the same change: the `page` + `dialog` anchors,
 // the `grid`/`masterDetail`/`searchBar` browse vocabulary, the `image` aspect, and the command + toast +
 // dialog-open vocabulary the host-mediated affordances speak (§4.5a/§4.5b).
+// #818 ADDED the `primary` button weight — SPELLABLE everywhere, HONOURED only where
+// `PLUGIN_ANCHOR_PRIMARY_ALLOWED` says (page/dialog) and only once per anchor. It is the one rule in this file
+// that is deliberately NOT a compile-tier or parse-tier refusal: the anchor is not known until mount, so the
+// arbitration is the renderer's (`resolvePluginPrimaryButton`) and an over-claiming spec is DEMOTED, never
+// rejected. See that tuple's own note for why the S1 one-primary law survives its input changing.
 // STILL DEFERRED, each with its first consumer and its own phase (never a guess): the `$chatVar` binding (waits
 // on the chat-vars read proc) and the `when` CEL visibility predicate (priced with the node that first needs
 // it). Adding those is a priced phase, not a widening of this file.
@@ -71,14 +76,29 @@ export type PluginGapToken = (typeof PLUGIN_GAP_TOKENS)[number];
 export const PLUGIN_TEXT_VOICES = ["body", "gloss", "label"] as const;
 export type PluginTextVoice = (typeof PLUGIN_TEXT_VOICES)[number];
 
-/** A `badge` node's intent — a closed slice of the house Badge intents. `primary` is EXCLUDED: it stays
- *  CONTENT's one primary (the S1 card law), the same reason `button` cannot be `primary`. */
+/** A `badge` node's intent — a closed slice of the house Badge intents. `primary` is EXCLUDED and STAYS
+ *  excluded: a badge is a static mark, not the surface's act, so it has no claim on the attention budget the
+ *  #818 ruling reopened for `button` (see {@link PLUGIN_BUTTON_VARIANTS}). CONTENT's one primary is a CTA law. */
 export const PLUGIN_BADGE_INTENTS = ["neutral", "info", "success", "warning", "danger"] as const;
 export type PluginBadgeIntent = (typeof PLUGIN_BADGE_INTENTS)[number];
 
-/** A `button` node's variant, clamped to the two NEUTRAL weights (plugin-ui-plane §4.3): `primary` is
- *  CONTENT's one primary and is unspellable here. */
-export const PLUGIN_BUTTON_VARIANTS = ["neutral", "outline"] as const;
+/** A `button` node's weight. The two NEUTRAL weights are unconditional; `primary` is ADMITTED (owner ruling
+ *  2026-08-30, #818) but only ARBITRATED — spellable everywhere, HONOURED only where
+ *  {@link PLUGIN_ANCHOR_PRIMARY_ALLOWED} says so, and only once per anchor.
+ *
+ *  THE RULING SURVIVES — ITS INPUT CHANGED. The S1 one-primary law was minted for the chat CONTROL BAND, whose
+ *  attention budget the host owns and a plugin borrows; on a `page`/`dialog` anchor the plugin's surface IS the
+ *  whole region and owns its own budget. So the law is not repealed, its condition is: the band keeps the clamp
+ *  (a `primary` there is refused), a page gets exactly one.
+ *
+ *  IT IS ONE AXIS, NOT TWO. A separate `emphasis` slot beside `variant` would be the parallel map the house
+ *  kills — a button has ONE weight, and this tuple is where it is named.
+ *
+ *  THE ARBITRATION IS A RENDER RULE, NEVER A PARSE RULE. Two `primary` buttons PARSE (`ui.register` accepts the
+ *  spec) and the renderer honours the FIRST in document order, demoting every later one — see
+ *  {@link resolvePluginPrimaryButton}. Refusing at registration would make a spec's admissibility depend on the
+ *  anchor it is later mounted at, and would turn a hierarchy mistake into a dead surface. */
+export const PLUGIN_BUTTON_VARIANTS = ["neutral", "outline", "primary"] as const;
 export type PluginButtonVariant = (typeof PLUGIN_BUTTON_VARIANTS)[number];
 
 /** An `image` node's ASPECT — the BROWSE-GENRE addition (U5, §4.5b failure 1). A cover image in a `grid` tile
@@ -322,6 +342,32 @@ export const PLUGIN_FOOTER_NODE_KIND_ALLOWED = {
   icon: true,
   tabs: false,
 } as const satisfies Record<PluginNodeKind, boolean>;
+
+/** WHICH ANCHORS HONOUR A `primary` BUTTON — the #818 owner ruling, coded in the
+ *  {@link PLUGIN_FOOTER_NODE_KIND_ALLOWED} pattern one axis over (a TOTAL `Record<anchor, boolean>`, so a new
+ *  {@link PLUGIN_SURFACE_ANCHORS} member fails `tsc` until someone DECIDES its attention budget rather than
+ *  inheriting an answer from silence).
+ *
+ *  The line is WHO OWNS THE REGION'S ATTENTION BUDGET:
+ *   - `page` / `dialog` — TRUE. The plugin's surface IS the whole region (a full CONTENT pane; a modal body),
+ *     so its one decision affordance is the region's one primary. This is the F3 defect the ruling closed:
+ *     card-atlas's "Summon to your library" carried the same visual weight as "Back to results".
+ *   - every other anchor — FALSE, and each for the same reason: the surface is a GUEST inside host chrome whose
+ *     primary belongs to the host. `chat-flank`/`chat-settings-section` are the chat CONTROL BAND the S1
+ *     one-primary law was minted for; `settings` is a row inside the plugins pane; `tool-card` is one card in a
+ *     transcript; `message-footer` is per-row decoration that already refuses `button` outright
+ *     ({@link PLUGIN_FOOTER_NODE_KIND_ALLOWED}) — `false` here is the belt under that suspender.
+ *
+ *  This record decides ADMISSION only. The one-per-anchor count is {@link resolvePluginPrimaryButton}'s. */
+export const PLUGIN_ANCHOR_PRIMARY_ALLOWED = {
+  settings: false,
+  "chat-flank": false,
+  "chat-settings-section": false,
+  "tool-card": false,
+  "message-footer": false,
+  page: true,
+  dialog: true,
+} as const satisfies Record<PluginSurfaceAnchor, boolean>;
 
 // ── The `frame` tier's DOCUMENT BODY (U7, §6.2) ───────────────────────────────────────────────────────────────
 // The bytes a frame surface renders. They are the plugin's OWN code and pass through VERBATIM — the frame IS the
@@ -1605,6 +1651,48 @@ function unallowedFooterKinds(spec: PluginSurfaceSpec): readonly PluginNodeKind[
   };
   walk(spec);
   return [...offenders];
+}
+
+// ── The per-anchor PRIMARY arbitration (#818, the F3 ruling) ─────────────────────────────────────────────────
+
+/** What the renderer must do with every `variant: "primary"` button in ONE spec at ONE anchor
+ *  ({@link resolvePluginPrimaryButton}). The nodes are IDENTITIES out of the caller's own validated tree, not
+ *  copies — the renderer compares by reference as it walks, so no node needs an id it does not have. */
+export interface PluginPrimaryArbitration {
+  /** The ONE button that renders at the house primary weight — the FIRST `primary` in document order at an
+   *  anchor {@link PLUGIN_ANCHOR_PRIMARY_ALLOWED} admits. `null` = nobody gets it. */
+  readonly granted: PluginButtonNode | null;
+  /** Every `primary` button DEMOTED to the neutral weight, in document order: the later ones at an admitting
+   *  anchor (the one-per-anchor law) and ALL of them at a refusing one (the band keeps the S1 clamp). Each is a
+   *  spec defect worth telling the plugin's author about, which is why they are returned rather than dropped. */
+  readonly refused: readonly PluginButtonNode[];
+}
+
+/** ARBITRATE the spec's `primary` buttons for the anchor it is mounted at (#818). PURE and total — the ONE home
+ *  for "who gets the primary", so the seven mount sites cannot each invent an answer.
+ *
+ *  WHY IT IS A RENDER RULE. A spec is registered once and could be mounted at any anchor, so admissibility
+ *  cannot be decided at parse; and a spec that DOES over-claim must still render — demotion is a legible
+ *  outcome, a refused registration is a dead surface. First-in-document-order wins because that is the order a
+ *  person reads the surface in, and it makes the outcome deterministic rather than dependent on which subtree
+ *  React commits first. */
+export function resolvePluginPrimaryButton(spec: PluginSurfaceSpec, anchor: PluginSurfaceAnchor): PluginPrimaryArbitration {
+  const claimants: PluginButtonNode[] = [];
+  const walk = (node: PluginSurfaceNode): void => {
+    if (node.kind === "button" && node.variant === "primary") {
+      claimants.push(node);
+    }
+    // The U5 recursion seam, never a per-kind guess — a `masterDetail` stage body holds the browse genre's
+    // real CTA, and a walk blind to it would hand the primary to a button nobody can see.
+    for (const child of pluginChildNodes(node)) {
+      walk(child);
+    }
+  };
+  walk(spec);
+  if (!PLUGIN_ANCHOR_PRIMARY_ALLOWED[anchor]) {
+    return { granted: null, refused: claimants };
+  }
+  return { granted: claimants[0] ?? null, refused: claimants.slice(1) };
 }
 
 // ── The tool-card BINDING ROOT (U3, seam 7 — plugin-ui-plane §4.5's `tool-card` row) ─────────────────────────

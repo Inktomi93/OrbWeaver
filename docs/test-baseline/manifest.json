@@ -282,6 +282,7 @@
     "tests/client/features/plugin/components/plugin-command-args-body.ct.tsx",
     "tests/client/features/plugin/components/plugin-frame.ct.tsx",
     "tests/client/features/plugin/components/plugin-message-footer-surfaces.ct.tsx",
+    "tests/client/features/plugin/components/plugin-primary-cta.suite.ct.tsx",
     "tests/client/features/plugin/components/plugin-scripted-surface.ct.tsx",
     "tests/client/features/plugin/components/plugin-surface-renderer.ct.tsx",
     "tests/client/features/plugin/lib/chat-anchors.ct.tsx",

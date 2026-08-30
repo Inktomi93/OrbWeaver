@@ -139,7 +139,7 @@ export function ExtensionsPageSurface(): ReactElement {
               This page hasn't published anything to draw yet.
             </Text>
           ) : (
-            <PluginSurfaceRenderer pluginId={page.pluginId} spec={page.spec} surfaceId={page.surfaceId} />
+            <PluginSurfaceRenderer anchor="page" pluginId={page.pluginId} spec={page.spec} surfaceId={page.surfaceId} />
           )}
         </PluginSurfaceShell>
       )}

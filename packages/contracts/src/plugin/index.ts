@@ -137,6 +137,7 @@ export type {
   PluginPageHero,
   PluginPageStage,
   PluginPageStageKind,
+  PluginPrimaryArbitration,
   PluginRowNode,
   PluginSearchBarNode,
   PluginSectionNode,
@@ -163,6 +164,7 @@ export type {
 } from "./ui.ts";
 export {
   coercePluginCommandArgs,
+  PLUGIN_ANCHOR_PRIMARY_ALLOWED,
   PLUGIN_ANCHOR_TIERS,
   PLUGIN_BADGE_INTENTS,
   PLUGIN_BUTTON_VARIANTS,
@@ -226,4 +228,5 @@ export {
   resolvePluginBoundSelectOptions,
   resolvePluginBoundTabOptions,
   resolvePluginBoundTiles,
+  resolvePluginPrimaryButton,
 } from "./ui.ts";

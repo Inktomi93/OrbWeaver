@@ -258,7 +258,10 @@ type PluginSurfaceTier = "static" | "scripted" | "frame";
 type PluginGapToken = "tight" | "field" | "row" | "block" | "section";
 type PluginTextVoice = "body" | "gloss" | "label";
 type PluginBadgeIntent = "neutral" | "info" | "success" | "warning" | "danger";
-type PluginButtonVariant = "neutral" | "outline";
+/** A button's weight. `primary` (#818) is honoured ONLY at the `page` and `dialog` anchors and only ONCE per
+ *  surface — the FIRST one in document order wins; every later one, and every `primary` at any other anchor,
+ *  renders at the neutral weight and is logged to the browser console. Your spec is never REFUSED for it. */
+type PluginButtonVariant = "neutral" | "outline" | "primary";
 type PluginImageAspect = "square" | "portrait" | "landscape";
 type PluginPageStageKind = "browse" | "detail";
 type PluginToastLevel = "info" | "success" | "warn" | "error";
