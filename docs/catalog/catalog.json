@@ -13125,28 +13125,28 @@
       "path": "docs/design/plugin-ui-plane.md",
       "lane": "design",
       "issue": 5,
-      "lines": 860,
-      "bytes": 86375,
-      "sha256": "7e47a49d459bcab1f87c11913145e5f773404bacc21c69fe11fdb2b97947321b",
+      "lines": 879,
+      "bytes": 88821,
+      "sha256": "2cd594e3cc43530b13e69b57302c2562a529d0b3efd07ad9c8684c38f7751891",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-08-28"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/plugin-ui-plane.md",
-        "assignedSha256": "2c6071d6688a469a2f34b232e73974cdf54e1602e3d036fa920720c44d809a0d",
+        "assignedSha256": "2cd594e3cc43530b13e69b57302c2562a529d0b3efd07ad9c8684c38f7751891",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "7e47a49d459bcab1f87c11913145e5f773404bacc21c69fe11fdb2b97947321b",
-        "verifiedCommit": "c49bbbb49bedd4cd2a2d06a5004e8ae338569bd4",
-        "verifiedAt": "2026-08-28",
+        "verifiedSha256": "2cd594e3cc43530b13e69b57302c2562a529d0b3efd07ad9c8684c38f7751891",
+        "verifiedCommit": "60025ad149821df5f077acf5bd712a9c0168e091",
+        "verifiedAt": "2026-08-30",
         "evidence": [
           "born-reviewed by its authoring lane (cb-plugui-design, #679): every build-state claim tree-verified 2026-08-24 with path:line receipts before commit 766525006",
           "designed against the full commissioned reading set: plugin-design 01-04, the D46 security review (docs/reviews/security/2026-08-24-d46-membrane-review.md), client-architecture-lockdown (D70), interaction-direction-spec §1/§3/§7-C7a, plugin-automation-juice (A2-F5), contribution-contracts.ts, the card-frame substrate (kit + entry/http + ui sandbox-frame), and issues #675/#677/#124",
@@ -13154,7 +13154,8 @@
           "the ST parity register (§5) built from Core-SillyTavern-Feature-Map.md + Core-ST-Feature-Gap-Register.md plus the live ST extension-authoring docs fetched raw per the web-fetching rule 2026-08-24",
           "revision 9bc1cd142 (same lane, same day): the full-parity ruling folded — every deferred parity row committed and phase-slotted (U5-U8), the ui.frame hatch committed as scheduled phase U7 (security-executor-gated), §6.1 arbitrary-pixels rows resolved to the hatch, §5a converted to the enablement price sheet per the follow-up steer ('some of those features I could be convinced to enable'), the five original open questions resolved against the ruling, residual owner ask reduced to TTS/STT (substrate)",
           "addendum 2b09d3c00 (steer 7 + owner provenance correction): ui.page surface kind + the ONE house Extensions rail entry (§4.5b — the full §6a SECTION_IDS playbook priced as seam 16, empty state argued visible-with-teaching against hide-by-default), character.ingest joins U8 as databank.ingest's sibling (seam 17), and the hub-browser showcase — the prior hub verified as THIS repo's own house-UI section (built cc6b7db38/8d95cad08, purged f6c5c588e 2026-07-22, read from history this session) and mined for the four-item failure list that now constrains the page grammar (grid/masterDetail/searchBar browse-genre nodes)",
-          "U6 build + dated truth-repair (lane executor-u6-server-seams, #679): §7a records the seam-14 repair (the doc's \"applied at the render path\" asserted a SERVER-side render path that does not exist — renderMessageForDisplay is client-side and sync at packages/client/src/lib/message-render.ts:91; owner ruling 2026-08-28 approved the client-submits-rendered-text arm, and the recorded ordering member macros → member DISPLAY regex → plugin display transforms → markdown), the §5.15 macros mechanical correction (kit's MacroHandler is sync, so a plugin macro is a per-turn resolved VALUE and takes no arguments), the §5.5 + seam-14 rows marked BUILT, and the §2 ground-truth ToolRenderer row marked HISTORICAL (closed by U3, 03480da00 / 21ebaf174). Verified at this lane's own build commit 2c08ac420 (the commit that introduced the §7a repair; if the branch is rebased at merge this sha orphans and the entry needs a re-stamp — the known self-referencing-receipt hazard); the passages NOT touched by this lane were not re-read and their prior attestation stands."
+          "U6 build + dated truth-repair (lane executor-u6-server-seams, #679): §7a records the seam-14 repair (the doc's \"applied at the render path\" asserted a SERVER-side render path that does not exist — renderMessageForDisplay is client-side and sync at packages/client/src/lib/message-render.ts:91; owner ruling 2026-08-28 approved the client-submits-rendered-text arm, and the recorded ordering member macros → member DISPLAY regex → plugin display transforms → markdown), the §5.15 macros mechanical correction (kit's MacroHandler is sync, so a plugin macro is a per-turn resolved VALUE and takes no arguments), the §5.5 + seam-14 rows marked BUILT, and the §2 ground-truth ToolRenderer row marked HISTORICAL (closed by U3, 03480da00 / 21ebaf174). Verified at this lane's own build commit 2c08ac420 (the commit that introduced the §7a repair; if the branch is rebased at merge this sha orphans and the entry needs a re-stamp — the known self-referencing-receipt hazard); the passages NOT touched by this lane were not re-read and their prior attestation stands.",
+          "delta re-verify 2026-08-30 (60025ad149821df5f077acf5bd712a9c0168e091, #799 vocabulary reach merged by the orchestrator, who read the delta in full): two §4.3 table rows (icon over the curated PLUGIN_ICON_NAMES tuple; tabs as the house one-of-N radio strip), the three-states law paragraph inside grid (loading → empty → tiles, reachable at both tiers), and a frame-injection blockquote recording that the slice widened while the isSafeColor clamp did not (radius/mono ride the new styleTokens slot + clampCardFrameStyleTokens); no other line changed; typed claims unaffected"
         ],
         "claims": [
           {
