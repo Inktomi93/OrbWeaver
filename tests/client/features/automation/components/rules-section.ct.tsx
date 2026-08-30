@@ -857,6 +857,36 @@ test("#655: the picker speaks with ONE heading, and the heading names the step",
   await expect(reopened.getByRole("heading", { name: "Add a rule" })).toBeVisible();
 });
 
+// #814: the OTHER close path. The reset above rides `onOpenChange`, which Base UI fires only for a
+// USER-driven close (Escape, outside press) — a successful mint closes the popover by setting the
+// controlled `open` itself, so the reset never ran for the one close a host reaches most. Reopening
+// landed on the PREVIOUS preset's knob form with the catalogue unreachable, and the one visible
+// "Add rule" button minted a DUPLICATE of the rule just added while the host believed they had picked
+// a different one (measured twice on main, e96afef17). The two presets here are deliberately
+// distinguishable at BOTH steps: `Add 2 rules` is the clock's own button label, so the second mint
+// cannot be the pacing form wearing a different name.
+test("#814: a MINT returns the picker to its catalogue — the next rule is the one the host picked", async ({ mount, page }) => {
+  const trpc = await stub(page, { rules: [], presets: [PACING_PRESET, CLOCK_PRESET] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+
+  const popup = await openPicker(page);
+  await popup.getByRole("button", { name: "Periodic pacing nudge" }).click();
+  await popup.getByRole("button", { name: "Add rule", exact: true }).click();
+  await expect.poll(() => trpc.count("automation.createRuleFromPreset")).toBe(1);
+  await expect(popup).toHaveCount(0);
+
+  // The catalogue, not the form the host already finished with.
+  const reopened = await openPicker(page);
+  await expect(reopened.getByRole("heading", { name: "Add a rule" })).toBeVisible();
+  await reopened.getByRole("button", { name: "Clock fires when full" }).click();
+  await expect(reopened.getByRole("heading", { name: "Clock fires when full" })).toBeVisible();
+  await reopened.getByRole("button", { name: "Add 2 rules", exact: true }).click();
+
+  // Two mints, two DIFFERENT presets, in the order the host chose them — the duplicate is the defect.
+  await expect.poll(() => trpc.count("automation.createRuleFromPreset")).toBe(2);
+  await expect.poll(() => trpc.inputs("automation.createRuleFromPreset")).toMatchObject([{ presetId: "pacingNudge" }, { presetId: "clockFires" }]);
+});
+
 // #663: the GEOMETRIC half — a NARROW viewport, matching the real docked pane (the context pane is
 // flush against the app window's own edge, so its available width IS the pane width, not this CT's
 // roomy 1280px default). `PopoverPopup width="stable"` (packages/ui/src/primitives/popover/popover.tsx)
@@ -1047,3 +1077,191 @@ for (const theme of THEMES) {
     });
   }
 }
+
+// ── #815: THIS SURFACE'S LAYOUT-SHIFT BUDGET, AS A NUMBER ─────────────────────────────────────────
+// The B10 side-eye measured `CLS 0.3263 (virtualized 0.0240)` across a long live drive and wrote the
+// non-virtualized ~0.302 down against "the This chat pane growing as rules were minted/toggled". That
+// attribution is an OBSERVATION, not a measurement — `__orb.motion().cls` is a page-LIFETIME
+// accumulator, so a whole-drive number cannot name a surface. This pin is the measurement, and it
+// disagrees: the rules surface's own paid CLS for a FULL editing session is ~0.0096.
+//
+// "PAID" IS THE WHOLE TRICK. A `layout-shift` entry whose `hadRecentInput` is true is EXCLUDED from CLS
+// by the browser — input within 500ms before the shift means the host asked for it. With a CT's instant
+// stubs every arrival lands inside that window, so a naive probe here reads zero forever and proves
+// nothing. Every response below is therefore HELD (`trpcHold`) until the window has lapsed, which is
+// what a real server's latency does for free — only then is the shift one a host actually pays.
+//
+// THE PAID MOVERS, measured (cb-b2-fixes, 2026-08-30, 1280x720 viewport / 384px docked mount):
+//   0.00193  the dry-run verdict is inserted MID-ROW — the disclosure and the picker trigger each +60px
+//   0.00613  the fire log's 2-line skeleton is replaced by twelve real rows — the picker trigger leaves
+//            the viewport (~480px appears where ~64px stood). The largest term, 76% of the session.
+//   0.00155  the mint's refetched list adds a row — the picker trigger moves again
+// Total 0.00961, an order of magnitude under the 0.1 "good" bar.
+//
+// THESE MOVERS SATURATE, which is the one thing to know before tightening the budget: every term's
+// impact region is bounded by the VIEWPORT, and by the third step the picker trigger is already at the
+// bottom edge. A taller fire log therefore does not scale the number — it stops contributing.
+//
+// THE BUDGET IS PROVEN FAILABLE, AND ITS GREEN IS PROVEN NOT-VACUOUS (a fence nobody has watched bite
+// is a wish):
+//   · fire fixture 12 → 60 rows: the log term grows 0.00613 → 0.01333, total 0.01527 — still GREEN.
+//     That is the saturation above, measured. Do NOT read a green here as "the fire log is bounded".
+//   · mount 384px → 1200px (the same movers over more viewport): total 0.02514 — RED, and the failure
+//     message names each mover. That is the control this budget's green rests on.
+const PAID_CLS_BUDGET = 0.02;
+/** The `hadRecentInput` window: input within 500ms BEFORE a shift flags it out of CLS. 600 clears it
+ *  with margin. See `letInputWindowLapse` for why a real elapsed wait is the mechanism, not a smell. */
+const INPUT_WINDOW_LAPSE_MS = 600;
+/** Twelve refusals — a plausible tail for a rule that keeps NOT firing, which is this surface's whole
+ *  reason to exist, and enough rows that the skeleton's two lines are visibly not the shape they stand
+ *  in for. It is also one of the probe's two dials (see the control receipts above the budget). */
+const FIRE_LOG_ROWS = 12;
+
+/** What the in-page observer keeps: the shifts a host PAYS for, plus a count of EVERY entry seen. The
+ *  second number is the instrument's liveness tripwire — a run that recorded nothing at all is "I could
+ *  not measure", which must never read the same as "nothing moved". */
+interface ShiftLedger {
+  readonly seen: number;
+  readonly paid: readonly { readonly value: number; readonly movers: readonly string[] }[];
+}
+
+/** Let the browser's `hadRecentInput` window lapse before a held response is released.
+ *
+ *  A REAL elapsed wait is the MECHANISM UNDER TEST here, not a flake band-aid: the browser flags a
+ *  `layout-shift` entry out of CLS when input landed within 500ms BEFORE it, so a probe that wants the
+ *  PAID shift has to let that window pass — which is all a live server's latency does for free. Spelled
+ *  as a node-side sleep rather than `page.waitForTimeout` (biome's `noPlaywrightWaitForTimeout`) or a
+ *  `performance.now()` poll (the `test-determinism` gate bans an ambient clock in a test, and it is
+ *  right: a poll on the page clock is this same sleep wearing a condition). Doubles as the
+ *  PerformanceObserver's delivery barrier. */
+async function letInputWindowLapse(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, INPUT_WINDOW_LAPSE_MS);
+  });
+}
+
+/** Start recording. `buffered: true` so anything already emitted this document replays into the store. */
+async function recordShifts(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const ledger: { seen: number; paid: { value: number; movers: string[] }[] } = { seen: 0, paid: [] };
+    // `Object.assign` / `Reflect.get` rather than a cast through `unknown`: the ledger has to outlive
+    // this evaluate so a later one can read it, and `no-test-fabrication` is right that a double-cast in
+    // a test is a fabricated type. This is a real object crossing the page boundary, not a fake shape.
+    Object.assign(globalThis, { __shiftLedger: ledger });
+    new PerformanceObserver((list): void => {
+      for (const entry of list.getEntries()) {
+        const shift = entry as PerformanceEntry & {
+          value: number;
+          hadRecentInput: boolean;
+          sources?: { node?: Element | null; previousRect: DOMRectReadOnly; currentRect: DOMRectReadOnly }[];
+        };
+        ledger.seen += 1;
+        if (shift.hadRecentInput) {
+          continue; // the host asked for it inside the input window — not CLS.
+        }
+        ledger.paid.push({
+          value: shift.value,
+          movers: (shift.sources ?? []).map((source) => {
+            const text = (source.node?.textContent ?? "").trim().slice(0, 30);
+            return `"${text}" y ${Math.round(source.previousRect.y)}→${Math.round(source.currentRect.y)}`;
+          }),
+        });
+      }
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+}
+
+test("#815: a full rules-editing session stays inside this surface's layout-shift budget", async ({ mount, page }) => {
+  const listHold = trpcHold();
+  const firesHold = trpcHold();
+  const testHold = trpcHold();
+  let listCalls = 0;
+  let fireCalls = 0;
+  const fires = Array.from({ length: FIRE_LOG_ROWS }, (_row, index) => ({
+    id: `automationfire_ct_${index}`,
+    ruleId: "automationrule_ct1",
+    chatId: CHAT,
+    triggerType: "turnCompleted",
+    outcome: "budget_refused",
+    detail: { limit: "rule_hourly" },
+    automationDepth: 0,
+    firedAt: A_PAST_INSTANT,
+  }));
+  await routeTrpc(page, {
+    ...VIEWER_SETTINGS_ROUTE,
+    // The FIRST read is the mount's; the refetch a mutation triggers is the one held past the window.
+    "automation.listRules": (): unknown => {
+      listCalls += 1;
+      return listCalls === 1 ? [RULE] : listHold;
+    },
+    "automation.listFires": (): unknown => {
+      fireCalls += 1;
+      return fireCalls === 1 ? firesHold : fires;
+    },
+    "automation.listRulePresets": () => [PACING_PRESET, CLOCK_PRESET],
+    "automation.setRuleEnabled": () => ({}),
+    "automation.setRuleSuggestOnRefusal": () => ({}),
+    "automation.testRule": (): unknown => testHold,
+    "automation.createRuleFromPreset": (): unknown => [FREE_RULE],
+    "automation.deleteRule": () => undefined,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+  });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  const firstRow = page.getByText("Illustrate the scene", { exact: true });
+  await expect(firstRow).toBeVisible();
+  await recordShifts(page);
+
+  // 1 — the dry run. Its verdict is inserted between the row's controls and its fire log.
+  await page.getByRole("button", { name: "Test Illustrate the scene" }).click();
+  await testHold.requested;
+  await letInputWindowLapse();
+  testHold.release({ predicate: true, arms: [{ type: "generate_image", renderedPreview: "a moody scenario shot" }] });
+  await expect(page.getByRole("status", { name: "Test result for Illustrate the scene" })).toBeVisible();
+  await letInputWindowLapse();
+
+  // 2 — the fire log. A two-line skeleton stands in for twelve two-line rows.
+  await page.getByRole("button", { name: "Recent activity for Illustrate the scene" }).click();
+  await firesHold.requested;
+  await letInputWindowLapse();
+  firesHold.release(fires);
+  await expect(page.getByText("It had already run 30 times this hour — its own cap.").first()).toBeVisible();
+  await letInputWindowLapse();
+
+  // 3 — a mint, with the list refetch arriving after the host has stopped touching anything.
+  const topBeforeMint = await firstRow.evaluate((element) => Math.round(element.getBoundingClientRect().top + window.scrollY));
+  await page.getByRole("button", { name: "Add a rule", exact: true }).click();
+  await page.getByRole("button", { name: "Periodic pacing nudge" }).click();
+  await page.getByRole("button", { name: "Add rule", exact: true }).click();
+  await listHold.requested;
+  await letInputWindowLapse();
+  listHold.release([RULE, FREE_RULE]);
+  await expect(page.getByText("Count the beats", { exact: true })).toBeVisible();
+  await letInputWindowLapse();
+
+  // DOCUMENT position, not the viewport's: opening the picker scrolls its trigger into view on a tall
+  // section, and a scroll is not a layout shift — a viewport-relative top fails this fence on the scroll
+  // alone (measured 37 -> -283 with no row having moved).
+  // A minted rule APPENDS — `createRule` assigns `position = max+1` per call
+  // (domain/automation/verbs/create-rule-from-preset.ts) and `listRules` orders by position — so the rows
+  // a host is already reading do not move. A FENCE, not a defect proof: it is green on today's source,
+  // and it REDs the day a list ordering flips to newest-first and jumps every row already on screen.
+  await expect.poll(async () => firstRow.evaluate((element) => Math.round(element.getBoundingClientRect().top + window.scrollY))).toBe(topBeforeMint);
+
+  // An observer that never attached reads back as the EMPTY ledger, which the liveness assertion below
+  // then reports as "I could not measure" — never as "nothing moved".
+  const ledger: ShiftLedger = await page.evaluate(() => (Reflect.get(globalThis, "__shiftLedger") as ShiftLedger | undefined) ?? { seen: 0, paid: [] });
+  // THE READS BELOW ARE DELIBERATELY ONE-SHOT, AND POLLING THEM WOULD BE THE BUG. The drive is over and
+  // the input window has lapsed twice since the last mutation, so the ledger is settled — while an
+  // `expect.poll` on a GROWING accumulator against an upper bound passes on its first sample by
+  // construction and can never fail (the un-failable-ordering class). A budget is asserted on the
+  // FINAL total or not at all.
+  //
+  // LIVENESS FIRST: a run that saw no `layout-shift` entry AT ALL did not measure this surface — the
+  // observer never attached, or the drive never reached a paint. A bare zero must not read as a pass.
+  // ONESHOT-OK: the drive is over and two input-window lapses have passed since the last state change.
+  expect(ledger.seen).toBeGreaterThan(0);
+  const paid = ledger.paid;
+  const total = paid.reduce((sum, shift) => sum + shift.value, 0);
+  const movers = paid.map((shift) => `${shift.value.toFixed(5)} ${shift.movers.join(" + ")}`).join("\n");
+  expect(total, `paid CLS ${total.toFixed(5)} over budget. Movers:\n${movers}`).toBeLessThanOrEqual(PAID_CLS_BUDGET);
+});
