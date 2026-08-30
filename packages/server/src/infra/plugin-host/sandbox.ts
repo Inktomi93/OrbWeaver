@@ -46,7 +46,7 @@ import {
 import { installCpuGuard, openCpuWindow, pumpGuestJobs } from "./cpu-guard.ts";
 import type { InFlightCounter, InvocationChat, MembraneRuntime, PluginBridge } from "./membrane.ts";
 import { getPluginQuickJS } from "./module.ts";
-import type { HostSeams } from "./realm.ts";
+import type { HostSeams, LogMirror } from "./realm.ts";
 import { installRealm, LogRing } from "./realm.ts";
 
 /** Per-instance DoS limits. All default to the shared budget constants; a snippet passes a wider wall. */
@@ -208,7 +208,7 @@ export class Sandbox implements Disposable {
   /** Boot a fresh guest instance: load the process module, mint an isolated context, cap its memory + stack,
    *  and install the injected-seam realm (+ the membrane, when `membrane` is supplied). Async because the WASM
    *  module loads once per process. */
-  static async create(seams: HostSeams, opts: { limits?: Partial<SandboxLimits>; membrane?: SandboxMembrane } = {}): Promise<Sandbox> {
+  static async create(seams: HostSeams, opts: { limits?: Partial<SandboxLimits>; membrane?: SandboxMembrane; logMirror?: LogMirror } = {}): Promise<Sandbox> {
     const mod: QuickJSWASMModule = await getPluginQuickJS();
     const ctx = mod.newContext();
     const resolved: SandboxLimits = { ...DEFAULT_LIMITS, ...opts.limits };
@@ -220,7 +220,10 @@ export class Sandbox implements Disposable {
     // It is INERT until a span opens a window — but it must be in place before the first pump, because a pump
     // is precisely where an un-installed handler let guest bytecode run unbounded (#781).
     installCpuGuard(ctx, resolved.cpuDeadlineMs);
-    const log = new LogRing();
+    // ONE ring for the instance's lifetime — the invocation AND every post-settle job pump push into it, and
+    // `drain()` is destructive, so nothing here ever resets it (#806). The optional mirror is the port's
+    // per-line tap into the central log (`LogMirror`); absent ⇒ the ring alone.
+    const log = new LogRing(opts.logMirror);
 
     const state: ResidentState = {
       chat: null,
@@ -315,6 +318,15 @@ export class Sandbox implements Disposable {
    *  lifetime by design). */
   get pendingHandles(): number {
     return this.outstanding;
+  }
+
+  /** Every guest log line pushed since the last drain — the lines a FLOATED continuation wrote between
+   *  invocations (a post-settle pump runs guest bytecode, and that bytecode logs). Destructive, like every
+   *  drain: the port retains what this returns in the instance's runtime ring, so `readLog` and the next
+   *  `invoke` can each pick the residue up exactly once (#806). Safe on a dead context — the ring is host
+   *  memory, not a QuickJS handle. */
+  drainLog(): readonly string[] {
+    return this.log.drain();
   }
 
   /** True while the underlying context is alive (false after dispose). */
@@ -506,15 +518,20 @@ export class Sandbox implements Disposable {
       // policy counts it, and the plugin auto-disables at the threshold.
       return endedInstanceOutcome();
     }
-    this.log.reset();
-    // NOTE what is deliberately NOT reset here: `state.inFlight`. It counts host-fn IMPLEMENTATIONS that have
-    // started and not settled, and those OUTLIVE an invocation (the host-fn deadline bounds a call without
-    // signalling cancellation cannot tear a transactional write in two, so some impls may still run). Zeroing
-    // it here let a straggler's release
-    // decrement a counter this invocation had already reset — the counter drifted NEGATIVE and admitted more than
-    // `HOST_CALLS_IN_FLIGHT_MAX` concurrent host calls (measured 2026-08-24: 36 of a 40-call burst admitted). The
-    // counter is per-INSTANCE and self-healing by construction (one release per acquisition); see
-    // `InFlightCounter` in membrane.ts for the full P2-G reasoning.
+    // NOTE what is deliberately NOT reset here — TWO things, for the same reason (host work and guest bytecode
+    // both outlive an invocation):
+    //  • `this.log`. It used to be `reset()` on this line, which DESTROYED every line a floated continuation had
+    //    pushed since the previous drain (a post-settle pump runs guest bytecode, and that bytecode logs) —
+    //    the one piece of evidence a parked hub search left behind read as "the guest never logged" (#806).
+    //    `drain()` is destructive now, so an invocation's outcome still carries exactly its own lines, and
+    //    the residue is picked up by the port (`drainLog`) before the next run / on the next read instead.
+    //  • `state.inFlight`. It counts host-fn IMPLEMENTATIONS that have started and not settled, and those OUTLIVE
+    //    an invocation (the host-fn deadline bounds a call without signalling cancellation cannot tear a
+    //    transactional write in two, so some impls may still run). Zeroing it here let a straggler's release
+    //    decrement a counter this invocation had already reset — the counter drifted NEGATIVE and admitted more
+    //    than `HOST_CALLS_IN_FLIGHT_MAX` concurrent host calls (measured 2026-08-24: 36 of a 40-call burst
+    //    admitted). The counter is per-INSTANCE and self-healing by construction (one release per acquisition);
+    //    see `InFlightCounter` in membrane.ts for the full P2-G reasoning.
     // The DoS deadline reads a MONOTONIC real clock (performance.now), NOT the guest's injected seam: the
     // interrupt must fire in real time regardless of a frozen test clock. It preempts guest BYTECODE only —
     // host calls self-bound separately (membrane's attachAsync), and the whole invocation is bounded by the

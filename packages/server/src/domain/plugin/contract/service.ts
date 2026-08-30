@@ -99,6 +99,10 @@ export interface CreateInstanceInput {
    *  list (the SSRF wall); omitted/absent ⇒ `[]` fail-closed (no host reachable). */
   readonly netHosts?: readonly string[];
   readonly budgets?: PluginBudgets;
+  /** The tag the runtime stamps on every guest log line it mirrors into the CENTRAL log stream (the file log +
+   *  `/api/_debug/logs`): the manifest slug, plain-string DATA forwarded from the RE-VALIDATED manifest exactly
+   *  like `netHosts` (never guest-runtime-supplied). Absent ⇒ the runtime mirrors nothing (a snippet run). */
+  readonly label?: string;
 }
 
 /** The outcome of an activation run: a healthy resident instance, OR a contained activation failure
@@ -129,11 +133,12 @@ export interface PluginHostPort {
     readonly bridge: PluginBridge;
     readonly chat: InvocationChat;
   }) => Promise<SnippetResult>;
-  /** A non-destructive snapshot of the instance's RUNTIME host.log ring: the activation drain plus every later
-   *  invocation's, oldest-first, bounded and evicted from the front by the port. IN-MEMORY and per resident
-   *  instance (`ASSUMES(single-replica)`) — a restart or a deactivate→activate cycle resets it. It is a recent-
-   *  activity view for the owner, NOT an audit log of record: derive nothing security-load-bearing from what it
-   *  contains or from what it is missing. */
+  /** A snapshot COPY of the instance's RUNTIME host.log ring: the activation drain, every later invocation's,
+   *  AND whatever a floated continuation logged between invocations (picked up on this read — #806), oldest-
+   *  first, bounded and evicted from the front by the port. IN-MEMORY and per resident instance
+   *  (`ASSUMES(single-replica)`) — a restart or a deactivate→activate cycle resets it. It is a recent-activity
+   *  view for the owner, NOT an audit log of record: derive nothing security-load-bearing from what it contains
+   *  or from what it is missing. */
   readonly readLog: (instance: PluginInstance) => readonly PluginLogView[];
   /** Tear down the instance (disposes the guest context + all realm handles). Idempotent-safe. */
   readonly dispose: (instance: PluginInstance) => void;

@@ -25,5 +25,5 @@ export {
 } from "./budgets.ts";
 export { getPluginQuickJS } from "./module.ts";
 export { createPluginHost, type PluginHostSeamDeps } from "./port.ts";
-export { type HostSeams, installRealm, LogRing } from "./realm.ts";
+export { AMBIENT_STUBS, type HostSeams, installRealm, LogRing } from "./realm.ts";
 export { boundHostFn, type EvalOutcome, type GuestError, PLUGIN_INVOCATION_ENDED, Sandbox, type SandboxLimits } from "./sandbox.ts";

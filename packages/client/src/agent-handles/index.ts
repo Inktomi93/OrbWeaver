@@ -27,17 +27,19 @@ import type { TRPCClient } from "@trpc/client";
 import type { Trpc } from "#data";
 import { activeChatId, activeDurableLocalUserId } from "#state";
 import { buildAgentNav } from "../agent-nav/index.ts";
+import { buildAgentPlugin } from "../agent-plugin/index.ts";
 import { buildAgentRpg } from "../agent-rpg/index.ts";
 import { buildAgentSeed } from "../agent-seed/index.ts";
 import { installAgentDebugHandle } from "../lib/agent-bridge.ts";
 
-/** Build the three `__orb` implementations and install the dev introspection handle. Dev-only by
+/** Build the four `__orb` implementations and install the dev introspection handle. Dev-only by
  *  construction: main.tsx reaches this module through an `import.meta.env.DEV` dynamic import. */
 export function installAgentHandles(queryClient: QueryClient, trpcClient: TRPCClient<AppRouter>, trpcProxy: Trpc): void {
   installAgentDebugHandle(queryClient, {
     nav: buildAgentNav(trpcProxy, queryClient),
     seed: buildAgentSeed(trpcClient),
     rpg: buildAgentRpg(trpcClient, activeChatId),
+    pluginLog: buildAgentPlugin(trpcClient),
     durableLocalUserId: activeDurableLocalUserId,
   });
 }

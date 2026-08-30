@@ -3,7 +3,10 @@
 
 export {
   type AppSettingRow,
+  type AutomationFireFilter,
+  type AutomationFireRow,
   appSettingRows,
+  automationFireRows,
   type CharacterDetailRow,
   type CharacterListRow,
   type ChatConfigRow,

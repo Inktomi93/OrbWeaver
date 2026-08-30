@@ -17,7 +17,7 @@ import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
 import { DEFAULT_CHAT_MODEL_ID, DEFAULT_OR_CHAT_MODEL_ID } from "@orb/contracts/connection";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { AutomationRuleId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Context, Hono, MiddlewareHandler, Next } from "hono";
 import { APP_VERSION } from "#foundation/config";
@@ -27,6 +27,7 @@ import { logRing, recentRequests } from "../logger.ts";
 import { getTraceByRequestId, recentTraces } from "../tracing.ts";
 import {
   appSettingRows,
+  automationFireRows,
   characterDetailRow,
   characterListSummaries,
   characterPolicySweep,
@@ -478,6 +479,22 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
       const ownerId = c.req.query("ownerId");
       const rows = await personaRows(db, ownerId === undefined ? undefined : castId<UserId>(ownerId));
       return c.json({ count: rows.length, personas: rows });
+    });
+
+    // The AUTOMATION FIRE LOG: the durable `automation_fires` ledger, newest-first, principal-blind across the
+    // deployment (the owner-scoped `automation.listFires` verb answers per rule for its author; a harness
+    // driving a live stage needs the whole log — "why didn't my rule fire" with the per-arm `detail`). The
+    // in-flight `reserved` hold is excluded exactly as every domain read excludes it. `?chatId=` / `?ruleId=`
+    // narrow; the analysis arm's diagnostic LINES are already in `/api/_debug/logs` — this is the durable half.
+    app.get("/api/_debug/automation/fires", async (c) => {
+      const chatId = c.req.query("chatId");
+      const ruleId = c.req.query("ruleId");
+      const fires = await automationFireRows(db, {
+        ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
+        ...(ruleId !== undefined ? { ruleId: castId<AutomationRuleId>(ruleId) } : {}),
+        limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
+      });
+      return c.json({ count: fires.length, fires });
     });
   }
   if (assets !== undefined) {

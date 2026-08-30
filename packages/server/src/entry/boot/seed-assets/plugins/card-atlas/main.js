@@ -261,6 +261,151 @@ function cnt(v) {
  *  ~5138 AD in seconds and ~1973 in ms, so no real card date is ambiguous. */
 const EPOCH_SECONDS_CEILING_MS = 100_000_000_000;
 
+// ── the date engine (pure arithmetic — the sandbox has NO `Date`) ─────────────────────────────────────────
+// The realm replaces `Date` / `Date.parse` / `Date.UTC` with THROWING stubs (the determinism law: a guest's
+// only clock is `host.clock`), so a hub's ISO stamp has to be parsed here by hand. v1.3.1 called `Date.parse`
+// for every ISO string — every hub whose rows carry one (chub, wyvern, aicc, botbooru, datacat) threw inside
+// the floated search continuation, the `.catch` logged it, and the page sat on "Searching…" forever
+// (#805). The grammar below is exactly the wire shapes the hubs send (receipts 2026-08-30):
+// `YYYY-MM-DD[Tt ]HH:MM[:SS[.frac]][Z|±HH[:]MM]` and the bare `YYYY-MM-DD`; a missing zone reads as UTC
+// (botbooru's naive stamps — the value feeds a YYYY-MM-DD display and a sort order, where hours of offset
+// are immaterial); the fraction truncates to milliseconds. Anything else is the ABSENT datum (`undefined`,
+// never a throw): a hub's format drift degrades one sort datum, never a search. Civil-date arithmetic is
+// Howard Hinnant's days-from-civil / civil-from-days (proleptic Gregorian, 400-year eras).
+const ISO_STAMP_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[Tt ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?)?(Z|z|[+-]\d{2}:?\d{2})?$/;
+const MONTHS_PER_YEAR = 12;
+const FEBRUARY = 2;
+const MARCH = 3;
+const MONTHS_AFTER_MARCH_WRAP = 10; // month-from-March indices 0..9 are Mar..Dec; 10, 11 wrap to Jan, Feb
+const YEARS_PER_ERA = 400;
+const DAYS_PER_ERA = 146_097;
+const DAYS_PER_ERA_LESS_ONE = 146_096;
+const DAYS_PER_CENTURY = 36_524;
+const DAYS_PER_LEAP_CYCLE = 1460;
+const LEAP_CYCLE_YEARS = 4;
+const CENTURY_YEARS = 100;
+const DAYS_PER_YEAR = 365;
+const CIVIL_EPOCH_SHIFT = 719_468; // days from 0000-03-01 to 1970-01-01
+const DAYS_PER_5_MONTHS = 153; // Hinnant's five-month cycle: every run of 5 months from March holds 153 days
+const MONTHS_PER_CYCLE = 5;
+const CYCLE_ROUNDING = 2;
+const MS_PER_SECOND = THOUSAND;
+const MS_PER_MINUTE = 60_000;
+const MS_PER_HOUR = 3_600_000;
+const MS_PER_DAY = 86_400_000;
+const HOURS_PER_DAY = 24;
+const MINUTES_PER_HOUR = 60;
+const MS_FRACTION_DIGITS = 3;
+const ZONE_HOUR_DIGITS = 2;
+const YEAR_DIGITS = 4;
+const TWO_DIGITS = 2;
+const LONG_MONTH_DAYS = 31;
+const SHORT_MONTH_DAYS = 30;
+const FEBRUARY_DAYS = 28; // +1 in a leap year (isLeapYear)
+const DAYS_IN_MONTH = [
+  LONG_MONTH_DAYS,
+  FEBRUARY_DAYS,
+  LONG_MONTH_DAYS,
+  SHORT_MONTH_DAYS,
+  LONG_MONTH_DAYS,
+  SHORT_MONTH_DAYS,
+  LONG_MONTH_DAYS,
+  LONG_MONTH_DAYS,
+  SHORT_MONTH_DAYS,
+  LONG_MONTH_DAYS,
+  SHORT_MONTH_DAYS,
+  LONG_MONTH_DAYS,
+];
+
+/** Proleptic-Gregorian leap year. */
+function isLeapYear(year) {
+  return year % LEAP_CYCLE_YEARS === 0 && (year % CENTURY_YEARS !== 0 || year % YEARS_PER_ERA === 0);
+}
+
+/** Does `year-month-day` name a real civil date? (month 13, February 30 do not.) */
+function isCivilDate(year, month, day) {
+  if (month < 1 || month > MONTHS_PER_YEAR) {
+    return false;
+  }
+  const monthDays = DAYS_IN_MONTH[month - 1] + (month === FEBRUARY && isLeapYear(year) ? 1 : 0);
+  return day >= 1 && day <= monthDays;
+}
+
+/** Days since 1970-01-01 for a civil date (Hinnant's days_from_civil; the caller validated the date). */
+function daysFromCivil(year, month, day) {
+  const y = month <= FEBRUARY ? year - 1 : year;
+  const era = Math.floor(y / YEARS_PER_ERA);
+  const yoe = y - era * YEARS_PER_ERA;
+  const mp = month > FEBRUARY ? month - MARCH : month + MONTHS_PER_YEAR - MARCH;
+  const doy = Math.floor((DAYS_PER_5_MONTHS * mp + CYCLE_ROUNDING) / MONTHS_PER_CYCLE) + day - 1;
+  const doe = yoe * DAYS_PER_YEAR + Math.floor(yoe / LEAP_CYCLE_YEARS) - Math.floor(yoe / CENTURY_YEARS) + doy;
+  return era * DAYS_PER_ERA + doe - CIVIL_EPOCH_SHIFT;
+}
+
+/** The civil date for a day count since 1970-01-01 (Hinnant's civil_from_days). */
+function civilFromDays(days) {
+  const z = days + CIVIL_EPOCH_SHIFT;
+  const era = Math.floor(z / DAYS_PER_ERA);
+  const doe = z - era * DAYS_PER_ERA;
+  const yoe = Math.floor(
+    (doe - Math.floor(doe / DAYS_PER_LEAP_CYCLE) + Math.floor(doe / DAYS_PER_CENTURY) - Math.floor(doe / DAYS_PER_ERA_LESS_ONE)) / DAYS_PER_YEAR,
+  );
+  const doy = doe - (DAYS_PER_YEAR * yoe + Math.floor(yoe / LEAP_CYCLE_YEARS) - Math.floor(yoe / CENTURY_YEARS));
+  const mp = Math.floor((MONTHS_PER_CYCLE * doy + CYCLE_ROUNDING) / DAYS_PER_5_MONTHS);
+  const day = doy - Math.floor((DAYS_PER_5_MONTHS * mp + CYCLE_ROUNDING) / MONTHS_PER_CYCLE) + 1;
+  const month = mp < MONTHS_AFTER_MARCH_WRAP ? mp + MARCH : mp - MONTHS_AFTER_MARCH_WRAP + 1;
+  const year = yoe + era * YEARS_PER_ERA + (month <= FEBRUARY ? 1 : 0);
+  return { year, month, day };
+}
+
+/** A stamp's zone suffix → the offset to SUBTRACT, ms (`Z`/absent = 0); `undefined` for an impossible offset. */
+function zoneOffsetMs(zone) {
+  if (zone === undefined || zone === "Z" || zone === "z") {
+    return 0;
+  }
+  const sign = zone.startsWith("-") ? -1 : 1;
+  const digits = zone.slice(1).replace(":", "");
+  const hours = Number(digits.slice(0, ZONE_HOUR_DIGITS));
+  const minutes = Number(digits.slice(ZONE_HOUR_DIGITS));
+  if (hours >= HOURS_PER_DAY || minutes >= MINUTES_PER_HOUR) {
+    return;
+  }
+  return sign * (hours * MS_PER_HOUR + minutes * MS_PER_MINUTE);
+}
+
+/** The time-of-day groups of a stamp → ms past midnight; `undefined` for an impossible clock reading. */
+function timeOfDayMs(hourText, minuteText, secondText, fractionText) {
+  const hour = hourText === undefined ? 0 : Number(hourText);
+  const minute = minuteText === undefined ? 0 : Number(minuteText);
+  const second = secondText === undefined ? 0 : Number(secondText);
+  if (hour >= HOURS_PER_DAY || minute >= MINUTES_PER_HOUR || second >= MINUTES_PER_HOUR) {
+    return;
+  }
+  const fraction = fractionText === undefined ? 0 : Number(fractionText.slice(0, MS_FRACTION_DIGITS).padEnd(MS_FRACTION_DIGITS, "0"));
+  return hour * MS_PER_HOUR + minute * MS_PER_MINUTE + second * MS_PER_SECOND + fraction;
+}
+
+/** An ISO-shaped stamp (see the grammar above) → epoch ms, `undefined` when it does not parse or names a
+ *  date/time/offset that does not exist (month 13, February 30, hour 24, zone +25:00). */
+function parseIsoStamp(text) {
+  const m = ISO_STAMP_RE.exec(text);
+  if (m === null) {
+    return;
+  }
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (!isCivilDate(year, month, day)) {
+    return;
+  }
+  const clock = timeOfDayMs(m[4], m[5], m[6], m[7]);
+  const offset = zoneOffsetMs(m[8]);
+  if (clock === undefined || offset === undefined) {
+    return;
+  }
+  return daysFromCivil(year, month, day) * MS_PER_DAY + clock - offset;
+}
+
 /** An ISO string / epoch-seconds / epoch-ms date → epoch ms, `undefined` when absent/unparseable. */
 function epochMs(v) {
   if (typeof v === "number" && Number.isFinite(v)) {
@@ -272,13 +417,13 @@ function epochMs(v) {
   if (/^\d+$/.test(v)) {
     return epochMs(Number(v));
   }
-  const ms = Date.parse(v);
-  return Number.isNaN(ms) ? undefined : ms;
+  return parseIsoStamp(v);
 }
 
-/** Epoch ms → the date the stat sheet shows (YYYY-MM-DD — a card's age, not a timestamp). */
+/** Epoch ms → the date the stat sheet shows (YYYY-MM-DD — a card's age, not a timestamp), in UTC. */
 function fmtDate(ms) {
-  return new Date(ms).toISOString().slice(0, 10);
+  const { year, month, day } = civilFromDays(Math.floor(ms / MS_PER_DAY));
+  return `${String(year).padStart(YEAR_DIGITS, "0")}-${String(month).padStart(TWO_DIGITS, "0")}-${String(day).padStart(TWO_DIGITS, "0")}`;
 }
 
 // ── the sort vocabulary (per-hub MENUS over one comparator dialect) ────────────────────────────────────────
