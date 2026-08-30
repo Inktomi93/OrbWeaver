@@ -1539,32 +1539,33 @@
       "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 440,
-      "bytes": 56668,
-      "sha256": "ef1249f61eb8d296ebfd2e51be4f5e7c566e981dd842f0ff6a279d0b9236db29",
+      "lines": 443,
+      "bytes": 56922,
+      "sha256": "daaccfa78c5c9b7a60e91a20e2d1091e4b421d6fd15917bbc02fe1358ed7d9a6",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-28"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
-        "assignedSha256": "cb230125cace256d37d1268abeb3334bdda6c4bd257f126ae11cba12f82ecf59",
+        "assignedSha256": "daaccfa78c5c9b7a60e91a20e2d1091e4b421d6fd15917bbc02fe1358ed7d9a6",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "ef1249f61eb8d296ebfd2e51be4f5e7c566e981dd842f0ff6a279d0b9236db29",
-        "verifiedCommit": "89e541e87821e40e8262bcce841c1ee2471fbc43",
-        "verifiedAt": "2026-08-21",
+        "verifiedSha256": "daaccfa78c5c9b7a60e91a20e2d1091e4b421d6fd15917bbc02fe1358ed7d9a6",
+        "verifiedCommit": "3afbd7858276453f149c4db4148214f702b314f0",
+        "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
           "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
-          "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)",
+          "delta re-verify 2026-08-30 (3afbd7858276453f149c4db4148214f702b314f0, #832 by the orchestrator, who made the edit): the RAIL count line flips NINE → TEN with `extensions` added to the dated tally with its provenance (plugin-ui-plane U5, #679 §4.5b, 'beside config', never per-plugin) and the SECTION_IDS truth pointer moves from shell-store.ts to state/section-ids.ts (re-exported); no ceiling was re-ratified — the line is a running tally, not a D-row; no other line changed; typed claims unaffected"
         ],
         "claims": [
           {
