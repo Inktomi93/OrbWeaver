@@ -11,23 +11,30 @@
 // rows that replaced it are the ones CONTENT never shows:
 //
 //   ORIGIN    where this card came from — added / source / card quality (handle dropped: the hero prints it)
-//   LINKS     the world books + personas attached to her (the Links TAB's data, one glance ahead of it)
-//   OPTIONS   the render posture her card carries — HTML trust, external media (the Options TAB's, likewise)
 //   ACTIVITY  when you two last spoke — the one chat fact the hero's count does NOT state
+//   TAGS      what she is filed under, read-only (the editing strip stays in the CONTENT hero)
 //
 // THE F4 RULING SURVIVES, ITS INPUT CHANGED. F4 refused a panel with NOTHING to inspect; it never required
-// these particular datums, and a card of four groups is still an instrument. The pick-a-field instruction
+// these particular datums, and a card of three groups is still an instrument. The pick-a-field instruction
 // stays the FOOTER gloss.
 //
-// COST: two reads join `character.get` + `chat.listChats` — `worldInfo.listForCharacter` and
-// `persona.listConnectedToCharacter`, both the SAME query keys the CONTEXT Links tab one tab over already
-// uses, so the pair is a cache hit the moment either has been opened and a small per-character read
-// otherwise. (The card's original "no new query key" claim is retired with the echo rows that made it true.)
+// #513'S OWN LINKS + OPTIONS GROUPS ARE GONE, AND THAT RULING SURVIVES TOO — ITS INPUT CHANGED (#860, owner
+// 2026-08-30). They were minted here as "the Links TAB's data, one glance ahead of it" and "the Options
+// TAB's, likewise", which was right while those tabs were a strip away and this card was the pane's only
+// resting content. Two things then broke it: the 2026-08-30 delta pass measured `Links` and `Options`
+// rendering as a section INSIDE this tab *and* as their own tabs, simultaneously visible in one 384px pane
+// (two homes for one concept, the exact IA defect the card was built to avoid), and the context-panel
+// program moved every tab onto a persistent foot rail — so the tab they previewed is now one thumb-tap
+// away, and a preview of a control that is always on screen is chrome, not a glance.
+//
+// COST, NOW: one read — `character.get` (which carries `tags`) plus the `chat.listChats` page-of-one. The
+// `worldInfo.listForCharacter` + `persona.listConnectedToCharacter` pair left with the Links group.
 //
 // Voice: the four-voice grammar (§2.3) the rpg tabs set — a caps-micro KICKER with a hairline names each
 // group, a muted LABEL names each datum, the value is a mono/tabular DATUM, and the quiet second line is a
 // GLOSS.
 
+import { AUTHORED_CARD_CREATOR } from "@orb/contracts/character";
 import type { CharacterId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
@@ -62,8 +69,6 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
   // last-activity — so that row IS the last time you two spoke, and it is the same row the chats projection's
   // identity gloss reads, so the two surfaces cannot print different "last" times.
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({ characterId, limit: NEWEST_THREAD_ONLY }));
-  const booksQuery = useQuery(trpc.worldInfo.listForCharacter.queryOptions({ characterId }));
-  const personasQuery = useQuery(trpc.persona.listConnectedToCharacter.queryOptions({ characterId }));
 
   if (data === undefined) {
     return <Text voice="quiet">Loading…</Text>;
@@ -71,8 +76,9 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
 
   const newest = chatsQuery.data?.items[0];
   const lastMessageAt = newest === undefined ? null : (newest.lastMessageAt ?? newest.updatedAt);
-  const books = booksQuery.data ?? [];
-  const personas = personasQuery.data ?? [];
+  // The ACCEPTED chips as the card wears them — hidden-on-card tags are excluded here for the same reason
+  // the hero's strip excludes them: a tag hidden on the card is not part of what this card SAYS it is.
+  const tagNames = data.tags.filter((tag) => !tag.isHiddenOnCard).map((tag) => tag.name);
 
   return (
     <Stack gap="section" className="relative min-h-0 overflow-y-auto" data-slot="character-overview">
@@ -80,36 +86,31 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
         {/* A kicker names a SECTION, never a datum (§2.3) — the character's own name is the footer's job. */}
         <Kicker>Origin</Kicker>
         <OverviewRow label="Added" value={timeLib.formatRelative(data.createdAt)} mono={false} />
-        <OverviewRow label="Source" value={data.importedFrom ?? "Made here"} mono={data.importedFrom !== null} />
+        <OverviewRow label="Source" value={sourceLabel(data)} mono={data.importedFrom !== null} />
         {data.refinery === null || data.refinery.score === null ? null : (
           <OverviewRow label="Card quality" value={data.refinery.score.toFixed(REFINERY_SCORE_DECIMALS)} mono={true} />
         )}
       </Stack>
 
       <Stack gap="row">
-        <Kicker>Links</Kicker>
-        <LinkRow label="World books" names={books.map((book) => book.name)} />
-        <LinkRow label="Personas" names={personas.map((persona) => persona.name)} />
-      </Stack>
-
-      <Stack gap="row">
-        <Kicker>Options</Kicker>
-        {/* The card's own render-policy COLUMNS, stated as what they mean rather than as tri-state nulls —
-            `null` is "whatever this deployment says", which is an answer, not a blank. Nothing on CONTENT
-            says either of these; the Options tab is where you CHANGE them. */}
-        <OverviewRow
-          label="HTML"
-          value={trustLabel(data.trustHtml)}
-          mono={false}
-          gloss={data.trustHtml === null ? "follows the deployment default" : undefined}
-        />
-        <OverviewRow label="External media" value={externalMediaLabel(data.forbidExternalMedia)} mono={false} />
-      </Stack>
-
-      <Stack gap="row">
         <Kicker>Activity</Kicker>
         {/* RECENCY, NOT A CENSUS: the hero's "N chats ›" is the count, 300px away and always on screen. */}
         <OverviewRow label="Last chat" value={lastMessageAt === null ? NEVER : timeLib.formatRelative(lastMessageAt)} mono={false} />
+      </Stack>
+
+      <Stack gap="row">
+        <Kicker>Tags</Kicker>
+        {/* READ-ONLY, on purpose (#860): the editing strip — accepted chips with their removes, `Add tag`,
+            and the suggestion pills — stays in the CONTENT hero, where the tags sit ON the card the way the
+            reader sees them. This is the same fact stated as a datum, so the pane can answer "what is she
+            filed under" without the reader leaving the field they are inspecting. The count is the datum
+            and the names are the gloss, matching every other row here; `EMPTY_VALUE` is the house word. */}
+        <OverviewRow
+          label="Applied"
+          value={tagNames.length === 0 ? EMPTY_VALUE : String(tagNames.length)}
+          {...(tagNames.length === 0 ? {} : { gloss: nameGloss(tagNames) })}
+          mono={tagNames.length > 0}
+        />
       </Stack>
 
       <Text voice="gloss">
@@ -126,23 +127,26 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
   );
 }
 
-/** The DEPLOYMENT-INHERITING arm of the two tri-state render-policy columns — a real answer, not a blank. */
-const POLICY_DEFAULT = "Default";
+/** What the SHIPPED example cards say for `Source`. */
+const SHIPPED_SOURCE = "Example — shipped with Orbweaver";
+/** …and what a card the owner really did author here says. */
+const AUTHORED_SOURCE = "Made here";
 
-/** The tri-state trust column in words. `null` = inherit the deployment floor. */
-function trustLabel(trustHtml: boolean | null): string {
-  if (trustHtml === null) {
-    return POLICY_DEFAULT;
+/**
+ * WHERE THIS CARD CAME FROM — the import URL if it was imported, `Example — shipped with Orbweaver` if it is
+ * one of the app's own default cards, `Made here` otherwise.
+ *
+ * THE THIRD ARM IS THE FIX (side-eye 2026-08-30 rail-characters P3, #843). The row was
+ * `importedFrom ?? "Made here"`, a two-arm claim on a three-arm fact — so on a FRESH INSTALL every one of
+ * the ten shipped example characters told the user they had made it, on the one card whose entire job is
+ * provenance, in the state every new user sees first. The seeded pack stamps `AUTHORED_CARD_CREATOR` on
+ * `creator` and this reads it back; see that constant for the heuristic's honest limit.
+ */
+function sourceLabel({ importedFrom, creator }: { readonly importedFrom: string | null; readonly creator: string | null }): string {
+  if (importedFrom !== null) {
+    return importedFrom;
   }
-  return trustHtml ? "Trusted" : "Untrusted";
-}
-
-/** The tri-state external-media column in words. `true` FORBIDS (the column is a prohibition, not a grant). */
-function externalMediaLabel(forbidExternalMedia: boolean | null): string {
-  if (forbidExternalMedia === null) {
-    return POLICY_DEFAULT;
-  }
-  return forbidExternalMedia ? "Blocked" : "Allowed";
+  return creator === AUTHORED_CARD_CREATOR ? SHIPPED_SOURCE : AUTHORED_SOURCE;
 }
 
 /** `rpg · noir · +3 more` — names the entries a glance can hold, counts the tail. */
@@ -150,19 +154,6 @@ function nameGloss(names: readonly string[]): string {
   const head = names.slice(0, NAME_GLOSS_LIMIT).join(" · ");
   const rest = names.length - NAME_GLOSS_LIMIT;
   return rest > 0 ? `${head} · +${rest} more` : head;
-}
-
-/** A LINKS row: the count as the datum, the names as the gloss — and the house empty word when there are
- *  none (#502), never a bare `0` a reader has to interpret. */
-function LinkRow({ label, names }: { readonly label: string; readonly names: readonly string[] }): ReactElement {
-  return (
-    <OverviewRow
-      label={label}
-      value={names.length === 0 ? EMPTY_VALUE : String(names.length)}
-      {...(names.length === 0 ? {} : { gloss: nameGloss(names) })}
-      mono={names.length > 0}
-    />
-  );
 }
 
 /** The §2.3 KICKER voice — a muted caps-micro group name with a trailing hairline (the rpg tabs' anatomy). */

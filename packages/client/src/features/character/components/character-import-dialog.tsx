@@ -71,11 +71,18 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
   };
 
   return (
-    <FormDialog description="Drop a SillyTavern character card (PNG or JSON)." onOpenChange={onOpenChange} open={open} title="Import a character card">
+    // IT HAS A VISIBLE EXIT (side-eye 2026-08-30 rail-characters P2, #842). The dialog carried ZERO buttons
+    // besides the file input on both the desktop and the 430px coarse arm — Escape worked, and touch has no
+    // Escape. `dismissLabel` is the FormDialog footer for a dialog with no confirm to pair a Cancel with
+    // (the drop IS the act; there is nothing to submit), matching the sibling New-character dialog's exit.
+    //
+    // AND IT SAYS ITS ONE FACT ONCE. It used to state the accepted formats THREE times in a 250px dialog
+    // with one control — the description, the dropzone's instruction and the dropzone's hint. The
+    // INSTRUCTION is the one a user acts on, so it carries the formats; the other two stand down.
+    <FormDialog dismissLabel="Cancel" onOpenChange={onOpenChange} open={open} title="Import a character card">
       <FileDropzone
         accept={CARD_ACCEPT}
-        hint="SillyTavern character cards (PNG or JSON)"
-        instructions="Drop a card, or click to browse"
+        instructions="Drop a SillyTavern character card (PNG or JSON), or click to browse"
         multiple={true}
         onFilesSelected={({ accepted }): void => onFiles(accepted)}
       />

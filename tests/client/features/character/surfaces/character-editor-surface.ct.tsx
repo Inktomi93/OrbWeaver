@@ -14,7 +14,7 @@
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../../../../support/ct/autosave-status-transcript.ts";
 import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
@@ -283,12 +283,13 @@ test("§6.1 the spoiler eye blurs the drilled card-text container and clears on 
   await expect(fields.first()).not.toHaveClass(BLUR_CLASS_RE);
 
   // Toggle on → the spoiler-bearing container carries the CSS blur; the stored name value is untouched.
-  await component.getByRole("button", { name: "Hide spoilers" }).click();
+  // ONE name in both directions since #840 — the state rides `aria-pressed`, not the label.
+  await component.getByRole("button", { name: SPOILER_NAME }).click();
   await expect(fields.first()).toHaveClass(BLUR_CLASS_RE);
   await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue("Aria Nightshade");
 
   // Toggle off → the blur is gone (pure view state).
-  await component.getByRole("button", { name: "Show spoilers" }).click();
+  await component.getByRole("button", { name: SPOILER_NAME }).click();
   await expect(fields.first()).not.toHaveClass(BLUR_CLASS_RE);
 });
 
@@ -501,16 +502,21 @@ test("#493 the editor header's token census glosses its own jargon", async ({ mo
 
 // F4 (the ruling: a CONTEXT panel that opens to "Open a field to inspect it" fails its instrument tier)
 // SURVIVES — its INPUT changed. #513 replaced the card's four ECHO rows (tokens · openings · tags · chats,
-// all of which CONTENT prints 300px to the left) with rows CONTENT never shows: where the card came from,
-// what it is linked to, how it renders, and when you two last spoke. So this pin asserts BOTH halves — the
-// panel is still an instrument, and it is no longer a second copy of the editor.
-test("F4/#513 the Field tab rests on an overview card carrying what CONTENT does not", async ({ mount, page }) => {
+// all of which CONTENT prints 300px to the left) with rows CONTENT never shows. So this pin asserts BOTH
+// halves — the panel is still an instrument, and it is no longer a second copy of the editor.
+//
+// #513'S OWN LINKS + OPTIONS GROUPS ARE GONE, AND THAT RULING SURVIVES TOO — ITS INPUT CHANGED (#860, owner
+// 2026-08-30). They were minted here as a glance AHEAD of the Links and Options tabs, which was right while
+// those tabs were a strip away. The 2026-08-30 delta pass then measured both rendering as a section INSIDE
+// this tab *and* as their own tabs, simultaneously visible in one 384px pane — two homes for one concept,
+// the exact IA defect the card exists to avoid — and the context-panel program put every tab on a
+// persistent foot rail, so a preview of a control that is always on screen is chrome, not a glance. What
+// replaces them is the ruled Overview roster: ORIGIN + ACTIVITY + TAGS.
+test("F4/#513 the Overview tab rests on an overview card carrying what CONTENT does not", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => OVERVIEW_CARD,
     "chat.listChats": chatListResponder(OVERVIEW_CHATS),
-    "worldInfo.listForCharacter": () => [{ id: "wb_ct_1", name: "The Gilded Ember", role: "primary" }],
-    "persona.listConnectedToCharacter": () => [],
   });
   const component = await mount(<CharacterFacetInspectorStory />);
 
@@ -520,22 +526,21 @@ test("F4/#513 the Field tab rests on an overview card carrying what CONTENT does
 
   // ORIGIN — where this card came from (the import source is a fact CONTENT never states).
   await expect(overview.getByText("chub")).toBeVisible();
-  // LINKS — the count as the datum, the names as the gloss; the empty side says the house empty word.
-  await expect(row("World books")).toContainText("1");
-  await expect(overview.getByText("The Gilded Ember")).toBeVisible();
-  await expect(row("Personas")).toContainText("Empty");
-  // OPTIONS — the render posture. `null` columns mean "inherit the deployment", which is an answer.
-  await expect(row("HTML")).toContainText("Default");
-  await expect(row("External media")).toContainText("Default");
   // ACTIVITY — recency, not a census: the hero's "N chats ›" is the count.
   await expect(row("Last chat")).toBeVisible();
+  // TAGS — read-only, the count as the datum (the EDITING strip stays in the CONTENT hero).
+  await expect(row("Applied")).toBeVisible();
 
   // THE ECHOES ARE GONE (#513): each of these is printed by CONTENT on the same screen.
   await expect(overview.getByText(TOKEN_TOTAL_RE)).toHaveCount(0);
   await expect(row("Openings")).toHaveCount(0);
   await expect(row("Handle")).toHaveCount(0);
-  await expect(row("Tags")).toHaveCount(0);
   await expect(row("Chats")).toHaveCount(0);
+  // …AND SO ARE THE TAB PREVIEWS (#860): Links and Options each had a home here AND a tab of their own.
+  await expect(row("World books")).toHaveCount(0);
+  await expect(row("Personas")).toHaveCount(0);
+  await expect(row("HTML")).toHaveCount(0);
+  await expect(row("External media")).toHaveCount(0);
 
   // The old resting state is still gone; the instruction survives as the footer gloss.
   await expect(component.getByText("Open a field to inspect it")).toHaveCount(0);
@@ -614,6 +619,22 @@ const FILL_STATE_RE = /^Filled, \d+ characters$/u;
 /** The OWN LOOK badge, and the tab name that never existed. */
 const OWN_LOOK_RE = /carries its own look/u;
 const APPEARANCE_TAB_RE = /Appearance tab/u;
+
+// ── The 2026-08-30 delta pass's vocabulary (#840 / #843) ──
+/** The chip's VISIBLE text, which is now also its accessible name (WCAG 2.5.3). */
+const OWN_LOOK_NAME = "Own look";
+/** …and the gloss it used to carry as that name, now its DESCRIPTION. */
+const OWN_LOOK_SENTENCE = "This card carries its own look — edit it in the Look tab.";
+/** The spoiler toggle's ONE name — it no longer flips (`aria-pressed` carries the state). */
+const SPOILER_NAME = "Hide spoilers";
+/** design-audit's `undersized-ui-text` floor: the smallest a CONTROL's own label may compute. */
+const UI_TEXT_FLOOR_PX = 11;
+
+/** One node's COMPUTED font size — the route design-audit takes, and the only one that sees the defect: a
+ *  suggestion pill's BUTTON computes 13px while the label span inside it computed 10.5. */
+function fontSizePx(node: Locator): Promise<number> {
+  return node.evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize));
+}
 
 // P1-2 — every facet row's Button carried the whole field BODY as its accessible name: the Description
 // row measured 1,283 characters, Example messages ~2,000, announced as the NAME of a control with nothing
@@ -749,8 +770,104 @@ test("P2-7 the OWN LOOK badge points at the tab that actually holds the theme ed
   });
   const component = await mount(<CharacterEditorSurfaceStory />);
 
-  const badge = component.getByRole("img", { name: OWN_LOOK_RE });
-  await expect(badge).toHaveAccessibleName("This card carries its own look — edit it in the Options tab.");
+  // The SENTENCE is still delivered — it moved from the badge's NAME to the tooltip it describes itself
+  // with (#840, below), which is where a gloss belongs. What this test has always been about is that the
+  // sentence names a tab that EXISTS, so it reads the sentence where a user now meets it.
+  const badge = component.getByRole("button", { name: OWN_LOOK_NAME });
+  await badge.focus();
+  await expect(page.getByRole("tooltip")).toHaveText(OWN_LOOK_SENTENCE);
   // The name a user could follow to nowhere.
   await expect(component.getByText(APPEARANCE_TAB_RE)).toHaveCount(0);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE 2026-08-30 SIDE-EYE DELTA PASS (docs/reviews/side-eye/2026-08-30-rail-characters-delta.md).
+// Three controls that described themselves wrongly (#840) + the suggestion pills' type step (#843).
+
+// #840a — THE SPOILER EYE ANNOUNCED THE INVERSE OF REALITY IN ONE OF ITS TWO STATES. It flipped BOTH its
+// accessible name (`Hide spoilers` → `Show spoilers`) and `aria-pressed` (false → true), so with spoilers
+// HIDDEN it announced "Show spoilers, toggle button, pressed" — which a screen-reader user reads as
+// "showing is ON". ARIA APG allows a flipping NAME (describing the next action) or `aria-pressed`
+// (describing the current state), never both. The receipt is the pair, before and after one click.
+test("#840 the spoiler eye keeps ONE name and lets aria-pressed carry the state", async ({ mount, page }) => {
+  await routeEditor(page);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+  await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue(HERO_NAME);
+
+  const eye = component.getByRole("button", { name: SPOILER_NAME });
+  await expect(eye).toHaveAttribute("aria-pressed", "false");
+  await eye.click();
+  // The SAME control, still findable by the SAME name — that is the half that used to move.
+  await expect(component.getByRole("button", { name: SPOILER_NAME })).toHaveAttribute("aria-pressed", "true");
+  // …and the inverted announcement is gone: nothing on the surface is named "Show spoilers" any more.
+  // (The model this copies is `Select multiple` on the LIBRARY pane — static name, `aria-pressed` false→
+  // true — which is what makes the eye a defect rather than a house style; it is pinned on that surface.)
+  await expect(component.getByRole("button", { name: "Show spoilers" })).toHaveCount(0);
+});
+
+// #840b — THE `Own look` CHIP: `role="img"` on a text badge, a whole SENTENCE as its accessible name while
+// its visible text read `Own look` (WCAG 2.5.3 Label in Name), and `tabindex=-1` with no `title`, so the
+// one sentence on the surface that says WHERE a character's look is edited reached a screen reader and a
+// mouse and nobody else. The pin is all three at once, through the affordance: a focusable control NAMED
+// by its visible text, DESCRIBED by the sentence.
+test("#840 the Own look chip is named by its visible text and its gloss is keyboard-reachable", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+    "character.get": () => ({ ...CARD, themeOverride: { primary: "#ff8800" } }),
+    "chat.listChats": chatListResponder([]),
+    "character.update": () => CARD,
+  });
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  const chip = component.getByRole("button", { name: OWN_LOOK_NAME });
+  // 2.5.3: the accessible name IS the visible label, exactly.
+  await expect(chip).toHaveAccessibleName(OWN_LOOK_NAME);
+  // The role a text badge never had any business carrying.
+  await expect(component.getByRole("img", { name: OWN_LOOK_RE })).toHaveCount(0);
+  // KEYBOARD REACH — the half a name/role fix alone would not have bought, and the half that was
+  // structurally impossible at `tabindex=-1`. Focus it directly (a tab walk from an arbitrary resting
+  // position is a different assertion) and read the gloss it opens.
+  await chip.focus();
+  await expect(chip).toBeFocused();
+  await expect(page.getByRole("tooltip")).toHaveText(OWN_LOOK_SENTENCE);
+  // …and the tooltip is what DESCRIBES it, so the sentence is announced as a description rather than
+  // impersonating the name. (`aria-describedby` resolves only while the popup is mounted — the seal wires
+  // the id on the trigger and the id onto the popup, so the pairing is only observable open.)
+  await expect(chip).toHaveAccessibleDescription(OWN_LOOK_SENTENCE);
+});
+
+// #840c — THE TAG ROW HAD NO NAME. Its accessible tree read `paragraph: Empty` then `button "Add tag"`;
+// the word "Tags" appeared nowhere in it, so the value was unlabelled and the datum had to be inferred
+// from the verb beside it. The four ADVANCED facet rows name their datum; this is the same grammar.
+test("#840 the tag row is a group NAMED Tags", async ({ mount, page }) => {
+  await routeEditor(page);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+  await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue(HERO_NAME);
+
+  const tags = component.getByRole("group", { name: "Tags" });
+  await expect(tags).toBeVisible();
+  // The name covers the VALUE, which is the thing that was anonymous — the verb was always named.
+  await expect(tags.getByRole("button", { name: "Add tag" })).toBeVisible();
+});
+
+// #843(1) — THE SUGGESTION PILLS' LABEL SPANS WERE 10.5px INTERACTIVE TEXT (`design-audit`
+// `undersized-ui-text` ×6, both pointer arms). The trap the review recorded: the BUTTON computes 13px and
+// the label SPAN inside it computed 10.5, so reading the button node dismisses a true finding. This reads
+// the span, by the same route design-audit does — the text node's own computed size.
+test("#843 a suggestion pill's own label clears the 11px functional floor", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+    "character.get": () => CARD,
+    "chat.listChats": chatListResponder([]),
+    "character.update": () => CARD,
+    "tag.listPendingSuggestions": () => [makeTagFixture({ id: "tag_banter", name: "banter" })],
+  });
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  const pill = component.getByRole("button", { name: "Accept banter" });
+  await expect(pill).toBeVisible();
+  await expect.poll(() => fontSizePx(pill.getByText("banter", { exact: true }))).toBeGreaterThanOrEqual(UI_TEXT_FLOOR_PX);
+  // The `Suggested` kicker stays at the micro step — the finding was about a CONTROL's own label, and a
+  // blanket bump would have taken the footnote voice with it.
+  await expect.poll(() => fontSizePx(component.getByText("Suggested", { exact: true }))).toBeLessThan(UI_TEXT_FLOOR_PX);
 });

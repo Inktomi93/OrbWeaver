@@ -284,6 +284,32 @@ async function countByTag(db: Db, table: SQLiteTable, tagCol: SQLiteColumn, ids:
   return Object.fromEntries(rows.map((r) => [r.tagId, r.n]));
 }
 
+/**
+ * Count the ACCEPTED character attachments per tag — {@link countByTag}'s status-aware twin, and the ONE
+ * count a FILTER may be derived from.
+ *
+ * WHY IT IS SEPARATE FROM THE ROLLUP'S COUNT (side-eye 2026-08-30 rail-characters P2, #839). The character
+ * library's tag filter is `characterTags.status = 'accepted'` on both arms — the tag predicate AND the
+ * group-by-tag read, in `domain/character/persistence/queries.ts` — because a PENDING suggestion is a
+ * proposal about a card, not a fact about it. The filter VOCABULARY counted every junction row regardless
+ * of status, so a tag that exists only as unaccepted suggestions reported a non-zero `characters`, cleared
+ * the chip rail's own `characters > 0` gate (`tagVocabulary`), and rendered a chip that could only ever
+ * answer "no matches". Measured on the seed library: 28 offered facets, every one of them dead, against a
+ * group-by-tag returning one bucket of ten untagged characters.
+ *
+ * The MANAGEMENT rollup ({@link listOwnedTagsWithUsage}) keeps the status-blind count on purpose: that
+ * screen answers "is this tag attached to anything" — a prune candidate is a tag with no attachment of any
+ * status, and a pending suggestion is an attachment. Two questions, two counts.
+ */
+async function countAcceptedCharacterTags(db: Db, ids: readonly TagId[]): Promise<Record<string, number>> {
+  const rows = await db
+    .select({ tagId: characterTags.tagId, n: sql<number>`count(*)` })
+    .from(characterTags)
+    .where(and(inArray(characterTags.tagId, [...ids]), eq(characterTags.status, "accepted")))
+    .groupBy(characterTags.tagId);
+  return Object.fromEntries(rows.map((r) => [r.tagId, r.n]));
+}
+
 /** Every owned tag plus its five-junction usage rollup (the management screen's read; drives prune-unused). */
 export async function listOwnedTagsWithUsage(db: Db, ownerId: UserId): Promise<TagWithUsage[]> {
   const owned = await listOwnedTags(db, ownerId);
@@ -325,16 +351,20 @@ export async function listOwnedTagsWithUsage(db: Db, ownerId: UserId): Promise<T
  * handed, so the cap's "the filters that can do the most sit in the visible slice" rule has ONE author.
  * Every owned tag is returned, including hidden and zero-usage ones — the caller drops those from the RAIL
  * but needs them as the referential authority for a persisted filter (see `TagFilterVocabularyEntry`).
+ *
+ * `characters` IS THE ACCEPTED COUNT, AND THAT IS WHAT MAKES THE RAIL'S OWN GATE TRUE (#839) — see
+ * {@link countAcceptedCharacterTags}. The client drops a `characters === 0` entry from the chips
+ * (`tagVocabulary`), so this number is the predicate deciding whether a facet is OFFERED; counting a
+ * pending suggestion here offered 28 facets that the list's `status = 'accepted'` filter could never match.
+ * Zero-count rows still SHIP (the referential authority is the row set, not the count).
  */
 export async function listOwnedTagFilterVocabulary(db: Db, ownerId: UserId): Promise<TagFilterVocabularyEntry[]> {
   const owned = await listOwnedTags(db, ownerId);
   if (owned.length === 0) {
     return [];
   }
-  const characters = await countByTag(
+  const characters = await countAcceptedCharacterTags(
     db,
-    characterTags,
-    characterTags.tagId,
     owned.map((t) => t.id),
   );
   return owned

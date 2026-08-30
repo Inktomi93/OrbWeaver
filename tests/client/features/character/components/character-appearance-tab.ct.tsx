@@ -1,4 +1,8 @@
-// CT: the §8.1 per-character THEME cluster in the CONTEXT Appearance tab (FINAL-Character §8). Drives the
+// CT: the two clusters `character-appearance-tab.tsx` owns, each now its own CONTEXT tab (#841/#860) — the
+// §8.1 per-character THEME cluster in **Look**, and the render-posture controls in **Trust**. Its own
+// mounts say which: `CharacterLookTabStory` above the Trust divider, `CharacterTrustTabStory` below it.
+//
+// The §8.1 per-character THEME cluster in the CONTEXT Look tab (FINAL-Character §8). Drives the
 // PRODUCTION path — `character.get` seeds the current override, `character.update` is stubbed + recorded
 // (routeTrpc). Asserts the three commit semantics that keep this lane from being built wrong (§2):
 //   • IMMEDIATE-commit: an enum pick fires `character.update({ themeOverride })` at once (no save-bar).
@@ -11,8 +15,11 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { CharacterAppearanceTabStory } from "../_ct-stories.tsx";
+import { CharacterLookTabPanelStory, CharacterLookTabStory, CharacterTrustTabStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail } from "../fixtures.ts";
+
+/** The colour-science notation this panel must never print as a user-facing value (#841). */
+const OKLCH_RE = /oklch\(/u;
 
 /** The `themeOverride` blob carried by the most recent `character.update` (or undefined if none). */
 function lastThemeOverride(trpc: TrpcRecorder): unknown {
@@ -47,7 +54,7 @@ function route(page: Page, themeOverride: Record<string, unknown> | null): Promi
 
 test("§8.1 an enum pick is an IMMEDIATE commit — one field, the whole blob, no save-bar", async ({ mount, page }) => {
   const trpc = await route(page, null);
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterLookTabStory />);
 
   await page.getByRole("combobox", { name: "Corner radius" }).click();
   await page.getByRole("option", { name: "Card", exact: true }).click();
@@ -59,7 +66,7 @@ test("§8.1 an enum pick is an IMMEDIATE commit — one field, the whole blob, n
 
 test("§8.1 per-field clear — picking Inherit OMITS that field, the others survive", async ({ mount, page }) => {
   const trpc = await route(page, { radius: "card", font: "Georgia" });
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterLookTabStory />);
 
   await page.getByRole("combobox", { name: "Font" }).click();
   await page.getByRole("option", { name: "Inherit", exact: true }).click();
@@ -70,7 +77,7 @@ test("§8.1 per-field clear — picking Inherit OMITS that field, the others sur
 
 test("§8.1 Reset to global sends themeOverride: null", async ({ mount, page }) => {
   const trpc = await route(page, { radius: "card" });
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterLookTabStory />);
 
   await page.getByRole("button", { name: "Reset all to Inherit" }).click();
   await expect.poll(() => lastThemeOverride(trpc), { intervals: [20, 50, 100] }).toBeNull();
@@ -78,13 +85,13 @@ test("§8.1 Reset to global sends themeOverride: null", async ({ mount, page }) 
 
 test("§8.1 Reset is disabled when there is no override to clear", async ({ mount, page }) => {
   await route(page, null);
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterLookTabStory />);
   await expect(page.getByRole("button", { name: "Reset all to Inherit" })).toBeDisabled();
 });
 
 test("§8.1 a colour edit debounces into one write carrying the picked colour", async ({ mount, page }) => {
   const trpc = await route(page, null);
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterLookTabStory />);
 
   await page.getByLabel("Accent").click();
   await page.getByLabel("Hex").fill("#00ff00");
@@ -100,7 +107,7 @@ test("§8.1 a colour edit debounces into one write carrying the picked colour", 
 
 test("the card cannot force viewer ergonomics — no Message style / Density control (D107)", async ({ mount, page }) => {
   await route(page, { radius: "card" });
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterLookTabStory />);
   // The sibling Type & shape controls still render — proof the cluster mounted and the absence is real.
   await expect(page.getByRole("combobox", { name: "Corner radius" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Message style" })).toHaveCount(0);
@@ -117,7 +124,7 @@ test("Save as theme… promotes the LIVE override, defaulted to the character's 
     "settings.listThemes": () => THEME_LIST,
     "settings.promoteTheme": () => ({ id: "theme_new", name: "Aria", override: { accent: "#00ff00" }, css: null, isSeed: false, createdAt: 0, updatedAt: 0 }),
   });
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterLookTabStory />);
 
   await page.getByRole("button", { name: "Save as theme…" }).click();
   await expect.poll(() => trpc.lastInput("settings.promoteTheme"), { intervals: [20, 50, 100] }).toEqual({ name: "Aria", override: { accent: "#00ff00" } });
@@ -129,7 +136,7 @@ test("Save as theme… is disabled while the card has nothing of its own to prom
     "character.update": () => makeCharacterDetail({ themeOverride: null }),
     "settings.listThemes": () => THEME_LIST,
   });
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterLookTabStory />);
   await expect(page.getByRole("button", { name: "Save as theme…" })).toBeDisabled();
 });
 
@@ -139,7 +146,7 @@ test("Start from a theme… seeds the card from the theme's CARD-EMBEDDABLE subs
     "character.update": () => makeCharacterDetail({ themeOverride: null }),
     "settings.listThemes": () => THEME_LIST,
   });
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterLookTabStory />);
 
   await page.getByRole("combobox", { name: "Start from a theme" }).click();
   await page.getByRole("option", { name: "Mocha", exact: true }).click();
@@ -189,7 +196,7 @@ const LOCK_COPY_RE = /External media is blocked deployment-wide/u;
 test("deployment BLOCKS external media → the per-character control is disabled + explained (no dead switch)", async ({ mount, page }) => {
   await stubExternalMediaBlocked(page, true);
   await route(page, null);
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterTrustTabStory />);
 
   await expect(page.getByRole("combobox", { name: "External media" })).toBeDisabled();
   await expect(page.getByText(LOCK_COPY_RE)).toBeVisible();
@@ -200,7 +207,7 @@ test("deployment BLOCKS external media → the per-character control is disabled
 test("deployment ALLOWS external media → the control is live and the lock copy is absent", async ({ mount, page }) => {
   await stubExternalMediaBlocked(page, false);
   await route(page, null);
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterTrustTabStory />);
 
   await expect(page.getByRole("combobox", { name: "External media" })).toBeEnabled();
   await expect(page.getByText(LOCK_COPY_RE)).toHaveCount(0);
@@ -228,7 +235,7 @@ function lastUpdateInput(trpc: TrpcRecorder): Record<string, unknown> | undefine
 test("the HTML rendering control offers the ladder IN ORDER, with Inherit as the no-override option (#111)", async ({ mount, page }) => {
   await stubExternalMediaBlocked(page, false);
   await route(page, null);
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterTrustTabStory />);
 
   await page.getByRole("combobox", { name: "HTML rendering" }).click();
   await expect(page.getByRole("option")).toHaveText(["Inherit default", "Untrusted", "Render HTML", "Interactive"]);
@@ -237,7 +244,7 @@ test("the HTML rendering control offers the ladder IN ORDER, with Inherit as the
 test("picking Interactive WRITES the render trust it implies — the incoherent pair is unwritable (#111)", async ({ mount, page }) => {
   await stubExternalMediaBlocked(page, false);
   const trpc = await route(page, null);
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterTrustTabStory />);
 
   await page.getByRole("combobox", { name: "HTML rendering" }).click();
   await page.getByRole("option", { name: "Interactive", exact: true }).click();
@@ -248,7 +255,7 @@ test("picking Interactive WRITES the render trust it implies — the incoherent 
 test("the lower rungs write the pair too — Render HTML is trusted-but-static, Untrusted is the floor", async ({ mount, page }) => {
   await stubExternalMediaBlocked(page, false);
   const trpc = await route(page, null);
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterTrustTabStory />);
 
   await page.getByRole("combobox", { name: "HTML rendering" }).click();
   await page.getByRole("option", { name: "Render HTML", exact: true }).click();
@@ -263,7 +270,7 @@ test("Inherit clears BOTH columns — a cleared render step must not leave an in
   await stubExternalMediaBlocked(page, false);
   const card = makeCharacterDetail({ trustHtml: true, interactiveHtml: true });
   const trpc = await routeTrpc(page, { "character.get": () => card, "character.update": () => card, "settings.listThemes": () => THEME_LIST });
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterTrustTabStory />);
 
   // It reads back at the top rung first — the stored value is shown, never invented.
   await expect(page.getByRole("combobox", { name: "HTML rendering" })).toHaveText(INTERACTIVE_VALUE_RE);
@@ -284,7 +291,7 @@ test("Inherit clears BOTH columns — a cleared render step must not leave an in
 test("ceiling UP → the ladder promises scripts and shows no deployment note", async ({ mount, page }) => {
   await stubDeployment(page, { externalMediaBlocked: false, interactiveCards: true });
   await route(page, null);
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterTrustTabStory />);
 
   await expect(page.getByText(LADDER_COPY_RE)).toBeVisible();
   await expect(page.getByText(CEILING_DOWN_COPY_RE)).toHaveCount(0);
@@ -294,7 +301,7 @@ test("ceiling UP → the ladder promises scripts and shows no deployment note", 
 test("ceiling DOWN (the shipped floor) → the tab says the rung is inert, and still lets you pick it", async ({ mount, page }) => {
   await stubDeployment(page, { externalMediaBlocked: false });
   await route(page, null);
-  await mount(<CharacterAppearanceTabStory />);
+  await mount(<CharacterTrustTabStory />);
 
   // The honest note names the remedy and where it lives — the D107 no-dead-switch posture, said in copy
   // rather than by disabling, because the other three rungs still work.
@@ -303,4 +310,114 @@ test("ceiling DOWN (the shipped floor) → the tab says the rung is inert, and s
   // …and the rung is still WRITABLE: a host may opt a card in ahead of the admin flip, which is exactly
   // what the stored-consent model expects (the mint re-checks the ceiling on every card it builds).
   await expect(page.getByRole("combobox", { name: "HTML rendering" })).toBeEnabled();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE CONTEXT-PANEL DENSITY CONTRACT + the #841 delta, folded in from the retired options-tab CT (its
+// source module — the shell that stacked appearance over history — was deleted with the merge it existed
+// to hold). The LOOK tab owns the field orientation now, so these belong beside the cluster they measure,
+// and they mount `CharacterLookTabPanelStory`: the 463px context-panel width, which is the only mount
+// where the density contract is observable at all.
+
+test("F9 the theme rows are label-left/control-right in the context panel — not a swatch ladder", async ({ mount, page }) => {
+  await route(page, null);
+  await mount(<CharacterLookTabPanelStory />);
+
+  const accentLabel = page.getByText("Accent", { exact: true });
+  await expect(accentLabel).toBeVisible();
+  const swatch = page.getByLabel("Accent");
+
+  const labelBox = await accentLabel.boundingBox();
+  const swatchBox = await swatch.boundingBox();
+  if (labelBox === null || swatchBox === null) {
+    throw new Error("theme row label/swatch did not render a box");
+  }
+  const readSwatchBoxAtAssertion = async (): Promise<NonNullable<Awaited<ReturnType<typeof swatch.boundingBox>>>> => {
+    const box = await swatch.boundingBox();
+    if (box === null) {
+      throw new Error("theme row swatch lost its rendered box");
+    }
+    return box;
+  };
+  // Side by side (the swatch starts right of the label's right edge), not stacked.
+  await expect.poll(async () => (await readSwatchBoxAtAssertion()).x).toBeGreaterThan(labelBox.x + labelBox.width);
+  // …and on the same line: the two boxes overlap vertically.
+  await expect.poll(async () => (await readSwatchBoxAtAssertion()).y).toBeLessThan(labelBox.y + labelBox.height);
+});
+
+// The theme cluster's header row carries THREE actions (the two theme doors + Reset). At the real panel
+// width they do not fit beside the "Theme" label — the row wraps them onto their own line. Caught live
+// during the TD build: before the wrap, "Reset to global" rendered as "Reset to glob", clipped by the panel
+// edge. Asserted on the rendered box (the label list is not the defect; the geometry is).
+test("no theme-cluster action clips the context panel's width", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.get": () => makeCharacterDetail({ themeOverride: { accent: "#c98a5b" } }),
+    "character.update": () => makeCharacterDetail({ themeOverride: { accent: "#c98a5b" } }),
+    "character.listSnapshots": () => [],
+    "settings.listThemes": () => THEME_LIST,
+  });
+  const component = await mount(<CharacterLookTabPanelStory />);
+
+  const panel = await component.boundingBox();
+  if (panel === null) {
+    throw new Error("the Look tab did not render a box");
+  }
+  const actions = ["Save as theme…", "Reset all to Inherit"];
+  const boxes = await Promise.all(actions.map((action) => page.getByRole("button", { name: action }).boundingBox()));
+  for (const [i, box] of boxes.entries()) {
+    if (box === null) {
+      throw new Error(`${actions[i]} did not render a box`);
+    }
+    expect(box.x + box.width, `${actions[i]} fits inside the panel`).toBeLessThanOrEqual(panel.x + panel.width);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE 2026-08-30 SIDE-EYE DELTA PASS (#841) — the junk drawer and the colour-science leak.
+
+// VERSION HISTORY IS NOT IN HERE ANY MORE. Measured before: `clientHeight 693 · scrollHeight 2253`, 31%
+// visible, with the snapshot log LAST — theme editor → Background → a three-paragraph Trust essay → History,
+// ~1560px down a 384px column. "Can I undo what I just did to this character" had no guessable door. The
+// pin is the ABSENCE of the log's own affordance from this panel; its presence as a TAB is pinned in
+// characters-section.ct.tsx (a tab strip is the thing that has to hold it, and that is where it lives).
+test("#841 the Look tab no longer carries the snapshot log", async ({ mount, page }) => {
+  await route(page, null);
+  const component = await mount(<CharacterLookTabPanelStory />);
+
+  // The tab still owns the LOOK — this is a split, not a gutting: the theme cluster and the carried
+  // background are what "Look" names, and they are both still here.
+  await expect(page.getByText("Accent", { exact: true })).toBeVisible();
+  // The Background cluster by its SECTION heading — the word also names a theme colour field and the
+  // background picker's own label, so a bare text match resolves three nodes.
+  await expect(component.getByRole("heading", { name: "Background" })).toBeVisible();
+  // …and the two concerns that earned their own doors are gone from here: the snapshot log (a versioning
+  // question, 1560px down) and the Trust essay (a security one).
+  await expect(page.getByRole("button", { name: "Snapshot now" })).toHaveCount(0);
+  await expect(component.getByRole("combobox", { name: "HTML rendering" })).toHaveCount(0);
+});
+
+// SIX RAW `oklch(0.85 0.1 62)` STRINGS WERE THE USER-FACING VALUES of this panel's colour fields, beside
+// one field reading `Inherit` that was perfectly legible. The readout's job is to distinguish a field the
+// card SETS from one it inherits; a word does that as well as a colour-science triple and can be read.
+// The seeded themes are authored in oklch, so this was the RESTING state of every card carrying a look.
+test("#841 a colour field's value reads as words, never as an oklch() triple", async ({ mount, page }) => {
+  const card = makeCharacterDetail({ themeOverride: { accent: "oklch(0.75 0.12 68)", background: "#221a14" } });
+  await routeTrpc(page, {
+    "character.get": () => card,
+    "character.update": () => card,
+    "character.listSnapshots": () => [],
+    "settings.listThemes": () => THEME_LIST,
+  });
+  const component = await mount(<CharacterLookTabPanelStory />);
+
+  await expect(page.getByText("Accent", { exact: true })).toBeVisible();
+  // Nothing on the panel prints the notation. `innerText` is the whole rendered surface — the strongest
+  // form of this claim, and the one that stays true if a new colour row is added.
+  await expect(component).not.toContainText(OKLCH_RE);
+  // A set-but-unreadable value says so in a word…
+  await expect(component.getByText("Custom", { exact: true }).first()).toBeVisible();
+  // …a HEX is legible as-is, so it survives verbatim (it is also what the popover's own hex field takes)…
+  await expect(component.getByText("#221a14", { exact: true })).toBeVisible();
+  // …and `Inherit`, the one readout that always worked, is untouched.
+  await expect(component.getByText("Inherit", { exact: true }).first()).toBeVisible();
 });

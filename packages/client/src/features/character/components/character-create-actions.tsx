@@ -156,7 +156,15 @@ export function CharacterCreateActions(): ReactElement {
     <>
       {/* ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge. */}
       <Row align="center" gap="field">
-        <Button aria-label="Import a character card" intent="ghost" onClick={(): void => setImportOpen(true)} size="sm">
+        {/* `icon-sm`, NOT `sm` (side-eye 2026-08-30 rail-characters P2, #842). An icon-only `sm` button is a
+            control-HEIGHT box with `px-block` of width: 40×44 at a coarse pointer, i.e. 4px under the touch
+            floor on its short side, corroborated by a four-cardinal `elementFromPoint` losing the point at
+            ±21px horizontally and by `getComputedStyle(el,"::after").content === "none"` (a `sm` button
+            carries no hit-area pseudo — the 40px box IS the target). `icon-sm` is the same control step as a
+            SQUARE (`size-control-sm p-0`), so it is 44×44 on coarse and 32×32 on fine, the height it
+            already had and the width it was missing. Not a `glyph-*` step: those are pointer-INDEPENDENT
+            display boxes that would have shrunk the visible target beside the `sm` New primary. */}
+        <Button aria-label="Import a character card" intent="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm">
           <Icon icon={Upload} size="sm" />
         </Button>
         <CharacterCreateButton />

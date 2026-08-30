@@ -13,7 +13,7 @@ import { Icon, Plus, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
@@ -30,6 +30,12 @@ export interface CharacterTagsRowProps {
 /** The accepted-tag chips (each removable) + an "Add tag" picker Dialog (immediate attach/detach). */
 export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowProps): ReactElement {
   const invalidation = useInvalidation();
+  // THE ROW SAYS WHAT IT IS (side-eye 2026-08-30 rail-characters P2, #840c). Its accessible tree read
+  // `paragraph: Empty` then `button "Add tag"` — the word "Tags" appeared NOWHERE, so a screen-reader user
+  // met an unlabelled value and had to infer the datum from the verb beside it. The four ADVANCED facet
+  // rows do this right (`button "System prompt"` naming the datum, `text: Empty` as its value); this is the
+  // same grammar for a row whose name is not itself a control — a visible kicker, referenced by the group.
+  const labelId = useId();
   const addTag = useBulkAddCardTag({ trpc, invalidation });
   const removeTag = useBulkRemoveCardTag({ trpc, invalidation });
   const [open, setOpen] = useState(false);
@@ -60,7 +66,10 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
   const visible = tags.filter((tag) => !tag.isHiddenOnCard);
   const tagWritePending = addTag.isPending || removeTag.isPending;
   return (
-    <Row gap="field" align="center" className="flex-wrap" data-slot="character-tags">
+    <Row aria-labelledby={labelId} gap="field" align="center" className="flex-wrap" data-slot="character-tags" role="group">
+      <Text id={labelId} voice="kicker">
+        Tags
+      </Text>
       {visible.length === 0 ? (
         // The house empty word (#502) — this row said "No tags" while the facet rows said "Add…" and the
         // CONTEXT card said "None", three vocabularies for one state inside one editor. The verb lives in

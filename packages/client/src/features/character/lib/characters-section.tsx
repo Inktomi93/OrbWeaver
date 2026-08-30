@@ -29,11 +29,13 @@ import type { SectionDefinition } from "#state";
 import { characterSectionSelection } from "#state";
 import { CharacterLibraryAnchor } from "../anchors/character-library-anchor.tsx";
 import { CharacterActionsMenu } from "../components/character-actions-menu.tsx";
+import { CharacterLookTab } from "../components/character-appearance-tab.tsx";
 import { CharacterChatsProjectionShell } from "../components/character-chats-projection-shell.tsx";
 import { CharacterContent } from "../components/character-content.tsx";
 import { CharacterFacetInspector } from "../components/character-facet-inspector.tsx";
-import { CharacterOptionsTab } from "../components/character-options-tab.tsx";
+import { CharacterHistoryTab } from "../components/character-history-tab.tsx";
 import { CharacterRelationsTab } from "../components/character-relations-tab.tsx";
+import { CharacterTrustTab } from "../components/character-trust-tab.tsx";
 import { CharactersListHeader } from "../components/characters-list-header.tsx";
 import { useCharacterContextState } from "../hooks/use-character-context-state.ts";
 import { CharacterLibrarySurface } from "../surfaces/character-library-surface.tsx";
@@ -65,14 +67,26 @@ export function makeCharactersSection(
     // …and what it calls the open character in the pushed frame's topbar.
     useSelectionTitle: useCharactersSelectionTitle,
     content: () => <CharacterContent detailContributors={detailContributors} />,
-    // Four tabs: Field (drilled facet detail), Chats (#501 — her history, the pane the LIST used to
-    // become), Links (world books + personas), Options.
+    // THE SIX-SLOT META RAIL (#860, owner 2026-08-30): Overview · Chats · Links · Look · History · Trust.
+    // Overview is the resting card + the drilled facet detail; Chats is #501's home for her threads (the
+    // pane the LIST used to become); Links is world books + personas; Look is the theme override +
+    // background; History is the snapshot log; Trust is the render posture. The context-panel program seats
+    // this roster in a shared foot rail with a kicker on top — the CHROME is its lane's, the ROSTER is here.
+    //
+    // `Overview`, NOT `Field` (side-eye 2026-08-30 rail-characters P3, #843). The tab's default body is the
+    // overview card (#513) with the pick-a-field instruction as its FOOTER — so a tab named "Field"
+    // contained no fields until you drilled one, which is the one state its name described. The name now
+    // covers both: the card at rest, the drilled facet when there is one.
+    //
+    // `Look` + `Trust` + `History` WERE ONE TAB CALLED "OPTIONS" (#841). That merge's own premise — a
+    // signed THREE-tab strip — is what died; see `character-appearance-tab.tsx`'s header for the ruling and
+    // the 2253px-in-a-693px-pane measurement that made the split due.
     context: defineContextTabs<CharacterContextState>({
       useContextState: useCharacterContextState,
       tabs: [
         {
-          id: "field",
-          label: "Field",
+          id: "overview",
+          label: "Overview",
           body: (s) => <CharacterFacetInspector characterId={s.characterId} />,
         },
         {
@@ -86,9 +100,19 @@ export function makeCharactersSection(
           body: (s) => <CharacterRelationsTab characterId={s.characterId} />,
         },
         {
-          id: "options",
-          label: "Options",
-          body: (s) => <CharacterOptionsTab characterId={s.characterId} />,
+          id: "look",
+          label: "Look",
+          body: (s) => <CharacterLookTab characterId={s.characterId} />,
+        },
+        {
+          id: "history",
+          label: "History",
+          body: (s) => <CharacterHistoryTab characterId={s.characterId} />,
+        },
+        {
+          id: "trust",
+          label: "Trust",
+          body: (s) => <CharacterTrustTab characterId={s.characterId} />,
         },
       ],
       actions: (s) => <CharacterActionsMenu characterId={s.characterId} />,
@@ -97,7 +121,7 @@ export function makeCharactersSection(
       empty: {
         title: "Nobody open",
         description:
-          "Open someone from your cast and this pane carries the field you are editing, your chats with them, their world books and personas, and their options.",
+          "Open someone from your cast and this pane carries an overview of them, your chats together, their world books and personas, their look, their version history and how their cards are trusted.",
       },
     }),
   };

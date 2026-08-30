@@ -59,6 +59,10 @@ async function routeAll(page: Page): Promise<void> {
     // #649 — the editor pane's STAGED tag-suggestion read was the last unfed one here, so the suggestion
     // tier ran INERT on `routeTrpc`'s null. Empty is the honest default (nothing staged for this card).
     "tag.listPendingSuggestions": () => [],
+    // #841 — the CONTEXT strip carries a History tab now, so the snapshot log's read is ambient here too.
+    // Empty is the honest default (nothing snapshotted for this card), and it is the arm the review
+    // measured and called good.
+    "character.listSnapshots": () => [],
   });
 }
 
@@ -119,12 +123,84 @@ test('the editor hero\'s "N chats ›" lands on the CONTEXT Chats tab', async ({
   // Settled: the editor is up (its own read resolved) before anything is clicked in it.
   await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue("Azarael");
   const context = component.getByTestId("context-region");
-  // The resting tab is Field — the overview card, not her chats.
-  await expect(context.getByRole("tab", { name: "Field" })).toHaveAttribute("aria-selected", "true");
+  // The resting tab is Overview — the overview card, not her chats. (It was named "Field" until #843: the
+  // tab's resting body is the overview card with the pick-a-field line as its FOOTER, so "Field" described
+  // the one state it was not in.)
+  await expect(context.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
 
   // The hero prints her census as the link's own name — one chat in this fixture.
   await component.getByTestId("content-region").getByRole("button", { name: "1 chat", exact: true }).click();
 
   await expect(context.getByRole("tab", { name: "Chats" })).toHaveAttribute("aria-selected", "true");
   await expect(context.getByText("Winter court")).toBeVisible();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// #841/#860 — THE SIX-SLOT META ROSTER, and the doors the junk drawer swallowed. "Options" held the theme
+// editor, the Background picker, a three-paragraph Trust essay AND the snapshot log: `scrollHeight 2253` in
+// a `clientHeight 693` pane, ~1560px of scrolling in a 384px column to reach the answer to "can I undo what
+// I just did". The pin is the ROSTER plus the two new doors' own affordances — the defect was never that
+// the snapshot log or the trust ladder did not work, it was that nothing on screen suggested they existed.
+test("#841 the CONTEXT roster is the six named tabs, in order", async ({ mount, page }) => {
+  await routeAll(page);
+  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+
+  await expect(component.getByRole("tab")).toHaveText(["Overview", "Chats", "Links", "Look", "History", "Trust"]);
+  // …and the drawer's name is gone with the drawer.
+  await expect(component.getByRole("tab", { name: "Options" })).toHaveCount(0);
+});
+
+test("#841 the snapshot log is its own CONTEXT tab, one click from the open character", async ({ mount, page }) => {
+  await routeAll(page);
+  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+
+  await component.getByRole("tab", { name: "History" }).click();
+  // The log's own affordance — the thing that used to be 1560px down the Options tab.
+  await expect(component.getByRole("button", { name: "Snapshot now" })).toBeVisible();
+  // …and its empty state, which the review found good and this change must not disturb.
+  await expect(component.getByText("No snapshots yet.", { exact: false })).toBeVisible();
+});
+
+test("#841 Trust is its own door too — a security concern reads as one", async ({ mount, page }) => {
+  await routeAll(page);
+  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+
+  await component.getByRole("tab", { name: "Trust" }).click();
+  await expect(component.getByRole("combobox", { name: "HTML rendering" })).toBeVisible();
+  await expect(component.getByRole("combobox", { name: "External media" })).toBeVisible();
+  // …and the LOOK tab is where the colours are, not here — the split is real on both sides.
+  await expect(component.getByText("Accent", { exact: true })).toHaveCount(0);
+});
+
+// #843 — SHIPPED EXAMPLE CARDS SAID `Made here`. On a fresh install every one of the ten default
+// characters told the user they had authored it, on the Origin card whose entire job is provenance, in the
+// first state a new user ever sees. The seeder stamps `creator: "orbweaver"` and this reads it back.
+test("#843 the Origin card tells a shipped example card apart from one you made", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.list": () => CHARACTER_PAGE,
+    "character.get": () => ({ ...AZARAEL_DETAIL, creator: "orbweaver" }),
+    "character.update": () => AZARAEL_DETAIL,
+    "chat.listChats": chatListResponder([]),
+    "settings.getUserSettings": () => SETTINGS,
+    "worldInfo.listForCharacter": () => [],
+    "persona.listConnectedToCharacter": () => [],
+    "regex.listForCharacter": () => [],
+    "tag.listPendingSuggestions": () => [],
+    "character.listSnapshots": () => [],
+  });
+  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+
+  await expect(component.getByText("Origin", { exact: true })).toBeVisible();
+  await expect(component.getByText("Example — shipped with Orbweaver")).toBeVisible();
+  await expect(component.getByText("Made here", { exact: true })).toHaveCount(0);
+});
+
+// …and the two-sided control: a card with NO shipped marker still reads as the owner's own work, so this
+// is a third arm on a three-arm fact, not a blanket relabel.
+test("#843 a card without the shipped marker still reads as Made here", async ({ mount, page }) => {
+  await routeAll(page);
+  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+
+  await expect(component.getByText("Origin", { exact: true })).toBeVisible();
+  await expect(component.getByText("Made here", { exact: true })).toBeVisible();
 });

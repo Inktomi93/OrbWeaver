@@ -36,6 +36,23 @@ export const CARD_SPECS = [CHARA_CARD_V2_SPEC, CHARA_CARD_V3_SPEC] as const;
 export const cardSpecSchema = z.enum(CARD_SPECS);
 export type CardSpec = (typeof CARD_SPECS)[number];
 
+/**
+ * The `creator` every SHIPPED example card carries — the tell that a row in the library is app-authored
+ * rather than the owner's own work or an import.
+ *
+ * It lives here because both ends need it and neither may import the other: the default-card pack stamps it
+ * (`domain/character/seeder/cards.ts`, `AUTHORED_CARD_DEFAULTS.creator`) and the client's provenance readout
+ * reads it (`character-overview-card.tsx`). It used to be a bare `"orbweaver"` literal in the pack with no
+ * reader, so the Origin card told a first-time user their ten shipped example characters were `Made here` —
+ * provenance that is false about every row in a fresh library, on the one card whose whole job is provenance
+ * (side-eye 2026-08-30 rail-characters P3, #843).
+ *
+ * It is a card-content field, so it is a HEURISTIC by construction: an imported card whose author wrote
+ * `orbweaver` in its creator field reads as shipped too. That is the honest limit of a claim derived from
+ * card content, and it is strictly better than a claim derived from nothing.
+ */
+export const AUTHORED_CARD_CREATOR = "orbweaver";
+
 // V3 `data.assets[]` — the media manifest; each entry is `{type,uri,name,ext}` (the RisuAI/charx shape,
 // e.g. `{type:"icon",uri:"ccdefault:",name:"main",ext:"png"}` or an `embeded://…` charx-ZIP path). PARSED +
 // PRESERVED only. Resolving an asset URI — charx ZIP extraction, an `http(s)` fetch, `ccdefault:` — and
