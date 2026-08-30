@@ -34,8 +34,9 @@ import {
   useSectionListIsScreen,
 } from "@orb/client/state";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
 import { FileDropzone } from "@orb/ui/file-dropzone";
-import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, MessagesSquare, Settings, Users } from "@orb/ui/icons";
+import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, Icon, MessagesSquare, Settings, Users } from "@orb/ui/icons";
 import { Toaster } from "@orb/ui/toast";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -829,10 +830,25 @@ const CTX_CROWN_ORDER_TABS: readonly ResolvedContextTab[] = [
  *  so the same mount answers the OVERFLOW question (#875 F7/F8): does the rail SAY it is scrollable?
  *  `paneWidth` is a prop because a story hard-wired to one width measures the pane at every viewport
  *  ([[ct-viewport-under-48rem-hits-mobile-shell-arm]]) — the pin drives both ends of it. */
-export function ContextMetaRailStory({ paneWidth = 291 }: { readonly paneWidth?: number }): ReactElement {
+export function ContextMetaRailStory({ paneWidth = 291, withTrail = false }: { readonly paneWidth?: number; readonly withTrail?: boolean }): ReactElement {
   return (
     <div style={{ width: paneWidth, height: 480 }} data-testid="ctx-strip-container">
-      <ContextTabsPanel tabs={CTX_CROWN_ORDER_TABS} railLabel="Chat" />
+      <ContextTabsPanel
+        tabs={CTX_CROWN_ORDER_TABS}
+        railLabel="Chat"
+        {...(withTrail
+          ? {
+              // The host's rail-trail actions — a glyph button that is NOT a cell (#878 F17). A `Button`
+              // rather than a raw element: the trail is a real control in production (chat's add-member
+              // popover, the character kebab) and the pin measures its box against the track's.
+              actions: (
+                <Button aria-label="Fake trail" intent="ghost" size="icon" type="button">
+                  <Icon icon={Crown} size="sm" />
+                </Button>
+              ),
+            }
+          : {})}
+      />
     </div>
   );
 }

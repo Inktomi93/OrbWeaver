@@ -178,6 +178,30 @@ test("#875 F15: a crowned meta cell seats LAST however its contributor registere
   await expect(cells.last()).toHaveAttribute("data-crown", "true");
 });
 
+// ── #878 F17: THE RAIL'S TRAIL IS NOT A SEVENTH CELL ───────────────────────────────────────────────────
+test("#878 F17: the rail's trail actions are separated from the cell track by a rule", async ({ mount }) => {
+  // The host kebab sat INSIDE the cell row — a 34×34 glyph with no caption, beside captioned cells, in a
+  // rail whose law is "icon + caption always" (#208). It reads as a cell that forgot its word. It is not a
+  // cell (it selects no view) and must not take a caption, so the separation is the fix.
+  const component = await mount(<ContextMetaRailStory paneWidth={640} withTrail={true} />);
+  const foot = component.locator('[data-slot="context-rail"][data-edge="bottom"]');
+  const rule = foot.locator('[data-slot="separator"]');
+  await expect(rule).toHaveCount(1);
+  await expect(rule).toHaveAttribute("aria-hidden", "true");
+  // It sits BETWEEN the cell track and the trail — the geometry is what makes it a separation and not an
+  // ornament parked at one end.
+  const [trackBox, ruleBox, trailBox] = await Promise.all([
+    component.getByRole("toolbar", { name: "Chat" }).boundingBox(),
+    rule.boundingBox(),
+    foot.getByRole("button", { name: "Fake trail" }).boundingBox(),
+  ]);
+  if (trackBox === null || ruleBox === null || trailBox === null) {
+    throw new Error("expected the foot rail's track, rule and trail to be laid out");
+  }
+  expect(ruleBox.x).toBeGreaterThanOrEqual(trackBox.x + trackBox.width);
+  expect(trailBox.x).toBeGreaterThanOrEqual(ruleBox.x + ruleBox.width);
+});
+
 // ── #875 F7/F8: AN OVERFLOWING RAIL SAYS SO ────────────────────────────────────────────────────────────
 // The fold is count-gated to six cells (right, after #861's ragged 3+2) and the track degrades to a scroll
 // (right by ruling) — and nothing answered the case where the scroll is the ONLY arm and it silently

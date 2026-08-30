@@ -73,6 +73,8 @@ export function RpgHeaderBand({ chatId }: RpgHeaderBandProps): ReactElement | nu
   return (
     <RpgTakeoverHeader
       roomTitle={state.roomTitle}
+      // #878 F7 — at a large type scale the satellite row is the TAB BODY's, not the band's.
+      satellitesInBody={state.satellitesInBody}
       ambient={state.tracker.ambient}
       actors={state.tracker.actors}
       trackerOrbs={state.tracker.trackerOrbs}

@@ -32,7 +32,7 @@ import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import type { ChatContextState, ChatContextTabId } from "#lib";
 import { deriveChatTitle } from "#lib";
-import { setContextTab } from "#state";
+import { setContextTab, useContextTab } from "#state";
 import { filterCharacters } from "../lib/roster.ts";
 import { RosterChipButton } from "./chat-header.tsx";
 import { ChatRecallIndicator } from "./chat-recall-indicator.tsx";
@@ -61,9 +61,27 @@ function useActivePresetName(): string | undefined {
   return presets?.find((preset) => preset.id === activeId)?.name;
 }
 
+/** The Members cell's id — ONE spelling, read by both the chip's action and its is-this-the-view test. */
+const MEMBERS_TAB = "members" satisfies ChatContextTabId;
+
 /** Open the Members cell — the roster chip's action; the pane is already open when this band renders. */
 function openMembersCell(): void {
-  setContextTab("members" satisfies ChatContextTabId);
+  setContextTab(MEMBERS_TAB);
+}
+
+/** Is pressing the members chip a NO-OP right now (#878 F18)? That is the question the chip's SHAPE
+ *  answers, and it has two arms:
+ *   · the stored selection IS `members`; or
+ *   · NOTHING is stored yet — the §4.1 resolver deliberately does not write the store when it falls back
+ *     (the `ctx-tab-store` = "unset" at first paint, pinned in `context-bracket.ct.tsx`), and with no
+ *     `defaultTab` flag it lands on the DECLARED-ORDER FIRST meta tab, which for a chat room is `members`
+ *     (`chats-section.tsx`). So an unset store means the pane is sitting on Members.
+ *  THE GAME-CHAT CASE IS NOT AN EXCEPTION, it is a non-case: `rpg.status` flags `defaultTab`, so a game
+ *  room lands on Status — and a game room's band is the WAYSTONE (the rpg region claims the head band), so
+ *  this component is not mounted there at all. RE-CHECK THIS if a normal room's meta tab ever takes a
+ *  `defaultTab` flag; that is the one input that would make the second arm lie. */
+function membersHoldsTheView(stored: string | null): boolean {
+  return stored === null || stored === MEMBERS_TAB;
 }
 
 export function ChatContextBand({ state }: ChatContextBandProps): ReactElement {
@@ -74,6 +92,7 @@ export function ChatContextBand({ state }: ChatContextBandProps): ReactElement {
   );
   const memberCount = state.participants.filter((p) => p.leftSeq === null).length;
   const presetName = useActivePresetName();
+  const membersIsCurrent = membersHoldsTheView(useContextTab());
   return (
     <Stack gap="row" data-slot="chat-context-band" className="min-w-0">
       {/* A real heading — the pane's own h2, like the LIST band's — so the room is a landmark a rotor can jump
@@ -82,8 +101,25 @@ export function ChatContextBand({ state }: ChatContextBandProps): ReactElement {
         {title}
       </Heading>
       <Row gap="field" align="center" className="flex-wrap">
-        <RosterChipButton count={memberCount} onClick={openMembersCell} wordy={true} />
-        <ChatRecallIndicator chatId={state.chatId} viewerIsHost={state.isHost} />
+        {/* THE MEMBERS CHIP IS A DATUM WHILE MEMBERS IS THE VIEW (#878 F18, side-eye 2026-08-30). It writes
+            `setContextTab("members")` — and `members` is the tab the pane OPENS on, so at rest the most
+            prominent actionable chip in the band did nothing visible until you had navigated away from the
+            default. A door that is already open is not a door; it is a count. So the shape follows the
+            state: while its target cell holds the view the chip renders as the same inert pill the preset
+            wears (F12's grammar — a pill you cannot press), and it becomes the pressable outline chip again
+            the moment the view is elsewhere. Derived from the ONE selection seam, never a second store. */}
+        {membersIsCurrent ? (
+          <Badge tone="soft" size="sm" intent="neutral" data-slot="chat-context-band-members">
+            {memberCount === 1 ? "1 member" : `${memberCount} members`}
+          </Badge>
+        ) : (
+          <RosterChipButton count={memberCount} onClick={openMembersCell} wordy={true} />
+        )}
+        {/* `wordy` here too (#878 F11): the mock draws a labelled `Memory idle` pill and the band shipped a
+            bare squiggle — its accessible name was right and its visible name did not exist, which serves a
+            screen-reader user and fails everyone reading the screen. The topbar mount stays glyph-only; the
+            band has the room the topbar row does not. */}
+        <ChatRecallIndicator chatId={state.chatId} viewerIsHost={state.isHost} wordy={true} />
         {presetName === undefined ? null : (
           <Badge tone="soft" size="sm" intent="neutral" data-slot="chat-context-band-preset" title="The preset that governs generation for you in this room">
             {presetName}

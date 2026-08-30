@@ -33,6 +33,9 @@ export interface ChatRecallIndicatorProps {
   /** The viewer holds the room HOST role (`ChatDetail.viewerIsHost`) — gates the popover's full recall detail
    *  (the `previewAssembly` read is `requireHost` server-side; a member sees the count summary only). */
   readonly viewerIsHost: boolean;
+  /** Print the state as a WORD beside the glyph instead of a bare digit (#878 F11) — the BAND mount, which
+   *  has the width the topbar row does not. @defaultValue false */
+  readonly wordy?: boolean;
 }
 
 /** The accessible name for each recall state — the state lives in the NAME (the visible count is `aria-hidden`),
@@ -59,7 +62,7 @@ function iconClass(recall: RecallState | null): string {
 
 /** The stable topbar memory slot — the brain glyph, its state carried in the accessible name + (when recalled)
  *  a count digit, click-opening the recall popover. Always rendered (a stable slot beside the members chip). */
-export function ChatRecallIndicator({ chatId, viewerIsHost }: ChatRecallIndicatorProps): ReactElement {
+export function ChatRecallIndicator({ chatId, viewerIsHost, wordy = false }: ChatRecallIndicatorProps): ReactElement {
   const recall = useRecallState(chatId);
   const count = recall?.phase === "recalled" ? recall.count : null;
   const phase: RecallState["phase"] | "idle" = recall === null ? "idle" : recall.phase;
@@ -69,7 +72,14 @@ export function ChatRecallIndicator({ chatId, viewerIsHost }: ChatRecallIndicato
         render={
           <Button
             type="button"
-            intent="ghost"
+            // THE ACTIONABLE CHIP WEARS THE DRAWN EDGE (#878 F12, side-eye 2026-08-30). Both bands' chip
+            // rows had the grammar INVERTED: the pill shape marked the items you cannot click and the bare
+            // ghost marked the one you can. `outline` is the one intent that spells this — `ghost`'s ink
+            // with `secondary`'s edge, minted for filter chips — and `shape="pill"` keeps the mock's ONE
+            // chip family (`.chip`, a bordered pill on `--card`). An edge means you can press it; the inert
+            // datum chips stay the soft borderless-reading `Badge`.
+            intent="outline"
+            shape="pill"
             size="sm"
             aria-label={recallLabel(recall)}
             // ITS OWN SHED MARKER, not the roster chip's (#846, 2026-08-30). This control wore
@@ -86,7 +96,19 @@ export function ChatRecallIndicator({ chatId, viewerIsHost }: ChatRecallIndicato
             {/* The pulse is the ONLY motion, and only when recalling AND motion is allowed — a quiet breath,
                 never a spin (owner ruling). Under prefers-reduced-motion it is a static labeled icon. */}
             <Icon icon={BrainCircuit} size="sm" className={iconClass(recall)} />
-            {count === null ? null : (
+            {/* THE WORD, IN THE MOUNT THAT HAS ROOM FOR IT (#878 F11). The mock draws `● Memory idle`; the
+                band shipped a bare squiggle whose accessible name was correct and whose VISIBLE name did
+                not exist — Sam served, Jordan not, the reverse of the usual failure. The visible text is
+                the accessible name ITSELF, so WCAG 2.5.3 Label-in-Name holds by construction rather than
+                by two strings someone has to keep in sync, and the count digit below is redundant in this
+                arm (the label already carries it). `wordy` is the `RosterChipButton` precedent, and for the
+                same reason: the topbar row cannot spend the width, the band can. */}
+            {wordy ? (
+              <Text as="span" voice="interactiveKicker" aria-hidden={true}>
+                {recallLabel(recall)}
+              </Text>
+            ) : null}
+            {wordy || count === null ? null : (
               // `datum`, not `gloss` (#875 F6): this digit is the visible label of a button, and `gloss` is
               // the 10.5px micro step — under the 11px readable floor. `datum` is the VALUE voice at the
               // 13px label step, which is what this digit is.

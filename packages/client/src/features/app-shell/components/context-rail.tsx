@@ -34,6 +34,7 @@
 import { Badge } from "@orb/ui/badge";
 import { Icon, Lock } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { Separator } from "@orb/ui/separator";
 import { TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -281,9 +282,21 @@ export function ContextRail({ ariaLabel, tabs, activeTab, actions, edge, owns, k
           ))}
         </TabsList>
         {actions !== undefined ? (
-          <Row align="center" className="shrink-0">
-            {actions}
-          </Row>
+          <>
+            {/* THE TRAIL IS NOT A SEVENTH CELL (#878 F17, side-eye 2026-08-30). The host's kebab
+                ("Character actions", 34×34) sat INSIDE the rail's cell row with a glyph and no caption,
+                beside six captioned cells, in a rail whose law is "icon + caption, always" (#208) — so it
+                read as a cell that forgot its word, and as a second tab stop in a rail advertised as one.
+                It is not a cell and it must not take a caption (it is the rail's trail, not a view), so the
+                fix is the other arm the review offered: SEPARATE it. A hairline + a `row` inset is the
+                house's own "these are different kinds of thing" mark, and it costs the track nothing.
+                `aria-hidden` + `shrink-0`: it is a rule, not a control, and it may never absorb the
+                squeeze the cells need. */}
+            <Separator orientation="vertical" aria-hidden={true} className="ms-row h-control-sm shrink-0" />
+            <Row align="center" className="ms-row shrink-0">
+              {actions}
+            </Row>
+          </>
         ) : null}
         {/* The overflow marks. Purely presentational and never in the way of a tap — a `Stack` because a
             feature does not paint a raw element, `aria-hidden` because the fact they carry is already true

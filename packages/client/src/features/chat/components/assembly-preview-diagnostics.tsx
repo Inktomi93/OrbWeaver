@@ -9,6 +9,7 @@
 // Host-only by inheritance: it renders data from the two `requireHost` reads the panel already made.
 
 import type { AssembleTrace, ShapeBreakpointDecision, ShapeRowSource, ShapeTrace, ShapeTraceRow } from "@orb/contracts/chat";
+import { groupThousands } from "@orb/kit/strings";
 import { Badge } from "@orb/ui/badge";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -294,18 +295,10 @@ function WireRowLine({ row }: { readonly row: NumberedWireRow }): ReactElement {
         ) : (
           <Text voice="gloss">{ROW_SOURCE_LABEL[row.source]}</Text>
         )}
-        <Text voice="gloss">{`${formatChars(row.chars)} chars`}</Text>
+        <Text voice="gloss">{`${groupThousands(row.chars)} chars`}</Text>
       </Row>
     </Row>
   );
-}
-
-const THOUSANDS_RE = /\B(?=(\d{3})+(?!\d))/g;
-
-/** Group a character count for display ("3037" → "3,037"). Hand-rolled for the same reason the sibling panel's
- *  copy is: `.toLocaleString()` is banned repo-wide (`no-raw-intl-time`). */
-function formatChars(value: number): string {
-  return String(value).replace(THOUSANDS_RE, ",");
 }
 
 function TraceLine({ label, value }: { readonly label: string; readonly value: ReactNode }): ReactElement {

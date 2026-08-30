@@ -33,3 +33,26 @@ export function formatBytes(bytes: number): string {
   const rounded = Math.round(value * ONE_DECIMAL) / ONE_DECIMAL;
   return `${rounded} ${SIZE_UNITS[unitIndex] ?? "GB"}`;
 }
+
+// ── grouped digits ───────────────────────────────────────────────────────────────────────────────────
+// THE ONE THOUSANDS GROUPER, by the same placement rule `formatBytes` above states, and lifted for the
+// same reason on the same evidence (#878 F13, 2026-08-30).
+//
+// IT WAS DELIBERATELY NOT LIFTED, AND THAT RULING'S OWN CRITERION IS WHAT CHANGED. `databank-model.ts`
+// recorded it verbatim — *"Same spelling as the assembly panel's own `formatCount`, deliberately not
+// lifted into a shared home for two call sites in different features"* (side-eye 2026-08-19 N-3) — and
+// `character-facet-list.tsx` tracked the count in prose: *"so the three hand-rolled thousands-groupers on
+// the tree stay at three."* Both are COUNT arguments, and #878 F13 adds a fourth and a fifth in a THIRD
+// feature (the character context band's token chip and the editor's save-bar census, which the review
+// caught printing `1257 tokens` and `1257 total · 1017 permanent` — four-digit runs with no separator read
+// as ids). Three call sites is `formatBytes`'s own stated threshold. The ruling survives; its input moved.
+//
+// `.toLocaleString()` stays banned repo-wide (`no-raw-intl-time` — un-memoized Intl by the back door), so
+// this is the hand-rolled spelling all three sites already shared, verbatim.
+const THOUSANDS_RE = /\B(?=(\d{3})+(?!\d))/gu;
+
+/** Group a count for display, locale-agnostically: `1170` → `1,170`, `999` → `999`. The house separator is
+ *  the comma — one convention, so a token count reads the same in the band, the save bar and the bank. */
+export function groupThousands(value: number): string {
+  return String(value).replace(THOUSANDS_RE, ",");
+}

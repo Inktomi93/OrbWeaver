@@ -94,9 +94,12 @@ function facetPreview(id: CharacterCardFacet["id"], values: CharacterCardFormVal
  *  node). Aliased locally because the two summary builders below read it in every arm. */
 const EMPTY_SUMMARY = EMPTY_VALUE;
 
-/** A filled TEXT facet's magnitude. Plain digits, deliberately UNGROUPED: this string is only ever spoken,
- *  a screen reader groups the number itself, and `.toLocaleString()` is banned repo-wide (`no-raw-intl-time`)
- *  — so the three hand-rolled thousands-groupers on the tree stay at three. "Filled," leads because bare
+/** A filled TEXT facet's magnitude. Plain digits, deliberately UNGROUPED: this string is only ever spoken
+ *  and a screen reader groups the number itself. (The count clause this note used to carry — "so the three
+ *  hand-rolled thousands-groupers on the tree stay at three" — is spent: #878 F13 needed a fourth and fifth
+ *  in a third feature, so the spelling was lifted to `@orb/kit/strings`' `groupThousands`, whose header
+ *  records the supersession. The ruling THIS line states is unaffected: a SPOKEN magnitude is still
+ *  ungrouped, and that is a fact about speech, not about how many copies exist.) "Filled," leads because bare
  *  "44 characters" is ambiguous on a screen whose other nouns are character CARDS. */
 function textFillSummary(raw: string): string {
   const length = raw.trim().length;

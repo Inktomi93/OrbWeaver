@@ -19,6 +19,7 @@
 
 import type { AssemblyBudgetPart, AssemblyBudgetPreview, AssemblyBudgetSlice, AssemblySource } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
+import { groupThousands } from "@orb/kit/strings";
 import { Card } from "@orb/ui/card";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Stack } from "@orb/ui/layout";
@@ -105,14 +106,6 @@ const SOURCE_LABEL: Record<AssemblySource, string> = {
   ["history"]: "History",
 };
 
-const THOUSANDS_RE = /\B(?=(\d{3})+(?!\d))/g;
-
-/** Group a token count for display ("4300" → "4,300"). Hand-rolled: `.toLocaleString()` is banned repo-wide
- *  (`no-raw-intl-time` — un-memoized Intl by the back door) and ui takes pre-formatted strings. */
-function formatCount(value: number): string {
-  return String(value).replace(THOUSANDS_RE, ",");
-}
-
 /** The budget card: the used/window line + the bar. FILL-VS-HEADROOM (owner ruling 2026-07-31, superseding
  *  the mock's composition-only reading): the bar's FILLED LENGTH is `used / window`, the fill keeps its
  *  per-source segments, and the rest of the rail is visible HEADROOM — so 891 of 200k reads as the sliver it
@@ -156,11 +149,11 @@ function ContextBudget({ budget }: { readonly budget: AssemblyBudgetPreview }): 
  *     that number came from the model;
  *   • no ceiling at all ⇒ "no window limit" (nothing bounds the context). */
 function budgetHeadline(budget: AssemblyBudgetPreview): string {
-  const total = formatCount(budget.totalTokens);
+  const total = groupThousands(budget.totalTokens);
   if (budget.ceilingTokens === 0) {
     return `${total} tok · no window limit`;
   }
-  return budget.ceilingEstimated ? `${total} tok · window unknown` : `${total} / ${formatCount(budget.ceilingTokens)} tok`;
+  return budget.ceilingEstimated ? `${total} tok · window unknown` : `${total} / ${groupThousands(budget.ceilingTokens)} tok`;
 }
 
 // ── The per-source rows ─────────────────────────────────────────────────────────────────────────────
@@ -180,7 +173,7 @@ function SourceRow({ slice, divider }: { readonly slice: AssemblyBudgetSlice; re
           detail={slice.detail === "" ? undefined : slice.detail}
           divider={divider}
           label={SOURCE_LABEL[slice.source]}
-          value={formatCount(slice.tokens)}
+          value={groupThousands(slice.tokens)}
         />
       </CollapsibleTrigger>
       <CollapsiblePanel>
@@ -221,7 +214,7 @@ function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactE
   return (
     <Collapsible className="ps-row">
       <CollapsibleTrigger className="w-full">
-        <SeriesRow label={part.label} value={formatCount(part.tokens)} />
+        <SeriesRow label={part.label} value={groupThousands(part.tokens)} />
       </CollapsibleTrigger>
       <CollapsiblePanel>
         <Text voice="datum" className="block whitespace-pre-wrap pb-row">

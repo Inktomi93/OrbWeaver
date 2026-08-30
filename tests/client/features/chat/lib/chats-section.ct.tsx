@@ -266,9 +266,15 @@ test("#860: the context bracket's head band carries the room's title WHOLE and t
   await expect(title).toHaveText("Example — The Ashen Spire");
   // WHOLE — a 2-line clamp is allowed, an ellipsis is not: the rendered box holds the whole run.
   await expect.poll(() => title.evaluate((el) => el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1)).toBe(true);
-  // The chips: the roster chip (the ONE roster doorway, with its word), the standing memory control, the
+  // The chips: the roster count (the ONE roster doorway, with its word), the standing memory control, the
   // viewer's active preset by NAME (a chat carries no preset binding — this is the viewer's, D58).
-  await expect(band.getByRole("button", { name: "Members — 3" })).toBeVisible();
+  //
+  // THE ROSTER CHIP IS A DATUM AT REST NOW (#878 F18 — "the ruling survives, its INPUT changed"). This
+  // line used to assert a BUTTON here, and that was the defect: the pane OPENS on Members, so the chip's
+  // door was already open and pressing it did nothing visible. The doorway ruling is untouched — the chip
+  // is still the one roster door, and it is still a button everywhere the view is elsewhere (both
+  // directions are driven in the F11/F18 pin below). What changed is the state it is asserted IN.
+  await expect(band.locator('[data-slot="chat-context-band-members"]')).toHaveText("3 members");
   await expect(band.getByRole("button", { name: /^Memory — / })).toBeVisible();
   await expect(band.locator('[data-slot="chat-context-band-preset"]')).toHaveText("House style");
   // The band is ABOVE the rail, and the rail is the pane's foot: no tablist, no head strip.
@@ -290,9 +296,10 @@ test("#860: the context bracket's head band carries the room's title WHOLE and t
 // memory chip measured 40×44 against the 44px short side. A design-audit row proves a day; this proves
 // every day. The character band's twin is in characters-section.ct.tsx.
 const READABLE_FLOOR_PX = 11;
-/** The band's visible label census: the title, the roster chip's word, the preset chip. Stated so a story
- *  or chip change that empties the sweep reds instead of passing on zero rows. */
-const CHAT_BAND_LABELS = 3;
+/** The band's visible label census: the title, the roster chip's word, the MEMORY chip's word (#878 F11 —
+ *  this pin caught its arrival, which is what the stated census is for) and the preset chip. Stated so a
+ *  story or chip change that empties the sweep reds instead of passing on zero rows. */
+const CHAT_BAND_LABELS = 4;
 
 test("#875 F6: every visible label in the chat band clears the 11px readable floor", async ({ mount, page }) => {
   await routeTrpc(page, {
@@ -332,6 +339,50 @@ test("#875 F6: every visible label in the chat band clears the 11px readable flo
       .poll(() => label.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize)), { message: `band label #${String(index)} font-size` })
       .toBeGreaterThanOrEqual(READABLE_FLOOR_PX);
   }
+});
+
+// ── #878 F11 + F18: THE BAND'S CHIP ROW SAYS WHAT IT IS AND WHAT IT DOES ───────────────────────────────
+test("#878 F11/F18: the memory chip shows its word, and the members chip is a DATUM while Members holds the view", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...THIS_CHAT_TAB_READS,
+    "chat.getChat": () => ({
+      ...(multiHumanChat(true, [humanSeat("ct", "Alex", "host")]) as object),
+      participants: [humanSeat("ct", "Alex", "host"), character("aria"), character("buddy")],
+      title: "Example — Midnight Run",
+    }),
+    // FED, not inert: this pin CLICKS "This chat", whose Injections kicker reads the list for its count.
+    "chat.listChatInjections": () => [],
+  });
+  const component = await mount(<ChatContextPanelStory />);
+  const band = component.locator('[data-slot="chat-context-band"]');
+
+  // F11 — the visible word IS the accessible name, so Label-in-Name holds by construction rather than by
+  // two strings someone keeps in sync. It shipped as a bare glyph: named for AT, nameless for the eye.
+  const memory = band.getByRole("button", { name: /^Memory — / });
+  await expect(memory).toHaveText(/^Memory — /i);
+  // CASE-INSENSITIVE on purpose: the chip's `interactiveKicker` voice UPPERCASES its glyph-run
+  // (`MEMORY — IDLE` on screen, `Memory — idle` as the name), and WCAG 2.5.3's own note rules case
+  // differences acceptable — it is the WORDS that must match, which is exactly what this compares. The
+  // roster chip beside it already ships the same pairing.
+  const visible = await memory.innerText();
+  await expect(memory).toHaveAccessibleName(new RegExp(`^${visible}$`, "iu"));
+
+  // F18 — the pane OPENS on Members, so at rest the members chip's door is already open: it renders as the
+  // inert datum pill, not as a control that does nothing.
+  await expect(band.locator('[data-slot="chat-context-band-members"]')).toHaveText("3 members");
+  await expect(band.getByRole("button", { name: "Members — 3" })).toHaveCount(0);
+
+  // …and it becomes a real door again the moment the view is elsewhere — both directions, because a
+  // one-directional check passes on a chip that is stuck.
+  await cell(component, "This chat").click();
+  await expect(cell(component, "This chat")).toHaveAttribute("aria-current", "true");
+  await expect(band.getByRole("button", { name: "Members — 3" })).toBeVisible();
+  await expect(band.locator('[data-slot="chat-context-band-members"]')).toHaveCount(0);
+  // …and pressing it puts the view back, which is what makes it a door and not a decoration.
+  await band.getByRole("button", { name: "Members — 3" }).click();
+  await expect(cell(component, "Members")).toHaveAttribute("aria-current", "true");
+  await expect(band.locator('[data-slot="chat-context-band-members"]')).toHaveText("3 members");
 });
 
 test.describe("#875 F6 — the band's chips at a coarse pointer", () => {

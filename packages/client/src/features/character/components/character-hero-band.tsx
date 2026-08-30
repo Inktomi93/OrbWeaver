@@ -247,7 +247,12 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
     <Tooltip>
       <TooltipTrigger
         render={
-          <Button intent="ghost" size="inline" type="button" className="px-field">
+          // THE ACTIONABLE CHIP WEARS THE DRAWN EDGE (#878 F12): `outline` + `pill` at the `sm` control
+          // step, the same shape the chat band's members and memory chips take, so ONE grammar reads across
+          // both bands — a pill with an edge is pressable, a soft `Badge` is a datum. It replaces
+          // `ghost`+`size="inline"`, which drew nothing at rest and left the row marking `1 chat` and
+          // `1,257 tokens` (which you cannot press) as the shaped items and this one as bare text.
+          <Button intent="outline" shape="pill" size="sm" type="button">
             <ThemeScope className="size-4 shrink-0 rounded-full bg-primary ring-1 ring-border" tokens={themeOverride}>
               {null}
             </ThemeScope>
