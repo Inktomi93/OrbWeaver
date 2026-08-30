@@ -121,7 +121,7 @@ export function buildImportContext(wiring: ImportContextWiring): ImportContext {
       return stored.assetId;
     },
     // Author-shipped card tags land as card/pending suggestions (the user's "Accept" flips them later).
-    attachCardTag: ({ ownerId: oid, characterId, tagName }) => attachCardTag({ ownerId: oid, characterId, tagName, source: "card", status: "pending" }),
+    attachCardTag: ({ characterId, tagName }) => attachCardTag({ ownerId, characterId, tagName, source: "card", status: "pending" }),
     ...(importLorebook !== undefined ? { importLorebook } : {}),
     ...(linkCarriedBooks !== undefined ? { linkCarriedBooks } : {}),
     ...(importCardScripts !== undefined ? { importCardScripts } : {}),
