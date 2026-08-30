@@ -23,6 +23,7 @@ import type { Page } from "@playwright/test";
 import { droppedFramePct } from "../../../tooling/src/motion-audit/index.ts";
 import { blockMainThread } from "../../support/ct/block-main-thread.ts";
 import {
+  DeadClassConfirmStory,
   MotionFlaggersAuditPauseStory,
   MotionFlaggersCheckpointStory,
   MotionFlaggersCssBatchStory,
@@ -114,6 +115,36 @@ test("a single mutation INSIDE the throttle window is still scanned — trailing
   await expect.poll(() => lines.length, { intervals: [500, 1000, 2000, 2000], timeout: 20_000 }).toBeGreaterThan(0);
 
   expect(lines.join("\n")).toContain("orb-ct-dead-class-marker");
+});
+
+// #852 — CONFIRM BEFORE YOU CRY. `defined` is a CACHE the flagger refreshes only when a slice starts and
+// a stylesheet mutation was seen, so a rule that lands while a queued job drains is invisible to the
+// elements already in flight. MEASURED on the shipped room (side-eye 2026-08-30): the console flagged
+// `.base-ui-disable-scrollbar` on route `/` while `snap --dead-css` — a one-shot scan at SETTLE that
+// shares this flagger's own tokenizer — reported `deadcss=0` on the SAME runs. Two instruments, one page,
+// opposite verdicts; the class is real (Base UI's ScrollArea Root hoists its rule as a React
+// `<style precedence>`), so the console was the one lying.
+//
+// HONESTLY LABELLED: this is a FENCE, not a defect proof. It reads the `readDefined` seam the fix added,
+// so it cannot compile against the old source; the defect receipt is the two-instrument contradiction
+// above. Both directions ARE planted here — a token the second read defines must go unreported, and a
+// token no read ever defines must still be reported by the same harness in the same mount.
+test("#852: a token the FRESH CSSOM read defines is not reported — while a never-defined token still is", async ({ mount }) => {
+  const component = await mount(<DeadClassConfirmStory lateDefine={true} />);
+  const reports = component.getByTestId("dead-class-reports");
+
+  await component.getByRole("button", { name: "arm late class" }).click();
+  // The control proves the harness is still reporting at all (a silent flagger would pass vacuously).
+  await expect(reports).toContainText("orb-ct-always-dead-marker", { timeout: 10_000 });
+  await expect(reports).not.toContainText("orb-ct-late-defined-marker");
+});
+
+test("#852: the same token IS reported when no read ever defines it (the negative control)", async ({ mount }) => {
+  const component = await mount(<DeadClassConfirmStory lateDefine={false} />);
+  const reports = component.getByTestId("dead-class-reports");
+
+  await component.getByRole("button", { name: "arm late class" }).click();
+  await expect(reports).toContainText("orb-ct-late-defined-marker", { timeout: 10_000 });
 });
 
 test("a later dead-class mutation is found without rescanning the whole document", async ({ mount, page }) => {

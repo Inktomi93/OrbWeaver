@@ -10,7 +10,6 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Icon, UserPlus } from "@orb/ui/icons";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { CharacterPicker } from "#components";
 import { useInvalidation, useTRPC } from "#data";
@@ -25,20 +24,25 @@ function AddMemberShell({
 }): ReactElement {
   return (
     <Popover>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <PopoverTrigger
-              render={
-                <Button intent="ghost" size="icon" aria-label="Add a character">
-                  <Icon icon={UserPlus} size="sm" />
-                </Button>
-              }
-            />
-          }
-        />
-        <TooltipPopup side="top">Add a character</TooltipPopup>
-      </Tooltip>
+      {/* THE DOOR CARRIES ITS OWN WORD (#848). Icon-only, this trigger sat 4px from the labelled
+          "Add cast…" in the CAST header — two person-glyph affordances in one row, one of them mute, and a
+          first-timer could not predict which added a group and which added a person (side-eye 2026-08-30
+          P2; #490-8 had established exactly ONE add-character door before B10 landed its sibling). The
+          discriminator is a VISIBLE noun on each: "cast" vs "character".
+
+          THE VISIBLE TEXT IS THE ACCESSIBLE NAME NOW, and it is the SAME STRING the `aria-label` carried —
+          so WCAG 2.5.3 holds by construction (the visible label cannot fail to be contained in a name it
+          IS) and no consumer's `getByRole("button", { name: "Add a character" })` moves. The Tooltip goes
+          with the aria-label: a tooltip that repeats a visible label is noise, and it was only ever there
+          because the trigger had no word of its own. */}
+      <PopoverTrigger
+        render={
+          <Button intent="ghost" size="sm">
+            <Icon icon={UserPlus} size="sm" />
+            Add a character
+          </Button>
+        }
+      />
       <PopoverPopup>
         <CharacterPicker
           autoFocusSearch={true}

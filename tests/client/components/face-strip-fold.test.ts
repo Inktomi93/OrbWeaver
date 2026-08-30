@@ -2,7 +2,7 @@
 // sweep); this pins the RULES at the arms a browser sweep can only hit by luck — the leftover-of-one
 // squeeze, the honest count, and the single-face pane that has no slot left to save it with.
 
-import { foldFaces } from "../../../packages/client/src/components/face-strip-fold.ts";
+import { foldFaces, tileName } from "../../../packages/client/src/components/face-strip-fold.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 /** A pane's worth of measurements: uniform faces unless a case needs otherwise. */
@@ -50,4 +50,13 @@ test("VARIABLE widths are respected — a long name costs its own slot, not an a
 
 test("an empty strip folds to nothing (the component renders no shell at all)", () => {
   expect(foldFaces(input([], 200))).toEqual({ hidden: 0, squeezed: false, visible: 0 });
+});
+
+// #852 — LABEL IN NAME (WCAG 2.5.3). Lighthouse's `label-content-name-mismatch` fired on the chats
+// landing's `+8 More` tile because the name ("More — Filter by another character") omitted the DIGIT that
+// is half the visible label. Both arms print `+N`, so both arms must carry it.
+test("the overflow tile's name contains every token the tile prints", () => {
+  expect(tileName(true, "Filter by another character", 8)).toBe("+8 More — Filter by another character");
+  // The uncaptioned arm prints only `+N` — which is exactly why the bare verb was the worse offender there.
+  expect(tileName(false, "Filter by another character", 8)).toBe("+8 — Filter by another character");
 });

@@ -22,6 +22,12 @@ const IDLE_DEADLINE_FLOOR_MS = 1;
 export interface DeadClassFlaggerOptions {
   readonly scanIntervalMs: number;
   readonly onDeadClass: (token: string, element: Element) => void;
+  /** @public Test-anchored CSSOM READ seam (#852) — the same shape as `definedClassTokens`'s `tokenize`
+   *  parameter and for the same reason: the confirm-before-report contract is a statement about what the
+   *  SECOND read sees, and a real stylesheet cannot be made to land inside a draining slice on demand. A
+   *  reader that answers "absent, then present" is the only way to prove the rule that matters. Production
+   *  callers take the default and are unchanged. */
+  readonly readDefined?: () => ReadonlySet<string>;
 }
 
 /** Measurement harnesses settle the one initial full census before opening an interaction window. */
@@ -154,8 +160,31 @@ function collectRoots(records: readonly MutationRecord[], pending: Map<Element, 
 
 /** Throttled and idle-deferred: the initial census walks the document once; later scans consume only
  * MutationObserver roots. A mutation inside the throttle window schedules one trailing scan. */
-export function installDeadClassFlagger({ scanIntervalMs, onDeadClass }: DeadClassFlaggerOptions): void {
+export function installDeadClassFlagger({ scanIntervalMs, onDeadClass, readDefined = definedClassTokens }: DeadClassFlaggerOptions): void {
   let defined: ReadonlySet<string> | null = null;
+  // A CANDIDATE IS RE-DERIVED BEFORE IT IS REPORTED (#852). `defined` is a CACHE, refreshed only when a
+  // slice STARTS and a stylesheet mutation was seen — so a rule that lands while a queued job is still
+  // draining is invisible to the elements already in flight, and the class reads as dead when it is not.
+  // MEASURED on the shipped room: `.base-ui-disable-scrollbar` was flagged in the console on route `/`
+  // while `snap --dead-css` (a one-shot scan at SETTLE, sharing this file's own tokenizer) reported
+  // `deadcss=0` on the same runs — two instruments, one page, opposite verdicts. The class is real: Base
+  // UI's ScrollArea Root renders its rule as a React-hoisted `<style precedence>` (`utils/styles.mjs`),
+  // which is inserted around the same commit that mounts the viewport wearing the class.
+  //
+  // So a miss against the cache is a CANDIDATE, never a finding: one fresh CSSOM read confirms it, and the
+  // read is bounded to once per slice (a genuinely dead class on N elements costs one walk, not N). This
+  // fixes the whole race class rather than allow-listing one vendor token — an allow-list would also blind
+  // the flagger to that token going genuinely dead on a Base UI upgrade.
+  let revalidated = false;
+  const confirmDead = (token: string, element: Element): void => {
+    if (!revalidated) {
+      revalidated = true;
+      defined = readDefined();
+    }
+    if (defined?.has(token) !== true) {
+      onDeadClass(token, element);
+    }
+  };
   const pending = new Map<Element, boolean>([[document.documentElement, true]]);
   const jobs: ScanJob[] = [];
   let stylesheetChanged = true;
@@ -163,10 +192,11 @@ export function installDeadClassFlagger({ scanIntervalMs, onDeadClass }: DeadCla
   let queued = false;
   let trailingPending = false;
   const run = (deadline: IdleDeadline): void => {
+    revalidated = false;
     if (jobs.length === 0) {
       lastScan = performance.now();
       if (defined === null || stylesheetChanged) {
-        defined = definedClassTokens();
+        defined = readDefined();
         stylesheetChanged = false;
       }
       for (const [root, subtree] of pending) {
@@ -174,9 +204,9 @@ export function installDeadClassFlagger({ scanIntervalMs, onDeadClass }: DeadCla
       }
       pending.clear();
     }
-    const activeDefinition = defined ?? definedClassTokens();
+    const activeDefinition = defined ?? readDefined();
     defined = activeDefinition;
-    scanBatch(jobs, activeDefinition, deadline, onDeadClass);
+    scanBatch(jobs, activeDefinition, deadline, confirmDead);
     if (jobs.length > 0) {
       scheduleRun();
       return;
