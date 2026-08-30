@@ -982,7 +982,7 @@
     {
       "siteId": "packages/client/src/features/preset/hooks/use-preset-autosave.ts::promise:run::1",
       "path": "packages/client/src/features/preset/hooks/use-preset-autosave.ts",
-      "line": 171,
+      "line": 205,
       "column": 24,
       "grammar": "promise",
       "position": "promise:run",
@@ -990,7 +990,7 @@
       "snippet": "chainRef.current = run.catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "this .catch only resets the internal chain —",
-      "markerLine": 168
+      "markerLine": 202
     },
     {
       "siteId": "packages/client/src/features/preset/lib/custom-parameters-model.ts::default:catch::1",

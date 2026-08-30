@@ -615,6 +615,90 @@ test.describe("coarse pointer — the custom-parameter row at the NARROWEST real
   });
 });
 
+// ── THE FOLDED ROW HAS A VALUE COLUMN (side-eye 2026-08-30 P2-C) ──────────────────────────────────────
+//
+// Measured at 430px coarse on the shipped deck: label x=12, rail 12→418, value cell 284→364 — three
+// elements on three different x's, identically on all TEN knobs, so the most common read on this tab
+// ("which of these have I set?") had no column to run down and became ten separate hunts. The folded arm
+// stacked every cell in turn, which also cost 148px per row against 38px on desktop (~2,800px of scroll).
+//
+// The fix pairs the NAME with its VALUE on line one and gives the rail the line beneath, so the value cell
+// ends exactly where the rail does. Asserted as the ALIGNMENT (an equality between two measured boxes) and
+// as the PITCH (row-to-row spacing), because either alone can be satisfied while the other regresses — and
+// on EVERY knob, since the defect was uniform and a first-row sample would have missed nothing.
+test.describe("coarse pointer — the folded knob row reads down a value column", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 430, height: 932 } });
+
+  test("P2-C every value cell ends on the rail's own edge, and the pair costs ONE line instead of two", async ({ mount, page }) => {
+    const deck = await mount(<ParamsDeckGhostStory />);
+    await expect(deck.getByRole("slider", { name: "Temperature", exact: true })).toBeVisible();
+
+    // A KnobRow is GRID CELLS, not a box, so a row IS a slider root with its two SIBLINGS — the name cell
+    // before it, the value cluster after it. Walked that way rather than by slot name deliberately: the
+    // sibling walk resolves on BOTH arms of this fix, so what the assertion below reds on is the GEOMETRY,
+    // never a missing attribute (the value cluster's `data-slot` is pinned separately, as an anchor).
+    // Polled: the fold is a CONTAINER query, and a same-tick read of one is a false negative by construction.
+    const read = (): Promise<{ label: string; slot: string; numberRight: number; trackRight: number; labelTop: number; valueTop: number }[]> =>
+      deck.evaluate((root: HTMLElement) =>
+        [...root.querySelectorAll('[data-slot="slider-root"]')].map((slider) => {
+          const name = slider.previousElementSibling;
+          const cluster = slider.nextElementSibling;
+          const value = cluster?.getBoundingClientRect();
+          // THE NUMBER, not the cluster: the cluster reserves a slot for the reset on every row (visible or
+          // not), so measuring IT would report an alignment the eye cannot see — which is exactly the shape
+          // of the reported defect (the report's own census measured the `default` field at 284→364 against
+          // a rail ending at 418). The number field's root is what carries `--width-number-inline`.
+          const number = cluster?.querySelector('[data-slot="number-field-root"]')?.getBoundingClientRect();
+          const track = slider.querySelector('[data-slot="slider-control"]')?.getBoundingClientRect();
+          return {
+            label: name?.textContent ?? "",
+            slot: cluster?.getAttribute("data-slot") ?? "",
+            numberRight: number?.right ?? -1,
+            trackRight: track?.right ?? -2,
+            labelTop: Math.round(name?.getBoundingClientRect().top ?? -1),
+            valueTop: Math.round(value?.top ?? -2),
+          };
+        }),
+      );
+    await expect.poll(async () => (await read()).length, savePoll()).toBeGreaterThan(5);
+    const rows = await read();
+
+    expect(rows.length, "the story must render its whole knob set, or this alignment proof is vacuous").toBeGreaterThan(5);
+    for (const row of rows) {
+      const at = `knob ${row.label} [number ${String(Math.round(row.numberRight))} · rail ${String(Math.round(row.trackRight))} · slot ${row.slot}]`;
+      // THE COLUMN: the number's trailing edge IS the rail's. Sub-pixel tolerance only — the point of the
+      // finding is that these were 54px apart.
+      expect(Math.abs(row.numberRight - row.trackRight), `${at}: the value must end where the rail does`).toBeLessThanOrEqual(1);
+      // THE LINE: name and value share it, which is what gives the column its edge and saves the row.
+      expect(Math.abs(row.labelTop - row.valueTop), `${at}: the value rides the label's line`).toBeLessThanOrEqual(2);
+      // …and the walk landed on the value cluster rather than a gloss or the next row's name, which is what
+      // entitles the two measurements above to be called the value cell's.
+      expect(row.slot, `${at}: the element after the rail is the value cluster`).toBe("knob-value");
+    }
+
+    // THE PITCH: the desktop row is ~38px and the stacked arm was 148px. A phone row legitimately costs more
+    // than a desktop one (a 48px touch floor on the twin, a full-width rail beneath), so this is a CEILING
+    // well under the stacked cost, not a claim of parity.
+    //
+    // Measured WITHIN a cluster (one KnobGrid) and never across two: a deck's clusters are separated by a
+    // kicker rule and by non-knob controls, so a whole-deck scan reports those as ~420px "rows" and would
+    // fail this ceiling however tight the rows themselves are.
+    const pitch = await page.evaluate(() => {
+      const grids = new Set([...document.querySelectorAll('[data-slot="slider-root"]')].map((slider) => slider.parentElement));
+      const gaps: number[] = [];
+      for (const grid of grids) {
+        const tops = [...(grid?.querySelectorAll('[data-slot="slider-root"]') ?? [])].map((s) => s.previousElementSibling?.getBoundingClientRect().top ?? 0);
+        for (const [index, top] of tops.slice(1).entries()) {
+          gaps.push(top - (tops[index] ?? 0));
+        }
+      }
+      return gaps.length === 0 ? -1 : Math.max(...gaps);
+    });
+    expect(pitch, "the per-row pitch must be measurable, or the ceiling below is vacuous").toBeGreaterThan(0);
+    expect(pitch, "a folded row costs one pair-line plus its rail, never a cell-per-line stack").toBeLessThan(120);
+  });
+});
+
 // ── The geometry, against the mock's grammar (computed px vs the resolved tokens) ─────────────────────
 
 test("GEOMETRY — label column · flexing track · mono twin, all on ONE line (the mock's KnobRow)", async ({ mount }) => {

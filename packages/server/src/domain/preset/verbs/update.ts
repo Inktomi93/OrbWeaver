@@ -1,7 +1,7 @@
 import type { PromptConfig } from "@orb/contracts/preset";
 import { parsePromptConfig } from "@orb/contracts/preset";
 import { getLog } from "#foundation/observability";
-import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
+import { OWNED_PRESET_KIND, SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
 import type { PresetContext } from "../context.ts";
 import { PresetNotFoundError } from "../contract/errors.ts";
 import type { PresetForkIntent, UpdatePresetParams } from "../contract/params.ts";
@@ -84,7 +84,11 @@ async function mintFork(
     id: forkId,
     ownerId: params.userId,
     name,
-    kind: params.kind ?? base.kind,
+    // NOT `base.kind` (side-eye 2026-08-30 P2-B): the base is always the system default, so the fork wore
+    // `system` — the word this surface reserves for the locked row — as the leading token of its library
+    // subtitle. A fork is an ordinary owned preset; its lineage rides `forkedFrom`, which the subtitle
+    // already prints. A caller-submitted kind still wins: this is a default, not an override.
+    kind: params.kind ?? OWNED_PRESET_KIND,
     config,
     schemaVersion: config.schemaVersion,
     forkedFrom: SYSTEM_DEFAULT_PRESET_ID,
