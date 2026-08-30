@@ -899,16 +899,20 @@ test("#640: a room with NO books attached says so rather than rendering an empty
 // moves by exactly the reserve's error. ONE injection is released so the cold-cache reserve (a single
 // collapse row) is the honest comparison; on the pre-#821 source that same release moved Documents by
 // ~280px, because an 89px line stood in for a ~370px open editor.
-// THE BUDGET, and both of the terms inside it (measured in this test, 380px mount, one injection):
+// THE BUDGET, and the term inside it (measured in this test, 380px mount, one injection):
 //   ·  2.6px — the reserve's own error. The section BODY goes 188.25 → 202.75 while its heading grows
 //              17.1 (below), so the body itself SHRINKS ~2.6px on settle. That is the #821 term, and it
 //              agrees to the pixel with the 0/1/2/5-row reserve pins in injections-manager.ct.tsx.
-//   · 17.1px — THE COUNT CHIP. `HeadingWithCount`'s Badge more than doubles the kicker's own line box
-//              when it appears (13.125 → 30.25), and it appears on THREE sections (Injections, Documents,
-//              Lorebooks), each shifting everything below it by that much on settle. It is a separate
-//              defect from this one, in a shared heading component, and it is REPORTED rather than fixed
-//              here — but it must not be smuggled into this budget silently, so it is named.
-// Pre-#821 the first term alone was ~280px (an 89px line standing in for a ~370px open editor), so this
+//   · CLOSED (#829) — THE COUNT CHIP. `HeadingWithCount`'s Badge used to more than double the kicker's
+//              own line box when it appeared (13.125 → 30.25) on THREE sections (Injections, Documents,
+//              Lorebooks), each shifting everything below it by ~17.1px on settle. The Badge's
+//              `size="inline"` arm (built for exactly this — see badge/variants.ts) inherits the
+//              kicker's own type axes instead of establishing its own flex box, so the arrival is now a
+//              paint, not a layout; pinned directly by the #829 test below. The number here is left at
+//              20 rather than tightened to the ~3px residual: this file exercises one mount width
+//              (380px) and the standing rule (`lane-standing-facts.md`, "a point measurement never
+//              proves a range property") requires a width matrix before a fence's budget is narrowed.
+// Pre-#821 the reserve term alone was ~280px (an 89px line standing in for a ~370px open editor), so this
 // budget is failable by an order of magnitude on the source it was written against.
 const SETTLE_SHIFT_BUDGET_PX = 20;
 
@@ -987,4 +991,39 @@ test("#821: the Injections fallback is the section's own shape, not a line", asy
   hold.release(HELD_INJECTIONS);
   await expect(component.getByRole("heading", { name: "Injections 2", level: 3 })).toBeVisible();
   await expect(injections.locator('[aria-busy="true"]')).toHaveCount(0);
+});
+
+// #829: THE KICKER'S OWN LINE BOX — `HeadingWithCount`'s count chip must not resize the heading it rides in.
+// Named by #821 as a separate defect from the section-fence one above (the reserve fence budgets the shift,
+// this pin closes the source): pre-fix the Badge's `size="sm"` was `inline-flex` with its own type axes, so
+// its arrival grew the kicker's line box 13.125px → 30.25px (measured by lane cb-this-chat-fixes, 76ee75493).
+// Same `trpcHold` barrier as the fence test above — the heading's own bounding-box height, absent vs present.
+test("#829: the count chip's arrival does not resize the kicker's own line box", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": hold,
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+    "chat.getChat": () => CHAT_DETAIL,
+  });
+
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+  await hold.requested;
+
+  const injectionsHeading = component.getByRole("heading", { name: "Injections", exact: true, level: 3 });
+  await expect(injectionsHeading).toBeVisible();
+  const heightOf = (locator: typeof injectionsHeading): Promise<number> => locator.evaluate((element) => element.getBoundingClientRect().height);
+  const heightBefore = await heightOf(injectionsHeading);
+
+  hold.release(HELD_INJECTIONS);
+  const injectionsHeadingWithCount = component.getByRole("heading", { name: "Injections 2", level: 3 });
+  await expect(injectionsHeadingWithCount).toBeVisible();
+  const heightAfter = await heightOf(injectionsHeadingWithCount);
+
+  // THE ASSERTION: identical line box, count absent or present. Pre-fix this is 13.125 vs 30.25.
+  expect(heightAfter).toBeCloseTo(heightBefore, 1);
 });
