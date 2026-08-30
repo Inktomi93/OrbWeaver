@@ -35,6 +35,15 @@
 // makes this a fold rather than a cut. `CollapsiblePanel` unmounts its content while closed, so the
 // shelf really does get the height back rather than hiding it under a clip.
 //
+// …AND THE FOLD FINALLY HAS A SUBJECT (#834, owner-ruled 2026-08-30). B3 retired automation's doorway and
+// left the whole region delivering ONE dateless row, so the owner ruled what the region is FOR rather than
+// whether to keep it: it lists the committed-but-unrealized programs of
+// `docs/architecture/proposed/INDEX.md` (FUTURE + PARTIAL), with buddy among them. Home reads no doc and
+// holds no second list — those programs are declared as home-owned DORMANT DOORWAY TILES
+// (`lib/roadmap.ts`), so they arrive through the door like every other tile and this surface's partition,
+// grouping, fold and count all apply unchanged. The only thing that moved here is the band's trailing
+// COUNT, which is derived from the doorways it holds.
+//
 // NO PERSISTENCE, deliberately (the brief's fork, taken): the house device-local disclosure precedent
 // (`config-group-open-store`) is a whole persisted store + a `persistence-boundary` registration, and
 // what it would remember here is a glance at a list of things that do not exist yet — not a working
@@ -73,6 +82,7 @@
 // ZERO tiles ⇒ ONE designed empty state (never a blank surface). The Weave decoration rides HERE and only
 // here — at most one per screen (section-placeholder.tsx); every other surface keeps the muted sparkle.
 
+import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -257,6 +267,16 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                                 `h2` beside it already names the region, and a bare `role="separator"` here
                                 would add an unnamed stop to the home walk's a11y tree. */}
                             <Separator aria-hidden={true} className="flex-1" />
+                            {/* THE COUNT, in the band's TRAILING slot (#834) — the same position every
+                                `TileBand` puts its one trailing affordance in ("All documents →"), which is
+                                why it needs no chrome of its own. It sits OUTSIDE the trigger deliberately:
+                                the trigger's accessible name is exactly the group's one name (#482/#833 both
+                                ruled on that string), and a chip inside the button would concatenate into it.
+                                It is DERIVED, never declared — the fold says how much it is holding, so a
+                                roadmap entry landing or a doorway going live moves this number by itself. */}
+                            <Badge size="sm" tone="ghost">
+                              {doorways.length}
+                            </Badge>
                           </Row>
                           <CollapsiblePanel>
                             <Stack gap="block">

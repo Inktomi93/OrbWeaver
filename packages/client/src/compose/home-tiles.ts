@@ -12,14 +12,19 @@
 // feature raises a tile, home skims it. Adding "future stuff" to home is ONE co-located file in the OWNING
 // feature plus ONE array member HERE — home is never edited. Canonical `(order, id)` at the door: chat's
 // masthead line is order 0, its recents hero 10, its also-open list 15, the face shelf 20 and temp chat 30;
-// home's own "Elsewhere in the house" rail is 40; databank's tile 50; the buddy dormant doorway 80
-// (automation's dormant tile 90 was RETIRED with B3 — its own contract said it stays "until B3", and B3's chips
-// now consume the channel it stood for). WHICH COLUMN each lands in is the tile's own `region`, never a list
-// here. Home consumes the registry BLIND through `makeHomeSection`.
+// home's own "Elsewhere in the house" rail is 40; databank's tile 50; the buddy dormant doorway 80, and the
+// six roadmap doorways 81-86 (automation's dormant tile 90 was RETIRED with B3 — its own contract said it
+// stays "until B3", and B3's chips now consume the channel it stood for). WHICH COLUMN each lands in is the
+// tile's own `region`, never a list here. Home consumes the registry BLIND through `makeHomeSection`.
+//
+// THE ROADMAP BLOCK IS ONE MEMBER, SPREAD (#834): `homeRoadmapTiles` is home's curated mirror of the
+// FUTURE + PARTIAL rows of `docs/architecture/proposed/INDEX.md`, and its own file is the one home for both
+// the list and its orders. It is spread rather than enumerated here precisely so the door never becomes a
+// second copy of that table — adding a program is an edit to `features/home/lib/roadmap.ts` and nothing else.
 
 import { chatAlsoOpenTile, chatMastheadTile, chatQuickPicksTile, chatRecentsTile, chatTempChatTile } from "#features/chat";
 import { databankDocumentsTile } from "#features/databank";
-import { buddyDormantTile, makeSectionJumpTile } from "#features/home";
+import { buddyDormantTile, homeRoadmapTiles, makeSectionJumpTile } from "#features/home";
 import type { ContributorRegistry } from "#lib";
 import { createContributorRegistry } from "#lib";
 import type { HomeTileContribution } from "#state";
@@ -32,6 +37,7 @@ const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [
   chatTempChatTile,
   databankDocumentsTile,
   buddyDormantTile,
+  ...homeRoadmapTiles,
 ];
 
 /** The ONE home-tile registry (G8) — assembled here, consumed blind by `makeHomeSection` at the door. */
