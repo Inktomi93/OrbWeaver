@@ -459,16 +459,20 @@ geography; a surface inventing its own geography is a finding, not a style choic
 [ RAIL | LIST | CONTENT | CONTEXT ]
 ```
 
-- **RAIL** (left, ~56px icon column) — WHICH facet. **NINE sections is the CEILING**, and nine is the
-  current count — the rail is FULL, not under-filled. Law: `UI-Architecture-and-Layout.md:190` — *"NINE
-  sections (D121 amended D62 P6's seven — Presets stays in the rail, Connections lives in Settings per
-  D66; `config` … was added at the config rail's R1 and `worldInfo` LEFT at R2 … `databank` … was added
-  by DATABANK S1 under owner ruling D-0/Arm A)"*. The live tuple is the truth:
-  `SECTION_IDS = ["home","chats","characters","corpus","config","databank","presets","refinery","analytics"]`
-  (`packages/client/src/state/shell-store.ts:44`), then Theme/Settings/Identity at the foot.
-  **This entry said "seven is the CEILING" until 2026-08-16 and nearly minted a false structural P1
-  against a rail that is exactly at its sanctioned size.** Counting nine icons is not a finding; a TENTH
-  section, or a section not in that tuple, is.
+- **RAIL** (left, ~56px icon column) — WHICH facet. **TEN sections is the current sanctioned count**
+  (a running tally, not a fixed ceiling — each addition carries its provenance) and ten is the live
+  count — the rail is FULL, not under-filled. Law: `UI-Architecture-and-Layout.md:190` — *"TEN sections
+  (D121 amended D62 P6's seven — Presets stays in the rail, Connections lives in Settings per D66;
+  `config` … was added at the config rail's R1 and `worldInfo` LEFT at R2 … `databank` … was added by
+  DATABANK S1 under owner ruling D-0/Arm A; `extensions` … was added at plugin-ui-plane U5 (#679, §4.5b))"*.
+  The live tuple is the truth:
+  `SECTION_IDS = ["home","chats","characters","corpus","config","extensions","databank","presets","refinery","analytics"]`
+  (`packages/client/src/state/section-ids.ts:18`, re-exported by `shell-store.ts`), then
+  Theme/Settings/Identity at the foot. **This entry said "seven is the CEILING" until 2026-08-16 and
+  "NINE" until 2026-08-30, and each time nearly minted a false structural P1 against a rail that is
+  exactly at its sanctioned size.** Counting ten icons is not a finding; an ELEVENTH section, or a
+  section not in that tuple, is — and the first check is the tuple + its provenance comment, not this
+  entry's number.
   Facets of ONE world, not separate servers — cross-section jumps route through store actions.
 - **LIST** — FINDING. The section's collection: header band → search → rows. Collapsible side panel,
   per-section defaults.
@@ -484,7 +488,7 @@ geography; a surface inventing its own geography is a finding, not a style choic
    account, ⌘K). **Settings IS a modal** — not a section, not a pane. Section content NEVER lives in
    a modal; it's a CONTEXT tab or a CONTENT state.
 3. **Nothing replaces the three main panes.** A feature that mints its own frame, hijacks the pane
-   geometry, adds rail sections past the sanctioned NINE, or full-screens over the shell is the EXACT abuse class
+   geometry, adds rail sections past the sanctioned tuple (`section-ids.ts`), or full-screens over the shell is the EXACT abuse class
    the rollback burned down (main-era rpg/hubs grew the shell 7→10 sections + bespoke modals). Flag
    any new geography on sight — the shell is invariant; sections swap what FILLS the panes.
 4. One `primary` action per region at rest · chrome quiet/content loud (accent ≤10% of viewport) ·
