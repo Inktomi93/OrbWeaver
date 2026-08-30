@@ -13127,9 +13127,9 @@
       "path": "docs/design/plugin-ui-plane.md",
       "lane": "design",
       "issue": 5,
-      "lines": 879,
-      "bytes": 88821,
-      "sha256": "2cd594e3cc43530b13e69b57302c2562a529d0b3efd07ad9c8684c38f7751891",
+      "lines": 889,
+      "bytes": 90939,
+      "sha256": "9ea6f70199f8bb34a865b95da8e9f2a5cd108b4f90af567a08917d2a9ba126c2",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13142,12 +13142,12 @@
       },
       "receipt": {
         "path": "docs/design/plugin-ui-plane.md",
-        "assignedSha256": "2cd594e3cc43530b13e69b57302c2562a529d0b3efd07ad9c8684c38f7751891",
+        "assignedSha256": "9ea6f70199f8bb34a865b95da8e9f2a5cd108b4f90af567a08917d2a9ba126c2",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "2cd594e3cc43530b13e69b57302c2562a529d0b3efd07ad9c8684c38f7751891",
-        "verifiedCommit": "60025ad149821df5f077acf5bd712a9c0168e091",
+        "verifiedSha256": "9ea6f70199f8bb34a865b95da8e9f2a5cd108b4f90af567a08917d2a9ba126c2",
+        "verifiedCommit": "72a7204ffd08f5b3168c8c6fe849c86c037814d4",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "born-reviewed by its authoring lane (cb-plugui-design, #679): every build-state claim tree-verified 2026-08-24 with path:line receipts before commit 766525006",
@@ -13157,7 +13157,8 @@
           "revision 9bc1cd142 (same lane, same day): the full-parity ruling folded — every deferred parity row committed and phase-slotted (U5-U8), the ui.frame hatch committed as scheduled phase U7 (security-executor-gated), §6.1 arbitrary-pixels rows resolved to the hatch, §5a converted to the enablement price sheet per the follow-up steer ('some of those features I could be convinced to enable'), the five original open questions resolved against the ruling, residual owner ask reduced to TTS/STT (substrate)",
           "addendum 2b09d3c00 (steer 7 + owner provenance correction): ui.page surface kind + the ONE house Extensions rail entry (§4.5b — the full §6a SECTION_IDS playbook priced as seam 16, empty state argued visible-with-teaching against hide-by-default), character.ingest joins U8 as databank.ingest's sibling (seam 17), and the hub-browser showcase — the prior hub verified as THIS repo's own house-UI section (built cc6b7db38/8d95cad08, purged f6c5c588e 2026-07-22, read from history this session) and mined for the four-item failure list that now constrains the page grammar (grid/masterDetail/searchBar browse-genre nodes)",
           "U6 build + dated truth-repair (lane executor-u6-server-seams, #679): §7a records the seam-14 repair (the doc's \"applied at the render path\" asserted a SERVER-side render path that does not exist — renderMessageForDisplay is client-side and sync at packages/client/src/lib/message-render.ts:91; owner ruling 2026-08-28 approved the client-submits-rendered-text arm, and the recorded ordering member macros → member DISPLAY regex → plugin display transforms → markdown), the §5.15 macros mechanical correction (kit's MacroHandler is sync, so a plugin macro is a per-turn resolved VALUE and takes no arguments), the §5.5 + seam-14 rows marked BUILT, and the §2 ground-truth ToolRenderer row marked HISTORICAL (closed by U3, 03480da00 / 21ebaf174). Verified at this lane's own build commit 2c08ac420 (the commit that introduced the §7a repair; if the branch is rebased at merge this sha orphans and the entry needs a re-stamp — the known self-referencing-receipt hazard); the passages NOT touched by this lane were not re-read and their prior attestation stands.",
-          "delta re-verify 2026-08-30 (60025ad149821df5f077acf5bd712a9c0168e091, #799 vocabulary reach merged by the orchestrator, who read the delta in full): two §4.3 table rows (icon over the curated PLUGIN_ICON_NAMES tuple; tabs as the house one-of-N radio strip), the three-states law paragraph inside grid (loading → empty → tiles, reachable at both tiers), and a frame-injection blockquote recording that the slice widened while the isSafeColor clamp did not (radius/mono ride the new styleTokens slot + clampCardFrameStyleTokens); no other line changed; typed claims unaffected"
+          "delta re-verify 2026-08-30 (60025ad149821df5f077acf5bd712a9c0168e091, #799 vocabulary reach merged by the orchestrator, who read the delta in full): two §4.3 table rows (icon over the curated PLUGIN_ICON_NAMES tuple; tabs as the house one-of-N radio strip), the three-states law paragraph inside grid (loading → empty → tiles, reachable at both tiers), and a frame-injection blockquote recording that the slice widened while the isSafeColor clamp did not (radius/mono ride the new styleTokens slot + clampCardFrameStyleTokens); no other line changed; typed claims unaffected",
+          "delta re-verify 2026-08-30 (72a7204ffd08f5b3168c8c6fe849c86c037814d4, #820 seam 11 merged by the orchestrator, who read the delta in full): rows 30 and 11 flipped to BUILT/LANDED (the ui/assets/ bundle dir → installer CAS, one-home caps in contracts/plugin/manifest.ts), plus a dated §7a repair recording that row 30's '§7.11' pointer named a section that does not exist (it is row 11 of §7) and that plugin_assets' PK widened to (plugin_id, asset_id, bundle_path) because content-addressed CAS dedups two paths to one assetId; no other line changed; typed claims unaffected"
         ],
         "claims": [
           {
