@@ -30,7 +30,7 @@ const library: ConfigGroupDefinition = {
   description: "d",
   body: {
     kind: "collection",
-    collection: { emptyText: "No tags yet.", list: () => null, detail: () => null, context: { kind: "none", emptyText: "n" }, create: { label: "New tag", useRun: () => () => undefined } },
+    collection: { emptyText: "No tags yet.", list: () => null, detail: () => null, context: { kind: "none", title: "t", description: "d" }, create: { label: "New tag", useRun: () => () => undefined } },
   },
 };
 const planned: ConfigGroupDefinition = { id: "automation", shelf: "app", label: "Automation", icon: Settings, description: "d", body: { placeholder: true } };
