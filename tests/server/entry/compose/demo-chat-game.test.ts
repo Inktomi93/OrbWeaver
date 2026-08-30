@@ -124,7 +124,7 @@ function harness(options: { readonly bornEmpty?: boolean; readonly refuseHandDoo
 }
 
 const GAME: DemoChatGame = {
-  profile: "d20",
+  ruleset: "d20",
   setup: {
     trackers: [],
     snapshot: { location: "the throne hall" },
@@ -162,7 +162,7 @@ describe("createDemoChatGameDoor", () => {
 
   test("a setup that stamped nothing to release makes no empty release call", async () => {
     const { deps, rec } = harness();
-    const questless: DemoChatGame = { profile: "d20", setup: { snapshot: { location: "the throne hall" } } };
+    const questless: DemoChatGame = { ruleset: "d20", setup: { snapshot: { location: "the throne hall" } } };
     await createDemoChatGameDoor(deps)({ principal: PRINCIPAL, chatId: CHAT_ID, game: questless, seats: SEATS, mint: true });
 
     expect(rec.editSnapshot.every((e) => e.releaseLocks === undefined)).toBe(true);

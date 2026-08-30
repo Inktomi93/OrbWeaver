@@ -243,8 +243,10 @@ export interface ChatSummaryFixture {
   readonly participantPortraits: readonly { readonly characterId: CharacterId; readonly name: string; readonly avatarHash: string | null }[];
   /** The server-resolved scent line (null = nothing this caller may see). */
   readonly lastMessagePreview: string | null;
-  /** The rpg game marker (`metadata.rpg` presence). */
+  /** The rpg game marker — a LIVE game (`isRpgEngaged` over the pointer). */
   readonly isGame: boolean;
+  /** #863(f) — a game that EXISTS here but is switched off; the row wears the quiet paused marker. */
+  readonly gamePaused: boolean;
   readonly viewerRole: ParticipantRole;
   readonly createdAt: number;
   readonly updatedAt: number;
@@ -275,6 +277,7 @@ export function makeChatSummary(overrides: Partial<ChatSummaryFixture> = {}): Ch
     participantPortraits: [],
     lastMessagePreview: null,
     isGame: false,
+    gamePaused: false,
     viewerRole: "host",
     createdAt: FROZEN_AT,
     updatedAt: FROZEN_AT,

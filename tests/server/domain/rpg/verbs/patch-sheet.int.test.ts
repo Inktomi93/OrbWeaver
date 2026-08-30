@@ -35,7 +35,7 @@ async function seedGame(): Promise<{
   const userId = await seedUser(db, castId<Handle>("host"));
   const { service, fakes } = makeRpgService(db);
   fakes.membership.set("user_host", "host");
-  await service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite", profile: RPG_PROFILE_D20 });
+  await service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite", ruleset: "d20" });
   fakes.busEvents.length = 0; // drop the createGame emit — the tests below assert the patchSheet emit alone
   return { chatId, userId, service, fakes };
 }
@@ -54,7 +54,7 @@ async function seedGameWithMember(): Promise<{
   const { service, fakes } = makeRpgService(db);
   fakes.membership.set("user_host", "host");
   fakes.membership.set("user_member", "member");
-  await service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite", profile: RPG_PROFILE_D20 });
+  await service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite", ruleset: "d20" });
   fakes.busEvents.length = 0;
   return { chatId, memberId, service, fakes };
 }

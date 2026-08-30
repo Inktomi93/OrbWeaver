@@ -9,6 +9,7 @@ import { z } from "zod";
 import { MAX_USER_MACROS, userMacroSchema } from "#preset";
 import { RPG_CYOA_CHOICE_BEHAVIORS } from "./enums.ts";
 import { RPG_PROFILE_FREEFORM, rpgStatProfileSchema } from "./profile.ts";
+import { RPG_RULESET_DEFAULT, rpgRulesetSchema } from "./ruleset.ts";
 import { RPG_HINT_MAX, rpgTrackerDefSchema } from "./tracker.ts";
 
 /** The steering-note cap — a short always-wins user slot (the reminder tail, §4.7). */
@@ -188,6 +189,12 @@ export const rpgGameConfigSchema = z.object({
   // `true` (engaged) at the parse seam. Mirrored onto the chat pointer (`ChatRpgPointer.engaged`) so the
   // client's sync gate reads it off `ChatDetail` without a round-trip.
   engaged: z.boolean().default(true),
+  // THE RULESET SETTING (#862, owner ruling 2026-08-30) — `freeform` (born default) | `d20`. One game mode;
+  // the ruleset is a host SETTING on the Game tab, not a start-time door. It is the SELECTION, never a second
+  // storage for the vocabulary: `statProfile`/`trackers` below stay the truth, and a switch MERGES the
+  // ruleset's vocabulary into them additively (`applyRulesetVocabulary`, ruleset.ts). Additive defaulted — a
+  // pre-#862 blob self-heals to `freeform` at the parse seam.
+  ruleset: rpgRulesetSchema.default(RPG_RULESET_DEFAULT),
   statProfile: rpgStatProfileSchema.default(RPG_PROFILE_FREEFORM),
   // THE TRACKERS — the ONE home for every tracked field in the game, whatever its subject (the tracked-field
   // unification §5.1). This single array replaces `sheet.poolDefs` (per-actor, on four different sheets),

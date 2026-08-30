@@ -43,6 +43,10 @@ const GAME = makeChatSummary({
   lastMessagePreview: "The door gives way and the market noise floods in from the street beyond, louder than anything you have…",
   isGame: true,
 });
+// #863(f) — the PAUSED game row: the game exists, it is switched off, and the list is the only place a
+// host can see that a room has a game sleeping in it (the off-door lives behind a host-only tab in a pane
+// that ships closed).
+const PAUSED_GAME = makeChatSummary({ id: "chat_game_paused", title: "The dormant delve", isGame: false, gamePaused: true });
 // F7 state rows: the summary already carries starred/archived — the row must SHOW them.
 const STARRED = makeChatSummary({ id: "chat_starred", title: "A pinned thread", starred: true });
 const ARCHIVED = makeChatSummary({ id: "chat_archived", title: "A shelved thread", archived: true });
@@ -681,6 +685,22 @@ test.describe("P1 the trailing zone is split: markers on the title line, the CON
     await expect.poll(async () => gameRow.locator(MARKERS).getAttribute("id")).not.toBeNull();
     const markersId = await gameRow.locator(MARKERS).getAttribute("id");
     expect((describedBy ?? "").split(" ")).toContain(markersId);
+  });
+
+  // #863(f) — THE PAUSED MARKER. Turning game mode off used to erase every trace of the game from the list,
+  // leaving its existence visible only behind a host-only tab inside a pane that ships closed. The row now
+  // keeps a quieter mark that SAYS paused, so the live and the sleeping state are never one ambiguous glyph.
+  test("a room whose game is switched OFF keeps a quiet 'paused' marker, distinct from the live one", async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listChats": chatListResponder([GAME, PAUSED_GAME]), "character.list": CHARACTERS });
+    const component = await mount(<ChatListSurfaceStory width={PANE_WIDTH} />);
+    await expect(component.getByText("The dormant delve")).toBeVisible();
+
+    const pausedRow = component.locator(LIST_ROW_ROOT, { hasText: "The dormant delve" });
+    await expect(pausedRow.locator(MARKERS).getByLabel("Game chat — paused")).toBeVisible();
+    // It is NOT the live marker: the two states read differently to a screen reader and to the eye.
+    await expect(pausedRow.locator(MARKERS).getByLabel("Game chat", { exact: true })).toHaveCount(0);
+    const live = component.locator(LIST_ROW_ROOT, { hasText: "The Ashfell run" });
+    await expect(live.locator(MARKERS).getByLabel("Game chat", { exact: true })).toBeVisible();
   });
 
   test("a starred row never paints TWO stars: the title-line marker yields to the revealed toggle", async ({ mount, page }) => {

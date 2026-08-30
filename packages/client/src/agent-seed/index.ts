@@ -26,8 +26,7 @@
 // calls run as the host (able to create games + write every plane).
 
 import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
-import type { RpgActorOp, RpgActorRef, RpgStatProfile } from "@orb/contracts/rpg";
-import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM } from "@orb/contracts/rpg";
+import type { RpgActorOp, RpgActorRef } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
@@ -311,10 +310,6 @@ const CAST_ACTOR_OPS: readonly { readonly castKey: string; readonly ops: readonl
   },
 ];
 
-function statProfileFor(profile: SeedProfile): RpgStatProfile {
-  return profile === "d20" ? RPG_PROFILE_D20 : RPG_PROFILE_FREEFORM;
-}
-
 /** Build the `__orb.seed` handle. `client` is the SAME wire client the app renders through, so every seed
  *  write goes over the real HTTP verb surface as the auto-resolved host (dev single-user). */
 export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
@@ -381,7 +376,8 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
       // inserts preserve the authored archive order.
       const steps = [
         async (): Promise<void> => {
-          await client.rpg.createGame.mutate({ chatId, mode: "lite", profile: statProfileFor(profile) });
+          // #862 — the seed profile IS the ruleset axis (`d20` | `freeform`); the verb derives the vocabulary.
+          await client.rpg.createGame.mutate({ chatId, mode: "lite", ruleset: profile });
         },
         async (): Promise<void> => {
           await client.rpg.updateConfig.mutate({ chatId, patch: { trackers: TRACKERS, relationshipHints: RELATIONSHIP_HINTS } });

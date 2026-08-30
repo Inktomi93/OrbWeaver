@@ -22,9 +22,13 @@
 // member sends it as their turn (result = CANON) and the narration reacts. Insert = APPEND (never replace): a
 // member who typed "I attack —" keeps it, and the stamp rides after.
 //
-// THE DEFAULT DICE SET is the "game config" B8's row names: the standard check die plus the three most common
-// companions, one per chip, capped to the band's four-chip row. A per-game override is a later knob; the set
-// is the shipped default every game gets.
+// THE DICE SET FOLLOWS THE GAME'S RULESET (#862 + the side-eye 2026-08-30 dead-toggle finding). It used to
+// be a module constant gated only on `isRpgEngaged`, so a FREEFORM game — a table with no attributes and no
+// dice, whose own start-door copy promised prose steering — published four d20-family chips above the
+// composer anyway, eating ~110px of a 430px composer's budget. The set is now `RPG_RULESET_DICE[ruleset]`,
+// read off `getGame`'s member-safe `publicConfig`: `d20` publishes its four, `freeform` publishes NONE and
+// the band collapses (`empty:hidden`) exactly as on a plain chat. That is also what makes the host's ruleset
+// setting VISIBLE to every member — without it the setting would have no consequence anyone can see.
 //
 // THE PUBLISH DEPENDS ON VALUES, NEVER CLOSURE IDENTITY (the `quick-reply-chip-mount`/`suggestion-card-mount`
 // idiom, load-bearing): the band's publish guard is CONTENT-wise, so a publish that depended on the `run`
@@ -32,7 +36,7 @@
 // render from a loop. The publish effect depends only on `[engaged, rolling]`; the `run` closure (and the
 // `rollDice`/`chatId` it needs) rides a ref-box.
 
-import { isRpgEngaged } from "@orb/contracts/rpg";
+import { isRpgEngaged, RPG_RULESET_DICE } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { useEffect, useRef } from "react";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
@@ -42,11 +46,6 @@ import { useRollDice } from "../hooks/use-rpg-mutations.ts";
 
 /** The registry key — one source, one id; the band namespaces this source's chip ids under it. */
 const RPG_DICE_ASK_SOURCE_ID = "rpg-dice-ask";
-
-/** The default dice the ask offers — the standard check die plus its three most common companions, capped to
- *  the band's four-chip row (`CHIP_DISPLAY_CAP`). The "game config" B8's row names; a per-game override is a
- *  later knob. Notation is the server's own `NdM(+/-K)?` grammar (`domain/rpg/verbs/roll-dice.ts`). */
-const RPG_DICE_ASK_NOTATIONS = ["d20", "d6", "2d6", "d100"] as const;
 
 /** Append the baked stamp to the room's composer draft (never replace — a member's typed text is theirs) and
  *  focus the composer, so the roll rides after whatever they were writing and they send it as their turn. */
@@ -67,6 +66,11 @@ function RpgDiceAskMount({ state, publish }: ChatControlSourceMountProps): null 
   // `undefined` while uncached ⇒ not engaged, re-evaluated when the query settles.
   const { data: detail } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
   const engaged = isRpgEngaged(detail?.rpg ?? null);
+  // The RULESET read — gated on engagement, so a plain chat still issues nothing. `undefined` while the
+  // game read is in flight publishes no chips: the row appears WITH the ruleset that justifies it, never a
+  // guessed default that would flash the wrong set on a freeform table.
+  const { data: game } = useGatedQuery(engaged ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
+  const ruleset = game?.publicConfig.ruleset;
   const rolling = rollDice.isPending;
 
   // The ref-box: `rollDice.mutate` and `chatId` are read by the `run` closures the publish effect builds, but
@@ -79,12 +83,13 @@ function RpgDiceAskMount({ state, publish }: ChatControlSourceMountProps): null 
 
   useEffect(() => {
     const box = latest.current;
-    if (!engaged || box.chatId === null) {
+    const notations = ruleset === undefined ? [] : RPG_RULESET_DICE[ruleset];
+    if (!engaged || box.chatId === null || notations.length === 0) {
       box.publish([]);
       return;
     }
     const roomId = box.chatId;
-    const controls: readonly ChatControl[] = RPG_DICE_ASK_NOTATIONS.map(
+    const controls: readonly ChatControl[] = notations.map(
       (notation): ChatControl => ({
         kind: "chip",
         id: `${RPG_DICE_ASK_SOURCE_ID}#${notation}`,
@@ -102,7 +107,7 @@ function RpgDiceAskMount({ state, publish }: ChatControlSourceMountProps): null 
       }),
     );
     box.publish(controls);
-  }, [engaged, rolling]);
+  }, [engaged, rolling, ruleset]);
 
   return null;
 }

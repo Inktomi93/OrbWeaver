@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-08-14
+updated: 2026-08-30
 ---
 
 # Context-Panel Program — consolidation → width → trackers → the rpg takeover
@@ -158,6 +158,27 @@ concern (§4.8).
 > the room's own band (title + members · memory · preset chips) returns and the state rail goes — the meta
 > rail never moves. HUD-1 §5.1 "one strip, always" survives as one META strip, always, at the FOOT; owner
 > decision 6 (the admin rail pinned to the pane's foot) is universal. Ledger: D150.
+
+> **§4.1 (AMENDED 2026-08-30, #863 — "the ruling survives, its INPUT changed").** The no-ceremony ruling
+> above is CORRECT and stays, for ARRIVAL: opening a room that already carries a game measures clean (no
+> animation, no jank, zero CLS, and it reads as intentional). What changed is the ruling's INPUT. Its
+> sentence also named `createGame`, and a **user-initiated** start/stop — the ⋯ menu item or the Game-tab
+> door button, never a chat switch and never a remote update — is not arrival: it is a mutation the user
+> just performed, and the drive measured what "no ceremony" produced for it. With the context panel CLOSED
+> (the shipped default for a chat room) the ONLY on-screen change was four dice chips above the composer;
+> the polite live region still read the stale "Loaded chat." four seconds later, in both directions; and
+> the landing after a start was whatever `contextTab` happened to hold, worst case an empty host-console
+> schema form. So a user-initiated transition additionally: (a) fires ONE `role="status"` announcement in
+> the app's existing live region ("Game mode on — the Game panel is open" / "Game mode off — your sheets,
+> scene and quests are kept"); and (b) on START, opens the CONTEXT panel and selects `rpg.status`, so the
+> action reveals its own result deterministically from BOTH doors.
+>
+> **THE MECHANISM IS UNTOUCHED: no takeover animation, ever, in either case.** Neither an announcement nor
+> a deterministic landing is ceremony — both are H1 feedback (visibility of system status), and neither
+> costs a frame. Arrival keeps its silence; the pane still swaps like any chat switch. Closability, the
+> `contextTab` continuity seam and the tab-fallback resolver are all unchanged — the start writes the same
+> shared seam a user's own tab click writes. Receipts: `docs/reviews/side-eye/2026-08-30-rpg-start-exit.md`
+> (§"The §4.1 fork"); pinned by `tests/client/features/chat/components/chat-options-menu.ct.tsx`.
 
 The takeover is **not a state the user enters** — it is what the CONTEXT pane resolves to when the
 active chat carries a game (`chats.metadata.rpg`, lite or full). Context-follows-content, same as

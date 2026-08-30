@@ -29,7 +29,7 @@ import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { choiceBlockValuesSchema, userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
-import { rpgStatProfileSchema } from "@orb/contracts/rpg";
+import { rpgRulesetSchema } from "@orb/contracts/rpg";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageId, MessageVariantId, PersonaId, PresetId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
@@ -60,8 +60,8 @@ const startChatSchema = z.object({
   // is born non-temporary; no verb updates the column), so this is the ONE place the flag can be set.
   temporary: z.boolean().optional(),
   // #40 DRAFT-TIME game start — mints the lite game right after chat creation, BEFORE the opening turn
-  // (turn 1 in-game). `profile` rides rpg's own contract schema (the trust boundary); omit = freeform.
-  startAsGame: z.object({ profile: rpgStatProfileSchema.optional() }).optional(),
+  // (turn 1 in-game). `ruleset` rides rpg's own setting schema (the trust boundary); omit = `freeform`.
+  startAsGame: z.object({ ruleset: rpgRulesetSchema.optional() }).optional(),
 });
 
 // `getMemberCard` (D22) — read ONE roster character's card, field-clamped to the room's `memberCardVisibility`.

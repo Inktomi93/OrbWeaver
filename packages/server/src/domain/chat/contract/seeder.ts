@@ -8,7 +8,7 @@
 
 import type { ChatMetadata } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import type { RpgActorOp, RpgJournalType, RpgPackagedProfileKey, RpgQuestStatus, RpgTrackerDef } from "@orb/contracts/rpg";
+import type { RpgActorOp, RpgJournalType, RpgQuestStatus, RpgRuleset, RpgTrackerDef } from "@orb/contracts/rpg";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterHandle, CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { BulkImportChats } from "./import.ts";
@@ -31,11 +31,11 @@ export interface DemoChat {
   readonly game?: DemoChatGame;
 }
 
-/** The rpg-lite game an example is born with — the same `statProfile` the live `startAsGame` door takes. */
+/** The rpg-lite game an example is born with — the same `ruleset` setting the live `startAsGame` door takes. */
 export interface DemoChatGame {
-  /** A packaged profile key, DERIVED from rpg's own tuple (never re-spelled); entry resolves it through
-   *  `RPG_PACKAGED_PROFILE_BY_KEY` and hands rpg's real create door the profile data. */
-  readonly profile: RpgPackagedProfileKey;
+  /** The RULESET the example is born with, DERIVED from rpg's own tuple (never re-spelled); entry hands it
+   *  straight to rpg's real create door, which owns the ruleset→vocabulary derivation (#862). */
+  readonly ruleset: RpgRuleset;
   /** The hand-authored OPENING STATE, replayed through rpg's real hand doors right after the game is minted
    *  (owner-sanctioned: hand ops on top of a real playthrough are a host editing their own game). Absent ⇒
    *  the example's game is born empty — which is what shipped first and read as an unbuilt panel. */

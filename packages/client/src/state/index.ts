@@ -173,6 +173,17 @@ export {
   durableLocalWritesAllowed,
   registerDurableLocalStore,
 } from "./durable-local.ts";
+export {
+  GAME_MODE_KEPT_LINE,
+  GAME_MODE_OFF_ANNOUNCEMENT,
+  GAME_MODE_OFF_KICKER,
+  GAME_MODE_OFF_LABEL,
+  GAME_MODE_ON_ANNOUNCEMENT,
+  GAME_MODE_ON_LABEL,
+  GAME_MODE_RESUME_LABEL,
+  onGameModeStarted,
+  onGameModeStopped,
+} from "./game-mode-transition.ts";
 export type { DormantDoorway, HomeTileContribution, HomeTileRegion } from "./home-tile-contracts.ts";
 export { HOME_TILE_REGIONS } from "./home-tile-contracts.ts";
 export type { ImageSubject, ImagineSeed } from "./imagery-store.ts";
@@ -399,6 +410,7 @@ export {
 export type { SlashCommandRegistry } from "./slash-command-registry-context.ts";
 export { SlashCommandRegistryContext } from "./slash-command-registry-context.ts";
 export { SlashCommandRegistryProvider } from "./slash-command-registry-provider.tsx";
+export { announceStatus, useStatusAnnouncement } from "./status-announcement-store.ts";
 export {
   __readRecentSteersForTest,
   __resetRecentSteers,

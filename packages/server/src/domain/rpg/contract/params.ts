@@ -18,6 +18,7 @@ import type {
   RpgGameFeatures,
   RpgJournalType,
   RpgQuestStatus,
+  RpgRuleset,
   RpgSnapshotState,
   RpgStatProfile,
   RpgTrackerDef,
@@ -157,12 +158,13 @@ export interface StagedJournalEntry {
 // `?: T` rejects the explicit `undefined` a zod-optional infers, and the transport pass-through spreads it.
 
 /** `createGame` — the host-gated create. `mode ∈ RPG_GAME_MODES`; `"full"` throws `RpgModeUnbuiltError`.
- *  `profile` is the caller-picked packaged/imported statProfile (omit ⇒ `freeform`, lite's default). */
+ *  `ruleset` is the game's born vocabulary (omit ⇒ `freeform`, the birth default). #862 replaced the
+ *  start-time `profile` pick with this SETTING: one start action, retuned additively on the Game tab. */
 export interface CreateGameParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
   readonly mode: string;
-  readonly profile?: RpgStatProfile | undefined;
+  readonly ruleset?: RpgRuleset | undefined;
 }
 
 /** `updateConfig` — the ONE config write door (host). `patch` carries the profile mutability matrix + the
@@ -174,6 +176,9 @@ export interface UpdateConfigParams {
   readonly patch?:
     | {
         readonly statProfile?: RpgStatProfile | undefined;
+        // THE RULESET SETTING (#862) — omit keeps. A CHANGED value merges that ruleset's vocabulary in
+        // ADDITIVELY (owner ruling 2026-08-30); re-sending the current value changes nothing.
+        readonly ruleset?: RpgRuleset | undefined;
         readonly steeringNote?: string | undefined;
         // THE TRACKERS (the tracked-field unification) — the host's whole tracker set in ONE write
         // (whole-list replace, the retired castFields/pinnedOrbs semantics).
