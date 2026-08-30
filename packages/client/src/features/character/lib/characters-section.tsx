@@ -21,7 +21,7 @@
 // drives CONTENT, LIST never becomes something else) — and her chats moved to CONTEXT, where artifact-scoped
 // detail belongs (§14). The hero's "N chats ›" reveals that tab (`character-chat-intents.ts`).
 
-import { Users } from "@orb/ui/icons";
+import { History, IdCard, Link2, MessagesSquare, Palette, Shield, Users } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { CharacterChatsProjectionView, CharacterContextState, CharacterDetailContribution, ContributorRegistry } from "#lib";
 import { defineContextTabs } from "#lib";
@@ -32,6 +32,7 @@ import { CharacterActionsMenu } from "../components/character-actions-menu.tsx";
 import { CharacterLookTab } from "../components/character-appearance-tab.tsx";
 import { CharacterChatsProjectionShell } from "../components/character-chats-projection-shell.tsx";
 import { CharacterContent } from "../components/character-content.tsx";
+import { CharacterContextBand } from "../components/character-context-band.tsx";
 import { CharacterFacetInspector } from "../components/character-facet-inspector.tsx";
 import { CharacterHistoryTab } from "../components/character-history-tab.tsx";
 import { CharacterRelationsTab } from "../components/character-relations-tab.tsx";
@@ -83,35 +84,47 @@ export function makeCharactersSection(
     // the 2253px-in-a-693px-pane measurement that made the split due.
     context: defineContextTabs<CharacterContextState>({
       useContextState: useCharacterContextState,
+      // THE HEAD BAND (#860): portrait · name · handle line · chips (Own look · N chats · N tokens) in the
+      // context bracket's band slot — the pane's identity, over the six-cell rail at its foot.
+      header: (s) => <CharacterContextBand characterId={s.characterId} />,
+      // The FOOT rail's name — the artifact noun, printed as its kicker ("CHARACTER · OVERVIEW") and carried
+      // as its a11y group name.
+      railLabel: "Character",
       tabs: [
         {
           id: "overview",
           label: "Overview",
+          icon: IdCard,
           body: (s) => <CharacterFacetInspector characterId={s.characterId} />,
         },
         {
           id: CHARACTER_CHATS_TAB_ID,
           label: "Chats",
+          icon: MessagesSquare,
           body: (s) => <CharacterChatsProjectionShell characterId={s.characterId} chatsProjection={chatsProjection} />,
         },
         {
           id: "links",
           label: "Links",
+          icon: Link2,
           body: (s) => <CharacterRelationsTab characterId={s.characterId} />,
         },
         {
           id: "look",
           label: "Look",
+          icon: Palette,
           body: (s) => <CharacterLookTab characterId={s.characterId} />,
         },
         {
           id: "history",
           label: "History",
+          icon: History,
           body: (s) => <CharacterHistoryTab characterId={s.characterId} />,
         },
         {
           id: "trust",
           label: "Trust",
+          icon: Shield,
           body: (s) => <CharacterTrustTab characterId={s.characterId} />,
         },
       ],

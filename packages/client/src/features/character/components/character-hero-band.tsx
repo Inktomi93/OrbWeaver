@@ -99,7 +99,7 @@ export function CharacterHeroBand({
                 @{detail.handle}
               </Text>
             </Stack>
-            <AccentSwatch themeOverride={detail.themeOverride} />
+            <OwnLookMark themeOverride={detail.themeOverride} />
           </Row>
           <HeroActions spoilerBlur={spoilerBlur} onNewChat={onNewChat} onViewChats={onViewChats} chatCount={chatCount} />
         </Stack>
@@ -199,7 +199,7 @@ const CONFIRM_MS = 1500;
  * card now shows nothing (the honest absence), and a card that carries one says so in words the reader can
  * act on.
  */
-function AccentSwatch({ themeOverride }: { readonly themeOverride: ThemeOverride | null }): ReactElement | null {
+export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOverride | null }): ReactElement | null {
   if (themeOverride === null || Object.keys(themeOverride).length === 0) {
     return null;
   }
