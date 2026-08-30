@@ -1442,6 +1442,60 @@
         }
       ],
       "summary": "#887 verification of the ts-morph speedup study: diagnosis CONFIRMED (bus family 37.3% of the pass, quadratic quantified at a 97.79% repeat rate, token-kind routing verbatim from ts-morph source), plan RE-RANKED — B' alone (a (compilerNode,kind)-keyed getDescendantsOfKind memo) delivers item A's entire win with findings byte-identical across 233 gates; the study's WeakMap<SourceFile> key is refuted by the overwrite identity trap; item C is JSDoc-lossy (1,698 identifiers, permissive direction); the honest stage median is 257s of 385s; lefthook's ~30s pre-commit claim is a 13x lie; stage-level parallelism is the missed ~100s lever."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-30-bracket-verify.md",
+      "assignedSha256": "338b7a38dc51618b255598ca5e1c8c6ffb7d1837ea32422d9992cbc4e3ff2c05",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "338b7a38dc51618b255598ca5e1c8c6ffb7d1837ea32422d9992cbc4e3ff2c05",
+      "verifiedCommit": "814138e4fff1ae712cd54caeac17730ac103d7ec",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/reviews/side-eye/2026-08-30-bracket-verify.md:1-397 read in full by the orchestrator (claude-b) before commit; lane cb-bracket-eye2 — the post-fix cold-lens drive of legs 5d089a546+8be413e41, run on the c6f8af758 equivalence stage (:5273; one-doc-line diff receipt) after the dev stack's engines wedge, with the environment caveat stated in the report's own head"
+      ],
+      "claims": [
+        {
+          "claim": "Every outcome is tracked: ten findings CONFIRMED fixed with independent receipts (closure evidence for #874/#875/#878 stands); the two refutations are #896 (F4's phone half — the wide-identity selector) and #898 (F15 no-op + the FALSE CT pin, the fix-tools-when-lying class); the new 1280 clip is #897; the six P3s are #899.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#896"
+            },
+            {
+              "kind": "issue",
+              "target": "#897"
+            },
+            {
+              "kind": "issue",
+              "target": "#898"
+            },
+            {
+              "kind": "issue",
+              "target": "#899"
+            },
+            {
+              "kind": "issue",
+              "target": "#874"
+            }
+          ]
+        },
+        {
+          "claim": "The report retracts the baseline's F15 premise (Preview and Activity are host-only crowned, not generic) and its own three probe-induced console errors; the perf delta is on record (rail switch 176-272ms → 48ms; pane open 533ms stays #895's).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#895"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/lib/chats-section.tsx:98"
+            }
+          ]
+        }
+      ],
+      "summary": "Post-fix verification of the #860 bracket: SHIP WITH FIXES, Nielsen 28→31/40 — ten of nineteen baseline findings confirmed fixed by independent measurement (the ownership axis now measured, the game band a real heading, rail switches 48ms), F4 refuted at the phone (the yield keys on the wide identity), F15 refuted as a live no-op certified by a fixture-drifted CT, one new default-desktop clip from F17's separator; the class diagnosis: rules right at one width or fixture and silently wrong at another — a width×identity×crown-set matrix CT is the named closer."
     }
   ]
 }
