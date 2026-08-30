@@ -145,7 +145,7 @@ export type {
   ResolvedContextTab,
   ResolvedContextTabs,
 } from "./registry-contracts.ts";
-export { CHAT_CONTEXT_TAB_IDS, defineContextRegion, defineContextTabs, resolveContextTabs, VOID_STATE } from "./registry-contracts.ts";
+export { CHAT_CONTEXT_TAB_IDS, defineContextRegion, defineContextTabs, GAME_STRIP_LABEL, resolveContextTabs, VOID_STATE } from "./registry-contracts.ts";
 export { RenderProfiler } from "./render-profiler.tsx";
 export type { ResolveRowRenderPolicyInput, RowRenderPolicy } from "./render-trust.ts";
 export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy, SAFE_FLOOR } from "./render-trust.ts";

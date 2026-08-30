@@ -1,6 +1,6 @@
 // Tier-4 contract home for the CONTEXT-PANEL registry model (client-architecture-lockdown.md §6b) — the
 // vocabulary-independent shapes a host feature and its cross-feature contributors both need (the CONTEXT
-// model, a contributor tab def, and a contributor's whole-pane REGION CLAIM) without either importing the
+// model, a contributor tab def, and a contributor's HEAD-BAND region claim) without either importing the
 // other, plus every section's published `S` projection. May import `@orb/contracts` types +
 // the registry primitive; imports zero features. `SectionDefinition` itself lives in `#state` (it binds
 // these shapes to the shell's SectionId/PanelMode vocabulary, which state owns — §5 rule 5).
@@ -27,12 +27,19 @@ import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { ContributorRegistry } from "./registry.ts";
 
-/** RAIL MEMBERSHIP — which of a CLAIMANT's two rails a CONTEXT tab belongs to (HUD-1 §4, owner decision 5).
- *  `"game"` = the STATE rail above the viewport; `"meta"` = the ADMINISTRATION rail below it. Membership is
- *  a property of the tab's JOB, declared by its owner, so chat's own tabs stay `"meta"` without knowing a
- *  claimant exists (an id-prefix rule would break the moment a non-rpg contributor ships a state tab). The
- *  GENERIC panel ignores it entirely — with no claim there is one strip carrying every visible tab. */
+/** RAIL MEMBERSHIP — which of the bracket's two rails a CONTEXT tab belongs to (HUD-1 §4, owner decision 5;
+ *  universal since the context bracket, #860). `"game"` = the STATE rail above the viewport; `"meta"` = the
+ *  ADMINISTRATION rail pinned to the pane's foot. Membership is a property of the tab's JOB, declared by its
+ *  owner, so chat's own tabs stay `"meta"` without knowing a state contributor exists (an id-prefix rule
+ *  would break the moment a non-rpg contributor ships a state tab). The shell's bracket renders the TOP rail
+ *  only when a `"game"` tab resolved (APPLICABILITY, Context-Panel-Program §4.1) and the FOOT rail always. */
 export type ContextTabStrip = "game" | "meta";
+
+/** The TOP (state) rail's on-screen name and a11y group name — a property of the closed strip vocabulary,
+ *  homed beside it. "Game state", not "Game": the crown host console in the FOOT rail is a TAB named "Game",
+ *  and two sibling groups where one's name is the other's member collide for anyone navigating by name
+ *  (Context-Panel-Program §4.2). The FOOT rail is named by its SECTION (`ContextTabsSpec.railLabel`). */
+export const GAME_STRIP_LABEL = "Game state";
 
 /** One CONTEXT-panel tab. `S` is the host section's OWN context-state projection — a real named type
  *  published by the host (never `any`/`unknown`/a loose index signature; O5 strict). A `void` host has
@@ -90,32 +97,37 @@ export interface ResolvedContextTab {
   readonly defaultTab: boolean;
 }
 
-/** What the shell hands a CLAIMANT (HUD-1 §3.2): everything it would have rendered itself, already resolved
- *  — so the claimant never re-resolves, never calls `body(state)`, never re-runs `when`, never invents a tab. */
+/** The resolved VIEW the shell's context bracket renders from (HUD-1 §3.2, now the ONE composition): the
+ *  resolved tabs, the ONE selection seam, and the host's rail-trail actions. Nothing here re-resolves —
+ *  the bracket never calls `body(state)`, never re-runs `when`, never invents a tab. */
 export interface ContextRegionView {
-  /** ALL resolved tabs — the SAME set `ContextTabsPanel` consumes (own then contributors, `when`-filtered,
-   *  declared order, `S` applied). The claimant splits them by `strip` for its own rails. */
+  /** ALL resolved tabs (own then contributors, `when`-filtered, declared order, `S` applied). The bracket
+   *  splits them by `strip` into its two rails. */
   readonly tabs: readonly ResolvedContextTab[];
   /** The resolved selection (stored `contextTab` if still visible, else the `defaultTab` flag, else the
    *  declared-order first) + the pre-bound writer — the ONE selection seam; never mirror it locally. */
   readonly activeTab: string | null;
   readonly selectTab: (id: string) => void;
-  /** The host's strip-trail actions, already state-bound (chat's draft add-member popover today). */
+  /** The host's rail-trail actions, already state-bound (chat's draft add-member popover today). */
   readonly actions?: ReactNode;
 }
 
-/** A contributor's CLAIM on the WHOLE CONTEXT pane (HUD-1 §3.1) — the third contributor arm beside
- *  context-tabs and surface-anchors (§6c). While the claim holds the shell renders NONE of its own pane
- *  chrome (no band, no `.ctx-tab-strip`): the claimant returns ONE node composing band + strips + viewport
- *  in its own order, and the shell keeps only the panel MECHANICS it has always owned (D62 untouched — a
- *  claim is pane CONTENT). `S` stays CONTRAVARIANT-only exactly like `ContextTabDef`, so §6b's erasure
- *  proof is unchanged: `claims` CONSUMES `S`, `render` consumes the non-generic view. */
+/** A contributor's CLAIM on the CONTEXT pane's HEAD BAND (HUD-1 §3.1 as re-shaped by the context bracket,
+ *  #860) — the third contributor arm beside context-tabs and surface-anchors (§6c). The shell renders ONE
+ *  column for every tabs pane (band → optional state rail → viewport → ground → meta rail); the ONLY slot
+ *  a contributor can take over is the band, and while the claim holds the claimant's band REPLACES the
+ *  host section's own `header` in that slot — "one slot, three contents, never a second head". There is
+ *  no API through which a claimant could render a rail or a viewport; the pane's chrome is the shell's
+ *  (D62 untouched — a claim is band CONTENT). `S` stays CONTRAVARIANT-only exactly like `ContextTabDef`,
+ *  so §6b's erasure proof is unchanged: `claims` CONSUMES `S`; `band` reads nothing from it (a claimant's
+ *  domain state comes from its own hooks inside its own components). */
 export interface ContextRegionDef<S> {
   readonly id: string;
   /** APPLICABILITY — the same class of gate as a tab's `when` (game-ness, read cache-first). */
   readonly claims: (state: S) => boolean;
-  /** The whole pane. Gets ONLY the shell view — the claimant's domain state comes from its own hooks. */
-  readonly render: (view: ContextRegionView) => ReactNode;
+  /** The pane's HEAD band while the claim holds. An element, not a render call — the claimant's hooks
+   *  run inside the components it returns, never at resolve time. */
+  readonly band: () => ReactNode;
 }
 
 /** THE region mint (HUD-1 §8) — the ONE legal minter of a `ContextRegionDef`, so the shape has a single
@@ -125,19 +137,19 @@ export function defineContextRegion<S>(def: ContextRegionDef<S>): ContextRegionD
   return def;
 }
 
-/** The resolved CONTEXT-panel tab strip — when-filtered, own tabs then contributors, declared order.
- *  `header` is the definition-owned BAND slot (north-star §4 N4, P4): the active entity's identity from the
- *  SAME `S` the tabs read. It mounts in the `.shell-panel-header` band, not the body, so
- *  `SectionContextHeader` consumes `header` while `ContextTabsPanel` consumes `tabs`/`actions` — one
- *  resolve, two consumers. Absent ⇒ the band shows the neutral "Details" default. */
+/** The resolved CONTEXT-panel tab set — when-filtered, own tabs then contributors, declared order.
+ *  `header` is the pane's HEAD BAND content (north-star §4 N4, P4 — the artifact band of the context
+ *  bracket, #860): the section's own `header` from the SAME `S` the tabs read, or the FIRST claiming
+ *  region's band in its place. It mounts in the bracket's band slot inside the body — the shell's
+ *  `.shell-panel-header` renders nothing for a tabs pane — so ONE consumer (`ContextTabsPanel`) takes the
+ *  whole resolve. Absent ⇒ the bracket renders no band (the column starts at its first rail). */
 export interface ResolvedContextTabs {
   readonly tabs: readonly ResolvedContextTab[];
   readonly actions?: ReactNode;
   readonly header?: ReactNode;
-  /** Present ⇒ a contributor CLAIMED the whole pane (HUD-1 §3.1): the shell renders this instead of its own
-   *  band + strips + viewport, and `SectionContextHeader` renders nothing. Absent ⇒ today's generic panel,
-   *  byte-identical. `tabs`/`actions` are still resolved in FULL — a claim never suppresses resolution. */
-  readonly region?: (view: ContextRegionView) => ReactNode;
+  /** The FOOT rail's name (`ContextTabsSpec.railLabel`), passed through untouched; absent ⇒ the host
+   *  falls back to the section's rail label. */
+  readonly railLabel?: string;
 }
 
 /** A section's CONTEXT-panel model — the four legacy wirings (registry-tabs · chat's bespoke Tabs ·
@@ -190,14 +202,19 @@ export interface ContextTabsSpec<S> {
   readonly useContextState: () => S | null;
   readonly tabs: readonly ContextTabDef<S>[];
   readonly actions?: (state: S) => ReactNode;
-  /** The CONTEXT-panel BAND identity (north-star §4 N4, P4) — the active entity's avatar + title, drawn
-   *  from the SAME `S` the tabs read. Definition-owned + mint-supplied (never a route-fed prop or a
-   *  shell-side per-section switch); the shell renders it blind via `SectionContextHeader`. */
+  /** The pane's HEAD BAND — the artifact's identity (a room's title + chips, a character's portrait + name),
+   *  drawn from the SAME `S` the tabs read (north-star §4 N4, P4; the context bracket's band slot, #860).
+   *  Definition-owned + mint-supplied (never a route-fed prop or a shell-side per-section switch); the
+   *  shell renders it blind in the bracket's band. A claiming region's band replaces it. */
   readonly header?: (state: S) => ReactNode;
+  /** The FOOT rail's name — the artifact NOUN the pane is about ("Chat", "Character"), printed as the
+   *  rail's kicker and carried as its a11y group name. Absent ⇒ the section's rail label (the honest name
+   *  for a pane that is about the section itself: Corpus, Analytics, Refinery). */
+  readonly railLabel?: string;
   /** §6c — injected at the door (M8); merged after own tabs, same `when` gating. */
   readonly contributors?: ContributorRegistry<ContextTabDef<S>>;
-  /** §6c / HUD-1 §3.2 — the REGION-CLAIM arm, injected at the same door. The FIRST claiming region owns the
-   *  whole pane for that state; zero claimants resolves to today's generic panel, unchanged. */
+  /** §6c / HUD-1 §3.2 — the BAND-CLAIM arm, injected at the same door. The FIRST claiming region's band
+   *  takes the head slot for that state; zero claimants ⇒ the section's own `header`. */
   readonly regions?: ContributorRegistry<ContextRegionDef<S>>;
   /** The section's NO-SELECTION arm (`ContextEmptyArm`, side-eye F-12) — what this pane says while
    *  `useContextState` resolves `null`. Passed through the mint untouched: the copy is the SECTION's, and
@@ -221,11 +238,17 @@ export function resolveContextTabs<S>(spec: ContextTabsSpec<S>, state: S): Resol
     defaultTab: tab.defaultTab?.(state) ?? false,
     ...(tab.icon === undefined ? {} : { icon: tab.icon }),
   }));
-  // The FIRST claiming region wins the whole pane (HUD-1 §3.2) — declared order decides, so the outcome is
-  // deterministic; the ≤1-claimant gate arm makes a second claimant unbuildable anyway.
-  const region = spec.regions?.list().find((candidate) => candidate.claims(state))?.render;
-  const resolved = { tabs, actions: spec.actions?.(state), header: spec.header?.(state) };
-  return region === undefined ? resolved : { ...resolved, region };
+  // The FIRST claiming region's band takes the head slot (HUD-1 §3.2, re-shaped by #860) — declared order
+  // decides, so the outcome is deterministic; the ≤1-claimant gate arm makes a second claimant unbuildable
+  // anyway. A claim never suppresses resolution: `tabs`/`actions` are the same set either way.
+  const claim = spec.regions?.list().find((candidate) => candidate.claims(state));
+  const header = claim === undefined ? spec.header?.(state) : claim.band();
+  return {
+    tabs,
+    actions: spec.actions?.(state),
+    header,
+    ...(spec.railLabel === undefined ? {} : { railLabel: spec.railLabel }),
+  };
 }
 
 /** THE mint (§6b) — pairs a projection hook with its tabs/contributors, closed over by a named
@@ -292,6 +315,9 @@ export interface CharacterChatsProjectionView {
 export interface CommittedChatContext {
   readonly phase: "committed";
   readonly chatId: ChatId;
+  /** The room's stored title, RAW (`ChatDetail.title` — null/blank until renamed) — the context band
+   *  renders it through `deriveChatTitle` with the cast names, exactly as the topbar identity does. */
+  readonly title: string | null;
   readonly participants: readonly ParticipantView[];
   /** The room's member-gated CAST producer (`ChatDetail.cast`, D137) — the ONE resolver a context tab has for
    *  turning a seat's `activePersonaId` into the persona name/portrait its row renders (the Members tab's

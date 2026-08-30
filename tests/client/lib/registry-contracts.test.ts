@@ -86,35 +86,37 @@ describe("resolveContextTabs", () => {
   });
 });
 
-// ── The whole-pane REGION CLAIM (HUD-1 §3.2/§10) ────────────────────────────────────────────────────
-// The claim rides the SAME resolve as the tabs: a claimant is handed everything the shell would have
-// rendered itself, so a region can never suppress resolution or fork the selection.
+// ── The HEAD-BAND REGION CLAIM (HUD-1 §3.2/§10, re-shaped by the context bracket #860) ───────────────
+// The claim rides the SAME resolve as the tabs: a claiming region's band is FOLDED into the resolved
+// `header` (it replaces the section's own), and the tab set is untouched — a claim can never suppress
+// resolution, fork the selection, or reach a rail.
 
 function region(id: string, claims: (s: State) => boolean): ContextRegionDef<State> {
-  return defineContextRegion<State>({ id, claims, render: () => id });
+  return defineContextRegion<State>({ id, claims, band: () => id });
 }
 
 describe("resolveContextTabs — regions", () => {
-  test("no claimant: `region` is undefined and the tab set is unaffected (the six-section floor)", () => {
-    const spec: ContextTabsSpec<State> = { useContextState: () => ({ n: 1 }), tabs: [tab("a"), tab("b")], actions: (s) => s.n };
+  test("no claimant: the section's own `header` stands and the tab set is unaffected (the six-section floor)", () => {
+    const spec: ContextTabsSpec<State> = { useContextState: () => ({ n: 1 }), tabs: [tab("a"), tab("b")], actions: (s) => s.n, header: () => "own" };
     const withoutRegistry = resolveContextTabs(spec, { n: 1 });
     const withIdleRegion = resolveContextTabs({ ...spec, regions: createContributorRegistry("r", [region("idle", () => false)]) }, { n: 1 });
 
-    expect(withIdleRegion.region).toBeUndefined();
+    expect(withIdleRegion.header).toBe("own");
     expect(withIdleRegion.tabs.map((t) => t.id)).toEqual(withoutRegistry.tabs.map((t) => t.id));
     expect(withIdleRegion.actions).toBe(withoutRegistry.actions);
   });
 
-  test("a claiming region carries `region` AND still the FULL resolved tab set", () => {
+  test("a claiming region's band REPLACES the section's header AND the resolved tab set is still FULL", () => {
     const spec: ContextTabsSpec<State> = {
       useContextState: () => ({ n: 2 }),
       tabs: [tab("a"), tab("b")],
+      header: () => "own",
       regions: createContributorRegistry("r", [region("hud", (s) => s.n >= 2)]),
     };
     const resolved = resolveContextTabs(spec, { n: 2 });
 
-    expect(resolved.region).toBeDefined();
-    // The claimant renders these itself — the resolve must hand it everything, never a subset.
+    expect(resolved.header).toBe("hud");
+    // The bracket renders these — the resolve must hand it everything, never a subset.
     expect(resolved.tabs.map((t) => t.id)).toEqual(["a", "b"]);
   });
 
@@ -122,10 +124,11 @@ describe("resolveContextTabs — regions", () => {
     const spec: ContextTabsSpec<State> = {
       useContextState: () => ({ n: 1 }),
       tabs: [tab("a")],
+      header: () => "own",
       regions: createContributorRegistry("r", [region("hud", (s) => s.n >= 2)]),
     };
-    expect(resolveContextTabs(spec, { n: 1 }).region).toBeUndefined();
-    expect(resolveContextTabs(spec, { n: 2 }).region).toBeDefined();
+    expect(resolveContextTabs(spec, { n: 1 }).header).toBe("own");
+    expect(resolveContextTabs(spec, { n: 2 }).header).toBe("hud");
   });
 
   test("two claimants at one state: the FIRST in declared order wins, deterministically", () => {
@@ -134,7 +137,14 @@ describe("resolveContextTabs — regions", () => {
       tabs: [tab("a")],
       regions: createContributorRegistry("r", [region("first", () => true), region("second", () => true)]),
     };
-    expect(resolveContextTabs(spec, { n: 1 }).region?.({ tabs: [], activeTab: null, selectTab: () => undefined })).toBe("first");
+    expect(resolveContextTabs(spec, { n: 1 }).header).toBe("first");
+  });
+
+  test("`railLabel` passes through the resolve untouched, and is absent when the spec names none", () => {
+    const named: ContextTabsSpec<State> = { useContextState: () => ({ n: 1 }), tabs: [tab("a")], railLabel: "Chat" };
+    expect(resolveContextTabs(named, { n: 1 }).railLabel).toBe("Chat");
+    const unnamed: ContextTabsSpec<State> = { useContextState: () => ({ n: 1 }), tabs: [tab("a")] };
+    expect("railLabel" in resolveContextTabs(unnamed, { n: 1 })).toBe(false);
   });
 
   test("the duplicate-tab-id throw is unchanged with a claiming region present", () => {

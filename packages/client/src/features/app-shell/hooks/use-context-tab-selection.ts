@@ -1,7 +1,7 @@
 // The ONE CONTEXT-panel tab-selection resolver (HUD-1 §3.4) — the stored→`defaultTab`→declared-first rule,
-// homed once so the two pane compositions cannot drift. `ContextTabsPanel` (the generic panel) and
-// `ContextRegionHost` (a claimant's pane) both consume it; a second copy of this rule is exactly the drift
-// this repo keeps re-learning.
+// homed once. `ContextTabsPanel` (the one host of the context bracket, #860) consumes it; it used to be
+// shared with the deleted `ContextRegionHost`, and it stays its own module so a second pane composition
+// could never mint a second copy of this rule — exactly the drift this repo keeps re-learning.
 //
 // The rule, unchanged from the pre-HUD panel: a STORED `contextTab` wins whenever it is still visible
 // (selection continuity across chat/section switches — Context-Panel-Program §4.1), else the FIRST tab

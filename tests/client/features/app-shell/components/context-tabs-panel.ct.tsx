@@ -1,233 +1,365 @@
-// CT: the GENERIC (unclaimed) CONTEXT panel — the six sections + every non-game chat. Post-HUD-1 it is ONE
-// strip labelled "Detail", always: the two-strip bracket branch is deleted, and rail membership (`strip`) is
-// a claimant's vocabulary this renderer ignores.
+// CT: the CONTEXT BRACKET as every tabs pane renders it (context-tabs-panel.tsx → context-bracket.tsx →
+// context-rail.tsx). Owner-ruled 2026-08-30 (#860, `docs/design/mocks/context-bracket/DESIGN.md`): the
+// panel is ONE column — head band → optional state rail → viewport → ground → META RAIL PINNED TO THE FOOT —
+// in a normal room, a game room and a character alike. The generic pane used to be a different renderer
+// (a `tablist "Detail"` of `tab`s at the HEAD, `aria-disabled` locked tabs, `flex-1` panels, the shell.css
+// `.ctx-tab-strip`); #845 measured the fork (the same meta tabs at y=56 in a normal room and y=754 in a
+// game room) and this file pins the end of it. The rail's ARIA model is #112's, universal now: a named
+// TOOLBAR of buttons carrying `aria-current`, manual activation, `region` panels named by their cell.
 //
-// CT: the CONTEXT tab strip (context-tabs-panel.tsx). ICON + LABEL ON EVERY TAB, AT EVERY WIDTH AND EVERY
-// POINTER (owner ruling 2026-08-18, #208) — which SUPERSEDES the container-responsive icon-mode this file
-// pinned until today (labels hidden by default on any tab with an icon; a per-count `@container` threshold
-// restored them). That mode never fired in the product: the panel clamps to 26rem and the 4-tab threshold
-// was 28rem, so the shell's only fine-pointer form was nameless glyphs, while the SAME resolved chat tabs
-// rendered glyph+caption under the rpg HUD's claim. The tests below are the inverse of the four they
-// replace, and the strip's degradation is now a SCROLL (`minmax(max-content, 1fr)` tracks + overflow-x-auto),
-// never a clipped word — so the no-clip assertions moved from the STRIP's scroll bounds to each CAPTION's.
-// The shell.css rules are loaded into the CT bundle (playwright/index.css + the story module imports
-// shell.css), so the cell form resolves against the story's FIXED container width exactly as in the shell.
+// The first two tests are the RED-FIRST pins — they compile and run against the pre-#860 source and fail
+// there (a `tablist "Detail"` at the head; the strip's bottom ~50px from the top of a 480px pane). The
+// DOM-order pin is a FENCE: the kicker already preceded its cells on the pre-#860 tree (#861's stated
+// mechanism was refuted with a live receipt — the real mechanism is pinned in the "#861" block below).
+// shell.css is loaded into the CT bundle (the story module imports it), so the panel-body padding drop and
+// the track sizing resolve exactly as in the shell.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { ContextDefaultTabStory, ContextTabStatesStory, ContextTabStripStory } from "../_ct-stories.tsx";
 
 const TAB_NAMES = ["Members", "Settings", "Preview", "Injections"] as const;
 
-/** The D62 P1 coarse-pointer control floor (`--spacing-control-md` resolves to 48px there; the LAW's
- *  floor is 44). Same constant the touch-target-floor suite asserts against. */
-const COARSE_TOUCH_FLOOR_PX = 44;
+/** The mock's phone cell floor (DESIGN.md "cells 52px"); the token step the cell takes is `control-lg`
+ *  (56px at coarse) — the first step at or above it. */
+const COARSE_CELL_FLOOR_PX = 52;
+const TRANSPARENT = "rgba(0, 0, 0, 0)";
 
-/** How many of the strip's captions are rendering an ELLIPSIS — the readable-caption floor (#102) stated as
- *  a measurement rather than a mode. `+1` absorbs sub-pixel text metrics. */
-function clippedCaptions(component: Locator): Promise<number> {
-  return component.locator(".ctx-tab-label").evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
+/** The FOOT rail — the section-named toolbar (`railLabel: "Chat"` in these stories). */
+function foot(component: Locator): Locator {
+  return component.getByRole("toolbar", { name: "Chat" });
+}
+/** The STATE rail — present only when a `strip:"game"` tab resolved. */
+function state(component: Locator): Locator {
+  return component.getByRole("toolbar", { name: "Game state" });
+}
+/** One cell — a BUTTON inside its rail; `exact` so "Members" never matches a "Members — 3" chip. */
+function cell(rail: Locator, name: string): Locator {
+  return rail.getByRole("button", { name, exact: true });
+}
+/** The rail block (kicker + cells) that owns a named toolbar. */
+function railBlock(component: Locator, page: Page, railName: string): Locator {
+  return component.locator('[data-slot="context-rail"]').filter({ has: page.getByRole("toolbar", { name: railName }) });
 }
 
-test("the shell's own panel width: every tab shows its ICON and its WORD — no nameless glyphs", async ({ mount }) => {
-  // 291px = the real default-width tablist, the width at which the superseded design was PERMANENTLY
-  // icon-only (the 4-tab reveal threshold was 448px, and the panel clamps to 416px).
+/** How many captions are rendering an ELLIPSIS — the readable-caption floor (#102) stated as a
+ *  measurement rather than a mode. `+1` absorbs sub-pixel text metrics. */
+function clippedCaptions(component: Locator): Promise<number> {
+  return component.locator('[data-slot="context-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
+}
+
+async function bottomOf(locator: Locator): Promise<number> {
+  const box = await locator.boundingBox();
+  if (box === null) {
+    throw new Error("expected the element to be laid out");
+  }
+  return box.y + box.height;
+}
+
+// ── #860 RED-FIRST: the meta rail is a TOOLBAR at the FOOT, not a tablist at the head ────────────────────
+
+test("#860: a normal pane has NO tablist at its head — its meta tabs are a toolbar named by the section, cells carrying aria-current", async ({ mount }) => {
   const component = await mount(<ContextTabStripStory width={291} />);
 
+  // THE DEFECT PIN — the pre-#860 renderer announced `tablist "Detail"` of `tab`s here. Nothing in the pane
+  // announces as a tab group any more; the same set is a named toolbar (#112's model, universal).
+  await expect(component.getByRole("tablist")).toHaveCount(0);
+  await expect(component.getByRole("tab")).toHaveCount(0);
+  await expect(foot(component)).toBeVisible();
+  await expect(foot(component).getByRole("button")).toHaveCount(TAB_NAMES.length);
+  await expect(cell(foot(component), "Members")).toHaveAttribute("aria-current", "true");
+  await expect(component.locator('[aria-current="true"]')).toHaveCount(1);
+  // The announced tree, stated whole — the receipt the ruling is about.
+  await expect(foot(component)).toMatchAriaSnapshot(`
+    - toolbar "Chat":
+      - button "Members"
+      - button "Settings"
+      - button "Preview"
+      - button "Injections"
+  `);
+});
+
+test("#860: the meta rail is PINNED TO THE PANE'S FOOT — its bottom edge is the pane's, in a short-body pane", async ({ mount }) => {
+  // A 480px pane with a one-line body: pre-#860 the strip sat at the HEAD (its bottom ~50px from the top).
+  // The bracket's ground absorbs the residual span, so the rail's bottom IS the pane's bottom.
+  const component = await mount(<ContextTabStripStory width={291} height={480} />);
+  const pane = component;
+  await expect(foot(component)).toBeVisible();
+  const [railBottom, paneBottom] = await Promise.all([bottomOf(component.locator('[data-slot="context-rail"]')), bottomOf(pane)]);
+  expect(Math.abs(railBottom - paneBottom)).toBeLessThanOrEqual(1);
+  // …and the rail is BELOW the viewport, not above it (the OSRS bracket: administration below).
+  const viewportBottom = await bottomOf(component.locator('[data-slot="tabs-panel"]:visible'));
+  expect(railBottom).toBeGreaterThan(viewportBottom);
+});
+
+// ── The kicker: ON TOP of its cells, naming the group AND the selection ──────────────────────────────────
+
+test("the kicker precedes its cells in DOM order and names the group + the selection (a fence — kicker-above held pre-#860)", async ({ mount, page }) => {
+  const component = await mount(<ContextTabStripStory width={291} />);
+  const block = railBlock(component, page, "Chat");
+  const kicker = block.locator('[data-slot="context-rail-kicker"]');
+  await expect(kicker).toHaveText("Chat · Members");
+  await expect(kicker).toHaveAttribute("aria-hidden", "true");
+  await expect
+    .poll(() =>
+      kicker
+        .locator('[data-slot="text"]')
+        .first()
+        .evaluate((el) => getComputedStyle(el).textTransform),
+    )
+    .toBe("uppercase");
+
+  // DOM order: the kicker row comes BEFORE the row holding the toolbar it names — its next sibling contains
+  // the cells. (#861's stated mechanism — the kicker under the cells — was refuted on the pre-#860 tree;
+  // this fences the order the mock draws, in every pane.)
+  await expect
+    .poll(() =>
+      kicker.evaluate((el) => {
+        const toolbar = el.parentElement?.querySelector('[role="toolbar"]') ?? null;
+        return toolbar !== null && el.nextElementSibling !== null && el.nextElementSibling.contains(toolbar);
+      }),
+    )
+    .toBe(true);
+  // …and geometrically above them.
+  const [kickerBottom, cellsTop] = await Promise.all([
+    bottomOf(kicker),
+    foot(component)
+      .boundingBox()
+      .then((box) => box?.y ?? Number.NaN),
+  ]);
+  expect(kickerBottom).toBeLessThanOrEqual(cellsTop);
+
+  // The sentence follows the selection.
+  await cell(foot(component), "Settings").click();
+  await expect(kicker).toHaveText("Chat · Settings");
+  await expect(cell(foot(component), "Settings")).toHaveAttribute("aria-current", "true");
+  await expect(cell(foot(component), "Members")).not.toHaveAttribute("aria-current", "true");
+});
+
+// ── ICON + LABEL ON EVERY CELL, AT EVERY WIDTH (#208), degrading to a SCROLL, never an ellipsis ───────────
+
+test("the shell's own panel width: every cell shows its ICON and its WORD — no nameless glyphs, no clipped caption", async ({ mount }) => {
+  const component = await mount(<ContextTabStripStory width={291} />);
   await Promise.all(
     TAB_NAMES.map(async (name) => {
-      const tab = component.getByRole("tab", { name });
+      const tab = cell(foot(component), name);
       await expect(tab).toBeVisible();
-      // The icon carries half the cell…
       await expect(tab.locator("svg")).toBeVisible();
-      // …and the WORD is on screen, rendered (a display:none or a 0px box is the same missing word).
-      const label = tab.locator(".ctx-tab-label");
+      const label = tab.locator('[data-slot="context-cell-caption"]');
       await expect(label).toHaveText(name);
       await expect(label).not.toHaveCSS("display", "none");
       await expect.poll(async () => ((await label.boundingBox())?.width ?? 0) > 0).toBe(true);
     }),
   );
-  // And not one of them is an ellipsis: the tracks are `minmax(max-content, 1fr)`, so a cell cannot be
-  // squeezed below its own word.
   await expect.poll(async () => clippedCaptions(component)).toBe(0);
 });
 
-test("a wide host changes nothing but the slack — same icon+label cell, still no clip", async ({ mount }) => {
+test("a wide host changes nothing but the slack — same icon+label cell, equal columns, no scroll", async ({ mount }) => {
   const component = await mount(<ContextTabStripStory width={600} />);
-
-  const membersLabel = component.getByRole("tab", { name: "Members" }).locator(".ctx-tab-label");
-  await expect(membersLabel).toHaveText("Members");
-  await expect(membersLabel).not.toHaveCSS("display", "none");
+  await expect(cell(foot(component), "Members").locator('[data-slot="context-cell-caption"]')).toHaveText("Members");
   await expect.poll(async () => clippedCaptions(component)).toBe(0);
-  // With slack the `1fr` MAX still fills the strip as equal cells (the 2026-07-28 bracket ruling): the
-  // strip has no horizontal overflow to scroll.
-  await expect.poll(async () => component.getByRole("tablist").evaluate((el) => el.scrollWidth > el.clientWidth + 1)).toBe(false);
+  await expect.poll(async () => foot(component).evaluate((el) => el.scrollWidth > el.clientWidth + 1)).toBe(false);
 });
 
-test("5 tabs at the default width (the Trackers ceiling): every word survives — the strip SCROLLS, it does not clip", async ({ mount }) => {
+test("5 cells at the default width: every word survives — the rail SCROLLS, it does not clip and it does not fold 3+2", async ({ mount }) => {
   const component = await mount(<ContextTabStripStory width={291} showTrackers={true} />);
-
-  // All 5 resolve by name and print their word…
   await Promise.all(
-    [...TAB_NAMES, "Trackers"].map(async (name) => {
-      await expect(component.getByRole("tab", { name })).toBeVisible();
-      await expect(component.getByRole("tab", { name }).locator(".ctx-tab-label")).toHaveText(name);
-    }),
+    [...TAB_NAMES, "Trackers"].map(async (name) => expect(cell(foot(component), name).locator('[data-slot="context-cell-caption"]')).toHaveText(name)),
   );
-  // …and the degradation, where five words no longer share 291px, is the strip's own scroll — never an
-  // ellipsis. This is the ONE assertion that separates the fix from the defect it replaces.
   await expect.poll(async () => clippedCaptions(component)).toBe(0);
+  // ONE ROW (#861: a five-cell foot rail folding 3+2 left a ragged void beside the orphan pair at 1024×768).
+  const tops = await foot(component)
+    .getByRole("button")
+    .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+  expect(new Set(tops).size).toBe(1);
 });
 
-test("an icon-LESS tab sits in the same strip as icon tabs and both keep their word", async ({ mount }) => {
-  // The mixing the owner ruled against is icon-only BESIDE icon+label. An icon-less contributor tab is
-  // label-only by construction (it has no glyph to print), and it must read as the same cell.
+test("an icon-LESS tab sits in the same rail as icon cells and both keep their word", async ({ mount }) => {
   const component = await mount(<ContextTabStripStory width={291} withIconless={true} />);
-
-  const iconlessLabel = component.getByRole("tab", { name: "Iconless" }).locator(".ctx-tab-label");
-  await expect(iconlessLabel).toHaveText("Iconless");
-  await expect(iconlessLabel).not.toHaveCSS("display", "none");
-  const membersLabel = component.getByRole("tab", { name: "Members" }).locator(".ctx-tab-label");
-  await expect(membersLabel).toHaveText("Members");
-  await expect(membersLabel).not.toHaveCSS("display", "none");
+  await expect(cell(foot(component), "Iconless").locator('[data-slot="context-cell-caption"]')).toHaveText("Iconless");
+  await expect(cell(foot(component), "Members").locator('[data-slot="context-cell-caption"]')).toHaveText("Members");
   await expect.poll(async () => clippedCaptions(component)).toBe(0);
 });
 
-test("#208: the strip is a REAL tablist — role, selected state and panel wiring, not an orange fill", async ({ mount }) => {
-  // The ruled a11y bar for the context tabs, pinned on the renderer that serves every non-game chat and all
-  // six generic sections. (The rpg-CLAIMED pane deliberately announces two named TOOLBARS instead — #112,
-  // measured: two rails share ONE selection, and a tablist whose selected tab lives in the other rail
-  // announces a chooser with nothing chosen. That ruling is stated in rpg-hud-rail.tsx and is NOT reversed.)
+// ── #112, universal: one tab stop, arrows MOVE, Enter commits; a `region` named by its cell ──────────────
+
+test("#112: the rail is ONE tab stop with manual activation, and the viewport is a region named by the current cell", async ({ mount, page }) => {
   const component = await mount(<ContextTabStripStory width={291} />);
-
-  // The announced tree, stated whole — this is the receipt the ruling is about, and an inline snapshot is
-  // the only assertion that catches a role or a NAME quietly changing shape.
-  await expect(component.getByRole("tablist")).toMatchAriaSnapshot(`
-    - tablist "Detail":
-      - tab "Members" [selected]
-      - tab "Settings"
-      - tab "Preview"
-      - tab "Injections"
-  `);
-  await expect(component.getByRole("tablist")).toHaveAttribute("aria-label", "Detail");
-  await expect(component.getByRole("tab")).toHaveCount(TAB_NAMES.length);
-  await expect(component.getByRole("tab", { selected: true })).toHaveCount(1);
-  const members = component.getByRole("tab", { name: "Members" });
-  await expect(members).toHaveAttribute("aria-selected", "true");
-  // The selected tab NAMES its panel, and the panel is a real tabpanel (not a bare div).
-  await expect.poll(async () => members.getAttribute("aria-controls")).not.toBeNull();
-  const controls = await members.getAttribute("aria-controls");
-  await expect(component.getByRole("tabpanel")).toHaveAttribute("id", controls ?? "");
-
-  // Roving tabindex + arrow keys: the strip is ONE tab stop, and an arrow moves the selection within it.
+  const members = cell(foot(component), "Members");
   await members.focus();
-  await expect(component.getByRole("tab", { name: "Settings" })).toHaveAttribute("tabindex", "-1");
-  await members.press("ArrowRight");
-  await expect(component.getByRole("tab", { name: "Settings" })).toHaveAttribute("aria-selected", "true");
-  await expect(members).toHaveAttribute("aria-selected", "false");
+  await expect(cell(foot(component), "Settings")).toHaveAttribute("tabindex", "-1");
+  await page.keyboard.press("ArrowRight");
+  // Focus MOVED, nothing was committed.
+  await expect(cell(foot(component), "Settings")).toBeFocused();
+  await expect(members).toHaveAttribute("aria-current", "true");
+  await expect(cell(foot(component), "Settings")).not.toHaveAttribute("aria-current", "true");
+  // Enter commits — the cell is a native button.
+  await page.keyboard.press("Enter");
+  await expect(cell(foot(component), "Settings")).toHaveAttribute("aria-current", "true");
+  await expect(members).not.toHaveAttribute("aria-current", "true");
+
+  // The viewport is a `region` whose accessible name is the current cell (no tabpanel — there is no tab).
+  await expect(component.getByRole("tabpanel")).toHaveCount(0);
+  const panel = component.locator('[data-slot="tabs-panel"]:visible');
+  await expect(panel).toHaveAttribute("role", "region");
+  const labelledBy = await panel.getAttribute("aria-labelledby");
+  await expect(component.locator(`[id="${labelledBy ?? ""}"]`)).toHaveAttribute("aria-current", "true");
 });
 
-// ── ONE strip, always (HUD-1 §5.1 — the bracket branch is deleted) ───────────────────────────────────
+// ── TWO RAILS off one selection: a `strip:"game"` tab summons the state rail ABOVE the viewport ───────────
 
-test("the generic panel renders ONE strip labelled Detail — the pre-HUD contract, now permanent", async ({ mount }) => {
-  const component = await mount(<ContextTabStripStory width={291} />);
-  await expect(component.getByRole("tablist")).toHaveCount(1);
-  await expect(component.getByRole("tablist")).toHaveAttribute("aria-label", "Detail");
-});
-
-test("rail membership is a CLAIMANT's vocabulary: the generic panel ignores `strip` and renders one strip", async ({ mount }) => {
-  // A mixed game/meta set is exactly what used to summon the bracket. With no claim there is no bracket —
-  // every visible tab lives in the single "Detail" strip, one selection, and no "Game"/"Chat" group exists.
+test("rail membership is honoured everywhere: a game tab lands in the state rail above the viewport, a meta tab in the foot rail", async ({ mount, page }) => {
   const component = await mount(<ContextTabStatesStory />);
+  await expect(state(component)).toBeVisible();
+  await expect(foot(component)).toBeVisible();
+  await expect(cell(state(component), "Status")).toBeVisible();
+  await expect(cell(foot(component), "Members")).toBeVisible();
+  await expect(component.getByRole("tablist")).toHaveCount(0);
 
-  await expect(component.getByRole("tablist")).toHaveCount(1);
-  await expect(component.getByRole("tablist")).toHaveAttribute("aria-label", "Detail");
-  await expect(component.getByRole("tablist", { name: "Game" })).toHaveCount(0);
-  const strip = component.getByRole("tablist");
-  await expect(strip.getByRole("tab", { name: "Status" })).toBeVisible();
-  await expect(strip.getByRole("tab", { name: "Members" })).toBeVisible();
+  // Geometry: state rail → viewport → foot rail.
+  const [stateBottom, viewportTop, viewportBottom, footTop] = await Promise.all([
+    bottomOf(state(component)),
+    component
+      .locator('[data-slot="tabs-panel"]:visible')
+      .boundingBox()
+      .then((box) => box?.y ?? Number.NaN),
+    bottomOf(component.locator('[data-slot="tabs-panel"]:visible')),
+    foot(component)
+      .boundingBox()
+      .then((box) => box?.y ?? Number.NaN),
+  ]);
+  expect(stateBottom).toBeLessThanOrEqual(viewportTop);
+  expect(viewportBottom).toBeLessThanOrEqual(footTop);
 
-  // ONE selection across the whole set, and the viewport follows it.
-  await strip.getByRole("tab", { name: "Status" }).click();
-  await expect(component.getByTestId("ctx-body-status")).toBeVisible();
-  await strip.getByRole("tab", { name: "Settings" }).click();
+  // ONE selection across both rails — the OWNING rail names it, the other prints its bare name.
+  const stateKicker = railBlock(component, page, "Game state").locator('[data-slot="context-rail-kicker"]');
+  const footKicker = railBlock(component, page, "Chat").locator('[data-slot="context-rail-kicker"]');
+  await expect(stateKicker).toHaveText("Game state · Status");
+  await expect(footKicker).toHaveText("Chat");
+  await expect(component.locator('[aria-current="true"]')).toHaveCount(1);
+
+  await cell(foot(component), "Settings").click();
   await expect(component.getByTestId("ctx-body-settings")).toBeVisible();
-  await expect(strip.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "false");
-  await expect(component.getByRole("tab", { selected: true })).toHaveCount(1);
+  await expect(footKicker).toHaveText("Chat · Settings");
+  await expect(stateKicker).toHaveText("Game state");
+  await expect(cell(state(component), "Status")).not.toHaveAttribute("aria-current", "true");
+  await expect(component.locator('[aria-current="true"]')).toHaveCount(1);
+});
+
+test("#861: the RECEDED rail rests on a surface with a floor under its cells, and its kicker is quieter than the owning one's", async ({ mount, page }) => {
+  // Side-eye measured the live foot rail while a GAME tab held the view: no fill, cells ending on the
+  // viewport's own edge, and a kicker BRIGHTER than the owning rail's — a dead section header dangling at
+  // the pane's foot. The receded arm now recedes ONTO something.
+  const component = await mount(<ContextTabStatesStory />);
+  const receded = railBlock(component, page, "Chat");
+  const owning = railBlock(component, page, "Game state");
+  await expect(receded).toHaveAttribute("data-owns", "false");
+  await expect(owning).toHaveAttribute("data-owns", "true");
+  // A resting surface — never bare ground.
+  await expect.poll(() => receded.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(TRANSPARENT);
+  // A floor: the cells do not end on the pane's edge.
+  const [cellsBottom, paneBottom] = await Promise.all([bottomOf(foot(component)), bottomOf(component)]);
+  expect(paneBottom - cellsBottom).toBeGreaterThanOrEqual(4);
+  // The receded kicker is NOT the louder of the two: its name steps one alpha quieter than the owning rail's
+  // name, and the owning rail alone prints the foreground selection half beside it.
+  const kickerInk = (block: Locator): Promise<string> =>
+    block
+      .locator('[data-slot="context-rail-kicker"] [data-slot="text"]')
+      .first()
+      .evaluate((el) => getComputedStyle(el).color);
+  await expect.poll(async () => (await kickerInk(receded)) !== (await kickerInk(owning))).toBe(true);
+  await expect(receded.locator('[data-slot="context-rail-selection"]')).toHaveCount(0);
+  await expect(owning.locator('[data-slot="context-rail-selection"]')).toBeVisible();
 });
 
 test("defaultTab (§4.1): a fresh panel lands on the flagged tab, not the declared-order first", async ({ mount }) => {
-  // `members` is first in declared order, but `rpg.status` flags `defaultTab` — a game chat must land on
-  // Status (the game-state centerpiece), not the roster's Members. No stored contextTab ⇒ the flag decides.
   const component = await mount(<ContextDefaultTabStory />);
-  await expect(component.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "true");
-  await expect(component.getByRole("tab", { name: "Members" })).toHaveAttribute("aria-selected", "false");
+  await expect(cell(state(component), "Status")).toHaveAttribute("aria-current", "true");
+  await expect(cell(foot(component), "Members")).not.toHaveAttribute("aria-current", "true");
   await expect(component.getByTestId("ctx-body-status")).toBeVisible();
-
-  // Continuity holds: an explicit selection of a DIFFERENT visible tab still wins over the default.
-  await component.getByRole("tab", { name: "Members" }).click();
-  await expect(component.getByRole("tab", { name: "Members" })).toHaveAttribute("aria-selected", "true");
-  await expect(component.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "false");
+  await cell(foot(component), "Members").click();
+  await expect(cell(foot(component), "Members")).toHaveAttribute("aria-current", "true");
+  await expect(cell(state(component), "Status")).not.toHaveAttribute("aria-current", "true");
 });
 
-test("indicator: the per-tab active bar sits on the strip's INWARD (bottom) edge — no sliding twin", async ({ mount }) => {
-  // The active marker sits on the edge NEAREST the content: a per-tab 2px `--color-primary` border,
-  // transparent on inactive tabs so selection costs zero layout shift, replacing the sliding
-  // <TabsIndicator/> (which could clip inside the strip's overflow scroll container).
-  const transparent = "rgba(0, 0, 0, 0)";
+test("#850: the active cell wears the ember fill and a 2px primary bar on its bottom edge — in BOTH rails, one cell at a time", async ({ mount }) => {
   const component = await mount(<ContextTabStatesStory />);
-  const strip = component.getByRole("tablist");
-  await expect(component.locator('[data-slot="tabs-indicator"]')).toHaveCount(0);
-
-  const status = strip.getByRole("tab", { name: "Status" });
-  await status.click();
+  const status = cell(state(component), "Status");
+  await expect(status).toHaveAttribute("aria-current", "true");
   await expect(status).toHaveCSS("border-bottom-width", "2px");
-  await expect.poll(() => status.evaluate((el) => getComputedStyle(el).borderBottomColor)).not.toBe(transparent);
+  await expect.poll(() => status.evaluate((el) => getComputedStyle(el).borderBottomColor)).not.toBe(TRANSPARENT);
+  await expect.poll(() => status.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(TRANSPARENT);
 
-  // Selecting elsewhere clears it — exactly one tab ever carries the bar.
-  const settings = strip.getByRole("tab", { name: "Settings" });
+  const settings = cell(foot(component), "Settings");
   await settings.click();
   await expect(settings).toHaveCSS("border-bottom-width", "2px");
-  await expect.poll(() => settings.evaluate((el) => getComputedStyle(el).borderBottomColor)).not.toBe(transparent);
-  await expect.poll(() => status.evaluate((el) => getComputedStyle(el).borderBottomColor)).toBe(transparent);
+  await expect.poll(() => settings.evaluate((el) => getComputedStyle(el).borderBottomColor)).not.toBe(TRANSPARENT);
+  await expect.poll(() => status.evaluate((el) => getComputedStyle(el).borderBottomColor)).toBe(TRANSPARENT);
+  await expect.poll(() => status.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(TRANSPARENT);
 });
 
-test("PHASE disabled: the locked tab exposes its reason and cannot activate by pointer or keyboard", async ({ mount }) => {
+test("RV-7: the locked cell wears a padlock, names the lock, is dimmed — and OPENS onto its reason; never aria-disabled", async ({ mount }) => {
   const component = await mount(<ContextTabStatesStory />);
-  const map = component.getByRole("tab", { name: "Map" });
-  await expect(map).toHaveAttribute("aria-disabled", "true");
-  await expect(map).toHaveAttribute("title", "Maps unlock with the map arc (MA-3)");
+  const map = cell(state(component), "Map — locked");
   await expect(map).toBeVisible();
-  await expect(map).toBeDisabled();
+  await expect(map).not.toHaveAttribute("aria-disabled", "true");
+  await expect(map).toHaveAttribute("title", "Maps unlock with the map arc (MA-3)");
+  // Glyph + padlock: two SVGs in the cell.
+  await expect(map.locator("svg")).toHaveCount(2);
+  await expect.poll(() => map.evaluate((el) => Number.parseFloat(getComputedStyle(el).opacity))).toBeLessThan(1);
 
-  await map.click({ force: true });
-  await expect(component.getByTestId("ctx-body-map")).toHaveCount(0);
+  await map.click();
+  await expect(component.getByTestId("ctx-body-map")).toBeVisible();
+  await expect(map).toHaveAttribute("aria-current", "true");
   await map.focus();
   await map.press("Enter");
-  await expect(component.getByTestId("ctx-body-map")).toHaveCount(0);
-  await expect(component.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "true");
+  await expect(component.getByTestId("ctx-body-map")).toBeVisible();
 });
 
-test("badge: a boolean dot + a count, never on the active tab", async ({ mount }) => {
+test("badge: a boolean dot + a count, never on the active cell", async ({ mount }) => {
   const component = await mount(<ContextTabStatesStory />);
-  // The count badge (badge:3 on Game) renders its number.
-  await expect(component.getByRole("tab", { name: "Game" }).getByText("3")).toBeVisible();
-  // The boolean-badge tab (Scene) shows the corner dot.
-  await expect(component.getByRole("tab", { name: "Scene" }).locator("span.rounded-full")).toBeVisible();
-
-  // Activating a badged tab drops its badge (never on the active tab).
-  await component.getByRole("tab", { name: "Scene" }).click();
-  await expect(component.getByRole("tab", { name: "Scene" })).toHaveAttribute("aria-selected", "true");
-  await expect(component.getByRole("tab", { name: "Scene" }).locator("span.rounded-full")).toHaveCount(0);
+  await expect(cell(state(component), "Game").getByText("3")).toBeVisible();
+  await expect(cell(state(component), "Scene").locator('[data-slot="badge"]')).toHaveCount(1);
+  await cell(state(component), "Scene").click();
+  await expect(cell(state(component), "Scene")).toHaveAttribute("aria-current", "true");
+  await expect(cell(state(component), "Scene").locator('[data-slot="badge"]')).toHaveCount(0);
 });
 
-// ── COARSE POINTER: the same cell, plus the touch floor ──────────────────────────────────────────────
-// The coarse arm used to be the ONLY place the word was on screen (a touch device cannot hover the `title`
-// that icon-mode left the name in — UI-Architecture §4.3 rule 4 + §4b axis 3). #208 made that arm the only
-// arm, so what is left to prove HERE is what is genuinely pointer-specific: the two-line cell still clears
-// the D62 P1 ≥44px floor once `--spacing-control-md` steps up to 48px. `hasTouch: true` is the proven
-// pointer emulation (tests/ui/touch-target-floor.suite.ct.tsx R6: `page.emulateMedia` exposes no `pointer`
-// feature and cannot drive this).
+// ── The HEAD BAND and the floating pane's own way out ────────────────────────────────────────────────────
+
+test("the head band renders the section's header ABOVE the rails; with no header there is no band at all", async ({ mount }) => {
+  const withBand = await mount(<ContextTabStripStory width={291} withBand={true} />);
+  const band = withBand.locator('[data-slot="context-bracket-band"]');
+  await expect(band).toBeVisible();
+  await expect(band.getByTestId("ctx-band-content")).toHaveText("Example — Midnight Run");
+  const [bandBottom, viewportTop] = await Promise.all([
+    bottomOf(band),
+    withBand
+      .locator('[data-slot="tabs-panel"]:visible')
+      .boundingBox()
+      .then((box) => box?.y ?? Number.NaN),
+  ]);
+  expect(bandBottom).toBeLessThanOrEqual(viewportTop);
+  await withBand.unmount();
+
+  const without = await mount(<ContextTabStripStory width={291} />);
+  await expect(without.locator('[data-slot="context-bracket-band"]')).toHaveCount(0);
+});
+
+test("a FLOATING pane's dismiss rides inside the band's corner — present only when the shell hands one in", async ({ mount }) => {
+  const floating = await mount(<ContextTabStripStory width={291} withBand={true} withDismiss={true} />);
+  const dismiss = floating.locator('[data-slot="context-bracket-band"]').getByRole("button", { name: "Close Chats details" });
+  await expect(dismiss).toBeVisible();
+  await dismiss.click();
+  await expect(floating).toHaveAttribute("data-dismissed", "1");
+  await floating.unmount();
+
+  const docked = await mount(<ContextTabStripStory width={291} withBand={true} />);
+  await expect(docked.getByRole("button", { name: "Close Chats details" })).toHaveCount(0);
+});
+
+// ── COARSE POINTER: the same cell, plus the phone floor ──────────────────────────────────────────────────
+// `hasTouch: true` is the proven pointer emulation (tests/ui/touch-target-floor.suite.ct.tsx R6).
 test.describe("coarse pointer (touch)", () => {
   test.use({ hasTouch: true });
 
@@ -236,32 +368,22 @@ test.describe("coarse pointer (touch)", () => {
     await expect.poll(async () => component.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
   });
 
-  test("at the shell's own panel width every tab shows its WORD — a title-only name is unreachable by touch", async ({ mount }) => {
-    // 291px = the real default tablist width. Same expectation as the fine-pointer test above, kept as its
-    // own statement because the floor it protects (a name a touch user can actually perceive) is the one
-    // this arm exists for.
+  test("every cell clears the mock's 52px phone floor, keeps its word, and the five-cell rail stays ONE row", async ({ mount }) => {
     const component = await mount(<ContextTabStripStory width={291} showTrackers={true} />);
-
-    await Promise.all(
-      [...TAB_NAMES, "Trackers"].map(async (name) => {
-        const label = component.getByRole("tab", { name }).locator(".ctx-tab-label");
-        await expect(label).not.toHaveCSS("display", "none");
-        // Rendered, not merely un-hidden: a 0px box is the same unreachable name in different clothes.
-        await expect.poll(async () => ((await label.boundingBox())?.width ?? 0) > 0).toBe(true);
-      }),
-    );
+    const boxes = await Promise.all([...TAB_NAMES, "Trackers"].map((name) => cell(foot(component), name).boundingBox()));
+    for (const box of boxes) {
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(COARSE_CELL_FLOOR_PX);
+    }
+    expect(await clippedCaptions(component)).toBe(0);
+    const tops = await foot(component)
+      .getByRole("button")
+      .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+    expect(new Set(tops).size).toBe(1);
   });
 
-  test("the two-line cell still clears the ≥44px touch floor and the strip does not clip", async ({ mount }) => {
-    const component = await mount(<ContextTabStripStory width={291} showTrackers={true} />);
-
-    // The label rides UNDER the icon, so the cell is two lines and its block size is a FLOOR rather than a
-    // fixed height — it must never fall under the D62 P1 coarse floor.
-    const boxes = await Promise.all([...TAB_NAMES, "Trackers"].map((name) => component.getByRole("tab", { name }).boundingBox()));
-    for (const box of boxes) {
-      expect(box?.height ?? 0).toBeGreaterThanOrEqual(COARSE_TOUCH_FLOOR_PX);
-    }
-    // …and no word is an ellipsis at the touch width either (the strip scrolls instead).
-    expect(await clippedCaptions(component)).toBe(0);
+  test("the kicker keeps BOTH halves at a coarse pointer — the mock's phone arm prints CHAT · MEMBERS", async ({ mount, page }) => {
+    const component = await mount(<ContextTabStripStory width={291} />);
+    await expect(railBlock(component, page, "Chat").locator('[data-slot="context-rail-kicker"]')).toHaveText("Chat · Members");
+    await expect(component.locator('[data-slot="context-rail-selection"]')).toBeVisible();
   });
 });

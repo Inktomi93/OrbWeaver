@@ -72,7 +72,7 @@
     "tests/client/features/app-shell/components/appearance-reading-section.ct.tsx",
     "tests/client/features/app-shell/components/appearance-sizing-section.ct.tsx",
     "tests/client/features/app-shell/components/boot-veil.ct.tsx",
-    "tests/client/features/app-shell/components/context-region-host.ct.tsx",
+    "tests/client/features/app-shell/components/context-bracket.ct.tsx",
     "tests/client/features/app-shell/components/context-tabs-panel.ct.tsx",
     "tests/client/features/app-shell/components/custom-theme-style.ct.tsx",
     "tests/client/features/app-shell/components/rail.ct.tsx",
@@ -121,6 +121,8 @@
     "tests/client/features/character/lib/character-list-view.test.ts",
     "tests/client/features/character/lib/character-refusal-notice.test.ts",
     "tests/client/features/character/lib/character-theme-form-model.test.ts",
+    "tests/client/features/character/lib/characters-section.ct.tsx",
+    "tests/client/features/character/lib/characters-section.ct.tsx",
     "tests/client/features/character/lib/characters-section.ct.tsx",
     "tests/client/features/character/lib/example-messages.test.ts",
     "tests/client/features/character/surfaces/character-editor-surface.ct.tsx",
@@ -2171,6 +2173,9 @@
     "tests/ui/touch-target-floor.suite.ct.tsx"
   ],
   "deletions": {
+    "tests/client/features/app-shell/components/context-region-host.ct.tsx": {
+      "why": "its SUBJECT was RETIRED: `features/app-shell/components/context-region-host.tsx` (the whole-pane region-claim host) was deleted with the context bracket (#860, owner-ruled 2026-08-30) — the region claim is a HEAD-BAND claim now, folded into the resolved `header` by `resolveContextTabs`, and the ONE host of every tabs pane is `ContextTabsPanel` → `ContextBracket`. Nothing was dropped: every arm this file pinned (a claiming region takes the pane's head, the full resolved set + the defaultTab landing, `selectTab` writes the SHARED store, a non-claiming contributor is ignored, the shell's band slot renders nothing) is re-pinned against the bracket in tests/client/features/app-shell/components/context-bracket.ct.tsx (the mirror of the new component). Un-deletes only if a whole-pane claim is ever reintroduced."
+    },
     "tests/client/features/character/components/character-options-tab.ct.tsx": {
       "why": "its SUBJECT was deleted: `character-options-tab.tsx` existed ONLY to stack the appearance cluster over the history log under one CONTEXT tab called \"Options\", and #841/#860 (owner 2026-08-30) split that tab into Look · History · Trust — so the shell had nothing left to shell. It was minted under a signed THREE-tab strip; the context-panel program re-rules Characters as a six-slot meta rail (Overview · Chats · Links · Look · History · Trust), and the merge's measured cost came due first: `clientHeight 693 · scrollHeight 2253`, 31% visible, with version history LAST behind a twelve-field colour editor and a three-paragraph Trust essay. Both of its arms were re-homed verbatim, not dropped, into tests/client/features/character/components/character-appearance-tab.ct.tsx — the F9 density contract (theme rows label-LEFT/control-RIGHT at the 463px panel width) and the no-clipped-action geometry arm, now mounting `CharacterLookTabPanelStory`, which is the same 463px mount under the tab that owns the field orientation today. Its two #841 delta arms (the snapshot log is NOT in this tab; a colour value never prints an `oklch()` triple) live there too. Un-deletes only if the Look/History/Trust tabs are ever merged back into one Options tab."
     },

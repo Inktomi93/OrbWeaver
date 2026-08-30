@@ -104,7 +104,7 @@ test("her chats are a CONTEXT tab, carrying the server-narrowed projection", asy
   await routeAll(page);
   const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
 
-  const chatsTab = component.getByRole("tab", { name: "Chats" });
+  const chatsTab = component.getByRole("button", { name: "Chats", exact: true });
   await expect(chatsTab).toBeVisible();
   await chatsTab.click();
   await expect(component.getByText("Winter court")).toBeVisible();
@@ -125,13 +125,13 @@ test('the editor hero\'s "N chats ›" lands on the CONTEXT Chats tab', async ({
   const context = component.getByTestId("context-region");
   // The resting tab is Overview — the overview card, not her chats. (It was named "Field" until #843: the
   // tab's resting body is the overview card with the pick-a-field line as its FOOTER, so "Field" described
-  // the one state it was not in.)
-  await expect(context.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+  // the one state it was not in.) A rail CELL since #860 — a button carrying `aria-current`, never a tab.
+  await expect(context.getByRole("button", { name: "Overview", exact: true })).toHaveAttribute("aria-current", "true");
 
   // The hero prints her census as the link's own name — one chat in this fixture.
   await component.getByTestId("content-region").getByRole("button", { name: "1 chat", exact: true }).click();
 
-  await expect(context.getByRole("tab", { name: "Chats" })).toHaveAttribute("aria-selected", "true");
+  await expect(context.getByRole("button", { name: "Chats", exact: true })).toHaveAttribute("aria-current", "true");
   await expect(context.getByText("Winter court")).toBeVisible();
 });
 
@@ -145,16 +145,24 @@ test("#841 the CONTEXT roster is the six named tabs, in order", async ({ mount, 
   await routeAll(page);
   const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
 
-  await expect(component.getByRole("tab")).toHaveText(["Overview", "Chats", "Links", "Look", "History", "Trust"]);
+  // The roster is the context bracket's FOOT rail (#860): a toolbar of button cells, never `tab`s.
+  await expect(component.locator('[data-slot="context-rail"] [data-slot="context-cell-caption"]')).toHaveText([
+    "Overview",
+    "Chats",
+    "Links",
+    "Look",
+    "History",
+    "Trust",
+  ]);
   // …and the drawer's name is gone with the drawer.
-  await expect(component.getByRole("tab", { name: "Options" })).toHaveCount(0);
+  await expect(component.locator('[data-slot="context-rail"]').getByRole("button", { name: "Options", exact: true })).toHaveCount(0);
 });
 
 test("#841 the snapshot log is its own CONTEXT tab, one click from the open character", async ({ mount, page }) => {
   await routeAll(page);
   const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
 
-  await component.getByRole("tab", { name: "History" }).click();
+  await component.locator('[data-slot="context-rail"]').getByRole("button", { name: "History", exact: true }).click();
   // The log's own affordance — the thing that used to be 1560px down the Options tab.
   await expect(component.getByRole("button", { name: "Snapshot now" })).toBeVisible();
   // …and its empty state, which the review found good and this change must not disturb.
@@ -165,7 +173,7 @@ test("#841 Trust is its own door too — a security concern reads as one", async
   await routeAll(page);
   const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
 
-  await component.getByRole("tab", { name: "Trust" }).click();
+  await component.locator('[data-slot="context-rail"]').getByRole("button", { name: "Trust", exact: true }).click();
   await expect(component.getByRole("combobox", { name: "HTML rendering" })).toBeVisible();
   await expect(component.getByRole("combobox", { name: "External media" })).toBeVisible();
   // …and the LOOK tab is where the colours are, not here — the split is real on both sides.

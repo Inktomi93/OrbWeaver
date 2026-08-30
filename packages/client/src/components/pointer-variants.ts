@@ -59,12 +59,13 @@ export const DISCLOSURE_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-targ
  *  CT: tests/client/features/rpg/components/rpg-pack-rows.ct.tsx. */
 export const PICKER_GAP_AT_COARSE = "pointer-coarse:gap-block";
 
-/** The rpg HUD tab-rail's narrow-panel FOLD: at a FINE pointer below the `xs` CONTAINER step (never a
- *  viewport query) a LONG rail lays out as rows of three instead of one squeezed row, which buys each
- *  caption ~85px and keeps every word whole. At a COARSE pointer it does not fire at all — a phone stays ONE
- *  row and scrolls (the phone tab-strip idiom: 50px of rail, not 105px). The rail's caller decides WHICH
- *  rails are long enough to be worth a second row; the ≥44px cell floor is `TabsTab`'s own sealed
- *  `min-w-touch-target`, not spelled here. CT: tests/client/features/rpg/lib/rpg-context-section.ct.tsx.
+/** The context bracket rail's narrow-panel FOLD (born as the rpg HUD rail's, universal since #860): at a
+ *  FINE pointer below the `xs` CONTAINER step (never a viewport query) a LONG rail lays out as rows of three
+ *  instead of one squeezed row, which buys each caption ~85px and keeps every word whole. At a COARSE
+ *  pointer it does not fire at all — a phone stays ONE row and scrolls (the phone tab-strip idiom: 50px of
+ *  rail, not 105px). The rail's caller decides WHICH rails are long enough to be worth a second row; the
+ *  ≥44px cell width floor is `TabsTab`'s own sealed `min-w-touch-target`, not spelled here. CT:
+ *  tests/client/features/rpg/lib/rpg-context-section.ct.tsx.
  *
  *  THIS CONSTANT USED TO CARRY THE NO-CLIP TRACK SIZING TOO, and that is exactly what broke (#208,
  *  2026-08-18). It bundled the fold with `minmax(max-content,1fr)` + `overflow-x-auto` under one
@@ -73,19 +74,26 @@ export const PICKER_GAP_AT_COARSE = "pointer-coarse:gap-block";
  *  degradation is an ellipsis. MEASURED at the panel's 272px floor once the Members tab made the chat rail
  *  four cells: 51px a cell against a 58px "Members" and a 54px "This chat", both clipped. The track sizing
  *  is a property of EVERY rail at EVERY width and is now declared as one, unconditionally, at the rail
- *  (`RAIL_TRACK_CLASSES` in rpg-hud-rail.tsx); this constant is the fold and nothing else. In the folded
- *  arm the explicit `grid-cols-3` sizes the columns, so the two declarations compose without arguing. */
-export const RPG_RAIL_WRAP = "pointer-fine:@max-xs:grid-flow-row pointer-fine:@max-xs:grid-cols-3";
+ *  (`RAIL_TRACK_CLASSES` in app-shell's context-rail.tsx); this constant is the fold and nothing else. In
+ *  the folded arm the explicit `grid-cols-3` sizes the columns, so the two declarations compose. */
+export const CONTEXT_RAIL_WRAP = "pointer-fine:@max-xs:grid-flow-row pointer-fine:@max-xs:grid-cols-3";
 
-/** The rpg HUD rail cell's active EDGE BAR, stood down in exactly the state that makes it lie (side-eye
- *  #102, 2026-08-17). The bar faces INWARD toward the viewport — the game rail marks its bottom edge — which
- *  is true only while the rail is ONE row. In {@link RPG_RAIL_WRAP}'s `@max-xs` fine arm the six cells fold
- *  to two rows of three, and MEASURED at the panel's 272px floor the active first-row cell painted its 2px
- *  primary bar along the seam between row one and row two: the marker pointed at the cell BELOW it, not at
- *  the content it selects. The bar is suppressed to `transparent` rather than removed, so the 2px border
- *  box stays and no cell changes height when the rail folds; the active treatment in the wrapped state is
- *  the cell's own fill + accent ink, which is a WHOLE-cell mark with no direction to be wrong about. The
- *  coarse arm is untouched — there the rail stays one row and scrolls, so the bar still points at the
- *  viewport. Pointer-keyed, so it is homed here and not in the feature (`no-pointer-variants-in-features`).
+/** The context rail cell's active EDGE BAR, stood down in exactly the state that makes it lie (side-eye
+ *  #102, 2026-08-17). The bar sits on the cell's bottom edge — for the state rail, the seam with the
+ *  viewport it selects — which is true only while the rail is ONE row. In {@link CONTEXT_RAIL_WRAP}'s
+ *  `@max-xs` fine arm the six cells fold to two rows of three, and MEASURED at the panel's 272px floor the
+ *  active first-row cell painted its 2px primary bar along the seam between row one and row two: the
+ *  marker pointed at the cell BELOW it, not at the content it selects. The bar is suppressed to
+ *  `transparent` rather than removed, so the 2px border box stays and no cell changes height when the rail
+ *  folds; the active treatment in the wrapped state is the cell's own fill + ink, a WHOLE-cell mark with no
+ *  direction to be wrong about. The coarse arm is untouched — there the rail stays one row and scrolls.
+ *  Pointer-keyed, so it is homed here and not in the feature (`no-pointer-variants-in-features`).
  *  CT: tests/client/features/rpg/lib/rpg-context-section.ct.tsx. */
-export const RPG_RAIL_WRAPPED_EDGE_BAR_OFF = "pointer-fine:@max-xs:data-active:border-transparent";
+export const CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF = "pointer-fine:@max-xs:data-active:border-transparent";
+
+/** The context rail CELL's coarse HEIGHT floor (#860 — the mock's phone arms draw 52px cells; the first
+ *  token step at or above that is `control-lg`, 56px at a coarse pointer). `TabsTab`'s `stacked` arm seals
+ *  `min-h-control-sm` (44px coarse), the D62 P1 floor for any control; a rail cell on a phone is the pane's
+ *  PRIMARY navigation under a thumb and takes the taller step. Fine pointers are untouched (the seal's
+ *  32px, under a content-sized two-line cell). CT: tests/client/features/app-shell/components/context-tabs-panel.ct.tsx. */
+export const CONTEXT_CELL_FLOOR_AT_COARSE = "pointer-coarse:min-h-control-lg";

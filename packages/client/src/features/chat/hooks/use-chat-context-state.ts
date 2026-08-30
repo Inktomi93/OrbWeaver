@@ -30,6 +30,9 @@ export function useChatContextState(): ChatContextState | null {
   return {
     phase: "committed",
     chatId,
+    // The stored title, raw (`""` until renamed) — the context band derives the rendered name from it +
+    // the cast through `deriveChatTitle`, the ONE title home the topbar identity already uses.
+    title: chat.title,
     participants: chat.participants,
     cast: chat.cast,
     viewerUserId: chat.viewerUserId,

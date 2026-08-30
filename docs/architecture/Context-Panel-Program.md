@@ -149,6 +149,16 @@ concern (§4.8).
 
 ### 4.1 Enter / exit (position: the takeover is APPLICABILITY, not a mode toggle)
 
+> **§4.1 (AMENDED 2026-08-30, #860 — the context bracket; owner-ruled on the mock
+> `../design/mocks/context-bracket/`).** The ruling survives — its INPUT changed. What applicability
+> gates is the GAME rail and the Waystone band, not the bracket: the head-and-foot column (band → optional
+> state rail → viewport → ground → meta rail pinned to the foot) is the CONTEXT pane's chrome in EVERY room
+> and every tabs section, rendered by the shell (`app-shell/components/context-bracket.tsx`). "Enter" now
+> means the Waystone takes the head band and the "Game state" rail appears above the viewport; "exit" means
+> the room's own band (title + members · memory · preset chips) returns and the state rail goes — the meta
+> rail never moves. HUD-1 §5.1 "one strip, always" survives as one META strip, always, at the FOOT; owner
+> decision 6 (the admin rail pinned to the pane's foot) is universal. Ledger: D150.
+
 The takeover is **not a state the user enters** — it is what the CONTEXT pane resolves to when the
 active chat carries a game (`chats.metadata.rpg`, lite or full). Context-follows-content, same as
 every section:
@@ -173,7 +183,7 @@ tabs sit one click away in the bottom row, never in a submenu. The bottom strip 
 
 ### 4.2 Anatomy (the bracket, bound to our seams)
 
-> **§4.2 (AMENDED 2026-08-01, HUD-1 H1).** The bracket anatomy below describes the HUD's OWN composition, not a set of shell slots it occupies. When a chat carries an ENGAGED game the rpg feature CLAIMS the whole CONTEXT pane (`ContextRegionDef`, `client-architecture-lockdown.md` §6b/§6c): the shell renders the `.shell-panel` mechanics and hands the claimant the resolved tabs + the one selection; the claimant renders the band, both rails, and the viewport itself. The `.shell-panel-header` band, `.ctx-tab-strip`, and the two-strip branch of `ContextTabsPanel` are NOT used by the takeover — the branch, the `edge` prop, the count-6/7 reveal thresholds and the band's growth exception are DELETED, and §4.11's registry deltas 1, 2, 3 and 5 are RETIRED (they described the rented seams). `ContextTabDef.strip` SURVIVES, re-read as RAIL MEMBERSHIP: a property of the tab's job, declared by its owner, which the GENERIC panel ignores. The IA rulings survive unchanged: state above / administration below, ONE selection across both rails, icon density, the single swapped viewport, the locked-but-visible tab, and orbs as glanceable vitals.
+> **§4.2 (AMENDED 2026-08-30, #860 — supersedes the 2026-08-01 HUD-1 H1 amendment).** The bracket anatomy below is the SHELL's composition for every `kind:"tabs"` CONTEXT pane (`app-shell/components/context-bracket.tsx` + `context-rail.tsx`), not the HUD's own. The rpg region claim (`ContextRegionDef`, `client-architecture-lockdown.md` §6b/§6c) is a HEAD-BAND claim: on an engaged game chat the Waystone takes the band slot in place of the room's own band, and the "Game state" rail appears because `strip:"game"` tabs resolved — the shell renders the band slot, both rails, the viewport and the ground itself, in every room. A claimant supplies band content and nothing else ("one slot, three contents — never a second head" is structural: there is no API through which a contributor could render a rail). The `.shell-panel-header` band renders nothing for a tabs pane, `.ctx-tab-strip` is deleted, and `ContextTabsPanel` is the bracket's one host. `ContextTabDef.strip` is RAIL MEMBERSHIP for every pane, and the meta rail is named by its section (`ContextTabsSpec.railLabel`). The IA rulings survive unchanged: state above / administration below, ONE selection across both rails, icon + caption cells (#208), the single swapped viewport, the locked-but-visible cell that OPENS onto its reason (RV-7), the kicker on TOP of its cells, and orbs as glanceable vitals.
 
 ```
 [ .shell-panel-header band — the 2px ember inset edge (landed) stays ]

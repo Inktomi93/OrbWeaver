@@ -121,9 +121,10 @@ const ALLOWLIST: ExemptionTable = {
   "packages/client/src/features/tag/components/tag-collection-rows.tsx": {
     why: "`w-auto` on the roster's sort Select — the same content-width-Select pattern as character-library-toolbar (deterministic: `auto` vs FIELD_CONTROL's `w-full` are both tailwind-merge-classifiable standard width utilities). Without it the trigger claims the whole 330px roster band for a three-word label.",
   },
-  // Re-pointed 2026-08-17: the rail + its cell (and this dot) split out of `rpg-hud.tsx` into
-  // `rpg-hud-rail.tsx` under the `component-size` cap. Same code, same exemption, new path.
-  "packages/client/src/features/rpg/components/rpg-hud-rail.tsx": {
+  // Re-pointed 2026-08-17 (`rpg-hud.tsx` → `rpg-hud-rail.tsx`, the `component-size` split) and again
+  // 2026-08-30 (#860: the rail moved into the shell tier as the context bracket's rail). Same code, same
+  // exemption, new path.
+  "packages/client/src/features/app-shell/components/context-rail.tsx": {
     why: "`size-1.5` on a CHILDLESS Badge dot — Badge declares no h/w/size of its own (padding-sized), so there is no variant to fight; a features-tier surface can't paint a raw <span>, so the dot is a Badge sized at the call site (see the site comment).",
   },
 };

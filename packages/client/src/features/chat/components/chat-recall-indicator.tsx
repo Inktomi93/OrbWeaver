@@ -71,7 +71,12 @@ export function ChatRecallIndicator({ chatId, viewerIsHost }: ChatRecallIndicato
             intent="ghost"
             size="sm"
             aria-label={recallLabel(recall)}
-            className="shell-chat-member-chip whitespace-nowrap"
+            // ITS OWN SHED MARKER, not the roster chip's (#846, 2026-08-30). This control wore
+            // `.shell-chat-member-chip` — a class named for a DIFFERENT chip — so its topbar budget was
+            // inherited by accident and could not be reasoned about separately. It sheds at the same steps the
+            // roster chip does (the 30rem phone column, and while the context pane whose band carries this
+            // same indicator is docked), but the two now say so for their own reasons.
+            className="shell-chat-recall-chip whitespace-nowrap"
             data-recall-phase={phase}
           >
             {/* The pulse is the ONLY motion, and only when recalling AND motion is allowed — a quiet breath,

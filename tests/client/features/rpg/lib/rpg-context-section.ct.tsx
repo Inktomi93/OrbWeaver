@@ -268,6 +268,10 @@ const EMPTY_ASSEMBLE_TRACE = {
   afterHistorySections: [],
 };
 const CHAT_PANEL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
+  // The chat context BAND's preset chip (#860): the non-game arms of this file (the Game DOOR on a plain
+  // chat) render chat's own band, which resolves the viewer's active preset against the library. Empty is
+  // the honest companion to the settings default (`defaultPresetId: null` — "Built-in preset").
+  "preset.list": [],
   // The two PICK planes the Macro-picks section composes. Both reads or neither — feeding one leaves that
   // section's boundary in its error arm, which is the trap `rules-section.ct.tsx` already documents.
   "chat.getUserMacroPicks": { macros: [], values: {} },
@@ -2130,7 +2134,7 @@ test("HUD-1: the rpg HUD CLAIMS the pane — the shell's band is empty and its g
   await expect(component.getByRole("toolbar", { name: "Game state" })).toBeVisible();
 
   // The claimant renders inside the single-writer region host…
-  await expect(component.locator("[data-context-region]")).toHaveCount(1);
+  await expect(component.locator("[data-context-bracket]")).toHaveCount(1);
   // …the shell's band slot has NO content (D66 A1 suspended for a claimed pane — the HUD owns the top edge)…
   await expect(component.locator(".shell-panel-header")).toBeEmpty();
   // …and no shell-owned strip exists in the pane at all: the HUD draws its own rails.
@@ -2250,7 +2254,7 @@ function zeroSelectedTabGroups(page: import("@playwright/test").Page): Promise<n
 /** The accessible name of every cell in the HUD that claims to be the current one. */
 function currentCellNames(page: import("@playwright/test").Page): Promise<readonly string[]> {
   return page.evaluate(() =>
-    Array.from(document.querySelectorAll('[data-slot="rpg-hud-rail"] [aria-current="true"]')).map(
+    Array.from(document.querySelectorAll('[data-slot="context-rail"] [aria-current="true"]')).map(
       (el) => el.getAttribute("aria-label") ?? el.textContent ?? "",
     ),
   );
@@ -2291,7 +2295,7 @@ test("#112: the rail keeps ONE tab stop with arrow keys inside it — the toolba
   const rail = component.getByRole("toolbar", { name: "Game state" });
   await expect(rail.getByRole("button")).toHaveCount(6);
 
-  expect(await tabInto(page, '[data-slot="rpg-hud-rail"] [role="toolbar"]')).toBe(true);
+  expect(await tabInto(page, '[data-slot="context-rail"] [role="toolbar"]')).toBe(true);
   const focused = (): Promise<string> => page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? "");
   const first = await focused();
   expect(first).not.toBe("");
@@ -2303,7 +2307,7 @@ test("#112: the rail keeps ONE tab stop with arrow keys inside it — the toolba
 
   // One Tab leaves the whole rail: six cells share a single stop (the #107 tab-budget law still holds).
   await page.keyboard.press("Tab");
-  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[data-slot="rpg-hud-rail"]') !== null)).toBe(false);
+  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[data-slot="context-rail"]') !== null)).toBe(false);
 });
 
 test("HUD-1 §7.1: the admin rail is PINNED to the pane's foot — on a short body AND a tall one, with no jump", async ({ mount, page }) => {
@@ -2316,9 +2320,11 @@ test("HUD-1 §7.1: the admin rail is PINNED to the pane's foot — on a short bo
   // (side-eye 08-01) and this stub's Journal body then fills the pane exactly, so there is no residual span
   // left for the GROUND to be — and "the ground is painted" is precisely what this test exists to pin.
   const component = await mount(<RpgTakeoverReferenceStory />);
-  const region = component.locator("[data-context-region]");
+  const region = component.locator("[data-context-bracket]");
   await expect(region).toBeVisible();
-  const rail = component.getByRole("toolbar", { name: "Chat" });
+  // The RAIL BLOCK (kicker + cells + the floor under them — #861), not the bare toolbar: the block is what
+  // sits on the pane's edge; the cells end one `row` step above it by design.
+  const rail = railBlock(component, page, "Chat");
 
   // Measure only once the swap has SETTLED: Base UI keeps the outgoing panel mounted through its exit
   // transition, so a mid-swap read sees two viewports (the DEF-14 flake class). The panel is addressed by
@@ -2346,7 +2352,7 @@ test("HUD-1 §7.1: the admin rail is PINNED to the pane's foot — on a short bo
   expect(short.viewportBottom).toBeLessThanOrEqual(short.railBottom);
   // The span between them is the GROUND, and it is PAINTED — a treatment that failed to compile would
   // leave exactly the bare void this fix exists to kill, with every geometry assertion still green.
-  const ground = component.locator('[data-slot="rpg-hud-ground"]');
+  const ground = component.locator('[data-slot="context-bracket-ground"]');
   await expect(ground).toBeVisible();
   await expect.poll(() => ground.evaluate((el) => getComputedStyle(el).backgroundImage), { intervals: [20, 50, 100] }).toContain("linear-gradient");
 
@@ -2367,15 +2373,17 @@ test("HUD-1 §5.2: the primary binding edge paints FLUSH at the pane's top edge,
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
   const pane = component.locator(".shell-panel");
-  const band = component.locator('[data-slot="rpg-hud-band"]');
-  await expect(band).toBeVisible();
+  // The edge is the BRACKET ROOT's since #860 (the shell's column paints the binding for every room, from
+  // the primary token); the Waystone band sits inside its band slot beneath it.
+  const band = component.locator("[data-context-bracket]");
+  await expect(component.locator('[data-slot="rpg-hud-band"]')).toBeVisible();
   const [paneBox, bandBox, width] = await Promise.all([
     pane.boundingBox(),
     band.boundingBox(),
     band.evaluate((el) => Number.parseFloat(getComputedStyle(el).borderTopWidth)),
   ]);
   if (paneBox === null || bandBox === null) {
-    throw new Error("expected the pane and the HUD's band to be laid out");
+    throw new Error("expected the pane and the bracket to be laid out");
   }
   // Row 0 of the pane, and both inline edges reached (the pane's own 1px hairline frame is the only slack).
   expect(bandBox.y).toBeCloseTo(paneBox.y, 0);
@@ -2415,7 +2423,7 @@ test("HUD-1 §4 (#102 variant A): BOTH rails are TAB GROUPS — each wears its o
   // down onto its group and the echo was deleted. Two kickers, one anatomy, asserted on both.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  const kickers = component.locator('[data-slot="rpg-hud-rail-kicker"]');
+  const kickers = component.locator('[data-slot="context-rail-kicker"]');
   await expect(kickers).toHaveCount(2);
   const kicker = kickers.nth(1);
   await expect(kicker).toBeVisible();
@@ -2438,11 +2446,18 @@ test("HUD-1 §4 (#102 variant A): BOTH rails are TAB GROUPS — each wears its o
   const gameList = component.getByRole("toolbar", { name: "Game state" });
   await expect.poll(() => adminList.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe("0px");
   await expect.poll(() => gameList.evaluate((el) => getComputedStyle(el).borderBottomWidth)).toBe("0px");
-  // …and the rule each kicker draws instead is really painted (a Separator that failed to lay out would
-  // leave an unbounded word floating over the rail with every other assertion green).
-  const ruleWidths = await kickers.locator('[data-slot="separator"]').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().width));
-  expect(ruleWidths).toHaveLength(2);
-  expect(ruleWidths.every((width) => width > 0)).toBe(true);
+  // …and the rule each kicker draws instead is really painted: since #860 it is the kicker row's own
+  // bottom hairline (the mock's `.kick`), spanning the rail's full width (a rule that failed to lay out
+  // would leave an unbounded word floating over the rail with every other assertion green).
+  const rules = await kickers.evaluateAll((els) =>
+    els.map((el) => ({
+      border: getComputedStyle(el).borderBottomWidth,
+      width: el.getBoundingClientRect().width,
+      railWidth: el.parentElement?.getBoundingClientRect().width ?? 0,
+    })),
+  );
+  expect(rules).toHaveLength(2);
+  expect(rules.every((rule) => rule.border === "1px" && rule.width > 0 && Math.abs(rule.width - rule.railWidth) <= 1)).toBe(true);
 });
 
 test("HUD-1 §4: HOST-ONLY cells wear the crown gold at rest — and only at rest", async ({ mount, page }) => {
@@ -2492,7 +2507,11 @@ test("HUD-1 §4: the NON-OWNING rail recedes and the owning one lifts — the se
   const component = await mount(<RpgTakeoverStory />);
   const gameList = component.getByRole("toolbar", { name: "Game state" });
   const adminList = component.getByRole("toolbar", { name: "Chat" });
-  const fill = (list: ReturnType<typeof component.getByRole>): Promise<string> => list.evaluate((el) => getComputedStyle(el).backgroundColor);
+  // The fill rides the RAIL BLOCK (kicker + cells), not the bare toolbar, since #860 — and the receded rail
+  // is no longer bare ground (#861): it wears a QUIETER step of the same fill. So "recedes" is asserted as
+  // the two fills DIFFERING, both painted, rather than one of them being transparent.
+  const fill = (list: ReturnType<typeof component.getByRole>): Promise<string> =>
+    list.evaluate((el) => getComputedStyle(el.closest('[data-slot="context-rail"]') ?? el).backgroundColor);
   const captionColor = (list: ReturnType<typeof component.getByRole>, tabName: string, word: string): Promise<string> =>
     list
       .getByRole("button", { name: tabName })
@@ -2501,8 +2520,11 @@ test("HUD-1 §4: the NON-OWNING rail recedes and the owning one lifts — the se
 
   // The landing is `rpg.status` (the game rail's `defaultTab`), so the GAME rail owns.
   const transparent = "rgba(0, 0, 0, 0)";
-  expect(await fill(gameList)).not.toBe(transparent);
-  expect(await fill(adminList)).toBe(transparent);
+  const gameFill = await fill(gameList);
+  const adminFill = await fill(adminList);
+  expect(gameFill).not.toBe(transparent);
+  expect(adminFill).not.toBe(transparent);
+  expect(adminFill).not.toBe(gameFill);
   const owningCaption = await captionColor(gameList, "Quests", "Quests");
   const recededCaption = await captionColor(adminList, "This chat", "This chat");
   expect(owningCaption).not.toBe(recededCaption);
@@ -2514,8 +2536,9 @@ test("HUD-1 §4: the NON-OWNING rail recedes and the owning one lifts — the se
   // muted-foreground's 0.74 and foreground's 0.955) — the settled colour is the assertion.
   await adminList.getByRole("button", { name: "This chat" }).click();
   await expect(adminList.getByRole("button", { name: "This chat" })).toHaveAttribute("aria-current", "true");
-  expect(await fill(adminList)).not.toBe(transparent);
-  expect(await fill(gameList)).toBe(transparent);
+  // …the fills SWAP: the admin rail wears the owning step now and the game rail the receded one.
+  await expect.poll(() => fill(adminList), { intervals: [20, 50, 100, 200] }).toBe(gameFill);
+  await expect.poll(() => fill(gameList), { intervals: [20, 50, 100, 200] }).toBe(adminFill);
   await expect.poll(() => captionColor(adminList, "Preview", "Preview"), { intervals: [20, 50, 100, 200] }).toBe(owningCaption);
   await expect.poll(() => captionColor(gameList, "Quests", "Quests"), { intervals: [20, 50, 100, 200] }).toBe(recededCaption);
 });
@@ -2523,7 +2546,7 @@ test("HUD-1 §4: the NON-OWNING rail recedes and the owning one lifts — the se
 /** The rail Stack that owns a named toolbar — the kicker and the cells are siblings inside it, so the
  *  block, not the list, is what a proximity measurement has to be taken against. */
 function railBlock(component: Locator, page: Page, railName: string): Locator {
-  return component.locator('[data-slot="rpg-hud-rail"]').filter({ has: page.getByRole("toolbar", { name: railName }) });
+  return component.locator('[data-slot="context-rail"]').filter({ has: page.getByRole("toolbar", { name: railName }) });
 }
 
 test("#102 variant A: the OWNING rail names the selection in its OWN kicker — the floating band echo is gone", async ({ mount, page }) => {
@@ -2536,8 +2559,8 @@ test("#102 variant A: the OWNING rail names the selection in its OWN kicker — 
   // The band's floating line is DELETED, not duplicated — half a migration is the rot.
   await expect(component.locator('[data-slot="rpg-hud-echo"]')).toHaveCount(0);
 
-  const gameKicker = railBlock(component, page, "Game state").locator('[data-slot="rpg-hud-rail-kicker"]');
-  const chatKicker = railBlock(component, page, "Chat").locator('[data-slot="rpg-hud-rail-kicker"]');
+  const gameKicker = railBlock(component, page, "Game state").locator('[data-slot="context-rail-kicker"]');
+  const chatKicker = railBlock(component, page, "Chat").locator('[data-slot="context-rail-kicker"]');
 
   // The landing is `rpg.status` — the GAME rail owns, so the GAME kicker carries the selection and the
   // quiet rail carries only its own name.
@@ -2566,7 +2589,7 @@ test("#102 variant A: the game kicker binds DOWNWARD — 4px above its own cells
   await expect(satellites).toBeVisible();
 
   const gameRail = railBlock(component, page, "Game state");
-  const gameKicker = gameRail.locator('[data-slot="rpg-hud-rail-kicker"]');
+  const gameKicker = gameRail.locator('[data-slot="context-rail-kicker"]');
   await expect(gameKicker).toBeVisible();
 
   const [satBox, bandBox, kickerBox, cellsBox, tight] = await Promise.all([
@@ -2579,25 +2602,29 @@ test("#102 variant A: the game kicker binds DOWNWARD — 4px above its own cells
   if (satBox === null || bandBox === null || kickerBox === null || cellsBox === null) {
     throw new Error("expected the band, its satellites and the game rail's kicker + cells to be laid out");
   }
-  const below = cellsBox.y - (kickerBox.y + kickerBox.height);
-  const above = kickerBox.y - (satBox.y + satBox.height);
-  // The gap BELOW is the `tight` step, resolved from the document — never a px literal at the call site.
-  expect(below).toBeCloseTo(tight, 0);
-  // The rail block's LEAD is the same `tight` step over the band's own bottom edge — that is the one thing
-  // this file controls; everything between the orbs and the band's edge is the header composite's padding.
-  // The rail block's own LEAD — the `tight` step it buys above its kicker, which is the one gap this
-  // component controls. (MEASURED: band bottom 209.5 → rail top 221.5 is 12px of pre-existing column gap
-  // that predates this change; the lead is the 4px on top of it, and the two together are why the label
-  // reads as the rail's rather than the medallions'.)
+  // THE MOCK'S ANATOMY (#860, `RpgRoom.dc.html` — the kicker's padding is INSIDE its row, and its hairline
+  // rule is the seam between the word and the cells): measured word-to-neighbour, the label sits the band's
+  // bottom padding + its own top padding under the orbs, and its bottom padding + the rule + the cell row's
+  // top padding over the cells. The binding still points DOWN — the word is nearer its cells than the
+  // medallions — which is the whole #102 finding; the 3:1 magnitude the HUD's lead bought is not the mock's
+  // and is not re-asserted. `tight` is what the kicker pays below its word — resolved from the document.
+  const kickerWord = gameKicker.locator('[data-slot="text"]').first();
+  const wordBox = await kickerWord.boundingBox();
+  if (wordBox === null) {
+    throw new Error("expected the kicker's word to be laid out");
+  }
+  const below = cellsBox.y - (wordBox.y + wordBox.height);
+  const above = wordBox.y - (satBox.y + satBox.height);
+  expect(below).toBeGreaterThanOrEqual(tight);
+  expect(above).toBeGreaterThan(below);
+  // The kicker IS the rail's top edge: the rail block starts where its kicker starts, directly under the band.
   const railTop = (await gameRail.boundingBox())?.y ?? 0;
-  expect(kickerBox.y - railTop).toBeCloseTo(tight, 0);
+  expect(kickerBox.y).toBeCloseTo(railTop, 0);
   expect(railTop).toBeGreaterThan(bandBox.y + bandBox.height - 1);
-  // …so the binding ratio comes out at least 3:1 the RIGHT way, inverting the live 8:20 that pointed UP at
-  // the medallions. (MEASURED here: 24.0 above · 4.0 below = 6:1, against the mockup's projected 12:4.)
-  expect(above).toBeGreaterThanOrEqual(below * 3);
 
   // CD1/CD2 (density-pass-spec §3.2): a read-only grouping's name is a caps label + a hairline rule and
-  // NOTHING ELSE — the kicker adds no box to the panel.
+  // NOTHING ELSE — no fill, no radius, no top rule on the STATE rail (the band's own seam is that line);
+  // the one hairline it carries is the rule under the word, the seam with its cells.
   await expect
     .poll(
       async () =>
@@ -2608,7 +2635,7 @@ test("#102 variant A: the game kicker binds DOWNWARD — 4px above its own cells
           })
         ).border,
     )
-    .toBe("0px0px");
+    .toBe("0px1px");
   await expect
     .poll(
       async () =>
@@ -2664,26 +2691,28 @@ test("#102: the HUD's NON-VIEWPORT SPEND is pinned — measured as the pane minu
   // SETTLED, not in-flight: the band renders behind a QueryBoundary whose `fallback={null}` collapses it,
   // and a spend measured mid-query is a measurement of the fallback.
   await expect(component.locator('[data-slot="rpg-band-satellites"]')).toBeVisible();
-  await expect(component.locator('[data-slot="rpg-hud-rail"]')).toHaveCount(2);
-  const [paneHeight, panelBox, groundBox] = await Promise.all([
-    component.locator('[data-slot="rpg-hud-band"]').evaluate((el) => {
-      const column = el.parentElement;
-      if (column === null) {
-        throw new Error("expected the band to sit in the HUD column");
-      }
-      return column.getBoundingClientRect().height;
-    }),
+  await expect(component.locator('[data-slot="context-rail"]')).toHaveCount(2);
+  const [paneHeight, panelBox, groundBox, row] = await Promise.all([
+    component.locator("[data-context-bracket]").evaluate((el) => el.getBoundingClientRect().height),
     component.locator('[data-slot="tabs-panel"]:visible').boundingBox(),
-    component.locator('[data-slot="rpg-hud-ground"]').boundingBox(),
+    component.locator('[data-slot="context-bracket-ground"]').boundingBox(),
+    page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--spacing-row")) * 16),
   ]);
   if (panelBox === null || groundBox === null) {
     throw new Error("expected the active viewport panel and the ground to be laid out");
   }
   const spend = paneHeight - panelBox.height - groundBox.height;
-  expect(spend).toBeLessThanOrEqual(401);
-  // …and the element sum ALONE is strictly smaller, which is the proof that this reading counts the gaps
-  // the old one dropped (a same-value pair would mean the seam went missing, not that it was measured).
-  const rails = await component.locator('[data-slot="rpg-hud-rail"]').all();
+  //   · 401px was the fence the HUD's own column earned (400.3 real, with four 12px seams).
+  //   · THE CONTEXT BRACKET (#860) has no column seam at all (each slot pays its own padding, the mock's
+  //     anatomy), the receded rail wears a floor under its cells (#861) and both kickers carry their own
+  //     rows — MEASURED at 383×800 on the bracket: see the report of the lane that re-measured it. The
+  //     fence is the post-change real number, rounded up one px; no future change may spend more without
+  //     saying why here.
+  expect(spend).toBeLessThanOrEqual(384);
+  // …and the element sum is the spend minus exactly the band SLOT's own box (its two `row` pads and the
+  // 2px binding edge on the bracket root): with the seams gone there is nothing else between the pane and
+  // its elements, and this pins that nothing has crept back in.
+  const rails = await component.locator('[data-slot="context-rail"]').all();
   const [bandBox, ...railBoxes] = await Promise.all([
     component.locator('[data-slot="rpg-hud-band"]').boundingBox(),
     ...rails.map((rail) => rail.boundingBox()),
@@ -2692,31 +2721,27 @@ test("#102: the HUD's NON-VIEWPORT SPEND is pinned — measured as the pane minu
     throw new Error("expected the band to be laid out");
   }
   const elementSum = bandBox.height + railBoxes.reduce((total, box) => total + (box?.height ?? 0), 0);
-  expect(elementSum).toBeLessThan(spend - 40);
+  expect(spend - elementSum).toBeCloseTo(2 * row + 2, 0);
 });
 
-test("#102: the HUD column's seam is DECLARED — `gap-0` was never in effect and no longer claims to be", async ({ mount, page }) => {
-  // THE LIE, measured: `rpg-hud.tsx` set `gap-0` on the Tabs root while the primitive's base set `gap-block`,
-  // and tailwind-merge does NOT dedupe a custom-token gap against the numeric scale — both survived and the
-  // primitive won on stylesheet order (computed `gap: 12px`, four 12px seams). Every vertical number in this
-  // file was taken against a value the source denied. The RENDERED geometry is kept (it is what the #102
-  // pass verified); what changes is that the call site now says so, so a later merge-config fix that makes a
-  // call-site gap win cannot silently collapse this column.
-  //
-  // Asserted BOTH ways on purpose: the computed seam against the resolved token (the pixels), and the class
-  // list (the declaration). A computed-only check passes on the old, lying source.
+test("#860: the bracket column has NO seam of its own — each slot pays its own padding, and the call site says so", async ({ mount, page }) => {
+  // The HUD column used to carry a declared `gap-block` seam (#102 — the 12px the pane was measured
+  // against). The context bracket (the mock's anatomy) lays its five slots edge to edge: the band's
+  // padding, the kickers' own rows and the viewport's re-paid pane padding are the only spacing, so the
+  // column's gap is ZERO — declared as `gap-0` against the tabs primitive's `gap-block` base (#146 made
+  // that merge deterministic). Asserted BOTH ways: the computed pixels and the declaration, so a primitive
+  // change that re-opened a seam could not pass on the pixels alone.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory width={383} height={800} />);
-  await expect(component.locator('[data-slot="rpg-hud-rail"]')).toHaveCount(2);
-  const column = component.locator('[data-slot="tabs-root"]');
-  const [rowGap, block, declared] = await Promise.all([
+  await expect(component.locator('[data-slot="context-rail"]')).toHaveCount(2);
+  const column = component.locator("[data-context-bracket]");
+  const [rowGap, declared] = await Promise.all([
     column.evaluate((el) => Number.parseFloat(getComputedStyle(el).rowGap)),
-    page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--spacing-block")) * 16),
     column.evaluate((el) => ({ block: el.classList.contains("gap-block"), zero: el.classList.contains("gap-0") })),
   ]);
-  expect(rowGap).toBeCloseTo(block, 0);
-  expect(declared.block).toBe(true);
-  expect(declared.zero).toBe(false);
+  expect(rowGap).toBe(0);
+  expect(declared.block).toBe(false);
+  expect(declared.zero).toBe(true);
 });
 
 test("#102: the rails activate MANUALLY — an arrow moves focus without committing a selection, Enter commits", async ({ mount, page }) => {
@@ -2754,13 +2779,13 @@ test("#102: every rail caption sits at the READABLE step, and still fits at the 
   // statement of what the fix is for.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverDockedStory />);
-  await expect(component.locator('[data-slot="rpg-hud-rail"]')).toHaveCount(2);
+  await expect(component.locator('[data-slot="context-rail"]')).toHaveCount(2);
   // Barrier on the SETTLED rails (both rails' cells resolved) before measuring — the admin rail's roster
   // cell arrives with its own query. The count is a FLOOR, not an identity: the six game cells plus the
   // admin set this stub produces. What the test is about is that NONE of them is under the floor.
   const game = component.getByRole("toolbar", { name: "Game state" });
   await expect(game.getByRole("button", { name: "Map" })).toBeVisible();
-  const captions = component.locator('[data-slot="rpg-hud-cell-caption"]');
+  const captions = component.locator('[data-slot="context-cell-caption"]');
   await expect.poll(() => captions.count(), { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(9);
   const [sizes, label] = await Promise.all([
     captions.evaluateAll((els) => els.map((el) => Number.parseFloat(getComputedStyle(el).fontSize))),
@@ -2785,7 +2810,7 @@ test("#102: the readable caption survives the WRAPPED floor width too — rows o
   const component = await mount(<RpgTakeoverFloorStory />);
   const game = component.getByRole("toolbar", { name: "Game state" });
   await expect(game.getByRole("button", { name: "Inventory" })).toBeVisible();
-  const captions = component.locator('[data-slot="rpg-hud-cell-caption"]');
+  const captions = component.locator('[data-slot="context-cell-caption"]');
   const clipped = await captions.evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
   expect(clipped).toBe(0);
   // The six game cells really are on TWO rows here (the `@max-xs` wrap arm) — the premise item 7 rests on.
@@ -2793,14 +2818,16 @@ test("#102: the readable caption survives the WRAPPED floor width too — rows o
   expect(rows).toBe(2);
 });
 
-test("#102: the kicker's SELECTION half stands one axis quieter than the group's name", async ({ mount, page }) => {
+test("#102: the kicker's SELECTION half moves exactly one axis off the group's name — colour, per the mock", async ({ mount, page }) => {
   // Measured, the two halves were byte-identical on all five computed axes (10.5px / 600 / 0.84px / the same
   // muted ink / caps), so "GAME STATE · STATUS" read as one flat string instead of a name plus what it
-  // holds. Exactly ONE axis moves — weight — and the other four are asserted EQUAL, because a breadcrumb
-  // that changes size or colour mid-line stops being one typographic line.
+  // holds. Exactly ONE axis moves and the other four are asserted EQUAL, because a breadcrumb that changes
+  // size or weight mid-line stops being one typographic line. The HUD moved WEIGHT; the owner-ruled mock
+  // (#860, `.kick .sel { color: var(--fg) }`) moves COLOUR — the datum steps up to the foreground while the
+  // name keeps the kicker's muted ink, which is also what makes the owning kicker the brighter one (#861).
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory width={383} height={800} />);
-  const gameKicker = railBlock(component, page, "Game state").locator('[data-slot="rpg-hud-rail-kicker"]');
+  const gameKicker = railBlock(component, page, "Game state").locator('[data-slot="context-rail-kicker"]');
   await expect(gameKicker).toHaveText("Game state · Status");
   const read = (locator: Locator): Promise<{ size: number; weight: number; tracking: string; color: string; transform: string }> =>
     locator.evaluate((el) => {
@@ -2815,38 +2842,41 @@ test("#102: the kicker's SELECTION half stands one axis quieter than the group's
     });
   const [name, selection] = await Promise.all([
     read(gameKicker.locator('[data-slot="text"]')),
-    read(gameKicker.locator('[data-slot="rpg-hud-rail-selection"]')),
+    read(gameKicker.locator('[data-slot="context-rail-selection"]')),
   ]);
-  expect(selection.weight).toBeLessThan(name.weight);
+  expect(selection.color).not.toBe(name.color);
+  expect(selection.weight).toBe(name.weight);
   expect(selection.size).toBeCloseTo(name.size, 1);
   expect(selection.tracking).toBe(name.tracking);
-  expect(selection.color).toBe(name.color);
   expect(selection.transform).toBe(name.transform);
 });
 
 test("#102: the kicker's hairline IS the rail's edge — the rule bleeds to the full width, only the word is inset", async ({ mount, page }) => {
   // The header has always claimed "that kicker's hairline rule IS the rail's own edge". It was not: the
   // kicker row carried `px-block`, which inset the Separator as well as the word, so the rule stopped a
-  // block short of the full-bleed cell row underneath it. Measured at the panel's 272px floor, in the axis
-  // the defect lives in — the rule's END edge against the CELLS' end edge.
+  // block short of the full-bleed cell row underneath it. Since #860 the rule is the kicker ROW's own bottom
+  // hairline (the mock's `.kick`), so it spans the rail by construction; the word keeps its inset. Measured
+  // at the panel's 272px floor, in the axis the defect lives in — the rule's END edge against the RAIL's.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverFloorStory />);
   const gameRail = railBlock(component, page, "Game state");
-  const kicker = gameRail.locator('[data-slot="rpg-hud-rail-kicker"]');
+  const kicker = gameRail.locator('[data-slot="context-rail-kicker"]');
   await expect(kicker).toBeVisible();
-  const [ruleBox, cellsBox, wordBox, block] = await Promise.all([
-    kicker.locator('[data-slot="separator"]').boundingBox(),
-    component.getByRole("toolbar", { name: "Game state" }).boundingBox(),
-    kicker.locator('[data-slot="text"]').boundingBox(),
+  const [ruleBox, railBox, wordBox, block, rule] = await Promise.all([
+    kicker.boundingBox(),
+    gameRail.boundingBox(),
+    kicker.locator('[data-slot="text"]').first().boundingBox(),
     page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--spacing-block")) * 16),
+    kicker.evaluate((el) => getComputedStyle(el).borderBottomWidth),
   ]);
-  if (ruleBox === null || cellsBox === null || wordBox === null) {
-    throw new Error("expected the kicker's rule, its word and the rail's cells to be laid out");
+  if (ruleBox === null || railBox === null || wordBox === null) {
+    throw new Error("expected the kicker's rule, its word and the rail block to be laid out");
   }
+  expect(rule).toBe("1px");
   // The rule ends where the rail ends (the full-bleed edge), not a block short of it.
-  expect(ruleBox.x + ruleBox.width).toBeCloseTo(cellsBox.x + cellsBox.width, 0);
+  expect(ruleBox.x + ruleBox.width).toBeCloseTo(railBox.x + railBox.width, 0);
   // …and the WORD keeps the band's inline rhythm, which is the half that should stay inset.
-  expect(wordBox.x - cellsBox.x).toBeCloseTo(block, 0);
+  expect(wordBox.x - railBox.x).toBeCloseTo(block, 0);
 });
 
 test("#102: in the WRAPPED rail the active cell drops its edge bar — a bar between two rows points at the wrong one", async ({ mount, page }) => {
@@ -2983,11 +3013,11 @@ test("HUD-1 §7.1: the HUD's chrome stays inside its vertical budget at the 30re
   // never a px count, and it is asserted at the geometry §7.1 names: a 30rem docked panel, 900px tall.
   await stubTakeover(page, { tracker: ambientLessTrackerView() });
   const component = await mount(<RpgTakeoverReferenceStory />);
-  const region = component.locator("[data-context-region]");
+  const region = component.locator("[data-context-bracket]");
   await expect(region).toBeVisible();
   await expect.poll(() => component.locator('[data-slot="tabs-panel"]:visible').count(), { intervals: [20, 50, 100, 200] }).toBe(1);
 
-  const rails = await component.locator('[data-slot="rpg-hud-rail"]').all();
+  const rails = await component.locator('[data-slot="context-rail"]').all();
   // Both rails are really there — a budget met by a rail that failed to render is not a budget met.
   expect(rails).toHaveLength(2);
   const [regionBox, bandBox] = await Promise.all([region.boundingBox(), component.locator('[data-slot="rpg-hud-band"]').boundingBox()]);
@@ -3018,14 +3048,14 @@ test("HUD-1 §7.1 (AMENDED): the AMBIENT-SET band's chrome stays inside the SET 
   // signature element the amendment protects.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverReferenceStory />);
-  const region = component.locator("[data-context-region]");
+  const region = component.locator("[data-context-bracket]");
   await expect(region).toBeVisible();
   await expect.poll(() => component.locator('[data-slot="tabs-panel"]:visible').count(), { intervals: [20, 50, 100, 200] }).toBe(1);
   // The composite is really the full arm — a budget met by a band that collapsed to its compact form would
   // be measuring the other law.
   await expect(component.locator('[data-slot="rpg-takeover-header"]')).toHaveAttribute("data-compact", "false");
 
-  const rails = await component.locator('[data-slot="rpg-hud-rail"]').all();
+  const rails = await component.locator('[data-slot="context-rail"]').all();
   expect(rails).toHaveLength(2);
   const [regionBox, bandBox] = await Promise.all([region.boundingBox(), component.locator('[data-slot="rpg-hud-band"]').boundingBox()]);
   if (regionBox === null || bandBox === null) {
@@ -3083,7 +3113,7 @@ test("side-eye 08-01: at the panel's 17rem FLOOR the game rail wraps to rows of 
   expect(firstRow).toHaveLength(3);
 
   // No caption is truncated: the text's own scroll width fits the box it renders in.
-  const clipped = await list.locator('[data-slot="rpg-hud-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
+  const clipped = await list.locator('[data-slot="context-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
   expect(clipped).toBe(0);
 });
 
@@ -3096,7 +3126,7 @@ test("side-eye 08-01: at 320px the SIX-cell game rail wraps too — the caption 
   const component = await mount(<RpgTakeoverStory />);
   const game = component.getByRole("toolbar", { name: "Game state" });
   await expect(game.getByRole("button")).toHaveCount(6);
-  const clipped = await game.locator('[data-slot="rpg-hud-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
+  const clipped = await game.locator('[data-slot="context-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
   expect(clipped).toBe(0);
 
   const gameRows = new Set((await Promise.all((await game.getByRole("button").all()).map((tab) => tab.boundingBox()))).map((box) => Math.round(box?.y ?? 0)));
@@ -3614,7 +3644,7 @@ test.describe("coarse HUD budget", () => {
         band.evaluate((el: HTMLElement) => {
           const paneEl = el.closest(".shell-panel") as HTMLElement;
           const panel = paneEl.querySelector('[data-slot="tabs-panel"]:not([hidden])') as HTMLElement | null;
-          const rails = Array.from(paneEl.querySelectorAll<HTMLElement>('[data-slot="rpg-hud-rail"]'));
+          const rails = Array.from(paneEl.querySelectorAll<HTMLElement>('[data-slot="context-rail"]'));
           const gameCells = rails[0]?.querySelector<HTMLElement>('[role="toolbar"]') ?? null;
           return {
             pane: paneEl.getBoundingClientRect().height,
@@ -3647,16 +3677,16 @@ test.describe("coarse HUD budget", () => {
 
       // All six cells are present and each caption renders WHOLE — the `auto-cols-max` half of the fix.
       // (Six is the declared game rail: Status · Inventory · Scene · Quests · Journal · Map.)
-      const cells = component.locator('[data-slot="rpg-hud-rail"]').first().getByRole("button");
+      const cells = component.locator('[data-slot="context-rail"]').first().getByRole("button");
       await expect(cells).toHaveCount(6);
       await expect
         .poll(
           async () =>
             await component
-              .locator('[data-slot="rpg-hud-rail"]')
+              .locator('[data-slot="context-rail"]')
               .first()
               .evaluate((el: HTMLElement) =>
-                Array.from(el.querySelectorAll<HTMLElement>('[data-slot="rpg-hud-cell-caption"]'))
+                Array.from(el.querySelectorAll<HTMLElement>('[data-slot="context-cell-caption"]'))
                   .filter((node) => node.scrollWidth - node.clientWidth > 1)
                   .map((node) => node.textContent ?? ""),
               ),
@@ -3664,18 +3694,19 @@ test.describe("coarse HUD budget", () => {
         .toEqual([]);
     });
 
-    test(`@${pane.width}: the rail keeps its NAME at coarse and drops only the SELECTION half`, async ({ mount, page }) => {
+    test(`@${pane.width}: the rail keeps its NAME and its SELECTION at coarse — the mock's phone arm prints both`, async ({ mount, page }) => {
       // The deleted echo was dropped ENTIRELY at a coarse pointer, so the phone pane had no name for either
-      // rail at all. The kicker keeps the half a phone still needs — the group's NAME — and sheds the
-      // datum, whose referent is a thumb's width away on this column (#102 variant A, owner pick 2026-08-17).
+      // rail at all; the kicker kept the NAME and shed the datum (#102 variant A, 2026-08-17). The context
+      // bracket's phone arms (#860, `RpgRoomMobile.dc.html`) print "GAME STATE · STATUS" whole: the datum
+      // now sits 4px above the cell it names and costs the column nothing it was not already spending.
       await stubTakeover(page);
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
 
       const component = await mount(<RpgTakeoverStory width={pane.width} height={pane.height} />);
-      const gameKicker = railBlock(component, page, "Game state").locator('[data-slot="rpg-hud-rail-kicker"]');
+      const gameKicker = railBlock(component, page, "Game state").locator('[data-slot="context-rail-kicker"]');
       await expect(gameKicker).toBeVisible();
-      await expect(gameKicker).toContainText("Game state");
-      await expect(component.locator('[data-slot="rpg-hud-rail-selection"]').first()).toBeHidden();
+      await expect(gameKicker).toHaveText("Game state · Status");
+      await expect(component.locator('[data-slot="context-rail-selection"]').first()).toBeVisible();
     });
   }
 });
@@ -3706,7 +3737,7 @@ test.describe("coarse game rail cells", () => {
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
 
       const component = await mount(<RpgTakeoverStory width={pane.width} height={pane.height} />);
-      const rail = component.locator('[data-slot="rpg-hud-rail"]').first();
+      const rail = component.locator('[data-slot="context-rail"]').first();
       await expect(rail.getByRole("button")).toHaveCount(6);
       // BOXES, because `TabsTab` has no overflowing hit pseudo — here the box IS the target.
       await expect
@@ -3733,7 +3764,7 @@ test.describe("coarse game rail cells", () => {
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
 
       const component = await mount(<RpgTakeoverStory width={pane.width} height={pane.height} />);
-      const rail = component.locator('[data-slot="rpg-hud-rail"]').first();
+      const rail = component.locator('[data-slot="context-rail"]').first();
       await expect(rail.getByRole("button")).toHaveCount(6);
       // The tail gap is measured against the LIST's own box, so the assertion survives a retune of the rail's
       // inline padding. MEASURED before: 127px of 429 at 430.
@@ -3783,11 +3814,11 @@ test.describe("coarse game rail focus ring", () => {
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
 
     const component = await mount(<RpgTakeoverStory width={430} height={700} />);
-    const rail = component.locator('[data-slot="rpg-hud-rail"]').first();
+    const rail = component.locator('[data-slot="context-rail"]').first();
     await expect(rail.getByRole("button")).toHaveCount(6);
 
     // 1) REACHABILITY — the half the reviewer could not measure.
-    expect(await tabInto(page, '[data-slot="rpg-hud-rail"] [role="toolbar"]')).toBe(true);
+    expect(await tabInto(page, '[data-slot="context-rail"] [role="toolbar"]')).toBe(true);
     const measureRail = (): Promise<{
       readonly overflowY: string;
       readonly headroomTop: number;
@@ -3830,8 +3861,8 @@ test("a fine pointer keeps the band's satellites and the owning rail's FULL kick
 
   const component = await mount(<RpgTakeoverStory height={720} width={360} />);
   await expect(component.locator('[data-slot="rpg-band-satellites"]')).toBeVisible();
-  await expect(railBlock(component, page, "Game state").locator('[data-slot="rpg-hud-rail-kicker"]')).toHaveText("Game state · Status");
-  await expect(component.locator('[data-slot="rpg-hud-rail-selection"]')).toBeVisible();
+  await expect(railBlock(component, page, "Game state").locator('[data-slot="context-rail-kicker"]')).toHaveText("Game state · Status");
+  await expect(component.locator('[data-slot="context-rail-selection"]')).toBeVisible();
 });
 
 // ── The per-actor TRACKER-EXCEPTIONS editor (host grants/revokes, tracked-field-unification §5.1) ──────────
@@ -4086,7 +4117,7 @@ test("side-eye 2026-08-16: at the 384px DOCKED panel no game-rail caption crushe
   expect(new Set(boxes.map((box) => Math.round(box?.y ?? 0))).size).toBe(1);
 
   // NO caption is truncated — the whole point. `+1` absorbs sub-pixel rounding, exactly as the FLOOR pin does.
-  const clipped = await list.locator('[data-slot="rpg-hud-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
+  const clipped = await list.locator('[data-slot="context-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
   expect(clipped).toBe(0);
 });
 

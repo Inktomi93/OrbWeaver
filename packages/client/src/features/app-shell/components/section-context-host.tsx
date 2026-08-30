@@ -3,21 +3,19 @@
 // feature. `key={activeSection}` on BOTH mount sites is REQUIRED — different sections' `tabs` hosts call
 // different hook sets, legal only across a remount (rules-of-hooks).
 //
-// The pair splits the two CONTEXT regions from ONE resolve: `SectionContextHost` renders the BODY (the
-// resolved `tabs` + `actions`); `SectionContextHeader` renders the `.shell-panel-header` BAND identity
-// (the resolved `header` slot — north-star §4 N4 / P4). They mount in different shell regions (band vs
-// body), so each calls `useResolved` for its own slice.
-//
-// A CLAIMED pane (HUD-1 §3.1) routes the body to `ContextRegionHost` and the band to NOTHING — one
-// contributor owns the whole pane. Both halves read the SAME `resolved.region`, so the two mount points
-// cannot disagree about whether a claim is active.
+// The pair splits the two CONTEXT regions: `SectionContextHost` renders the BODY; `SectionContextHeader`
+// renders the shell's `.shell-panel-header` BAND. Since the context bracket (#860) a `tabs` context owns
+// its WHOLE column inside the body — its head band is the bracket's own slot, fed by the resolve's `header`
+// (the section's identity, or a claiming region's band) — so `SectionContextHeader` renders NOTHING for a
+// tabs pane in every mode and shell.css collapses the empty band (the HUD-1 `:empty` rule, now universal;
+// the D66 A1 shared horizon holds for the LIST band and for a `single`/`none` context). One resolve, ONE
+// consumer for a tabs pane.
 
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary } from "#data";
 import type { ResolvedContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
-import { ContextRegionHost } from "./context-region-host.tsx";
 import { ContextTabsPanel } from "./context-tabs-panel.tsx";
 import { SectionPlaceholder } from "./section-placeholder.tsx";
 
@@ -32,8 +30,8 @@ const CONTEXT_PLACEHOLDER = <SectionPlaceholder title="Nothing selected" descrip
 function contextEmpty(context: SectionDefinition["context"]): ReactNode {
   return context.empty === undefined ? CONTEXT_PLACEHOLDER : <SectionPlaceholder description={context.empty.description} title={context.empty.title} />;
 }
-// The neutral BAND label when no section supplies a header identity (a `none`/`single` context, or a
-// `tabs` context with no active selection). Matches the pre-N4 static "Details" the band showed.
+// The neutral BAND label when a `single` context supplies no header identity. Matches the pre-N4 static
+// "Details" the band showed.
 const CONTEXT_HEADER_DEFAULT = (
   <Text size="label" weight="medium" tone="muted">
     Details
@@ -42,9 +40,12 @@ const CONTEXT_HEADER_DEFAULT = (
 
 export interface SectionContextHostProps {
   readonly definition: SectionDefinition;
+  /** The floating pane's own way out (overlay mode only) — the bracket seats it in its head band. */
+  readonly dismissLabel?: string;
+  readonly onDismiss?: () => void;
 }
 
-export function SectionContextHost({ definition }: SectionContextHostProps): ReactNode {
+export function SectionContextHost({ definition, dismissLabel, onDismiss }: SectionContextHostProps): ReactNode {
   const { context } = definition;
   if (context.kind === "none") {
     return contextEmpty(context);
@@ -57,57 +58,55 @@ export function SectionContextHost({ definition }: SectionContextHostProps): Rea
   }
   return (
     <QueryBoundary fallback={<Text voice="quiet">Loading details…</Text>}>
-      <ResolvedTabsHost empty={contextEmpty(context)} useResolved={context.useResolved} />
+      <ResolvedTabsHost
+        empty={contextEmpty(context)}
+        useResolved={context.useResolved}
+        // The FOOT rail's fallback name is the section's own rail label — the honest group name for a pane
+        // that is about the section itself (Corpus, Analytics); a section about ONE artifact overrides it
+        // at the mint (`railLabel: "Chat"`).
+        railFallback={definition.rail.label}
+        {...(dismissLabel === undefined ? {} : { dismissLabel })}
+        {...(onDismiss === undefined ? {} : { onDismiss })}
+      />
     </QueryBoundary>
   );
 }
 
-/** The CONTEXT-panel BAND identity (north-star §4 N4 / P4) — rendered as the context `PanelChrome`'s
- *  header. A `tabs` context supplies it through `defineContextTabs`; a `single` context may supply it
- *  directly (the same slot, no resolve step to run). `none`, a header-less `single`, and an unselected
- *  `tabs` context fall back to the neutral "Details" label. */
-export function SectionContextHeader({ definition }: SectionContextHostProps): ReactNode {
+/** The shell's CONTEXT-panel BAND (the `.shell-panel-header` slot). A `single` context may supply an
+ *  identity directly; a header-less `single` and a `none` context fall back to the neutral "Details" label.
+ *  A `tabs` context renders NOTHING here — its head band is the bracket's own (see the file header). */
+export function SectionContextHeader({ definition }: Pick<SectionContextHostProps, "definition">): ReactNode {
   const { context } = definition;
   if (context.kind === "single") {
     return context.header === undefined ? CONTEXT_HEADER_DEFAULT : context.header();
   }
-  if (context.kind !== "tabs") {
+  if (context.kind === "none") {
     return CONTEXT_HEADER_DEFAULT;
   }
-  return (
-    <QueryBoundary fallback={CONTEXT_HEADER_DEFAULT}>
-      <ResolvedHeaderHost useResolved={context.useResolved} />
-    </QueryBoundary>
-  );
+  return null;
 }
 
 interface ResolvedTabsHostProps {
   readonly useResolved: () => ResolvedContextTabs | null;
+  readonly empty: ReactNode;
+  readonly railFallback: string;
+  readonly dismissLabel?: string;
+  readonly onDismiss?: () => void;
 }
 
-function ResolvedTabsHost({ useResolved, empty }: ResolvedTabsHostProps & { readonly empty: ReactNode }): ReactElement {
+function ResolvedTabsHost({ useResolved, empty, railFallback, dismissLabel, onDismiss }: ResolvedTabsHostProps): ReactElement {
   const resolved = useResolved();
   if (resolved === null || resolved.tabs.length === 0) {
     return <>{empty}</>;
   }
-  // A CLAIMED pane (HUD-1 §3.1): the claimant composes the whole thing from the same resolved tabs +
-  // selection the generic panel would have rendered. Unclaimed ⇒ the generic panel, byte-identical.
-  if (resolved.region !== undefined) {
-    return <ContextRegionHost region={resolved.region} tabs={resolved.tabs} actions={resolved.actions} />;
-  }
-  return <ContextTabsPanel tabs={resolved.tabs} actions={resolved.actions} />;
-}
-
-function ResolvedHeaderHost({ useResolved }: ResolvedTabsHostProps): ReactNode {
-  const resolved = useResolved();
-  // A claimed pane owns its own top edge — the band renders NOTHING (the claimant paints the 2px ember
-  // content↔context binding itself). Rendering null here is what makes `.shell-panel-header` empty, which
-  // shell.css collapses; the LIST band and an UNCLAIMED context band keep the D66 A1 shared horizon.
-  if (resolved !== null && resolved.region !== undefined) {
-    return null;
-  }
-  if (resolved === null || resolved.header === undefined || resolved.header === null) {
-    return CONTEXT_HEADER_DEFAULT;
-  }
-  return resolved.header;
+  return (
+    <ContextTabsPanel
+      tabs={resolved.tabs}
+      actions={resolved.actions}
+      header={resolved.header}
+      railLabel={resolved.railLabel ?? railFallback}
+      {...(dismissLabel === undefined ? {} : { dismissLabel })}
+      {...(onDismiss === undefined ? {} : { onDismiss })}
+    />
+  );
 }
