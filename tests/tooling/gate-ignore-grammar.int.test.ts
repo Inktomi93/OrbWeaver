@@ -14,6 +14,11 @@
 // The SCRIPTS side (2026-08-08) probes the same vocabulary inside the gate corpus — carrier
 // `no-raw-intl-time`, whose scanRoot admits it — plus the MENTION FENCE both ways: a quoted marker in
 // prose neither suppresses (the closed bypass) nor gets inventoried (what made the corpus scannable).
+// The FINDING-ARM side (#828, 2026-08-30) probes the same vocabulary against a gate that reports through
+// `ctx.report(finding)` and therefore has NO node to read leading trivia from — carrier `test-determinism`,
+// whose scanRoot is `tests/`. That arm binds LINE-ADJACENTLY, which is a different resolver from the node
+// arm's block-scoped walk, so its consumption verdicts (suppressed / stale / malformed / mention) need
+// their own real-tree cases; the fast unit-level resolver pins live in tests/tooling/verify/lib/gate-ignore.test.ts.
 // Fixtures use the reserved `__g_` sentinel so every other tree consumer excludes them and a crashed run
 // leaves nothing that can red an independent pass (tooling/src/verify/lib/pass.ts PROBE_ARTIFACT_RE).
 import { execFileSync } from "node:child_process";
@@ -86,6 +91,31 @@ const SCRIPTS_CASES: Readonly<Record<string, string>> = {
   corpusMention: "// the grammar is `// @orb-gate-ignore no-raw-intl-time(tolocale): <reason>` — a quotation\nexport const s6 = (0).toLocaleString();\n",
 };
 
+/** The FINDING-ARM fixture dir (#828): under `tests/`, which is `test-determinism`'s scanRoot. */
+const TESTS_DIR = "tests/tooling/__g_gi";
+/** The Finding-arm carrier: a `visitFile` line scanner with no node, reporting file+line+column-0. */
+const TESTS_CARRIER = "test-determinism";
+
+/** The ambient-clock read the Finding-arm fixtures carry, ASSEMBLED rather than spelled: the carrier's own
+ *  DECLARED LIMIT is that string literals scan, and this file lives under `tests/` — a literal spelling here
+ *  would make the probe file itself a violation (the same reason SCRIPTS_CASES avoids clock calls). */
+const AMBIENT = ["performance", "now()"].join(".");
+
+/** case → the fixture planted at `${TESTS_DIR}/__g_<case>.ts`. The violation is that ambient-clock read; the
+ *  marker (when present) sits on the line IMMEDIATELY above it. */
+const TESTS_CASES: Readonly<Record<string, string>> = {
+  // the Finding-arm carrier bites at all — a violation with NO marker.
+  findingUnmarked: `export const f0 = ${AMBIENT};\n`,
+  // the #828 fix: a well-formed marker one line above a Finding-arm violation suppresses it.
+  findingMarked: `// @orb-gate-ignore test-determinism: probe — the SUBJECT is elapsed real time\nexport const f1 = ${AMBIENT};\n`,
+  // LINE-ADJACENCY: one line too far suppresses nothing AND the marker reds as stale (two-sided).
+  findingFar: `// @orb-gate-ignore test-determinism: probe — one line too far to bind\n\nexport const f2 = ${AMBIENT};\n`,
+  // MALFORMED in the Finding arm: bare, no `: <reason>` — shields nothing, and reds as its own flavour.
+  findingBare: `// @orb-gate-ignore test-determinism\nexport const f3 = ${AMBIENT};\n`,
+  // MENTION FENCE holds on the Finding arm too: a quoted marker in prose is not a marker.
+  findingMention: `// the grammar is \`// @orb-gate-ignore test-determinism: <reason>\` — a quotation\nexport const f4 = ${AMBIENT};\n`,
+};
+
 function clean(): void {
   execFileSync("find", ["packages", "tests", "scripts", "-name", "__g_*", "-prune", "-exec", "rm", "-rf", "{}", "+"], { cwd: ROOT });
   execFileSync("find", ["packages", "tests", "scripts", "-type", "d", "-empty", "-delete"], { cwd: ROOT });
@@ -99,6 +129,11 @@ function plant(): void {
   }
   for (const [name, src] of Object.entries(SCRIPTS_CASES)) {
     const abs = join(ROOT, SCRIPTS_DIR, `__g_${name}.ts`);
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileSync(abs, src);
+  }
+  for (const [name, src] of Object.entries(TESTS_CASES)) {
+    const abs = join(ROOT, TESTS_DIR, `__g_${name}.ts`);
     mkdirSync(dirname(abs), { recursive: true });
     writeFileSync(abs, src);
   }
@@ -150,6 +185,18 @@ function sTokens(gate: string, kase: keyof typeof SCRIPTS_CASES): readonly strin
 
 function sMessages(kase: keyof typeof SCRIPTS_CASES): string {
   return sFindings(INVENTORY, kase)
+    .map((f) => f.message ?? "")
+    .join("\n");
+}
+
+/** The FINDING-arm mirrors, over `${TESTS_DIR}/__g_<case>.ts`. */
+function fFindings(gate: string, kase: keyof typeof TESTS_CASES): readonly Finding[] {
+  const file = `${TESTS_DIR}/__g_${kase}.ts`;
+  return (pass.gates.find((g) => g.name === gate)?.findings ?? []).filter((f) => f.file === file);
+}
+
+function fMessages(kase: keyof typeof TESTS_CASES): string {
+  return fFindings(INVENTORY, kase)
     .map((f) => f.message ?? "")
     .join("\n");
 }
@@ -252,6 +299,37 @@ test("scripts — gate prose QUOTING the grammar is a MENTION: silent to the inv
 test("the LIVE corpus carries no malformed / unregistered / stale / over-exempting marker", () => {
   // Covers the gate corpus too since the scanRoot extension: the 12 live doc-prose grammar quotations
   // (the false positives that blocked the naive extension) must stay silent under the mention fence.
-  const live = (pass.gates.find((g) => g.name === INVENTORY)?.findings ?? []).filter((f) => !(f.file.startsWith(DIR) || f.file.startsWith(SCRIPTS_DIR)));
+  const live = (pass.gates.find((g) => g.name === INVENTORY)?.findings ?? []).filter(
+    (f) => !(f.file.startsWith(DIR) || f.file.startsWith(SCRIPTS_DIR) || f.file.startsWith(TESTS_DIR)),
+  );
   expect(live).toEqual([]);
+});
+
+// ---- the FINDING ARM (#828): a `visitFile` line scanner has no node, so the marker binds LINE-ADJACENTLY.
+// Before #828 every one of these cases behaved identically — the marker was inert by construction and the
+// carrier gate had no per-site escape at all.
+
+test("finding arm — the carrier bites, and an unmarked Finding-overload violation is RED", () => {
+  expect(fFindings(TESTS_CARRIER, "findingUnmarked").map((f) => f.line)).toEqual([1]);
+  expect(fFindings(INVENTORY, "findingUnmarked")).toEqual([]);
+});
+
+test("finding arm — a well-formed marker one line above SUPPRESSES, and is not itself flagged", () => {
+  expect(fFindings(TESTS_CARRIER, "findingMarked")).toEqual([]);
+  expect(fFindings(INVENTORY, "findingMarked")).toEqual([]);
+});
+
+test("finding arm — LINE-ADJACENCY is two-sided: one line too far reds the violation AND the marker", () => {
+  expect(fFindings(TESTS_CARRIER, "findingFar").map((f) => f.line)).toEqual([3]);
+  expect(fMessages("findingFar")).toContain("STALE");
+});
+
+test("finding arm — a BARE marker is MALFORMED and shields nothing", () => {
+  expect(fFindings(TESTS_CARRIER, "findingBare").map((f) => f.line)).toEqual([2]);
+  expect(fMessages("findingBare")).toContain("MALFORMED");
+});
+
+test("finding arm — the MENTION FENCE holds: a quoted marker is no shield and no inventory entry", () => {
+  expect(fFindings(TESTS_CARRIER, "findingMention").map((f) => f.line)).toEqual([2]);
+  expect(fFindings(INVENTORY, "findingMention")).toEqual([]);
 });

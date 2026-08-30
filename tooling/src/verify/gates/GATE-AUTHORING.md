@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-28
+updated: 2026-08-30
 ---
 
 # Authoring a structural gate
@@ -45,6 +45,7 @@ and `tooling/src/` since the @orb/tooling P1 widening, docs/design/tooling-packa
 | `visitFile` | one of | per-file hook (line scans, per-file setup) |
 | `run` | one of | whole-project pass over the SAME shared project — never `new Project(` |
 | `fsBacked` | no | true when hooks read the real filesystem. Conformance then materializes examples into a real temp dir instead of an in-memory project |
+| `markerImmune` | no | ONLY for a gate that AUDITS an exemption vocabulary — `pass.ts` then offers it no suppression on either arm. Occupants: `gate-ignore-inventory`, `finding-overload-provenance`. Not a "this gate is important" flag |
 | `begin` / `finalize` | no | reset accumulators / judge them. Ratchet + stale arms live in `finalize` |
 | `mustFlag` / `mustPass` | yes | ≥1 each. The loader REFUSES an un-proven gate — this is fail-closed, not advisory |
 
@@ -61,23 +62,35 @@ and validates the exported `gate`. There is no registration list to edit. Conseq
 
 | Call | Anchors at | Honors `@orb-gate-ignore` |
 | - | - | - |
-| `report(node)` | the node | YES |
-| `report(node, { token, offset })` | the token inside the node | YES |
-| `report(finding)` | whatever the Finding says | **NO** |
+| `report(node)` | the node | YES — the node's leading trivia, BLOCK-scoped (§4.3b) |
+| `report(node, { token, offset })` | the token inside the node | YES — same, plus the `(position)` match |
+| `report(finding)` | whatever the Finding says | YES since #828 — but LINE-ADJACENT only, and never at `line` 0 or 1 |
 
-The explicit-`Finding` overload bypasses `hasGateIgnore` (suppression needs a node to read leading comments
-from). A gate that reports node-anchored findings through the Finding overload silently defeats every
-`@orb-gate-ignore` on its diagnostics — this regressed `no-inline-types` once. RULE: node-anchored and
-suppressible ⇒ the NODE overload; reserve the Finding overload for genuinely file-level findings and for
-stale/ratchet arms (which anchor on the gate file itself).
+**Both overloads are suppressible, by DIFFERENT resolvers, and the difference is the whole rule.** The node
+arm walks the reported node's leading comments up to its statement boundary and matches a `(position)`
+against the reported `token`. The Finding arm has no node to read trivia from, so its marker must be the
+comment on the line IMMEDIATELY ABOVE `finding.line` — the same adjacency every other house marker uses
+(`biome-ignore`, `FABRICATION-OK`, `ONESHOT-OK`), because it is the only binding an author can predict
+without knowing the gate's line arithmetic. A finding at `line` 0 (genuinely file-level) or `line` 1 has no
+line above it and is UNSUPPRESSIBLE by construction, which is what keeps a blindness tripwire and a ledger
+verdict permanently loud. **UNTIL 2026-08-30 (#828) the Finding arm honoured nothing at all**, so a
+line-scanner gate had no per-site escape whatever: `test-determinism` was the case that paid for it — a
+test whose SUBJECT is elapsed real time (a CPU-throttle receipt) could only contort, change instrument, or
+be scanRoot-excluded wholesale. RULE, unchanged: node-anchored and suppressible ⇒ the NODE overload;
+reserve the Finding overload for genuinely file-level findings, for line-scanner (`visitFile`) verdicts,
+and for stale/ratchet arms (which anchor on the gate file itself).
 
 **THIS CLAUSE NAMES ITS ENFORCER: `finding-overload-provenance`** (2026-08-08). It was prose-only until
 then, and prose-only cost three closing sweeps: each matched report CALL SITES by regex and each one missed
 members, because the finding record is routinely built two or three functions away from `ctx.report`. The
-gate matches the FINDING LITERAL by SHAPE (`file` + `line` + `column`/`message`) wherever it is built, and
-its worse-than-silent failure mode is what makes it load-bearing: an author who writes the CORRECT
-`@orb-gate-ignore` on such a finding gets a DOUBLE red — the gate fires anyway, and `gate-ignore-inventory`
-reds the marker as stale. The one escape, two-sided: `// @finding-overload-ok: <reason>` at the literal
+gate matches the FINDING LITERAL by SHAPE (`file` + `line` + `column`/`message`) wherever it is built.
+**THE BAN SURVIVES #828; ITS REASON CHANGED** (the house idiom: the ruling survives, its INPUT changed).
+The founding reason was that the marker was INERT there, so a correct marker earned a DOUBLE red — that is
+gone, the Finding arm suppresses now. What remains is that a Finding literal's `line` is arithmetic the GATE
+computed: the author's marker anchors to that arithmetic instead of to the node's own trivia, it gets no
+block scope, and it can name no `(position)` unless the literal happens to carry a `token` — which makes
+§4.3a UNSATISFIABLE on a line with two guarded things, the exact hole the position grammar exists to close.
+The one escape, two-sided: `// @finding-overload-ok: <reason>` at the literal
 for a PERMANENTLY non-suppressible arm (a blindness tripwire, a stale/ratchet arm, a ledger verdict — a
 malformed, stale, or over-exempting marker is itself RED). The gate's OWN shrink-only baseline (52 literals
 across 24 gates at mint) reached its terminal state `{}` 2026-08-23 and the baseline + its generator were
@@ -208,6 +221,14 @@ An exemption is a promise. This is how the promise is written.
    every gate it governs to EMIT positions.** While `no-loose-id-cast` reported node-anchored with no
    `token`, §4.3a there was not merely unenforced but UNSATISFIABLE — you cannot ask an author to name a
    position the report cannot express. A gate whose findings can CO-OCCUR on one line owes a `token`.
+   3a-bis. **THE FINDING ARM BINDS LINE-ADJACENTLY, AND THE AUDITOR IS IMMUNE** (#828). A gate reporting
+   through `ctx.report(finding)` has no node, so its marker is the comment on the line IMMEDIATELY above
+   `finding.line`; a multi-line marker block, or a blank line between marker and violation, UN-marks it and
+   the marker then reds as STALE — two reds, exactly as with every other house marker. Consumption is
+   counted the same way, so `gate-ignore-inventory`'s STALE and OVER-EXEMPT arms cover this arm too. **And a
+   gate that AUDITS an exemption vocabulary sets `markerImmune: true`** (§1): a marker written one line above
+   the report that indicts it would absolve precisely the finding two-sidedness exists to produce, so the
+   suppressor must never reach it. That is the only legitimate reason for the flag.
    3b. **THE RESOLVER THAT READS STACKED MARKERS IS BLOCK-SCOPED.** Markers accumulate for the next guarded
    node and then CLEAR. A file-scoped reader silently exempts the rest of the file from the first marker
    onward — the same rubber stamp as a bare marker, just slower to notice.
@@ -342,7 +363,11 @@ the probe MADE PERMANENT: it plants the six cases as `__g_` fixtures and runs th
 REAL workspace. **Prefer that shape.** A one-shot manual probe proves the day it ran; a committed one keeps
 proving. It is also the only substrate that can prove a CONSUMPTION verdict at all: conformance runs ONE
 gate standalone (`runGateStandalone`), so no SIBLING gate can ever consume a marker in a mini-project, and
-the stale / over-exempting arms are structurally unobservable there.
+the stale / over-exempting arms are structurally unobservable there. Since #828 that suite carries a THIRD
+carrier set for the LINE-ADJACENT Finding arm (`test-determinism` under `tests/`), because the two arms are
+different resolvers and a green node-arm case says nothing about the other one; the fast resolver-level pins
+(adjacency, position match, mention fence, `line` 0/1 unsuppressibility, `markerImmune`) are
+`tests/tooling/verify/lib/gate-ignore.test.ts`.
 
 **LITERAL-SHAPE BLINDNESS — the lying-proof class.** A reader that extracts a value via a narrow node check
 (only `StringLiteral`, a bare `Identifier.getText()`) returns undefined on `x as never`, `satisfies`,

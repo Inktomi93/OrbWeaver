@@ -1,8 +1,10 @@
 // The `@orb-gate-ignore` marker grammar and its MENTION FENCE — ONE spelling, shared by the suppressor
 // (lib/pass.ts, which honours a marker) and by `gate-ignore-inventory` (which audits markers). A gate that
 // re-spelled either half would drift out of agreement with the thing it audits, so both readers import
-// from here. Split out of the single-pass dispatcher at the @orb/tooling P6 move (size cap, §4.3); the
-// grammar and its two readers are unchanged.
+// from here. Split out of the single-pass dispatcher at the @orb/tooling P6 move (size cap, §4.3).
+// TWO suppression arms, one grammar (#828): `findGateIgnore` walks a reported NODE's leading trivia
+// (block-scoped, §4.3b); `findGateIgnoreAtLine` binds LINE-ADJACENTLY for the `Finding` overload, which has
+// no node to read trivia from.
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateIgnoreMarker } from "../contract/pass.ts";
@@ -135,6 +137,47 @@ export function findGateIgnoreMarkers(sf: SourceFile): readonly { readonly index
     }
   }
   return out;
+}
+
+/** Every marker in a file, indexed by its own 1-based LINE — the FINDING-arm resolver's lookup. Cached per
+ *  SourceFile (the `comment-spans.ts` shape; NEVER keyed on the Project, GATE-AUTHORING.md §12), because
+ *  `findGateIgnoreMarkers` walks every descendant for the mention fence and a red line-scanner reports many
+ *  findings from the same file. */
+const markerLineIndex = new WeakMap<SourceFile, ReadonlyMap<number, GateIgnoreMarker>>();
+
+function markersByLine(sf: SourceFile): ReadonlyMap<number, GateIgnoreMarker> {
+  const cached = markerLineIndex.get(sf);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const byLine = new Map<number, GateIgnoreMarker>();
+  for (const { index, marker } of findGateIgnoreMarkers(sf)) {
+    byLine.set(sf.getLineAndColumnAtPos(index).line, marker);
+  }
+  markerLineIndex.set(sf, byLine);
+  return byLine;
+}
+
+/** The FINDING-overload suppressor (#828): a `visitFile` line-scanner has no node to read leading trivia
+ *  from, so its marker binds LINE-ADJACENTLY — the marker must be the comment on the line IMMEDIATELY above
+ *  `line`, which is the house escape-marker law everywhere else (`biome-ignore`, `FABRICATION-OK`,
+ *  `ONESHOT-OK`) and the one semantics an author can predict without knowing the gate's line arithmetic.
+ *  Same grammar, same mention fence, same position rule as the node arm — `token` is the finding's own
+ *  reported lexeme (§4.3a). Returns the marker's 1-based line, or undefined.
+ *
+ *  A finding at line 0 (genuinely file-level) or line 1 has NO line above it and is therefore
+ *  unsuppressible BY CONSTRUCTION — which is what keeps a blindness tripwire and a ledger verdict
+ *  permanently loud without needing a second opt-out. */
+export function findGateIgnoreAtLine(sf: SourceFile, line: number, gateName: string, token: string | undefined): number | undefined {
+  const markerLine = line - 1;
+  if (markerLine < 1) {
+    return;
+  }
+  const marker = markersByLine(sf).get(markerLine);
+  if (marker === undefined || marker.malformed || marker.gate !== gateName) {
+    return;
+  }
+  return marker.position === undefined || marker.position === token ? markerLine : undefined;
 }
 
 /** One node's LEADING comments: the position of the first WELL-FORMED marker that guards `gateName` at

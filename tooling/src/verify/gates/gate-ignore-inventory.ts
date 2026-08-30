@@ -1,4 +1,4 @@
-// Gate: gate-ignore-inventory — the hygiene owner of the house's shared per-node suppression marker,
+// Gate: gate-ignore-inventory — the hygiene owner of the house's shared per-site suppression marker,
 // `// @orb-gate-ignore <gate-name>[(<position>)]: <reason>` (GATE-AUTHORING.md §4.3/§4.3a/§4.4). FOUR
 // arms: MALFORMED (no `: <reason>`, or an empty `()` position — it suppresses nothing, so it must not sit
 // there LOOKING like protection) · UNREGISTERED (names no gate file) · STALE (well-formed and registered
@@ -60,7 +60,7 @@ const MSG_OVER_EXEMPT =
   "OVER-EXEMPTING `@orb-gate-ignore` marker — one UNPOSITIONED marker absolved MORE THAN ONE guarded thing, so it grants an exemption nobody reasoned about to every violation but the one it was written for (`record(chatId: string, sessionId: string)` is the founding case). Name the position you meant: `// @orb-gate-ignore <gate>(<position>): <reason>`, one marker per guarded thing — the position is the finding's reported token. If you genuinely meant all of them, split the code so each guarded thing carries its own marker.";
 const MSG_NO_GATES = `blindness tripwire: no gate names could be derived from ${GATES_DIR_REL}/ — the derivation came back EMPTY, so every marker would judge as unregistered and this gate's verdict is unknowable. Re-point GATES_DIR_REL at the gate corpus. See tooling/src/verify/gates/GATE-AUTHORING.md §4.6.`;
 const MSG_LATE_SUPPRESSION =
-  "soundness tripwire: a gate suppressed a node-anchored finding during the `finalize` phase, but this gate's STALE sweep also runs in `finalize` — a marker consumed after the sweep would be reported stale by mistake. Move that gate's report to `run`, or give this sweep a later hook. See tooling/src/verify/lib/pass.ts.";
+  "soundness tripwire: a gate suppressed a finding during the `finalize` phase, but this gate's STALE sweep also runs in `finalize` — a marker consumed after the sweep would be reported stale by mistake. Move that gate's report to `run`, or give this sweep a later hook. See tooling/src/verify/lib/pass.ts.";
 
 /** Every registered gate's name, derived from its FILENAME (basename minus .ts) — the loader
  *  hard-enforces descriptor.name === filename, so the filename is the truth (fsBacked — this gate's
@@ -100,6 +100,10 @@ export const gate: GateDescriptor = {
   docRow: "Core-Enforcement-Active-Gates.md (Layer 3)",
   status: "active",
   scopeSafety: "whole-project",
+  // The AUDITOR of this vocabulary is never reachable by it (#828). Before the Finding overload became
+  // suppressible this held by construction — every arm here reports file-anchored. Now it is DECLARED, or a
+  // marker written one line above a malformed/stale marker would absolve the report that indicts it.
+  markerImmune: true,
   fsBacked: true,
   message: MESSAGE,
   fix: FIX,
@@ -116,12 +120,12 @@ export const gate: GateDescriptor = {
     for (const { index, marker } of findGateIgnoreMarkers(sf)) {
       const { line } = sf.getLineAndColumnAtPos(index);
       if (marker.malformed) {
-        // @finding-overload-ok: the finding IS a COMMENT, not a node — `index` is a text offset from the marker scanner, so there is nothing for hasGateIgnore to read a marker off; and the marker gate must never be marker-suppressible (a bare marker could otherwise absolve the report that indicts it)
+        // @finding-overload-ok: the finding IS a COMMENT, not a node — `index` is a text offset from the marker scanner, so there is no node to anchor the report on; and this gate is `markerImmune` (#828), because a marker absolving the report that indicts it is the one exemption the vocabulary can never grant
         ctx.report({ file, line, column: 0, token: marker.gate, message: MSG_MALFORMED });
         continue;
       }
       if (!registered.has(marker.gate)) {
-        // @finding-overload-ok: the finding IS a COMMENT, not a node — `index` is a text offset from the marker scanner, so there is nothing for hasGateIgnore to read a marker off; and the marker gate must never be marker-suppressible (a bare marker could otherwise absolve the report that indicts it)
+        // @finding-overload-ok: the finding IS a COMMENT, not a node — `index` is a text offset from the marker scanner, so there is no node to anchor the report on; and this gate is `markerImmune` (#828), because a marker absolving the report that indicts it is the one exemption the vocabulary can never grant
         ctx.report({ file, line, column: 0, token: marker.gate, message: MSG_UNREGISTERED });
         continue;
       }

@@ -7,12 +7,14 @@
 //
 // It also tallies PER-GATE SCAN HEALTH (`GateScan`) from that same walk — the denominator behind every
 // verdict, so a gate that read nothing can no longer render ✓ (`zeroScanGates`). The result shapes live in
-// ../contract/pass.ts and the `@orb-gate-ignore` grammar in ./gate-ignore.ts (five-slot split, P6).
+// ../contract/pass.ts and the marker grammar in ./gate-ignore.ts (five-slot split, P6). BOTH report
+// overloads are suppressible since #828 — the node arm block-scoped, the Finding arm line-adjacent — except
+// for a `markerImmune` gate, which audits the vocabulary and must never be silenced by it.
 import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { Node, SourceFile, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx, GateScanDeclaration, Scope } from "../contract/gate.ts";
 import type { DeclaredScan, GatePassResult, GateScan, PassResult, ToolError } from "../contract/pass.ts";
-import { findGateIgnore } from "./gate-ignore.ts";
+import { findGateIgnore, findGateIgnoreAtLine } from "./gate-ignore.ts";
 
 /** repo-relative posix path for a SourceFile. */
 export function repoRel(root: string, absPath: string): string {
@@ -173,10 +175,11 @@ function isNode(v: Node | Finding): v is Node {
  *  count — not a boolean — is what the inventory gate must read. Module state, reset per `runPass`
  *  (conformance runs many passes). */
 const gateIgnoreUses = new Map<string, number>();
-/** Did a node-anchored suppression happen during the `finalize` phase? The inventory gate's stale sweep
- *  runs in `finalize`, so a gate that first reports there would be judged before it ever spoke. No gate
- *  does today (finalize arms use the Finding overload, which bypasses suppression entirely) — this is the
- *  tripwire for the day one does. */
+/** Did a suppression happen during the `finalize` phase? The inventory gate's stale sweep runs in
+ *  `finalize`, so a marker consumed after the sweep read its count would be reported stale by mistake. It
+ *  covers BOTH arms since #828 — the Finding overload is suppressible too now, and finalize is exactly
+ *  where the stale/ratchet arms that use it live. No gate trips it today; this is the tripwire for the day
+ *  one does. */
 let gateIgnoreLateUse = false;
 let currentPhase: ToolError["phase"] = "begin";
 
@@ -204,18 +207,38 @@ function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report" | 
     declaredScanned: 0,
     declaredSkip: {},
   };
+  /** Record what a marker absolved: the COUNT (§4.4 stale = 0, §4.3a over-exempt = more than one) plus the
+   *  suppressed-in-finalize soundness tripwire. Shared by both suppression arms. */
+  const consume = (file: string, markerLine: number): void => {
+    const key = `${file}:${markerLine}`;
+    gateIgnoreUses.set(key, (gateIgnoreUses.get(key) ?? 0) + 1);
+    gateIgnoreLateUse ||= currentPhase === "finalize";
+  };
+  /** The FINDING overload's suppression (#828): no node, so the marker binds to the line IMMEDIATELY above
+   *  `finding.line`. A `markerImmune` gate AUDITS the vocabulary and is never reachable by it. */
+  const findingSuppressedAt = (finding: Finding): number | undefined => {
+    if (gate.markerImmune === true) {
+      return;
+    }
+    const sf = ctxBase.project.getSourceFile(`${ctxBase.root}/${finding.file}`);
+    return sf === undefined ? undefined : findGateIgnoreAtLine(sf, finding.line, gate.name, finding.token);
+  };
   const report = (nodeOrFinding: Node | Finding, atToken?: { readonly token: string; readonly offset: number }): void => {
     if (!isNode(nodeOrFinding)) {
-      sink.push(nodeOrFinding);
+      const finding = nodeOrFinding;
+      const at = findingSuppressedAt(finding);
+      if (at === undefined) {
+        sink.push(finding);
+      } else {
+        consume(finding.file, at);
+      }
       return;
     }
     const node = nodeOrFinding;
     const file = repoRel(ctxBase.root, node.getSourceFile().getFilePath());
-    const suppressedAt = findGateIgnore(node, gate.name, atToken?.token);
+    const suppressedAt = gate.markerImmune === true ? undefined : findGateIgnore(node, gate.name, atToken?.token);
     if (suppressedAt !== undefined) {
-      const key = `${file}:${suppressedAt}`;
-      gateIgnoreUses.set(key, (gateIgnoreUses.get(key) ?? 0) + 1);
-      gateIgnoreLateUse ||= currentPhase === "finalize";
+      consume(file, suppressedAt);
       return;
     }
 
