@@ -4,8 +4,11 @@
 // (`.test.ts`/`.test.tsx`/`.ct.tsx`/`.spec.ts` — the suffixes vitest/Playwright actually collect as a
 // runnable spec), sorted, repo-relative, posix.
 //
-// ADDING a test needs no manifest edit — an untracked new file is never gated (the gate only judges
-// entries already IN `testFiles`). Run this script to fold new files into the floor; safe to run any time.
+// ADDING a test needs no edit BY HAND, but it does need a REGEN (#817, 2026-08-30): the `ledgers:fresh`
+// stage compares the committed file against a fresh derivation on every `pnpm check`, so a tracked spec
+// missing from `testFiles` is now RED instead of a silent lag. The motion is `git add <spec>` (the
+// derivation reads `git ls-files`, so an untracked spec is invisible to it), then this script, then commit.
+// The monotonic-tests GATE is unchanged — it still only judges entries already IN `testFiles`.
 // DELETING a test file legitimately: add a `deletions` entry keyed by the file's path with a `why` string
 // (the reason AND what would un-delete it, e.g. "merged into foo.test.ts — see PD-123") to the committed
 // manifest, THEN re-run this script — it carries the ledger forward and drops the now-accounted path out
@@ -19,17 +22,17 @@ import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { execNicedSync } from "@orb/tooling/_shared/proc";
+import type { TestBaselineDeletion, TestBaselineManifest } from "../../contract/test-baseline.ts";
+import { TEST_BASELINE_REL } from "../../contract/test-baseline.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline test-baseline-manifest");
 
 const SPEC_SUFFIX = /\.(test\.tsx?|ct\.tsx|spec\.ts)$/u;
 
-/** The `baseline test-baseline-manifest` verb — the SINGLE writer of its committed baseline (GATE-AUTHORING §4.8). */
-export function generateTestBaselineManifest(root: string): number {
-  interface DeletionEntry {
-    readonly why: string;
-  }
-
+/** Re-derive the whole manifest from the tree. ONE producer, TWO callers — the writer below and the
+ *  `ledgers:fresh` stage's `--check` arm (ops/ledgers-fresh.ts), so the committed file and the freshness
+ *  verdict can never disagree about what a spec is. Writes NOTHING. */
+export function deriveTestBaselineManifest(root: string): TestBaselineManifest {
   // TRACKED files only (git ls-files), never a raw disk glob: a gitignored vendored tree under tests/
   // (the ST-parity runtime, 2026-08-07) once leaked ~49 of its OWN node_modules specs into the committed
   // manifest — green on the one machine that had the dir, phantom-RED in every worktree. The repo's
@@ -44,17 +47,23 @@ export function generateTestBaselineManifest(root: string): number {
     .map((f) => f.replaceAll("\\", "/"))
     .sort();
 
-  const out = join(root, "docs/test-baseline/manifest.json");
-  let deletions: Record<string, DeletionEntry> = {};
+  const out = join(root, TEST_BASELINE_REL);
+  let deletions: Record<string, TestBaselineDeletion> = {};
   if (existsSync(out)) {
-    const prev = JSON.parse(readFileSync(out, "utf-8")) as { deletions?: Record<string, DeletionEntry> };
+    const prev = JSON.parse(readFileSync(out, "utf-8")) as { deletions?: Record<string, TestBaselineDeletion> };
     deletions = prev.deletions ?? {};
   }
   // `testFiles` is a fresh disk listing, so a ledgered deletion drops out on its own (the glob can't find
   // it); a `deletions` entry survives the regen untouched — if its file is back on disk, the gate's stale
   // arm reads that off `testFiles` directly and reds.
-  const manifest = { testFiles: files, deletions };
+  return { testFiles: files, deletions };
+}
+
+/** The `baseline test-baseline-manifest` verb — the SINGLE writer of its committed baseline (GATE-AUTHORING §4.8). */
+export function generateTestBaselineManifest(root: string): number {
+  const manifest = deriveTestBaselineManifest(root);
+  const out = join(root, TEST_BASELINE_REL);
   writeFileSync(out, `${JSON.stringify(manifest, null, 2)}\n`);
-  process.stdout.write(`wrote ${files.length} test files (${Object.keys(deletions).length} deletions ledgered) → ${out}\n`);
+  process.stdout.write(`wrote ${manifest.testFiles.length} test files (${Object.keys(manifest.deletions).length} deletions ledgered) → ${out}\n`);
   return EXIT.clean;
 }

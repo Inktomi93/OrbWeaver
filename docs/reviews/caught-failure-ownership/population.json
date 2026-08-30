@@ -5064,7 +5064,7 @@
     {
       "siteId": "tooling/src/verify/gates/monotonic-tests.ts::empty:catch::1",
       "path": "tooling/src/verify/gates/monotonic-tests.ts",
-      "line": 119,
+      "line": 112,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5072,12 +5072,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "captured as kind \"missing\", a distinct ManifestResult arm the caller (scanDeletedTestFiles) reports as a violation, never a silent pass. Ends if that \"missing\" arm stops being read as a violation.",
-      "markerLine": 116
+      "markerLine": 109
     },
     {
       "siteId": "tooling/src/verify/gates/monotonic-tests.ts::empty:catch::2",
       "path": "tooling/src/verify/gates/monotonic-tests.ts",
-      "line": 133,
+      "line": 126,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5085,7 +5085,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "captured as kind \"malformed\", a distinct ManifestResult arm the caller reports as a violation, never a silent pass. Ends if that \"malformed\" arm stops being read as a violation.",
-      "markerLine": 122
+      "markerLine": 115
     },
     {
       "siteId": "tooling/src/verify/gates/no-nul-bytes-in-source.ts::default:catch::1",
