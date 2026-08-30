@@ -167,7 +167,7 @@ test("manifest matrix — netHosts refuses wildcards, schemes, and over-count (t
   expect(pluginManifestSchema.safeParse({ ...withNet, netHosts: ["https://example.com"] }).success).toBe(false);
   // Over-count is judged against the CONSTANT, never a literal — the cap moved 8→16 with hub v1.2 (80908a0d8) and a
   // literal 9 silently flipped this pin from "refused" to "accepted". At-cap is the accepted control.
-  const hosts = (n: number) => Array.from({ length: n }, (_, i) => `h${i}.example.com`);
+  const hosts = (n: number): string[] => Array.from({ length: n }, (_, i) => `h${i}.example.com`);
   expect(pluginManifestSchema.safeParse({ ...withNet, netHosts: hosts(NET_HOSTS_MAX) }).success).toBe(true);
   expect(pluginManifestSchema.safeParse({ ...withNet, netHosts: hosts(NET_HOSTS_MAX + 1) }).success).toBe(false);
 });

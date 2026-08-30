@@ -22,7 +22,7 @@ export interface OrbPluginRosterEntry {
 }
 
 /** One line of a plugin's runtime host.log ring, as `plugin.getLog` serves it. */
-export interface OrbPluginLogLine {
+interface OrbPluginLogLine {
   readonly level: string;
   readonly message: string;
   readonly at: number;
