@@ -1,0 +1,185 @@
+// entry/compose/portability-runner — the LAST seam: it builds the portability registry and the deps
+// `domain/import`'s workload contributions close over. Four of its decisions are load-bearing and are made
+// nowhere else:
+//
+//   • THE STAGING ROOT MUST AGREE WITH THE UPLOAD ROUTES. `entry/http/import.ts` writes the staged zip under
+//     `deps.stagingDir ?? tmpdir()`; the contribution reads under `deps.importStagingDir ?? tmpdir()`. If
+//     the two defaults ever diverge, every uploaded bundle stages fine and then imports NOTHING — and the
+//     staging root is also the fence the domain resolves staged handles strictly inside, so a wrong root is
+//     a path-containment question, not just a plumbing one.
+//   • THE ST PROFILE DEFAULT is the gitignored `.st-data` snapshot; a drifted default would point a real
+//     `import-st` run at some other directory on the operator's box.
+//   • THE THREE BULK RUNS EACH RIDE QUIET MODE and must still RETURN their counts — `withQuietBulkFanout`
+//     wraps the run, and a wrapper that swallowed the result would report a vacuous 0/0/0 success for a run
+//     that actually wrote canon.
+//   • THE TERMINAL LIBRARY FAN (#23) is what refreshes an owner's lists after a BACKGROUND import whose UI
+//     was navigated away from. It must publish BOTH events, and — the tenancy half — only onto the target
+//     owner's channel.
+//
+// The registry half is pinned as "composed with the shared slice" (its per-descriptor behaviour is
+// `portability.test.ts`'s).
+
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { UserBusEvent } from "@orb/contracts/user-bus";
+import type { Db } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { subscribeUserEvents } from "@orb/server/transport/trpc";
+import { afterEach, beforeEach, describe, vi } from "vitest";
+import type { PortabilityRunnerComposeDeps } from "../../../../packages/server/src/entry/compose/portability-runner.ts";
+import { buildPortabilityRunner } from "../../../../packages/server/src/entry/compose/portability-runner.ts";
+import { principal } from "../../../support/factories/principal.ts";
+import { expect, test } from "../../../support/fixtures.ts";
+
+const OWNER = castId<UserId>("usr_runner_owner");
+const OTHER = castId<UserId>("usr_runner_other");
+
+// FABRICATION-OK: never dereferenced — nothing this pin drives reaches a query.
+const NO_DB = {} as unknown as Db;
+
+let stagedRoot: string;
+
+function build(overrides: Partial<PortabilityRunnerComposeDeps> = {}): ReturnType<typeof buildPortabilityRunner> {
+  // FABRICATION-OK: inert structural stand-ins for the nine domain contexts/front doors this seam threads.
+  const deps = {
+    db: NO_DB,
+    now: () => 1000,
+    tagCtx: {},
+    settingsCtx: {},
+    presetCtx: {},
+    worldInfoExportCtx: {},
+    importStandaloneLorebook: vi.fn(),
+    galleryCtx: {},
+    databankCtx: {},
+    persona: { list: vi.fn(), export: vi.fn(), import: vi.fn() },
+    exportService: { exportCharacter: vi.fn(), exportChatBundle: vi.fn(), listHostChats: vi.fn() },
+    character: { listEmbeddableCharacterIds: vi.fn(), create: vi.fn(), update: vi.fn(), findByImportHash: vi.fn(), findByHandle: vi.fn() },
+    assets: { store: vi.fn() },
+    attachCardTag: vi.fn(),
+    attachChatTag: vi.fn(),
+    importRpgGame: vi.fn(),
+    importWorldInfo: { importLorebook: vi.fn(), linkCarriedBooks: vi.fn() },
+    importCardScripts: vi.fn(),
+    exportRegexScripts: vi.fn(),
+    importRegexScript: vi.fn(),
+    importPresetScripts: vi.fn(),
+    importGlobalScripts: vi.fn(),
+    attachBooksByName: vi.fn(),
+    bulkImportChats: vi.fn(),
+    bulkImportPersonas: vi.fn(),
+    resolveOwnerPrincipal: vi.fn(() => Promise.resolve(principal(OWNER))),
+    workloads: { start: vi.fn(() => Promise.resolve({ id: "wl_1" })) },
+    ...overrides,
+  } as unknown as PortabilityRunnerComposeDeps;
+  return buildPortabilityRunner(deps);
+}
+
+/** Read the first `n` events off ONE live user-bus iterator (`on()` buffers from subscribe). Taking them
+ *  from a single iterator matters: `for await … return` CLOSES the iterator, so two separate reads would
+ *  lose whatever the first one closed over. */
+async function take(stream: AsyncIterable<UserBusEvent>, n: number): Promise<UserBusEvent[]> {
+  const out: UserBusEvent[] = [];
+  for await (const event of stream) {
+    out.push(event);
+    if (out.length === n) {
+      return out;
+    }
+  }
+  throw new Error(`stream ended after ${out.length} of ${n} events`);
+}
+
+beforeEach(async () => {
+  stagedRoot = await mkdtemp(join(tmpdir(), "orb-runner-test-"));
+});
+
+afterEach(async () => {
+  await rm(stagedRoot, { recursive: true, force: true });
+});
+
+describe("buildPortabilityRunner — the staging root must agree with what the upload routes wrote", () => {
+  test("absent ⇒ the OS temp dir — byte-identical to `entry/http/import.ts`'s own default", () => {
+    expect(build().importWorkloads.stagingRoot).toBe(tmpdir());
+  });
+
+  test("supplied ⇒ that exact root (the fence staged handles must resolve strictly inside)", () => {
+    expect(build({ importStagingDir: stagedRoot }).importWorkloads.stagingRoot).toBe(stagedRoot);
+  });
+
+  test("the ST profile default is the gitignored repo-root snapshot, never the cwd or a temp dir", () => {
+    expect(build().importWorkloads.stProfileDir).toBe(".st-data");
+    expect(build({ stProfileDir: "/srv/st" }).importWorkloads.stProfileDir).toBe("/srv/st");
+  });
+});
+
+describe("buildPortabilityRunner — quiet mode wraps the bulk runs without swallowing their counts", () => {
+  test("a staged-dir import over an EMPTY tree still returns real counts through the quiet scope", async () => {
+    const { importWorkloads } = build({ importStagingDir: stagedRoot });
+
+    const counts = await importWorkloads.runStagedDirImport({ stagedPath: stagedRoot, ownerId: OWNER, signal: new AbortController().signal });
+
+    // 0/0/0 here is the HONEST answer for an empty tree — the point is that a value came back at all
+    // (a `withQuietBulkFanout` that dropped the return would surface `undefined`).
+    expect(counts).toStrictEqual({ imported: 0, skipped: 0, failed: 0 });
+  });
+});
+
+describe("buildPortabilityRunner — the terminal library fan (#23) reaches ONLY the target owner", () => {
+  test("emits BOTH `charactersChanged` and a chat-list refresh onto the owner's channel", async () => {
+    const { importWorkloads } = build();
+    const abort = new AbortController();
+    const stream = subscribeUserEvents(OWNER, abort.signal);
+
+    importWorkloads.emitLibraryChanged({ ownerId: OWNER });
+
+    const [first, second] = await take(stream, 2);
+    expect(first).toStrictEqual({ type: "charactersChanged" });
+    // `chatsChanged` with no chatId drives BOTH the chat list and character.list in the client's bus map.
+    expect(second).toMatchObject({ type: "chatsChanged" });
+    abort.abort();
+  });
+
+  test("another owner's channel receives NOTHING (a bulk import is one account's event)", async () => {
+    const { importWorkloads } = build();
+    const abortOther = new AbortController();
+    const otherStream = subscribeUserEvents(OTHER, abortOther.signal);
+
+    importWorkloads.emitLibraryChanged({ ownerId: OWNER });
+    // Then a marker onto OTHER's own channel: if the owner's fan had leaked, OTHER's FIRST yield would be
+    // `charactersChanged` instead of this marker.
+    const marker: UserBusEvent = { type: "settingsChanged" };
+    const { publishUserEvent } = await import("@orb/server/transport/trpc");
+    publishUserEvent(OTHER, marker);
+
+    expect(await take(otherStream, 1)).toStrictEqual([marker]);
+    abortOther.abort();
+  });
+});
+
+describe("buildPortabilityRunner — the registry and the workload bundle are both produced", () => {
+  test("the portability registry is composed here (twelve descriptors, the shared import slice)", () => {
+    const { portability } = build();
+
+    expect(portability).toHaveLength(12);
+    expect(portability.map((e) => e.kind)).toContain("character");
+  });
+
+  test("the workload bundle carries every op the import contributions need", () => {
+    const { importWorkloads } = build();
+
+    for (const key of [
+      "stagingRoot",
+      "stProfileDir",
+      "listTokenUsageCandidates",
+      "compareAndSetTokenUsage",
+      "runProfileDirImport",
+      "runBundleImport",
+      "runStagedDirImport",
+      "reconcileImportStats",
+      "emitLibraryChanged",
+    ]) {
+      expect(Object.hasOwn(importWorkloads, key)).toBe(true);
+    }
+  });
+});
