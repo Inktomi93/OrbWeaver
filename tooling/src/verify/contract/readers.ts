@@ -1,6 +1,6 @@
 // The shape the per-bus producer-coverage reconcile speaks (lib/bus-coverage.ts): each bus's thin gate
 // supplies a `BusCoverageSpec` and THIS is the one home for it. Homed in contract/ per the five-slot type
-// law (docs/design/tooling-package.md §2.5).
+// law (docs/architecture/core/Core-Tooling-Law.md §2.5).
 
 /** How a bus's `*_EVENT_TYPES` belt is written: an object literal
  *  (`{ delta: true } satisfies Record<X["type"], true>`) or an array literal

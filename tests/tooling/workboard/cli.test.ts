@@ -1,6 +1,6 @@
 // The Project-1 operator CLI, driven end-to-end against a fake `gh` that speaks the real wire protocol
 // (named GraphQL operations, typed -f/-F variables, the REST rate_limit probe). Relocated from
-// tests/tooling/work-item-cli.test.ts at the #393 P5 move (tooling-package.md §4.7 mirror).
+// tests/tooling/work-item-cli.test.ts at the #393 P5 move (Core-Tooling-Law.md §4.7 mirror).
 //
 // STATED DEVIATION from §5.1's runCli door: `drive` stays a SYNCHRONOUS spawn. runCli is async, and this
 // suite drives ~40 sequential invocations whose ORDER carries the assertion (a state machine advanced by

@@ -80,7 +80,7 @@ test("a caption takes its NATURAL width; only a long name truncates, and the ful
   // NATURAL, not fixed: the two captions differ in width because each takes its own content's. This
   // replaces a `> 40px` floor that silently encoded the caption's letter-spacing — the density pass moved
   // the caption onto the `label` VOICE, which drops the micro-caps `tracking` a lowercase name never
-  // wanted, and the same un-clipped "Azarael" now measures ~36px (density-pass-spec.md §2.3).
+  // wanted, and the same un-clipped "Azarael" now measures ~36px (UI-Density-Law.md §2.3).
   expect(short.width).not.toBe(long.width);
   expect(long.overflow).toBe("hidden");
   expect(long.textOverflow).toBe("ellipsis");

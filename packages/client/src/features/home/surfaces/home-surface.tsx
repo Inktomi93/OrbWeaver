@@ -152,7 +152,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
   const shelfLead = doorways.length === 0 ? shelf : shelf.slice(0, -1);
 
   return (
-    // FORM tier (density-pass-spec.md §3.1): home is a surface you land on and act from, so its islands
+    // FORM tier (UI-Density-Law.md §3.1): home is a surface you land on and act from, so its islands
     // resolve the airy steps. It keeps the tier even though the tiles lost their cards — the tier is what
     // the ONE surviving island (the hearth hero) resolves its padding and radius from.
     <Surface tier="form">

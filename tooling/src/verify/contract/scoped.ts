@@ -1,6 +1,6 @@
 // Result shapes for the non-gate verify verbs: the SCOPED single-pass run, the gate self-proof
 // (conformance), the db schema-vs-baseline reconcile, the client boot-chunk ratchet, and the committed-
-// ledger freshness stage. Homed here per the five-slot type law (docs/design/tooling-package.md §2.5).
+// ledger freshness stage. Homed here per the five-slot type law (docs/architecture/core/Core-Tooling-Law.md §2.5).
 import type { GateDescriptor } from "./gate.ts";
 import type { PassResult } from "./pass.ts";
 

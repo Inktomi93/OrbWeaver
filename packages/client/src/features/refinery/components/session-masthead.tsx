@@ -5,7 +5,7 @@
 // `voice="label"` (13px), the same step as every field name in the payload beneath it, on a surface whose
 // entire job is "iterate THIS card". The #102 ramp assigns the display step to a surface's one opening
 // statement and this is it; `masthead` rather than `hero` because a NAME is a sentence, not a figure that
-// counts up (hero's mono/tabular face reads as a serial — density-pass-spec.md §2.3).
+// counts up (hero's mono/tabular face reads as a serial — UI-Density-Law.md §2.3).
 //
 // THE STATE LINE IS §20b's ONE PLACE draft flips to written, unchanged: the git-terms model rides the copy,
 // never the words. The CREDIT line beside it ("anchored … · model · round N") is the film-credit register

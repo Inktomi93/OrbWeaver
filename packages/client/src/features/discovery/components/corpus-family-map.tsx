@@ -3,7 +3,7 @@
 // clustering is, on an un-analysed library, the ONLY thing the corpus has actually computed — so the map is
 // what the surface is FOR, and this component is the thing the state-swap promotes and demotes.
 //
-// IT RENDERS AT TWO WEIGHTS AND THE WEIGHT IS THE WHOLE POINT (CD3, density-pass-spec.md §3.2 — exactly one
+// IT RENDERS AT TWO WEIGHTS AND THE WEIGHT IS THE WHOLE POINT (CD3, UI-Density-Law.md §3.2 — exactly one
 // element per surface may carry accent fill, glow, or elevated shadow at rest):
 //   • `focal` — the one elevated island: the rationed `--shadow-glow` on the sanctioned ::before carrier, at
 //     the token's own strength. Taken once the semantic pass has run and the map has something to be the

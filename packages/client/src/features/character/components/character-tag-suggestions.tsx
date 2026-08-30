@@ -3,7 +3,7 @@
 // plus "Suggest tags" (runs the on-demand distill producer). The "Manage tags" deep-link that used to sit
 // beside it is gone — see the §8-ceiling note at its old position.
 //
-// VOICE (density-pass-spec §3.2 CD3 — one focal element per surface): a suggestion is PENDING metadata, so
+// VOICE (UI-Density-Law §3.2 CD3 — one focal element per surface): a suggestion is PENDING metadata, so
 // it is the quietest thing on the editor. The chips are `ghost` badges — no fill, a hairline outline, the
 // muted text tone, the micro type size. Accent FILL is reserved for the ACCEPTED tags in CharacterTagsRow,
 // and `info` blue (which this surface uses nowhere else) is banned here: twelve filled blue pills outshouted

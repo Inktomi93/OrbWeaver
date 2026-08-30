@@ -2,7 +2,7 @@
  * floors below are deliberately UNLAYERED so no later @layer can out-specificity them. */
 @import "tailwindcss";
 @import "./theme.css";
-/* The density tier map (density-pass-spec.md §4.2) — hand-authored, UNLAYERED like theme.css: that is
+/* The density tier map (UI-Density-Law.md §4.2) — hand-authored, UNLAYERED like theme.css: that is
  * what lets `[data-surface-tier] …` beat a primitive's own utility default. */
 @import "./tiers.css";
 

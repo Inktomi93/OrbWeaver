@@ -1,5 +1,5 @@
 // THE SHARED, REPO-KEYED OWNERSHIP MARKER — <main-checkout>/.cache/snap-stage/active.json. Split out of
-// ops/stage.ts when that file crossed the tooling line cap (docs/design/tooling-package.md §4.3); it is
+// ops/stage.ts when that file crossed the tooling line cap (docs/architecture/core/Core-Tooling-Law.md §4.3); it is
 // one command family, and the one every other stage module reads.
 //
 // Every function here takes the MARKER ROOT (`markerRoot(repoRoot())`), never a checkout root: that is the

@@ -17,7 +17,7 @@
 //     synchronously, so it is already in the first commit), then a first-ever-open ESTIMATE at the top of the
 //     measured range. The estimate deliberately over-reserves: a too-tall reservation SHRINKS when the read
 //     lands, and #129-R1 ruled a shrink beats a push.
-//   · THE INSTRUMENT TIER (§7.4; density-pass-spec §3.1 names this exact surface): read-mostly, glanceable,
+//   · THE INSTRUMENT TIER (§7.4; UI-Density-Law §3.1 names this exact surface): read-mostly, glanceable,
 //     many data per cm². It wraps the BAND here and each game tab BODY at `rpg-context-section.tsx` — never
 //     the rails, which are the shell's and must render identically in every room (the ruling's whole point).
 //   · The band is DECORATION over the same reads the tab bodies own: on error it collapses to nothing (its

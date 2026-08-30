@@ -1,4 +1,4 @@
-// Gate: tooling-shared-plumbing (docs/design/tooling-package.md §4.4) — ONE home per plumbing capability.
+// Gate: tooling-shared-plumbing (docs/architecture/core/Core-Tooling-Law.md §4.4) — ONE home per plumbing capability.
 // Arms: (A) ts-morph `new Project(` outside _shared/ts-workspace.ts; (B) playwright `<engine>.launch(`
 // outside _shared/browser.ts; (C) a "reports"/"reports/…" literal fed to join/resolve/mkdir/mkdirSync
 // outside _shared/artifacts.ts; (D) `process.exit(` outside _shared/run-tool.ts (a bare exit drops the
@@ -132,11 +132,11 @@ function capability(node: Node): string | null {
 
 export const gate: GateDescriptor = {
   name: "tooling-shared-plumbing",
-  docRow: "Core-Enforcement-Active-Gates.md (docs/design/tooling-package.md §4.4)",
+  docRow: "Core-Enforcement-Active-Gates.md (docs/architecture/core/Core-Tooling-Law.md §4.4)",
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a second home for _shared plumbing — ts-morph Project construction, Playwright launch, reports/<kind> artifact filing, process.exit, and child_process spawning each have ONE sanctioned module (and every tool cli.ts enters through runTool — the exit-honesty runner); a respell here is the duplication class the tooling package was minted to end (docs/design/tooling-package.md §2.4/§4.4).",
+    "a second home for _shared plumbing — ts-morph Project construction, Playwright launch, reports/<kind> artifact filing, process.exit, and child_process spawning each have ONE sanctioned module (and every tool cli.ts enters through runTool — the exit-honesty runner); a respell here is the duplication class the tooling package was minted to end (docs/architecture/core/Core-Tooling-Law.md §2.4/§4.4).",
   fix: "call the _shared home (ts-workspace getWorkspace / browser launchProbeSession / artifacts artifactFile / run-tool runTool / proc spawnNiced-runNicedSync) instead of respelling it.",
   scanRoot: (p) => p.startsWith(TOOLING_PREFIX),
   kinds: [SyntaxKind.CallExpression, SyntaxKind.NewExpression, SyntaxKind.ImportDeclaration],
@@ -188,7 +188,7 @@ export const gate: GateDescriptor = {
         line: 0,
         column: 0,
         message:
-          "a tool cli.ts must enter through runTool (_shared/run-tool.ts) — the exit-honesty runner owns crash≠verdict, pipe-drain and never-downgrade (docs/design/tooling-package.md §4.4).",
+          "a tool cli.ts must enter through runTool (_shared/run-tool.ts) — the exit-honesty runner owns crash≠verdict, pipe-drain and never-downgrade (docs/architecture/core/Core-Tooling-Law.md §4.4).",
       });
     }
   },
@@ -203,7 +203,7 @@ export const gate: GateDescriptor = {
           file: home,
           line: 0,
           column: 0,
-          message: `stale HOMES row — "${home}" no longer carries its capability (row why: ${row.why}). Re-key or delete the row (docs/design/tooling-package.md §4.4).`,
+          message: `stale HOMES row — "${home}" no longer carries its capability (row why: ${row.why}). Re-key or delete the row (docs/architecture/core/Core-Tooling-Law.md §4.4).`,
         });
       }
     }
@@ -213,7 +213,7 @@ export const gate: GateDescriptor = {
           file: site,
           line: 0,
           column: 0,
-          message: `stale PROJECT_SITES row — "${site}" no longer constructs a ts-morph Project (row why: ${row.why}). Delete the row (docs/design/tooling-package.md §4.4).`,
+          message: `stale PROJECT_SITES row — "${site}" no longer constructs a ts-morph Project (row why: ${row.why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.4).`,
         });
       }
     }
@@ -223,7 +223,7 @@ export const gate: GateDescriptor = {
           file: caller,
           line: 0,
           column: 0,
-          message: `stale FULL_PRIORITY_CALLERS row — "${caller}" no longer calls a full-priority door (row why: ${row.why}). Delete the row (docs/design/tooling-package.md §4.4).`,
+          message: `stale FULL_PRIORITY_CALLERS row — "${caller}" no longer calls a full-priority door (row why: ${row.why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.4).`,
         });
       }
     }

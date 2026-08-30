@@ -13,7 +13,7 @@
 //   • toExitWith(code) — the tooling exit contract (0 clean · 1 violations · 2 tool-broke · 3 misuse,
 //     @orb/tooling/_shared/exit-contract) over a runCli result: names BOTH codes by contract name and
 //     prints stdout/stderr tails on mismatch — a bare `expect(res.code).toBe(0)` failure prints `1 ≠ 0`
-//     and nothing else, which is why the class exists (docs/design/tooling-package.md §5.2).
+//     and nothing else, which is why the class exists (docs/architecture/core/Core-Tooling-Law.md §5.2).
 //
 // CROSS-REALM NOTE: `@trpc/server` is NOT a root dependency (only `packages/server` declares it), so this
 // file cannot `instanceof TRPCError`. It duck-types `e.name === "TRPCError" && typeof e.code === "string"`

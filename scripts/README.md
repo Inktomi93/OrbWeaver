@@ -1,7 +1,7 @@
 # `scripts/` — the research zone (explicitly throwaway)
 
 > The durable tool fleet LEFT this tree. Every standing instrument, checker, codemod, launcher, and
-> operator CLI now lives in `tooling/` as `@orb/tooling` (`docs/design/tooling-package.md`; the
+> operator CLI now lives in `tooling/` as `@orb/tooling` (`docs/architecture/core/Core-Tooling-Law.md`; the
 > constitution's tooling-tree law is `docs/architecture/core/Core-0-Architecture-and-Structure.md` §9).
 > What remains here is deliberately throwaway: probe rigs, one-shot lenses, launcher shims, and
 > operator scripts. **Nothing here is law, and nothing here is a fleet instrument.**
@@ -111,7 +111,7 @@ reversible arm of leaving them here. The durable home is the package that owns t
 `probes/useless-fragments.ts` — deleted 2026-08-22 by orchestrator ruling. Biome's `noUselessFragments`
 is already on at `error` and covers the element-nested class; the script's residual return-position
 single-child cases are style-tier, and `GATE-AUTHORING.md` §10 bans mirroring an enabled native rule.
-**No replacement gate exists or should be built** (`docs/design/tooling-package.md` §7 carries the
+**No replacement gate exists or should be built** (`docs/architecture/core/Core-Tooling-Law.md` §7 carries the
 measured receipt).
 
 ## Deleted by owner ruling (2026-08-22) — git history preserves them

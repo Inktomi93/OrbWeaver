@@ -49,7 +49,7 @@ function isTypeHome(path: string): boolean {
   // shape. Do NOT reintroduce a path clause for a subsystem — a tool subsystem is domain code.
   // @orb/tooling: `_shared/` is the plumbing floor (the tooling analog of kit) and `<tool>/contract/`
   // rides the `/contract/` clause above — a tool's ops/lib exporting a shape is judged, forcing the
-  // five-slot discipline (docs/design/tooling-package.md §2.5).
+  // five-slot discipline (docs/architecture/core/Core-Tooling-Law.md §2.5).
   if (path.includes("/tooling/src/_shared/")) {
     return true;
   }
@@ -136,7 +136,7 @@ export const gate: GateDescriptor = {
       files: "export type Foo = string;\n",
       at: "tooling/src/snap/ops/capture.ts",
       expect: { count: 1 },
-      why: "a tool's ops/ exporting a shape — tool types live in the tool's contract/ slot (tooling-package.md §2.5)",
+      why: "a tool's ops/ exporting a shape — tool types live in the tool's contract/ slot (Core-Tooling-Law.md §2.5)",
     },
     {
       files: "export interface Foo { x: string }\n",
@@ -159,7 +159,7 @@ export const gate: GateDescriptor = {
     {
       files: "export type Foo = string;\n",
       at: "tooling/src/_shared/x.ts",
-      why: "tooling _shared is the plumbing floor — a sanctioned type home (tooling-package.md §2.4)",
+      why: "tooling _shared is the plumbing floor — a sanctioned type home (Core-Tooling-Law.md §2.4)",
     },
     {
       files: "export type Foo = string;\n",

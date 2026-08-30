@@ -1,6 +1,6 @@
 // The single-pass RESULT shapes — what one gate run produced and what the harness observed while it ran.
 // Homed here (not beside the dispatcher) because the five-slot template puts every exported shape in
-// contract/ (docs/design/tooling-package.md §2.5); lib/pass.ts is the machine, this is its vocabulary.
+// contract/ (docs/architecture/core/Core-Tooling-Law.md §2.5); lib/pass.ts is the machine, this is its vocabulary.
 import type { Finding } from "./gate.ts";
 
 /** A gate's own count of units the shared walk cannot see (`ctx.scan({unit,…})`). */

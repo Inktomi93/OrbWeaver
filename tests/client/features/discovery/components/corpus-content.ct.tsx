@@ -6,7 +6,7 @@
 //     only a mount can prove that the predicate reaches the DOM — which island exists, which one carries
 //     the focal treatment, and that the other one is still present and merely quiet.
 //   • CD3 BY COUNT. Exactly one `[data-corpus-focal]` element in EVERY phase. Two would mean the surface
-//     has no focal (density-pass-spec.md §3.2), and that is a defect no assertion on either island alone
+//     has no focal (UI-Density-Law.md §3.2), and that is a defect no assertion on either island alone
 //     can see.
 //   • THE FOCAL TREATMENT BY COMPUTED VALUE — never a class list. An authored `before:shadow-glow` string
 //     stays green through a visual regression; a measured ::before opacity and box-shadow do not. (The

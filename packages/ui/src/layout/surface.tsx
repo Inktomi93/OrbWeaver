@@ -1,4 +1,4 @@
-// Surface — the ONE writer of `data-surface-tier` (density-pass-spec.md §4.1). A surface declares which
+// Surface — the ONE writer of `data-surface-tier` (UI-Density-Law.md §4.1). A surface declares which
 // of the two density tiers its subtree is (`instrument` = read-mostly, scanned, dense · `form` =
 // write-mostly, one decision per row, airy); `styles/tiers.css` turns that attribute into the island
 // padding/radius every primitive underneath resolves. Features therefore never express island spacing or
@@ -18,7 +18,7 @@ import type { ComponentProps, ReactElement } from "react";
 const SURFACE_ELEMENTS = { div: "div", span: "span" } as const;
 type SurfaceElement = keyof typeof SURFACE_ELEMENTS;
 
-/** The two density tiers (density-pass-spec.md §3) — a surface has exactly one. */
+/** The two density tiers (UI-Density-Law.md §3) — a surface has exactly one. */
 export type SurfaceTier = "instrument" | "form";
 
 export interface SurfaceProps extends Omit<ComponentProps<"div">, "className"> {
@@ -29,7 +29,7 @@ export interface SurfaceProps extends Omit<ComponentProps<"div">, "className"> {
 }
 
 /**
- * Declares its subtree's density tier (density-pass-spec.md §3.1).
+ * Declares its subtree's density tier (UI-Density-Law.md §3.1).
  *
  * Usage: `<Surface tier="instrument">…a list pane / context panel…</Surface>` ·
  * `<Surface tier="form">…a settings pane / editor / dialog body…</Surface>`.

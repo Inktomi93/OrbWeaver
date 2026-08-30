@@ -86,7 +86,7 @@ test("rounded shape uses the PORTRAIT radius token (§B.3 avatar versatility)", 
   );
   const root = page.locator('[data-slot="avatar-root"]');
   // rounded = --radius-base (0.5rem = 8px). It was --radius-card until the density pass S2: `card` is the
-  // FLOATING-island step (density-pass-spec.md §2.1 / D6) and `base` is the one assigned to portraits.
+  // FLOATING-island step (UI-Density-Law.md §2.1 / D6) and `base` is the one assigned to portraits.
   await expect(root).toHaveCSS("border-radius", "8px");
 });
 

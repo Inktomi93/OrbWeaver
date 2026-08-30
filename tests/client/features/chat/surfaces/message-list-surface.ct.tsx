@@ -556,7 +556,7 @@ test("no compaction fact when previewContextFit reports no covering summary (pla
   await expect(component.locator('[data-slot="compact-summary-peek"]')).toHaveCount(0);
 });
 
-// DENSITY S6 (density-pass-spec.md §2.3): the divider names a REGION of the transcript ("everything below
+// DENSITY S6 (UI-Density-Law.md §2.3): the divider names a REGION of the transcript ("everything below
 // this line is in context"), which is the `kicker` voice — micro caps at the section-name weight, with the
 // hairline rules either side. Read back computed, because the caps + micro half of that shape was already
 // true by taste and only the WEIGHT (and the `voice` attribute that pins the intent) distinguishes a

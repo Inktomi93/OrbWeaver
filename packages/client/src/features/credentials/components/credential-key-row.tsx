@@ -182,7 +182,7 @@ function formatHealth(health: CredentialHealth, isCustom: boolean): string {
 }
 
 // The result's colour as a TOKEN CLASS, not a `tone` prop: a voice carries its own colour, so the outcome
-// tint rides className and wins over `gloss`'s muted default (density-pass-spec.md §2.3).
+// tint rides className and wins over `gloss`'s muted default (UI-Density-Law.md §2.3).
 function testResultToneClass(result: TestResult): string {
   if (result.kind === "error") {
     return "text-destructive";

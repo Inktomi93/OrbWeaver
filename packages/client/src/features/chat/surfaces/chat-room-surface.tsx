@@ -106,7 +106,7 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
 
   return (
     <ThemeScope tokens={roomTheme ?? {}} className="contents">
-      {/* DENSITY S6 (density-pass-spec.md §3.1): the chat transcript AND the composer are both the
+      {/* DENSITY S6 (UI-Density-Law.md §3.1): the chat transcript AND the composer are both the
           INSTRUMENT tier, so the room declares it ONCE for the whole pane — the two are one continuous
           reading surface, and a second declaration would be the same-tier nesting the spec calls RED.
           `<Surface>` is display:contents, so nothing in this pane's height chain moves. */}

@@ -314,7 +314,7 @@ export default tseslint.config(
     // (type-aware, rides the parser block above) rejects any USE of a `@deprecated` symbol. `tsdoc/syntax`
     // (eslint-plugin-tsdoc — the official parser) rejects malformed doc comments + non-standard tags: a
     // `{...}` prose token wants backticks (TSDoc reads `{` as an inline-tag opener), a bare `@orb/...`
-    // package name wants `{@link}`. See docs/Documentation-Law.md §Enforcement.
+    // package name wants `{@link}`. See docs/architecture/core/Documentation-Law.md §Enforcement.
     files: TSDOC_SURFACE,
     plugins: { "@typescript-eslint": tseslint.plugin, tsdoc },
     rules: {

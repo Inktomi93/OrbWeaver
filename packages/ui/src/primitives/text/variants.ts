@@ -33,10 +33,11 @@ export const textVariants = tv({
       none: "",
       caps: "uppercase",
     },
-    // THE VOICE GRAMMAR (density-pass-spec.md §2.3 — four content voices + `monogram`, added S6 for the
-    // decorative glyph the four could not carry) — the closed axis that replaces choosing
+    // THE VOICE GRAMMAR (UI-Density-Law.md §2.3) — the closed axis that replaces choosing
     // size×weight×tone×transform per call site by taste (336 legal combinations, which is the mechanism by
     // which nothing recedes). A voice is an INTENT: what this text IS on the surface, not how it looks.
+    // THIS TUPLE IS THE TRUTH, not any doc table — §2.3 rules that a new arm enters only with its
+    // discriminator against the nearest existing voice stated beside its class string, as below.
     //
     // DECLARED LAST ON PURPOSE: tv() emits variant classes in key order and `defaultVariants` always
     // supplies size/weight/tone/transform, so every conflicting axis a voice sets must come AFTER them for

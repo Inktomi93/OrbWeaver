@@ -1,5 +1,5 @@
 // snap's programmatic front door — what tests and sibling tools import; the cli fronts this surface.
-// One tool, one API (docs/design/tooling-package.md §2.5).
+// One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5).
 export type { FixtureStatus, FixtureTarget, FixtureTargetOverride } from "./contract/fixture.ts";
 export type {
   ActiveStage,
@@ -43,7 +43,7 @@ export { snap } from "./ops/run.ts";
 export { parseScenarioSpec, snapScenario } from "./ops/scenario.ts";
 // The isolated stage is snap-OWNED plumbing with a SECOND consumer (#678): design-audit boots the same
 // stage so a rendered fix can be audited BRANCH-SIDE. Cross-tool consumption enters here, through the
-// front door — the stage set stays one home in snap/ (docs/design/tooling-package.md §2.4 + §4.2).
+// front door — the stage set stays one home in snap/ (docs/architecture/core/Core-Tooling-Law.md §2.4 + §4.2).
 export { ensureStage } from "./ops/stage.ts";
 export { tryResolveRef } from "./ops/stage-git.ts";
 export { hasSnapFailure } from "./ops/verdict.ts";
