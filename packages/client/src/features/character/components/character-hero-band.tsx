@@ -39,6 +39,24 @@ import { CharacterGreetingPreview } from "./character-greeting-preview.tsx";
 import { CharacterTagSuggestions } from "./character-tag-suggestions.tsx";
 import { CharacterTagsRow } from "./character-tags-row.tsx";
 
+/** THE HERO'S GLANCE ECHOES STAND DOWN WHILE THE CONTEXT PANE IS OPEN (#875 F5, side-eye 2026-08-30) —
+ *  the shell marker `shell.css` keys the yield on, exactly as the topbar's identity yields to the chat
+ *  band (#846). Measured at 1280 dock+dock: the portrait, the name, `@sabine`, the Own-look trigger and
+ *  the chat count all rendered TWICE about 500px apart, and `design-audit` fired `duplicate-action-door`
+ *  on "own look" and "chats" in both the desktop and mobile arms without being asked.
+ *
+ *  #513's RULING SURVIVES — ITS INPUT CHANGED. On 2026-08-22 the CONTEXT pane's echo group was deleted for
+ *  exactly this collision, with the reason stated as "the hero prints the handle and its `1 chat ›`"
+ *  (`character-overview-card.tsx`). #860's owner-ruled mock then gave the pane a HEAD BAND whose contract
+ *  is the artifact's identity — so the de-dup still holds and its direction flips: while the band is on
+ *  screen it is the identity's one home, and the hero yields the same three items.
+ *
+ *  WHAT DOES NOT CARRY THE MARKER, deliberately: the NAME field and the PORTRAIT. They are the only rename
+ *  and avatar-replace affordances on the surface — the band's `h2` and its 36px avatar are a GLANCE, these
+ *  are the EDITOR — and hiding an affordance because a read-only copy of its value sits elsewhere would be
+ *  a new defect one screen over. */
+const HERO_ECHO_CLASS = "shell-character-hero-echo";
+
 /** The identity/preview subset of the owner card the hero renders — draft card fields flow through `form`. */
 export interface CharacterHeroDetail {
   readonly id: CharacterId;
@@ -95,11 +113,13 @@ export function CharacterHeroBand({
           <Row align="center" gap="row" className="flex-wrap">
             <Stack className="min-w-0 flex-1" gap="field">
               <form.AppField name="name">{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
-              <Text voice="gloss" className="font-mono">
+              <Text voice="gloss" className={`font-mono ${HERO_ECHO_CLASS}`}>
                 @{detail.handle}
               </Text>
             </Stack>
-            <OwnLookMark themeOverride={detail.themeOverride} />
+            <Row align="center" className={HERO_ECHO_CLASS}>
+              <OwnLookMark themeOverride={detail.themeOverride} />
+            </Row>
           </Row>
           <HeroActions spoilerBlur={spoilerBlur} onNewChat={onNewChat} onViewChats={onViewChats} chatCount={chatCount} />
         </Stack>
@@ -232,8 +252,12 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
               {null}
             </ThemeScope>
             {/* The kicker register at its own weight (#573): this mark was micro-caps-muted at REGULAR
-                weight — the same micro-caps tag `kicker` paints, one axis short of it. */}
-            <Text voice="kicker">Own look</Text>
+                weight — the same micro-caps tag `kicker` paints, one axis short of it. `interactiveKicker`,
+                not `kicker` (#875 F6, 2026-08-30): this text is the VISIBLE LABEL OF A BUTTON, and `kicker`
+                is the 10.5px micro step — under the 11px readable floor the context rail beside it refused
+                to break ("the readable-floor ruling stands", context-rail.tsx). design-audit measured it as
+                `undersized-ui-text` on both bands in every arm. Same instrument register, readable step. */}
+            <Text voice="interactiveKicker">Own look</Text>
           </Button>
         }
       />
@@ -261,7 +285,9 @@ function HeroActions({
         New chat
       </Button>
       {chatCount > 0 ? (
-        <Button type="button" intent="ghost" onClick={onViewChats}>
+        // The chat-count DOOR is a glance echo of the band's `N chats` chip and of the rail's own Chats
+        // cell — `duplicate-action-door` names it twice. It yields with the handle (see HERO_ECHO_CLASS).
+        <Button type="button" intent="ghost" onClick={onViewChats} className={HERO_ECHO_CLASS}>
           {chatCount} {chatCount === 1 ? "chat" : "chats"}
           <Icon icon={ChevronRight} size="sm" />
         </Button>

@@ -8,19 +8,18 @@ import type { Viewport } from "../../_shared/argv.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { ringBackdrop } from "../../_shared/pixel-backdrop.ts";
 import type { Rgb } from "../../_shared/wcag.ts";
-import { contrastRatio, INACTIVE_KIND_EXPR, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../_shared/wcag.ts";
+import {
+  compositeForeground,
+  contrastRatio,
+  FOREGROUND_OPACITY_EPS,
+  INACTIVE_KIND_EXPR,
+  isLargeText,
+  LARGE_MIN_RATIO,
+  NORMAL_MIN_RATIO,
+} from "../../_shared/wcag.ts";
 import type { ContrastBox, ContrastFacts, ContrastMeasured } from "../contract/contrast.ts";
 import type { ContrastOutcome } from "../contract/types.ts";
-import {
-  BOLD_WEIGHT,
-  compositeForeground,
-  contrastExemption,
-  FOREGROUND_OPACITY_EPS,
-  isContrastMeasured,
-  parseRgbString,
-  refuseContrastVerdict,
-  UI_COMPONENT_MIN_RATIO,
-} from "../lib/contrast-verdict.ts";
+import { BOLD_WEIGHT, contrastExemption, isContrastMeasured, parseRgbString, refuseContrastVerdict, UI_COMPONENT_MIN_RATIO } from "../lib/contrast-verdict.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 

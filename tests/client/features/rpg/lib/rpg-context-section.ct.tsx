@@ -2507,9 +2507,18 @@ test("HUD-1 §4: the NON-OWNING rail recedes and the owning one lifts — the se
   const component = await mount(<RpgTakeoverStory />);
   const gameList = component.getByRole("toolbar", { name: "Game state" });
   const adminList = component.getByRole("toolbar", { name: "Chat" });
-  // The fill rides the RAIL BLOCK (kicker + cells), not the bare toolbar, since #860 — and the receded rail
-  // is no longer bare ground (#861): it wears a QUIETER step of the same fill. So "recedes" is asserted as
-  // the two fills DIFFERING, both painted, rather than one of them being transparent.
+  // The fill rides the RAIL BLOCK (kicker + cells), not the bare toolbar, since #860.
+  //
+  // THE RECEDED RAIL IS BARE GROUND AGAIN — and this pin's PREMISE, not its ruling, is what changed
+  // (#875 F2, owner-ruled 2026-08-30). #861's fix gave it "a quieter step of the same fill" and this test
+  // pinned that as `both painted`. Side-eye then decoded the framebuffer: the quieter step composited to
+  // **1.001:1** against the pane — it was never on screen, and the pin was green over an invisible fill.
+  // The owner-approved artboard draws NO `.rail.recede` fill at all, so the fill is the mock's again
+  // (`--raised` = `surface-raised` on the owning rail only) and the ownership axis is carried by the
+  // things that MEASURE: the owning fill, the kicker voices, the `pb-row` floor, the top hairline.
+  // So: the owning rail is painted, the receded one is the pane, and they DIFFER. The composited
+  // ordering — including the kicker inversion #861 actually filed — is pinned in pixels by the
+  // framebuffer arms of `tests/client/features/app-shell/components/context-bracket.ct.tsx`.
   const fill = (list: ReturnType<typeof component.getByRole>): Promise<string> =>
     list.evaluate((el) => getComputedStyle(el.closest('[data-slot="context-rail"]') ?? el).backgroundColor);
   const captionColor = (list: ReturnType<typeof component.getByRole>, tabName: string, word: string): Promise<string> =>
@@ -2523,7 +2532,7 @@ test("HUD-1 §4: the NON-OWNING rail recedes and the owning one lifts — the se
   const gameFill = await fill(gameList);
   const adminFill = await fill(adminList);
   expect(gameFill).not.toBe(transparent);
-  expect(adminFill).not.toBe(transparent);
+  expect(adminFill).toBe(transparent);
   expect(adminFill).not.toBe(gameFill);
   const owningCaption = await captionColor(gameList, "Quests", "Quests");
   const recededCaption = await captionColor(adminList, "This chat", "This chat");
@@ -2984,11 +2993,19 @@ test("HUD-1 §7.3: with no ambient set the band COMPRESSES to one row — a smal
   // (packages/ui/src/charts/meter/variants.ts — the one sizing home; the step RELATION itself is pinned in
   // tests/ui/charts/meter/waystone.ct.tsx).
   expect(Math.round(stoneBox.width)).toBe(96);
-  // ONE ROW, and a cheap one: the WHOLE compressed band now occupies less height than the full form's stone
-  // alone (120px at this width) — against the 138px F6 measured for this exact state. It can only be that
-  // short because the copy, the cues and the satellites sit BESIDE the stone instead of stacked under it.
-  const fullStoneStep = 120;
-  expect(headerBox.height).toBeLessThan(fullStoneStep);
+  // ONE ROW, and a cheap one: the compressed band stays under the 138px F6 measured for this exact state,
+  // and it can only be that short because the copy, the cues and the satellites sit BESIDE the stone
+  // instead of stacked under it.
+  //
+  // THE BUDGET MOVED ONE LINE, DELIBERATELY (#875 F3, 2026-08-30). It used to be "less than the full
+  // form's stone alone (120px)"; the band now carries the ROOM'S NAME as its first line — an `h2` at the
+  // band voice, like the chat and character bands — because with the topbar correctly yielding to a docked
+  // pane (#846) a game room otherwise had NO heading anywhere on screen and `--aria` returned one flat
+  // text node. A name has to live somewhere and the head band's contract is naming the artifact; the other
+  // two bands pay the same line and were never budgeted against it. Measured after: 130.2px. The ceiling
+  // is the F6 number this test exists to hold, not the stone step.
+  const compressedBandCeiling = 138;
+  expect(headerBox.height).toBeLessThan(compressedBandCeiling);
   // …and the satellites really are in that row: past the stone's right edge, level with it.
   const orbBox = await component.locator('[data-slot="rpg-takeover-header"] [data-slot="ring-gauge"]').first().boundingBox();
   if (orbBox === null) {
@@ -3030,8 +3047,14 @@ test("HUD-1 §7.1: the HUD's chrome stays inside its vertical budget at the 30re
 
   // MEASURED 2026-08-01 at this reference: region 900 · band 141.75 · rails 116.375 · chrome 258.125 —
   // 28.7% of the pane, and the band is 54.9% of the chrome (it was 68%).
+  //
+  // RE-MEASURED 2026-08-30 (#875 F3): 32.9%. The band grew by ONE LINE — the room's NAME, an `h2` at the
+  // band voice, which #875 F3 required because a docked game room had no heading anywhere (the topbar
+  // yields, #846) and the band printed the scene LOCATION where the other two bands print the artifact.
+  // The ceiling moves by that line and no further; it is still a RATIO, still the same reference, and the
+  // band-share clause below (the thing F6 was actually about) is unchanged and still holds.
   const chrome = bandBox.height + railHeight;
-  expect(chrome / regionBox.height).toBeLessThanOrEqual(0.3);
+  expect(chrome / regionBox.height).toBeLessThanOrEqual(0.34);
   // …and the band is no longer the chrome's dominant tenant: the state it was WORST at (nothing set) is now
   // its cheapest form, so the 68% F6 measured is a line it may not cross back over.
   expect(bandBox.height / chrome).toBeLessThan(0.65);

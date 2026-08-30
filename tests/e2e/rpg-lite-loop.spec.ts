@@ -91,7 +91,7 @@ const ACTOR_TRACKER_DEFS: readonly Record<string, unknown>[] = [
  *  TOOLBAR, not a tablist (#112 — two rails off one Tabs root cannot both be honest tab groups).
  *  Idempotent. */
 async function openGamePanel(page: Page): Promise<void> {
-  const show = page.getByRole("button", { name: "Show detail panel" });
+  const show = page.getByRole("button", { name: "Show details" });
   if ((await show.count()) > 0) {
     await show.first().click();
   }

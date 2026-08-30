@@ -82,14 +82,10 @@
     ]
   },
   "packages/client/src/features/chat/components/chat-header.tsx": {
-    "count": 5,
-    "ratified": 5,
-    "why": "line89's `size=\"title\" weight=\"semibold\"` is the chat header's PAGE title — promoted-is-reserved (explicitly named alongside shell-topbar.tsx): `promoted` is for one item in a shelf, not a page/topbar title. line148's `size=\"micro\" tone=\"muted\" transform=\"caps\"` is the roster-chip seat count — one axis short of `kicker` (missing tracking + semibold + the hairline rule) and reads as a compact badge digit, not a section name; taking `kicker` would misuse a section-name voice on a numeric badge.",
-    "cite": [
-      "packages/client/src/features/chat/components/chat-header.tsx#L89",
-      "packages/client/src/features/chat/components/chat-header.tsx#L148",
-      "docs/architecture/core/UI-Density-Law.md#§2.3"
-    ]
+    "count": 2,
+    "ratified": 2,
+    "why": "line89's `size=\"title\" weight=\"semibold\"` is the chat header's PAGE title — promoted-is-reserved (explicitly named alongside shell-topbar.tsx): `promoted` is for one item in a shelf, not a page/topbar title. THE ROSTER-CHIP ROW IS GONE (shrunk 5→2 by lane cb-bracket-fix, #875 F6, 2026-08-30): the seat count's `size=\"micro\" tone=\"muted\" transform=\"caps\"` was ratified as \"one axis short of kicker … a compact badge digit\", but the chip is a BUTTON'S VISIBLE LABEL and 10.5px interactive text is under the readable floor the context rail beside it refuses to break — design-audit flagged the band mount as `undersized-ui-text` in every arm. It now takes `voice=\"interactiveKicker\"`, the voice minted for exactly this case (the micro-caps instrument register at the 13px label step), so the axes are no longer spelled by hand. Hand-shrunk, not regenerated — a whole-tree regen bakes in whatever else the tree carries.",
+    "cite": ["packages/client/src/features/chat/components/chat-header.tsx#L89", "docs/architecture/core/UI-Density-Law.md#§2.3"]
   },
   "packages/client/src/features/chat/components/home-temp-chat-tile-body.tsx": {
     "count": 3,

@@ -26,13 +26,17 @@ test("chats still has its list toggle — the capability is per-section, not a g
 });
 
 // ── THE PHONE ARM SPEAKS SCREENS, NOT PANELS (side-eye 2026-08-07 finding 4 · §14) ───────────────────
-// "Hide list panel" / "Show detail panel" name a REGION of a three-track desktop frame. A phone has no
+// "Hide list panel" names a REGION of a three-track desktop frame. A phone has no
 // such region: `resolvePanelMode` pins the LIST `docked` with nothing selected, so the roster IS the
 // screen and this control swaps which of the section's two screens is showing. The control is otherwise
 // UNCHANGED — the same wiring and the same ruled reachability (it is the only phone door to a section's
 // no-selection CONTENT, `state/panel-resolve.ts`'s owner-ruled mobile one-shell rule) — this pins the
 // words only. Driven at BOTH phone widths under a real coarse pointer, because a fine-pointer viewport
 // renders a layout no phone produces.
+//
+// THE CONTEXT TOGGLE NO LONGER FORKS (#875 F19, 2026-08-30): one control may not carry two accessible
+// names, so it says "Show details"/"Hide details" at every width. This fork SURVIVES for the LIST toggle
+// because its two names name two different DESTINATIONS on a phone, not two words for one region.
 
 const PHONE_WIDTHS = [320, 375] as const;
 

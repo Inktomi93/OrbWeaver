@@ -22,6 +22,7 @@ import { Popover, PopoverPopup, PopoverTitle, PopoverTrigger } from "@orb/ui/pop
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE } from "#components";
 import { useTRPC } from "#data";
 import type { RecallState } from "#state";
 import { useRecallState } from "#state";
@@ -76,14 +77,20 @@ export function ChatRecallIndicator({ chatId, viewerIsHost }: ChatRecallIndicato
             // inherited by accident and could not be reasoned about separately. It sheds at the same steps the
             // roster chip does (the 30rem phone column, and while the context pane whose band carries this
             // same indicator is docked), but the two now say so for their own reasons.
-            className="shell-chat-recall-chip whitespace-nowrap"
+            // The coarse INLINE touch floor (#875 F6): at rest this chip is glyph-only, so its `sm` height
+            // floor left it 40px wide against the 44px short side — the fragment's note carries the
+            // measurement.
+            className={`shell-chat-recall-chip whitespace-nowrap ${CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE}`}
             data-recall-phase={phase}
           >
             {/* The pulse is the ONLY motion, and only when recalling AND motion is allowed — a quiet breath,
                 never a spin (owner ruling). Under prefers-reduced-motion it is a static labeled icon. */}
             <Icon icon={BrainCircuit} size="sm" className={iconClass(recall)} />
             {count === null ? null : (
-              <Text as="span" voice="gloss" aria-hidden={true}>
+              // `datum`, not `gloss` (#875 F6): this digit is the visible label of a button, and `gloss` is
+              // the 10.5px micro step — under the 11px readable floor. `datum` is the VALUE voice at the
+              // 13px label step, which is what this digit is.
+              <Text as="span" voice="datum" aria-hidden={true}>
                 {count}
               </Text>
             )}

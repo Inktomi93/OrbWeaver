@@ -246,17 +246,27 @@ test("rail membership is honoured everywhere: a game tab lands in the state rail
   await expect(component.locator('[aria-current="true"]')).toHaveCount(1);
 });
 
-test("#861: the RECEDED rail rests on a surface with a floor under its cells, and its kicker is quieter than the owning one's", async ({ mount, page }) => {
+test("#861: the RECEDED rail pays a floor under its cells, and its kicker is quieter than the owning one's", async ({ mount, page }) => {
   // Side-eye measured the live foot rail while a GAME tab held the view: no fill, cells ending on the
   // viewport's own edge, and a kicker BRIGHTER than the owning rail's — a dead section header dangling at
-  // the pane's foot. The receded arm now recedes ONTO something.
+  // the pane's foot.
+  //
+  // WHAT #861'S FIX IS CREDITED WITH CHANGED (#875 F2, owner-ruled 2026-08-30). The "quieter step of the
+  // same fill" this pin used to assert composited to 1.001:1 against the pane — an invisible fill, green
+  // here and absent on screen — so the fill is the owner-approved artboard's again (owning rail only) and
+  // the receded rail is bare ground BY RULING. What rescues it is what this test now pins: the `pb-row`
+  // FLOOR, the top hairline, a kicker ink that differs, and the selection half only on the owning rail.
+  // The composited ORDER (band == owning > receded == pane; owning kicker louder than receded; every
+  // caption ≥ 4.5:1) is decoded out of the framebuffer in `context-bracket.ct.tsx` — a computed-style
+  // assertion structurally cannot see it, which is how the invisible fill passed for a day.
   const component = await mount(<ContextTabStatesStory />);
   const receded = railBlock(component, page, "Chat");
   const owning = railBlock(component, page, "Game state");
   await expect(receded).toHaveAttribute("data-owns", "false");
   await expect(owning).toHaveAttribute("data-owns", "true");
-  // A resting surface — never bare ground.
-  await expect.poll(() => receded.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(TRANSPARENT);
+  // The OWNING rail is the painted one; the receded rail is the pane it sits on.
+  await expect.poll(() => owning.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(TRANSPARENT);
+  await expect.poll(() => receded.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(TRANSPARENT);
   // A floor: the cells do not end on the pane's edge.
   const [cellsBottom, paneBottom] = await Promise.all([bottomOf(foot(component)), bottomOf(component)]);
   expect(paneBottom - cellsBottom).toBeGreaterThanOrEqual(4);
@@ -298,7 +308,7 @@ test("#850: the active cell wears the ember fill and a 2px primary bar on its bo
   await expect.poll(() => status.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(TRANSPARENT);
 });
 
-test("RV-7: the locked cell wears a padlock, names the lock, is dimmed — and OPENS onto its reason; never aria-disabled", async ({ mount }) => {
+test("RV-7: the locked cell wears a padlock, names the lock, dims only its ORNAMENTS — and OPENS onto its reason; never aria-disabled", async ({ mount }) => {
   const component = await mount(<ContextTabStatesStory />);
   const map = cell(state(component), "Map — locked");
   await expect(map).toBeVisible();
@@ -306,7 +316,20 @@ test("RV-7: the locked cell wears a padlock, names the lock, is dimmed — and O
   await expect(map).toHaveAttribute("title", "Maps unlock with the map arc (MA-3)");
   // Glyph + padlock: two SVGs in the cell.
   await expect(map.locator("svg")).toHaveCount(2);
-  await expect.poll(() => map.evaluate((el) => Number.parseFloat(getComputedStyle(el).opacity))).toBeLessThan(1);
+  // THE DIM MOVED OFF THE CELL ROOT (#874, side-eye 2026-08-30). This pin used to assert the ROOT was
+  // dimmed — which is exactly the defect: at `opacity: .6` the caption measured 3.65:1 (dark) / 2.67:1
+  // (light) on a control this build deliberately does NOT mark `aria-disabled`, so 1.4.3's disabled
+  // exemption does not reach it. The lock is carried by the ORNAMENTS (the glyph and the padlock —
+  // non-text content), and the word stays readable. The caption's ratio itself is pinned in pixels by
+  // `context-bracket.ct.tsx`'s caption sweep; this is the structural half.
+  await expect.poll(() => map.evaluate((el) => Number.parseFloat(getComputedStyle(el).opacity))).toBe(1);
+  const glyphOpacity = (index: number): Promise<number> =>
+    map
+      .locator("svg")
+      .nth(index)
+      .evaluate((el) => Number.parseFloat(getComputedStyle(el).opacity));
+  await expect.poll(() => glyphOpacity(0)).toBeLessThan(1);
+  await expect.poll(() => glyphOpacity(1)).toBeLessThan(1);
 
   await map.click();
   await expect(component.getByTestId("ctx-body-map")).toBeVisible();

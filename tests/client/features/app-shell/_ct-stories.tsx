@@ -790,6 +790,53 @@ const CTX_DEFAULT_TAB_TABS: readonly ResolvedContextTab[] = [
   resolvedTab({ id: "rpg.scene", label: "Scene", icon: Drama, node: <div data-testid="ctx-body-scene">scene</div>, strip: "game" }),
 ];
 
+/** THE OWNERSHIP AXIS, IN A REAL PANE SURFACE (#875 F1/F2 — the framebuffer arm of context-bracket.ct).
+ *
+ *  The bracket's two rails and its band are painted with ALPHA fills over the pane's own `sidebar`
+ *  surface, so a decode is only honest if the surface UNDER them is the production one. This story is the
+ *  `ContextTabStatesStory` set (two rails, a locked cell) mounted on `bg-sidebar` — what `.shell-panel`
+ *  paints — with a bare strip of that same surface beside the column to sample the "pane" reading from.
+ *  `paneWidth` exists because a story hard-wired to one width measures the docked pane at every viewport
+ *  ([[ct-viewport-under-48rem-hits-mobile-shell-arm]]). */
+export function ContextOwnershipStory({ paneWidth = 384, height = 700 }: { readonly paneWidth?: number; readonly height?: number }): ReactElement {
+  return (
+    <div className="flex bg-sidebar" style={{ width: paneWidth + PANE_PROBE_WIDTH, height }}>
+      {/* The pane's own background, unpainted — the decode's zero point. */}
+      <div data-testid="ctx-pane-surface" style={{ width: PANE_PROBE_WIDTH, height }} />
+      <div style={{ width: paneWidth, height }} data-testid="ctx-strip-container">
+        <ContextTabsPanel tabs={CTX_TAB_STATE_TABS} railLabel="Chat" header={<p data-testid="ctx-band-content">Example — Midnight Run</p>} />
+      </div>
+    </div>
+  );
+}
+
+/** Wide enough that the ring/median sample is the surface and not its neighbours' edge pixels. */
+const PANE_PROBE_WIDTH = 24;
+
+/** The LIVE meta roster of a host's game room, in the order the CONTRIBUTOR REGISTRIES produce it —
+ *  chat's own tabs, then rpg's crowned `Game` door, then automation's `Activity`. That order is the
+ *  #875 F15 defect (the crown wedged between two generic meta tabs); the bracket seats crowns last, and
+ *  the story hands it the WRONG order on purpose so the pin has something to fix. */
+const CTX_CROWN_ORDER_TABS: readonly ResolvedContextTab[] = [
+  resolvedTab({ id: "members", label: "Members", icon: Users, node: <div>members</div> }),
+  resolvedTab({ id: "settings", label: "This chat", icon: Settings, node: <div>this chat</div> }),
+  resolvedTab({ id: "preview", label: "Preview", icon: Eye, node: <div>preview</div> }),
+  resolvedTab({ id: "rpg.game", label: "Game", icon: Crown, node: <div>game</div>, crown: true }),
+  resolvedTab({ id: "activity", label: "Activity", icon: FlaskConical, node: <div>activity</div> }),
+];
+
+/** The meta rail with a CROWNED door mid-roster (#875 F15) — and at a width the five cells cannot fit,
+ *  so the same mount answers the OVERFLOW question (#875 F7/F8): does the rail SAY it is scrollable?
+ *  `paneWidth` is a prop because a story hard-wired to one width measures the pane at every viewport
+ *  ([[ct-viewport-under-48rem-hits-mobile-shell-arm]]) — the pin drives both ends of it. */
+export function ContextMetaRailStory({ paneWidth = 291 }: { readonly paneWidth?: number }): ReactElement {
+  return (
+    <div style={{ width: paneWidth, height: 480 }} data-testid="ctx-strip-container">
+      <ContextTabsPanel tabs={CTX_CROWN_ORDER_TABS} railLabel="Chat" />
+    </div>
+  );
+}
+
 /** The §4.1 preferred-default landing: `members` is the declared-order first, but `rpg.status` flags
  *  `defaultTab`, so a fresh panel (no stored contextTab) must land on Status, not Members. */
 export function ContextDefaultTabStory({ width = 291 }: { readonly width?: number }): ReactElement {

@@ -72,6 +72,7 @@ export function RpgHeaderBand({ chatId }: RpgHeaderBandProps): ReactElement | nu
   // levels; the band carries the waystone + orbs + coin, its text lines the datum).
   return (
     <RpgTakeoverHeader
+      roomTitle={state.roomTitle}
       ambient={state.tracker.ambient}
       actors={state.tracker.actors}
       trackerOrbs={state.tracker.trackerOrbs}

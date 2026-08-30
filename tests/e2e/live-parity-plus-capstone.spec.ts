@@ -81,7 +81,7 @@ async function seedGame(
  *  a TOOLBAR since #112, not a tablist — instead of the shared "Detail" strip; `rpg.status` is the defaultTab
  *  so the Status body lands without a click). Idempotent. */
 async function openGamePanel(page: Page): Promise<void> {
-  const show = page.getByRole("button", { name: "Show detail panel" });
+  const show = page.getByRole("button", { name: "Show details" });
   if ((await show.count()) > 0) {
     await show.first().click();
   }

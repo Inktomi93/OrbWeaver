@@ -18,10 +18,6 @@ export const UI_COMPONENT_MIN_RATIO = SHARED_UI_COMPONENT_MIN_RATIO;
  *  the latter is meaningless and produced the 1.71:1 Switch false-FAIL. */
 const CONTROL_TRACK_ROLES = new Set(["switch", "slider", "progressbar", "scrollbar"]);
 
-/** Below this accumulated ancestor opacity, composite the (dimmed) foreground over the backdrop before
- *  measuring. Just under 1 so sub-pixel float noise (0.999…) never triggers a pointless composite. */
-export const FOREGROUND_OPACITY_EPS = 0.999;
-
 // buildContrastScript's toRgbString ALWAYS emits this exact "rgb(r, g, b)" shape (it composites to a
 // canvas pixel and reads the bytes back itself, sidestepping getComputedStyle's oklch() passthrough) —
 // so this is the only shape parseRgbString ever needs to handle.
@@ -35,13 +31,6 @@ export function parseRgbString(s: string): Rgb | null {
     return null;
   }
   return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]) };
-}
-
-/** Alpha-composite a foreground rgb at `opacity` over the backdrop (source-over) — the visible color of
- *  a glyph painted inside an `opacity<1` group. opacity 1 is a no-op; opacity 0 is the pure backdrop. */
-export function compositeForeground(fg: Rgb, bg: Rgb, opacity: number): Rgb {
-  const mix = (f: number, b: number): number => Math.round(opacity * f + (1 - opacity) * b);
-  return { r: mix(fg.r, bg.r), g: mix(fg.g, bg.g), b: mix(fg.b, bg.b) };
 }
 
 /** A verdict is refused, not guessed, when the pixels measured would not be the target's (#211): the two

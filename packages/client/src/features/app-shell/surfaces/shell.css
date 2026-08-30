@@ -716,12 +716,32 @@
  * band): the band is the identity's one home while it is on screen (§13 IA de-dup — the same rule that
  * killed the pre-CP-1 twin, pointed the other way). Keyed on the shell's own `data-context-mode`, never a
  * width: the crush is a band, not a cliff (1440 dock+dock rendered 176/220), and the rule is IA, not
- * arithmetic. A collapsed or floating pane leaves the row exactly as it was — chats default to a collapsed
+ * arithmetic. A COLLAPSED pane leaves the row exactly as it was — chats default to a collapsed
  * pane, and a room with no name on screen is the injury #846 describes, made permanent. The avatar cluster
- * stays as the row's anchor. */
-.shell-grid[data-context-mode="docked"] .shell-topbar-identity[data-identity="wide"] .shell-topbar-title,
-.shell-grid[data-context-mode="docked"] .shell-topbar-identity[data-identity="wide"] .shell-chat-member-chip,
-.shell-grid[data-context-mode="docked"] .shell-topbar-identity[data-identity="wide"] .shell-chat-recall-chip {
+ * stays as the row's anchor.
+ *
+ * OVERLAY YIELDS TOO (#875 F4, side-eye 2026-08-30). The rule keyed on `docked` alone, so at 430 coarse and
+ * at 1024×768 — where the pane resolves to `overlay` — the topbar kept the title and the band printed the
+ * identical string 45px beneath it (measured: topbar y≈23, band y≈68 on `cbbe-chat-430.png`). That is the
+ * #846 injury inverted, at the width where space is scarcest, and the argument for the docked arm is
+ * STRONGER here, not weaker: an open sheet covers the very content the topbar row was describing. Only
+ * `collapsed` — the state with no band on screen — keeps the row. */
+.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]) .shell-topbar-identity[data-identity="wide"] .shell-topbar-title,
+.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]) .shell-topbar-identity[data-identity="wide"] .shell-chat-member-chip,
+.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]) .shell-topbar-identity[data-identity="wide"] .shell-chat-recall-chip {
+  display: none;
+}
+
+/* …AND THE CONTENT COLUMN'S OWN IDENTITY ECHO GOES WITH IT (#875 F5, side-eye 2026-08-30). The same
+ * decision one region over: while the CONTEXT pane's head band is on screen it is the artifact's identity,
+ * so the character hero's read-only echoes of it — the `@handle`, the Own-look trigger, the "N chats ›"
+ * door — stand down. Measured at 1280 dock+dock: each of those rendered twice ~500px apart and
+ * `design-audit` fired `duplicate-action-door` twice, on both the desktop and the mobile arm. The marker is
+ * minted in `character-hero-band.tsx` (`HERO_ECHO_CLASS`), whose note carries #513's superseded direction
+ * and states what deliberately does NOT wear it (the name FIELD and the portrait — the editor's only
+ * rename/replace affordances; a glance may not delete an edit). Keyed on the shell's own mode, never a
+ * width, for the same reason the rule above is: this is IA, not arithmetic. */
+.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]) .shell-character-hero-echo {
   display: none;
 }
 
@@ -1040,6 +1060,23 @@
   .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
     inset-inline: 0;
     width: 100dvw;
+  }
+  /* THE OPEN CONTEXT SHEET IS THE WHOLE SCREEN, TAB BAR INCLUDED (#875 F9, side-eye 2026-08-30). The
+   * block's shared inset stops every sheet above the rail, so at 430 coarse the pane's own foot rail (five
+   * icon-over-caption cells, 56px, y≈591-684) sat DIRECTLY on top of the shell's section bar (four
+   * icon-over-caption cells, y≈684-740): two strips of the same species, touching, ~150px of a 740px
+   * screen, with nothing to tell "tabs of this pane" from "sections of the app". The mock's phone artboards
+   * do not draw the app bar, so the collision could not be seen at design time.
+   * The sheet takes the bar's row instead of stacking on it — ONE foot strip on screen at a time. It is
+   * safe because this pane already owns the screen while it is open (`z-modal` over an `inert` frame) and
+   * it carries its OWN way out inside the band's top-right corner (fork 3 of the build design), so the
+   * section bar is one dismiss away, never trapped behind. `collapsed` is NOT matched: an off-screen
+   * drawer must keep the bar's row free, and it is the state the bar navigates from.
+   * The safe-area inset moves onto the panel with the row it took, so the foot rail still clears the home
+   * indicator. */
+  .shell-panel[data-panel-side="context"][data-panel-mode="overlay"] {
+    inset-block-end: 0;
+    padding-block-end: env(safe-area-inset-bottom);
   }
   .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
     transform: translateX(-100%);

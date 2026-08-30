@@ -8,15 +8,17 @@ import type { ReactElement } from "react";
 import { useShellLayout } from "../hooks/use-shell-layout.ts";
 import { TopbarIconButton } from "./shell-topbar.tsx";
 
-/** The CONTEXT pane's own vocabulary switch (side-eye 2026-08-07 finding 4, §14) — the twin of the lead
- *  control's. "Detail panel" is a frame region; on a phone the pane is a full-width sheet over the room and
- *  the thing it holds is the room's DETAILS ("Details" is already the pane's own neutral band label, so this
- *  borrows a word the surface uses rather than minting one). The control, its wiring and its reachability
- *  are unchanged in both regimes: it is the only phone door to this sheet, which is why it stays. */
-function contextToggleLabel(mobile: boolean, collapsed: boolean): string {
-  if (!mobile) {
-    return collapsed ? "Show detail panel" : "Hide detail panel";
-  }
+/** ONE CONTROL, ONE NAME, AT EVERY WIDTH (#875 F19, side-eye 2026-08-30 — measured `Show detail panel` at
+ *  1280 and `Show details` at 430/768 on the same button).
+ *
+ *  THE 2026-08-07 VOCABULARY RULING SURVIVES; ITS INPUT CHANGED. That ruling (finding 4, §14) forked the
+ *  word by regime — "detail panel" names a frame REGION on a desktop, and on a phone the pane is a sheet
+ *  holding the room's DETAILS — and it chose the phone word for the reason that now decides the whole
+ *  control: *borrow a word the surface already uses rather than mint one*. Since #860 the surface uses one
+ *  word at every width (the pane's own band is the artifact's, and "Details" is the neutral label under
+ *  it), while the two names cost a screen-reader user the ability to carry what they learned across a
+ *  resize. So the phone spelling becomes the only spelling — the ruling's own criterion, applied once. */
+function contextToggleLabel(collapsed: boolean): string {
   return collapsed ? "Show details" : "Hide details";
 }
 
@@ -25,7 +27,7 @@ export function ContextToggle(): ReactElement {
   const collapsed = layout.contextMode === "collapsed";
   return (
     <TopbarIconButton
-      label={contextToggleLabel(layout.mobileViewport, collapsed)}
+      label={contextToggleLabel(collapsed)}
       icon={collapsed ? PanelRightOpen : PanelRightClose}
       expanded={!collapsed}
       onClick={(): void => layout.togglePanel("context")}

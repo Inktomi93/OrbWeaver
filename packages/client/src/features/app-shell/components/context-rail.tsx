@@ -37,6 +37,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CONTEXT_CELL_FLOOR_AT_COARSE, CONTEXT_RAIL_WRAP, CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF } from "#components";
 import type { ContextRegionView, ResolvedContextTab } from "#lib";
 import { cellDomId } from "../lib/context-cell-id.ts";
@@ -55,31 +56,61 @@ const CELL_ARIA_STRIP = { role: undefined, "aria-selected": undefined } as const
  *  In the wrapped arm a first-row cell's bottom edge is the seam above row TWO. */
 const CELL_EDGE_CLASSES = `border-b-2 border-transparent data-active:border-primary ${CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF}`;
 
-/** THE OWNERSHIP TREATMENT (half of the F6 defect-1 fix; the receded arm re-ruled for #861). The rail
- *  holding the selection carries the raised surface fill — the SAME fill the head band wears, so the two
- *  "own" surfaces of the pane read as one material — lifts its captions to the foreground, and its KICKER
- *  steps up with them. The other RECEDES — but recedes ONTO SOMETHING: the receded rail had NO fill at all,
- *  and side-eye measured what that reads as (#861, 2026-08-30): a caps "CHAT" + hairline typographically
- *  identical to every section heading, brighter (8.50:1) than the owning kicker (4.97:1) because it sat on
- *  bare ground, over five unfilled cells whose bottom edge WAS the viewport edge. A person reads that as a
- *  dead section header dangling at the pane's foot. So the receded rail wears a quieter step of the same
- *  fill, its kicker stays at the muted ink while the owning one lifts, and the cell row pays a floor below
- *  the cells (`pb-row`) so nothing ends on the pane's edge. Stated as ONE map per axis so the two states
- *  can never be tuned apart. */
+/** THE OWNERSHIP TREATMENT (half of the F6 defect-1 fix; re-ruled twice — #861, then #875 F2).
+ *
+ *  THE FILL IS THE MOCK'S, MEASURED IN PIXEL SPACE (owner-ruled 2026-08-30; retuned 2026-08-30 late after
+ *  side-eye #875 F2 decoded the framebuffer). The owning rail wears `surface-raised` — the artboards' own
+ *  `--raised: oklch(0.185 …)`, which IS this token — and the receded rail wears NOTHING, exactly as
+ *  `ChatRoom.dc.html` draws it (`.rail.own { background: var(--raised) }`, no `.rail.recede` fill).
+ *
+ *  THAT IS A SMALL STEP AND IT IS DECLARED, NOT DISCOVERED: `surface-raised` over the pane's `sidebar`
+ *  composites to ~1.077:1 in dark and ~1.024:1 in light. Those are the CEILING, not a target — the previous
+ *  spelling (`bg-sidebar-accent/40` over `/15`) claimed the ownership axis was carried by the fill and
+ *  measured 1.045:1 vs 1.001:1, i.e. it was never carrying it. Inflating the fill past the artboard was
+ *  refused (the owner approved the mock); so the record is amended instead. WHAT ACTUALLY CARRIES THE
+ *  OWNERSHIP AXIS, and what #861's fix should be credited to: the KICKER VOICE (below — the owning rail's
+ *  name lifts toward the foreground while the receded one holds a quieter muted step), the `pb-row` FLOOR
+ *  under the receded cells (so nothing ends on the pane's edge — the "dangling section header" read #861
+ *  filed), the foot rail's top HAIRLINE, and the ember active state which only the owning rail can wear.
+ *  Stated as ONE map per axis so the two states can never be tuned apart, and pinned by a framebuffer
+ *  decode (`context-bracket.ct.tsx` — band == owning > receded == pane) so a future alpha tweak that
+ *  vanishes on screen cannot pass as a fix again. */
 const RAIL_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
-  owning: "bg-sidebar-accent/40",
-  receded: "bg-sidebar-accent/15",
+  owning: "bg-surface-raised",
+  receded: "",
 };
-// The mock's cells (`ChatRoom.dc.html`): a resting cell is the muted step on BOTH rails and only the ACTIVE
-// cell lifts to the foreground — the owning rail is told apart by its fill and its kicker's selection half,
-// not by brightening every caption; the receded rail's cells step one alpha quieter (its `opacity: .85`).
+/** The mock's cells (`ChatRoom.dc.html`): a resting cell is the muted step on BOTH rails and only the
+ *  ACTIVE cell lifts to the foreground — the owning rail is told apart by its fill and its kicker's
+ *  selection half, not by brightening every caption; the receded rail's cells step quieter (its
+ *  `opacity: .85`).
+ *
+ *  THE STEP IS FLOORED BY WCAG, NOT BY TASTE (#875 F1/F2, 2026-08-30). These captions are the pane's
+ *  primary navigation on a LIVE control, so 1.4.3 applies at 4.5:1 with no disabled exemption anywhere in
+ *  this rail. The old `/70` measured 4.65:1 in dark and **3.39:1 in light** — a real, unmeasured failure,
+ *  because the light theme's `muted-foreground` carries only ~6.8:1 of headroom over the sidebar and an
+ *  alpha eats it. `/90` is the quietest step that clears the floor in BOTH polarities (~7.2 dark, ~5.3
+ *  light). The recede a reader actually sees is the fill + the kicker, not this. */
 const CELL_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
   owning: "",
-  receded: "text-muted-foreground/70",
+  receded: "text-muted-foreground/90",
 };
+/** THE KICKER IS WHERE THE OWNERSHIP AXIS IS DECIDED (#875 F2 — "the ruling survives, its INPUT changed").
+ *
+ *  #861 filed the receded kicker as BRIGHTER than the owning one (8.50 vs 4.97); the first fix inverted the
+ *  ink alpha and left the order still inverted (8.25 vs 8.03) because contrast is measured against each
+ *  rail's OWN backdrop, and the receded rail's backdrop is the darker one. An ink alpha alone cannot win
+ *  that in a dark theme, so the OWNING kicker lifts instead: its name steps toward the foreground while the
+ *  receded rail's holds the muted ink one alpha down. Measured composited (framebuffer decode, both
+ *  themes): owning ~10.7 dark / ~8.1 light vs receded ~7.2 dark / ~5.3 light — ordered, and both above the
+ *  4.5:1 floor, which the old receded `/70` was not in light (3.25:1).
+ *
+ *  #102's AXIS SURVIVES, ITS INPUT CHANGED: the kicker's NAME half and its SELECTION half are still told
+ *  apart by COLOUR (the mock's `.kick .sel`) — the selection stays at the full foreground and the name now
+ *  sits one alpha under it rather than at the muted step. A narrower delta than the artboard's, and the
+ *  cost of putting the ownership axis where it can actually be measured. */
 const KICKER_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
-  owning: "",
-  receded: "text-muted-foreground/70",
+  owning: "text-foreground/80",
+  receded: "text-muted-foreground/90",
 };
 
 /** THE CROWN INHERITS THE RECEDE (side-eye 08-01). Crown gold marks a host-only cell, but painted as an
@@ -108,6 +139,35 @@ const RAIL_WRAP_CELLS = 6;
  *  count: MEASURED at the 272px floor the chat rail's four `auto-cols-fr` cells were 51px each against a
  *  58px "Members", and both clipped. The FOLD stays count-gated because it answers a different question. */
 const RAIL_TRACK_CLASSES = "auto-cols-[minmax(max-content,1fr)] overflow-x-auto";
+
+/** THE SCROLL HAS TO SAY IT IS A SCROLL (#875 F7/F8, side-eye 2026-08-30). `RAIL_TRACK_CLASSES` degrades an
+ *  over-long rail to a scroll rather than an ellipsis, and `RAIL_WRAP_CELLS` folds only a rail that folds
+ *  EVENLY — both correct, and together they left the case nothing answered: a five-cell rail at 1024×768
+ *  (`scrollWidth 316` vs `clientWidth 290`) painted "Acti" cut at the pane's edge with no ellipsis, no
+ *  scrollbar and no fade. That is the [[count-gate-standing-in-for-fit]] shape one level up: the FOLD is
+ *  count-gated (right) and nothing measured the FIT.
+ *
+ *  So the fit is measured, in the only place it can be — the live box — and the overflowing edge wears a
+ *  fade. Not a permanent fade (it would veil the last caption of every rail that fits) and not an
+ *  always-on scrollbar (it would spend a row of height on every pane at every width): a `ResizeObserver` +
+ *  a passive scroll listener write `data-overflow-start`/`data-overflow-end` on the rail, and the fades key
+ *  off those. The attributes are the CT's handle as well as the paint's. */
+const RAIL_FADE_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
+  owning: "from-surface-raised",
+  receded: "from-sidebar",
+};
+
+/** Which edges of a horizontally scrolling track are hiding content right now. `scrollLeft` is signed in a
+ *  RTL writing mode, so the START test is on its magnitude. */
+function trackOverflow(track: HTMLElement): { readonly start: boolean; readonly end: boolean } {
+  const travelled = Math.abs(track.scrollLeft);
+  const total = track.scrollWidth - track.clientWidth;
+  return { start: travelled > OVERFLOW_EPSILON_PX, end: total - travelled > OVERFLOW_EPSILON_PX };
+}
+
+/** Sub-pixel track widths are routine (a fractional container width divided into `1fr` tracks), so the fit
+ *  test needs a tolerance or every rail claims to overflow by 0.4px. */
+const OVERFLOW_EPSILON_PX = 1;
 
 export interface ContextRailProps {
   readonly ariaLabel: string;
@@ -140,8 +200,48 @@ export interface ContextRailProps {
  *  now sits 4px above the cell it names. */
 export function ContextRail({ ariaLabel, tabs, activeTab, actions, edge, owns, kicker, selection }: ContextRailProps): ReactElement {
   const ownership = owns ? "owning" : "receded";
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const [overflow, setOverflow] = useState<{ readonly start: boolean; readonly end: boolean }>({ start: false, end: false });
+  const cellCount = tabs.length;
+
+  // THE FIT IS MEASURED, NOT COUNTED (see `RAIL_FADE_CLASSES`). Re-runs when the cell SET changes; every
+  // other input (the pane's width, a wrap, a font-size step from the appearance preset) arrives through the
+  // ResizeObserver, which is why the effect does not try to enumerate them.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cellCount is the intentional re-run trigger (a new tab set re-measures) — the same shape, and the same reason, as the scroll effect in context-bracket.tsx; the body reads the live track off the ref, so nothing it touches is a dependency.
+  useEffect(() => {
+    const track = trackRef.current;
+    if (track === null) {
+      return;
+    }
+    // ELEMENTWISE GUARD, not a bare publish. A ResizeObserver fires on every layout pass that touches the
+    // track — the pane resizing, a scrollbar appearing, a modal opening over the shell — and a fresh object
+    // each time re-renders the whole rail for a value that did not change. MEASURED: that churn raced the
+    // command palette's focus RESTORE (`app-shell.ct.tsx` "Escape returns to the Jump trigger" went
+    // intermittently red), which is the cost of publishing an unchanged derived value.
+    const read = (): void =>
+      setOverflow((previous) => {
+        const next = trackOverflow(track);
+        return previous.start === next.start && previous.end === next.end ? previous : next;
+      });
+    read();
+    const observer = new ResizeObserver(read);
+    observer.observe(track);
+    track.addEventListener("scroll", read, { passive: true });
+    return (): void => {
+      observer.disconnect();
+      track.removeEventListener("scroll", read);
+    };
+  }, [cellCount]);
+
   return (
-    <Stack data-slot="context-rail" data-owns={owns} data-edge={edge} className={`min-w-0 shrink-0 ${RAIL_OWNERSHIP_CLASSES[ownership]}`}>
+    <Stack
+      data-slot="context-rail"
+      data-owns={owns}
+      data-edge={edge}
+      data-overflow-start={overflow.start}
+      data-overflow-end={overflow.end}
+      className={`min-w-0 shrink-0 ${RAIL_OWNERSHIP_CLASSES[ownership]}`}
+    >
       <Row
         gap="field"
         align="baseline"
@@ -164,8 +264,9 @@ export function ContextRail({ ariaLabel, tabs, activeTab, actions, edge, owns, k
           {selection === null ? null : <Text as="span" voice="kicker" data-slot="context-rail-selection" className="text-foreground">{` · ${selection}`}</Text>}
         </Text>
       </Row>
-      <Row align="center" gap="row" className="min-w-0 px-row pt-field pb-row">
+      <Row align="center" gap="row" className="relative min-w-0 px-row pt-field pb-row">
         <TabsList
+          ref={trackRef}
           // `toolbar`, not the primitive's `tablist` — see the ARIA-model note in the header. The composite's
           // one-tab-stop-plus-arrows behaviour is exactly a toolbar's contract, and it is the only container
           // role here that does not imply a selection this rail may not be holding.
@@ -184,6 +285,23 @@ export function ContextRail({ ariaLabel, tabs, activeTab, actions, edge, owns, k
             {actions}
           </Row>
         ) : null}
+        {/* The overflow marks. Purely presentational and never in the way of a tap — a `Stack` because a
+            feature does not paint a raw element, `aria-hidden` because the fact they carry is already true
+            of the scroll container an AT reader drives with the arrow keys. */}
+        {overflow.start ? (
+          <Stack
+            aria-hidden={true}
+            data-slot="context-rail-fade"
+            className={`pointer-events-none absolute inset-y-0 start-0 w-section bg-linear-to-r ${RAIL_FADE_CLASSES[ownership]} to-transparent`}
+          />
+        ) : null}
+        {overflow.end ? (
+          <Stack
+            aria-hidden={true}
+            data-slot="context-rail-fade"
+            className={`pointer-events-none absolute inset-y-0 end-0 w-section bg-linear-to-l ${RAIL_FADE_CLASSES[ownership]} to-transparent`}
+          />
+        ) : null}
       </Row>
     </Stack>
   );
@@ -194,10 +312,18 @@ export function ContextRail({ ariaLabel, tabs, activeTab, actions, edge, owns, k
  *  caption's understudy (the word is on screen and `aria-label` carries the full name when it truncates).
  *
  *  ACTIVE: the ember fill + foreground ink + the 2px primary bar on the bottom edge (the mock's `.cell.on`).
- *  PHASE-locked (the Map): a LOCK glyph + the reason on `title` + a dimmed cell — deliberately NOT
- *  `aria-disabled`: the locked cell OPENS onto a body that states when the feature arrives (RV-7), and a
- *  control announcing "unavailable" while Enter opens it is two stories. One story, in every pane: a real
- *  cell wearing a lock, where mouse, keyboard and AT all get the same answer. */
+ *  PHASE-locked (the Map): a LOCK glyph + the reason on `title` — deliberately NOT `aria-disabled`: the
+ *  locked cell OPENS onto a body that states when the feature arrives (RV-7), and a control announcing
+ *  "unavailable" while Enter opens it is two stories. One story, in every pane: a real cell wearing a lock,
+ *  where mouse, keyboard and AT all get the same answer.
+ *
+ *  AND THE DIM OBEYS THAT SAME STORY (#874, side-eye 2026-08-30 — the one WCAG failure in the bracket).
+ *  The mock's `.cell.lock { opacity: 0.6 }` was taken literally onto the cell ROOT, which put the caption
+ *  at **3.54:1** against a sibling's 7.59:1 — and because this cell renounces `aria-disabled`, 1.4.3's
+ *  disabled exemption does not apply to it. (axe scored it 100: it does not composite ancestor `opacity`,
+ *  so it read the undimmed ink. The green was a blind spot, not a clearance.) The dim now lands on the
+ *  ORNAMENTS — the glyph and the padlock, non-text content — and the CAPTION keeps the rail's own ink, so
+ *  the "unavailable" signal is carried by the lock, which is the thing that means it. */
 function ContextCell({
   tab,
   isActive,
@@ -232,10 +358,12 @@ function ContextCell({
       // `min-w-0` wins outright and deletes the ≥44px floor the primitive's `min-w-touch-target` carries
       // (MEASURED at 320 coarse: the cells fell to 39px). The coarse HEIGHT floor is the bracket's own:
       // `CONTEXT_CELL_FLOOR_AT_COARSE` (56px — the first token step at or above the mock's 52px cells).
-      className={`relative data-active:bg-primary/15 data-active:text-foreground ${CELL_EDGE_CLASSES} ${CELL_OWNERSHIP_CLASSES[ownership]} ${CONTEXT_CELL_FLOOR_AT_COARSE} ${locked ? "opacity-60" : ""}`}
+      className={`relative data-active:bg-primary/15 data-active:text-foreground ${CELL_EDGE_CLASSES} ${CELL_OWNERSHIP_CLASSES[ownership]} ${CONTEXT_CELL_FLOOR_AT_COARSE}`}
       {...(tab.disabledReason !== null ? { title: tab.disabledReason } : {})}
     >
-      {tab.icon !== undefined ? <Icon icon={tab.icon} size="sm" className={crowned ? CROWN_OWNERSHIP_CLASSES[ownership] : ""} /> : null}
+      {tab.icon !== undefined ? (
+        <Icon icon={tab.icon} size="sm" className={`${crowned ? CROWN_OWNERSHIP_CLASSES[ownership] : ""} ${locked ? "opacity-60" : ""}`} />
+      ) : null}
       {/* voice=LABEL, not `gloss` (side-eye #102): this caption is the pane's PRIMARY NAVIGATION, and `gloss` is
           the 10.5px `micro` step — under the 11px readable floor. The mock draws its captions at 10.5px and is
           NOT followed on this axis: the readable-floor ruling stands. text-inherit so the cell's own state
@@ -247,7 +375,7 @@ function ContextCell({
           full-bleed, so the LAST cell's inline-end edge IS the pane's edge and a flush glyph read as clipped.
           LOGICAL (`end-*`), never `right-*`. Spelled as a whole literal at each site (not hoisted) because
           `ui-size-via-variant` reads these class strings statically. */}
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute end-field top-field text-muted-foreground" /> : null}
+      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute end-field top-field text-muted-foreground opacity-60" /> : null}
       {locked || isActive ? null : <ContextCellBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );

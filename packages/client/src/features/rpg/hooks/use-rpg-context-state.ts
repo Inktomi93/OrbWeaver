@@ -18,6 +18,7 @@ import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { useTRPC } from "#data";
+import { deriveChatTitle } from "#lib";
 import { useRpgRoundPending } from "#state";
 
 /** The resolved takeover panel state the game tabs + header render. `null` (from the hook) ⇒ this chat is
@@ -27,6 +28,11 @@ import { useRpgRoundPending } from "#state";
  *  tab offer the member-own edit arm (`patchSheet` allows a member their own `user` ref). */
 export interface RpgPanelState {
   readonly chatId: ChatId;
+  /** The ROOM's rendered name — the same `deriveChatTitle` derivation the topbar identity and the chat
+   *  band use, so a game room is named identically wherever it is named (#875 F3, 2026-08-30: the game
+   *  band printed the scene LOCATION where the other two bands print the artifact, so a docked game room
+   *  had no heading at all and the two strings on screen at 1024 disagreed). */
+  readonly roomTitle: string;
   readonly viewerUserId: UserId;
   readonly isHost: boolean;
   readonly game: RpgGameView;
@@ -80,6 +86,14 @@ export function useRpgContextState(chatId: ChatId): RpgPanelState | null {
   const isHost = chat.viewerIsHost === true;
   return {
     chatId,
+    // The cast half is filtered inline rather than through chat's own `filterCharacters`: rpg imports
+    // NOTHING from `features/chat` (this hook's own self-containment rule), and the predicate is one line
+    // over a `contracts` shape. The DERIVATION is the shared one (`deriveChatTitle`), which is the part
+    // that must not fork.
+    roomTitle: deriveChatTitle(
+      chat.title,
+      chat.participants.filter((p) => p.kind === "character").map((p) => p.displayName),
+    ),
     viewerUserId: chat.viewerUserId,
     isHost,
     game,
