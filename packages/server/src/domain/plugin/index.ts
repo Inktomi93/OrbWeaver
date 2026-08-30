@@ -117,6 +117,7 @@ export type {
   PluginSurfaceStateStore,
   PluginUiOutbox,
 } from "./contract/service.ts";
+export { recordPluginFetchedAsset } from "./persistence/plugin-assets.ts";
 export { isPluginEnabledFor } from "./persistence/plugins.ts";
 export { createPluginService } from "./service.ts";
 export { buildConfirmedActRunner } from "./substrate/confirmed-act.ts";

@@ -86,6 +86,9 @@ test("the known live references are RETAINING (avatar, gallery, doc source, imag
     "documents.source_asset_id",
     "imagery_generations.asset_id",
     "plugins.bundle_asset_id",
+    // #802 — the `net.fetchAsset` link. It is the ONLY thing that references a plugin-fetched cover, so a
+    // demotion to DERIVED (or a drop) silently re-opens the reap this row closed.
+    "plugin_assets.asset_id",
   ]) {
     expect(retaining.has(key)).toBe(true);
   }

@@ -24,6 +24,7 @@ import {
   messageAssets,
   messageReactions,
   personas,
+  pluginAssets,
   plugins,
   userSettings,
 } from "@orb/db";
@@ -59,6 +60,13 @@ export const ASSET_REFS: readonly AssetRef[] = [
   // the distribution set while the record still pointed at it. Its own FK is CASCADE (a distribution cannot
   // outlive its bytes), which is the delete direction — this list is about the GC direction.
   { table: adminDistributedPlugins, column: adminDistributedPlugins.bundleAssetId },
+  // #802 — an image an installed plugin pulled into its installer's CAS with `net.fetchAsset`. It has no other
+  // referencing row ANYWHERE: the surface that displays it (a plugin UI state blob) is JSON, so the FK
+  // enumeration could not see it and the scheduled GC reaped a live hub cover one grace window after the fetch.
+  // The retention unit is the INSTALL — uninstall CASCADEs these links away and the covers become ordinary
+  // candidates again (the uninstall verb reaps them eagerly). Same posture as `message_assets`: the link row
+  // exists so this registry can SEE the reference.
+  { table: pluginAssets, column: pluginAssets.assetId },
 ];
 
 /** DERIVED asset-FK columns — regenerable rows that do NOT pin the blob. Held as `<table>.<column>`

@@ -6,7 +6,8 @@
 // uninstall deletes row-then-asset in one verb). `status`/`origin` DERIVE their CHECK from the ONE-home
 // contract tuples (`@orb/contracts/plugin` — no re-spell, the ASSET_KINDS precedent). `plugin_kv` is the
 // `storage.kv` plane: PK (plugin_id, key), a denormalized `owner_id` guard column (belt: WHERE both), the
-// 128-char key / 64 KiB value caps as tuple-shared CHECK-DDL.
+// 128-char key / 64 KiB value caps as tuple-shared CHECK-DDL. `plugin_assets` is the #802 fetched-asset
+// register — the FK column that makes a `net.fetchAsset` cover VISIBLE to the asset-GC ref registry.
 
 import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "@orb/contracts/plugin";
@@ -176,6 +177,53 @@ export const adminDistributedPlugins = sqliteTable(
 // The PER-PLUGIN spend envelope (`plugin_budgets`) was stripped 2026-07-24 — enterprise spend enforcement.
 // A runaway plugin's autonomous turns/images stay bounded by the per-member turn RATE cap + the cascade-depth
 // guard (shared with automation); cost VISIBILITY rides the stats domain. No per-plugin $/action ceiling.
+
+/** THE PLUGIN-FETCHED ASSET REGISTER (#802): one row per (installed plugin, asset it pulled through
+ *  `net.fetchAsset`). It exists for exactly one reason — `ASSET_REFS` (the FK enumeration BOTH asset-GC paths
+ *  iterate) can only see an `AssetId` sitting in a real FK column, and a `net.fetchAsset` cover landed in the
+ *  installer's CAS with NO referencing row anywhere. So the scheduled `assets-gc` reaped a live hub cover one
+ *  grace window after it was fetched, and the surface it was published to (a plugin UI state blob, which is
+ *  JSON and therefore invisible to the enumeration too) dangled. This is the `message_assets` posture: a link
+ *  row whose whole job is to make an otherwise-invisible reference VISIBLE to the registry.
+ *
+ *  RETAINING, and the retention unit is the INSTALL: while the plugin is installed, everything it fetched
+ *  stays live; uninstall CASCADEs these rows away and the covers become ordinary GC candidates (the uninstall
+ *  verb reaps them eagerly — the ids it just orphaned — rather than leaving them for the scheduled sweep).
+ *  That is deliberately reference-based, not TTL-based: a plugin has no way to say "I still need this", and
+ *  approximating liveness by recency is what the guest-side 24h cache already does. Growth is bounded by
+ *  DISTINCT images (the CAS is content-addressed, so a re-fetch of the same bytes returns the same assetId and
+ *  this row is upserted, not duplicated), i.e. by what the user actually looked at.
+ *
+ *  Both FKs CASCADE. Plugin side: an uninstall must not be blocked by its own cache. Asset side: this row is
+ *  a cache index, never a reason a blob is un-deletable (the RESTRICT posture is reserved for
+ *  `plugins.bundle_asset_id`, where a missing blob IS corruption).
+ *
+ *  NO `owner_id` column, unlike `plugin_kv`: this is a pure junction (both parents are ownerId-scoped) and
+ *  neither coordinate is guest-supplied — the `pluginId` is closed over by the bridge and the `assetId` is
+ *  MINTED by the CAS store from bytes the host just fetched under the installer's own Principal. There is no
+ *  spelling in which a guest names a foreign asset here, so a denormalized guard column would be a belt with
+ *  nothing to hold. `fetched_at` is provenance (the last time this plugin pulled these bytes), never a read key. */
+export const pluginAssets = sqliteTable(
+  "plugin_assets",
+  {
+    pluginId: text("plugin_id")
+      .$type<PluginId>()
+      .notNull()
+      .references(() => plugins.id, { onDelete: "cascade" }),
+    assetId: text("asset_id")
+      .$type<AssetId>()
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    fetchedAt: integer("fetched_at").notNull(),
+  },
+  (t) => [
+    // (plugin_id, asset_id) is the identity: the same plugin re-fetching the same bytes upserts one row.
+    primaryKey({ columns: [t.pluginId, t.assetId] }),
+    // `asset_id` sits SECOND in the PK, so every asset delete (the CASCADE probe) and every "who fetched this"
+    // lookup would full-scan without its own leading index (`fk-columns-indexed`).
+    index("plugin_assets_asset_idx").on(t.assetId),
+  ],
+);
 
 export const pluginKv = sqliteTable(
   "plugin_kv",

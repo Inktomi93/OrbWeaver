@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8c921fd4-15af-47cf-a2bf-8ba5b11b64c8",
+  "id": "da19a3fd-51c3-4eaa-a5b4-e495df9f3235",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -5163,6 +5163,67 @@
         }
       },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "plugin_assets": {
+      "name": "plugin_assets",
+      "columns": {
+        "plugin_id": {
+          "name": "plugin_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "asset_id": {
+          "name": "asset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "plugin_assets_asset_idx": {
+          "name": "plugin_assets_asset_idx",
+          "columns": ["asset_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "plugin_assets_plugin_id_plugins_id_fk": {
+          "name": "plugin_assets_plugin_id_plugins_id_fk",
+          "tableFrom": "plugin_assets",
+          "tableTo": "plugins",
+          "columnsFrom": ["plugin_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "plugin_assets_asset_id_assets_id_fk": {
+          "name": "plugin_assets_asset_id_assets_id_fk",
+          "tableFrom": "plugin_assets",
+          "tableTo": "assets",
+          "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "plugin_assets_plugin_id_asset_id_pk": {
+          "columns": ["plugin_id", "asset_id"],
+          "name": "plugin_assets_plugin_id_asset_id_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },

@@ -1,15 +1,25 @@
 // verb: uninstall — remove an installed plugin (02 §4). Deactivate (dispose the resident) → delete the row
-// (KV cascades) → reap the bundle asset. The end state is zero rows, zero KV, zero bundle bytes.
+// (KV + the #802 fetched-asset links cascade) → reap the bundle asset AND the covers this install was
+// retaining. The end state is zero rows, zero KV, zero bundle bytes, and no orphaned plugin art.
 
-import { pluginKv } from "@orb/db";
-import type { Handle, PluginId } from "@orb/kit/ids";
+import type { Db } from "@orb/db";
+import { assets, pluginAssets, pluginKv } from "@orb/db";
+import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { PluginNotFoundError } from "@orb/server/domain/plugin";
+import { PluginNotFoundError, recordPluginFetchedAsset } from "@orb/server/domain/plugin";
 import { eq } from "drizzle-orm";
 import { upsertKv } from "../../../../../packages/server/src/domain/plugin/persistence/plugin-kv.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
+
+/** A cover the way `net.fetchAsset` lands one: an owned `generated` asset in the installer's CAS index, with
+ *  no referencing row until the fetch link is recorded. */
+async function seedFetchedAsset(db: Db, ownerId: UserId, id: string): Promise<AssetId> {
+  const assetId = castId<AssetId>(id);
+  await db.insert(assets).values({ id: assetId, ownerId, kind: "generated", mime: "image/png", size: 10, hash: `hash-${id}`, uploadedAt: 1000 });
+  return assetId;
+}
 
 test("uninstall leaves zero rows, zero KV, zero bundle bytes; disposes a resident instance", async () => {
   const db = await freshDb();
@@ -31,6 +41,30 @@ test("uninstall leaves zero rows, zero KV, zero bundle bytes; disposes a residen
   expect(h.storedBytes.size).toBe(0); // bundle asset reaped
   const kv = await db.select().from(pluginKv).where(eq(pluginKv.pluginId, installed.id));
   expect(kv).toEqual([]); // KV cascaded off the FK
+});
+
+// #802 — uninstall knows exactly which covers it just orphaned (it reads the `plugin_assets` links BEFORE the
+// delete cascades them away), so it reaps them itself instead of leaving GBs of art for the scheduled sweep.
+// The second half is the containment: a cover a SECOND plugin also fetched is still referenced and survives.
+test("uninstall reaps the plugin's fetched assets too — but never one another plugin still references", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const atlas = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "atlas" }), grant: [] });
+  const other = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "other" }), grant: [] });
+  // Two covers `net.fetchAsset` landed in the installer's CAS: one only atlas fetched, one both did (the CAS
+  // is content-addressed, so two plugins pulling the same image share ONE assetId).
+  const solo = await seedFetchedAsset(db, owner, "asset_cover_solo");
+  const shared = await seedFetchedAsset(db, owner, "asset_cover_shared");
+  await recordPluginFetchedAsset(db, atlas.id, solo, 1000);
+  await recordPluginFetchedAsset(db, atlas.id, shared, 1000);
+  await recordPluginFetchedAsset(db, other.id, shared, 1000);
+
+  await h.service.uninstall({ caller: ownerPrincipalFor(owner), pluginId: atlas.id });
+
+  expect(await db.select().from(assets).where(eq(assets.id, solo))).toHaveLength(0); // reaped with the install
+  expect(await db.select().from(assets).where(eq(assets.id, shared))).toHaveLength(1); // still `other`'s
+  expect(await db.select().from(pluginAssets).where(eq(pluginAssets.pluginId, atlas.id))).toEqual([]); // links cascaded
 });
 
 test("uninstalling a disabled plugin needs no instance (idempotent deactivate)", async () => {
