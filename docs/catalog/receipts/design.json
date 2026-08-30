@@ -2408,6 +2408,35 @@
         }
       ],
       "summary": "Characters landing mock (#864): the CONTENT pane at rest as a library \u2014 recently chatted, starred, just added, a fresh-install 'Meet the cast', the list-collapsed arm that owns the doors, and the phone sheet \u2014 drawn only from what character.list carries plus the two fields #865 wires; canvas source + renders + the fences for the build lane."
+    },
+    {
+      "path": "docs/design/config-revamp-design.md",
+      "assignedSha256": "fb5900d5cf87d823949f4d9bc7aff8c607521a9727115419d8679a3dbcebcae7",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "fb5900d5cf87d823949f4d9bc7aff8c607521a9727115419d8679a3dbcebcae7",
+      "verifiedCommit": "94b06f86c9f1a6e29512a7d593a7c4132e005b86",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/config-revamp-design.md read in full by the orchestrator (claude-b) at merge (lane cb-config-research, stickler research + design for #866; 12 products + NN/g receipted via SearXNG\u2192trafilatura, THIN rows marked; the house read against 9707b9672; the Settings-is-a-modal premise repair accepted mid-run); the nine owner forks are being ruled live; the four D-rows are labelled R-A..R-D, never forward-numbered"
+      ],
+      "claims": [
+        {
+          "claim": "The design holds to the recorded law it cites (D62 rule 5 finally satisfied, D114/D120/D121(C)/D74 survive with a changed input, config-rail-spec C-2/C-4/C-6/C-7/C-8/C-12 verbatim, C-5 amended) and SECTION_IDS is untouched; S1+S2 are dispatchable before #860, S3 (the teacher) waits for the bracket; zero new @orb/ui primitives with receipts.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#866"
+            },
+            {
+              "kind": "issue",
+              "target": "#860"
+            }
+          ]
+        }
+      ],
+      "summary": "Config revamp design (#866): ONE closed config-group registry (four shelves You/App/Collections/Extensions; body arms sections|surface|collection|placeholder) that settings panes, collections, persona and Plugins register through; the shipped scroll-spy re-homed as the one spy; one search index with VS Code-style @modified/@shelf/@in/@ext/@advanced tokens, in-place highlights and a \u2318K source; openConfigTo replacing openSettingsTo + goToCollection; dense SettingRowFrame rows; the context pane as the TEACHER (About \u00b7 Applies \u00b7 Learn) over a focused-setting seam and per-leaf SettingTeach data; the rail persona slot as switcher \u00b7 identity \u00b7 log out; four client composites, no new primitives; nine owner forks with recommendations; sequence S1-S5."
     }
   ]
 }
