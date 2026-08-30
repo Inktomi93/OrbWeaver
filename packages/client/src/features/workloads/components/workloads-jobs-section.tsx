@@ -20,7 +20,7 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { useCancelWorkload, useRetryWorkload } from "../hooks/use-workload-mutations.ts";
 import { WORKLOADS_JOBS_SUBCATEGORY } from "../lib/workloads-jobs-nav.ts";
 import {
@@ -83,7 +83,7 @@ function WorkloadsJobsBody(): ReactElement {
   };
 
   return (
-    <Section className="@container" divider={true} heading={WORKLOADS_JOBS_SUBCATEGORY.label} id={settingsAnchorId("workloads", WORKLOADS_JOBS_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={WORKLOADS_JOBS_SUBCATEGORY.label} id={configAnchorId("workloads", WORKLOADS_JOBS_SUBCATEGORY.id)}>
       <Stack gap="block" data-testid={testId("workloadsSection")}>
         <Tabs
           value={filter}

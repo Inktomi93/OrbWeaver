@@ -1,9 +1,12 @@
 // YouSheet — the body of the mobile "You" bottom sheet, a BLIND PROJECTION over the SAME resolved chrome
 // list the desktop rail and the mobile bar read (shell-chrome-unification.md §E-5 / §C). No second
 // derivation: it reads `useChromeRegistry()` and projects each entry in its native sheet form —
-//   · `rail.end` MODAL entries (theme, settings) → a row that opens the modal in the shared slot;
+//   · `rail.end` MODAL entries (theme) → a row that opens the modal in the shared slot;
 //   · `rail.end` WIDGET entries (the persona identity) → its own `body("sheet")` lens inline (this is
 //     where mobile persona switching + the Account strip live — §B);
+//   · a `rail.end` SECTION (Settings, since the config revamp #866 S1 put the section in the foot) → a row
+//     that routes + closes the sheet, exactly like an overflow section — shown only while its EFFECTIVE
+//     curation is `"sheet"` (standing in it, it holds a bar slot and the row would be a duplicate door);
 //   · `rail.nav` sections whose EFFECTIVE curation is `"sheet"` → a row that routes + closes the sheet
 //     (effective, not declared: the bar swaps the current section in and the tab it displaces out, #484).
 // Add a chrome entry once at the door → desktop rail, mobile bar, AND this sheet all pick it up. The sheet
@@ -14,7 +17,7 @@ import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Heading } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import type { ChromeEntry } from "#state";
+import type { ChromeEntry, MobileCuration } from "#state";
 import { closeModal, mobileBarCuration, openModal, setActiveSection, sheetOverflowChrome, useActiveSection, useChromeRegistry, useModalRegistry } from "#state";
 
 /** The overflow group's heading id — the group points its `aria-labelledby` at it, so the heading names the
@@ -23,8 +26,10 @@ const MORE_HEADING_ID = "you-sheet-more-heading";
 
 /** One `rail.end` chrome entry, projected into the sheet. A component (not a bare map body) so `useVisible`
  *  is a top-level hook over the door-frozen list (the rail's `RailChromeEntry` precedent). A widget renders
- *  its own `body("sheet")` lens; a modal entry renders a row that opens it. `false` ⇒ render NOTHING. */
-function SheetChromeEntry({ entry }: { readonly entry: ChromeEntry }): ReactNode {
+ *  its own `body("sheet")` lens; a modal entry renders a row that opens it; a SECTION entry renders the same
+ *  routing row the "More" list renders — while its effective curation is `"sheet"` (#484: standing in it,
+ *  it holds a bar slot instead). `false` ⇒ render NOTHING. */
+function SheetChromeEntry({ entry, active, mobile }: { readonly entry: ChromeEntry; readonly active: boolean; readonly mobile: MobileCuration }): ReactNode {
   const visible = entry.useVisible?.() ?? true;
   if (!visible) {
     return null;
@@ -33,15 +38,31 @@ function SheetChromeEntry({ entry }: { readonly entry: ChromeEntry }): ReactNode
   if (behavior.kind === "widget") {
     return behavior.body("sheet");
   }
-  // A `rail.end` entry is a widget or a modal (sections never land here); a modal row opens the shared slot.
-  if (behavior.kind !== "modal" || entry.icon === undefined) {
+  if (entry.icon === undefined) {
     return null;
+  }
+  if (behavior.kind === "section") {
+    if (mobile !== "sheet") {
+      return null;
+    }
+    return (
+      <ListRow
+        clickable={true}
+        leading={<Icon icon={entry.icon} size="sm" />}
+        onClick={(): void => {
+          setActiveSection(behavior.sectionId);
+          closeModal();
+        }}
+        selected={active}
+        title={entry.label}
+      />
+    );
   }
   return <ListRow clickable={true} leading={<Icon icon={entry.icon} size="sm" />} onClick={(): void => openModal(behavior.modalId)} title={entry.label} />;
 }
 
-/** The You bottom-sheet body: the `rail.end` footer chrome (theme/settings modals + the persona identity
- *  widget's sheet lens), then the `mobile:"sheet"` overflow sections. */
+/** The You bottom-sheet body: the `rail.end` footer chrome (the theme modal, the Settings section, the
+ *  persona identity widget's sheet lens), then the `mobile:"sheet"` overflow sections. */
 export function YouSheet(): ReactElement {
   const activeSection = useActiveSection();
   const entries = useChromeRegistry().list();
@@ -76,12 +97,17 @@ export function YouSheet(): ReactElement {
           />
         )}
         {footerEntries.map((entry) => (
-          <SheetChromeEntry key={entry.id} entry={entry} />
+          <SheetChromeEntry
+            active={entry.behavior.kind === "section" && entry.behavior.sectionId === activeSection}
+            entry={entry}
+            key={entry.id}
+            mobile={curation.get(entry.id) ?? "sheet"}
+          />
         ))}
       </Stack>
 
       {overflowChrome.map((entry) => (
-        <SheetChromeEntry entry={entry} key={entry.id} />
+        <SheetChromeEntry active={false} entry={entry} key={entry.id} mobile={curation.get(entry.id) ?? "sheet"} />
       ))}
 
       {overflowSections.length === 0 ? null : (

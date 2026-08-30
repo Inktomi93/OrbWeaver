@@ -12,7 +12,7 @@
 // collection on the screen twice. What travels is the FRAME: the surface's one opening statement, the
 // sentence under it, and one line per collection. Every string is `config-copy`'s or the contribution's
 // own (`label` + `blurb`), so a fourth collection appears here from the same ONE door row that puts it in
-// the welcome and the roster — this file names no collection.
+// the welcome and the LIST — this file names no collection (`collection` config groups only).
 //
 // THE VIEWPORT REGIME IS READ FROM `#state`, NEVER FROM A CONTAINER QUERY. The roster's own root is a
 // `<Container>`, so an `@md:`/`@max-md:` variant here would ask how wide the LIST PANE is — and the docked
@@ -24,22 +24,23 @@
 import { Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import type { CollectionContribution, ContributorRegistry } from "#lib";
-import { useCollectionSelection, useMobileViewport } from "#state";
+import type { ConfigGroupRegistry } from "#state";
+import { useActiveConfigGroup, useCollectionSelection, useMobileViewport } from "#state";
 import { CONFIG_WELCOME } from "../lib/config-copy.ts";
-import { orderCollections } from "../lib/order-collections.ts";
+import { collectionGroups } from "../lib/order-groups.ts";
 
 export interface ConfigMobileTeachingProps {
-  readonly collections: ContributorRegistry<CollectionContribution>;
+  readonly groups: ConfigGroupRegistry;
 }
 
-export function ConfigMobileTeaching({ collections }: ConfigMobileTeachingProps): ReactElement | null {
+export function ConfigMobileTeaching({ groups }: ConfigMobileTeachingProps): ReactElement | null {
   const isMobile = useMobileViewport();
   const selection = useCollectionSelection();
+  const activeGroup = useActiveConfigGroup();
   // WITH A MEMBER OPEN THE LIST IS NOT THE SCREEN — the shell has pushed that member's editor over it, and
   // the reader who taps Back is returning to a list they have already been taught. Teaching copy that
   // survives every navigation is chrome; this is the cold-start frame, so it is scoped to the cold state.
-  if (!isMobile || selection !== null) {
+  if (!isMobile || selection !== null || activeGroup !== null) {
     return null;
   }
   return (
@@ -54,12 +55,12 @@ export function ConfigMobileTeaching({ collections }: ConfigMobileTeachingProps)
       {/* One line per collection, in the SAME canonical `(order, id)` order the roster groups below it use,
           so the frame reads as a key to the list rather than as a second list. */}
       <Stack gap="tight">
-        {orderCollections(collections).map((collection) => (
-          <Text key={collection.id} voice="gloss">
+        {collectionGroups(groups).map((group) => (
+          <Text key={group.id} voice="gloss">
             <Text as="span" voice="label">
-              {collection.label}
+              {group.label}
             </Text>{" "}
-            {collection.blurb}
+            {group.description}
           </Text>
         ))}
       </Stack>

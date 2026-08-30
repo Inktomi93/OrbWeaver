@@ -4,7 +4,7 @@
 //
 // It is a settings-SECTION CONTRIBUTION (client-architecture-lockdown.md §6c / pain-point §7), NOT a pane
 // in features/settings: the chat/memory subsystem OWNS it, contributing it into the chat-behavior pane via
-// the settings-section seam (`SettingsSectionContribution`) assembled at the door. Reads getUserSettings
+// the settings-section seam (`ConfigSectionContribution`) assembled at the door. Reads getUserSettings
 // (cache-first — a hit, the host pane already loaded it) and autosaves through
 // updateUserSettingsSection("memory"), which emits settingsChanged → the USER_BUS refetches so the turn
 // pipeline sees the flip on the next turn.
@@ -23,7 +23,7 @@ import { SettingSwitchRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import type { SaveLifecycleState } from "#state";
-import { openSettingsTo, settingsAnchorId } from "#state";
+import { configAnchorId, openConfigTo } from "#state";
 import { MEMORY_SETTINGS_SUBCATEGORY } from "../lib/memory-settings-section-nav.ts";
 
 interface MemoryPatchVars {
@@ -65,7 +65,7 @@ function MemorySettingsBody({ sectionId }: { readonly sectionId: string }): Reac
   useReportSaveStatus(sectionId, saveStateOf(setEnabled.isPending, setEnabled.error !== null));
 
   return (
-    <Section divider={true} heading={MEMORY_SETTINGS_SUBCATEGORY.label} id={settingsAnchorId("chat-behavior", MEMORY_SETTINGS_SUBCATEGORY.id)}>
+    <Section divider={true} heading={MEMORY_SETTINGS_SUBCATEGORY.label} id={configAnchorId("chat-behavior", MEMORY_SETTINGS_SUBCATEGORY.id)}>
       <Stack gap="field">
         <SettingSwitchRow
           label="Remember earlier in long chats"
@@ -90,7 +90,7 @@ function MemorySettingsBody({ sectionId }: { readonly sectionId: string }): Reac
               Settings → Jobs" named a place the reader then had to go find by hand. The `CarrierBody`
               grammar — ghost button + external-link glyph, riding a standing shell intent — is the repo's
               existing shape for exactly this, so it is reused rather than re-invented. */}
-          <Button className="self-start" intent="ghost" onClick={(): void => openSettingsTo("workloads", "jobs")} size="sm" type="button">
+          <Button className="self-start" intent="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" type="button">
             Go to Jobs
             <Icon icon={ExternalLink} size="xs" />
           </Button>

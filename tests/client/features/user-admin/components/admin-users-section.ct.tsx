@@ -109,7 +109,7 @@ test("renders the user table off its OWN read, anchored at the admin pane's user
   await expect(component.getByText("root", { exact: true })).toBeVisible();
   await expect(component.getByText("kes", { exact: true })).toBeVisible();
   // The section stamps its own anchor now (§7.1 — the id is byte-identical across the move).
-  await expect(page.locator("#settings-anchor-admin-users")).toBeVisible();
+  await expect(page.locator("#config-anchor-admin-users")).toBeVisible();
 });
 
 test("as the owner, changing a member's role fires setRole", async ({ mount, page }) => {

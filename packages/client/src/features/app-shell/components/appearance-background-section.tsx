@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "../lib/appearance-background-model.ts";
 import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN, BACKGROUND_DIM_STEP } from "../lib/appearance-bounds.ts";
 import { BACKGROUND_FIT_ITEMS, BACKGROUND_KIND_ITEMS, SEEDED_BACKGROUND_ITEMS } from "../lib/appearance-select-items.ts";
@@ -87,7 +87,7 @@ function BackgroundBody({ sectionId, session }: { readonly sectionId: string; re
       className="@container"
       divider={true}
       heading={APPEARANCE_BACKGROUND_SUBCATEGORY.label}
-      id={settingsAnchorId("appearance", APPEARANCE_BACKGROUND_SUBCATEGORY.id)}
+      id={configAnchorId("appearance", APPEARANCE_BACKGROUND_SUBCATEGORY.id)}
     >
       <FieldLayout orientation="horizontal">
         <form.AppField name="backgroundImageKind">

@@ -13,7 +13,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { useEmbedCharacterCard, useRefreshAgentSdkCatalog, useRefreshCatalog } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_CATALOG_SUBCATEGORY, ADMIN_EMBEDDINGS_SUBCATEGORY } from "../lib/admin-ops-nav.ts";
 
@@ -25,7 +25,7 @@ export function AdminCatalogSection(): ReactElement {
   const refreshAgentSdk = useRefreshAgentSdkCatalog({ trpc, invalidation });
 
   return (
-    <Section className="@container" divider={true} heading={ADMIN_CATALOG_SUBCATEGORY.label} id={settingsAnchorId("admin", ADMIN_CATALOG_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={ADMIN_CATALOG_SUBCATEGORY.label} id={configAnchorId("admin", ADMIN_CATALOG_SUBCATEGORY.id)}>
       <Stack gap="row">
         <Text voice="gloss">Re-fetch the model catalogs the role pickers browse. Each runs live against its provider.</Text>
         <Row gap="field" align="center" className="flex-wrap">
@@ -62,7 +62,7 @@ export function AdminEmbedCardSection(): ReactElement {
   };
 
   return (
-    <Section className="@container" divider={true} heading={ADMIN_EMBEDDINGS_SUBCATEGORY.label} id={settingsAnchorId("admin", ADMIN_EMBEDDINGS_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={ADMIN_EMBEDDINGS_SUBCATEGORY.label} id={configAnchorId("admin", ADMIN_EMBEDDINGS_SUBCATEGORY.id)}>
       <Stack gap="row">
         <Text voice="gloss">Embed one character card into the vector index by its id (the inline path; the bulk path is the background index job).</Text>
         <Row gap="field" align="center" className="flex-wrap">

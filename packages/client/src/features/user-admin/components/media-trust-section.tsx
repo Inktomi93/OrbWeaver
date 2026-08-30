@@ -20,7 +20,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import { MEDIA_TRUST_SUBCATEGORY } from "../lib/system-config-nav.ts";
@@ -98,7 +98,7 @@ function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactEle
   };
 
   return (
-    <Section className="@container" divider={true} heading={MEDIA_TRUST_SUBCATEGORY.label} id={settingsAnchorId("admin", MEDIA_TRUST_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={MEDIA_TRUST_SUBCATEGORY.label} id={configAnchorId("admin", MEDIA_TRUST_SUBCATEGORY.id)}>
       <Stack gap="field">
         <Text voice="gloss">Deployment-wide content-render gates. A per-character override may TIGHTEN these, never loosen them.</Text>
         <AdminOverrideSwitch

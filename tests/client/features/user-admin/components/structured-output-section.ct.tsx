@@ -38,7 +38,7 @@ test("mounts on the resolved shape, names the deployment default, stamps its anc
 
   await expect(page.getByRole("combobox", { name: "JSON-Schema shape" })).toContainText(AS_PROJECTED_LABEL);
   await expect(page.getByText(`Using the deployment default: ${AS_PROJECTED_LABEL}.`)).toBeVisible();
-  await expect(page.locator("#settings-anchor-admin-structured-output")).toBeVisible();
+  await expect(page.locator("#config-anchor-admin-structured-output")).toBeVisible();
   await expect(page.getByRole("button", { name: "Save" })).toHaveCount(0);
 
   // RENDERED, not just present: the `Select` trigger is a fixed 200px, and the first draft of these labels

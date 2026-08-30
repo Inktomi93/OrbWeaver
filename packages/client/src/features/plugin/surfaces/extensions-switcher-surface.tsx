@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { LibrarySurfaceShell } from "#components";
 import { testId, useFocusOnMount } from "#lib";
-import { openSettingsTo, selectPluginPageFromList, usePluginPageKey } from "#state";
+import { openConfigTo, selectPluginPageFromList, usePluginPageKey } from "#state";
 import { usePluginPages } from "../hooks/use-plugin-pages.ts";
 import { EXTENSIONS_EMPTY_ACTION, EXTENSIONS_EMPTY_BODY, EXTENSIONS_EMPTY_TITLE } from "../lib/extensions-copy.ts";
 
@@ -31,7 +31,7 @@ function ExtensionsPageList(): ReactElement {
     return (
       <EmptyState
         action={
-          <Button intent="secondary" onClick={(): void => openSettingsTo("plugins")} size="sm">
+          <Button intent="secondary" onClick={(): void => openConfigTo("plugins")} size="sm">
             {EXTENSIONS_EMPTY_ACTION}
           </Button>
         }

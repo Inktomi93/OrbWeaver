@@ -34,7 +34,7 @@ import { CharacterLibrarySurfaceStory } from "../features/character/_ct-stories.
 import { makeCharacterSummary, makeTagFixture } from "../features/character/fixtures.ts";
 import { ComposerStory, MembersPanelStory, NewChatPickerStory } from "../features/chat/_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../features/chat/fixtures.ts";
-import { SettingsShellStory } from "../features/settings/_ct-stories.tsx";
+import { ConfigHostStory } from "../features/config/_ct-stories.tsx";
 import { CharacterCreateBandStory, PresetRenameDialogStory } from "../forms/_form-identity-stories.tsx";
 
 const USER_SETTINGS_VIEW = { userId: "user_ct_namecraft", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
@@ -47,6 +47,11 @@ const USER_SETTINGS_VIEW = { userId: "user_ct_namecraft", schemaVersion: 1, conf
  * resolving through routeTrpc's unstubbed-null branch (#629/#649).
  */
 const VIEWER_IDENTITY_ROUTES: Readonly<Record<string, unknown>> = {
+  // The config LIST paints every shelf, so the four collection bands read their rosters — fed empty.
+  "tag.listTagsWithUsage": [],
+  "regex.listScripts": [],
+  "worldInfo.listBooksWithUsage": [],
+  "rosterPreset.list": [],
   "sessions.me": { userId: "user_ct_namecraft", globalRole: "user", handle: "namecraft" },
   "persona.list": [],
 };
@@ -156,6 +161,7 @@ test("the members panel is navigable by name", async ({ mount, page }) => {
 
 test("the character library is navigable by name", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "rosterPreset.list": [],
     "character.list": () => ({ items: [ARIA, BOLT], nextCursor: null }),
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
     "chat.listChats": () => EMPTY_CHAT_LIST,
@@ -165,15 +171,16 @@ test("the character library is navigable by name", async ({ mount, page }) => {
   await expectEveryNameNavigable(page, "character library");
 });
 
-test("the settings shell is navigable by name", async ({ mount, page }) => {
+test("the config host (the Settings section's LIST + CONTENT) is navigable by name", async ({ mount, page }) => {
   await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW, ...VIEWER_IDENTITY_ROUTES });
-  const settings = await mount(<SettingsShellStory />);
+  const settings = await mount(<ConfigHostStory target="appearance" />);
   await expect(settings.getByRole("switch", { name: "Show avatars in chat" })).toBeVisible();
-  await expectEveryNameNavigable(page, "settings shell");
+  await expectEveryNameNavigable(page, "config host");
 });
 
 test("the new-chat picker is navigable by name", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": () => ({ items: [ARIA, BOLT], nextCursor: null }) });
+  // The picker's saved-cast plane reads the cast roster beside the character list — fed empty.
+  await routeTrpc(page, { "character.list": () => ({ items: [ARIA, BOLT], nextCursor: null }), "rosterPreset.list": [] });
   await mount(<NewChatPickerStory />);
   await expect(page.getByRole("option", { name: "Aria Nightshade" })).toBeVisible();
   await expectEveryNameNavigable(page, "new-chat picker");

@@ -51,27 +51,33 @@ test("openModal / closeModal drive the open-modal read", async ({ mount }) => {
   const state = probe.locator("output");
   await expect(state).toContainText("modal=none");
 
-  await probe.getByRole("button", { name: "open settings", exact: true }).click();
-  await expect(state).toContainText("modal=settings");
+  await probe.getByRole("button", { name: "open theme", exact: true }).click();
+  await expect(state).toContainText("modal=theme");
 
   await probe.getByRole("button", { name: "close modal" }).click();
   await expect(state).toContainText("modal=none");
 });
 
-test("openSettingsTo opens the settings modal AND targets the deep-link category", async ({ mount }) => {
+// The settings deep link is NOT modal state any more (#866 S1): `openConfigTo` writes the config NAV store
+// (its own CT) and switches the SECTION through this store — the modal slot stays untouched, and closing a
+// modal can no longer clear a navigation fact it never owned.
+test("openConfigTo switches the section through the shell store and leaves the modal slot alone", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");
   await expect(state).toContainText("modal=none");
   await expect(state).toContainText("settingsTarget=none");
 
   await probe.getByRole("button", { name: "open settings to personas" }).click();
-  await expect(state).toContainText("modal=settings");
+  await expect(state).toContainText("modal=none");
+  await expect(state).toContainText("section=config");
   await expect(state).toContainText("settingsTarget=personas");
 
-  // closeModal clears BOTH the modal and the deep-link target (no stale category on reopen).
+  // A modal opening and closing over the section leaves the section's own navigation fact standing.
+  await probe.getByRole("button", { name: "open theme", exact: true }).click();
+  await expect(state).toContainText("modal=theme");
   await probe.getByRole("button", { name: "close modal" }).click();
   await expect(state).toContainText("modal=none");
-  await expect(state).toContainText("settingsTarget=none");
+  await expect(state).toContainText("settingsTarget=personas");
 });
 
 test("setContextTab sets the opaque CONTEXT tab request", async ({ mount }) => {

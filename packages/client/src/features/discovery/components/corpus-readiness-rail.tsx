@@ -35,7 +35,7 @@ import { Check, Circle, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { openSettingsTo } from "#state";
+import { openConfigTo } from "#state";
 import { useUnderstandingPass, useUnderstandingPassTail } from "../hooks/use-understanding-pass.ts";
 import type { CorpusReadinessStage } from "../lib/corpus-analysis-state.ts";
 
@@ -174,7 +174,7 @@ function CorpusReadinessRerun(): ReactElement {
           </Text>
         </Stack>
       )}
-      <Button data-slot="readiness-jobs-door" intent="ghost" onClick={(): void => openSettingsTo("workloads", "jobs")} size="sm">
+      <Button data-slot="readiness-jobs-door" intent="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm">
         All jobs in Settings → Jobs
       </Button>
     </Stack>

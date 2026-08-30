@@ -1,11 +1,12 @@
 // workloads feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The
 // stories reach a feature internal the front door doesn't re-export (the settings _ct-stories.tsx
-// precedent) — the section bodies and BackupSettingsSurface are mounted by the settings host, not exported
-// standalone.
+// precedent) — the section bodies are mounted by the config host, not exported standalone; the Backup group
+// mounts as its two CONTRIBUTED sections through the host's own resolver (config-revamp-design.md §6.8).
 
 import { useOrbSocket } from "@orb/client/data";
-import { SettingsShell } from "@orb/client/features/settings";
-import { openSettingsTo } from "@orb/client/state";
+import { backupExportSection, backupImportSection } from "@orb/client/features/workloads";
+import { createContributorRegistry } from "@orb/client/lib";
+import type { ConfigSectionContribution } from "@orb/client/state";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { SchedulesSection } from "../../../../packages/client/src/features/workloads/components/schedules-section.tsx";
@@ -13,8 +14,14 @@ import { WorkloadsJobsSection } from "../../../../packages/client/src/features/w
 import { WorkloadsTuningSection } from "../../../../packages/client/src/features/workloads/components/workloads-tuning-section.tsx";
 import type { LibraryImport } from "../../../../packages/client/src/features/workloads/hooks/use-library-import.ts";
 import { useLibraryImport } from "../../../../packages/client/src/features/workloads/hooks/use-library-import.ts";
-import { BackupSettingsSurface } from "../../../../packages/client/src/features/workloads/surfaces/backup-settings-surface.tsx";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { CtConfigGroupBody, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { ConfigHostStory } from "../config/_ct-stories.tsx";
+
+/** The Backup group's two contributed sections, assembled as at the door. */
+const backupSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> = createContributorRegistry<ConfigSectionContribution>(
+  "config-sections",
+  [backupExportSection, backupImportSection],
+);
 
 /** The app-root shape: ONE socket, above every room hook. Since SSE-1 S5 an active workload row has no
  *  subscription of its own — it JOINS a `workloads` ROOM on the tab's one socket, so the socket has to be
@@ -57,21 +64,11 @@ export function WorkloadsSchedulesSectionStory(): ReactElement {
  *  it a `{kind:"sections"}` skimmer with no surface of its own. Deep-linked (the shell's default active
  *  category is `appearance`) so it lands cold on workloads with the REAL door-ordered section registry and
  *  the derived nav — the production path. A tall/wide box: the pane stacks three sections. */
-export function WorkloadsPaneStory(): ReactElement {
-  useState(() => {
-    openSettingsTo("workloads");
-    return null;
-  });
+export function WorkloadsGroupStory(): ReactElement {
   return (
-    <CtDataProviders>
-      <SocketHost>
-        <CtRealSectionRegistry>
-          <div style={{ height: 900, width: 1160 }}>
-            <SettingsShell />
-          </div>
-        </CtRealSectionRegistry>
-      </SocketHost>
-    </CtDataProviders>
+    <ConfigHostStory target="workloads" height={900} width={1160}>
+      <SocketHost>{null}</SocketHost>
+    </ConfigHostStory>
   );
 }
 
@@ -95,7 +92,7 @@ export function BackupSettingsStory(): ReactElement {
     <CtDataProviders>
       <SocketHost>
         <div style={{ height: 900, overflow: "auto", width: 960 }}>
-          <BackupSettingsSurface />
+          <CtConfigGroupBody anchor="backup" sections={backupSections} />
         </div>
       </SocketHost>
     </CtDataProviders>

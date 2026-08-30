@@ -10,5 +10,5 @@ test("ModalRegistryProvider renders children and delivers the registry to a nest
   const out = probe.locator("output");
   await expect(out).toBeVisible();
   // All six modals reached the consumer — the provider delivered the total registry, not a partial one.
-  await Promise.all(["theme", "settings", "account", "command", "newChat", "you"].map((id) => expect(out).toContainText(id)));
+  await Promise.all(["theme", "account", "command", "newChat", "you"].map((id) => expect(out).toContainText(id)));
 });

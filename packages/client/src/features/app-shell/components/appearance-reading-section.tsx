@@ -20,7 +20,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { APPEARANCE_READING_KEYS, APPEARANCE_READING_SUBCATEGORY } from "../lib/appearance-reading-model.ts";
 
 const READING_LINE_HEIGHT_MIN = 1.2;
@@ -88,7 +88,7 @@ function ReadingBody({ sectionId, session }: { readonly sectionId: string; reado
       className="@container"
       divider={true}
       heading={APPEARANCE_READING_SUBCATEGORY.label}
-      id={settingsAnchorId("appearance", APPEARANCE_READING_SUBCATEGORY.id)}
+      id={configAnchorId("appearance", APPEARANCE_READING_SUBCATEGORY.id)}
     >
       <FieldLayout orientation="horizontal">
         <form.AppField name="readingLineHeight">

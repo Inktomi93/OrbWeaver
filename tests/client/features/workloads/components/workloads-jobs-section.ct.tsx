@@ -127,7 +127,7 @@ test("lists the caller's own jobs with status badges; a plain user never fires a
   await expect(allPanel.getByText("40 rows · 7 written")).toBeVisible();
 
   // The section stamps its own anchor now (§7.1 — the id is byte-identical across the move).
-  await expect(page.locator("#settings-anchor-workloads-jobs")).toBeVisible();
+  await expect(page.locator("#config-anchor-workloads-jobs")).toBeVisible();
 
   // The Failed tab slices client-side to the failure terminals only.
   await page.getByRole("tab", { name: "Failed" }).click();

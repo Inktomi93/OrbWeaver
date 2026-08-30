@@ -1,5 +1,6 @@
-// The WORLD INFO collection contribution (config-rail-spec.md R2 · review §4) — co-located with its owner,
-// assembled at the door into the `config-collections` registry, consumed BLIND by `features/config`.
+// The WORLD INFO collection contribution (config-rail-spec.md R2 · review §4) — the `collection` body of the
+// `worldInfo` config group (`world-info-group.tsx` carries the library's identity since the config revamp
+// #866 S1), consumed BLIND by `features/config`.
 //
 // It replaces the World Info RAIL SECTION: a books LIBRARY is workspace anatomy, not a top-level destination,
 // and the rail's authoring run had two library sections (World Info, Presets) competing with the workspace
@@ -13,7 +14,6 @@
 // `importFile` — D121-D's `band=Import` half, re-homed onto the group band as DATA the host renders (the
 // contract's `importFile` field, added by this stage). EXPORT stays the row's own kebab arm, per-member.
 
-import { BookOpen } from "@orb/ui/icons";
 import type { CollectionContribution } from "#lib";
 import { WorldInfoCollectionRows } from "../components/world-info-collection-rows.tsx";
 import { WorldInfoContextBody } from "../components/world-info-context-body.tsx";
@@ -25,15 +25,8 @@ import {
   useWorldInfoPreview,
 } from "../hooks/use-world-info-collection.ts";
 import { WorldInfoMemberSurface } from "../surfaces/world-info-member-surface.tsx";
-import { WORLD_INFO_COLLECTION_ID } from "./world-info-model.ts";
 
 export const worldInfoCollection: CollectionContribution = {
-  id: WORLD_INFO_COLLECTION_ID,
-  label: "World Info",
-  icon: BookOpen,
-  order: 30,
-  // #104 item 3 (em-dash diet): "and" is what the sentence means, so it says it.
-  blurb: "Keyword-triggered lore your characters draw on, and a book fires where you attach it.",
   emptyText: "No books yet.",
   useCount: useWorldInfoCount,
   // The welcome hero's chip wall (side-eye 2026-08-19 P1-2 — this library used to declare no preview, so its

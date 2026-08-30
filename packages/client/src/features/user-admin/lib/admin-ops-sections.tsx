@@ -7,18 +7,18 @@
 // through the settings tiers, so they are exempt from the §2.3 key partition. No `when`: the admin pane
 // carries the viewer gate.
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { AdminCatalogSection, AdminEmbedCardSection } from "../components/admin-ops-section.tsx";
 import { ADMIN_CATALOG_SUBCATEGORY, ADMIN_EMBEDDINGS_SUBCATEGORY } from "./admin-ops-nav.ts";
 
-export const adminCatalogSection: SettingsSectionContribution = {
+export const adminCatalogSection: ConfigSectionContribution = {
   id: "admin-model-catalog",
   anchor: "admin",
   nav: ADMIN_CATALOG_SUBCATEGORY,
   body: () => <AdminCatalogSection />,
 };
 
-export const adminEmbeddingsSection: SettingsSectionContribution = {
+export const adminEmbeddingsSection: ConfigSectionContribution = {
   id: "admin-card-embeddings",
   anchor: "admin",
   nav: ADMIN_EMBEDDINGS_SUBCATEGORY,

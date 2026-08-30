@@ -3,7 +3,7 @@
 // assembles it into the chat-behavior pane's settings-section registry (G8) at the `chat-behavior` anchor.
 // Chat owns the {{databank}} slot's consumption (the gather op), so it lands here — never features/settings.
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { DatabankSettingsSection } from "../components/databank-settings-section.tsx";
 import { DATABANK_SETTINGS_SUBCATEGORY } from "./databank-settings-section-nav.ts";
 
@@ -11,7 +11,7 @@ import { DATABANK_SETTINGS_SUBCATEGORY } from "./databank-settings-section-nav.t
 // its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.
 const SECTION_ID = "chat-databank";
 
-export const databankSettingsSection: SettingsSectionContribution = {
+export const databankSettingsSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "chat-behavior",
   nav: DATABANK_SETTINGS_SUBCATEGORY,

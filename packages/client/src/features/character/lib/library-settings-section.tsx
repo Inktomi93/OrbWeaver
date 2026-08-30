@@ -3,7 +3,7 @@
 // into the appearance pane's settings-section registry (G8). Character OWNS this knob (`library.pageSize` is
 // read by character-library-surface), so it lands here instead of staying inside features/settings.
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { LibrarySettingsSection } from "../components/library-settings-section.tsx";
 import { LIBRARY_SETTINGS_SUBCATEGORY } from "./library-settings-nav.ts";
 
@@ -11,7 +11,7 @@ import { LIBRARY_SETTINGS_SUBCATEGORY } from "./library-settings-nav.ts";
 // its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.
 const SECTION_ID = "library-settings";
 
-export const librarySettingsSection: SettingsSectionContribution = {
+export const librarySettingsSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "appearance",
   nav: LIBRARY_SETTINGS_SUBCATEGORY,

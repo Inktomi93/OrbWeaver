@@ -6,7 +6,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
-import { SettingsShellStory } from "../features/settings/_ct-stories.tsx";
+import { ConfigHostStory } from "../features/config/_ct-stories.tsx";
 
 const SETTINGS_VIEW = {
   userId: "user_ct_section_status",
@@ -24,15 +24,21 @@ test("a failing section renders inline at its anchor WITH a retry, even while ho
     "settings.getUserSettings": () => SETTINGS_VIEW,
     [UPDATE_PROC]: () => trpcError({ code: "INTERNAL_SERVER_ERROR", message: "nope" }),
     "sessions.me": () => VIEWER,
+    // The config LIST paints every shelf, so the four collection bands read their rosters for the counts —
+    // fed empty (the honest fresh-library arm) rather than left to routeTrpc's inert null.
+    "tag.listTagsWithUsage": [],
+    "regex.listScripts": [],
+    "worldInfo.listBooksWithUsage": [],
+    "rosterPreset.list": [],
   });
-  await mount(<SettingsShellStory />);
+  await mount(<ConfigHostStory />);
   await page.getByRole("button", { name: "Chat behavior" }).click();
   await page.getByRole("heading", { name: "World info" }).waitFor();
 
   // SCOPED to the world-info anchor: an unscoped `Increase.first()` resolves to whichever stepper is highest
   // in the PANE, and the message-handling section above renders a deliberately DISABLED one
   // (`autoContinueRounds` while auto-continue is off, `663b956b`), which can never be clicked.
-  const worldInfo = page.locator("#settings-anchor-chat-behavior-world-info");
+  const worldInfo = page.locator("#config-anchor-chat-behavior-world-info");
   await worldInfo.getByRole("textbox", { name: "Scan depth" }).focus();
   await worldInfo.getByRole("button", { name: "Increase" }).first().click();
 

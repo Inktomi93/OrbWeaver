@@ -2,11 +2,8 @@
 // stories reach feature internals the front door doesn't re-export (the section BODIES are mounted by the
 // settings host through the contribution defs) — the settings _ct-stories.tsx precedent.
 
-import { SettingsShell } from "@orb/client/features/settings";
-import { openSettingsTo } from "@orb/client/state";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
-import { useState } from "react";
 import { AdminApprovalsSection } from "../../../../packages/client/src/features/user-admin/components/admin-approvals-section.tsx";
 import { AdminEnginesSection } from "../../../../packages/client/src/features/user-admin/components/admin-engines-section.tsx";
 import { AdminLinkSsoSection } from "../../../../packages/client/src/features/user-admin/components/admin-link-sso-section.tsx";
@@ -20,7 +17,8 @@ import { OperationsSection } from "../../../../packages/client/src/features/user
 import { RateLimitsSection } from "../../../../packages/client/src/features/user-admin/components/rate-limits-section.tsx";
 import { StructuredOutputSection } from "../../../../packages/client/src/features/user-admin/components/structured-output-section.tsx";
 import { SystemTuningSection } from "../../../../packages/client/src/features/user-admin/components/system-tuning-section.tsx";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { ConfigHostStory } from "../config/_ct-stories.tsx";
 
 /** The Users SECTION (SET-SEAMS stage 3) in isolation — `admin.listUsers` + `sessions.me` (the viewer's role
  *  for the owner-only role controls) and the row-verb mutations are stubbed per-test via routeTrpc. The
@@ -93,26 +91,12 @@ export function AdminOpsSectionsStory(): ReactElement {
   );
 }
 
-/** The REAL admin pane, driven through the shell — the ONLY way to mount it since SET-SEAMS stage 3 made it a
- *  `{kind:"sections"}` skimmer with no surface of its own. Deep-linked (the shell's default active category
- *  is `appearance`) so it lands cold on admin with the REAL door-ordered section registry and the derived
- *  nav — the production path. The pane is `when`-gated, so the `.ct.tsx` must stub an ADMIN viewer. */
-export function AdminPaneStory(): ReactElement {
-  useState(() => {
-    openSettingsTo("admin");
-    return null;
-  });
-  return (
-    <CtDataProviders>
-      <CtRealSectionRegistry>
-        <TooltipProvider>
-          <div style={{ height: 900, width: 1160 }}>
-            <SettingsShell />
-          </div>
-        </TooltipProvider>
-      </CtRealSectionRegistry>
-    </CtDataProviders>
-  );
+/** The REAL admin group, driven through the config host — the ONLY way to mount it since SET-SEAMS stage 3
+ *  made it a `{kind:"sections"}` skimmer with no surface of its own. Deep-linked so it lands cold on admin
+ *  with the REAL door-ordered section registry and the derived LIST rows — the production path. The group is
+ *  `when`-gated, so the `.ct.tsx` must stub an ADMIN viewer. */
+export function AdminGroupStory(): ReactElement {
+  return <ConfigHostStory target="admin" height={900} width={1160} />;
 }
 
 /** The Rate limits admin SECTION (Phase B ③) in isolation — getAppSettingsWithOverrides +

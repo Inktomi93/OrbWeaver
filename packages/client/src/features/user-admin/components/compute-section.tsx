@@ -14,7 +14,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import { COMPUTE_SUBCATEGORY } from "../lib/system-config-nav.ts";
@@ -87,7 +87,7 @@ function ComputeBody({ sectionId }: { readonly sectionId: string }): ReactElemen
   };
 
   return (
-    <Section className="@container" divider={true} heading={COMPUTE_SUBCATEGORY.label} id={settingsAnchorId("admin", COMPUTE_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={COMPUTE_SUBCATEGORY.label} id={configAnchorId("admin", COMPUTE_SUBCATEGORY.id)}>
       <Stack gap="field">
         <Text voice="gloss">Local vLLM runner fan-out. Applies to the next batch — no engine restart.</Text>
         {FIELDS.map(({ key, label, hint }) => (

@@ -13,8 +13,8 @@
 // the door is now two modules (`main.tsx` boots, this one composes); the shared singletons live in
 // `./app-singletons.ts` so neither half mints a second QueryClient or tRPC client.
 //
-// Adding a section / modal / pane / contributor is the same one-line edit it always was — it just lands
-// here instead of in `main.tsx`.
+// Adding a section / modal / config group / contributor is the same one-line edit it always was — it just
+// lands here instead of in `main.tsx`.
 
 import type { ReactElement } from "react";
 import { contextToggleChrome, fullscreenChrome, youModal } from "#features/app-shell";
@@ -22,8 +22,8 @@ import { accountModal, reauthModal } from "#features/auth";
 import {
   automationActivityTab,
   automationClockMeterSurface,
+  automationGroup,
   automationNeedleMeterSurface,
-  automationPane,
   automationQuickReplySource,
   automationRulesSection,
   automationSuggestionSource,
@@ -38,14 +38,14 @@ import {
   makeChatsSection,
   newChatModal,
 } from "#features/chat";
-import { makeConfigSection } from "#features/config";
-import { connectionsPane } from "#features/credentials";
+import { bindConfigPaletteGroups, configPaletteSource, makeConfigSection } from "#features/config";
+import { connectionsGroup } from "#features/credentials";
 import { addDocumentModal, databankSection } from "#features/databank";
 import { corpusSection } from "#features/discovery";
 import { makeHomeSection } from "#features/home";
 import { imageDetailModal, imageEditModal, imagerySlashCommands, imagineModal } from "#features/imagery";
 import { notificationsChrome } from "#features/notifications";
-import { personaChrome, personasPane } from "#features/persona";
+import { personaChrome, personasGroup } from "#features/persona";
 import {
   extensionsSection,
   pluginChatFlankSurface,
@@ -57,27 +57,26 @@ import {
   pluginMessageFooterSurface,
   pluginSlashCommands,
   pluginSnippetConsoleSection,
-  pluginsPane,
+  pluginsGroup,
   pluginToolRenderer,
 } from "#features/plugin";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
-import { regexCollection } from "#features/regex";
-import { castCollection, savedCastsModal } from "#features/roster-preset";
+import { regexGroup } from "#features/regex";
+import { castGroup, savedCastsModal } from "#features/roster-preset";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgDiceAskSource, rpgDiceToolRenderer, rpgTurnToolCallsSurface } from "#features/rpg";
-import { appearancePane, chatBehaviorPane, settingsModal, themeModal } from "#features/settings";
+import { appearanceGroup, chatBehaviorGroup, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
-import { tagCollection } from "#features/tag";
-import { adminPane } from "#features/user-admin";
-import { backupPane, workloadsPane } from "#features/workloads";
-import { worldInfoCollection } from "#features/world-info";
+import { tagsGroup } from "#features/tag";
+import { adminGroup } from "#features/user-admin";
+import { backupGroup, workloadsGroup } from "#features/workloads";
+import { worldInfoGroup } from "#features/world-info";
 import type {
   CharacterDetailContribution,
   ChatContextState,
   ChatControlSource,
   ChatSettingsSectionContribution,
   ChatSurfaceContribution,
-  CollectionContribution,
   CommandPaletteSource,
   ContextRegionDef,
   ContextTabDef,
@@ -89,25 +88,24 @@ import { createContributorRegistry, createRegistry } from "#lib";
 import {
   assembleChrome,
   ChromeRegistryProvider,
+  CONFIG_GROUP_IDS,
   CommandPaletteSourceRegistryProvider,
+  ConfigSectionRegistryProvider,
   MessageToolsRendererRegistryProvider,
   MODAL_SLOT_IDS,
   ModalRegistryProvider,
   SECTION_IDS,
-  SETTINGS_CATEGORY_IDS,
   SectionRegistryProvider,
-  SettingsPaneRegistryProvider,
-  SettingsSectionRegistryProvider,
   SlashCommandRegistryProvider,
 } from "#state";
 import { AppRoot } from "../routes/app-root.tsx";
 import { queryClient, trpcProxy } from "./app-singletons.ts";
+// The config-SECTION assembly, in its own `compose/` sibling (§7 + `client-compose-door-only`): still ONE
+// assembly, still door-owned — it moved for `component-size`, like `home-tiles.ts`. See that file's header.
+import { configSections } from "./config-sections.ts";
 // The home-tile registry, assembled in its own `compose/` sibling (§7 + `client-compose-door-only`): still ONE
 // assembly, still door-owned — it moved for `component-size`, not for architecture. See that file's header.
 import { homeTiles } from "./home-tiles.ts";
-// The settings-SECTION assembly, in its own `compose/` sibling (§7 + `client-compose-door-only`): still ONE
-// assembly, still door-owned — it moved for `component-size`, like `home-tiles.ts`. See that file's header.
-import { settingsSections } from "./settings-sections.ts";
 
 // The chat-context contributor seam (§6c): the rpg takeover's four LITE game tabs (Context-Panel-Program
 // §4.4) — the FIRST real consumer of this seam. rpg exports the SELF-CONTAINED factory `makeRpgContextTabs`
@@ -236,24 +234,39 @@ const slashCommands = createContributorRegistry<SlashCommandContribution>("slash
 // rows (a plugin's registered commands, read per-caller) into first-class command-palette rows. One member
 // today; like every contributor family, the door does not grow when a person installs a plugin (the per-plugin
 // fan lives inside the source's `useRows` off the caller's own `plugin.listCommands`).
-const commandPaletteSources = createContributorRegistry<CommandPaletteSource>("command-palette-sources", [pluginCommandPaletteSource]);
+const commandPaletteSources = createContributorRegistry<CommandPaletteSource>("command-palette-sources", [pluginCommandPaletteSource, configPaletteSource]);
 
 // The character-detail contributor seam (§6c): EMPTY but typed — the door → factory → editor-body anchor
 // path is compiled and exercised with zero contributions; the agents feature appends its card-evolution
 // review section later (crew 07-client-ui §4.2), grafting into the editor WITHOUT importing character.
 const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
 
-// The COLLECTION contributor seam (config-rail-spec.md · review §4) — the ELEVENTH contributor family and
-// the Configuration workspace's whole content: the DOOR ARRAY IS THE ROSTER, in group order. Moving a
-// library between the rail and this workspace is one line HERE and zero edits to the library itself; the
-// host (`features/config`) imports none of them.
-const configCollections = createContributorRegistry<CollectionContribution>("config-collections", [
-  tagCollection,
-  regexCollection,
-  worldInfoCollection,
+// The ONE config-group assembly (config-revamp-design.md §3.1 / §8 / G8): total over CONFIG_GROUP_IDS by
+// tsc — a missing group is a compile error, and `config-group-completeness` carries the walls tsc cannot
+// (co-location, duplicate ids, placeholder honesty, skimmer purity, the collection body's data verbs). The
+// nine settings categories, the FOUR member collections (owner fork F-1 closed the old `config-collections`
+// contributor set into this tuple) and the persona surface register the SAME shape; a plugin never registers
+// a group — its settings ride the Extensions group's rows. Placement is the def's `(shelf, order)`; membership
+// is the tuple. Handed to `makeConfigSection` by factory: the host is the registry's only reader.
+const configGroups = createRegistry("config-groups", CONFIG_GROUP_IDS, {
+  personas: personasGroup,
+  appearance: appearanceGroup,
+  "chat-behavior": chatBehaviorGroup,
+  workloads: workloadsGroup,
+  backup: backupGroup,
+  connections: connectionsGroup,
+  automation: automationGroup,
+  admin: adminGroup,
+  tags: tagsGroup,
+  regex: regexGroup,
+  worldInfo: worldInfoGroup,
   // #26/B10 — the saved-cast library's management surface (order 40, after world-info's 30).
-  castCollection,
-]);
+  cast: castGroup,
+  plugins: pluginsGroup,
+});
+// The ⌘K Settings source reads the door-held group registry through its bound module slot (§3.3 — the same
+// `makeConfigSection` delivery, spelled for a module-level hook; written exactly once, here).
+bindConfigPaletteGroups(configGroups);
 
 // The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
@@ -271,7 +284,7 @@ const sections = createRegistry("sections", SECTION_IDS, {
   // the characters section (the `makeChatsSection` contributor precedent; a direct import is dep-cruiser RED).
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
-  config: makeConfigSection(configCollections),
+  config: makeConfigSection(configGroups),
   // U5 (#679, seam 16): ONE rail entry for every plugin's `ui.page` surfaces; its switcher does the fan.
   extensions: extensionsSection,
   databank: databankSection,
@@ -284,7 +297,6 @@ const sections = createRegistry("sections", SECTION_IDS, {
 // ModalHost reads it without a #features import.
 const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   theme: themeModal,
-  settings: settingsModal,
   account: accountModal,
   command: commandModal,
   newChat: newChatModal,
@@ -324,20 +336,6 @@ const chrome = createContributorRegistry(
   }),
 );
 
-// The ONE settings-pane assembly (§8/G8): total over SETTINGS_CATEGORY_IDS by tsc; delivered as a
-// context value so the settings host reads it without importing any pane body directly.
-const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
-  personas: personasPane,
-  appearance: appearancePane,
-  workloads: workloadsPane,
-  backup: backupPane,
-  "chat-behavior": chatBehaviorPane,
-  connections: connectionsPane,
-  automation: automationPane,
-  plugins: pluginsPane,
-  admin: adminPane,
-});
-
 /** The `/` route's component: the door's assembled registries delivered to the authed tree, then the thin
  *  `AppRoot` mount. Reached ONLY through `routes/router.tsx`'s lazy boundary — this module (and the whole
  *  feature graph it imports) is a separate chunk that an unauthenticated client never fetches. */
@@ -346,17 +344,15 @@ export function AuthedApp(): ReactElement {
     <SectionRegistryProvider value={sections}>
       <ModalRegistryProvider value={modals}>
         <ChromeRegistryProvider value={chrome}>
-          <SettingsPaneRegistryProvider value={settingsPanes}>
-            <SettingsSectionRegistryProvider value={settingsSections}>
-              <MessageToolsRendererRegistryProvider value={messageToolsRenderers}>
-                <SlashCommandRegistryProvider value={slashCommands}>
-                  <CommandPaletteSourceRegistryProvider value={commandPaletteSources}>
-                    <AppRoot />
-                  </CommandPaletteSourceRegistryProvider>
-                </SlashCommandRegistryProvider>
-              </MessageToolsRendererRegistryProvider>
-            </SettingsSectionRegistryProvider>
-          </SettingsPaneRegistryProvider>
+          <ConfigSectionRegistryProvider value={configSections}>
+            <MessageToolsRendererRegistryProvider value={messageToolsRenderers}>
+              <SlashCommandRegistryProvider value={slashCommands}>
+                <CommandPaletteSourceRegistryProvider value={commandPaletteSources}>
+                  <AppRoot />
+                </CommandPaletteSourceRegistryProvider>
+              </SlashCommandRegistryProvider>
+            </MessageToolsRendererRegistryProvider>
+          </ConfigSectionRegistryProvider>
         </ChromeRegistryProvider>
       </ModalRegistryProvider>
     </SectionRegistryProvider>

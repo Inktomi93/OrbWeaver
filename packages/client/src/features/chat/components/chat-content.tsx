@@ -13,7 +13,7 @@ import type { ChatBusDeps } from "#data";
 import { useChatBusDeps } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, NotifyAction, ToolRenderer } from "#lib";
 import { notify, turnAbortNotice } from "#lib";
-import { chatDeletedFromList, isLanding, openNewChatPicker, openSettingsTo, selectChat, useActiveChatHandle } from "#state";
+import { chatDeletedFromList, isLanding, openConfigTo, openNewChatPicker, selectChat, useActiveChatHandle } from "#state";
 import { warningNotice } from "../lib/warning-notice.ts";
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface.tsx";
 import { ChatRoomSurface } from "../surfaces/chat-room-surface.tsx";
@@ -40,7 +40,7 @@ function surfaceTurnAbort(reason: TurnAbortReason): void {
 const OPEN_CONNECTIONS: NotifyAction = {
   label: "Open Connections",
   onClick: (): void => {
-    openSettingsTo("connections");
+    openConfigTo("connections");
   },
 };
 

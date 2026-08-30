@@ -1,0 +1,142 @@
+// The config-group contract (client-architecture-lockdown.md §8 · config-revamp-design.md §3.1) — the
+// section/modal registry move applied to the unified Configuration workspace: ONE co-located definition
+// per group, assembled at the door (`compose/authed-app.tsx`) into a registry total over
+// `CONFIG_GROUP_IDS`, and handed to `makeConfigSection(groups)` by factory (the home-tiles precedent —
+// the host is the registry's only reader, so there is no context pair). Homed here (not
+// features/config) because it binds `CONFIG_GROUP_IDS` (state-owned, §5 rule 5) to the render shape.
+//
+// It was the settings-pane registry (a `SettingsPaneDefinition` total over the nine settings categories).
+// The unification (#866 S1) added the `collection` body arm — the `CollectionContribution` seam's whole
+// machinery, verbatim, with its identity (`id · label · icon · order · blurb`) lifted onto the group base
+// so a library has ONE identity home — and the `shelf` axis the LIST paints. The section-contribution
+// seam that used to share this file lives in `config-section-registry.ts`; the key partition in
+// `config-section-partition.ts` (both split out for the component-size cap, not for architecture).
+//
+// EVERY NON-COLLECTION GROUP IS A SKIMMER BY TYPE (config-revamp-design.md §6.8, owner ruling 2026-08-30):
+// the `surface` body arm and the group's own `subcategories` map are GONE. A group's parts are
+// `ConfigSectionContribution`s at its anchor and nothing else — the host derives the LIST rows, the search
+// index, the scroll-spy targets and the render from ONE registry, so a LIST row can never point at an
+// anchor nothing renders and a body can never paint a section the LIST cannot reach. `tsc` is the wall
+// (an excess `subcategories:`/`kind: "surface"` on a group literal is a compile error); the
+// `config-group-completeness` gate covers the one hole tsc cannot see — a component stamping an anchor no
+// contribution renders.
+//
+// `SettingsViewerView` keeps its name: it is the projection of who may SEE settings, consumed by a group's
+// and a section's `when`; `#data`'s `useSettingsViewerView` is its ONE derivation home (§5 rule 6).
+
+import type { LucideIcon } from "@orb/ui/icons";
+import type { CollectionContribution, Registry } from "#lib";
+import type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
+
+/** One searchable/jumpable setting inside a subcategory — the leaf of the config search index. */
+export interface ConfigSettingLeaf {
+  readonly id: string;
+  readonly label: string;
+  readonly keywords?: readonly string[];
+  /** Hidden from search unless the reader asks with `@advanced` (§3.3 — the D107 progressive-disclosure
+   *  axis). Absent = an ordinary row. */
+  readonly advanced?: boolean;
+}
+
+/** A subcategory = one anchored section inside a group; each stamps a stable anchor node the spy reads and
+ *  the search jumps to. */
+export interface ConfigSubcategory {
+  readonly id: string;
+  /** The section's real name — what its `<Section>` HEADING renders, and what search matches first. */
+  readonly label: string;
+  /**
+   * A shorter name for the LIST ROW only, when `label` does not fit the LIST column. The heading keeps the
+   * full `label` — a sidebar's width is never a reason to rename a section (side-eye 2026-08-01). Search
+   * matches BOTH strings, so the abbreviation can never hide a section from the reader who typed its full
+   * name. Absent = the row renders `label`, and it MUST fit (the list CT sweeps every group and REDs on
+   * any clipped row).
+   */
+  readonly navLabel?: string;
+  readonly keywords?: readonly string[];
+  readonly settings?: readonly ConfigSettingLeaf[];
+}
+
+/** The state-owned viewer PROJECTION a group's / a section's `when` consumes — plain derived values only,
+ *  no `data/` import (§5 rule 6). Fields grow as gates need them: `isAdmin` gates the admin group + the
+ *  distribute section; `isOwner` gates the host-Claude probe section (it used to render `null` for a
+ *  non-owner under a LIST row that scrolled to nothing — the §6.8 conversion made the gate a `when`). */
+export interface SettingsViewerView {
+  readonly isAdmin: boolean;
+  readonly isOwner: boolean;
+}
+
+/** One dynamic search row a group contributes at runtime (a collection's members, the persona names —
+ *  config-revamp-design.md §3.3). `subId` names the anchor a hit lands on for a non-member row; a
+ *  `memberId` row opens that member instead. */
+export interface ConfigSearchRow {
+  readonly id: string;
+  readonly label: string;
+  readonly keywords?: readonly string[];
+  readonly subId?: string;
+  readonly memberId?: string;
+}
+
+/** What a group RENDERS (config-revamp-design.md §3.1 as amended by §6.8) — an honest three-arm union:
+ *  - `sections` — a pure SKIMMER: the group has no body of its own; the host renders the sections
+ *    contributed at its anchor, and its LIST rows DERIVE from them (D120). Every settings-shaped group
+ *    (nine of them) is this arm.
+ *  - `collection` — the library arm: the `CollectionContribution` seam verbatim (rows · member editor ·
+ *    context arm · create/import/bulk as DATA the host draws). The group's LIST rows are the owner's own.
+ *  - `{ placeholder: true }` — the DECLARED-PLANNED arm; a group with no body can no longer silently
+ *    placeholder.
+ *  The `surface` arm (a feature-owned opaque render hosting its own hand-stamped anchors) was retired by
+ *  §6.8: it was the old nav map beside the new one, in five groups. */
+export type ConfigGroupBody =
+  | { readonly kind: "sections" }
+  | { readonly kind: "collection"; readonly collection: CollectionContribution }
+  | { readonly placeholder: true };
+
+/** Everything a group declares that is independent of its body arm. */
+export interface ConfigGroupBase {
+  readonly id: ConfigGroupId;
+  /** The LIST shelf the group paints under — the `SETTINGS_GROUPS` successor. */
+  readonly shelf: ConfigShelf;
+  readonly label: string;
+  readonly icon: LucideIcon;
+  /** Distinct teaching copy for the group — the welcome's launcher blurb for a collection, the placeholder
+   *  body's copy for a planned group, and a search keyword for every group. */
+  readonly description: string;
+  /** Canonical `(shelf, order, id)` — the assembleChrome/home-tile ordering precedent. */
+  readonly order?: number;
+  /** Declarative viewer gating — consumes the PROJECTION, never `data/`'s `Viewer` (the §6b "def declares,
+   *  consumer supplies" inversion). ONE predicate, three consumers: LIST, search and render. Absent =
+   *  always visible. */
+  readonly when?: (viewer: SettingsViewerView) => boolean;
+  /** DYNAMIC search rows (config-revamp-design.md §3.3): a HOOK the host renders in its own fiber per
+   *  group — a collection's members over the same cache-first list query its roster already loaded, the
+   *  persona names. Called unconditionally over the door-frozen registry (the `useCount` discipline). */
+  readonly useSearchRows?: () => readonly ConfigSearchRow[];
+}
+
+/** A config group as ONE definition. `body` is the §3.1 union. */
+export type ConfigGroupDefinition = ConfigGroupBase & { readonly body: ConfigGroupBody };
+
+/** The closed, tsc-total registry the door assembles and `makeConfigSection` consumes. */
+export type ConfigGroupRegistry = Registry<ConfigGroupId, ConfigGroupDefinition>;
+
+/** The DOM id of a subcategory's anchor node — derived from the registry keys, never a scattered string
+ *  literal. Shared by every group surface (owner features + the config host's scroll-spy and search). */
+export function configAnchorId(groupId: ConfigGroupId, subId: string): string {
+  return `config-anchor-${groupId}-${subId}`;
+}
+
+/** A group whose body is the `collection` arm — the narrowing the host's welcome, mobile teaching, context
+ *  routing and selection title all read, spelled ONCE. */
+export type CollectionGroupDefinition = ConfigGroupBase & { readonly body: Extract<ConfigGroupBody, { readonly kind: "collection" }> };
+
+export function isCollectionGroup(def: ConfigGroupDefinition): def is CollectionGroupDefinition {
+  return "kind" in def.body && def.body.kind === "collection";
+}
+
+/** A group's LIST-visible identity, read blind by the host: `true` for the arms that render a body of their
+ *  own — from the section registry (`sections`), their feature (`surface`) or the honest placeholder — the
+ *  arms whose activation PUSHES CONTENT on a phone (the shell's one-shell rule). A `collection` group's rows
+ *  are its owner's members and a member is what pushes, so it is the one arm that answers `false`. */
+export function isPushingGroup(def: ConfigGroupDefinition): boolean {
+  return !isCollectionGroup(def);
+}

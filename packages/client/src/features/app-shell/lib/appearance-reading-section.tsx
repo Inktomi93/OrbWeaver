@@ -2,13 +2,13 @@
 // definition app-shell exports on its front door; the composition root assembles it into the ONE
 // settings-section registry and the appearance skimmer pane renders it at its anchor.
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { AppearanceReadingSection } from "../components/appearance-reading-section.tsx";
 import { APPEARANCE_READING_KEYS, APPEARANCE_READING_SUBCATEGORY } from "./appearance-reading-model.ts";
 
 const SECTION_ID = "appearance-reading";
 
-export const appearanceReadingSection: SettingsSectionContribution = {
+export const appearanceReadingSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "appearance",
   nav: APPEARANCE_READING_SUBCATEGORY,

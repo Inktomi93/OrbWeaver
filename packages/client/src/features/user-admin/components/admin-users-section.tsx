@@ -18,7 +18,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { useSetEnabled, useSetRole } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_USERS_SUBCATEGORY } from "../lib/admin-users-nav.ts";
 import { AdminCreateUserDialog } from "./admin-create-user-dialog.tsx";
@@ -92,7 +92,7 @@ function AdminUsersBody(): ReactElement {
   };
 
   return (
-    <Section className="@container" divider={true} heading={ADMIN_USERS_SUBCATEGORY.label} id={settingsAnchorId("admin", ADMIN_USERS_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={ADMIN_USERS_SUBCATEGORY.label} id={configAnchorId("admin", ADMIN_USERS_SUBCATEGORY.id)}>
       <Stack gap="row" data-testid={testId("adminUsersSection")}>
         <Row align="center" justify="between">
           <Text voice="label" className="text-muted-foreground">

@@ -36,7 +36,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
-import { openSettingsTo, useSelectedDocumentId } from "#state";
+import { openConfigTo, useSelectedDocumentId } from "#state";
 import { useAttachDocumentGlobal, useDetachDocumentGlobal } from "../hooks/use-databank-mutations.ts";
 import { DATABANK_CONTEXT_EMPTY } from "../lib/databank-copy.ts";
 import { ActiveInSection } from "./databank-active-in.tsx";
@@ -133,17 +133,17 @@ function ContextBody({ documentId }: { readonly documentId: DocumentId }): React
           <Stack gap="row">
             <Text voice="gloss">How many passages get pulled, and how close a match must be, is tuned once for the whole bank.</Text>
             {/* A DOOR, NOT A BREADCRUMB (side-eye 2026-08-19 P2). It used to spell the path in prose —
-                "Settings → Chat behavior → Databank" — beside an `openSettingsTo` seam that lands on that
+                "Settings → Chat behavior → Databank" — beside an `openConfigTo` seam that lands on that
                 exact subcategory. A path a user has to retrace by hand is a control we declined to render. */}
             <Button
               className="self-start"
               intent="ghost"
               // The category + subcategory as LITERALS, the house spelling for a settings deep link
-              // (`openSettingsTo("workloads", "jobs")`, `openSettingsTo("chat-behavior", "memory")`).
+              // (`openConfigTo("workloads", "jobs")`, `openConfigTo("chat-behavior", "memory")`).
               // The `DATABANK_SETTINGS_SUBCATEGORY` const that carries the same id lives in `features/chat`
               // (chat owns the {{databank}} slot's settings section), and a feature never sideways-imports
               // another feature's lib.
-              onClick={(): void => openSettingsTo("chat-behavior", "databank")}
+              onClick={(): void => openConfigTo("chat-behavior", "databank")}
               size="sm"
               type="button"
             >

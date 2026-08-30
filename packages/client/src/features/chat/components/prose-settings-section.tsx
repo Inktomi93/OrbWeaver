@@ -29,7 +29,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { CAPPED_FIELD_MAX_ROWS, CappedFieldCounter, createAutosaveEntityForm, SectionSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import {
   PROSE_SETTINGS_SUBCATEGORY,
   projectProseForm,
@@ -137,7 +137,7 @@ function ProseBody({ sectionId, session, stored, onKeepMine }: ProseBodyProps): 
       className="@container"
       divider={true}
       heading={PROSE_SETTINGS_SUBCATEGORY.label}
-      id={settingsAnchorId("chat-behavior", PROSE_SETTINGS_SUBCATEGORY.id)}
+      id={configAnchorId("chat-behavior", PROSE_SETTINGS_SUBCATEGORY.id)}
     >
       <Stack gap="block">
         <Text voice="gloss">

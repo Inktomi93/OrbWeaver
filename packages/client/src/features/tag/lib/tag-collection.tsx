@@ -1,5 +1,6 @@
-// The TAGS collection contribution (config-rail-spec.md · review §4) — co-located with its owner, assembled
-// at the door into the `config-collections` registry, consumed BLIND by `features/config`.
+// The TAGS collection contribution (config-rail-spec.md · review §4) — the `collection` body of the `tags`
+// config group (`tags-group.tsx`, which carries the library's identity since the config revamp #866 S1),
+// consumed BLIND by `features/config`.
 //
 // It replaces the `tags` settings PANE (D114's "features/tag owns its pane in surface mode" clause is
 // amended by this migration, not reversed: the feature still owns its surface, the surface just stopped
@@ -9,21 +10,12 @@
 // `context: {kind:"none"}` with its OWN copy: a tag has no attachment to manage — it applies wherever you
 // put it — and the host saying a generic "nothing selected" over a SELECTED tag would be a lie.
 
-import { Hash } from "@orb/ui/icons";
 import type { CollectionContribution } from "#lib";
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
 import { useCreateTagMember, useTagCount, useTagMemberTitle, useTagPreview } from "../hooks/use-tag-collection.ts";
 import { TagMemberSurface } from "../surfaces/tag-member-surface.tsx";
-import { TAG_COLLECTION_ID } from "./tags-model.ts";
 
 export const tagCollection: CollectionContribution = {
-  id: TAG_COLLECTION_ID,
-  label: "Tags",
-  icon: Hash,
-  order: 10,
-  // en-US, like the rest of the chrome (#104 item 1) — this and corpus's "analyzed" were the only two
-  // en-GB spellings in a user-facing string on the whole tree.
-  blurb: "Color-coded labels for characters, chats, books, personas and presets.",
   emptyText: "No tags yet.",
   useCount: useTagCount,
   // The welcome hero's chip wall (program #102). Usage totals ride every row of the list the roster already

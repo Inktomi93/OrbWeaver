@@ -178,10 +178,11 @@ test("an Active-in row OPENS the room / the card it names (#276)", async ({ moun
 });
 
 // THE RETRIEVAL POINTER IS A DOOR (side-eye 2026-08-19 P2). It used to spell "Settings → Chat behavior →
-// Databank" in prose, beside an `openSettingsTo` seam that lands on that exact subcategory — a navigation
-// the product knew how to perform, printed as instructions for the user to perform by hand. Asserted at the
-// STORE ACTION (the story's probe), because this story mounts no settings shell: a rendered echo would be
-// asserting the harness, and the deep link's whole payload is the category + subcategory it targets.
+// Databank" in prose, beside an `openConfigTo` seam that lands on that exact section — a navigation the
+// product knew how to perform, printed as instructions for the user to perform by hand. Asserted at the
+// STORE ACTION (the story's probe), because this story mounts no config host: a rendered echo would be
+// asserting the harness, and the deep link's whole payload is the group + section it targets. Since #866 S1
+// the door switches the SECTION (the settings modal is gone), so the probe reads the section + the target.
 test("the Retrieval pointer OPENS the settings it names (P2)", async ({ mount, page }) => {
   await stubDatabank(page);
   const workspace = await mount(<DatabankWorkspaceStory />);
@@ -193,7 +194,8 @@ test("the Retrieval pointer OPENS the settings it names (P2)", async ({ mount, p
   await expect(probe).toContainText("modal=none");
   await workspace.getByRole("button", { name: "Retrieval settings" }).click();
 
-  await expect(probe).toContainText("modal=settings");
+  await expect(probe).toContainText("modal=none");
+  await expect(probe).toContainText("section=config");
   await expect(probe).toContainText("category=chat-behavior");
   await expect(probe).toContainText("sub=databank");
 });

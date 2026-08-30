@@ -6,18 +6,28 @@
 
 import { RegexScriptPicker } from "@orb/client/components";
 import { QueryBoundary, useTRPC } from "@orb/client/data";
-import { __resetCollectionGroupOpen, clearCollectionSelection, exitRegexBulkMode } from "@orb/client/state";
+import type { CollectionGroupDefinition } from "@orb/client/state";
+import { __resetConfigGroupOpen, clearCollectionSelection, exitRegexBulkMode, isCollectionGroup } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CollectionGroup } from "../../../../packages/client/src/features/config/components/collection-group.tsx";
+import { CollectionListGroup } from "../../../../packages/client/src/features/config/components/config-list-group.tsx";
 import { RegexBulkBar } from "../../../../packages/client/src/features/regex/components/regex-bulk-bar.tsx";
 import { RegexContextBody } from "../../../../packages/client/src/features/regex/components/regex-context-body.tsx";
-import { regexCollection } from "../../../../packages/client/src/features/regex/lib/regex-collection.tsx";
+import { regexGroup } from "../../../../packages/client/src/features/regex/lib/regex-group.tsx";
+
 import { RegexMemberSurface } from "../../../../packages/client/src/features/regex/surfaces/regex-member-surface.tsx";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+
+/** The regex group NARROWED to its collection arm — the def is typed as the whole union (the gate's
+ *  co-location arm keys on that annotation), and the band component takes the narrowed shape. */
+const REGEX_COLLECTION_GROUP: CollectionGroupDefinition = isCollectionGroup(regexGroup)
+  ? regexGroup
+  : ((): never => {
+      throw new Error("regexGroup is not a collection group");
+    })();
 
 /** The regex MEMBER EDITOR mounted in CONTENT (config-rail C-7 — the same fields the retired Dialog bound,
  *  minus the Dialog) — `regex.listScripts` (the read) and `regex.updateScript`/`removeScript` (the writes)
@@ -35,8 +45,8 @@ export function RegexMemberStory({ memberId = "regex_script_stripooc" }: { reado
   );
 }
 
-/** The regex LIBRARY GROUP as the config host draws it (REGX2): the real `CollectionGroup` over the real
- *  `regexCollection` door, so the band's own affordances (bulk-select toggle · import · create) and the
+/** The regex LIBRARY GROUP as the config host draws it (REGX2): the real `CollectionListGroup` over the real
+ *  `regexGroup` def (whose `body.collection` is the `regexCollection` door), so the band's own affordances (bulk-select toggle · import · create) and the
  *  contribution's own rows (kebab · global switch · checkboxes · the selection bar) are exercised through the
  *  production seam, not a double. 330px — the config roster's real column, where the row cluster's width has
  *  to be paid for.
@@ -48,7 +58,7 @@ export function RegexLibraryGroupStory(): ReactElement {
     <CtDataProviders>
       <button
         onClick={(): void => {
-          __resetCollectionGroupOpen();
+          __resetConfigGroupOpen();
           clearCollectionSelection();
           exitRegexBulkMode();
         }}
@@ -57,7 +67,7 @@ export function RegexLibraryGroupStory(): ReactElement {
         reset
       </button>
       <div style={{ overflow: "auto", width: 330 }}>
-        <CollectionGroup collection={regexCollection} />
+        <CollectionListGroup group={REGEX_COLLECTION_GROUP} />
       </div>
     </CtDataProviders>
   );

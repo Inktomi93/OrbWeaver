@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import {
   CHAT_STREAMING_KEYS,
   CHAT_STREAMING_SUBCATEGORY,
@@ -80,7 +80,7 @@ function StreamingBody({ sectionId, session }: { readonly sectionId: string; rea
       className="@container"
       divider={true}
       heading={CHAT_STREAMING_SUBCATEGORY.label}
-      id={settingsAnchorId("chat-behavior", CHAT_STREAMING_SUBCATEGORY.id)}
+      id={configAnchorId("chat-behavior", CHAT_STREAMING_SUBCATEGORY.id)}
     >
       <FieldLayout orientation="horizontal">
         <form.AppField name="streamScrollMode">

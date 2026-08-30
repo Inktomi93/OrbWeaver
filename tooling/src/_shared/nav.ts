@@ -1,6 +1,6 @@
 // THE ONE SPA-navigation vocabulary for the browser probes — the dev nav bridge (`window.__orb.nav`,
 // packages/client/src/lib/agent-bridge.ts) every probe drives to reach a surface the URL cannot name (the
-// app routes only `/` and `/login`; sections, modals, settings categories, context tabs and open chats are
+// app routes only `/` and `/login`; sections, modals, config groups, context tabs and open chats are
 // client state).
 //
 // WHY THIS MODULE EXISTS (2026-08-17, issue #148 item 1): the bridge call was hand-spelled in snap.ts and
@@ -32,7 +32,7 @@ export const NAV_FLAG_METHOD: Record<string, NavMethod> = {
 };
 
 // The 1:1 verb→bridge-method map. `goto` is absent by design: its target is namespaced
-// (`settings:<cat>` / `modal:<slot>` / a bare section id) and picks its method through parseGotoTarget.
+// (`settings:<group>` / `modal:<slot>` / a bare section id) and picks its method through parseGotoTarget.
 const NAV_BRIDGE_METHOD: Record<Exclude<NavMethod, "goto">, string> = {
   "open-chat": "openChat",
   "open-character": "openCharacter",

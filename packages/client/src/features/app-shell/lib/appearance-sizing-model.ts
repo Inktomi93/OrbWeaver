@@ -1,5 +1,5 @@
 // The "Sizing & motion" appearance-section MODEL (SET-SEAMS §6, stage 1) — the section's two non-JSX facts: the ONE
-// `SettingsSubcategory` shared by the contribution def and the section body's `<Section>` anchor stamp.
+// `ConfigSubcategory` shared by the contribution def and the section body's `<Section>` anchor stamp.
 //
 // This subcategory ABSORBS the pane's old `motion` sub and the `density`/`elevation` leaves that used to sit under
 // `message-style`: app-shell reads all five knobs (`surfaces/app-shell.tsx` paints the shell scope tokens, the
@@ -9,9 +9,9 @@
 // id is unchanged (§7.1); every absorbed search LEAF travels here intact (§7.2), so a fuzzy jump for "reduce motion"
 // or "density" still lands on a real anchor.
 
-import type { SettingsSubcategory } from "#state";
+import type { ConfigSubcategory } from "#state";
 
-export const APPEARANCE_SIZING_SUBCATEGORY: SettingsSubcategory = {
+export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
   id: "sizing",
   label: "Sizing & motion",
   settings: [
