@@ -182,11 +182,17 @@ test("#841 Trust is its own door too — a security concern reads as one", async
 
 // #843 — SHIPPED EXAMPLE CARDS SAID `Made here`. On a fresh install every one of the ten default
 // characters told the user they had authored it, on the Origin card whose entire job is provenance, in the
-// first state a new user ever sees. The seeder stamps `creator: "orbweaver"` and this reads it back.
+// first state a new user ever sees.
+//
+// WHAT THIS PROVES MOVED WITH #865, AND SO DID THE SEAM. The card no longer re-derives the verdict from
+// `creator`; the server derives it once (`characterProvenanceOf`) and ships `provenance` on BOTH read
+// models, so what the wire says here is `provenance: "shipped"`. This file now pins the LABEL DISPATCH (the
+// three arms and their words); the DERIVATION from `creator`/`importedFrom` is pinned where it now lives —
+// `tests/contracts/character/index.contract.test.ts` and the character persistence/list int suites.
 test("#843 the Origin card tells a shipped example card apart from one you made", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.list": () => CHARACTER_PAGE,
-    "character.get": () => ({ ...AZARAEL_DETAIL, creator: "orbweaver" }),
+    "character.get": () => ({ ...AZARAEL_DETAIL, creator: "orbweaver", provenance: "shipped" }),
     "character.update": () => AZARAEL_DETAIL,
     "chat.listChats": chatListResponder([]),
     "settings.getUserSettings": () => SETTINGS,
