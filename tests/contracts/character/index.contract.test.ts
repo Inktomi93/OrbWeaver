@@ -1,12 +1,15 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import {
+  AUTHORED_CARD_CREATOR,
   CHARA_CARD_V3_SPEC,
   CHARACTER_LIST_SORTS,
+  CHARACTER_PROVENANCES,
   cardDepthPromptSchema,
   characterCardSchema,
   characterCardV3Schema,
   characterListCursorSchema,
   characterListSortSchema,
+  characterProvenanceOf,
   createCharacterSchema,
   repairImportedCardInput,
   updateCharacterSchema,
@@ -413,4 +416,25 @@ test("characterListCursorSchema rejects a cross-sort shape (an alpha cursor miss
   expect(characterListCursorSchema.safeParse({ sort: "mostChats", id: CHAR_ID }).success).toBe(false);
   // An unknown discriminant is rejected outright.
   expect(characterListCursorSchema.safeParse({ sort: "bogus", id: CHAR_ID }).success).toBe(false);
+});
+
+// ── #865 PROVENANCE — the ONE derivation both views project ─────────────────────────────────────────────
+// The union is CLOSED and the derivation lives here (contracts) rather than at either end, because both ends
+// need the same verdict and neither may import the other — the `AUTHORED_CARD_CREATOR` precedent, one level
+// up. The server read seam calls it (`summaryOf`/`detailOf`); the client only DISPATCHES on the result.
+
+test("CHARACTER_PROVENANCES is the closed three-arm union", () => {
+  expect([...CHARACTER_PROVENANCES]).toEqual(["shipped", "imported", "authored"]);
+});
+
+test("characterProvenanceOf: an import URL beats the shipped marker, which beats authored", () => {
+  // IMPORTED wins outright — an imported card is imported whatever its `creator` says, and the ordering is
+  // load-bearing: a card imported FROM another Orbweaver install carries both signals at once.
+  expect(characterProvenanceOf({ importedFrom: "https://example.test/card.png", creator: AUTHORED_CARD_CREATOR })).toBe("imported");
+  expect(characterProvenanceOf({ importedFrom: "https://example.test/card.png", creator: "someone" })).toBe("imported");
+  // SHIPPED — the seeded pack's own marker (`domain/character/seeder/cards.ts` stamps this exact creator).
+  expect(characterProvenanceOf({ importedFrom: null, creator: AUTHORED_CARD_CREATOR })).toBe("shipped");
+  // AUTHORED — everything else, including a card with no creator at all (the `New character` door).
+  expect(characterProvenanceOf({ importedFrom: null, creator: "someone" })).toBe("authored");
+  expect(characterProvenanceOf({ importedFrom: null, creator: null })).toBe("authored");
 });
