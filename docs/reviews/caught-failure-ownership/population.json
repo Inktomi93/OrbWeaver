@@ -4479,7 +4479,7 @@
     {
       "siteId": "tooling/src/snap/ops/contrast.ts::promise:evaluate::1",
       "path": "tooling/src/snap/ops/contrast.ts",
-      "line": 331,
+      "line": 330,
       "column": 9,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -4487,7 +4487,7 @@
       "snippet": "await page",
       "verdict": "deliberate-absorb",
       "reason": "best-effort cleanup — a torn-down page must never fail the contrast verdict already computed. Ends if the trailing comment's rationale stops holding.",
-      "markerLine": 330
+      "markerLine": 329
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::1",
