@@ -1169,6 +1169,60 @@
         }
       ],
       "summary": "side-eye RPG start/exit cold drive (#863): SHIP WITH FIXES — nothing broken, both transitions INVISIBLE (with the context pane closed the only on-screen change is four dice chips; no aria-live, no marker), exit wipes a populated game on one unconfirmed click with its reassurance in a title= tooltip that touch never shows, the first screen after starting depends on which door was used (worst case: an empty HOST CONSOLE schema form); §4.1 'no ceremony' survives for ARRIVAL, its input changes for a user-initiated mutation (announce + open the panel to rpg.status); #861 re-explained as the receded rail's missing fill/floor/current; 10 tap-target findings retracted as false positives."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-30-context-bracket.md",
+      "assignedSha256": "42594de031d6a0ad58a18d8a00af5ef9a28690a6f465302782b9c6ab0a72cdf9",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "42594de031d6a0ad58a18d8a00af5ef9a28690a6f465302782b9c6ab0a72cdf9",
+      "verifiedCommit": "8d47ea2dbb1476ec511be5bd00f36480121defb7",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/reviews/side-eye/2026-08-30-context-bracket.md:1-593 read in full by the orchestrator (claude-b) after the report commit; lane cb-bracket-eye, the live drive of the #860 context bracket (facd32a60 + 31625cecb) on :5173 across Chats / the game room / Characters at 1280 dock+dock, 1024×768, 768, 430 coarse, four appearance presets and the Light theme; framebuffer mode-samples, snap --contrast/--aria/--map, design-audit desktop+mobile, motion-audit, perf-meter, Lighthouse (blind spot recorded: axe does not composite ancestor opacity)"
+      ],
+      "claims": [
+        {
+          "claim": "Every finding is tracked: F1 (the locked Map cell at 3.54:1 on an enabled control) is #874; the P2 cluster F2–F10 (overlay name doubled, #861 voice half unlanded, game band without a heading, Characters identity twice, 10.5px band text, reading-preset chrome + rail overflow, phone double strip, 111ms/560ms) is #875; the P3s F11–F19 plus the two instrument residues are #878; the 23 Status-tab tap targets rode #850 as a scope extension.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#874"
+            },
+            {
+              "kind": "issue",
+              "target": "#875"
+            },
+            {
+              "kind": "issue",
+              "target": "#878"
+            },
+            {
+              "kind": "issue",
+              "target": "#850"
+            }
+          ]
+        },
+        {
+          "claim": "The verified-fixed set stands as closure evidence: #846 while docked (one home for the name), #861's structural half (kicker on top, 3+3 fold, pb-row floor), #850's selected-state half (ember fill + 2px bar), the #112 rail keyboard model, and the mount-time scrollIntoView bug.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#846"
+            },
+            {
+              "kind": "issue",
+              "target": "#861"
+            },
+            {
+              "kind": "issue",
+              "target": "#112"
+            }
+          ]
+        }
+      ],
+      "summary": "side-eye live drive of the #860 context bracket: SHIP WITH FIXES — one composition in all three sections, the best keyboard surface measured in the app, the ground/dead-zone contract kept (foot rail at y=717 on short and tall bodies, CLS 0); one WCAG fail (locked Map cell 3.54:1 on a deliberately-enabled control), #861 fixed structurally but not perceptually (receded fill 1.001:1, kicker step inverted), the game band's name voice forks from the other two, overlay states print the name twice, Characters duplicates its hero; Nielsen 28/40 scoped to the pane."
     }
   ]
 }
