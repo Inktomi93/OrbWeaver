@@ -17,6 +17,7 @@ export const VERIFY_VERBS = [
   "db-baseline",
   "orphan-ratchet",
   "boot-chunk",
+  "ledgers-fresh",
   "debt",
   "ratchet-gate",
 ] as const;

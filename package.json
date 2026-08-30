@@ -56,6 +56,7 @@
     "check:drizzle-kit": "pnpm --filter @orb/db exec drizzle-kit check --config=drizzle.config.ts",
     "check:orphan-ratchet": "node tooling/src/verify/cli.ts orphan-ratchet",
     "check:boot-chunk": "node tooling/src/verify/cli.ts boot-chunk",
+    "check:ledgers-fresh": "node tooling/src/verify/cli.ts ledgers-fresh",
     "check:respell": "node tooling/src/ast/cli.ts respell",
     "check:swallowed": "node tooling/src/ast/cli.ts swallowed",
     "check:typeonly": "node tooling/src/ast/cli.ts typeonly-alive",

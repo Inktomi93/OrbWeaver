@@ -4,7 +4,7 @@
 // message rather than truncating to nothing).
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
@@ -22,10 +22,11 @@ function names(): HistoryMacroNames {
 }
 
 function row(overrides: Partial<MessageView>): MessageView {
+  // FABRICATION-OK: a minimal MessageView double — projectRpgTranscript/sliceCanonWindow read only the fields below; the remaining MessageView columns are irrelevant to this pure projection.
   return {
-    id: castId("message_x"),
-    variantId: castId("variant_x"),
-    chatId: castId("chat_x"),
+    id: castId<MessageId>("message_x"),
+    variantId: castId<MessageVariantId>("variant_x"),
+    chatId: castId<ChatId>("chat_x"),
     seq: 1,
     role: "assistant",
     characterId: null,

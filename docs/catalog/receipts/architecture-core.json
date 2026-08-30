@@ -967,20 +967,21 @@
     },
     {
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
-      "assignedSha256": "e35035e131c1e95cecfcd4be81745ea9e9e8e328bf5218d1490befed3b582377",
+      "assignedSha256": "e0bf282d2b8168db407a91bae3aeb78d1c3bab40aca3cefd7bfd4de148f8d7b4",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "dd76cc97b1d5f9d236b7718db1e12f34f021552823b71ffae27d0da0b43d31c6",
-      "verifiedCommit": "288451dc680b9a9b9e71005f13bda5962d140e96",
-      "verifiedAt": "2026-08-25",
+      "verifiedSha256": "e0bf282d2b8168db407a91bae3aeb78d1c3bab40aca3cefd7bfd4de148f8d7b4",
+      "verifiedCommit": "bc94c85f16e429e06f1d67b3704072df2098189c",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the `full`-tier table row and the §3.7 stage list drop `tests:parity`; the vitest project count corrects to five. No other claim in this document moved.",
         "delta re-verify 2026-08-22 (#460, commit 4b048de6d): re-read at the ratchet bytes — §3.2's push row gains `quality:boot-chunk` and the previously-missing `quality:cpd` (promoted 2026-08-03), §3.7 gains the boot-chunk stage entry, and the static ordered set is corrected to include structure:agent-config and docs:catalog. No other claim in this document moved.",
-        "delta re-verify 2026-08-23 (#591, commit 0ae0cb4f1): re-read at the re-scoped ratchet bytes — §3.7's `quality:boot-chunk` entry now states the measured quantity as the BOOT SET (entry chunk + every dist/assets/*.js the emitted index.html references), the re-derived 780,000 B ceiling, and the widened unmeasurable arms. Verified against the code (tooling/src/verify/ops/boot-chunk-ratchet.ts) and a real `pnpm check:boot-chunk` run reporting 742,930 B over two boot files. No other claim in this document moved."
+        "delta re-verify 2026-08-23 (#591, commit 0ae0cb4f1): re-read at the re-scoped ratchet bytes — §3.7's `quality:boot-chunk` entry now states the measured quantity as the BOOT SET (entry chunk + every dist/assets/*.js the emitted index.html references), the re-derived 780,000 B ceiling, and the widened unmeasurable arms. Verified against the code (tooling/src/verify/ops/boot-chunk-ratchet.ts) and a real `pnpm check:boot-chunk` run reporting 742,930 B over two boot files. No other claim in this document moved.",
+        "delta re-verify 2026-08-30 (bc94c85f16e429e06f1d67b3704072df2098189c, #817 ledgers:fresh merged by the orchestrator, who read the delta in full): the static tier row + the ordered static set gain `ledgers:fresh`, and a full stage bullet records what it checks (the two single-writer ledgers vs the SAME derivation the regenerators run), why (three barrier re-lines in one night while pnpm check stayed green), its cost (19.7s — the census half is the whole-repo ts-morph project the tier already builds), whole-only-by-absence scoping, exit 2 on an empty derivation, and the lane consequence (a newly tracked spec needs a manifest regen after git add); no other line changed; typed claims unaffected"
       ],
       "claims": [
         {

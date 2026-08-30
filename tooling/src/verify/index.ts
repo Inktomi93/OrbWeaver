@@ -34,9 +34,11 @@ export type { Check, CheckContext, GateResult, Violation } from "./contract/harn
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
 export type { DeclaredScan, GateIgnoreMarker, GatePassResult, GateScan, PassResult, ToolError } from "./contract/pass.ts";
 export type { RunManifest } from "./contract/run-manifest.ts";
-export type { BootChunkVerdict, ConformanceFailure, SchemaBaselineComparison, ScopedResult } from "./contract/scoped.ts";
+export type { BootChunkVerdict, ConformanceFailure, LedgerFreshness, SchemaBaselineComparison, ScopedResult } from "./contract/scoped.ts";
 export type { CtView, Selection, SelectionRequest } from "./contract/selection.ts";
 export type { ScopedArgv, StageDef, StageGroup, StageMode, StageResult, Tier, VerifyReport } from "./contract/stage.ts";
+export type { TestBaselineDeletion, TestBaselineManifest } from "./contract/test-baseline.ts";
+export { TEST_BASELINE_REL } from "./contract/test-baseline.ts";
 export type { VerifyVerb } from "./contract/verbs.ts";
 export { VERIFY_VERBS } from "./contract/verbs.ts";
 
@@ -83,8 +85,9 @@ export { generateDuplicateActionDoorsBaseline } from "./ops/gen/duplicate-action
 export { generateOverArtPlateBaseline } from "./ops/gen/over-art-plate-arm.ts";
 export { generateProseBaseline } from "./ops/gen/prose.ts";
 export { generateSuppressionsBaseline } from "./ops/gen/suppressions.ts";
-export { generateTestBaselineManifest } from "./ops/gen/test-baseline-manifest.ts";
+export { deriveTestBaselineManifest, generateTestBaselineManifest } from "./ops/gen/test-baseline-manifest.ts";
 export { generateTestPresenceBaseline } from "./ops/gen/test-presence.ts";
+export { censusDrift, LEDGER_CHECKS, ledgerFreshness, ledgerReport, manifestDrift, runLedgersFresh } from "./ops/ledgers-fresh.ts";
 export { runNewGate } from "./ops/new-gate.ts";
 export { runOrphanRatchet } from "./ops/orphan-export-ratchet.ts";
 export type { RatchetClassification, RatchetExclusion } from "./ops/ratchet-gate.ts";

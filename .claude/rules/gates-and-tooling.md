@@ -24,6 +24,11 @@ paths:
   `pnpm-workspace.yaml`) and dies at node's ~4GB self-cap. Paid 2026-08-23: two exit-134 OOMs on a bare
   structure run; `pnpm check:structure` picked up the floor and ran clean. Read the verdict from
   `reports/check-structure.json`, never from scrollback.
+- **A committed SINGLE-WRITER ledger's freshness belongs on the static bar, not in a vitest suite** (#817).
+  `ledgers:fresh` (`pnpm check:ledgers-fresh`, `tooling/src/verify/ops/ledgers-fresh.ts`) re-derives the
+  caught-failure census and the test-baseline manifest on every `pnpm check` and names the drifting rows —
+  the barrier regen is now the FIX for a red, not a scheduled guess. Its per-ledger door is
+  `cli.ts baseline <kind> --check` (derives and diffs, writes nothing).
 - **`tests/tooling/check-gates.int.test.ts` is NOT concurrency-safe with itself** (shared `__g_`
   fixture paths). It must never overlap a sibling lane's floor or a drain battery — during a train it
   is the orchestrator's to run.
