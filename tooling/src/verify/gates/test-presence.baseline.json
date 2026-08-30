@@ -70,5 +70,18 @@
   "packages/server/src/domain/tool-use/substrate/reachability.ts": 1,
   "packages/server/src/domain/workloads/engine/next-runnable.ts": 1,
   "packages/server/src/domain/workloads/substrate/authorize.ts": 1,
-  "packages/server/src/domain/workloads/substrate/params.ts": 1
+  "packages/server/src/domain/workloads/substrate/params.ts": 1,
+  "packages/server/src/entry/boot/apply-distributed-plugins.ts": 1,
+  "packages/server/src/entry/compose/admin.ts": 1,
+  "packages/server/src/entry/compose/imagery.ts": 1,
+  "packages/server/src/entry/compose/portability-runner.ts": 1,
+  "packages/server/src/entry/compose/portability.ts": 1,
+  "packages/server/src/entry/compose/refinery.ts": 1,
+  "packages/server/src/entry/compose/search-discovery.ts": 1,
+  "packages/server/src/entry/compose/workload-contributions.ts": 1,
+  "packages/server/src/entry/compose/world-info.ts": 1,
+  "packages/server/src/entry/http/import.ts": 1,
+  "packages/server/src/entry/import/build-import-context.ts": 1,
+  "packages/server/src/entry/import/import-report.ts": 1,
+  "packages/server/src/entry/rate-limit-gate.ts": 1
 }
