@@ -2238,6 +2238,39 @@
         }
       ],
       "summary": "Interaction-direction build audit of B7-B11, C1-C5, the preset catalogue, and cast/rules-apply: B7-B9 and B11 are confirmed BUILT full-ladder; the preset catalogue (22 specified) is an exact 22-built match, tsc-enforced exhaustive; C1-C5 are all confirmed BUILT. B10 (saved casts) is PARTIAL — the character/persona/group-config half is fully built and wired, but the '+rules' leg (re-minting a cast's enabled automation rule-presets at apply) has zero code anywhere: no schema column, no verb wiring, no client picker. Ships a 4-step build-order recommendation for that gap."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-29-saved-casts-rules.md",
+      "assignedSha256": "fb5b1e8ad9a20cb970d5fba0ee5bd5acc545aafb557760b6b11b811f44c3a1fc",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "fb5b1e8ad9a20cb970d5fba0ee5bd5acc545aafb557760b6b11b811f44c3a1fc",
+      "verifiedCommit": "a87073b991b52944835ec15a56419f6ac039f1f1",
+      "verifiedAt": "2026-08-29",
+      "evidence": [
+        "docs/reviews/side-eye/2026-08-29-saved-casts-rules.md:1-450 read in full by the orchestrator (claude-b) before commit; lane cb-se-casts live pass over the merged B10 rules rider (3ff8bfe4b) on an isolated stage + the restored :5173, principal Traveler, own fixtures; two retractions published in §6; findings filed as #810-#816"
+      ],
+      "claims": [
+        {
+          "claim": "Every finding is tracked as a live board row: P1-1 → #810, P1-2/P2-4 → #811, P2-1/2/3/6 → #812, P2-5/P3-1..4 → #813, P3-5 → #814, the CLS note → #815, the design-audit blind spot → #816; the rider's mechanism itself is verified correct with stored data.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#810"
+            },
+            {
+              "kind": "issue",
+              "target": "#811"
+            },
+            {
+              "kind": "issue",
+              "target": "#816"
+            }
+          ]
+        }
+      ],
+      "summary": "side-eye of B10 saved casts +rules: SHIP WITH FIXES — the rider's mechanism proven with stored data (non-default knob captured, re-minted, enabled; re-apply idempotent); two P1s (mobile CastRow erases the name and the rules badge overlaps Start; the Start door applies rules silently, discarding rulesSkipped reasons), a rules-as-count cluster, editor/picker polish, two stumbled-on B2 defects, and a design-audit blind spot (0px label + 48px overlap passed clean)."
     }
   ]
 }
