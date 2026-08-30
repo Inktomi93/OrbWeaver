@@ -2391,6 +2391,35 @@
         }
       ],
       "summary": "side-eye CHARACTERS delta pass: SHIP WITH FIXES 28/40 (was 25) — three of four 2026-08-22 P1s verifiably dead (keyboard 563→2 stops, filter chrome 272→180px and density-responsive, library stays docked); new P1: one character has three disjoint action menus and Export is unreachable from the open character; six P2s (28 dead tag facets, an inverted spoiler toggle, raw oklch values, an exit-less Import dialog, a mouse-only Own-look gloss, a 2253px Options tab burying History); five retractions incl. a Light-theme misread killed by a framebuffer decode; hub-ingest and scale arms not reachable on the seed db."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-30-rail-chats-delta.md",
+      "assignedSha256": "7ee43ead37824663c6544288a41375d1242ca93417e2a5bae69eb1272ffa34fd",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "7ee43ead37824663c6544288a41375d1242ca93417e2a5bae69eb1272ffa34fd",
+      "verifiedCommit": "728509af3e4db81fc89f0f2170b14369eec0fb07",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/reviews/side-eye/2026-08-30-rail-chats-delta.md:1-689 read in full by the orchestrator (claude-b) before commit; lane cb-rail-chats, the Ready-runs-dry CHATS delta pass on :5173 (main 64447bd2a) as Traveler, 6-room seed (scale claims confirmed in form only), streaming/send arms not driven (live-model policy); five retractions published incl. a scanline contrast estimator voided by its own planted control; findings filed as #845-#853"
+      ],
+      "claims": [
+        {
+          "claim": "Every finding is tracked: the room-type tab-strip fork → #845 (P1); title crush at 1280 → #846; inert injection clamp → #847; CAST add-doors → #848; the unlabelled single-variant chevron → #849; RPG Game-tab targets → #850; the duplicate-action-door instrument FP → #851; the P3 cluster → #852; the #489 residue → #853. Prior P1s (plate scrim, tool-call disclosure, cold-open freeze) verified fixed; #830/#824/#818/#522 observed, not re-filed.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#845"
+            },
+            {
+              "kind": "issue",
+              "target": "#851"
+            }
+          ]
+        }
+      ],
+      "summary": "side-eye CHATS delta pass: SHIP WITH FIXES 27/40 — the message plate is now opaque in the shipped default (framebuffer: one RGB value across every text row), #489's cold-open freeze is fixed (click 248→32ms), mobile transcript 35%→59%; NEW P1: the context-panel tab strip forks by room type (RPG rooms lose tablist semantics and the strip moves 700px); five P2s (title crush at 1280 with both panes docked, inert injection clamp, two confusable CAST add-doors, an unlabelled single-variant chevron, 12–22px RPG editor targets) and a duplicate-action-door instrument false positive at coarse pointer; five retractions."
     }
   ]
 }
