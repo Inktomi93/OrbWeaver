@@ -150,6 +150,62 @@ test("the image owner-scope gate — a foreign assetId renders the placeholder, 
   await expect(page.locator('img[alt="my own art"]')).toHaveCount(1);
 });
 
+test("#820 the BUNDLE arm — a shipped path paints, and one the plugin never shipped stays a placeholder", async ({ mount, page }) => {
+  // The RENDERED half of seam 11. A spec names `ui/assets/happy.png`; the renderer resolves it through the
+  // plugin's OWN install-time map (`plugin.listBundleAssets`, owner-scoped server-side) and then through the
+  // SAME `assets.resolveBlobRefs` a declared id rides. The negative arm is the one that matters: an unshipped
+  // path must fall to the per-node placeholder, NOT poison the id set — `resolveBlobRefs` validates its whole
+  // input array against the TypeID schema, so a raw path leaking in would blank every image on the surface.
+  const shippedId = mintTypeId(ID_PREFIX.asset);
+  const spec = {
+    kind: "stack",
+    children: [
+      { kind: "image", bundleAsset: "ui/assets/happy.png", alt: "the shipped sprite" },
+      { kind: "image", bundleAsset: "ui/assets/never-shipped.png", alt: "a path this plugin never shipped" },
+    ],
+  };
+  const recorder: TrpcRecorder = await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Sprite Plugin")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "sprites", spec)],
+    "plugin.getSurfaceState": () => null,
+    "plugin.getLog": () => [],
+    // The plugin holds exactly ONE bundle image; the second path is absent from its own map.
+    "plugin.listBundleAssets": () => [{ path: "ui/assets/happy.png", assetId: shippedId }],
+    "assets.resolveBlobRefs": () => [{ assetId: shippedId, hash: "0".repeat(64), mime: "image/png" }],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await page.route(`**${BLOB_ROUTE}/**`, (route) => route.fulfill({ contentType: "image/png", body: Buffer.from(ONE_PX_PNG_B64, "base64") }));
+  await mount(<PluginsSurfaceStory />);
+
+  await expect(page.locator('img[alt="the shipped sprite"]')).toHaveCount(1);
+  // The unshipped path paints the placeholder (alt text, no <img>) — and the shipped one above still painted,
+  // which is what proves the miss was CONTAINED to its own node rather than failing the whole resolve.
+  await expect(page.getByText("a path this plugin never shipped")).toBeVisible();
+  await expect(page.locator('img[alt="a path this plugin never shipped"]')).toHaveCount(0);
+  // Only real asset ids ever reached the owner-scoped resolve — no bundle PATH crossed as an id.
+  // ONESHOT-OK: the two image assertions above settled the rendered surface, so the resolve call it is built from has already been recorded.
+  expect(recorder.lastInput("assets.resolveBlobRefs")).toEqual({ assetIds: [shippedId] });
+});
+
+test("#820 a spec with NO bundle path never asks for the map — the extra read is gated on the spec", async ({ mount, page }) => {
+  const ownedId = mintTypeId(ID_PREFIX.asset);
+  const recorder: TrpcRecorder = await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Plain Plugin")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "plain", { kind: "image", assetId: ownedId, alt: "a declared id" })],
+    "plugin.getSurfaceState": () => null,
+    "plugin.getLog": () => [],
+    "plugin.listBundleAssets": () => [],
+    "assets.resolveBlobRefs": () => [{ assetId: ownedId, hash: "0".repeat(64), mime: "image/png" }],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await page.route(`**${BLOB_ROUTE}/**`, (route) => route.fulfill({ contentType: "image/png", body: Buffer.from(ONE_PX_PNG_B64, "base64") }));
+  await mount(<PluginsSurfaceStory />);
+
+  await expect(page.locator('img[alt="a declared id"]')).toHaveCount(1);
+  // ONESHOT-OK: the rendered <img> above proves the resolve pass completed, so a map read would have fired by now.
+  expect(recorder.count("plugin.listBundleAssets")).toBe(0);
+});
+
 test("a spec that fails client-side validation renders a safe fallback, never a crash", async ({ mount, page }) => {
   await routeTrpc(page, {
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Broken Plugin")],

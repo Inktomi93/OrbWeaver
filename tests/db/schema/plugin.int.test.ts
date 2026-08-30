@@ -304,6 +304,83 @@ test("plugin_assets: composite PK, pluginId CASCADE, assetId CASCADE (never REST
   expect(await db.select().from(assets).where(eq(assets.id, secondCover))).toHaveLength(1);
 });
 
+// #820 — the bundle-shipped half of the SAME register. The three arms below are the reason `bundle_path` is
+// in the PRIMARY KEY rather than being a nullable annotation on it.
+test("plugin_assets: bundle_path is in the PK — two paths sharing ONE deduped asset both survive", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_plugin_f" });
+  const bundleAssetId = await seedAsset(db, ownerId, "asset_plugin_f");
+  const spriteId = await seedAsset(db, ownerId, "asset_plugin_f_sprite");
+  const pluginId = castId<PluginId>("plugin_f");
+  const now = 1000;
+
+  await db.insert(plugins).values({
+    id: pluginId,
+    ownerId,
+    slug: "sprite-plugin",
+    name: "Sprite Plugin",
+    version: "1.0.0",
+    manifest: MANIFEST,
+    bundleAssetId,
+    grantedCapabilities: GRANTS,
+    status: "enabled",
+    origin: "upload",
+    installedAt: now,
+    updatedAt: now,
+  });
+
+  // THE COLLISION THE PK WIDENING EXISTS FOR: the CAS is content-addressed, so a bundle shipping the same
+  // image at two paths gets ONE assetId back. Under the original (plugin_id, asset_id) key the second row
+  // would violate the PK and the second path would resolve to nothing forever.
+  await db.insert(pluginAssets).values({ pluginId, assetId: spriteId, bundlePath: "ui/assets/happy.png", fetchedAt: now });
+  await db.insert(pluginAssets).values({ pluginId, assetId: spriteId, bundlePath: "ui/assets/also-happy.png", fetchedAt: now });
+  expect(await db.select().from(pluginAssets).where(eq(pluginAssets.pluginId, pluginId))).toHaveLength(2);
+
+  // …and the SAME (plugin, asset, path) triple still cannot be recorded twice — the upsert's target.
+  await expect(db.insert(pluginAssets).values({ pluginId, assetId: spriteId, bundlePath: "ui/assets/happy.png", fetchedAt: now + 1 })).rejects.toSatisfy(
+    isConstraintErr,
+  );
+
+  // A RUNTIME-fetched cover (#802, the `''` sentinel) coexists with the bundle rows for the same bytes: the
+  // two provenances share a table but never overwrite each other.
+  await db.insert(pluginAssets).values({ pluginId, assetId: spriteId, bundlePath: "", fetchedAt: now });
+  expect(await db.select().from(pluginAssets).where(eq(pluginAssets.pluginId, pluginId))).toHaveLength(3);
+});
+
+test("plugin_assets: the bundle_path CHECK refuses free text — only the sentinel or a ui/assets/ path", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_plugin_g" });
+  const bundleAssetId = await seedAsset(db, ownerId, "asset_plugin_g");
+  const spriteId = await seedAsset(db, ownerId, "asset_plugin_g_sprite");
+  const pluginId = castId<PluginId>("plugin_g");
+  const now = 1000;
+
+  await db.insert(plugins).values({
+    id: pluginId,
+    ownerId,
+    slug: "check-plugin",
+    name: "Check Plugin",
+    version: "1.0.0",
+    manifest: MANIFEST,
+    bundleAssetId,
+    grantedCapabilities: GRANTS,
+    status: "enabled",
+    origin: "upload",
+    installedAt: now,
+    updatedAt: now,
+  });
+
+  // The column is the ONE key a UI node resolves against, so a writer that stamped an arbitrary string here
+  // would put a name the funnel never admitted into the resolution namespace. The CHECK is the physics tier.
+  for (const bundlePath of ["../../etc/passwd", "main.js", "https://evil.example/x.png", "assets/a.png"]) {
+    await expect(db.insert(pluginAssets).values({ pluginId, assetId: spriteId, bundlePath, fetchedAt: now }), bundlePath).rejects.toSatisfy(isConstraintErr);
+  }
+  // …and both LEGAL spellings are writable.
+  await db.insert(pluginAssets).values({ pluginId, assetId: spriteId, bundlePath: "ui/assets/a.png", fetchedAt: now });
+  await db.insert(pluginAssets).values({ pluginId, assetId: spriteId, bundlePath: "", fetchedAt: now });
+  expect(await db.select().from(pluginAssets).where(eq(pluginAssets.pluginId, pluginId))).toHaveLength(2);
+});
+
 test("plugin_kv: composite PK, key/value length CHECKs, pluginId CASCADE", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_plugin_c" });

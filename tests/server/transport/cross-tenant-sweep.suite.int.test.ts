@@ -1329,6 +1329,13 @@ const PROBES: readonly Probe[] = [
     path: "plugin.invokeUiAction",
     call: (c, i) => c.plugin.invokeUiAction({ pluginId: i.pluginId, surfaceId: "probe_surface", actionId: "probe_action", values: {} }),
   },
+  // ── plugin.listBundleAssets (#820 seam 11) — owner-scoped on the SAME `getById(db, caller.userId, pluginId)`
+  //    load, and probed with A's REAL pluginId because what it returns is a MAP OF A's CAS IDS. A dropped gate
+  //    would hand a stranger the asset ids of somebody else's installed plugin. Those ids buy nothing on their
+  //    own (the blob route is hash-keyed and the id→hash resolve puts the SESSION owner in its WHERE), which is
+  //    exactly why the refusal has to be the owner load and not the id's inertness — "harmless to leak" is a
+  //    property of today's blob route, not an authority decision this proc gets to inherit. ──
+  { path: "plugin.listBundleAssets", call: (c, i) => c.plugin.listBundleAssets({ pluginId: i.pluginId }) },
   // ── plugin.uiHostCall / plugin.reportUiCrash (plugin-ui-plane #679 U4) — the Tier-C pair, owner-scoped on the
   //    SAME `getById(db, caller.userId, pluginId)` load as their four siblings above, and each is the worse
   //    half of a different failure. `uiHostCall` would RUN a membrane op through A's bridge — the bridge closes

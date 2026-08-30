@@ -6,8 +6,9 @@
 // variant and is NOT BUILT — see D147.
 // Flow: `parseBundle` (unzip+validate the untrusted bytes — throws `ManifestInvalidError` on a bad
 // zip/bomb/manifest) → the grant ⊆ declared check → per-owner slug-collision check → store the WHOLE bundle
-// in the caller's CAS (kind `"plugin"`) → insert a `disabled` row (enabling is a second explicit act, like
-// rules). The bundle funnel is SOURCE-AGNOSTIC: the CALLING verb states where the bytes came from (`source`,
+// in the caller's CAS (kind `"plugin"`) → store each `ui/assets/` image the bundle shipped as its own CAS
+// asset (#820 seam 11) → insert a `disabled` row AND its `plugin_assets` links in ONE batch (enabling is a
+// second explicit act, like rules). The bundle funnel is SOURCE-AGNOSTIC: the CALLING verb states where the bytes came from (`source`,
 // U8 2b) and this verb records it verbatim — absent ⇒ a file upload (`origin:"upload"`, no `sourceUrl`);
 // `installFromUrl` passes `{ origin:"url", sourceUrl }` so a URL install records an HONEST origin + the URL the
 // update-check re-fetches. The db CHECK enforces the `origin ⟺ sourceUrl` pairing.
@@ -16,6 +17,7 @@ import { CapabilityNotGrantedError, PluginAlreadyInstalledError } from "../contr
 import type { InstallPluginParams } from "../contract/params.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
 import { getByOwnerSlug, insertPlugin, toPluginView } from "../persistence/plugins.ts";
+import { storeBundleAssets } from "../substrate/bundle-assets.ts";
 import { normalizeGrant, ungrantableCapabilities } from "../substrate/grants.ts";
 import { PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
 
@@ -24,7 +26,7 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
     // Where the bytes came from. Absent ⇒ a file upload (the transport `install` proc + the admin fan-out);
     // `installFromUrl` passes `{ origin:"url", sourceUrl:url }`. The pairing is the db CHECK's to enforce.
     const { origin, sourceUrl } = source ?? { origin: "upload" as const, sourceUrl: null };
-    const { manifest } = parseBundle(bundle);
+    const { manifest, uiAssets } = parseBundle(bundle);
 
     const ungrantable = ungrantableCapabilities(manifest.capabilities, grant);
     if (ungrantable.length > 0) {
@@ -39,6 +41,14 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
     const granted = normalizeGrant(manifest.capabilities, grant);
     const stored = await ctx.assets.store(caller, bundle, PLUGIN_BUNDLE_MIME);
     const now = ctx.now();
+    // #820 seam 11 — the bundle's own `ui/assets/` images, each written into the INSTALLER's CAS as its own
+    // asset under the caller's Principal (the shared `storeBundleAssets` writer, so install and upgrade
+    // cannot drift). Ordering is load-bearing in two directions: the CAS writes precede the row so every
+    // `plugin_assets` FK has a target, and the links ride the row's OWN batch below so a row can never exist
+    // with half its images resolvable. A throw between the two leaves unreferenced blobs for the scheduled
+    // sweep — the fail-safe direction, never a dangling reference (the `storeFetched` put→link posture, #802).
+    const bundleAssets = await storeBundleAssets(ctx.assets.store, caller, uiAssets, now);
+
     // ONE row object, inserted AND projected. It used to be two hand-written literals — the insert shape and a
     // parallel `PluginView` return — which is two homes for one projection: a field added to `toPluginView` was
     // silently absent from a freshly-installed plugin's view. The schema defaults it re-states here
@@ -66,7 +76,7 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
       installedAt: now,
       updatedAt: now,
     };
-    await insertPlugin(ctx.db, row);
+    await insertPlugin(ctx.db, row, bundleAssets);
     return toPluginView(row);
   };
 }

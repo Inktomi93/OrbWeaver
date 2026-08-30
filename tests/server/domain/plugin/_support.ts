@@ -6,6 +6,7 @@
 // a still-referenced bundle), the frozen clock + seeded ids, and a scriptable `PluginHostPort` fake. A separate
 // `makeSandboxPort` wires the REAL P1 `infra/plugin-host` `Sandbox` for the determinism-floor round-trip.
 
+import { createHash } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { PluginCapability, PluginInstance } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
@@ -15,7 +16,7 @@ import { castId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { Sandbox } from "@orb/server/infra/plugin-host";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { zipSync } from "fflate";
 import type { PluginHostOps } from "../../../../packages/server/src/domain/plugin/contract/ops.ts";
 import type { PluginLogView as DomainPluginLogView } from "../../../../packages/server/src/domain/plugin/contract/results.ts";
@@ -190,9 +191,23 @@ export function makePluginHarness(
   const storedBytes = new Map<AssetId, Uint8Array>();
   const fakePort = makeFakePort();
 
+  // CONTENT-ADDRESSED, like the real CAS: the id is a function of (owner, bytes), so re-storing identical
+  // bytes for the same owner returns the SAME assetId with `created:false`. That is not decoration — it is
+  // the property the whole upgrade-reap design rests on (an image a new bundle still ships keeps its id, so
+  // `reapIfOrphan`'s reference re-check IS the diff, #820). A fake that minted a fresh id per call would let
+  // a "kept asset survives the upgrade" test pass or fail for reasons production never has.
   const store: PluginContext["assets"]["store"] = async (caller, bytes, mime) => {
+    const hash = createHash("sha256").update(bytes).digest("hex");
+    const existing = await db
+      .select({ id: assets.id })
+      .from(assets)
+      .where(and(eq(assets.ownerId, caller.userId), eq(assets.hash, hash)))
+      .limit(1);
+    const dedup = existing[0]?.id;
+    if (dedup !== undefined) {
+      return { assetId: dedup, hash, size: bytes.length, created: false };
+    }
     const assetId = castId<AssetId>(ids.next("asset"));
-    const hash = `hash-${assetId}`;
     storedBytes.set(assetId, new Uint8Array(bytes));
     await db.insert(assets).values({ id: assetId, ownerId: caller.userId, kind: "plugin", mime, size: bytes.length, hash, uploadedAt: clock.now() });
     return { assetId, hash, size: bytes.length, created: true };
@@ -377,7 +392,15 @@ export interface BundleManifestOverrides {
  *  install/upgrade tests. Defaults to a capability-free `hostVersion:1` manifest + a hello `main.js`; override
  *  any field. Deliberately capable of building an INVALID bundle (declaration without file, or the reverse) —
  *  the funnel's job is to refuse those, so the fixture must be able to hand it one. */
-export function makeBundle(overrides: BundleManifestOverrides = {}, mainJs = "orb.host(1).log.info('hello');", uiJs?: string): Uint8Array {
+export function makeBundle(
+  overrides: BundleManifestOverrides = {},
+  mainJs = "orb.host(1).log.info('hello');",
+  uiJs?: string,
+  /** Extra zip entries VERBATIM (#820) — keyed by full path so a fixture can plant `ui/assets/a.png`, a
+   *  traversal name, or an entry the allow-list must refuse. Deliberately un-validated here: the funnel is
+   *  what judges these, so the fixture builder must be able to hand it something illegal. */
+  extraEntries: Record<string, Uint8Array> = {},
+): Uint8Array {
   const manifest = {
     id: overrides.id ?? "test-plugin",
     name: overrides.name ?? "Test Plugin",
@@ -397,6 +420,9 @@ export function makeBundle(overrides: BundleManifestOverrides = {}, mainJs = "or
   };
   if (uiJs !== undefined) {
     entries["ui.js"] = encoder.encode(uiJs);
+  }
+  for (const [path, bytes] of Object.entries(extraEntries)) {
+    entries[path] = bytes;
   }
   return zipSync(entries);
 }

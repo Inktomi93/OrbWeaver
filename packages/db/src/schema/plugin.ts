@@ -6,11 +6,12 @@
 // uninstall deletes row-then-asset in one verb). `status`/`origin` DERIVE their CHECK from the ONE-home
 // contract tuples (`@orb/contracts/plugin` — no re-spell, the ASSET_KINDS precedent). `plugin_kv` is the
 // `storage.kv` plane: PK (plugin_id, key), a denormalized `owner_id` guard column (belt: WHERE both), the
-// 128-char key / 64 KiB value caps as tuple-shared CHECK-DDL. `plugin_assets` is the #802 fetched-asset
-// register — the FK column that makes a `net.fetchAsset` cover VISIBLE to the asset-GC ref registry.
+// 128-char key / 64 KiB value caps as tuple-shared CHECK-DDL. `plugin_assets` is the plugin ASSET register —
+// the FK column that makes a `net.fetchAsset` cover (#802) or a bundle-shipped `ui/assets/` image (#820)
+// VISIBLE to the asset-GC ref registry; `bundle_path` distinguishes the two and resolves a UI node's path.
 
 import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
-import { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "@orb/contracts/plugin";
+import { PLUGIN_ORIGINS, PLUGIN_STATUSES, PLUGIN_UI_ASSETS_DIR } from "@orb/contracts/plugin";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
@@ -178,13 +179,29 @@ export const adminDistributedPlugins = sqliteTable(
 // A runaway plugin's autonomous turns/images stay bounded by the per-member turn RATE cap + the cascade-depth
 // guard (shared with automation); cost VISIBILITY rides the stats domain. No per-plugin $/action ceiling.
 
-/** THE PLUGIN-FETCHED ASSET REGISTER (#802): one row per (installed plugin, asset it pulled through
- *  `net.fetchAsset`). It exists for exactly one reason — `ASSET_REFS` (the FK enumeration BOTH asset-GC paths
- *  iterate) can only see an `AssetId` sitting in a real FK column, and a `net.fetchAsset` cover landed in the
- *  installer's CAS with NO referencing row anywhere. So the scheduled `assets-gc` reaped a live hub cover one
- *  grace window after it was fetched, and the surface it was published to (a plugin UI state blob, which is
- *  JSON and therefore invisible to the enumeration too) dangled. This is the `message_assets` posture: a link
- *  row whose whole job is to make an otherwise-invisible reference VISIBLE to the registry.
+/** THE PLUGIN ASSET REGISTER (#802 fetched · #820 bundle-shipped): one row per (installed plugin, asset it
+ *  holds, the bundle path it came from). It exists for exactly one reason — `ASSET_REFS` (the FK enumeration
+ *  BOTH asset-GC paths iterate) can only see an `AssetId` sitting in a real FK column, and a `net.fetchAsset`
+ *  cover landed in the installer's CAS with NO referencing row anywhere. So the scheduled `assets-gc` reaped a
+ *  live hub cover one grace window after it was fetched, and the surface it was published to (a plugin UI
+ *  state blob, which is JSON and therefore invisible to the enumeration too) dangled. This is the
+ *  `message_assets` posture: a link row whose whole job is to make an otherwise-invisible reference VISIBLE to
+ *  the registry.
+ *
+ *  TWO PROVENANCES, ONE TABLE (#820 seam 11): `bundle_path` is `''` for a RUNTIME-fetched cover (#802) and
+ *  the zip entry path (`ui/assets/<name>`) for an INSTALL-TIME bundle-shipped image. It is one table and not
+ *  two because the GC question is identical for both — "does an installed plugin still hold this blob" — and
+ *  a second table would be a second thing to remember to register in `ASSET_REFS`, which is precisely the
+ *  omission #802 was minted to fix. What differs is only whether the row can also ANSWER "which asset is
+ *  `ui/assets/happy.png`", which is what the column adds.
+ *
+ *  WHY THE PATH IS IN THE PRIMARY KEY, and why it is `NOT NULL DEFAULT ''` rather than nullable. The CAS is
+ *  content-addressed, so a bundle shipping TWO paths with IDENTICAL bytes dedups to ONE assetId — under the
+ *  original (plugin_id, asset_id) key the second path would COLLIDE and be silently lost, and the node naming
+ *  it would render a placeholder forever. And NULL is not available as the "no path" spelling: SQLite does not
+ *  enforce NOT NULL on the PK columns of a rowid table, so NULLs would compare DISTINCT and the #802 re-fetch
+ *  upsert would duplicate rows instead of refreshing one. `''` is therefore the sentinel, and the CHECK below
+ *  is what keeps it from becoming a free-text column.
  *
  *  RETAINING, and the retention unit is the INSTALL: while the plugin is installed, everything it fetched
  *  stays live; uninstall CASCADEs these rows away and the covers become ordinary GC candidates (the uninstall
@@ -199,10 +216,13 @@ export const adminDistributedPlugins = sqliteTable(
  *  `plugins.bundle_asset_id`, where a missing blob IS corruption).
  *
  *  NO `owner_id` column, unlike `plugin_kv`: this is a pure junction (both parents are ownerId-scoped) and
- *  neither coordinate is guest-supplied — the `pluginId` is closed over by the bridge and the `assetId` is
- *  MINTED by the CAS store from bytes the host just fetched under the installer's own Principal. There is no
- *  spelling in which a guest names a foreign asset here, so a denormalized guard column would be a belt with
- *  nothing to hold. `fetched_at` is provenance (the last time this plugin pulled these bytes), never a read key. */
+ *  no coordinate is guest-supplied — the `pluginId` is closed over by the bridge, the `assetId` is MINTED by
+ *  the CAS store from bytes the host itself fetched or unzipped under the installer's own Principal, and
+ *  `bundle_path` is a zip entry name the install funnel already refused unless it matched
+ *  `PLUGIN_UI_ASSET_ENTRY_RE` (anchored, flat, alphanumeric-led — a traversal is unspellable, not filtered).
+ *  There is no spelling in which a guest names a foreign asset here, so a denormalized guard column would be
+ *  a belt with nothing to hold. `fetched_at` is provenance (the last time this plugin pulled or unpacked these
+ *  bytes), never a read key. */
 export const pluginAssets = sqliteTable(
   "plugin_assets",
   {
@@ -214,14 +234,25 @@ export const pluginAssets = sqliteTable(
       .$type<AssetId>()
       .notNull()
       .references(() => assets.id, { onDelete: "cascade" }),
+    /** The zip entry this asset was unpacked from (`ui/assets/<name>`, #820), or `''` for a runtime
+     *  `net.fetchAsset` cover (#802) — see the table header for why the sentinel is `''` and not NULL. It is
+     *  the RESOLUTION key: a UI node names a bundle path and `listPluginBundleAssets` turns it into the id. */
+    bundlePath: text("bundle_path").notNull().default(""),
     fetchedAt: integer("fetched_at").notNull(),
   },
   (t) => [
-    // (plugin_id, asset_id) is the identity: the same plugin re-fetching the same bytes upserts one row.
-    primaryKey({ columns: [t.pluginId, t.assetId] }),
+    // (plugin_id, asset_id, bundle_path) is the identity: the same plugin re-fetching the same bytes upserts
+    // ONE row (both #802 coordinates plus the empty path), while a bundle shipping the same image at two
+    // paths keeps BOTH rows — the dedup'd assetId is the same, and the path is what tells them apart.
+    // The leading two columns are unchanged, so every read written against the old key keeps its plan.
+    primaryKey({ columns: [t.pluginId, t.assetId, t.bundlePath] }),
     // `asset_id` sits SECOND in the PK, so every asset delete (the CASCADE probe) and every "who fetched this"
     // lookup would full-scan without its own leading index (`fk-columns-indexed`).
     index("plugin_assets_asset_idx").on(t.assetId),
+    // The path is either the "runtime fetch" sentinel or a real bundle entry — never free text. At the
+    // physics tier (constitution §2.2) because a writer that stamped an arbitrary string here would put a
+    // guest-influenced key into the ONE column a UI node resolves against.
+    check("plugin_assets_bundle_path_check", sql.raw(`bundle_path = '' or bundle_path like '${PLUGIN_UI_ASSETS_DIR}%'`)),
   ],
 );
 

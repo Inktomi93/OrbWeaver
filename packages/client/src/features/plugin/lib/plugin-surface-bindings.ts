@@ -22,6 +22,7 @@ import type {
   PluginSurfaceNode,
 } from "@orb/contracts/plugin";
 import {
+  PLUGIN_UI_ASSETS_DIR,
   pluginChildNodes,
   resolvePluginBoundAssetId,
   resolvePluginBoundBoolean,
@@ -167,36 +168,84 @@ function isBinding(value: PluginBoundString | PluginBoundNumber | PluginBoundBoo
  *  every state-sourced id is FORMAT-validated before it joins the set, and the server's owner-scoped resolve
  *  then judges ownership for spec-declared and state-bound ids identically — a foreign id yields no ref and
  *  the node paints its placeholder, never another owner's blob. */
-export function collectImageAssetIds(node: PluginSurfaceNode, state: Record<string, unknown>, out: AssetId[]): void {
+export function collectImageAssetIds(
+  node: PluginSurfaceNode,
+  state: Record<string, unknown>,
+  bundleAssets: ReadonlyMap<string, AssetId>,
+  out: AssetId[],
+): void {
   if (node.kind === "image") {
-    pushDefined(out, imageNodeAssetId(node, state));
+    pushDefined(out, coverAssetId(imageNodeCoverKey(node, state), bundleAssets));
   }
   if (node.kind === "grid") {
     for (const tile of gridTiles(node, state)) {
-      pushDefined(out, tile.assetId);
+      pushDefined(out, coverAssetId(tileCoverKey(tile), bundleAssets));
     }
   }
   if (node.kind === "masterDetail") {
     for (const stage of node.stages) {
-      // BOTH hero arms collapse through `heroAssetId` (#798): the declared id, or the `assetFrom` binding
-      // resolved (format-gated) against state — so a bound cover joins the ONE owner-scoped resolve, never
-      // painting on its own.
-      pushDefined(out, stage.hero === undefined ? undefined : heroAssetId(stage.hero, state));
+      // ALL hero arms collapse through `heroCoverKey` (#798/#820): the declared id, the `assetFrom` binding
+      // resolved (format-gated) against state, or the bundle path — so every one joins the ONE owner-scoped
+      // resolve and none paints on its own.
+      pushDefined(out, stage.hero === undefined ? undefined : coverAssetId(heroCoverKey(stage.hero, state), bundleAssets));
     }
   }
   for (const child of pluginChildNodes(node)) {
-    collectImageAssetIds(child, state, out);
+    collectImageAssetIds(child, state, bundleAssets, out);
   }
 }
 
-/** A stage hero's effective asset id — the declared arm, or the bound arm (`assetFrom`, #798) resolved
- *  (format-gated) against state. The exactly-one-of belt means at most one arm is present. The `image` node's
- *  `imageNodeAssetId` one plane over, so both surfaces resolve a bound cover identically. */
-export function heroAssetId(hero: PluginPageHero, state: Record<string, unknown>): AssetId | undefined {
+/** Turn a COVER KEY into the asset id to resolve. The two key spaces are told apart by the bundle PREFIX, not
+ *  by a map hit: a `ui/assets/…` key (#820) resolves through THIS plugin's install-time map and yields NOTHING
+ *  when the plugin never shipped that path, while anything else is already an `asset_…` id.
+ *
+ *  The prefix test is load-bearing rather than stylistic. A `?? key` fallback would push the raw PATH into the
+ *  id set on the render before the map lands (and forever, for a path that was dropped by an upgrade) — and
+ *  `assets.resolveBlobRefs` validates its whole input array against the TypeID schema, so one non-id entry
+ *  fails the request and EVERY image on the surface goes blank. An unmapped path must be a per-node
+ *  placeholder, never a surface-wide blank. */
+function coverAssetId(key: string | undefined, bundleAssets: ReadonlyMap<string, AssetId>): AssetId | undefined {
+  if (key === undefined) {
+    return;
+  }
+  return key.startsWith(PLUGIN_UI_ASSETS_DIR) ? bundleAssets.get(key) : (key as AssetId);
+}
+
+/** Does this spec name ANY `bundleAsset` path (#820)? The gate on the extra per-plugin `listBundleAssets`
+ *  read: a surface that ships no bundle art must not pay for a query, and — because the map is only ever a
+ *  NAME lookup — a spec that names none has nothing the map could change. Pure + recursive through the same
+ *  `pluginChildNodes` seam every other walk here uses. */
+export function specNamesBundleAsset(node: PluginSurfaceNode): boolean {
+  if (node.kind === "image" && node.bundleAsset !== undefined) {
+    return true;
+  }
+  if (node.kind === "grid" && (node.tiles ?? []).some((tile) => tile.bundleAsset !== undefined)) {
+    return true;
+  }
+  if (node.kind === "masterDetail" && node.stages.some((stage) => stage.hero?.bundleAsset !== undefined)) {
+    return true;
+  }
+  return pluginChildNodes(node).some((child) => specNamesBundleAsset(child));
+}
+
+/** A stage hero's effective COVER KEY — the declared id, the bound arm (`assetFrom`, #798) resolved
+ *  (format-gated) against state, or the bundle path (#820). The exactly-one-of belt means at most one arm is
+ *  present. The `image` node's `imageNodeCoverKey` one plane over, so both surfaces resolve identically. */
+export function heroCoverKey(hero: PluginPageHero, state: Record<string, unknown>): string | undefined {
   if (hero.assetId !== undefined) {
     return hero.assetId;
   }
+  if (hero.bundleAsset !== undefined) {
+    return hero.bundleAsset;
+  }
   return hero.assetFrom === undefined ? undefined : resolvePluginBoundAssetId(state, hero.assetFrom);
+}
+
+/** A grid tile's effective COVER KEY — the declared id or the bundle path (#820). A tile has no bound arm
+ *  (a BOUND tile's cover is already an id in published state), so this is a two-way choice; both absent is
+ *  the genre's shape-matched placeholder. */
+export function tileCoverKey(tile: PluginGridTile): string | undefined {
+  return tile.assetId ?? tile.bundleAsset;
 }
 
 function pushDefined(out: AssetId[], id: AssetId | undefined): void {
@@ -205,11 +254,14 @@ function pushDefined(out: AssetId[], id: AssetId | undefined): void {
   }
 }
 
-/** An `image` node's effective asset id — the declared arm, or the bound arm resolved (format-gated) against
- *  state. The exactly-one-of belt means at most one arm is present. */
-export function imageNodeAssetId(node: Extract<PluginSurfaceNode, { kind: "image" }>, state: Record<string, unknown>): AssetId | undefined {
+/** An `image` node's effective COVER KEY — the declared id, the bound arm resolved (format-gated) against
+ *  state, or the bundle path (#820). The exactly-one-of belt means exactly one arm is present. */
+export function imageNodeCoverKey(node: Extract<PluginSurfaceNode, { kind: "image" }>, state: Record<string, unknown>): string | undefined {
   if (node.assetId !== undefined) {
     return node.assetId;
+  }
+  if (node.bundleAsset !== undefined) {
+    return node.bundleAsset;
   }
   return node.assetFrom === undefined ? undefined : resolvePluginBoundAssetId(state, node.assetFrom);
 }

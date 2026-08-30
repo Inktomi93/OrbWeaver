@@ -2,13 +2,14 @@
 // the row is stamped ownerId = caller), the untrusted-bundle validation funnel, the grant ⊆ declared refusal,
 // the PER-OWNER slug collision, and the disabled-on-install default (enabling is a second act).
 
-import { plugins } from "@orb/db";
+import { assets, pluginAssets, plugins } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { CapabilityNotGrantedError, ManifestInvalidError, PluginAlreadyInstalledError } from "@orb/server/domain/plugin";
-import { eq } from "drizzle-orm";
+import { CapabilityNotGrantedError, ManifestInvalidError, PluginAlreadyInstalledError, PluginNotFoundError } from "@orb/server/domain/plugin";
+import { eq, inArray } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { magicBytes } from "../../../../support/magic-bytes.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 test("installs a valid bundle: disabled row, granted subset, origin upload, bytes in the CAS", async () => {
@@ -114,4 +115,102 @@ test("a corrupt bundle is refused before anything persists", async () => {
   );
   expect(h.storedBytes.size).toBe(0); // nothing stored on a validation failure
   expect((await h.service.list({ caller: ownerPrincipalFor(owner) })).length).toBe(0);
+});
+
+// ── #820 seam 11: the bundle's own `ui/assets/` images become CAS assets under the INSTALLER, linked through
+//    the same `plugin_assets` register #802 minted (so the GC ref registry can see them) and keyed by path.
+test("install unpacks ui/assets/ images into the installer's CAS and links each by its bundle path", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+  const view = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "sprites" }, undefined, undefined, {
+      "ui/assets/happy.png": magicBytes("png"),
+      "ui/assets/sad.webp": magicBytes("webp"),
+    }),
+    grant: [],
+  });
+
+  // The bundle zip + the two images: three CAS writes, all under the caller.
+  expect(h.storedBytes.size).toBe(3);
+  const links = await db.select().from(pluginAssets).where(eq(pluginAssets.pluginId, view.id));
+  expect(links.map((link) => link.bundlePath).sort()).toEqual(["ui/assets/happy.png", "ui/assets/sad.webp"]);
+  // Every stored image is OWNED BY THE INSTALLER — the row's ownerId is the CAS's own tenancy key.
+  const rows = await db
+    .select()
+    .from(assets)
+    .where(
+      inArray(
+        assets.id,
+        links.map((link) => link.assetId),
+      ),
+    );
+  expect(rows.every((row) => row.ownerId === owner)).toBe(true);
+  // …and the mime is the SNIFFED one, so the blob route serves what the bytes actually are.
+  expect(rows.map((row) => row.mime).sort()).toEqual(["image/png", "image/webp"]);
+
+  // The verb's read side agrees: the path → id map is what a UI node resolves through.
+  const map = await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: view.id });
+  expect(map.map((entry) => entry.path)).toEqual(["ui/assets/happy.png", "ui/assets/sad.webp"]);
+});
+
+test("a REFUSED bundle asset aborts the whole install — no row, no bytes, nothing half-landed", async () => {
+  // The trust-edge ordering receipt: `parseBundle` throws before the CAS is touched, so an SVG (or any
+  // non-image) in `ui/assets/` cannot leave a partially-installed plugin behind.
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+  await expect(
+    h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "evil" }, undefined, undefined, { "ui/assets/x.svg": magicBytes("svg") }),
+      grant: [],
+    }),
+  ).rejects.toBeInstanceOf(ManifestInvalidError);
+
+  expect(h.storedBytes.size).toBe(0);
+  expect(await h.service.list({ caller: ownerPrincipalFor(owner) })).toEqual([]);
+  expect(await db.select().from(pluginAssets)).toEqual([]);
+});
+
+test("two paths carrying IDENTICAL bytes both resolve — the widened PK keeps both names", async () => {
+  // The receipt for the widened `plugin_assets` PK. Under the old (plugin_id, asset_id) key a second path
+  // pointing at the same content-addressed id would have collided and been lost, and a node naming it would
+  // paint a placeholder forever.
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+  const view = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "twins" }, undefined, undefined, {
+      "ui/assets/a.png": magicBytes("png"),
+      "ui/assets/b.png": magicBytes("png"),
+    }),
+    grant: [],
+  });
+
+  const map = await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: view.id });
+  expect(map.map((entry) => entry.path)).toEqual(["ui/assets/a.png", "ui/assets/b.png"]);
+  expect(map).toHaveLength(2);
+});
+
+test("listBundleAssets is owner-scoped — a stranger holding the real pluginId gets a leak-free NOT_FOUND", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+  const view = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "private-sprites" }, undefined, undefined, { "ui/assets/a.png": magicBytes("png") }),
+    grant: [],
+  });
+
+  // The apex global role buys nothing here (D147: authority is the owner-scoped row load, not a role), so the
+  // stranger is aimed at the row as an OWNER-roled principal too — the strongest caller that must still be refused.
+  await expect(h.service.listBundleAssets({ caller: ownerPrincipalFor(stranger), pluginId: view.id })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.listBundleAssets({ caller: principalFor(stranger), pluginId: view.id })).rejects.toBeInstanceOf(PluginNotFoundError);
 });

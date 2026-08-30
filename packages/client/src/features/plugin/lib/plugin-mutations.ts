@@ -79,6 +79,10 @@ export const useUpgradePlugin = createEntityMutation<inferInput<Trpc["plugin"]["
     trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),
     trpc.plugin.listSurfaces.queryFilter(),
     trpc.plugin.listCommands.queryFilter(),
+    // …and the bundle-image map (#820): an upgrade REPLACES the `ui/assets/` set, so a surface still holding
+    // the old map would keep resolving a path this version dropped — or miss one it added. The upgrade write
+    // is its only freshness driver (no bus event exists for the plugin lifecycle).
+    trpc.plugin.listBundleAssets.queryFilter(),
   ],
   errorToast: serverReason("Couldn't update that plugin."),
 });
@@ -113,6 +117,10 @@ export const useUpgradePluginFromStoredUrl = createEntityMutation<
     trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),
     trpc.plugin.listSurfaces.queryFilter(),
     trpc.plugin.listCommands.queryFilter(),
+    // …and the bundle-image map (#820): an upgrade REPLACES the `ui/assets/` set, so a surface still holding
+    // the old map would keep resolving a path this version dropped — or miss one it added. The upgrade write
+    // is its only freshness driver (no bus event exists for the plugin lifecycle).
+    trpc.plugin.listBundleAssets.queryFilter(),
   ],
   errorToast: serverReason("Couldn't update that plugin."),
 });

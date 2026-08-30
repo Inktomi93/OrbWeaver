@@ -670,6 +670,55 @@ test("#798: a detail-stage HERO names exactly one of `assetId` / `assetFrom`, an
   // `resolvePluginBoundAssetId` (proven below) — so a URL smuggled through state paints nothing either.
 });
 
+test("#820: the BUNDLE arm is a NAME, and the exactly-one-of belt now counts THREE arms", () => {
+  const image = (node: Record<string, unknown>): unknown => ({ kind: "image", ...node });
+  // The third arm alone is accepted, on an `image` and on a stage hero.
+  expect(pluginSurfaceSpecSchema.safeParse(image({ bundleAsset: "ui/assets/happy.png" })).success).toBe(true);
+  expect(
+    pluginSurfaceSpecSchema.safeParse({
+      kind: "masterDetail",
+      stages: [{ id: "d", kind: "detail", hero: { bundleAsset: "ui/assets/hero.webp" }, body: { kind: "text", value: "x" } }],
+    }).success,
+  ).toBe(true);
+
+  // EXACTLY one: an XOR pair would have silently readmitted "all three", which is a node describing one
+  // picture three ways and a renderer picking whichever arm it happens to check first.
+  expect(pluginSurfaceSpecSchema.safeParse(image({ assetId: "asset_01h455vb4pex5vsknk084sn02q", bundleAsset: "ui/assets/a.png" })).success).toBe(false);
+  expect(pluginSurfaceSpecSchema.safeParse(image({ assetFrom: { $state: "c" }, bundleAsset: "ui/assets/a.png" })).success).toBe(false);
+  expect(
+    pluginSurfaceSpecSchema.safeParse(image({ assetId: "asset_01h455vb4pex5vsknk084sn02q", assetFrom: { $state: "c" }, bundleAsset: "ui/assets/a.png" }))
+      .success,
+  ).toBe(false);
+
+  // THE PATH IS FORMAT-WALLED with the funnel's OWN pattern, so a name the install funnel could never have
+  // admitted is not spellable in a spec either — traversal, a second segment, an absolute path, a URL.
+  for (const bad of [
+    "ui/assets/../../etc/passwd",
+    "ui/assets/../main.js",
+    "ui/assets/sub/a.png",
+    "/ui/assets/a.png",
+    "ui/assets/.hidden.png",
+    "main.js",
+    "https://evil.example/x.png",
+    "",
+  ]) {
+    expect(pluginSurfaceSpecSchema.safeParse(image({ bundleAsset: bad })).success, bad).toBe(false);
+  }
+});
+
+test("#820: a declared grid tile names AT MOST one cover arm — and zero stays legal (the genre's placeholder)", () => {
+  const grid = (tile: Record<string, unknown>): unknown => ({ kind: "grid", tiles: [{ id: "t1", title: "One", ...tile }] });
+  expect(pluginSurfaceSpecSchema.safeParse(grid({ bundleAsset: "ui/assets/cover.png" })).success).toBe(true);
+  expect(pluginSurfaceSpecSchema.safeParse(grid({ assetId: "asset_01h455vb4pex5vsknk084sn02q" })).success).toBe(true);
+  expect(pluginSurfaceSpecSchema.safeParse(grid({})).success).toBe(true); // a coverless tile is a placeholder, not an error
+  expect(pluginSurfaceSpecSchema.safeParse(grid({ assetId: "asset_01h455vb4pex5vsknk084sn02q", bundleAsset: "ui/assets/cover.png" })).success).toBe(false);
+  // A BOUND tile has no bundle arm at all — a bundle path is spec structure, never published state.
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "grid", tilesFrom: { $state: "results" }, tileAction: "open" }).success).toBe(true);
+  expect(resolvePluginBoundTiles({ results: [{ id: "r1", title: "t", bundleAsset: "ui/assets/a.png" }] }, { $state: "results" })[0]).not.toHaveProperty(
+    "bundleAsset",
+  );
+});
+
 test("ARM C: resolvePluginBoundTiles validates, drops, and clamps — state is never a loophole past a registration bound", () => {
   const good = { id: "r1", title: "The Storm", subtitle: "by nobody", badge: "new" };
   const state = {

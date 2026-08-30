@@ -201,6 +201,13 @@ export interface ListSurfacesParams {
 /** `getSurfaceState` — one surface's published state, for a plugin the caller OWNS. Owner-scoped on `pluginId`
  *  (leak-free NOT_FOUND); the v1 invariant is viewer == installer, so the state's one legitimate reader is
  *  exactly this owner. */
+/** `listBundleAssets` — the owned plugin whose bundle-shipped image map to read (#820 seam 11). `pluginId` is
+ *  the ONLY input and it is not authority: the verb's owner-scoped row load is the gate. */
+export interface ListBundleAssetsParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+}
+
 export interface GetSurfaceStateParams {
   readonly caller: Principal;
   readonly pluginId: PluginId;

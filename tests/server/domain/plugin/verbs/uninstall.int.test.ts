@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { upsertKv } from "../../../../../packages/server/src/domain/plugin/persistence/plugin-kv.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { magicBytes } from "../../../../support/magic-bytes.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 /** A cover the way `net.fetchAsset` lands one: an owned `generated` asset in the installer's CAS index, with
@@ -159,4 +160,43 @@ test("a stranger cannot uninstall another user's plugin — the row, its KV and 
   expect((await h.service.list({ caller: principalFor(alice) })).map((p) => p.id)).toEqual([hers.id]);
   expect(await db.select().from(pluginKv).where(eq(pluginKv.pluginId, hers.id))).toHaveLength(1);
   expect(h.storedBytes.size).toBe(1); // the bundle asset was never reaped out from under A
+});
+
+// #820 — the bundle-shipped half of the same register. `uninstall` needed NO new code for this (it already
+// reaps every `plugin_assets` link it reads before the delete), and that is the receipt: one register, one
+// reap path, and a new provenance inherits the lifecycle instead of growing a second one to forget.
+test("uninstall reaps the plugin's BUNDLE-SHIPPED images too — but never one another plugin also ships", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const alice = await seedUser(db, { handle: castId<Handle>("alice") });
+  const shared = magicBytes("png", 128);
+  const solo = magicBytes("gif", 128);
+
+  const first = await h.service.install({
+    caller: principalFor(alice),
+    bundle: makeBundle({ id: "sprites-a" }, undefined, undefined, { "ui/assets/shared.png": shared, "ui/assets/solo.gif": solo }),
+    grant: [],
+  });
+  // A SECOND plugin of the SAME owner shipping byte-identical art: content-addressed storage gives both the
+  // same assetId, so this is the containment case — uninstalling one must not blank the other's sprite.
+  const second = await h.service.install({
+    caller: principalFor(alice),
+    bundle: makeBundle({ id: "sprites-b" }, undefined, undefined, { "ui/assets/shared.png": shared }),
+    grant: [],
+  });
+
+  const firstMap = await h.service.listBundleAssets({ caller: principalFor(alice), pluginId: first.id });
+  const sharedId = firstMap.find((entry) => entry.path === "ui/assets/shared.png")?.assetId;
+  const soloId = firstMap.find((entry) => entry.path === "ui/assets/solo.gif")?.assetId;
+  const secondMap = await h.service.listBundleAssets({ caller: principalFor(alice), pluginId: second.id });
+  expect(secondMap[0]?.assetId).toBe(sharedId); // the CAS deduped — one blob, two holders
+
+  await h.service.uninstall({ caller: principalFor(alice), pluginId: first.id });
+
+  // The sole-held sprite is reaped with the install; the shared one survives because the second plugin's link
+  // still references it (`reapIfOrphan` re-checks the WHOLE registry per id).
+  expect(h.storedBytes.has(soloId as never)).toBe(false);
+  expect(h.storedBytes.has(sharedId as never)).toBe(true);
+  expect(await db.select().from(pluginAssets).where(eq(pluginAssets.pluginId, first.id))).toEqual([]);
+  expect(await h.service.listBundleAssets({ caller: principalFor(alice), pluginId: second.id })).toHaveLength(1);
 });

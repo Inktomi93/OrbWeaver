@@ -51,7 +51,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ConfirmDialog } from "#components";
 import { PLUGIN_ICON_GLYPHS } from "../lib/plugin-icon-glyphs.ts";
-import { imageNodeAssetId, keyValueRows, METER_DEFAULT_MAX, numFromValues, resolveNumber, resolveString } from "../lib/plugin-surface-bindings.ts";
+import { imageNodeCoverKey, keyValueRows, METER_DEFAULT_MAX, numFromValues, resolveNumber, resolveString } from "../lib/plugin-surface-bindings.ts";
 import { SurfaceGrid } from "./plugin-browse-nodes.tsx";
 import { BoundSelect, TabsStrip } from "./plugin-option-controls.tsx";
 
@@ -220,12 +220,13 @@ function DisplayLeaf({
     );
   }
   if (node.kind === "image") {
-    // BOTH ARMS collapse through `imageNodeAssetId` (#774 ARM C): the declared `assetId`, or the `assetFrom`
-    // binding format-gated against state. A bound value that is not a well-formed asset id — or one the
-    // installer does not OWN (the map only ever holds owner-scoped resolutions) — is a `url` miss and paints
-    // the placeholder, never a foreign blob.
-    const effectiveId = imageNodeAssetId(node, state);
-    return <SurfaceImage node={node} url={effectiveId === undefined ? undefined : imageUrls.get(effectiveId)} />;
+    // ALL THREE ARMS collapse through `imageNodeCoverKey` (#774 ARM C / #820): the declared `assetId`, the
+    // `assetFrom` binding format-gated against state, or the `bundleAsset` zip path. A bound value that is not
+    // a well-formed asset id, a bundle path this plugin never shipped, or an id the installer does not OWN
+    // (the map only ever holds owner-scoped resolutions) is a `url` miss and paints the placeholder, never a
+    // foreign blob.
+    const coverKey = imageNodeCoverKey(node, state);
+    return <SurfaceImage node={node} url={coverKey === undefined ? undefined : imageUrls.get(coverKey)} />;
   }
   if (node.kind === "grid") {
     return <SurfaceGrid imageUrls={imageUrls} node={node} state={state} submit={submit} />;

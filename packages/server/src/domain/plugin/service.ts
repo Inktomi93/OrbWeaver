@@ -24,6 +24,7 @@ import { createInstallForAllUsers } from "./verbs/install-for-all-users.ts";
 import { createInstallFromUrl } from "./verbs/install-from-url.ts";
 import { createInvokeUiAction } from "./verbs/invoke-ui-action.ts";
 import { createInvokeUiCommand } from "./verbs/invoke-ui-command.ts";
+import { createListBundleAssets } from "./verbs/list-bundle-assets.ts";
 import { createListCommands } from "./verbs/list-commands.ts";
 import { createListDisplayTransforms } from "./verbs/list-display-transforms.ts";
 import { createListDistributedPlugins } from "./verbs/list-distributed-plugins.ts";
@@ -94,6 +95,8 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
     // registry the lifecycle owns; getSurfaceState reads the shared surface-state plane off the context.
     listSurfaces: createListSurfaces(ctx, registry),
     getSurfaceState: createGetSurfaceState(ctx),
+    // #820 seam 11 — the bundle-shipped image map the renderer resolves a node's `ui/assets/` path through.
+    listBundleAssets: createListBundleAssets(ctx),
     // U7 — the frame doorway's ONE read. Same registry, same owner-scoped gate, plus a per-call re-check of the
     // row's live `ui.frame` grant (a resident instance outlives a re-grant).
     getFrameBody: createGetFrameBody(ctx, registry),

@@ -13,7 +13,7 @@ import type {
   PluginStatus,
   PluginSurfaceRegistrationMeta,
 } from "@orb/contracts/plugin";
-import type { PluginId, UserId } from "@orb/kit/ids";
+import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 
 /** One installed plugin as its owner sees it — the `plugins` row projected, minus the bundle bytes
  *  and the full manifest json. `builtAgainst` is lifted from the persisted manifest (display/warn provenance);
@@ -90,6 +90,19 @@ export interface PluginSurfaceView extends PluginSurfaceRegistrationMeta {
 /** A surface's published state (`getSurfaceState` — plugin-ui-plane #679 U1): the whole JSON map the renderer
  *  resolves `{ $state: "path" }` bindings against. `null` from the verb when nothing has been published yet. */
 export type PluginSurfaceState = Record<string, unknown>;
+
+/** ONE bundle-shipped image's path → CAS id (`listBundleAssets` — #820 seam 11). The renderer turns a node's
+ *  `bundleAsset: "ui/assets/happy.png"` into this `assetId` and then resolves it through the SAME owner-scoped
+ *  `assets.resolveBlobRefs` every declared `assetId` rides — so the bundle arm adds a NAME lookup and no new
+ *  trust: an id that is not the viewer's still yields no ref and paints the placeholder.
+ *
+ *  The ids are safe to project precisely because the read they come from is the owner-scoped `plugins` row
+ *  load: an asker who does not own the plugin gets a leak-free empty list, never someone else's map. */
+export interface PluginBundleAssetView {
+  /** The zip entry path, verbatim (`ui/assets/<name>`) — what a node names. */
+  readonly path: string;
+  readonly assetId: AssetId;
+}
 
 /** One registered COMMAND as the CALLER's client sees it (`listCommands` — plugin-ui-plane #679 U5). The
  *  registration meta (name/describe — the `onRun` handle stays server-side) plus the identity BOTH consuming
