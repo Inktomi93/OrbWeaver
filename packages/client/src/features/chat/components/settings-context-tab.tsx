@@ -73,6 +73,12 @@ const MACRO_PICKS_SKELETON_ROWS = 3;
 // badge when the count is non-zero (a "0" chip is noise). Rendered as the Section's `heading` ReactNode, so
 // its content lands INSIDE the <h3>; the count rides the heading's accessible name ("Injections 3"). Only
 // phrasing content here (a Badge is an inline span) — never a Row/div, which is illegal inside a heading.
+//
+// `size="inline"` (#829, not `sm`) — the count's arrival is a PAINT, not a layout: `sm` is `inline-flex`
+// with its own type axes, so on arrival it more than doubled the kicker's line box (13.125px → 30.25px,
+// #821), shoving every section below by that much on THREE kickers (Injections/Documents/Lorebooks). The
+// `inline` arm inherits the kicker's own font-size/line-height instead of establishing a flex box, so the
+// line box is identical whether the badge is absent or present.
 function HeadingWithCount({ label, count, unit }: { readonly label: string; readonly count: number; readonly unit?: string }): ReactNode {
   return (
     <>
@@ -80,7 +86,7 @@ function HeadingWithCount({ label, count, unit }: { readonly label: string; read
       {count > 0 ? (
         <>
           {" "}
-          <Badge className="align-middle" intent="neutral" size="sm" tone="soft">
+          <Badge intent="neutral" size="inline" tone="soft">
             {count}
             {unit}
           </Badge>
