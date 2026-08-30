@@ -330,6 +330,169 @@ test("F4: an empty grid renders the house EmptyState carrying the plugin's own t
   await expect(page.getByText("Search to begin — the atlas covers Character Tavern and RisuRealm.")).toBeVisible();
 });
 
+// ── #799: the vocabulary-REACH additions — grid.loading / icon / tabs ─────────────────────────────────────
+// Each spec below rides the untyped `listSurfaces` stub, so these pins COMPILE against the pre-#799 source and
+// FAIL on it: an unknown `kind` is refused by the client-side caps re-validation (the safe fallback renders
+// instead), and an unknown `loading` key is silently STRIPPED by the node schema so no skeleton can appear.
+
+test("#799: a grid's bound `loading` renders the shape-matched skeleton, and it OUTRANKS both tiles and the empty line", async ({ mount, page }) => {
+  // The state carries BOTH the tiles and (via the spec) a teaching empty, so this pin cannot pass by the grid
+  // simply having nothing to show: only the loading arm winning explains the skeleton.
+  const spec = {
+    kind: "grid",
+    tilesFrom: { $state: "tiles" },
+    tileAction: "open_result",
+    aspect: "portrait",
+    empty: "Search to begin.",
+    loading: { $state: "busy" },
+  };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    "plugin.getSurfaceState": () => ({ busy: true, tiles: [{ id: "r0", title: "Aria" }] }),
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  await expect(page.locator('[data-slot="media-tile-grid-skeleton"]')).toBeVisible();
+  // …and NOT the other two states. A grid mid-fetch is neither showing last query's results nor empty.
+  await expect(page.locator('[data-slot="media-tile-grid"]')).toHaveCount(0);
+  await expect(page.getByText("Aria")).toHaveCount(0);
+  await expect(page.getByText("Search to begin.")).toHaveCount(0);
+});
+
+test("#799: the SAME grid spec with `busy: false` shows its tiles — the loading arm is driven by state, not baked in", async ({ mount, page }) => {
+  // A PLANTED CONTROL, not a defect proof: identical spec, one state value flipped. It passes against the
+  // pre-#799 renderer too (which strips `loading` and shows the tiles for a different reason) — its job is
+  // to rule out a skeleton that renders unconditionally, which would satisfy the pin above just as well.
+  const spec = { kind: "grid", tilesFrom: { $state: "tiles" }, tileAction: "open_result", empty: "Search to begin.", loading: { $state: "busy" } };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    "plugin.getSurfaceState": () => ({ busy: false, tiles: [{ id: "r0", title: "Aria" }] }),
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  await expect(page.getByText("Aria")).toBeVisible();
+  await expect(page.locator('[data-slot="media-tile-grid-skeleton"]')).toHaveCount(0);
+});
+
+test("#799: an `icon` node renders the NAMED house glyph — labelled ones are named, unlabelled ones are decorative", async ({ mount, page }) => {
+  const spec = {
+    kind: "row",
+    children: [
+      { kind: "icon", name: "download", label: "Downloads" },
+      { kind: "text", value: "7.4k" },
+      { kind: "icon", name: "star" },
+    ],
+  };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    "plugin.getSurfaceState": () => null,
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+  await expect(page.getByText("7.4k")).toBeVisible();
+
+  // GLYPH IDENTITY, not "an icon rendered": lucide stamps its own name as a class, so this fails if the
+  // name→component map ever points `download` at the wrong glyph.
+  await expect(page.locator("svg.lucide-download")).toHaveCount(1);
+  await expect(page.locator("svg.lucide-star")).toHaveCount(1);
+  // The label decides the a11y treatment: named when the plugin claims the glyph says something, hidden
+  // (the house default for a glyph beside text) when it does not.
+  await expect(page.locator('svg.lucide-download[aria-label="Downloads"]')).toHaveCount(1);
+  await expect(page.locator('svg.lucide-star[aria-hidden="true"]')).toHaveCount(1);
+});
+
+test("#799: a CONSENT glyph is unspellable — an off-tuple icon name is refused by the caps, never drawn", async ({ mount, page }) => {
+  // A FENCE, not a defect proof (it passes pre-#799 too, where `icon` is not a kind at all): what it guards
+  // is the FUTURE — the day someone widens the tuple, this is what turns the curation from a comment into a
+  // failing test. `lock` exists in the house seal and is deliberately absent from the plugin tuple, so a spec
+  // naming it fails client-side validation and the whole surface renders the safe fallback.
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Impostor")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", { kind: "row", children: [{ kind: "icon", name: "lock", label: "Secure" }] })],
+    "plugin.getSurfaceState": () => null,
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  await expect(page.getByText("couldn't be displayed", { exact: false })).toBeVisible();
+  // Scoped to the PLUGIN'S OWN region (the shell's named group), not the page: the app draws its own
+  // `Lock` glyphs in the surrounding Plugins chrome, and a page-wide locator would read one of THOSE as
+  // the plugin's — the exact false negative this pin exists to rule out. Nothing the plugin drew survives.
+  const region = page.getByRole("group", { name: "Impostor — Affinity readings" });
+  await expect(region.locator("svg")).toHaveCount(0);
+});
+
+test("#799: a `tabs` node renders the house one-of-N strip and a pick round-trips the fresh value", async ({ mount, page }) => {
+  // STATEFUL state read, so the barrier below settles on the POST-INVOKE repaint rather than an in-flight
+  // flash: the status line exists only after the action fired.
+  let picked = false;
+  const spec = {
+    kind: "stack",
+    children: [
+      {
+        kind: "tabs",
+        name: "hub",
+        label: "Hub",
+        actionId: "switch_hub",
+        value: "tavern",
+        options: [
+          { value: "tavern", label: "Character Tavern" },
+          { value: "realm", label: "RisuRealm" },
+        ],
+      },
+      { kind: "text", voice: "gloss", value: { $state: "status" } },
+    ],
+  };
+  const recorder: TrpcRecorder = await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    "plugin.getSurfaceState": () => (picked ? { status: "Now browsing RisuRealm." } : null),
+    "plugin.invokeUiAction": () => {
+      picked = true;
+      return null;
+    },
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  // The house SEGMENTED strip: a radiogroup carrying its own accessible name, with every option visible at
+  // once (which is the whole difference from the `select` this node is not).
+  const strip = page.getByRole("radiogroup", { name: "Hub" });
+  await expect(strip).toBeVisible();
+  await expect(strip.getByRole("radio")).toHaveCount(2);
+  await expect(strip.getByRole("radio", { name: "Character Tavern" })).toHaveAttribute("aria-checked", "true");
+
+  await strip.getByRole("radio", { name: "RisuRealm" }).click();
+
+  // SETTLED: the status line the post-invoke invalidate repainted — it exists only after the state read flips.
+  await expect(page.getByText("Now browsing RisuRealm.")).toBeVisible();
+  await expect(strip.getByRole("radio", { name: "RisuRealm" })).toHaveAttribute("aria-checked", "true");
+  await expect(strip.getByRole("radio", { name: "Character Tavern" })).toHaveAttribute("aria-checked", "false");
+  // The pick IS the act, and it carries the FRESH value — not the stale draft the async state write leaves.
+  // ONESHOT-OK: the settled status line above proves the mutation + its invalidate completed before this read.
+  expect(recorder.lastInput("plugin.invokeUiAction")).toEqual({
+    pluginId: AFFINITY_ID,
+    surfaceId: "atlas",
+    actionId: "switch_hub",
+    values: { hub: "realm" },
+  });
+});
+
 test("hub v1.2: a bound grid tile carrying `tags` renders its chip row — the filter vocabulary reaches the tile", async ({ mount, page }) => {
   // The tags ride PUBLISHED STATE through `pluginBoundGridTileSchema` (which STRIPS unknown keys — so this
   // pin is red against a vocabulary without the field: the schema itself is the planted control) and land as

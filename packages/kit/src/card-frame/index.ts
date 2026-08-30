@@ -286,6 +286,13 @@ export interface CardFrameContent {
   readonly css: string | undefined;
   readonly themeTokens: Readonly<Record<string, string>> | undefined;
   readonly fontFamily: string | undefined;
+  /** The NON-COLOR `--*` slice (#799) — a radius, a spacing step, the mono font-family list. It rides its OWN
+   *  slot for the reason `fontFamily` already does: `isSafeColor` is COLOR-ONLY, so a length or a family list
+   *  is rejected by it outright and could never travel in `themeTokens`. Clamped by
+   *  {@link clampCardFrameStyleTokens}, which admits exactly two shapes and rejects every CSS-escape / fetch
+   *  vector, the same property the color clamp guarantees. Every field on this interface EXISTS on every
+   *  construction site (never `?`), so a new one is a tsc-forced decision at each. */
+  readonly styleTokens: Readonly<Record<string, string>> | undefined;
 }
 
 const CUSTOM_PROP_KEY = /^--[\w-]+$/u;
@@ -295,6 +302,9 @@ const CSS_ESCAPE = /[<>{}]/u;
 // A font-family LIST shape check (`isSafeColor` is color-only): letters/digits/space/comma/hyphen/quotes
 // only, so a hostile custom-theme `--font-sans` cannot break out of the body rule.
 const FONT_FAMILY_LIST = /^[\w ,'"-]{1,120}$/u;
+// A CSS LENGTH/scalar shape check (#799) — a bare or unit-suffixed non-negative number, nothing else. No
+// parens, no separators, no escapes, so it can carry neither a `url()` nor a `<style>` break-out.
+const CSS_LENGTH = /^\d{1,4}(?:\.\d{1,4})?(?:px|rem|em|%)?$/u;
 
 /** Keeps only entries whose key is a `--*` custom-property name and whose value passes `isSafeColor` — the
  *  SAME predicate `<ThemeScope>` uses, never a second weaker one. Applied at BOTH boundaries (the client
@@ -306,6 +316,30 @@ export function clampCardFrameThemeTokens(raw: unknown): Readonly<Record<string,
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(raw)) {
     if (typeof value === "string" && CUSTOM_PROP_KEY.test(key) && !CSS_ESCAPE.test(`${key}${value}`) && isSafeColor(value)) {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+/** Keeps only NON-COLOR `--*` entries whose value is a CSS LENGTH or a FONT-FAMILY LIST (#799). It is the
+ *  {@link clampCardFrameThemeTokens} discipline applied to the shapes `isSafeColor` structurally cannot judge:
+ *  per-field (one bad token never blanks the rest), key-shape gated, CSS-escape gated, and the two value
+ *  grammars are the same two the frame already trusts elsewhere (the length is new, the family list is the
+ *  `fontFamily` slot's own). Applied at BOTH boundaries — the client before minting, the server before
+ *  assembling — because the server's call is the trust boundary. */
+export function clampCardFrameStyleTokens(raw: unknown): Readonly<Record<string, string>> {
+  if (!isPlainObject(raw)) {
+    return {};
+  }
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (
+      typeof value === "string" &&
+      CUSTOM_PROP_KEY.test(key) &&
+      !CSS_ESCAPE.test(`${key}${value}`) &&
+      (CSS_LENGTH.test(value) || FONT_FAMILY_LIST.test(value))
+    ) {
       out[key] = value;
     }
   }
@@ -402,7 +436,10 @@ function baseBodyBlock(fontFamily: string | undefined): string {
  * trust boundary and must not inherit the client's word for it.
  */
 export function buildCardFrameDocument(content: CardFrameContent, metaCsp?: string): string {
-  const themeCss = themeVarsBlock(clampCardFrameThemeTokens(content.themeTokens));
+  // Colors and non-color scalars land in ONE `:root` block but pass through TWO clamps, because the shapes
+  // they admit are disjoint — see `clampCardFrameStyleTokens`. A key present in both records resolves to the
+  // style one (declaration order in the same block), which is inert: the two slices name different vars.
+  const themeCss = themeVarsBlock({ ...clampCardFrameThemeTokens(content.themeTokens), ...clampCardFrameStyleTokens(content.styleTokens) });
   const baseBody = baseBodyBlock(clampCardFrameFontFamily(content.fontFamily));
   const meta = metaCsp === undefined ? "" : `<meta http-equiv="Content-Security-Policy" content="${metaCsp}">`;
   const script = metaCsp === undefined ? `<script>${CARD_FRAME_HEIGHT_SCRIPT}</script>` : "";

@@ -98,6 +98,53 @@ test("an unstyled card lands in the theme: the srcdoc carries a token-driven bas
   expect(srcdoc).toContain("font-family: Geist, sans-serif");
 });
 
+test("#799: the NON-COLOR slice reaches the document — a radius and the mono family land as resolvable vars", async ({ mount }) => {
+  // The frame's injection was TWO colors + one font ("a two-color costume", stickler 2026-08-29 §1): a frame
+  // could match the app's surface and its text and nothing else. These are the vars `isSafeColor` can never
+  // carry, so they ride their own clamp — and the point of the pin is that they arrive RESOLVABLE inside the
+  // null-origin document, where `var(--radius-base)` means nothing.
+  const cmp = await mount(
+    <SandboxFrame
+      html="<p>x</p>"
+      styleTokens={{ "--sandbox-radius": "0.5rem", "--sandbox-font-mono": "'Geist Mono', ui-monospace, monospace" }}
+      themeTokens={{ "--sandbox-accent": "#f0a500", "--sandbox-border": "#333333", "--sandbox-muted": "#1a1a1a" }}
+      title="x"
+    />,
+  );
+  const srcdoc = (await cmp.getAttribute("srcdoc")) ?? "";
+  expect(srcdoc).toContain("--sandbox-radius: 0.5rem");
+  expect(srcdoc).toContain("--sandbox-font-mono: 'Geist Mono', ui-monospace, monospace");
+  // The widened COLOR slice rides the unchanged `isSafeColor` clamp — widening the slice is not widening it.
+  expect(srcdoc).toContain("--sandbox-accent: #f0a500");
+  expect(srcdoc).toContain("--sandbox-border: #333333");
+  expect(srcdoc).toContain("--sandbox-muted: #1a1a1a");
+});
+
+test("#799: the two clamps stay DISJOINT — a hostile non-color value is dropped, and a color cannot ride the style slot", async ({ mount }) => {
+  const cmp = await mount(
+    <SandboxFrame
+      html="<p>x</p>"
+      styleTokens={{
+        "--sandbox-radius": "8px} </style><script>window.__pwned=1</script>",
+        "--calc": "calc(100% - 2px)",
+        "--fetch": "url(//evil.test/x.png)",
+        // A COLOR in the non-color slot: refused here, because the two grammars do not overlap. If a future
+        // edit collapsed them into one weaker predicate, this line is what reds.
+        "--sandbox-accent": "#336699",
+        "--ok": "12px",
+      }}
+      title="x"
+    />,
+  );
+  const srcdoc = (await cmp.getAttribute("srcdoc")) ?? "";
+  expect(srcdoc).not.toContain("__pwned");
+  expect(srcdoc).not.toContain("url(//evil");
+  expect(srcdoc).not.toContain("calc(");
+  expect(srcdoc).not.toContain("--sandbox-accent");
+  // The positive control: the clamp is not simply dropping everything.
+  expect(srcdoc).toContain("--ok: 12px");
+});
+
 test("a hostile fontFamily is dropped at the boundary; the base body falls back to sans-serif", async ({ mount }) => {
   const cmp = await mount(<SandboxFrame html="<p>x</p>" title="x" fontFamily="Geist; } body { background: url(//evil) } /*" />);
   const srcdoc = (await cmp.getAttribute("srcdoc")) ?? "";
@@ -123,7 +170,7 @@ async function serveRoutedCard(page: Page, html: string): Promise<void> {
         "content-type": "text/html; charset=utf-8",
         "content-security-policy": buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static"),
       },
-      body: buildCardFrameDocument({ html, css: undefined, themeTokens: undefined, fontFamily: undefined }),
+      body: buildCardFrameDocument({ html, css: undefined, themeTokens: undefined, styleTokens: undefined, fontFamily: undefined }),
     });
   });
 }
@@ -313,7 +360,7 @@ async function serveNavProbe(page: Page, spec: NavProbeSpec): Promise<NavProbe> 
     await route.fulfill({
       status: 200,
       headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": spec.cardCsp },
-      body: buildCardFrameDocument({ html: spec.cardHtml, css: undefined, themeTokens: undefined, fontFamily: undefined }),
+      body: buildCardFrameDocument({ html: spec.cardHtml, css: undefined, themeTokens: undefined, styleTokens: undefined, fontFamily: undefined }),
     });
   });
   const land = async (route: Route): Promise<void> => {
@@ -456,7 +503,7 @@ async function serveRoutedCardUnder(page: Page, html: string, csp: string): Prom
     await route.fulfill({
       status: 200,
       headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": csp },
-      body: buildCardFrameDocument({ html, css: undefined, themeTokens: undefined, fontFamily: undefined }),
+      body: buildCardFrameDocument({ html, css: undefined, themeTokens: undefined, styleTokens: undefined, fontFamily: undefined }),
     });
   });
 }

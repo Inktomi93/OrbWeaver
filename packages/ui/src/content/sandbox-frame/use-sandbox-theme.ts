@@ -9,22 +9,42 @@
 // recolors the card instead of baking a stale literal. Color values ride `themeTokens`
 // (re-clamped by `isSafeColor` at the frame boundary); the font value is a family LIST (`isSafeColor`
 // rejects it), so it rides its own `fontFamily` slot behind the kit font-list shape check.
-import { clampCardFrameFontFamily } from "@orb/kit/card-frame";
+import { clampCardFrameFontFamily, clampCardFrameStyleTokens } from "@orb/kit/card-frame";
 import { useSyncExternalStore } from "react";
 import { createLiveTokenStore, resolveCssVar } from "#lib";
 import { TOKENS } from "#tokens";
 
+// THE CURATED HOUSE SLICE (#799). It was TWO colors — a frame could match the app's surface and its text and
+// nothing else, which is why `pocket-arcade` was the ceiling of "looks house" for the tier (stickler
+// 2026-08-29 §1). Each name below is a var a self-contained interface actually needs to sit inside the app
+// without guessing: a recessive surface + its text, the one accent + its foreground, and a rule/edge color.
+// Every value rides the SAME `isSafeColor` clamp at the frame boundary the original two do — widening the
+// SLICE is not widening the CLAMP, and no non-color value can enter this record (the clamp drops it).
 const COLOR_TOKENS = {
   "--sandbox-bg": TOKENS["color.card"],
   "--sandbox-fg": TOKENS["color.card-foreground"],
+  "--sandbox-muted": TOKENS["color.muted"],
+  "--sandbox-muted-fg": TOKENS["color.muted-foreground"],
+  "--sandbox-accent": TOKENS["color.primary"],
+  "--sandbox-accent-fg": TOKENS["color.primary-foreground"],
+  "--sandbox-border": TOKENS["color.border"],
 } as const;
 
 const FONT_TOKEN = TOKENS["font.sans"];
+/** The NON-COLOR half of the slice (#799) — `isSafeColor` is color-only and rejects both of these by
+ *  construction, so they ride the kit's style-token clamp (a CSS length or a font-family list) in their own
+ *  record. That split is the `fontFamily` slot's own precedent, one shape class over. */
+const STYLE_TOKENS = {
+  "--sandbox-radius": TOKENS["radius.base"],
+  "--sandbox-font-mono": TOKENS["font.mono"],
+} as const;
 
 /** The concrete, theme-resolved tokens the sandbox base body rule needs. */
 export interface SandboxThemeTokens {
   /** Safe `--*` color vars, injected + re-clamped by `isSafeColor` at the frame boundary. */
   readonly themeTokens: Readonly<Record<string, string>>;
+  /** The NON-COLOR `--*` vars (radius, the mono family), re-clamped by the kit style-token grammar. */
+  readonly styleTokens: Readonly<Record<string, string>>;
   /** The resolved UI font-family list, or `undefined` when unresolved/unsafe. */
   readonly fontFamily: string | undefined;
 }
@@ -34,11 +54,22 @@ function resolveTokens(): SandboxThemeTokens {
   for (const [name, token] of Object.entries(COLOR_TOKENS)) {
     themeTokens[name] = resolveCssVar(token.cssVar, token.value);
   }
-  return { themeTokens, fontFamily: clampCardFrameFontFamily(resolveCssVar(FONT_TOKEN.cssVar, FONT_TOKEN.value)) };
+  const styleTokens: Record<string, string> = {};
+  for (const [name, token] of Object.entries(STYLE_TOKENS)) {
+    styleTokens[name] = resolveCssVar(token.cssVar, token.value);
+  }
+  // Clamped HERE as well as at the frame boundary: the resolved value comes off a live cascade a custom theme
+  // can write, so a hostile `--radius-base` must not travel as a mint payload at all.
+  return {
+    themeTokens,
+    styleTokens: clampCardFrameStyleTokens(styleTokens),
+    fontFamily: clampCardFrameFontFamily(resolveCssVar(FONT_TOKEN.cssVar, FONT_TOKEN.value)),
+  };
 }
 
 const FALLBACK_TOKENS: SandboxThemeTokens = {
-  themeTokens: { "--sandbox-bg": COLOR_TOKENS["--sandbox-bg"].value, "--sandbox-fg": COLOR_TOKENS["--sandbox-fg"].value },
+  themeTokens: Object.fromEntries(Object.entries(COLOR_TOKENS).map(([name, token]) => [name, token.value])),
+  styleTokens: clampCardFrameStyleTokens(Object.fromEntries(Object.entries(STYLE_TOKENS).map(([name, token]) => [name, token.value]))),
   fontFamily: clampCardFrameFontFamily(FONT_TOKEN.value),
 };
 

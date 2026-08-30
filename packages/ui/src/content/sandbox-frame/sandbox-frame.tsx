@@ -1,4 +1,4 @@
-import { CARD_FRAME_SANDBOX, clampCardFrameFontFamily, clampCardFrameThemeTokens, foldCardFrameHeight } from "@orb/kit/card-frame";
+import { CARD_FRAME_SANDBOX, clampCardFrameFontFamily, clampCardFrameStyleTokens, clampCardFrameThemeTokens, foldCardFrameHeight } from "@orb/kit/card-frame";
 import type { CSSProperties, ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { buildSrcDoc } from "./srcdoc.ts";
@@ -21,6 +21,9 @@ export interface SandboxFrameProps {
   readonly css?: string;
   /** Re-clamped at this boundary via `isSafeColor` regardless of caller — see `theme-tokens.ts`. */
   readonly themeTokens?: Readonly<Record<string, string>>;
+  /** The NON-COLOR `--*` slice (radius, mono family) — re-clamped at this boundary by the kit style grammar,
+   *  which `isSafeColor` structurally cannot judge (#799). */
+  readonly styleTokens?: Readonly<Record<string, string>>;
   /** Pre-validated font-family list for the base body rule (see `use-sandbox-theme.ts`); dropped when unsafe. */
   readonly fontFamily?: string;
   /** The row's resolved external-media verdict — widens the frame CSP to `https:` images/media. Default false
@@ -86,6 +89,7 @@ export function SandboxFrame({
   html,
   css,
   themeTokens,
+  styleTokens,
   fontFamily,
   allowExternalMedia = false,
   src,
@@ -156,6 +160,7 @@ export function SandboxFrame({
             html,
             css,
             themeTokens: clampCardFrameThemeTokens(themeTokens),
+            styleTokens: clampCardFrameStyleTokens(styleTokens),
             fontFamily: clampCardFrameFontFamily(fontFamily),
             allowExternalMedia,
           }),

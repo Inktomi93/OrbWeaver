@@ -19,11 +19,11 @@ import { Field } from "@orb/ui/field";
 import { Icon, Images } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
-import { MediaTileGrid } from "@orb/ui/media-tile-grid";
+import { MediaTileGrid, MediaTileGridSkeleton } from "@orb/ui/media-tile-grid";
 import { MessageMedia } from "@orb/ui/message-media";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { gridTiles, heroAssetId, resolveString } from "../lib/plugin-surface-bindings.ts";
+import { gridLoading, gridTiles, heroAssetId, resolveString } from "../lib/plugin-surface-bindings.ts";
 
 /**
  * The MEDIA-FORWARD TILE GRID (§4.5b failure 1) — through the sealed `@orb/ui` `MediaTileGrid` composite, which
@@ -33,6 +33,11 @@ import { gridTiles, heroAssetId, resolveString } from "../lib/plugin-surface-bin
  * blob), an empty grid renders the plugin's own teaching line rather than nothing at all, and the grid is
  * interactive only when EVERY tile names an action — a grid where some tiles respond and others do not is a
  * control that lies about itself.
+ *
+ * THE THREE STATES ARE ORDERED HERE (#799): loading → empty → tiles. `loading` outranks both because a grid
+ * mid-fetch is neither of them — showing last query's tiles claims results it no longer has, and showing the
+ * teaching empty claims a verdict the wire has not returned. The skeleton is SHAPE- AND ASPECT-MATCHED to the
+ * grid it replaces, so the swap reserves the same boxes and the page does not jump.
  */
 export function SurfaceGrid({
   node,
@@ -49,6 +54,11 @@ export function SurfaceGrid({
   // `tilesFrom` binding resolved against published state (validated + clamped in contracts — untrusted state
   // never reaches this map unjudged). Everything below is arm-blind.
   const tiles = gridTiles(node, state);
+  if (gridLoading(node, state)) {
+    // The LOADING third of the three-states law, finally spellable: the shelf composite's own skeleton, at
+    // the grid's own aspect, so the reserved boxes match the tiles that are about to land.
+    return <MediaTileGridSkeleton aspect={node.aspect ?? "portrait"} />;
+  }
   if (tiles.length === 0) {
     // The HOUSE empty state, not one grey sentence above a void (stickler 2026-08-29 F4): the browse genre's
     // empty is load-bearing — it is the whole pre-search page — and the section's own empties one file over

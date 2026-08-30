@@ -138,6 +138,7 @@ test("#91: a SHORT routed card shrinks the frame inside the card chrome — no v
         html: '<div style="height:110px">a short in-world note</div>',
         css: undefined,
         themeTokens: undefined,
+        styleTokens: undefined,
         fontFamily: undefined,
       }),
     });

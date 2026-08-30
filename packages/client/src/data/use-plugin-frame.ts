@@ -27,6 +27,9 @@ export interface PluginFrameRequest {
   readonly surfaceId: string;
   /** Concrete theme-resolved `--*` colors (`useSandboxTheme`) — a null-origin realm cannot resolve our cascade. */
   readonly themeTokens: Readonly<Record<string, string>>;
+  /** The NON-COLOR half of the same slice (#799) — radius + the mono family, which `isSafeColor` cannot judge
+   *  and which therefore travel in their own record with their own server-side clamp. */
+  readonly styleTokens: Readonly<Record<string, string>>;
   readonly fontFamily: string | undefined;
 }
 
@@ -42,6 +45,7 @@ export function pluginFrameMintBody(request: PluginFrameRequest): PluginFrameMin
     pluginId: request.pluginId,
     surfaceId: request.surfaceId,
     themeTokens: { ...request.themeTokens },
+    styleTokens: { ...request.styleTokens },
     ...(request.fontFamily === undefined ? {} : { fontFamily: request.fontFamily }),
   };
 }

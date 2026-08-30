@@ -90,6 +90,7 @@ const MISS_DOC = buildCardFrameDocument({
   html: '<p style="font:14px system-ui;opacity:.6;padding:12px">This plugin frame expired. Reload to view it.</p>',
   css: undefined,
   themeTokens: undefined,
+  styleTokens: undefined,
   fontFamily: undefined,
 });
 
@@ -166,6 +167,10 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
       html: frame.html,
       css: frame.css,
       themeTokens: body.themeTokens,
+      // The NON-COLOR half of the widened slice (#799) — radius + the mono family. Clamped inside
+      // `buildCardFrameDocument` by its own grammar (a CSS length or a font-family list), on OUR side of the
+      // boundary, exactly as the color half is.
+      styleTokens: body.styleTokens,
       fontFamily: body.fontFamily,
     });
     const id = store.put({ userId: principal.userId, doc, csp: PLUGIN_FRAME_CSP, expiresAt: deps.now() + FRAME_HANDLE_TTL_MS });

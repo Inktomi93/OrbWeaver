@@ -20,6 +20,7 @@ import type {
   PluginButtonNode,
   PluginConfirmButtonNode,
   PluginGridNode,
+  PluginIconNode,
   PluginImageNode,
   PluginKeyValueNode,
   PluginListNode,
@@ -29,6 +30,7 @@ import type {
   PluginNumberFieldNode,
   PluginSelectNode,
   PluginSliderNode,
+  PluginTabsNode,
   PluginTextFieldNode,
   PluginTextNode,
   PluginToggleNode,
@@ -36,28 +38,22 @@ import type {
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
+import { Icon } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { MessageMedia } from "@orb/ui/message-media";
 import { Meter } from "@orb/ui/meter";
 import { NumberField } from "@orb/ui/number-field";
-import { Select } from "@orb/ui/select";
 import { Slider } from "@orb/ui/slider";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ConfirmDialog } from "#components";
-import {
-  imageNodeAssetId,
-  keyValueRows,
-  METER_DEFAULT_MAX,
-  numFromValues,
-  resolveNumber,
-  resolveString,
-  selectOptions,
-} from "../lib/plugin-surface-bindings.ts";
+import { PLUGIN_ICON_GLYPHS } from "../lib/plugin-icon-glyphs.ts";
+import { imageNodeAssetId, keyValueRows, METER_DEFAULT_MAX, numFromValues, resolveNumber, resolveString } from "../lib/plugin-surface-bindings.ts";
 import { SurfaceGrid } from "./plugin-browse-nodes.tsx";
+import { BoundSelect, TabsStrip } from "./plugin-option-controls.tsx";
 
 /** The display leaves (no form state) and the form/action leaves — partition the non-container node union so
  *  each leaf renderer stays over a SMALL union (a new kind still fails `tsc`). Local to this module: these are
@@ -74,17 +70,28 @@ type DisplayNode =
   | PluginListNode
   | PluginImageNode
   | PluginMarkdownNode
-  | PluginGridNode;
+  | PluginGridNode
+  | PluginIconNode;
 type FormNode =
   | PluginTextFieldNode
   | PluginNumberFieldNode
   | PluginToggleNode
   | PluginSelectNode
   | PluginSliderNode
+  | PluginTabsNode
   | PluginButtonNode
   | PluginConfirmButtonNode;
 
-const FORM_KINDS: ReadonlySet<PluginNodeKind> = new Set<PluginNodeKind>(["textField", "numberField", "toggle", "select", "slider", "button", "confirmButton"]);
+const FORM_KINDS: ReadonlySet<PluginNodeKind> = new Set<PluginNodeKind>([
+  "textField",
+  "numberField",
+  "toggle",
+  "select",
+  "slider",
+  "tabs",
+  "button",
+  "confirmButton",
+]);
 
 /** Is this leaf a FORM/ACTION leaf (draft state) rather than a DISPLAY leaf? Module-private: the walk delegates
  *  every leaf to `SurfaceLeaf`, which uses this to route to the right family without either union being named
@@ -223,6 +230,15 @@ function DisplayLeaf({
   if (node.kind === "grid") {
     return <SurfaceGrid imageUrls={imageUrls} node={node} state={state} submit={submit} />;
   }
+  if (node.kind === "icon") {
+    // The sealed sizing wrapper, glyph resolved through the ONE total name→component map. `label` ABSENT is
+    // the house default and the honest one: a glyph beside text is decoration (`aria-hidden`), and a plugin
+    // that names a label is claiming the glyph is the only thing saying this — so it gets a named node.
+    // `label` is spread conditionally, never passed as `undefined`: `IconProps.label` is `string?` and the
+    // repo runs `exactOptionalPropertyTypes`, so an explicit undefined is a type error — and the ABSENT
+    // prop is what makes the glyph `aria-hidden`.
+    return <Icon icon={PLUGIN_ICON_GLYPHS[node.name]} size="sm" {...(node.label === undefined ? {} : { label: node.label })} />;
+  }
   // Untrusted plugin markdown — the sealed Streamdown renderer's `untrusted` tier (Tier-A allowlist + url gate),
   // the same posture model output takes; never `trusted`. Last in the chain, so it is also the safe fallback.
   return (
@@ -305,25 +321,10 @@ function FormLeaf({
     );
   }
   if (node.kind === "select") {
-    return (
-      <Field label={node.label}>
-        {/* aria-label mirrors the Field label onto the trigger — Base UI's Select.Label doesn't reach the
-            trigger's aria-labelledby standalone, and the static a11y rule wants the control's own name. */}
-        <Select
-          aria-label={node.label}
-          items={selectOptions(node, state).map((o) => ({ label: o.label, value: o.value }))}
-          onValueChange={(next: string | null): void => {
-            setValue(node.name, next ?? "");
-            // A LIVE select (hub v1.2): the pick IS the act — fire its action with the fresh value riding
-            // as `extra` (the React state write above is async; the submit must not read the stale bag).
-            if (node.actionId !== undefined) {
-              submit(node.actionId, { [node.name]: next ?? "" });
-            }
-          }}
-          value={values[node.name] ?? ""}
-        />
-      </Field>
-    );
+    return <BoundSelect node={node} setValue={setValue} state={state} submit={submit} values={values} />;
+  }
+  if (node.kind === "tabs") {
+    return <TabsStrip node={node} setValue={setValue} state={state} submit={submit} values={values} />;
   }
   if (node.kind === "slider") {
     return (

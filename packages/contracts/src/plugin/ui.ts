@@ -87,6 +87,64 @@ export type PluginButtonVariant = (typeof PLUGIN_BUTTON_VARIANTS)[number];
 export const PLUGIN_IMAGE_ASPECTS = ["square", "portrait", "landscape"] as const;
 export type PluginImageAspect = (typeof PLUGIN_IMAGE_ASPECTS)[number];
 
+/** The `icon` node's GLYPH vocabulary (#799) — a CURATED closed slice of the sealed `@orb/ui` icon set
+ *  (`packages/ui/src/primitives/icons/index.ts`), named in the lucide seal's own spelling, lower-camel. The
+ *  client owns the ONE total `Record<PluginIconName, LucideIcon>`, so a member added here fails `tsc` until it
+ *  is given a glyph — the same compile-tier discipline every axis in this file carries.
+ *
+ *  THE CURATION IS A WALL, not taste. Three classes are DELIBERATELY EXCLUDED and must stay excluded:
+ *   - CHROME IDENTITY — `Blocks` (the plugin attribution glyph the shell stamps on every plugin surface,
+ *     `plugin-surface-shell.tsx`) and the `OrbWeb`/`OrbWebCompact` brand marks. A plugin that could draw the
+ *     app's own mark could dress its content as the app's.
+ *   - CONSENT / TRUST — `Lock`/`LockOpen`/`Unlock`/`KeyRound`/`Shield`/`ShieldHalf`/`Ban`. The grant screen
+ *     and the credential surfaces speak in these; a fake consent row wearing the house's trust glyphs is
+ *     exactly the impersonation the §4.3 walls exist to make unspellable.
+ *   - IDENTITY / HOST ANATOMY — `CircleUser`/`UserPlus`/`UserX`, `Settings`, `Menu`, the `Panel*` family. A
+ *     plugin never draws a person's identity chrome or the shell's own anatomy.
+ *  Growing this tuple is a vocabulary decision: check the new name against those three classes first. */
+export const PLUGIN_ICON_NAMES = [
+  // Signal / esteem
+  "star",
+  "heart",
+  "flame",
+  "sparkles",
+  "award",
+  "crown",
+  "gem",
+  "bookmark",
+  // Counters — the stat-row genre this node was minted for
+  "download",
+  "eye",
+  "clock",
+  "hash",
+  "tag",
+  "users",
+  "chartColumn",
+  // Medium / genre markers
+  "images",
+  "fileText",
+  "bookOpen",
+  "scroll",
+  "library",
+  "drama",
+  "swords",
+  "leaf",
+  "globe",
+  "compass",
+  "map",
+  // Neutral status + affordance labels (the badge intents' glyph twins; no consent/trust glyph among them)
+  "check",
+  "info",
+  "circleAlert",
+  "alertTriangle",
+  "search",
+  "externalLink",
+  "chevronRight",
+  "arrowLeft",
+  "x",
+] as const;
+export type PluginIconName = (typeof PLUGIN_ICON_NAMES)[number];
+
 /** A `masterDetail` STAGE's kind — the page arrangement's two halves (U5, §4.5b failure 2). `browse` is the
  *  results half (a `grid`/`list`), `detail` is the DECISION half and it renders differently by construction: a
  *  hero slot above a READING-WIDTH prose column, which is exactly what the purged hub's drawer-crammed preview
@@ -119,6 +177,11 @@ export const PLUGIN_NODE_KINDS = [
   "grid",
   "masterDetail",
   "searchBar",
+  // #799 — the two VOCABULARY-REACH kinds the card-atlas visual review named (stickler 2026-08-29 §3): a
+  // glyph vocabulary (the shelf's icon set had NO spelling at all) and a first-class one-of-N strip (a
+  // source switcher rendered as a `select` reads as long-tail configuration, not as the page's own axis).
+  "icon",
+  "tabs",
 ] as const;
 export type PluginNodeKind = (typeof PLUGIN_NODE_KINDS)[number];
 
@@ -141,6 +204,11 @@ export const PLUGIN_GRID_TILES_MAX = 64;
 /** The stage cap on a `masterDetail` node (U5) — a page arrangement, not a router. Two is the shape the genre
  *  needs (browse → detail); the headroom is for a plugin that splits browse by source. */
 export const PLUGIN_PAGE_STAGES_MAX = 8;
+/** The option cap on a `tabs` node (#799) — an order of magnitude under {@link PLUGIN_ROWS_MAX}, and the
+ *  number IS the design: a segmented strip renders every option AT ONCE, so a strip that outgrows a single
+ *  row stops being a strip and becomes a menu. A vocabulary bigger than this is a `select` — which the
+ *  vocabulary already has, with a 64-option cap, for exactly that case. */
+export const PLUGIN_TABS_OPTIONS_MAX = 8;
 /** The tag cap on ONE grid tile (hub v1.2, tags-on-cards): the chip row is a scent — the words a person
  *  filters by — never a taxonomy dump; the renderer clips a row that outgrows its tile. */
 export const PLUGIN_TILE_TAGS_MAX = 8;
@@ -247,6 +315,11 @@ export const PLUGIN_FOOTER_NODE_KIND_ALLOWED = {
   grid: false,
   masterDetail: false,
   searchBar: false,
+  // #799: `icon` is DECORATION — the exact class this anchor admits (`badge`/`text`/`meter`/`image`), and a
+  // glyph beside a per-row badge is the "adjacent decoration" §5.4 describes. `tabs` is INTERACTIVE (an
+  // action round-trip per transcript row), so it falls under the first exclusion class above.
+  icon: true,
+  tabs: false,
 } as const satisfies Record<PluginNodeKind, boolean>;
 
 // ── The `frame` tier's DOCUMENT BODY (U7, §6.2) ───────────────────────────────────────────────────────────────
@@ -313,6 +386,9 @@ export interface PluginStateBinding {
 export type PluginBoundString = string | PluginStateBinding;
 /** A numeric value that MAY be a state binding. */
 export type PluginBoundNumber = number | PluginStateBinding;
+/** A boolean value that MAY be a state binding (#799) — minted for `grid.loading`, the first slot whose
+ *  whole point is that it FLIPS between two publishes. */
+export type PluginBoundBoolean = boolean | PluginStateBinding;
 
 // ── The node union (declared explicitly, then the schema is PINNED to it — biome cannot see switch-reachability
 //    through a `z.infer` of a lazy discriminated union, so the type leads and `z.ZodType<…>` follows) ──────────
@@ -458,6 +534,53 @@ export interface PluginButtonNode {
   readonly label: string;
   readonly variant?: PluginButtonVariant | undefined;
 }
+/** A GLYPH from the curated {@link PLUGIN_ICON_NAMES} tuple (#799) — the vocabulary's icon reach, which was
+ *  previously NONE: a stat row could say "7.4k" but never mark it, and a source line could never carry its
+ *  medium's glyph. It renders through the sealed `@orb/ui` `Icon` wrapper, so size/stroke/fill behave exactly
+ *  as they do anywhere else in the app and a plugin still names a house primitive, never a package.
+ *
+ *  `label` is the ACCESSIBLE NAME and its ABSENCE is meaningful: omitted ⇒ the glyph is DECORATIVE
+ *  (`aria-hidden`, the house default for an icon beside text — the tracker-kit rule that a glyph never
+ *  carries information alone). A plugin naming a label is claiming the glyph is the only thing saying this,
+ *  and gets a named image in the a11y tree for it. */
+export interface PluginIconNode {
+  readonly kind: "icon";
+  readonly name: PluginIconName;
+  readonly label?: string | undefined;
+}
+/** A ONE-OF-N SEGMENTED STRIP (#799) — the page's own axis, rendered ALL AT ONCE.
+ *
+ *  IT IS NOT A SECOND `select`, and the difference is the whole reason it exists. A `select` is long-tail
+ *  configuration: its vocabulary is hidden until you open it, which is the right shape for a sort order and
+ *  the wrong shape for the axis a browse page is ORGANISED BY (the card-atlas hub picker spent a release
+ *  collapsed under "Filters" — stickler 2026-08-29 §3 limit 5). A strip shows every option, so the page
+ *  states its own axis; that visibility is also why {@link PLUGIN_TABS_OPTIONS_MAX} is an order of magnitude
+ *  under the select's cap.
+ *
+ *  IT RENDERS AS THE HOUSE RADIOGROUP STRIP, not as house `Tabs`, and that is deliberate: a `tablist` whose
+ *  tabs point at no `tabpanel` is dangling ARIA, and this node cannot own panels — what a pick CHANGES is
+ *  whatever the plugin republishes (its `masterDetail` stage, its grid), which lives in state, not in a
+ *  panel this node could contain. The house one-of-N strip (`ToggleGroup semantics="radio"`) is the
+ *  primitive that means exactly "pick one of these", so that is what it maps to.
+ *
+ *  The two option arms and the `actionId` are the `select`'s, verbatim (one grammar, two presentations):
+ *  exactly one of `options`/`optionsFrom` (the spec-level belt), and the pick IS the act. */
+export interface PluginTabsNode {
+  readonly kind: "tabs";
+  readonly name: string;
+  /** The strip's accessible name (the a11y floor every form leaf carries) — rendered as the group's label. */
+  readonly label: string;
+  /** Declared options — spec structure, fixed at registration. */
+  readonly options?: readonly PluginSelectOption[] | undefined;
+  /** THE BOUND ARM: the option set is PUBLISHED STATE, resolved by {@link resolvePluginBoundTabOptions}
+   *  (validated, malformed dropped, clamped to {@link PLUGIN_TABS_OPTIONS_MAX}) — for a strip whose axis is
+   *  data (the hubs a plugin actually reached this session). */
+  readonly optionsFrom?: PluginStateBinding | undefined;
+  readonly value?: string | undefined;
+  /** Fired when the person picks — a strip that sat inert until some other submit would be a switcher that
+   *  does not switch. The round-trip carries the whole `values` bag with the fresh pick riding as an extra. */
+  readonly actionId?: string | undefined;
+}
 export interface PluginConfirmButtonNode {
   readonly kind: "confirmButton";
   readonly actionId: string;
@@ -524,6 +647,18 @@ export interface PluginGridNode {
   /** What the grid says when it has no tiles — the three-states law reaching INTO the vocabulary. Absent ⇒ the
    *  host's own neutral line; a plugin that names one gets a teaching empty for free. */
   readonly empty?: string | undefined;
+  /** THE LOADING THIRD of the three-states law (#799), previously unreachable: `MediaTileGridSkeleton` has
+   *  been on the shelf since U5 and nothing could spell it, so a browse grid mid-fetch sat on stale tiles or
+   *  on its `empty` line — the state that is neither. Bound (or declared) TRUE ⇒ the grid renders the
+   *  shape- and aspect-matched skeleton INSTEAD of tiles or the empty state, so the loading arm outranks
+   *  both (a grid that is loading is not empty, and it is not showing you last query's results).
+   *
+   *  IT IS REACHABLE AT BOTH TIERS. A `scripted` guest holds its own state and flips this before it awaits.
+   *  A `static` guest reaches it through the SETTLEMENT-WALL shape its handlers already use: publish
+   *  `loading: true` synchronously, FLOAT the wire work, and republish `false` with the results — the second
+   *  `setState`'s `pluginSurfaceStateChanged` poke repaints the surface. `card-atlas`'s search/page handlers
+   *  are the worked example. */
+  readonly loading?: PluginBoundBoolean | undefined;
 }
 
 /** ONE tile of a BOUND grid (`tilesFrom`) as the plugin PUBLISHES it in state. The declared-tile shape minus
@@ -622,7 +757,9 @@ export type PluginSurfaceNode =
   | PluginConfirmButtonNode
   | PluginGridNode
   | PluginMasterDetailNode
-  | PluginSearchBarNode;
+  | PluginSearchBarNode
+  | PluginIconNode
+  | PluginTabsNode;
 
 /** A registered surface's spec: the root node of its declarative tree (the whole tree is bounded by the
  *  global caps below). */
@@ -634,6 +771,7 @@ const stateBindingSchema = z.object({ $state: z.string().min(1).max(STATE_PATH_M
 const boundString = (max: number): z.ZodType<PluginBoundString> => z.union([z.string().max(max), stateBindingSchema]);
 const finiteNumber = z.number().refine((n) => Number.isFinite(n), { message: "must be a finite number" });
 const boundNumber: z.ZodType<PluginBoundNumber> = z.union([finiteNumber, stateBindingSchema]);
+const boundBoolean: z.ZodType<PluginBoundBoolean> = z.union([z.boolean(), stateBindingSchema]);
 const identSchema = z.string().regex(IDENT_RE);
 const labelSchema = z.string().min(1).max(LABEL_MAX);
 const gapSchema = z.enum(PLUGIN_GAP_TOKENS);
@@ -735,6 +873,25 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
       tileAction: identSchema.optional(),
       aspect: z.enum(PLUGIN_IMAGE_ASPECTS).optional(),
       empty: z.string().max(LABEL_MAX).optional(),
+      loading: boundBoolean.optional(),
+    }),
+    // #799 — the glyph leaf. `name` is the closed curated tuple, so an off-tuple glyph is a REGISTRATION
+    // refusal rather than a runtime miss, and the client's total Record cannot be reached with a name it has
+    // no component for.
+    z.object({ kind: z.literal("icon"), name: z.enum(PLUGIN_ICON_NAMES), label: z.string().max(LABEL_MAX).optional() }),
+    // #799 — the one-of-N strip. The `select`'s grammar, with its own (much smaller) option cap: every
+    // option paints at once, so the bound is a LAYOUT bound, not just a DoS one.
+    z.object({
+      kind: z.literal("tabs"),
+      name: identSchema,
+      label: labelSchema,
+      options: z
+        .array(z.object({ value: z.string().max(LABEL_MAX), label: labelSchema }))
+        .max(PLUGIN_TABS_OPTIONS_MAX)
+        .optional(),
+      optionsFrom: stateBindingSchema.optional(),
+      value: z.string().max(LABEL_MAX).optional(),
+      actionId: identSchema.optional(),
     }),
     z.object({
       kind: z.literal("masterDetail"),
@@ -836,6 +993,15 @@ function collectHeroViolations(node: Extract<PluginSurfaceNode, { kind: "masterD
   }
 }
 
+/** The `options`/`optionsFrom` exactly-one-of belt, shared by the two nodes that speak that grammar — the
+ *  `select` menu and the `tabs` strip (#799). Split out for the same reason {@link collectHeroViolations}
+ *  was: {@link collectArmViolations} sits at the cognitive-complexity ceiling. */
+function collectOptionArmViolation(node: Extract<PluginSurfaceNode, { kind: "select" | "tabs" }>, out: string[]): void {
+  if ((node.options === undefined) === (node.optionsFrom === undefined)) {
+    out.push(`a ${node.kind} names exactly one of \`options\` (declared) or \`optionsFrom\` (bound)`);
+  }
+}
+
 function collectArmViolations(node: PluginSurfaceNode, out: string[]): void {
   if (node.kind === "grid") {
     if ((node.tiles === undefined) === (node.tilesFrom === undefined)) {
@@ -850,8 +1016,9 @@ function collectArmViolations(node: PluginSurfaceNode, out: string[]): void {
   }
   // The hub-v1.3 bound arms carry the identical exactly-one-of discipline: a node naming both is two
   // descriptions of one control, and a node naming neither renders nothing while claiming to be a control.
-  if (node.kind === "select" && (node.options === undefined) === (node.optionsFrom === undefined)) {
-    out.push("a select names exactly one of `options` (declared) or `optionsFrom` (bound)");
+  // `select` and `tabs` (#799) are ONE grammar in two presentations, so they share one belt.
+  if (node.kind === "select" || node.kind === "tabs") {
+    collectOptionArmViolation(node, out);
   }
   if (node.kind === "keyValue" && (node.rows === undefined) === (node.rowsFrom === undefined)) {
     out.push("a keyValue names exactly one of `rows` (declared) or `rowsFrom` (bound)");
@@ -970,6 +1137,26 @@ export const pluginBoundSelectOptionSchema = z.object({ value: z.string().max(LA
  *  write that populates the page). */
 export function resolvePluginBoundSelectOptions(state: Record<string, unknown>, binding: PluginStateBinding): readonly PluginSelectOption[] {
   return resolveBoundArray(state, binding, pluginBoundSelectOptionSchema, PLUGIN_ROWS_MAX);
+}
+
+/** Resolve a `tabs` node's `optionsFrom` binding (#799) — the select resolver's twin, differing ONLY in the
+ *  clamp: a strip paints every option at once, so it clamps to {@link PLUGIN_TABS_OPTIONS_MAX}, the same
+ *  bound its declared arm's schema enforces. State is never a loophole past a registration bound, and here
+ *  the bound is the layout's. */
+export function resolvePluginBoundTabOptions(state: Record<string, unknown>, binding: PluginStateBinding): readonly PluginSelectOption[] {
+  return resolveBoundArray(state, binding, pluginBoundSelectOptionSchema, PLUGIN_TABS_OPTIONS_MAX);
+}
+
+/** Resolve a bindable BOOLEAN (#799 — `grid.loading`): a `{ $state }` binding read against published state,
+ *  else the literal. TRUE only on a real `true` — a missing path, a non-boolean, or a truthy string all
+ *  resolve FALSE, because "loading" is a claim a plugin makes deliberately and a binding miss must never
+ *  wedge a grid into a permanent skeleton (the binding-miss posture every `$state` slot has, pointed at the
+ *  safe arm). Pure + isomorphic, like every resolver here. */
+export function resolvePluginBoundBoolean(state: Record<string, unknown>, value: PluginBoundBoolean): boolean {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  return readBindingPath(state, value) === true;
 }
 
 /** ONE bound keyValue row as published state — key AND value are plain strings on this arm (the row set
