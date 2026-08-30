@@ -1964,6 +1964,7 @@
     "tests/tooling/snap/lib/overflow-line.test.ts",
     "tests/tooling/snap/lib/selector-shape.test.ts",
     "tests/tooling/snap/lib/stage-plan.test.ts",
+    "tests/tooling/snap/lib/throttle.test.ts",
     "tests/tooling/snap/ops/contexts.int.test.ts",
     "tests/tooling/snap/ops/fixture.test.ts",
     "tests/tooling/snap/ops/overflow.ct.tsx",

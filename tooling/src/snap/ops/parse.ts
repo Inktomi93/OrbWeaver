@@ -68,8 +68,12 @@ Load emulation (CDP; applied to EVERY page BEFORE it navigates, so boot is measu
   WHY: a layout shift within 500ms of a real click carries hadRecentInput and is EXCLUDED from CLS, so
   an unthrottled measurement of a "settles after you click it" surface reports 0.000 paid and says
   nothing about the margin. 4x CPU is what reveals it.
-  MEASURED LIMIT: 4x CPU PLUS a 3G/4G profile never reaches data-app-ready on the DEV build within 60s
-  (~250 unbundled ESM resources) — throttle CPU alone here; the network arm is for a prod build.
+  A declared load arm WIDENS the drive budgets (nav 90s / readiness 60s, lib/throttle.ts driveBudgets):
+  the un-throttled 10s readiness ceiling refused every network run outright, on the prod build too, and
+  read as "the app never settled" (#836).
+  MEASURED LIMIT: the DEV build (~250 unbundled ESM resources) still cannot reach data-app-ready under a
+  3G/4G profile — throttle CPU alone against :5173. The network arm is for a PROD build; the recipe for
+  serving one off-band is in .claude/skills/side-eye-design-review/SKILL.md.
 
 ${appearanceHelpBlock()}
 

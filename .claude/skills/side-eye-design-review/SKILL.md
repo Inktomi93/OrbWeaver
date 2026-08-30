@@ -361,6 +361,42 @@ drawer/panel slides, scroll, immersive chat modes), read the numbers instead of 
   `cls-raw` / `cls-virtualized` / `cls-non-virtualized`; **only the last one is in the verdict**. Note:
   the dropped-frame % is only fully trustworthy headful (`--vnc`) — headless has no real vsync;
   LoAF/CLS/blocking are the headless-reliable signals.
+### The PROD-BUILD CLS arm — and the declared limit on Lighthouse's mobile CLS (#836)
+
+**Lighthouse mobile CLS on `/` is NOT reproducible by our probes, and the dev build is not the reason.**
+Measured 2026-08-30 against a real prod bundle served off-band: Lighthouse mobile reported **0.122** while
+the same page's own buffered layout-shift buffer reports **0.0293** at 4× CPU and **0.0305** under
+`--mobile --network slow-4g --cpu-throttle 4`, both with ONE dominant 0.0293 shift and the rest under
+0.001. So a Lighthouse mobile CLS in the 0.1 band with our own arms clean is a **declared limit** — cite
+both numbers and do not file a fix row off the Lighthouse figure alone.
+
+The recipe, when a prod-build receipt is actually needed (~25s build + a server boot):
+
+1. `pnpm --filter @orb/client build` in YOUR worktree (~25s; writes `packages/client/dist`).
+2. Boot the REAL prod entry off-band — never `vite preview` (`vite.config.ts` has no `preview.proxy`, so
+   the SPA would have no `/api` at all) and never on `:8788` (that is main's dev stack):
+   `PORT=8790 BIND_HOST=127.0.0.1 NODE_ENV=production ORB_ENV_NO_FILE=1 OWNER_HANDLES=… CREDENTIALS_KEY=…
+   DATABASE_URL=file:<a COPY of data/orbweaver.db> ASSETS_DIR=… ENGINES_POSTURE=adopt-only
+   CLIENT_DIST_DIR=<wt>/packages/client/dist node packages/server/src/entry/index.ts`.
+   **`BIND_HOST` is not optional**: production binds EVERY interface by default
+   (`foundation/env/bind.ts`), and this box is shared. `CREDENTIALS_KEY` is a DB-BOUND key — without it
+   `/healthz` stays 503 on `credentials_key_mismatch` (the same key set `snap --isolated` inherits).
+3. `pnpm snap / --base http://127.0.0.1:8790 --mobile --network slow-4g --cpu-throttle 4 --no-shot --eval …`
+   — `127.0.0.1`, not `localhost` (the server binds v4; only vite is the v6 case).
+
+Three instrument facts the eval must respect on a prod build:
+
+- **`window.__orb` does not exist in a production bundle** — `installAgentDebugHandle` early-returns under
+  `!IS_DEV`, so `__orb.motion()` (and its virtualized-share classification) is unavailable. `data-app-ready`
+  IS set in prod (`installAppReadySignal` is not gated).
+- **`performance.getEntriesByType("layout-shift")` returns `[]` in chromium** and logs *"Deprecated API for
+  given entry type"* — a silent zero that reads exactly like a clean surface. The only reader is a
+  `PerformanceObserver` with `buffered: true`; give it a settle window that spans the whole boot, because
+  under `slow-4g` the app's OWN readiness ceiling hands over `data-app-ready="degraded"` well before the
+  page is done.
+- **The dev build cannot take the network arm at all**: at `slow-4g`, `/` on `:5173` issues **447** requests
+  and `page.goto` blows past 90s. Prod issues 12. Throttle CPU alone against `:5173`.
+
 - **Thresholds** (name the number in the finding): frame budget **16.7ms** · LoAF blocking **≤50ms** ·
   INP **≤200ms** · **non-virtualized** CLS **≤0.1** · animations must be **compositor-clean**. A breach on
   a reading/immersive surface is ≥ P1 (jank on the primary experience); polish motion elsewhere is P2–P3.

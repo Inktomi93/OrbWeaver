@@ -88,6 +88,17 @@ export interface NetworkConditions {
   readonly latency: number;
 }
 
+/** The two wall-clock ceilings one drive is judged against (#836). They are a function of what the run is
+ *  serving (a cold `--isolated` vite) AND of the load arm it declared: a `--network`/`--cpu-throttle` run
+ *  is deliberately slower, so holding it to the un-throttled budget refuses the flag it was asked for.
+ *  Resolved by `driveBudgets` in lib/throttle.ts. */
+export interface DriveBudgets {
+  /** `page.goto` ceiling. */
+  readonly nav: number;
+  /** `data-app-ready` ceiling — the one that decides whether a capture is of the SETTLED app. */
+  readonly ready: number;
+}
+
 export interface Args {
   /** Print the operator cookbook and exit without touching a browser or stage. */
   help: boolean;

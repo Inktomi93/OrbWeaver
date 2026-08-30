@@ -8,7 +8,15 @@
 // nothing about the margin. The arm that reveals the margin is CPU throttling, and it was unreachable
 // from snap: the measurement that decided #819 cost 14 chrome-devtools MCP calls against a ~8 budget.
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { NetworkConditions, NetworkProfileName } from "../contract/types.ts";
+import type { DriveBudgets, NetworkConditions, NetworkProfileName } from "../contract/types.ts";
+import {
+  NAV_TIMEOUT_MS,
+  STAGE_NAV_TIMEOUT_MS,
+  STAGE_READY_TIMEOUT_MS,
+  THROTTLED_NAV_TIMEOUT_MS,
+  THROTTLED_READY_TIMEOUT_MS,
+  WAIT_SELECTOR_TIMEOUT_MS,
+} from "./budgets.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -72,4 +80,20 @@ export const NETWORK_PROFILE_SPELLINGS: readonly string[] = ["slow-3g", "fast-3g
 export function throttleResultValue(cpuRate: number, network: NetworkProfileName | null): string {
   const cpu = cpuRate === NO_CPU_THROTTLE ? "cpu:1x" : `cpu:${cpuRate}x`;
   return `${cpu}/net:${network ?? "live"}`;
+}
+
+/** THE BUDGETS A LOAD ARM IS JUDGED AGAINST (#836). A declared throttle moves the wall clock the run
+ *  happens on, so the un-throttled ceilings refuse it: measured, EVERY `--network slow-4g --cpu-throttle 4`
+ *  run on `/` reported `app never signalled data-app-ready` inside the 10s budget — on the PROD build too,
+ *  so it was never a dev-bundle fact. That reads as an app defect and is really the instrument declining
+ *  the arm it advertises. Ceilings, not sleeps: a fast run never reaches them, and a throttled run that
+ *  still misses 60s is a genuine finding about the surface.
+ *
+ *  A cold `--isolated` stage keeps its own (wider) nav budget — the two causes are independent, so the
+ *  wider of the two applies rather than one overwriting the other. */
+export function driveBudgets(opts: { readonly isolated: boolean; readonly cpuRate: number; readonly network: NetworkProfileName | null }): DriveBudgets {
+  const throttled = opts.network !== null || opts.cpuRate > NO_CPU_THROTTLE;
+  const nav = Math.max(opts.isolated ? STAGE_NAV_TIMEOUT_MS : NAV_TIMEOUT_MS, throttled ? THROTTLED_NAV_TIMEOUT_MS : 0);
+  const ready = Math.max(opts.isolated ? STAGE_READY_TIMEOUT_MS : WAIT_SELECTOR_TIMEOUT_MS, throttled ? THROTTLED_READY_TIMEOUT_MS : 0);
+  return { nav, ready };
 }

@@ -4479,7 +4479,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 175,
+      "line": 169,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -4487,12 +4487,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.",
-      "markerLine": 170
+      "markerLine": 164
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 215,
+      "line": 209,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -4500,12 +4500,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read.",
-      "markerLine": 210
+      "markerLine": 204
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:retryErr::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 186,
+      "line": 180,
       "column": 9,
       "grammar": "empty",
       "position": "empty:retryErr",
@@ -4513,12 +4513,12 @@
       "snippet": "} catch (retryErr) {",
       "verdict": "deliberate-absorb",
       "reason": "the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read.",
-      "markerLine": 181
+      "markerLine": 175
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 44,
+      "line": 35,
       "column": 23,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -4526,12 +4526,12 @@
       "snippet": "const count = await page.evaluate(\"window.__orb ? window.__orb.queries().length : null\").catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "probe-whose-failure-is-its-return-value — a build without the __orb bridge, or a probe that throws, returns null and the caller \"makes no claim rather than a false one\" (doc comment above). Ends if a caller starts trusting null as a positive settle.",
-      "markerLine": 43
+      "markerLine": 34
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 213,
+      "line": 207,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -4539,12 +4539,12 @@
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures.",
-      "markerLine": 212
+      "markerLine": 206
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 51,
+      "line": 42,
       "column": 26,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -4552,12 +4552,12 @@
       "snippet": "const attached = await flag",
       "verdict": "deliberate-absorb",
       "reason": "failure IS the return value — converts to attached=false, which becomes the \"absent\" readiness arm fed into UNSETTLED_REASON and reported as navError below. Ends if that reporting chain is removed.",
-      "markerLine": 50
+      "markerLine": 41
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 205,
+      "line": 199,
       "column": 9,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -4565,12 +4565,12 @@
       "snippet": "await page",
       "verdict": "deliberate-absorb",
       "reason": "gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures.",
-      "markerLine": 204
+      "markerLine": 198
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitForLoadState::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 281,
+      "line": 275,
       "column": 11,
       "grammar": "promise",
       "position": "promise:waitForLoadState",
@@ -4578,7 +4578,7 @@
       "snippet": "await page.waitForLoadState(\"networkidle\", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.",
-      "markerLine": 279
+      "markerLine": 273
     },
     {
       "siteId": "tooling/src/snap/ops/evidence.ts::default:catch::1",
