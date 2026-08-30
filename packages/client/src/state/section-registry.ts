@@ -25,12 +25,15 @@ export type SectionGroup = (typeof SECTION_GROUPS)[number];
  *  the same one-directional way it derives `group` from `SectionGroup` — no second spelling, no cycle. */
 export type MobileCuration = "tab" | "sheet";
 
-// The rail's two chrome zones, in DOM order — the ONE home for the rail-zone axis (state owns shell
+// The rail's three chrome zones, in DOM order — the ONE home for the rail-zone axis (state owns shell
 // vocabulary, §5 rule 5). `chrome-registry.ts` DERIVES `CHROME_ZONES` from this tuple (the one-directional
 // direction it already imports in), so the two can never disagree. `rail.brand` is the BRAND CELL at the
 // top of the rail: the Weave glyph, which the HOME section claims as its affordance (home-section-spec
-// §4.1) — that is how app-shell navigates home without ever spelling `"home"`.
-export const RAIL_ZONES = ["rail.nav", "rail.brand"] as const;
+// §4.1) — that is how app-shell navigates home without ever spelling `"home"`. `rail.end` is the FOOT
+// below the spacer, where the modal triggers and the persona widget live; a SECTION may claim it too since
+// the config revamp (#866 S1, owner ruling #297: Settings takes the gear's old slot) — the same
+// derivation renders it there with a section's active state, and app-shell still never spells `"config"`.
+export const RAIL_ZONES = ["rail.nav", "rail.brand", "rail.end"] as const;
 /** Which rail slot a section's affordance renders in. @defaultValue "rail.nav" */
 export type RailZone = (typeof RAIL_ZONES)[number];
 
@@ -44,7 +47,8 @@ export interface RailEntry {
   readonly mobile: MobileCuration;
   /** Which rail slot this section's affordance lives in. Absent ⇒ `"rail.nav"` (a normal icon button in
    *  its `group`). `"rail.brand"` claims the brand cell — at most one section may, and it gets NO nav
-   *  button (one affordance per section, never two). */
+   *  button (one affordance per section, never two). `"rail.end"` puts the button in the FOOT, after the
+   *  spacer, ordered `(order, id)` among the modal triggers and widgets there (the Settings section). */
   readonly zone?: RailZone;
 }
 

@@ -14,7 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { useRestartEngine } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_ENGINES_SUBCATEGORY } from "../lib/admin-engines-nav.ts";
 import { engineBadgeIntent } from "../lib/admin-model.ts";
@@ -46,7 +46,7 @@ export function AdminEnginesSection(): ReactElement {
   const entries = Object.entries(engines.data ?? {});
 
   return (
-    <Section className="@container" divider={true} heading={ADMIN_ENGINES_SUBCATEGORY.label} id={settingsAnchorId("admin", ADMIN_ENGINES_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={ADMIN_ENGINES_SUBCATEGORY.label} id={configAnchorId("admin", ADMIN_ENGINES_SUBCATEGORY.id)}>
       <Stack gap="row" data-testid={testId("adminEnginesSection")}>
         <QueryInlineStates
           status={engines}

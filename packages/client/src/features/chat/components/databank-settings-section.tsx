@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { SectionSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { DATABANK_SETTINGS_ENTITY_ID, DatabankSettingsAutosaveForm } from "../hooks/use-databank-settings-form.ts";
 import type { DatabankSettingsForm } from "../lib/databank-settings-model.ts";
 import {
@@ -74,7 +74,7 @@ function DatabankSettingsFormBody({ sectionId }: { readonly sectionId: string })
 function DatabankSettingsBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<DatabankSettingsForm> }): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section divider={true} heading={DATABANK_SETTINGS_SUBCATEGORY.label} id={settingsAnchorId("chat-behavior", DATABANK_SETTINGS_SUBCATEGORY.id)}>
+    <Section divider={true} heading={DATABANK_SETTINGS_SUBCATEGORY.label} id={configAnchorId("chat-behavior", DATABANK_SETTINGS_SUBCATEGORY.id)}>
       <FieldLayout orientation="horizontal">
         <Container>
           <Stack gap="field">

@@ -53,6 +53,9 @@ const SCRIPT = {
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    // The fourth collection (casts) + the viewer projection the LIST's `when` gate reads (#866 S1).
+    "rosterPreset.list": [],
+    "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
     "tag.listTagsWithUsage": () => [TAG],
     "regex.listScripts": () => [SCRIPT],
     "regex.listGlobal": () => [],

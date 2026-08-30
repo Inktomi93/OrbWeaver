@@ -22,7 +22,7 @@
 // faking the answer would have meant an N-query fan-out over every preset and character the owner has.
 //
 // A ROSTER ROW IS A NAME, NOT A LINK. There is no door from here to a preset/character/room member — the
-// existing `goToCollection` intent only opens a config COLLECTION, and none of these three is one. A row
+// existing `openConfigTo` intent only opens a config COLLECTION, and none of these three is one. A row
 // that looked clickable and wasn't would be worse than a row that reads as what it is: a statement of where
 // this script already runs. An EMPTY roster still renders (with its `· 0` and the line saying where to
 // attach one) — omitting it would read as "not built", not as "none yet".

@@ -45,10 +45,20 @@ describe("assembleChrome", () => {
     expect(presets).toMatchObject({ zone: "rail.nav", mobile: "sheet", behavior: { kind: "section", sectionId: "presets" } });
   });
 
+  // #297 / #866 S1 — the Settings SECTION renders at the rail FOOT: a section may declare `rail.zone`, and the
+  // derivation honours it instead of pinning every section to `rail.nav`. The rail's group-by-group nav
+  // render never sees it; the `.shell-rail-actions` foot does.
+  test('a section declaring `rail.zone: "rail.end"` derives to a rail.end SECTION entry (the rail-foot Settings)', () => {
+    const foot: SectionDefinition = { ...section("config", "sheet"), rail: { ...section("config", "sheet").rail, zone: "rail.end" } };
+    const entries = assembleChrome({ sections: [section("chats", "tab"), foot], modals: [], widgets: [] });
+    expect(entries.find((e) => e.id === "chats")).toMatchObject({ zone: "rail.nav" });
+    expect(entries.find((e) => e.id === "config")).toMatchObject({ zone: "rail.end", mobile: "sheet", behavior: { kind: "section", sectionId: "config" } });
+  });
+
   test("maps a rail.end modal to a rail.end modal entry", () => {
-    const entries = assembleChrome({ sections: [], modals: [modal("settings", "rail.end")], widgets: [] });
+    const entries = assembleChrome({ sections: [], modals: [modal("theme", "rail.end")], widgets: [] });
     expect(entries).toHaveLength(1);
-    expect(entries[0]).toMatchObject({ id: "settings", zone: "rail.end", behavior: { kind: "modal", modalId: "settings" } });
+    expect(entries[0]).toMatchObject({ id: "theme", zone: "rail.end", behavior: { kind: "modal", modalId: "theme" } });
   });
 
   test("produces NO chrome entry for unmapped placements (topbar.trail/surface/mobile-tab)", () => {

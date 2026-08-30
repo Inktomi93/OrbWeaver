@@ -2,13 +2,13 @@
 // definition app-shell exports on its front door; the composition root assembles it into the ONE
 // settings-section registry and the appearance skimmer pane renders it at its anchor.
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { AppearanceSizingSection } from "../components/appearance-sizing-section.tsx";
 import { APPEARANCE_SIZING_KEYS, APPEARANCE_SIZING_SUBCATEGORY } from "./appearance-sizing-model.ts";
 
 const SECTION_ID = "appearance-sizing";
 
-export const appearanceSizingSection: SettingsSectionContribution = {
+export const appearanceSizingSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "appearance",
   nav: APPEARANCE_SIZING_SUBCATEGORY,

@@ -16,7 +16,7 @@
 // Each `owns` claim is exactly what its section patches (S1/S2). Together with the three sections that were
 // already here, the app tier's claims are now disjoint by construction.
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { ComputeSection } from "../components/compute-section.tsx";
 import { MultiUserSection, SharedAccessSection } from "../components/governance-sections.tsx";
 import { MediaTrustSection } from "../components/media-trust-section.tsx";
@@ -37,7 +37,7 @@ const SHARED_ACCESS_ID = "admin-shared-access";
 const MULTI_USER_ID = "admin-multi-user";
 const OPERATIONS_ID = "admin-operations";
 
-export const mediaTrustSection: SettingsSectionContribution = {
+export const mediaTrustSection: ConfigSectionContribution = {
   id: MEDIA_TRUST_ID,
   anchor: "admin",
   nav: MEDIA_TRUST_SUBCATEGORY,
@@ -45,7 +45,7 @@ export const mediaTrustSection: SettingsSectionContribution = {
   body: () => <MediaTrustSection sectionId={MEDIA_TRUST_ID} />,
 };
 
-export const computeSection: SettingsSectionContribution = {
+export const computeSection: ConfigSectionContribution = {
   id: COMPUTE_ID,
   anchor: "admin",
   nav: COMPUTE_SUBCATEGORY,
@@ -53,7 +53,7 @@ export const computeSection: SettingsSectionContribution = {
   body: () => <ComputeSection sectionId={COMPUTE_ID} />,
 };
 
-export const sharedAccessSection: SettingsSectionContribution = {
+export const sharedAccessSection: ConfigSectionContribution = {
   id: SHARED_ACCESS_ID,
   anchor: "admin",
   nav: SHARED_ACCESS_SUBCATEGORY,
@@ -63,7 +63,7 @@ export const sharedAccessSection: SettingsSectionContribution = {
   body: () => <SharedAccessSection sectionId={SHARED_ACCESS_ID} />,
 };
 
-export const multiUserSection: SettingsSectionContribution = {
+export const multiUserSection: ConfigSectionContribution = {
   id: MULTI_USER_ID,
   anchor: "admin",
   nav: MULTI_USER_SUBCATEGORY,
@@ -71,7 +71,7 @@ export const multiUserSection: SettingsSectionContribution = {
   body: () => <MultiUserSection sectionId={MULTI_USER_ID} />,
 };
 
-export const operationsSection: SettingsSectionContribution = {
+export const operationsSection: ConfigSectionContribution = {
   id: OPERATIONS_ID,
   anchor: "admin",
   nav: OPERATIONS_SUBCATEGORY,

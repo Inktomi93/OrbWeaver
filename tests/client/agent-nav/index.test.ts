@@ -77,7 +77,6 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
     sections: ["home", "chats", "characters", "corpus", "config", "extensions", "databank", "presets", "refinery", "analytics"],
     modalSlots: [
       "theme",
-      "settings",
       "account",
       "command",
       "newChat",
@@ -91,7 +90,22 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
       "pluginCommandArgs",
       "savedCasts",
     ],
-    settingsCategories: ["personas", "appearance", "workloads", "backup", "chat-behavior", "connections", "automation", "plugins", "admin"],
+    // The closed config-group vocabulary (#866 S1, owner fork F-1): the nine settings groups + the four collections.
+    configGroups: [
+      "personas",
+      "appearance",
+      "chat-behavior",
+      "workloads",
+      "backup",
+      "connections",
+      "automation",
+      "admin",
+      "tags",
+      "regex",
+      "worldInfo",
+      "cast",
+      "plugins",
+    ],
     contextTabs: ["runs", "setup"],
     contextTabNames: [
       { id: "runs", label: "runs" },
@@ -126,23 +140,31 @@ test("openModal() dispatches the real openModal action; an unknown slot refuses 
   const spy = vi.spyOn(state, "openModal");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
-  expect(nav.openModal("settings")).toEqual({ ok: true });
-  expect(spy).toHaveBeenCalledExactlyOnceWith("settings");
+  expect(nav.openModal("theme")).toEqual({ ok: true });
+  expect(spy).toHaveBeenCalledExactlyOnceWith("theme");
 
   spy.mockClear();
   expect(nav.openModal("bogus-slot").ok).toBe(false);
   expect(spy).not.toHaveBeenCalled();
 });
 
-test("openSettings() dispatches openSettingsTo; an unknown category refuses", () => {
-  const spy = vi.spyOn(state, "openSettingsTo");
+test("openConfig() dispatches openConfigTo (group + optional sub); an unknown group refuses", () => {
+  const spy = vi.spyOn(state, "openConfigTo");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
-  expect(nav.openSettings("appearance")).toEqual({ ok: true });
-  expect(spy).toHaveBeenCalledExactlyOnceWith("appearance");
+  expect(nav.openConfig("appearance")).toEqual({ ok: true });
+  expect(spy).toHaveBeenCalledExactlyOnceWith("appearance", undefined);
 
   spy.mockClear();
-  expect(nav.openSettings("bogus-category").ok).toBe(false);
+  // A collection is a config group too (F-1): the SAME verb reaches it, and a sub rides through.
+  expect(nav.openConfig("tags")).toEqual({ ok: true });
+  expect(spy).toHaveBeenCalledExactlyOnceWith("tags", undefined);
+  spy.mockClear();
+  expect(nav.openConfig("chat-behavior", "world-info")).toEqual({ ok: true });
+  expect(spy).toHaveBeenCalledExactlyOnceWith("chat-behavior", "world-info");
+
+  spy.mockClear();
+  expect(nav.openConfig("bogus-group").ok).toBe(false);
   expect(spy).not.toHaveBeenCalled();
 });
 

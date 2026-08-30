@@ -3,7 +3,7 @@
 // app-root.tsx) — because it wires the app's client-state navigation actions together, and the lib/ floor
 // that homes agent-bridge.ts may not import #state/#features/#data. So the handle's IMPL is built here and
 // injected into installAgentDebugHandle. Every arm calls the EXACT store action the real UI calls
-// (setActiveSection, openModal, openSettingsTo, revealContextPanel, selectChat) — never a parallel mutation
+// (setActiveSection, openModal, openConfigTo, revealContextPanel, selectChat) — never a parallel mutation
 // path — and validates ids against the canonical vocabulary tuples (the context tab against the mounted
 // surface's PUBLISHED ids), returning a loud {ok:false} on a bad target instead of a silent no-op.
 //
@@ -20,19 +20,19 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import type { Trpc } from "#data";
 import { deriveChatTitle } from "#lib";
-import type { ModalSlotId, PublishedContextTab, SectionId, SettingsCategoryId } from "#state";
+import type { ConfigGroupId, ModalSlotId, PublishedContextTab, SectionId } from "#state";
 import {
   activeChatId,
+  CONFIG_GROUP_IDS,
   closeModal,
   getAvailableContextTabIds,
   getAvailableContextTabs,
   getContextTab,
   MODAL_SLOT_IDS,
+  openConfigTo,
   openModal,
-  openSettingsTo,
   revealContextPanel,
   SECTION_IDS,
-  SETTINGS_CATEGORY_IDS,
   selectCharacter,
   selectChat,
   setActiveSection,
@@ -81,8 +81,8 @@ function isSection(id: string): id is SectionId {
 function isModalSlot(id: string): id is ModalSlotId {
   return (MODAL_SLOT_IDS as readonly string[]).includes(id);
 }
-function isSettingsCategory(id: string): id is SettingsCategoryId {
-  return (SETTINGS_CATEGORY_IDS as readonly string[]).includes(id);
+function isConfigGroup(id: string): id is ConfigGroupId {
+  return (CONFIG_GROUP_IDS as readonly string[]).includes(id);
 }
 
 /** Select a chat AND put the shell where that chat is visible — the exact pair a chat-row click performs.
@@ -309,7 +309,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       return {
         sections: [...SECTION_IDS],
         modalSlots: [...MODAL_SLOT_IDS],
-        settingsCategories: [...SETTINGS_CATEGORY_IDS],
+        configGroups: [...CONFIG_GROUP_IDS],
         contextTabs,
         contextTabNames: [...getAvailableContextTabs()],
         contextTabsPublished: contextTabs.length > 0,
@@ -332,12 +332,14 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       openModal(slot);
       return OK;
     },
-    openSettings(category: string): NavResult {
-      if (!isSettingsCategory(category)) {
-        return reject("settings category", category, SETTINGS_CATEGORY_IDS);
+    openConfig(group: string, sub?: string): NavResult {
+      if (!isConfigGroup(group)) {
+        return reject("config group", group, CONFIG_GROUP_IDS);
       }
       markAgentNavigation();
-      openSettingsTo(category);
+      // The EXACT deep link a feature fires ("configure memory" from a chat surface lands ON the memory
+      // section): the section switch, the group expansion and the anchor landing are one store write.
+      openConfigTo(group, sub);
       return OK;
     },
     async contextTab(name: string): Promise<NavResult> {

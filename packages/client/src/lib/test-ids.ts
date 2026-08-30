@@ -88,7 +88,6 @@ export const TEST_IDS = {
   notificationsInbox: "notifications-inbox",
   workloadsSection: "workloads-section",
   workloadsRunButton: "workloads-run-button",
-  backupSection: "backup-section",
   backupExportButton: "backup-export-button",
   backupImportDropzone: "backup-import-dropzone",
   importReport: "import-report",

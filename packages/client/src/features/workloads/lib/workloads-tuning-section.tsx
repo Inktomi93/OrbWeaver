@@ -3,7 +3,7 @@
 // settings-section registry (G8) at the `workloads` anchor. features/workloads owns it (its own pane — the
 // stint-2 truer-owner test).
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { WorkloadsTuningSection } from "../components/workloads-tuning-section.tsx";
 import { WORKLOADS_TUNING_SUBCATEGORY } from "./workloads-tuning-nav.ts";
 
@@ -11,7 +11,7 @@ import { WORKLOADS_TUNING_SUBCATEGORY } from "./workloads-tuning-nav.ts";
 // its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.
 const SECTION_ID = "workloads-tuning";
 
-export const workloadsTuningSection: SettingsSectionContribution = {
+export const workloadsTuningSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "workloads",
   nav: WORKLOADS_TUNING_SUBCATEGORY,

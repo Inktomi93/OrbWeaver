@@ -4,4 +4,5 @@
 // `openModal("savedCasts")`, never by importing this feature.
 
 export { castCollection } from "./lib/cast-collection.tsx";
+export { castGroup } from "./lib/cast-group.tsx";
 export { savedCastsModal } from "./lib/saved-casts-modal.tsx";

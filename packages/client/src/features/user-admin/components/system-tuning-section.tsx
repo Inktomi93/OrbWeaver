@@ -20,7 +20,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "../lib/system-tuning-nav.ts";
@@ -216,7 +216,7 @@ function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
   };
 
   return (
-    <Section divider={true} heading={SYSTEM_TUNING_SUBCATEGORY.label} id={settingsAnchorId("admin", SYSTEM_TUNING_SUBCATEGORY.id)}>
+    <Section divider={true} heading={SYSTEM_TUNING_SUBCATEGORY.label} id={configAnchorId("admin", SYSTEM_TUNING_SUBCATEGORY.id)}>
       <Stack gap="field">
         <Text voice="label" className="text-muted-foreground">
           Deployment-wide runtime tuning. Each applies live (per request / batch / check). Absent knobs run on the deployment floor.

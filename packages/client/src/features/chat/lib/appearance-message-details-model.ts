@@ -1,5 +1,5 @@
 // The "Message details & actions" appearance-section MODEL (SET-SEAMS §6, stage 1) — the section's two non-JSX facts:
-// the ONE `SettingsSubcategory` shared by the contribution def and the section body's `<Section>` anchor stamp.
+// the ONE `ConfigSubcategory` shared by the contribution def and the section body's `<Section>` anchor stamp.
 //
 // This subcategory ABSORBS the pane's old `message-actions` sub: `messageActions` is read by the same chat hook as
 // the `show*` chips (`use-message-appearance.ts`), so under §6's reader-owns rule they are ONE section — a section is
@@ -7,9 +7,9 @@
 // behind it. The `message-details` anchor id is unchanged (§7.1); the absorbed sub's search LEAF (`message-actions`)
 // travels here intact (§7.2), so the fuzzy jump still lands on a real anchor.
 
-import type { SettingsSubcategory } from "#state";
+import type { ConfigSubcategory } from "#state";
 
-export const APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: SettingsSubcategory = {
+export const APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: ConfigSubcategory = {
   id: "message-details",
   label: "Message details & actions",
   // The full name overflows the 220px nav column; the heading keeps it, the nav row drops the "& actions"

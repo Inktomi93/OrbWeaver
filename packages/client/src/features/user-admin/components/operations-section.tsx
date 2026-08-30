@@ -17,7 +17,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import { settingsAnchorId } from "#state";
+import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import { LOG_LEVEL_ITEMS } from "../lib/log-level-items.ts";
@@ -54,7 +54,7 @@ function OperationsBody({ sectionId }: { readonly sectionId: string }): ReactEle
   };
 
   return (
-    <Section className="@container" divider={true} heading={OPERATIONS_SUBCATEGORY.label} id={settingsAnchorId("admin", OPERATIONS_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={OPERATIONS_SUBCATEGORY.label} id={configAnchorId("admin", OPERATIONS_SUBCATEGORY.id)}>
       <Stack gap="field">
         <Text voice="gloss">Deployment operations. Both apply live — no restart.</Text>
         <AdminOverrideSwitch

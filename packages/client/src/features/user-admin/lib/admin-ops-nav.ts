@@ -4,15 +4,15 @@
 // byte-identical to the pre-split pane's subcategories (§7.1 — a merge into one "Ops" section would break
 // every deep link and search leaf pointing at them).
 
-import type { SettingsSubcategory } from "#state";
+import type { ConfigSubcategory } from "#state";
 
-export const ADMIN_CATALOG_SUBCATEGORY: SettingsSubcategory = {
+export const ADMIN_CATALOG_SUBCATEGORY: ConfigSubcategory = {
   id: "model-catalog",
   label: "Model catalog",
   keywords: ["models", "catalog", "sync", "refresh", "openrouter", "providers"],
 };
 
-export const ADMIN_EMBEDDINGS_SUBCATEGORY: SettingsSubcategory = {
+export const ADMIN_EMBEDDINGS_SUBCATEGORY: ConfigSubcategory = {
   id: "card-embeddings",
   label: "Card embeddings",
   keywords: ["embeddings", "cards", "reindex", "vectors", "backfill", "characters"],

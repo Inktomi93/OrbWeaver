@@ -334,12 +334,6 @@ function writeFixtures(): void {
   // home-tile-registry-completeness: a `HomeTileContribution`-typed var in a file that is NOT a `*-tile`
   // def file — the co-location arm.
   fx("packages/client/src/features/__g_ghometile/lib/stray.ts", "export const strayTile: HomeTileContribution = { id: 'x', body: () => null };\n");
-  // collection-registry-completeness: a `CollectionContribution`-typed var in a file that is NOT a
-  // `*-collection` def file — the co-location arm.
-  fx(
-    "packages/client/src/features/__g_gcollection/lib/stray.ts",
-    "export const strayCollection: CollectionContribution = { id: 'x', create: { label: 'New x', useRun: () => () => undefined } };\n",
-  );
   // modal-body-not-placeholder: a `*-modal.tsx` def whose function body renders <SectionPlaceholder>.
   fx(
     "packages/client/src/features/__g_gmodalbody/lib/__g_gmodalbody-modal.tsx",
@@ -351,11 +345,12 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_gbundle/lib/__g_gbundle-section.tsx",
     "export function makeGBundleSection(a: ContributorRegistry<X>, b: ContributorRegistry<Y>): SectionDefinition {\n  return null as never;\n}\n",
   );
-  // settings-pane-completeness: a `SettingsPaneDefinition`-typed var in a file that is NOT a `*-pane.tsx`
-  // def file — the co-location arm.
-  fx("packages/client/src/features/__g_gpane/lib/stray.ts", "export const strayPane: SettingsPaneDefinition = { id: 'x' };\n");
-  // no-parallel-section-map: a SettingsCategoryId-keyed object literal outside the sanctioned homes.
-  fx("packages/client/src/features/__g_g2settings/lib/parallel.ts", "export const M = { account: 1, appearance: 1, tags: 1 };\n");
+  // config-group-completeness: a `ConfigGroupDefinition`-typed var in a file that is NOT a `*-group.tsx`
+  // def file — the co-location arm (the settings-pane gate re-keyed by the config revamp, #866 S1; its
+  // folded-in collection arms and the anchor-outside-registry arm are proven by conformance).
+  fx("packages/client/src/features/__g_ggroup/lib/stray.ts", "export const strayGroup: ConfigGroupDefinition = { id: 'x' };\n");
+  // no-parallel-section-map: a ConfigGroupId-keyed object literal outside the sanctioned homes.
+  fx("packages/client/src/features/__g_g2config/lib/parallel.ts", "export const M = { personas: 1, appearance: 1, admin: 1 };\n");
   // context-definition-shape: a hand-rolled `{kind:"tabs",useResolved}` object literal outside
   // lib/registry-contracts.ts — a badge-wearing tabs renderer bypassing the mint (arm 1).
   fx("packages/client/src/features/__g_g3ctx/lib/g3-badge.ts", 'export const gBadgeCtx = { kind: "tabs", useResolved: () => null };\n');
@@ -745,7 +740,7 @@ function writeFixtures(): void {
   // fixture is picked up regardless of tsconfig excludes.
   fx("packages/client/src/features/__g_featurecss/lib/__g_featurecss.css", ".g { color: red; }\n");
   // feature-owns-definition: a features/* dir with only a non-definition file (no lib/*-{section,modal,
-  // pane,chrome}.tsx) — the O2 empty-dir rule (client-architecture-lockdown.md §3/§18 O2). Reads via
+  // group,chrome}.tsx) — the O2 empty-dir rule (client-architecture-lockdown.md §3/§18 O2). Reads via
   // node:fs, not ts-morph, so the real-tree fixture is picked up regardless of tsconfig excludes.
   fx("packages/client/src/features/__g_ownsnodef/lib/helper.ts", "export const g = 1;\n");
   // bus-channel-primitive: a bespoke `new EventEmitter()` under transport/, outside bus-channel.ts's own
@@ -956,11 +951,13 @@ function writeFixtures(): void {
   // render-error-via-battery: a hand-rolled `renderError` arm (not QueryErrorState-rooted) in a client
   // file outside the allowlist — the read-error drift G29 seals (derive-modernization-audit.md §W4).
   fx("packages/client/src/features/__g_rerror/components/__g_rerror.tsx", "export const G = <B renderError={() => <Text>failed</Text>} />;\n");
-  // settings-section-anchored: a heading-bearing <Section> with no `id` in a *-settings-surface.tsx — the
-  // invisible-to-nav/search class the G4 arm seals (derive-modernization-audit.md §W5 item 9).
+  // settings-section-anchored: an anchor-stamping section file (it calls `configAnchorId`, the content-keyed
+  // arm — the path-keyed `*-settings-surface.tsx` arm retired with the #866 S1 skimmer ruling) with a second,
+  // UNANCHORED heading-bearing <Section> — the invisible-to-nav/search class the G4 arm seals
+  // (derive-modernization-audit.md §W5 item 9).
   fx(
-    "packages/client/src/features/__g_settingsanchor/surfaces/__g_settingsanchor-settings-surface.tsx",
-    'export const G = <Section heading="Host Claude"><span>x</span></Section>;\n',
+    "packages/client/src/features/__g_settingsanchor/components/__g_settingsanchor-section.tsx",
+    'import { configAnchorId } from "#state";\nexport const A = <Section heading="A" id={configAnchorId("admin", "a")} />;\nexport const G = <Section heading="Host Claude"><span>x</span></Section>;\n',
   );
   // ui-size-via-variant: a call-site SIZE utility (the F2 `size-auto` incident shape) on a JSX element
   // imported from @orb/ui, at a path with no ALLOWLIST row (the debt baseline is gone — terminal zero).

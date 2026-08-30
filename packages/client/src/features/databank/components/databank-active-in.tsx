@@ -18,7 +18,7 @@
 //
 // A ROW IS A DOOR because there is somewhere to land. This is the difference from the regex CONTEXT pane,
 // whose own header records "a roster row is a NAME, not a link" — that pane's rosters are presets and
-// characters and rooms, and its rooms had no door because its rows are `goToCollection` targets and a room
+// characters and rooms, and its rooms had no door because its rows are `openConfigTo` targets and a room
 // is not a config collection. Databank's two scopes both have a real destination (`openChat` /
 // `openCharacter`, the corpus omnibox's drill-door idiom, spelled section-then-selection exactly as the
 // notification bell spells it), and a thing becomes a door when there is somewhere to land.

@@ -1,10 +1,10 @@
-// The Engines section's nav entry (SET-SEAMS stage 3) — the ONE `SettingsSubcategory` shared by the
+// The Engines section's nav entry (SET-SEAMS stage 3) — the ONE `ConfigSubcategory` shared by the
 // contribution def and the section body's `<Section>` anchor stamp; split out so neither imports the other.
 // The `(anchor, subId)` pair is byte-identical to the pre-split pane's own subcategory (§7.1).
 
-import type { SettingsSubcategory } from "#state";
+import type { ConfigSubcategory } from "#state";
 
-export const ADMIN_ENGINES_SUBCATEGORY: SettingsSubcategory = {
+export const ADMIN_ENGINES_SUBCATEGORY: ConfigSubcategory = {
   id: "engines",
   label: "Engines",
   keywords: ["vllm", "gpu", "inference", "restart", "supervisor", "health"],

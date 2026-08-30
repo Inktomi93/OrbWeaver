@@ -18,10 +18,11 @@
 // (main.tsx), the pure assembler (state/assemble-chrome.ts), and the co-located widget defs
 // (features/*/lib/*-chrome.tsx). Everywhere else re-declares a parallel chrome registry — RED.
 //
-// SCOPE: the SectionId, ModalSlotId, AND SettingsCategoryId vocabularies (all LIVE — the SettingsCategoryId
-// arm lands at M6.1; its allowlist mirrors the modal arm: the TUPLE HOMES (`TUPLE_HOME_SUFFIXES` below —
-// section-ids.ts/shell-store.ts/settings-categories.ts/modal-slot-ids.ts), the door, and its own co-located *-pane.tsx defs)
-// PLUS the zone-keyed chrome-entry array (arm 5, its own allowlist).
+// SCOPE: the SectionId, ModalSlotId, AND ConfigGroupId vocabularies (all LIVE — the ConfigGroupId arm is
+// M6.1's SettingsCategoryId arm re-keyed by the config revamp, #866 S1; its allowlist mirrors the modal
+// arm: the TUPLE HOMES (`TUPLE_HOME_SUFFIXES` below — section-ids.ts/shell-store.ts/config-group-ids.ts/
+// modal-slot-ids.ts), the door, and its own co-located *-group.tsx defs) PLUS the zone-keyed chrome-entry
+// array (arm 5, its own allowlist).
 import type { Expression, ObjectLiteralExpression, Project, SourceFile, Node as TsMorphNode, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
@@ -67,10 +68,10 @@ const SECTION_RECORD_RE = /\bRecord<\s*SectionId\b/;
 const SECTION_PARTIAL_RE = /\bPartial<\s*Record<\s*SectionId\b/;
 const MODAL_RECORD_RE = /\bRecord<\s*ModalSlotId\b/;
 const MODAL_PARTIAL_RE = /\bPartial<\s*Record<\s*ModalSlotId\b/;
-const SETTINGS_RECORD_RE = /\bRecord<\s*SettingsCategoryId\b/;
-const SETTINGS_PARTIAL_RE = /\bPartial<\s*Record<\s*SettingsCategoryId\b/;
-/** A co-located settings-pane definition file: `features/<owner>/lib/<id>-pane.{ts,tsx}`. */
-const PANE_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-pane\.tsx?$/;
+const CONFIG_RECORD_RE = /\bRecord<\s*ConfigGroupId\b/;
+const CONFIG_PARTIAL_RE = /\bPartial<\s*Record<\s*ConfigGroupId\b/;
+/** A co-located config-group definition file: `features/<owner>/lib/<id>-group.{ts,tsx}`. */
+const GROUP_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-group\.tsx?$/;
 /** A co-located chrome-widget definition file: `features/<owner>/lib/<id>-chrome.{ts,tsx}`. */
 const CHROME_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-chrome\.tsx?$/;
 
@@ -125,14 +126,14 @@ function readVocabs(project: Project): readonly Vocab[] {
       registry: "modal",
     },
     {
-      name: "SettingsCategoryId",
-      tupleConst: "SETTINGS_CATEGORY_IDS",
-      ids: readTuple(project, "SETTINGS_CATEGORY_IDS"),
-      recordRe: SETTINGS_RECORD_RE,
-      partialRecordRe: SETTINGS_PARTIAL_RE,
-      // Settings homes: the vocabulary tuple, the door assembly, the co-located *-pane definition files.
-      isDefFile: (p) => PANE_FILE_RE.test(p),
-      registry: "settings",
+      name: "ConfigGroupId",
+      tupleConst: "CONFIG_GROUP_IDS",
+      ids: readTuple(project, "CONFIG_GROUP_IDS"),
+      recordRe: CONFIG_RECORD_RE,
+      partialRecordRe: CONFIG_PARTIAL_RE,
+      // Config-group homes: the vocabulary tuple, the door assembly, the co-located *-group definition files.
+      isDefFile: (p) => GROUP_FILE_RE.test(p),
+      registry: "config-group",
     },
   ];
 }
@@ -140,11 +141,10 @@ function readVocabs(project: Project): readonly Vocab[] {
 /** The TUPLE HOMES — the state modules that legitimately hold a bare all-ids string array, because the
  *  array IS the vocabulary rather than a map over it. A vocab's tuple gets its own module once it has two
  *  readers; `settings-categories.ts` was split out of `shell-store.ts` on 2026-08-24 for exactly that
- *  reason (and because shell-store was seven lines under its `component-size` cap, so adding ONE member
- *  re-wrapped the tuple and REDDED that gate). Note the gate reads the tuples BY SYMBOL — `readTuple`,
- *  the path-keyed-gates-die-on-rename discipline — so a tuple that moves stays
- *  VISIBLE; only this allowlist has to learn its new home. */
-const TUPLE_HOME_SUFFIXES: readonly string[] = ["/state/shell-store.ts", "/state/section-ids.ts", "/state/settings-categories.ts", "/state/modal-slot-ids.ts"];
+ *  reason (and became `config-group-ids.ts` when the config revamp unified the vocabulary, #866 S1). Note the
+ *  gate reads the tuples BY SYMBOL — `readTuple`, the path-keyed-gates-die-on-rename discipline — so a tuple
+ *  that moves stays VISIBLE; only this allowlist has to learn its new home. */
+const TUPLE_HOME_SUFFIXES: readonly string[] = ["/state/shell-store.ts", "/state/section-ids.ts", "/state/config-group-ids.ts", "/state/modal-slot-ids.ts"];
 
 /** The sanctioned homes for a vocab-keyed map: a vocabulary TUPLE HOME + the door (main.tsx, shared by
  *  every vocab) and the vocab's own co-located definition files. */
@@ -316,7 +316,7 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a hardcoded map (object literal / `{ id }` array / `Record<…>` type) covering ≥2 SectionIds/ModalSlotIds/SettingsCategoryIds, or an array of ≥2 CHROME_ZONES-zoned chrome entries, is a parallel section/modal/chrome map (the composition-drift bug) — derive from the registry, never re-declare. Homes: the vocab tuple, the main.tsx door, the *-section/*-modal/*-pane/*-chrome files.",
+    "a hardcoded map (object literal / `{ id }` array / `Record<…>` type) covering ≥2 SectionIds/ModalSlotIds/ConfigGroupIds, or an array of ≥2 CHROME_ZONES-zoned chrome entries, is a parallel section/modal/chrome map (the composition-drift bug) — derive from the registry, never re-declare. Homes: the vocab tuple, the main.tsx door, the *-section/*-modal/*-group/*-chrome files.",
   fix: "delete the map and read the registry (registry.get(id)/list()); if it is tracked scaffolding, home it in an allowlisted file with its FLAG marker.",
   run: (ctx) => {
     const out: NodeHit[] = [];
@@ -402,11 +402,11 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/client/src/state/shell-store.ts": 'export const SETTINGS_CATEGORY_IDS = ["account", "appearance", "tags"] as const;\n',
-        "packages/client/src/features/x/lib/settings-labels.ts": "export const LABELS = {\n  account: { label: 1 },\n  appearance: { label: 2 },\n};\n",
+        "packages/client/src/state/shell-store.ts": 'export const CONFIG_GROUP_IDS = ["personas", "appearance", "tags"] as const;\n',
+        "packages/client/src/features/x/lib/config-labels.ts": "export const LABELS = {\n  personas: { label: 1 },\n  appearance: { label: 2 },\n};\n",
       },
-      expect: { token: "SettingsCategoryId-object-map" },
-      why: "a re-declared per-category map (≥2 SettingsCategoryId keys) outside the sanctioned homes — the M6.1 arm",
+      expect: { token: "ConfigGroupId-object-map" },
+      why: "a re-declared per-group map (≥2 ConfigGroupId keys) outside the sanctioned homes — the M6.1 arm, re-keyed by the config revamp",
     },
     {
       files: {
@@ -455,16 +455,16 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/client/src/state/shell-store.ts": 'export const SETTINGS_CATEGORY_IDS = ["account", "appearance", "tags"] as const;\n',
-        "packages/client/src/features/x/lib/appearance-pane.tsx": "export const M = { account: 1, appearance: 2 };\n",
+        "packages/client/src/state/shell-store.ts": 'export const CONFIG_GROUP_IDS = ["personas", "appearance", "tags"] as const;\n',
+        "packages/client/src/features/x/lib/appearance-group.tsx": "export const M = { personas: 1, appearance: 2 };\n",
       },
-      why: "a SettingsCategoryId-keyed object literal inside a co-located *-pane.tsx def file — allowlisted, must pass",
+      why: "a ConfigGroupId-keyed object literal inside a co-located *-group.tsx def file — allowlisted, must pass",
     },
     {
       files: {
-        "packages/client/src/state/settings-categories.ts": 'export const SETTINGS_CATEGORY_IDS = ["account", "appearance", "tags"] as const;\n',
+        "packages/client/src/state/config-group-ids.ts": 'export const CONFIG_GROUP_IDS = ["personas", "appearance", "tags"] as const;\n',
       },
-      why: "the SETTINGS_CATEGORY_IDS tuple in its OWN state module (split out of shell-store.ts 2026-08-24) — a TUPLE HOME, allowlisted, must pass. The tuple is read BY SYMBOL, so moving it never blinds the gate; this row pins that the new home is sanctioned rather than merely unseen.",
+      why: "the CONFIG_GROUP_IDS tuple in its OWN state module (split out of shell-store.ts 2026-08-24, re-keyed 2026-08-30) — a TUPLE HOME, allowlisted, must pass. The tuple is read BY SYMBOL, so moving it never blinds the gate; this row pins that the new home is sanctioned rather than merely unseen.",
     },
     {
       files: {

@@ -22,12 +22,11 @@ import {
   setFocusMode,
   useActiveChatId,
   useActiveSection,
+  useConfigTarget,
   useDatabankPhaseFilter,
   useOpenModal,
   useSelectedCharacterId,
   useSelectedDocumentId,
-  useSettingsSubTarget,
-  useSettingsTarget,
 } from "../../../../packages/client/src/state/index.ts";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 
@@ -151,14 +150,14 @@ export function DatabankContextStory(): ReactElement {
   );
 }
 
-/** The shell-store probe every CONTEXT-pane DOOR is asserted through: `openSettingsTo`, `openChat` and
+/** The nav-store probe every CONTEXT-pane DOOR is asserted through: `openConfigTo`, `openChat` and
  *  `openCharacter` all write the shell/selection stores, so a deep link is proven at the STORE ACTION (the
- *  modal slot + category + subcategory, or the section + the id it selected), never at a rendered echo —
+ *  config target's group + sub, or the section + the id it selected), never at a rendered echo —
  *  these stories mount neither a settings shell nor a chats section to echo one. */
 function DatabankSettingsProbe(): ReactElement {
   return (
     <output>
-      modal={useOpenModal() ?? "none"} category={useSettingsTarget() ?? "none"} sub={useSettingsSubTarget() ?? "none"} section={useActiveSection()} chat=
+      modal={useOpenModal() ?? "none"} category={useConfigTarget()?.group ?? "none"} sub={useConfigTarget()?.sub ?? "none"} section={useActiveSection()} chat=
       {useActiveChatId() ?? "none"} character={useSelectedCharacterId() ?? "none"}
     </output>
   );

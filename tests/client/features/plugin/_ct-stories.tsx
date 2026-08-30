@@ -11,18 +11,19 @@
 
 import { CommandPaletteSurface } from "@orb/client/features/chat";
 import {
-  PluginsSettingsSurface,
   pluginChatFlankSurface,
   pluginChatSettingsSection,
   pluginCommandPaletteSource,
   pluginDistributeSection,
   pluginMessageFooterSurface,
+  pluginsInstalledSection,
+  pluginsInstallSection,
   pluginToolRenderer,
   SnippetConsole,
 } from "@orb/client/features/plugin";
 import type { ChatSettingsSectionContribution, ChatSurfaceContribution, CommandPaletteSource, ToolRenderer } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
-import type { SettingsSectionContribution } from "@orb/client/state";
+import type { ConfigSectionContribution } from "@orb/client/state";
 import {
   __resetPluginCommandArgs,
   __resetPluginDialog,
@@ -45,7 +46,7 @@ import { MessageToolCalls } from "../../../../packages/client/src/features/chat/
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
 import { PluginCommandArgsBody } from "../../../../packages/client/src/features/plugin/components/plugin-command-args-body.tsx";
 import { PluginDialogBody } from "../../../../packages/client/src/features/plugin/components/plugin-dialog-body.tsx";
-import { CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry, CtSettingsSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { CtChatContributorSectionRegistry, CtConfigGroupBody, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID } from "../chat/fixtures.ts";
 
@@ -54,23 +55,22 @@ const SETTINGS_PANE_WIDTH = 560;
 /** The CONTEXT pane's docked width — the narrowest REAL host for the "This chat" console section. */
 const CONTEXT_PANE_WIDTH = 384;
 
-/** The plugins anchor's real settings-section roster (SET-SEAMS §5.2): the admin-gated "Distribute to
- *  everyone" section is the only contribution at this anchor. The surface reads the registry from context now
- *  that the pane factories' prop threading is gone, so a surface-outside-shell story MUST supply it (mirrors
- *  main.tsx's door). Its `when` gates on admin, so for these non-admin stories it resolves to nothing and the
- *  surface renders byte-identically to before the fan-out. */
-const pluginsSettingsSections: ReturnType<typeof createContributorRegistry<SettingsSectionContribution>> =
-  createContributorRegistry<SettingsSectionContribution>("settings-sections", [pluginDistributeSection]);
+/** The plugins anchor's real config-section roster, assembled as at the door (config-revamp-design.md §6.8):
+ *  Installed · Add-a-plugin · the admin-gated "Distribute to everyone" section. Rendered through the config
+ *  host's OWN resolver (`CtConfigGroupBody`), so the distribute section's `when` gates on the CT's viewer
+ *  exactly as production does — for a non-admin viewer it resolves out and the group is its two own rows. */
+const pluginsSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> = createContributorRegistry<ConfigSectionContribution>(
+  "config-sections",
+  [pluginsInstalledSection, pluginsInstallSection, pluginDistributeSection],
+);
 
-/** The whole Plugins pane over the stubbed network: the installed list + the install/grant card. */
+/** The whole Plugins group over the stubbed network: the installed list + the install/grant card. */
 export function PluginsSurfaceStory({ width = SETTINGS_PANE_WIDTH }: { readonly width?: number }): ReactElement {
   return (
     <CtDataProviders>
-      <CtSettingsSectionRegistry sections={pluginsSettingsSections}>
-        <div style={{ width }}>
-          <PluginsSettingsSurface />
-        </div>
-      </CtSettingsSectionRegistry>
+      <div style={{ width }}>
+        <CtConfigGroupBody anchor="plugins" sections={pluginsSections} />
+      </div>
     </CtDataProviders>
   );
 }
@@ -148,16 +148,14 @@ export function PluginChatFlankRoomStory({ registered = true }: { readonly regis
 // `plugin.reportUiCrash` — is stubbed by the CT at the NETWORK, so the worker, the interpreter, the wall-clock
 // timer and the publish guard are all the real ones.
 
-/** The Tier-C story: the same Plugins pane, with whatever scripted surface the CT's `listSurfaces` stub
- *  declares. `width` matches the settings modal's real docked column. */
+/** The Tier-C story: the same Plugins group, with whatever scripted surface the CT's `listSurfaces` stub
+ *  declares. `width` matches the CONTENT pane's real docked column. */
 export function PluginScriptedSurfaceStory({ width = SETTINGS_PANE_WIDTH }: { readonly width?: number }): ReactElement {
   return (
     <CtDataProviders>
-      <CtSettingsSectionRegistry sections={pluginsSettingsSections}>
-        <div style={{ width }}>
-          <PluginsSettingsSurface />
-        </div>
-      </CtSettingsSectionRegistry>
+      <div style={{ width }}>
+        <CtConfigGroupBody anchor="plugins" sections={pluginsSections} />
+      </div>
     </CtDataProviders>
   );
 }

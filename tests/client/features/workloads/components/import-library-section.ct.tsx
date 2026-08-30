@@ -15,12 +15,15 @@ import { dropFiles } from "../../../../support/ct/drop-files.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { BackupSettingsStory, LibraryImportEpochStory } from "../_ct-stories.tsx";
 
+/** The host's viewer projection (`useSettingsViewerView`) — the group body resolves each section's `when` off it. */
+const HOST_VIEWER_ROUTE: Readonly<Record<string, unknown>> = { "sessions.me": { userId: "user_ct_import", handle: "ct_import", globalRole: "user" } };
+
 const DROPZONE_ROOT = '[data-slot="file-dropzone"]';
 const A_CARD = { name: "villain.png", mimeType: "image/png", buffer: Buffer.from("PNG") };
 const A_DROPPED_CARD = { name: "villain.png", mimeType: "image/png", content: "PNG" };
 
 test("a REJECTED card import shows NO success ✓ and a non-success toast (0 imported · 1 failed)", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
   const errors: string[] = [];
   page.on("console", (msg) => {
     if (msg.type() === "error") {
@@ -55,7 +58,7 @@ test("a REJECTED card import shows NO success ✓ and a non-success toast (0 imp
 });
 
 test("DRAGGING a card onto the dropzone fires the same POST /api/import the picker does", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
   // The P1 this guards: the drop was swallowed by the dropzone and NO request was ever made (the owner
   // saw a clean server log). Count the real uploads — a passing render proves nothing here.
   const uploads: string[] = [];
@@ -77,7 +80,7 @@ test("DRAGGING a card onto the dropzone fires the same POST /api/import the pick
 });
 
 test("a CLEAN card import shows the success ✓ and a success toast", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
   const errors: string[] = [];
   page.on("console", (msg) => {
     if (msg.type() === "error") {
@@ -107,7 +110,7 @@ test("a CLEAN card import shows the success ✓ and a success toast", async ({ m
 });
 
 test("an older import completion cannot replace the newer batch outcome", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
   const held: import("@playwright/test").Route[] = [];
   await page.route("**/api/import", (route) => {
     held.push(route);
@@ -142,7 +145,7 @@ test("an older import completion cannot replace the newer batch outcome", async 
 });
 
 test("reset revokes an in-flight import instead of letting its completion resurrect the report", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
   let held: import("@playwright/test").Route | undefined;
   await page.route("**/api/import", (route) => {
     held = route;
@@ -173,7 +176,7 @@ test("reset revokes an in-flight import instead of letting its completion resurr
 });
 
 test("a stale workload terminal callback cannot replace a later card-import result", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
   await page.route("**/api/import/bundle", (route) =>
     route.fulfill({
       status: 202,

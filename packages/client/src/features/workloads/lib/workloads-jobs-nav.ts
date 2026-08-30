@@ -1,11 +1,11 @@
-// The Jobs section's nav entry (SET-SEAMS stage 3) — the ONE `SettingsSubcategory` shared by the
+// The Jobs section's nav entry (SET-SEAMS stage 3) — the ONE `ConfigSubcategory` shared by the
 // contribution def and the section body's `<Section>` anchor stamp; split out so neither imports the other
 // (the workloads-tuning-nav precedent). The `(anchor, subId)` pair is byte-identical to the pre-split
 // pane's own subcategory (§7.1), so every deep link and search leaf still lands.
 
-import type { SettingsSubcategory } from "#state";
+import type { ConfigSubcategory } from "#state";
 
-export const WORKLOADS_JOBS_SUBCATEGORY: SettingsSubcategory = {
+export const WORKLOADS_JOBS_SUBCATEGORY: ConfigSubcategory = {
   id: "jobs",
   // "Runs", not "Jobs" (side-eye 2026-08-08 P3, a RULING FORK — see the fork note in `workloads-pane.tsx`):
   // the pane is "Jobs" and this section used to be "Jobs" too, so the settings nav landmark carried two rows

@@ -131,12 +131,37 @@ interface Corpus {
   readonly tags?: readonly unknown[];
   readonly scripts?: readonly unknown[];
   readonly books?: readonly unknown[];
+  /** The FOURTH collection (casts joined the closed tuple, #866 S1 / F-1). Absent = an empty library, which
+   *  is the honest default for every test below: the cast collection declares no `preview` yet, so a BUILT
+   *  cast would be exactly the hollow shell the lead column's grammar forbids — it belongs in the rail until
+   *  it can pay for a hero. */
+  readonly casts?: readonly unknown[];
 }
+
+/** One saved cast in the `rosterPreset.list` wire shape (the cast-picker CT's fixture, un-branded). */
+const CAST = {
+  id: "roster_preset_ct_welcome",
+  name: "Adventuring Cast",
+  description: "",
+  memberCount: 2,
+  members: [
+    { characterId: "character_ct_1", position: 0, talkativeness: null, disabled: false, name: "Ash", avatarHash: null },
+    { characterId: "character_ct_2", position: 1, talkativeness: 0.8, disabled: false, name: "Brook", avatarHash: null },
+  ],
+  anchorPersonaId: null,
+  hasGroupConfig: true,
+  rules: [],
+  createdAt: 1,
+  updatedAt: 1,
+};
 
 /** The route table on its own, so the first-paint tests can swap ONE procedure for a `trpcHold()` without
  *  re-spelling the other nine. */
 function stubRoutes(corpus: Corpus): TrpcRoutes {
   return {
+    // The fourth collection (casts) + the viewer projection the LIST's `when` gate reads (#866 S1).
+    "rosterPreset.list": () => corpus.casts ?? [],
+    "sessions.me": { userId: "user_ct_welcome", handle: "ct_welcome", globalRole: "user" },
     "tag.listTagsWithUsage": () => corpus.tags ?? [],
     "tag.createTag": () => tagRow(TAG_COUNT, 0),
     "regex.listScripts": () => corpus.scripts ?? [],
@@ -190,7 +215,7 @@ function resolvedPx(scope: Locator, token: string): Promise<number> {
 test("the welcome FILLS the content pane — no centred column", async ({ mount, page }) => {
   await stub(page, { tags: TAGS });
   const pane = await mount(<ConfigWelcomeStory />);
-  await settled(pane, 1, 2);
+  await settled(pane, 1, 3);
 
   const inset = await resolvedPx(pane.locator(CONTENT), "--spacing-section");
   expect(inset).toBeGreaterThan(0);
@@ -225,7 +250,7 @@ test("the welcome FILLS the content pane — no centred column", async ({ mount,
 test("the surface renders the full six-step ramp, display step included", async ({ mount, page }) => {
   await stub(page, { tags: TAGS });
   const pane = await mount(<ConfigWelcomeStory />);
-  await settled(pane, 1, 2);
+  await settled(pane, 1, 3);
 
   const display = await resolvedPx(pane.locator(CONTENT), "--text-display");
   const headline = await resolvedPx(pane.locator(CONTENT), "--text-headline");
@@ -264,7 +289,7 @@ test("the surface renders the full six-step ramp, display step included", async 
 test("the built library LEADS and the not-built ones sit in the rail beside it", async ({ mount, page }) => {
   await stub(page, { tags: TAGS });
   const pane = await mount(<ConfigWelcomeStory />);
-  await settled(pane, 1, 2);
+  await settled(pane, 1, 3);
 
   const welcome = await box(pane.locator(WELCOME));
   const hero = await box(pane.locator(BUILT));
@@ -281,7 +306,7 @@ test("the built library LEADS and the not-built ones sit in the rail beside it",
   expect(Math.abs(regex.x - world.x), "the rail's slots share one column").toBeLessThanOrEqual(1);
   expect(world.y, "and they stack inside it").toBeGreaterThan(regex.y);
   // NO HOLE AT ANY WIDTH: every collection is rendered exactly once, in one of the two columns.
-  await expect(pane.locator("[data-collection]")).toHaveCount(3);
+  await expect(pane.locator("[data-collection]")).toHaveCount(4);
 });
 
 // ── THE PROMOTION IS PAID FOR ───────────────────────────────────────────────────────────────────────
@@ -292,7 +317,7 @@ test("the built library LEADS and the not-built ones sit in the rail beside it",
 test("the hero shows the library's real contents and still sheds the count + create verb", async ({ mount, page }) => {
   await stub(page, { tags: TAGS });
   const pane = await mount(<ConfigWelcomeStory />);
-  await settled(pane, 1, 2);
+  await settled(pane, 1, 3);
 
   const hero = pane.locator(BUILT);
   // MOST USED, ranked — the fixture's usage descends with the index, so the top chip is the first tag and
@@ -324,7 +349,7 @@ test("the hero shows the library's real contents and still sheds the count + cre
 test("the door is a short-named control and the census is CONTENT, not part of a label", async ({ mount, page }) => {
   await stub(page, { tags: TAGS });
   const pane = await mount(<ConfigWelcomeStory />);
-  await settled(pane, 1, 2);
+  await settled(pane, 1, 3);
 
   const door = pane.getByRole("button", { name: TAGS_LAUNCHER });
   // The name the assistive tech actually computes, not the source string.
@@ -351,18 +376,18 @@ test("the door is a short-named control and the census is CONTENT, not part of a
 test("with NOTHING built the invitations take the whole pane — no empty lead track, no hole", async ({ mount, page }) => {
   await stub(page, {});
   const pane = await mount(<ConfigWelcomeStory />);
-  await settled(pane, 0, 3);
+  await settled(pane, 0, 4);
 
   const welcome = await box(pane.locator(WELCOME));
-  const slots = await Promise.all(["tags", "regex", "worldInfo"].map(async (id) => box(pane.locator(`[data-config-unbuilt="${id}"]`))));
+  const slots = await Promise.all(["tags", "regex", "worldInfo", "cast"].map(async (id) => box(pane.locator(`[data-config-unbuilt="${id}"]`))));
   const spanned = Math.max(...slots.map((slot) => slot.x + slot.width)) - Math.min(...slots.map((slot) => slot.x));
   expect(spanned, "the invitations span the surface instead of a leftover rail").toBeCloseTo(welcome.width, 0);
 
-  // Each keeps its count(0) + create verb — the 2026-08-03 cold-first-timer verdict, untouched. The door
-  // array's whole create vocabulary is `New tag` / `New script` / `New book`, so the pattern is total.
-  await expect(pane.locator(WELCOME).getByRole("button", { name: ANY_CREATE_VERB })).toHaveCount(3);
+  // Each keeps its count(0) + create verb — the 2026-08-03 cold-first-timer verdict, untouched. The door's
+  // whole create vocabulary is `New tag` / `New script` / `New book` / `New cast`, so the pattern is total.
+  await expect(pane.locator(WELCOME).getByRole("button", { name: ANY_CREATE_VERB })).toHaveCount(4);
   await expect(pane.locator(WELCOME).getByRole("button", { name: "New tag" })).toBeVisible();
-  await expect(pane.locator(WELCOME).getByText("0", { exact: true })).toHaveCount(3);
+  await expect(pane.locator(WELCOME).getByText("0", { exact: true })).toHaveCount(4);
 });
 
 // ── THE FULLY-BUILT CORPUS ──────────────────────────────────────────────────────────────────────────
@@ -370,9 +395,9 @@ test("with NOTHING built the invitations take the whole pane — no empty lead t
 // name, so the band must not render over nothing — and the surface must still promote exactly ONE island,
 // or it has no focal at all.
 test("with EVERYTHING built the rail's band disappears and exactly ONE island is focal", async ({ mount, page }) => {
-  await stub(page, { tags: TAGS, scripts: SCRIPTS, books: BOOKS });
+  await stub(page, { tags: TAGS, scripts: SCRIPTS, books: BOOKS, casts: [CAST] });
   const pane = await mount(<ConfigWelcomeStory />);
-  await settled(pane, 3, 0);
+  await settled(pane, 4, 0);
 
   // A band over an empty group is chrome that lies about what is under it. The claim is VISIBILITY, not
   // DOM count: the column stands itself down with `display: none` (which also drops it from the
@@ -399,9 +424,9 @@ test("with EVERYTHING built the rail's band disappears and exactly ONE island is
 // carried the LEAST of it, and CD3 became arm-conditional. The claim is now unconditional, so the pin
 // drives BOTH appearance arms and asserts they agree.
 test("exactly one focal at rest, and its accent does not collapse under theme colorization", async ({ mount, page }) => {
-  await stub(page, { books: BOOKS, scripts: SCRIPTS, tags: TAGS });
+  await stub(page, { books: BOOKS, scripts: SCRIPTS, tags: TAGS, casts: [CAST] });
   const pane = await mount(<ConfigWelcomeStory />);
-  await settled(pane, 3, 0);
+  await settled(pane, 4, 0);
 
   // Read off the PAINTED pseudo-elements, per card — a class-list assertion would survive the variant
   // breaking, and `first:` is the whole CD3 verdict.
@@ -491,7 +516,7 @@ test("a settling count paints NO slot — the in-flight arm is neither column (t
   await expect(pane.locator('[data-slot="config-hearth"]'), "the hearth does not paint a geometry it is about to change").toBeHidden();
 
   hold.release(TAGS);
-  await settled(pane, 1, 2);
+  await settled(pane, 1, 3);
   // …and the geometry the reader FIRST sees is the settled one, because the slots that could have moved
   // were never rendered before it: the hero on the surface's left edge, the rail beside it.
   const welcome = await box(pane.locator(WELCOME));
@@ -535,7 +560,7 @@ test("landing the counts shifts NOTHING — the browser's own layout-shift score
   }, shiftAttr);
 
   hold.release(TAGS);
-  await settled(pane, 1, 2);
+  await settled(pane, 1, 3);
 
   // A shift is only ever scored against content that was ALREADY on screen, so this is the direct
   // measurement of the reported defect: pre-fix the two rail invitations were on screen and moved half the
@@ -550,7 +575,7 @@ test("landing the counts shifts NOTHING — the browser's own layout-shift score
 test("the hero is an operable door, by pointer and by keyboard", async ({ mount, page }) => {
   await stub(page, { tags: TAGS });
   const pane = await mount(<ConfigWelcomeStory />);
-  await settled(pane, 1, 2);
+  await settled(pane, 1, 3);
 
   const door = pane.getByRole("button", { name: TAGS_LAUNCHER });
   await expect(door).toBeVisible();
@@ -572,7 +597,7 @@ test("the hero is an operable door, by pointer and by keyboard", async ({ mount,
 test("every hero in the lead column shows real contents — no hollow shells", async ({ mount, page }) => {
   await stub(page, { tags: TAGS, scripts: SCRIPTS, books: BOOKS });
   const pane = await mount(<ConfigWelcomeStory />);
-  await settled(pane, 3, 0);
+  await settled(pane, 3, 1);
 
   // EACH card carries a wall — asserted per collection, because a total count would pass on three walls in
   // one card. The kicker is the CONTRIBUTION's own word for its rank: a hardcoded host "Most used" over a
@@ -608,7 +633,7 @@ test("every hero in the lead column shows real contents — no hollow shells", a
 test("every launcher blurb is capped at the reading measure, like the masthead", async ({ mount, page }) => {
   await stub(page, { tags: TAGS, scripts: SCRIPTS, books: BOOKS });
   const pane = await mount(<ConfigWelcomeStory />);
-  await settled(pane, 3, 0);
+  await settled(pane, 3, 1);
 
   const measured = await Promise.all(
     (["tags", "regex", "worldInfo"] as const).map(async (id) => {
@@ -633,7 +658,7 @@ test("every launcher blurb is capped at the reading measure, like the masthead",
 test("the island blurbs are read at the prose step, not the 10.5px footnote step", async ({ mount, page }) => {
   await stub(page, { books: BOOKS, scripts: SCRIPTS, tags: TAGS });
   const pane = await mount(<ConfigWelcomeStory />);
-  await settled(pane, 3, 0);
+  await settled(pane, 3, 1);
 
   const micro = await resolvedPx(pane.locator(CONTENT), "--text-micro");
   const label = await resolvedPx(pane.locator(CONTENT), "--text-label");
@@ -641,7 +666,8 @@ test("the island blurbs are read at the prose step, not the 10.5px footnote step
 
   const blurbs = pane.locator(WELCOME).locator('[data-slot="text"][data-voice="gloss"]');
   const sizes = await blurbs.evaluateAll((nodes) => nodes.map((node) => Number.parseFloat(getComputedStyle(node).fontSize)));
-  expect(sizes.length, "every built island carries a blurb").toBe(3);
+  // Three heroes + the cast library's rail invitation (empty in this fixture) — every island teaches.
+  expect(sizes.length, "every island — the three heroes and the cast invitation — carries a blurb").toBe(4);
   for (const size of sizes) {
     expect(size, `a teaching sentence renders at ${String(size)}px`).toBeCloseTo(label, 1);
   }
@@ -660,7 +686,7 @@ test("the island blurbs are read at the prose step, not the 10.5px footnote step
 test("two members with the SAME NAME both appear in the wall, and the remainder still adds up", async ({ mount, page }) => {
   await stub(page, { tags: SAME_NAME_TAGS });
   const pane = await mount(<ConfigWelcomeStory />);
-  await settled(pane, 1, 2);
+  await settled(pane, 1, 3);
 
   const hero = pane.locator('[data-config-built="tags"]');
   const chips = hero.locator('[data-slot="badge"]').filter({ hasText: DUPLICATE_NAME });
@@ -680,7 +706,7 @@ test("two members with the SAME NAME both appear in the wall, and the remainder 
 test("a detail that is the same on every chip is dropped — the wall carries names alone", async ({ mount, page }) => {
   await stub(page, { scripts: SAME_STAMP_SCRIPTS, tags: TAGS });
   const pane = await mount(<ConfigWelcomeStory />);
-  await settled(pane, 2, 1);
+  await settled(pane, 2, 2);
 
   const regex = pane.locator('[data-config-built="regex"]');
   // The wall is still there, and it is still the library's own members.

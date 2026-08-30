@@ -26,7 +26,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { RegexScriptPicker } from "#components";
 import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
-import { goToCollection } from "#state";
+import { openConfigTo } from "#state";
 
 const PICKER_SKELETON_ROWS = 3;
 /** The library's own collection KIND in the Configuration workspace (it left the settings modal at the
@@ -67,7 +67,7 @@ export function RegexTab({ presetId, attachable }: { readonly presetId: PresetId
         scope={{ kind: "preset", presetId }}
         heading={REGEX_HEADING}
         helperText="Find/replace rules this preset runs, picked from your script library. The CONTEXT readout shows where each stage sits in the pipeline."
-        onOpenLibrary={(): void => goToCollection(REGEX_COLLECTION)}
+        onOpenLibrary={(): void => openConfigTo(REGEX_COLLECTION)}
       />
     </QueryBoundary>
   );

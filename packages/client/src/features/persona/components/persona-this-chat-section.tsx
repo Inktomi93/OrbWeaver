@@ -17,7 +17,7 @@ import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { Trpc } from "#data";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
@@ -52,8 +52,19 @@ function memberAnchorOptions(chat: ChatDetail): readonly { readonly personaId: P
   );
 }
 
-/** The "This chat" section — absent (returns `null`) when no chat is active or its detail hasn't loaded. */
-export function PersonaThisChatSection(): ReactElement | null {
+export interface PersonaThisChatSectionProps {
+  /** The Config mount's `this-chat` anchor (config-revamp-design §6.8.2 — the contribution passes it; the
+   *  "pinned" part is a search LEAF under this section, not a second id) — absent in the rail popover and
+   *  the You sheet, so the shared component never duplicates an id across its three mounts. */
+  readonly anchorId?: string;
+  /** What the Config mount shows when NO chat is active, so its LIST row never scrolls to nothing. Absent
+   *  (the rail popover, the You sheet) = the section unmounts, byte-identical to before. */
+  readonly idle?: ReactNode;
+}
+
+/** The "This chat" section — absent (returns `null`) when no chat is active or its detail hasn't loaded,
+ *  unless the mount hands it an `idle` body to say so in words. */
+export function PersonaThisChatSection({ anchorId, idle }: PersonaThisChatSectionProps = {}): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const chatId = useActiveChatId();
@@ -70,7 +81,14 @@ export function PersonaThisChatSection(): ReactElement | null {
   const setAnchor = useSetChatAnchorPersona({ trpc, invalidation });
   const reattribute = useReattributePersona({ trpc, invalidation });
 
-  if (chatId === null || chat === undefined) {
+  if (chatId === null) {
+    return idle === undefined ? null : (
+      <Section heading="This chat" id={anchorId}>
+        {idle}
+      </Section>
+    );
+  }
+  if (chat === undefined) {
     return null;
   }
 
@@ -116,7 +134,7 @@ export function PersonaThisChatSection(): ReactElement | null {
   };
 
   return (
-    <Section heading="This chat">
+    <Section heading="This chat" id={anchorId}>
       <Row gap="row" align="center" className="justify-between">
         <Text size="label">Playing as</Text>
         <Menu>

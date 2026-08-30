@@ -3,7 +3,8 @@
 // projection they consume is state-owned (`#state` cannot import `#data`'s `Viewer` — `client-state-below-
 // data` has no type-only exemption). The DERIVATION homes here, in `#data`, so the settings shell (nav +
 // search) and every host pane's surface (render) run the SAME predicate off ONE cached read instead of
-// re-spelling `globalRole === "owner" || "admin"` per surface.
+// re-spelling `globalRole === "owner" || "admin"` per surface. `isOwner` (config-revamp-design.md §6.8)
+// gates the host-Claude probe section the same way.
 //
 // A non-suspense probe deliberately: `when` gating must never block a pane from painting — an unresolved
 // viewer reads as non-admin, and the shell re-applies a deep link once visibility GROWS.
@@ -18,6 +19,7 @@ import { useTRPC } from "./trpc.ts";
 export function useSettingsViewerView(): SettingsViewerView {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.sessions.me.queryOptions());
-  const isAdmin = data?.globalRole === "owner" || data?.globalRole === "admin";
-  return { isAdmin };
+  const isOwner = data?.globalRole === "owner";
+  const isAdmin = isOwner || data?.globalRole === "admin";
+  return { isAdmin, isOwner };
 }

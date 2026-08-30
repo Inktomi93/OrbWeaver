@@ -1,27 +1,125 @@
 // config feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
 //
-// The story assembles the REAL door array (`tagCollection` + `regexCollection` + `worldInfoCollection`) into a real
-// `config-collections` registry and mounts the three panes the shell would mount, so the CTs drive the
-// production seam end to end: host frame → contribution rows → kinded selection → contribution editor →
-// contribution context. Nothing here is a test double.
+// The stories mount the REAL config host panes (LIST · CONTENT · CONTEXT) over the REAL door registries: the
+// 13-group `config-groups` registry (`ctRealConfigGroups`, total over CONFIG_GROUP_IDS — the nine settings
+// skimmers + the four collections) and the REAL door-ordered config-section registry
+// (`CtRealConfigSectionRegistry`), so the CTs drive the production seam end to end: host frame → shelves +
+// bands → contributed sections / collection rows → kinded selection → member editor → context. Nothing
+// here is a test double.
 //
 // The `reset groups` button is determinism, not product: the disclosure store is device-local
 // (localStorage), and a CT that inherited another run's expanded set would assert the wrong first frame.
 
-import type { CollectionContribution } from "@orb/client/lib";
-import { createContributorRegistry } from "@orb/client/lib";
-import { __resetCollectionGroupOpen, clearCollectionSelection, setMobileViewport } from "@orb/client/state";
-import type { ReactElement } from "react";
+import type { ConfigGroupId } from "@orb/client/state";
+import { __resetConfigGroupOpen, __resetConfigNav, clearCollectionSelection, openConfigTo, setMobileViewport } from "@orb/client/state";
+import { TooltipProvider } from "@orb/ui/tooltip";
+import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { ConfigContextBody, ConfigContextHeader } from "../../../../packages/client/src/features/config/components/config-context-body.tsx";
 import { ConfigContentSurface } from "../../../../packages/client/src/features/config/surfaces/config-content-surface.tsx";
-import { ConfigRosterSurface } from "../../../../packages/client/src/features/config/surfaces/config-roster-surface.tsx";
-import { regexCollection } from "../../../../packages/client/src/features/regex/index.ts";
-import { tagCollection } from "../../../../packages/client/src/features/tag/index.ts";
-import { worldInfoCollection } from "../../../../packages/client/src/features/world-info/index.ts";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { ConfigListSurface } from "../../../../packages/client/src/features/config/surfaces/config-list-surface.tsx";
+import { placeholderConfigGroups, realConfigGroups } from "../../../support/ct/ct-config-groups.ts";
+import { CtDataProviders, CtRealConfigSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 
-const collections = createContributorRegistry<CollectionContribution>("config-collections", [tagCollection, regexCollection, worldInfoCollection]);
+/** The determinism button every story carries: the disclosure memory, the nav and the selection all reset. */
+function ResetGroupsButton(): ReactElement {
+  return (
+    <button
+      type="button"
+      onClick={(): void => {
+        __resetConfigGroupOpen();
+        __resetConfigNav();
+        clearCollectionSelection();
+      }}
+    >
+      reset groups
+    </button>
+  );
+}
+
+/** The DEFAULT docked LIST pane, measured on the live app at 307px (CONTEXT collapsed, LIST docked) — the
+ *  state a reader arrives in. */
+const DEFAULT_LIST_PX = 307;
+
+export interface ConfigHostStoryProps {
+  /** Seed a deep link BEFORE first render (the `openConfigTo` seam): the lazy `useState` initializer runs
+   *  exactly once, synchronously, so `useConfigTarget()` reads the target on the first render — reproducing
+   *  a cold `__orb.nav.openConfig(target)` where the `sessions.me` probe is still in flight. */
+  readonly target?: ConfigGroupId;
+  /** The SUB-level deep link (SET-SEAMS §10 Q4): the jump to `configAnchorId(target, sub)` lands once the
+   *  group's DOM has the anchor. */
+  readonly sub?: string;
+  readonly width?: number;
+  readonly height?: number;
+  /** The #696 placeholder registry (connections → `{ placeholder: true }`) in place of the real one. */
+  readonly placeholder?: boolean;
+  /** Extra provider-nested children (a socket host, a probe) — rendered under the data layer. */
+  readonly children?: ReactNode;
+}
+
+/** The config HOST: the LIST and CONTENT panes side by side over the real registries, in a fixed box, the
+ *  way the shell mounts them (LIST docked at its default width, CONTENT filling the rest). The ONLY way to
+ *  mount a `sections` skimmer since config-revamp-design.md §6.8 — a group has no surface of its own. */
+export function ConfigHostStory({ target, sub, width = 900, height = 560, placeholder = false, children }: ConfigHostStoryProps): ReactElement {
+  useState(() => {
+    __resetConfigNav();
+    if (target !== undefined) {
+      openConfigTo(target, sub);
+    }
+    return null;
+  });
+  const groups = placeholder ? placeholderConfigGroups : realConfigGroups;
+  return (
+    <CtDataProviders>
+      <CtRealConfigSectionRegistry>
+        <TooltipProvider>
+          <ResetGroupsButton />
+          {children}
+          {/* `minHeight: 0` on BOTH flex items is load-bearing: a row's items default to `min-height: auto`,
+              so a tall CONTENT child would GROW the box past `height` instead of scrolling inside it — and
+              the region's own `overflow-y-auto` (the one scroller the spy listens to) would never engage. */}
+          <div style={{ display: "flex", height, width }}>
+            <div style={{ minHeight: 0, overflow: "auto", width: DEFAULT_LIST_PX }}>
+              <ConfigListSurface groups={groups} />
+            </div>
+            <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
+              <ConfigContentSurface groups={groups} />
+            </div>
+          </div>
+        </TooltipProvider>
+      </CtRealConfigSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The host inside the RUNNING APP'S containing-block topology: a POSITIONED, height-capped,
+ *  `overflow-y:auto` host around the CONTENT pane. That is what the shell's CONTENT region resolves to live
+ *  (the settings-modal era measured `[data-slot=dialog-popup]` clientHeight 1014 / scrollHeight 2900 with
+ *  the pane's `sr-only` Base UI boxes landing on the popup). The plain host story cannot see this: in the
+ *  CT harness a bare flex box computes `position: static`, so the escaping boxes land on the viewport and
+ *  inflate nothing. This story restores the one property the harness drops (a positioned scrolling host)
+ *  and nothing else. */
+export function ConfigHostInScrollingHostStory({ target = "appearance" }: { readonly target?: ConfigGroupId }): ReactElement {
+  useState(() => {
+    __resetConfigNav();
+    openConfigTo(target);
+    return null;
+  });
+  const groups = realConfigGroups;
+  return (
+    <CtDataProviders>
+      <CtRealConfigSectionRegistry>
+        <TooltipProvider>
+          <div data-testid="scrolling-host" style={{ height: 560, overflowY: "auto", position: "relative", width: 600 }}>
+            <div style={{ height: "100%" }}>
+              <ConfigContentSurface groups={groups} />
+            </div>
+          </div>
+        </TooltipProvider>
+      </CtRealConfigSectionRegistry>
+    </CtDataProviders>
+  );
+}
 
 /** The roster's content box at the NARROWEST real docked LIST pane: `--dimension-panel` clamps at 17rem
  *  (272px) and the panel body pays its own inline padding out of that. Measured, not guessed — the band's
@@ -33,18 +131,12 @@ const NARROW_ROSTER_PX = 271;
 export function ConfigRosterNarrowStory(): ReactElement {
   return (
     <CtDataProviders>
-      <button
-        type="button"
-        onClick={(): void => {
-          __resetCollectionGroupOpen();
-          clearCollectionSelection();
-        }}
-      >
-        reset groups
-      </button>
-      <div style={{ overflow: "hidden", width: NARROW_ROSTER_PX }}>
-        <ConfigRosterSurface collections={collections} />
-      </div>
+      <CtRealConfigSectionRegistry>
+        <ResetGroupsButton />
+        <div style={{ overflow: "hidden", width: NARROW_ROSTER_PX }}>
+          <ConfigListSurface groups={realConfigGroups} />
+        </div>
+      </CtRealConfigSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -53,23 +145,15 @@ export function ConfigRosterNarrowStory(): ReactElement {
  *  collapsed, LIST docked), measured on the live app at 307px. The narrow story above is the OTHER end of
  *  the range (both panes open); a row-width fix has to hold at BOTH, because a point measurement never
  *  proves a range property. */
-const DEFAULT_ROSTER_PX = 307;
-
 export function ConfigRosterDefaultStory(): ReactElement {
   return (
     <CtDataProviders>
-      <button
-        type="button"
-        onClick={(): void => {
-          __resetCollectionGroupOpen();
-          clearCollectionSelection();
-        }}
-      >
-        reset groups
-      </button>
-      <div style={{ overflow: "hidden", width: DEFAULT_ROSTER_PX }}>
-        <ConfigRosterSurface collections={collections} />
-      </div>
+      <CtRealConfigSectionRegistry>
+        <ResetGroupsButton />
+        <div style={{ overflow: "hidden", width: DEFAULT_LIST_PX }}>
+          <ConfigListSurface groups={realConfigGroups} />
+        </div>
+      </CtRealConfigSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -82,25 +166,28 @@ export function ConfigRosterDefaultStory(): ReactElement {
  *  `CorpusSectionArrivalStory` precedent, re-spelled for this workspace.) */
 export function ConfigSectionArrivalStory(): ReactElement {
   const [inConfig, setInConfig] = useState(true);
+  const groups = realConfigGroups;
   return (
     <CtDataProviders>
-      <button type="button" onClick={(): void => setInConfig((here) => !here)}>
-        {inConfig ? "Leave Configuration" : "Back to Configuration"}
-      </button>
-      <div style={{ display: "flex", height: 640, width: 900 }}>
-        {inConfig ? (
-          <>
-            <div style={{ width: 330 }}>
-              <ConfigRosterSurface collections={collections} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <ConfigContentSurface collections={collections} />
-            </div>
-          </>
-        ) : (
-          <p>Another section</p>
-        )}
-      </div>
+      <CtRealConfigSectionRegistry>
+        <button type="button" onClick={(): void => setInConfig((here) => !here)}>
+          {inConfig ? "Leave Configuration" : "Back to Configuration"}
+        </button>
+        <div style={{ display: "flex", height: 640, width: 900 }}>
+          {inConfig ? (
+            <>
+              <div style={{ width: 330 }}>
+                <ConfigListSurface groups={groups} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <ConfigContentSurface groups={groups} />
+              </div>
+            </>
+          ) : (
+            <p>Another section</p>
+          )}
+        </div>
+      </CtRealConfigSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -117,24 +204,18 @@ const CONTENT_PANE_PX = 917;
 export function ConfigWelcomeStory(): ReactElement {
   return (
     <CtDataProviders>
-      <button
-        type="button"
-        onClick={(): void => {
-          __resetCollectionGroupOpen();
-          clearCollectionSelection();
-        }}
-      >
-        reset groups
-      </button>
-      {/* The inner `flex: 1` is load-bearing, not ceremony (it is also what the workspace story does): the
-          surface's root `<Container>` is `h-full` with no width of its own, so as a bare flex ITEM it
-          shrinks to its content and the whole pane renders at ~26px — every geometry assertion then reads
-          zero and the surface measures as `hidden`. */}
-      <div style={{ display: "flex", height: 752, width: CONTENT_PANE_PX }}>
-        <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
-          <ConfigContentSurface collections={collections} />
+      <CtRealConfigSectionRegistry>
+        <ResetGroupsButton />
+        {/* The inner `flex: 1` is load-bearing, not ceremony (it is also what the workspace story does): the
+            surface's root `<Container>` is `h-full` with no width of its own, so as a bare flex ITEM it
+            shrinks to its content and the whole pane renders at ~26px — every geometry assertion then reads
+            zero and the surface measures as `hidden`. */}
+        <div style={{ display: "flex", height: 752, width: CONTENT_PANE_PX }}>
+          <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
+            <ConfigContentSurface groups={realConfigGroups} />
+          </div>
         </div>
-      </div>
+      </CtRealConfigSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -150,62 +231,51 @@ const PHONE_PX = 430;
 export function ConfigMobileRosterStory(): ReactElement {
   return (
     <CtDataProviders>
-      <button
-        type="button"
-        onClick={(): void => {
-          __resetCollectionGroupOpen();
-          clearCollectionSelection();
-        }}
-      >
-        reset groups
-      </button>
-      <button onClick={(): void => setMobileViewport(true)} type="button">
-        go mobile
-      </button>
-      <button onClick={(): void => setMobileViewport(false)} type="button">
-        go desktop
-      </button>
-      <div style={{ display: "flex", height: 700, width: PHONE_PX }}>
-        <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
-          <ConfigRosterSurface collections={collections} />
+      <CtRealConfigSectionRegistry>
+        <ResetGroupsButton />
+        <button onClick={(): void => setMobileViewport(true)} type="button">
+          go mobile
+        </button>
+        <button onClick={(): void => setMobileViewport(false)} type="button">
+          go desktop
+        </button>
+        <div style={{ display: "flex", height: 700, width: PHONE_PX }}>
+          <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
+            <ConfigListSurface groups={realConfigGroups} />
+          </div>
         </div>
-      </div>
+      </CtRealConfigSectionRegistry>
     </CtDataProviders>
   );
 }
 
-/** The whole Configuration workspace: LIST roster · CONTENT · CONTEXT, over the real collections. */
+/** The whole Configuration workspace: LIST roster · CONTENT · CONTEXT, over the real registries. */
 export function ConfigWorkspaceStory(): ReactElement {
+  const groups = realConfigGroups;
   return (
     <CtDataProviders>
-      <button
-        type="button"
-        onClick={(): void => {
-          __resetCollectionGroupOpen();
-          clearCollectionSelection();
-        }}
-      >
-        reset groups
-      </button>
-      <div style={{ display: "flex", height: 700, width: 1100 }}>
-        <div style={{ overflow: "auto", width: 330 }}>
-          <ConfigRosterSurface collections={collections} />
-        </div>
-        <div style={{ flex: 1, overflow: "auto" }}>
-          <ConfigContentSurface collections={collections} />
-        </div>
-        {/* The CONTEXT pane as the SHELL assembles it: the definition's `header` in the band, its `body`
-            below. Mounting the body alone hid a defect only the PAIR shows — the band echoing the body's own
-            empty-state title, so one pane stated one fact twice. `header` may decline (render nothing), which
-            in production resolves to the shell's neutral band; the story keeps the slot so the pair is
-            addressable either way. */}
-        <div data-slot="ct-config-context-pane" style={{ overflow: "auto", width: 360 }}>
-          <div data-slot="ct-config-context-band">
-            <ConfigContextHeader collections={collections} />
+      <CtRealConfigSectionRegistry>
+        <ResetGroupsButton />
+        <div style={{ display: "flex", height: 700, width: 1100 }}>
+          <div style={{ overflow: "auto", width: 330 }}>
+            <ConfigListSurface groups={groups} />
           </div>
-          <ConfigContextBody collections={collections} />
+          <div style={{ flex: 1, overflow: "auto" }}>
+            <ConfigContentSurface groups={groups} />
+          </div>
+          {/* The CONTEXT pane as the SHELL assembles it: the definition's `header` in the band, its `body`
+              below. Mounting the body alone hid a defect only the PAIR shows — the band echoing the body's own
+              empty-state title, so one pane stated one fact twice. `header` may decline (render nothing), which
+              in production resolves to the shell's neutral band; the story keeps the slot so the pair is
+              addressable either way. */}
+          <div data-slot="ct-config-context-pane" style={{ overflow: "auto", width: 360 }}>
+            <div data-slot="ct-config-context-band">
+              <ConfigContextHeader groups={groups} />
+            </div>
+            <ConfigContextBody groups={groups} />
+          </div>
         </div>
-      </div>
+      </CtRealConfigSectionRegistry>
     </CtDataProviders>
   );
 }

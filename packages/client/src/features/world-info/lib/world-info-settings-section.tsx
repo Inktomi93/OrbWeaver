@@ -3,7 +3,7 @@
 // assembles it into the chat-behavior pane's settings-section registry (G8). World-info OWNS this section,
 // so it lands here instead of growing features/settings (pain-point §7).
 
-import type { SettingsSectionContribution } from "#state";
+import type { ConfigSectionContribution } from "#state";
 import { WorldInfoSettingsSection } from "../components/world-info-settings-section.tsx";
 import { WORLD_INFO_SETTINGS_SUBCATEGORY } from "./world-info-settings-nav.ts";
 
@@ -11,7 +11,7 @@ import { WORLD_INFO_SETTINGS_SUBCATEGORY } from "./world-info-settings-nav.ts";
 // its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.
 const SECTION_ID = "world-info-settings";
 
-export const worldInfoSettingsSection: SettingsSectionContribution = {
+export const worldInfoSettingsSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "chat-behavior",
   nav: WORLD_INFO_SETTINGS_SUBCATEGORY,
