@@ -52,6 +52,7 @@ import type { AppFormInstance, AutosaveSession } from "#forms";
 import { createAutosaveEntityForm } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { setPresetEditorView, usePresetEditorView } from "#state";
+import { BuiltInCopyOnWriteNotice } from "../components/built-in-copy-on-write-notice.tsx";
 import { PresetEditorHeader } from "../components/preset-editor-header.tsx";
 import { PresetForkChoiceDialog } from "../components/preset-fork-choice-dialog.tsx";
 import { usePresetAutosave } from "../hooks/use-preset-autosave.ts";
@@ -280,6 +281,23 @@ function PresetEditorBody({
           onRetrySave={retrySave}
           onConfirmReset={confirmReset}
         />
+
+        {/* THE COPY-ON-WRITE RULE, WHERE THE EDIT HAPPENS (side-eye 2026-08-30 P2-A) — the surface's own
+            finding was that the rule lived in the FIFTH tab's third section while the edit that triggers it
+            happens on any of the five, so it sits above the view bodies and under the band, in the SAME
+            capped column both of those ride (the header's note argues that column; it is stated twice on
+            purpose so neither can drift).
+            IT IS NOT INSIDE THE PANELS, and that is a measured correction, not a preference: `TabsPanel`'s
+            own header says "Base UI keeps only the OPEN panel mounted", and the CT strict-mode violation
+            says otherwise — after tabbing Params→Prompt→Actions→Data, TWO panels held the notice at once.
+            One notice per tab-visit is a paragraph the DOM accumulates and a locator cannot resolve. */}
+        {isSystemDefault ? (
+          <Container className="w-full">
+            <Stack className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide)" padding="block">
+              <BuiltInCopyOnWriteNotice active={active} />
+            </Stack>
+          </Container>
+        ) : null}
 
         {PRESET_EDITOR_VIEWS.map((entry) => (
           <TabsPanel key={entry.id} value={entry.id}>

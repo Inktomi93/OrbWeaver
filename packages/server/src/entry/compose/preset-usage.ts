@@ -11,9 +11,10 @@
 // room's generation config is resolved per turn from its HOST's `UserSettings.seeds.defaultPresetId`
 // (`entry/compose/chat.ts::resolvePromptConfigFor`). So "which chats reference this preset" has exactly two
 // honest answers, and they are different KINDS of answer:
-//   • the ACTIVE PICK — a setting, not a room list. `defaultPresetId === id` means every room this user
-//     hosts runs it, which is a fact about the user, and enumerating their rooms to say so would just
-//     restate the chats list.
+//   • the ACTIVE PICK — a setting, not a room list. When the seed resolves to this preset (`isActivePick`
+//     below — and `null` resolves to the BUILT-IN, not to nothing) every room this user hosts runs it,
+//     which is a fact about the user, and enumerating their rooms to say so would just restate the chats
+//     list.
 //   • the GM VOICE REDIRECT — `rpg_games.gmPresetId` (rpg §4.11 #1), the one genuinely PER-ROOM preset
 //     binding: an rpg game whose narrator turns resolve this preset instead of the host's default. Those
 //     rooms go through the shared leak-safe filter, because a game's room is a room like any other (D18):
@@ -27,10 +28,32 @@
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { rpgGames } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, PresetId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { ResolvePresetUsageOp } from "#domain/preset";
+import { SYSTEM_DEFAULT_PRESET_ID } from "#domain/preset";
 import type { SettingsService } from "#domain/settings";
+
+/** Is `presetId` the user's ACTIVE pick, reading the seed the way the RUNNER does (side-eye 2026-08-30 P1-A)?
+ *
+ *  `seeds.defaultPresetId === null` is not "unset, so nothing is picked" — it is "no EXPLICIT pick", and
+ *  `entry/compose/chat.ts::resolvePromptConfigFor` resolves that to the shared system default. So the
+ *  built-in IS the null pick, and a bare `seed === presetId` is a NARROWER reader than the two client sites
+ *  that already spell this (`preset-editor-surface.tsx`'s `active`, `preset-library-surface.tsx`'s row
+ *  toggle). It said "nothing uses this preset yet — activate it" about the preset every chat on a fresh
+ *  install generates with, beside an `Active` chip and a checked radio on the same screen.
+ *
+ *  The explicit arm stays first and unconditional: a user who HAS picked a preset gets the ordinary answer,
+ *  and the built-in is un-active for them — the null arm is a reading of "no pick", never a blanket
+ *  exemption for the sentinel.
+ *
+ *  `defaultPresetId` is `string | null` and not `PresetId | null` because that is the type the SETTINGS
+ *  contract gives the seed (`DEFAULT_USER_SETTINGS.seeds`) — branding it here would mean casting at a seam
+ *  that owns no conversion. The asked-for id IS branded, which is the position that matters: a wrong-kind id
+ *  cannot reach this comparison from the verb side. */
+function isActivePick(defaultPresetId: string | null, presetId: PresetId): boolean {
+  return defaultPresetId === null ? presetId === SYSTEM_DEFAULT_PRESET_ID : defaultPresetId === presetId;
+}
 
 /** What the preset-usage resolver needs: the two foreign reads + the shared room filter. */
 export interface PresetUsageDeps {
@@ -51,6 +74,6 @@ export function createResolvePresetUsage(deps: PresetUsageDeps): ResolvePresetUs
     ]);
     const chatIds = gameRows.map((row): ChatId => row.chatId);
     const gmRooms = chatIds.length === 0 ? [] : await deps.resolveVisibleRooms(principal, chatIds);
-    return { isUserDefault: settings.seeds.defaultPresetId === presetId, gmRooms };
+    return { isUserDefault: isActivePick(settings.seeds.defaultPresetId, presetId), gmRooms };
   };
 }

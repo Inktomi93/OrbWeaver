@@ -41,6 +41,7 @@ import {
   PresetEditorSwitchStory,
   PresetEditorWidePaneStory,
   PresetForkChoiceStory,
+  PresetForkOnceAnnouncedStory,
   PresetForkOnceStory,
 } from "./_ct-stories.tsx";
 
@@ -540,6 +541,99 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 900)));
   expect(updatesAgainst(trpc, BUILT_IN).length).toBe(1);
   expect(updatesAgainst(trpc, FORK).length).toBeGreaterThanOrEqual(1);
+});
+
+// ── THE COPY-ON-WRITE IS NO LONGER SILENT (side-eye 2026-08-30 P2-A, #856) ──────────────────────────────
+//
+// The mechanism above is right; what it had no half of was FEEDBACK. Measured on the live surface: a knob
+// edit on the built-in took the row count 3→4, retargeted the editor title `Default` → `Default (edited)`,
+// opened no dialog, and left the only status on screen reading "Saved" — so three beliefs were available and
+// all three false ("I changed Default", "my change is in effect", "nothing else happened"). The two halves
+// pinned here are the FOREWARNING (the body says the rule before the first keystroke, on whatever tab the
+// edit happens) and the ANNOUNCEMENT (the mint is spoken over the same `notify` seam activation uses).
+const COW_NOTICE_RE = /editing it never changes it/;
+const COW_NOTICE_ACTIVE_RE = /that copy becomes your active preset/;
+const FORK_ANNOUNCEMENT_RE = /Your edit created Default \(edited\) and it is now your active preset — Default is unchanged\./;
+
+test("P2-A the BUILT-IN states its copy-on-write rule IN THE BODY, on every view — and an owned preset never does", async ({ mount, page }) => {
+  // The rule used to live in exactly one place: a paragraph inside the Transforms tab's Regex section, which
+  // a user dragging a slider on Params never opens. Asserted across views for that reason, not for coverage.
+  await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
+    "preset.get": () => BUILT_IN_DETAIL,
+    "preset.list": () => [BUILT_IN_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+  });
+  const component = await mount(<PresetForkOnceStory />);
+  await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
+
+  const notice = component.getByRole("note").filter({ hasText: COW_NOTICE_RE });
+  await expect(notice).toBeVisible();
+  // The default settings' `seeds.defaultPresetId` is null, which IS the built-in — so the promise the notice
+  // makes is the ACTIVE one, and it must be the arm that renders on the first-run state.
+  await expect(notice).toHaveText(COW_NOTICE_ACTIVE_RE);
+  // ONE instance, not one per view: only the open panel is mounted, and a second copy would mean the notice
+  // had been hoisted somewhere that renders five times.
+  await expect(component.locator('[data-slot="preset-built-in-notice"]')).toHaveCount(1);
+
+  for (const view of ["Prompt", "Actions", "Data", "Transforms"]) {
+    await component.getByRole("tab", { name: view, exact: true }).click();
+    await expect(component.getByRole("note").filter({ hasText: COW_NOTICE_RE }), `${view}: the rule is stated here too`).toBeVisible();
+  }
+});
+
+test("P2-A an OWNED preset carries no copy-on-write notice — the rule is the built-in's, not a permanent caption", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+  await expect(qualityDial(component)).toHaveText(FAST);
+  await expect(component.locator('[data-slot="preset-built-in-notice"]')).toHaveCount(0);
+});
+
+test("P2-A the silent fork ANNOUNCES — naming the copy, the untouched source, and the active pick it inherited", async ({ mount, page }) => {
+  // Same server script as the FORK-ONCE pin, minus the in-flight hold: one edit, one mint, and the sentence
+  // it now owes. The active pick starts at `null` — the built-in — so the fork INHERITS it (owner ruling
+  // 2026-08-30), and the announcement must SAY the activation rather than leave it to be discovered.
+  let forkConfig: PromptConfig = BUILT_IN_DETAIL.config;
+  let activeId: string | null = null;
+  let minted = false;
+  const forkDetail = (): PresetDetailFixture => ({
+    ...presetDetail(FORK, "Default (edited)", undefined),
+    config: forkConfig,
+    schemaVersion: forkConfig.schemaVersion,
+  });
+  await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
+    "preset.get": (input: unknown) => ((input as { id?: string }).id === BUILT_IN ? BUILT_IN_DETAIL : forkDetail()),
+    "preset.list": () => (minted ? [BUILT_IN_DETAIL, { ...forkDetail(), forkedFrom: BUILT_IN }] : [BUILT_IN_DETAIL]),
+    "settings.getUserSettings": () => ({
+      ...SETTINGS_VIEW,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
+    }),
+    "settings.updateUserSettingsSection": (input: unknown) => {
+      activeId = (input as { patch: { defaultPresetId: string | null } }).patch.defaultPresetId;
+      return {};
+    },
+    "preset.update": (input: unknown) => {
+      forkConfig = (input as { config: PromptConfig }).config;
+      minted = true;
+      return forkDetail();
+    },
+  });
+
+  const component = await mount(<PresetForkOnceAnnouncedStory />);
+  await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
+  await component.getByRole("textbox", { name: MAX_OUTPUT_LABEL, exact: true }).fill("1234");
+
+  // The toast viewport is a PORTAL and `aria-live="polite"` — the same one activation announces through, so
+  // the sentence is read to AT and painted for the eye in one act. Located on the page for that reason.
+  await expect(page.getByText(FORK_ANNOUNCEMENT_RE)).toBeVisible();
+  // …and the claim the sentence makes is true: the pick actually moved to the fork.
+  await expect.poll(() => activeId, { intervals: [100, 200, 300, 500] }).toBe(FORK);
 });
 
 // ── The FORK-CHOICE pins (owner ruling). The silent copy-on-write above is right exactly ONCE: the first
