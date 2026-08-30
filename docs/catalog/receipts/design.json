@@ -64,18 +64,19 @@
     },
     {
       "path": "docs/design/config-rail-spec.md",
-      "assignedSha256": "a70621b2a4645673e1d7ab3cedeb3817d4e788076101a75890573cfcb192b08e",
+      "assignedSha256": "624e7f8982b9742265c3b44fc467134832967ed1ece44f39516239f100cc2d0a",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "a70621b2a4645673e1d7ab3cedeb3817d4e788076101a75890573cfcb192b08e",
-      "verifiedCommit": "535266f00954e2c612036a2bee1825609c59be09",
+      "verifiedSha256": "624e7f8982b9742265c3b44fc467134832967ed1ece44f39516239f100cc2d0a",
+      "verifiedCommit": "6923f33cb0bdfbb974b19a1bce39aa51663e8bba",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/config-rail-spec.md:1 (spec; draft)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
         "git log --oneline -1 -- docs/design/config-rail-spec.md: R3 truth-repair — presets stay standalone per owner ruling C5 (2026-08-08, frozen board row 100); full re-read this verification",
-        "docs/design/config-rail-spec.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge"
+        "docs/design/config-rail-spec.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+        "docs/design/config-rail-spec.md: re-attested at 6923f33cb0bdfbb974b19a1bce39aa51663e8bba — #866 S1+S2 merge (lane cb-config-s1s2) truth-repairs: settings modal retired, openConfigTo/config-group vocabulary, §6.8 riders; delta read by the orchestrator at merge"
       ],
       "summary": "CONFIG RAIL — the Configuration workspace (R1 design set): full content read against frozen tree; landed-state record retained as historical evidence."
     },
@@ -698,12 +699,12 @@
     },
     {
       "path": "docs/design/plugin-ui-plane.md",
-      "assignedSha256": "f568bb536002d4998684cac5803b6f603d92e48da66238493a4be0974a5b4498",
+      "assignedSha256": "0eda401dad61953fb41e23cc2e67ab5553e0fec638a1b9bd0aa502e3b0fb390c",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "f568bb536002d4998684cac5803b6f603d92e48da66238493a4be0974a5b4498",
-      "verifiedCommit": "535266f00954e2c612036a2bee1825609c59be09",
+      "verifiedSha256": "0eda401dad61953fb41e23cc2e67ab5553e0fec638a1b9bd0aa502e3b0fb390c",
+      "verifiedCommit": "6923f33cb0bdfbb974b19a1bce39aa51663e8bba",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "born-reviewed by its authoring lane (cb-plugui-design, #679): every build-state claim tree-verified 2026-08-24 with path:line receipts before commit 766525006",
@@ -715,7 +716,8 @@
         "U6 build + dated truth-repair (lane executor-u6-server-seams, #679): §7a records the seam-14 repair (the doc's \"applied at the render path\" asserted a SERVER-side render path that does not exist — renderMessageForDisplay is client-side and sync at packages/client/src/lib/message-render.ts:91; owner ruling 2026-08-28 approved the client-submits-rendered-text arm, and the recorded ordering member macros → member DISPLAY regex → plugin display transforms → markdown), the §5.15 macros mechanical correction (kit's MacroHandler is sync, so a plugin macro is a per-turn resolved VALUE and takes no arguments), the §5.5 + seam-14 rows marked BUILT, and the §2 ground-truth ToolRenderer row marked HISTORICAL (closed by U3, 03480da00 / 21ebaf174). Verified at this lane's own build commit 2c08ac420 (the commit that introduced the §7a repair; if the branch is rebased at merge this sha orphans and the entry needs a re-stamp — the known self-referencing-receipt hazard); the passages NOT touched by this lane were not re-read and their prior attestation stands.",
         "delta re-verify 2026-08-30 (60025ad149821df5f077acf5bd712a9c0168e091, #799 vocabulary reach merged by the orchestrator, who read the delta in full): two §4.3 table rows (icon over the curated PLUGIN_ICON_NAMES tuple; tabs as the house one-of-N radio strip), the three-states law paragraph inside grid (loading → empty → tiles, reachable at both tiers), and a frame-injection blockquote recording that the slice widened while the isSafeColor clamp did not (radius/mono ride the new styleTokens slot + clampCardFrameStyleTokens); no other line changed; typed claims unaffected",
         "delta re-verify 2026-08-30 (72a7204ffd08f5b3168c8c6fe849c86c037814d4, #820 seam 11 merged by the orchestrator, who read the delta in full): rows 30 and 11 flipped to BUILT/LANDED (the ui/assets/ bundle dir → installer CAS, one-home caps in contracts/plugin/manifest.ts), plus a dated §7a repair recording that row 30's '§7.11' pointer named a section that does not exist (it is row 11 of §7) and that plugin_assets' PK widened to (plugin_id, asset_id, bundle_path) because content-addressed CAS dedups two paths to one assetId; no other line changed; typed claims unaffected",
-        "docs/design/plugin-ui-plane.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge"
+        "docs/design/plugin-ui-plane.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+        "docs/design/plugin-ui-plane.md: re-attested at 6923f33cb0bdfbb974b19a1bce39aa51663e8bba — #866 S1+S2 merge (lane cb-config-s1s2) truth-repairs: settings modal retired, openConfigTo/config-group vocabulary, §6.8 riders; delta read by the orchestrator at merge"
       ],
       "claims": [
         {
@@ -1054,15 +1056,16 @@
     },
     {
       "path": "docs/design/config-revamp-design.md",
-      "assignedSha256": "fb5900d5cf87d823949f4d9bc7aff8c607521a9727115419d8679a3dbcebcae7",
+      "assignedSha256": "794a8e4db9adf7926a8a72c2bec7a7bfdf9246dd752b00b6238d1b186d925530",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "fb5900d5cf87d823949f4d9bc7aff8c607521a9727115419d8679a3dbcebcae7",
-      "verifiedCommit": "94b06f86c9f1a6e29512a7d593a7c4132e005b86",
+      "verifiedSha256": "794a8e4db9adf7926a8a72c2bec7a7bfdf9246dd752b00b6238d1b186d925530",
+      "verifiedCommit": "6923f33cb0bdfbb974b19a1bce39aa51663e8bba",
       "verifiedAt": "2026-08-30",
       "evidence": [
-        "docs/design/config-revamp-design.md read in full by the orchestrator (claude-b) at merge (lane cb-config-research, stickler research + design for #866; 12 products + NN/g receipted via SearXNG→trafilatura, THIN rows marked; the house read against 9707b9672; the Settings-is-a-modal premise repair accepted mid-run); the nine owner forks are being ruled live; the four D-rows are labelled R-A..R-D, never forward-numbered"
+        "docs/design/config-revamp-design.md read in full by the orchestrator (claude-b) at merge (lane cb-config-research, stickler research + design for #866; 12 products + NN/g receipted via SearXNG→trafilatura, THIN rows marked; the house read against 9707b9672; the Settings-is-a-modal premise repair accepted mid-run); the nine owner forks are being ruled live; the four D-rows are labelled R-A..R-D, never forward-numbered",
+        "docs/design/config-revamp-design.md: re-attested at 6923f33cb0bdfbb974b19a1bce39aa51663e8bba — #866 S1+S2 merge (lane cb-config-s1s2): §6.8 surface-arm retirement minted, @shelf vocabulary truth-repaired to user|app|collections|extensions, persona § annotated superseded; delta read by the orchestrator at merge"
       ],
       "claims": [
         {
