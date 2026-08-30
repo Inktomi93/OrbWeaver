@@ -17,8 +17,9 @@
 // `"tests/foo.test.ts": { "why": "merged into bar.test.ts — see PD-123" }` — `why` is REQUIRED and must
 // say what would un-delete it. That's it; no regen needed for a single deletion. Optionally run
 // `node tooling/src/verify/cli.ts baseline test-baseline-manifest` afterward (it carries the ledger forward and
-// folds in any newly added test files — see that script's header). ADDING a test needs NO manifest edit
-// at all: an untracked file is never gated, so it never reds.
+// folds in any newly added test files — see that script's header). ADDING a test needs no manifest edit
+// for THIS GATE: an untracked file is never gated here, so it never reds. It does need a regen for the
+// `ledgers:fresh` STAGE (#817), which compares the committed manifest against a fresh derivation.
 //
 // A `deletions` entry whose file is back on disk is itself a violation (tooth 2's stale arm) — a stale
 // ledger row is a loaded gun: the next legitimate delete of that path would silently inherit an exemption
@@ -30,8 +31,9 @@ import type { CallExpression, SourceFile, Node as TsMorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Check, CheckContext, Violation } from "../contract/harness.ts";
+import type { TestBaselineDeletion, TestBaselineManifest } from "../contract/test-baseline.ts";
+import { TEST_BASELINE_REL } from "../contract/test-baseline.ts";
 
-const BASELINE_REL = "docs/test-baseline/manifest.json";
 // A file present on every REAL repo checkout, never touched by this gate's own conformance examples
 // (which only plant files under tests/tooling/**) — the real-tree anchor GATE-AUTHORING.md §4.5 requires
 // so the fail-loud missing-manifest arm can't misfire inside gate-conformance's synthetic mini-projects
@@ -80,28 +82,19 @@ function scanPseudoSkips(sf: SourceFile, onSite: (call: TsMorphNode, token: stri
   }
 }
 
-interface DeletionEntry {
-  readonly why: string;
-}
-
-interface Manifest {
-  readonly testFiles: readonly string[];
-  readonly deletions: Readonly<Record<string, DeletionEntry>>;
-}
-
-type ManifestResult = { readonly kind: "ok"; readonly manifest: Manifest } | { readonly kind: "missing" } | { readonly kind: "malformed" };
+type ManifestResult = { readonly kind: "ok"; readonly manifest: TestBaselineManifest } | { readonly kind: "missing" } | { readonly kind: "malformed" };
 
 /** Only meaningful entries: a `why` that's a non-empty string. A reason-less/malformed row is treated as
  *  absent, so the file it names falls straight through to the unaccounted-deletion violation below — no
  *  separate "malformed ledger row" codepath needed. */
-function readDeletions(raw: unknown): Readonly<Record<string, DeletionEntry>> | undefined {
+function readDeletions(raw: unknown): Readonly<Record<string, TestBaselineDeletion>> | undefined {
   if (raw === undefined) {
     return {};
   }
   if (typeof raw !== "object" || raw === null) {
     return;
   }
-  const out: Record<string, DeletionEntry> = {};
+  const out: Record<string, TestBaselineDeletion> = {};
   for (const [f, entry] of Object.entries(raw as Record<string, unknown>)) {
     const why = (entry as { why?: unknown } | undefined)?.why;
     if (typeof why === "string" && why.trim().length > 0) {
@@ -115,7 +108,7 @@ function readManifest(root: string): ManifestResult {
   let raw: string;
   // @orb-gate-ignore caught-failure-ownership(empty:catch): captured as kind "missing", a distinct ManifestResult arm the caller (scanDeletedTestFiles) reports as a violation, never a silent pass. Ends if that "missing" arm stops being read as a violation.
   try {
-    raw = readFileSync(join(root, BASELINE_REL), "utf-8");
+    raw = readFileSync(join(root, TEST_BASELINE_REL), "utf-8");
   } catch {
     return { kind: "missing" };
   }
@@ -149,12 +142,12 @@ function scanDeletedTestFiles(root: string, out: Violation[]): void {
       return; // synthetic/mini-project tree — nothing to judge, and not a claim about the real repo.
     }
     out.push({
-      file: BASELINE_REL,
+      file: TEST_BASELINE_REL,
       line: 0,
       message:
         result.kind === "missing"
-          ? `committed test-baseline manifest is missing (${BASELINE_REL}) — the deleted-test-file check cannot run blind. Regenerate it: \`node tooling/src/verify/cli.ts baseline test-baseline-manifest\`, then commit the file (Spine-Testing.md §5).`
-          : `committed test-baseline manifest (${BASELINE_REL}) is malformed/unparseable — regenerate it: \`node tooling/src/verify/cli.ts baseline test-baseline-manifest\`, then commit the file (Spine-Testing.md §5).`,
+          ? `committed test-baseline manifest is missing (${TEST_BASELINE_REL}) — the deleted-test-file check cannot run blind. Regenerate it: \`node tooling/src/verify/cli.ts baseline test-baseline-manifest\`, then commit the file (Spine-Testing.md §5).`
+          : `committed test-baseline manifest (${TEST_BASELINE_REL}) is malformed/unparseable — regenerate it: \`node tooling/src/verify/cli.ts baseline test-baseline-manifest\`, then commit the file (Spine-Testing.md §5).`,
     });
     return;
   }
