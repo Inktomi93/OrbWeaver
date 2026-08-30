@@ -107,7 +107,7 @@ red against the pre-fix modules, green after). Four deviations, each forced by t
    `weaveSwayOffset(now)` is now the field sampled at the origin, so the two modes cannot drift apart.
 4. **Two motion seams remain, both out of the four reported defects and both pinned by tests:** the
    scaffold entry (the last radius leaves the weaver at the hub while the aux leg starts a free-zone
-   radius out — ~104px, a gap in the itinerary DATA that only a walk-out leg plus shifted scaffold birth
+   radius out — \~104px, a gap in the itinerary DATA that only a walk-out leg plus shifted scaffold birth
    times would close), and the rest beat (she swaps to the resting head-down posture in one frame).
 
 ## Re-verified 2026-08-17 (#161) — the parity verdict
