@@ -212,3 +212,85 @@ test("#843 a card without the shipped marker still reads as Made here", async ({
   await expect(component.getByText("Origin", { exact: true })).toBeVisible();
   await expect(component.getByText("Made here", { exact: true })).toBeVisible();
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// #860 — THE HEAD BAND. The Characters pane joined the context bracket: the open character's identity sits
+// in the band slot ABOVE the viewport (portrait · name · @handle · chips) and the six-cell roster is the
+// FOOT rail, named for the artifact. Pre-#860 the pane opened on a bare "Detail" `tablist` and no identity
+// at all — the CONTENT hero was the only place her name was printed, so a docked pane read as six anonymous
+// tabs. The pin is the RENDERED band over the RENDERED rail, in that order, and the absence of the strip.
+test("#860 the CONTEXT head band is the open character's identity, over a foot rail named for the artifact", async ({ mount, page }) => {
+  await routeAll(page);
+  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+
+  const band = component.locator('[data-slot="character-context-band"]');
+  await expect(band.getByRole("heading", { level: 2, name: "Azarael" })).toBeVisible();
+  await expect(band.getByText("@azarael", { exact: true })).toBeVisible();
+  // The chips: the census (one chat in this fixture — the same page-of-one the hero's link spends) and the
+  // token estimate (the editor's own estimator, so the two can never disagree).
+  await expect(band.getByText("1 chat", { exact: true })).toBeVisible();
+  await expect(band.locator('[data-slot="character-context-band-tokens"]')).toHaveText(/^\d[\d,]* tokens$/);
+  // No override on this card → NO "Own look" mark: the honest absence, not a marker for a false fact.
+  await expect(band.getByRole("button", { name: "Own look" })).toHaveCount(0);
+
+  // The roster is the FOOT rail — one toolbar named "Character", its kicker on top reading the selection —
+  // and it sits BELOW the band in the column. The retired head strip is gone: no tablist anywhere.
+  const rail = component.getByRole("toolbar", { name: "Character" });
+  await expect(rail).toBeVisible();
+  await expect(component.locator('[data-slot="context-rail-kicker"]')).toHaveText(/Character · Overview/);
+  await expect(component.getByRole("tablist")).toHaveCount(0);
+  const bandBox = await band.boundingBox();
+  const railBox = await rail.boundingBox();
+  if (bandBox === null || railBox === null) {
+    throw new Error("band and rail must both be laid out");
+  }
+  expect(bandBox.y + bandBox.height).toBeLessThanOrEqual(railBox.y);
+});
+
+// …and the two-sided control on the mark: a card that DOES carry a look says so, in the band, as the same
+// focusable trigger the hero prints (one component, one predicate — a second spelling here would drift).
+test("#860 a card with its own look carries the Own look mark in the band", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.list": () => CHARACTER_PAGE,
+    "character.get": () => ({ ...AZARAEL_DETAIL, themeOverride: { primary: "#ff8800" } }),
+    "character.update": () => AZARAEL_DETAIL,
+    "chat.listChats": chatListResponder([]),
+    "settings.getUserSettings": () => SETTINGS,
+    "worldInfo.listForCharacter": () => [],
+    "persona.listConnectedToCharacter": () => [],
+    "regex.listForCharacter": () => [],
+    "tag.listPendingSuggestions": () => [],
+    "character.listSnapshots": () => [],
+  });
+  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+
+  const band = component.locator('[data-slot="character-context-band"]');
+  await expect(band.getByRole("button", { name: "Own look" })).toBeVisible();
+  // …and the census reads the empty arm honestly — plural, zero — rather than hiding the chip.
+  await expect(band.getByText("0 chats", { exact: true })).toBeVisible();
+});
+
+// THE PHONE ARM (#860 — `CharacterMobile.png`, the 430 sheet at a coarse pointer): the same column, every
+// cell at the coarse height floor, and the SIX cells + the actions kebab fit the sheet's width in ONE row
+// with no horizontal scroll. This fence CAN fail: MEASURED at a 384-wide coarse pane (a tablet-docked
+// panel, not the phone) the cells' 44px touch floors overflow the track by 11px (scrollWidth 323 against
+// clientWidth 312) — the rail scrolls there. At 430 the track has ~35px to spare, which is the arm the
+// mock draws and the one this pins.
+test.describe("phone", () => {
+  test.use({ hasTouch: true });
+
+  test("#860 at 430 coarse the six cells sit at the touch floor and fit the sheet in one row", async ({ mount, page }) => {
+    await page.setViewportSize({ width: 430, height: 860 });
+    await routeAll(page);
+    const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} paneWidth={430} />);
+
+    const rail = component.getByRole("toolbar", { name: "Character" });
+    await expect(rail.getByRole("button")).toHaveCount(6);
+    // The SHORTEST cell clears the floor (so every cell does)…
+    await expect
+      .poll(() => rail.getByRole("button").evaluateAll((nodes) => Math.min(...nodes.map((n) => n.getBoundingClientRect().height))))
+      .toBeGreaterThanOrEqual(52);
+    // …and the track has nothing to scroll: its overflow is zero.
+    await expect.poll(() => rail.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+  });
+});

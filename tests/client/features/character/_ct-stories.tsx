@@ -430,15 +430,16 @@ export function CharactersListStory({ selectedCharacterId }: CharactersListPaneS
   );
 }
 
-/** Mirrors the shell's CONTEXT mount: `SectionContextHost` over the section definition — the real tab strip
- *  (Field · Chats · Links · Options) and the real body, at the docked panel's width. The cross-section
- *  probes ride along, because a projection row click is a store write, never a UI echo. */
-function CharactersContextHarness(): ReactElement {
+/** Mirrors the shell's CONTEXT mount: `SectionContextHost` over the section definition — the real context
+ *  bracket (the head band, the six-cell foot rail) and the real body, at the docked panel's width by default
+ *  (`paneWidth` = the phone sheet's 430 for the coarse arm). The cross-section probes ride along, because a
+ *  projection row click is a store write, never a UI echo. */
+function CharactersContextHarness({ paneWidth }: { readonly paneWidth: number }): ReactElement {
   const registry = useSectionRegistry();
   const activeSection = useActiveSection();
   const activeChatId = useActiveChatId();
   return (
-    <div style={{ height: 640, width: 384 }}>
+    <div style={{ height: 640, width: paneWidth }}>
       <SectionContextHost definition={registry.get("characters")} />
       <p data-testid="active-section">{activeSection}</p>
       <p data-testid="started-chat">{activeChatId ?? ""}</p>
@@ -449,10 +450,12 @@ function CharactersContextHarness(): ReactElement {
 export interface CharactersContextStoryProps {
   /** The open character whose CONTEXT the pane shows — the tabs' whole state projection. */
   readonly selectedCharacterId: string;
+  /** The pane's width — the docked panel's 384 unless the arm says otherwise (the phone sheet is 430). */
+  readonly paneWidth?: number;
 }
 
 /** The characters CONTEXT panel over the real registry + data layer (#501 — her chats live here now). */
-export function CharactersContextStory({ selectedCharacterId }: CharactersContextStoryProps): ReactElement {
+export function CharactersContextStory({ selectedCharacterId, paneWidth = 384 }: CharactersContextStoryProps): ReactElement {
   useEffect(() => {
     selectCharacter(castId<CharacterId>(selectedCharacterId));
     return (): void => clearCharacterSelection();
@@ -460,7 +463,7 @@ export function CharactersContextStory({ selectedCharacterId }: CharactersContex
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <CharactersContextHarness />
+        <CharactersContextHarness paneWidth={paneWidth} />
       </CtRealSectionRegistry>
     </CtDataProviders>
   );
