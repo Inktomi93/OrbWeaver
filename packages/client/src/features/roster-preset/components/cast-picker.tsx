@@ -1,4 +1,4 @@
-// The Saved-casts modal body (RP2 — docs/design/saved-rosters-build-record.md §3): the owner's cast
+// The Saved-casts modal body (RP2 — docs/history/design/saved-rosters-build-record.md §3): the owner's cast
 // library with the three affordance families the program doc's §6 sketches, in ONE surface:
 //   · per row — START a chat from the cast (members in position order + the anchor persona through the
 //     REAL `useStartChat`, then the `applyToChat` polish call for knobs + config: two calls is CORRECT,

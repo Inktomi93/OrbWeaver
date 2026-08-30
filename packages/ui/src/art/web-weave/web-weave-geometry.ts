@@ -1,4 +1,4 @@
-// WebWeave GEOMETRY — the pure half of the brand web (docs/design/login-loading-screen.md §1/§4.1/§9;
+// WebWeave GEOMETRY — the pure half of the brand web (docs/history/design/login-loading-screen.md §1/§4.1/§9;
 // the waystone-geometry precedent: component-free maths so the canvas component stays thin and the
 // build is vitest-unit-testable). Everything here is DETERMINISTIC per seed — the waystone sin-hash,
 // no Math.random — so the same seed weaves the same web and a CT can assert geometry.

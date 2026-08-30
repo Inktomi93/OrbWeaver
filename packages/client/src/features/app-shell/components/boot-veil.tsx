@@ -1,5 +1,5 @@
 // BootVeil — the app's boot loading screen: the brand web woven live under a dissolving veil
-// (docs/design/login-loading-screen.md §1/§4.3/§9). Mounted ONCE from main.tsx above the router
+// (docs/history/design/login-loading-screen.md §1/§4.3/§9). Mounted ONCE from main.tsx above the router
 // (app-splash is app-shell chrome, §13.9) so it covers route resolution, code, and the initial reads.
 //
 // THE EXIT IS LOAD-GATED (owner tweak 3, §9.3): the veil watches `data-app-ready` on <html> — the one

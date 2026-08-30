@@ -65,7 +65,7 @@ const BASELINE_RIDER_PRODUCERS: ExemptionTable<ProducerRow> = {
   // producer-mirror applies (Tier-1-DB.md producer-names-the-schema).
   // refinery removed 2026-08-08 (same day it landed) — R1 built `packages/server/src/domain/refinery/`
   // (the producer domain now EXISTS), so the normal producer-mirror applies. It rode this entry only
-  // across R0→R1, while the engine sat behind the mandatory security pass (docs/design/refinery-r0.md).
+  // across R0→R1, while the engine sat behind the mandatory security pass (docs/history/design/refinery-r0.md).
 };
 
 function findBarrel(ctx: CheckContext): SourceFile | undefined {

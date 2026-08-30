@@ -14,7 +14,7 @@
 // over them — a one-sided exemption (§4.4), and exactly one of them had already gone stale unnoticed
 // (`stack/ops/engines.ts`, deleted in the same commit). An exemption vocabulary is two-sided everywhere it
 // is honoured, or nowhere. What makes the corpus scannable is pass.ts's
-// MENTION FENCE (docs/design/gate-ignore-mention-fence.md): a marker IS a `//` comment that BEGINS with
+// MENTION FENCE (docs/history/design/gate-ignore-mention-fence.md): a marker IS a `//` comment that BEGINS with
 // the vocabulary, so grammar quotations in gate prose/JSDoc and spellings inside string/template/regex
 // literals are MENTIONS — skipped by the scanner and inert to the suppressor alike. DECLARED LIMITS: a
 // marker naming a DORMANT gate reds as STALE (a dormant gate suppresses nothing, so the marker protects
