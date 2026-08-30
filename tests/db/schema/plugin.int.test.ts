@@ -1,13 +1,15 @@
-// plugin.int — schema/plugin (plugins + plugin_kv) against a real libSQL :memory: db (FK PRAGMA ON).
+// plugin.int — schema/plugin (plugins + plugin_assets + plugin_kv) against a real libSQL :memory: db (FK
+// PRAGMA ON).
 // Covers: plugins round-trip (manifest/grantedCapabilities json); unique(ownerId, slug); status CHECK
 // (derives PLUGIN_STATUSES); bundleAssetId RESTRICT (a live install blocks the bundle's asset delete);
-// owner CASCADE (deleting the owner drops their plugins); plugin_kv composite PK + key/value length
+// owner CASCADE (deleting the owner drops their plugins); plugin_assets composite PK + BOTH CASCADEs (#802 —
+// the fetched-cover register, deliberately not RESTRICT); plugin_kv composite PK + key/value length
 // CHECKs + pluginId CASCADE.
 
 import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_ORIGINS, PLUGIN_STATUSES, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
-import { assets, pluginKv, plugins, users } from "@orb/db";
+import { assets, pluginAssets, pluginKv, plugins, users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -256,6 +258,50 @@ test("bundleAssetId RESTRICT blocks the bundle's asset delete while installed; o
       .from(plugins)
       .where(eq(plugins.id, castId<PluginId>("plugin_b2"))),
   ).toHaveLength(0);
+});
+
+// #802 — the fetched-asset register. Its DDL is what makes a `net.fetchAsset` cover survive GC, so the two
+// CASCADEs are the whole lifecycle: the link dies with the install (covers become reap-eligible again) and it
+// dies with the asset (this row is a cache index, never a reason a blob is un-deletable — the opposite of
+// `bundle_asset_id`'s RESTRICT, which the arm above pins).
+test("plugin_assets: composite PK, pluginId CASCADE, assetId CASCADE (never RESTRICT)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_plugin_e" });
+  const bundleAssetId = await seedAsset(db, ownerId, "asset_plugin_e");
+  const coverAssetId = await seedAsset(db, ownerId, "asset_plugin_e_cover");
+  const pluginId = castId<PluginId>("plugin_e");
+  const now = 1000;
+
+  await db.insert(plugins).values({
+    id: pluginId,
+    ownerId,
+    slug: "fetch-plugin",
+    name: "Fetch Plugin",
+    version: "1.0.0",
+    manifest: MANIFEST,
+    bundleAssetId,
+    grantedCapabilities: GRANTS,
+    status: "enabled",
+    origin: "upload",
+    installedAt: now,
+    updatedAt: now,
+  });
+  await db.insert(pluginAssets).values({ pluginId, assetId: coverAssetId, fetchedAt: now });
+
+  // Composite PK: the same (plugin, asset) pair cannot be recorded twice (the re-fetch upsert's target).
+  await expect(db.insert(pluginAssets).values({ pluginId, assetId: coverAssetId, fetchedAt: now + 1 })).rejects.toSatisfy(isConstraintErr);
+
+  // assetId CASCADE — the link never blocks the asset delete (contrast `bundle_asset_id` RESTRICT above).
+  await db.delete(assets).where(eq(assets.id, coverAssetId));
+  expect(await db.select().from(pluginAssets).where(eq(pluginAssets.pluginId, pluginId))).toHaveLength(0);
+
+  // pluginId CASCADE — uninstall drops the links, which is what makes the covers reap-eligible again.
+  const secondCover = await seedAsset(db, ownerId, "asset_plugin_e_cover2");
+  await db.insert(pluginAssets).values({ pluginId, assetId: secondCover, fetchedAt: now });
+  await db.delete(plugins).where(eq(plugins.id, pluginId));
+  expect(await db.select().from(pluginAssets).where(eq(pluginAssets.assetId, secondCover))).toHaveLength(0);
+  // …and the asset row itself SURVIVES the cascade (GC decides its fate, not the FK).
+  expect(await db.select().from(assets).where(eq(assets.id, secondCover))).toHaveLength(1);
 });
 
 test("plugin_kv: composite PK, key/value length CHECKs, pluginId CASCADE", async () => {

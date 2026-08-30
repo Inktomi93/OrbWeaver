@@ -1,13 +1,16 @@
 // verb: uninstall — remove an installed plugin. Authority = OWNERSHIP (D147): the owner-scoped row load IS
 // the gate (a foreign row is a leak-free NotFound); no admin any-row branch. Order:
 // deactivate (dispose the resident instance + deregister its tools/transforms/subs — no ghost registrations)
-// → delete the row (`plugin_kv` CASCADEs off the FK) → reap the now-unreferenced bundle asset. The
-// bundle FK is ON DELETE RESTRICT, so the row MUST go before the asset can be reaped (`reapIfOrphan` re-checks
-// references — a within-user dedup that shares the asset with another plugin is never reaped).
+// → READ the fetched-asset links → delete the row (`plugin_kv` + `plugin_assets` CASCADE off the FK) → reap the
+// now-unreferenced bundle asset AND every cover this plugin fetched. The bundle FK is ON DELETE RESTRICT, so
+// the row MUST go before the asset can be reaped (`reapIfOrphan` re-checks references — a within-user dedup
+// that shares the asset with another plugin is never reaped). The fetched-asset read must PRECEDE the delete:
+// the cascade takes the only record of which assets this install was retaining (#802).
 
 import { PluginNotFoundError } from "../contract/errors.ts";
 import type { UninstallPluginParams } from "../contract/params.ts";
 import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
+import { listPluginFetchedAssetIds } from "../persistence/plugin-assets.ts";
 import { deletePlugin, getById } from "../persistence/plugins.ts";
 
 export function createUninstall(ctx: PluginContext, deps: Pick<ActivationDeps, "deactivate">): PluginService["uninstall"] {
@@ -18,7 +21,13 @@ export function createUninstall(ctx: PluginContext, deps: Pick<ActivationDeps, "
     }
 
     deps.deactivate(pluginId);
+    // READ BEFORE THE DELETE: the `plugin_assets` links CASCADE away with the row, so after `deletePlugin`
+    // there is nothing left to name — the ids would survive only as blobs waiting for the scheduled sweep.
+    const fetched = await listPluginFetchedAssetIds(ctx.db, pluginId);
     await deletePlugin(ctx.db, pluginId);
-    await ctx.assets.reapOrphans([existing.bundleAssetId]);
+    // The bundle (RESTRICT — the row had to go first) plus every cover this plugin fetched (#802), now
+    // unreferenced by the same delete. `reapIfOrphan` re-checks the whole registry per id, so a within-user
+    // dedup that another plugin (or a character avatar) still shares is left alone.
+    await ctx.assets.reapOrphans([existing.bundleAssetId, ...fetched]);
   };
 }

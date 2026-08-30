@@ -164,8 +164,15 @@ export interface PluginHostOps {
      *  against the magic bytes). Infra performed the fetch + the SSRF egress wall + the remote-image guard and
      *  hands ONLY the validated bytes + the SNIFFED mime down — the bytes cross THIS seam but never the guest
      *  realm. Owner-scoped by construction (the bridge closes the installer over it; a guest names no owner).
-     *  Returns the new (or content-addressed-deduped) asset id. */
+     *  Returns the new (or content-addressed-deduped) asset id.
+     *
+     *  It also RECORDS the fetch in `plugin_assets` (#802), which is why this op needs the `pluginId` the read
+     *  half does not: the stored blob has no other referencing row anywhere (the surface that displays it is a
+     *  JSON state blob), so without that link the asset-GC ref registry cannot see it and the scheduled sweep
+     *  reaps a live cover one grace window later. The pluginId costs no new refusal — the same call already
+     *  claims the per-plugin `admitAssetEgress` belt, which requires an installed plugin. */
     readonly storeFetched: (req: {
+      readonly pluginId: PluginId;
       readonly installerUserId: UserId;
       readonly bytes: Uint8Array;
       readonly mime: string;

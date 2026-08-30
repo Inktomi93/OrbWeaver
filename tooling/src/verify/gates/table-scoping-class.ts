@@ -49,7 +49,8 @@ type ScopingRow = ExemptionRow & { readonly scope: ScopingClass };
  *  19 membership · 15 junction · 24 parent · 5 global (D121-E added the regex library + its four scope
  *  junctions; refinery R0 added its two parent-scoped tables; #273 added `image_index_skips`, parent;
  *  #26 saved-rosters added `roster_presets` (ownerId) + `roster_preset_members` (junction); B10's rules
- *  rider added `roster_preset_rules` (parent — one FK, the catalogue side is code)). */
+ *  rider added `roster_preset_rules` (parent — one FK, the catalogue side is code); #802 added
+ *  `plugin_assets` (junction) → 87 tables, 16 junction). */
 export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
   // ── (a) ownerId-scoped — the D23 stamp. Reasons live in ownerid-registry's OWNERID_ALLOWLIST. ──────────
   assets: { scope: "ownerId", why: "D21 single-owned; reads go through `fetchOwned` (ownerid-registry owns the stamp's justification)." },
@@ -168,6 +169,10 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
     why: "the structural message ↔ asset link (#67) — the message side is (b), the asset side is (a); it exists so the ref registry can SEE an inline chat image.",
   },
   persona_books: { scope: "junction", why: "persona ↔ world_book attachment; both parents are (a) ownerId tables." },
+  plugin_assets: {
+    scope: "junction",
+    why: "#802 plugin ↔ asset fetch link (`net.fetchAsset`); both parents are (a) ownerId tables and the write closes over BOTH — the pluginId from the bridge, the assetId minted by the CAS store under the installer — so neither end is guest-nameable. Like `message_assets` it exists so the asset-GC ref registry can SEE the reference; `fetched_at` is provenance riding the link, never a read key.",
+  },
   roster_preset_members: {
     scope: "junction",
     why: "D61 B6 — roster_preset ↔ character seat; both parents are (a) ownerId tables (same owner, gated at the write verb), and the read joins through the preset. position/talkativeness/disabled are seat DATA riding the link, never a read key (the message_reactions posture).",

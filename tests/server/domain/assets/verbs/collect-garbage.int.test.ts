@@ -14,12 +14,14 @@
 // the real wall clock, so the test controls mtime directly — the same lever `putBytes`' dedup bump pulls).
 
 import { utimes } from "node:fs/promises";
+import { pluginManifestSchema } from "@orb/contracts/plugin";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { assets, characters, chats, userSettings } from "@orb/db";
+import { assets, characters, chats, pluginAssets, plugins, userSettings } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { AssetId, CharacterHandle, ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, ChatId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
+import { recordPluginFetchedAsset } from "@orb/server/domain/plugin";
 import type { Cas } from "@orb/server/infra/storage";
 import { eq, sql } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
@@ -66,6 +68,38 @@ async function seedBackgroundLibrary(
     backgroundLibrary: entries.map((e) => ({ entryId: `entry_${e.assetId}`, assetId: e.assetId, assetHash: e.assetHash, mime: PNG, name: "bg" })),
   };
   await db.insert(userSettings).values({ userId: owner, config: { ...DEFAULT_USER_SETTINGS, appearance } });
+}
+
+/** Install one plugin for `owner` (its bundle bytes go through the real CAS store, so the row's RESTRICT FK
+ *  points at a real asset) and return its id — the parent every `plugin_assets` fetch row hangs off. */
+async function seedInstalledPlugin(db: Awaited<ReturnType<typeof freshDb>>, owner: UserId, svc: ReturnType<typeof createAssetsService>): Promise<PluginId> {
+  const bundle = await svc.store({ principal: principal(owner), bytes: pngBytes(90), kind: "document", mime: "application/zip" });
+  const id = castId<PluginId>("plugin_gcfixture0000000000000");
+  const manifest = pluginManifestSchema.parse({
+    id: "gc-fixture",
+    name: "GC Fixture",
+    version: "1.0.0",
+    hostVersion: 1,
+    entry: "main.js",
+    description: "collect-garbage plugin-asset fixture",
+    capabilities: ["net.fetch_asset"],
+    netHosts: ["covers.example.invalid"],
+  });
+  await db.insert(plugins).values({
+    id,
+    ownerId: owner,
+    slug: manifest.id,
+    name: manifest.name,
+    version: manifest.version,
+    manifest,
+    bundleAssetId: bundle.assetId,
+    grantedCapabilities: [...manifest.capabilities],
+    status: "enabled",
+    origin: "upload",
+    installedAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
+  });
+  return id;
 }
 
 /** Force a blob's mtime to a fixed epoch-ms (the grace check reads `cas.mtimeMs`). */
@@ -464,6 +498,53 @@ describe("collectGarbage", () => {
 
     expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(1);
     expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(true);
+  });
+
+  // #802 — a `net.fetchAsset` cover has NO other referencing row anywhere (the surface that displays it is a
+  // plugin UI state blob, which is JSON and invisible to the FK enumeration), so before the `plugin_assets`
+  // link existed this asset was reaped one grace window after the fetch and a live hub cover 404'd. RED on the
+  // unmodified source: the row and the blob were both gone here.
+  test("keeps a plugin-fetched asset while its plugin is installed, even when old (#802 anti-reap)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const pluginId = await seedInstalledPlugin(db, owner, svc);
+    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(41), kind: "generated", mime: PNG });
+    // The ONLY liveness signal is the fetch link the `storeFetched` host op writes.
+    await recordPluginFetchedAsset(db, pluginId, stored.assetId, FROZEN_AT_MS);
+    await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
+
+    const result = await svc.collectGarbage({});
+
+    expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(1);
+    expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(true);
+    expect(result.reclaimed).toBe(0);
+  });
+
+  // The other direction — the planted control for the arm above. Retention is bounded by the INSTALL: once the
+  // plugin row goes, its links CASCADE and the covers are ordinary candidates again (this is what the scheduled
+  // sweep does; `uninstall` also reaps them eagerly — `uninstall.int.test.ts`).
+  test("reaps a plugin-fetched asset once the plugin is uninstalled (the link CASCADEs), past grace", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const pluginId = await seedInstalledPlugin(db, owner, svc);
+    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(42), kind: "generated", mime: PNG });
+    await recordPluginFetchedAsset(db, pluginId, stored.assetId, FROZEN_AT_MS);
+    await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
+    // Uninstall: the row goes and the FK CASCADE takes the fetch link with it.
+    await db.delete(plugins).where(eq(plugins.id, pluginId));
+    expect(await db.select().from(pluginAssets).where(eq(pluginAssets.pluginId, pluginId))).toEqual([]);
+
+    const result = await svc.collectGarbage({});
+
+    expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(0);
+    expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(false);
+    expect(result.reclaimed).toBeGreaterThanOrEqual(1);
   });
 
   test("still reaps normally when backgroundLibrary is genuinely absent (no regression from the fail-closed change)", async () => {

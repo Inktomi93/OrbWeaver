@@ -801,6 +801,16 @@ CREATE TABLE `admin_distributed_plugins` (
 --> statement-breakpoint
 CREATE INDEX `admin_distributed_plugins_bundle_asset_idx` ON `admin_distributed_plugins` (`bundle_asset_id`);--> statement-breakpoint
 CREATE INDEX `admin_distributed_plugins_distributed_by_idx` ON `admin_distributed_plugins` (`distributed_by`);--> statement-breakpoint
+CREATE TABLE `plugin_assets` (
+	`plugin_id` text NOT NULL,
+	`asset_id` text NOT NULL,
+	`fetched_at` integer NOT NULL,
+	PRIMARY KEY(`plugin_id`, `asset_id`),
+	FOREIGN KEY (`plugin_id`) REFERENCES `plugins`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `plugin_assets_asset_idx` ON `plugin_assets` (`asset_id`);--> statement-breakpoint
 CREATE TABLE `plugin_kv` (
 	`plugin_id` text NOT NULL,
 	`owner_id` text NOT NULL,

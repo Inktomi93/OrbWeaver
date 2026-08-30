@@ -9,13 +9,13 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { PluginCapability, PluginInstance } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
-import { assets, plugins } from "@orb/db";
+import { assets, pluginAssets, plugins } from "@orb/db";
 import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { Sandbox } from "@orb/server/infra/plugin-host";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { zipSync } from "fflate";
 import type { PluginHostOps } from "../../../../packages/server/src/domain/plugin/contract/ops.ts";
 import type { PluginLogView as DomainPluginLogView } from "../../../../packages/server/src/domain/plugin/contract/results.ts";
@@ -204,17 +204,21 @@ export function makePluginHarness(
     }
     return Promise.resolve({ bytes, mime: "application/zip" });
   };
-  // Reference-aware reap (mirrors reapIfOrphan): only delete an asset row still unreferenced by any plugins row.
+  // Reference-aware reap (mirrors reapIfOrphan): only delete an asset row still unreferenced by any plugins row
+  // — the bundle FK — OR by any surviving `plugin_assets` fetch link (#802: a cover a SECOND plugin also fetched
+  // is still live, exactly as the real registry's `selectReferencedAmong` decides).
   const reapOrphans: PluginContext["assets"]["reapOrphans"] = async (assetIds) => {
+    const unreferenced: AssetId[] = [];
     for (const assetId of assetIds) {
       const refs = await db.select({ id: plugins.id }).from(plugins).where(eq(plugins.bundleAssetId, assetId)).limit(1);
-      if (refs.length === 0) {
+      const fetchRefs = await db.select({ id: pluginAssets.pluginId }).from(pluginAssets).where(eq(pluginAssets.assetId, assetId)).limit(1);
+      if (refs.length === 0 && fetchRefs.length === 0) {
         storedBytes.delete(assetId);
+        unreferenced.push(assetId);
       }
     }
-    const unreferenced = [...assetIds].filter((id) => !storedBytes.has(id));
     if (unreferenced.length > 0) {
-      await db.delete(assets).where(and(inArray(assets.id, unreferenced)));
+      await db.delete(assets).where(inArray(assets.id, unreferenced));
     }
   };
 

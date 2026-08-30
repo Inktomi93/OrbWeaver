@@ -74,6 +74,7 @@ import {
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
   PluginNotFoundError,
+  recordPluginFetchedAsset,
 } from "#domain/plugin";
 import type { SearchService } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
@@ -711,9 +712,14 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // the upload boundary's own belt — the imagery `storeAsset` posture). Owner-scoped: the bridge closed the
       // installer over this, a guest names no owner. `kind: "generated"` — a plugin-produced image in the
       // installer's CAS, the imagery-generated class. Content-addressed dedup makes a re-fetch idempotent.
-      storeFetched: async ({ installerUserId, bytes, mime }) => {
+      // #802 — the CAS write is followed by the `plugin_assets` link, and the ORDER is load-bearing: the asset
+      // must exist before anything can reference it (the FK), and between the two writes the blob is protected
+      // by the GC grace window (the same put→link gap every import has). A failed link rejects the whole guest
+      // call and leaves an unreferenced blob for the sweep — fail-safe, never a dangling reference.
+      storeFetched: async ({ pluginId, installerUserId, bytes, mime }) => {
         const caller = await resolveOwnerPrincipal(installerUserId);
         const stored = await assets.store({ principal: caller, bytes, kind: "generated", mime, enforceMagic: true });
+        await recordPluginFetchedAsset(db, pluginId, stored.assetId, now());
         return { assetId: stored.assetId };
       },
     },

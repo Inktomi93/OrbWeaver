@@ -212,7 +212,12 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       // #798 — the `net.fetch_asset` CAS write. Closed over the INSTALLER only (a guest names no owner), the
       // `read`/`variables`/`databank` owner-closure. Infra performed the fetch + SSRF wall + remote-image guard
       // and hands ONLY validated bytes + the sniffed mime; the bytes cross THIS seam, never the guest realm.
-      storeFetched: (bytes, mime) => ops.assets.storeFetched({ installerUserId, bytes, mime }),
+      // `requirePluginId` HERE (unlike `read`) because the write is RECORDED against the plugin — the #802
+      // `plugin_assets` link is what makes the fetched blob visible to the asset-GC ref registry, and its
+      // retention unit is the install. It adds no refusal a live path can reach: this same call already claimed
+      // `admitAssetEgress` above, which requires the identical durable identity (and a snippet holds neither the
+      // capability nor an id).
+      storeFetched: (bytes, mime) => ops.assets.storeFetched({ pluginId: requirePluginId("net.fetchAsset"), installerUserId, bytes, mime }),
     },
     // FIRST-PARTY RETRIEVAL (#788 F1). Closed over the INSTALLER only — the guest supplies the query text + the
     // (already host-clamped) limit and can name no owner, so the compose op's `scope: { ownerId: installer }`
