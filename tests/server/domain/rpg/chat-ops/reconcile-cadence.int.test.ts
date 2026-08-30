@@ -13,6 +13,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { emptyState, liteConfig, seedChat, seedGame, seedMessage, target } from "../_support.ts";
 
 function gameWith(gameId: RpgGameId, reconcileEveryBeats: number): RpgGameRow {
+  // FABRICATION-OK: a minimal RpgGameRow double — isReconcileBeat reads only id and config.reconcileEveryBeats.
   return { id: gameId, config: { ...liteConfig(), reconcileEveryBeats } } as unknown as RpgGameRow;
 }
 

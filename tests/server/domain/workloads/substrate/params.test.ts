@@ -28,7 +28,7 @@ function contributionsWith(over: Partial<WorkloadContribution<"databank-ingest">
     params: databankIngestWorkloadParams,
     lane: "sweep",
     resume: "none",
-    // FABRICATION-OK: unused by this file's assertions — the substrate helpers under test never call `run`.
+    // unused by this file's assertions — the substrate helpers under test never call `run`.
     run: () => Promise.reject(new Error("not invoked by this test")),
     ...over,
   };
