@@ -1,9 +1,15 @@
 // The hero band — the editor's visual centerpiece. Mixes two commit models by design: the name is a draft
-// card field (bound to the form → save-bar), while the portrait/star/archive are immediate identity
-// commits (`character.update` single-key patches). The accent swatch is a read-only preview of the
+// card field (bound to the form → save-bar), while the portrait is an immediate identity commit
+// (`character.update` single-key patches). The accent swatch is a read-only preview of the
 // resolved themeOverride — the theme control itself lives in the CONTEXT **Options** tab (the tab that
 // merged the former Appearance + History tabs; `character-options-tab.tsx` mounts `CharacterAppearanceTab`
 // inside it, and the COMPONENT kept the old name while the TAB did not).
+//
+// TRUTH-REPAIR 2026-08-30 (#838): this header used to claim "the portrait/star/archive are immediate
+// identity commits" here. The band renders NEITHER a star nor an archive control and never has on this
+// tree — `archived` arrives only as a prop the band reads for display. Archive's affordances for an open
+// character now live in the CONTEXT pane's `Character actions` kebab (the `open` slice of
+// `../lib/character-actions.ts`); the star lives on the list row.
 
 import { blobUrl } from "@orb/contracts/assets";
 import { rendersTrustedHtml } from "@orb/contracts/chat";

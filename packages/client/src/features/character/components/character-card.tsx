@@ -9,6 +9,12 @@
 // (★ / Archived) ride `ListRow.markers` on the title line, and the trailing cluster holds only the
 // hover-revealed controls — so `actionsFloat` is on outside bulk mode and the NAME keeps the row's full
 // width at rest instead of yielding 114px of a 290px row to a cluster that paints nothing.
+//
+// THE KEBAB'S ITEM LIST IS THE `row` SLICE OF ONE VOCABULARY (`../lib/character-actions.ts`, #838) — labels,
+// glyphs, order and the export containers are the registry's; this file owns only the handlers and the
+// confirm copy. Its rendered items are unchanged by that move (Archive · Duplicate · Export card · Delete).
+// The card-export route's ONE MINT moved to the registry with it: export is still a single serialization
+// path (D121 clause D), now rendered by both kebabs that offer it — this row's and the CONTEXT pane's.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { TagView } from "@orb/contracts/tag";
@@ -19,21 +25,18 @@ import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
-import { Archive, Copy, Download, Icon, MessagesSquare, Star } from "@orb/ui/icons";
+import { Icon, MessagesSquare, Star } from "@orb/ui/icons";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { ROW_REVEAL, ROW_REVEAL_SWAP, RowActionsMenu, RowToggleAction } from "#components";
 import { rowActionSubject } from "#lib";
+import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
+import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel, EXPORT_CHARACTER_PATH } from "../lib/character-actions.ts";
 
-/** The owner-gated card download route (`GET /api/export/character/:characterId`) — export's ONE home is
- *  this row's kebab (import is the list band's ghost; the editor carries no lifecycle chrome).
- *
- *  BOTH containers the route serves are items in ONE submenu, the chat kebab's grammar
- *  (`chat/components/chat-list-row-menu.tsx`): absent `?format` ⇒ `png`, the ST-parity card with the avatar
- *  welded in; `?format=json` is the unwrapped V3 TavernCard the import door already accepts, so the round
- *  trip is closed. The server arm shipped without an affordance — this is the affordance, not a new door. */
-const EXPORT_CHARACTER_PATH = "/api/export/character/";
+/** File-local — exactly the verbs the `row` scope offers, so a verb added to that scope is a `tsc` error
+ *  here until this row wires it. */
+type RowActionId = (typeof CHARACTER_ACTION_SCOPE_IDS)["row"][number];
 
 export interface CharacterCardItem {
   readonly id: string;
@@ -235,6 +238,15 @@ function NormalRowActions({
   readonly onDuplicate: (id: string) => void;
   readonly onDelete: (id: string) => void;
 }): ReactElement {
+  /** Every verb the `row` scope offers, wired. `null` = not click-dispatched from this map: `exportCard`
+   *  renders as download LINKS and `delete` rides `RowActionsMenu`'s destructive slot + confirm. */
+  const rowHandlers: Readonly<Record<RowActionId, (() => void) | null>> = {
+    archive: (): void => onToggleArchive(character.id, !character.archived),
+    duplicate: (): void => onDuplicate(character.id),
+    exportCard: null,
+    delete: null,
+  };
+
   return (
     <>
       {/* D11, in its MARKER form (`rest="never"`): the toggle is always reveal-gated because the title-line
@@ -260,34 +272,39 @@ function NormalRowActions({
         reveal={true}
         destructive={{
           separator: false,
+          label: CHARACTER_ACTIONS.delete.label,
           title: `Delete "${character.name}"?`,
           description: "This permanently deletes the character and everything attached to it. This can't be undone.",
           onConfirm: (): void => onDelete(character.id),
         }}
       >
-        <MenuItem onClick={(): void => onToggleArchive(character.id, !character.archived)}>
-          <Icon icon={Archive} size="sm" />
-          {character.archived ? "Unarchive" : "Archive"}
-        </MenuItem>
-        <MenuItem onClick={(): void => onDuplicate(character.id)}>
-          <Icon icon={Copy} size="sm" />
-          Duplicate
-        </MenuItem>
-        <MenuSubmenuRoot>
-          <MenuSubmenuTrigger>
-            <Icon icon={Download} size="sm" />
-            Export card
-          </MenuSubmenuTrigger>
-          <MenuPopup>
-            {/* The route's DEFAULT arm — no `?format`, the ST-parity card with this row's avatar welded in. */}
-            <MenuLinkItem download={true} href={`${EXPORT_CHARACTER_PATH}${character.id}`}>
-              With avatar (.png)
-            </MenuLinkItem>
-            <MenuLinkItem download={true} href={`${EXPORT_CHARACTER_PATH}${character.id}?format=json`}>
-              Data only (.json)
-            </MenuLinkItem>
-          </MenuPopup>
-        </MenuSubmenuRoot>
+        {characterActionItemsForScope("row").map((action) => {
+          const label = characterActionLabel(action, { archived: character.archived });
+          if (action.formats.length > 0) {
+            return (
+              <MenuSubmenuRoot key={action.id}>
+                <MenuSubmenuTrigger>
+                  <Icon icon={action.glyph} size="sm" />
+                  {label}
+                </MenuSubmenuTrigger>
+                <MenuPopup>
+                  {action.formats.map((format) => (
+                    <MenuLinkItem download={true} href={`${EXPORT_CHARACTER_PATH}${character.id}${format.query}`} key={format.query}>
+                      {format.label}
+                    </MenuLinkItem>
+                  ))}
+                </MenuPopup>
+              </MenuSubmenuRoot>
+            );
+          }
+          const onClick = rowHandlers[action.id];
+          return onClick === null ? null : (
+            <MenuItem key={action.id} onClick={onClick}>
+              <Icon icon={action.glyph} size="sm" />
+              {label}
+            </MenuItem>
+          );
+        })}
       </RowActionsMenu>
     </>
   );

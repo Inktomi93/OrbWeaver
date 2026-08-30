@@ -397,15 +397,15 @@
     {
       "siteId": "packages/client/src/features/character/components/character-actions-menu.tsx::promise:openRefinery::1",
       "path": "packages/client/src/features/character/components/character-actions-menu.tsx",
-      "line": 69,
-      "column": 18,
+      "line": 86,
+      "column": 12,
       "grammar": "promise",
       "position": "promise:openRefinery",
       "ordinal": 1,
       "snippet": "void openRefinery(characterId).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "useOpenRefinery's own errorToast surfaces the failure; a failed open just leaves the actor on this menu. Ends if useOpenRefinery drops its errorToast.",
-      "markerLine": 68
+      "markerLine": 85
     },
     {
       "siteId": "packages/client/src/features/character/lib/character-chat-intents.ts::promise:startChat::1",

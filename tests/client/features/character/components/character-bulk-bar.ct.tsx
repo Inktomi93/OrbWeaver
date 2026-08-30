@@ -17,6 +17,10 @@ test("the bulk actions fit the narrow panel — Delete is not clipped past the e
 
   // The Delete button's right edge stays within the panel box (no clip past the ~337px edge). Null boxes
   // (an unmeasurable/hidden element) resolve to a failing comparison rather than a skipped assertion.
+  // #838 — the bar is the `bulk` SLICE of one vocabulary (`lib/character-actions.ts`), in its declared
+  // order. Literal, so a registry edit that re-orders or re-labels this bar reds here.
+  await expect(component.locator('[data-slot="selection-bar-actions"]').getByRole("button")).toHaveText(["Tag", "Archive", "Delete"]);
+
   const panelBox = await page.getByTestId("bulk-panel").boundingBox();
   const delBox = await del.boundingBox();
   const panelRight = (panelBox?.x ?? 0) + (panelBox?.width ?? 0);
