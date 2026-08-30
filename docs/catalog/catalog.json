@@ -11358,9 +11358,9 @@
       "path": "docs/design/mocks/context-bracket/DESIGN.md",
       "lane": "design",
       "issue": 5,
-      "lines": 64,
-      "bytes": 5341,
-      "sha256": "29e4a946468a5efb9a9c66e55d6dc78281f20696a61c08a50a545a63ce3d82f2",
+      "lines": 76,
+      "bytes": 6465,
+      "sha256": "86fad456db4038c8a2afa5f0962645593e4f5455de3c2a5c79f1a81084b27233",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11373,15 +11373,16 @@
       },
       "receipt": {
         "path": "docs/design/mocks/context-bracket/DESIGN.md",
-        "assignedSha256": "29e4a946468a5efb9a9c66e55d6dc78281f20696a61c08a50a545a63ce3d82f2",
+        "assignedSha256": "86fad456db4038c8a2afa5f0962645593e4f5455de3c2a5c79f1a81084b27233",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "29e4a946468a5efb9a9c66e55d6dc78281f20696a61c08a50a545a63ce3d82f2",
-        "verifiedCommit": "31625cecb28537ff1db6544642cb118a2df6453b",
+        "verifiedSha256": "86fad456db4038c8a2afa5f0962645593e4f5455de3c2a5c79f1a81084b27233",
+        "verifiedCommit": "5d089a546ff369140528b8113200365b2a7d961e",
         "verifiedAt": "2026-08-30",
         "evidence": [
-          "Authored by the orchestrator (claude-b) from the owner's live ruling on #860 (2026-08-30, 'I'm good with the mockup'); the canvas artifact 8f56d796 is the clickable form, these files are its repo source; the seven default-state PNGs were rendered at true size from the same artboards and read before commit"
+          "Authored by the orchestrator (claude-b) from the owner's live ruling on #860 (2026-08-30, 'I'm good with the mockup'); the canvas artifact 8f56d796 is the clickable form, these files are its repo source; the seven default-state PNGs were rendered at true size from the same artboards and read before commit",
+          "docs/design/mocks/context-bracket/DESIGN.md: re-attested at 5d089a546ff369140528b8113200365b2a7d961e — lane cb-bracket-fix recorded the F3 deviation (game band takes the room name as h2, location demoted) in Coupled sites; delta read by the orchestrator at merge"
         ],
         "claims": [
           {
