@@ -22,13 +22,14 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany, batchStmt } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn } from "@orb/server/kit/structured-turn";
-import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
 import type { DiscoveryContext } from "../context.ts";
 import { CardNotDistillableError, DistillFailedError } from "../contract/errors.ts";
@@ -230,7 +231,7 @@ async function buildDistillWrites(
     readonly system: string;
     readonly onProgress?: ((done: number, total: number) => void) | undefined;
   },
-): Promise<{ stmts: BatchItem<"sqlite">[]; stagedLabels: StagedLabel[]; failed: number }> {
+): Promise<{ stmts: BatchStmt[]; stagedLabels: StagedLabel[]; failed: number }> {
   // The RESOLVED PASS — the sampling posture + the resolved system prose, carried together so a retry can
   // never re-resolve either and drift from the batch call.
   const pass: DistillPass = { sampleOpts: meta.sampleOpts, system: meta.system };
@@ -246,7 +247,7 @@ async function buildDistillWrites(
     // it turns a multi-minute indeterminate bar into `120 of 313` (issue #166 rider 3).
     meta.onProgress?.(parsed.length, ready.length);
   }
-  const stmts: BatchItem<"sqlite">[] = [];
+  const stmts: BatchStmt[] = [];
   const stagedLabels: StagedLabel[] = [];
   let failed = 0;
   for (let i = 0; i < ready.length; i += 1) {
@@ -307,14 +308,14 @@ async function retryDistillOne(deps: DistillCharactersDeps, target: DistillTarge
 }
 
 /** Commit the summary upserts in bounded (chunked) `db.batch`es — N parses, one round-trip per chunk. */
-async function commitSummaries(db: Db, stmts: readonly BatchItem<"sqlite">[]): Promise<void> {
+async function commitSummaries(db: Db, stmts: readonly BatchStmt[]): Promise<void> {
   for (let i = 0; i < stmts.length; i += DISTILL_BATCH_CHUNK) {
     const chunk = stmts.slice(i, i + DISTILL_BATCH_CHUNK);
     if (chunk.length === 0) {
       continue;
     }
     // @orb-gate-ignore no-await-db-in-loop: bounded per-chunk batch — deliberate backpressure over the libSQL bound-variable cap (mirrors every bulk-write in the slice).
-    await db.batch(chunk as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+    await db.batch(batchMany(chunk));
   }
 }
 
@@ -340,7 +341,7 @@ async function stageSuggestions(deps: DistillCharactersDeps, stagedLabels: reado
 
 /** Build the idempotent `character_summaries` upsert for one card (keyed by `characterId`, D28). `set` omits
  *  `characterId` (the PK) — a re-run refreshes the facets in place. */
-function upsertSummary(db: Db, args: { characterId: CharacterId; parsed: CharacterDistillation; model: string; now: number }): BatchItem<"sqlite"> {
+function upsertSummary(db: Db, args: { characterId: CharacterId; parsed: CharacterDistillation; model: string; now: number }): BatchStmt {
   const { characterId, parsed, model, now } = args;
   const set = {
     genre: parsed.genre,
@@ -353,8 +354,10 @@ function upsertSummary(db: Db, args: { characterId: CharacterId; parsed: Charact
     model,
     computedAt: now,
   };
-  return db
-    .insert(characterSummaries)
-    .values({ characterId, ...set })
-    .onConflictDoUpdate({ target: characterSummaries.characterId, set });
+  return batchStmt(
+    db
+      .insert(characterSummaries)
+      .values({ characterId, ...set })
+      .onConflictDoUpdate({ target: characterSummaries.characterId, set }),
+  );
 }

@@ -12,6 +12,7 @@
 import type { RefineryRewriteField } from "@orb/contracts/refinery";
 import { isAppendedRewrite, refineryRewritePayloadSchema } from "@orb/contracts/refinery";
 import { refineryRuns, refinerySessions } from "@orb/db";
+import { batchMany, batchStmt } from "@orb/db/kit";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { eq } from "drizzle-orm";
 import type { RefineryContext } from "../context.ts";
@@ -89,8 +90,14 @@ export function createSubmitManualRewrite(ctx: RefineryContext): RefineryService
       strippedKeys: [] as string[],
       createdAt: at,
     };
-    await ctx.db.insert(refineryRuns).values(view);
-    await ctx.db.update(refinerySessions).set({ status: "active", updatedAt: at }).where(eq(refinerySessions.id, sessionId));
+    // Same-tick, no data dependency, cross-table — batched for atomicity (issue #794, the #754 spike's one
+    // true positive): either both the run row and the session's active flip land, or neither does.
+    await ctx.db.batch(
+      batchMany([
+        batchStmt(ctx.db.insert(refineryRuns).values(view)),
+        batchStmt(ctx.db.update(refinerySessions).set({ status: "active", updatedAt: at }).where(eq(refinerySessions.id, sessionId))),
+      ]),
+    );
     ctx.emitUserEvent(ownerId, { type: "refineryChanged", sessionId });
     return view;
   };
