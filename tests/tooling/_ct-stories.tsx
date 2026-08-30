@@ -8,6 +8,7 @@
 import { Button } from "@orb/ui/button";
 import { Slider } from "@orb/ui/slider";
 import type { ReactElement } from "react";
+import { useId } from "react";
 
 /** The composite stage: ONE control (a Base UI Slider) whose pointer target is the whole `h-control-sm`
  *  row, while the outward hit probe lands on `[data-slot=slider-indicator]` — a SIBLING of the thumb. The
@@ -649,6 +650,125 @@ export function WalkerBelowTheFoldStory(): ReactElement {
       <button data-testid="off-canvas-phantom" style={{ height: 20, insetInlineStart: "300vw", position: "fixed", top: 0, width: 20 }} type="button">
         p
       </button>
+    </div>
+  );
+}
+
+/** The VIEWPORT-EDGE stage (issue #797) — the phantom-P1 class that made design-audit's tap-target count
+ *  untrustworthy for a whole UX review.
+ *
+ *  `document.elementFromPoint` is a VIEWPORT-COORDINATE api: off the edge of the screen it answers `null`,
+ *  and the extent walk read null as "another element owns this pixel" rather than "I could not look". So a
+ *  control straddling an edge lost every outward probe, collapsed to its bare border box, and minted a
+ *  sub-target P1 — measured on Settings→Plugins, where the same page at `--viewport 1280x2200` produced
+ *  p1=0 from an IDENTICAL element census and the ±21px four-cardinal ground truth showed the control
+ *  owning a full 44×44.
+ *
+ *  Everything here is `position: fixed` on purpose: the CT page's own body margin and the mount root's
+ *  offsets are not contractual, and a stage whose distance-to-the-edge is approximate proves nothing about
+ *  an edge defect. Fixed coordinates are the viewport's own.
+ *
+ *  THREE ARMS:
+ *   - `edge-recentrable` — an 18×18 box wearing a 44×44 pointer ring (`::after`, the @orb/ui glyph-button
+ *     shape), parked at the BOTTOM edge of a scroll host the test scrolls it to. The host CAN scroll, so
+ *     the fix must re-centre it and measure the real 44 — the arm that proves the fix measures rather than
+ *     merely suppresses.
+ *   - `edge-fixed-ring` — the same 44×44 ring on a FIXED control clipped by the bottom edge, where no
+ *     scroll can produce a probe frame. It must never be reported as its 18×18 box; refusing is the only
+ *     honest answer, and the refusal is counted (`censusReach.frameTruncated`).
+ *   - `edge-real-subtarget` — a genuinely 18×18 control with no ring at all, mid-host with room to spare.
+ *     It must still FIRE. Without it, "no phantom" and "the rule is dead" are the same receipt. */
+export function WalkerViewportEdgeTargetStory(): ReactElement {
+  return (
+    <div>
+      {/* A 58×58 pointer ring on an 18×18 box — comfortably past the 44px floor, and past the widest
+          22px probe RADIUS with slack: an inset that puts the ring's edge exactly on the probe point is a
+          hit-test boundary case, not a measurement. Inline styles cannot express `::after`, and the whole
+          defect is that the hit area is NOT the border box. */}
+      <style>{".cbtt-ring{position:relative}.cbtt-ring::after{content:'';position:absolute;inset:-20px}"}</style>
+      {/* Fixed and exactly viewport-tall: the control's distance to the bottom edge is then a function of
+          `scrollTop` alone, which the test sets. Inset from x=0 so only the VERTICAL edge is under test —
+          `ownsPoint` refuses negative coordinates on both axes, and a stage failing for two reasons at
+          once cannot attribute either. */}
+      <div data-testid="cbtt-edge-host" style={{ height: "100vh", insetInlineStart: 60, overflow: "auto", position: "fixed", top: 0, width: 240 }}>
+        <div style={{ height: 600 }} />
+        {/* Inset 60px inside the host: `overflow: auto` CLIPS the ::after ring, so a control flush against
+            the host's own left edge loses its left probe to the clip rather than to the viewport edge —
+            two reasons to fail at once, and a stage that cannot attribute proves nothing. */}
+        <button
+          className="cbtt-ring"
+          data-testid="edge-recentrable"
+          style={{ display: "block", height: 18, marginInlineStart: 60, padding: 0, width: 18 }}
+          type="button"
+        >
+          r
+        </button>
+        <div style={{ height: 300 }} />
+        <button data-testid="edge-real-subtarget" style={{ display: "block", height: 18, padding: 0, width: 18 }} type="button">
+          s
+        </button>
+        <div style={{ height: 600 }} />
+      </div>
+      {/* Clipped by the bottom edge and fixed, so scrollIntoView moves it nowhere: unmeasurable in this
+          frame, and its 44×44 ring means the bare box would be a pure fabrication. */}
+      <button
+        className="cbtt-ring"
+        data-testid="edge-fixed-ring"
+        style={{ bottom: -6, height: 18, insetInlineStart: 400, padding: 0, position: "fixed", width: 18 }}
+        type="button"
+      >
+        f
+      </button>
+    </div>
+  );
+}
+
+/** The FORWARDING-LABEL stage (issue #797, the census's second lie). A `<label for=...>` ACTIVATES its
+ *  control from anywhere in the label, so the label's box IS the control's target — that is what WCAG
+ *  2.5.5/2.5.8 measure. The probe credited self / pseudo-element / composite hits only, so the
+ *  checkbox-leading full-row consent pattern (a 16px native checkbox in a 44px+ forwarding row) read as a
+ *  bare 16px box everywhere it is used.
+ *
+ *  FOUR ARMS — the credit, and the three ways it must not widen:
+ *   - `forwarded-checkbox` — 16px inside a 48px forwarding label. Must read ≥44.
+ *   - `unlabelled-checkbox` — 16px with no label at all. Must still FIRE (the rule stays alive).
+ *   - `misdirected-checkbox` — 16px sitting INSIDE a label whose `for` names a different control. The DOM
+ *     gives it an empty `.labels`, and crediting it would licence any checkbox in any label-shaped
+ *     wrapper. Must still FIRE.
+ *   - `shared-label-checkbox` — 16px in a forwarding label that ALSO contains its own button. The button's
+ *     pixels belong to the button; the checkbox may only claim the rest, which is under the floor here.
+ *     Must still FIRE.
+ *  Padded away from the viewport edges so the ±22px probe ring exists for every arm (#797's other half). */
+export function WalkerForwardingLabelStory(): ReactElement {
+  const box = { height: 16, margin: 0, width: 16 } as const;
+  const row = { alignItems: "center", display: "flex", gap: 12, height: 48, paddingInline: 20, width: 320 } as const;
+  // Generated ids, per the house rule. They are also what `describe()` calls VOLATILE and climbs past, so
+  // every selector below still anchors on its `data-testid` — which is what the assertions match on.
+  const uid = useId();
+  return (
+    <div style={{ padding: 48, width: 460 }}>
+      <label htmlFor={`${uid}-consent`} style={row}>
+        <input data-testid="forwarded-checkbox" id={`${uid}-consent`} style={box} type="checkbox" />
+        <span>Send me release notes</span>
+      </label>
+      <div style={{ ...row, paddingInline: 0 }}>
+        <input data-testid="unlabelled-checkbox" style={box} type="checkbox" />
+        <span>No label forwards to this one</span>
+      </div>
+      <label htmlFor={`${uid}-elsewhere`} style={row}>
+        <input data-testid="misdirected-checkbox" style={box} type="checkbox" />
+        <span>This label names another control</span>
+      </label>
+      <input id={`${uid}-elsewhere`} style={{ height: 48, width: 240 }} type="text" />
+      {/* `gap: 0` deliberately: with a gap, the checkbox's 11px/16px/22px probes land in the GAP — which
+          the label paints — and the checkbox would inherit the whole row after all. The button must abut
+          it for the "another control owns these pixels" arm to be the thing under test. */}
+      <label htmlFor={`${uid}-shared`} style={{ ...row, gap: 0 }}>
+        <input data-testid="shared-label-checkbox" id={`${uid}-shared`} style={box} type="checkbox" />
+        <button data-testid="shared-label-button" style={{ height: 44, width: 200 }} type="button">
+          Manage
+        </button>
+      </label>
     </div>
   );
 }

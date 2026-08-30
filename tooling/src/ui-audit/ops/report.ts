@@ -72,7 +72,7 @@ export function printCensusReach(reach: CensusReachInput | undefined): void {
     return;
   }
   const measured = reach.onScreen + reach.revealed;
-  const base = `REACH        ${measured}/${reach.offered} offered control(s) measured (${reach.onScreen} on screen + ${reach.revealed} revealed by ${reach.revealScrolls} scroll(s))`;
+  const base = `REACH        ${measured}/${reach.offered} offered control(s) measured (${reach.onScreen} on screen + ${reach.revealed} revealed by ${reach.revealScrolls} scroll(s), ${reach.recentred} re-centred for the hit probe)`;
   if (reach.budgetExhausted) {
     print(`${base} — BUDGET EXHAUSTED at ${reach.revealBudget} scrolls: the sweep is INCOMPLETE and the skip count below is a floor, not a total`);
   } else {
@@ -81,6 +81,14 @@ export function printCensusReach(reach: CensusReachInput | undefined): void {
   if (reach.skippedOffViewport > 0) {
     print(
       `SKIPPED      ${reach.skippedOffViewport} offered control(s) still outside the viewport after a reveal attempt (off-canvas / fixed past the edge) — no tap-target, action-door or silhouette rule judged them`,
+    );
+  }
+  // The #797 withholding, printed for the same reason SKIPPED is: a control whose hit-probe ring was cut
+  // by a viewport edge has a LOWER BOUND, not a size, and the alternative — minting a sub-target finding
+  // from it — is the phantom P1 class this counter exists to make impossible AND legible.
+  if (reach.frameTruncated > 0) {
+    print(
+      `NO FRAME     ${reach.frameTruncated} offered control(s) kept an incomplete ±22px hit-probe ring even after re-centring (clipped by a viewport edge) — their extent is a LOWER BOUND and their target-size verdict is WITHHELD, not passed`,
     );
   }
   print("");

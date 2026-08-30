@@ -57,12 +57,16 @@ function reachRows(reach: CensusReachInput | undefined): [string, number | strin
     return [
       ["reached", -1],
       ["skipped-offviewport", -1],
+      ["no-probe-frame", -1],
       ["reveal-budget", "unreported"],
     ];
   }
   return [
     ["reached", reach.onScreen + reach.revealed],
     ["skipped-offviewport", reach.skippedOffViewport],
+    // #797: measured-but-unframed is its OWN number. Folding it into `reached` would say a control was
+    // judged when its target size was refused, which is the shape of every false clean this file guards.
+    ["no-probe-frame", reach.frameTruncated],
     ["reveal-budget", reach.budgetExhausted ? "EXHAUSTED" : "ok"],
   ];
 }

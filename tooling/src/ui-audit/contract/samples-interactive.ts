@@ -1,0 +1,128 @@
+// The INTERACTIVE-CENSUS sample shapes: what the walker gathers about offered controls (tap targets,
+// accessible names, action doors, silhouettes) and how much of that population it reached.
+//
+// SPLIT OUT of contract/samples.ts (#797): that file sat EXACTLY at the 450-line tooling cap, so it had
+// no room for the truncated-extent fact these shapes needed. This is the §4.3 decomposition, by family —
+// samples.ts re-exports every name below, so no importer moves and `contract/samples.ts` remains the one
+// door onto the walker's sample vocabulary.
+
+// ── ARIA navigability ────────────────────────────────────────────────────────
+export interface TapTargetInput {
+  readonly selector: string;
+  readonly width: number;
+  readonly height: number;
+  /** The measurement is a LOWER BOUND, not a size (#797): the outward hit probe's ring was clipped by a
+   *  viewport edge — where `elementFromPoint` answers `null`, which reads as "someone else owns this" —
+   *  and no in-frame radius genuinely failed, so the control may own more than this. Set only where it can
+   *  still change a verdict (under the 44px widest floor); `checkTapTarget` withholds rather than minting a
+   *  sub-target finding from it. Optional: absent from the fixture sample sets that predate it. */
+  readonly extentTruncated?: boolean;
+}
+
+export interface AccessibleNameInput {
+  readonly selector: string;
+  readonly tag: string;
+  readonly hasVisibleText: boolean;
+  readonly ariaLabel: string | null;
+  readonly ariaLabelledbyText: string | null;
+  readonly title: string | null;
+  readonly altText: string | null;
+}
+
+export interface LandmarkInput {
+  readonly main: boolean;
+}
+
+export interface TabIndexInput {
+  readonly selector: string;
+  readonly tabIndex: number;
+}
+
+// ── Duplicate action doors — the RUNTIME half of issue #252 ─────────────────────────────────────────
+// "New chat lives in three places." The STATIC gate (`duplicate-action-doors`, tooling/src/verify/gates) censuses
+// tRPC call sites per rail section and is blind by construction to a REGISTRY-RENDERED action — one call site
+// behind N rendered slots, which is precisely how the founding complaint escapes it (its three doors all
+// call one shared state action). This lens is the other half: the same (role, accessible name) OFFERED more
+// than once on one rendered plane. Neither arm subsumes the other — the static one catches one verb wearing
+// N different labels, this one catches one label rendered N times from one verb.
+//
+// NOTHING IS HARDCODED. The key is the control's own computed name; no procedure or affordance is named here.
+//
+// THE FALSE-POSITIVE CLASS IS PER-DATUM REPETITION — twelve "Open" buttons in a chat list are twelve
+// different chats, not twelve doors to one action — and the discriminator is STRUCTURAL PATH. Per-datum
+// instances are rendered by ONE piece of code, so their paths from the root are IDENTICAL; genuinely
+// separate homes (a hero CTA, a rail button, a topbar glyph) are reached by DIFFERENT paths. A twin-SIBLING
+// count was tried first and refused with a receipt: keyed on tag+class it reads two bare wrapper divs as a
+// list and swallowed every door on a three-door stage.
+export interface ActionDoorInput {
+  readonly selector: string;
+  /** Explicit `role`, else the implicit role of the tag (`input:<type>` for inputs). */
+  readonly role: string;
+  /** The accessible name as a COMPARISON KEY: case-folded, whitespace-collapsed, trailing punctuation
+   *  stripped. Never empty — an unnamed control is the `aria-name` rule's finding, not this one. */
+  readonly name: string;
+  /** The chain of `tag@data-slot.classes` signatures from this control up to `<body>`, POSITION-FREE.
+   *  Two doors sharing a path are one component rendered per datum; two doors with different paths are two
+   *  homes. */
+  readonly path: string;
+}
+
+// ── Control silhouette (orbweaver; #430, from the side-eye #420 receipts) ────────────────────────────
+// A track control's SHAPE is an affordance: a switch reads as a switch because the track is a lane long
+// enough for the thumb to travel in. When the box collapses toward square the lane disappears and the
+// control reads as a glyph — measured live at 48x44 (aspect 1.091), which a reviewer read as a crescent
+// moon rather than a toggle (docs/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md).
+//
+// The walker censuses EVERY explicitly-roled visible element and hands the raw box over; which roles owe
+// a directional silhouette is a Node-side decision (lib/checks-a11y.ts) so the two cannot drift — a role
+// added to the verdict table needs no walker edit, which is the coupled site this shape exists to avoid.
+export interface ControlAspectInput {
+  readonly selector: string;
+  /** The element's explicit `role` attribute, trimmed and case-folded. Explicit only: an implicit role is
+   *  not a claim the author made about the control's silhouette. */
+  readonly role: string;
+  readonly width: number;
+  readonly height: number;
+  /** An animation or transition was RUNNING on this element when the box was read. A mid-flight box is a
+   *  measurement of a moment, not of a design — the check declines rather than judging it (the same
+   *  mid-transition trap that produced a retracted "widening does not restore travel" reading in #420). */
+  readonly animating: boolean;
+}
+
+// ── Census reach — the interactive census's own denominator (#653) ───────────────────────────────────
+// "nothing found" and "nothing looked at" must never render identically. The tap-target, action-door and
+// silhouette families are PAINT/OFFERED-class (`document.elementFromPoint` only answers inside the
+// viewport — see the class table in ops/walker/census-interactive.ts), and they used to drop every
+// control that was merely not scrolled to: on the chat "This chat" tab at 430x932, ~20 sized controls sat
+// at top 1073..2374 inside an inner scroller and the run still printed `findings=0`.
+//
+// The walker now SCROLLS each offered control into view, measures it under the real arm, and restores
+// every scroller. These counters are what makes the remainder legible — a reader of the RESULT line is
+// entitled to know how many controls the census could not reach, exactly as `census=` states how many
+// nodes it saw.
+export interface CensusReachInput {
+  /** Visible, non-plumbing, non-aria-hidden interactive controls the sweep considered. */
+  readonly offered: number;
+  /** Already painted when the walk reached them. */
+  readonly onScreen: number;
+  /** Brought into the viewport by the reveal sweep and measured there. */
+  readonly revealed: number;
+  /** How many `scrollIntoView` calls that took — bounded by `revealBudget`. */
+  readonly revealScrolls: number;
+  /** Still outside the viewport AFTER a reveal attempt: an off-canvas panel, a fixed layer parked past
+   *  the edge, or a control the budget ran out on. These are the ones no rule judged. */
+  readonly skippedOffViewport: number;
+  /** On screen, but without room for the ±22px hit-probe ring — scrolled to CENTRE so the extent could be
+   *  measured for real rather than read off the border box (#797). */
+  readonly recentred: number;
+  /** Measured with an INCOMPLETE probe ring even after that re-centre (a fixed control clipped by a
+   *  viewport edge), and low enough that the missing radii could still change the verdict. Their extent is
+   *  published as a lower bound and their target-size verdict is WITHHELD — never fabricated from the
+   *  border box, which is the #797 lie: an 18×18 P1 on a control owning a full 44×44 ring. */
+  readonly frameTruncated: number;
+  /** Scroll positions put back before the later segments read geometry. */
+  readonly scrollersRestored: number;
+  readonly revealBudget: number;
+  /** The budget ran out — the sweep is INCOMPLETE and `skippedOffViewport` is a floor, not a total. */
+  readonly budgetExhausted: boolean;
+}
