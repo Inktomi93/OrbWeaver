@@ -25751,29 +25751,32 @@
       "path": "docs/reviews/side-eye/2026-08-29-plugin-automation.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 203,
-      "bytes": 14216,
-      "sha256": "be1a8772247dda6bda1a1cf546e2500cdbe10622c6e337cedcdfb098bd4bdc82",
+      "lines": 222,
+      "bytes": 16162,
+      "sha256": "8f837108e228f14e92feb363ed91c43fd81d97809babe79f5b198f9d18764d8d",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "review",
-          "status": "active",
+          "status": "complete",
           "updated": "2026-08-29"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/side-eye/2026-08-29-plugin-automation.md",
-        "assignedSha256": "be1a8772247dda6bda1a1cf546e2500cdbe10622c6e337cedcdfb098bd4bdc82",
+        "assignedSha256": "8f837108e228f14e92feb363ed91c43fd81d97809babe79f5b198f9d18764d8d",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "be1a8772247dda6bda1a1cf546e2500cdbe10622c6e337cedcdfb098bd4bdc82",
-        "verifiedCommit": "c45dec5d2404c822159d303164beea2c811517c5",
+        "verifiedSha256": "8f837108e228f14e92feb363ed91c43fd81d97809babe79f5b198f9d18764d8d",
+        "verifiedCommit": "07cd01824846d051ae703180ffc083a2c739e6b0",
         "verifiedAt": "2026-08-29",
-        "evidence": ["docs/reviews/side-eye/2026-08-29-plugin-automation.md:1 (full read; the side-eye acceptance pass on the plugin/automation surfaces)"],
+        "evidence": [
+          "docs/reviews/side-eye/2026-08-29-plugin-automation.md:1 (full read; the side-eye acceptance pass on the plugin/automation surfaces)",
+          "resolution pass 2026-08-29 (07cd01824846d051ae703180ffc083a2c739e6b0, orchestrator): status active→complete; a Resolution table maps every finding to its landing commit (5e2d6b2e5; P3 run-on names re-fixed in 6a9402e94 after the first fix proved inert) with the lane cb-plugins-polish live receipts; no finding text changed"
+        ],
         "claims": [
           {
             "claim": "Plugin & automation surfaces are SHIP WITH FIXES: consent/onboarding UX is strong; confirmed defects tracked as follow-up issues.",
